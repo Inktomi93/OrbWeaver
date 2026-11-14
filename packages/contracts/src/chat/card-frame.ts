@@ -22,6 +22,10 @@ import { z } from "zod";
 /** The route prefix — the mint POSTs here, the frame document is `${CARD_FRAME_ROUTE}/<id>`. */
 export const CARD_FRAME_ROUTE = "/api/card-frame";
 
+/** How many of one account's mints may be read and parsed at once. A mint body may be several MiB, so the server
+ *  answers 429 past this and the client queues to it. */
+export const CARD_FRAME_MINTS_IN_FLIGHT = 2;
+
 /** Build the frame URL for a minted handle. One home so the client never re-spells the path. */
 export function cardFrameUrl(id: string): string {
   return `${CARD_FRAME_ROUTE}/${id}`;
@@ -35,8 +39,10 @@ export function frameDocumentUrlSchema(route: string): z.ZodCustomStringFormat<"
 // Bounds, sized to guard against abuse rather than ordinary use: each sits several times above the largest real
 // document measured, and the frame-handle store's per-user byte ceiling bounds what they retain.
 // A framed reply is a whole post-regex message rendered to markup. Measured on the public Sola V4 preset's own
-// display scripts: 74,258 chars for a reply with one tracker and 204,544 for a long scene with six.
-const MAX_HTML_CHARS = 1_000_000;
+// display scripts: 74,258 chars for a reply with one tracker, and 204,544 for a long scene with six, the largest.
+const LARGEST_MEASURED_REPLY_HTML_CHARS = 204_544;
+const HTML_HEADROOM = 10;
+const MAX_HTML_CHARS = LARGEST_MEASURED_REPLY_HTML_CHARS * HTML_HEADROOM;
 // A card's own CSS, or a framed reply's CSS: the app rules its markup can match, read from the page's own sheets.
 // Measured on the production build: 58,319 chars matched for a Sola reply. The whole app stylesheet is 388,191, so
 // a reply that sent it untrimmed is refused here.

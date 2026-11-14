@@ -170,7 +170,9 @@ export type CardFramePosture = (typeof CARD_FRAME_POSTURES)[number];
  * inside a styled reply's body (`[data-frame-reply]`), hand a link click to the embedder instead of navigating.
  * A card's own links keep the frame's navigation rules (FRAME NAVIGATION in the header). The embedder decides
  * what a link message may do: {@link readCardFrameLink} admits only an http, https or mailto address, and the
- * host opens it only through its own confirm after a user gesture.
+ * host opens it only through its own confirm after a user gesture. A document whose root carries
+ * {@link CARD_FRAME_MISSING_ATTRIBUTE} (the server's miss notice) says so once it loads, so a reply frame can mint
+ * again instead of showing the notice in place of the reply.
  * Kept to a single expression with no dependencies because its BYTES are the security boundary — the CSP
  * hash below is computed over exactly this string, so any edit (even whitespace) must recompute the digest.
  *
@@ -183,13 +185,13 @@ export type CardFramePosture = (typeof CARD_FRAME_POSTURES)[number];
  * identity, never by the message. See {@link foldCardFrameHeight}.
  */
 const CARD_FRAME_HEIGHT_SCRIPT =
-  '(function(){var last=-1;function post(){var body=document.body;if(body===null){return;}var height=body.scrollHeight;if(height!==last){last=height;parent.postMessage({orbCardFrameHeight:height},"*");}}addEventListener("DOMContentLoaded",function(){new ResizeObserver(post).observe(document.body);});addEventListener("load",post);addEventListener("click",function(event){var target=event.target;var link=target instanceof Element?target.closest("[data-frame-reply] a[href]"):null;if(link===null){return;}event.preventDefault();parent.postMessage({orbCardFrameLink:link.href},"*");},true);})();';
+  '(function(){var last=-1;function post(){var body=document.body;if(body===null){return;}var height=body.scrollHeight;if(height!==last){last=height;parent.postMessage({orbCardFrameHeight:height},"*");}}addEventListener("DOMContentLoaded",function(){new ResizeObserver(post).observe(document.body);if(document.documentElement.hasAttribute("data-frame-missing")){parent.postMessage({orbCardFrameMissing:true},"*");}});addEventListener("load",post);addEventListener("click",function(event){var target=event.target;var link=target instanceof Element?target.closest("[data-frame-reply] a[href]"):null;if(link===null){return;}event.preventDefault();parent.postMessage({orbCardFrameLink:link.href},"*");},true);})();';
 
 /** The CSP source expression pinning {@link CARD_FRAME_HEIGHT_SCRIPT} by digest. A literal, because kit is
  *  isomorphic (no `node:crypto`) and WebCrypto's digest is async — the recompute lives in the unit test,
  *  which is the gate: change the script without re-pinning and the suite REDs before the policy ships
  *  (`tests/kit/card-frame/index.test.ts`). */
-const CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH = "'sha256-Hw6Y3W/WVBKuhuvkuyNysh4ZeqnmHpctJn31ijM9I+o='";
+const CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH = "'sha256-4ilID4jDYQHYQnjZ3EbJcycmdypLYzXslPpaxaJW02M='";
 
 /** The one keyword that turns the posture into a capability. Named so the grant is greppable and so the
  *  `static` row can assert against it by identity rather than by a re-typed string. */
@@ -248,6 +250,17 @@ export type CardFrameHeightCap = keyof typeof CARD_FRAME_HEIGHT_CAPS;
 
 const HEIGHT_KEY = "orbCardFrameHeight";
 const LINK_KEY = "orbCardFrameLink";
+const MISSING_KEY = "orbCardFrameMissing";
+
+/** The root attribute that marks the server's miss notice: the handle is unknown, expired or evicted. The pinned
+ *  script reads it by this exact name. */
+export const CARD_FRAME_MISSING_ATTRIBUTE = "data-frame-missing";
+
+/** Whether one `message` payload is a frame's report that its handle is gone. UNTRUSTED like every frame message:
+ *  the caller still owes the sender check, and the worst a lying frame earns is one fresh mint of its own reply. */
+export function readCardFrameMissing(data: unknown): boolean {
+  return isPlainObject(data) && data[MISSING_KEY] === true;
+}
 // The only addresses a framed link may hand the host: a page (an absolute http or https URL with a host) or a mail
 // draft. `javascript:`, `data:`, `blob:`, a relative path and every app-internal scheme stay refused. No control
 // character or space, which a browser-normalized `href` never holds. Kit has no `URL`, so the shape is matched here.

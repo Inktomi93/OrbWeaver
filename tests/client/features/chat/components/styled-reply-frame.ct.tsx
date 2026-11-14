@@ -4,7 +4,12 @@
 // serve answered by the root's own HTTP entry. The script's `<style>` applies inside the frame and never lands in
 // the main document; with the character set to plain text the same reply renders through the inert path with no
 // style; model-written markup that no script produced keeps today's path; a link inside the frame opens only
-// through the confirm; and the frame grows with 200% and 300% text on a phone instead of clipping.
+// through the confirm, which a scripted frame can neither raise without a click in it, nor change, nor raise again
+// after a Cancel; an expired handle mints again instead of showing the expiry notice; and the frame grows with 200%
+// and 300% text on a phone instead of clipping.
+//
+// A hostile frame is played by evaluating in the frame's own document: `parent.postMessage` from there is exactly
+// what a reply's own script could send.
 import { CARD_FRAME_ROUTE, rendersTrustedHtml } from "@orb/contracts/chat";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
@@ -13,6 +18,7 @@ import { ROOM_PROCEDURES, routeAuthConfig, routeTrpc, serveCorpusProcedures } fr
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { captureCookieAuth, createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { REPLY_LINK_CONFIRM_LABEL } from "#client/features/chat/lib/reply-frame-names.ts";
 import type { RoutedCardTextScaleStory } from "./_routed-card-text-scale-stories.tsx";
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
@@ -23,6 +29,11 @@ const SANDBOX = '[data-slot="sandbox-frame"]';
 const VIEWER_PASSWORD = "styled-reply-viewer-password";
 const BANNER_COLOR = "rgb(244, 162, 97)";
 const LINK_URL = "https://example.test/sola";
+const SWAPPED_URL = "https://swapped.test/elsewhere";
+const EXTERNAL_PAGES = "https://*.test/**";
+// A well-formed handle no mint ever produced: its serve is the server's own miss notice.
+const UNKNOWN_HANDLE = "0".repeat(32);
+const FOCUS_PRESS_BUDGET = 4;
 // The shape of the Sola preset's scene banner: a `<style>` block with keyframes, an inline SVG, inline styles and
 // a `<details>` bar, all in the script's own template, with the model's attribute spliced in.
 const BANNER_TEMPLATE = [
@@ -32,6 +43,7 @@ const BANNER_TEMPLATE = [
   '<strong id="w6p-location">$1</strong>',
   '<details class="w6p-bar"><summary>Scene notes</summary><p id="w6p-notes">Hearth smoke, damp stone</p></details>',
   `<a id="w6p-link" href="${LINK_URL}">Sola hub</a>`,
+  '<a id="w6p-internal" href="/settings">Settings</a>',
   "</div>",
 ].join("");
 const BANNER_FIND = String.raw`/<scene_header location="([^"<>]*)" \/>/g`;
@@ -70,11 +82,22 @@ async function openStyledRoom(body: string): Promise<StyledRoom> {
   throw new Error("No corpus room has a reply from a character that renders trusted HTML");
 }
 
-/** Answer the card-frame mint and serve from the page with the root's own HTTP entry, under the viewer's session. */
-async function routeCardFrames(page: Page, root: Root): Promise<void> {
+interface FrameTraffic {
+  mints: number;
+}
+
+/** Answer the card-frame mint and serve from the page with the root's own HTTP entry, under the viewer's session.
+ *  The first `missServes` serves ask the root for a handle no mint produced, so they get its real miss notice. */
+async function routeCardFrames(page: Page, root: Root, missServes = 0): Promise<FrameTraffic> {
   const { cookie } = await captureCookieAuth(root, await root.principalFor(root.ownerId), VIEWER_PASSWORD);
+  const traffic: FrameTraffic = { mints: 0 };
+  let serves = 0;
   await page.route(`**${CARD_FRAME_ROUTE}**`, async (route) => {
     const request = route.request();
+    const isMint = request.method() === "POST";
+    traffic.mints += isMint ? 1 : 0;
+    const missed = !isMint && serves < missServes;
+    serves += isMint ? 0 : 1;
     const sent = await request.allHeaders();
     const headers: Record<string, string> = { cookie, forwarded: "" };
     for (const name of [CSRF_HEADER, "content-type"]) {
@@ -84,16 +107,54 @@ async function routeCardFrames(page: Page, root: Root): Promise<void> {
       }
     }
     const body = request.postData();
-    const response = await root.http.request(new URL(request.url()).pathname, { method: request.method(), headers, ...(body === null ? {} : { body }) });
+    const path = missed ? `${CARD_FRAME_ROUTE}/${UNKNOWN_HANDLE}` : new URL(request.url()).pathname;
+    const response = await root.http.request(path, { method: request.method(), headers, ...(body === null ? {} : { body }) });
     await route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body: Buffer.from(await response.arrayBuffer()) });
   });
+  return traffic;
 }
 
-async function serveRoom(page: Page, root: Root, corpus: { readonly auth: { readonly signedInConfig: Parameters<typeof routeAuthConfig>[1] } }): Promise<void> {
+interface Corpus {
+  readonly auth: { readonly signedInConfig: Parameters<typeof routeAuthConfig>[1] };
+}
+
+async function serveRoom(page: Page, root: Root, corpus: Corpus, missServes = 0): Promise<FrameTraffic> {
   const caller = await root.internalCallerFor(root.ownerId);
   await routeAuthConfig(page, corpus.auth.signedInConfig);
   await routeTrpc(page, serveCorpusProcedures(caller, TRANSCRIPT_READS));
-  await routeCardFrames(page, root);
+  return await routeCardFrames(page, root, missServes);
+}
+
+/** Every external page a popup asked for: `window.open` from the confirm lands here instead of the network. */
+async function recordExternalPages(page: Page): Promise<string[]> {
+  const opened: string[] = [];
+  await page.context().route(EXTERNAL_PAGES, async (route) => {
+    opened.push(route.request().url());
+    await route.fulfill({ status: 200, contentType: "text/html", body: "" });
+  });
+  return opened;
+}
+
+let barrierPx = 100_000;
+
+/** Post `message` from inside the reply frame, as the reply's own script could, and wait until the host has handled
+ *  it: a height report posted right after it from the same window is handled after it, and its growth is visible. */
+async function postFromFrame(page: Page, message: Readonly<Record<string, unknown>>): Promise<void> {
+  barrierPx += 1000;
+  const px = barrierPx;
+  await page
+    .frameLocator(`${REPLY_FRAME} ${SANDBOX}`)
+    .locator("html")
+    .evaluate(
+      (_node, { posted, height }) => {
+        parent.postMessage(posted, "*");
+        parent.postMessage({ orbCardFrameHeight: height }, "*");
+      },
+      { posted: message, height: px },
+    );
+  await expect
+    .poll(async () => await page.locator(`${REPLY_FRAME} ${SANDBOX}`).evaluate((node) => node.getBoundingClientRect().height))
+    .toBeGreaterThanOrEqual(px);
 }
 
 /** Every `<style>` text in the MAIN document — the frame's document is a separate one and is never read here. */
@@ -158,6 +219,87 @@ test("a link inside the frame opens nothing until the confirm, which names the a
   await expect(confirm).toBeVisible();
   await expect(confirm).toContainText(LINK_URL);
   expect(page.context().pages()).toHaveLength(before);
+});
+
+test("a frame's link message raises nothing unless the click was in that frame", async ({ corpus, mount, page }) => {
+  const room = await openStyledRoom(STYLED_BODY);
+  await using root = room.root;
+  await serveRoom(page, root, corpus);
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  await expect(page.frameLocator(`${REPLY_FRAME} ${SANDBOX}`).locator("#w6p-link")).toBeVisible();
+  // A click elsewhere in the app gives the page a live activation; the frame then posts a link on its own.
+  await page.locator('[data-slot="message-bubble"] p').first().click();
+  await postFromFrame(page, { orbCardFrameLink: SWAPPED_URL });
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  // Positive control: a click on the frame's own link still raises the confirm.
+  await page.frameLocator(`${REPLY_FRAME} ${SANDBOX}`).locator("#w6p-link").click();
+  await expect(page.getByRole("alertdialog")).toContainText(LINK_URL);
+});
+
+test("an open confirm keeps its address, and Open opens exactly the address it shows", async ({ corpus, mount, page }) => {
+  const room = await openStyledRoom(STYLED_BODY);
+  await using root = room.root;
+  await serveRoom(page, root, corpus);
+  const opened = await recordExternalPages(page);
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  await page.frameLocator(`${REPLY_FRAME} ${SANDBOX}`).locator("#w6p-link").click();
+  const confirm = page.getByRole("alertdialog");
+  await expect(confirm).toContainText(LINK_URL);
+  // The frame still holds focus and the click's activation is live: the strongest moment for a swap.
+  await postFromFrame(page, { orbCardFrameLink: SWAPPED_URL });
+  await expect(confirm).toContainText(LINK_URL);
+  await expect(confirm).not.toContainText(SWAPPED_URL);
+  await confirm.getByRole("button", { name: REPLY_LINK_CONFIRM_LABEL, exact: true }).click();
+  await expect.poll(() => [...opened]).toEqual([LINK_URL]);
+});
+
+test("after a Cancel the frame's links raise nothing until it remounts", async ({ corpus, mount, page }) => {
+  const room = await openStyledRoom(STYLED_BODY);
+  await using root = room.root;
+  await serveRoom(page, root, corpus);
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  const link = page.frameLocator(`${REPLY_FRAME} ${SANDBOX}`).locator("#w6p-link");
+  await link.click();
+  const confirm = page.getByRole("alertdialog");
+  await expect(confirm).toBeVisible();
+  await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(confirm).toHaveCount(0);
+  await link.click();
+  await postFromFrame(page, { orbCardFrameLink: SWAPPED_URL });
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+});
+
+test("a link to the app's own origin never reaches the confirm", async ({ corpus, mount, page }) => {
+  const room = await openStyledRoom(STYLED_BODY);
+  await using root = room.root;
+  await serveRoom(page, root, corpus);
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  await page.frameLocator(`${REPLY_FRAME} ${SANDBOX}`).locator("#w6p-internal").click();
+  await postFromFrame(page, {});
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  // Positive control: the external link in the same frame still reaches it.
+  await page.frameLocator(`${REPLY_FRAME} ${SANDBOX}`).locator("#w6p-link").click();
+  await expect(page.getByRole("alertdialog")).toContainText(LINK_URL);
+});
+
+test("an expired frame handle mints again and the reply draws, never the expiry notice", async ({ corpus, mount, page }) => {
+  const room = await openStyledRoom(STYLED_BODY);
+  await using root = room.root;
+  const traffic = await serveRoom(page, root, corpus, 1);
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  await expect(page.frameLocator(`${REPLY_FRAME} ${SANDBOX}`).locator("#w6p-location")).toHaveText("Camelot · Great Hall");
+  expect(traffic.mints).toBe(2);
+});
+
+test("a handle that is gone again after its fresh mint leaves the reply on the inert path", async ({ corpus, mount, page }) => {
+  const room = await openStyledRoom(STYLED_BODY);
+  await using root = room.root;
+  const traffic = await serveRoom(page, root, corpus, 2);
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  await expect(page.locator(`${REPLY_FRAME}[data-delivery="fallback"]`)).toBeVisible();
+  await expect(page.locator(SANDBOX)).toHaveCount(0);
+  await expect(page.getByText("Camelot · Great Hall", { exact: true })).toBeVisible();
+  expect(traffic.mints).toBe(2);
 });
 
 test("the framed prose reads in the transcript's own type: the app stylesheet and tokens reach the frame", async ({ corpus, mount, page }) => {
@@ -228,19 +370,22 @@ test("focus moves through the frame and out again in both directions, never trap
   await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
   const link = page.frameLocator(`${REPLY_FRAME} ${SANDBOX}`).locator("#w6p-link");
   await expect(link).toBeVisible();
-  const leaves = async (key: string): Promise<boolean> => {
+  // The frame holds three stops (the notes summary and two links): a few presses either way must leave it.
+  const pressesToLeave = async (key: string): Promise<number> => {
     await link.focus();
-    await page.keyboard.press(key);
-    return await page.evaluate(
-      () => document.activeElement !== null && document.activeElement.tagName !== "IFRAME" && document.activeElement !== document.body,
-    );
+    for (let presses = 1; presses <= FOCUS_PRESS_BUDGET; presses += 1) {
+      await page.keyboard.press(key);
+      const outside = await page.evaluate(
+        () => document.activeElement !== null && document.activeElement.tagName !== "IFRAME" && document.activeElement !== document.body,
+      );
+      if (outside) {
+        return presses;
+      }
+    }
+    return Number.POSITIVE_INFINITY;
   };
-  // The summary sits before the link inside the frame, so one Shift+Tab stays in; a second must leave.
-  expect(await leaves("Tab")).toBe(true);
-  await link.focus();
-  await page.keyboard.press("Shift+Tab");
-  await page.keyboard.press("Shift+Tab");
-  expect(await page.evaluate(() => document.activeElement?.tagName !== "IFRAME" && document.activeElement !== document.body)).toBe(true);
+  expect(await pressesToLeave("Tab")).toBeLessThanOrEqual(FOCUS_PRESS_BUDGET);
+  expect(await pressesToLeave("Shift+Tab")).toBeLessThanOrEqual(FOCUS_PRESS_BUDGET);
 });
 
 for (const fontScale of [2, 3] as const) {

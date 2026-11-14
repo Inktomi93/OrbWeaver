@@ -11,7 +11,13 @@
 // measured height as its first height, so the swap does not jump the transcript before the frame measures itself.
 //
 // A link clicked inside the frame reaches the host through `SandboxFrame.onLink` (sender checked, address vetted,
-// a live user activation required) and opens only through the confirm below.
+// off the app's origin, a live user activation and a click in this frame required) and opens only through the
+// confirm below. An open confirm keeps the address it shows, and Open opens exactly that string: a frame that
+// posts again cannot change it. A Cancel mutes this frame's links until it remounts, so a scripted frame cannot
+// raise the confirm again and again.
+//
+// A HANDLE THAT IS GONE (expired, or evicted under store pressure) loads the server's miss notice, which says so.
+// The frame then mints again once; a second miss renders the inert fallback, never the notice in place of the reply.
 
 import { FrameMarkdown, useFrameDocument } from "@orb/ui/frame-markdown";
 import { Stack } from "@orb/ui/layout";
@@ -74,6 +80,8 @@ export function ReplyFrame({ segments, colorQuotes, cardOrigin, speakerName, fal
     (html) => (host.current === null ? undefined : { html, look: resolveFrameReplyLook(host.current, html) }),
   );
   const built = framed.state === "ready" ? framed.value : undefined;
+  const [attempt, setAttempt] = useState(0);
+  const [lost, setLost] = useState(false);
   const mint = useCardFrameMint(
     cardOrigin === undefined || built === undefined
       ? undefined
@@ -87,10 +95,14 @@ export function ReplyFrame({ segments, colorQuotes, cardOrigin, speakerName, fal
           fontFamily: sandbox.fontFamily,
           rootAttributes: built.look.rootAttributes,
         },
+    attempt,
   );
-  const routed = mint.state === "routed";
+  const routed = mint.state === "routed" && !lost;
   const [fallbackPx, setFallbackPx] = useState<number | undefined>(undefined);
   const [pendingLink, setPendingLink] = useState<string | undefined>(undefined);
+  const [linksMuted, setLinksMuted] = useState(false);
+  // Set by Open and read by the close that follows it, so only a Cancel mutes the frame's links.
+  const opened = useRef(false);
 
   // The fallback's height, kept while it shows, so the frame that replaces it starts at the same size.
   useEffect(() => {
@@ -109,13 +121,24 @@ export function ReplyFrame({ segments, colorQuotes, cardOrigin, speakerName, fal
 
   return (
     <div ref={host} data-slot="reply-frame" data-delivery={routed ? "routed" : "fallback"}>
-      {mint.state === "routed" ? (
+      {mint.state === "routed" && !lost ? (
         <SandboxFrame
           src={mint.url}
           html=""
           title={speakerName === undefined || speakerName === "" ? REPLY_FRAME_UNNAMED_TITLE : speakerName}
           holds="reply"
-          onLink={setPendingLink}
+          onLink={(url): void => {
+            if (!linksMuted) {
+              setPendingLink((current) => current ?? url);
+            }
+          }}
+          onMissing={(): void => {
+            if (attempt === 0) {
+              setAttempt(1);
+            } else {
+              setLost(true);
+            }
+          }}
           {...(fallbackPx === undefined ? {} : { heightPx: fallbackPx })}
         />
       ) : (
@@ -131,12 +154,16 @@ export function ReplyFrame({ segments, colorQuotes, cardOrigin, speakerName, fal
           open={true}
           onOpenChange={(open): void => {
             if (!open) {
+              if (!opened.current) {
+                setLinksMuted(true);
+              }
+              opened.current = false;
               setPendingLink(undefined);
             }
           }}
           onConfirm={(): void => {
+            opened.current = true;
             window.open(pendingLink, LINK_TARGET, LINK_FEATURES);
-            setPendingLink(undefined);
           }}
         />
       )}

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import {
   buildCardFrameCsp,
   buildCardFrameDocument,
+  CARD_FRAME_MISSING_ATTRIBUTE,
   CARD_FRAME_SAFE_FLOOR,
   CARD_FRAME_SANDBOX,
   CARD_FRAME_STYLE_TOKEN,
@@ -12,6 +13,7 @@ import {
   clampCardFrameThemeTokens,
   foldCardFrameHeight,
   readCardFrameLink,
+  readCardFrameMissing,
 } from "@orb/kit/card-frame";
 import { expect, test } from "@orb/testkit/node";
 
@@ -179,6 +181,17 @@ test("the theme slice keeps to the token limits the mint parses with, so a clamp
   const many = Object.fromEntries(Array.from({ length: count + 1 }, (_, index) => [`--t${index}`, "#336699"]));
   expect(clampCardFrameThemeTokens({ [longName]: "#336699", "--ok": "#336699" })).toEqual({ "--ok": "#336699" });
   expect(Object.keys(clampCardFrameThemeTokens(many))).toHaveLength(count);
+});
+
+test("a frame reports a missing handle only from a document whose root carries the miss attribute", () => {
+  const missing = buildCardFrameDocument({ ...CONTENT, rootAttributes: { [CARD_FRAME_MISSING_ATTRIBUTE]: "" } });
+  expect(missing).toContain(`<html ${CARD_FRAME_MISSING_ATTRIBUTE}="">`);
+  // The pinned script reads the attribute by the same name the server writes.
+  expect(missing).toContain(`hasAttribute("${CARD_FRAME_MISSING_ATTRIBUTE}")`);
+  expect(readCardFrameMissing({ orbCardFrameMissing: true })).toBe(true);
+  for (const garbage of [null, true, { orbCardFrameMissing: "true" }, { orbCardFrameHeight: 40 }]) {
+    expect(readCardFrameMissing(garbage), JSON.stringify(garbage)).toBe(false);
+  }
 });
 
 test("a framed link reaches the host only as an absolute http, https or mailto address", () => {
