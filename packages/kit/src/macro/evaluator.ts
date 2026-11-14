@@ -112,7 +112,8 @@ function checkArgs(ctx: MacroContext, meta: MacroMetadata | undefined, call: Del
 // (`~`/`>`, and `#` on an inline call) are parse-and-carry NO-OPS — the call evaluates as if
 // unflagged.
 function evalKnownCall(handler: MacroHandler, node: MacroCallNode, registry: MacroRegistry, ctx: MacroContext): string {
-  const delivered = lazyArgs(node, registry) ? [...node.args] : node.args.map((arg) => resolveArg(arg, ctx));
+  const argsRaw = lazyArgs(node, registry);
+  const delivered = argsRaw ? [...node.args] : node.args.map((arg) => resolveArg(arg, ctx));
   const meta = registry.getMetadata(node.name);
   const padded = applyArgDefaults(meta, delivered);
   if (checkArgs(ctx, meta, { node, args: padded, contentArgs: 0 })) {
@@ -120,6 +121,7 @@ function evalKnownCall(handler: MacroHandler, node: MacroCallNode, registry: Mac
   }
   // Locate the handler at its call span so a diagnostic-emitting handler ({{expr::…}}) can attach it.
   ctx.__currentSpan = node.span;
+  ctx.__delivered = { raw: argsRaw, given: node.args.length, block: false };
   // documented fail-open policy below — consumed
   // via ctx.onWarn?.() and a literal `{{name}}` fallback. Ends if the handler stops calling onWarn.
   try {
@@ -175,6 +177,7 @@ interface KnownBlockEvaluation {
   readonly metadata: MacroMetadata | undefined;
   readonly options: MacroRegisterOptions | undefined;
   readonly resolvedArgs: readonly string[];
+  readonly argsRaw: boolean;
   readonly context: MacroContext;
 }
 
@@ -183,15 +186,18 @@ function postProcessBlock(value: string, context: MacroContext): string {
 }
 
 function evaluateKnownBlock(input: KnownBlockEvaluation): string {
-  const { handler, node, metadata, options, resolvedArgs, context } = input;
+  const { handler, node, metadata, options, resolvedArgs, argsRaw, context } = input;
   if (options?.blockChildren === true) {
     const padded = applyArgDefaults(metadata, [...resolvedArgs]);
     if (checkArgs(context, metadata, { node, args: padded, contentArgs: 0 })) {
       return "";
     }
+    context.__delivered = { raw: argsRaw, given: node.args.length, block: true };
     return postProcessBlock(handler(padded, context, node.children), context);
   }
   const content = context.resolve(node.children, { trim: node.flags?.preserveWhitespace !== true });
+  // After the body resolved: a call inside it set this for itself.
+  context.__delivered = { raw: argsRaw, given: node.args.length, block: true };
   if (options?.blockContentAfterDeclaredArgs === true && metadata !== undefined && !metadata.variadic) {
     const declared = resolvedArgs.slice(0, metadata.args.length);
     const extras = resolvedArgs.slice(metadata.args.length);
@@ -212,12 +218,13 @@ function evaluateKnownBlock(input: KnownBlockEvaluation): string {
 function evalKnownBlock(handler: MacroHandler, node: MacroBlockNode, registry: MacroRegistry, ctx: MacroContext): string {
   const meta = registry.getMetadata(node.name);
   const options = registry.getOptions(node.name);
-  const resolvedArgs = lazyArgs(node, registry) ? [...node.args] : node.args.map((arg) => resolveArg(arg, ctx));
+  const argsRaw = lazyArgs(node, registry);
+  const resolvedArgs = argsRaw ? [...node.args] : node.args.map((arg) => resolveArg(arg, ctx));
   ctx.__currentSpan = node.span;
   // same fail-open policy as evalKnownCall — consumed
   // via ctx.onWarn?.() plus a reconstructed open-tag fallback. Ends if the handler stops calling onWarn.
   try {
-    return evaluateKnownBlock({ handler, node, metadata: meta, options, resolvedArgs, context: ctx });
+    return evaluateKnownBlock({ handler, node, metadata: meta, options, resolvedArgs, argsRaw, context: ctx });
   } catch (err) {
     // FAIL-OPEN, and this is what "open" has to mean for a BLOCK. This used to return the open
     // tag alone, and the comment justified it as "the same fail-open policy as inline calls" — but those

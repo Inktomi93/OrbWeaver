@@ -1,8 +1,8 @@
 ---
 kind: plan
 status: active
-updated: 2026-11-06
-rank: 9
+updated: 2026-11-14
+rank: 10
 ---
 
 # Automated product surface review
@@ -288,8 +288,8 @@ The fixture sets production-derived display preferences before browser navigatio
 | Reports | Native list, JSON, blob, HTML and traces. The primary Markdown entry routes public native errors, steps and original attachments; no additional finding model or GitHub upload. |
 | Deadlines | Native global timeout owns the execution budget. The outer process allows only a separate report/teardown reserve and retains its complete transcript. |
 | Graphics | Shared native launch profile; record the actual browser's acceleration evidence independently from host timing capability. |
-| Portability | Functional runs target Linux, macOS, and Windows. Hardware discovery may remain unavailable without failing a functional journey. |
-| Private directories | POSIX ownership/mode checks and Windows per-user-profile custody have different guarantees; record the effective assumption. |
+| Portability | Functional runs are qualified on Linux only; "Portability acceptance" lists the unqualified platforms. Hardware discovery may remain unavailable without failing a functional journey. |
+| Private directories | POSIX ownership/mode checks have run on Linux. Windows per-user-profile custody has a different guarantee and has not run; record the effective assumption. |
 
 ## Excluded diagnostics
 
@@ -337,8 +337,17 @@ Linked specifications, the complete vendor websites, every rule implementation, 
 
 ## Portability acceptance
 
-Run functional synthetic journeys and framework controls on each claimed operating system.
-Exercise path handling, temporary directories, native process cleanup, browser startup, and local artifact custody there.
+The walkthrough is qualified on Linux only. The launcher and the configuration refuse CI, so no hosted workflow runs it on another system.
+
+| Platform | State | A qualifying run |
+| - | - | - |
+| Linux | Run | None owed. |
+| Native macOS | Unqualified | `pnpm e2e:surface --data=synthetic --auth=local` and `pnpm e2e:surface:controls` on a macOS host, with each `agent-entry.md` outcome recorded. |
+| Native Windows | Unqualified | The same two commands on a Windows host, with per-user-profile custody of the private parent recorded. |
+| Real-device iOS gestures | Unqualified | Swipe, overscroll and soft-keyboard behavior in Safari on a physical iPhone, with results recorded. The WebKit phone projects run Playwright's WebKit with an iPhone descriptor, which does not prove them. |
+
+The product still ships native Windows and macOS builds; this table qualifies the walkthrough only.
+A qualifying run exercises path handling, temporary directories, native process cleanup, browser startup, and local artifact custody on that system.
 Do not infer macOS or Windows acceptance from Linux source checks.
 Record owner snapshot intake and controlled external-execution support separately from ordinary functional portability.
 Keep unavailable GPU discovery and unqualified timing explicit while preserving functional execution.

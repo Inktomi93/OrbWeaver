@@ -2,7 +2,7 @@
 kind: plan
 status: parked
 updated: 2026-11-12
-rank: 12
+rank: 13
 blocked: owner
 ---
 

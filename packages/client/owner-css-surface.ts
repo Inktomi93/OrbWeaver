@@ -634,7 +634,6 @@ export const OWNER_CSS_SLOTS = [
   "rpg-inventory-tab",
   "rpg-journal-tab",
   "rpg-known-characters",
-  "rpg-map-tab",
   "rpg-mark-row",
   "rpg-mark-trigger",
   "rpg-pack-cell",

@@ -1,10 +1,10 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-13
+updated: 2026-11-14
 priority: P3
 area: security
-plan: checked-law
+plan: typed-enforcers
 ---
 
 # One environment builder serves every inheriting spawn, and a lint refuses a spawn with no env

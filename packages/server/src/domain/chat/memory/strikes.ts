@@ -1,8 +1,8 @@
 // domain/chat/memory/strikes — the memory view's read and the host's strike and restore, run after the verbs' gates
 // (`verbs/memory-strikes.ts`) through `ChatContext.memoryStrikes`.
 //
-// A STRIKE NAMES A SPAN OF THE STORY. Recall leaves out every bucket's summary of a struck span and every longer
-// summary retelling one (`matchStrikes` in `packages/kit/src/recall/index.ts`). So the view shows one struck entry per
+// A STRIKE NAMES A SPAN OF THE STORY. Recall leaves out every bucket's summary of a struck span and every other
+// summary holding a struck turn (`matchStrikes` in `packages/kit/src/recall/index.ts`). So the view shows one struck entry per
 // span (the item the host struck, else the first listed copy, else the shortest summary still retelling it once the
 // scene's own summaries are gone) and marks every other item left out `retellsStruck`; a strike whose stored
 // character is null (the shared bucket, or a character since deleted) is carried by the shared copy. A strike on an
@@ -22,19 +22,28 @@
 // of the same messages stays struck (`chat_memory_strikes` in `packages/db/src/schema/chat.ts`). The one place a
 // strike leaves the prompt is recall (`dropStruck` in `recall/recall.ts`).
 //
+// A MEMBER'S DELETE NEVER LIFTS A STRIKE. Every writer stores the endpoints' seqs beside their ids, and the host's
+// reorder re-stamps them; an endpoint whose message is gone resolves to its stored seq (`resolveStrikeSpan` in
+// `packages/kit/src/recall/index.ts`), so the struck turns that survive stay inside the span. A delete at the tail
+// frees its seq for the next append, which the span then covers too: over-dropping is the safe side.
+//
 // A FORK RE-KEYS EACH STRIKE ONTO EVERY FORK POSITION ITS SPAN OVERLAPS. The fork slices its own grid from its first
 // copied ingestible message, so under a history floor its blocks cut the story at other seqs than the room's. A strike
 // of tier k lands on every complete tier-k position of the fork (tier-0 blocks, and the arcs `tier0RangeOf` builds from
 // them) whose seq span shares a seq with the strike's span; a strike that overlaps no fork position (wholly below the
 // floor, or wholly past the fork point) is not carried. Tiers do not cross: a fork arc holding a re-keyed block is left
-// out by `matchStrikes`'s containment rule. The one position still open at the fork (a partial last block, or an arc
+// out by `matchStrikes`'s overlap rule. The one position still open at the fork (a partial last block, or an arc
 // missing a child) has no end message yet, so the strike lands there on just the struck turns the fork copied into it;
-// the block that later closes around them contains that span and is left out by the same rule. This holds whatever
+// the block that later closes around them holds that span and is left out by the same rule. This holds whatever
 // shortens the copied tail: a fork point, rows hidden from the prompt, or a verbatim window under the block size.
 // The grid uses the forker's memory config, since the forker hosts the fork.
 // When several strikes land on one position, the one whose whole span the fork copied wins, else the oldest: the winner's
 // anchor and hash then still name a scene the fork holds. The content hash carries, so an unmoved scene's summary reads
 // as unchanged since the strike.
+//
+// A GRID THAT MOVES IN PLACE RE-KEYS NOTHING. A block size change or a hide re-slices a room's blocks with no write to
+// its strikes; `matchStrikes` leaves out every summary holding a struck turn, so the strike still holds, and the first
+// listed of the lowest tier carries it in the view.
 //
 // A FORKER NEVER READS AN ANCHOR THAT RETELLS TURNS BELOW THEIR FLOOR. A carried strike whose span the fork did not copy
 // whole keeps no topic anchor: the forker hosts the fork and reads its unmatched list, so the anchor would retell turns
@@ -247,7 +256,7 @@ export async function writeMemoryStrike(
   }
   const cfg = resolveCfg(await ctx.resolveMemoryConfig(hostUserId));
   const [resolved] = await resolveDigestSpans(ctx.db, chatId, [digest], cfg.fanOut);
-  if (resolved === undefined || resolved.span === null) {
+  if (resolved === undefined || resolved.span === null || resolved.seqSpan === null) {
     throw stale(chatId);
   }
   const span = { tier: digest.tier, messageStartId: resolved.span.startId, messageEndId: resolved.span.endId };
@@ -259,6 +268,7 @@ export async function writeMemoryStrike(
   const strikeId = ctx.newMemoryStrikeId();
   const row = {
     ...span,
+    ...resolved.seqSpan,
     scopedCharacterId: digest.scopedCharacterId === sharedBucket ? null : digest.scopedCharacterId,
     id: strikeId,
     chatId,
@@ -337,9 +347,6 @@ function carryStrikes(strikes: readonly Strike[], copiedWhole: (strike: Strike) 
   const carried = new Map<string, CarriedStrike>();
   for (const strike of strikes) {
     const span = strike.seqSpan;
-    if (span === null) {
-      continue;
-    }
     const whole = copiedWhole(strike);
     const grid = tierAt(strike.tier);
     const overlapped = grid.complete.filter((position) => position.first.seq <= span.seqEnd && position.last.seq >= span.seqStart);
@@ -384,6 +391,8 @@ export async function forkMemoryStrikes(ctx: ChatContext, args: Parameters<Memor
     tier,
     messageStartId: position.first.id,
     messageEndId: position.last.id,
+    seqStart: position.first.seq,
+    seqEnd: position.last.seq,
     contentHash: strike.contentHash,
     topicAnchor: whole ? strike.topicAnchor : null,
     createdAt: args.createdAt,
