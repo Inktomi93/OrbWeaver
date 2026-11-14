@@ -14,6 +14,8 @@
 // constraint that keeps `PortableEntity.exportAll` signal-free in `@orb/contracts/portability`.
 
 import type {
+  ModelCallCount,
+  PriorStageCount,
   ReportProgress,
   WorkloadEstimateScope,
   WorkloadKind,
@@ -84,9 +86,16 @@ export interface WorkloadContribution<K extends WorkloadKind = WorkloadKind> {
    * How many Utility-model calls a run over this scope would make, counted by the owning domain WITHOUT running
    * or writing anything, so a person confirms a library-wide paid run knowing its size. `ownerId` is the row's
    * enumeration scope (`null` = the bulk pass) and `funderUserId` is whose Utility model the run would spend.
-   * OMIT IT when the kind makes no generative model call.
+   * OMIT IT when the kind makes no generative model call. `before` holds the stages a confirmed chain runs ahead of
+   * this one, in order, each with its own count; a stage that grows this kind's input makes the count a ceiling.
    */
-  readonly modelCalls?: (args: WorkloadEstimateScope & { readonly funderUserId: UserId | null; readonly params: WorkloadParamsByKind[K] }) => Promise<number>;
+  readonly modelCalls?: (
+    args: WorkloadEstimateScope & {
+      readonly funderUserId: UserId | null;
+      readonly params: WorkloadParamsByKind[K];
+      readonly before: readonly PriorStageCount[];
+    },
+  ) => Promise<ModelCallCount>;
   readonly resume: WorkloadResumePolicy;
   /**
    * The kinds this one must never run BESIDE, for any owner, on any lane or replica (D334). The exclusion binds

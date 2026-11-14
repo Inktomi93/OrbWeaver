@@ -67,7 +67,9 @@ export function useModelRunConfirm(): {
       await held.run();
       return;
     }
-    setPending({ ...held, calls });
+    // One stage counted at its ceiling makes the whole run's count an upper bound.
+    const bound = answers.some((answer) => answer.bound === "ceiling") ? "ceiling" : "exact";
+    setPending({ ...held, calls: { calls, bound } });
   };
   return {
     confirmThen,

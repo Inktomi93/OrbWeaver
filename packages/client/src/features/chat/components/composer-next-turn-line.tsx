@@ -40,7 +40,6 @@ export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextT
   const connections = useCreditConnections();
   const line = nextTurnLine({
     viewerIsHost,
-    chatFailed: chat.isError,
     availabilityCause: availability.cause,
     resolved: resolve.data ?? undefined,
     resolveFailed: resolve.isError,

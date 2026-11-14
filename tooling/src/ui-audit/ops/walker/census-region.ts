@@ -25,11 +25,26 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
   //
   // ONLY THE LOW SIDE, and only on a region that is NOT scrolled: content past the fold is a scroll, not
   // a void, and the region legitimately continues below the measured box.
+  //
+  // A REGION THAT ENDS IN ITS MEMBER ROWS IS SIZED BY ITS DATA. A LIST pane and a library landing end where
+  // the user's rows end, and the shell, not the region, gives them their height, so a short list is no void
+  // the region could fill without inventing content. A member row is the ListRow primitive or a listbox
+  // option; a bulleted list of prose lines is prose and still counts, as does an ending in a glance.
   var paneInks = [];
   var INK_MIN_HEIGHT_PX = 400;
   var INK_MIN_LEAVES = 3;
   var INK_SCROLL_TOLERANCE_PX = 4;
   var INK_RATIO_SCALE = 100;
+  var INK_MEMBER_ROW_SELECTOR = '[data-slot="list-row-root"],[role="option"]';
+  var INK_MEMBER_LIST_SELECTOR = 'ul,ol,[role="list"],[role="listbox"]';
+
+  function endsInMemberRows(pane, inkOwner) {
+    if (inkOwner === null) return false;
+    var row = inkOwner.closest(INK_MEMBER_ROW_SELECTOR);
+    if (row !== null && pane.contains(row)) return true;
+    var list = inkOwner.closest(INK_MEMBER_LIST_SELECTOR);
+    return list !== null && pane.contains(list) && list.querySelector(INK_MEMBER_ROW_SELECTOR) !== null;
+  }
 
   // localName, because tagName is uppercased only for HTML-namespace elements and an inline svg keeps its case.
   var DESIGNED_MEDIA_NAMES = { img: 1, svg: 1, canvas: 1, video: 1, picture: 1 };
@@ -62,6 +77,7 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
       continue;
     }
     var lowest = prect.top;
+    var inkOwner = null;
     var textLeaves = 0;
     var designedSubjects = 0;
     var textWalker = document.createTreeWalker(pane, NodeFilter.SHOW_TEXT);
@@ -75,7 +91,10 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
         if (textRect.width > 0 && textRect.height > 0) {
           textLeaves += 1;
           designedSubjects += 1;
-          if (textRect.bottom > lowest) lowest = textRect.bottom;
+          if (textRect.bottom > lowest) {
+            lowest = textRect.bottom;
+            inkOwner = textParent;
+          }
         }
       }
       textNode = textWalker.nextNode();
@@ -87,10 +106,17 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
       var lrect = leaf.getBoundingClientRect();
       if (lrect.width <= 0 || lrect.height <= 0) continue;
       designedSubjects += 1;
-      if (lrect.bottom > lowest) lowest = lrect.bottom;
+      if (lrect.bottom > lowest) {
+        lowest = lrect.bottom;
+        inkOwner = leaf;
+      }
     }
     if (textLeaves < INK_MIN_LEAVES) {
       excludeRelational(relationalAccounting["pane-ink"], "insufficientText");
+      continue;
+    }
+    if (endsInMemberRows(pane, inkOwner)) {
+      excludeRelational(relationalAccounting["pane-ink"], "memberList");
       continue;
     }
     paneInks.push({

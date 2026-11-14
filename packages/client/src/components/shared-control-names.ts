@@ -12,6 +12,9 @@ export const TAG_EDITOR_NAME_FIELD_NAME = "Name";
 /** The background picker's door to the URL entry. */
 export const BACKGROUND_FROM_URL_NAME = "From a URL…";
 
+/** The background picker's door to Settings, where a background is added. */
+export const BACKGROUND_ADD_IN_SETTINGS_NAME = "Add your own in Settings";
+
 /** The background picker's tile grid, mounted by the character look tab and the chat room overrides. */
 export const BACKGROUND_GRID_NAME = "Background";
 

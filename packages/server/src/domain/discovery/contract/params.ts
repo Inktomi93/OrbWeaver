@@ -24,6 +24,9 @@ export type ComputeThemesOptions = WorkloadRunScope & {
 /** Count-only clustering inputs; cannot be supplied to the executing theme pass. */
 export type ThemeNameEstimateOptions = WorkloadEstimateScope & Pick<ComputeThemesOptions, "k" | "seed">;
 
+/** The ceiling counts at the cluster count the run will use, which the workload always resolves before it asks. */
+export type ThemeNameCeilingOptions = WorkloadEstimateScope & { readonly k: number };
+
 /** Options for the `compute*HubScores` passes. `denseMax` forces the streaming branch on a small fixture. */
 export type ComputeHubScoresOptions = WorkloadRunScope & {
   readonly k?: number;

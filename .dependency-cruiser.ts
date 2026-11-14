@@ -146,6 +146,8 @@ const MOUNT_HELPER_FILES = {
   "^tests/client/features/chat/components/_chat-room-shell-names\\.ts$": "the room name the chat room shell story authors and the pagination suite reads",
   "^tests/ui/content/theme-scope/contrast-cases\\.ts$": "the tone-mark accents the tone-mark story renders and its spec judges",
   "^tests/ui/primitives/list-row/state-attribute-cases\\.ts$": "the selected row title the state-attribute story authors and its spec reads",
+  "^tests/ui/primitives/toast/one-alert-names\\.ts$": "the control name and notice title the one-alert story authors and its spec locates them by",
+  "^tests/ui/primitives/tooltip/keyboard-focus-names\\.ts$": "the control names and hints the tooltip rail story authors and its focus spec locates them by",
   "^tests/ui/primitives/virtual-list/virtual-list-cases\\.ts$": "the long-list row count the virtual-list stories mount and their spec passes",
 } as const satisfies Readonly<Record<string, string>>;
 // The only files of a browser package outside `src/` that its `src/` imports; each is judged by a reachable rule.
@@ -419,6 +421,7 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/domain/plugin/contract/errors.ts": "PluginNotFoundError: the refusal class plugin seed cases assert",
   "packages/server/src/domain/plugin/substrate/plugin-macros.ts": "pluginMacroName: the token rule for a plugin's registered macro",
   "packages/server/src/domain/plugin/substrate/snippet-gate.ts": "SNIPPET_CONCURRENCY_PER_USER: the admission ceiling a release case must exceed",
+  "packages/server/src/domain/plugin/substrate/surface-state.ts": "PLUGIN_SURFACE_STATE_MAX_KEYS: the key cap a refusal case must fill",
   "packages/server/src/domain/chat/substrate/reaction-note.ts":
     "reactionNote: the attribution note a reaction writes, which a frame override must collide with",
   "packages/server/src/domain/discovery/substrate/hub-math.ts":
@@ -1028,6 +1031,9 @@ const PACKAGE_TEST_REACHES = {
   },
   "tests/client/features/chat/components/message-avatar-reach.ct.tsx": {
     "packages/client/src/features/chat/lib/message-row-variants.ts": "MESSAGE_ROW_SKINS: the styles that paint an avatar, whose touch reach the suite holds",
+  },
+  "tests/client/features/chat/components/message-row-header-long-name.ct.tsx": {
+    "packages/client/src/features/chat/lib/message-row-variants.ts": "MESSAGE_ROW_SKINS: the styles that seat the avatar chip in the message header",
   },
   "tests/client/features/chat/components/_context-divider-stories.tsx": {
     "packages/client/src/features/chat/components/message-row-divider.tsx":

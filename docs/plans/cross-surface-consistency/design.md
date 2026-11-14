@@ -62,7 +62,7 @@ The owner is the composite family in `docs/law/client-architecture-lockdown.md`:
 | Group | Decision | Reason | Item |
 | - | - | - | - |
 | Raw dialogs in `packages/ui` | Converted (exit only) | Both sit in `packages/ui`, below the client composites, so they keep the raw primitive; each has a visible close control because every dialog needs a way out | - |
-| Phone sheet chrome written twice | Convert | The phone sheet chrome (keyboard provider, popup, title and close row) is written twice; one sheet composite owns it | [2578](../../work/2578-one-sheet-composite-draws-the-phone-drawer-chrome.md) |
+| Phone sheet chrome | Converted | One sheet composite owns the phone sheet chrome: keyboard provider, popup, title and close row | - |
 | Anchored popovers that carry input: `packages/client/src/components/editable-tag-chip.tsx`, `packages/client/src/features/app-shell/components/bug-report-button.tsx`, `packages/client/src/features/chat/components/talkativeness-popover.tsx`, `packages/client/src/features/chat/components/add-member-popover.tsx`, `packages/client/src/features/refinery/components/start-session-door.tsx`, `packages/client/src/features/refinery/components/character-door.tsx`, `packages/client/src/features/automation/components/rule-preset-picker.tsx`, `packages/client/src/features/rpg/components/rpg-pack-rows.tsx` | Keep | An anchored popover that carries input is not a centered dialog: the trigger stays in view and the popover traps focus | |
 | Commit footers built inside a dismiss dialog | Convert | A dialog that commits is `FormDialog` or `FlowDialog`, which own Cancel and the submit; the composite gains a second stage, a footer that stands down and a variable submit | [2580](../../work/2580-dialogs-that-commit-use-the-form-or-flow.md) |
 | Picker footer lead | Convert | `PickerDialog` takes the `footerLead` that `FormDialogPopup` already has | [2580](../../work/2580-dialogs-that-commit-use-the-form-or-flow.md) |
@@ -76,7 +76,7 @@ The owner of a surface's own empty state is `EmptyState` with an action. The emp
 
 | Group | Decision | Reason | Item |
 | - | - | - | - |
-| Hand-built pane empty states | Convert | A pane's empty state built by hand; `EmptyState` takes the clear-filters, Reload or composer action | [2583](../../work/2583-hand-built-pane-empty-states-move-to-emptystate.md) |
+| Pane empty states | Converted | A pane's empty state is `EmptyState`, which takes the clear-filters, Reload or composer action; a shelf tile states emptiness at shelf weight (`docs/law/UI-Density-Law.md`) | - |
 | Empty prose in the thread and the documents rail: `packages/client/src/features/chat/surfaces/message-list-surface.tsx`, `packages/client/src/features/databank/components/home-documents-tile-body.tsx` | Keep | The thread stays readable prose and the documents tile is a rail, not a pane; each comment cites a ruling that 2583 checks, and the site converts if the citation does not resolve | |
 | Drop affordance: `packages/client/src/features/chat/components/composer-drop-target.tsx` | Keep | A drop affordance, not an empty state; listed because it has the same markup shape | |
 | Provider-blocked look-alike: `packages/client/src/features/credentials/components/add-connection-provider-fields.tsx` | Keep | Look-alike: the provider-blocked branch already uses `EmptyState` | |
@@ -110,7 +110,7 @@ The owner of a CONTEXT tab body is `ContextTabBody` in `packages/client/src/comp
 
 #### Order
 
-[2584](../../work/2584-one-shared-owner-draws-the-inline-empty-line.md) runs after the prose-cap codemod. [2578](../../work/2578-one-sheet-composite-draws-the-phone-drawer-chrome.md) and [2581](../../work/2581-registry-modals-take-a-host-drawn-submit-footer.md) are sequenced with the plugin area. The regex and world-info bodies in [2588](../../work/2588-every-context-tab-body-draws-contexttabbody-the-law.md) wait for the shared-list work. [2582](../../work/2582-the-dialog-lint-refuses-a-hand-built-footer.md) waits on [2580](../../work/2580-dialogs-that-commit-use-the-form-or-flow.md) and [2581](../../work/2581-registry-modals-take-a-host-drawn-submit-footer.md).
+[2584](../../work/2584-one-shared-owner-draws-the-inline-empty-line.md) runs after the prose-cap codemod. [2581](../../work/2581-registry-modals-take-a-host-drawn-submit-footer.md) is sequenced with the plugin area. The regex and world-info bodies in [2588](../../work/2588-every-context-tab-body-draws-contexttabbody-the-law.md) wait for the shared-list work. [2582](../../work/2582-the-dialog-lint-refuses-a-hand-built-footer.md) waits on [2580](../../work/2580-dialogs-that-commit-use-the-form-or-flow.md) and [2581](../../work/2581-registry-modals-take-a-host-drawn-submit-footer.md).
 
 ### Template API
 

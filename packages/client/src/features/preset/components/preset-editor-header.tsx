@@ -218,7 +218,7 @@ export function PresetEditorHeader({
             <Row className="overflow-x-auto min-inline-0" paddingBlock="tight" ref={stripRef} scrollFade="x">
               {/* THE STRIP NAMES ITSELF. Without this the tablist's accessible name computes from its own
                   contents — `ParamsPromptActionsDataTransforms` — and no semantic selector can address it. */}
-              <TabsList aria-label={PRESET_SECTIONS_NAME}>
+              <TabsList aria-label={PRESET_SECTIONS_NAME} track="free">
                 {PRESET_EDITOR_VIEWS.map((entry) => (
                   <TabsTab key={entry.id} value={entry.id}>
                     {entry.label}

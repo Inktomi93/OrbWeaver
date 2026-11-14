@@ -44,7 +44,9 @@ long tail belongs in the disclosure; the Hub switcher does NOT — it sits alway
 the SFW toggle right below the query, and ALL THREE are LIVE via `actionId`: a pick or a flip re-runs
 the search, never sits inert behind a second click), one status line every failure folds into, a BOUND
 grid (`tilesFrom` — twelve results are twelve tiles, three are three) whose covers are real art and
-whose tiles wear their tag chips, and a pager row. The grid's `loading` is BOUND too: because every
+whose tiles wear their tag chips, and a pager row that shows only while the search has a second page
+(`when: { $state: "multiPage" }`). The grid's `empty` line is BOUND, so a search that matched nothing says
+so instead of reading like the neutral shelf before any search. The grid's `loading` is BOUND too: because every
 handler publishes before it floats its wire work (the settlement wall), a search or a page flip paints
 the house shape-matched skeleton instead of leaving the previous query's tiles under a status line
 saying a different query is running. The Sort select's OPTIONS ARE BOUND (`optionsFrom`):

@@ -63,6 +63,7 @@ async function storeImage(
     readonly costUsd: number | null;
     readonly usage: GenerationUsage;
     readonly createdAt: number;
+    readonly genTimeMs: number;
     readonly callId: ImageryCallId;
     readonly img: DecodedImage;
   },
@@ -90,6 +91,7 @@ async function storeImage(
     usage: gen.usage,
     edited: prov.edited,
     createdAt: gen.createdAt,
+    genTimeMs: gen.genTimeMs,
   });
   return { image: { assetId: stored.assetId, generationId, block: buildBlock(stored.assetId, prov.prompt) }, provenance };
 }
@@ -102,7 +104,10 @@ export function sumCost(a: number | null, b: number | null): number | null {
 
 /** Run one built request through the spend-and-persist tail. Zero decodable images ⇒ `GenerationFailedError`. */
 export async function runGeneration(ctx: ImageryContext, req: ImageGenerateRequest, prov: GenerationProvenanceInput): Promise<GenerationOutcome> {
+  const startedAt = ctx.now();
   const result = await ctx.generateImage(req);
+  // The provider call is the timed sample; materializing a URL download below is not generation time.
+  const genTimeMs = ctx.now() - startedAt;
   const model = modelIdSchema.parse(result.model);
   const decoded = (await Promise.all(result.images.map((img) => materialize(ctx, img)))).filter((d): d is DecodedImage => d !== null);
   if (decoded.length === 0) {
@@ -122,6 +127,7 @@ export async function runGeneration(ctx: ImageryContext, req: ImageGenerateReque
       costUsd: result.usage.costUsd,
       usage: result.usage,
       createdAt,
+      genTimeMs,
       callId,
       img,
     });
@@ -139,6 +145,7 @@ export async function runGeneration(ctx: ImageryContext, req: ImageGenerateReque
       provider: req.connection.providerId,
       costUsd: result.usage.costUsd,
       count: images.length,
+      genTimeMs,
       now: createdAt,
     }),
   );

@@ -340,7 +340,7 @@ function BudgetBar({
   const off = !section.enabled;
   return (
     <Button variant="ghost" onClick={(): void => selectPresetSection(section.id)} size="sm" selection={selected ? "on" : "none"}>
-      <Text ink="inherit" textAlign="start" truncate="fill" strike={off} voice="label">
+      <Text grow={true} ink="inherit" textAlign="start" strike={off} voice="label" wrap="word">
         {sectionName(section)}
       </Text>
       {/* ZONE-HUED, never the categorical ramp's step 1 (side-eye, the mock-vs-rendered table): the ramp's

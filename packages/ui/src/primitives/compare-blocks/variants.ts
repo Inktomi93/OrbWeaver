@@ -37,7 +37,7 @@ export const compareBlocksVariants = tv({
     root: "flex flex-col gap-block",
     // Padded so the label sits INSIDE the box the decision border draws, never on the border itself.
     block: `${FIELD_STACK} rounded-base border border-transparent p-block`,
-    // Wraps: the state chip's words are long ("Undecided · will not apply"), so in a narrow pane at enlarged text the chip drops under the label instead of past the block.
+    // Wraps: the state chip's words are long ("Undecided · will not apply"), so in a narrow pane at enlarged text the chip drops under the label instead of past the block, and the chip's words wrap inside it (`whitespace="normal"`) when they are wider than the block.
     blockHeader: `${ROW_STRIP} flex-wrap`,
     blockLabel: "text-label leading-label font-medium text-muted-foreground",
     blockSpacer: "flex-1",

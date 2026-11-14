@@ -115,14 +115,17 @@ export function createEmbeddingsWorkloadContributions(deps: EmbeddingsWorkloadDe
       // The CONCURRENCY UNIT is one embed space: text and image sweep independently, two text sweeps do not.
       admissionKey: (params) => (params.embedderChanged === true ? `${params.source}${REBUILD_ADMISSION_KEY_SUFFIX}` : params.source),
       // Only the image lens spends a generative call (one avatar analysis each); text embedding calls none.
-      modelCalls: ({ ownerId, params }) =>
-        params.source === "text"
-          ? Promise.resolve(0)
-          : deps.embeddings.countAssetAnalysisCalls({
-              ownerId,
-              force: params.force ?? false,
-              ...(params.embedderChanged === true ? { embedderChanged: true } : {}),
-            }),
+      modelCalls: async ({ ownerId, params }) => ({
+        calls:
+          params.source === "text"
+            ? 0
+            : await deps.embeddings.countAssetAnalysisCalls({
+                ownerId,
+                force: params.force ?? false,
+                ...(params.embedderChanged === true ? { embedderChanged: true } : {}),
+              }),
+        bound: "exact",
+      }),
       // A GPU embed sweep over the whole corpus: minutes, and never latency-sensitive.
       lane: "sweep",
       // Hash/skip-gated end to end — a retry safely re-runs the whole pass.

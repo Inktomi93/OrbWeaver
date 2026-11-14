@@ -15,6 +15,7 @@ export type { DisclosureWalkHooks } from "./disclosure-walk.ts";
 export { usesProgrammaticScroll, walkDisclosures } from "./disclosure-walk.ts";
 export { enlargedTextFindings, enlargedTextGeometry, LAYOUT_SUBPIXEL_PX } from "./enlarged-text-geometry.ts";
 export { formatFormIdentityFindings } from "./form-identity.ts";
+export { lineStarts, SOFT_HYPHEN } from "./line-breaks.ts";
 export { emulateMedia, releaseEmulatedMedia } from "./media-emulation.ts";
 export { landedMutedContrast, paintedArt } from "./over-art-contrast.ts";
 export { diagnosticTarget } from "./performance-entry.ts";

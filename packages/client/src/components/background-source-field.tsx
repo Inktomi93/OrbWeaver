@@ -34,7 +34,7 @@ import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data"
 import { DIALOG_VERBS } from "#lib";
 import { openConfigTo } from "#state";
 import { QueryBoundary } from "./query-boundary.tsx";
-import { BACKGROUND_FROM_URL_NAME, BACKGROUND_GRID_NAME, BACKGROUND_URL_FIELD_NAME } from "./shared-control-names.ts";
+import { BACKGROUND_ADD_IN_SETTINGS_NAME, BACKGROUND_FROM_URL_NAME, BACKGROUND_GRID_NAME, BACKGROUND_URL_FIELD_NAME } from "./shared-control-names.ts";
 
 /** The all-blank "no background" source — every non-active field heals to "" (the `themeBackgroundSchema`
  *  fault-isolation defaults), so a pick always rewrites the WHOLE object rather than leaking a stale
@@ -107,13 +107,13 @@ export function BackgroundSourceField({ value, onChange, reserveKey }: Backgroun
       </QueryBoundary>
       {/* Two FLAT arms (no nested ternary): the doors row at rest, the URL entry while drafting. */}
       {inExternalMode ? null : (
-        <Row align="center" gap="field" justify="between">
-          <Button variant="ghost" onClick={(): void => setExternalDraft("")} size="sm" type="button">
+        <Row align="center" gap="field" justify="between" wrap={true}>
+          <Button variant="ghost" onClick={(): void => setExternalDraft("")} size="sm" type="button" wrap={true}>
             {BACKGROUND_FROM_URL_NAME}
           </Button>
           {/* The ADD door — upload/manage lives in ONE place (BG-D's atomic library writes). */}
-          <Button variant="ghost" onClick={(): void => openConfigTo("appearance", "background")} size="sm" type="button">
-            Add your own in Settings
+          <Button variant="ghost" onClick={(): void => openConfigTo("appearance", "background")} size="sm" type="button" wrap={true}>
+            {BACKGROUND_ADD_IN_SETTINGS_NAME}
           </Button>
         </Row>
       )}

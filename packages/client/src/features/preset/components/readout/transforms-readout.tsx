@@ -201,7 +201,7 @@ function StepRow({
   return (
     <Row align="baseline" data-pipeline-step={stepKey} gap="field">
       <Text voice="gloss">{index}</Text>
-      <Text truncate="fill" voice="label">
+      <Text grow={true} voice="label" wrap="word">
         {label}
       </Text>
       <Text voice="datum">{state}</Text>

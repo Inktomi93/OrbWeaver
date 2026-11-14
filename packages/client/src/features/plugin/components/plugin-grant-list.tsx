@@ -205,7 +205,7 @@ function GrantRow({ capability, checked, isNew, roleUnset }: GrantRowProps): Rea
     // affordance the disabled-checkbox finding (#650 P1-3) is about, one property down.
     <Stack gap="tight">
       <Row align="center" wrap={true} gap="field">
-        <Text id={nameId} voice="label">
+        <Text id={nameId} voice="label" wrap="anywhere">
           {copy.label}
         </Text>
         {/* An UNGRANTED row's state, as a word beside the name it refuses — adjacent, where the far-docked
@@ -218,12 +218,12 @@ function GrantRow({ capability, checked, isNew, roleUnset }: GrantRowProps): Rea
         {/* "New" reads INFO (informational — this row changed) against "Costs money"'s WARNING (a real
             caution) — two amber "warning/soft" pills at a glance were indistinguishable (side-eye P2-8). */}
         {isNew ? (
-          <Badge id={newMarkId} tone="info" size="sm">
+          <Badge id={newMarkId} whitespace="normal" cap="fit" tone="info" size="sm">
             New
           </Badge>
         ) : null}
         {copy.spends === true ? (
-          <Badge tone="warning" size="sm">
+          <Badge whitespace="normal" cap="fit" tone="warning" size="sm">
             Costs money
           </Badge>
         ) : null}
@@ -231,7 +231,7 @@ function GrantRow({ capability, checked, isNew, roleUnset }: GrantRowProps): Rea
             plugin-copy.ts). `ghost` keeps it quieter than the two solid-tint marks above (a new/spend fact is
             more urgent than "this one reaches further than most"). */}
         {copy.risk === true ? (
-          <Badge tone="destructive" variant="outline" size="sm">
+          <Badge whitespace="normal" cap="fit" tone="destructive" variant="outline" size="sm">
             Reaches further
           </Badge>
         ) : null}
@@ -300,9 +300,11 @@ export function PluginGrantList({
     <Stack gap="tight" role="list">
       {netHosts.map((host) => (
         <Row key={host} align="center" gap="field" role="listitem">
-          <Text voice="datumMono">{host}</Text>
+          <Text voice="datumMono" wrap="anywhere">
+            {host}
+          </Text>
           {addedHostSet.has(host) ? (
-            <Badge tone="info" size="sm">
+            <Badge whitespace="normal" cap="fit" tone="info" size="sm">
               New
             </Badge>
           ) : null}

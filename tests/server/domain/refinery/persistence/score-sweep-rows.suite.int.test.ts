@@ -83,10 +83,10 @@ test("admitted singular and bulk estimates exactly match FILL/refresh execution 
 
   const before = await snapshot(root);
   const requests = [...wire.requests];
-  expect(await root.services.workloads.estimateModelCalls({ caller: member, mode: "singular", input: FILL })).toEqual({ calls: 1 });
-  expect(await root.services.workloads.estimateModelCalls({ caller: owner, mode: "singular", input: FILL })).toEqual({ calls: 2 });
-  expect(await root.services.workloads.estimateModelCalls({ caller: owner, mode: "bulk", input: FILL })).toEqual({ calls: 3 });
-  expect(await root.services.workloads.estimateModelCalls({ caller: owner, mode: "bulk", input: REFRESH })).toEqual({ calls: 4 });
+  expect(await root.services.workloads.estimateModelCalls({ caller: member, mode: "singular", input: FILL })).toEqual({ calls: 1, bound: "exact" });
+  expect(await root.services.workloads.estimateModelCalls({ caller: owner, mode: "singular", input: FILL })).toEqual({ calls: 2, bound: "exact" });
+  expect(await root.services.workloads.estimateModelCalls({ caller: owner, mode: "bulk", input: FILL })).toEqual({ calls: 3, bound: "exact" });
+  expect(await root.services.workloads.estimateModelCalls({ caller: owner, mode: "bulk", input: REFRESH })).toEqual({ calls: 4, bound: "exact" });
   expect(wire.requests).toEqual(requests);
   expect(await snapshot(root)).toEqual(before);
   expect(await root.db.select().from(refinerySessions)).toEqual([]);
@@ -111,7 +111,7 @@ test("admitted singular and bulk estimates exactly match FILL/refresh execution 
   };
   const collectors = [collect(owner), collect(member)];
   try {
-    expect(await root.services.workloads.estimateModelCalls({ caller: owner, mode: "bulk", input: FILL })).toEqual({ calls: 2 });
+    expect(await root.services.workloads.estimateModelCalls({ caller: owner, mode: "bulk", input: FILL })).toEqual({ calls: 2, bound: "exact" });
     const fundingStart = wire.funders.length;
     const bulk = await root.services.workloads.start({ caller: owner, ownerId: owner.userId, mode: "bulk", input: FILL });
     await executeAdmitted(root, bulk.id);
@@ -124,7 +124,7 @@ test("admitted singular and bulk estimates exactly match FILL/refresh execution 
 
     events.length = 0;
     const refreshQuote = await root.services.workloads.estimateModelCalls({ caller: owner, mode: "bulk", input: REFRESH });
-    expect(refreshQuote).toEqual({ calls: 4 });
+    expect(refreshQuote).toEqual({ calls: 4, bound: "exact" });
     expect(events).toEqual([]);
     const refreshFunding = wire.funders.length;
     const refreshed = await root.services.workloads.start({ caller: owner, ownerId: owner.userId, mode: "bulk", input: REFRESH });
@@ -142,7 +142,7 @@ test("admitted singular and bulk estimates exactly match FILL/refresh execution 
     ).toEqual([owner.userId, member.userId].sort());
 
     const countBeforeRetry = wire.requests.length;
-    expect(await root.services.workloads.estimateRetryModelCalls({ caller: owner, id: bulk.id })).toEqual({ calls: 0 });
+    expect(await root.services.workloads.estimateRetryModelCalls({ caller: owner, id: bulk.id })).toEqual({ calls: 0, bound: "exact" });
     expect(wire.requests).toHaveLength(countBeforeRetry);
     const retried = await root.services.workloads.retry({ caller: owner, id: bulk.id });
     await executeAdmitted(root, retried.id);

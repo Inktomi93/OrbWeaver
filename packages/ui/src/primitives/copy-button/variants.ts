@@ -9,7 +9,10 @@ export const copyButtonVariants = tv({
     // The failed state caps the whole block at the prose measure: the field keeps a full line of its own
     // (a cap on the field alone would let the button wrap up beside it) without spanning a wide page.
     root: "flex flex-wrap items-center gap-field data-[state=failed]:max-inline-(--reading-measure-prose)",
-    subject: "contents",
+    // `contents` adds no box, but the wrap rule inherits through it: the subject is machine text (a version line, a command, a link) with few
+    // break points, and a flex item holds its longest unbroken run as its minimum, so at enlarged text that run held the row wider than its
+    // column. `wrap-anywhere` also lowers that minimum, so the run breaks inside the column.
+    subject: "contents wrap-anywhere",
     status: "empty:sr-only data-[outcome=insecure]:text-warning data-[outcome=refused]:text-warning",
     hint: "sr-only",
     // The chip's type (`Kbd size="command"`), so the field reads as the same text it replaced.

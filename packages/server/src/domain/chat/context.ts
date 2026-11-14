@@ -18,5 +18,6 @@ export function createChatContext(input: ChatAssemblyContext): ChatContext {
     settleRetainedChatRebase: (batch, _db, scope) => input.settleRetainedChatRebase(batchHandle(batch), input.db, scope),
     bumpStatsCanonVersion: (batch, _db, ownerId) => input.bumpStatsCanonVersion(batchHandle(batch), input.db, ownerId),
     shiftCharacterCensus: (batch, _db, shift) => input.shiftCharacterCensus(batchHandle(batch), input.db, shift),
+    recordLedgerSpend: (batch, _db, spend) => input.recordLedgerSpend(batchHandle(batch), input.db, spend),
   };
 }

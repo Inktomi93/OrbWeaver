@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
+import { labelInNamePasses } from "./accessible-names.ts";
 
 type AxeResults = ReturnType<AxeBuilder["analyze"]> extends Promise<infer Resolved> ? Resolved : never;
 type AxeRule = AxeResults["violations"][number];
@@ -18,6 +19,8 @@ const OPEN_POPUP = [
 
 const FOCUS_GUARD_REASON = "Base UI focus guard: aria-hidden and tabbable by design, the focus trap's edge sentinel.";
 const POPUP_COVER_REASON = "Covered by the content of an open menu or select popup, which is meant to lie over the page.";
+const LABEL_IN_NAME_REASON =
+  "Meets Label in Name (UI-Primitives-and-Reuse §13.10 N2): once its aria-describedby text is removed it still shows a label, and every word of it is in its name; axe also wants the shown words as one run of the name.";
 
 /** One node the scan moved from `violations` to `incomplete`, and why. The vendor result keeps it as a violation. */
 interface AxeReclassification {
@@ -47,6 +50,18 @@ function isFocusGuard(node: AxeNode): boolean {
 
 function partiallyObscured(node: AxeNode): boolean {
   return node.any.some(({ data }) => typeof data === "object" && data !== null && Reflect.get(data, "messageKey") === "partiallyObscured");
+}
+
+/** A node's own selector when it is a plain one; a node in a shadow tree or frame has none, and is never excused. */
+function plainSelector(node: AxeNode): string | null {
+  const [selector] = node.target;
+  return node.target.length === 1 && typeof selector === "string" ? selector : null;
+}
+
+/** The `label-content-name-mismatch` nodes that pass the house Label-in-Name check, read from the page the scan ran on. */
+function selectorsMeetingLabelInName(page: Page, raw: AxeResults): Promise<ReadonlySet<string>> {
+  const nodes = raw.violations.find(({ id }) => id === "label-content-name-mismatch")?.nodes ?? [];
+  return labelInNamePasses(page, [...new Set(nodes.flatMap((node) => plainSelector(node) ?? []))]);
 }
 
 /** The nodes that cover `node`, as plain selectors. A node in a shadow tree or frame has none, and is never excused. */
@@ -103,9 +118,10 @@ function reclassify(raw: AxeResults, excusals: readonly Excusal[]): Omit<Accessi
 
 /**
  * Keep default document/frame rules and explicitly enable the vendor's disabled WCAG 2.2 target-size rule. Returns the untouched vendor
- * result beside the reclassified one callers assert on, and the record of what differs. Two findings are not the page's and move to `incomplete`:
- * the library's own focus guards for `aria-hidden-focus` (an authored focusable `aria-hidden` element still fails), and a control the
- * content of an open menu or select popup covers for `target-size` (a closed select's trigger over a control is still a finding).
+ * result beside the reclassified one callers assert on, and the record of what differs. These findings are not the page's and move to `incomplete`:
+ * the library's own focus guards for `aria-hidden-focus` (an authored focusable `aria-hidden` element still fails), a control that meets the house
+ * Label-in-Name check for `label-content-name-mismatch` (a control whose name drops a shown word still fails), and a control the content of an
+ * open menu or select popup covers for `target-size` (a closed select's trigger over a control is still a finding).
  */
 export async function accessibilityEvidence(page: Page): Promise<AccessibilityEvidence> {
   const builder = new AxeBuilder({ page }).options({ rules: { "target-size": { enabled: true } } });
@@ -113,8 +129,17 @@ export async function accessibilityEvidence(page: Page): Promise<AccessibilityEv
   // to join, so the single-frame run returns the same result without that page. Any child frame keeps per-frame mode.
   const raw = await (page.frames().length === 1 ? builder.setLegacyMode() : builder).analyze();
   const inOpenPopup = await selectorsInOpenPopup(page, raw);
+  const meetsLabelInName = await selectorsMeetingLabelInName(page, raw);
   const { results, reclassified } = reclassify(raw, [
     { ruleId: "aria-hidden-focus", reason: FOCUS_GUARD_REASON, excused: isFocusGuard },
+    {
+      ruleId: "label-content-name-mismatch",
+      reason: LABEL_IN_NAME_REASON,
+      excused: (node) => {
+        const selector = plainSelector(node);
+        return selector !== null && meetsLabelInName.has(selector);
+      },
+    },
     {
       ruleId: "target-size",
       reason: POPUP_COVER_REASON,

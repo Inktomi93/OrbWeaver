@@ -132,6 +132,9 @@ FROM node:26.11.1-bookworm-slim@sha256:86f07bc9c5dce4578cf37e5a418b7bfc7f817cda2
 # cloudflared uses the system trust store; the slim base does not contain it. The upgrade takes Debian's security
 # fixes that landed after the pinned base digest, so the release's vulnerability gate sees a current OS layer.
 RUN apt-get update && apt-get upgrade -y --no-install-recommends && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+# Nothing in the image runs npm: the entrypoint and CMD start node directly. The base image's npm and the
+# packages it bundles only add code no one calls, and the image scan reports each of their advisories.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 WORKDIR /app
 ENV NODE_ENV=production
 # The app ignores SIGUSR1, so no process running as its user (the plugin broker included) can open its inspector.

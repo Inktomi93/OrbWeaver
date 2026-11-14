@@ -40,6 +40,9 @@ export const CHAT_GALLERY_UPLOAD_INSTEAD_NAME = "Upload instead";
 /** The gallery add-picker's image grid. */
 export const CHAT_GALLERY_IMAGES_NAME = "Your images";
 
+/** The Corpus source window's way back to Corpus. */
+export const CHAT_WINDOW_BACK_TO_CORPUS_NAME = "Back to Corpus";
+
 /** The Home also-open tile's door to the chat list. */
 export const CHAT_ALL_CHATS_NAME = "All chats";
 
@@ -165,6 +168,11 @@ export function homeNewChatWithName(character: string): string {
 
 /** Home's list of character quick picks. */
 export const HOME_QUICK_PICKS_NAME = "Character quick-picks";
+
+/** The Home quick-picks tile's empty state when the library holds no character: its title, its door to the library and its gloss. */
+export const HOME_QUICK_PICKS_EMPTY_TITLE = "No characters yet";
+export const HOME_QUICK_PICKS_CREATE_NAME = "Create your first character";
+export const HOME_QUICK_PICKS_EMPTY_GLOSS = "Every character is a thread waiting to be woven.";
 
 /** The new-chat picker's character field. */
 export const NEW_CHAT_CHARACTERS_FIELD_NAME = "Choose characters";

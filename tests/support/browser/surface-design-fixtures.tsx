@@ -410,7 +410,7 @@ export function SurfaceTabStripStory({ wrapper }: { readonly wrapper: "strip" | 
         <Tabs defaultValue={STRIP_TABS[0]}>
           <div data-planted="scroller" style={{ inlineSize: SIDEWAYS_SCROLLER_PX, overflowX: "auto" }}>
             {wrapper === "text" ? UNBREAKABLE_WORD : null}
-            <TabsList aria-label="Planted views">
+            <TabsList aria-label="Planted views" track="free">
               {(wrapper === "text" ? STRIP_TABS.slice(0, 1) : STRIP_TABS).map((tab) => (
                 <TabsTab key={tab} value={tab}>
                   {tab}
@@ -429,7 +429,7 @@ const CUT_VALUE = "Same as my Image generation role";
 const CUT_TITLE = "Calamity, Doomblade of the Ninth Epoch, Keeper of the Orbital Loom";
 
 /**
- * A text-cut case in a box of the given width: a picker whose value is wider than its trigger (`value`, with `wraps` the arm that wraps it), the
+ * A text-cut case in a box of the given width: a picker-shaped button whose value is wider than its box (`value`, with `wraps` the real Select, which wraps it), the
  * same picker in a list row's actions (`action`), a list row whose title is wider than the row (`row`), a button whose preview line carries the
  * facet-preview slot (`preview`), a button whose visible label is cut with no such slot (`label`), that button as the popup trigger of a title-reveal box
  * (`title`), or the same button in that box with nothing to open (`unrevealed`). A picker and a label are a control's own text; the row title, the
@@ -444,7 +444,17 @@ export function SurfaceCutValueStory({
   readonly cut: "value" | "action" | "row" | "preview" | "label" | "title" | "unrevealed";
   readonly wraps?: boolean;
 }): ReactElement {
-  const picker = <Select aria-label="Connection" items={[{ label: CUT_VALUE, value: "same" }]} layout={wraps === true ? "hugWrap" : "hug"} value="same" />;
+  // No Select cuts its value, so the cut picker is a button that does: the probe judges a control's own text, whatever the control is.
+  const picker =
+    wraps === true ? (
+      <Select aria-label="Connection" items={[{ label: CUT_VALUE, value: "same" }]} layout="hug" value="same" />
+    ) : (
+      <Button aria-label="Connection" className="min-inline-0" variant="outline" wrap={true}>
+        <Text aria-hidden={true} as="span" className="min-inline-0" truncate={true}>
+          {CUT_VALUE}
+        </Text>
+      </Button>
+    );
   const cases: Record<typeof cut, ReactElement> = {
     value: <Row>{picker}</Row>,
     action: <ListRow actions={picker} stackActions={true} title="Pamela" />,
@@ -489,6 +499,50 @@ export function SurfaceCutValueStory({
     <CtIsolation subject="Enlarged-text cut value" isolates="A production picker, list row and button in a narrow box need no application services.">
       <main>
         <Container style={{ inlineSize: width }}>{cases[cut]}</Container>
+      </main>
+    </CtIsolation>
+  );
+}
+
+// Taller than the pane-ink census's region floor, so a short ending leaves most of the region empty.
+const TALL_REGION_PX = 720;
+const PANE_INK_ROWS = ["Aster", "Briar", "Cinder"] as const;
+
+/**
+ * A tall region whose content ends early, in one of three endings: production member rows (`members`), short paragraphs
+ * (`prose`), or a bulleted list of prose lines (`bullets`). Only the member rows end where the data ends.
+ */
+export function SurfacePaneInkStory({ ending }: { readonly ending: "members" | "prose" | "bullets" }): ReactElement {
+  const endings: Record<typeof ending, ReactElement> = {
+    members: (
+      <Stack gap="tight">
+        {PANE_INK_ROWS.map((name) => (
+          <ListRow clickable={true} key={name} onClick={(): void => undefined} subtitle="One session" title={name} />
+        ))}
+      </Stack>
+    ),
+    prose: (
+      <Stack gap="row">
+        {PANE_INK_ROWS.map((name) => (
+          <Text as="p" key={name}>{`${name} keeps a short note here.`}</Text>
+        ))}
+      </Stack>
+    ),
+    bullets: (
+      <ul>
+        {PANE_INK_ROWS.map((name) => (
+          <li key={name}>{`${name} keeps a short note here.`}</li>
+        ))}
+      </ul>
+    ),
+  };
+  return (
+    <CtIsolation subject="Pane ink" isolates="A tall region and production rows need no application services.">
+      <main>
+        <Stack aria-label="Planted pane" padding="section" role="region" style={{ blockSize: TALL_REGION_PX }}>
+          <h1>Pane ink control</h1>
+          {endings[ending]}
+        </Stack>
       </main>
     </CtIsolation>
   );

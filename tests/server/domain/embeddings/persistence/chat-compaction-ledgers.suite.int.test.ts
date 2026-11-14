@@ -1,5 +1,5 @@
 // Compaction turns at each phase, a late native SDK auth failure and a native funding turn record their
-// compaction_spend, credential strike audit_logs and SDK session-lineage rows only after terminal settlement.
+// spend_ledger, credential strike audit_logs and SDK session-lineage rows only after terminal settlement.
 // @subject packages/inference/src/roles/executor.ts
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // @subject packages/server/src/domain/chat/verbs/compaction.ts
@@ -7,7 +7,7 @@
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import { providerIdSchema } from "@orb/contracts/inference";
-import { auditLogs, compactionSpend } from "@orb/db";
+import { auditLogs, spendLedger } from "@orb/db";
 import { ProviderError, toChatRequest } from "@orb/inference";
 import { DomainNoCredentialError } from "@orb/kit/errors";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -96,7 +96,7 @@ for (const phase of PHASES) {
           .from(auditLogs)
           .where(and(eq(auditLogs.entityId, key.id), eq(auditLogs.action, "credential.markRevoked"))),
       ).toHaveLength(1);
-      expect(await db.select().from(compactionSpend).where(eq(compactionSpend.ownerId, harness.ownerId))).toHaveLength(0);
+      expect(await db.select().from(spendLedger).where(eq(spendLedger.ownerId, harness.ownerId))).toHaveLength(0);
       expect(fundingProvider.calls).toHaveLength(0);
       const messages = await ownerCaller.chat.listMessages({ chatId });
       const assistantRows = messages.messages.filter((message) => message.role === "assistant");
