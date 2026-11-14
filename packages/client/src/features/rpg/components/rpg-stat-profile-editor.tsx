@@ -19,10 +19,9 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { Tip } from "#components";
-import { useInvalidation, useTRPC } from "#data";
+import { MutedLine, useInvalidation, useTRPC } from "#data";
 import { useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
 import { mintDefKey } from "../lib/mint-key.ts";
-import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
 import { AddRow, HintEditor, TrackerValue } from "./tracker-blocks/index.ts";
 
@@ -155,9 +154,7 @@ export function RpgStatProfileEditor({ chatId, config }: { readonly chatId: Chat
   return (
     <Stack gap="field" data-slot="rpg-stat-profile">
       <Kicker>Stat profile</Kicker>
-      {attrs.length === 0 ? (
-        <RpgDoorwayLine>No attributes yet: this game steers on prose. Name one below and every character sheet grows it.</RpgDoorwayLine>
-      ) : null}
+      {attrs.length === 0 ? <MutedLine>No attributes yet: this game steers on prose. Name one below and every character sheet grows it.</MutedLine> : null}
       {/* The ROW band takes its own Stack so `rows="control"` floors the attribute/add/range rows without
           inflating the kicker above them. */}
       <Stack gap="field" rows="control">

@@ -8,6 +8,7 @@ import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
+import { MutedLine } from "#data";
 import { groupOrdinalQualifiers } from "#lib";
 import { selectCorpusArtifact, selectCorpusCharacter } from "#state";
 import { corpusRoomPairName } from "../lib/corpus-control-names.ts";
@@ -47,7 +48,7 @@ export function CorpusDuplicateCharacters({ pairs }: { readonly pairs: readonly 
           cards can never pair), and it belongs beside the list it explains. */}
       <Muted>The near-duplicate pass's pairs. It compares one card per identical copy, so exact duplicates are counted on the readiness rail instead.</Muted>
       {pairs.length === 0 ? (
-        <Muted>No near-duplicate characters found.</Muted>
+        <MutedLine>No near-duplicate characters found.</MutedLine>
       ) : (
         <Stack gap="row">
           <CapNote noun="pairs" shown={shown.length} total={pairs.length} />
@@ -66,7 +67,7 @@ export function CorpusDuplicateArt({ pairs }: { readonly pairs: readonly ImageDu
   return (
     <Section heading="Duplicate art">
       {pairs.length === 0 ? (
-        <Muted>No reused/near-identical avatars found.</Muted>
+        <MutedLine>No reused/near-identical avatars found.</MutedLine>
       ) : (
         <Stack gap="row">
           <CapNote noun="pairs" shown={shownPairs.length} total={leftover.length} />
@@ -98,7 +99,7 @@ export function CorpusDuplicateChats({ pairs }: { readonly pairs: readonly Dupli
   return (
     <Section heading="Duplicate chats">
       {pairs.length === 0 ? (
-        <Muted>No near-duplicate chats found.</Muted>
+        <MutedLine>No near-duplicate chats found.</MutedLine>
       ) : (
         <Stack gap="row">
           {/* THE DOOR SAYS WHERE IT GOES, ONCE (side-eye se-verify-4 N8). A chat pair opens the FIRST room

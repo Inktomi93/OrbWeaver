@@ -24,6 +24,7 @@ import { Skeleton } from "@orb/ui/skeleton";
 import { Heading, NoValue, Text } from "@orb/ui/text";
 import type { ComponentProps, ReactElement } from "react";
 import { Fragment, useState } from "react";
+import { MutedLine } from "#data";
 import { testId } from "#lib";
 import { useCountUp } from "../hooks/use-count-up.ts";
 import type { PlanField, RenderPlan, RowPlan } from "../lib/render-plan.ts";
@@ -392,7 +393,7 @@ function BulletsBlock({ field, value }: { field: PlanField; value: unknown }): R
     <Stack data-field={field.key} data-testid={testId("refineryField")} gap="tight">
       <Text voice="kicker">{field.label}</Text>
       {items.length === 0 ? (
-        <Text voice="gloss">{NONE_LISTED}</Text>
+        <MutedLine>{NONE_LISTED}</MutedLine>
       ) : (
         <Stack gap="tight" role="list">
           {items.map((item, i) => (

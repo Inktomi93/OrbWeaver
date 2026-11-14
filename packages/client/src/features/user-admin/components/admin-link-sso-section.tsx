@@ -18,7 +18,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary, useFirstBootRows } from "#components";
-import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
+import { MutedLine, QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { testId } from "#lib";
 import { ADMIN_LINK_SSO_SUBCATEGORY } from "../lib/admin-link-sso-nav.ts";
 import { AdminLinkSsoDialog } from "./admin-link-sso-dialog.tsx";
@@ -59,9 +59,7 @@ function AdminLinkSsoBody({ anchorId }: { readonly anchorId: string }): ReactEle
         </Text>
 
         {linkable.length === 0 ? (
-          <Text voice="gloss" data-testid={testId("adminLinkSsoEmpty")}>
-            No accounts to link. Every non-owner account is already linked to an SSO identity.
-          </Text>
+          <MutedLine data-testid={testId("adminLinkSsoEmpty")}>No accounts to link. Every non-owner account is already linked to an SSO identity.</MutedLine>
         ) : (
           <Stack gap="field">
             {linkable.map((user) => (

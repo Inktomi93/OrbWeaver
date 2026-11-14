@@ -23,7 +23,7 @@ import { Badge } from "@orb/ui/badge";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useSuspenseQuery, useTRPC } from "#data";
+import { MutedLine, useSuspenseQuery, useTRPC } from "#data";
 import { timeLib } from "#lib";
 import type { RuleFireCaps } from "../lib/rule-copy.ts";
 import { fireDetailLine, fireOutcomeView, triggerLabel } from "../lib/rule-copy.ts";
@@ -45,7 +45,7 @@ export function RuleFireLog({ ruleId, caps }: RuleFireLogProps): ReactElement {
   const { data: fires } = useSuspenseQuery(trpc.automation.listFires.queryOptions({ ruleId, limit: FIRE_LOG_LIMIT }));
 
   if (fires.length === 0) {
-    return <Text voice="gloss">No activity yet: this rule hasn't been triggered since it was added.</Text>;
+    return <MutedLine>No activity yet: this rule hasn't been triggered since it was added.</MutedLine>;
   }
 
   return (

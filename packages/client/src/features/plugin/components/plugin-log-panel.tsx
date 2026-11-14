@@ -12,9 +12,8 @@
 
 import type { PluginId } from "@orb/kit/ids";
 import { LogViewer } from "@orb/ui/log-viewer";
-import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useSuspenseQuery, useTRPC } from "#data";
+import { MutedLine, useSuspenseQuery, useTRPC } from "#data";
 import { timeLib } from "#lib";
 
 /** `13:42  couldn't reach api.example.com` — the stamp through the ONE time seam (`timeLib`), never a raw
@@ -34,7 +33,7 @@ export function PluginLogPanel({ pluginId, name }: PluginLogPanelProps): ReactEl
   const { data: lines } = useSuspenseQuery(trpc.plugin.getLog.queryOptions({ pluginId }));
 
   if (lines.length === 0) {
-    return <Text voice="gloss">Nothing logged yet. Lines appear here when {name} runs.</Text>;
+    return <MutedLine>{`Nothing logged yet. Lines appear here when ${name} runs.`}</MutedLine>;
   }
   // `max-h-*`, not `h-*`: the panel grows with a short log and CAPS at a screenful (the `variant-wire-viewer`
   // precedent — and a fixed height would leave a two-line log floating in an empty box).

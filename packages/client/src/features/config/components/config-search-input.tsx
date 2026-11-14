@@ -21,7 +21,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { Tip } from "#components";
-import { useSettingsViewerView, useTRPC } from "#data";
+import { MutedLine, useSettingsViewerView, useTRPC } from "#data";
 import type { ConfigQueryToken, ParsedConfigQuery } from "#lib";
 import { applyConfigToken, CONFIG_PLUGIN_TOKEN, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfigQuery, partialConfigToken, partialValueToken } from "#lib";
 import type { ConfigGroupDefinition, ConfigGroupRegistry, ConfigSearchRow } from "#state";
@@ -146,7 +146,7 @@ function TokenMenu({
   readonly tokens: readonly ConfigQueryToken[];
 }): ReactElement {
   if (tokens.length === 0) {
-    return <Text voice="gloss">{`No filter matches “${partial}”.`}</Text>;
+    return <MutedLine>{`No filter matches “${partial}”.`}</MutedLine>;
   }
   return (
     <>

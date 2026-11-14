@@ -16,7 +16,7 @@ import type { SelectItems } from "@orb/ui/select";
 import type { ReactElement } from "react";
 import { useDeferredValue, useState } from "react";
 import { QueryBoundary } from "#components";
-import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
+import { MutedLine, QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { CORPUS_NO_SIMILARITY_EDGES_TEXT, CORPUS_PARAM_NAMES, CORPUS_READ_LABELS } from "../lib/corpus-control-names.ts";
 import { ParamSelect } from "./corpus-controls.tsx";
 import { CharacterPairRow, CorpusDuplicateArt, CorpusDuplicateCharacters, CorpusDuplicateChats, Muted } from "./corpus-duplicate-rows.tsx";
@@ -123,7 +123,7 @@ function NearestPairsList({ minSimilarity, maxNodes }: { readonly minSimilarity:
   );
   const { nodes, edges } = graph;
   if (edges.length === 0) {
-    return <Muted>{CORPUS_NO_SIMILARITY_EDGES_TEXT}</Muted>;
+    return <MutedLine>{CORPUS_NO_SIMILARITY_EDGES_TEXT}</MutedLine>;
   }
   const nameById = new Map(nodes.map((node) => [node.characterId, node.name]));
   const ranked = edges.toSorted((a, b) => b.similarity - a.similarity);

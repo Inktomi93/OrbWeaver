@@ -16,7 +16,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { removeActionName } from "@orb/ui/lib";
 import type { ReactElement, ReactNode } from "react";
 import { Tip } from "#components";
-import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
+import { MutedLine } from "#data";
 import { Kicker } from "./rpg-kicker.tsx";
 import { AddRow, HintEditor } from "./tracker-blocks/index.ts";
 
@@ -44,7 +44,7 @@ export function RpgHintMapEditor({ kicker, emptyLine, labelNoun, addPlaceholder,
     <Stack gap="field" data-slot="rpg-hint-map-editor">
       <Kicker>{kicker}</Kicker>
       {children}
-      {entries.length === 0 ? <RpgDoorwayLine>{emptyLine}</RpgDoorwayLine> : null}
+      {entries.length === 0 ? <MutedLine>{emptyLine}</MutedLine> : null}
       {/* The ROW band takes its own Stack so `rows="control"` floors the hint rows without inflating the kicker/lead content above them. */}
       <Stack gap="field" rows="control">
         {entries.map(([label, hint]) => (

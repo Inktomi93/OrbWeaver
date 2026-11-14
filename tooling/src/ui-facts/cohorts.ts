@@ -294,13 +294,17 @@ function modalPopoverMembers(facts: FileFacts): readonly Member[] {
   });
 }
 
-// ── notices ──────────────────────────────────────────────────────────────────────────────────────
+// ── notices and muted lines ──────────────────────────────────────────────────────────────────────
 
 const NOTICE = "Notice";
+const MUTED_LINE = "MutedLine";
 const HAND_BUILT = "hand-built";
 // A Card in a colour tone with the soft or outline fill is a status box (UI-Density-Law §4.3, the Card `variant` row).
 const STATUS_FILLS = new Set(["soft", "outline"]);
 const NOTICE_SITES = "packages/client/src/components/notice.tsx";
+const MUTED_LINE_SITES = "packages/client/src/data/muted-line.tsx";
+// The condition of an arm that draws the empty branch of a list.
+const EMPTY_CONDITION = /\.length\s*===?\s*0|\bisEmpty\b/u;
 
 const kept = (path: string, label: string, count: number, reason: string): KeptRead => ({ path, label, value: HAND_BUILT, count, reason });
 const CHOICE_ISLAND = "a choice island: the options a turn offers as a set of buttons, not one condition and its recovery";
@@ -326,6 +330,27 @@ const NOTICE_KEPT: readonly KeptRead[] = [
     "a veiled ledger row: a host-only record with its turn and a reveal gate, one row per lie or hidden line",
   ),
 ];
+const VALIDATION_HINT = "a hint that says why the form cannot be saved yet, not the empty line of a list";
+const MUTED_LINE_KEPT: readonly KeptRead[] = [
+  kept("packages/client/src/features/automation/components/rule-editor-actions.tsx", "Text", 1, VALIDATION_HINT),
+  kept("packages/client/src/features/automation/components/rule-list-action-fields.tsx", "Text", 1, VALIDATION_HINT),
+  // One ruling for both reads: a second ruling at the same path would cover the same first read again.
+  kept(
+    "packages/client/src/features/roster-preset/components/roster-picker.tsx",
+    "Text",
+    2,
+    "one state of the rules include line, the save control's description, whose states are one element with one id; and the hint that a roster needs a name to save",
+  ),
+  kept("packages/client/src/features/discovery/components/corpus-compare-tab.tsx", "Text", 1, "the no-value mark in a compared value cell"),
+  kept("packages/client/src/features/discovery/surfaces/corpus-moment-surface.tsx", "Text", 1, "the scene hit's own snippet, shown when no window loaded"),
+  kept(
+    "packages/client/src/features/preset/components/prompt-assembly/assembly-preview.tsx",
+    "Text",
+    1,
+    "the body of a preview block button, part of the button's name",
+  ),
+  kept("packages/client/src/features/regex/components/regex-context-body.tsx", "Text", 1, "a destructive warning that the script runs nowhere"),
+];
 
 /** A toned Card with a status fill, written in a feature: a notice the feature drew by hand. */
 function handBuiltNotice(elem: Elem): boolean {
@@ -344,6 +369,48 @@ function noticeMembers(facts: FileFacts): readonly Member[] {
     }
     return inFeature(facts) && handBuiltNotice(elem)
       ? [member(facts, "Card", { composite: cell(HAND_BUILT, elem.line), tone: cell(attrString(elem.attrs.get("tone")) ?? RUNTIME, elem.line) })]
+      : [];
+  });
+}
+
+/** The condition that gates the arm the element is drawn in: a ternary's true branch, an `&&` right side, or an `if` that returns it. */
+function armCondition(elem: Elem): ts.Expression | null {
+  let node: ts.Node = elem.element;
+  while (ts.isParenthesizedExpression(node.parent)) {
+    node = node.parent;
+  }
+  const parent = node.parent;
+  if (ts.isConditionalExpression(parent) && parent.whenTrue === node) {
+    return parent.condition;
+  }
+  if (ts.isBinaryExpression(parent) && parent.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken && parent.right === node) {
+    return parent.left;
+  }
+  if (ts.isReturnStatement(parent)) {
+    const block = ts.isBlock(parent.parent) ? parent.parent.parent : parent.parent;
+    return ts.isIfStatement(block) ? block.expression : null;
+  }
+  return null;
+}
+
+function mutedLineMembers(facts: FileFacts): readonly Member[] {
+  if (facts.source.path === MUTED_LINE_SITES) {
+    return [];
+  }
+  const sf = facts.source.sf;
+  return facts.elems.flatMap((elem) => {
+    if (elem.tag === MUTED_LINE) {
+      return [
+        member(facts, MUTED_LINE, {
+          line: cell(MUTED_LINE, elem.line),
+          action: cell(yesNo(elem.attrs.has("action")), elem.line),
+          announce: cell(yesNo(elem.attrs.has("announce")), elem.line),
+        }),
+      ];
+    }
+    const condition = elem.tag === "Text" && inFeature(facts) ? armCondition(elem) : null;
+    return condition !== null && sf !== null && EMPTY_CONDITION.test(condition.getText(sf))
+      ? [member(facts, "Text", { line: cell(HAND_BUILT, elem.line), action: cell(NOT_APPLICABLE, elem.line), announce: cell(NOT_APPLICABLE, elem.line) })]
       : [];
   });
 }
@@ -610,6 +677,16 @@ export function buildCohorts(all: readonly FileFacts[]): readonly Cohort[] {
       defects: { composite: [HAND_BUILT] },
       keptReads: { composite: NOTICE_KEPT },
       members: client.flatMap(noticeMembers),
+    },
+    {
+      name: "muted-line",
+      what: "the muted line of a list inside a surface: the MutedLine owner, and every Text a feature draws in an empty arm",
+      columns: ["line"],
+      info: ["action", "announce"],
+      // One owner draws the muted line (packages/client/src/data/muted-line.tsx header).
+      defects: { line: [HAND_BUILT] },
+      keptReads: { line: MUTED_LINE_KEPT },
+      members: client.flatMap(mutedLineMembers),
     },
     {
       name: "context-tab",

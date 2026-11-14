@@ -9,7 +9,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { EditableTagChip, QueryBoundary, useAcceptSuggestion, useRejectSuggestion } from "#components";
-import { QueryErrorState, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { MutedLine, QueryErrorState, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { DIALOG_VERBS, notify } from "#lib";
 import { selectCharacter, setActiveSection } from "#state";
 import type { SuggestionGroup } from "../lib/label-suggestion-groups.ts";
@@ -64,9 +64,9 @@ function SuggestionsBody(): ReactElement {
   const groups = groupSuggestions(suggestions);
   if (groups.length === 0) {
     return (
-      <Text role="status" ref={empty} tabIndex={-1} voice="gloss">
+      <MutedLine announce={true} ref={empty} tabIndex={-1}>
         {TAG_SUGGESTIONS_EMPTY_TEXT}
-      </Text>
+      </MutedLine>
     );
   }
   const ordered = groups.flatMap((group) => group.rows);

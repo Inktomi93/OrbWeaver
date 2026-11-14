@@ -27,7 +27,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
-import { QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
+import { MutedLine, QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
 import { RuleManager } from "./rule-manager.tsx";
 
 /** The section's opening line — one gloss, painted in BOTH arms (settled and reserving) because it depends
@@ -125,9 +125,9 @@ function RulesSection({ chatId }: RulesSectionProps): ReactElement {
           section in this pane opens with one. */}
       <Text voice="gloss">{RULES_INTRO}</Text>
       {rules.length === 0 ? (
-        <Text voice="gloss">
+        <MutedLine>
           Nothing is watching this chat yet. Add a rule (post an image, nudge the pacing, offer chips) and it starts off until you enable it.
-        </Text>
+        </MutedLine>
       ) : null}
       <RuleManager key={chatId} chatId={chatId} rules={rules} />
     </Stack>

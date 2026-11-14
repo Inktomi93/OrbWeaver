@@ -9,9 +9,9 @@
 import { Button } from "@orb/ui/button";
 import { Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
-import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
+import { MutedLine } from "#data";
 import { DIALOG_VERBS } from "#lib";
 import { DismissDialog } from "./form-dialog.tsx";
 
@@ -69,7 +69,7 @@ export function RelationManagerSection<TId extends string>({
   return (
     <Section heading={heading}>
       {items.length === 0 ? (
-        <Text ink="muted">{emptyLabel}</Text>
+        <MutedLine>{emptyLabel}</MutedLine>
       ) : (
         <Stack gap="row">
           {items.map((item) => (
@@ -92,7 +92,7 @@ export function RelationManagerSection<TId extends string>({
       {/* Each add is its own immediate write, so the picker has nothing to commit and Done is its way out. */}
       <DismissDialog dismissLabel={DIALOG_VERBS.done} finalFocus={addTrigger} open={pickerOpen} onOpenChange={setPickerOpen} title={addTitle}>
         {available.length === 0 ? (
-          <Text ink="muted">{addEmptyLabel}</Text>
+          <MutedLine>{addEmptyLabel}</MutedLine>
         ) : (
           <Stack gap="row">
             {available.map((item) => (

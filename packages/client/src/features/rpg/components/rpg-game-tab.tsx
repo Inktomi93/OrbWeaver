@@ -29,7 +29,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId, useState } from "react";
 import { QueryBoundary, SettingCheckboxRow, Tip } from "#components";
-import { QueryErrorState, roomRosterOptions, SkeletonRows, useInvalidation, useReattributePersona, useSuspenseQuery, useTRPC } from "#data";
+import { MutedLine, QueryErrorState, roomRosterOptions, SkeletonRows, useInvalidation, useReattributePersona, useSuspenseQuery, useTRPC } from "#data";
 import { notify } from "#lib";
 import { requestRpgStatusSheet, setContextTab } from "#state";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
@@ -49,7 +49,6 @@ import {
   trackerUnlockName,
 } from "../lib/rpg-names.ts";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
-import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
 import { RpgGameMacros } from "./rpg-game-macros.tsx";
 import { RpgGmVoice } from "./rpg-gm-voice.tsx";
 import { RpgHintMapEditor } from "./rpg-hint-map-editor.tsx";
@@ -241,7 +240,7 @@ function TrackersEditor({ chatId, config }: { readonly chatId: ChatId; readonly 
         A tracker is one labelled value the story keeps. On the room's participants, on the scene's characters, or on the game itself. Defined once here; read
         and edited on the character. A meter's max here is the DEFAULT ceiling: an individual character can carry a different one on their card.
       </Text>
-      {defs.length === 0 ? <RpgDoorwayLine>No trackers yet: name one below and the story starts keeping it.</RpgDoorwayLine> : null}
+      {defs.length === 0 ? <MutedLine>No trackers yet: name one below and the story starts keeping it.</MutedLine> : null}
       {/* The ROW band takes its own Stack so `rows="control"` floors the tracker rows without inflating the kicker/gloss above them. */}
       <Stack gap="field" rows="control">
         {defs.map((def, i) => (
@@ -418,7 +417,7 @@ function HostConsole({ state }: { readonly state: RpgPanelState }): ReactElement
       <Stack gap="field">
         <Kicker>Stats</Kicker>
         {config.statProfile.attributes.length === 0 ? (
-          <Text voice="gloss">Freeform play needs no scores. Choose D20 above to add its attributes and dice.</Text>
+          <MutedLine>Freeform play needs no scores. Choose D20 above to add its attributes and dice.</MutedLine>
         ) : (
           <>
             <Row gap="field" wrap={true}>

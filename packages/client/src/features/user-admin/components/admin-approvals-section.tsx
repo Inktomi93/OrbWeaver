@@ -19,7 +19,7 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import { QueryBoundary, useFirstBootRows } from "#components";
 import type { Trpc } from "#data";
-import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { MutedLine, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
 import { useSetEnabled } from "../hooks/use-admin-mutations.ts";
 import { ADMIN_APPROVALS_SUBCATEGORY } from "../lib/admin-approvals-nav.ts";
@@ -60,9 +60,7 @@ function AdminApprovalsBody({ anchorId }: { readonly anchorId: string }): ReactE
         </Text>
 
         {pending.length === 0 ? (
-          <Text voice="gloss" data-testid={testId("adminApprovalsEmpty")}>
-            No accounts awaiting approval.
-          </Text>
+          <MutedLine data-testid={testId("adminApprovalsEmpty")}>No accounts awaiting approval.</MutedLine>
         ) : (
           <Stack gap="field">
             {pending.map((user) => (

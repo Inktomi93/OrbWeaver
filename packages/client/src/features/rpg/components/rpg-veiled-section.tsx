@@ -25,7 +25,7 @@ import { RevealGate } from "@orb/ui/reveal-gate";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
-import { QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
+import { MutedLine, QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
 import { veiledFieldLine, veiledReasonLabel, veiledTruthLabel } from "../lib/rpg-names.ts";
 import { Kicker } from "./rpg-kicker.tsx";
 import { RpgTurnRef } from "./rpg-turn-ref.tsx";
@@ -63,9 +63,7 @@ function HiddenLogRow({
           <RpgTurnRef messageId={messageId} createdAt={createdAt} />
         </Row>
         {fields.length === 0 ? (
-          <Text voice="gloss" data-slot="rpg-veiled-log-unreadable">
-            Nothing readable here. The model still remembers it.
-          </Text>
+          <MutedLine>Nothing readable here. The model still remembers it.</MutedLine>
         ) : (
           <RevealGate subject={subject}>
             <Stack gap="field">

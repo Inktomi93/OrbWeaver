@@ -8,11 +8,10 @@ import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
-import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import { DestructiveAction, QueryBoundary } from "#components";
-import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { MutedLine, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { DIALOG_VERBS, timeLib } from "#lib";
 import { useRestoreCharacter, useSnapshotCharacter } from "../hooks/use-character-context-mutations.ts";
 import { CHARACTER_NO_SNAPSHOTS_TEXT, CHARACTER_RESTORE_SNAPSHOT_TITLE, CHARACTER_SNAPSHOT_NOW_NAME } from "../lib/character-names.ts";
@@ -78,7 +77,7 @@ function HistoryTabBody({ characterId }: CharacterHistoryTabProps): ReactElement
       </Button>
 
       {rows.length === 0 ? (
-        <Text voice="gloss">{CHARACTER_NO_SNAPSHOTS_TEXT}</Text>
+        <MutedLine>{CHARACTER_NO_SNAPSHOTS_TEXT}</MutedLine>
       ) : (
         <Stack gap="row">
           {rows.map((row) => (

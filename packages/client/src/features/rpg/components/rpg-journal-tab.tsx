@@ -43,7 +43,17 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { DestructiveAction, QueryBoundary } from "#components";
-import { QueryErrorState, roomRosterOptions, roomTailOptions, SkeletonRows, useInvalidation, useSuspenseQueries, useSuspenseQuery, useTRPC } from "#data";
+import {
+  MutedLine,
+  QueryErrorState,
+  roomRosterOptions,
+  roomTailOptions,
+  SkeletonRows,
+  useInvalidation,
+  useSuspenseQueries,
+  useSuspenseQuery,
+  useTRPC,
+} from "#data";
 import { DIALOG_VERBS, timeLib } from "#lib";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useAddJournalEntry, useCreateCheckpoint, useDeleteJournalEntry, useEditJournalEntry, useRestoreCheckpoint } from "../hooks/use-rpg-mutations.ts";
@@ -199,7 +209,7 @@ function JournalEntries({ state, cards }: { readonly state: RpgPanelState; reado
 function JournalCards({ cards, chatId }: { readonly cards: readonly ArchivedCard[]; readonly chatId: ChatId }): ReactElement {
   const [openKey, setOpenKey] = useState<string | null>(null);
   if (cards.length === 0) {
-    return <Text>{RPG_JOURNAL_NO_CARDS_LINE}</Text>;
+    return <MutedLine>{RPG_JOURNAL_NO_CARDS_LINE}</MutedLine>;
   }
   const newestFirst = cards.toSorted((a, b) => b.createdAt - a.createdAt);
   return (
@@ -268,7 +278,7 @@ function JournalMarks({ state }: { readonly state: RpgPanelState }): ReactElemen
       ) : null}
 
       {sorted.length === 0 ? (
-        <Text>No marks yet{state.isHost ? ". Mark a moment to bookmark this point in the story." : "."}</Text>
+        <MutedLine>{`No marks yet${state.isHost ? ". Mark a moment to bookmark this point in the story." : "."}`}</MutedLine>
       ) : (
         <Stack gap="field">
           {sorted.map((mark) => (

@@ -56,6 +56,7 @@ export {} from "./invalidation-carrier.ts";
 export { connectionWriteReads, personaWriteReads } from "./invalidation-reads.ts";
 export { consumeInboundJoinToken, peekInboundJoinToken, stashInboundJoinToken } from "./join-token.ts";
 export { usePresenceRead, useSendAvailabilityRead } from "./live-fact-reads.ts";
+export { MutedLine } from "./muted-line.tsx";
 export { notifyNewRoomPersona } from "./new-room-persona-notice.ts";
 export { peekQueryData } from "./peek-query.ts";
 export { postBugReport } from "./post-bug-report.ts";

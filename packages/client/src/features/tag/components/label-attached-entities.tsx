@@ -8,7 +8,7 @@ import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
-import { QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
+import { MutedLine, QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
 import { tagTargetTitle } from "#lib";
 import { openConfigTo, openPersonaEditor, selectCharacter, selectChat, selectCollectionMember, selectPreset, setActiveSection } from "#state";
 
@@ -36,7 +36,7 @@ function AttachedKind({ tagId, targetType }: { readonly tagId: TagId; readonly t
     <Stack gap="field">
       <Text voice="kicker">{tagTargetTitle(targetType)}</Text>
       {data.entities.length === 0 ? (
-        <Text voice="gloss">No accessible adopted attachments.</Text>
+        <MutedLine>No accessible adopted attachments.</MutedLine>
       ) : (
         data.entities.map((entity) => <ListRow key={entity.targetId} clickable={true} title={entity.name} onClick={(): void => openTarget(entity)} />)
       )}

@@ -26,7 +26,7 @@ import { ChevronLeft, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useInvalidation, useTRPC } from "#data";
+import { MutedLine, useInvalidation, useTRPC } from "#data";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useEditSnapshot, usePatchActor, usePatchSheet } from "../hooks/use-rpg-mutations.ts";
 import { RPG_CHARACTER_BACK_NAME } from "../lib/rpg-names.ts";
@@ -34,7 +34,6 @@ import type { ActorEdit } from "./rpg-actor-trackers.tsx";
 import { ActorMeters, ActorTrackerRows, ConditionChips, StatusLine } from "./rpg-actor-trackers.tsx";
 import { AttributeGrid } from "./rpg-attribute-grid.tsx";
 import { RpgAttributeSetup } from "./rpg-attribute-setup.tsx";
-import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
 import { RpgFieldLock } from "./rpg-field-lock.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
 import { RpgPopulateControl } from "./rpg-populate-control.tsx";
@@ -186,11 +185,7 @@ function WalletChips({
   readonly onRelease?: IdentityEdits["onReleaseCoin"];
 }): ReactElement {
   if (wallet.length === 0) {
-    return (
-      <Text as="span" voice="gloss">
-        No coin yet: the story hands it out.
-      </Text>
-    );
+    return <MutedLine>No coin yet: the story hands it out.</MutedLine>;
   }
   return (
     <>
@@ -276,7 +271,7 @@ function TrackerSection({
     <Stack gap="field">
       <Kicker>Trackers</Kicker>
       {carriesNone ? (
-        <RpgDoorwayLine>{`${actor.name} carries no trackers yet: the host defines them in the Game tab, and every carrier gets the same one.`}</RpgDoorwayLine>
+        <MutedLine>{`${actor.name} carries no trackers yet: the host defines them in the Game tab, and every carrier gets the same one.`}</MutedLine>
       ) : (
         <Stack gap="field">
           <ActorMeters actor={actor} {...(edit === undefined ? {} : { edit })} />
@@ -295,7 +290,7 @@ function ConditionSection({ actor, edit }: { readonly actor: RpgActorView; reado
     <Stack gap="field">
       <Kicker>Conditions</Kicker>
       {conditions.length === 0 && edit === undefined ? (
-        <Text voice="gloss">Nothing on {actor.name} right now.</Text>
+        <MutedLine>{`Nothing on ${actor.name} right now.`}</MutedLine>
       ) : (
         <ConditionChips conditions={conditions} {...(edit === undefined ? {} : { onAdd: edit.onAddCondition, onRemove: edit.onRemoveCondition, edit })} />
       )}

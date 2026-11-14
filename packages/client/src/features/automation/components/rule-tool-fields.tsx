@@ -9,7 +9,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
-import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
+import { MutedLine, QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { touchedFieldError } from "#forms/editor";
 import { RULE_CAPTURE_TOOL_RESULT_NAME, RULE_TOOL_ARGUMENTS_NAME, RULE_TOOL_CATALOG_READ_LABEL, RULE_TOOL_FIELD_NAME } from "../lib/automation-names.ts";
@@ -153,7 +153,7 @@ function ToolCatalogFields({
           </Field>
         )}
       </form.AppField>
-      {tools.length === 0 ? <Text voice="gloss">You have no available automation tools. Activate a plugin with a tool you have permitted.</Text> : null}
+      {tools.length === 0 ? <MutedLine>You have no available automation tools. Activate a plugin with a tool you have permitted.</MutedLine> : null}
       {selected === undefined ? null : <Text voice="gloss">{selected.description}</Text>}
       {selected === undefined ? null : (
         <Stack gap="tight">

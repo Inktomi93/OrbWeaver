@@ -25,6 +25,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { FormDialog } from "#components";
+import { MutedLine } from "#data";
 import { PRESET_IMPORT_NAME, PRESET_IMPORT_TITLE } from "../lib/preset-names.ts";
 
 /** The `.json` extension, stripped off the picked filename to seed the preset name (ST arm only — an
@@ -245,7 +246,7 @@ function StImportSummary({ name, result }: { readonly name: string; readonly res
         SillyTavern preset: {sectionCount} section{sectionCount === 1 ? "" : "s"}, created as a new preset named "{name}".
       </Text>
       {dropped.length === 0 ? (
-        <Text voice="gloss">Everything mapped: nothing was dropped.</Text>
+        <MutedLine>Everything mapped: nothing was dropped.</MutedLine>
       ) : (
         <Stack gap="field">
           <Text voice="gloss">These SillyTavern fields have no orbweaver home and were left out:</Text>

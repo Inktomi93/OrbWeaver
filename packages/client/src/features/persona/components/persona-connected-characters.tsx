@@ -14,11 +14,10 @@ import { Button } from "@orb/ui/button";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
-import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { CharacterPicker, PickerDialog, QueryBoundary } from "#components";
-import { SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { MutedLine, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { useConnectCharacter, useDisconnectCharacter } from "../hooks/use-persona-mutations.ts";
 
 /** Keeps junction loading and retry local to the editor section. */
@@ -46,7 +45,7 @@ function ConnectedCharactersBody({ personaId }: { readonly personaId: PersonaId 
   return (
     <Section heading="Connected characters">
       {connected.length === 0 ? (
-        <Text voice="gloss">No characters connected.</Text>
+        <MutedLine>No characters connected.</MutedLine>
       ) : (
         <Stack gap="row">
           {connected.map((character) => (

@@ -17,7 +17,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { Notice } from "#components";
-import { SkeletonRows } from "#data";
+import { MutedLine, SkeletonRows } from "#data";
 import { DIALOG_VERBS } from "#lib";
 import type { EffectiveProfileRow } from "#src/features/preset/lib/effective-knobs.ts";
 import { honoredKnobLabels, knobLabel, MIROSTAT_SKIPPED_GLOSS, provenanceSuffix, resolvedForLabel } from "#src/features/preset/lib/effective-knobs.ts";
@@ -114,7 +114,7 @@ export function EffectiveProfile({
   return (
     <Section kicker="Effective generation">
       {rows.length === 0 && contextWindow === undefined ? (
-        <Text voice="gloss">This model resolves no generation knobs. It takes the prompt and nothing else.</Text>
+        <MutedLine>This model resolves no generation knobs. It takes the prompt and nothing else.</MutedLine>
       ) : (
         <Stack gap="tight">
           {/* DISPLAY names, never the schema key (side-eye F-13): the read is keyed by `maxOutputTokens`,

@@ -14,10 +14,10 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { EditableTagChip } from "#components";
+import { MutedLine } from "#data";
 import type { TagFilterEntry, TagFilterState } from "#lib";
 import { tagFilterStateOf } from "#lib";
 import { useRovingChipFocus } from "../hooks/use-roving-chip-focus.ts";
-
 import type { LibraryChipTag } from "../lib/character-library-lens.ts";
 import { vocabularyPanelTags } from "../lib/character-library-lens.ts";
 import { CHARACTER_FEWER_TAGS_NAME, CHARACTER_FILTER_TAGS_NAME, CHARACTER_TAG_VOCABULARY_NAME, characterTagFilterName } from "../lib/character-names.ts";
@@ -161,7 +161,7 @@ export function TagVocabularyPanel({
       </ScrollArea>
       {/* A search that finds nothing must SAY so — an empty scroller is indistinguishable from a broken one. */}
       <Text voice="gloss">{`Right-click, hold, or press ${EDIT_LABEL_KEY} to edit a label.`}</Text>
-      {matches.length === 0 ? <Text voice="gloss">{`No tag matches "${query}".`}</Text> : null}
+      {matches.length === 0 ? <MutedLine>{`No tag matches "${query}".`}</MutedLine> : null}
     </>
   );
 }

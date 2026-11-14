@@ -49,7 +49,7 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import type { RowDeleteFocus } from "#components";
 import { LibraryRow, useRowDeleteFocus } from "#components";
-import { useInvalidation, useSuspenseQuery, useTRPC, useTRPCClient } from "#data";
+import { MutedLine, useInvalidation, useSuspenseQuery, useTRPC, useTRPCClient } from "#data";
 import type { CollectionListView } from "#lib";
 import {
   downloadTextFile,
@@ -167,11 +167,7 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
       // feedback a keyboard reader receives. `role="status"` rides the
       // MESSAGE, never the row container — a live region around the list would announce every row on every
       // keystroke. Same fix, same words, in the tag and world-info arms.
-      return needle === "" ? null : (
-        <Text role="status" voice="gloss">
-          No scripts match that filter.
-        </Text>
-      );
+      return needle === "" ? null : <MutedLine announce={true}>No scripts match that filter.</MutedLine>;
     }
     return (
       <VirtualList

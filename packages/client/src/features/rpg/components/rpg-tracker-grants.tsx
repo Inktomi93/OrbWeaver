@@ -26,9 +26,8 @@ import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId } from "react";
-import { useInvalidation, useTRPC } from "#data";
+import { MutedLine, useInvalidation, useTRPC } from "#data";
 import { usePatchSheet } from "../hooks/use-rpg-mutations.ts";
-import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
 
 /** The picker options, in escalation order — the ONE source for the axis. `By class` reads as the honest
@@ -109,7 +108,7 @@ export function TrackerGrantsEditor({
     <Stack gap="field" data-slot="rpg-tracker-grants">
       <Kicker>Tracker access</Kicker>
       {actorDefs.length === 0 ? (
-        <RpgDoorwayLine>No character trackers yet. The host defines them in the Game tab, and grants or revokes them per character here.</RpgDoorwayLine>
+        <MutedLine>No character trackers yet. The host defines them in the Game tab, and grants or revokes them per character here.</MutedLine>
       ) : (
         <Stack gap="field">
           <Text as="span" voice="gloss" prose={true} cap="prose">

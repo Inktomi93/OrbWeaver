@@ -37,7 +37,7 @@ import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { SettingCheckboxRow } from "#components";
-import { useInvalidation, useSuspenseQueries, useTRPC } from "#data";
+import { MutedLine, useInvalidation, useSuspenseQueries, useTRPC } from "#data";
 import { isUnknownMacroPick, unknownMacroPickCopy, useSetUserMacroValues, useSetVariables } from "../hooks/use-context-panel-mutations.ts";
 
 /** ONE stored pick, DERIVED from the wire bag (never re-spelled): string | boolean | string[]. Kit's
@@ -365,10 +365,10 @@ export function MacroPicksSection({ chatId }: MacroPicksSectionProps): ReactElem
     // NOT rendered as nothing (omit ≠ none-yet): the section says the feature exists and where it comes from,
     // so an author who declared a macro without inputs isn't left wondering why the pane is blank.
     return (
-      <Text voice="gloss">
+      <MutedLine>
         The preset this chat runs declares no variables and no macro inputs. Add a variable or a typed macro input (Presets → Prompt / Macros) and it appears
         here to pick per chat.
-      </Text>
+      </MutedLine>
     );
   }
 

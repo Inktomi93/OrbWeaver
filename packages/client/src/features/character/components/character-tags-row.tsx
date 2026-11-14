@@ -17,7 +17,7 @@ import type { ReactElement } from "react";
 import { useId, useRef, useState } from "react";
 import { EditableTagChip, TagPickerDialog } from "#components";
 import type { Trpc } from "#data";
-import { useInvalidation } from "#data";
+import { MutedLine, useInvalidation } from "#data";
 import { DIALOG_VERBS } from "#lib";
 import { useBulkAddCardTag, useBulkRemoveCardTag } from "../hooks/use-character-mutations.ts";
 import { CHARACTER_ADD_TAG_NAME, CHARACTER_TAG_DIALOG_TITLE } from "../lib/character-names.ts";
@@ -84,7 +84,7 @@ export function CharacterTagsRow({ characterId, tags, trpc }: CharacterTagsRowPr
           // The house empty word (#502) — this row said "No tags" while the facet rows said "Add…" and the
           // CONTEXT card said "None", three vocabularies for one state inside one editor. The verb lives in
           // the "Add tag" button beside it, which is why the value can just say what is there.
-          <Text voice="gloss">{EMPTY_VALUE}</Text>
+          <MutedLine>{EMPTY_VALUE}</MutedLine>
         ) : (
           visible.map((tag) => (
             <Badge key={tag.id} size="sm">

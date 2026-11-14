@@ -31,7 +31,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useDeferredValue, useState } from "react";
 import { QueryBoundary } from "#components";
-import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
+import { MutedLine, QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
 import { selectCorpusArtifact } from "#state";
 import { chartLabelWithDenominator, chartSpread, toBarItems, topRanked } from "../lib/corpus-charts.ts";
@@ -160,7 +160,7 @@ function CooccurringKeywords({ keyword }: { readonly keyword: string }): ReactEl
   if (cooccurring.length === 0) {
     // The ONE surviving note in this file, and it earns its place: the user PICKED this keyword, so an
     // empty result is an answer to a question they just asked, not an un-run pass.
-    return <Text voice="gloss">Nothing co-occurs with “{keyword}” yet.</Text>;
+    return <MutedLine>{`Nothing co-occurs with “${keyword}” yet.`}</MutedLine>;
   }
   return (
     <Stack gap="field">

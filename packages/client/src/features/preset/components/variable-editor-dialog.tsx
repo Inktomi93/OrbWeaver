@@ -6,10 +6,10 @@ import type { ChoiceBlockSpec } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import { DestructiveAction, FlowDialog } from "#components";
+import { MutedLine } from "#data";
 import type { AppFormInstance } from "#forms/editor";
 import { DIALOG_VERBS, notify } from "#lib";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
@@ -86,7 +86,7 @@ function OptionList({ form, index }: { readonly form: AppForm; readonly index: n
         {(values): ReactElement => (
           <Stack gap="field">
             {values.variables[index]?.options.length === 0 ? (
-              <Text voice="gloss">No options yet.</Text>
+              <MutedLine>No options yet.</MutedLine>
             ) : (
               values.variableRowIds[index]?.options.map((id, j) => (
                 <Row key={id} gap="field" align="end" role="group" aria-label={presetVariableOptionGroupName(j + 1)}>

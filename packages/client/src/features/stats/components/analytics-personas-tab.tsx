@@ -14,7 +14,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { shownValue, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
-import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
+import { MutedLine, QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
 import { useSelectedAnalyticsCharacterId } from "#state";
 import { formatAccountingLabel, formatCompact, formatCompactNoun, formatTokens, personaBarItems } from "../lib/analytics-view-model.ts";
@@ -56,7 +56,7 @@ function PersonasBody(): ReactElement {
 
       <Section heading="Breakdown">
         {personas.length === 0 ? (
-          <Text voice="gloss">You haven't played as any persona yet.</Text>
+          <MutedLine>You haven't played as any persona yet.</MutedLine>
         ) : (
           /* `role="list"` needs `listitem` CHILDREN or every row is generic to AT and the list announces
              empty (side-eye ANALYTICS 2026-08-19, P2c). The wrapper carries the role, never the ListRow. */

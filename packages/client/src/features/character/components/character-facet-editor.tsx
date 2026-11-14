@@ -17,7 +17,7 @@ import { Toggle } from "@orb/ui/toggle";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { SettingRowGroup, SettingTrackRow } from "#components";
-import { useColorQuotedSpeech, usePromptMacroSuggestions } from "#data";
+import { MutedLine, useColorQuotedSpeech, usePromptMacroSuggestions } from "#data";
 import type { AppFormInstance } from "#forms/editor";
 import { ASSISTANT_PREFILL_WARNING, BUILTIN_MACRO_SUGGESTIONS } from "#lib";
 import { useSpoilerBlur } from "#state";
@@ -337,7 +337,7 @@ function ExampleTranscript({
   const colorQuotes = useColorQuotedSpeech();
   const blocks = parseExampleBlocks(value);
   if (blocks.length === 0) {
-    return <Text voice="quiet">No example messages yet.</Text>;
+    return <MutedLine>No example messages yet.</MutedLine>;
   }
   return (
     <Stack key={value} gap="block">

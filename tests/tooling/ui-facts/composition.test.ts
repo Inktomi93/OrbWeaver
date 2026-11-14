@@ -906,3 +906,33 @@ test("a toned Card with a status fill is a hand-built notice beside the Notice o
     [9, "Notice"],
   ]);
 });
+
+test("a Text drawn in a list's empty arm is a hand-built muted line beside the MutedLine owner, and a Text in the populated arm is no member", ({
+  scratch,
+}) => {
+  const root = plantDir(scratch, "muted-line");
+  plant(root, {
+    "components/lines.tsx": [
+      'import { Text } from "@orb/ui/text";',
+      'import { MutedLine } from "#data";',
+      "export const A = ({ rows, go }) => (",
+      "  <>",
+      '    {rows.length === 0 ? <Text voice="gloss">none</Text> : <Text>{rows.length}</Text>}',
+      '    <MutedLine action={{ label: "Go", onAction: go }}>none</MutedLine>',
+      "  </>",
+      ");",
+      "export function B({ rows }) {",
+      "  if (rows.length === 0) {",
+      "    return <Text>none</Text>;",
+      "  }",
+      "  return <MutedLine announce={true}>miss</MutedLine>;",
+      "}",
+    ].join("\n"),
+  });
+  expect(cohortCells(root, "muted-line", "line")).toEqual([
+    [5, "hand-built"],
+    [6, "MutedLine"],
+    [11, "hand-built"],
+    [13, "MutedLine"],
+  ]);
+});

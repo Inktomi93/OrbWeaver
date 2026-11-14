@@ -9,6 +9,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { Key, ReactElement, ReactNode } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
+import { MutedLine } from "#data";
 import { DIALOG_VERBS } from "#lib";
 import { ConfirmDialog } from "./confirm-dialog.tsx";
 
@@ -85,9 +86,7 @@ export function EntryListEditor<TItem>({
 
       <Stack gap="field">
         {items.length === 0 ? (
-          <Text ink="muted" voice="gloss">
-            {emptyText}
-          </Text>
+          <MutedLine>{emptyText}</MutedLine>
         ) : (
           items.map((item, index) => (
             <ListRow

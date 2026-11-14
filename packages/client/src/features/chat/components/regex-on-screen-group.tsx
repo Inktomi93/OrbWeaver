@@ -32,7 +32,7 @@ import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { RowActionsMenu } from "#components";
-import { DISPLAY_PLACEMENT, useDisplayScripts, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { DISPLAY_PLACEMENT, MutedLine, useDisplayScripts, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { ROW_MORE_LEAD, regexScriptTitle, rowActionSubject, rowQualifiers, timeLib } from "#lib";
 import { openConfigTo, selectCollectionMember } from "#state";
 import { useSetRegexScriptEnabled } from "../hooks/use-chat-regex-mutations.ts";
@@ -71,7 +71,7 @@ export function RegexOnScreenGroup({ chatId, isHost }: RegexOnScreenGroupProps):
         Display scripts change what <b>you</b> see, now. Yours come from your library; the host can broadcast theirs.
       </Text>
       {rows.length === 0 ? (
-        <Text voice="gloss">No display scripts are running on your transcript here.</Text>
+        <MutedLine>No display scripts are running on your transcript here.</MutedLine>
       ) : (
         <Stack gap="tight" role="list">
           {rows.map((script, index) => (

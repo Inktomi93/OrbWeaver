@@ -42,7 +42,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { DestructiveAction, useRowDeleteFocus } from "#components";
-import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { MutedLine, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { createAutosaveEntityForm } from "#forms/editor";
 import { DIALOG_VERBS, MESSAGE_ROLE_ITEMS, MESSAGE_ROLE_LABELS } from "#lib";
 import { useDeleteChatInjection, useSetChatInjection } from "../hooks/use-context-panel-mutations.ts";
@@ -130,7 +130,7 @@ function InjectionsList({ rows, isHost, onAdd, onSave, onDelete }: InjectionsLis
       {rows.length === 0 ? (
         // The muted empty-state grammar every other zero-row surface uses — at full body weight this one
         // sentence carried more visual weight than the rows it stands in for (side-eye 2026-08-06 P3).
-        <Text voice="gloss">No injections yet.</Text>
+        <MutedLine>No injections yet.</MutedLine>
       ) : (
         <Stack gap="section">
           {rows.map((row, index) => (

@@ -42,7 +42,7 @@ import type { ReactElement } from "react";
 import { Fragment, useRef, useState } from "react";
 import { RowActionsMenu, RowToggleAction } from "#components";
 import type { Trpc } from "#data";
-import { seedPresetId, useGatedQuery, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { MutedLine, seedPresetId, useGatedQuery, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { rowActionsName, trpcErrorCode } from "#lib";
 import { useDetachDocumentFromChat, useSetChatDocumentVisibility } from "../hooks/use-chat-document-mutations.ts";
 import { CHAT_ADD_FROM_BANK_NAME } from "../lib/chat-attach-names.ts";
@@ -213,11 +213,11 @@ export function ChatDocumentsSection({ chatId, isHost }: ChatDocumentsSectionPro
       {rows.length === 0 ? (
         // Never render nothing: "nothing feeds this room" is the normal starting state, and a blank block
         // reads as a failed load (empty states are load-bearing).
-        <Text voice="gloss">
+        <MutedLine>
           {isHost
             ? "No documents feed this chat yet."
             : "No documents feed this chat yet. Switch one of your own on for every chat in Databank and it joins the rooms you are in."}
-        </Text>
+        </MutedLine>
       ) : (
         // THE RACK OWNS ITS SCROLL. The union is membership-derived: every present member's Everywhere
         // documents plus the roster characters' plus the room's own, so it can outgrow the pane while its
