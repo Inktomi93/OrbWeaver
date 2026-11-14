@@ -2,7 +2,7 @@
 // chats · messages · message_variants · message_assets · message_reactions · chat_participants ·
 // chat_invites · pending_turns · chat_events ·
 // chat_injections · chat_locks · chat_import_claims · chat_handoff_resumptions ·
-// compaction_spend · chat_generation_observations. Built
+// chat_generation_observations. Built
 // WHOLE (no feature-phasing — ledger D16); the authoritative spec is `docs/law/Tier-1-DB.md`.
 //
 // THE LOAD-BEARING DECISIONS encoded here:
@@ -86,7 +86,6 @@ import type {
   ChatInviteId,
   ChatParticipantId,
   ChatTurnId,
-  CompactionSpendId,
   MessageAssetId,
   MessageId,
   MessageReactionId,
@@ -1017,32 +1016,6 @@ export const chatLocks = sqliteTable("chat_locks", {
   // The TTL horizon — a stale lock past this is takeover-eligible (the LOCK_TTL_MS window).
   expiresAt: integer("expires_at").notNull(),
 });
-
-// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// compaction_spend — one row per PRICED compaction pass: the money a marker generation cost, written in the
-// same batch as its live stats delta. The marker itself is overwritten by every pass, so this ledger is the
-// only canon the stats rebuild can re-derive compaction spend from (`rebuild-from-canon.ts`).
-// OWNER-STAMPED (D23): the funding host is the owner, and no FK reaches it — the spend is the host's money,
-// not the room's, so the row carries no `chat_id` and outlives the chat the way the live rollup does.
-// Append-only: a lost marker CAS still spent the money, so its row stays.
-// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-
-export const compactionSpend = sqliteTable(
-  "compaction_spend",
-  {
-    id: nulFreeText("id").$type<CompactionSpendId>().primaryKey(),
-    // FK users RESTRICT — the same posture as the stats rollups this row feeds.
-    ownerId: nulFreeText("owner_id")
-      .$type<UserId>()
-      .notNull()
-      .references(() => users.id, { onDelete: "restrict" }),
-    // Fractional USD; only a reported, positive cost is a row (an unpriced pass spends nothing to record).
-    costUsd: real("cost_usd").notNull(),
-    // The pass's clock — the live delta's `now`, so the rebuild buckets the spend in the same timeline bucket.
-    createdAt: integer("created_at").notNull(),
-  },
-  (t) => [index("compaction_spend_owner_idx").on(t.ownerId, t.createdAt)],
-);
 
 // Completed responses awaiting a transcript generation, including refusals and nonpersisting drafts.
 // Required retained parents CASCADE; successful commit transfers these facts into the variant and removes

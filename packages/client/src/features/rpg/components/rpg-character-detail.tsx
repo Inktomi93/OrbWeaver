@@ -29,6 +29,7 @@ import type { ReactElement } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useEditSnapshot, usePatchActor, usePatchSheet } from "../hooks/use-rpg-mutations.ts";
+import { RPG_CHARACTER_BACK_NAME } from "../lib/rpg-names.ts";
 import type { ActorEdit } from "./rpg-actor-trackers.tsx";
 import { ActorMeters, ActorTrackerRows, ConditionChips, StatusLine } from "./rpg-actor-trackers.tsx";
 import { AttributeGrid } from "./rpg-attribute-grid.tsx";
@@ -369,7 +370,7 @@ export function RpgCharacterDetail({ state, actor, edit, onBack }: RpgCharacterD
       {/* The breadcrumb — a real button (keyboard-reachable, ≥44px on a coarse pointer through the shared
           control tokens), naming where it goes. The participant list is one step away from every character. */}
       <Row gap="field" align="center">
-        <Button variant="ghost" size="sm" onClick={onBack} aria-label="Back to the characters">
+        <Button variant="ghost" size="sm" onClick={onBack} aria-label={RPG_CHARACTER_BACK_NAME}>
           <Icon icon={ChevronLeft} size="xs" />
           Characters
         </Button>

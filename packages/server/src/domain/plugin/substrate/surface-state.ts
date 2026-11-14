@@ -27,21 +27,16 @@ import type { PluginSurfaceStateStore } from "../contract/service.ts";
  *  never a silent truncation of a state object whose shape the renderer binds by path. */
 const SURFACE_STATE_MAX_BYTES = 16_384;
 
-/** The per-plugin ceiling on the number of DISTINCT state keys the plane holds (the storage.kv 256-key
- *  discipline, but SMALL). Without it a resident plugin could loop `host.ui.setState(mint(), <16 KiB blob>)`
- *  with a fresh surfaceId each call and grow THIS Map without bound in the DOMAIN's Node/V8 heap (NOT the guest
- *  WASM heap — the 32 MiB sandbox cap does not reach it), a host OOM affecting every tenant. A
- *  NEW key past the cap is refused; an existing-key overwrite always proceeds (only a new key consumes a slot).
- *  `64 × 16 KiB ≈ 1 MiB` bounds one plugin's plane.
+/** The per-plugin ceiling on the number of DISTINCT state keys the plane holds (D351). Without it a resident
+ *  plugin could loop `host.ui.setState(mint(), <16 KiB blob>)` with a fresh surfaceId each call and grow THIS Map
+ *  without bound in the DOMAIN's Node/V8 heap (NOT the guest WASM heap — the sandbox cap does not reach it), a
+ *  host OOM affecting every tenant. A NEW key past the cap is refused; an existing-key overwrite always proceeds
+ *  (only a new key consumes a slot). The cap times {@link SURFACE_STATE_MAX_BYTES} bounds one plugin's plane.
  *
- *  THE ROOM-KEY CONSEQUENCE, stated rather than silently widened: a key is now `(surfaceId, chatId?)`, so a
- *  room-anchored widget consumes ONE SLOT PER ROOM it publishes into and a plugin in 64 rooms refuses the 65th.
- *  That refusal is CONTAINED (a rejected guest promise + the log line below) and the 1 MiB heap bound is exactly
- *  the measured DoS bound, so this lane does NOT widen a DoS belt to make a feature roomier. The priced revision —
- *  per-plugin byte budget rather than key count, or an LRU over rooms — waits until a real
- *  plugin hits this. Until then the refusal must be VISIBLE: a per-room widget that silently stopped updating
- *  with no trace would violate §4.9's diagnosability posture, so the throw carries the plugin AND the room. */
-const PLUGIN_SURFACE_STATE_MAX_KEYS = 64;
+ *  A key is `(surfaceId, chatId?)`, so a room-anchored widget consumes ONE SLOT PER ROOM it publishes into and is
+ *  refused in the room past the cap. D351 keeps the count over a byte budget or a room eviction until a real
+ *  plugin reaches it; the refusal stays VISIBLE meanwhile, so the log line carries the plugin AND the room. */
+export const PLUGIN_SURFACE_STATE_MAX_KEYS = 64;
 
 /** UTF-8 byte length without `TextEncoder` (server code, but kept isomorphic-style for one home with the
  *  contract's `ui.ts` byte counter — `encodeURIComponent` emits one char per ASCII byte and a `%XX` triple per
@@ -86,19 +81,17 @@ export function createPluginSurfaceStateStore(logger: Logger): PluginSurfaceStat
       }
       const key = stateKey(pluginId, surfaceId, chatId);
       // Only a NEW key consumes a slot — an existing-key overwrite always proceeds (the storage.kv discipline).
-      // A fresh key past the cap is REFUSED, so a `setState(mint(), …)` loop cannot grow the plane unbounded
-      //. The count is a prefix scan over the shared Map; the cap is small so the scan stays
-      // tiny (at most PLUGIN_SURFACE_STATE_MAX_KEYS keys per plugin).
+      // A fresh key past the cap is REFUSED, so a `setState(mint(), …)` loop cannot grow the plane unbounded.
+      // The count is a prefix scan over the shared Map; the cap is small so the scan stays tiny.
       if (!states.has(key) && keyCount(states, pluginId) >= PLUGIN_SURFACE_STATE_MAX_KEYS) {
-        // LOUD, not silent (§4.9): with the room dimension this cap is reachable by a legitimate
-        // per-room widget in a 65th room, and a widget that just stops updating with no trace is exactly the
-        // undiagnosable failure the plugin log exists to prevent. The guest sees the rejection; an operator
-        // sees WHICH plugin and WHICH room, which is what a board-row-778 decision would be made from.
+        // LOUD, not silent: a legitimate per-room widget reaches this cap in a new room, and a widget that just
+        // stops updating with no trace is the undiagnosable failure the plugin log exists to prevent. The guest
+        // sees the rejection; an operator sees WHICH plugin and WHICH room, the evidence a D351 revision needs.
         if (!atCap.has(pluginId)) {
           atCap.add(pluginId);
           log.warn(
             { pluginId, surfaceId, chatId, cap: PLUGIN_SURFACE_STATE_MAX_KEYS },
-            "plugin: ui.setState refused — this plugin is at its surface-state key cap (row 778)",
+            "plugin: ui.setState refused — this plugin is at its surface-state key cap",
           );
         }
         throw new DomainConflictError(`plugin host: ui.setState exceeds the ${PLUGIN_SURFACE_STATE_MAX_KEYS}-key state cap for this plugin`);

@@ -222,7 +222,7 @@ export function ConnectionRoleSlot({
               aria-label={pickerLabel}
               id={controlId}
               items={items}
-              layout="hugWrap"
+              layout="hug"
               value={current}
               disabled={setBinding.isPending || reindex.asking}
               onValueChange={(value): void => {

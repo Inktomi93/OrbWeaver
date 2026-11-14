@@ -209,6 +209,8 @@ function ControlActionButton({ action, consumer, as, onInvoked }: ControlActionB
       }}
       shape={chip ? "pill" : "control"}
       size={chip ? "chip" : "sm"}
+      // A chip's label is a rule author's own sentence: at enlarged text it breaks inside the chip rather than push the chip past the band.
+      wrap={chip}
     >
       {chip ? (
         <>
@@ -350,6 +352,7 @@ function ControlChipGroup({ group, consumer }: { readonly group: ChipGroup; read
           onClick={(): void => setExpanded((open) => !open)}
           shape="pill"
           size="chip"
+          wrap={true}
         >
           <Text as="span" ink="inherit" voice="label">
             {visibleLabel}

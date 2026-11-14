@@ -22,8 +22,7 @@
 import type { UserIntent } from "@orb/contracts/preset";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
-import { compactionSpendDelta } from "@orb/contracts/stats";
-import { chats, compactionSpend } from "@orb/db";
+import { chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchLed } from "@orb/db/query";
 import type { Resolved } from "@orb/inference";
@@ -126,13 +125,12 @@ async function buildMarker(
     .returning({ id: chats.id });
   const stmts: BatchStmt[] = [];
   // COST VISIBILITY: the quiet marker generation's spend lands on the owner's + daily stats (the cost-visibility
-  // rule), and its `compaction_spend` row rides the same batch — the marker is overwritten by the next pass, so
+  // rule), and its `spend_ledger` row rides the same batch — the marker is overwritten by the next pass, so
   // that row is the only canon a stats rebuild can re-derive this spend from. A null/0 cost (a local vLLM turn,
   // or a backend that reports none) spends nothing to record.
   if (result.costUsd !== null && result.costUsd > 0) {
     const spentAt = ctx.now();
-    stmts.push(ctx.db.insert(compactionSpend).values({ id: ctx.newCompactionSpendId(), ownerId: env.ownerId, costUsd: result.costUsd, createdAt: spentAt }));
-    ctx.applyStatsDelta(stmts, ctx.db, compactionSpendDelta({ ownerId: env.ownerId, costUsd: result.costUsd, now: spentAt }));
+    ctx.recordLedgerSpend(stmts, ctx.db, { kind: "compaction", ownerId: env.ownerId, costUsd: result.costUsd, now: spentAt });
   } else {
     ctx.bumpStatsCanonVersion(stmts, ctx.db, env.ownerId);
   }

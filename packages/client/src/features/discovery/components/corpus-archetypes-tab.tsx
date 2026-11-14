@@ -248,7 +248,8 @@ function ClusterCard({ cluster, name }: { readonly cluster: ArchetypeCard; reado
         </Text>
       ) : null}
       {cluster.members.length > 0 ? (
-        <Row align="center" gap="field">
+        // The names take their own line when the faces leave them less than the field floor: enlarged text grows the faces with it.
+        <Row align="center" gap="field" wrap={true}>
           {/* The strip is ART, like the family plates it mirrors: every seat's name is printed right beside
               it, so a named stack would announce the same people a second time inside a three-line row. */}
           <AvatarStack
@@ -276,10 +277,10 @@ function ClusterCard({ cluster, name }: { readonly cluster: ArchetypeCard; reado
               A `wrap`-sized ghost Button per name, not a link list: the same control the gem shelf and
               quick-picks use for "a grid cell whose subject is a character", so the hover/focus/press
               vocabulary is the one this section already teaches. */}
-          <Row className="min-inline-0" wrap={true} grow={true} gap="tight">
+          <Row className="min-inline-0" floor="field" wrap={true} grow={true} gap="tight">
             {cluster.members.slice(0, CLUSTER_PREVIEW_MEMBERS).map((member) => (
-              <Button variant="ghost" key={member.characterId} onClick={(): void => selectCorpusCharacter(member.characterId)} size="sm">
-                <Text as="span" truncate={true} ink="muted" voice="label">
+              <Button variant="ghost" key={member.characterId} onClick={(): void => selectCorpusCharacter(member.characterId)} size="sm" wrap={true}>
+                <Text as="span" ink="muted" voice="label">
                   {member.name}
                 </Text>
               </Button>

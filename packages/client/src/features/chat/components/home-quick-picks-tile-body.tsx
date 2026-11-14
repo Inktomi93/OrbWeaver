@@ -21,7 +21,15 @@ import type { FocusEvent, ReactElement, RefObject } from "react";
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import { useStartChat, useSuspenseQuery, useTRPC } from "#data";
 import { resumeChat, setActiveSection } from "#state";
-import { CHAT_ALL_CHARACTERS_NAME, HOME_QUICK_PICKS_NAME, homeNewChatWithName } from "../lib/chat-surface-names.ts";
+import {
+  CHAT_ALL_CHARACTERS_NAME,
+  HOME_QUICK_PICKS_CREATE_NAME,
+  HOME_QUICK_PICKS_EMPTY_GLOSS,
+  HOME_QUICK_PICKS_EMPTY_TITLE,
+  HOME_QUICK_PICKS_NAME,
+  homeNewChatWithName,
+} from "../lib/chat-surface-names.ts";
+import { useStarterRegion } from "../lib/home-starter-region.ts";
 
 const TRACK_SEPARATOR = /\s+/u;
 
@@ -35,6 +43,8 @@ function revealFocused(event: FocusEvent<HTMLDivElement>): void {
 
 export function HomeQuickPicksTileBody({ gridRef }: { readonly gridRef?: RefObject<HTMLDivElement | null> }): ReactElement {
   const trpc = useTRPC();
+  // The column this tile stands in: the same hook the tile's `useRegion` reads, so the body and its column cannot disagree.
+  const region = useStarterRegion();
   /** The per-render id SCOPE for the cells' caption elements (each cell suffixes its own character id) —
    *  one hook at the top of the component, never one per row inside the map. */
   const captionScope = useId();
@@ -86,18 +96,27 @@ export function HomeQuickPicksTileBody({ gridRef }: { readonly gridRef?: RefObje
   const shown = swipe ? quickPicks : quickPicks.slice(0, layout === null ? 1 : Math.max(layout.tracks - 1, 1));
 
   if (!hasFaces) {
+    const createDoor = (
+      <Button variant="outline" onClick={(): void => setActiveSection("characters")} size="sm">
+        <Icon icon={Users} size="sm" />
+        {HOME_QUICK_PICKS_CREATE_NAME}
+      </Button>
+    );
+    // A shelf tile states its emptiness at shelf weight and the hearth draws the pane form (UI-Density-Law §3.3): the
+    // centred island is the one centred block in the shelf's flush-left column.
+    if (region === "shelf") {
+      return (
+        <Stack align="start" gap="field">
+          <Text voice="label">{HOME_QUICK_PICKS_EMPTY_TITLE}</Text>
+          {createDoor}
+          <Text cap="prose" clamp={3} voice="gloss" prose={true}>
+            {HOME_QUICK_PICKS_EMPTY_GLOSS}
+          </Text>
+        </Stack>
+      );
+    }
     return (
-      <EmptyState
-        action={
-          <Button variant="outline" onClick={(): void => setActiveSection("characters")} size="sm">
-            <Icon icon={Users} size="sm" />
-            Create your first character
-          </Button>
-        }
-        description="Every character is a thread waiting to be woven."
-        icon={<Icon icon={Users} size="lg" />}
-        title="No characters yet"
-      />
+      <EmptyState action={createDoor} description={HOME_QUICK_PICKS_EMPTY_GLOSS} icon={<Icon icon={Users} size="lg" />} title={HOME_QUICK_PICKS_EMPTY_TITLE} />
     );
   }
 

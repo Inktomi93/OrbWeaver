@@ -3,7 +3,7 @@
 // composes house components as DATA and never touches the DOM, so tokens/theme/a11y/density come free and the
 // vocabulary cannot express raw HTML, host chrome, a modal, or a write channel.
 //
-// This file owns the WALK — the caps re-validation, the depth guard, the container dispatch, and the surface
+// This file owns the WALK — the caps re-validation, the depth guard, the `when` skip, the container dispatch, and the surface
 // state/draft/image-url plumbing. The individual node renderers live beside it: the browse-genre containers in
 // `plugin-browse-nodes.tsx`, and every LEAF behind the one `SurfaceLeaf` door in `plugin-leaf-nodes.tsx` (which
 // keeps the display/form partition module-private, so no render-only union type has to be exported).
@@ -28,7 +28,13 @@
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { PluginButtonNode, PluginSurfaceAnchor, PluginSurfaceNode } from "@orb/contracts/plugin";
-import { PLUGIN_ANCHOR_PRIMARY_ALLOWED, PLUGIN_SPEC_MAX_DEPTH, pluginSurfaceSpecSchema, resolvePluginPrimaryButton } from "@orb/contracts/plugin";
+import {
+  PLUGIN_ANCHOR_PRIMARY_ALLOWED,
+  PLUGIN_SPEC_MAX_DEPTH,
+  pluginSurfaceSpecSchema,
+  resolvePluginNodeShown,
+  resolvePluginPrimaryButton,
+} from "@orb/contracts/plugin";
 import type { AssetId, ChatId, PluginId } from "@orb/kit/ids";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -211,7 +217,7 @@ function PluginSurfaceForm({ pluginId, surfaceId, spec, anchor, chatId, sink, st
   // #818 — the per-anchor PRIMARY arbitration, decided ONCE over the validated tree and threaded down by node
   // IDENTITY. It runs here, not in the button leaf, because the law is about the WHOLE surface at THIS anchor:
   // a leaf can only see itself, and "the first one wins" is not a fact a leaf holds.
-  const arbitration = resolvePluginPrimaryButton(spec, anchor);
+  const arbitration = resolvePluginPrimaryButton(spec, anchor, effectiveState);
   const refusalMessage = primaryRefusalMessage(pluginId, surfaceId, anchor, arbitration.refused);
   // The refusal reaches the plugin's AUTHOR in an effect (never in the render body): a console write during
   // render fires on every repaint of a perfectly static defect. The message string is the whole dependency.
@@ -267,18 +273,25 @@ function PluginSurfaceForm({ pluginId, surfaceId, spec, anchor, chatId, sink, st
   return <SurfaceNode ctx={ctx} depth={1} node={spec} />;
 }
 
-/** Map a node's children to SurfaceNode. */
+/** Map a node's SHOWN children to SurfaceNode. A hidden child is dropped here rather than rendered as `null`, so
+ *  the `row` arm never wraps it in a layout slot. The key stays the child's DECLARED index, so a sibling flipping
+ *  its `when` never shifts the keys of the others and remounts their state. */
 function renderChildren(children: readonly PluginSurfaceNode[], depth: number, ctx: RenderCtx): readonly ReactElement[] {
-  return children.map((child, index) => (
-    // biome-ignore lint/suspicious/noArrayIndexKey: field-set identity scopes drafts and confirm actions scope their own consent; broader dynamic subtree state remains unqualified.
-    <SurfaceNode ctx={ctx} depth={depth + 1} key={index} node={child} />
-  ));
+  return children.flatMap((child, index) =>
+    resolvePluginNodeShown(ctx.state, child)
+      ? [
+          // biome-ignore lint/suspicious/noArrayIndexKey: field-set identity scopes drafts and confirm actions scope their own consent; broader dynamic subtree state remains unqualified.
+          <SurfaceNode ctx={ctx} depth={depth + 1} key={index} node={child} />,
+        ]
+      : [],
+  );
 }
 
 /** One node → its sealed primitive. Containers recurse; every leaf delegates to `SurfaceLeaf`. The DEPTH GUARD
  *  is the belt under the schema's depth cap. */
 function SurfaceNode({ node, depth, ctx }: { readonly node: PluginSurfaceNode; readonly depth: number; readonly ctx: RenderCtx }): ReactElement | null {
-  if (depth > PLUGIN_SPEC_MAX_DEPTH) {
+  // A `masterDetail` stage body reaches here through `renderNode`, not `renderChildren`, so the walk asks again.
+  if (depth > PLUGIN_SPEC_MAX_DEPTH || !resolvePluginNodeShown(ctx.state, node)) {
     return null;
   }
   // Containers vs leaves is a DISPATCH, not an exhaustive case-per-kind: each container guard narrows `node`,

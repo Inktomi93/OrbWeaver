@@ -18,6 +18,7 @@ export {
   IMAGERY_SCHEMA_KIND,
   PERSONA_SCHEMA_KIND,
   REGEX_SCRIPT_SCHEMA_KIND,
+  SPEND_LEDGER_SCHEMA_KIND,
   TAG_LIBRARY_SCHEMA_KIND,
   THEME_SCHEMA_KIND,
   USER_SETTINGS_SCHEMA_KIND,
@@ -50,6 +51,9 @@ export const PORTABLE_KINDS = [
   // The CAS blob bundle. Heterogeneous mime, so `ext: ""` + self-describing filenames (`assets/<hash>`).
   "assets",
   "imagery",
+  // The owner's spend ledger: money already paid for calls that leave no canon row of their own. One file per owner;
+  // a restore adds only the entries the box does not already hold, so a re-upload never doubles spend.
+  "spend",
 ] as const;
 
 /** A portable entity kind — the routing key that ties a bundle subdirectory to its owning descriptor. */
@@ -70,6 +74,7 @@ export const PORTABLE_DIRECTORIES = {
   gallery: "gallery/",
   assets: "assets/",
   imagery: "imagery/",
+  spend: "spend/",
 } as const satisfies Readonly<Record<PortableKind, string>>;
 
 /** Fixed dependency order the core imports a full bundle in — personas/world-info/tags land before
@@ -96,7 +101,13 @@ export const PORTABLE_IMPORT_ORDER = [
   "theme",
   "chat",
   "imagery",
+  // spend references nothing, so it lands last.
+  "spend",
 ] as const satisfies readonly PortableKind[];
+
+/** The kinds only a whole-library export carries: the owner's own records, not any one item's, so a partial pick
+ *  never names them and the export door refuses one that does. */
+export const WHOLE_LIBRARY_ONLY_KINDS = ["spend"] as const satisfies readonly PortableKind[];
 
 /** A text download returned by a single-entity export; its contents retain the entity's own codec. */
 export const portableTextFileSchema = z.strictObject({ filename: z.string(), fileText: z.string() });

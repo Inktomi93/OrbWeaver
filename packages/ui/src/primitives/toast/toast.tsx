@@ -53,17 +53,21 @@ interface ToastItemsProps {
  * the viewport's `aria-live="polite"` region is the same contradiction one notch quieter (two content
  * models for the same node: announcement vs. a window you are supposed to be IN).
  *
- * So the role follows the SEVERITY the notice already declares: `notify.error` is the only channel that
- * ships `priority: "high"` (`lib/toast-notify.ts`), and `alert` is exactly "assertive, no focus contract".
- * Everything else is `status` — polite, announced, still not a window.
+ * So the role follows the SEVERITY the notice already declares: `error` is the only toast `type` that is an
+ * `alert`, which is exactly "assertive, no focus contract". Everything else is `status` — polite, announced,
+ * still not a window.
+ *
+ * SEVERITY IS THE `type`, NEVER BASE UI's `priority`. `ToastViewport` renders a second, visually hidden
+ * `role="alert"` copy of every `priority: "high"` toast outside the region, so a notice that already wears
+ * the alert role itself would be read twice. No caller sends a priority, and none may.
  *
  * `aria-modal` goes with the dialog roles that licensed it: it is only allowed on `dialog`/`alertdialog`,
  * so leaving Base UI's `aria-modal={false}` on an `alert` would be an `aria-allowed-attr` violation. It is
  * overridden to `undefined` rather than deleted upstream — the root still takes `tabIndex`, which is what
  * makes the toast keyboard-dismissible, and that part is correct.
  */
-function toastRole(priority: string | undefined): "alert" | "status" {
-  return priority === "high" ? "alert" : "status";
+function toastRole(type: string | undefined): "alert" | "status" {
+  return type === "error" ? "alert" : "status";
 }
 
 /** REMOVES Base UI's `aria-modal={false}` — its prop merge enumerates explicitly-`undefined` keys, so React
@@ -77,18 +81,12 @@ function ToastItems({ swipeDirection = TOP_ANCHORED_SWIPE }: ToastItemsProps): R
   return (
     <>
       {toasts.map((toast) => (
-        // `aria-hidden={false}` OVERRIDES Base UI: `ToastRoot.mjs` hides a `priority: "high"` root from the
-        // accessibility tree until it is focused (`isHighPriority && !focused`), which on a `tabIndex: 0`
-        // element is an axe `aria-hidden-focus` violation AND silences our loudest toasts — every
-        // `notify.error` is high-priority, so the errors that most need announcing announced nothing. The
-        // Viewport is `aria-live="polite"`, so the toast is announced exactly once with this restored.
         <BaseToast.Root
           {...ARIA_MODAL_UNSET}
-          aria-hidden={false}
           className={slots.root()}
           data-slot="toast-root"
           key={toast.id}
-          role={toastRole(toast.priority)}
+          role={toastRole(toast.type)}
           swipeDirection={swipeDirection}
           toast={toast}
         >

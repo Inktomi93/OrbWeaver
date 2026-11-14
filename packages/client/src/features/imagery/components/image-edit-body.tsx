@@ -24,7 +24,7 @@ import { useFocusOnSwap } from "#lib";
 import type { ImageSubject } from "#state";
 import { openImageDetail, useEditSubject } from "#state";
 import { useEditImage } from "../hooks/use-imagery-mutations.ts";
-import { IMAGE_EDIT_EMPTY_TEXT, IMAGE_EDIT_INSTRUCTION_NAME } from "../lib/imagine-names.ts";
+import { IMAGE_EDIT_BACK_NAME, IMAGE_EDIT_EMPTY_TEXT, IMAGE_EDIT_INSTRUCTION_NAME } from "../lib/imagine-names.ts";
 
 const INSTRUCTION_ROWS = 2;
 const INSTRUCTION_MAX_ROWS = 6;
@@ -146,7 +146,7 @@ function ImageEdit({ subject }: { readonly subject: ImageSubject }): ReactElemen
       <Row wrap={true} gap="field" justify="between">
         <Button disabled={editImage.isPending} variant="ghost" onClick={(): void => openImageDetail(subject)} type="button">
           <Icon icon={ArrowLeft} size="sm" />
-          Back to the image
+          {IMAGE_EDIT_BACK_NAME}
         </Button>
         <Button disabled={!canEdit} onClick={runEdit} type="button">
           <Icon icon={WandSparkles} size="sm" />

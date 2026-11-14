@@ -13,6 +13,7 @@ import { ImageryNotConfiguredError, PromptExtractionFailedError } from "../contr
 import type { ExtractionMode, ExtractPromptParams } from "../contract/params.ts";
 import type { ExtractedPrompt } from "../contract/results.ts";
 import type { CaptionAvatar, ImageryContext, ImageryService, ResolvePrompt } from "../contract/service.ts";
+import { recordPromptSpend } from "../persistence/prompt-spend.ts";
 import { extractionFallbackFor, isMultimodalMode } from "../substrate/mode.ts";
 import { processReply } from "../substrate/process-reply.ts";
 
@@ -49,6 +50,7 @@ async function extractText(
     ...(args.subjectCharacterId !== undefined ? { subjectCharacterId: args.subjectCharacterId } : {}),
     ...(args.timeZone !== undefined ? { timeZone: args.timeZone } : {}),
   });
+  await recordPromptSpend(ctx, { kind: "image-extraction", ownerId: args.runAs.userId, costUsd });
   const prompt = processReply(text);
   if (prompt.length === 0) {
     throw new PromptExtractionFailedError(`imagery: prompt extraction for mode "${args.mode}" produced no usable keywords`);

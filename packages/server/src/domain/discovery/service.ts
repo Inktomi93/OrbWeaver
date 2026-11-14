@@ -14,7 +14,7 @@ import { readDuplicateCharacters, readDuplicateChats } from "./duplicates/retrie
 import { createImageAnalyticsFacets } from "./image-analytics/facets.ts";
 import { createImageAnalyticsRetrieve } from "./image-analytics/retrieve.ts";
 import { backfillMsgMidAt } from "./themes/backfill.ts";
-import { countThemeNameCalls, computeThemes as runComputeThemes } from "./themes/generate.ts";
+import { countThemeNameCalls, countThemeNameCeiling, computeThemes as runComputeThemes } from "./themes/generate.ts";
 import { readThemes } from "./themes/retrieve.ts";
 import { createAnalyze } from "./verbs/analyze.ts";
 import { createArchetypes } from "./verbs/archetypes.ts";
@@ -86,6 +86,7 @@ export function createDiscoveryService(input: DbAssemblyInput<DiscoveryContext>)
     ...createViews(ctx, viewsDeps),
     computeThemes: (opts) => runComputeThemes(ctx.db, themeDeps, opts),
     countThemeNameCalls: (opts) => countThemeNameCalls(ctx.db, opts),
+    countThemeNameCeiling: (opts) => countThemeNameCeiling(ctx.db, opts),
     backfillDigestStoryTime: (scope, signal) => backfillMsgMidAt(ctx.db, ctx.tier0RangeOf, scope, signal),
     ...createInsights(ctx),
     ...createEconomicsInsights(ctx),

@@ -150,6 +150,51 @@ test("privileged run approval never checks out candidate code or restores candid
   expect(job.steps.map((step) => step.run ?? "").join("\n")).not.toMatch(/pull_request.head|checkout.*head|release edit|merge/u);
 });
 
+// Scheduled runs build main inside the default branch's cache scope, so a job holding any of these can ship what
+// another run wrote unless it stays off the Actions caches.
+const PUBLISHING_SCOPES = ["contents", "packages", "id-token", "attestations"] as const;
+const permissionsSchema = z.union([z.record(z.string(), z.string()), z.string()]).optional();
+const cacheJobSchema = z.object({
+  permissions: permissionsSchema,
+  steps: z.array(z.object({ uses: z.string().optional(), with: z.record(z.string(), z.json()).optional() })).optional(),
+});
+
+function cacheReaders(job: z.infer<typeof cacheJobSchema>): string[] {
+  return (job.steps ?? []).flatMap((step) => {
+    const uses = step.uses ?? "";
+    if (uses.startsWith("actions/cache")) {
+      return [uses];
+    }
+    if (uses.endsWith(".github/actions/setup") && step.with?.["cache"] !== "false") {
+      return [`${uses} without cache: "false"`];
+    }
+    if (uses.startsWith("pnpm/action-setup@") && step.with?.["cache"] === true) {
+      return [`${uses} with cache: true`];
+    }
+    return [];
+  });
+}
+
+test("a job that can publish installs without the Actions caches", ({ repoRoot }) => {
+  const caching = cacheJobSchema.parse({ steps: [{ uses: "$/.github/actions/setup" }] });
+  expect(cacheReaders(caching)).toEqual(['$/.github/actions/setup without cache: "false"']);
+  expect(cacheReaders({ steps: [{ uses: "$/.github/actions/setup", with: { cache: "false" } }] })).toEqual([]);
+  const publishing = readdirSync(join(repoRoot, ".github/workflows")).flatMap((name) => {
+    const workflow = z
+      .object({ permissions: permissionsSchema, jobs: z.record(z.string(), cacheJobSchema) })
+      .parse(parse(readFileSync(join(repoRoot, ".github/workflows", name), "utf8")));
+    return Object.entries(workflow.jobs).flatMap(([id, job]) => {
+      const granted = job.permissions ?? workflow.permissions;
+      const writes = granted === "write-all" || (typeof granted === "object" && PUBLISHING_SCOPES.some((scope) => granted[scope] === "write"));
+      return writes ? [[`${name}#${id}`, cacheReaders(job)] as const] : [];
+    });
+  });
+  expect(publishing.map(([job]) => job)).toEqual(
+    expect.arrayContaining(["release.yml#image", "release.yml#notes", "release.yml#plugin-authoring", "development-image.yml#image"]),
+  );
+  expect(Object.fromEntries(publishing)).toEqual(Object.fromEntries(publishing.map(([job]) => [job, []])));
+});
+
 test("CodeQL scheduled runs cannot be cancelled by incoming push or dispatch runs on the same ref", ({ repoRoot }) => {
   const { concurrency } = z
     .object({ concurrency: z.object({ group: z.string(), ["cancel-in-progress"]: z.string() }) })

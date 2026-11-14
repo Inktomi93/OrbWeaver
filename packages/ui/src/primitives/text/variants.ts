@@ -241,8 +241,9 @@ export const textVariants = tv({
       wrapRow: "flex flex-wrap items-baseline gap-x-field gap-y-tight",
     },
     // Where a run with no space in it may break: `word` only at the end of a line that would overflow, `anywhere` also when
-    // the box is sized to its content (a path or an address in a narrow cell).
-    wrap: { word: "wrap-break-word", anywhere: "wrap-anywhere", all: "break-all" },
+    // the box is sized to its content (a path or an address in a narrow cell). `word` is prose, so it hyphenates a word it breaks, at the
+    // word's own hyphenation points, instead of splitting it with no mark and leaving a lone letter on the next line.
+    wrap: { word: "wrap-break-word hyphens-auto", anywhere: "wrap-anywhere", all: "break-all" },
     // `preWrap` keeps line breaks and runs of spaces in the string, for a value shown exactly as written; `nowrap` never breaks the run, `normal` wraps at spaces inside a nowrap host (a button).
     whitespace: { nowrap: "whitespace-nowrap", normal: "whitespace-normal", preWrap: "whitespace-pre-wrap" },
     // Colour by meaning (D336): a feature picks the meaning, never a colour class. Unset keeps each voice's own ink.

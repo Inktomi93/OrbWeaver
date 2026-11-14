@@ -25,6 +25,9 @@ const STORY = "tests/client/features/plugin/_ct-stories/PluginPresentationPageSt
 const PRISTINE = "Search to begin — the atlas covers nine community hubs.";
 const FAILURE = "Character Tavern didn't answer — try again in a moment.";
 const EMPTY = 'Nothing from Character Tavern for "lantern" with fantasy. Try another search or adjust the filters.';
+// The guest's bound grid empty lines: before any completed search, and after one that matched nothing.
+const NO_SEARCH_SHELF = "No cards to show.";
+const NO_MATCH_SHELF = "No cards matched this search.";
 const REGIMES = [
   { name: "desktop", width: 1000, height: 900, touch: false },
   { name: "phone", width: 390, height: 844, touch: true },
@@ -198,23 +201,26 @@ for (const regime of REGIMES) {
       let component = await mount<typeof PluginPresentationPageStory>(STORY, { ...address, width: regime.width });
       const body = page.getByRole("group", { name: "Card Atlas", exact: true });
       await expectGuidance(body, PRISTINE);
-      await expect(body.getByRole("button", { name: "Next", exact: true })).toBeDisabled();
+      await expectGuidance(body, NO_SEARCH_SHELF);
+      await expect(body.getByRole("button", { name: "Next", exact: true })).toHaveCount(0);
       await body.getByRole("textbox", { name: "Search the community hubs", exact: true }).fill("lantern");
       try {
         await body.getByRole("button", { name: PLUGIN_SEARCH_SUBMIT_NAME, exact: true }).click();
         await wire.requested;
         await expectGuidance(body, 'Searching Character Tavern for "lantern"…');
         await expect(body.getByText(PRISTINE, { exact: true })).toHaveCount(0);
-        await expect.poll(() => caller.plugin.getSurfaceState(address)).toMatchObject({ loading: true, noSearch: true });
+        await expect.poll(() => caller.plugin.getSurfaceState(address)).toMatchObject({ loading: true, multiPage: false, emptyLine: NO_SEARCH_SHELF });
       } finally {
         wire.refuse();
       }
-      await expect.poll(() => caller.plugin.getSurfaceState(address)).toMatchObject({ loading: false, noSearch: true, status: FAILURE, tiles: [] });
+      await expect
+        .poll(() => caller.plugin.getSurfaceState(address))
+        .toMatchObject({ loading: false, multiPage: false, emptyLine: NO_SEARCH_SHELF, status: FAILURE, tiles: [] });
       await component.unmount();
       component = await mount<typeof PluginPresentationPageStory>(STORY, { ...address, width: regime.width });
       await expectGuidance(body, FAILURE);
       await expect(body.getByText(PRISTINE, { exact: true })).toHaveCount(0);
-      await expectGuidance(body, "No cards to show.");
+      await expectGuidance(body, NO_SEARCH_SHELF);
       await expect(body.getByRole("button", { name: PLUGIN_SEARCH_SUBMIT_NAME, exact: true })).toBeEnabled();
       await page.screenshot({ path: test.info().outputPath("atlas-failed.png") });
 
@@ -222,11 +228,15 @@ for (const regime of REGIMES) {
       await body.getByRole("button", { name: "Tag filters", exact: true }).click();
       await body.getByRole("textbox", { name: "Include tags", exact: true }).fill("fantasy");
       await body.getByRole("button", { name: PLUGIN_SEARCH_SUBMIT_NAME, exact: true }).click();
-      await expect.poll(() => caller.plugin.getSurfaceState(address)).toMatchObject({ loading: false, noSearch: false, tiles: [] });
+      await expect.poll(() => caller.plugin.getSurfaceState(address)).toMatchObject({ loading: false, multiPage: false, emptyLine: NO_MATCH_SHELF, tiles: [] });
       await component.unmount();
       await mount<typeof PluginPresentationPageStory>(STORY, { ...address, width: regime.width });
       await expectGuidance(body, EMPTY);
-      await expectGuidance(body, "No cards to show.");
+      await expectGuidance(body, NO_MATCH_SHELF);
+      await expect(body.getByText(NO_SEARCH_SHELF, { exact: true })).toHaveCount(0);
+      // A one-page result has nowhere to page to, so the guest hides the whole pager row.
+      await expect(body.getByRole("button", { name: "Next", exact: true })).toHaveCount(0);
+      await expect(body.getByRole("button", { name: "Previous", exact: true })).toHaveCount(0);
       await expect(body.getByText(FAILURE, { exact: true })).toHaveCount(0);
       await expect(body.getByText(PRISTINE, { exact: true })).toHaveCount(0);
       expect(wire.queries).toEqual(["lantern", "lantern"]);
@@ -249,7 +259,9 @@ for (const regime of REGIMES) {
       await expectGuidance(body, FAILURE);
       await expect(body.getByText("Witness card 1", { exact: true })).toBeVisible();
       await expect(body.getByText("Page 1 of 2", { exact: true })).toBeVisible();
-      await expect(body.getByText("No cards to show.", { exact: true })).toHaveCount(0);
+      await expect(body.getByRole("button", { name: "Previous", exact: true })).toBeVisible();
+      await expect(body.getByText(NO_SEARCH_SHELF, { exact: true })).toHaveCount(0);
+      await expect(body.getByText(NO_MATCH_SHELF, { exact: true })).toHaveCount(0);
       await expect(body.getByText(PRISTINE, { exact: true })).toHaveCount(0);
       await body.getByRole("button", { name: "Next", exact: true }).click();
       await expect.poll(() => caller.plugin.getSurfaceState(address)).toMatchObject({ loading: false, pageLabel: "Page 2 of 2" });

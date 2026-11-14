@@ -8,10 +8,11 @@
 import { configSettingLabel } from "@orb/client/state";
 import type { ThemeLeftoverReasonKind } from "@orb/contracts/portability";
 import { THEME_LEFTOVER_REASON_KINDS } from "@orb/contracts/portability";
-import { watchToastMounts } from "@orb/testkit/browser/spec";
+import { boxOf, computedStyle, LAYOUT_SUBPIXEL_PX, resolvedLength, watchToastMounts } from "@orb/testkit/browser/spec";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
 import { APPEARANCE_SIZING_SUBCATEGORY } from "#client/features/app-shell/lib/appearance-sizing-model.ts";
 import { CONFIG_CUSTOMIZE_LOOK_NAME } from "#client/features/config/lib/config-control-names.ts";
@@ -20,6 +21,7 @@ import {
   THEME_IMPORT_OUTCOME,
   themeImportGroupLine,
   themeImportGroupNamesLabel,
+  themeImportLeftoverTitle,
   themeImportLeftoverToggleName,
 } from "#client/features/config/lib/theme-import-copy.ts";
 import type { LooksImportStory } from "./_looks-import-stories.tsx";
@@ -94,6 +96,59 @@ test("a SillyTavern theme that left settings behind says each group under its ow
     await expect(names.getByText(themeImportGroupNamesLabel(kind), { exact: true })).toBeVisible();
     await expect(names.getByText(LEFTOVER_KEYS[kind].join(", "), { exact: true })).toBeVisible();
   }
+});
+
+test.describe("on a wide desktop pane", () => {
+  test.use({ viewport: { width: 1280, height: 900 } });
+
+  test("the note's heading is no smaller than its explanation, its toggle is as wide as its label, and its key list holds the prose measure", async ({
+    mount,
+    page,
+  }) => {
+    await using root = await createCorpusHarness();
+    await routeTrpc(page, serveCorpusProcedures(await root.internalCallerFor(root.ownerId), PROCEDURES));
+    await mount<typeof LooksImportStory>(STORY, {});
+
+    await importFile(page, "azure.json", ST_THEME);
+
+    const note = page.locator(NOTE);
+    const heading = note.getByText(themeImportLeftoverTitle(ST_LANDED_NAME, Object.values(LEFTOVER_KEYS).flat().length, true), { exact: true });
+    const explanation = note.getByText(THEME_IMPORT_OUTCOME.created, { exact: true });
+    await expect(heading).toBeVisible();
+    await expect(explanation).toBeVisible();
+    const headingSize = Number.parseFloat(await computedStyle(heading, "font-size"));
+    const explanationSize = Number.parseFloat(await computedStyle(explanation, "font-size"));
+    // The control: both sizes are real, so the comparison is between two painted steps and not two empty reads.
+    expect(explanationSize).toBeGreaterThan(0);
+    expect(headingSize).toBeGreaterThanOrEqual(explanationSize);
+
+    // A small action takes the width of its label, not the row: its box equals the box the same trigger takes shrink-wrapped.
+    const toggle = note.getByRole("button", { name: themeImportLeftoverToggleName(false), exact: true });
+    const shrunk = await toggle.evaluate((node) => {
+      const probe = node.cloneNode(true);
+      if (!(probe instanceof HTMLElement) || node.parentElement === null) {
+        throw new Error("The toggle must be an element inside its disclosure");
+      }
+      probe.style.position = "absolute";
+      probe.style.visibility = "hidden";
+      probe.style.alignSelf = "flex-start";
+      node.parentElement.append(probe);
+      const width = probe.getBoundingClientRect().width;
+      probe.remove();
+      return width;
+    });
+    const row = await boxOf(note);
+    expect(shrunk).toBeLessThan(row.width);
+    expect((await boxOf(toggle)).width).toBeCloseTo(shrunk, 0);
+
+    await toggle.click();
+    const names = note.locator(`${NAMES}[data-kind="appearance"]`).getByText(LEFTOVER_KEYS.appearance.join(", "), { exact: true });
+    await expect(names).toBeVisible();
+    const measure = await resolvedLength(page, `var(${TOKENS["reading.measure-prose"].cssVar})`, names);
+    // The control: the pane is wider than the measure, so only the cap can hold the list to it.
+    expect(row.width).toBeGreaterThan(measure);
+    expect((await boxOf(names)).width).toBeLessThanOrEqual(measure + LAYOUT_SUBPIXEL_PX);
+  });
 });
 
 test("a file whose leftovers need nothing from the person says so once, with no set-it-yourself line", async ({ mount, page }) => {

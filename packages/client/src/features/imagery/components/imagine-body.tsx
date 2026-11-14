@@ -157,7 +157,8 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
         {/* Pressable modes (the add-document precedent), not a tablist — each just re-targets the same prompt.
             A `group` with the label as its name, so the tree reads one named cluster instead of five loose
             buttons. DISABLED mid-spend: the in-flight request already carries the old mode, so letting the
-            strip move under it would show a selection the pending image does not have. */}
+            strip move under it would show a selection the pending image does not have. Each mode wraps anywhere:
+            at enlarged text a one-word mode is wider than a phone dialog's column. */}
         <ToggleGroup
           aria-labelledby={modeLabelId}
           disabled={busy}
@@ -170,7 +171,7 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
           value={[mode]}
         >
           {IMAGINE_MODES.map((id) => (
-            <Toggle variant="outline" key={id} size="sm" value={id}>
+            <Toggle variant="outline" key={id} size="sm" value={id} wrap={true}>
               {IMAGE_MODE_LABELS[id]}
             </Toggle>
           ))}

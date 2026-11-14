@@ -41,6 +41,7 @@ import type {
   DuplicateChatsOptions,
   ImageFacetKey,
   SimilarityGraphOptions,
+  ThemeNameCeilingOptions,
   ThemeNameEstimateOptions,
   TopKeywordsOptions,
 } from "./params.ts";
@@ -252,6 +253,8 @@ export interface DiscoveryService {
   readonly computeThemes: (opts: ComputeThemesOptions) => Promise<ThemeComputeStats>;
   /** The cluster-naming model calls a {@link computeThemes} over the same scope and `k` would make. Reads only. */
   readonly countThemeNameCalls: (opts: ThemeNameEstimateOptions) => Promise<number>;
+  /** The most naming calls a {@link computeThemes} at `k` can make once a backfill ahead of it adds digests. Reads only. */
+  readonly countThemeNameCeiling: (opts: ThemeNameCeilingOptions) => Promise<number>;
   /** Idempotently stamp `digest_theme_assignments.msgMidAt` for the owner, or every owner when omitted. */
   readonly backfillDigestStoryTime: (scope: WorkloadRunScope, signal?: AbortSignal) => Promise<void>;
 
@@ -324,6 +327,7 @@ export interface DiscoveryWorkloadDeps {
     DiscoveryService,
     | "computeThemes"
     | "countThemeNameCalls"
+    | "countThemeNameCeiling"
     | "distillCharacters"
     | "countDistillCalls"
     | "computeCooccurrence"

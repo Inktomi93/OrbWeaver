@@ -8,6 +8,7 @@
 
 import { PromptExtractionFailedError } from "../contract/errors.ts";
 import type { CaptionAvatar, ImageryContext } from "../contract/service.ts";
+import { recordPromptSpend } from "../persistence/prompt-spend.ts";
 import { processReply } from "../substrate/process-reply.ts";
 
 export function createCaptionAvatar(ctx: ImageryContext): CaptionAvatar {
@@ -25,6 +26,7 @@ export function createCaptionAvatar(ctx: ImageryContext): CaptionAvatar {
     // The instruction is its per-mode override ⊕ the shipped catalog default (⑫).
     const instruction = await ctx.resolveCaptionInstruction(args.runAs, args.mode);
     const { text, costUsd } = await ctx.captionImage({ runAs: args.runAs, bytes, mime, instruction });
+    await recordPromptSpend(ctx, { kind: "image-caption", ownerId: args.runAs.userId, costUsd });
     const prompt = processReply(text);
     if (prompt.length === 0) {
       throw new PromptExtractionFailedError(`imagery: the vision caption for mode "${args.mode}" produced no usable keywords`);

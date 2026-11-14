@@ -339,6 +339,12 @@ interface PluginStateBinding {
 type PluginBoundString = string | PluginStateBinding;
 type PluginBoundNumber = number | PluginStateBinding;
 type PluginBoundBoolean = boolean | PluginStateBinding;
+/** Whether a node renders, on every node kind. Absent shows it. A literal decides; a `{ $state }` binding hides
+ *  the node only when the path holds `false`, so a missing path or a non-boolean shows it. A hidden node takes
+ *  no space and no focus. Your spec's ROOT takes no `when`: publish nothing for a surface you want gone. */
+interface PluginNodeVisibility {
+  readonly when?: PluginBoundBoolean | undefined;
+}
 /** The curated glyph vocabulary an `icon` node may name. Chrome-identity, consent/trust and identity glyphs
  *  are deliberately absent — a plugin cannot dress its content in the app's own trust iconography. */
 type PluginIconName =
@@ -584,7 +590,9 @@ type PluginGridNode = PluginOneSource<
     readonly tilesFrom?: PluginStateBinding | undefined;
     readonly tileAction?: string | undefined;
     readonly aspect?: PluginImageAspect | undefined;
-    readonly empty?: string | undefined;
+    /** What the grid says with no tiles. Bind it to say WHY it is empty ("search first" vs "nothing matched");
+     *  absent, or a binding that resolves to no text, shows the host's neutral line. */
+    readonly empty?: PluginBoundString | undefined;
     /** TRUE ⇒ the grid renders a shape- and aspect-matched SKELETON instead of tiles or the empty line. Publish
      *  `true` before you float the wire work and `false` with the results — the loading arm outranks both. */
     readonly loading?: PluginBoundBoolean | undefined;
@@ -629,31 +637,34 @@ interface PluginSearchBarNode {
 
 /** The closed node union. Global caps per spec: 32 KiB serialized, 256 nodes, depth 8, every string bounded.
  *  What it deliberately CANNOT express: HTML/CSS, host chrome, modals, focus theft, any write channel. */
-type PluginSurfaceNode =
-  | PluginStackNode
-  | PluginRowNode
-  | PluginSectionNode
-  | PluginTextNode
-  | PluginBadgeNode
-  | PluginMeterNode
-  | PluginKeyValueNode
-  | PluginListNode
-  | PluginImageNode
-  | PluginMarkdownNode
-  | PluginTextFieldNode
-  | PluginNumberFieldNode
-  | PluginToggleNode
-  | PluginSelectNode
-  | PluginSliderNode
-  | PluginButtonNode
-  | PluginConfirmButtonNode
-  | PluginGridNode
-  | PluginMasterDetailNode
-  | PluginSearchBarNode
-  | PluginIconNode
-  | PluginTabsNode;
+type PluginSurfaceNode = PluginNodeVisibility &
+  (
+    | PluginStackNode
+    | PluginRowNode
+    | PluginSectionNode
+    | PluginTextNode
+    | PluginBadgeNode
+    | PluginMeterNode
+    | PluginKeyValueNode
+    | PluginListNode
+    | PluginImageNode
+    | PluginMarkdownNode
+    | PluginTextFieldNode
+    | PluginNumberFieldNode
+    | PluginToggleNode
+    | PluginSelectNode
+    | PluginSliderNode
+    | PluginButtonNode
+    | PluginConfirmButtonNode
+    | PluginGridNode
+    | PluginMasterDetailNode
+    | PluginSearchBarNode
+    | PluginIconNode
+    | PluginTabsNode
+  );
 
-type PluginSurfaceSpec = PluginSurfaceNode;
+/** A whole surface's tree: any node, except that its root takes no `when`. */
+type PluginSurfaceSpec = PluginSurfaceNode & { readonly when?: undefined };
 
 /** A host-owned target for a registered command. A command may name each target at most once;
  *  the host validates the bounded label and curated icon before exposing the affordance. */
@@ -707,7 +718,7 @@ type PluginCommandValuesFor<TArgs extends readonly PluginCommandArgSpecBase[]> =
 
 /** The action ids a static spec can fire: every literal `actionId` and `tileAction` in the tree. A spec typed
  *  as the open node union, or any id widened to `string`, answers `string`. */
-type PluginActionIdsOf<TSpec> = [PluginSurfaceNode] extends [TSpec]
+type PluginActionIdsOf<TSpec> = [PluginSurfaceSpec] extends [TSpec]
   ? string
   : TSpec extends readonly (infer TChild)[]
     ? PluginActionIdsOf<TChild>

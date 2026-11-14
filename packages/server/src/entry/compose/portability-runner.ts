@@ -38,6 +38,7 @@ import {
   createImportTheme,
   createOwnedBackgroundHashes,
 } from "#domain/settings";
+import type { SpendLedgerPortabilityService } from "#domain/stats";
 import { createStatsBatchWiring, reconcileStats } from "#domain/stats";
 import type { TagAssemblyContext, TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
@@ -69,6 +70,7 @@ export interface PortabilityRunnerComposeDeps {
   /** The gallery-extended assets ctx (the two character-handle resolvers the gallery export/import verbs need). */
   readonly galleryCtx: AssetsAssemblyContext;
   readonly imageryPortability: ImageryPortabilityService;
+  readonly spendLedgerPortability: SpendLedgerPortabilityService;
   /** The databank portability bundle (db + clock + id minter + the ingest enqueue a restore re-runs). */
   readonly databankCtx: DatabankPortabilityAssemblyContext;
   readonly persona: PersonaService;
@@ -150,6 +152,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     importStandaloneLorebook: deps.importStandaloneLorebook,
     assetsCtx: deps.galleryCtx,
     imagery: deps.imageryPortability,
+    spend: deps.spendLedgerPortability,
     databankCtx: deps.databankCtx,
     persona: deps.persona,
     exportService: deps.exportService,

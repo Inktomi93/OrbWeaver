@@ -110,7 +110,9 @@ interface ListRowPropsBase {
    */
   subtitleReveal?: string;
   /**
-   * Trailing actions. Rendered as a sibling of the clickable body, never nested inside it.
+   * Trailing actions. Rendered as a sibling of the clickable body, never nested inside it. Pass the controls bare: the slot spaces them,
+   * wraps them onto further lines when they outgrow the row, and sets them at the row's end edge, so a wrapper `Row` around them would
+   * keep them on one line and run them past the row.
    */
   actions?: ReactNode;
   /** Dims the whole row to the receded step, for a row that stands behind its live siblings (an archived chat). */

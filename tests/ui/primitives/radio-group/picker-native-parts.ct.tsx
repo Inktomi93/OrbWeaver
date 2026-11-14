@@ -1,3 +1,5 @@
+import { setRootFontScale } from "@orb/testkit/browser/spec";
+import { channelName } from "@orb/testkit/ct";
 import { expect, test } from "@playwright/test";
 import type { PickerNativePartsStory } from "./picker-native-parts-stories.tsx";
 
@@ -108,3 +110,25 @@ test("detailed pictures use two columns with snapped apertures and stable hover,
   await expect(third).toBeChecked();
   await expect.poll(() => third.boundingBox()).toEqual(before);
 });
+
+for (const scale of [1, 2] as const) {
+  test(`a cell's name wider than its column wraps whole instead of ending in an ellipsis at ${scale * 100}% text`, async ({ mount, page }) => {
+    const longLabel = "Midnight observatory with a very long theme name that cannot fit one line";
+    const component = await mount<typeof PickerNativePartsStory>("tests/ui/primitives/radio-group/picker-native-parts-stories/PickerNativePartsStory", {
+      width: 220,
+      longLabel,
+      withMeta: true,
+    });
+    await setRootFontScale(page, channelName("fontScale"), scale);
+    const name = component.getByRole("radio", { name: longLabel, exact: true }).locator("[id]", { hasText: longLabel }).first();
+    await expect(name).toBeVisible();
+    const reading = await name.evaluate((node) => ({
+      whole: node.scrollWidth <= node.clientWidth,
+      overflow: getComputedStyle(node).textOverflow,
+      lines: Math.round(node.getBoundingClientRect().height / Number.parseFloat(getComputedStyle(node).lineHeight)),
+    }));
+    expect(reading.whole).toBe(true);
+    expect(reading.overflow).not.toBe("ellipsis");
+    expect(reading.lines).toBeGreaterThan(1);
+  });
+}

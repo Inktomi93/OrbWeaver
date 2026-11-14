@@ -112,6 +112,41 @@ test("cohort-anatomy excludes a cohort of inline prose runs and still judges a b
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
 });
 
+// A member that STACKS its children holds all of them: an open group is its band plus its body, so its content is the
+// children's extent, not its tallest child. The near-miss in the same run stacks children that match the collapsed
+// members' content inside a taller box, which is the mis-sized member the rule exists for; its out-of-flow marker far
+// below sizes nothing, so it must not stretch the extent into an excuse.
+const STACKED_COHORT_CSS = ".stack > div { display: block; width: 200px } .stack i { display: block; background: #444 }";
+const stackedCohort = (slot: string, outlierStyle: string, outlier: string): string => `<div class="stack">
+  <div data-slot="${slot}"><i style="height:32px"></i></div>
+  <div data-slot="${slot}"><i style="height:32px"></i></div>
+  <div data-slot="${slot}"><i style="height:32px"></i></div>
+  <div data-slot="${slot}" style="${outlierStyle}">${outlier}</div>
+</div>`;
+
+test("cohort-anatomy reads a stacking member's content as its children's extent and still reports a padded one", async ({ runSnap, scratch }) => {
+  await writeFile(
+    join(scratch, "stacked-cohort.html"),
+    relationalDocument(`<style>${STACKED_COHORT_CSS}</style>
+${stackedCohort("open-group", "", '<i style="height:32px"></i><i style="height:80px"></i>')}
+${stackedCohort(
+  "padded-group",
+  "padding-bottom:32px;position:relative",
+  '<i style="height:16px"></i><i style="height:16px"></i><i style="position:absolute;top:200px;width:8px;height:8px"></i>',
+)}`),
+  );
+  const res = await runSnap(["--file", join(scratch, "stacked-cohort.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const report = await readAuditReport(res.stdout);
+  expect(report.populationAccounting?.["cohort-anatomy"]).toMatchObject({ candidates: 2, judged: 2, withheld: {}, excluded: {} });
+  expect(
+    report.findings.filter(({ rule }) => rule === "cohort-anatomy"),
+    `only the padded member is mis-sized:\n${res.stdout}`,
+  ).toHaveLength(1);
+  expect(res.stdout).toMatch(/FINDING .*cohort-anatomy: .*slot=padded-group/u);
+  expect(res.stdout).not.toMatch(/FINDING .*cohort-anatomy: .*slot=open-group/u);
+  expect(res.stdout).not.toContain("INSTRUMENT ERROR");
+});
+
 // The `Text` primitive is not a row anatomy: an avatar's initial, a name and a gloss share its slot and owe no common
 // height, so a row of them proves nothing. A component with a height of its own, in the same run, still reports.
 const threeInARow = (slot: string, id: string): string => `<div id="${id}" style="display:flex;gap:8px;align-items:flex-start">

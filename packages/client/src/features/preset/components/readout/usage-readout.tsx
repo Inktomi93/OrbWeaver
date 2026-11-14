@@ -91,7 +91,7 @@ function GmRooms({ rooms }: { readonly rooms: readonly VisibleRoomRef[] }): Reac
       {rooms.map((room, index) => (
         <Button justify="start" variant="ghost" key={room.id} onClick={(): void => openChat(room.id)} size="sm" type="button" width="full">
           <Icon icon={MessagesSquare} size="xs" />
-          <Text ink="inherit" as="span" truncate={true} voice="label">
+          <Text ink="inherit" as="span" voice="label" wrap="word">
             {deriveChatTitle(room.title, room.participantNames)}
           </Text>
           <Text ink="inherit" as="span" className="shrink-0" voice="datum">
