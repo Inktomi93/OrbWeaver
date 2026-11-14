@@ -43,6 +43,7 @@ function cardFrameMintBody(request: CardFrameRequest): CardFrameMintRequest {
     themeTokens: { ...request.themeTokens },
     styleTokens: { ...request.styleTokens },
     ...(request.fontFamily === undefined ? {} : { fontFamily: request.fontFamily }),
+    ...(request.rootAttributes === undefined ? {} : { rootAttributes: { ...request.rootAttributes } }),
   };
 }
 
@@ -74,6 +75,16 @@ async function mintCardFrame(body: string): Promise<string | undefined> {
  * roster, so there is no trust verdict to widen anything with.
  */
 export function useCardFrameSrc(request: CardFrameRequest | undefined): string | undefined {
+  const mint = useCardFrameMint(request);
+  return mint.state === "routed" ? mint.url : undefined;
+}
+
+/** Where one mint stands: still answering, answered with a routed URL, or answered with nothing (the floor). */
+export type CardFrameMint = { readonly state: "pending" } | { readonly state: "routed"; readonly url: string } | { readonly state: "floor" };
+
+/** {@link useCardFrameSrc}, telling a pending mint apart from a refused one — a framed reply waits for the first
+ *  and renders today's path on the second. */
+export function useCardFrameMint(request: CardFrameRequest | undefined): CardFrameMint {
   // The state carries the BODY it resolved for, not a bare URL. That is what lets the stale case be answered
   // during RENDER (`resolved.body !== body ⇒ undefined`) instead of by a synchronous `setState` inside the
   // effect — which is a cascading render, and which React's own lint bans. So the only `setState` here is
@@ -113,5 +124,11 @@ export function useCardFrameSrc(request: CardFrameRequest | undefined): string |
 
   // A handle NEVER outlives the bytes it was minted for: a theme flip, a different character, or dropping
   // the room context all change `body`, and until the new mint answers the card renders the srcdoc floor.
-  return body !== undefined && resolved?.body === body ? resolved.url : undefined;
+  if (body === undefined) {
+    return { state: "floor" };
+  }
+  if (resolved?.body !== body) {
+    return { state: "pending" };
+  }
+  return resolved.url === undefined ? { state: "floor" } : { state: "routed", url: resolved.url };
 }

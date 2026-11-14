@@ -121,6 +121,7 @@ const MISS_DOC = buildCardFrameDocument({
   themeTokens: undefined,
   styleTokens: undefined,
   fontFamily: undefined,
+  rootAttributes: undefined,
 });
 
 /** What ONE mint resolves from its selector: the media grants AND the document's script posture. Both come
@@ -216,6 +217,7 @@ export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps):
       // here and is the one that bounds the root size to the appearance range.
       styleTokens: body.styleTokens,
       fontFamily: body.fontFamily,
+      rootAttributes: body.rootAttributes,
     });
     // A document minted for a named character keeps its selector and the grants it resolved beside it, so a
     // SERVE can withdraw any of them (see the GET below). A null selector resolves to the floor, which has

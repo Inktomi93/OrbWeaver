@@ -166,7 +166,11 @@ const CARD_FRAME_POSTURES = ["static", "interactive"] as const;
 export type CardFramePosture = (typeof CARD_FRAME_POSTURES)[number];
 
 /**
- * The ONE script the routed frame is allowed to run: measure the body and post the height to the embedder.
+ * The ONE script the routed frame is allowed to run: measure the body and post the height to the embedder, and,
+ * inside a styled reply's body (`[data-frame-reply]`), hand a link click to the embedder instead of navigating.
+ * A card's own links keep the frame's navigation rules (FRAME NAVIGATION in the header). The embedder decides
+ * what a link message may do: {@link readCardFrameLink} admits only an http, https or mailto address, and the
+ * host opens it only through its own confirm after a user gesture.
  * Kept to a single expression with no dependencies because its BYTES are the security boundary — the CSP
  * hash below is computed over exactly this string, so any edit (even whitespace) must recompute the digest.
  *
@@ -179,13 +183,13 @@ export type CardFramePosture = (typeof CARD_FRAME_POSTURES)[number];
  * identity, never by the message. See {@link foldCardFrameHeight}.
  */
 const CARD_FRAME_HEIGHT_SCRIPT =
-  '(function(){var last=-1;function post(){var body=document.body;if(body===null){return;}var height=body.scrollHeight;if(height!==last){last=height;parent.postMessage({orbCardFrameHeight:height},"*");}}addEventListener("DOMContentLoaded",function(){new ResizeObserver(post).observe(document.body);});addEventListener("load",post);})();';
+  '(function(){var last=-1;function post(){var body=document.body;if(body===null){return;}var height=body.scrollHeight;if(height!==last){last=height;parent.postMessage({orbCardFrameHeight:height},"*");}}addEventListener("DOMContentLoaded",function(){new ResizeObserver(post).observe(document.body);});addEventListener("load",post);addEventListener("click",function(event){var target=event.target;var link=target instanceof Element?target.closest("[data-frame-reply] a[href]"):null;if(link===null){return;}event.preventDefault();parent.postMessage({orbCardFrameLink:link.href},"*");},true);})();';
 
 /** The CSP source expression pinning {@link CARD_FRAME_HEIGHT_SCRIPT} by digest. A literal, because kit is
  *  isomorphic (no `node:crypto`) and WebCrypto's digest is async — the recompute lives in the unit test,
  *  which is the gate: change the script without re-pinning and the suite REDs before the policy ships
  *  (`tests/kit/card-frame/index.test.ts`). */
-const CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH = "'sha256-X4P6ct+XbYLNF4Q5h+h/1nJEA0TD7k/6cHZe/VxxMI0='";
+const CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH = "'sha256-Hw6Y3W/WVBKuhuvkuyNysh4ZeqnmHpctJn31ijM9I+o='";
 
 /** The one keyword that turns the posture into a capability. Named so the grant is greppable and so the
  *  `static` row can assert against it by identity rather than by a re-typed string. */
@@ -230,7 +234,50 @@ const CARD_FRAME_SCRIPT_SOURCES = {
 const CARD_FRAME_MIN_HEIGHT_PX = 48;
 const CARD_FRAME_MAX_HEIGHT_PX = 720;
 
+/** The cap for a frame that holds a WHOLE styled reply rather than one card. A reply is prose the reader scrolls
+ *  with the transcript, so it grows to its content and never scrolls inside itself; this bound exists only so a
+ *  hostile document cannot report an unbounded height. Measured in a routed reply frame: a long scene drawn by
+ *  the public Sola V4 preset's display scripts (six trackers, drawers closed) stands 16,792px tall at a 320px
+ *  phone width and 300% text, and 1,623px on a desktop at 100%; the cap sits an order of magnitude above it.
+ *  Grow-only folding still bounds the measure loop to one downward step per mount. */
+const REPLY_FRAME_MAX_HEIGHT_PX = 200_000;
+
+/** The height bound a frame folds its self-reports against: one card, or one whole reply. */
+const CARD_FRAME_HEIGHT_CAPS = { card: CARD_FRAME_MAX_HEIGHT_PX, reply: REPLY_FRAME_MAX_HEIGHT_PX } as const;
+export type CardFrameHeightCap = keyof typeof CARD_FRAME_HEIGHT_CAPS;
+
 const HEIGHT_KEY = "orbCardFrameHeight";
+const LINK_KEY = "orbCardFrameLink";
+// The only addresses a framed link may hand the host: a page (an absolute http or https URL with a host) or a mail
+// draft. `javascript:`, `data:`, `blob:`, a relative path and every app-internal scheme stay refused. No control
+// character or space, which a browser-normalized `href` never holds. Kit has no `URL`, so the shape is matched here.
+const FRAME_LINK_RE = /^(?:https?:\/\/[^\s/?#\\@][^\s\\]*|mailto:\S+)$/iu;
+const LAST_SPACE_OR_CONTROL = 0x20;
+const DELETE_CONTROL = 0x7f;
+
+function holdsControlOrSpace(text: string): boolean {
+  for (const char of text) {
+    const code = char.codePointAt(0) ?? 0;
+    if (code <= LAST_SPACE_OR_CONTROL || code === DELETE_CONTROL) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Read one `message` payload as a framed link click: the absolute address when the payload carries one whose
+ * scheme is http, https or mailto, else `undefined`. The payload is UNTRUSTED (an interactive frame can post it
+ * without a click), so the caller still owes the sender check (`event.source === iframe.contentWindow`), a live
+ * user activation, and its own confirm before anything opens.
+ */
+export function readCardFrameLink(data: unknown): string | undefined {
+  if (!isPlainObject(data)) {
+    return;
+  }
+  const raw = data[LINK_KEY];
+  return typeof raw === "string" && FRAME_LINK_RE.test(raw) && !holdsControlOrSpace(raw) ? raw : undefined;
+}
 
 /**
  * Fold one `message` payload into the frame's applied height. Returns `current` UNCHANGED for anything that
@@ -247,7 +294,7 @@ const HEIGHT_KEY = "orbCardFrameHeight";
  * step per mount, which is exactly the step the height channel needs (the void closes on the first measurement); a later
  * shrink just leaves whitespace inside the frame.
  */
-export function foldCardFrameHeight(current: number | undefined, data: unknown): number | undefined {
+export function foldCardFrameHeight(current: number | undefined, data: unknown, cap: CardFrameHeightCap = "card"): number | undefined {
   if (!isPlainObject(data)) {
     return current;
   }
@@ -257,7 +304,7 @@ export function foldCardFrameHeight(current: number | undefined, data: unknown):
   }
   // Ceil, not round: a fractional content height rounded DOWN clips its own last device pixel and the frame
   // grows a scrollbar over one subpixel.
-  const clamped = Math.min(CARD_FRAME_MAX_HEIGHT_PX, Math.max(CARD_FRAME_MIN_HEIGHT_PX, Math.ceil(raw)));
+  const clamped = Math.min(CARD_FRAME_HEIGHT_CAPS[cap], Math.max(CARD_FRAME_MIN_HEIGHT_PX, Math.ceil(raw)));
   if (current !== undefined && clamped <= current) {
     return current;
   }
@@ -289,6 +336,9 @@ export interface CardFrameContent {
    *  could never travel in `themeTokens`. Clamped by {@link clampCardFrameStyleTokens}. Every field on this
    *  interface EXISTS on every construction site (never `?`), so a new one is a tsc-forced decision at each. */
   readonly styleTokens: Readonly<Record<string, string>> | undefined;
+  /** `data-*` attributes set on the document's `<html>`, mirroring the host root's appearance and skin channels
+   *  the prose rules key on. Clamped by {@link clampCardFrameRootAttributes}. */
+  readonly rootAttributes: Readonly<Record<string, string>> | undefined;
 }
 
 /** The closed NON-COLOR slice the frame document reads, by role. Each name has its own value grammar in
@@ -347,17 +397,55 @@ export function clampCardFrameStyleToken(name: string, value: unknown): string |
   return isStyleTokenName(name) && typeof value === "string" ? STYLE_TOKEN_GRAMMAR[name](value) : undefined;
 }
 
-/** Keeps only entries whose key is a `--*` custom-property name and whose value passes `isSafeColor` — the
- *  SAME predicate `<ThemeScope>` uses, never a second weaker one. Applied at BOTH boundaries (the client
- *  before minting, the server before assembling): the server's call is the trust boundary. */
+// A token value the frame admits: a colour (the SAME `isSafeColor` predicate `<ThemeScope>` uses), a plain
+// length, or a font-family list. None of the three grammars admits a `(`, `;`, brace, angle bracket or backslash
+// outside a colour function `isSafeColor` itself vets, so no value can leave its declaration or name a URL.
+function isSafeTokenValue(value: string): boolean {
+  return isSafeColor(value) || CSS_LENGTH.test(value) || FONT_FAMILY_LIST.test(value);
+}
+
+/** The size of a theme-token set the frame takes, in one home: the mint's parse bounds read it and the clamp keeps
+ *  to it, so a set the client clamped is never refused at the mint. A framed reply carries the app's whole resolved
+ *  token set so a custom theme reaches it: 565 tokens today, so the count sits well above use. Every value grammar
+ *  the clamp admits is already shorter than `valueChars` (a colour 64, a font list 120, a length 11). */
+export const CARD_FRAME_THEME_TOKEN_LIMITS = { count: 1024, nameChars: 64, valueChars: 128 } as const;
+
+/** Keeps only entries whose key is a `--*` custom-property name and whose value is a safe colour, a plain length
+ *  or a font-family list, each within {@link CARD_FRAME_THEME_TOKEN_LIMITS}, so the app's whole resolved token set
+ *  (a custom theme included) can ride into a framed reply. Applied at BOTH boundaries (the client before minting,
+ *  the server before assembling): the server's call is the trust boundary. */
 export function clampCardFrameThemeTokens(raw: unknown): Readonly<Record<string, string>> {
   if (!isPlainObject(raw)) {
     return {};
   }
+  const { count, nameChars } = CARD_FRAME_THEME_TOKEN_LIMITS;
   const out: Record<string, string> = {};
+  let kept = 0;
   for (const [key, value] of Object.entries(raw)) {
-    if (typeof value === "string" && CUSTOM_PROP_KEY.test(key) && !CSS_ESCAPE.test(`${key}${value}`) && isSafeColor(value)) {
+    if (kept === count) {
+      break;
+    }
+    if (typeof value === "string" && key.length <= nameChars && CUSTOM_PROP_KEY.test(key) && !CSS_ESCAPE.test(`${key}${value}`) && isSafeTokenValue(value)) {
       out[key] = value;
+      kept += 1;
+    }
+  }
+  return out;
+}
+
+const ROOT_ATTRIBUTE_NAME = /^data-[a-z][a-z0-9-]{0,63}$/u;
+// A channel value is a keyword or a number: no quote, angle bracket or ampersand can reach the attribute.
+const ROOT_ATTRIBUTE_VALUE = /^[\w .:-]{0,128}$/u;
+
+/** Keeps only `data-*` names whose values are plain keywords or numbers. */
+export function clampCardFrameRootAttributes(raw: unknown): Readonly<Record<string, string>> {
+  if (!isPlainObject(raw)) {
+    return {};
+  }
+  const out: Record<string, string> = {};
+  for (const [name, value] of Object.entries(raw)) {
+    if (typeof value === "string" && ROOT_ATTRIBUTE_NAME.test(name) && ROOT_ATTRIBUTE_VALUE.test(value)) {
+      out[name] = value;
     }
   }
   return out;
@@ -504,9 +592,12 @@ export function buildCardFrameDocument(content: CardFrameContent, metaCsp?: stri
   const baseBody = baseBodyBlock(clampCardFrameFontFamily(content.fontFamily));
   const meta = metaCsp === undefined ? "" : `<meta http-equiv="Content-Security-Policy" content="${metaCsp}">`;
   const script = metaCsp === undefined ? `<script>${CARD_FRAME_HEIGHT_SCRIPT}</script>` : "";
+  const rootAttributes = Object.entries(clampCardFrameRootAttributes(content.rootAttributes))
+    .map(([name, value]) => ` ${name}="${value}"`)
+    .join("");
   return [
     "<!doctype html>",
-    '<html><head><meta charset="utf-8">',
+    `<html${rootAttributes}><head><meta charset="utf-8">`,
     meta,
     `<style>${themeCss} ${baseBody} ${content.css ?? ""}</style>`,
     script,

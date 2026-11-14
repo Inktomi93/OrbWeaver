@@ -15,7 +15,7 @@
 // is not a new content-injection surface; what it is NOT allowed to do is assert its own trust tier.
 
 import type { CardFrameStyleTokenName } from "@orb/kit/card-frame";
-import { CARD_FRAME_STYLE_TOKEN, clampCardFrameStyleToken } from "@orb/kit/card-frame";
+import { CARD_FRAME_STYLE_TOKEN, CARD_FRAME_THEME_TOKEN_LIMITS, clampCardFrameStyleToken } from "@orb/kit/card-frame";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
@@ -32,14 +32,21 @@ export function frameDocumentUrlSchema(route: string): z.ZodCustomStringFormat<"
   return z.stringFormat("frame-document-url", new RegExp(`^${RegExp.escape(route)}/[A-Za-z0-9_-]+$`, "u"));
 }
 
-// Bounds. A card is model-authored self-contained markup; these are generous for that and bound the
-// per-process retention (MAX_ENTRIES × these) rather than trusting a body-limit alone.
-const MAX_HTML_CHARS = 64_000;
-const MAX_CSS_CHARS = 16_000;
-const MAX_THEME_TOKENS = 24;
-const MAX_TOKEN_NAME_CHARS = 64;
-const MAX_TOKEN_VALUE_CHARS = 64;
+// Bounds, sized to guard against abuse rather than ordinary use: each sits several times above the largest real
+// document measured, and the frame-handle store's per-user byte ceiling bounds what they retain.
+// A framed reply is a whole post-regex message rendered to markup. Measured on the public Sola V4 preset's own
+// display scripts: 74,258 chars for a reply with one tracker and 204,544 for a long scene with six.
+const MAX_HTML_CHARS = 1_000_000;
+// A card's own CSS, or a framed reply's CSS: the app rules its markup can match, read from the page's own sheets.
+// Measured on the production build: 58,319 chars matched for a Sola reply. The whole app stylesheet is 388,191, so
+// a reply that sent it untrimmed is refused here.
+const MAX_CSS_CHARS = 256_000;
+const { count: MAX_THEME_TOKENS, nameChars: MAX_TOKEN_NAME_CHARS, valueChars: MAX_TOKEN_VALUE_CHARS } = CARD_FRAME_THEME_TOKEN_LIMITS;
 const MAX_FONT_FAMILY_CHARS = 120;
+// The appearance and skin channels the prose rules key on: a few dozen today.
+const MAX_ROOT_ATTRIBUTES = 256;
+const MAX_ROOT_ATTRIBUTE_NAME_CHARS = 69;
+const MAX_ROOT_ATTRIBUTE_VALUE_CHARS = 128;
 const STYLE_TOKEN_NAMES: readonly CardFrameStyleTokenName[] = Object.values(CARD_FRAME_STYLE_TOKEN);
 
 // `JSON.stringify` needs at most six UTF-8 bytes per UTF-16 code unit (a lone surrogate/control escape).
@@ -58,15 +65,17 @@ const MAX_STRING_CODE_UNITS =
   MAX_CSS_CHARS +
   MAX_FONT_FAMILY_CHARS +
   MAX_THEME_TOKENS * (MAX_TOKEN_NAME_CHARS + MAX_TOKEN_VALUE_CHARS) +
-  STYLE_TOKEN_NAMES.reduce((sum, name) => sum + name.length + MAX_FONT_FAMILY_CHARS, 0);
-const JSON_ENVELOPE_BYTES = '{"chatId":"","characterId":"","html":"","css":"","themeTokens":{},"styleTokens":{},"fontFamily":""}'.length;
+  STYLE_TOKEN_NAMES.reduce((sum, name) => sum + name.length + MAX_FONT_FAMILY_CHARS, 0) +
+  MAX_ROOT_ATTRIBUTES * (MAX_ROOT_ATTRIBUTE_NAME_CHARS + MAX_ROOT_ATTRIBUTE_VALUE_CHARS);
+const JSON_ENVELOPE_BYTES = '{"chatId":"","characterId":"","html":"","css":"","themeTokens":{},"styleTokens":{},"fontFamily":"","rootAttributes":{}}'.length;
 const entryPunctuationBytes = (entries: number): number => entries * JSON_OBJECT_ENTRY_PUNCTUATION_BYTES + (entries - 1);
 /** Byte cap for the raw mint POST. Derived from the accepted schema so transport cannot reject a valid mint. */
 export const CARD_FRAME_MINT_BODY_MAX_BYTES =
   MAX_STRING_CODE_UNITS * JSON_MAX_BYTES_PER_CODE_UNIT +
   JSON_ENVELOPE_BYTES +
   entryPunctuationBytes(MAX_THEME_TOKENS) +
-  entryPunctuationBytes(STYLE_TOKEN_NAMES.length);
+  entryPunctuationBytes(STYLE_TOKEN_NAMES.length) +
+  entryPunctuationBytes(MAX_ROOT_ATTRIBUTES);
 
 // One slice value: bounded for the parse, then refused unless the frame's own grammar for that name admits it.
 // The server still re-clamps at assembly, which is where an out-of-range root size is bounded.
@@ -110,6 +119,11 @@ export const cardFrameMintRequestSchema = z.strictObject({
   styleTokens: cardFrameStyleTokensSchema.optional(),
   /** The resolved UI font-family list. Re-validated server-side against the font-list grammar. */
   fontFamily: z.string().max(MAX_FONT_FAMILY_CHARS).optional(),
+  /** `data-*` channels mirrored on the frame root. Re-clamped server-side by `clampCardFrameRootAttributes`. */
+  rootAttributes: z
+    .record(z.string().max(MAX_ROOT_ATTRIBUTE_NAME_CHARS), z.string().max(MAX_ROOT_ATTRIBUTE_VALUE_CHARS))
+    .refine((r) => Object.keys(r).length <= MAX_ROOT_ATTRIBUTES, { error: `at most ${MAX_ROOT_ATTRIBUTES} root attributes` })
+    .optional(),
 });
 /** Type twin of `cardFrameMintRequestSchema`. */
 export type CardFrameMintRequest = z.infer<typeof cardFrameMintRequestSchema>;

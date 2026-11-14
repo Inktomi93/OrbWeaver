@@ -293,6 +293,15 @@ const LAYER_DIRECTION = [
   }),
 );
 
+// The markdown render that keeps raw HTML unsanitized feeds only a frame document (D294); any other importer could
+// put its output in the main document.
+const UI_FRAME_MARKDOWN_FRAME_ONLY: IForbiddenRuleType = {
+  name: "ui-frame-markdown-frame-only",
+  severity: "error",
+  from: { pathNot: ["^packages/ui/src/markdown/frame/", "^packages/client/src/features/chat/components/reply-frame\\.tsx$"] },
+  to: { path: "^packages/ui/src/markdown/frame/" },
+};
+
 const UI_SATELLITE_OWNERS = [
   { name: "charts", libraries: "echarts|echarts-for-react", owners: ["charts/"] },
   { name: "virtual", libraries: "@tanstack/react-virtual|@tanstack/virtual-core", owners: ["primitives/(virtual-list|message-list|media-grid)/"] },
@@ -2245,6 +2254,7 @@ const config = {
     ...LAYER_DIRECTION,
     ...CLIENT_BOUNDARIES,
     ...UI_SATELLITE_OWNERS,
+    UI_FRAME_MARKDOWN_FRAME_ONLY,
     ...SERVER_AUTHORITY,
     ...DOMAIN_AUTHORITY,
     ...EXECUTOR_BOUNDARIES,
