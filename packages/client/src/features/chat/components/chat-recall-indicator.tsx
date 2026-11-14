@@ -23,16 +23,18 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { DismissDialog, QueryBoundary } from "#components";
-import { QueryErrorState, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { DIALOG_VERBS, useOpenRequests, viewerTimeZone } from "#lib";
+import { DismissDialog } from "#components";
+import { useInvalidation, useTRPC } from "#data";
+import type { ChatContextTabId } from "#lib";
+import { DIALOG_VERBS, useOpenRequests } from "#lib";
 import type { RecallState } from "#state";
-import { useRecallState } from "#state";
+import { revealContextPanel, useRecallState } from "#state";
 import { useSetMemoryEnabled, useStartMemoryBackfill } from "../hooks/use-memory-mutations.ts";
+import { MEMORY_OPEN_VIEW_LABEL } from "../lib/memory-view-copy.ts";
 import { recallLabel } from "../lib/recall-label.ts";
 import { recallRequests } from "../lib/recall-requests.ts";
 import { MemoryOnConfirm } from "./memory-on-confirm.tsx";
-import { MemoryRecallDetail } from "./memory-recall-detail.tsx";
+import { RecallHostDetail } from "./memory-recall-detail.tsx";
 
 export interface ChatRecallIndicatorProps {
   readonly chatId: ChatId;
@@ -46,6 +48,8 @@ interface MemoryDoor {
   readonly off: boolean;
   readonly onTurnOn: () => void;
 }
+
+const MEMORY_TAB: ChatContextTabId = "memory";
 
 const NO_MEMORY_DOOR: MemoryDoor = { off: false, onTurnOn: (): void => undefined };
 
@@ -87,10 +91,17 @@ function RecallIndicatorBody({ chatId, viewerIsHost, memory }: ChatRecallIndicat
   const phase: RecallState["phase"] | "idle" = recall === null ? "idle" : recall.phase;
   // The topbar's overflow menu cannot reach the chip once the row moved it out, so it asks for the same surface in a dialog.
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [popoverOpen, setPopoverOpen] = useState(false);
   useOpenRequests(recallRequests, (): void => setDialogOpen(true));
+  // Both surfaces close as the Memory tab opens, so the tab is what the player sees next.
+  const openView = (): void => {
+    setPopoverOpen(false);
+    setDialogOpen(false);
+    revealContextPanel(MEMORY_TAB);
+  };
   return (
     <>
-      <Popover>
+      <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
         <PopoverTrigger
           render={
             <Button
@@ -132,13 +143,13 @@ function RecallIndicatorBody({ chatId, viewerIsHost, memory }: ChatRecallIndicat
         <PopoverPopup side="bottom" align="end">
           <Stack gap="block" minWidth="popupNarrow">
             <PopoverTitle>Memory recall</PopoverTitle>
-            <RecallPanel chatId={chatId} memory={memory} recall={recall} viewerIsHost={viewerIsHost} />
+            <RecallPanel chatId={chatId} memory={memory} recall={recall} viewerIsHost={viewerIsHost} onOpenView={openView} />
           </Stack>
         </PopoverPopup>
       </Popover>
       <DismissDialog dismissLabel={DIALOG_VERBS.close} onOpenChange={setDialogOpen} open={dialogOpen} size="sm" title="Memory recall">
         <Stack gap="block">
-          <RecallPanel chatId={chatId} memory={memory} recall={recall} viewerIsHost={viewerIsHost} />
+          <RecallPanel chatId={chatId} memory={memory} recall={recall} viewerIsHost={viewerIsHost} onOpenView={openView} />
         </Stack>
       </DismissDialog>
     </>
@@ -151,15 +162,20 @@ function RecallPanel({
   memory,
   recall,
   viewerIsHost,
+  onOpenView,
 }: {
   readonly chatId: ChatId;
   readonly memory: MemoryDoor;
   readonly recall: RecallState | null;
   readonly viewerIsHost: boolean;
+  readonly onOpenView: () => void;
 }): ReactElement {
   return (
     <>
       {memory.off ? <MemoryOffSummary onTurnOn={memory.onTurnOn} /> : <RecallSummary recall={recall} />}
+      <Button self="start" variant="outline" onClick={onOpenView} size="sm" type="button">
+        {MEMORY_OPEN_VIEW_LABEL}
+      </Button>
       {viewerIsHost && recall !== null ? <RecallHostDetail chatId={chatId} /> : null}
     </>
   );
@@ -189,30 +205,4 @@ function RecallSummary({ recall }: { readonly recall: RecallState | null }): Rea
     return <Text voice="gloss">Recall ran, but no stored memories were surfaced this turn.</Text>;
   }
   return <Text voice="gloss">{`Retrieved ${recall.count} ${recall.count === 1 ? "memory" : "memories"} for this turn.`}</Text>;
-}
-
-/** The HOST-only full recall detail — which digests, scores — from the assembly-preview read (the same
- *  host-gated source the Preview tab renders). Mounted only when the popover is open (base-ui lazily mounts
- *  popup children) and gated on host, so a member never fires the `requireHost` read. */
-function RecallHostDetail({ chatId }: { readonly chatId: ChatId }): ReactElement {
-  return (
-    <QueryBoundary
-      resetKeys={[chatId]}
-      fallback={<Text voice="gloss">Loading recall detail…</Text>}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="the recall detail" onRetry={retry} />}
-    >
-      <LoadedRecallDetail chatId={chatId} />
-    </QueryBoundary>
-  );
-}
-
-function LoadedRecallDetail({ chatId }: { readonly chatId: ChatId }): ReactElement {
-  const trpc = useTRPC();
-  const { data } = useSuspenseQuery(trpc.chat.previewAssembly.queryOptions({ chatId, timeZone: viewerTimeZone() }));
-  return (
-    <Stack gap="row">
-      <Text voice="gloss">Detail below is what recall does with the room's CURRENT config. Not a byte-exact replay of this turn.</Text>
-      <MemoryRecallDetail recall={data.trace.memoryRecall} />
-    </Stack>
-  );
 }
