@@ -3,7 +3,6 @@
 export type {
   BulkImportPersonas,
   CapturePersonaRoomReachOp,
-  CapturePersonaSeatsForDeleteOp,
   ExportPersonaOp,
   FindOwnedPersonas,
   ImportPersonaOp,

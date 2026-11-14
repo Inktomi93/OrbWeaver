@@ -7,8 +7,8 @@ import type { PersonaContext } from "../contract/service.ts";
 import { loadNewestPersonaId } from "../persistence/newest-persona.ts";
 import { nextSeedsAfterPersonaDelete } from "../substrate/deleted-seeds.ts";
 
-/** Repoint only seed pointers that named the persona the owner just deleted. */
-export function createRepointSeedsAfterPersonaDelete(assembly: DbAssemblyInput<PersonaDeleteSeedsDeps>): PersonaContext["repointSeedsAfterPersonaDelete"] {
+/** Plan the seed pointers a delete of `deletedId` leaves, before the delete runs: only pointers that name it move. */
+export function createPlanSeedRepointForPersonaDelete(assembly: DbAssemblyInput<PersonaDeleteSeedsDeps>): PersonaContext["planSeedRepointForPersonaDelete"] {
   const deps: PersonaDeleteSeedsDeps = { ...assembly, db: databaseForOwner(assembly.db) };
   return async (principal, deletedId) => {
     const ownerId = principal.userId;
@@ -18,11 +18,15 @@ export function createRepointSeedsAfterPersonaDelete(assembly: DbAssemblyInput<P
       currentPersonaId: seeds.currentPersonaId,
     };
     if (stored.defaultPersonaId !== deletedId && stored.currentPersonaId !== deletedId) {
-      return { ...stored, defaultMoved: false };
+      return { next: { ...stored, defaultMoved: false }, write: async (): Promise<void> => undefined };
     }
-    const newest = await loadNewestPersonaId(deps.db, ownerId);
+    const newest = await loadNewestPersonaId(deps.db, ownerId, deletedId);
     const next = nextSeedsAfterPersonaDelete(stored, deletedId, newest);
-    await deps.writeSeeds(principal, { currentPersonaId: next.currentPersonaId, defaultPersonaId: next.defaultPersonaId });
-    return next;
+    return {
+      next,
+      write: async (): Promise<void> => {
+        await deps.writeSeeds(principal, { currentPersonaId: next.currentPersonaId, defaultPersonaId: next.defaultPersonaId });
+      },
+    };
   };
 }

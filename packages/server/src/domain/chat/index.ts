@@ -92,7 +92,6 @@ export { eventViewMessageId, withViewPosition } from "./substrate/view-position.
 export { createChatTeachingContributions } from "./teaching-contribution.ts";
 export { createChatAutomationReads } from "./verbs/automation-reads.ts";
 export { createChatBoundBackfillOps } from "./verbs/bound-backfill.ts";
-export { createCapturePersonaSeatsForDelete } from "./verbs/capture-persona-seats-for-delete.ts";
 export { createGeneratePictureOp } from "./verbs/create-generate-picture.ts";
 export { buildChatToolOps } from "./verbs/create-tool-ops.ts";
 // The rpg-facing generic chat surface (D58) — wired into `RpgContext.chat` at the composition
@@ -117,6 +116,8 @@ export { createReactToolHandler } from "./verbs/react-tool-handler.ts";
 // the composition root's tool definition, `entry/compose/chat-tools.ts`; contract/params.ts states why).
 export { createReactAsCharacter } from "./verbs/reactions.ts";
 export { createReadInheritedChatBooks } from "./verbs/read-inherited-chat-books.ts";
+// D337 — the seat half of a persona delete, which persona's delete batch places ahead of the delete.
+export { createReseatPersonaSeatsStatement } from "./verbs/reseat-persona-seats-statement.ts";
 // THE cross-domain viewer-visibility op (the read-visibility D-entry) — membership AND the D16 canon floor as
 // ONE inseparable answer, wired at the composition root into every non-chat consumer that decides "may this
 // human see this chat's CONTENT" (today: the automation plugin fan-out + the plugin membrane's chat read).

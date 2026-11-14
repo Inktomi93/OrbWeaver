@@ -2,15 +2,33 @@
 // ownership check + deletion into one round-trip; an empty result is the leak-free NotFound. Deleting the
 // caller's final persona is refused (last_persona) — at least one must always exist for chat attribution to
 // fall back to.
+//
+// The seats re-seat in the delete's own batch, ahead of the delete (D337, D315): a seat still naming the persona
+// when the batch runs moves to the owner's default, else last played, so a switch onto the persona that lands at
+// any point before the commit cannot be left empty by the FK's SET NULL. A switch after the commit fails on that
+// FK. The reseat needs no last-persona guard: a held reseat persona proves another persona exists, so the delete
+// then fails only when the persona is already gone, and no seat can still name it. A pin on the persona is cleared
+// by the same FK (D315), and its seat takes the default like any other.
 
 import { personas } from "@orb/db";
+import { awaitableStatementForOwner } from "@orb/db/wiring-owner";
+import type { PersonaId, UserId } from "@orb/kit/ids";
 import { and, eq, exists, ne } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { LastPersonaError, PersonaNotFoundError } from "../contract/errors.ts";
 import type { RemovePersonaParams } from "../contract/params.ts";
+import type { PersonaSeedRepoint } from "../contract/results.ts";
 import type { PersonaContext, PersonaService } from "../contract/service.ts";
+import { loadHeldPersonaIds } from "../persistence/newest-persona.ts";
 
 const otherPersona = alias(personas, "other_persona");
+
+/** The persona an emptied seat takes: the default the delete leaves, else last played, if the owner still holds it. */
+async function reseatTarget(ctx: PersonaContext, ownerId: UserId, deletedId: PersonaId, seeds: PersonaSeedRepoint): Promise<PersonaId | null> {
+  const candidates = [seeds.defaultPersonaId, seeds.currentPersonaId].filter((id): id is PersonaId => id !== null && id !== deletedId);
+  const held = await loadHeldPersonaIds(ctx.db, ownerId, candidates);
+  return candidates.find((id) => held.has(id)) ?? null;
+}
 
 export function createRemove(ctx: PersonaContext): PersonaService["remove"] {
   return async ({ principal, personaId }: RemovePersonaParams) => {
@@ -19,9 +37,10 @@ export function createRemove(ctx: PersonaContext): PersonaService["remove"] {
     // activePersonaId + every chat's anchorPersonaId, so a post-write reach resolves ∅. Snapshot the rooms this
     // persona is live in NOW, fan the captured set AFTER the row is gone (fanReach() past the NotFound guard).
     const fanReach = await ctx.captureRoomReachForDelete(personaId);
-    const reseat = await ctx.captureSeatsForDelete(ownerId, personaId);
+    const seeds = await ctx.planSeedRepointForPersonaDelete(principal, personaId);
+    const reseatWith = await reseatTarget(ctx, ownerId, personaId, seeds.next);
 
-    const deleted = await ctx.db
+    const deleteStatement = ctx.db
       .delete(personas)
       .where(
         and(
@@ -36,6 +55,9 @@ export function createRemove(ctx: PersonaContext): PersonaService["remove"] {
         ),
       )
       .returning({ id: personas.id });
+    const reseat = reseatWith === null ? null : ctx.reseatPersonaSeatsStatement({ ownerId, personaId, reseatWith });
+    const [reseated, deleted] =
+      reseat === null ? [[], await deleteStatement] : await ctx.db.batch([awaitableStatementForOwner(reseat.statement), deleteStatement]);
     if (deleted.length === 0) {
       const stillOwned = await ctx.db
         .select({ id: personas.id })
@@ -48,13 +70,8 @@ export function createRemove(ctx: PersonaContext): PersonaService["remove"] {
       throw new PersonaNotFoundError(personaId);
     }
 
-    const seeds = await ctx.repointSeedsAfterPersonaDelete(principal, personaId);
-    // A seat the delete emptied would stamp every later line with no persona; it takes the owner's default
-    // persona, then the last-played one, the same order a join uses.
-    const reseatWith = seeds.defaultPersonaId ?? seeds.currentPersonaId;
-    if (reseatWith !== null) {
-      await reseat(reseatWith);
-    }
+    await seeds.write();
+    await reseat?.announce(reseated.map((seat) => seat.chatId));
 
     await ctx.audit(
       {
@@ -70,6 +87,6 @@ export function createRemove(ctx: PersonaContext): PersonaService["remove"] {
     // clamped roster and finds the seat fell back — the captured-set fan repaints them. Live-only + past the
     // delete's success path, so it cannot fault the write that already committed.
     fanReach();
-    return { newDefaultPersonaId: seeds.defaultMoved ? seeds.defaultPersonaId : null };
+    return { newDefaultPersonaId: seeds.next.defaultMoved ? seeds.next.defaultPersonaId : null };
   };
 }

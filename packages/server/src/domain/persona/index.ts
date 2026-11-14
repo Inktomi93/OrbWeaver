@@ -18,7 +18,7 @@ export { createPersonaService } from "./service.ts";
 export { createFindSeededDefault } from "./verbs/find-seeded-default.ts";
 // D259 — the other PRINCIPAL-LESS op: the sign-up joiner's persona statement, which chat's signup batch runs.
 export { createJoinerPersonaStatement } from "./verbs/joiner-persona-statement.ts";
-export { createRepointSeedsAfterPersonaDelete } from "./verbs/repoint-seeds-after-persona-delete.ts";
+export { createPlanSeedRepointForPersonaDelete } from "./verbs/repoint-seeds-after-persona-delete.ts";
 // Two more principal-less room-plane ops chat consumes: a seat's display surface, and a solo founding's
 // auto-anchored persona. Compose wires both onto `ChatContext`.
 export { createResolveConnectedPersona } from "./verbs/resolve-connected-persona.ts";

@@ -18,8 +18,8 @@ import { createEmbeddableCardText, createLoadCharacterEmbeddingOwner } from "#do
 import type { ChatBoundBackfillOps, ChatServiceDeps, EmitDurableChatEventOp, SignupInviteDeps } from "#domain/chat";
 import {
   consolidationHash,
-  createCapturePersonaSeatsForDelete,
   createLiveTier0Range,
+  createReseatPersonaSeatsStatement,
   createResolveStandingAsks,
   createResolveViewerVisibility,
   loadPresentHostUserId,
@@ -53,7 +53,7 @@ import type { PersonaAssemblyContext, PersonaService } from "#domain/persona";
 import {
   createJoinerPersonaStatement,
   createPersonaService,
-  createRepointSeedsAfterPersonaDelete,
+  createPlanSeedRepointForPersonaDelete,
   createResolvePersonasForParticipants,
 } from "#domain/persona";
 import type { PresetAssemblyContext, PresetService } from "#domain/preset";
@@ -247,17 +247,14 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     setChatActivePersona: async (chatId, targetUserId, personaId) => {
       await setParticipantActivePersona(db, deps.emitChatEvent, { chatId, targetUserId, personaId });
     },
-    repointSeedsAfterPersonaDelete: createRepointSeedsAfterPersonaDelete({
+    planSeedRepointForPersonaDelete: createPlanSeedRepointForPersonaDelete({
       db,
       loadUserSettings: (ownerId) => settings.loadUserSettings(ownerId),
       writeSeeds: async (principal, patch) => {
         await settings.updateUserSettingsSection({ principal, input: { section: "seeds", patch } });
       },
     }),
-    captureSeatsForDelete: createCapturePersonaSeatsForDelete({
-      db,
-      setActivePersona: (chatId, targetUserId, personaId) => setParticipantActivePersona(db, deps.emitChatEvent, { chatId, targetUserId, personaId }),
-    }),
+    reseatPersonaSeatsStatement: createReseatPersonaSeatsStatement({ db, emit: deps.emitChatEvent }),
   };
   const persona = createPersonaService(personaCtx);
   const resolvePersonasForParticipants = createResolvePersonasForParticipants(personaCtx);

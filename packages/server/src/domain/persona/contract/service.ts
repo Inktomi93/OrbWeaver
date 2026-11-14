@@ -19,6 +19,7 @@ import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { AuditWiring } from "#foundation/observability";
+import type { PersonaSeedRepointPlan, ReseatPersonaSeatsStatementOp } from "./delete-seeds.ts";
 import type {
   ConnectParams,
   CreateFromCharacterParams,
@@ -33,7 +34,7 @@ import type {
   SetActivePersonaParams,
   UpdatePersonaParams,
 } from "./params.ts";
-import type { DisconnectResult, PersonaSeedRepoint, RemovePersonaResult } from "./results.ts";
+import type { DisconnectResult, RemovePersonaResult } from "./results.ts";
 
 /** The DI bundle every persona verb closes over, wired at the composition root. */
 export interface PersonaContext {
@@ -61,13 +62,12 @@ export interface PersonaContext {
 
   readonly requireChatAuthorOrHost: (principal: Principal, chatId: ChatId, targetUserId: UserId) => Promise<void>;
   readonly setChatActivePersona: (chatId: ChatId, targetUserId: UserId, personaId: PersonaId | null) => Promise<void>;
-  /** Re-point the global seed pointers after `remove` deletes `deletedId` and return them as they now stand.
-   *  A deleted default moves to the last-played persona, else the newest remaining; a deleted last-played moves
-   *  to the default, else the newest remaining. Fires after the row deletion commits. */
-  readonly repointSeedsAfterPersonaDelete: (principal: Principal, deletedId: PersonaId) => Promise<PersonaSeedRepoint>;
-  /** PRE-WRITE capture of the owner's present seats holding `personaId` (the delete's FK `set null` empties
-   *  them). The returned thunk re-seats exactly those seats with the persona it is handed. */
-  readonly captureSeatsForDelete: (ownerId: UserId, personaId: PersonaId) => Promise<(reseatWith: PersonaId) => Promise<void>>;
+  /** Plan the global seed pointers a delete of `deletedId` leaves, read before the delete; `remove` runs the
+   *  plan's write once the delete commits. A deleted default moves to the last-played persona, else the newest
+   *  remaining; a deleted last-played moves to the default, else the newest remaining. */
+  readonly planSeedRepointForPersonaDelete: (principal: Principal, deletedId: PersonaId) => Promise<PersonaSeedRepointPlan>;
+  /** D337 — chat's seat reseat, which `remove` places ahead of its delete in one batch. */
+  readonly reseatPersonaSeatsStatement: ReseatPersonaSeatsStatementOp;
 }
 
 export type PersonaAssemblyContext = DbAssemblyInput<PersonaContext>;
