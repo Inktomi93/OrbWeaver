@@ -572,6 +572,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/world-info/lib/world-info-names.ts": "WORLD_INFO_NEW_BOOK_NAME and its siblings: the books library and entry editor names",
   "packages/client/src/features/regex/lib/regex-names.ts": "REGEX_FIND_PATTERN_NAME and its siblings: the regex editor, tester and pipeline names",
   "packages/client/src/features/databank/lib/databank-names.ts": "DATABANK_SEARCH_NAME and its siblings: the library, Home tile, add dialog and landing names",
+  "packages/client/src/features/discovery/lib/corpus-search-targets.ts":
+    "CORPUS_SEARCH_TARGETS: the closed set of Corpus search targets, one suite case per kind and label",
   "packages/client/src/features/databank/lib/databank-upload-copy.ts":
     "DOCUMENT_UPLOAD_FAILURE: the add dialog's sentence for each refusal code of an uploaded file",
   "packages/client/src/features/config/lib/theme-import-copy.ts":
