@@ -4,6 +4,7 @@ import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/id
 import { importStartedSchema } from "@orb/contracts/import";
 import type { PortableExportReport, PortableKind } from "@orb/contracts/portability";
 import { PORTABILITY_ROUTES, PORTABLE_EXPORT_REPORT_FILE, portableExportReportSchema } from "@orb/contracts/portability";
+import type { BundleImportWorkloadResult } from "@orb/contracts/workloads";
 import type { ModelId, WorkloadId } from "@orb/kit/ids";
 import { extractZip } from "@orb/server/infra/storage/zip";
 import type { SeededIds } from "../iso/ids.ts";
@@ -88,11 +89,11 @@ export async function readLibraryExport(root: ServerTestHarness, kinds?: readonl
   }
 }
 
-/** Upload the bundle and run its import workload to the end; the workload's own status and its skip and failure tallies. */
-export async function restoreBundle(
+/** Upload the bundle and run its import workload to the end; the workload's own status and its whole tally. */
+export async function restoreBundleTally(
   root: ServerTestHarness,
   bundle: Uint8Array,
-): Promise<{ readonly status: string; readonly skipped: number | undefined; readonly failed: number | undefined }> {
+): Promise<{ readonly status: string } & Partial<Pick<BundleImportWorkloadResult, "imported" | "inLibrary" | "skipped" | "failed">>> {
   const response = await root.http.request(PORTABILITY_ROUTES.importBundle, { method: "POST", headers: { [CSRF_HEADER]: "1" }, body: Uint8Array.from(bundle) });
   if (response.status !== HTTP_ACCEPTED) {
     throw new Error(`the bundle upload answered ${response.status}`);
@@ -107,7 +108,19 @@ export async function restoreBundle(
   if (row.kind !== "import-bundle" || row.poison) {
     throw new Error("the bundle upload left no typed import-bundle workload");
   }
-  return { status: row.status, skipped: row.result?.skipped, failed: row.result?.failed };
+  const result = row.result;
+  return result === null
+    ? { status: row.status }
+    : { status: row.status, imported: result.imported, inLibrary: result.inLibrary, skipped: result.skipped, failed: result.failed };
+}
+
+/** Upload the bundle and run its import workload to the end; the workload's own status and its skip and failure tallies. */
+export async function restoreBundle(
+  root: ServerTestHarness,
+  bundle: Uint8Array,
+): Promise<{ readonly status: string; readonly skipped: number | undefined; readonly failed: number | undefined }> {
+  const { status, skipped, failed } = await restoreBundleTally(root, bundle);
+  return { status, skipped, failed };
 }
 
 /** A scripted provider that answers only an image generation of `model`, with the pictures a case pushes in order. */

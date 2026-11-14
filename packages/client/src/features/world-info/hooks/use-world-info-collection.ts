@@ -5,10 +5,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useCollectionCount, useInvalidation, useTRPC } from "#data";
 import type { CollectionCount, CollectionInsight } from "#lib";
-import { notify } from "#lib";
+import { notify, WORLD_INFO_DUPLICATE_BOOK_NOTICE } from "#lib";
 import { selectCollectionMember } from "#state";
 import { WORLD_INFO_COLLECTION_ID } from "../lib/world-info-model.ts";
-import { WORLD_INFO_DUPLICATE_BOOK_NOTICE } from "../lib/world-info-names.ts";
 import { useCreateWorldBook, useImportWorldBookFile } from "./use-world-info-mutations.ts";
 
 /** The group band's live census — a NON-suspending read beside the rows' own, whose Retry re-asks both. A FAILED

@@ -34,6 +34,8 @@ async function importedRoom(h: ChatRoot, legacy: boolean, keepCampaign = false):
     throw new Error("the production graph produced no chat bundle or chat descriptor");
   }
   const file = { filename: exported.filename, bytes: exported.bytes };
+  // The source room moves on after its export, so the file is an older room and lands beside it (D290).
+  await h.caller.chat.commitMessage({ chatId: h.chatId, timeZone: UTC_TIME_ZONE, content: "A line after the export." });
   expect(await descriptor.importFile(h.owner.userId, file)).toMatchObject({ ok: true, created: true });
   const rooms = await h.root.db.selectDistinct({ chatId: messages.chatId }).from(messages);
   const chatId = rooms.map((row) => row.chatId).find((id) => id !== h.chatId);
