@@ -839,7 +839,9 @@ export default defineConfig(({ mode }) => {
       // owns the dev document CSP (see CSP_DEV_FALLBACK above). Vite's own header middleware runs AFTER
       // user middlewares and would overwrite the mirrored policy with a frozen literal.
     },
-    // worker: reserve-flag `format: "es"` here IF client-side inline-plugin-snippet workers ever land
-    // (D46 Tier-2 workers are server-side today) — intentionally NOT set now.
+    // Module workers, which every browser in `browser-targets.ts` runs: the display-pass Worker installs the
+    // platform polyfills, whose Temporal chunk loads only where Temporal is missing, and an `iife` worker bundle
+    // cannot split it out.
+    worker: { format: "es" },
   };
 });
