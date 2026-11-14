@@ -24,6 +24,11 @@ const WASM_MAX_MEBIBYTES = 48;
  *  host-call entry check, comparing REAL monotonic time against the open window (`cpu-guard.ts`, D346). */
 export const PLUGIN_INVOCATION_CPU_MS = 1000;
 
+/** How long a synchronous seam call may wait on the parent and still be the guest's own charge (D346). A healthy round
+ *  trip takes about a millisecond, so only a wait past this is an app that stalled, and only that part leaves the CPU
+ *  window. Below it every round trip stays charged, so a guest that loops seam calls meets its window as any loop does. */
+export const PLUGIN_SYNC_WAIT_STALL_MS = 50;
+
 /** An inline snippet's guest CPU account — the whole snippet, not per call. Its wall is this plus
  *  {@link HOST_FN_DEADLINE_MS}. */
 export const SNIPPET_WALL_MS = 5000;
