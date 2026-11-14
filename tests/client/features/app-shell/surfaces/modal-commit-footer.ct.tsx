@@ -19,27 +19,10 @@ import { IMAGINE_GENERATE_NAME, IMAGINE_PROMPT_NAME } from "#client/features/ima
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { AppShellModalAsDrawerStory, AppShellModalStory } from "./_app-shell-stories.tsx";
 import type { ImagineInShellAsDrawerStory, ImagineInShellStory } from "./_imagine-shell-stories.tsx";
-import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
+import { MODAL_SHELL_READS, routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
 const IMAGINE_STORIES = "tests/client/features/app-shell/surfaces/_imagine-shell-stories";
 const FOOTER = '[data-slot="dialog-footer"]';
-// Past Home: the Chats section, the reads both modal bodies make, and the shell's theme reads.
-const SHELL_READS = [
-  "sessions.me",
-  "chat.listChats",
-  "chat.countChats",
-  "chat.getChat",
-  "character.list",
-  "rosterPreset.list",
-  "databank.listGlobal",
-  "worldInfo.listBooks",
-  "settings.getUserSettings",
-  "settings.listThemes",
-  "settings.getTheme",
-  "notifications.markAllRead",
-  "plugin.list",
-  "plugin.listSurfaces",
-] as const;
 
 type Presentation = NonNullable<ModalDefinition["presentation"]>;
 
@@ -67,7 +50,7 @@ for (const [presentation, stories] of Object.entries(PRESENTATIONS)) {
     const caller = await root.internalCallerFor(root.ownerId);
     await routeTrpc(page, {
       ...createShellAmbientReads(corpus, root.ownerId),
-      ...serveCorpusProcedures(caller, SHELL_READS),
+      ...serveCorpusProcedures(caller, MODAL_SHELL_READS),
       // A landed document opens in the Databank, which reads the new row and the refreshed list.
       ...serveCorpusProcedures(caller, ["databank.get", "databank.list"]),
       ...serveCorpusProcedures(caller, ["databank.createFromText"], () => create),
@@ -100,7 +83,7 @@ for (const [presentation, stories] of Object.entries(PRESENTATIONS)) {
   test(`imagine's ${presentation} draws Cancel and Generate, Generate waits for a prompt, and Cancel closes`, async ({ corpus, mount, page }) => {
     await using root = await createCorpusHarness();
     const chatId = typeIdSchema(ID_PREFIX.chat).parse(corpus.reads["chat.listChats"][0]?.output.items[0]?.id);
-    await routeShell(page, corpus, await root.internalCallerFor(root.ownerId), SHELL_READS);
+    await routeShell(page, corpus, await root.internalCallerFor(root.ownerId), MODAL_SHELL_READS);
     await mount<typeof ImagineInShellStory | typeof ImagineInShellAsDrawerStory>(stories.imagine, { seed: { chatId, mode: "free", prompt: "" } });
 
     const generate = await expectCommitFooter(page, stories.popup, IMAGINE_GENERATE_NAME);

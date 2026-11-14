@@ -397,6 +397,7 @@
   [data-slot="dialog-popup"]::before,
   [data-slot="alert-dialog-popup"]::before,
   [data-slot="dialog-footer"],
+  [data-slot="dialog-header"],
   [data-slot="new-chat-actions"],
   [data-slot="message-bubble"],
   [data-slot="empty-state-root"] {
@@ -496,6 +497,15 @@
         [data-slot="new-chat-actions"] {
           backdrop-filter: var(--glass-filter);
           background-color: transparent;
+        }
+        /* A landscape phone's dialog pins its header over the scrolling body as well, so the header is the same pinned row. */
+        [data-slot="dialog-header"] {
+          @variant dialog-short {
+            @variant glass-short {
+              backdrop-filter: var(--glass-filter);
+              background-color: transparent;
+            }
+          }
         }
         /* The search card keeps its border on the popup's own glass; its rows scroll inside it, so nothing passes under it. */
         [data-slot="dialog-popup"] [data-slot="command-root"] {
@@ -649,6 +659,7 @@
       [data-slot="dialog-popup"]::before,
       [data-slot="alert-dialog-popup"]::before,
       [data-slot="dialog-footer"],
+      [data-slot="dialog-header"],
       [data-slot="new-chat-actions"] {
         backdrop-filter: none;
       }
