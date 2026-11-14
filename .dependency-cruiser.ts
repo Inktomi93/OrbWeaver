@@ -527,6 +527,7 @@ const TEST_CONSTANT_HOMES = {
   "packages/ui/src/primitives/number-field/number-field-names.ts": "the stepper verbs and the bounds sentence a number field is named and described by",
   "packages/ui/src/primitives/hint-trigger/hint-trigger-names.ts": "hintTriggerName: the name a hint trigger and its popup carry for the row they annotate",
   "packages/ui/src/code-editor/code-editor-names.ts": "DIAGNOSTIC_SEVERITY_LABEL: the severity words the code editor announces a diagnostic with",
+  "packages/ui/src/content/lightbox/control-labels.ts": "lightboxName: the name a media viewer dialog carries for what it shows",
   "packages/ui/src/content/message-media/message-media-names.ts":
     "MEDIA_UNAVAILABLE_TEXT and externalMediaLoadName: the tile a message image that cannot load prints, and the click-to-load placeholder",
   "packages/client/src/lib/image-size-copy.ts":
