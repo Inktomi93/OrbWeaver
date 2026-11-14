@@ -23,10 +23,20 @@ for (const scale of TEXT_SCALES) {
     expect(pane.scrolls).toBeLessThanOrEqual(SUBPIXEL);
     expect(pane.wideners).toEqual([]);
 
-    const rowEdge = await row.evaluate((root) => root.getBoundingClientRect().right);
-    const edges = await controls.evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().right));
-    for (const right of edges) {
-      expect(right).toBeLessThanOrEqual(rowEdge + SUBPIXEL);
+    const rowBox = await row.evaluate((root) => {
+      const { left, right } = root.getBoundingClientRect();
+      return { left, right };
+    });
+    const boxes = await controls.evaluateAll((nodes) =>
+      nodes.map((node) => {
+        const { left, right } = node.getBoundingClientRect();
+        return { left, right };
+      }),
+    );
+    // Unwrapped end-aligned controls spill off the row's start edge, where the right-edge check cannot see them.
+    for (const { left, right } of boxes) {
+      expect(left).toBeGreaterThanOrEqual(rowBox.left - SUBPIXEL);
+      expect(right).toBeLessThanOrEqual(rowBox.right + SUBPIXEL);
     }
   });
 }
