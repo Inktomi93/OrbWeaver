@@ -110,7 +110,7 @@ The owner of a CONTEXT tab body is `ContextTabBody` in `packages/client/src/comp
 
 #### Order
 
-[2584](../../work/2584-one-shared-owner-draws-the-inline-empty-line.md) runs after the prose-cap codemod. The regex and world-info bodies in [2588](../../work/2588-every-context-tab-body-draws-contexttabbody-the-law.md) wait for the shared-list work. [2582](../../work/2582-the-dialog-lint-refuses-a-hand-built-footer.md) waits on [2580](../../work/2580-dialogs-that-commit-use-the-form-or-flow.md) and [2581](../../work/2581-registry-modals-take-a-host-drawn-submit-footer.md).
+[2584](../../work/2584-one-shared-owner-draws-the-inline-empty-line.md) runs after the prose-cap codemod. The regex and world-info bodies in [2588](../../work/2588-every-context-tab-body-draws-contexttabbody-the-law.md) wait for the shared-list work. [2582](../../work/2582-the-dialog-lint-refuses-a-hand-built-footer.md) waits on [2580](../../work/2580-dialogs-that-commit-use-the-form-or-flow.md).
 
 ### Template API
 
