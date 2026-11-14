@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-11-14
 priority: P3
 area: rpg
+lane: wt/agent-afdb47dea54f61788
 plan: cross-surface-consistency
 ---
 
