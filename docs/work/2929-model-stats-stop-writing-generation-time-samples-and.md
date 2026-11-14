@@ -10,7 +10,7 @@ area: stats
 
 ## What
 
-`model_stats.gen_samples` is written by the live upsert in `packages/server/src/domain/stats/write/apply-delta.ts` and by the rebuild in `packages/server/src/domain/stats/substrate/rebuild-rollups.ts`. No shown figure reads it: the model view maps generations, tokens, total generation time and cost, and reads average latency from canon. Stop writing the column and drop it in a numbered migration.
+`model_stats.gen_samples` is written by the live upsert in `packages/server/src/domain/stats/persistence/apply-delta.ts` and by the rebuild in `packages/server/src/domain/stats/substrate/rebuild-rollups.ts`. No shown figure reads it: the model view maps generations, tokens, total generation time and cost, and reads average latency from canon. Stop writing the column and drop it in a numbered migration.
 
 ## Why
 

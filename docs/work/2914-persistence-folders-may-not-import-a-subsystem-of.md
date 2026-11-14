@@ -11,7 +11,7 @@ lane: wt/agent-a253b95f39b2389ae
 
 ## What
 
-The dependency-cruiser policies `domain-substrate-mediates-subsystems` and `domain-no-cross-subsystem` in `.dependency-cruiser.ts` leave `persistence/` out of their from-set, so a persistence file can drive an engine or a write subsystem. Add `persistence/` to both. The known violator is `packages/server/src/domain/stats/persistence/spend-ledger-portability.ts`, which imports `packages/server/src/domain/stats/write/apply-delta.ts`.
+The dependency-cruiser policies `domain-substrate-mediates-subsystems` and `domain-no-cross-subsystem` in `.dependency-cruiser.ts` leave `persistence/` out of their from-set, so a persistence file can drive an engine or a write subsystem. Add `persistence/` to both. The known violator is `packages/server/src/domain/stats/persistence/spend-ledger-portability.ts`, which imports `packages/server/src/domain/stats/persistence/apply-delta.ts`.
 
 ## Why
 

@@ -32,7 +32,7 @@ import { nonEmpty, present } from "../iso/non-empty.ts";
 import { attachNativeFile } from "../node/native-attachments.ts";
 import type { CheckpointStability } from "./layout-stability.ts";
 import { readCheckpointStability, STABILITY_SETTLE_MS } from "./layout-stability.ts";
-import { HELD_LEAVING_TIMEOUT_MS, LEAVING_BACKDROP, LEAVING_RELEASE_EVENT, PLANTED_BACKDROP } from "./leaving-cover.ts";
+import { HELD_LEAVING_TIMEOUT_MS, LEAVING_BACKDROP, LEAVING_COVER_CONTROL_NAME, LEAVING_RELEASE_EVENT, PLANTED_BACKDROP } from "./leaving-cover.ts";
 import type { SerializedPerformanceEntry } from "./performance-entry.ts";
 import type {
   SurfaceCodeEditorStory,
@@ -617,7 +617,7 @@ test("enlarged-text geometry refuses a closed dialog's backdrop that never leave
   await page.getByRole("alertdialog").getByRole("button", { name: "Confirm", exact: true }).click();
   // The close is held until the test releases it, so the backdrop is still leaving through readiness and the whole probe.
   await expect(page.locator(LEAVING_BACKDROP)).toHaveCount(1);
-  const witness = page.getByRole("button", { name: "Restore", exact: true });
+  const witness = page.getByRole("button", { name: LEAVING_COVER_CONTROL_NAME, exact: true });
   const name = "text-geometry-leaving-backdrop";
   page.setDefaultTimeout(HELD_LEAVING_TIMEOUT_MS);
   const checkpoint = surfaceCheckpoint(info, { name, scope: page.getByRole("main"), state: "loaded", witnesses: [witness], checks: ["names"] }, [], {

@@ -1,0 +1,7 @@
+{
+  "moves": {
+    "packages/p/src/domain/d/substrate/io.ts": "packages/p/src/domain/d/persistence/io.ts",
+    "packages/p/src/domain/d/engine/index.ts": "packages/p/src/domain/d/runner/index.ts",
+    "tests/p/domain/d/helper.ts": "tests/p/domain/d/support/helper.ts"
+  }
+}

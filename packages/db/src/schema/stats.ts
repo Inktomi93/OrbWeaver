@@ -16,7 +16,7 @@
 //
 // KEYS: owner_stats PK = `ownerId` NATURAL — the per-user row IS keyed by the user; there is no second id.
 // character_stats / daily_stats / model_stats carry
-// a TypeID `id` PK (minted in `domain/stats/write/*` via `ID_PREFIX.{characterStat,dailyStat,modelStat}`)
+// a TypeID `id` PK (minted in `packages/server/src/domain/stats/persistence/apply-delta.ts` via `ID_PREFIX.{characterStat,dailyStat,modelStat}`)
 // PLUS a UNIQUE on their natural business key — that unique is the live-delta UPSERT conflict target
 // (`character`, `(owner, bucketStart)`, `(owner, model, provider)`).
 //
@@ -66,7 +66,7 @@ const NOW_MS = sql`(unixepoch() * 1000)`;
 // editing, not an edge case (`verbs/edit.int.test.ts` editReasoning/clearReasoning, selectVariant,
 // applyProseRewrite; `engine/engine-stats.suite.int.test.ts` the swipe/continue/impersonate drift gate).
 //
-// THE MECHANISM, source-pinned: `domain/stats/write/apply-delta.ts` plants THE DELTA ITSELF as the
+// THE MECHANISM, source-pinned: `packages/server/src/domain/stats/persistence/apply-delta.ts` plants THE DELTA ITSELF as the
 // inserted row (`chats: n(delta.characterChats)`, …) and only the ON CONFLICT arm accumulates
 // (`col + excluded.col`). So a NEGATIVE delta — clearing reasoning, deleting a slot, moving a selection —
 // against a character with no rollup row yet inserts a negative row DIRECTLY, and against an existing one
@@ -102,7 +102,7 @@ export const ownerStats = sqliteTable("owner_stats", {
     .primaryKey()
     .references(() => users.id, { onDelete: "restrict" }),
   // Owner-grain counts. `characters` is the owner's characters holding a seat in a started room; a first seat, a delete and
-  // a handoff re-point move it live (packages/server/src/domain/stats/write/character-census.ts), and a rebuild counts the same set.
+  // a handoff re-point move it live (packages/server/src/domain/stats/persistence/character-census.ts), and a rebuild counts the same set.
   characters: integer("characters").notNull().default(0),
   chats: integer("chats").notNull().default(0),
   userTurns: integer("user_turns").notNull().default(0),
@@ -148,7 +148,7 @@ export const ownerStats = sqliteTable("owner_stats", {
 export const characterStats = sqliteTable(
   "character_stats",
   {
-    // TypeID PK (`character_stat_…`), minted in domain/stats/write/*; brand is type-only, SQL is TEXT.
+    // TypeID PK (`character_stat_…`), minted in packages/server/src/domain/stats/persistence/apply-delta.ts; brand is type-only, SQL is TEXT.
     id: nulFreeText("id").$type<CharacterStatId>().primaryKey(),
     // The owning character. CASCADE: the rollup dies with its character.
     characterId: nulFreeText("character_id")
@@ -199,7 +199,7 @@ export const characterStats = sqliteTable(
 export const dailyStats = sqliteTable(
   "daily_stats",
   {
-    // TypeID PK (`daily_stat_…`), minted in domain/stats/write/*.
+    // TypeID PK (`daily_stat_…`), minted in packages/server/src/domain/stats/persistence/apply-delta.ts.
     id: nulFreeText("id").$type<DailyStatId>().primaryKey(),
     ownerId: nulFreeText("owner_id")
       .$type<UserId>()
@@ -241,7 +241,7 @@ export const dailyStats = sqliteTable(
 export const modelStats = sqliteTable(
   "model_stats",
   {
-    // TypeID PK (`model_stat_…`), minted in domain/stats/write/*.
+    // TypeID PK (`model_stat_…`), minted in packages/server/src/domain/stats/persistence/apply-delta.ts.
     id: nulFreeText("id").$type<ModelStatId>().primaryKey(),
     ownerId: nulFreeText("owner_id")
       .$type<UserId>()

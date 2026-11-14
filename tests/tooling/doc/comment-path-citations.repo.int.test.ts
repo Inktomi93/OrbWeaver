@@ -36,6 +36,9 @@ import type { Source, Span, Tracked } from "./_sources.ts";
 import { LAW_DOC, MARKDOWN, REPO_ROOT, ROOT_CONFIG, readFromRepo, SCRIPT_KINDS, scriptComments, trackedFiles, VENDORED } from "./_sources.ts";
 
 const SCANNED_ROOTS = ["packages", "tooling", "tests", "scripts", ".github", "docker", ".claude/hooks"] as const;
+// A codemod fixture is the codemod's input and expected output, a tree of its own: its comment paths name files of that
+// tree, which the codemod rewrites, never files of the repository.
+const CODEMOD_FIXTURES = /^tooling\/src\/codemods\/[^/]+\/tests[^/]*\//u;
 // A tsconfig anywhere is JSONC, and its comments explain a compiler world.
 const TSCONFIG = /(?:^|\/)tsconfig[\w.-]*\.json$/u;
 // The image recipe has no extension; its comments are `#` lines.
@@ -131,6 +134,7 @@ function candidateSources(tracked: Tracked, read: (path: string) => string = rea
     path === DOCKERFILE ||
     (SCANNED_ROOTS.some((root) => path.startsWith(`${root}/`)) &&
       !path.startsWith(VENDORED) &&
+      !CODEMOD_FIXTURES.test(path) &&
       (SCRIPT_KINDS[extname(path)] !== undefined || extname(path) === CSS_EXT || HASH_COMMENT_EXTS.has(extname(path))));
   return [...tracked.paths]
     .filter(readable)
