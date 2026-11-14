@@ -3,7 +3,8 @@
 // core doesn't own: the whole-file importHash (dedup oracle over raw bytes, distinct from cardContentHash),
 // the flatten-to-create-input validation seam, and card tag extraction (cardFromJson drops data.tags).
 //
-// Pure: no DB, no fs, no logger. Text that is not JSON returns null; only a defect throws.
+// Pure: no DB, no fs, no logger. Text that is not JSON returns null; a card the import refuses for what it holds
+// (nesting past JSON_MAX_DEPTH, an embedded book the column refuses) throws ImportCardError; any other throw is a defect.
 
 import type { AttachedBookRef, CharacterCard, CreateCharacterInput } from "@orb/contracts/character";
 import {
@@ -20,7 +21,7 @@ import { themeBackgroundSchema } from "@orb/contracts/theme";
 import type { BulkImportLorebookInput, EntryMetadata } from "@orb/contracts/world-info";
 import { narrowedEntryMetadataSchema } from "@orb/contracts/world-info";
 import type { AssetId, CharacterHandle, CharacterId, RegexScriptId, UserId } from "@orb/kit/ids";
-import { parseJsonText } from "@orb/kit/json";
+import { JSON_MAX_DEPTH, nestsPastJsonMaxDepth, parseJsonText } from "@orb/kit/json";
 import { readCardChunk, stripCardChunks } from "@orb/kit/png-card-chunk";
 import { z } from "zod";
 import { sha256Hex } from "#primitives/content-hash";
@@ -185,6 +186,11 @@ function fromText(text: string, fallbackName: string, artHash: string | null): P
   if (typeof parsed !== "object" || parsed === null) {
     return null;
   }
+  // Before any walk: the identity hash and the stored planes are walked recursively, so without this a deep card
+  // imports or overflows the stack depending on the host.
+  if (nestsPastJsonMaxDepth(parsed)) {
+    throw new ImportCardError("card_invalid", `the card nests deeper than ${String(JSON_MAX_DEPTH)} levels`);
+  }
   return {
     card: cardFromJson(parsed, fallbackName),
     tags: extractCardTags(parsed),
@@ -277,6 +283,23 @@ export async function findImportedCharacter<Row = CharacterId>(
   }
   const live = current === undefined ? null : await current();
   return live !== null && sameCard(hashes, live.hashes) ? { characterId: live.characterId, match: "current" } : null;
+}
+
+/** The row a card reuses, the one rule the card write and its dry run share: the row an equal card landed as, where a
+ *  match by text alone (a row from the JSON card, and this is its PNG) holds only when `takeArt` gives the row this
+ *  card's art. `find` sees every row the upload landed before this card as well as the owner's: the write reads the
+ *  database it has been writing, the dry run its record of the rows it would have written. */
+export async function reusedCardRow<Row>(args: {
+  readonly find: FindCharacterByHash<Row>;
+  readonly hashes: CardIdentityHashes;
+  readonly current?: CurrentCardIdentity<Row> | undefined;
+  readonly takeArt: (row: Row) => Promise<boolean>;
+}): Promise<{ readonly characterId: Row; readonly match: ImportedCharacterMatch } | null> {
+  const found = await findImportedCharacter(args.find, args.hashes, args.current);
+  if (found?.match !== "text") {
+    return found;
+  }
+  return (await args.takeArt(found.characterId)) ? found : null;
 }
 
 /** @throws {@link ImportCardError} card_invalid when the normalized card fails the canonical schema. */

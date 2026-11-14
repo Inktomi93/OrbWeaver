@@ -4,7 +4,7 @@ import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { ExportRegexScripts, ImportCardScripts, ImportGlobalScripts, ImportPresetScripts, ImportRegexScript } from "@orb/contracts/regex";
 import type { ImportRpgGame } from "@orb/contracts/rpg";
 import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
-import type { AttachOwnedBooksByName, ImportStandaloneLorebook, ImportWorldInfoPort } from "@orb/contracts/world-info";
+import type { AttachOwnedBooksByName, ImportStandaloneLorebooks, ImportWorldInfoPort } from "@orb/contracts/world-info";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { IdSource, PersonaId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -21,7 +21,7 @@ import {
 import type { DatabankPortabilityAssemblyContext } from "#domain/databank";
 import type { ExportService } from "#domain/export";
 import type { ImageryPortabilityService } from "#domain/imagery";
-import type { ExportCurrentCard, ExportCurrentChats, ImportDriverDeps, ImportWorkloadDeps, SettleImportMemory } from "#domain/import";
+import type { ExportCurrentCard, ExportCurrentChats, ImportDriverDeps, ImportWorkloadDeps, OwnedChatTitle, SettleImportMemory } from "#domain/import";
 import {
   createEnqueueImportIndex,
   createImportLibraryEmitter,
@@ -33,23 +33,16 @@ import {
   runBundleImport,
 } from "#domain/import";
 import type { PersonaService } from "#domain/persona";
-import { createFindOwnedPersonaByName, createFindOwnedPersonas } from "#domain/persona";
+import { createFindOwnedPersonaByName } from "#domain/persona";
 import type { PresetAssemblyContext } from "#domain/preset";
-import { createFindOwnedPresets, createImportPresets } from "#domain/preset";
+import { createImportPresets } from "#domain/preset";
 import type { SettingsAssemblyContext } from "#domain/settings";
-import {
-  createAdoptImportedDefaultPersona,
-  createApplyImportedAppearance,
-  createFindOwnedThemes,
-  createImportTheme,
-  createOwnedBackgroundHashes,
-} from "#domain/settings";
+import { createAdoptImportedDefaultPersona, createApplyImportedAppearance, createImportTheme, createOwnedBackgroundHashes } from "#domain/settings";
 import type { SpendLedgerPortabilityService } from "#domain/stats";
 import { createStatsBatchWiring, reconcileStats } from "#domain/stats";
 import type { TagAssemblyContext, TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
 import type { WorldInfoExportAssemblyContext } from "#domain/world-info";
-import { createFindOwnedBooks } from "#domain/world-info";
 import type { Logger } from "#foundation/observability";
 import { createOperatorImportPort, createStagedImportPort, extractZip, readStagedManifest, stageDirectory, writeImportReportFile } from "#infra/storage";
 import type { LiveBuses } from "#transport/trpc";
@@ -73,7 +66,7 @@ export interface PortabilityRunnerComposeDeps {
   readonly settingsCtx: SettingsAssemblyContext;
   readonly presetCtx: PresetAssemblyContext;
   readonly worldInfoExportCtx: WorldInfoExportAssemblyContext;
-  readonly importStandaloneLorebook: ImportStandaloneLorebook;
+  readonly importStandaloneLorebooks: ImportStandaloneLorebooks;
   /** The gallery-extended assets ctx (the two character-handle resolvers the gallery export/import verbs need). */
   readonly galleryCtx: AssetsAssemblyContext;
   readonly imageryPortability: ImageryPortabilityService;
@@ -85,6 +78,7 @@ export interface PortabilityRunnerComposeDeps {
   /** The import lookup's last step for a card or room the app wrote (D290). */
   readonly exportCurrentCard: ExportCurrentCard;
   readonly exportCurrentChats: ExportCurrentChats;
+  readonly ownedChatTitle: OwnedChatTitle;
   readonly character: CharacterService;
   readonly assets: AssetsService;
   readonly attachCardTag: TagService["attachCardTagByName"];
@@ -147,6 +141,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     enqueueImportIndex,
     heldChatHashes: createFindImportedChatHashes({ db }),
     exportCurrentChats: deps.exportCurrentChats,
+    ownedChatTitle: deps.ownedChatTitle,
     // R6 — the orb-native chat bundle's three cross-domain re-links (persona by name, the chat-tag overlay,
     // the rpg campaign). Shared by both consumers exactly like the rest of this slice.
     findPersonaByName: ({ ownerId, name }: { readonly ownerId: UserId; readonly name: string }): Promise<PersonaId | null> => findPersonaByName(ownerId, name),
@@ -163,7 +158,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     settingsCtx: deps.settingsCtx,
     presetCtx: deps.presetCtx,
     worldInfoExportCtx: deps.worldInfoExportCtx,
-    importStandaloneLorebook: deps.importStandaloneLorebook,
+    importStandaloneLorebooks: deps.importStandaloneLorebooks,
     assetsCtx: deps.galleryCtx,
     imagery: deps.imageryPortability,
     spend: deps.spendLedgerPortability,
@@ -193,21 +188,17 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
           fs,
           principal,
           ...profileImport,
-          importStandaloneLorebook: deps.importStandaloneLorebook,
+          importStandaloneLorebooks: deps.importStandaloneLorebooks,
           ownership: {
-            findBooks: createFindOwnedBooks({ db }),
-            findPresets: createFindOwnedPresets(deps.presetCtx),
-            findThemes: createFindOwnedThemes(deps.settingsCtx),
             backgroundHashes: createOwnedBackgroundHashes(deps.settingsCtx),
-            findPersonas: createFindOwnedPersonas({ db }),
             findChatHashes: createFindImportedChatHashes({ db }),
             admitsAvatar: createAdmitsAvatar(),
           },
           importPresetScripts: deps.importPresetScripts,
           importGlobalScripts: deps.importGlobalScripts,
           attachBooksByName: deps.attachBooksByName,
-          importPreset: createImportPresets(deps.presetCtx),
-          importTheme: createImportTheme(deps.settingsCtx),
+          importPresets: createImportPresets(deps.presetCtx),
+          importThemes: createImportTheme(deps.settingsCtx),
           adoptDefaultPersona: createAdoptImportedDefaultPersona(deps.settingsCtx),
           storeBackground: createBackgroundStore({ store: deps.assets.store, maxBytes: () => ASSET_UPLOAD_MAX_BYTES }),
           applyImportedAppearance: createApplyImportedAppearance(deps.settingsCtx),

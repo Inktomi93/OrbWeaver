@@ -26,19 +26,21 @@ export type BulkImportLorebook = (args: {
  *  not the caller's answers `false`. */
 export type HasPrimaryBook = (args: { readonly ownerId: UserId; readonly characterId: CharacterId }) => Promise<boolean>;
 
-/** Lands a lone book with no character attach, additively: equal content under the same name reuses the owned
- *  row; different content lands as a fresh book under the next free name. Never edits an owned book. */
-export type ImportStandaloneLorebook = (args: { readonly ownerId: UserId; readonly book: BulkImportLorebookInput }) => Promise<BulkImportLorebookResult>;
-
-/** For each book, in order, what {@link ImportStandaloneLorebook} would do with it: reuse the owner's book
- *  (`"library"`), reuse a book an earlier entry of this list lands (`"upload"`), or write a new one (`null`), with
- *  the book's content key. A read: it writes nothing, and it loads the owner's library once for the whole list.
- *  Once `signal` aborts it stops and returns the answers so far, which the aborted caller discards. */
-export type FindOwnedBooks = (args: {
+interface LorebookImportBatch {
   readonly ownerId: UserId;
   readonly books: readonly BulkImportLorebookInput[];
   readonly signal: Cancellation;
-}) => Promise<readonly ImportAnswer[]>;
+}
+
+/** Lands lone books with no character attach, additively and in order: a book whose entries equal an owned book's,
+ *  or a book an earlier one of the batch lands, reuses that row under any name; different content lands as a fresh
+ *  book under the next free name. Never edits an owned book. A single-file door is a batch of one. With `dryRun` it
+ *  writes nothing and answers, per book, what the write does with it (`"library"`, `"upload"` or `null` for a new
+ *  book) with the book's content key. Once `signal` aborts it stops after the book in hand and returns what it has. */
+export interface ImportStandaloneLorebooks {
+  (args: LorebookImportBatch & { readonly dryRun: true }): Promise<readonly ImportAnswer[]>;
+  (args: LorebookImportBatch & { readonly dryRun: false }): Promise<readonly BulkImportLorebookResult[]>;
+}
 
 /** Re-points the source character's attached books at the new character id (fresh character_books rows, role
  *  preserved). Reference-carry: the world_books themselves are never cloned; zero attachments is a no-op.

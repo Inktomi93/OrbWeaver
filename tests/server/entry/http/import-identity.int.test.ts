@@ -1,7 +1,8 @@
 // Import identity through the real doors: the Characters dialog upload and the profile-folder tree upload.
 // A JSON card and its PNG are one character, the same text under other art is a second, a repeated embedded book
 // name gets a numbered twin, a world name-link binds the book its own import landed, and a folder split into
-// uploads mints each persona once. A card's leftover vendor fields import as JSON text decodes them, however odd.
+// uploads mints each persona once. A card's leftover vendor fields import as JSON text decodes them, nested up to the
+// parse's bound.
 // @subject packages/server/src/entry/http/upload.ts
 // @subject packages/server/src/entry/http/import-tree.ts
 // @subject packages/server/src/entry/import/run-profile-import.ts
@@ -22,6 +23,7 @@ import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
 import type { CharacterId, WorkloadId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
+import { JSON_MAX_DEPTH } from "@orb/kit/json";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
 import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
@@ -364,41 +366,63 @@ test("a card's world name-link binds the book its own import landed, whatever na
   expect(await linksOf("Cato")).toEqual([{ id: renamed, role: "primary" }]);
 });
 
-// JSON text decodes an overflowing number literal to `Infinity` (stored as null) and nests as deep as its author
-// wrote; neither is a reason to refuse the card that carries it.
-const RESIDUE_DEPTH = 2500;
+// JSON text decodes an overflowing number literal to `Infinity` (stored as null); that is no reason to refuse the card
+// that carries it. Nesting is bounded at the parse, so a card nested past the bound is refused by its code on every
+// host, never by the host's stack, and a card at the bound imports.
 function residueCard(name: string, vendorJson: string): string {
   return `{"spec":"chara_card_v2","spec_version":"2.0","data":{"name":${JSON.stringify(name)},"description":"${name} keeps odd notes.","first_mes":"Hello.","extensions":{"vendor":${vendorJson}}}}`;
 }
+// The vendor value sits under the root, `data` and `extensions`; its innermost member is `levels` below it.
+const VENDOR_LEVEL = 3;
+function nestedCard(name: string, levels: number): string {
+  return residueCard(name, `${"[".repeat(levels)}1${"]".repeat(levels)}`);
+}
 const OVERFLOW = residueCard("Overflow Keeper", "1e400");
-const DEEP = residueCard("Deep Keeper", `${"[".repeat(RESIDUE_DEPTH)}1${"]".repeat(RESIDUE_DEPTH)}`);
+const AT_BOUND = nestedCard("Bounded Keeper", JSON_MAX_DEPTH - VENDOR_LEVEL);
+const PAST_BOUND = nestedCard("Deep Keeper", JSON_MAX_DEPTH - VENDOR_LEVEL + 1);
 
-test("a card whose leftover fields overflow a number or nest deep imports through the Characters dialog", async () => {
+test("through the Characters dialog an overflowing card and a card nested to the bound import, and one past it is refused as invalid", async () => {
   await using root = await harness();
 
   for (const [file, text] of [
     ["overflow.json", OVERFLOW],
-    ["deep.json", DEEP],
+    ["bounded.json", AT_BOUND],
   ] as const) {
     const result = await dialog(root, file, text);
     expect(result.failed, file).toEqual([]);
     expect(result.imported[0], file).toMatchObject({ created: true });
   }
+  const refused = await dialog(root, "deep.json", PAST_BOUND);
+  expect(refused.imported).toEqual([]);
+  expect(refused.failed).toEqual([{ filename: "deep.json", reason: CARD_INVALID, error: expect.stringContaining(String(JSON_MAX_DEPTH)) }]);
   expect(await charactersNamed(root, "Overflow Keeper")).toBe(1);
-  expect(await charactersNamed(root, "Deep Keeper")).toBe(1);
+  expect(await charactersNamed(root, "Bounded Keeper")).toBe(1);
+  expect(await charactersNamed(root, "Deep Keeper")).toBe(0);
 });
 
-test("a profile folder imports an overflowing and a deep card beside a good one", async () => {
+test("a profile folder imports an overflowing card and one nested to the bound beside a good one, and records the one past it", async () => {
   await using root = await harness();
 
-  await uploadTree(root, {
-    [ST_SETTINGS_FILE]: "{}",
-    "characters/Good.png": writeCardChunk(art(root), card("Good Keeper")),
-    "characters/Overflow.png": writeCardChunk(art(root), OVERFLOW),
-    "characters/Deep.png": writeCardChunk(art(root), DEEP),
-  });
+  const reportPath = await uploadTree(
+    root,
+    {
+      [ST_SETTINGS_FILE]: "{}",
+      "characters/Good.png": writeCardChunk(art(root), card("Good Keeper")),
+      "characters/Overflow.png": writeCardChunk(art(root), OVERFLOW),
+      "characters/Bounded.png": writeCardChunk(art(root), AT_BOUND),
+      "characters/Deep.png": writeCardChunk(art(root), PAST_BOUND),
+    },
+    {},
+    1,
+  );
 
-  for (const name of ["Good Keeper", "Overflow Keeper", "Deep Keeper"]) {
+  for (const name of ["Good Keeper", "Overflow Keeper", "Bounded Keeper"]) {
     expect(await charactersNamed(root, name), name).toBe(1);
   }
+  expect(await charactersNamed(root, "Deep Keeper")).toBe(0);
+  if (reportPath === undefined) {
+    throw new Error("the import wrote no report");
+  }
+  const skipped = (await readFile(reportPath, "utf8")).split("\n").filter((line) => line.includes(".png`"));
+  expect(skipped).toEqual([expect.stringMatching(new RegExp(`^- \`Deep\\.png\` — ${CARD_INVALID}: .*${String(JSON_MAX_DEPTH)}`, "u"))]);
 });

@@ -53,7 +53,7 @@ function importNotice({ imported, failed }: ChatImportResult): ImportNotice {
     if (landed === 0) {
       return {
         kind: "info",
-        message: held.length === 1 && onlyHeld !== undefined ? chatInLibraryNotice(onlyHeld.filename) : chatsInLibraryNotice(held.length),
+        message: held.length === 1 && onlyHeld !== undefined ? chatInLibraryNotice(onlyHeld.title ?? onlyHeld.filename) : chatsInLibraryNotice(held.length),
       };
     }
     const landedLine = landed === 1 ? "Chat imported" : `${landed} chats imported`;

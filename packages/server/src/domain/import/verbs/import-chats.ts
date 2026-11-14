@@ -20,7 +20,6 @@ export function createImportChats(ctx: ImportContext): ImportService["importChat
         buildBulkImportChatInput(c, {
           now: profile.now,
           personaByUserName: profile.personaByUserName,
-          ...(profile.stWallClockZone === undefined ? {} : { wallClockZone: profile.stWallClockZone }),
         }),
       ),
     );
@@ -38,6 +37,11 @@ export function createImportChats(ctx: ImportContext): ImportService["importChat
 
     return {
       chatsImported: counts.chatsImported,
+      chatsReused: counts.chatsSkipped,
+      rooms: counts.remaps.flatMap(({ chatId }, i) => {
+        const chat = chats[i];
+        return chat === undefined ? [] : [{ chatId, title: chat.title }];
+      }),
       memoryChatIds,
       chatsPersonaHealed: counts.chatsPersonaHealed,
       // §5.7: the chat-bound persona picks that named nothing on this install. Computed over the SAME batch

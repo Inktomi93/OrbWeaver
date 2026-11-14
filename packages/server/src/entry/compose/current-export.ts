@@ -1,11 +1,14 @@
-// The two current-export reads the import lookup's last step takes (D290): a card or room the app wrote carries no
-// stored import key, so a restore compares the incoming file with what the library would export now. Each reads
-// only the importing owner's rows: the character resolves by handle under that owner and the exporter re-proves
-// ownership on the id, so a handle naming nothing or another account's row answers null, never an error.
+// The current reads an import takes of the importing owner's rows. The two current-export reads are the lookup's last
+// step (D290): a card or room the app wrote carries no stored import key, so a restore compares the incoming file with
+// what the library would export now. The room title read names a held room by what the owner calls it now. Each reads
+// only the importing owner's rows: the character resolves by handle under that owner and the exporter and the room read
+// re-prove ownership on the id, so a handle or id naming nothing or another account's row answers null, never an error.
 import type { PortableExportNotes } from "@orb/contracts/portability";
+import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterService } from "#domain/character";
+import type { ChatService } from "#domain/chat";
 import type { ExportService } from "#domain/export";
-import type { ExportCurrentCard, ExportCurrentChats, ImportDriverDeps } from "#domain/import";
+import type { ExportCurrentCard, ExportCurrentChats, ImportDriverDeps, OwnedChatTitle } from "#domain/import";
 
 interface CurrentExportDeps {
   readonly character: Pick<CharacterService, "findByHandle">;
@@ -41,6 +44,22 @@ export function createExportCurrentChats(deps: CurrentExportDeps): ExportCurrent
       if (file !== null) {
         yield { chatId, bytes: file.bytes };
       }
+    }
+  };
+}
+
+export function createOwnedChatTitle(deps: {
+  readonly chat: Pick<ChatService, "getChat">;
+  readonly resolveOwnerPrincipal: ImportDriverDeps["resolveOwnerPrincipal"];
+}): OwnedChatTitle {
+  return async ({ ownerId, chatId }) => {
+    try {
+      return (await deps.chat.getChat({ principal: await deps.resolveOwnerPrincipal(ownerId), chatId })).title;
+    } catch (err) {
+      if (err instanceof DomainNotFoundError) {
+        return null;
+      }
+      throw err;
     }
   };
 }

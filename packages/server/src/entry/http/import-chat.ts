@@ -65,7 +65,7 @@ async function importAll(chat: PortableEntity, ownerId: UserId, files: readonly 
     const bytes = new Uint8Array(await file.arrayBuffer());
     const outcome = await chat.importFile(ownerId, { filename: file.name, bytes });
     if (outcome.ok) {
-      imported.push({ filename: file.name, created: outcome.created === true });
+      imported.push({ filename: file.name, created: outcome.created === true, title: outcome.label ?? null });
       memoryChatIds.push(...(outcome.memoryChatIds ?? []));
     } else {
       failed.push({ filename: file.name, error: outcome.error });

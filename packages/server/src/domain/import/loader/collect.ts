@@ -316,9 +316,8 @@ async function collectChatsForDir(args: {
   readonly chatsDir: ImportDirectory;
   readonly dirName: string;
   readonly state: CollectState;
-  readonly wallClockZone: string | undefined;
 }): Promise<void> {
-  const { fs, chatsDir, dirName, state, wallClockZone } = args;
+  const { fs, chatsDir, dirName, state } = args;
   const handle = characterHandleSchema.parse(slugifyHandle(dirName));
   if (state.skippedHandles.has(handle)) {
     return;
@@ -341,8 +340,6 @@ async function collectChatsForDir(args: {
     const parsed = await parseChatJsonl(new TextDecoder().decode(bytes), {
       fileName: fileEnt.name,
       charDirName: dirName,
-      // ST wrote these wall clocks against ITS box's local zone (`humanizedDateTime`); the driver injects it.
-      ...(wallClockZone !== undefined ? { wallClockZone } : {}),
     });
     if (parsed === null) {
       continue;
@@ -357,14 +354,14 @@ async function collectChatsForDir(args: {
   }
 }
 
-async function collectChats(fs: ImportFsPort, profileDir: ImportDirectory, state: CollectState, wallClockZone: string | undefined): Promise<void> {
+async function collectChats(fs: ImportFsPort, profileDir: ImportDirectory, state: CollectState): Promise<void> {
   await using chatsDir = await openPlane(fs, profileDir, CHATS_DIR);
   if (chatsDir === null) {
     return;
   }
   for (const dirEnt of await listDir(chatsDir, state)) {
     if (dirEnt.kind === "directory") {
-      await collectChatsForDir({ fs, chatsDir, dirName: dirEnt.name, state, wallClockZone });
+      await collectChatsForDir({ fs, chatsDir, dirName: dirEnt.name, state });
     }
   }
 }
@@ -512,9 +509,8 @@ async function collectGroupChats(args: {
   readonly files: ReadonlySet<string>;
   readonly leaves: readonly string[];
   readonly groupName: string;
-  readonly wallClockZone: string | undefined;
 }): Promise<Pick<CollectedGroup, "chats" | "missingChatLeaves">> {
-  const { fs, plane, files, leaves, groupName, wallClockZone } = args;
+  const { fs, plane, files, leaves, groupName } = args;
   const chats: CollectedChat[] = [];
   const missingChatLeaves: string[] = [];
   for (const leaf of leaves) {
@@ -540,13 +536,9 @@ async function collectGroupChats(args: {
       continue;
     }
     // `charDirName` is the GROUP name — the header-fallback ST writes as literal "unused" in a group file.
-    // The zone rides in for the SAME reason the solo path threads it: a group transcript's `create_date` and
-    // every `send_date` are ST's zone-less LOCAL wall clocks, so reading them as UTC lands the whole room at
-    // the writing box's offset (measured: -6h on a Denver snapshot).
     const parsed = await parseChatJsonl(new TextDecoder().decode(bytes), {
       fileName,
       charDirName: groupName,
-      ...(wallClockZone !== undefined ? { wallClockZone } : {}),
     });
     if (parsed === null) {
       missingChatLeaves.push(fileName);
@@ -565,7 +557,7 @@ async function collectGroupChats(args: {
 
 // ST groups: `<profileDir>/groups/*.json`. Members stay UNRESOLVED here (card filenames) — the filename →
 // characterId mapping only exists after the character wave, so the driver owns the resolve.
-async function collectGroups(fs: ImportFsPort, profile: ListedProfile, state: CollectState, wallClockZone: string | undefined): Promise<void> {
+async function collectGroups(fs: ImportFsPort, profile: ListedProfile, state: CollectState): Promise<void> {
   await using plane = await listedPlane(fs, profile, GROUP_CHATS_DIR);
   const files = await planeFiles(plane, state);
   await using groupsDir = await openPlane(fs, profile.dir, GROUPS_DIR);
@@ -583,7 +575,7 @@ async function collectGroups(fs: ImportFsPort, profile: ListedProfile, state: Co
       state.unreadableGroups.push(sourceFile);
       continue;
     }
-    const { chats, missingChatLeaves } = await collectGroupChats({ fs, plane, files, leaves: parsed.chatLeaves, groupName: parsed.name, wallClockZone });
+    const { chats, missingChatLeaves } = await collectGroupChats({ fs, plane, files, leaves: parsed.chatLeaves, groupName: parsed.name });
     state.groups.push({ parsed, sourceFile, chats, missingChatLeaves });
   }
 }
@@ -795,14 +787,7 @@ async function collectPersonas(fs: ImportFsPort, profile: ListedProfile, state: 
   return out;
 }
 
-export async function collectBundlesFromDir(
-  fs: ImportFsPort,
-  profileDir: ImportDirectory,
-  skipCharacterNames: readonly string[] = [],
-  /** The zone ST's wall-clock chat dates were written in (see `ImportProfileDeps.stWallClockZone`); absent ⇒
-   *  the serde's `"UTC"` default. */
-  wallClockZone?: string,
-): Promise<CollectResult> {
+export async function collectBundlesFromDir(fs: ImportFsPort, profileDir: ImportDirectory, skipCharacterNames: readonly string[] = []): Promise<CollectResult> {
   const state: CollectState = {
     byHandle: new Map<string, Group>(),
     skip: new Set(skipCharacterNames.map((s) => s.trim().toLowerCase()).filter((s) => s.length > 0)),
@@ -834,10 +819,10 @@ export async function collectBundlesFromDir(
   await collectSettingsPreset(fs, profileDir, state);
   await collectThemes(fs, profileDir, state);
   await collectBackgrounds(fs, profileDir, state);
-  await collectGroups(fs, profile, state, wallClockZone);
+  await collectGroups(fs, profile, state);
   await collectUnhandled(fs, profile, state);
 
-  await collectChats(fs, profileDir, state, wallClockZone);
+  await collectChats(fs, profileDir, state);
 
   fuzzyPair(state);
   const personas = await collectPersonas(fs, profile, state);
