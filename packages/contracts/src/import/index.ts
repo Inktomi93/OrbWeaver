@@ -33,6 +33,7 @@ export type {
   ImportReuse,
 } from "./preview.ts";
 export {
+  clipImportText,
   IMPORT_PREVIEW_KINDS,
   IMPORT_PREVIEW_LIST_MAX,
   IMPORT_PREVIEW_TEXT_MAX,

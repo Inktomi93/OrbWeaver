@@ -30,11 +30,11 @@ test("the bulk persona import refuses a document asset as an avatar with its cod
     newPersonaId: () => harness.idSource.typeId(ID_PREFIX.persona),
   });
 
-  await expect(bulkImport({ ownerId: owner.userId, personas: [imported("Wanderer", document.assetId)] })).rejects.toMatchObject({
+  await expect(bulkImport({ ownerId: owner.userId, personas: [imported("Wanderer", document.assetId)], dryRun: false })).rejects.toMatchObject({
     code: ASSET_UPLOAD_REFUSAL_CODES.notAnImage,
   });
   expect(await services.persona.list({ principal: owner })).toEqual([]);
 
-  expect((await bulkImport({ ownerId: owner.userId, personas: [imported("Wanderer", picture.assetId)] })).personasCreated).toBe(1);
+  expect((await bulkImport({ ownerId: owner.userId, personas: [imported("Wanderer", picture.assetId)], dryRun: false })).personasCreated).toBe(1);
   expect(await services.persona.list({ principal: owner })).toMatchObject([{ name: "Wanderer", avatarAssetId: picture.assetId }]);
 });

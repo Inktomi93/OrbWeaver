@@ -1,11 +1,14 @@
 // The multipart character import response preserves per-card success and failure isolation.
 import { z } from "zod";
 import { characterIdSchema } from "#assets";
+import { importTextSchema } from "./preview.ts";
 
 const importedCardSchema = z.strictObject({
   filename: z.string().nullable(),
   characterId: characterIdSchema,
   created: z.boolean(),
+  /** The card's name, clipped: the held character's current name, else the written character's. */
+  name: importTextSchema,
   importHash: z.string(),
   notes: z.array(z.string()).readonly().optional(),
 });

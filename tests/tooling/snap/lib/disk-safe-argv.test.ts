@@ -1,6 +1,10 @@
 // What a run file may hold of an argv: the shape of the call, never the text an operator handed it.
 import { expect, test } from "@orb/testkit/tooling";
-import { diskSafeArgv, diskSafeOp, diskSafeUrl, URL_VALUE_FLAGS } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
+import { PRIVATE_MASK } from "../../../../tooling/src/snap/contract/disk-safe-argv.ts";
+import { diskSafeArgv, diskSafeOp, diskSafeUrl, noteUrlSecrets, URL_VALUE_FLAGS } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
+import { redactNetworkUrl } from "../../../../tooling/src/snap/lib/har-redaction.ts";
+import { forgetPrivateValues, scrubPrivateText } from "../../../../tooling/src/snap/lib/private-values.ts";
+import { snapDestination } from "../../../../tooling/src/snap/ops/guards.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
 
 test("a private flag keeps its selector or key and loses its value", () => {
@@ -104,6 +108,42 @@ test("a binding URL keeps a file path whole, an @ in a package directory include
   const masked = diskSafeUrl("http://u:hunter2@h.test/?session=s3");
   expect(diskSafeUrl(masked)).toBe(masked);
 });
+
+test("a route positional loses its token in the recorded argv, the artifact name and the section refusal", () => {
+  const canary = "plant-route-token-5c1e";
+  const argv = [`/?token=${canary}&lang=en`, "--out", "shots"];
+  const recorded = diskSafeArgv(argv);
+  expect(recorded[0]).toBe(`/?token=${PRIVATE_MASK}&lang=en`);
+  expect(recorded.slice(1)).toEqual(argv.slice(1));
+  const named = parseSnapArgs([`/chats?token=${canary}`]);
+  expect(named.errors).toEqual([]);
+  expect(snapDestination(named).name).toBe("chats_token_private_");
+  // The positive control: the navigation URL still carries the token, so only the name was masked.
+  expect(snapDestination(named).url).toContain(canary);
+  for (const route of [`/not-a-section?token=${canary}`, `/not-a-section#access_token=${canary}`]) {
+    // The positive control: the section check refused the route, so its one line is the text judged.
+    const refused = parseSnapArgs([route]).errors;
+    expect(refused).toHaveLength(1);
+    expect(refused.join(" ")).not.toContain(canary);
+  }
+});
+
+// The app's invite token rides `?join=` and the `/join/<token>` landing, and a stashed invite rides `?invite=` to sign-in.
+const INVITE_CANARY = "invite-canary-route-8a9b0c";
+test.for([`/?join=${INVITE_CANARY}`, `/?invite=${INVITE_CANARY}`, `/?jwt=${INVITE_CANARY}`, `/join/${INVITE_CANARY}`])(
+  "an invite token in %s is masked in the argv, the artifact name and the network URL, and noted for the value scrub",
+  (route) => {
+    forgetPrivateValues();
+    using _forget = { [Symbol.dispose]: forgetPrivateValues };
+    const recorded = diskSafeArgv([route]).join(" ");
+    expect(recorded).toContain(PRIVATE_MASK);
+    expect(recorded).not.toContain(INVITE_CANARY);
+    expect(snapDestination(parseSnapArgs([route])).name).not.toContain(INVITE_CANARY);
+    expect(redactNetworkUrl(`http://127.0.0.1:5173${route}`).url).not.toContain(INVITE_CANARY);
+    noteUrlSecrets(`http://127.0.0.1:5173${route}`);
+    expect(scrubPrivateText(`the page shows ${INVITE_CANARY} here`)).toBe(`the page shows ${PRIVATE_MASK} here`);
+  },
+);
 
 test("an op names a request by its masked arguments, or its kind when it carries none", () => {
   expect(diskSafeOp(["--fill", "input=hunter2", "--eval", "1"], "call")).toBe("--fill input=<private> --eval 1");

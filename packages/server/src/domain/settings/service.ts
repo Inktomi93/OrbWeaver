@@ -49,6 +49,6 @@ export function createSettingsService(input: SettingsAssemblyContext): SettingsS
     removeTheme: createRemoveTheme(ctx).removeTheme,
     // The single-theme door is a thin arm over the SAME import op the bundle descriptor and the profile
     // import compose, so one parser and one collision rule serve every door.
-    importThemeFile: createImportThemeFile({ importTheme: createImportTheme(input) }).importThemeFile,
+    importThemeFile: createImportThemeFile({ importThemes: createImportTheme(input) }).importThemeFile,
   };
 }

@@ -31,6 +31,9 @@ type ImportPassCounts = {
   readonly mergedKeys?: readonly string[];
   /** How many items of each kind the folder holds, counted the way the preview counts. */
   readonly found: ImportKindCounts;
+  /** A real run only: the entries the library or the upload already held, and the recorded skips never attempted. */
+  readonly inLibrary?: number;
+  readonly skipped?: number;
   /** The span in which the run wrote real conversations (null = none): the client's memory-build offer scope. */
   readonly memoryScope: ImportWindow | null;
 } & ({ readonly preview?: ImportPreview; readonly reportPath?: never } | { readonly reportPath: string; readonly preview?: never });

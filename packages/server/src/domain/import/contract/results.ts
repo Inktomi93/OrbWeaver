@@ -25,6 +25,8 @@ export interface ImportOrphanCharacterResult {
 export interface ImportCharacterResult {
   readonly characterId: CharacterId;
   readonly created: boolean;
+  /** The library row's name: the held character's current name, else the written character's. Not clipped. */
+  readonly name: string;
   readonly importHash: string;
   /** The card's regex-script lift (D121-E): fresh library rows minted from
    *  the by-value payload / candidates attached to existing rows instead of cloned. Both 0 for a script-less
@@ -51,6 +53,10 @@ export type RestoreCharacterBookResult = CardLorebookRestoreResult;
  *  nothing here. Always present (empty ⇒ every pick travelled), never a silent drop. */
 export interface ImportChatsResult {
   readonly chatsImported: number;
+  /** Inputs the write found already landed, by the library's import claims or an earlier input of the batch. */
+  readonly chatsReused: number;
+  /** Per input, in order: the room it landed on or was held under, and the title the import computed for it. */
+  readonly rooms: readonly { readonly chatId: ChatId; readonly title: string }[];
   readonly memoryChatIds: readonly ChatId[];
   readonly unresolvedPinnedPersonas: readonly ImportUnresolvedPinnedPersona[];
   /** Already-imported rooms this run back-filled persona attribution onto (the dedup-skip arm's HEAL — the
@@ -90,6 +96,9 @@ export interface ImportThemesResult {
 export interface ImportGroupsResult {
   readonly groupsImported: number;
   readonly groupChatsImported: number;
+  /** Groups whose every transcript the write found already landed, and the transcripts it found so. */
+  readonly groupsReused: number;
+  readonly groupChatsReused: number;
   readonly skippedGroups: readonly ImportSkippedGroup[];
   readonly skippedMembers: readonly ImportSkippedGroupMember[];
   readonly memoryChatIds: readonly ChatId[];
@@ -109,6 +118,8 @@ export interface ImportGroupsResult {
 
 export interface ImportPersonasResult {
   readonly personasCreated: number;
+  /** Inputs that reused an equal persona, the library's or an earlier input's; a merge is not among them. */
+  readonly personasReused: number;
   readonly mergedKeys: readonly string[];
 }
 
@@ -122,7 +133,14 @@ export interface ImportPersonasResult {
  *  here. Present even when EMPTY (the {@link ImportPresetNote} rule): "restored whole" must be legible apart
  *  from "never looked at". The chat itself always still imports — an overlay never un-writes canon. */
 export type ImportChatFileOutcome =
-  | { readonly ok: true; readonly created: boolean; readonly skippedOverlays: readonly string[]; readonly memoryChatIds: readonly ChatId[] }
+  | {
+      readonly ok: true;
+      readonly created: boolean;
+      /** The room's title: the library row's current one, else the title the import computed, else the file's name. */
+      readonly title: string;
+      readonly skippedOverlays: readonly string[];
+      readonly memoryChatIds: readonly ChatId[];
+    }
   | { readonly ok: false; readonly error: string };
 
 /** One card the bulk import SKIPPED (per-card isolation) — the source file + the concise refusal reason. */
@@ -248,6 +266,9 @@ export interface ImportReport {
   readonly found: ImportKindCounts;
   /** The dry run's names per kind and its skips, or null on a real run. */
   readonly preview: ImportPreview | null;
+  /** A real run only, in {@link found}'s units: the entries its waves reused because the library or an earlier entry
+   *  of the upload held them (`inLibrary`, merged personas aside), and the recorded skips it never attempted. */
+  readonly held?: { readonly inLibrary: number; readonly skipped: number };
   /** ST library tags that did not attach to their imported card (the attach is per-tag isolated). */
   readonly skippedCardTags: readonly ImportSkippedCardTag[];
   /** Cards skipped by per-card isolation (validation defect repair could not fix), with the reason each. */

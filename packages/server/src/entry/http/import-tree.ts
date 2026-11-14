@@ -24,8 +24,8 @@ import { dirname, join, resolve, sep } from "node:path";
 import type { PersonaCollisionChoices, TreeLayoutDeclaration } from "@orb/contracts/import";
 import {
   admitTreeBatch,
+  clipImportText,
   decodePersonaCollisionChoices,
-  IMPORT_PREVIEW_TEXT_MAX,
   importStartedSchema,
   isStSecretsFile,
   PERSONA_COLLISION_FIELD,
@@ -238,11 +238,6 @@ async function stagePart(stagedRoot: string, relTarget: string, bytes: Uint8Arra
   }
 }
 
-/** A path as the refusal message shows it. The name is hostile, so it is clipped and made well formed. */
-function shownPath(path: string): string {
-  return path.slice(0, IMPORT_PREVIEW_TEXT_MAX).toWellFormed();
-}
-
 /** Refuse two files whose paths differ only in letter case. A Windows or macOS volume holds them as one name, so
  *  the second write would collide there; refusing on every platform keeps the answer the same on a Linux host, and
  *  does it before any byte is staged. Two spellings of one directory are no collision unless a file path repeats. */
@@ -255,7 +250,7 @@ function refuseCaseTwins(paths: readonly string[]): void {
     if (first !== undefined && first !== path) {
       throw new TreeRejected(
         BAD_REQUEST,
-        `these two files differ only in letter case, and a Windows or macOS folder holds them as one file: "${shownPath(first)}" and "${shownPath(path)}". Rename one and upload again.`,
+        `these two files differ only in letter case, and a Windows or macOS folder holds them as one file: "${clipImportText(first)}" and "${clipImportText(path)}". Rename one and upload again.`,
       );
     }
     firstByFold.set(fold, first ?? path);

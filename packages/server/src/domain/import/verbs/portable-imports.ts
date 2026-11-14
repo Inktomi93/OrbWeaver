@@ -1,3 +1,4 @@
+import { clipImportText } from "@orb/contracts/import";
 import type { PortableImportOutcome } from "@orb/contracts/portability";
 import type { UserId } from "@orb/kit/ids";
 import type { OwnerImportDeps, PortableImportDeps, PortableImports } from "../contract/portable.ts";
@@ -72,6 +73,8 @@ export function createPortableImports(deps: PortableImportDeps): PortableImports
           ? {
               ok: true,
               created: outcome.created,
+              // Every name in a file is hostile, and a held room's title is the owner's own: both are clipped for the wire.
+              label: clipImportText(outcome.title),
               ...(outcome.skippedOverlays.length > 0 ? { notes: outcome.skippedOverlays } : {}),
               ...(outcome.memoryChatIds.length > 0 ? { memoryChatIds: outcome.memoryChatIds } : {}),
             }

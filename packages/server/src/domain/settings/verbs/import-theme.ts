@@ -1,13 +1,13 @@
-// verb: importTheme — land a theme file (an orb backup, a single-theme export or a raw SillyTavern theme)
-// in the owner's OWN theme library, ADDITIVELY (owner ruling, superseding restore-wins): equal content under
-// a taken name reuses the row; different content lands under the next free name; no owned row is edited.
+// verb: importTheme — land a batch of theme files (orb backups, single-theme exports or raw SillyTavern themes)
+// in the owner's OWN theme library, ADDITIVELY (owner ruling, superseding restore-wins): equal content reuses the
+// row the owner holds or the batch landed; different content lands under the next free name; no owned row is
+// edited. The dry run is this same loop with the write left out, so a preview cannot drift from the run.
 // Security: css re-runs the same validateThemeCss guard as createTheme — a failing css degrades to null.
 
 import type { ImportAnswer, ImportReuse } from "@orb/contracts/import";
-import type { FindOwnedThemes, ImportedThemeLanding, ImportThemeOp, SettingsImportOutcome } from "@orb/contracts/settings";
+import type { ImportedThemeLanding, ImportThemes, SettingsImportOutcome, ThemeImportFile } from "@orb/contracts/settings";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { validateThemeCss } from "@orb/kit/css-validate";
-import type { Cancellation } from "@orb/kit/guards";
 import type { UserId } from "@orb/kit/ids";
 import { UnreadableJsonText } from "@orb/kit/json";
 import { nextFreeName } from "@orb/kit/strings";
@@ -24,18 +24,21 @@ const THEME_ENTITY = "theme";
 const UNNAMED_THEME = "Imported theme";
 
 type ThemeInsertRow = Parameters<typeof insertThemes>[1][number];
+type ThemeBatch = Omit<Parameters<ImportThemes>[0], "dryRun">;
 
-/** The owner's library as the collision decision reads it: the names taken and each row's content key. */
-interface OwnedLibrary {
+/** The batch's library as the collision decision reads it: the names taken, each row's content key (the owner's and
+ *  the batch's), and the keys the owner held before the batch. */
+interface ThemeLibrary {
   readonly takenNames: Set<string>;
   readonly nameByContentKey: Map<string, string>;
+  readonly ownedKeys: ReadonlySet<string>;
 }
 
 interface LandingArgs {
   readonly ctx: SettingsContext;
   readonly ownerId: UserId;
   readonly theme: CanonicalTheme;
-  readonly library: OwnedLibrary;
+  readonly library: ThemeLibrary;
   readonly at: number;
   /** The ST keys the file left behind; they describe the file, so a reused theme states them too. */
   readonly unmapped: ImportedThemeLanding["unmapped"];
@@ -46,23 +49,29 @@ function withSafeCss(theme: CanonicalTheme): CanonicalTheme {
   return { ...theme, css: theme.css !== null && validateThemeCss(theme.css).errors.length === 0 ? theme.css : null };
 }
 
-/** Decide where one parsed theme lands: reuse the owned row with equal content, else a fresh row under the
- *  next free name. Mutates `library` so the themes of one file collide against each other too. */
+/** Decide where one parsed theme lands: reuse the row with equal content (`reused` says whether the owner held it or
+ *  the batch landed it), else a fresh row under the next free name. Mutates `library` so every later theme of the
+ *  batch collides against it too. */
 function landTheme({ ctx, ownerId, theme, library, at, unmapped }: LandingArgs): {
   readonly landing: ImportedThemeLanding;
+  readonly key: string;
+  readonly reused: ImportReuse | null;
   readonly row: ThemeInsertRow | null;
 } {
   const safe = withSafeCss(theme);
   const key = themeContentKey(safe);
   const existingName = library.nameByContentKey.get(key);
   if (existingName !== undefined) {
-    return { landing: { name: existingName, renamedFrom: null, created: false, unmapped }, row: null };
+    const reused = library.ownedKeys.has(key) ? "library" : "upload";
+    return { landing: { name: existingName, renamedFrom: null, created: false, unmapped }, key, reused, row: null };
   }
   const name = nextFreeName(safe.name, library.takenNames);
   library.takenNames.add(name);
   library.nameByContentKey.set(key, name);
   return {
     landing: { name, renamedFrom: name === safe.name ? null : safe.name, created: true, unmapped },
+    key,
+    reused: null,
     row: { id: ctx.newThemeId(), ownerId, name, override: safe.override, css: safe.css, createdAt: at, updatedAt: at },
   };
 }
@@ -72,76 +81,80 @@ function readableOwned(rows: Awaited<ReturnType<typeof listOwnedThemes>>): Canon
   return rows.flatMap((row) => (row.override instanceof UnreadableJsonText ? [] : [{ name: row.name, override: row.override, css: row.css }]));
 }
 
-/** Parse theme bytes and land them in the owner's theme library. `fallbackName` names a raw ST theme that
- *  carries no `name` of its own (the picked file's stem). */
-export function createImportTheme(input: SettingsAssemblyContext): ImportThemeOp {
-  const ctx: SettingsContext = { ...input, db: databaseForOwner(input.db) };
-  return async (ownerId: UserId, bytes: Uint8Array, fallbackName?: string): Promise<SettingsImportOutcome> => {
-    const parsed = parseThemeFile(bytes, fallbackName ?? UNNAMED_THEME);
-    if (!parsed.ok) {
-      return { ok: false, error: parsed.detail ?? portableParseError(THEME_SCHEMA_KIND, parsed.reason) };
-    }
-
-    const at = ctx.now();
-    const owned = await listOwnedThemes(ctx.db, ownerId);
-    const library: OwnedLibrary = {
-      takenNames: new Set(owned.map((row) => row.name)),
-      nameByContentKey: new Map(readableOwned(owned).map((row) => [themeContentKey(row), row.name])),
-    };
-    // Only a raw ST theme carries leftovers, and it is the file's one theme; an orb-native file leaves none behind.
-    const unmapped = parsed.stTheme?.unmapped.map(({ field, place }) => ({ key: field, reason: place })) ?? [];
-    const decided: { readonly landing: ImportedThemeLanding; readonly row: ThemeInsertRow | null }[] = [];
-    for (const theme of parsed.value.themes) {
-      decided.push(landTheme({ ctx, ownerId, theme, library, at, unmapped }));
-    }
-    const rows = decided.map((d) => d.row).filter((row): row is ThemeInsertRow => row !== null);
-    const inserted = new Set(await insertThemes(ctx.db, rows));
-    // A row the conflict guard skipped (a concurrent import took that name first) is reported as reused.
-    const landed: ImportedThemeLanding[] = decided.map((d) => (d.row !== null && !inserted.has(d.row.id) ? { ...d.landing, created: false } : d.landing));
-
-    if (parsed.value.themes.length > 0) {
-      await ctx.audit(
-        {
-          actorUserId: ownerId,
-          action: THEME_IMPORT_BACKUP,
-          entityType: THEME_ENTITY,
-          metadata: { total: parsed.value.themes.length, created: inserted.size },
-        },
-        at,
-      );
-      if (inserted.size > 0) {
-        ctx.emitUserEvent(ownerId, { type: "themesChanged" });
-      }
-    }
-
-    return { ok: true, created: inserted.size > 0, landed };
-  };
+interface FileDecision {
+  readonly answer: ImportAnswer;
+  readonly outcome: SettingsImportOutcome;
+  readonly rows: readonly ThemeInsertRow[];
 }
 
-/** The read-only twin of {@link createImportTheme}'s reuse test, for a preview that must not write. It judges the
- *  files in the order the import lands them, so a theme equal to an earlier file's answers `"upload"`. */
-export function createFindOwnedThemes(input: Pick<SettingsAssemblyContext, "db">): FindOwnedThemes {
-  const db = databaseForOwner(input.db);
-  return async (ownerId: UserId, files: readonly Uint8Array[], signal: Cancellation): Promise<readonly ImportAnswer[]> => {
-    const owned = new Set(readableOwned(await listOwnedThemes(db, ownerId)).map((row) => themeContentKey(row)));
-    // call-local: the content keys of the themes the files judged so far land. Ends if it outlives the call.
-    const landed = new Set<string>();
-    return await mapYielding(files, signal, (bytes): ImportAnswer => {
-      const parsed = parseThemeFile(bytes, UNNAMED_THEME);
-      if (!parsed.ok || parsed.value.themes.length === 0) {
-        return { reuse: null, keys: [] };
-      }
-      const keys = parsed.value.themes.map((theme) => themeContentKey(withSafeCss(theme)));
-      let reuse: ImportReuse | null = null;
-      if (keys.every((key) => owned.has(key))) {
-        reuse = "library";
-      } else if (keys.every((key) => owned.has(key) || landed.has(key))) {
-        reuse = "upload";
-      }
-      for (const key of keys) {
-        landed.add(key);
-      }
-      return { reuse, keys };
+/** What the batch does with one file, in the batch's order: a file reads as held when every theme in it is the
+ *  owner's, as a repeat when every theme in it is reused, and as a write otherwise. */
+function decideFile(args: Omit<LandingArgs, "theme" | "unmapped"> & { readonly file: ThemeImportFile }): FileDecision {
+  const parsed = parseThemeFile(args.file.bytes, args.file.fallbackName ?? UNNAMED_THEME);
+  if (!parsed.ok) {
+    return {
+      answer: { reuse: null, keys: [] },
+      outcome: { ok: false, error: parsed.detail ?? portableParseError(THEME_SCHEMA_KIND, parsed.reason) },
+      rows: [],
+    };
+  }
+  // Only a raw ST theme carries leftovers, and it is the file's one theme; an orb-native file leaves none behind.
+  const unmapped = parsed.stTheme?.unmapped.map(({ field, place }) => ({ key: field, reason: place })) ?? [];
+  const decided = parsed.value.themes.map((theme) => landTheme({ ...args, theme, unmapped }));
+  const rows = decided.flatMap((d) => (d.row === null ? [] : [d.row]));
+  let reuse: ImportReuse | null = null;
+  if (decided.length > 0 && decided.every((d) => d.reused === "library")) {
+    reuse = "library";
+  } else if (decided.length > 0 && rows.length === 0) {
+    reuse = "upload";
+  }
+  return { answer: { reuse, keys: decided.map((d) => d.key) }, outcome: { ok: true, created: rows.length > 0, landed: decided.map((d) => d.landing) }, rows };
+}
+
+/** Land a batch of theme files in the owner's theme library, or with `dryRun` answer what that does. */
+export function createImportTheme(input: SettingsAssemblyContext): ImportThemes {
+  const ctx: SettingsContext = { ...input, db: databaseForOwner(input.db) };
+
+  async function write(ownerId: UserId, { outcome, rows }: FileDecision, at: number): Promise<SettingsImportOutcome> {
+    if (!outcome.ok || outcome.landed === undefined || outcome.landed.length === 0) {
+      return outcome;
+    }
+    const inserted = new Set(await insertThemes(ctx.db, rows));
+    const idByName = new Map(rows.map((row) => [row.name, row.id]));
+    // A row the conflict guard skipped (a concurrent import took that name first) is reported as reused.
+    const landed = outcome.landed.map((landing) => {
+      const id = landing.created ? idByName.get(landing.name) : undefined;
+      return id !== undefined && !inserted.has(id) ? { ...landing, created: false } : landing;
     });
-  };
+    const metadata = { total: landed.length, created: inserted.size };
+    await ctx.audit({ actorUserId: ownerId, action: THEME_IMPORT_BACKUP, entityType: THEME_ENTITY, metadata }, at);
+    if (inserted.size > 0) {
+      ctx.emitUserEvent(ownerId, { type: "themesChanged" });
+    }
+    return { ok: true, created: inserted.size > 0, landed };
+  }
+
+  async function importThemes(args: ThemeBatch & { readonly dryRun: true }): Promise<readonly ImportAnswer[]>;
+  async function importThemes(args: ThemeBatch & { readonly dryRun: false }): Promise<readonly SettingsImportOutcome[]>;
+  async function importThemes({
+    ownerId,
+    files,
+    signal,
+    dryRun,
+  }: ThemeBatch & { readonly dryRun: boolean }): Promise<readonly ImportAnswer[] | readonly SettingsImportOutcome[]> {
+    const owned = await listOwnedThemes(ctx.db, ownerId);
+    const ownedKeys = readableOwned(owned).map((row) => [themeContentKey(row), row.name] as const);
+    const library: ThemeLibrary = {
+      takenNames: new Set(owned.map((row) => row.name)),
+      nameByContentKey: new Map(ownedKeys),
+      ownedKeys: new Set(ownedKeys.map(([key]) => key)),
+    };
+    const at = ctx.now();
+    const decided = await mapYielding(files, signal, async (file) => {
+      const decision = decideFile({ ctx, ownerId, library, at, file });
+      return { answer: decision.answer, outcome: dryRun ? decision.outcome : await write(ownerId, decision, at) };
+    });
+    return dryRun ? decided.map(({ answer }) => answer) : decided.map(({ outcome }) => outcome);
+  }
+  return importThemes;
 }

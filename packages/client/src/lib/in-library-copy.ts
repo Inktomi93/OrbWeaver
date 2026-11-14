@@ -7,9 +7,9 @@ const NOTHING_ADDED = "Nothing was added.";
 /** The book import's notice when the book is already in the library. */
 export const WORLD_INFO_DUPLICATE_BOOK_NOTICE = `That book is already in your library. ${NOTHING_ADDED}`;
 
-/** The chat import's notice when one dropped file is a room the library already holds, named by its file. */
-export function chatInLibraryNotice(filename: string): string {
-  return `${filename} is already in your library. ${NOTHING_ADDED}`;
+/** The chat import's notice when one dropped file is a room the library already holds, named by the room's title. */
+export function chatInLibraryNotice(title: string): string {
+  return `${title} is already in your library. ${NOTHING_ADDED}`;
 }
 
 /** The chat import's notice when every dropped file is a room the library already holds. */
@@ -17,9 +17,9 @@ export function chatsInLibraryNotice(count: number): string {
   return `${String(count)} chats are already in your library. ${NOTHING_ADDED}`;
 }
 
-/** The card import's notice when one dropped file is a card the library already holds, named by its file when it has one. */
-export function cardInLibraryNotice(filename: string | null): string {
-  return `${filename ?? "That card"} is already in your library. ${NOTHING_ADDED}`;
+/** The card import's notice when one dropped file is a card the library already holds, named by the character's name. */
+export function cardInLibraryNotice(name: string): string {
+  return `${name} is already in your library. ${NOTHING_ADDED}`;
 }
 
 /** The card import's notice when every dropped file is a card the library already holds. */
