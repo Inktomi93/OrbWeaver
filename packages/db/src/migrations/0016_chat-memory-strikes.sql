@@ -9,10 +9,9 @@ CREATE TABLE `chat_memory_strikes` (
 	`topic_anchor` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`scoped_character_id`) REFERENCES `characters`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`scoped_character_id`) REFERENCES `characters`(`id`) ON UPDATE no action ON DELETE set null,
 	CONSTRAINT "chat_memory_strikes_tier_check" CHECK(tier >= 0)
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `chat_memory_strikes_shared_unique` ON `chat_memory_strikes` (`chat_id`,`tier`,`message_start_id`,`message_end_id`) WHERE scoped_character_id is null;--> statement-breakpoint
-CREATE UNIQUE INDEX `chat_memory_strikes_scoped_unique` ON `chat_memory_strikes` (`chat_id`,`scoped_character_id`,`tier`,`message_start_id`,`message_end_id`) WHERE scoped_character_id is not null;--> statement-breakpoint
+CREATE UNIQUE INDEX `chat_memory_strikes_span_unique` ON `chat_memory_strikes` (`chat_id`,`tier`,`message_start_id`,`message_end_id`);--> statement-breakpoint
 CREATE INDEX `chat_memory_strikes_scoped_character_idx` ON `chat_memory_strikes` (`scoped_character_id`);
