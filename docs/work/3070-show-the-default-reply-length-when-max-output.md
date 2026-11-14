@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P2
 area: ui
+plan: cross-surface-consistency
 ---
 
 # Show the default reply length when Max output tokens is blank

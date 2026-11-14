@@ -1,4 +1,5 @@
 import { isUtf8 } from "node:buffer";
+import { maskSecretPathSegments, URL_SECRET_PAIR_NAMES } from "../../floor/browser/url-secret-names.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { readMember } from "../../floor/instrument/member.ts";
 import { PRIVATE_MASK } from "../contract/disk-safe-argv.ts";
@@ -163,7 +164,10 @@ function sanitizePairs(input: readonly DiskSafeNameValue[], path: string, contex
   }
   return input.slice(0, context.limits.maxEntries).map((pair, index) => ({
     name: bounded(pair.name, `${path}[${index}].name`, context),
-    value: isSensitiveEvidenceName(pair.name) ? REDACTED : bounded(pair.value, `${path}[${index}].value`, context),
+    value:
+      isSensitiveEvidenceName(pair.name) || URL_SECRET_PAIR_NAMES.has(pair.name.toLowerCase())
+        ? REDACTED
+        : bounded(pair.value, `${path}[${index}].value`, context),
   }));
 }
 
@@ -205,6 +209,7 @@ function urlEvidence(unscrubbed: string, context: HarRedactionContext, path = "$
     );
     parsed.username = parsed.username === "" ? "" : REDACTED;
     parsed.password = parsed.password === "" ? "" : REDACTED;
+    parsed.pathname = maskSecretPathSegments(parsed.pathname, REDACTED);
     parsed.search = "";
     for (const pair of query) {
       parsed.searchParams.append(pair.name, pair.value);

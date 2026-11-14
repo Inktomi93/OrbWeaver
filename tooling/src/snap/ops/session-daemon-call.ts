@@ -5,7 +5,7 @@
 // path runs — never a second capture path (invariant 4). Split from ops/session-daemon.ts (the process,
 // socket and lifecycle) by nature: this file is the capture half.
 import process from "node:process";
-import { artifactKey, routeSlug } from "../../floor/artifacts/artifact-naming.ts";
+import { artifactKey } from "../../floor/artifacts/artifact-naming.ts";
 import { artifactFile, beginInstrumentRun, finishInstrumentRun } from "../../floor/artifacts/artifact-out.ts";
 import { print } from "../../floor/artifacts/artifacts.ts";
 import type { ProbeSession } from "../../floor/browser/browser-contract.ts";
@@ -14,6 +14,7 @@ import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
 import type { SessionCallTarget, SessionRequest } from "../contract/session.ts";
 import type { Args } from "../contract/types.ts";
+import { routeArtifactSlug } from "../lib/disk-safe-argv.ts";
 import { shouldProduceShot } from "../lib/out-names.ts";
 import { inheritSessionArgs, inheritSessionBinding, livePageSlug, sessionCallTarget, sessionOnlyFlagsIn } from "../lib/session-plan.ts";
 import { cascadeNotBootedRefusal, neverNavigatedRefusal, sessionOnlyFlagsRefusal } from "../lib/session-refusals.ts";
@@ -55,7 +56,7 @@ function defaultOutFor(target: SessionCallTarget, call: Args, pageUrl: string): 
   if (target === "live") {
     return livePageSlug(pageUrl);
   }
-  return target === "file" ? snapDestination(call).name : routeSlug(call.route);
+  return target === "file" ? snapDestination(call).name : routeArtifactSlug(call.route);
 }
 
 function callRefusals(state: SessionCallState, request: SessionRequest, call: Args): readonly string[] {
