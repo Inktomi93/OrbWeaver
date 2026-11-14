@@ -3,7 +3,7 @@
 // control is drawn nowhere and the masthead keeps its row, so the control appears once, in its settled place, and nothing below moves.
 
 import { BLANK_CHAT_NAME, START_NEW_CHAT_NAME } from "@orb/client/lib";
-import { enlargedTextFindings as findings, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
+import { enlargedTextFindings as findings, READ_RETRIES_MS, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName, createShellAmbientReads, holdServed, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, createFirstBootHarness } from "@orb/testkit/node/composed";
@@ -136,7 +136,8 @@ for (const device of [
 
       read.fail();
 
-      await expect(start).toBeVisible();
+      // The masthead draws the control once the read has failed, which is after the client's retries.
+      await expect(start).toBeVisible({ timeout: READ_RETRIES_MS });
       await expect(page.locator(RECENTS_TILE).getByRole("button", { name: START_NEW_CHAT_NAME, exact: true })).toHaveCount(0);
     });
 

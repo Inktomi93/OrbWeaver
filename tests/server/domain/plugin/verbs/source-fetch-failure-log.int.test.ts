@@ -2,7 +2,7 @@
 // the wrapping verb records the cause for the operator.
 // @subject packages/server/src/domain/plugin/verbs/preview-from-url.ts
 // @subject packages/server/src/domain/plugin/verbs/git-source.ts
-// @subject packages/server/src/domain/plugin/substrate/manifest.ts
+// @subject packages/server/src/domain/plugin/context.ts
 
 import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";

@@ -21,9 +21,9 @@ import { getLog } from "#foundation/observability";
 import type { PromptTransformIndex, PromptTransformIndexDeps, RuleRow } from "../contract/ops.ts";
 import { countChatMessages } from "../persistence/canon-reads.ts";
 import { loadEnabledTurnStartedRules, recordRuleError } from "../persistence/rules.ts";
-import { authorGlobals } from "../substrate/cel-env.ts";
 import { evaluatePredicate, ruleClock } from "../substrate/dry-run.ts";
 import { renderArmTemplate } from "../substrate/macro-render.ts";
+import { authorGlobals } from "./cel-env.ts";
 
 /** The `PromptTransform.id` namespace for automation-registered transforms (`automation:<ruleId>:<armIndex>` —
  *  the arm index disambiguates a rule with more than one `transform_draft` arm; every id is unique in the

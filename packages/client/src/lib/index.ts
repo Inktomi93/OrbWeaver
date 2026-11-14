@@ -186,6 +186,15 @@ export {
   IMAGE_SIZE_LABELS,
   IMAGE_SIZE_MODE_DEFAULT,
 } from "./image-size-copy.ts";
+export {
+  cardInLibraryNotice,
+  cardsInLibraryNotice,
+  chatInLibraryNotice,
+  chatsInLibraryNotice,
+  IN_LIBRARY_DETAIL,
+  inLibraryClause,
+  WORLD_INFO_DUPLICATE_BOOK_NOTICE,
+} from "./in-library-copy.ts";
 export type { SendRefusalCause, SendRefusalKey } from "./injection-copy.ts";
 export {
   ADD_CONNECTION_PATH,

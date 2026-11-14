@@ -8,6 +8,7 @@ export type { ImportAssetPort } from "./contract/import-store.ts";
 export type { MaterializeBackgroundDeps } from "./contract/materialize.ts";
 export type { SeedAvatarOps } from "./contract/seed-art.ts";
 export type { AssetsAssemblyContext, AssetsService, AssetsWorkloadAssemblyDeps } from "./contract/service.ts";
+export { createLoadAssetRefHolders, createLoadHashHolders } from "./persistence/room-art-reads.ts";
 export { createAssetsService } from "./service.ts";
 export { readTornAsMiss } from "./substrate/torn-entry.ts";
 export { createAdmitsAvatar } from "./verbs/admits-avatar.ts";

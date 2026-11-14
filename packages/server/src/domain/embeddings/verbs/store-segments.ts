@@ -21,9 +21,9 @@ import type { UserId } from "@orb/kit/ids";
 import { SpaceMismatchError } from "../contract/errors.ts";
 import type { SegmentStoreParams } from "../contract/params.ts";
 import type { EmbeddingsContext, EmbeddingsService, PinnedGeneration } from "../contract/service.ts";
+import { resolveTargetGeneration } from "../persistence/generation.ts";
 import { existingSegmentHash, upsertChatSegment } from "../persistence/queries.ts";
 import { embedFailure } from "../substrate/embed-failure.ts";
-import { resolveTargetGeneration } from "../substrate/generation.ts";
 
 /** An input with its position in the caller's list (results are index-aligned to the input, so a noop and a write
  *  are told apart per item) and its owner's target generation. */

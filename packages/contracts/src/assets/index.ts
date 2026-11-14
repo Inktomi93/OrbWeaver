@@ -432,3 +432,16 @@ export type LoadCoParticipantOwnerOp = (callerId: UserId, hash: string) => Promi
 /** The chat-scoped render resolver: the `(assetId, hash)` pairs among `assetIds` the caller may render in `chatId`
  *  (a structural `message_assets` reference, owner present and enabled, caller present). */
 export type LoadChatAssetRefsOp = (callerId: UserId, chatId: ChatId, assetIds: readonly AssetId[]) => Promise<readonly AssetBlobRef[]>;
+
+/** A render ref beside its asset's owner: the row the chat-scoped render resolver tests against the room. */
+export interface AssetBlobRefHolder {
+  readonly ref: AssetBlobRef;
+  readonly ownerId: UserId;
+}
+
+/** The rows the co-participant gate's hash lookup may answer for, both from the gate's own room read: the present
+ *  humans of the caller's rooms, and the avatars of those rooms' pins, whose owners may have left. */
+export interface HashHolderScope {
+  readonly ownerIds: readonly UserId[];
+  readonly assetIds: readonly AssetId[];
+}

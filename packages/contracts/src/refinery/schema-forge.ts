@@ -472,7 +472,7 @@ function propagateRequired(root: Record<string, unknown>): void {
  * OPEN BY CONSTRUCTION — DELIBERATE: the object nodes minted here carry NO `additionalProperties`.
  * The `additionalProperties:false` pin has ONE home — `projectJsonSchema` (`@orb/kit/json-schema`) — which
  * every refinery WIRE send-site re-applies to this stored blob before it reaches a provider
- * (`domain/refinery/substrate/stage-resolution.ts` and `verbs/test-schema.ts` both do
+ * (`domain/refinery/persistence/stage-resolution.ts` and `verbs/test-schema.ts` both do
  * `projectJsonSchema(liftJsonSchema(schema))`). Stamping the pin here too would be a SECOND source of truth
  * for the same invariant and would MASK a future send-site that forgot to project (the stored blob would be
  * incidentally-closed) — so wire-closure is proven at the projection choke point, not duplicated here. A

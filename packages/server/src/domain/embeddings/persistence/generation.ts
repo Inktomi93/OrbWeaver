@@ -1,0 +1,217 @@
+// Immutable encoder generations and the authoritative per-owner migration target.
+
+import type { EmbeddingTask, GenerationReceipt, VectorScope } from "@orb/contracts/embeddings";
+import type { UserConnection } from "@orb/contracts/inference";
+import { embedDimsOf, embedDtypeOf, embedSpaceOf } from "@orb/contracts/inference";
+import { embedGenerations, embedGenerationTargets } from "@orb/db";
+import type { VectorWidthMismatch } from "@orb/inference";
+import { ProviderError } from "@orb/inference";
+import type { EmbedGenerationId, UserId } from "@orb/kit/ids";
+import type { SQL } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { connectionFingerprint, generationIdOf, vectorSpaceFingerprint } from "#primitives/embedding-generation";
+import { SpaceMismatchError } from "../contract/errors.ts";
+import type { EmbeddingConnectionSnapshot, EmbeddingsContext, PinnedGeneration, PinnedImageSpace } from "../contract/service.ts";
+import { embedFailure } from "../substrate/embed-failure.ts";
+import { resolveImageSpace } from "../substrate/task-model.ts";
+import { markGenerationComplete, switchTargetGeneration } from "./space-state.ts";
+
+type TargetResolveCtx = Pick<EmbeddingsContext, "db" | "now" | "resolveEmbeddingConnection" | "onTargetGenerationMoved" | "scheduleTimeout" | "logger">;
+
+/** Record one scope of `generation` complete for its owner, and announce the promotion when this completion made it. */
+export async function completeGenerationScope(
+  ctx: Pick<EmbeddingsContext, "db" | "now" | "onTargetPromoted">,
+  input: { readonly ownerId: UserId; readonly scope: VectorScope; readonly generation: GenerationReceipt; readonly onlyIf?: SQL | undefined },
+): Promise<void> {
+  if (await markGenerationComplete(ctx.db, { ...input, now: ctx.now() })) {
+    ctx.onTargetPromoted(input.ownerId);
+  }
+}
+
+/** The owner's target generation for `task`, moving the stored target first when the binding now resolves elsewhere.
+ *  A move probes the new width before it purges anything. */
+export async function resolveTargetGeneration(
+  ctx: TargetResolveCtx & Pick<EmbeddingsContext, "withStableEmbeddingBinding">,
+  ownerId: UserId,
+  task: EmbeddingTask,
+  via: EmbeddingTask = task,
+): Promise<PinnedGeneration> {
+  return await ctx.withStableEmbeddingBinding(ownerId, () => resolveTargetGenerationAttempt({ ctx, ownerId, task, via, proven: undefined, attempt: 0 }));
+}
+
+/** Choose the image/fallback route and publish its target inside the same owner snapshot. A refused joint-encoder
+ *  write must not leave a reader holding the transient fallback route after rollback. */
+export async function resolveImageTargetGeneration(ctx: EmbeddingsContext, ownerId: UserId): Promise<PinnedImageSpace | null> {
+  return await ctx.withStableEmbeddingBinding(ownerId, async () => {
+    const space = await resolveImageSpace(ctx, ownerId);
+    if (space === null) {
+      return null;
+    }
+    const generation = await resolveTargetGenerationAttempt({ ctx, ownerId, task: "imageEmbed", via: space.via, proven: undefined, attempt: 0 });
+    return { space, generation };
+  });
+}
+
+/** {@link resolveTargetGeneration} inside binding settlement's owner queue: landing the proven generation does not
+ *  acquire that queue again or probe twice. */
+export async function landProvenTarget(
+  ctx: TargetResolveCtx,
+  ownerId: UserId,
+  target: { readonly task: EmbeddingTask; readonly via: EmbeddingTask },
+  proven: EmbedGenerationId,
+): Promise<PinnedGeneration> {
+  return await resolveTargetGenerationAttempt({ ctx, ownerId, ...target, proven, attempt: 0 });
+}
+
+// What the width probe embeds.
+const WIDTH_PROBE_TEXT = "width check";
+
+/** Prove the new space's width within the runtime's route-specific bound before publishing or purging a generation. */
+export async function probeWidth(
+  ctx: Pick<EmbeddingsContext, "scheduleTimeout" | "logger">,
+  connection: EmbeddingConnectionSnapshot,
+  via: EmbeddingTask,
+  dims: number,
+): Promise<void> {
+  const bound = new AbortController();
+  const cancelTimer = ctx.scheduleTimeout(() => bound.abort(), connection.execution.widthProbeTimeoutMs);
+  const opts = { signal: bound.signal };
+  const result = await (via === "embed"
+    ? connection.embed(WIDTH_PROBE_TEXT, opts)
+    : connection.imageEmbed({ kind: "text", input: WIDTH_PROBE_TEXT }, opts)
+  ).finally(cancelTimer);
+  const vector = result.vectors[0];
+  if (vector === null || vector === undefined) {
+    throw embedFailure(ctx, "width probe", result.model);
+  }
+  if (vector.length !== dims) {
+    throw new SpaceMismatchError(result.model, dims, vector.length);
+  }
+}
+
+/** The two widths a failed width probe names: a backend's fit refusal, or the probe's own length check. */
+export function widthMismatchOf(error: unknown): VectorWidthMismatch | null {
+  if (error instanceof SpaceMismatchError) {
+    return { stated: error.expectedDim, measured: error.actualDim };
+  }
+  return error instanceof ProviderError && error.width !== undefined ? error.width : null;
+}
+
+interface Candidate {
+  readonly id: EmbedGenerationId;
+  readonly space: string;
+  readonly dims: number;
+}
+
+/** The generation a resolved connection would write into. */
+function candidateOf(ownerId: UserId, task: EmbeddingTask, via: EmbeddingTask, connection: EmbeddingConnectionSnapshot): Candidate {
+  const dims = embedDimsOf(connection.capability);
+  if (dims === undefined) {
+    throw new Error(`the ${via} connection for an embedding generation resolved to a ${connection.capability.kind} model`);
+  }
+  const space = embedSpaceOf(connection.model, embedDtypeOf(connection.capability));
+  return { id: generationIdOf({ ownerId, task, via, connection, space }), space, dims };
+}
+
+async function readTarget(
+  ctx: Pick<TargetResolveCtx, "db">,
+  ownerId: UserId,
+  task: EmbeddingTask,
+): Promise<{ readonly generationId: EmbedGenerationId; readonly epoch: number } | undefined> {
+  const rows = await ctx.db
+    .select({ generationId: embedGenerationTargets.generationId, epoch: embedGenerationTargets.epoch })
+    .from(embedGenerationTargets)
+    .where(and(eq(embedGenerationTargets.ownerId, ownerId), eq(embedGenerationTargets.task, task)))
+    .limit(1);
+  return rows[0];
+}
+
+/** THE move rule: a stored target that names another generation moves. No target yet is a creation, which purges
+ *  nothing; the same generation again is no move at all. */
+function movesTarget(prior: { readonly generationId: string } | undefined, id: EmbedGenerationId): boolean {
+  return prior !== undefined && prior.generationId !== id;
+}
+
+/** A target move a resolve would make now, without making it. */
+interface PendingTargetMove {
+  readonly id: EmbedGenerationId;
+  readonly moves: boolean;
+  readonly connection: EmbeddingConnectionSnapshot;
+  readonly dims: number;
+}
+
+/**
+ * Would the owner's stored target move to what `via` resolves to now, or to `previewConnection` as if it were bound?
+ * Read-only. A binding that cannot resolve throws.
+ */
+export async function pendingTargetMove(
+  ctx: Pick<TargetResolveCtx, "db" | "resolveEmbeddingConnection">,
+  args: {
+    readonly ownerId: UserId;
+    readonly task: EmbeddingTask;
+    readonly via: EmbeddingTask;
+    readonly previewConnection?: UserConnection | undefined;
+  },
+): Promise<PendingTargetMove> {
+  const { ownerId, task, via, previewConnection } = args;
+  const connection =
+    previewConnection === undefined
+      ? await ctx.resolveEmbeddingConnection(ownerId, via)
+      : await ctx.resolveEmbeddingConnection(ownerId, via, previewConnection.id, { previewConnection });
+  const candidate = candidateOf(ownerId, task, via, connection);
+  return { id: candidate.id, moves: movesTarget(await readTarget(ctx, ownerId, task), candidate.id), connection, dims: candidate.dims };
+}
+
+interface ResolveAttempt {
+  readonly ctx: TargetResolveCtx;
+  readonly ownerId: UserId;
+  readonly task: EmbeddingTask;
+  readonly via: EmbeddingTask;
+  readonly proven: EmbedGenerationId | undefined;
+  readonly attempt: number;
+}
+
+/** What `via` resolves to now. Resolution can span provider/catalog work, so it is read twice and the later answer
+ *  wins: an older slow resolver cannot land after a newer binding and reset the target backwards. */
+async function resolveCurrentConnection(ctx: TargetResolveCtx, ownerId: UserId, via: EmbeddingTask): Promise<EmbeddingConnectionSnapshot> {
+  const first = await ctx.resolveEmbeddingConnection(ownerId, via);
+  const current = await ctx.resolveEmbeddingConnection(ownerId, via);
+  return first.connectionId === current.connectionId && connectionFingerprint(first) === connectionFingerprint(current) ? first : current;
+}
+
+async function resolveTargetGenerationAttempt({ ctx, ownerId, task, via, proven, attempt }: ResolveAttempt): Promise<PinnedGeneration> {
+  const prior = await readTarget(ctx, ownerId, task);
+  const connection = await resolveCurrentConnection(ctx, ownerId, via);
+  const { id, space, dims } = candidateOf(ownerId, task, via, connection);
+  const moves = movesTarget(prior, id);
+  const fingerprint = vectorSpaceFingerprint(connection);
+  const now = ctx.now();
+  await ctx.db
+    .insert(embedGenerations)
+    .values({ id, ownerId, task, via, connectionId: connection.connectionId, connectionRef: connection.connectionId, fingerprint, space, createdAt: now })
+    .onConflictDoNothing();
+  if (prior === undefined) {
+    await ctx.db.insert(embedGenerationTargets).values({ ownerId, task, generationId: id, epoch: 1 }).onConflictDoNothing();
+  } else if (moves) {
+    // A new generation never shares the index with the old one: the switch purges the old vectors with it. So
+    // prove the new space can be written first; a width the embedder does not make keeps the old index.
+    // The owner's writes are serialized, so this resolve lands what the proof probed. Anything else (an endpoint's
+    // facts re-read in between) is probed here: no purge happens on an unprobed width.
+    if (proven !== id) {
+      await probeWidth(ctx, connection, via, dims);
+    }
+    // The switch emptied the old index; whoever moved it owes the owner the sweep that refills it, whatever the
+    // caller was (a write, a sweep, a sync after a re-point).
+    if (await switchTargetGeneration(ctx.db, { ownerId, task, from: prior, to: id })) {
+      ctx.onTargetGenerationMoved(ownerId);
+    }
+  }
+  const row = await readTarget(ctx, ownerId, task);
+  if (row === undefined || row.generationId !== id) {
+    if (attempt === 0) {
+      return await resolveTargetGenerationAttempt({ ctx, ownerId, task, via, proven, attempt: 1 });
+    }
+    throw new Error("embedding generation target kept changing while the sweep was starting");
+  }
+  return { id, task, via, epoch: row.epoch, space, connection, dims };
+}

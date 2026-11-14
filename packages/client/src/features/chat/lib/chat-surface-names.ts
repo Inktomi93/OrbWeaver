@@ -4,6 +4,12 @@
 /** The verb on a room override's clear control and its confirm. */
 export const OVERRIDE_CLEAR_VERB = "Clear";
 
+/** The chat list band's door to the transcript import, and the menu item that opens it. */
+export const CHAT_IMPORT_NAME = "Import a chat transcript";
+
+/** The transcript import dialog's title. */
+export const CHAT_IMPORT_TITLE = "Import chats";
+
 /** The chat list search box's clear button. */
 export const CHAT_CLEAR_SEARCH_NAME = "Clear the search";
 

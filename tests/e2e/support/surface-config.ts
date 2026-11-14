@@ -44,7 +44,6 @@ import {
   WORLD_INFO_BOOK_DETAILS_NAME,
   WORLD_INFO_BOOK_NAME_FIELD_NAME,
   WORLD_INFO_DEPTH_SWITCH_NAME,
-  WORLD_INFO_DUPLICATE_BOOK_NOTICE,
   WORLD_INFO_EDIT_DETAILS_NAME,
   WORLD_INFO_ENTRY_CONTENT_NAME,
   WORLD_INFO_ENTRY_DEPTH_NAME,
@@ -62,6 +61,7 @@ import {
 import { contextPaneLabel, LIST_PANEL_NOUN, panelCloseName, panelEdgeName, sectionBackName } from "#client/lib/context-pane-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
+import { WORLD_INFO_DUPLICATE_BOOK_NOTICE } from "#client/lib/in-library-copy.ts";
 import { ADD_CONNECTION_PATH } from "#client/lib/injection-copy.ts";
 import { ROW_DELETE_NAME, ROW_EXPORT_NAME } from "#client/lib/row-menu-names.ts";
 import { rowActionsName } from "#client/lib/row-qualifiers.ts";

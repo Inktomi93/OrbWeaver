@@ -116,4 +116,5 @@ export interface PluginFailureLine {
 
 export type CreateInstanceOutcomeOut =
   | { readonly ok: true; readonly instance: PluginInstance }
-  | { readonly ok: false; readonly error: string; readonly log: readonly PluginLogView[] };
+  /** `ended`: the host ended main.js at its settlement wall, which a recorded refusal never excuses (D347). */
+  | { readonly ok: false; readonly error: string; readonly log: readonly PluginLogView[]; readonly ended?: true };

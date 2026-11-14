@@ -28,7 +28,7 @@ export class ManifestInvalidError extends DomainOperationError {
  *  `EgressBlockedError.reason` distinguishes "private-address" from "host-not-allowed", and surfacing that
  *  distinction to the caller would turn this into an SSRF ORACLE (an attacker learns their URL resolved private).
  *  The domain never branches on the reason (the `fetchWebDocument`→`ScrapeFailedError` precedent — infra performs
- *  the guarded fetch and THROWS; the verb collapses every throw here). The message
+ *  the guarded fetch and THROWS; `domain/plugin/context.ts` wraps the injected fetch to collapse every throw here). The message
  *  names the caller-supplied URL and nothing about what it resolved to. Thrown BEFORE anything persists.
  *  Maps to BAD_REQUEST. */
 export class PluginBundleFetchError extends DomainOperationError {

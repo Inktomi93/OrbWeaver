@@ -55,6 +55,7 @@ export { createPluginGrantTasksOf } from "./persistence/grant-tasks.ts";
 // ever drive each row's OWN owner's `setEnabled`. Its whole argument lives on the function's own doc.
 // `listEnabledAcrossOwners` crosses every owner's rows, so it takes `BootDatabaseHandle`, which only boot mints (D335).
 export { isPluginEnabledFor, listEnabledAcrossOwners, recordHostHaltFor } from "./persistence/plugins.ts";
+export { buildPluginStorage } from "./persistence/storage.ts";
 // The wire-name migration's plugin half: the slug census it reasons over, and the rename set it
 // derives. Both are read by `entry/boot/migrate-plugin-tool-wire-names`, which hands the answer DOWN to
 // chat and automation as plain data — neither of them may import this domain.
@@ -79,7 +80,6 @@ export {
 } from "./substrate/rate-floor.ts";
 export { createShowcaseVersionReader } from "./substrate/showcase-version.ts";
 export { createSnippetGate } from "./substrate/snippet-gate.ts";
-export { buildPluginStorage } from "./substrate/storage.ts";
 export { createPluginSurfaceStateStore, createSurfaceStatePublisher } from "./substrate/surface-state.ts";
 export { createUiHostCallGate } from "./substrate/ui-host-call-gate.ts";
 export { createPluginUiOutbox } from "./substrate/ui-outbox.ts";

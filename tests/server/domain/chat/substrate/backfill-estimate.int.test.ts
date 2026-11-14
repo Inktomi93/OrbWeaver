@@ -1,5 +1,5 @@
-// @subject packages/server/src/domain/chat/substrate/backfill-estimate.ts
-// @subject packages/server/src/domain/chat/substrate/backfill.ts
+// @subject packages/server/src/domain/chat/memory/backfill/estimate.ts
+// @subject packages/server/src/domain/chat/memory/backfill/backfill.ts
 // The confirm's call count, asked through the workloads door, against the summarize calls the real sweep then makes:
 // the two must agree, the count falls to zero once a chat is built, an edit makes its block count again, and an
 // import window narrows both to the chats that import wrote.

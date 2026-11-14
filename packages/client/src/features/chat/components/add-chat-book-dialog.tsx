@@ -2,7 +2,7 @@
 // this room, each one a one-shot `worldInfo.attachToChat`.
 //
 // THE DIALOG IS THE CONSENT MOMENT, SO IT SPELLS THE WRITE REACH. Attaching is not "adding a reference":
-// `domain/automation` refuses an `insert_world_info_entry` rule at MINT (`substrate/validate.ts`
+// `domain/automation` refuses an `insert_world_info_entry` rule at MINT (`persistence/validate.ts`
 // `assertBooksAttached`) and again at FIRE (`engine/arm-executors.ts`: "the attachment IS the room's
 // consent") unless the target book is attached HERE. So this room's rules can write entries into whatever
 // is attached, and the host granting that reach has to be told in words before they grant it — a quiet

@@ -33,7 +33,8 @@ import type { CardIdentityField } from "#primitives/serde/card";
 import { cardContentHash } from "#primitives/serde/card";
 import { RefinerySessionCompletedError } from "../contract/errors.ts";
 import type { RefineryContext, RefineryService } from "../contract/service.ts";
-import { buildPatch, remapSelection, resolveApplyBasis } from "../substrate/accept-belts.ts";
+import { resolveApplyBasis } from "../persistence/apply-basis.ts";
+import { buildPatch, remapSelection } from "../substrate/accept-belts.ts";
 
 /** The pre-apply snapshot label — prefix-classified by the version walk (Refinery vs Manual vs
  *  Pre-restore), with the session id as the provenance suffix (§6.2's convention; label is free text and

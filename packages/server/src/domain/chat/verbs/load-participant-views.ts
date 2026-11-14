@@ -3,8 +3,8 @@
 import type { ParticipantData } from "@orb/contracts/chat";
 import type { AssetId, CharacterId, ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import type { ChatContext, LoadParticipantViewsBatchOp, LoadParticipantViewsOp } from "../contract/context.ts";
-import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipantsBatch } from "../persistence/participants-read.ts";
+import { classifyParticipant } from "../substrate/participant-actor.ts";
 import { REMOVED_CHARACTER_LABEL, REMOVED_MEMBER_LABEL } from "../substrate/participant-name.ts";
 import { hostConsentOf } from "../substrate/participants-humans.ts";
 

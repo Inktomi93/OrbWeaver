@@ -59,10 +59,11 @@ import { RefineryOutputBudgetError, RefineryRunFailedError, RefineryStageNotRead
 import type { StageEstimateSubject, StagePrompts, StageResolution } from "../contract/prompts.ts";
 import type { ExecuteStage, RefineryContext, RefineryService, StageEngineDeps } from "../contract/service.ts";
 import { latestRunRowOf, loadOwnedSessionRow, loadSessionRewriteRunRow, sessionViewOf } from "../persistence/queries.ts";
+import { resolveStageResolution } from "../persistence/stage-resolution.ts";
 import { resolveStageSampling, stageBudgetMisfitOf, stageSubjectOf } from "../substrate/output-budget.ts";
 import { buildAnalyzePrompt, buildRewritePrompt, buildScorePrompt, overlayRewrite } from "../substrate/refine-prompt.ts";
 import { buildStageParse } from "../substrate/stage-parse.ts";
-import { REFINERY_RESPONSE_FORMATS, resolveStageResolution } from "../substrate/stage-resolution.ts";
+import { REFINERY_RESPONSE_FORMATS } from "../substrate/stage-resolution.ts";
 import { summarizerFactsOf } from "../substrate/summarizer.ts";
 
 /** The custom-score stamp pluck — the well-known core the save belt guarantees. A drifted row skips the

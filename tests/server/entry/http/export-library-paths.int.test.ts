@@ -64,7 +64,7 @@ test("same-named library rows export to distinct archive paths and the whole bac
     const { workloadId } = importStartedSchema.parse(await response.json());
     await runAdmittedWorkload(workloadId, AbortSignal.timeout(WORKLOAD_DEADLINE_MS));
     const workload = await root.services.workloads.get({ id: workloadId, caller: await root.principalFor(root.ownerId) });
-    expect(workload).toMatchObject({ kind: "import-bundle", status: "succeeded", result: { imported: paths.length, skipped: 0, failed: 0 } });
+    expect(workload).toMatchObject({ kind: "import-bundle", status: "succeeded", result: { imported: 0, inLibrary: paths.length, skipped: 0, failed: 0 } });
   } finally {
     await rm(owner, { recursive: true, force: true });
   }

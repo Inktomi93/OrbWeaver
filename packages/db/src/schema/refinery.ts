@@ -82,7 +82,7 @@ export const refinerySessions = sqliteTable(
     // the past IS a free session with no reaper, no heartbeat and no boot sweep to own. NULL = no round in
     // flight. `iterate` takes it with a conditional UPDATE (`inflight_until IS NULL OR inflight_until < now`)
     // BEFORE it pays for any model call and clears it on both the commit and the failure arm; the TTL is
-    // only the crash backstop (`domain/refinery/substrate/round-claim.ts` owns the number + its reason).
+    // only the crash backstop (`domain/refinery/persistence/round-claim.ts` owns the number + its reason).
     // NOT indexed: every read of it is by the sessions PK.
     inflightUntil: integer("inflight_until"),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),

@@ -1,5 +1,5 @@
 // verb: scrapeWiki (DB8) — fetch a MediaWiki article's plain-text extract over the SAME ANY_HOST safeFetch guard
-// as scrapeWeb, then the §2 canon tail (`substrate/scrape-canon`). The API endpoint is
+// as scrapeWeb, then the §2 canon tail (`persistence/scrape-canon`). The API endpoint is
 // DERIVED from the article URL's own host (`https://<host>/w/api.php`), so any MediaWiki wiki — Wikipedia, a
 // Fandom host, a self-hosted wiki — rides one verb (the ST `fandom` scraper is a MediaWiki host, doc 06 §5). The
 // query is `action=query&prop=extracts&explaintext&titles=<Article>&format=json`: MediaWiki returns the article
@@ -14,7 +14,7 @@ import { ScrapeFailedError } from "#src/domain/databank/contract/errors.ts";
 import type { ScrapeWikiParams } from "#src/domain/databank/contract/params.ts";
 import type { UploadResult } from "#src/domain/databank/contract/results.ts";
 import type { DatabankContext, DatabankService } from "#src/domain/databank/contract/service.ts";
-import { finalizeScrape } from "#src/domain/databank/substrate/scrape-canon.ts";
+import { finalizeScrape } from "#src/domain/databank/persistence/scrape-canon.ts";
 
 const PLAIN_MIME = "text/plain";
 /** The `/wiki/<Article_Title>` article-path capture. */

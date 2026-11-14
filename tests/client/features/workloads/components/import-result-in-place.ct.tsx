@@ -9,7 +9,7 @@ import { CHARA_CARD_V2_SPEC } from "@orb/contracts/character";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
-import { routeAuthConfig, routeOrbSocket, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import { routeAuthConfig, routeOrbSocket, routeToServer, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
@@ -63,18 +63,7 @@ test.describe("a card import's result", () => {
         "stream.detach": ({ ref }) => (ref.channel === "user" || ref.channel === "workloads" ? null : trpcError({ code: "NOT_FOUND" })),
       });
       await routeOrbSocket(page);
-      await page.route(`**${PORTABILITY_ROUTES.importCards}`, async (route) => {
-        const incoming = route.request();
-        const upload = incoming.postDataBuffer();
-        const answer = await root.http.request(
-          new Request(`http://127.0.0.1${PORTABILITY_ROUTES.importCards}`, {
-            method: "POST",
-            headers: incoming.headers(),
-            body: upload === null ? null : new Uint8Array(upload),
-          }),
-        );
-        await route.fulfill({ status: answer.status, headers: Object.fromEntries(answer.headers), body: Buffer.from(await answer.arrayBuffer()) });
-      });
+      await routeToServer(page, root, PORTABILITY_ROUTES.importCards);
       // A toast can come and go between two reads, so the page keeps the most toasts it ever held at once.
       await page.addInitScript(
         ({ key, selector }) => {

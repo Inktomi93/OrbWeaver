@@ -10,7 +10,7 @@ import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABILITY_ROUTES, PORTABLE_KINDS, WHOLE_LIBRARY_ONLY_KINDS } from "@orb/contracts/portability";
 import type { TreeImportPlan } from "#data";
 import { skippedByReason } from "#data";
-import { cardImportFailedDetail, cardImportRefusalLine } from "#lib";
+import { cardImportFailedDetail, cardImportRefusalLine, IN_LIBRARY_DETAIL, inLibraryClause } from "#lib";
 import { IMPORT_LEFT_ON_DISK_PHRASE, importPreviewUncomparedNote, importSummaryImported } from "./import-library-names.ts";
 
 /** One normalized per-file outcome for the report summary. `notes` mirrors the server's per-card
@@ -26,6 +26,8 @@ type ImportOutcomeView = { readonly path: string; readonly detail: string } & (
  *  notes are per-file and ride `outcomes[].notes` instead, since that arm already has per-file detail). */
 export interface ImportSummary {
   readonly imported: number;
+  /** Files the library already held: each reused its row and added nothing. */
+  readonly inLibrary: number;
   readonly skipped: number;
   /** Personas the reader chose to merge into one they already own: neither new canon nor a skip. */
   readonly merged: number;
@@ -79,6 +81,7 @@ export function buildLibraryExportHref(selected: ReadonlySet<PortableKind>): str
  *  `bundleImportNotes` already flattened the per-file planes into one batch-wide list). */
 export interface BundleCounts {
   readonly imported: number;
+  readonly inLibrary: number;
   readonly skipped: number;
   /** Folded names of the personas merged into one the reader owns. Keys, so the uploads of a split folder
    *  (which each re-merge the same persona) union instead of adding. */
@@ -106,10 +109,13 @@ export function asBundleCounts(result: unknown): BundleCounts {
   const memoryScope = importWindowSchema.safeParse(record["memoryScope"]);
   const failed = count(record["failed"]);
   const imported = record["imported"] === undefined ? count(record["changed"]) : count(record["imported"]);
+  // An `import-st` run and a bundle row stored before the held count existed carry none.
+  const inLibrary = count(record["inLibrary"]);
   const mergedKeys = Array.isArray(record["mergedKeys"]) ? record["mergedKeys"].filter((key): key is string => typeof key === "string") : [];
   const skipped = record["skipped"] === undefined ? Math.max(0, count(record["scanned"]) - imported - failed - mergedKeys.length) : count(record["skipped"]);
   return {
     imported,
+    inLibrary,
     skipped,
     mergedKeys,
     failed,
@@ -129,6 +135,7 @@ export function asImportPreview(result: unknown): ImportPreview | null {
 export function sumBundleCounts(a: BundleCounts, b: BundleCounts): BundleCounts {
   return {
     imported: a.imported + b.imported,
+    inLibrary: a.inLibrary + b.inLibrary,
     skipped: a.skipped + b.skipped,
     mergedKeys: [...new Set([...a.mergedKeys, ...b.mergedKeys])],
     failed: a.failed + b.failed,
@@ -167,7 +174,8 @@ export function summarizeCardImport(result: CardImportResult): ImportSummary {
   const nothingLanded = result.imported.length === 0 && result.failed.length > 0;
   return {
     imported: created.length,
-    skipped: deduped.length,
+    inLibrary: deduped.length,
+    skipped: 0,
     merged: 0,
     failed: result.failed.length,
     notes: nothingLanded ? [cardImportRefusalLine(result.failed)] : [],
@@ -188,7 +196,7 @@ export function summarizeCardImport(result: CardImportResult): ImportSummary {
         return {
           path: card.filename ?? UNNAMED_CARD,
           ok: true,
-          detail: "Already imported",
+          detail: IN_LIBRARY_DETAIL,
           ...(notes.length > 0 ? { notes } : {}),
         };
       }),
@@ -203,9 +211,12 @@ export function summarizeCardImport(result: CardImportResult): ImportSummary {
   };
 }
 
-/** A one-line "3 imported · 1 skipped · 1 failed" toast/summary caption (only non-zero tallies shown). */
+/** A one-line "3 imported · 2 already in your library · 1 skipped · 1 failed" toast/summary caption (only non-zero tallies after the first shown). */
 export function summaryCaption(summary: ImportSummary): string {
   const parts = [importSummaryImported(summary.imported)];
+  if (summary.inLibrary > 0) {
+    parts.push(inLibraryClause(summary.inLibrary));
+  }
   if (summary.merged > 0) {
     parts.push(`${summary.merged} merged into existing`);
   }
@@ -230,7 +241,7 @@ export function previewIsEmpty(preview: ImportPreview): boolean {
  *  the request, not in the report afterwards. One home: the preflight is the only place it is spoken. */
 export const IMPORT_CONSEQUENCE = [
   "Importing ADDS to your library. Nothing you already have is deleted. Settings in an Orbweaver backup merge into yours.",
-  "Anything already in your library (the same card, world book, theme or preset) is skipped, so running the same import twice is not a duplicate.",
+  "Anything already in your library (the same card, world book, theme or preset) is left as it is, so running the same import twice is not a duplicate.",
   "A world book, theme or preset that shares a name with a DIFFERENT one of yours is imported under a numbered name, and so is a persona restored from an Orbweaver backup. Two different cards that share a name stay two characters.",
 ] as const;
 
