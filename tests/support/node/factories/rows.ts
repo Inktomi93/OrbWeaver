@@ -137,11 +137,19 @@ function makeChat(overrides: Partial<ChatRow>, source: IdSource): ChatRow {
 }
 
 /** A bare room row, born started at the frozen clock; the caller inserts the seats its case needs. It writes only
- *  the columns the database has, so a migration case can seed a room into a chain cut before a later column. */
+ *  the columns the database has, so a migration case can seed a room into a chain cut before a later column, and it
+ *  refuses an override for a column that chain lacks rather than seed a room without it. */
 export async function seedChatRow(db: Db, overrides: Partial<ChatRow> = {}, source: IdSource = ids): Promise<ChatRow> {
   const row = makeChat(overrides, source);
   const present = new Set((await db.all<{ name: string }>(sql`SELECT name FROM pragma_table_info(${getTableName(chats)})`)).map((column) => column.name));
   const columns = new Map(Object.entries(getTableColumns(chats)));
+  const dropped = Object.keys(overrides).filter((key) => {
+    const column = columns.get(key);
+    return column !== undefined && !present.has(column.name);
+  });
+  if (dropped.length > 0) {
+    throw new Error(`this database's chats table has no column for the override ${dropped.join(", ")}`);
+  }
   const written = Object.entries(row).flatMap(([key, value]) => {
     const column = columns.get(key);
     return column !== undefined && present.has(column.name) ? [{ name: column.name, value: value === null ? null : column.mapToDriverValue(value) }] : [];

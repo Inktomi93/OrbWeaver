@@ -11,11 +11,12 @@ import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { bootGrantFor } from "@orb/testkit/node/helpers";
 import { count, eq, isNotNull, ne } from "drizzle-orm";
+import { LANDING_STAGE_ROWS } from "#server/domain/chat/persistence/import-landing.ts";
 
 const HANDLE = "stair-keeper";
 const SENT = "2025-07-19@12h00m01s";
 // Many cleanup chunks, so a sweep that deleted the room in one statement would hold the loop past the bound.
-const ROOM_MESSAGES = 10_001;
+const ROOM_MESSAGES = 10 * LANDING_STAGE_ROWS + 1;
 const MAX_GAP_MS = 200;
 
 function transcript(messageCount: number): Uint8Array {

@@ -4,11 +4,13 @@
 // @subject packages/server/src/domain/stats/persistence/rebuild-from-canon.ts
 import { ST_SETTINGS_FILE } from "@orb/contracts/import";
 import { expect, test } from "@orb/testkit/node";
+import { LANDING_STAGE_ROWS } from "#server/domain/chat/persistence/import-landing.ts";
 import { admit, cardPng, chatOf, finishRun, harness, settings } from "./_st-tree-door.ts";
 
 const SENT = "2025-07-18@12h00m01s";
 // Several landing stages, so the room the run counts was written by more than one batch.
-const LONG_CHAT_MESSAGES = 2001;
+// A one-line message is two rows, the message and its variant.
+const LONG_CHAT_MESSAGES = 4 * (LANDING_STAGE_ROWS / 2) + 1;
 
 function longChat(): string {
   const lines = ['{"user_name":"Bob","character_name":"Aria","create_date":"2025-07-18@12h00m00s"}'];

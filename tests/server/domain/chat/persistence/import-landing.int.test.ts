@@ -4,6 +4,7 @@
 // @subject packages/server/src/domain/chat/persistence/import-write.ts
 // @subject packages/server/src/domain/chat/persistence/import-landing.ts
 // @subject packages/server/src/domain/chat/persistence/room-reach.ts
+// @subject packages/server/src/domain/chat/persistence/backfill-scope.ts
 import { performance } from "node:perf_hooks";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { RoomEntityKind } from "@orb/contracts/chat";
@@ -15,10 +16,11 @@ import type { AssetId, ChatId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness, TranscriptLine } from "@orb/testkit/node/composed";
-import { createServerHarness, makeAssetBytes, seedTranscript, transcriptFile } from "@orb/testkit/node/composed";
+import { createMemoryBackfillRoom, createServerHarness, makeAssetBytes, seedTranscript, transcriptFile } from "@orb/testkit/node/composed";
 import { duringChatLanding } from "@orb/testkit/node/rows";
 import { count, eq } from "drizzle-orm";
-import { LANDING_STAGE_ROWS } from "#server/domain/chat/persistence/import-landing.ts";
+import { z } from "zod";
+import { LANDING_STAGE_CHARS, LANDING_STAGE_ROWS } from "#server/domain/chat/persistence/import-landing.ts";
 
 const HANDLE = "stair-keeper";
 const SENT = "2025-07-19@12h00m01s";
@@ -28,8 +30,11 @@ const PNG = "image/png";
 // the first message stage finishes before the last.
 const ROOM_MESSAGES = 10 * (LANDING_STAGE_ROWS / 2) + 1;
 const MAX_GAP_MS = 200;
+const LONG_ROOM_MESSAGES = 4;
 const PERSONA = "Lantern Wanderer";
 const PERSONA_ENTITY = "persona" satisfies RoomEntityKind;
+// The sweep's result stays opaque; the case reads only how many rooms it visited.
+const sweepResult = z.object({ segments: z.object({ scanned: z.number() }) });
 
 function transcript(messageCount: number, lastLine = "the last lamp"): Uint8Array {
   const lines = [`{"character_name":"${HANDLE}","user_name":"Nate","create_date":"${SENT}"}`];
@@ -241,4 +246,41 @@ test("a persona edit refreshes the rooms the persona anchors, and skips one stil
   } finally {
     unsubscribe();
   }
+});
+
+test("the every-owner memory sweep visits no room still landing, and visits it once landed", async () => {
+  await using room = await createMemoryBackfillRoom();
+  const { h } = room;
+  const [character] = h.characters;
+  const descriptor = h.root.app.portability.find((entity) => entity.kind === "chat");
+  const run = h.root.runAdmittedWorkload;
+  if (character === undefined || descriptor === undefined || run === undefined) {
+    throw new Error("the memory room has no character, no chat import descriptor or no workload driver");
+  }
+  // The bulk sweep walks every owner's rooms by their rows; its result counts each room it visited.
+  const roomsSwept = async (): Promise<number> => {
+    const job = await h.caller.workloads.start({ input: { kind: "memory-backfill", params: {} }, mode: "bulk" });
+    const lifetime = new AbortController();
+    try {
+      await run(job.id, lifetime.signal);
+    } finally {
+      lifetime.abort();
+    }
+    const done = await h.caller.workloads.get({ id: job.id });
+    expect(done.status).toBe("succeeded");
+    return sweepResult.parse(done.result).segments.scanned;
+  };
+  const before = await roomsSwept();
+
+  // Few messages keep the control sweep's summaries few; each is past half a stage's text, so each lands in its own stage.
+  const longLines = transcriptLines(LONG_ROOM_MESSAGES).map((line) => ({ ...line, content: `${line.content} ${"x".repeat(LANDING_STAGE_CHARS / 2)}` }));
+  const file = transcriptFile({ characterHandles: [character.handle], lines: longLines, chat: { title: "long" } });
+  const landing = descriptor.importFile(h.owner.userId, file);
+  const seen = await duringChatLanding(h.root.db, landing, roomsSwept);
+  expect(await landing).toMatchObject({ ok: true, created: true });
+
+  expect(seen.stillLanding).toBe(true);
+  expect(seen.result).toBe(before);
+  // The control: once landed, the sweep visits the room.
+  expect(await roomsSwept()).toBe(before + 1);
 });
