@@ -32,7 +32,11 @@ export const fieldVariants = tv({
     // leave every unvisited Field uncapped. A `max-width` can only ever NARROW, and it narrows nothing that
     // is already short — the slot's non-prose occupants (a hex readout, a numeric floor, a match count) sit
     // far inside 423px and are unaffected.
-    description: `${CAPTION} max-inline-(--reading-measure-prose)`,
+    //
+    // A VALUE WITH NO BREAK POINT WRAPS HERE TOO: `wrap-anywhere` (not `break-words`) is the one that also lowers the slot's
+    // min-content, so an unbroken value cannot widen a grid track or a shrink-wrapped box around the row; `min-inline-0` lifts the
+    // automatic minimum a grid item (the track arm's description) carries.
+    description: `${CAPTION} wrap-anywhere max-inline-(--reading-measure-prose) min-inline-0`,
     error: "text-label leading-label text-destructive",
     labelBlock: `${FIELD_STACK} min-inline-0`,
     controlCol: "flex shrink-0 flex-col items-end gap-field",
