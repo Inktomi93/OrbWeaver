@@ -3,8 +3,9 @@
 // the scene being summarized again; a longer summary retelling a struck scene leaves with it; a strike names the span
 // in every bucket, so it holds for every speaker of a group room, across a solo room gaining a second character, and
 // over a speaker's own longer summary; a restore is room-bound; a strike survives a host handoff, and one made on a
-// card's own summary follows the card to the copy a handoff offer makes; a member's view stops at their history floor;
-// and an empty view says why it is empty.
+// card's own summary follows the card to the copy a handoff offer makes; a member's strike ids are null on an item
+// carried by another copy and on an unmatched strike; a member's view stops at their history floor; and an empty
+// view says why it is empty.
 // Digests come from the production memory build; only the provider edges are scripted (`recall-world.ts`).
 // @subject packages/server/src/domain/chat/verbs/memory-strikes.ts
 // @subject packages/server/src/domain/chat/memory/recall/recall.ts
@@ -524,6 +525,42 @@ test("a handoff that offers the cards moves a strike made on a card's own summar
     }),
   ]);
   expect(view.unmatchedStrikes).toEqual([]);
+});
+
+test("a member reads an unmatched strike with no strike id while the host reads its id", async () => {
+  await using w = await world.build({ mode: "mixB", maxTier: 0 });
+  const { chatId, owner, root } = w.h;
+  const { strikeId } = await w.h.caller.chat.strikeMemory({ chatId, item: sceneOf(await w.h.caller.chat.memoryView({ chatId }), "storm").key });
+  const member = await invitePerson(w.h);
+  const stormLines = (await readRoomCanon(root, owner, chatId)).filter((message) => message.content.includes("line-storm."));
+  // Both ends of the struck scene are gone, then the memory builds again: no stored summary names the span.
+  expect(stormLines).toHaveLength(BLOCK_SIZE);
+  await root.services.chat.deleteMessages({ principal: owner, chatId, messageIds: stormLines.map((message) => message.id) });
+  await redigest(w);
+
+  const anchor = "Arc storm";
+  const asHost = await w.h.caller.chat.memoryView({ chatId });
+  expect(asHost.unmatchedStrikes).toEqual([{ strikeId, tier: 0, scopedCharacterId: null, topicAnchor: anchor }]);
+  expect(asHost.items.filter((item) => item.strike !== null)).toEqual([]);
+  const asMember = await root.services.chat.memoryView({ principal: member, chatId });
+  expect(asMember.unmatchedStrikes).toEqual([{ strikeId: null, tier: 0, scopedCharacterId: null, topicAnchor: anchor }]);
+});
+
+test("a member reads no strike id on a strike carried by another copy, while the host reads it", async () => {
+  await using w = await world.build({ mode: "mixB", maxTier: 0, scout: true });
+  const { chatId, owner, root } = w.h;
+  const { strikeId, keeper } = await strikeKeeperStorm(w.h);
+  const member = await invitePerson(w.h);
+  // With the struck copy's character gone, the shared copy carries the strike.
+  await root.services.character.remove({ principal: owner, characterId: keeper });
+
+  const carrying = (view: MemoryView): readonly MemoryItemView[] => view.items.filter((item) => item.strike !== null);
+  expect(carrying(await w.h.caller.chat.memoryView({ chatId }))).toEqual([
+    expect.objectContaining({ bucket: "shared", strike: { strikeId, changedSinceStrike: true } }),
+  ]);
+  expect(carrying(await root.services.chat.memoryView({ principal: member, chatId }))).toEqual([
+    expect.objectContaining({ bucket: "shared", strike: { strikeId: null, changedSinceStrike: true } }),
+  ]);
 });
 
 /** A room whose memory never built: `lines` transcript lines, the host's switch on, the app in a retrieval mode. */
