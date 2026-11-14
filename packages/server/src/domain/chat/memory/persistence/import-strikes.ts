@@ -46,12 +46,15 @@ async function holdsHostSeat(db: Db, chatId: ChatId, userId: UserId): Promise<bo
   return rows.length > 0;
 }
 
-/** The strikes whose endpoints belong to the room, each scoped character kept only when it holds a seat here. */
-async function placeable(db: Db, chatId: ChatId, strikes: readonly ImportedMemoryStrike[]): Promise<ImportedMemoryStrike[]> {
+type PlacedStrike = ImportedMemoryStrike & { readonly seqStart: number; readonly seqEnd: number };
+
+/** The strikes whose endpoints belong to the room, with those endpoints' seqs here, each scoped character kept only
+ *  when it holds a seat here. */
+async function placeable(db: Db, chatId: ChatId, strikes: readonly ImportedMemoryStrike[]): Promise<PlacedStrike[]> {
   const endpointIds = [...new Set(strikes.flatMap((s) => [s.messageStartId, s.messageEndId]))];
   const [held, seated] = await Promise.all([
     db
-      .select({ id: messages.id })
+      .select({ id: messages.id, seq: messages.seq })
       .from(messages)
       .where(and(eq(messages.chatId, chatId), inArray(messages.id, endpointIds))),
     db
@@ -59,12 +62,18 @@ async function placeable(db: Db, chatId: ChatId, strikes: readonly ImportedMemor
       .from(chatParticipants)
       .where(and(eq(chatParticipants.chatId, chatId), isNotNull(chatParticipants.characterId))),
   ]);
-  const heldIds = new Set<MessageId>(held.map((row) => row.id));
+  const seqOf = new Map<MessageId, number>(held.map((row) => [row.id, row.seq]));
   const seatedIds = new Set<CharacterId | null>(seated.map((row) => row.characterId));
-  // A strike whose character holds no seat here keeps its span as a shared strike: the character is only a record.
-  return strikes
-    .filter((s) => heldIds.has(s.messageStartId) && heldIds.has(s.messageEndId))
-    .map((s) => (s.scopedCharacterId === null || seatedIds.has(s.scopedCharacterId) ? s : { ...s, scopedCharacterId: null }));
+  return strikes.flatMap((s): PlacedStrike[] => {
+    const seqStart = seqOf.get(s.messageStartId);
+    const seqEnd = seqOf.get(s.messageEndId);
+    if (seqStart === undefined || seqEnd === undefined) {
+      return [];
+    }
+    // A strike whose character holds no seat here keeps its span as a shared strike: the character is only a record.
+    const scopedCharacterId = s.scopedCharacterId === null || seatedIds.has(s.scopedCharacterId) ? s.scopedCharacterId : null;
+    return [{ ...s, scopedCharacterId, seqStart, seqEnd }];
+  });
 }
 
 export function createImportMemoryStrikes(input: DbAssemblyInput<ImportMemoryStrikesContext>): ImportMemoryStrikesOp {
@@ -80,6 +89,8 @@ export function createImportMemoryStrikes(input: DbAssemblyInput<ImportMemoryStr
       tier: s.tier,
       messageStartId: s.messageStartId,
       messageEndId: s.messageEndId,
+      seqStart: s.seqStart,
+      seqEnd: s.seqEnd,
       contentHash: IMPORTED_STRIKE_HASH,
       topicAnchor: s.topicAnchor,
       createdAt: s.createdAt,

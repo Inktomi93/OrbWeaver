@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: stats
+plan: stats-and-spend
 ---
 
 # Model rows hold one generation-time sample per provider call without a Recompute

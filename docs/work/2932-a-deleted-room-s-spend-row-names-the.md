@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P2
 area: stats
+plan: stats-and-spend
 ---
 
 # A deleted room's spend row names the canon it came from

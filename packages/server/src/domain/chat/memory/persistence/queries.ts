@@ -10,7 +10,7 @@ import { buildIdentityNameContext, MEMORY_INGEST_KINDS } from "@orb/contracts/ch
 import type { Db } from "@orb/db";
 import { chatDigestSpeakers, chatDigests, chatParticipants, chatSegments, messages, messageVariants } from "@orb/db";
 import { projectBodyForSummary } from "@orb/kit/content";
-import type { CharacterId, ChatDigestId, ChatId, EmbedGenerationId } from "@orb/kit/ids";
+import type { CharacterId, ChatDigestId, ChatId, EmbedGenerationId, MessageId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { and, asc, eq, inArray, lte, max, min } from "drizzle-orm";
 import { loadChatIdentityProducer } from "#src/domain/chat/persistence/identity.ts";
@@ -32,7 +32,8 @@ export async function loadChatMeta(db: Db, chatId: ChatId): Promise<{ maxSeq: nu
   return { maxSeq: rows.at(0)?.maxSeq ?? 0 };
 }
 
-// The ONE ingest predicate (see `loadCanonThroughSeq`): the build reads by it, and the call estimate counts by it.
+// The ONE ingest predicate (see `loadCanonThroughSeq`): the build reads by it, the call estimate counts by it, and a
+// fork lays out its block grid by it (`loadIngestSlotIds`).
 function canonThroughSeq(chatId: ChatId, throughSeq: number): ReturnType<typeof and> {
   return and(
     eq(messages.chatId, chatId),
@@ -97,6 +98,17 @@ export async function loadCanonThroughSeq(db: Db, chatId: ChatId, throughSeq: nu
     .where(canonThroughSeq(chatId, throughSeq))
     .orderBy(asc(messages.seq));
   return rows.map((r) => ({ ...r, content: projectBodyForSummary(r.content) }));
+}
+
+/** The ids and seqs of the slots {@link loadCanonThroughSeq} reads, in the same order: the rows a block grid is
+ *  sliced from, without their bodies. */
+export async function loadIngestSlotIds(db: Db, chatId: ChatId, throughSeq: number): Promise<{ readonly id: MessageId; readonly seq: number }[]> {
+  return await db
+    .select({ id: messages.id, seq: messages.seq })
+    .from(messages)
+    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+    .where(canonThroughSeq(chatId, throughSeq))
+    .orderBy(asc(messages.seq));
 }
 
 /** The `(tier:blockIdx) → content_hash` map for one scope bucket (the digest staleness gate — re-summarize a

@@ -96,9 +96,10 @@ export function renderRowLine(row: MsgRow, macroNames: RowMacroNameContext): { r
 
 /** Slice canon (oldest→newest, already seq ≤ cutoff) into COMPLETE fixed-width `blockSize` blocks. A partial
  *  trailing block (`< blockSize`) is dropped — only aged-out, complete blocks are digested/segmented. `blockIdx`
- *  is the position-from-start index (stable absent earlier deletions; a deletion re-hashes via {@link blockHash}). */
-export function sliceBlocks(rows: readonly MsgRow[], blockSize: number): BlockSpan[] {
-  const blocks: BlockSpan[] = [];
+ *  is the position-from-start index (stable absent earlier deletions; a deletion re-hashes via {@link blockHash}).
+ *  A fork lays its grid out with the same slice over its copied rows' ids, so the row shape is open. */
+export function sliceBlocks<R extends Pick<MsgRow, "seq">>(rows: readonly R[], blockSize: number): BlockSpan<R>[] {
+  const blocks: BlockSpan<R>[] = [];
   const blockCount = Math.floor(rows.length / blockSize);
   for (let i = 0; i < blockCount; i += 1) {
     const slice = rows.slice(i * blockSize, i * blockSize + blockSize);

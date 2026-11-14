@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: chat
+plan: import-robustness
 ---
 
 # A failed or crashed chat import leaves its synthetic group character behind

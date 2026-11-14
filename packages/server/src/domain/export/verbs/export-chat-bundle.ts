@@ -44,6 +44,7 @@ import {
 } from "@orb/db";
 import { assetIdsInContent } from "@orb/kit/content";
 import type { CharacterHandle, CharacterId, ChatId, ChatTurnId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
+import { resolveStrikeSpan } from "@orb/kit/recall";
 import { and, asc, eq, getTableColumns, inArray, isNotNull, isNull } from "drizzle-orm";
 import type {
   PortableChat,
@@ -159,13 +160,16 @@ async function loadPersonaNames(ctx: ExportContext, ids: readonly PersonaId[]): 
   return new Map<PersonaId, string>(rows.map((r) => [r.id, r.name]));
 }
 
-/** The host's memory strikes as positions. A strike whose endpoint message is gone names nothing this bundle carries
- *  and is left out. A strike names a span in every bucket and its character only records which copy was struck, so
- *  a strike whose character holds no seat here (or was deleted) travels as a shared one rather than being lost. */
+/** The host's memory strikes as positions. A strike whose endpoint message is gone travels on the struck turns that
+ *  survive: its span resolves as recall resolves it ({@link resolveStrikeSpan}), and each end moves inward to the
+ *  nearest carried message inside it, so a deleted edge message never drops the strike from a backup. A strike with no
+ *  carried message left in its span is left out. A strike names a span in every bucket and its character only records
+ *  which copy was struck, so a strike whose character holds no seat here (or was deleted) travels as a shared one
+ *  rather than being lost. */
 async function loadMemoryStrikes(args: {
   readonly ctx: ExportContext;
   readonly chatId: ChatId;
-  readonly messageIndexById: ReadonlyMap<MessageId, number>;
+  readonly slots: readonly { readonly id: MessageId; readonly seq: number }[];
   readonly handleById: ReadonlyMap<CharacterId, CharacterHandle>;
 }): Promise<Pick<PortableChat, "memoryStrikes">> {
   const rows = await args.ctx.db
@@ -173,13 +177,16 @@ async function loadMemoryStrikes(args: {
     .from(chatMemoryStrikes)
     .where(eq(chatMemoryStrikes.chatId, args.chatId))
     .orderBy(asc(chatMemoryStrikes.createdAt), asc(chatMemoryStrikes.id));
+  const seqOf = new Map<MessageId, number>(args.slots.map((slot) => [slot.id, slot.seq]));
   const strikes = rows.flatMap((row): PortableMemoryStrike[] => {
-    const startMessageIndex = args.messageIndexById.get(row.messageStartId);
-    const endMessageIndex = args.messageIndexById.get(row.messageEndId);
-    const characterHandle = row.scopedCharacterId === null ? null : (args.handleById.get(row.scopedCharacterId) ?? null);
-    if (startMessageIndex === undefined || endMessageIndex === undefined) {
+    const span = resolveStrikeSpan(row, { seqStart: seqOf.get(row.messageStartId), seqEnd: seqOf.get(row.messageEndId) });
+    const inside = (slot: { readonly seq: number }): boolean => slot.seq >= span.seqStart && slot.seq <= span.seqEnd;
+    const startMessageIndex = args.slots.findIndex(inside);
+    const endMessageIndex = args.slots.findLastIndex(inside);
+    if (startMessageIndex === -1) {
       return [];
     }
+    const characterHandle = row.scopedCharacterId === null ? null : (args.handleById.get(row.scopedCharacterId) ?? null);
     return [{ characterHandle, tier: row.tier, startMessageIndex, endMessageIndex, topicAnchor: row.topicAnchor, createdAt: row.createdAt }];
   });
   return strikes.length === 0 ? {} : { memoryStrikes: strikes };
@@ -442,7 +449,7 @@ export function createExportChatBundle(ctx: ExportContext, exportCharacter: Expo
     const rpg = rawRpg === null ? null : toPortableRpg({ game: rawRpg, messageIndexById, variantPositionById, handleById });
     const [inlineAssets, memoryStrikes] = await Promise.all([
       loadInlineAssetHashes(ctx, params.principal.userId, portable),
-      loadMemoryStrikes({ ctx, chatId: params.chatId, messageIndexById, handleById }),
+      loadMemoryStrikes({ ctx, chatId: params.chatId, slots, handleById }),
     ]);
     const bundle: PortableChat = {
       title: chat.title ?? "",

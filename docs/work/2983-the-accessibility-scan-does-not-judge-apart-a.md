@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P2
 area: client
+plan: cross-surface-consistency
 ---
 
 # The accessibility scan does not judge apart a clickable list row's name mismatch

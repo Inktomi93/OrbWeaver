@@ -1,8 +1,7 @@
 // The rpg CONTEXT-panel SECTION contribution (client-architecture-lockdown
 // §6c) — the FIRST real `chatContextContributors` consumer + rpg's registered definition (the
 // feature layout test anchor). The GAME-rail tabs: Status · Inventory · Scene ·
-// Quests · Journal (Quests + Journal are LIVE lite tabs — real data planes, the owner correction) + the
-// Map (declared with a `disabledReason` but hidden by its `when` while the map program is parked).
+// Quests · Journal (Quests + Journal are LIVE lite tabs — real data planes, the owner correction).
 // **Sheet is NOT a tab** (the tracked-field unification): Status is the only list of people and expanding
 // a participant entry IS the sheet, so the sheet is a STATE of Status, not a sibling of it — a tab whose content
 // migrated to another tab depending on the stat profile was a hallway. Inventory STAYS its own tab
@@ -20,7 +19,7 @@
 // many data per cm² — and the band wraps itself (`rpg-hud-band.tsx`). NEVER the rails: those are the shell's
 // and must render identically in a normal room and a game room, which is the whole ruling.
 
-import { Backpack, BookOpen, Crown, Drama, Flag, HeartPulse, MapIcon } from "@orb/ui/icons";
+import { Backpack, BookOpen, Crown, Drama, Flag, HeartPulse } from "@orb/ui/icons";
 import { Surface } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
 import { ContextTabBody, QueryBoundary } from "#components";
@@ -32,7 +31,6 @@ import { RpgGameTab } from "../components/rpg-game-tab.tsx";
 import { RpgGameTabBody } from "../components/rpg-game-tab-body.tsx";
 import { RpgInventoryTab } from "../components/rpg-inventory-tab.tsx";
 import { RpgJournalTab } from "../components/rpg-journal-tab.tsx";
-import { RPG_MAP_PLANNED, RpgMapTab } from "../components/rpg-map-tab.tsx";
 import { RpgQuestsTab } from "../components/rpg-quests-tab.tsx";
 import { RpgSceneTab } from "../components/rpg-scene-tab.tsx";
 import { RpgStatusTab } from "../components/rpg-status-tab.tsx";
@@ -127,28 +125,6 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
       strip: "game",
       when: isGameChat,
       body: gameTab(RPG_CONTEXT_TAB_LABELS.journal, (state) => <RpgJournalTab state={state} />),
-    },
-    {
-      // The ONE PHASE-locked tab ("Map"): when shown it carries its reason as `disabledReason` and OPENS
-      // onto the planned-feature body, so the bracket's cell does NOT mark it `aria-disabled` — announcing
-      // "unavailable" over a tab that Enter and a click both open is two stories.
-      id: "rpg.map",
-      label: RPG_CONTEXT_TAB_LABELS.map,
-      icon: MapIcon,
-      strip: "game",
-      // HIDDEN WHILE THE MAP PROGRAM IS PARKED (owner ruling): a tab that opens onto "not built yet" is a dead end.
-      // Un-parking is this one line, back to `isGameChat`.
-      when: (): boolean => false,
-      // Plain "planned" wording: no program name, no ticket id, no unlock the player could earn.
-      disabledReason: (): string => RPG_MAP_PLANNED,
-      body: (s): ReactNode =>
-        isGameChat(s) ? (
-          <Surface tier="instrument">
-            <ContextTabBody>
-              <RpgMapTab />
-            </ContextTabBody>
-          </Surface>
-        ) : null,
     },
     {
       // The crown Game tab ("Game") — the host-admin home AND the #40 FRONT DOOR.

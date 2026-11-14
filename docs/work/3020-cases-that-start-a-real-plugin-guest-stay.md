@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: server
+plan: test-foundation
 ---
 
 # Cases that start a real plugin guest stay inside their time budget under load

@@ -163,6 +163,8 @@ const NODE_BUILTINS = `^(?:node:)?(?:${builtinModules.map((name) => RegExp.escap
 const CLIENT_CSS_ENTRY = `${CLIENT}styles/index\\.ts$`;
 const CLIENT_SHELL_CSS = `${CLIENT}features/app-shell/surfaces/shell\\.css$`;
 const FIXED_SLOTS = "(contract|verbs|persistence|substrate)";
+// The fixed slots a subsystem import may start from: every fixed slot but persistence/, which holds queries only.
+const MEDIATING_SLOTS = "(contract|verbs|substrate)";
 function moduleShapes(pkg: keyof typeof GROUPING_DIRS): { own: string[]; internal: string[] } {
   const root = `packages/${pkg}/src/`;
   const grouping: readonly string[] = GROUPING_DIRS[pkg];
@@ -393,6 +395,8 @@ const TEST_CONSTANT_HOMES = {
     "LANDING_STAGE_ROWS: the rows one import landing stage commits, which landing suites size a room of several stages by",
   "packages/server/src/domain/stats/persistence/rebuild-from-canon.ts":
     "CHUNK: the rows one rebuild page reads, which the rebuild yield suite sizes a library of several pages by",
+  "packages/server/src/domain/automation/contract/analysis.ts":
+    "ANALYSIS_PROTECT_TAIL: the newest rows a durable-write analysis route stays behind, which the lore route suite sizes its smallest settled span by",
   "packages/server/src/domain/admin/contract/errors.ts": "ADMIN_OP_CODES: the refusal codes admin and sessions suites assert",
   "packages/server/src/domain/credentials/contract/errors.ts": "CREDENTIALS_OP_CODES: the refusal codes credentials suites assert",
   "packages/server/src/domain/settings/contract/errors.ts": "SETTINGS_OP_CODES: the refusal codes settings suites assert",
@@ -2041,10 +2045,11 @@ const DOMAIN_AUTHORITY = [
   },
   {
     name: "domain-no-cross-subsystem",
+    comment: "A named subsystem reaches another only through substrate/. persistence/ is database access (Core-0 §4), so it reaches no subsystem at all.",
     severity: "error",
     from: {
       path: `${SRV}domain/([^/]+)/([^/]+)/`,
-      pathNot: [`${SRV}domain/[^/]+/${FIXED_SLOTS}/`],
+      pathNot: [`${SRV}domain/[^/]+/${MEDIATING_SLOTS}/`],
     },
     to: {
       path: `${SRV}domain/([^/]+)/([^/]+)/`,

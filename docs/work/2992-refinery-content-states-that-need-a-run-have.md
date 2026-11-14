@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: refinery
+plan: test-foundation
 ---
 
 # Refinery content states that need a run have no short-landscape reach test

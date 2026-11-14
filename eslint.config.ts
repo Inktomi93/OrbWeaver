@@ -52,7 +52,13 @@ import { appearanceChannelVocabulary } from "./packages/client/appearance-channe
 import { BROWSER_TARGETS, HARMLESS_WHEN_UNSUPPORTED, POLYFILLED_BUILTINS } from "./packages/client/browser-targets.ts";
 import { OWNER_CSS_SHELL_CLASSES } from "./packages/client/owner-css-surface.ts";
 import { PRINCIPAL_RULES } from "./tooling/src/eslint/principal.ts";
-import { ROLE_DATA_RESTRICTIONS, SERVER_IMPORT_HOMES, SERVER_SOURCE_ROOT } from "./tooling/src/eslint/security-policy.ts";
+import {
+  CHAT_ART_GATE_RESTRICTION,
+  CHAT_ART_GATE_SOURCES,
+  ROLE_DATA_RESTRICTIONS,
+  SERVER_IMPORT_HOMES,
+  SERVER_SOURCE_ROOT,
+} from "./tooling/src/eslint/security-policy.ts";
 import { classOwners } from "./tooling/src/eslint/ui-classes/class-owners.ts";
 
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
@@ -652,11 +658,12 @@ const ASYNC_SAFETY_RULES: Linter.RulesRecord = {
 };
 
 // The server import restriction blocks, generated from SERVER_IMPORT_HOMES: one block refuses every row outside every
-// home, and each row's block lifts that row alone for its homes.
+// home, and each row's block lifts that row alone for its homes. The art gate's block comes last and keeps every row,
+// because a later block's options replace the earlier ones for its files; its files sit in no home.
 type ServerImportRow = (typeof SERVER_IMPORT_HOMES)[number];
 const serverImportGlob = (home: string): string => (home.endsWith("/") ? `${home}**/*.{ts,tsx}` : home);
-const serverImportRules = (lifted: ServerImportRow | null): Linter.RulesRecord => ({
-  "no-restricted-imports": ["error", { patterns: SERVER_IMPORT_HOMES.filter((row) => row !== lifted).map(({ restriction }) => restriction) }],
+const serverImportRules = (lifted: ServerImportRow | null, ...added: readonly object[]): Linter.RulesRecord => ({
+  "no-restricted-imports": ["error", { patterns: [...SERVER_IMPORT_HOMES.filter((row) => row !== lifted).map(({ restriction }) => restriction), ...added] }],
 });
 const SERVER_IMPORT_BLOCKS: FlatConfig.Config[] = [
   {
@@ -665,6 +672,7 @@ const SERVER_IMPORT_BLOCKS: FlatConfig.Config[] = [
     rules: serverImportRules(null),
   },
   ...SERVER_IMPORT_HOMES.map((row): FlatConfig.Config => ({ files: row.homes.map(serverImportGlob), rules: serverImportRules(row) })),
+  { files: [...CHAT_ART_GATE_SOURCES], rules: serverImportRules(null, CHAT_ART_GATE_RESTRICTION) },
 ];
 
 // A NUL is not text in this app: a free-string TEXT column is `nulFreeText` (`packages/db/src/custom-types/index.ts`),

@@ -1,10 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-11-11
+updated: 2026-11-14
 priority: P3
 area: tests
-plan: test-enforcement
+plan: typed-enforcers
 ---
 
 # Every suppression of a test-derivation rule is re-judged

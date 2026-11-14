@@ -149,6 +149,10 @@ type DetachHandoffBooksOp = (args: { readonly chatId: ChatId; readonly hostUserI
  *  `chat_regex_scripts` delete of every script on `chatId` the incoming host does not own. */
 type DetachHandoffRegexScriptsOp = (args: { readonly chatId: ChatId; readonly hostUserId: UserId }) => StatementToken;
 
+/** The host-handoff DOCUMENT detach (databank's `DetachHandoffDocuments`, declared structurally): the UNEXECUTED
+ *  `chat_documents` delete of every document on `chatId` the incoming host does not own. */
+type DetachHandoffDocumentsOp = (args: { readonly chatId: ChatId; readonly hostUserId: UserId }) => StatementToken;
+
 /** The host-handoff DIGEST re-key (embeddings' `HandoffRestampStatements`, declared structurally). Returns
  *  UNEXECUTED statements scoped to this chat; empty for an empty pair list. */
 type RestampHandoffDigestsOp = (args: { readonly chatId: ChatId; readonly pairs: readonly HandoffCardPair[] }) => Promise<readonly StatementToken[]>;
@@ -601,12 +605,18 @@ export interface MemoryStrikeOps {
   readonly restore: (args: { readonly chatId: ChatId; readonly strikeId: ChatMemoryStrikeId }) => Promise<boolean>;
   /** The handoff re-key of scoped strikes, in the swap batch beside the digests' re-key. */
   readonly restampForHandoff: (chatId: ChatId, pairs: readonly HandoffCardPair[]) => BatchStmt[];
-  /** The fork's copy of the room's strikes, as statements for the fork's own batch: every strike whose two endpoint
-   *  messages were both copied (`slotIdMap` holds only the copied messages) lands re-keyed onto the copies. A scoped
-   *  strike keeps its character only when that character holds a seat in the fork. */
+  /** The reorder's re-stamp of every strike's stored seqs onto its live endpoints, for the reorder's own batch after
+   *  the re-sequence statements. */
+  readonly restampSeqsAfterReorder: (chatId: ChatId) => BatchStmt;
+  /** The fork's copy of the room's strikes, as statements for the fork's own batch: each strike lands re-keyed onto
+   *  every position of the fork's own grid its span overlaps, laid out over the copied messages (`slotIdMap` holds
+   *  only those) with `hostUserId`'s memory config. A scoped strike keeps its character only when that character holds
+   *  a seat in the fork. */
   readonly forkStrikes: (args: {
     readonly sourceChatId: ChatId;
     readonly newChatId: ChatId;
+    /** The fork's host: the forker. */
+    readonly hostUserId: UserId;
     readonly slotIdMap: ReadonlyMap<MessageId, MessageId>;
     readonly seatedCharacterIds: ReadonlySet<CharacterId>;
     readonly createdAt: number;
@@ -682,11 +692,12 @@ export interface ChatContext extends EngineContext, ChatAccountingContext, ChatC
    *  find/replace running on the transferred room's prompts and rendered output — the chat-book license,
    *  except executable, and un-flippable by anyone still in the room. */
   readonly copyHandoffRegexScripts: CopyHandoffRegexScriptsOp;
-  /** HOST HANDOFF, the D64 detach: the UNEXECUTED `chat_books` and `chat_regex_scripts` deletes the swap batch
-   *  commits after the copy re-points, so the room carries only attachments the new host owns. Injected
-   *  because both tables belong to their domains (D337). */
+  /** HOST HANDOFF, the D64 detach: the UNEXECUTED `chat_books`, `chat_regex_scripts` and `chat_documents` deletes
+   *  the swap batch commits after the copy re-points, so the room carries only attachments the new host owns.
+   *  Injected because each table belongs to its domain (D337). */
   readonly detachHandoffBooks: DetachHandoffBooksOp;
   readonly detachHandoffRegexScripts: DetachHandoffRegexScriptsOp;
+  readonly detachHandoffDocuments: DetachHandoffDocumentsOp;
   /** HOST HANDOFF, the NOMINATE-side disclosure: how many books / scripts an accept would land in
    *  the nominee's library. Injected for the same reason their copy twins are — the tables are world-info's
    *  and regex's — and they exist as their own ops rather than as a dry-run flag on the copies because a

@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: client
+plan: test-foundation
 ---
 
 # A categorized library header button and the reasoning disclosure have no reflow case on the settled transcript

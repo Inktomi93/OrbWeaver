@@ -1040,6 +1040,10 @@ export const chatMemoryStrikes = sqliteTable(
     tier: integer("tier").notNull(),
     messageStartId: nulFreeText("message_start_id").$type<MessageId>().notNull(),
     messageEndId: nulFreeText("message_end_id").$type<MessageId>().notNull(),
+    // The endpoints' seqs as of the last write that knew them. The ids stay the match; a seq answers only for an
+    // endpoint whose message is gone, since a delete never renumbers and a member may delete their own message.
+    seqStart: integer("seq_start").notNull(),
+    seqEnd: integer("seq_end").notNull(),
     contentHash: nulFreeText("content_hash").notNull(),
     topicAnchor: nulFreeText("topic_anchor"),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
