@@ -3,6 +3,7 @@
 // default_persona, keyed by avatar filename); this maps their description placement onto our persona
 // metadata blob so the description lands in the same spot on re-send.
 
+import { isPersonaImportName } from "@orb/contracts/persona";
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import type { JsonObject } from "@orb/kit/json";
 import { messageRoleFromSt } from "@orb/kit/message-role";
@@ -88,8 +89,8 @@ export function parseStPersonas(settingsRaw: unknown): ParsedPersonas {
 
   const personas: ParsedPersona[] = [];
   for (const [avatarFile, rawName] of Object.entries(personasMap)) {
-    const name = nullIfEmpty(str(rawName));
-    if (name === null) {
+    const name = str(rawName);
+    if (!isPersonaImportName(name)) {
       continue; // a personas entry with no name is unusable as an authoring identity
     }
     const descriptor = asObj(descriptions[avatarFile]);

@@ -7,11 +7,11 @@ import type {
   FindByImportHashParams,
 } from "@orb/contracts/character";
 import type { CharacterId } from "@orb/kit/ids";
-import type { AttachImportedArtParams, FindByNameParams } from "./params.ts";
+import type { AdmitsImportedArtParams, AttachImportedArtParams, FindByNameParams } from "./params.ts";
 import type { CharacterService } from "./service.ts";
 
 /** The import consumer needs identity only; the source signatures remain the actual owner's params. */
-export interface ImportCharacterPort extends Pick<CharacterService, "attachImportedArt"> {
+export interface ImportCharacterPort extends Pick<CharacterService, "attachImportedArt" | "admitsImportedArt"> {
   readonly create: (...args: Parameters<CharacterService["create"]>) => Promise<Pick<CharacterDetail, "id">>;
   readonly findByImportHash: CharacterService["findByImportHash"];
   readonly findByHandle: CharacterService["findByHandle"];
@@ -28,4 +28,5 @@ export interface CharacterImportOps {
   readonly findByHandle: (args: Pick<FindByHandleParams, "handle">) => Promise<CharacterId | null>;
   readonly findByName: (args: Omit<FindByNameParams, "ownerId">) => Promise<readonly CharacterId[]>;
   readonly attachImportedArt: (args: Omit<AttachImportedArtParams, "ownerId">) => Promise<boolean>;
+  readonly admitsImportedArt: (args: Omit<AdmitsImportedArtParams, "ownerId">) => Promise<boolean>;
 }

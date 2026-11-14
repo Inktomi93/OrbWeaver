@@ -750,8 +750,19 @@ export async function attachArtIfMissing(
     .update(characters)
     // SQLite evaluates every SET expression against the pre-update row, so this copies the OLD import_hash.
     .set({ avatarAssetId, importTextHash: sql`${characters.importHash}`, importHash, updatedAt: at })
-    .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId), isNull(characters.avatarAssetId)))
+    .where(artlessOwnedCharacter(ownerId, characterId))
     .returning({ id: characters.id });
+  return rows.length > 0;
+}
+
+// The one condition under which an owned character takes imported art, so the dry run's read and the write agree.
+function artlessOwnedCharacter(ownerId: UserId, characterId: CharacterId): SQL | undefined {
+  return and(eq(characters.id, characterId), eq(characters.ownerId, ownerId), isNull(characters.avatarAssetId));
+}
+
+/** Whether {@link attachArtIfMissing} would give the owner's character art now: it exists and has none. */
+export async function admitsImportedArt(db: Db, ownerId: UserId, characterId: CharacterId): Promise<boolean> {
+  const rows = await db.select({ id: characters.id }).from(characters).where(artlessOwnedCharacter(ownerId, characterId)).limit(1);
   return rows.length > 0;
 }
 

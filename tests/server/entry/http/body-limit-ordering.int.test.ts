@@ -13,6 +13,7 @@ import {
   OIDC_BACKCHANNEL_LOGOUT_EVENT,
   OIDC_LOGOUT_TOKEN_FIELD,
 } from "@orb/contracts/identity";
+import { UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
 import type { ExternalId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
@@ -202,7 +203,7 @@ test("small real multipart and JSON producers survive the native caps and retain
   const principal = await root.principalFor(root.ownerId);
   const bytes = makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset));
   const form = new FormData();
-  form.set("file", new File([new Uint8Array(bytes)], "body-cap.png", { type: "image/png" }));
+  form.set(UPLOAD_FILE_FIELD, new File([new Uint8Array(bytes)], "body-cap.png", { type: "image/png" }));
   form.set("kind", "avatar");
   const upload = await root.http.request("/api/assets/upload", { method: "POST", headers: CSRF_HEADERS, body: form });
   expect(upload.status).toBe(200);

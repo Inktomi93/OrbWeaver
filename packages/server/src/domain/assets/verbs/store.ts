@@ -9,13 +9,14 @@ import { DomainOperationError } from "@orb/kit/errors";
 import type { StoreParams } from "../contract/params.ts";
 import type { AssetsContext, AssetsService } from "../contract/service.ts";
 import { storeBlob } from "../persistence/queries.ts";
+import { exceedsAssetCap } from "../substrate/cap.ts";
 
 const EMBEDDABLE_KINDS: readonly AssetKind[] = EMBEDDABLE_ASSET_KINDS;
 
 export function createStore(ctx: AssetsContext): AssetsService["store"] {
   return async ({ principal, bytes, kind, mime, enforceMagic, maxBytes }: StoreParams) => {
     // Reject an over-cap blob before it reaches the CAS (defense in depth over the HTTP route's body cap).
-    if (maxBytes !== undefined && bytes.byteLength > maxBytes) {
+    if (exceedsAssetCap(bytes, maxBytes)) {
       throw new DomainOperationError(ASSET_UPLOAD_REFUSAL_CODES.tooLarge, `asset is ${bytes.byteLength} bytes, over the ${maxBytes}-byte cap`);
     }
     const stored = await storeBlob(ctx.db, ctx.cas, {

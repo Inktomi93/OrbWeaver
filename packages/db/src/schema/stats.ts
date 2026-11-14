@@ -277,12 +277,15 @@ export const modelStats = sqliteTable(
 );
 
 // spend_ledger — one row per PRICED model call that leaves no canon row of its own: a compaction pass (its marker is
-// overwritten by the next pass) and an image prompt's extraction or caption (the prompt is never persisted). It is
-// the only canon the stats rebuild can re-derive that spend from (`rebuild-from-canon.ts`), and stats' own write op
-// (`domain/stats/write/ledger-spend.ts`) lands each row in the same batch as its live delta.
+// overwritten by the next pass), an image prompt's extraction or caption (the prompt is never persisted), and a paid
+// sample of canon that left the owner's stats scope (a deleted room, or a room whose last seat of the owner's went with
+// a deleted character). It is the only canon the stats rebuild can re-derive that spend from (`rebuild-from-canon.ts`).
+// Stats' own write ops land each row in the same batch as its live delta (`domain/stats/write/ledger-spend.ts`) or as
+// the delete that retires its canon (`domain/stats/persistence/retire-canon.ts`).
 // OWNER-STAMPED (D23): the funding principal is the owner, and no FK reaches it — the spend is that principal's money,
 // not a room's, so the row carries no `chat_id` and outlives the chat the way the live rollup does.
-// Append-only: money already paid stays paid, so no delete path touches a row.
+// Money already paid stays paid, so no verb deletes a row to lower spend. The one delete is a seat that brings a
+// retired room back into scope: canon carries that spend again, so one retired row per paid sample of the room leaves.
 export const spendLedger = sqliteTable(
   "spend_ledger",
   {
@@ -294,10 +297,16 @@ export const spendLedger = sqliteTable(
       .references(() => users.id, { onDelete: "restrict" }),
     // CHECK-gated to the contracts tuple, so the row type and the SQL read the same closed set.
     kind: text("kind", { enum: SPEND_LEDGER_KINDS }).notNull(),
-    // Fractional USD; only a reported, positive cost is a row (an unpriced call spends nothing to record).
+    // Fractional USD; only a reported cost is a row (an unpriced call spends nothing to record).
     costUsd: real("cost_usd").notNull(),
     // The call's clock — the live delta's `now`, so the rebuild buckets the spend in the same timeline bucket.
     createdAt: integer("created_at").notNull(),
+    // The model bucket a retired canon sample was paid on, so by-model spend survives a rebuild; NULL for every kind
+    // with no model rollup and for a sample whose model the canon never named.
+    model: nulFreeText("model").$type<ModelId>(),
+    provider: nulFreeText("provider").$type<ProviderId>(),
+    // A retired sample's cost was notional (a subscription wire), counted apart from billed cost on every grain.
+    notional: integer("notional", { mode: "boolean" }).notNull().default(false),
   },
   (t) => [index("spend_ledger_owner_idx").on(t.ownerId, t.createdAt), check("spend_ledger_kind_check", sql.raw(`kind in (${checkList(SPEND_LEDGER_KINDS)})`))],
 );

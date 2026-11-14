@@ -16,7 +16,7 @@ import type { ChatImportResult } from "@orb/contracts/import";
 import { chatImportResultSchema } from "@orb/contracts/import";
 import type { PortabilityRegistry, PortableEntity } from "@orb/contracts/portability";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
-import { IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
+import { IMPORT_MAX_TOTAL_BYTES, UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { MiddlewareHandler } from "hono";
@@ -29,7 +29,6 @@ const UNAUTHORIZED = 401;
 const FORBIDDEN = 403;
 const BAD_REQUEST = 400;
 const PAYLOAD_TOO_LARGE = 413;
-const UPLOAD_FIELD = "file";
 const CHAT_KIND = "chat";
 
 /** The principal-carrying Hono app the sibling `/api/import/*` registrars take — DERIVED from one of them
@@ -106,9 +105,9 @@ export function registerImportChat(app: ImportApp, deps: ImportChatDeps): void {
         return c.body(null, UNAUTHORIZED);
       }
       const form = await c.req.formData();
-      const files = form.getAll(UPLOAD_FIELD).filter((entry): entry is File => entry instanceof File);
+      const files = form.getAll(UPLOAD_FILE_FIELD).filter((entry): entry is File => entry instanceof File);
       if (files.length === 0) {
-        return c.json({ error: `no "${UPLOAD_FIELD}" transcript uploads` }, BAD_REQUEST);
+        return c.json({ error: `no "${UPLOAD_FILE_FIELD}" transcript uploads` }, BAD_REQUEST);
       }
       return c.json(chatImportResultSchema.parse(await importAll(chat, principal.userId, files, deps)));
     },

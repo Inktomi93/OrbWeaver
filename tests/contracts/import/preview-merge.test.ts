@@ -71,6 +71,20 @@ test("the same source in two uploads is one entry and is not a repeat of itself"
   expect(verdicts(merged)).toEqual([["Dusk.json", "writes"]]);
 });
 
+test("two entries and two skips whose shown sources clip alike stay two, by the digest of their whole source", () => {
+  const clipped = { profile: "alice", path: "worlds/long" };
+  const entry = (digest: string): ImportPreviewItem => ({ source: clipped, sourceDigest: digest, name: digest, identities: [digest] });
+  const skip = (digest: string): ImportPreview["skipped"]["items"][number] => ({ source: clipped, sourceDigest: digest, reason: "not a readable world book" });
+  const upload: ImportPreview = { ...uploadOf(entry("east"), entry("west")), skipped: { total: 2, items: [skip("east"), skip("west")] } };
+
+  const merged = mergeImportPreviews([upload, upload]);
+
+  expect(merged.kinds[KIND].items.map(({ sourceDigest }) => sourceDigest)).toEqual(["east", "west"]);
+  expect(merged.kinds[KIND].total).toBe(2);
+  expect(merged.skipped.items.map(({ sourceDigest }) => sourceDigest)).toEqual(["east", "west"]);
+  expect(merged.skipped.total).toBe(2);
+});
+
 test("an entry with no identities cannot be compared and stays a write", () => {
   const merged = mergeImportPreviews([uploadOf(itemAt("alice", "a.json", [])), uploadOf(itemAt("bob", "b.json", []))]);
 

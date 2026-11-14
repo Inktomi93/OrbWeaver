@@ -101,6 +101,9 @@ export const workloads = sqliteTable(
     // The EXECUTION lane (derives WORKLOAD_LANES; CHECK below mirrors the tuple) — which worker poll loop
     // dispatches the row. Stamped at enqueue from the owning domain's contribution; NOT a lock dimension.
     lane: text("lane", { enum: WORKLOAD_LANES }).notNull().default(DEFAULT_LANE),
+    // A row its owner never lists: stamped at enqueue from the owning domain's contribution (a column, like
+    // `lane`, so it survives a restart), excluded from every list read and swept once terminal.
+    transient: integer("transient", { mode: "boolean" }).notNull().default(false),
     // Per-kind params (the ParamsByKind blob; the runner re-parses against its Zod schema at the read
     // seam). Always an object (a tunable-less kind uses `{}`), so notNull with an empty-object default.
     params: text("params", { mode: "json" }).$type<WorkloadParamsByKind[WorkloadKind]>().notNull().default(sql`'{}'`),

@@ -7,6 +7,7 @@ import { BLOB_ROUTE, storedAssetSchema } from "@orb/contracts/assets";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { AppearanceSettings, OsPreferenceMode } from "@orb/contracts/settings/appearance";
 import { appearanceSettingsSchema, BACKGROUND_DIM_MIN, BLUR_SURFACES } from "@orb/contracts/settings/appearance";
+import { UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
 import type { CharacterId, ChatId, ThemeId } from "@orb/kit/ids";
 import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, readingPlateAlpha, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { emulateMedia, landedMutedContrast, paintedArt, pixel, releaseEmulatedMedia, resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
@@ -235,7 +236,7 @@ async function solidArtRoot(page: Page, grey: number, selectedThemeId: ThemeId |
   const { cookie } = await captureCookieAuth(art, owner, BLACK_ART_PASSWORD);
   const form = new FormData();
   form.set("kind", "background");
-  form.set("file", new Blob([new Uint8Array(greyPng(BLACK_ART_SIDE, grey))], { type: "image/png" }), "solid.png");
+  form.set(UPLOAD_FILE_FIELD, new Blob([new Uint8Array(greyPng(BLACK_ART_SIDE, grey))], { type: "image/png" }), "solid.png");
   const uploaded = await art.http.request("/api/assets/upload", { method: "POST", headers: { cookie, [CSRF_HEADER]: "1", forwarded: "" }, body: form });
   if (!uploaded.ok) {
     throw new Error(`the wallpaper upload failed (${String(uploaded.status)})`);

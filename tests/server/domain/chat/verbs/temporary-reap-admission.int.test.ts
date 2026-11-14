@@ -5,14 +5,21 @@
 // @subject packages/server/src/domain/chat/substrate/handoff-barrier.ts
 
 import { TURN_ROOM_CLOSING_OP_CODE } from "@orb/contracts/chat";
+import { CANON_RETIREMENT_ATTEMPTS } from "@orb/contracts/stats";
 import type { ChatId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { MS_PER_HOUR, UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { createChatRoot, freshHeldDb, readRoomCanon } from "@orb/testkit/node/composed";
+import { z } from "zod";
 import { textProvider, textRoom } from "../scenario-physical.ts";
 
 const ROOM_DELETE = /^delete from "chats"/u;
+// A room delete with canon in scope opens with this guard on the owner's canon version.
+const CANON_GUARD = /^insert into "stats_canon_versions".*\(SELECT COALESCE\(\(SELECT version FROM stats_canon_versions/u;
+const LOG_SCAN_LIMIT = 500;
+const logRecordSchema = z.looseObject({ level: z.string(), chatId: typeIdSchema(ID_PREFIX.chat).optional() });
 const NOT_FOUND = { code: "NOT_FOUND" } as const;
 const REPLY = "The reply.";
 
@@ -103,6 +110,65 @@ test("a sweep deletes the caller's expired temporary rooms, started or not, and 
   expect(await memberCaller.chat.getChat({ chatId: theirs })).toMatchObject({ id: theirs });
   expect(await memberCaller.chat.reapTemporaryChats()).toEqual({ reaped: 1 });
   await expect(memberCaller.chat.getChat({ chatId: theirs })).rejects.toMatchObject(NOT_FOUND);
+});
+
+test("a sweep whose delete of one room a live write outruns on every attempt skips that room, logs it once and deletes the others", async () => {
+  using held = await freshHeldDb();
+  await using h = await textRoom([], { memoryEnabled: false, server: { db: held.db, logLevel: "warn" } });
+  const rooms = await temporaryRooms(h, 3);
+  const [first, poisoned, last] = rooms;
+  if (first === undefined || poisoned === undefined || last === undefined) {
+    throw new Error("the case opened fewer than three temporary rooms");
+  }
+  // A line starts each room, so each delete retires canon behind the guard on the owner's canon.
+  for (const chatId of rooms) {
+    await h.caller.chat.commitMessage({ chatId, content: "hello", timeZone: UTC_TIME_ZONE });
+  }
+  await h.root.settleBackground();
+  await expireTemporaryRooms(h);
+
+  // The sweep deletes in id order, so the guard's second through fourth batches are the poisoned room's attempts.
+  const racedHits = new Set(Array.from({ length: CANON_RETIREMENT_ATTEMPTS }, (_, index) => index + 2));
+  let gate = held.hold(CANON_GUARD);
+  const sweeping = h.caller.chat.reapTemporaryChats().then(
+    (result) => ({ result }),
+    (error: unknown) => ({ error }),
+  );
+  let hits = 0;
+  try {
+    for (;;) {
+      const step = await Promise.race([gate.reached.then(() => "held" as const), sweeping.then(() => "settled" as const)]);
+      if (step === "settled") {
+        break;
+      }
+      hits += 1;
+      gate.disarm();
+      if (racedHits.has(hits)) {
+        // A write in the kept ordinary room moves the owner's canon, so the parked guard refuses.
+        await h.root.app.chatRpgOps.postNarratorMessage(h.chatId, `The scene moves ${String(hits)}.`);
+      }
+      const parked = gate;
+      gate = held.hold(CANON_GUARD);
+      parked.release();
+    }
+  } finally {
+    gate.release();
+  }
+
+  expect(await sweeping).toEqual({ result: { reaped: 2 } });
+  expect(hits).toBe(CANON_RETIREMENT_ATTEMPTS + 2);
+  for (const gone of [first, last]) {
+    await expect(h.caller.chat.getChat({ chatId: gone })).rejects.toMatchObject(NOT_FOUND);
+  }
+  expect(await h.caller.chat.getChat({ chatId: poisoned })).toMatchObject({ id: poisoned });
+  const warned = h.root.observability
+    .logLines(LOG_SCAN_LIMIT)
+    .map((line) => logRecordSchema.parse(JSON.parse(line)))
+    .filter((record) => record.level === "warn" && record.chatId === poisoned);
+  expect(warned).toHaveLength(1);
+  // Control: with no writer racing it, the next sweep takes the room it skipped.
+  expect(await h.caller.chat.reapTemporaryChats()).toEqual({ reaped: 1 });
+  await expect(h.caller.chat.getChat({ chatId: poisoned })).rejects.toMatchObject(NOT_FOUND);
 });
 
 test("a send that arrives while the sweep is deleting a temporary room is refused as a closing room, and one after finds no room", async () => {

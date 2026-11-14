@@ -199,7 +199,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     logger: deps.logger,
     db,
     bumpStatsCanonVersion: statsWiring.bumpStatsCanonVersion,
-    retireCharacterCensus: statsWiring.retireCharacterCensus,
+    prepareCanonRetirement: statsWiring.prepareCanonRetirement,
     now,
     newCharacterId: minter(ID_PREFIX.character, deps.idSource),
     newSnapshotId: minter(ID_PREFIX.characterSnapshot, deps.idSource),
