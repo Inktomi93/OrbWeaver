@@ -19,7 +19,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { DismissDialog, ImportedChatsMemoryOffer } from "#components";
 import { importChats, useInvalidation, useTRPC } from "#data";
-import { chatInLibraryNotice, chatsInLibraryNotice, DIALOG_VERBS, inLibraryClause, notify } from "#lib";
+import { chatInLibraryNotice, chatsInLibraryNotice, DIALOG_VERBS, importedOfLead, inLibraryClause, notify } from "#lib";
 import { CHAT_IMPORT_TITLE } from "../lib/chat-surface-names.ts";
 
 // Both chat formats the single-chat door accepts: the ST/share transcript and the R6 orb-native BUNDLE
@@ -46,9 +46,9 @@ function importNotice({ imported, failed }: ChatImportResult): ImportNotice {
   if (imported.length === 0) {
     return { kind: "error", message: firstFailure === undefined ? "Couldn't import the chat." : failureMessage(firstFailure) };
   }
+  const landed = imported.filter((chat) => chat.created).length;
+  const held = imported.filter((chat) => !chat.created);
   if (firstFailure === undefined) {
-    const landed = imported.filter((chat) => chat.created).length;
-    const held = imported.filter((chat) => !chat.created);
     const [onlyHeld] = held;
     if (landed === 0) {
       return {
@@ -61,7 +61,7 @@ function importNotice({ imported, failed }: ChatImportResult): ImportNotice {
   }
   return {
     kind: "info",
-    message: `${imported.length} of ${imported.length + failed.length} imported: ${failureMessage(firstFailure)}`,
+    message: `${importedOfLead(landed, held.length, imported.length + failed.length)}: ${failureMessage(firstFailure)}`,
   };
 }
 

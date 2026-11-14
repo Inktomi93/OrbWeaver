@@ -15,12 +15,20 @@ import { Check, Icon, TriangleAlert } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { testId } from "#lib";
+import { IN_LIBRARY_DETAIL, testId } from "#lib";
 import type { ImportSummary } from "../lib/portability-model.ts";
 import { summaryCaption } from "../lib/portability-model.ts";
 
 export interface ImportReportSummaryProps {
   readonly summary: ImportSummary;
+}
+
+/** What the outcome's icon says: a held file was neither imported nor refused. */
+function outcomeLabel(outcome: ImportSummary["outcomes"][number]): string {
+  if (!outcome.ok) {
+    return "Not imported";
+  }
+  return outcome.held === true ? IN_LIBRARY_DETAIL : "Imported";
 }
 
 /** The tally caption + per-file outcome list for a finished import. */
@@ -42,12 +50,7 @@ export function ImportReportSummary({ summary }: ImportReportSummaryProps): Reac
           {summary.outcomes.map((outcome) => (
             <Stack key={outcome.path} gap="field">
               <Row align="center" gap="row" role="listitem">
-                <Icon
-                  icon={outcome.ok ? Check : TriangleAlert}
-                  size="sm"
-                  tone={outcome.ok ? "success" : "destructive"}
-                  label={outcome.ok ? "Imported" : "Not imported"}
-                />
+                <Icon icon={outcome.ok ? Check : TriangleAlert} size="sm" tone={outcome.ok ? "success" : "destructive"} label={outcomeLabel(outcome)} />
                 <Text voice="code" truncate="fill">
                   {outcome.path}
                 </Text>
