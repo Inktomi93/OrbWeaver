@@ -1,10 +1,11 @@
 // @subject packages/client/src/components/context-tab-body.tsx
 // @subject packages/client/src/features/app-shell/components/context-bracket.tsx
 // Every CONTEXT tab a room or a character registers lays its body in the one CONTEXT column, with one scroll owner. Opening each tab in turn,
-// the open panel scrolls on the block axis in at most one box and on the inline axis in none, so no body nests a second scroller under the
-// bracket's or pushes a row sideways out of the pane.
+// on a desktop and at a phone's enlarged text on a phone and a landscape phone, the open panel scrolls on the block axis in at most one box,
+// on the inline axis in none, and holds no box past its inline edge, so no body nests a second scroller or pushes a row out of the pane.
 
-import { seedShellState } from "@orb/testkit/browser/spec";
+import { contextToggleLabel, TRAIL_OVERFLOW_LABEL } from "@orb/client/lib";
+import { seedShellState, setPlatformTextSize, sidewaysReach } from "@orb/testkit/browser/spec";
 import { ROOM_PROCEDURES, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -28,8 +29,10 @@ const CONTEXT_READS = [
   "chat.getShapeTrace",
 ] as const;
 const SERVED = [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, ...CONTEXT_READS] as const;
-// A control that scrolls its own window (a grid, a listbox, a text field) is that control's scroller, not a second scroller of the body.
-const CONTROL_ROLES = ["grid", "listbox", "tree", "treegrid", "textbox", "log"] as const;
+// A control whose keyboard model moves through its own window scrolls that window, and it is the control's scroller, not a second scroller of
+// the body. A virtualized grid cannot draw without one: `packages/ui/src/primitives/media-grid/media-grid.tsx` throws when its window is
+// unbounded, and the Look tab's background picker is such a grid. A listbox's options and a text field's lines scroll the same way.
+const CONTROL_ROLES = ["grid", "listbox", "textbox"] as const;
 
 interface Scrollers {
   readonly block: readonly string[];
@@ -75,31 +78,73 @@ async function everyTabScrollsInOneBox(page: Page): Promise<number> {
     const found = await scrollersIn(panel);
     expect(found.block.length, `${label} scrolls in ${found.block.join(", ")}`).toBeLessThanOrEqual(1);
     expect(found.inline, `${label} scrolls sideways`).toEqual([]);
+    // A box past the pane's inline edge is cut off even where the pane clips it rather than scrolling.
+    const reach = await panel.evaluate(sidewaysReach);
+    expect(reach.wideners, `${label} runs past the pane's edge`).toEqual([]);
   }
   return count;
 }
 
-test.use({ viewport: { width: 1600, height: 600 } });
+// The pane at a desktop width, and at the enlarged text a phone reaches on a phone and on a landscape phone, where a body's inset and its scroller
+// meet the least room.
+const REGIMES = [
+  { label: "desktop, default text", viewport: { width: 1600, height: 600 }, touch: false, scale: 1 },
+  { label: "phone, double text", viewport: { width: 390, height: 844 }, touch: true, scale: 2 },
+  { label: "phone, largest text", viewport: { width: 390, height: 844 }, touch: true, scale: 3 },
+  { label: "landscape phone, double text", viewport: { width: 844, height: 390 }, touch: true, scale: 2 },
+  { label: "landscape phone, largest text", viewport: { width: 844, height: 390 }, touch: true, scale: 3 },
+] as const;
 
-test("every tab a room registers scrolls in one box and never sideways", async ({ corpus, mount, page }) => {
-  await using root = await createCorpusHarness();
-  const caller = await root.internalCallerFor(root.ownerId);
-  const room = namedGroupRoom((await caller.chat.listChats({ limit: 100 })).items);
-  await routeShell(page, corpus, caller, SERVED);
-  await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "docked" } } });
-  await mount<typeof AppShellRoomStory>(`${SHELL_STORIES}/AppShellRoomStory`, { chatId: room.id });
-  expect(await everyTabScrollsInOneBox(page)).toBeGreaterThan(1);
-});
-
-test("every tab a character registers scrolls in one box and never sideways", async ({ corpus, mount, page }) => {
-  await using root = await createCorpusHarness();
-  const caller = await root.internalCallerFor(root.ownerId);
-  const [character] = (await caller.character.list({})).items;
-  if (character === undefined) {
-    throw new Error("The corpus has no character");
+// A phone docks no CONTEXT pane: its topbar toggle opens it over the content, and enlarged text folds that toggle into the trail's More menu.
+async function openPane(page: Page): Promise<void> {
+  const pane = page.locator(CONTEXT);
+  if ((await pane.getAttribute("data-panel-mode")) !== "collapsed") {
+    return;
   }
-  await routeShell(page, corpus, caller, SERVED);
-  await seedShellState(page, { activeSection: "characters", panelOverrides: { characters: { list: "collapsed", context: "docked" } } });
-  await mount<typeof AppShellCharacterStory>(`${SHELL_STORIES}/AppShellCharacterStory`, { characterId: character.id });
-  expect(await everyTabScrollsInOneBox(page)).toBeGreaterThan(1);
-});
+  const name = contextToggleLabel(true);
+  const inline = page.getByRole("button", { name, exact: true });
+  const overflow = page.getByRole("button", { name: TRAIL_OVERFLOW_LABEL, exact: true });
+  await expect(inline.or(overflow).first()).toBeVisible();
+  if (await inline.isVisible()) {
+    await inline.click();
+  } else {
+    await overflow.click();
+    await page.getByRole("menu").getByRole("menuitem", { name, exact: true }).click();
+  }
+  await expect(pane).not.toHaveAttribute("data-panel-mode", "collapsed");
+}
+
+for (const regime of REGIMES) {
+  test.describe(regime.label, () => {
+    test.use({ viewport: regime.viewport, hasTouch: regime.touch, isMobile: regime.touch });
+
+    test("every tab a room registers scrolls in one box and never sideways", async ({ browserName, corpus, mount, page }) => {
+      test.skip(browserName !== "chromium" && regime.scale !== 1, "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
+      await using root = await createCorpusHarness();
+      await using _textSize = await setPlatformTextSize(page, regime.scale);
+      const caller = await root.internalCallerFor(root.ownerId);
+      const room = namedGroupRoom((await caller.chat.listChats({ limit: 100 })).items);
+      await routeShell(page, corpus, caller, SERVED);
+      await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "docked" } } });
+      await mount<typeof AppShellRoomStory>(`${SHELL_STORIES}/AppShellRoomStory`, { chatId: room.id });
+      await openPane(page);
+      expect(await everyTabScrollsInOneBox(page)).toBeGreaterThan(1);
+    });
+
+    test("every tab a character registers scrolls in one box and never sideways", async ({ browserName, corpus, mount, page }) => {
+      test.skip(browserName !== "chromium" && regime.scale !== 1, "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
+      await using root = await createCorpusHarness();
+      await using _textSize = await setPlatformTextSize(page, regime.scale);
+      const caller = await root.internalCallerFor(root.ownerId);
+      const [character] = (await caller.character.list({})).items;
+      if (character === undefined) {
+        throw new Error("The corpus has no character");
+      }
+      await routeShell(page, corpus, caller, SERVED);
+      await seedShellState(page, { activeSection: "characters", panelOverrides: { characters: { list: "collapsed", context: "docked" } } });
+      await mount<typeof AppShellCharacterStory>(`${SHELL_STORIES}/AppShellCharacterStory`, { characterId: character.id });
+      await openPane(page);
+      expect(await everyTabScrollsInOneBox(page)).toBeGreaterThan(1);
+    });
+  });
+}

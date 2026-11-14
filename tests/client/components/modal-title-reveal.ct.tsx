@@ -7,7 +7,6 @@
 // closing the modal. A title the line seats whole, or a tall window that lets it wrap, carries no control.
 
 import { hitExtent, PLATFORM_TEXT_SCALES, setPlatformTextSize, touchFloorPx } from "@orb/testkit/browser/spec";
-import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { ViewerDialogStory } from "./_dialog-stories.tsx";
 import type { FormDialogTitleStory, SheetDialogTitleStory } from "./_form-dialog-stories.tsx";
@@ -25,18 +24,6 @@ const MODALS = [
 ] as const;
 
 type TitleStory = typeof FormDialogTitleStory | typeof SheetDialogTitleStory | typeof ViewerDialogStory;
-
-// `elementFromPoint` answers null off the screen and a finger cannot land past its edge, so a control near the edge owes the part of its floor
-// band the screen holds (tests/support/browser/touch-floor.ts centres a control for the same reason; a modal's title cannot scroll).
-async function floorOnScreen(page: Page, control: Locator, floor: number): Promise<number> {
-  const box = await control.boundingBox();
-  const height = page.viewportSize()?.height;
-  if (box === null || height === undefined) {
-    throw new Error("The cut title has no box in a sized viewport");
-  }
-  const centre = box.y + box.height / 2;
-  return Math.min(centre + floor / 2, height) - Math.max(centre - floor / 2, 0);
-}
 
 for (const modal of MODALS) {
   test.describe(`a short landscape ${modal.label}`, () => {
@@ -56,7 +43,8 @@ for (const modal of MODALS) {
         await expect(control).toBeInViewport({ ratio: 1 });
         await page.evaluate(() => document.fonts.ready);
         const floor = await touchFloorPx(page);
-        expect(await hitExtent(control, "y")).toBeGreaterThanOrEqual(await floorOnScreen(page, control, floor));
+        // The whole floor on both axes, on screen: a title at the window's top edge whose hit band runs past the edge is short of it.
+        expect(await hitExtent(control, "y")).toBeGreaterThanOrEqual(floor);
         expect(await hitExtent(control, "x")).toBeGreaterThanOrEqual(floor);
 
         await control.tap();
