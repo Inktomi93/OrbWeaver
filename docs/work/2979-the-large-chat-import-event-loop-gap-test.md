@@ -1,0 +1,25 @@
+---
+kind: bug
+status: open
+updated: 2026-11-14
+priority: P3
+area: import
+---
+
+# The large-chat import event-loop gap test fails on a loaded box
+
+## What
+
+tests/server/domain/import/loader/large-chat-yields.int.test.ts asserts the longest event-loop gap during a five megabyte chat import stays under 200 ms. On a busy box it measured several hundred milliseconds in a whole-folder run and again alone. The test subject (chat import-write and the chat serde) shares no code with the profile loader or the tree route, so the failure is not from the loader changes; it was not reproduced on a quiet tree.
+
+## Why
+
+A timing assertion that fails under load either hides a real stall in the chat import or is a flaky gate; one of the two needs settling.
+
+## Done when
+
+Reproduce on a quiet tree. If the gap holds under 200 ms there, bound the assertion to what the test controls (tag it slow or measure slices) so load does not fail it; if it fails on a quiet tree, fix the stall.
+
+## Evidence
+
+Filled at landing: what ran and where its output is.
