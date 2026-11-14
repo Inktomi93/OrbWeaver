@@ -53,6 +53,9 @@ export const UNSAFE_CAST_HOMES = homeReasons({
   "packages/client/src/data/use-session-recovery.ts": {
     "me.userId": `${MINT_RULING}: the \`sessions.me\` result is the one source of a \`VerifiedUserId\`, which no text parser may mint`,
   },
+  "packages/server/src/domain/chat/substrate/participants-humans.ts": {
+    hostUserId: `${MINT_RULING}: \`hostConsentOf\` is the one source of a \`ConsentingHostId\`, minted only on its \`consents\` arm after the host is proven seated, present and enabled (D17)`,
+  },
   "packages/kit/src/json/index.ts": {
     "JSON.parse(text)":
       "the one place decoded JSON text is named `JsonValue`: `JSON.parse` builds only JSON values, so a deep re-check adds only a stack fault on deep input",

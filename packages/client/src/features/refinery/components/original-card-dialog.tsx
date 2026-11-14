@@ -6,7 +6,7 @@ import { REFINABLE_FIELDS } from "@orb/contracts/refinery";
 import { Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { ViewerDialog } from "#components";
+import { MutedLine, ViewerDialog } from "#components";
 import { REFINERY_ORIGINAL_CARD_NOTE, REFINERY_ORIGINAL_CARD_TITLE } from "../lib/refinery-names.ts";
 import { scopeChipLabelOf, slotLabelOf } from "../lib/render-plan.ts";
 
@@ -60,7 +60,7 @@ function OriginalGreetings({ greetings }: { readonly greetings: CharacterCard["g
           </Text>
         </Stack>
       ))}
-      {greetings.length === 0 ? <Text voice="gloss">No greetings pinned.</Text> : null}
+      {greetings.length === 0 ? <MutedLine>No greetings pinned.</MutedLine> : null}
     </Stack>
   );
 }

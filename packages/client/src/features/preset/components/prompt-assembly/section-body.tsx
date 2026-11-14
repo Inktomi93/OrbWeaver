@@ -20,13 +20,13 @@ import type { PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { Card } from "@orb/ui/card";
-import { ChevronDown, ChevronRight, ExternalLink, Icon, Info } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
+import { ChevronDown, ChevronRight, ExternalLink, Icon } from "@orb/ui/icons";
+import { Stack } from "@orb/ui/layout";
 import { MacroTextarea } from "@orb/ui/macro-textarea";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId, useState } from "react";
+import { Notice } from "#components";
 import type { AppFormInstance } from "#forms/editor";
 import { isPlainMarkerSection, isTemplatedMarkerSection } from "#src/features/preset/lib/assembly-model.ts";
 import type { PresetEditorValues } from "#src/features/preset/lib/preset-editor-values.ts";
@@ -167,20 +167,18 @@ function CarrierBody({
   const isWorldInfo = section.marker === "world_info_before" || section.marker === "world_info_after";
   return (
     <Stack gap="field">
-      <Card variant="soft">
-        <Row align="start" gap="row">
-          <Icon icon={Info} size="sm" />
-          <Stack minWidth="shrinks" gap="tight">
-            <Text voice="label">{attribution.sentence}</Text>
-            {manage === undefined ? null : (
-              <Button self="start" variant="ghost" onClick={(): void => openConfigTo(manage.collection)} size="sm" type="button">
-                {manage.label}
-                <Icon icon={ExternalLink} size="xs" />
-              </Button>
-            )}
-          </Stack>
-        </Row>
-      </Card>
+      <Notice
+        action={
+          manage === undefined ? undefined : (
+            <Button variant="ghost" onClick={(): void => openConfigTo(manage.collection)} size="sm" type="button">
+              {manage.label}
+              <Icon icon={ExternalLink} size="xs" />
+            </Button>
+          )
+        }
+        title={attribution.sentence}
+        tone="neutral"
+      />
       {isWorldInfo ? (
         // ONE LINE, not a 90px textarea (side-eye F-32): `wiFormat` is a one-line format string, and the
         // mock draws a single-line input. `rows={1}` + the Textarea's own `field-sizing: content` grows it

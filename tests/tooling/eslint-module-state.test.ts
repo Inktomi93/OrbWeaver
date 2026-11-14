@@ -129,10 +129,10 @@ test.for([
   expect(await findings(source)).toEqual([]);
 });
 
-test("the population: every server source, minus the named own-process files; other packages are out of scope", async () => {
+test("the population: every server and inference source, minus the named own-process files; other packages are out of scope", async () => {
   expect(await findings(WRITTEN_MAP, "packages/server/src/infra/network/x.ts")).toHaveLength(1);
   expect(await findings(WRITTEN_MAP, "packages/server/src/domain/chat/persistence/x.ts")).toHaveLength(1);
   expect(await findings(WRITTEN_MAP, "packages/server/src/infra/plugin-host/broker-entry.ts")).toEqual([]);
-  expect(await findings(WRITTEN_MAP, "packages/inference/src/backends/x.ts")).toEqual([]);
+  expect(await findings(WRITTEN_MAP, "packages/inference/src/backends/x.ts")).toHaveLength(1);
   expect(await findings(WRITTEN_MAP, "packages/client/src/x.ts")).toEqual([]);
 });

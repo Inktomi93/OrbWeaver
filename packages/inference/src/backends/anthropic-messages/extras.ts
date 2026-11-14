@@ -45,23 +45,25 @@ const ANTHROPIC_EXTRAS_SCHEMAS = {
   /** `us | global` — where inference may run. A data-residency choice, so a property of the connection. */
   inferenceGeo: z.enum(["us", "global"]),
   /** A token budget for a whole agentic TASK, which the API decrements across calls. */
-  taskBudget: z.object({ type: z.literal("tokens"), total: z.number().int().positive(), remaining: z.number().int().nonnegative().optional() }),
+  taskBudget: z.object({ type: z.literal("tokens"), total: z.number().int().positive(), remaining: z.number().int().nonnegative().optional() }).strip(),
   /** Server-side model fallbacks: `"default"`, or an ordered list the API tries when the primary is busy. */
   fallbacks: z.union([
     z.literal("default"),
     z.array(
-      z.object({
-        model: z.string().min(1),
-        max_tokens: z.number().int().positive().optional(),
-        speed: z.enum(["fast", "standard"]).optional(),
-      }),
+      z
+        .object({
+          model: z.string().min(1),
+          max_tokens: z.number().int().positive().optional(),
+          speed: z.enum(["fast", "standard"]).optional(),
+        })
+        .strip(),
     ),
   ]),
   /** Server-side context edits (`clear_tool_uses` / `clear_thinking` / `compact`). EXPOSED, NEVER DEFAULTED. */
   // LOOSE on the edit bodies deliberately: the `type` discriminator is Anthropic's dated beta id
   // (`clear_tool_uses_20250919`, `compact_20260112`, …) and a new one ships without us. Pinning each body's
   // fields would refuse a valid edit the day the API adds one, for a block this layer only forwards.
-  contextManagement: z.object({ edits: z.array(z.looseObject({ type: z.string().min(1) })).min(1) }),
+  contextManagement: z.object({ edits: z.array(z.looseObject({ type: z.string().min(1) })).min(1) }).strip(),
 } as const;
 
 type AnthropicExtrasKey = keyof typeof ANTHROPIC_EXTRAS_SCHEMAS;

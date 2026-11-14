@@ -14,6 +14,7 @@ import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useId, useState } from "react";
+import { MutedLine } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { touchedFieldError } from "#forms/editor";
 import { connectionHost, DIALOG_VERBS } from "#lib";
@@ -304,7 +305,7 @@ function KeyField({
                   {SAVED_KEY_UNAVAILABLE}
                 </Text>
               ) : null}
-              {available.length === 0 && !unavailable ? <Text voice="gloss">No active saved keys for this provider. Paste a new key below.</Text> : null}
+              {available.length === 0 && !unavailable ? <MutedLine>No active saved keys for this provider. Paste a new key below.</MutedLine> : null}
             </>
           );
         }}

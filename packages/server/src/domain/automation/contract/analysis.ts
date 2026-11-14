@@ -145,21 +145,23 @@ export type AnalysisOutputClass = (typeof ANALYSIS_OUTPUT_CLASSES)[number];
 // ── the model payload (composed per enabled routes) ───────────────────────────────────────────────────
 /** One lore entry as the MODEL emits it (route-enabled only). Machine-authored: the applier neutralizes
  *  macros and span-stamps the key before anything durable happens (§2 law 7). */
-const analysisLoreEntrySchema = z.object({
-  /** The entry's stable key — the idempotency handle WITHIN a span (the applier prefixes the span start). */
-  key: z.string().min(1).max(LORE_KEY_MAX),
-  keys: z.array(z.string().min(1).max(LORE_KEYWORD_MAX)).max(LORE_KEYS_MAX),
-  content: z.string().min(1).max(LORE_CONTENT_MAX),
-});
+const analysisLoreEntrySchema = z
+  .object({
+    /** The entry's stable key — the idempotency handle WITHIN a span (the applier prefixes the span start). */
+    key: z.string().min(1).max(LORE_KEY_MAX),
+    keys: z.array(z.string().min(1).max(LORE_KEYWORD_MAX)).max(LORE_KEYS_MAX),
+    content: z.string().min(1).max(LORE_CONTENT_MAX),
+  })
+  .strip();
 type AnalysisLoreEntry = z.infer<typeof analysisLoreEntrySchema>;
 
-const twistOpSchema = z.object({ op: z.enum(["add", "retire"]), twist: z.string().min(1).max(ANALYSIS_TWIST_MAX) });
+const twistOpSchema = z.object({ op: z.enum(["add", "retire"]), twist: z.string().min(1).max(ANALYSIS_TWIST_MAX) }).strip();
 
 // The route pieces below are PROJECTION-CLEAN: the wire schema is `z.toJSONSchema` of them, and a
 // `.transform()` makes that throw. The readonly output typing lives only on the envelope further down.
 const analysisGuidanceSchema = z.string().max(ANALYSIS_ARC_MAX + ANALYSIS_TWIST_MAX);
 const analysisLoreSchema = z.array(analysisLoreEntrySchema).max(LORE_PER_PASS);
-const analysisSuggestionsSchema = z.array(z.object({ text: z.string().min(1).max(SUGGESTION_TEXT_MAX) })).max(SUGGESTIONS_PER_PASS);
+const analysisSuggestionsSchema = z.array(z.object({ text: z.string().min(1).max(SUGGESTION_TEXT_MAX) }).strip()).max(SUGGESTIONS_PER_PASS);
 const analysisScoreSchema = z.number().min(0).max(ANALYSIS_SCORE_MAX);
 const twistOpsSchema = z.array(twistOpSchema).max(TWIST_OPS_PER_PASS);
 
@@ -168,13 +170,15 @@ const twistOpsSchema = z.array(twistOpSchema).max(TWIST_OPS_PER_PASS);
  *  survives if "nothing is wrong" is something the model is asked to SAY, and the executor keys the
  *  draws-nothing path off the verdict rather than guessing from a blank string a stingy model might also
  *  return for a real flaw it declined to fix. */
-const analysisRewriteSchema = z.object({
-  verdict: z.enum(["clean", "flawed"]),
-  /** The flaw in one phrase — the card's own question. Empty on `clean`. */
-  issue: z.string().max(ANALYSIS_REWRITE_ISSUE_MAX),
-  /** The FULL corrected reply (not a patch — the applier writes it as a whole variant). Empty on `clean`. */
-  text: z.string().max(ANALYSIS_REWRITE_MAX),
-});
+const analysisRewriteSchema = z
+  .object({
+    verdict: z.enum(["clean", "flawed"]),
+    /** The flaw in one phrase — the card's own question. Empty on `clean`. */
+    issue: z.string().max(ANALYSIS_REWRITE_ISSUE_MAX),
+    /** The FULL corrected reply (not a patch — the applier writes it as a whole variant). Empty on `clean`. */
+    text: z.string().max(ANALYSIS_REWRITE_MAX),
+  })
+  .strip();
 type AnalysisRewrite = z.infer<typeof analysisRewriteSchema>;
 
 /** The ALWAYS-present half of every pass payload — the private plot state ops (the legacy director payload
@@ -194,15 +198,17 @@ const payloadBase = {
  *  without changing bytes; route-specific requiredness remains the public generic overload's narrower face.
  *  Its identity transforms only narrow the arrays to readonly, so it is the PARSE face and is never
  *  projected; the wire is {@link projectAnalysisWireSchema}. */
-const analysisPayloadEnvelopeSchema = z.object({
-  ...payloadBase,
-  twistOps: twistOpsSchema.transform((ops): AnalysisPayload["twistOps"] => ops),
-  guidance: analysisGuidanceSchema.optional(),
-  lore: analysisLoreSchema.transform((entries): readonly AnalysisLoreEntry[] => entries).optional(),
-  suggestions: analysisSuggestionsSchema.transform((suggestions): readonly { readonly text: string }[] => suggestions).optional(),
-  rewrite: analysisRewriteSchema.optional(),
-  score: analysisScoreSchema.optional(),
-}) satisfies z.ZodType<AnalysisPayload>;
+const analysisPayloadEnvelopeSchema = z
+  .object({
+    ...payloadBase,
+    twistOps: twistOpsSchema.transform((ops): AnalysisPayload["twistOps"] => ops),
+    guidance: analysisGuidanceSchema.optional(),
+    lore: analysisLoreSchema.transform((entries): readonly AnalysisLoreEntry[] => entries).optional(),
+    suggestions: analysisSuggestionsSchema.transform((suggestions): readonly { readonly text: string }[] => suggestions).optional(),
+    rewrite: analysisRewriteSchema.optional(),
+    score: analysisScoreSchema.optional(),
+  })
+  .strip() satisfies z.ZodType<AnalysisPayload>;
 
 type AnalysisPayloadBase = Pick<AnalysisPayload, "arcStatus" | "updatedArc" | "successorArc" | "twistOps">;
 type RequiredAnalysisPayloadField<TField extends keyof AnalysisPayload> = {
@@ -255,7 +261,7 @@ function buildAnalysisWireObject(routes: AnalysisRoutes): z.ZodObject<AnalysisWi
   if (routes.vars !== undefined) {
     routeShape.score = analysisScoreSchema;
   }
-  return z.object({ ...payloadBase, ...routeShape });
+  return z.object({ ...payloadBase, ...routeShape }).strip();
 }
 
 /** The pass's wire `responseFormat` schema FOR the enabled routes: an enforcing vehicle cannot emit a

@@ -11,9 +11,8 @@
 
 import type { PluginStatus } from "@orb/contracts/plugin";
 import { Section, Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
+import { MutedLine, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { PLUGINS_INSTALLED_SUBCATEGORY } from "../lib/plugins-nav.ts";
 import { PluginRow } from "./plugin-row.tsx";
@@ -35,10 +34,10 @@ function InstalledPluginsList(): ReactElement {
 
   if (plugins.length === 0) {
     return (
-      <Text voice="gloss">
+      <MutedLine>
         Nothing installed yet. A plugin is a small sandboxed script that can watch a room, offer chips, write lore or add tools, and only ever what you allow
         it. Add one below.
-      </Text>
+      </MutedLine>
     );
   }
   // Stable sort: attention rows first, server order preserved within each band.

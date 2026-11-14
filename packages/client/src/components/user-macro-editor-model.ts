@@ -6,11 +6,13 @@ import { z } from "zod";
 import { formValuesEqual } from "#forms";
 
 const rowId = z.uuid();
-const macroRowIdsSchema = z.object({
-  id: rowId,
-  args: z.array(rowId),
-  inputs: z.array(z.object({ id: rowId, options: z.array(rowId) })),
-});
+const macroRowIdsSchema = z
+  .object({
+    id: rowId,
+    args: z.array(rowId),
+    inputs: z.array(z.object({ id: rowId, options: z.array(rowId) }).strip()),
+  })
+  .strip();
 
 export interface UserMacrosFormValues {
   readonly userMacros: UserMacroSpec[];

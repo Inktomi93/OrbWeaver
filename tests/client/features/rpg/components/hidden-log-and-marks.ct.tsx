@@ -90,7 +90,7 @@ test("a room with no standing lie still shows what was concealed, and a span wit
 
   const unreadable = rows.filter({ hasText: revealLabel("lie") });
   await expect(unreadable.getByRole("button")).toHaveCount(0);
-  await expect(unreadable.locator('[data-slot="rpg-veiled-log-unreadable"]')).toBeVisible();
+  await expect(unreadable.locator('[data-slot="muted-line"]')).toBeVisible();
 });
 
 test("the ledger holds a lie's motive and truth behind one gate until the host asks", async ({ mount, page }) => {

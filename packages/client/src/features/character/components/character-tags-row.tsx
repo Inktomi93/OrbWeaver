@@ -15,7 +15,7 @@ import { removeActionName } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId, useRef, useState } from "react";
-import { EditableTagChip, TagPickerDialog } from "#components";
+import { EditableTagChip, MutedLine, TagPickerDialog } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
 import { DIALOG_VERBS } from "#lib";
@@ -84,7 +84,7 @@ export function CharacterTagsRow({ characterId, tags, trpc }: CharacterTagsRowPr
           // The house empty word (#502) — this row said "No tags" while the facet rows said "Add…" and the
           // CONTEXT card said "None", three vocabularies for one state inside one editor. The verb lives in
           // the "Add tag" button beside it, which is why the value can just say what is there.
-          <Text voice="gloss">{EMPTY_VALUE}</Text>
+          <MutedLine>{EMPTY_VALUE}</MutedLine>
         ) : (
           visible.map((tag) => (
             <Badge key={tag.id} size="sm">

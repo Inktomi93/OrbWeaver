@@ -23,7 +23,7 @@ import { NumberField } from "@orb/ui/number-field";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary, SettingRowGroup, SettingTrackRow } from "#components";
+import { MutedLine, QueryBoundary, SettingRowGroup, SettingTrackRow } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { OWNER_RULE_RATE_FIELD_NAME, OWNER_RULES_INTRO } from "../lib/automation-names.ts";
 import { AUTOMATION_BUDGET_SUBCATEGORY, AUTOMATION_RULES_SUBCATEGORY } from "../lib/automation-nav.ts";
@@ -147,9 +147,9 @@ function OwnerRulesBody(): ReactElement {
         {OWNER_RULES_INTRO}
       </Text>
       {rules.length === 0 ? (
-        <Text voice="gloss" prose={true} cap="prose">
+        <MutedLine>
           Nothing is watching your library yet. Add a rule (illustrate a character when its card changes, for instance) and it starts off until you enable it.
-        </Text>
+        </MutedLine>
       ) : null}
       <RuleManager chatId={null} rules={rules} />
     </Stack>

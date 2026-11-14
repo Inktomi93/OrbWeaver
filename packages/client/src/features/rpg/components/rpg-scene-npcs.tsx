@@ -19,7 +19,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
-import { Tip } from "#components";
+import { MutedLine, Tip } from "#components";
 import { DIALOG_VERBS } from "#lib";
 import { actorKey } from "../lib/actor-key.ts";
 import { RELATIONSHIP_GLYPHS } from "../lib/glyphs.ts";
@@ -36,7 +36,6 @@ import {
   RPG_SHOW_KNOWN_CHARACTERS_NAME,
 } from "../lib/rpg-names.ts";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
-import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
 import { MeterRow, NpcCard } from "./tracker-blocks/index.ts";
 
@@ -151,7 +150,7 @@ export function SceneNpcs({
 }): ReactElement {
   if (npcs.length === 0) {
     // The honest empty-npc doorway: the scene fills from the story; nothing to author by hand here.
-    return <RpgDoorwayLine>No NPCs on stage yet. The story brings them in.</RpgDoorwayLine>;
+    return <MutedLine>No NPCs on stage yet. The story brings them in.</MutedLine>;
   }
 
   return (

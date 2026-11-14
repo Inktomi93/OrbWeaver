@@ -39,10 +39,12 @@ const PROMPT_SCAFFOLD_RESERVE_TOKENS = 64;
 const DEFAULT_CHUNK_ITEMS = 128;
 const MS_PER_SEC = 1000;
 const reportedCount = z.number().int().nonnegative().nullish().catch(null);
-const embeddingResponseSchema = z.object({
-  model: z.string().min(1).nullish().catch(null),
-  usage: z.looseObject({ prompt_tokens: reportedCount, total_tokens: reportedCount }).nullish().catch(null),
-});
+const embeddingResponseSchema = z
+  .object({
+    model: z.string().min(1).nullish().catch(null),
+    usage: z.looseObject({ prompt_tokens: reportedCount, total_tokens: reportedCount }).nullish().catch(null),
+  })
+  .strip();
 
 interface KeptInput {
   readonly index: number;

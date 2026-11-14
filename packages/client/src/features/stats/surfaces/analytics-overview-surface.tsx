@@ -25,7 +25,7 @@ import { StatFigure } from "@orb/ui/stat-figure";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useEffect, useRef } from "react";
-import { QueryBoundary } from "#components";
+import { MutedLine, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { testId, timeLib, useFocusOnMount } from "#lib";
 import { setActiveSection, useSectionListMode } from "#state";
@@ -300,7 +300,7 @@ function MomentumColumn({
     return (
       <Stack gap="field" minWidth="popupNarrow" grow={true}>
         <Text voice="kicker">{label}</Text>
-        <Text voice="gloss">None this month.</Text>
+        <MutedLine>None this month.</MutedLine>
       </Stack>
     );
   }

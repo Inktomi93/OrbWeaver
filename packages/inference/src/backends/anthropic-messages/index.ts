@@ -37,7 +37,7 @@ const AUTH_FAILURE_RE = /\b401\b|\b403\b|unauthor|forbidden|invalid[\s_-]?api[\s
 /** Side-generation items in flight when the row states no `features.concurrency.summarize`. */
 const DEFAULT_CONCURRENCY = 4;
 
-const modelsSchema = z.object({ data: z.array(z.object({ id: z.string(), display_name: z.string().optional() }).loose()) }).loose();
+const modelsSchema = z.looseObject({ data: z.array(z.looseObject({ id: z.string(), display_name: z.string().optional() })) });
 
 function isAnthropicChatRequest(req: ChatRequest): req is AnthropicChatRequest {
   return req.api === "anthropic-messages";
