@@ -26,6 +26,8 @@ import type {
   PlainChatWarningCode,
   RequestTurnOp,
   RequestTurnParams,
+  RoomAdmission,
+  RoomClaim,
   SmartPicker,
   SpeakerRef,
   TurnGlobalVariables,
@@ -125,6 +127,7 @@ import { createViewerTextScrub, projectViewReturnForViewer, stripMessagesForView
 import { ownedCitedAssetIds } from "../substrate/owned-citations.ts";
 import { classifyParticipant, isArbiterEligible } from "../substrate/participant-actor.ts";
 import { hostConsentOf, humanSeatPersonasOf, lorePersonaIdsOf, seatsMultipleHumans } from "../substrate/participants-humans.ts";
+import { mintClaimExempt, mintRoomAdmission } from "../substrate/room-tokens.ts";
 import { projectRpgTranscript } from "../substrate/rpg-transcript.ts";
 import { userMessageDelta } from "../substrate/stats-delta.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
@@ -909,7 +912,7 @@ async function persistUserMessage(
   ctx: ChatContext,
   emit: TurnDeps["emit"],
   args: {
-    readonly chatId: ChatId;
+    readonly claim: RoomClaim;
     readonly content: string;
     readonly authorUserId: UserId;
     readonly personaId: PersonaId | null;
@@ -924,13 +927,14 @@ async function persistUserMessage(
     readonly macroFreezes: MacroFreezeRecord;
   },
 ): Promise<MessageView> {
+  const { chatId } = args.claim;
   const now = ctx.now();
   const attempt = async (): Promise<MessageView> => {
     const params = {
       messageId: ctx.newMessageId(),
       variantId: ctx.newMessageVariantId(),
-      chatId: args.chatId,
-      seq: (await loadMaxMessageSeq(ctx.db, args.chatId)) + 1,
+      chatId,
+      seq: (await loadMaxMessageSeq(ctx.db, chatId)) + 1,
       role: "user" as const,
       authorUserId: args.authorUserId,
       personaId: args.personaId,
@@ -951,7 +955,7 @@ async function persistUserMessage(
       }),
     );
     // characterId null — the stats rebuild's per-char grain is assistant-only.
-    await commitRetainedCanonStats(ctx, args.chatId, statements, {
+    await commitRetainedCanonStats(ctx, args.claim, statements, {
       deltas: [userMessageDelta({ ownerId: args.hostUserId, characterId: null, content: args.content, now })],
       sources: [],
       contributions: [],
@@ -964,8 +968,8 @@ async function persistUserMessage(
     }
     throw err;
   });
-  await emit({ type: "messageCommitted", chatId: args.chatId, messageId: view.id, view });
-  await ctx.emitChatChanged(args.chatId);
+  await emit({ type: "messageCommitted", chatId, messageId: view.id, view });
+  await ctx.emitChatChanged(chatId);
   return view;
 }
 
@@ -1435,9 +1439,14 @@ async function deferIfHostOffline(
 async function freezeGreetingVolatiles(
   ctx: ChatContext,
   deps: TurnDeps,
-  args: { readonly assembleContext: AssembleContext; readonly priorCanon: readonly MessageView[]; readonly freezeRegistry: MacroRegistry | null },
+  args: {
+    readonly claim: RoomClaim;
+    readonly assembleContext: AssembleContext;
+    readonly priorCanon: readonly MessageView[];
+    readonly freezeRegistry: MacroRegistry | null;
+  },
 ): Promise<void> {
-  const { assembleContext, priorCanon, freezeRegistry } = args;
+  const { claim, assembleContext, priorCanon, freezeRegistry } = args;
   const stmts = priorCanon.flatMap((m) => {
     if (m.role !== "assistant") {
       return [];
@@ -1463,7 +1472,7 @@ async function freezeGreetingVolatiles(
     if (chatId === undefined) {
       await ctx.db.batch(batchMany(stmts));
     } else {
-      await commitHostFencedWrite(ctx, chatId, stmts);
+      await commitHostFencedWrite(ctx, claim, stmts);
     }
   }
 }
@@ -1842,9 +1851,9 @@ async function commitUserTurn(
   // The first user message claims the room (D166). After every refusal above, because the claim is one-way and
   // a refused send must leave the room unclaimed; before the row, because retained accounting refuses a husk's
   // canon write and the claim replays the creation stats over the canon present at claim.
-  await deps.claimChat(chatId);
+  const claim = await deps.claimChat(membership.admission);
   const userView = await persistUserMessage(ctx, deps.emit, {
-    chatId,
+    claim,
     content: body,
     // D129-F provenance: `content` above is the draft after the freeze, the `user_input` transform, the
     // USER_INPUT regex and the attachment compose; `rawContent` is what the human actually typed. The writer
@@ -1859,7 +1868,7 @@ async function commitUserTurn(
   });
 
   if (isFirstUserTurn) {
-    await freezeGreetingVolatiles(ctx, deps, { assembleContext: built.assembleContext, priorCanon, freezeRegistry: built.freezeMacroRegistry });
+    await freezeGreetingVolatiles(ctx, deps, { claim, assembleContext: built.assembleContext, priorCanon, freezeRegistry: built.freezeMacroRegistry });
   }
 
   fireRpgUserCommit(ctx, chatId, userView.id);
@@ -2001,7 +2010,7 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
     }
     // A forced reply is a generated turn and claims like one (D166): after the host and seat gates, so a
     // refused force never claims, and before any engine write, which retained accounting refuses on a husk.
-    await deps.claimChat(chatId);
+    await deps.claimChat(membership.admission);
     // ACCEPTED: the caller is the host and the named character holds a present seat, so this turn IS happening
     // — open the client's slot NOW, before the connection resolve + the multi-second context build. Ordered
     // AFTER the NOT_FOUND throw above so a bad character id never opens a slot at all.
@@ -2158,6 +2167,8 @@ async function resolveTurnBase(
     readonly timeZone: IanaTimeZone | undefined;
     /** The caller's own refusal over the loaded room (generate's named speaker), run before the claim. */
     readonly admitRoom?: ((room: Room) => void) | undefined;
+    /** The caller's membership gate's proof, which the claim spends. */
+    readonly admission: RoomAdmission;
   },
 ): Promise<TurnBase> {
   const { principal, chatId } = args;
@@ -2167,7 +2178,7 @@ async function resolveTurnBase(
   // this base, so the claim cannot be forgotten on one of them. After every refusal of the request: each caller
   // ran its own guards, and the room and its speaker check passed above. The connection resolve and the engine
   // may still refuse on room state after it. Before any engine write.
-  await deps.claimChat(chatId);
+  await deps.claimChat(args.admission);
   const identity = resolveTurnIdentityVia({
     principalUserId: principal.userId,
     hostUserId: room.hostUserId,
@@ -2384,6 +2395,7 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
     const turnId = ctx.newChatTurnId();
     const built = await withAcceptedSlot(deps, { chatId, turnId, kind: "swipe", speakerCharacterId: target.characterId, targetMessageId: messageId }, () =>
       resolveTurnBase(ctx, deps, {
+        admission: membership.admission,
         principal,
         chatId,
         kind: "swipe",
@@ -2437,6 +2449,7 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
     const turnId = ctx.newChatTurnId();
     const built = await withAcceptedSlot(deps, { chatId, turnId, kind: "continue", speakerCharacterId: target.characterId, targetMessageId: messageId }, () =>
       resolveTurnBase(ctx, deps, {
+        admission: membership.admission,
         principal,
         chatId,
         kind: "continue",
@@ -2597,6 +2610,7 @@ function createImpersonateStream(ctx: ChatContext, deps: TurnDeps): ChatService[
       userMacroDraws,
       cardKeepLastX,
     } = await resolveTurnBase(ctx, deps, {
+      admission: membership.admission,
       principal,
       chatId,
       kind: "impersonate",
@@ -2765,6 +2779,7 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
     // NOT_FOUND closes the slot it opened.
     const base = await withAcceptedSlot(deps, slot, () =>
       resolveTurnBase(ctx, deps, {
+        admission: membership.admission,
         principal,
         chatId,
         kind: "generate",
@@ -2861,7 +2876,7 @@ async function restoreContinue(
     restored: { content, reasoning, undoContinuation: direction === "undo" },
   });
   try {
-    await commitHostFencedWrite(ctx, chatId, plan.statements);
+    await commitHostFencedWrite(ctx, mintClaimExempt(chatId), plan.statements);
   } catch (error) {
     if (isRetainedParentFenceViolation(error) && (await ctx.db.all(plan.selection)).length === 0) {
       await requireParticipant(ctx, principal, chatId);
@@ -3161,7 +3176,7 @@ interface RequestTurnResolved {
 /** requestTurn WALLS 1+2 + room/host/connection resolution. Throws the coded refusal on any wall breach; else
  *  returns the resolved substrate. Split out so the round-driver closure stays under the complexity bar. */
 async function resolveRequestTurn(ctx: ChatContext, deps: TurnDeps, params: RequestTurnParams): Promise<RequestTurnResolved> {
-  await requireRequestTurn(ctx, params);
+  const admission = await requireRequestTurn(ctx, params);
   const { chatId, triggeredBy, speakerCharacterId } = params;
   const chat = await loadChatRow(ctx.db, chatId);
   if (chat === undefined) {
@@ -3176,7 +3191,7 @@ async function resolveRequestTurn(ctx: ChatContext, deps: TurnDeps, params: Requ
   }
   // A requested turn is a generated turn and claims like one (D166): after every refusal above, so a refused
   // request never claims, and before any engine write, which retained accounting refuses on a husk.
-  await deps.claimChat(chatId);
+  await deps.claimChat(admission);
   // Freeze the room's host once for funding and assembly; the responsible human remains the initiator.
   const identity = { triggeredBy, funderUserId: room.hostUserId, runAsUserId: room.hostUserId };
   const connection = await deps.resolveConnection({
@@ -3187,7 +3202,7 @@ async function resolveRequestTurn(ctx: ChatContext, deps: TurnDeps, params: Requ
   return { chat, room, connection, identity };
 }
 
-async function requireRequestTurn(ctx: ChatContext, params: RequestTurnParams): Promise<void> {
+async function requireRequestTurn(ctx: ChatContext, params: RequestTurnParams): Promise<RoomAdmission> {
   const { chatId, initiator, triggeredBy, automationDepth } = params;
   // WALL 1 (write side). `"human"` is never a requestTurn origin (it would forge a human turn); refuse it.
   if (initiator === "human") {
@@ -3204,6 +3219,7 @@ async function requireRequestTurn(ctx: ChatContext, params: RequestTurnParams): 
   if ((await loadPresentRole(ctx.db, chatId, triggeredBy)) === null) {
     throw new ChatNotFoundError(chatId);
   }
+  return mintRoomAdmission(chatId);
 }
 
 export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurnOp {

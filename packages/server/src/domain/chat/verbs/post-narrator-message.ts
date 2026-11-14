@@ -32,6 +32,7 @@ import {
 } from "../persistence/canon-write.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
+import { mintRoomAdmission } from "../substrate/room-tokens.ts";
 import { appendStatsDeltas, assistantTurnDelta, retainedCanonDeltas } from "../substrate/stats-delta.ts";
 
 /** The alt text stamped on each embedded narrator-media ref (one home — no scattered magic string). */
@@ -49,7 +50,7 @@ function buildBody(content: string, refs: string): string {
 
 export function createPostNarratorMessage(input: ChatAssemblyContext, deps: PostNarratorMessageDeps): PostNarratorMessage {
   const ctx = createChatContext(input);
-  return async (chatId, content, media, options) => {
+  const postNarratorMessage: PostNarratorMessage = async (chatId, content, media, options) => {
     const mediaRefs = media ?? [];
     // The group character is owned by the room HOST (the D19 funding/authority identity) — the same
     // owner every narrator turn mints under (`turn.ts` runAiRound).
@@ -79,14 +80,14 @@ export function createPostNarratorMessage(input: ChatAssemblyContext, deps: Post
     // economics — so a post that was never going to commit (no host to author under, nothing to say) must not
     // spend it. The invariant it must not break is the other side: the claim still precedes the WRITE, because
     // the replay counts the canon present at claim and a claim after the write would double-count this row.
-    await deps.claimChat(chatId);
+    const claim = await deps.claimChat(mintRoomAdmission(chatId));
     const group = await ctx.mintSyntheticGroupCharacter({ ownerId: hostUserId, chatId });
 
     // The head allocation + its one expected collision ride the SHARED retry (`commitCanonAppend`): a
     // concurrent canon writer may have taken this seq, in which case the whole attempt — ids included — is
     // discarded and re-minted against the new head. Every id is minted INSIDE the attempt for that reason.
     const scope = await ctx.resolveRetainedChatAccountingScope(chatId, group.characterId);
-    const { view, messageId, variantId } = await commitCanonAppend(ctx.db, chatId, (seq) => {
+    const { view, messageId, variantId } = await commitCanonAppend(ctx.db, claim, (seq) => {
       const now = ctx.now();
       const attemptMessageId = ctx.newMessageId();
       const params = {
@@ -135,4 +136,5 @@ export function createPostNarratorMessage(input: ChatAssemblyContext, deps: Post
     await ctx.emitChatChanged(chatId);
     return { messageId, variantId };
   };
+  return postNarratorMessage;
 }
