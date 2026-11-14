@@ -38,7 +38,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { RowActionsMenu } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { notify, REGEX_PLACEMENT_GLYPHS, REGEX_PLACEMENT_LABELS, regexPlacementStages, regexScriptTitle, rowActionSubject } from "#lib";
+import { notify, REGEX_PLACEMENT_GLYPHS, REGEX_PLACEMENT_LABELS, ROW_MORE_LEAD, regexPlacementStages, regexScriptTitle, rowActionSubject } from "#lib";
 import { openConfigTo, selectCollectionMember } from "#state";
 import { useDetachScriptFromChat, useSetRegexScriptEnabled } from "../hooks/use-chat-regex-mutations.ts";
 import { regexScriptEverywhereSwitchName } from "../lib/regex-section-model.ts";
@@ -221,7 +221,7 @@ function RowActions({
     // thing this row genuinely cannot do, and the menu says which. `Open in library` is absent too: the
     // row is not in this viewer's library, so the drill-in would land on nothing.
     return (
-      <RowActionsMenu label={`More for ${name}: not yours: a previous host attached it, Detach from this chat`}>
+      <RowActionsMenu label={`${ROW_MORE_LEAD} ${name}: not yours: a previous host attached it, Detach from this chat`}>
         <MenuItem disabled={true}>A previous host attached this. Only its owner can switch it off.</MenuItem>
         <MenuItem
           onClick={(): void => {
@@ -235,7 +235,7 @@ function RowActions({
     );
   }
   return (
-    <RowActionsMenu label={`More for ${name}: Open in library${scope === "chat" ? ", Detach from this chat" : ""}`}>
+    <RowActionsMenu label={`${ROW_MORE_LEAD} ${name}: Open in library${scope === "chat" ? ", Detach from this chat" : ""}`}>
       <MenuItem
         onClick={(): void => {
           // The library is a CONFIG collection; landing on the group and then selecting the member is the

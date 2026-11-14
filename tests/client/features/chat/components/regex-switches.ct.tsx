@@ -4,7 +4,7 @@
 // The room's regex switches keep one stable name per item, `<setting>: <item>`; `aria-checked` alone carries the state. A script's
 // item is the subject its row menu names, so two scripts that share a title still have a switch name each.
 
-import { rowActionSubject, rowQualifiers } from "@orb/client/lib";
+import { ROW_MORE_LEAD, rowActionSubject, rowQualifiers } from "@orb/client/lib";
 import type { RegexTierKey } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
@@ -196,7 +196,7 @@ test("two scripts that share a title have a switch name each, in one tier and in
       const named = page.getByRole("switch", { name: regexScriptEverywhereSwitchName(subject, list), exact: true });
       await expect(named).toHaveCount(1);
       const row = page.locator('[data-slot="list-row-root"]').filter({ has: named });
-      await expect(row.getByRole("button", { name: `More for ${subject}:` })).toHaveCount(1);
+      await expect(row.getByRole("button", { name: `${ROW_MORE_LEAD} ${subject}:` })).toHaveCount(1);
     }
   }
 });

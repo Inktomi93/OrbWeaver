@@ -33,7 +33,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { RowActionsMenu } from "#components";
 import { DISPLAY_PLACEMENT, useDisplayScripts, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { regexScriptTitle, rowActionSubject, rowQualifiers, timeLib } from "#lib";
+import { ROW_MORE_LEAD, regexScriptTitle, rowActionSubject, rowQualifiers, timeLib } from "#lib";
 import { openConfigTo, selectCollectionMember } from "#state";
 import { useSetRegexScriptEnabled } from "../hooks/use-chat-regex-mutations.ts";
 import { REGEX_ON_SCREEN_LIST, regexScriptEverywhereSwitchName } from "../lib/regex-section-model.ts";
@@ -119,7 +119,7 @@ function DisplayScriptRow({
                   }}
                   tone="quiet"
                 />
-                <RowActionsMenu label={`More for ${subject}: Open in library`}>
+                <RowActionsMenu label={`${ROW_MORE_LEAD} ${subject}: Open in library`}>
                   <MenuItem
                     onClick={(): void => {
                       openConfigTo(REGEX_COLLECTION);
