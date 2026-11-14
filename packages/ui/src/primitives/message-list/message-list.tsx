@@ -22,6 +22,7 @@ import type { LiveRows, ReadingRow } from "./reading-row.ts";
 import { holdReadingRow, readingRowOf, rowIndexNow } from "./reading-row.ts";
 import type { MessageListRowNavigation, RowKey, RowPlacement, RowRovingOptions } from "./row-roving.ts";
 import { MESSAGE_LIST_ROW_SLOT, useRowRoving } from "./row-roving.ts";
+import { updateScrollbarGutter } from "./scrollbar-gutter.ts";
 import { messageListVariants } from "./variants.ts";
 
 // Chat rows are tall and expensive Markdown trees. Two rows covers a fast scroll gesture without parsing
@@ -649,6 +650,15 @@ export function MessageList<T>({
   // the SCROLLPORT rather than on a scroll event. Both of its triggers, and why the scroller keeps a real
   // ResizeObserver while content growth does not, are `./content-growth.ts`'s header.
   useScrollportSync({ contentHeightPx, pinnedIndexRef, scrollRef, setPinSpacerPx, setScrollportHeightPx, virtualizer });
+  // A scrollbar shows when the rows or the leading chrome outgrow the port, or the port shrinks under them. Read in the commit
+  // after any of those, never in the scroller's observer delivery (`scrollbar-gutter.ts`).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: contentHeightPx, leadingPx and scrollportHeightPx are the triggers; the body reads the live box off the ref.
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (el !== null) {
+      updateScrollbarGutter(el);
+    }
+  }, [contentHeightPx, leadingPx, scrollportHeightPx]);
 
   // Late-bind the roving hook's placement (declared above the virtualizer, used below it). A walk writes through
   // `scrollToFn`, so the scroll detector reads it as drift: it has to end following here, or the next measurement re-pins the tail.
