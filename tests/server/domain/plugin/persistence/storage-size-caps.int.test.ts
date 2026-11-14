@@ -1,7 +1,7 @@
 // A real guest's own storage write meets the same key and value caps the UI relay's schema applies, measured the same
 // way, and is refused with the relay's own coded refusal; nothing past a cap is written. Each case has an at-the-cap
 // control whose value reads back under its exact key. A guest string crosses whole, so a plain long key reaches the
-// measure as written; a NUL is refused before the measure (`tests/server/domain/plugin/substrate/stored-text-nul.int.test.ts`).
+// measure as written; a NUL is refused before the measure (`tests/server/domain/plugin/persistence/stored-text-nul.int.test.ts`).
 //
 // A key wrapped in an array once crossed whole while a plain string was cut at its NUL, and main stored a NUL-bearing
 // key that way far past the cap; the membrane now refuses a non-string key at the door, so those rows expect its refusal.

@@ -622,6 +622,7 @@ function openingStmts({ ctx, chatId, ci, characterId }: OneChatArgs): BatchStmt[
         // pair (it names a USER that does not exist on this box).
         starred: ci.starred ?? false,
         archived: ci.archived ?? false,
+        everShared: ci.everShared ?? false,
         compactSummary: ci.compactSummary ?? null,
         compactedAtSeq: ci.compactedAtSeq ?? null,
         variableValues: ci.variableValues ?? null,

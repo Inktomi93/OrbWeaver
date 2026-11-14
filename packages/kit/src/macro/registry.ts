@@ -504,6 +504,7 @@ const getGlobalVar: MacroHandler = (args, ctx) => {
   if (key === undefined || key === "") {
     return "";
   }
+  ctx.globalVarReads?.push(key);
   return ctx.globalVars === undefined ? "" : (readOwnKey(ctx.globalVars, key) ?? "");
 };
 

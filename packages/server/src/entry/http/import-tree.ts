@@ -14,8 +14,9 @@
 // mutation missing the custom header) → a hono/body-limit total-bytes cap (413) → per-file + count caps
 // (413) → fail-closed path sanitization (400, WHOLE upload rejected, nothing staged) → resolve-escape check
 // (never trust string filtering alone) → layout admission (400 on an unrecognized/ambiguous tree, or on a
-// declared native batch that is not wholly native — the declaration routes, it never authorizes) → owner-scoped
-// start. Every rejection is typed; a rejected path or a cap breach fails the WHOLE upload (no partial staging).
+// declared native batch that is not wholly native — the declaration routes, it never authorizes) → case-twin
+// refusal (400 naming two paths that differ only in letter case, which collide on a Windows or macOS volume; the
+// check runs on every host and before any byte is staged) → owner-scoped start. Every rejection is typed; a rejected path or a cap breach fails the WHOLE upload (no partial staging).
 
 import { constants as fsConstants } from "node:fs";
 import { mkdir, open, rm } from "node:fs/promises";
@@ -24,6 +25,7 @@ import type { PersonaCollisionChoices, TreeLayoutDeclaration } from "@orb/contra
 import {
   admitTreeBatch,
   decodePersonaCollisionChoices,
+  IMPORT_PREVIEW_TEXT_MAX,
   importStartedSchema,
   isStSecretsFile,
   PERSONA_COLLISION_FIELD,
@@ -236,9 +238,34 @@ async function stagePart(stagedRoot: string, relTarget: string, bytes: Uint8Arra
   }
 }
 
+/** A path as the refusal message shows it. The name is hostile, so it is clipped and made well formed. */
+function shownPath(path: string): string {
+  return path.slice(0, IMPORT_PREVIEW_TEXT_MAX).toWellFormed();
+}
+
+/** Refuse two files whose paths differ only in letter case. A Windows or macOS volume holds them as one name, so
+ *  the second write would collide there; refusing on every platform keeps the answer the same on a Linux host, and
+ *  does it before any byte is staged. Two spellings of one directory are no collision unless a file path repeats. */
+function refuseCaseTwins(paths: readonly string[]): void {
+  const firstByFold = new Map<string, string>();
+  for (const path of paths) {
+    const fold = path.toLowerCase();
+    const first = firstByFold.get(fold);
+    // An identical repeat is not a case twin; the staging write refuses it as a conflicting path.
+    if (first !== undefined && first !== path) {
+      throw new TreeRejected(
+        BAD_REQUEST,
+        `these two files differ only in letter case, and a Windows or macOS folder holds them as one file: "${shownPath(first)}" and "${shownPath(path)}". Rename one and upload again.`,
+      );
+    }
+    firstByFold.set(fold, first ?? path);
+  }
+}
+
 /** Stage every part under a fresh unique dir, normalizing paths by the sniffed `stagePrefix` + wrapper strip, and
  *  record each one's hash from the bytes in hand. The manifest goes last; its digest is what the run trusts. */
 async function stageTree(stagedRoot: string, parts: readonly UploadedFile[], wrapper: string | null, stagePrefix: string): Promise<string> {
+  refuseCaseTwins(parts.map((part) => part.relPath));
   const files: StagedFile[] = [];
   for (const part of parts) {
     const relTarget = stagePrefix + stripWrapper(part.relPath, wrapper);
