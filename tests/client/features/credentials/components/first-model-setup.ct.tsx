@@ -8,7 +8,12 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import { ADD_CONNECTION_NAME, CONNECTION_PROVIDER_FIELD_NAME } from "#client/features/credentials/lib/connections-copy.ts";
-import { API_KEY_FIELD_NAME, FIRST_MODEL_FINISH_NAME } from "#client/features/credentials/lib/credentials-names.ts";
+import {
+  API_KEY_FIELD_NAME,
+  FIRST_MODEL_ADD_UTILITY_CHOICE,
+  FIRST_MODEL_ADD_UTILITY_NAME,
+  FIRST_MODEL_FINISH_NAME,
+} from "#client/features/credentials/lib/credentials-names.ts";
 import type { ConnectionsListStory } from "./_connections-list-stories.tsx";
 
 const STORY = "tests/client/features/credentials/components/_connections-list-stories/ConnectionsListStory";
@@ -122,6 +127,24 @@ test("Finish turns on Allow background work and binds Utility to the new connect
   await finish.click();
   await expect(dialog).toHaveCount(0);
   expect(await savedUtility(root.caller)).toEqual({ boundToNew: true, allowBackground: true });
+});
+
+test("the step's corner close is its one way out, and the Utility add it opens goes Back to the step", async ({ mount, page }) => {
+  await using root = await setupRoot();
+  await routeTrpc(page, serveCorpusProcedures(root.caller, SERVED));
+  await mount<typeof ConnectionsListStory>(STORY, {});
+  const dialog = await openSetupStep(page);
+  await expectNoteNamesFinish(dialog);
+  // Closing the step applies nothing, so its footer offers no Cancel beside the act.
+  await expect(dialog.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true })).toHaveCount(0);
+  await dialog.getByRole("radio", { name: FIRST_MODEL_ADD_UTILITY_CHOICE, exact: true }).click();
+  await dialog.getByRole("button", { name: FIRST_MODEL_ADD_UTILITY_NAME, exact: true }).click();
+  await expect(dialog.getByRole("combobox", { name: CONNECTION_PROVIDER_FIELD_NAME, exact: true })).toBeVisible();
+  // The add is a stage of the step: its exit is a Back that returns to the step, not a Cancel that closes the dialog.
+  await expect(dialog.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true })).toHaveCount(0);
+  await dialog.getByRole("button", { name: DIALOG_VERBS.back, exact: true }).click();
+  await expect(dialog.locator('[data-slot="first-model-setup"]')).toBeVisible();
+  expect(await savedUtility(root.caller)).toEqual({ boundToNew: false, allowBackground: false });
 });
 
 test("dismissing the step leaves Utility unset and background work off, as its note says", async ({ mount, page }) => {

@@ -2,7 +2,7 @@ import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
+import { ContextTabBody, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import type { CorpusDestination } from "#lib";
 import { timeLib } from "#lib";
@@ -10,7 +10,11 @@ import { openChatMoment, resumeChat, selectCharacter, setActiveSection, useSelec
 
 export function CorpusArtifactContext(): ReactElement | null {
   const destination = useSelectedCorpusDestination();
-  return destination === null ? null : <ArtifactProvenance destination={destination} />;
+  return destination === null ? null : (
+    <ContextTabBody kind="blocks">
+      <ArtifactProvenance destination={destination} />
+    </ContextTabBody>
+  );
 }
 
 function ArtifactProvenance({ destination }: { readonly destination: CorpusDestination }): ReactElement {

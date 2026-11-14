@@ -35,7 +35,7 @@ import { CHAT_APIS, LOCAL_LIGHT_SEED_ROWS, MODEL_CHECKS } from "@orb/contracts/i
 import type { ModelId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { nulFreeText } from "../custom-types/index.ts";
+import { nulFreeText, stampColumn } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { userCredentials } from "./credentials.ts";
 import { users } from "./users.ts";
@@ -95,8 +95,8 @@ export const userConnections = sqliteTable(
     // The model the local-light seed last put this slot row on (NULL on rows seeded before the column). The seed
     // moves a row to a new default only while the row is still on the model it gave it, so a user's own pick stays.
     seedModel: nulFreeText("seed_model").$type<ModelId>(),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
-    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
+    updatedAt: stampColumn("updated_at"),
   },
   (t) => [
     // `(owner, label)` unique — the pane's collision suffix; it also serves the owner-scoped list read

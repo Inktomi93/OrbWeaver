@@ -1,4 +1,4 @@
-import { DismissDialog, FormDialog, FormDialogPopup, FormDialogRoot } from "@orb/client/components";
+import { DismissDialog, FormDialog, FormDialogPopup, FormDialogRoot, SheetDialog } from "@orb/client/components";
 import { CtIsolation } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
@@ -90,6 +90,30 @@ export function FormDialogBodyStateStory(): ReactElement {
           }}
         />
       </FormDialogRoot>
+    </CtIsolation>
+  );
+}
+
+/** The production commit dialog open from the start under the title the case names, for the title's cut and its reveal. */
+export function FormDialogTitleStory({ title }: { readonly title: string }): ReactElement {
+  const [open, setOpen] = useState(true);
+  return (
+    <CtIsolation subject="FormDialog" isolates="isolates the dialog title's cut and reveal from authenticated mutations">
+      <FormDialog onOpenChange={setOpen} open={open} submit={{ label: "Save", onSubmit: (): void => setOpen(false) }} title={title}>
+        <input aria-label="Value" />
+      </FormDialog>
+    </CtIsolation>
+  );
+}
+
+/** The production bottom sheet open from the start under the title the case names. */
+export function SheetDialogTitleStory({ title }: { readonly title: string }): ReactElement {
+  const [open, setOpen] = useState(true);
+  return (
+    <CtIsolation subject="SheetDialog" isolates="isolates the sheet title's cut and reveal from authenticated mutations">
+      <SheetDialog onOpenChange={setOpen} open={open} title={title}>
+        <Stack gap="block">Body</Stack>
+      </SheetDialog>
     </CtIsolation>
   );
 }

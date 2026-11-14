@@ -7,22 +7,26 @@ import { bareCatalogEntry, failedListing, listingOf } from "../backends/wire/mod
 import type { ModelsDial } from "../contract/diagnostics.ts";
 import { ProviderError } from "../contract/errors.ts";
 
-const modelsSchema = z.object({
-  models: z.array(
-    z.object({
-      name: z.string(),
-      displayName: z.string().optional(),
-      inputTokenLimit: z.number().positive().optional(),
-      outputTokenLimit: z.number().positive().optional(),
-      supportedGenerationMethods: z.array(z.string()),
-      thinking: z.boolean().optional(),
-      maxTemperature: z.number().optional(),
-      topP: z.number().optional(),
-      topK: z.number().optional(),
-    }),
-  ),
-  nextPageToken: z.string().optional(),
-});
+const modelsSchema = z
+  .object({
+    models: z.array(
+      z
+        .object({
+          name: z.string(),
+          displayName: z.string().optional(),
+          inputTokenLimit: z.number().positive().optional(),
+          outputTokenLimit: z.number().positive().optional(),
+          supportedGenerationMethods: z.array(z.string()),
+          thinking: z.boolean().optional(),
+          maxTemperature: z.number().optional(),
+          topP: z.number().optional(),
+          topK: z.number().optional(),
+        })
+        .strip(),
+    ),
+    nextPageToken: z.string().optional(),
+  })
+  .strip();
 
 function catalogEntry(row: z.infer<typeof modelsSchema>["models"][number]): ModelCatalogEntry[] {
   let kind: ModelCatalogEntry["kind"];

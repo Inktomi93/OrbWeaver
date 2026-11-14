@@ -35,11 +35,11 @@ interface PhaseMark {
   readonly at: number;
 }
 
-let openMarks: PhaseMark[] | null = null;
+let openLedger: { readonly marks: PhaseMark[]; readonly now: () => number } | null = null;
 
 /** Record that the call in flight entered `phase`; it lasts until the next mark. */
 export function markCallPhase(phase: CallPhase, detail: Arm | null = null): void {
-  openMarks?.push({ phase, detail, at: Date.now() });
+  openLedger?.marks.push({ phase, detail, at: openLedger.now() });
 }
 
 export interface CallPhaseLedger extends Disposable {
@@ -61,15 +61,17 @@ function describeMarks(marks: readonly PhaseMark[], startedAt: number, now: numb
   return `in flight: ${inFlight}${earlier}`;
 }
 
-/** Open the ledger for one call. Disposing it closes the ledger, so a later mark from the same work is dropped. */
-export function openCallPhaseLedger(startedAt: number): CallPhaseLedger {
+/** Open the ledger for one call. Disposing it closes the ledger, so a later mark from the same work is dropped.
+ *  Marks read `now`, the clock `startedAt` and `describe` are read on. */
+export function openCallPhaseLedger(startedAt: number, now: () => number = Date.now): CallPhaseLedger {
   const marks: PhaseMark[] = [];
-  openMarks = marks;
+  const ledger = { marks, now };
+  openLedger = ledger;
   return {
-    describe: (now) => describeMarks(marks, startedAt, now),
+    describe: (at) => describeMarks(ledger.marks, startedAt, at),
     [Symbol.dispose]: (): void => {
-      if (openMarks === marks) {
-        openMarks = null;
+      if (openLedger === ledger) {
+        openLedger = null;
       }
     },
   };

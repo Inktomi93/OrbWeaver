@@ -23,14 +23,14 @@
 // `tags.folderType` ← TAG_FOLDER_TYPES, `character_tags.status` ← TAG_STATUSES (all @orb/contracts/tag).
 // Each gets a tuple-derived CHECK (a CHECK is DDL — a static raw fragment, no bound parameters) + a
 // test-mirror over the column's `.enumValues`. Timestamps are plain `integer("x_at")` epoch-ms NUMBERS,
-// born at insert via `(unixepoch() * 1000)`. Every junction FK CASCADEs (delete the tag OR the target → the
+// stated by each insert (`stampColumn`). Every junction FK CASCADEs (delete the tag OR the target → the
 // junction row is gone).
 
 import { TAG_FOLDER_TYPES, TAG_SOURCES, TAG_STATUSES } from "@orb/contracts/tag";
 import type { CharacterId, ChatId, PersonaId, PresetId, TagId, UserId, WorldBookId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { nulFreeText } from "../custom-types/index.ts";
+import { nulFreeText, stampColumn } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { characters } from "./character.ts";
 import { chats } from "./chat.ts";
@@ -76,7 +76,7 @@ export const tags = sqliteTable(
     sortOrder: integer("sort_order"),
     // ST is_hidden_on_character_card — chip suppressed on rows/cards while the tag keeps filtering.
     isHiddenOnCard: integer("is_hidden_on_card", { mode: "boolean" }).notNull().default(false),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     // One namespace per owner — the create-tag conflict target. CASE-INSENSITIVE: a
@@ -110,7 +110,7 @@ export const characterTags = sqliteTable(
     // pending | accepted — derives TAG_STATUSES. A suggestion (import/corpus distillation) defaults to
     // `pending`; "Accept" flips it to `accepted`; export reads `accepted` rows.
     status: text("status", { enum: TAG_STATUSES }).notNull().default(DEFAULT_TAG_STATUS),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     primaryKey({ columns: [t.characterId, t.tagId] }),
@@ -146,7 +146,7 @@ export const chatTags = sqliteTable(
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   // The composite PK `(chatId, tagId, ownerId)` IS the D30 `unique(chatId, tagId, ownerId)` — per-tagger
   // uniqueness, cross-tagger coexistence. No separate unique index (it would duplicate the PK).
@@ -178,7 +178,7 @@ export const worldBookTags = sqliteTable(
       .$type<TagId>()
       .notNull()
       .references(() => tags.id, { onDelete: "cascade" }),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     primaryKey({ columns: [t.worldBookId, t.tagId] }),
@@ -198,7 +198,7 @@ export const personaTags = sqliteTable(
       .$type<TagId>()
       .notNull()
       .references(() => tags.id, { onDelete: "cascade" }),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     primaryKey({ columns: [t.personaId, t.tagId] }),
@@ -218,7 +218,7 @@ export const presetTags = sqliteTable(
       .$type<TagId>()
       .notNull()
       .references(() => tags.id, { onDelete: "cascade" }),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     primaryKey({ columns: [t.presetId, t.tagId] }),

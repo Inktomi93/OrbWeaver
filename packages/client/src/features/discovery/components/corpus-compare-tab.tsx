@@ -18,7 +18,7 @@ import { Select } from "@orb/ui/select";
 import { NoValue, Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
+import { ContextTabBody, QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { testId } from "#lib";
@@ -46,16 +46,18 @@ const PICKER_PAGE = 200;
 export function CorpusCompareTab(): ReactElement {
   return (
     // The bracket owns the stable viewport; the query boundary measures content without trapping scroll chaining.
-    <Stack className="relative" minHeight="shrinks" data-testid={testId("corpusCompareTab")}>
-      <QueryBoundary
-        resetKeys={[]}
-        fallback={<SkeletonRows count={3} shape="line" />}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="characters" onRetry={retry} />}
-        reserveKey="corpus.compare"
-      >
-        <CompareBody />
-      </QueryBoundary>
-    </Stack>
+    <ContextTabBody>
+      <Stack className="relative" minHeight="shrinks" data-testid={testId("corpusCompareTab")}>
+        <QueryBoundary
+          resetKeys={[]}
+          fallback={<SkeletonRows count={3} shape="line" />}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="characters" onRetry={retry} />}
+          reserveKey="corpus.compare"
+        >
+          <CompareBody />
+        </QueryBoundary>
+      </Stack>
+    </ContextTabBody>
   );
 }
 

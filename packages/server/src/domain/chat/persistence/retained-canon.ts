@@ -1,5 +1,6 @@
 // Retained canon changes share one accounting cohort snapshot and a first-write fence, independent of funding.
 
+import type { RoomClaim } from "@orb/contracts/chat";
 import type { StatsDelta } from "@orb/contracts/stats";
 import { chats, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
@@ -46,16 +47,18 @@ function retainedCanonSourcePredicate(source: RetainedCanonSource): ReturnType<t
       and (select count(*) from ${messageVariants} where ${messageVariants.messageId} = ${source.id}) = ${source.variantCount})`;
 }
 
-/** Every signed canon mutation advances all affected owner fences in the same guarded batch. */
+/** Every signed canon mutation advances all affected owner fences in the same guarded batch. It takes the room's
+ *  claim, because the claim's stats replay counts the canon present at claim and this mutation's deltas count it again. */
 export async function commitRetainedCanonStats(
   ctx: RetainedCanonContext,
-  chatId: ChatId,
+  claim: RoomClaim,
   statements: BatchStmt[],
   mutation: RetainedCanonMutation,
 ): Promise<void> {
+  const { chatId } = claim;
   const prepared = await prepareRetainedCanonStats(ctx, chatId, mutation.deltas, mutation);
   const selection = sql`select ${chats.id} from ${chats} where ${and(eq(chats.id, chatId), prepared.predicate, mutation.admission)}`;
-  statements.unshift(retainedChatFenceStatement(ctx.db, selection));
+  statements.unshift(retainedChatFenceStatement(ctx.db, selection, ctx.now()));
   appendStatsDeltas(ctx, statements, prepared.deltas);
   if (mutation.deltas.length === 0) {
     for (const ownerId of prepared.ownerIds) {

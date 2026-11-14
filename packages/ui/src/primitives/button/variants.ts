@@ -171,8 +171,9 @@ export const buttonVariants = tv({
     // conditions with no negation to hide under, so this arm restores the display.
     hiddenAt: { ...HIDDEN_AT, unlessDialogLandscapeWide: "hidden dialog-short:glass-short:inline-flex dialog-stacked:hidden" },
     reveal: HOVER_REVEAL,
-    // A glyph-only chip is narrower than the touch floor at a coarse pointer; its `sm` height already clears it.
-    touchFloor: { inline: TOUCH_FLOOR_AT_COARSE.inline },
+    // A glyph-only chip is narrower than the touch floor at a coarse pointer; its `sm` height already clears it. A text-height
+    // action at a window's edge, where its centred hit band would run past the edge, stands at the floor's block size instead.
+    touchFloor: { inline: TOUCH_FLOOR_AT_COARSE.inline, block: TOUCH_FLOOR_AT_COARSE.block },
 
     // The accent ring for the moment a change this control made has landed (a portrait just replaced).
     confirming: { true: "ring-(length:--border-width-rule) ring-accent", false: "" },

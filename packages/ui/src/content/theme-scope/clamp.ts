@@ -77,26 +77,28 @@ const colorToken = z.string().refine(isSafeColor).optional().catch(undefined);
 const deterministicColorToken = z.string().refine(isDeterministicColor).optional().catch(undefined);
 // The bg is a FILL with a foreground derived from it; .fg remains in the paired wire shape but is not
 // painted. Inherited/direct colors below deliberately retain the broader safe-color contract.
-const bubble = z.object({ bg: deterministicColorToken, fg: colorToken }).optional().catch(undefined);
+const bubble = z.object({ bg: deterministicColorToken, fg: colorToken }).strip().optional().catch(undefined);
 
 // The ui-local override shape callers pass (loose — every field optional; failures drop per-field).
-const themeScopeTokensSchema = z.object({
-  // These are derivation origins: accent gets a foreground/contrast correction, background gets the
-  // whole surface/chart ramp. Contextual/system/CSS-wide colors cannot stand in for authored pixels.
-  accent: deterministicColorToken,
-  userBubble: bubble,
-  aiBubble: bubble,
-  systemBubble: bubble,
-  speaker: colorToken,
-  dialogueColor: colorToken,
-  narrationColor: colorToken,
-  bodyColor: colorToken,
-  font: z.enum(THEME_FONT_ALLOWLIST).optional().catch(undefined),
-  radius: z.enum(RADII).optional().catch(undefined),
-  background: deterministicColorToken,
-  borderColor: colorToken,
-  density: z.enum(DENSITIES).optional().catch(undefined),
-});
+const themeScopeTokensSchema = z
+  .object({
+    // These are derivation origins: accent gets a foreground/contrast correction, background gets the
+    // whole surface/chart ramp. Contextual/system/CSS-wide colors cannot stand in for authored pixels.
+    accent: deterministicColorToken,
+    userBubble: bubble,
+    aiBubble: bubble,
+    systemBubble: bubble,
+    speaker: colorToken,
+    dialogueColor: colorToken,
+    narrationColor: colorToken,
+    bodyColor: colorToken,
+    font: z.enum(THEME_FONT_ALLOWLIST).optional().catch(undefined),
+    radius: z.enum(RADII).optional().catch(undefined),
+    background: deterministicColorToken,
+    borderColor: colorToken,
+    density: z.enum(DENSITIES).optional().catch(undefined),
+  })
+  .strip();
 export type ThemeScopeTokens = z.infer<typeof themeScopeTokensSchema>;
 
 /**

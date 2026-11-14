@@ -10,7 +10,7 @@ import { Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { DestructiveAction, MutedLine, QueryBoundary } from "#components";
+import { ContextTabBody, DestructiveAction, MutedLine, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { DIALOG_VERBS, timeLib } from "#lib";
 import { useRestoreCharacter, useSnapshotCharacter } from "../hooks/use-character-context-mutations.ts";
@@ -28,14 +28,16 @@ function formatTimestamp(ms: number): string {
 
 export function CharacterHistoryTab({ characterId }: CharacterHistoryTabProps): ReactElement {
   return (
-    <QueryBoundary
-      resetKeys={[characterId]}
-      key={characterId}
-      fallback={<SkeletonRows count={3} />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="this character's snapshots" onRetry={retry} />}
-    >
-      <HistoryTabBody characterId={characterId} />
-    </QueryBoundary>
+    <ContextTabBody kind="blocks">
+      <QueryBoundary
+        resetKeys={[characterId]}
+        key={characterId}
+        fallback={<SkeletonRows count={3} />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="this character's snapshots" onRetry={retry} />}
+      >
+        <HistoryTabBody characterId={characterId} />
+      </QueryBoundary>
+    </ContextTabBody>
   );
 }
 

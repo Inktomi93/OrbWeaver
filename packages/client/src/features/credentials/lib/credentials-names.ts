@@ -27,6 +27,9 @@ export const LIST_MODELS_NAME = "List models";
 
 /** The first-model step's commit button. */
 export const FIRST_MODEL_FINISH_NAME = "Finish";
+/** The first-model step's choice to add the Utility model next, and the commit that opens that add. */
+export const FIRST_MODEL_ADD_UTILITY_CHOICE = "Add a different model for it";
+export const FIRST_MODEL_ADD_UTILITY_NAME = "Add a model";
 
 /** The model picker's search box placeholder. */
 export const MODEL_SEARCH_PLACEHOLDER = "Search models…";

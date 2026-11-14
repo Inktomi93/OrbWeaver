@@ -10,9 +10,9 @@ import { updateJournalEntry } from "#src/domain/rpg/persistence/journal.ts";
 
 export function createEditJournalEntry(ctx: RpgContext): Pick<RpgService, "editJournalEntry"> {
   async function editJournalEntry(params: EditJournalEntryParams): Promise<void> {
-    const { game } = await resolveHost(ctx, params.principal, params.chatId);
-    await ctx.claimChat(params.chatId);
-    if (!(await updateJournalEntry(ctx.db, game.id, params.entryId, params.patch))) {
+    const { game, admission } = await resolveHost(ctx, params.principal, params.chatId);
+    const claim = await ctx.claimChat(admission);
+    if (!(await updateJournalEntry(ctx.db, claim, { gameId: game.id, id: params.entryId }, params.patch))) {
       throw new DomainNotFoundError("journal", params.entryId);
     }
     // The paged Journal refetches (§4.9).

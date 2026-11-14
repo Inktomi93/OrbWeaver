@@ -19,12 +19,14 @@ export function WorldInfoContextBody({ memberId }: { readonly memberId: string }
   if (book === undefined) {
     // action={null}: the GONE arm of the world-info CONTEXT pane — the open book was deleted while its attachments were on screen. The next step is picking another row in the sibling roster, which is on screen; the regex-context-body twin, same species. Ends if the context pane can be shown without its sibling roster.
     return (
-      <EmptyState
-        action={null}
-        description="This book was deleted. Pick another from the list."
-        icon={<Icon icon={BookOpen} size="lg" />}
-        title="Book not found"
-      />
+      <ContextTabBody>
+        <EmptyState
+          action={null}
+          description="This book was deleted. Pick another from the list."
+          icon={<Icon icon={BookOpen} size="lg" />}
+          title="Book not found"
+        />
+      </ContextTabBody>
     );
   }
   return (

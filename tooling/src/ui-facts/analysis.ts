@@ -122,7 +122,7 @@ export function analyse(root: string, exceptions: readonly ExceptionEntry[], sel
   const components = componentTables(root, sources);
   const census = buildHandRolling({ sources, sites: live, tokens, components, referenced });
   const cohorts = [
-    ...buildCohorts(files),
+    ...buildCohorts(files, sources),
     ...buildCopyCohorts(files, sources),
     buildCapsProseCohort(files, components),
     buildMutationCohort(sources),

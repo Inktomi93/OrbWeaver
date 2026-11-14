@@ -28,6 +28,15 @@ export function presetVariableOptionRemoveTitle(ordinal: number): string {
 }
 export const PRESET_IMPORT_NAME = "Import preset";
 
+/** The built-in's fork choice: its second stage's title, the field it names the fork in, and the commits of both stages. */
+export const PRESET_FORK_NAME_TITLE = "Name the new fork";
+export const PRESET_FORK_NAME_FIELD_NAME = "New fork name";
+export const PRESET_FORK_START_NAME = "Start a new fork";
+export const PRESET_FORK_CREATE_NAME = "Create fork";
+export function presetForkKeepEditingName(forkName: string): string {
+  return `Keep editing ${forkName}`;
+}
+
 /** The editor header's activate command; the list's radiogroup names the same pick differently. */
 export const PRESET_ACTIVATE_NAME = "Activate: use this preset for generation";
 

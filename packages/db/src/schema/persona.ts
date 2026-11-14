@@ -12,9 +12,8 @@
 import type { PersonaMetadata } from "@orb/contracts/persona";
 import type { AssetId, PersonaId, UserId } from "@orb/kit/ids";
 import type { UnreadableJsonText } from "@orb/kit/json";
-import { sql } from "drizzle-orm";
 import { index, integer, sqliteTable } from "drizzle-orm/sqlite-core";
-import { nulFreeText, storedJsonText } from "../custom-types/index.ts";
+import { nulFreeText, stampColumn, storedJsonText } from "../custom-types/index.ts";
 import { assets } from "./assets.ts";
 import { users } from "./users.ts";
 
@@ -41,8 +40,8 @@ export const personas = sqliteTable(
       .references(() => assets.id, { onDelete: "set null" }),
     // Typed JSON blob (PersonaMetadata) — parsed at the read seam (@orb/db/query), never trusted raw.
     metadata: storedJsonText("metadata").$type<PersonaMetadata | UnreadableJsonText>(),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
-    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
+    updatedAt: stampColumn("updated_at"),
   },
   (t) => [
     // Owner-scoped list (`fetchOwned`) — consistency with presets, which kept its owner idx.

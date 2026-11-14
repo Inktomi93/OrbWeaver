@@ -20,7 +20,7 @@ import type { ExternalId, Handle, HandleKey, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { nulFreeText } from "../custom-types/index.ts";
+import { nulFreeText, stampColumn } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 
 // The default global role for a freshly-provisioned user (owner/admin are granted explicitly — D17).
@@ -62,8 +62,8 @@ export const users = sqliteTable(
     ownerUserId: nulFreeText("owner_user_id")
       .$type<UserId>()
       .references((): AnySQLiteColumn => users.id, { onDelete: "cascade" }),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
-    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
+    updatedAt: stampColumn("updated_at"),
   },
   (table) => [
     uniqueIndex("users_handle_unique").on(table.handle),

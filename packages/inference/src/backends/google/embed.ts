@@ -21,9 +21,11 @@ import { GOOGLE_KEY, googleModelId, googleProviderFor } from "./model.ts";
 const INPUT_RESERVE_TOKENS = 64;
 // GenerateContent embedContent/batchEmbedContents raw response, not the Interactions usage shape.
 // The installed SDK leaves usage undefined but retains this actual API response in response.body.
-const embeddingResponseUsageSchema = z.object({
-  usageMetadata: z.object({ promptTokenCount: z.number().int().nonnegative().optional() }).optional(),
-});
+const embeddingResponseUsageSchema = z
+  .object({
+    usageMetadata: z.object({ promptTokenCount: z.number().int().nonnegative().optional() }).strip().optional(),
+  })
+  .strip();
 const IMAGE_URL_MIMES: ReadonlyMap<string, string> = new Map([
   ["png", "image/png"],
   ["jpg", "image/jpeg"],

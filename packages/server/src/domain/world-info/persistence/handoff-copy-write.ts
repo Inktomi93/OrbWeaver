@@ -82,7 +82,9 @@ export function createCopyHandoffBooks(input: DbAssemblyInput<WorldInfoImportCon
       const bookId = ctx.newBookId();
       copyOf.set(source.id, bookId);
       mints.push(
-        batchStmt(db.insert(worldBooks).values({ id: bookId, ownerId: toOwnerId, name: source.name, description: source.description, createdAt: at })),
+        batchStmt(
+          db.insert(worldBooks).values({ id: bookId, ownerId: toOwnerId, name: source.name, description: source.description, createdAt: at, updatedAt: at }),
+        ),
       );
       return bookId;
     };
@@ -244,6 +246,7 @@ async function entryMints(ctx: WorldInfoImportContext, copyOf: ReadonlyMap<World
               ignoreBudget: entry.ignoreBudget,
               metadata: entry.metadata,
               createdAt: at,
+              updatedAt: at,
             }),
           ),
         ];

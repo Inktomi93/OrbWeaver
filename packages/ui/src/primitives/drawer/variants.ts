@@ -27,8 +27,10 @@ export const drawerVariants = tv({
     swipeArea: "fixed inset-x-0 inset-be-0 z-(--z-overlay) touch-none block-row",
     indent: "transition-transform duration-(--motion-layout) ease-out-expo data-active:scale-95",
     indentBackground: `pointer-events-none opacity-0 ${SCRIM_BASE} transition-opacity duration-(--motion-layout) ease-out-expo data-active:opacity-100`,
-    // A short sheet's title truncates to one line beside Close (ui-platform-rulings §8.1); its full text stays the sheet's accessible name.
-    title: `${TITLE_STEP} sheet-short:glass-short:truncate ${MIN_HEIGHT.holdsLineOnLandscape}`,
+    // A short sheet's title holds one line beside Close and its words truncate to it (ui-platform-rulings §8.1); its full text stays the
+    // sheet's accessible name. The words are their own box, so a reader can tell they are cut and a reveal can open them whole.
+    title: `${TITLE_STEP} sheet-short:glass-short:flex sheet-short:glass-short:min-inline-0 ${MIN_HEIGHT.holdsLineOnLandscape}`,
+    titleText: `${TITLE_STEP} min-inline-0 sheet-short:glass-short:truncate`,
     description: POPUP_DESCRIPTION,
   },
 });

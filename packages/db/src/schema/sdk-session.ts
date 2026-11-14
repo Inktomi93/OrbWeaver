@@ -5,7 +5,7 @@
 import type { ChatId, SessionEntryId, UserConnectionId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { index, integer, sqliteTable, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { nulFreeText } from "../custom-types/index.ts";
+import { nulFreeText, stampColumn } from "../custom-types/index.ts";
 import { chats } from "./chat.ts";
 import { userConnections } from "./connection.ts";
 
@@ -57,7 +57,7 @@ export const sessionEntries = sqliteTable(
       .$type<UserConnectionId>()
       .notNull()
       .references(() => userConnections.id, { onDelete: "cascade" }),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     // The lineage order + the per-chat ordinal; `seq` is unique within a chat (the chat-cluster pattern).

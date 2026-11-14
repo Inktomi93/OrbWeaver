@@ -34,15 +34,19 @@ test("native Chromium preserves explicit graphics and caller launch choices besi
   });
 });
 
-test("native non-Chromium launch retains caller arguments without Chromium switches or identity mutation", () => {
-  const marker = inheritedRunMarker();
-  for (const browserName of ["firefox", "webkit"] as const) {
-    const options = nativeBrowserLaunchOptions(browserName, { args: ["caller-argument"], env: { ["DISPLAY"]: "caller-display" }, headless: false });
-    expect(options.args).toEqual(["caller-argument"]);
-    expect(options.env?.["DISPLAY"]).toBe("caller-display");
-    expect(options.headless).toBe(false);
-    expect(inheritedRunMarker()).toBe(marker);
-  }
+test("native non-Chromium launch retains caller arguments without Chromium switches or identity mutation", async () => {
+  // A planted marker, so an identity a launch rewrote or cleared cannot read as the ambient run's own absence.
+  const marker = mintRunMarker(43, 1000);
+  await withProcessEnv(RUN_MARKER_ENV, marker, () => {
+    for (const browserName of ["firefox", "webkit"] as const) {
+      const options = nativeBrowserLaunchOptions(browserName, { args: ["caller-argument"], env: { ["DISPLAY"]: "caller-display" }, headless: false });
+      expect(options.args).toEqual(["caller-argument"]);
+      expect(options.env?.["DISPLAY"]).toBe("caller-display");
+      expect(options.headless).toBe(false);
+      expect(inheritedRunMarker()).toBe(marker);
+    }
+    return Promise.resolve();
+  });
 });
 
 test("native config construction cannot mint an owner when no run identity was inherited", async () => {

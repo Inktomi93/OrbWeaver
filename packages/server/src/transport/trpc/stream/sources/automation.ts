@@ -19,7 +19,7 @@
 // `authorizeAttach` after it.
 //
 // THE GATE ALSO RUNS INSIDE THE PUMP, because it is where the TIER comes from: the same call returns
-// `host` | `member`, and a `member`-tier subscriber receives ONLY the room-visible `quickReplySurfaced` chips
+// `host-only` | `member-visible`, and a `member-visible`-tier subscriber receives ONLY the room-visible `quickReplySurfaced` chips
 // — every other event (rule fire/error/disable/config-change) is the host's hidden hand. Resolving it at pump
 // START keeps the pre-fold ORDERING exact (gate first, bus tail second — this bus, unlike chat's, never
 // promised the gate→listen gap loses nothing) and fails a broken read fast even in a silent room.
@@ -37,7 +37,7 @@ import type { RoomSourceDef } from "../room-source.ts";
 
 /** The one MEMBER-visible automation-bus event — the transient quick-reply chips. Every OTHER event
  *  (ruleFired/ruleErrored/ruleAutoDisabled/rulesChanged) is the host's hidden hand, filtered out below for a
- *  `member`-tier subscriber. */
+ *  `member-visible`-tier subscriber. */
 const MEMBER_VISIBLE_EVENT: AutomationBusEvent["type"] = "quickReplySurfaced";
 
 export const automationRoomSource: RoomSourceDef<"automation"> = {
@@ -63,12 +63,12 @@ export const automationRoomSource: RoomSourceDef<"automation"> = {
       // the header already forbids for the ATTACH verdict; it was simply not being kept one loop further in.
       // This is the house idiom, not a new one: `sources/chat.ts` re-probes membership on every live yield and
       // `sources/rpg.ts` calls `isChatMember` inside its loop. Automation was the outlier. A KICK now throws
-      // here exactly as it does at pump start (→ this room's `roomFailed`); a DEMOTION narrows to `member`
+      // here exactly as it does at pump start (→ this room's `roomFailed`); a DEMOTION narrows to `member-visible`
       // from the very next event. The read is one indexed roster lookup on a low-frequency bus.
       const authority = await services.automation.resolveStreamAuthority({ principal, chatId: ref.chatId });
-      // A `member`-tier subscriber receives ONLY the room-visible chips; every other event is the host's
+      // A `member-visible`-tier subscriber receives ONLY the room-visible chips; every other event is the host's
       // hidden hand (rule fire/error/disable/config-change), filtered out here per subscriber.
-      if (authority !== "host" && event.type !== MEMBER_VISIBLE_EVENT) {
+      if (authority !== "host-only" && event.type !== MEMBER_VISIBLE_EVENT) {
         continue;
       }
       yield { channel: "automation", chatId: ref.chatId, event };

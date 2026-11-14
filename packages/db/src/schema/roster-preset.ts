@@ -17,9 +17,8 @@ import type { RulePresetId, RulePresetKnobValues } from "@orb/contracts/automati
 import type { GroupConfigInput } from "@orb/contracts/chat";
 import type { RpgGameTemplate } from "@orb/contracts/rpg";
 import type { CharacterId, PersonaId, RosterPresetId, UserId } from "@orb/kit/ids";
-import { sql } from "drizzle-orm";
 import { index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { nulFreeText } from "../custom-types/index.ts";
+import { nulFreeText, stampColumn } from "../custom-types/index.ts";
 import { characters } from "./character.ts";
 import { personas } from "./persona.ts";
 import { users } from "./users.ts";
@@ -48,8 +47,8 @@ export const rosterPresets = sqliteTable(
     // OPTIONAL game a start births with the room — rpg's `RpgGameTemplate`, parsed at the write verb and
     // handed to chat's `startAsGame` at start (rpg re-parses at birth). NULL = the roster starts a plain chat.
     gameTemplate: text("game_template", { mode: "json" }).$type<RpgGameTemplate>(),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
-    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
+    updatedAt: stampColumn("updated_at"),
   },
   (t) => [
     // A preset is PICKED BY NAME in the new-chat flow — duplicate names are a UX trap, and the leading

@@ -40,6 +40,7 @@ import type {
   HandStateHead,
   HandStateWrite,
   OwnedRpgHandWrites,
+  RpgAuthorized,
   RpgContext,
   RpgGameRow,
   TurnWriteFoldOutcome,
@@ -48,6 +49,9 @@ import { snapshotRowToState } from "./contract/service.ts";
 import { findLatestAssistantSlotSeq, resolveSnapshotBeforeSlot, resolveSnapshotHead, updateSnapshotState, writeHandSnapshot } from "./persistence/snapshots.ts";
 import { defaultSnapshotState } from "./substrate/default-state.ts";
 import { applyLockedPatch, applyLockedPatchTracked, rebasePatchOntoHead } from "./substrate/merge.ts";
+
+/** The game a hand write lands on and chat's admission of its room, which the write's claim spends. */
+type HandWriteRoom = Pick<RpgAuthorized, "game" | "admission">;
 
 /** The `committed` column's draft value — an UNcommitted TURN row is the only in-place-editable head. */
 const UNCOMMITTED = 0;
@@ -165,8 +169,8 @@ function toColumns(state: RpgSnapshotState): StateColumns {
  *  is the reachable case, and the merge-clear contract is right to write it: it is the CONTRACT, not the merge,
  *  that says which leaves clear. The refusal returns as data (never a wire reject — `inputs.ts`) and nothing is
  *  written, so the caller learns WHY instead of watching a value snap back. */
-export function applyHandEdit(ctx: RpgContext, game: RpgGameRow, patch: Record<string, unknown>, locks: HandEditLocks = {}): Promise<HandEditResult> {
-  return writeHandState(ctx, game, (head) => ({
+export function applyHandEdit(ctx: RpgContext, room: HandWriteRoom, patch: Record<string, unknown>, locks: HandEditLocks = {}): Promise<HandEditResult> {
+  return writeHandState(ctx, room, (head) => ({
     ok: true,
     state: applyLockedPatch(head.state, patch, null),
     locks,
@@ -182,13 +186,14 @@ export function applyHandEdit(ctx: RpgContext, game: RpgGameRow, patch: Record<s
  *  a removal gesture can release exactly the pins its element carried (`dismissActor`, the `deleteQuest`
  *  symmetric-lock precedent), and it may REFUSE as data (an op naming a datum the head does not carry) before
  *  anything durable happens — no row, no slot, no locks. */
-export function writeHandState(ctx: RpgContext, game: RpgGameRow, derive: (head: HandStateHead) => HandStateWrite): Promise<HandEditResult> {
-  return ctx.handWrites.run(game.id, () => writeOwnedHandState(ctx, game, derive));
+export function writeHandState(ctx: RpgContext, room: HandWriteRoom, derive: (head: HandStateHead) => HandStateWrite): Promise<HandEditResult> {
+  return ctx.handWrites.run(room.game.id, () => writeOwnedHandState(ctx, room, derive));
 }
 
 /** The owned body of {@link writeHandState}. Ownership spans head resolution through the durable write: moving
  *  either side outside the callback reopens the same-head race this boundary exists to close. */
-async function writeOwnedHandState(ctx: RpgContext, game: RpgGameRow, derive: (head: HandStateHead) => HandStateWrite): Promise<HandEditResult> {
+async function writeOwnedHandState(ctx: RpgContext, room: HandWriteRoom, derive: (head: HandStateHead) => HandStateWrite): Promise<HandEditResult> {
+  const { game, admission } = room;
   const head = await resolveHead(ctx, game);
   const derived = derive({ state: head.state, locks: head.locks });
   if (!derived.ok) {
@@ -211,17 +216,17 @@ async function writeOwnedHandState(ctx: RpgContext, game: RpgGameRow, derive: (h
   const nextLocks: RpgFieldLocks = Object.fromEntries(lockedPaths);
   // A hand write is an explicit host write and claims the room (D166): here, after the derive and parse
   // refusals above and before the durable write, so every hand door claims in the same place.
-  await ctx.claimChat(game.chatId);
+  const claim = await ctx.claimChat(admission);
   if (head.inPlace !== null) {
     // In-place on the live UNcommitted variant (this turn's draft head — swipe-consistent).
-    await updateSnapshotState(ctx.db, head.inPlace.variantId, { ...toColumns(nextState), fieldLocks: nextLocks });
+    await updateSnapshotState(ctx.db, claim, head.inPlace.variantId, { ...toColumns(nextState), fieldLocks: nextLocks });
     return { ok: true, snapshotId: head.inPlace.snapshotId };
   }
   // A COMMITTED head, a HAND-row head, or a turnless game must NOT be edited in place — that would corrupt a
   // locked-in past (a checkpoint's frozen state, a past swipe). CLONE FORWARD as a new HAND ROW (D124): no
   // message posted, no variant, ordered by the chat's tail slot. Nothing lands on the message plane at all.
   const snapshotId = ctx.ids.snapshot();
-  await writeHandSnapshot(ctx.db, nextState, nextLocks, { id: snapshotId, gameId: game.id, chatId: game.chatId, now: ctx.now() });
+  await writeHandSnapshot(ctx.db, claim, { state: nextState, fieldLocks: nextLocks }, { id: snapshotId, gameId: game.id, chatId: game.chatId, now: ctx.now() });
   return { ok: true, snapshotId };
 }
 
@@ -274,7 +279,7 @@ async function writeOwnedHandState(ctx: RpgContext, game: RpgGameRow, derive: (h
  *  re-measuring). The in-process chain closes that window under the standing single-replica assumption. */
 export function foldTurnWriteIntoHandHead(
   ctx: RpgContext,
-  game: RpgGameRow,
+  room: HandWriteRoom,
   written: { readonly patches: readonly StagedPatch[]; readonly snapshotId: RpgSnapshotId },
   slotSeq: number,
 ): Promise<TurnWriteFoldOutcome> {
@@ -285,16 +290,17 @@ export function foldTurnWriteIntoHandHead(
   // a superseded turn's patches were rebased onto the newer head instead of being refused. The body calls
   // `writeOwnedHandState` (the un-serialized half) precisely because the chain is not re-entrant: nesting a
   // `writeHandState` inside its own critical section would wait on a tail that only this call can settle.
-  return ctx.handWrites.run(game.id, () => foldOwnedTurnWrite(ctx, game, written, slotSeq));
+  return ctx.handWrites.run(room.game.id, () => foldOwnedTurnWrite(ctx, room, written, slotSeq));
 }
 
 /** The owned body of {@link foldTurnWriteIntoHandHead} — runs INSIDE the per-game critical section. */
 async function foldOwnedTurnWrite(
   ctx: RpgContext,
-  game: RpgGameRow,
+  room: HandWriteRoom,
   written: { readonly patches: readonly StagedPatch[]; readonly snapshotId: RpgSnapshotId },
   slotSeq: number,
 ): Promise<TurnWriteFoldOutcome> {
+  const { game } = room;
   const head = await resolveSnapshotHead(ctx.db, { id: game.id, chatId: game.chatId });
   if (head === undefined || head.row.id === written.snapshotId) {
     // We ARE head (the ordinary flush). `undefined` is unreachable in practice — we just inserted a row — but
@@ -321,7 +327,7 @@ async function foldOwnedTurnWrite(
   // flush, which puts it on the turn's tool-call record. The human keeps their field either way; the trail is
   // what stops the record from claiming the model's write landed.
   const suppressed: string[] = [];
-  const folded = await writeOwnedHandState(ctx, game, (hand) => {
+  const folded = await writeOwnedHandState(ctx, room, (hand) => {
     // Replayed in STAGE ORDER against the hand head's CURRENT locks — the identical composition the accumulator
     // performed over the pre-slot base, differing only in which state it starts from and whose locks arbitrate.
     //

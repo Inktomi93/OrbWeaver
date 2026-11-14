@@ -12,15 +12,12 @@ import type { DetectedServer, DetectionProbe } from "../contract/runtime.ts";
 
 const KOBOLDCPP_RESULT = "KoboldCpp";
 
-const koboldVersionSchema = z.object({ result: z.literal(KOBOLDCPP_RESULT) }).loose();
+const koboldVersionSchema = z.looseObject({ result: z.literal(KOBOLDCPP_RESULT) });
 /** `build_info` is llama.cpp's own; KoboldCpp's `/props` carries neither field. */
-const llamaCppPropsSchema = z.union([
-  z.object({ build_info: z.string() }).loose(),
-  z.object({ chat_template_caps: z.record(z.string(), z.unknown()) }).loose(),
-]);
-const ollamaVersionSchema = z.object({ version: z.string() }).loose();
+const llamaCppPropsSchema = z.union([z.looseObject({ build_info: z.string() }), z.looseObject({ chat_template_caps: z.record(z.string(), z.unknown()) })]);
+const ollamaVersionSchema = z.looseObject({ version: z.string() });
 /** vLLM's OpenAI server stamps every listed model `owned_by: "vllm"`; other servers name themselves or the org. */
-const vllmModelsSchema = z.object({ data: z.array(z.object({ ["owned_by"]: z.literal("vllm") }).loose()).min(1) }).loose();
+const vllmModelsSchema = z.looseObject({ data: z.array(z.looseObject({ ["owned_by"]: z.literal("vllm") })).min(1) });
 
 const PROBES = [
   { server: "koboldcpp", path: "/api/extra/version", schema: koboldVersionSchema },
