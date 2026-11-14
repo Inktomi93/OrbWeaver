@@ -17,7 +17,7 @@ import type { PluginHideFocusStory } from "./_hide-focus-stories.tsx";
 const STORY = "tests/client/features/plugin/components/_hide-focus-stories/PluginHideFocusStory";
 const PLUGIN_NAME = "Pocket Arcade of Endless Wandering Wonders and Marvels Beyond";
 const SHORT_TITLE = "Arcade";
-const LONG_TITLE = "Two thousand forty-eight tiles slid across the board until a single square holds the whole sum";
+const LONG_TITLE = "Two thousand forty-eight tiles slid across the board until one square holds all";
 const TEXT_200 = 2;
 
 test.use({ viewport: { width: 1600, height: 1000 } });

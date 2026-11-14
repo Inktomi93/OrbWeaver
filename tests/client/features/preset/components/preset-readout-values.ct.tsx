@@ -43,7 +43,7 @@ for (const scale of TEXT_SCALES) {
     await setRootFontScale(page, channelName("fontScale"), scale);
     const budget = page.getByText(PRESET_READOUT_BUDGET_LABEL, { exact: true });
     await expect(budget).toBeVisible();
-    const geometry = await enlargedTextGeometry(page.getByRole("main"));
+    const geometry = await enlargedTextGeometry(page.locator("#root"));
     expect(geometry.findings.filter((finding) => finding.includes(VALUE_CUT))).toEqual([]);
   });
 
