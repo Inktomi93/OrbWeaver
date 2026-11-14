@@ -453,6 +453,21 @@ export const STATS_REBUILD_ATTEMPTS = 5;
  *  caller has already authorized the delete; a refused plan is prepared again against the canon that moved. */
 export type PrepareCanonRetirement<Batch, Db> = (db: Db, scope: CanonRetirementScope) => Promise<CanonRetirement<Batch, Db>>;
 
+/** The statements a seat places around itself when it brings a started room back into its owner's stats scope, the
+ *  inverse of a character delete's retirement: the counts the rebuild folds for the room return, and the retired
+ *  ledger rows of its paid samples leave, since the spend they carried is still shown and the canon holds it again.
+ *  `beforeSeat` opens with the same guard; `afterSeat` re-derives the owner's extrema with the seat in place. A seat
+ *  in a room its owner already counts gets no statements and no guard. */
+export interface CanonAdmission<Batch, Db> {
+  readonly beforeSeat: (batch: Batch, db: Db) => void;
+  readonly afterSeat: (batch: Batch, db: Db) => void;
+  readonly refused: (error: unknown) => Promise<boolean>;
+}
+
+/** Read the room a seat is about to bring into `ownerId`'s scope and plan its admission. The caller has already
+ *  authorized the seat; a refused plan is prepared again. */
+export type PrepareCanonAdmission<Batch, Db> = (db: Db, room: { readonly ownerId: UserId; readonly chatId: ChatId }) => Promise<CanonAdmission<Batch, Db>>;
+
 /** Move the owner's character count by one when a room re-points a seat onto or off `character`: `+1` when it
  *  now holds a seat in `chatId`, `-1` when it no longer does. Stats applies it only when the character holds
  *  no seat in any other started room, so a character seated in two rooms counts once. */

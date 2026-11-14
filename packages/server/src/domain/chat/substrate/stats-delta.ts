@@ -9,6 +9,7 @@
 
 import type { MessageView, TokenProvenance, VariantMetadata } from "@orb/contracts/chat";
 import { legacyNotionalCostSamples, VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
+import type { GenerationUsageLeg } from "@orb/contracts/inference";
 import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import type { RetainedChatRekeys, StatsDelta } from "@orb/contracts/stats";
 import { variantUsageLegDelta } from "@orb/contracts/stats";
@@ -524,16 +525,28 @@ function hasReasoningText(reasoning: string | null): boolean {
  *  canon in the same batch. Only a turn is activity, so a retraction never stamps a time of its own. */
 type CanonContributionBody = Omit<StatsDelta, "lastAt" | "maxContextTokens"> & { readonly lastAt?: never; readonly maxContextTokens?: never };
 
-/**
- * The full contribution of one canon message (its selected variant) as a signed delta — the live mirror
- * of the rebuild's `foldMessage`. Only `+1` adds the activity and context candidates the row itself holds.
- */
-function legacyCanonMessageDelta(params: { readonly ownerId: UserId; readonly row: CanonRowInput; readonly sign: 1 | -1; readonly now: number }): StatsDelta {
+interface CanonMessageParams {
+  readonly ownerId: UserId;
+  readonly row: CanonRowInput;
+  readonly sign: 1 | -1;
+  readonly now: number;
+}
+
+/** The full contribution of one canon message (its selected variant) adding to the rollups — the live mirror of the
+ *  rebuild's `foldMessage`, with the activity and context candidates the row itself holds. */
+function legacyCanonAddition(params: CanonMessageParams): StatsDelta {
   const body = canonContributionBody(params);
-  if (params.sign < 0) {
-    return body;
-  }
   return { ...body, lastAt: params.row.createdAt, ...(params.row.contextWindow !== null ? { maxContextTokens: params.row.contextWindow } : {}) };
+}
+
+// The retraction producers are typed `CanonContributionBody`, so a stamped time inside one fails `tsc`.
+function legacyCanonRetraction(params: CanonMessageParams): CanonContributionBody {
+  return canonContributionBody(params);
+}
+
+function withoutActivity(delta: StatsDelta): CanonContributionBody {
+  const { lastAt: _lastAt, maxContextTokens: _maxContextTokens, ...rest } = delta;
+  return rest;
 }
 
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: a flat signed field-mapping of the rebuild's fold — every ternary is one column, no nesting; splitting it would scatter the drift-gate mirror.
@@ -722,34 +735,42 @@ export function assistantTurnDelta(params: Parameters<typeof legacyAssistantTurn
   ];
 }
 
-/** Signed selected-variant transcript and economics, preserving the legacy singleton unchanged. */
-export function canonMessageDelta(params: Parameters<typeof legacyCanonMessageDelta>[0]): readonly StatsDelta[] {
+// A row whose economics ride its usage legs contributes its transcript alone; the legs carry the economics.
+function transcriptOnly(row: CanonRowInput): CanonRowInput {
+  return { ...row, tokensIn: null, tokensOut: null, costUsd: null, cacheReadTokens: null, cacheWriteTokens: null, tokenProvenance: "unrecorded" };
+}
+
+function legDelta(params: CanonMessageParams, leg: GenerationUsageLeg): StatsDelta {
+  return variantUsageLegDelta({
+    ownerId: params.ownerId,
+    characterId: params.row.role === "assistant" ? params.row.characterId : null,
+    leg,
+    selected: true,
+    sign: params.sign,
+    now: params.now,
+  });
+}
+
+function canonMessageRetraction(params: CanonMessageParams): readonly CanonContributionBody[] {
   const legs = params.row.metadata?.usageLegs;
   if (legs === undefined || legs.length === 0) {
-    return [legacyCanonMessageDelta(params)];
+    return [legacyCanonRetraction(params)];
   }
-  const row = {
-    ...params.row,
-    tokensIn: null,
-    tokensOut: null,
-    costUsd: null,
-    cacheReadTokens: null,
-    cacheWriteTokens: null,
-    tokenProvenance: "unrecorded" as const,
-  };
-  return [
-    legacyCanonMessageDelta({ ...params, row }),
-    ...legs.map((leg) =>
-      variantUsageLegDelta({
-        ownerId: params.ownerId,
-        characterId: params.row.role === "assistant" ? params.row.characterId : null,
-        leg,
-        selected: true,
-        sign: params.sign,
-        now: params.now,
-      }),
-    ),
-  ];
+  return [legacyCanonRetraction({ ...params, row: transcriptOnly(params.row) }), ...legs.map((leg) => withoutActivity(legDelta(params, leg)))];
+}
+
+function canonMessageAddition(params: CanonMessageParams): readonly StatsDelta[] {
+  const legs = params.row.metadata?.usageLegs;
+  if (legs === undefined || legs.length === 0) {
+    return [legacyCanonAddition(params)];
+  }
+  return [legacyCanonAddition({ ...params, row: transcriptOnly(params.row) }), ...legs.map((leg) => legDelta(params, leg))];
+}
+
+/** Signed selected-variant transcript and economics, preserving the legacy singleton unchanged. A `-1` is a
+ *  retraction and carries no activity or context candidate. */
+export function canonMessageDelta(params: CanonMessageParams): readonly StatsDelta[] {
+  return params.sign < 0 ? canonMessageRetraction(params) : canonMessageAddition(params);
 }
 
 /** Non-selected legs carry token samples, never selected cost/cache or daily-token contributions. */

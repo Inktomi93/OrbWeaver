@@ -46,6 +46,7 @@ import { findOffVocabularyPicks } from "@orb/kit/macro";
 import { MS_PER_HOUR } from "@orb/kit/time";
 import type { SQL } from "drizzle-orm";
 import { and, eq, exists, isNotNull, isNull, lt, ne, not, or, sql } from "drizzle-orm";
+import { getLog } from "#foundation/observability";
 import type { ActiveTurns } from "../contract/active-turns.ts";
 import type { ChatContext, ChatServiceDeps } from "../contract/context.ts";
 import type { EmitDurableChatEventOp } from "../contract/engine-context.ts";
@@ -229,7 +230,13 @@ function appendRemovalVersions(ctx: ChatContext, statements: BatchStmt[], caller
   }
 }
 
-type RoomRemoval = { readonly kind: "removed"; readonly deleted: boolean } | { readonly kind: "observations-moved"; readonly error: unknown };
+type RoomRemoval =
+  | { readonly kind: "removed"; readonly deleted: boolean }
+  | { readonly kind: "observations-moved"; readonly error: unknown }
+  // A live write moved a retained owner's canon under every retirement attempt.
+  | { readonly kind: "starved" };
+
+const ROOM_DELETE_STARVED = "the room kept changing while it was deleted; try again shortly";
 
 // The one batch both delete paths commit. The observation fence must stay the batch's first statement, because its
 // refusal is read by position; the stats retirement goes right after it, ahead of the observation inverses, whose own
@@ -265,7 +272,7 @@ async function removeRoom(ctx: ChatContext, chatId: ChatId, predicate: SQL | und
       }
     }
   }
-  throw new ChatOperationError(CHAT_OP_CODES.aborted, "the room kept changing while it was deleted; try again shortly");
+  return { kind: "starved" };
 }
 
 /** `delete` — host-only. Drop the chat row; every child cascades (FK). Fans `chatDeleted` on the live-only
@@ -301,6 +308,9 @@ function createDelete(ctx: ChatContext, emitLive: EmitChatEventLive, abortTurns:
       refusal.cause = removal.error;
       throw refusal;
     }
+    if (removal.kind === "starved") {
+      throw new ChatOperationError(CHAT_OP_CODES.aborted, ROOM_DELETE_STARVED);
+    }
     if (removal.deleted) {
       emitLive({ type: "chatDeleted", chatId });
     }
@@ -332,6 +342,10 @@ function callerHostsChat(ctx: ChatContext, userId: UserId): SQL | undefined {
 
 async function deleteQualifiedRoom(ctx: ChatContext, chatId: ChatId, predicate: SQL, ownerId: UserId): Promise<boolean> {
   const removal = await removeRoom(ctx, chatId, predicate, ownerId);
+  // A reap never blocks on one room: a starved one is left for a later sweep, and the rest go on.
+  if (removal.kind === "starved") {
+    getLog(ctx.logger).warn({ chatId }, ROOM_DELETE_STARVED);
+  }
   return removal.kind === "removed" && removal.deleted;
 }
 

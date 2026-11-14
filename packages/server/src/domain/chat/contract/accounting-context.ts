@@ -2,6 +2,7 @@
 import type {
   ApplyStatsDelta,
   BumpStatsCanonVersion,
+  PrepareCanonAdmission,
   PrepareCanonRetirement,
   RecordLedgerSpend,
   ResolveRetainedChatAccountingScope,
@@ -33,6 +34,7 @@ export interface ChatAccountingContext {
   readonly shiftCharacterCensus: ShiftCharacterCensus<BatchStmt[], Db>;
   readonly recordLedgerSpend: RecordLedgerSpend<BatchStmt[], Db>;
   readonly prepareCanonRetirement: PrepareCanonRetirement<BatchStmt[], Db>;
+  readonly prepareCanonAdmission: PrepareCanonAdmission<BatchStmt[], Db>;
 }
 
 /** Retained canon writes do not receive room rekey or character-only accounting operations. */

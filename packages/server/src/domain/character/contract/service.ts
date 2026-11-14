@@ -4,6 +4,7 @@
 import type { ReapAssetsOp } from "@orb/contracts/assets";
 import type {
   CharacterAvatarNames,
+  CharacterBulkRemoveResult,
   CharacterBulkTagResult,
   CharacterDetail,
   CharacterRef,
@@ -126,7 +127,7 @@ export interface CharacterService {
   readonly remove: (params: RemoveCharacterParams) => Promise<void>;
   readonly duplicate: DuplicateCharacterOp;
   /** Missing/foreign ids are skipped, not thrown. */
-  readonly bulkRemove: (params: BulkRemoveParams) => Promise<void>;
+  readonly bulkRemove: (params: BulkRemoveParams) => Promise<CharacterBulkRemoveResult>;
   readonly bulkArchive: (params: BulkArchiveParams) => Promise<void>;
   /** Per-item outcome — the honest wire for a partial batch. */
   readonly bulkAddCardTag: (params: BulkAddCardTagParams) => Promise<CharacterBulkTagResult>;

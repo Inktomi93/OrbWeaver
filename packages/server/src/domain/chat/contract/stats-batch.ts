@@ -4,6 +4,7 @@
 import type {
   ApplyStatsDelta,
   BumpStatsCanonVersion,
+  PrepareCanonAdmission,
   PrepareCanonRetirement,
   RecordLedgerSpend,
   SettleRetainedChatRebase,
@@ -19,4 +20,5 @@ export interface ChatStatsBatchWiring {
   readonly shiftCharacterCensus: ShiftCharacterCensus<BatchHandle, DatabaseHandle>;
   readonly recordLedgerSpend: RecordLedgerSpend<BatchHandle, DatabaseHandle>;
   readonly prepareCanonRetirement: PrepareCanonRetirement<BatchHandle, DatabaseHandle>;
+  readonly prepareCanonAdmission: PrepareCanonAdmission<BatchHandle, DatabaseHandle>;
 }

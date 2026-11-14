@@ -157,11 +157,13 @@ export function createClaimChat(ctx: ChatContext): ClaimChatOp {
       .where(and(eq(chats.id, chatId), isNull(chats.startedAt)))
       .returning({ id: chats.id });
     const statements: BatchStmt[] = [];
-    if (hostUserId !== null) {
-      const characterIds = participants.flatMap((r) => {
-        const actor = classifyParticipant(r);
-        return actor?.kind === "character" ? [actor.characterId] : [];
-      });
+    const characterIds = participants.flatMap((r) => {
+      const actor = classifyParticipant(r);
+      return actor?.kind === "character" ? [actor.characterId] : [];
+    });
+    // A room with no character seat is in no owner's stats scope (`ownerChatIds`), so it counts nothing at claim; the
+    // seat that later brings it in folds the whole room through its admission.
+    if (hostUserId !== null && characterIds.length > 0) {
       await pushClaimStatsDeltas(ctx, statements, { chatId, ownerId: hostUserId, characterIds, createdAt: candidate.createdAt, now });
     }
     const [stamped] = await ctx.db.batch(batchLed(claim, statements));

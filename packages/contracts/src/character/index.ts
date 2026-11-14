@@ -711,6 +711,11 @@ export const characterBulkTagResultSchema = z.strictObject({
 });
 export type CharacterBulkTagResult = z.infer<typeof characterBulkTagResultSchema>;
 
+/** The per-item result of a bulk remove, in the same shape: `applied` names every character deleted, `failed` every
+ *  one whose delete was refused, and a missing or foreign id is in neither. */
+export const characterBulkRemoveResultSchema = characterBulkTagResultSchema;
+export type CharacterBulkRemoveResult = z.infer<typeof characterBulkRemoveResultSchema>;
+
 /** The full owned-card detail. What create/get/update/duplicate/restore return. The card's face fields
  *  compose `#card-face` (D137(E)) at the SCHEMA level; this view CONFORMS to the nullable-description
  *  `ResolvedCardFace` structurally (a

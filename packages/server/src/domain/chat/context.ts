@@ -1,6 +1,6 @@
 // Chat owns conversion of inert assembly operands into its private query/accounting context.
 
-import type { CanonRetirement } from "@orb/contracts/stats";
+import type { CanonAdmission, CanonRetirement } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchHandle, databaseForOwner } from "@orb/db/wiring-owner";
@@ -28,6 +28,14 @@ export function createChatContext(input: ChatAssemblyContext): ChatContext {
         beforeDelete: (batch) => retirement.beforeDelete(batchHandle(batch), input.db),
         afterDelete: (batch) => retirement.afterDelete(batchHandle(batch), input.db),
         refused: retirement.refused,
+      };
+    },
+    prepareCanonAdmission: async (_db, room): Promise<CanonAdmission<BatchStmt[], Db>> => {
+      const admission = await input.prepareCanonAdmission(input.db, room);
+      return {
+        beforeSeat: (batch) => admission.beforeSeat(batchHandle(batch), input.db),
+        afterSeat: (batch) => admission.afterSeat(batchHandle(batch), input.db),
+        refused: admission.refused,
       };
     },
   };
