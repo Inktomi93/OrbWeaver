@@ -1,4 +1,4 @@
-import { CAPTION, FIELD_ROW, FIELD_STACK, ROW_STRIP, TONE_SOFT, tv } from "#lib";
+import { CAPTION, FIELD_ROW, FIELD_STACK, ROW_STRIP, TONE_TINT, tv } from "#lib";
 import type { Tone } from "#tokens";
 
 /**
@@ -19,8 +19,12 @@ import type { Tone } from "#tokens";
  *     louder than the island's own rationed stripe+glow — the loudest thing on the canvas was a diff
  *     backdrop. The owner-approved mockup draws this diff as plain prose columns under ORIGINAL/REWRITE
  *     kickers with no fill at all, and ruled the solid pair a register break.
- *   • WHAT SURVIVES: no raw color and no hand-mixed literal. Each pane paints the D336 tint and edge of the
- *     tone `COMPARE_SIDE_TONE` stamps on it, with the tone's `text-on-tint` ink, which clears its floor on the tint.
+ *   • WHAT SURVIVES: no raw color and no hand-mixed literal. Each pane paints the D336 tint of the tone
+ *     `COMPARE_SIDE_TONE` stamps on it, with the tone's `text-on-tint` ink, which clears its floor on the tint.
+ *   • NO EDGE: a side pane is a tint, and the Added and Cleared state panels a muted fill; none draws a
+ *     border. The review sits inside a card, and a bordered, rounded pane inside it reads as a card inside
+ *     a card (the design audit's nested-card rule). The fill sets each pane apart, with the glyph and the
+ *     hidden word as the other channels.
  *   • WHAT IS NOW DIVERGENT, deliberately and reported rather than silently: the `diff` seal
  *     (`ui/src/diff/variants.ts` — `added: "bg-success text-success-foreground"`) still paints solid, so
  *     the cross-reference above no longer holds. A word-level ins/del MARK inside a sentence is a
@@ -33,7 +37,8 @@ export const compareBlocksVariants = tv({
     root: "flex flex-col gap-block",
     // Padded so the label sits INSIDE the box the decision border draws, never on the border itself.
     block: `${FIELD_STACK} rounded-base border border-transparent p-block`,
-    blockHeader: ROW_STRIP,
+    // Wraps: the state chip's words are long ("Undecided · will not apply"), so in a narrow pane at enlarged text the chip drops under the label instead of past the block.
+    blockHeader: `${ROW_STRIP} flex-wrap`,
     blockLabel: "text-label leading-label font-medium text-muted-foreground",
     blockSpacer: "flex-1",
     body: FIELD_STACK,
@@ -42,16 +47,16 @@ export const compareBlocksVariants = tv({
     sideHeader: FIELD_ROW,
     text: "text-body leading-body whitespace-pre-wrap",
     stateNote: CAPTION,
-    verbRow: ROW_STRIP,
+    verbRow: `${ROW_STRIP} flex-wrap`,
     collapsedRow: "flex cursor-pointer items-center gap-row rounded-control bg-muted px-block py-row text-start inline-full min-block-(--size-touch-target)",
     srOnly: "sr-only",
   },
   variants: {
     side: {
-      before: { panel: TONE_SOFT },
-      after: { panel: TONE_SOFT },
+      before: { panel: TONE_TINT },
+      after: { panel: TONE_TINT },
       /** The absent-side STATE panel (Added / Cleared) — a designed state word, never an empty tinted pane. */
-      state: { panel: "border border-border bg-muted text-foreground" },
+      state: { panel: "bg-muted text-foreground" },
     },
     /** The review tri-state, painted on the BLOCK (border) and its body; the header chip is a `Badge` the primitive tones per decision. */
     decision: {
