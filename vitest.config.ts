@@ -45,6 +45,8 @@ const REPOSITORY_GROUP_ORDER = 1;
 const SEMANTIC_CORPUS_GROUP_ORDER = 2;
 const HOST_DISK_GROUP_ORDER = 3;
 const COMPOSED_REAL_SETUP = "tests/support/node/composed-real.ts";
+// Not UTC, so a read that ignores the zone it is given fails here; the import identity goldens were taken in it.
+const TEST_TIME_ZONE = "America/Denver";
 
 // Every project inherits this through `extends: true`, so each one captures the working tree
 // before its own first test and re-checks it at close: a suite that writes the real tree (repo law
@@ -96,7 +98,10 @@ export function vitestConfig(): ViteUserConfig {
       // Keep fixtures independent of the operator's .env and avoid loading live embedding providers.
       // No AUTH_FALLBACK: the server resolves it per AUTH_MODE, so the suite's default (unset ⇒
       // single-user) boots at `owner` on its own and needs no pin here.
-      env: { CORPUS_AUTOINDEX: "false", LOG_LEVEL: "silent", ORB_ENV_NO_FILE: "1" },
+      // TZ: the product still reads SillyTavern's zone-less dates in the host's zone (`hostTimeZone`), and a chat's
+      // import identity hashes the instants it reads, so every machine runs the suite in one fixed zone. The pin
+      // outranks a TZ the shell sets.
+      env: { CORPUS_AUTOINDEX: "false", LOG_LEVEL: "silent", ORB_ENV_NO_FILE: "1", TZ: TEST_TIME_ZONE },
       // Native bindings need process isolation. One module registry per worker: every file reuses the
       // server graph import, and no module may read the environment at import time (the harness
       // supplies the seams instead).
