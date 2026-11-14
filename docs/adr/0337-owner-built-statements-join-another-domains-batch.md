@@ -33,7 +33,7 @@ The signup statements stay under D259. A new joint batch needs a new row here be
 
 ## Consequences
 
-Each listed op keeps its handle and its composed wiring; only its type home moves to contracts or the consumer's `contract/`. The census reaches zero unruled handle targets. A reviewer reads one table to know which cross-domain writes are atomic by design.
+A stats rebuild, and a batch that retires or admits canon, opens with a guard that rewrites the owner's canon-version row with the version it read, so an owner with no stats write gains a row at version 0. Every reader takes a missing row as version 0 and the next write moves either to 1, so the two states are the same. Each listed op keeps its handle and its composed wiring; only its type home moves to contracts or the consumer's `contract/`. The census reaches zero unruled handle targets. A reviewer reads one table to know which cross-domain writes are atomic by design.
 
 ## Alternatives rejected
 
