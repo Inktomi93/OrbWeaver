@@ -16,8 +16,8 @@
 //     the synchronous run, each settlement and pump while the invocation awaits, the read of its result — opens a
 //     window at the account's remainder and charges the account the time it ran. The await between spans charges
 //     nothing, so a guest that waits seconds on a host call and then runs briefly is inside its budget (D346); nor
-//     does a synchronous host call's block on the parent inside a span (`withoutCpuCharge`), so a slow app is never
-//     the guest's runaway;
+//     does a synchronous host call's block on the parent past `PLUGIN_SYNC_WAIT_STALL_MS` (`withoutCpuCharge`), so a
+//     stalled app is never the guest's runaway while each ordinary round trip stays the guest's charge;
 //   - a settlement or pump outside any invocation spends the instance's OUTSIDE account the same way. Only an
 //     invocation's opening refills it, so post-invocation work holds one budget per invocation, not one per span; when
 //     it is spent the pump parks the job queue until the next invocation (`pumpGuestJobs`), and arriving settlements
@@ -49,7 +49,7 @@
 
 import { performance } from "node:perf_hooks";
 import type { QuickJSContext } from "quickjs-emscripten-core";
-import { PLUGIN_INVOCATION_CPU_MS } from "./budgets.ts";
+import { PLUGIN_INVOCATION_CPU_MS, PLUGIN_SYNC_WAIT_STALL_MS } from "./budgets.ts";
 import type { CpuSpanReport } from "./contract/port.ts";
 
 /** The deadline before the first span opens: the realm is being built from host code only, so nothing to bound. */
@@ -72,8 +72,8 @@ interface CpuGuard {
   readonly parked: (() => void)[];
   /** Whether a span is open; a span opened inside one adds nothing. */
   spanOpen: boolean;
-  /** How long the open span has blocked on its parent in synchronous host calls ({@link withoutCpuCharge}), which its
-   *  close does not charge. */
+  /** How long the open span has blocked on its parent past the stall threshold in synchronous host calls
+   *  ({@link withoutCpuCharge}), which its close does not charge. */
   spanWaitedMs: number;
   /** Where each outermost span is reported to the broker, or `null` outside a broker's Worker. */
   readonly report: CpuSpanReport | null;
@@ -201,10 +201,11 @@ export function openCpuWindow(ctx: QuickJSContext): () => void {
   };
 }
 
-/** Run `wait` — a synchronous host call that blocks this thread on the parent's answer — without charging the open span
- *  for the time it blocks: the window's deadline moves forward by the wait, and the span's close leaves it out. The
- *  guest runs no bytecode while the thread blocks, so this buys it no work; a slow or wedged parent is the host's cause,
- *  never the guest's (D346). How long a span may hold its Worker, waits included, stays the broker's bound (D347). */
+/** Run `wait` — a synchronous host call that blocks this thread on the parent's answer — charging the open span only
+ *  the first `PLUGIN_SYNC_WAIT_STALL_MS` of the block: past it the window's deadline moves forward by the rest, and the
+ *  span's close leaves the rest out. A slow or wedged parent is the host's cause, never the guest's (D346). The guest
+ *  pays for every ordinary round trip, so a loop of seam calls, which makes the app and broker work, still meets its
+ *  window. How long a span may hold its Worker, waits included, stays the broker's bound (D347). */
 export function withoutCpuCharge<T>(ctx: QuickJSContext, wait: () => T): T {
   const guard = GUARDS.get(ctx);
   if (guard === undefined || !guard.spanOpen) {
@@ -214,9 +215,9 @@ export function withoutCpuCharge<T>(ctx: QuickJSContext, wait: () => T): T {
   try {
     return wait();
   } finally {
-    const waitedMs = performance.now() - startedAtMs;
-    guard.deadlineAtMs += waitedMs;
-    guard.spanWaitedMs += waitedMs;
+    const stalledMs = Math.max(0, performance.now() - startedAtMs - PLUGIN_SYNC_WAIT_STALL_MS);
+    guard.deadlineAtMs += stalledMs;
+    guard.spanWaitedMs += stalledMs;
   }
 }
 

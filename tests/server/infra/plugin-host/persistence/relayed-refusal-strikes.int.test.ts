@@ -50,6 +50,10 @@ const SET_MODE = "set_mode";
 const HANG = "hang";
 const DRAW_THEN = "draw_then";
 const DRAW_ON = "draw_on";
+const SEAM_LOOP = "seam_loop";
+// Far more seam calls than one CPU window holds at a healthy round trip, enough to pass the broker's memory ceiling
+// when every call allocated its own buffers.
+const SEAM_LOOP_CALLS = 20_000;
 // How late the app answers a synchronous draw: past the guest's whole CPU window, which reads real monotonic time.
 const LATE_ANSWER_MS = 2 * PLUGIN_RESIDENT_LIMITS.cpuDeadlineMs;
 const OVERSIZED = "oversized";
@@ -82,6 +86,9 @@ h.ui.registerCommand({ name: ${JSON.stringify(DRAW_THEN)}, describe: "Draw, then
   try { h.random.next(); } catch (refused) {}
   if (JSON.parse(args).loop === true) { for (;;) {} }
   throw new Error(${JSON.stringify(CRASH_MESSAGE)});
+} });
+h.ui.registerCommand({ name: ${JSON.stringify(SEAM_LOOP)}, describe: "Draw in a loop", onRun: () => {
+  for (let i = 0; i < ${String(SEAM_LOOP_CALLS)}; i += 1) { h.random.next(); }
 } });
 h.ui.registerCommand({ name: ${JSON.stringify(DRAW_ON)}, describe: "Draw, then go on with a host call or run away", onRun: ({ args }) => {
   let drew = "refused";
@@ -305,6 +312,20 @@ test("a synchronous call the broker timed out is not the plugin's crash when lef
   expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
 
   await expectOwnThrowCounts(caller);
+});
+
+// Each seam call is a round trip the app answers, which the guest pays for, so the loop meets its CPU window on the real
+// clock the window reads; the case waits one window. The broker survives it, and serves another plugin and this one after.
+test("a command that loops synchronous seam calls ends at its CPU window and strikes, and the broker serves every plugin after", async () => {
+  await caller.run(NOTE);
+  expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
+
+  expect(await settle(caller.run(SEAM_LOOP))).toBeInstanceOf(Error);
+  await expect.poll(async () => (await caller.view()).crashes).toBe(1);
+
+  expect(await settle(neighbour.run(NOTE))).toBeNull();
+  expect(await settle(caller.run(NOTE))).toBeNull();
+  expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
 });
 
 // The guest blocks in the draw for the whole broker timeout, longer than its CPU window, and then makes another host

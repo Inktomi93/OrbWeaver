@@ -177,7 +177,7 @@ function buildHostSurface(ctx: QuickJSContext, { seams, log, marshal }: RealmHos
   // and holds through a mid-build throw. `setProp` DUPs the value into the target, so a handle freed at scope
   // exit rather than immediately after its `setProp` is refcount-identical. Scope-exit order is
   // REVERSE-declaration = inner-fn-before-its-object, exactly the order the hand-written disposals used.
-  // In a broker's Worker each seam blocks on the parent's answer, so the wait is left out of the guest's CPU charge.
+  // In a broker's Worker each seam blocks on the parent's answer, so a stalled wait is left out of the guest's CPU charge.
   using clock = ctx.newObject();
   using nowFn = marshal.newHostFunction("nowEpochMs", () => ctx.newNumber(withoutCpuCharge(ctx, () => seams.nowEpochMs())));
   marshal.setHostProp(clock, "nowEpochMs", nowFn);
