@@ -1,6 +1,7 @@
 import type { FilterOwnedAssetIdsOp, ResolveAssetHashOp } from "@orb/contracts/assets";
 import type { CharacterCard, FindSyntheticGroupCharacterOp, MintSyntheticGroupCharacterOp } from "@orb/contracts/character";
 import type {
+  AssembleContext,
   ClaimChatOp,
   DurableChatBusEvent,
   ForkGameOp,
@@ -79,7 +80,8 @@ import type { ChatAccountingContext } from "./accounting-context.ts";
 import type { ActiveTurns } from "./active-turns.ts";
 import type { SpeakerArbiter, SpeakerReranker } from "./arbitration.ts";
 import type { ApplyPromptTransformsOp, DelayOp, EmitDurableChatEventOp, EngineContext, RunChatTurnOp } from "./engine-context.ts";
-import type { ChatBehaviorInputs, ResolveForeignInputsOp } from "./foreign.ts";
+import type { ChatBehaviorInputs, ForeignInputs, ResolveForeignInputsOp } from "./foreign.ts";
+import type { GatherAssembleArgs, SendRegexSink } from "./gather.ts";
 import type { ResolveChatUserMacroDefs } from "./macro-readers.ts";
 import type { MemoryLog, MemoryRecallPhaseEmitter, MemoryRecallSink } from "./memory.ts";
 import type { RpgTurnOps } from "./rpg-turn.ts";
@@ -563,9 +565,16 @@ type ResolvePromptVariablesOp = (chatId: ChatId) => Promise<readonly ChoiceBlock
  *  Empty is legal and means "nothing teaches this turn" (byte-identical). */
 export type ChatTeachingRegistry = readonly TeachingContribution[];
 
+/** Ops `createChatContext` binds over the finished context; composition never supplies them. */
+export interface ChatContextBoundOps {
+  /** The turn's chat-internal gather (`assembly/gather.ts`), bound to this context and the `memory/` reads it
+   *  needs, so a verb reaches the subsystem without importing it. */
+  readonly gatherAssembleContext: (args: GatherAssembleArgs, foreign: ForeignInputs, out?: SendRegexSink) => Promise<AssembleContext>;
+}
+
 /** The DI bundle every chat verb/subsystem closes over. `db` routes queries through `persistence/`; `now` +
  *  the id-minters are the determinism seams (no ambient Date.now()/mintTypeId() in a verb). */
-export interface ChatContext extends EngineContext, ChatAccountingContext {
+export interface ChatContext extends EngineContext, ChatAccountingContext, ChatContextBoundOps {
   /** The privilege-decision seam — every chat-authority verdict routes through this; chat never imports admin. */
   readonly can: Can;
   readonly newChatId: () => ChatId;
@@ -675,7 +684,7 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
   /** The disabled-account containment gate (owner-ruled): whether a human's backing `users` row
    *  is enabled. Read fresh per call (never cached), mirroring `sessions.validate`'s per-request re-check, so
    *  an admin disable propagates the very next round. Chat never reads `users` itself — see
-   *  `resolveHandle`. Feeds {@link isBackingUserEnabled} (`persistence/participant.ts`) at the ONE
+   *  `resolveHandle`. Feeds {@link isBackingUserEnabled} (`substrate/participant-actor.ts`) at the ONE
    *  consumer that already gates a human's identity on presence (`presentHumanUserIdsOf`,
    *  `substrate/participants-humans.ts`) — a disabled human's PERSONA drops from the room's foreign-input consent
    *  set the same way a departed member's already does. */

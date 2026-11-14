@@ -13,11 +13,11 @@ import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors.ts";
 import type { DocumentChunkHit } from "../contract/results.ts";
 import type { SearchContext, SearchService } from "../contract/service.ts";
 import { nearestDocumentChunks } from "../persistence/nearest.ts";
+import { withActiveQuerySpace } from "../persistence/space.ts";
 import { DEFAULT_DOCUMENT_K, DEFAULT_DOCUMENT_MIN_SCORE, OWNER_OVERFETCH, SCOPED_POOL_K } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust } from "../substrate/csls.ts";
 import { collapseByContentHash } from "../substrate/dedupe.ts";
 import { SCOPE_INSTRUCTIONS } from "../substrate/instructions.ts";
-import { withActiveQuerySpace } from "../substrate/space.ts";
 
 interface DocumentCandidate {
   /** The rerank runner keys on `id`; the chunk id is unique so it doubles as the candidate id. */

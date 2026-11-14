@@ -103,12 +103,13 @@ import {
   readRetainedCanonContributions,
 } from "../persistence/queries.ts";
 import { prepareRetainedCanonStats } from "../persistence/retained-canon.ts";
+import { runtimeVariablesUpdateStatement } from "../persistence/runtime-variables.ts";
 import { buildHistoryBudget, fitCeiling, historyTurnTokens } from "../substrate/assembly-access.ts";
 import { isCoveredByCompaction } from "../substrate/compaction-coverage.ts";
 import { continuedSignatureMetadata } from "../substrate/content-signatures.ts";
 import { projectInlineReplyImages } from "../substrate/inline-reply-images.ts";
 import { projectRpgTranscript } from "../substrate/rpg-transcript.ts";
-import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables.ts";
+import { foldChain } from "../substrate/runtime-variables.ts";
 import { appendStatsDeltas, assistantTurnDelta, canonMessageDelta, canonRowOf, swipeVariantDelta } from "../substrate/stats-delta.ts";
 import { runTurnPipeline } from "./pipeline.ts";
 import { watchProviderWait } from "./provider-wait.ts";
@@ -1413,7 +1414,7 @@ function captureTurnFault(ctx: EngineContext, prep: TurnPrep, err: unknown, reas
  *  turn (`reply_image_failed`), never once per picture: one turn's author is owed one notice.
  *
  *  STORE-THEN-LINK, and a crash between them leaves an UNREFERENCED blob rather than a link pointing at
- *  nothing — the deliberate direction, and the same one `imagery/substrate/generate-core.ts` states for its
+ *  nothing — the deliberate direction, and the same one `imagery/persistence/generate-core.ts` states for its
  *  own pair. The orphan is swept by the weekly `assets-gc` past its put→link grace; the inverse would be a
  *  message whose body names an asset that was never written. */
 async function absorbInlineReplyImages(

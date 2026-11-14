@@ -99,6 +99,10 @@ export type RpcResult =
 
 export type BrokerBridgeResult = { readonly kind: "bridge-result"; readonly id: string } & RpcResult;
 
+/** A command's answer. `refusal` is the first host-unavailable refusal one of the command's own calls met, which the
+ *  Worker records wherever in the host it was raised; the parent fails the command as it, never as a strike. */
+export type CommandResponse = { readonly kind: "response"; readonly id: string; readonly refusal?: RpcError } & RpcResult;
+
 export type ParentBrokerMessage =
   | BrokerCommand
   | BrokerBridgeResult
@@ -109,7 +113,7 @@ export type ParentBrokerMessage =
   | { readonly kind: "runtime-forgotten"; readonly runtimeId: string };
 
 export type BrokerParentMessage =
-  | ({ readonly kind: "response"; readonly id: string } & RpcResult)
+  | CommandResponse
   | {
       readonly kind: "bridge";
       readonly id: string;
@@ -133,7 +137,7 @@ export type BrokerWorkerMessage =
 
 export type WorkerBrokerMessage =
   | { readonly kind: "ready" }
-  | ({ readonly kind: "response"; readonly id: string } & RpcResult)
+  | CommandResponse
   | { readonly kind: "bridge"; readonly id: string; readonly authorityId: string; readonly operation: PluginBridgeOperation; readonly args: readonly unknown[] }
   | { readonly kind: "bridge-cancel"; readonly id: string }
   | {

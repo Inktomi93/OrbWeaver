@@ -81,7 +81,7 @@ export interface AnalyzePromptArgs {
   readonly shapeText?: string | undefined;
 }
 
-/** How one stage pass runs (the stage-resolution substrate's output): the fixed arm (mode prose + typed
+/** How one stage pass runs (`persistence/stage-resolution.ts`'s output): the fixed arm (mode prose + typed
  *  contract) or the resolved custom arm — the OWNED schema row lifted + projected + EMBEDDED per call. */
 export type StageResolution =
   | { readonly kind: "fixed" }

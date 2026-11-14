@@ -86,7 +86,7 @@ import type {
   PluginInvokePhase,
   ProcessPluginHost,
 } from "./contract/port.ts";
-import type { BrokerParentMessage, ParentBrokerMessage, RpcResult } from "./contract/process-protocol.ts";
+import type { BrokerParentMessage, ParentBrokerMessage, RpcError, RpcResult } from "./contract/process-protocol.ts";
 import { createPluginNetEgress } from "./net-egress.ts";
 import { PluginIpcSender, PluginIpcShares, parsePluginIpcMessage } from "./process-channel.ts";
 import { pluginWatchdogExecArgv } from "./process-permission.ts";
@@ -147,10 +147,11 @@ type Binding = BindingLifetime & {
   readonly netEgress: PluginNetEgress;
   readonly grants: ReadonlySet<PluginCapability>;
   readonly authorities: Map<string, BridgeAuthority>;
-  /** For each command still running, the first host refusal the app raised for one of its calls: the installer was
-   *  disabled, or the host could not carry a result. The guest's own rethrow of a refusal reaches the app as a plain
-   *  error, which the crash policy would count; this record, kept only in the app, lets the command fail as the refusal
-   *  instead. A quota refusal such as a cap is the plugin's own doing and is not recorded. */
+  /** For each command still running, the first host refusal one of its calls met: the installer was disabled, or the
+   *  host could not serve the call or carry its result, here or past the app, as the Worker reports on the command's
+   *  answer. The guest's own rethrow of a refusal reaches the app as a plain error, which the crash policy would count;
+   *  this record, written only by host code, lets the command fail as the refusal instead. A quota refusal such as a cap
+   *  is the plugin's own doing and is not recorded. */
   readonly hostRefusals: Map<string, DomainConflictError | null>;
   /** Per-authority tails armed when a command completes; the parent's own time and call bound on a lying Worker. */
   readonly authorityTails: Map<string, AuthorityTail>;
@@ -188,6 +189,8 @@ interface PendingCommand {
   readonly reject: (error: Error) => void;
   readonly runtimeId: string;
   readonly operation: Extract<ParentBrokerMessage, { readonly kind: "command" }>["operation"];
+  /** Takes the host refusal the Worker recorded for this command's calls, before the command settles. */
+  readonly onRefusal: ((refusal: RpcError) => void) | undefined;
   /** Cancels the backstop, which is armed only while this is its runtime's oldest outstanding command. */
   cancelBackstop: () => void;
 }
@@ -255,7 +258,7 @@ function clearAuthorities(binding: Binding): void {
   binding.authorities.clear();
 }
 
-/** Where a command reports the host refusal the app recorded for its calls. */
+/** Where a command reports the host refusal recorded for its calls. */
 interface SeenRefusal {
   refusal?: DomainConflictError;
 }
@@ -264,6 +267,11 @@ interface SeenRefusal {
 // serve it. A quota refusal is the plugin's own doing and stays the guest's to handle.
 function isHostRefusal(error: unknown): error is PluginInstallerDisabledError | PluginHostUnavailableError | CodedHostUnavailableError {
   return error instanceof PluginInstallerDisabledError || error instanceof PluginHostUnavailableError || error instanceof CodedHostUnavailableError;
+}
+
+// An invocation the host ended: at its settlement wall, by its Worker's end, or at the parent's backstop.
+function isInvocationEnded(error: unknown): boolean {
+  return error instanceof Error && error.name === PLUGIN_INVOCATION_ENDED;
 }
 
 // The first refusal stands; a call that settles after its command ended finds no record and records nothing.
@@ -596,8 +604,9 @@ class BrokerClient {
     readonly authorityId: string;
     readonly value?: unknown;
     readonly onConnected?: () => void;
+    readonly onRefusal?: PendingCommand["onRefusal"];
   }): Promise<unknown> {
-    const { operation, runtimeId, authorityId, value, onConnected } = input;
+    const { operation, runtimeId, authorityId, value, onConnected, onRefusal } = input;
     await this.ensureConnected();
     onConnected?.();
     const generation = this.generation;
@@ -615,7 +624,7 @@ class BrokerClient {
       value,
     });
     return await new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject, runtimeId, operation, cancelBackstop: () => undefined });
+      this.pending.set(id, { resolve, reject, runtimeId, operation, onRefusal, cancelBackstop: () => undefined });
       const outstanding = this.outstanding.get(runtimeId);
       if (outstanding === undefined) {
         this.outstanding.set(runtimeId, [id]);
@@ -1017,6 +1026,9 @@ class BrokerClient {
     if (pending === undefined) {
       return;
     }
+    if (message.refusal !== undefined) {
+      pending.onRefusal?.(message.refusal);
+    }
     if (message.ok) {
       pending.resolve(message.value);
     } else {
@@ -1374,7 +1386,7 @@ function parseActivationFailure(value: Readonly<Record<string, unknown>>): Creat
     }
     parsedLog.push({ level: line["level"], message: line["message"], at: line["at"] });
   }
-  return { ok: false, error, log: parsedLog };
+  return { ok: false, error, log: parsedLog, ...(value["ended"] === true ? { ended: true } : {}) };
 }
 
 function requireSurfaceGrants(surfaces: readonly PluginSurfaceRegistration[], grants: ReadonlySet<PluginCapability>): void {
@@ -1467,8 +1479,8 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
     });
   };
 
-  // `seen` receives the host refusal the app recorded for this command's calls, for a caller whose command can end
-  // without a rejection, such as a rebuild whose main.js failed.
+  // `seen` receives the host refusal recorded for this command's calls, for a caller whose command can end without a
+  // rejection, such as a rebuild whose main.js failed.
   const commandWithAuthority = async ({ binding, operation, phase, chat, value }: AuthorityCommand, seen?: SeenRefusal): Promise<unknown> => {
     const runtimeId = binding.runtimeId;
     if (runtimeId === undefined) {
@@ -1490,11 +1502,15 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
         onConnected: (): void => {
           binding.dispatched = true;
         },
+        onRefusal: (refusal): void => recordHostRefusal(binding, authorityId, new PluginHostUnavailableError(refusal.message)),
       });
     } catch (error) {
-      // A command that fails after the app refused one of its calls fails as that refusal, whatever the guest threw, a real
-      // failure of its own included. Only the app sets this record, at the point it refuses, so a guest cannot forge one.
-      throw binding.hostRefusals.get(authorityId) ?? error;
+      // A command that fails after the host refused one of its calls fails as that refusal, whatever the guest threw, a
+      // real failure of its own included. Only host code sets this record, so a guest cannot forge one: the app where it
+      // refuses, and the Worker for a refusal raised past the app, which its answer carries. An invocation the host ended
+      // never settled, which no refusal excuses, so it keeps its strike (D347): at its wall, by its Worker's end, or at
+      // the parent's backstop. Only host code names an error ended.
+      throw isInvocationEnded(error) ? error : (binding.hostRefusals.get(authorityId) ?? error);
     } finally {
       const refusal = binding.hostRefusals.get(authorityId);
       if (seen !== undefined && refusal !== undefined && refusal !== null) {
@@ -1582,6 +1598,12 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
         await retireRuntime(binding);
       } catch (cleanupError) {
         forgetRuntime(binding, runtimeId);
+        // A retire refused as host-unavailable found no runtime to retire: the broker ends a failed activation's runtime
+        // before it answers, and a lost broker took it along. The activation's own failure stands, so an answer a full
+        // channel refused stays a refusal and never a strike (D348).
+        if (cleanupError instanceof PluginHostUnavailableError) {
+          throw error;
+        }
         throw activationCleanupError(error, cleanupError);
       }
     }
@@ -1649,8 +1671,10 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
     requireLifecycle(binding, generation);
     if (!outcome.ok) {
       pool.discard(binding);
-      // A rebuild the host refused fails as that refusal, which is never the plugin's crash.
-      throw seen.refusal ?? new Error(`plugin host: sleeping runtime could not be rebuilt: ${outcome.error}`);
+      // A rebuild the host refused fails as that refusal, which is never the plugin's crash; one whose main.js the host
+      // ended at its wall never settled, and keeps its strike whatever it was refused (D347).
+      const failed = new Error(`plugin host: sleeping runtime could not be rebuilt: ${outcome.error}`);
+      throw outcome.ended === true ? failed : (seen.refusal ?? failed);
     }
   };
 

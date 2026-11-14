@@ -25,9 +25,9 @@ import { estimateTokens } from "@orb/kit/tokens";
 import type { StagePrompts } from "../contract/prompts.ts";
 import type { RefineryContext, RefineryService } from "../contract/service.ts";
 import { latestRunRowOf, loadOwnedSessionRow, sessionViewOf } from "../persistence/queries.ts";
+import { resolveStageResolution } from "../persistence/stage-resolution.ts";
 import { outputEstimateOf, resolveStageSampling, stageSubjectOf } from "../substrate/output-budget.ts";
 import { buildAnalyzePrompt, buildRewritePrompt, buildScorePrompt, overlayRewrite } from "../substrate/refine-prompt.ts";
-import { resolveStageResolution } from "../substrate/stage-resolution.ts";
 import { summarizerFactsOf } from "../substrate/summarizer.ts";
 
 function inputEstimateOf(prompts: StagePrompts): number {

@@ -14,7 +14,7 @@ import type { Cas, VariantCache } from "#infra/storage";
 import type { AssetsContext, AssetsService } from "../contract/service.ts";
 import { selectAllReferencedAssetIds } from "../persistence/asset-refs.ts";
 import { loadOwnerAssetRows } from "../persistence/maintenance.ts";
-import { purgeAsset } from "../substrate/purge-asset.ts";
+import { purgeAsset } from "../persistence/purge-asset.ts";
 
 /** The grace window (epoch-ms): a blob touched within this of `now` is skipped even if unreferenced —
  *  it may be a just-stored, not-yet-linked import. One hour generously covers a single import request's

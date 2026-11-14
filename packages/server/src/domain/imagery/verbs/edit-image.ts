@@ -13,7 +13,7 @@ import { ImageEditUnsupportedError, ImageryNotConfiguredError } from "../contrac
 import type { EditImageParams, EditImageSource } from "../contract/params.ts";
 import type { GeneratedPicture } from "../contract/results.ts";
 import type { ImageryContext, ImageryService, ResolvedGenerateImage } from "../contract/service.ts";
-import { runGeneration, sumCost } from "../substrate/generate-core.ts";
+import { runGeneration, sumCost } from "../persistence/generate-core.ts";
 import { SIZE_PRESETS } from "../substrate/size.ts";
 
 /** Default fan-out when the caller omits `n` (the wire clamps to 1..4). */

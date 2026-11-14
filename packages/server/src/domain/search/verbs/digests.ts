@@ -27,10 +27,10 @@ import type { DigestsParams } from "../contract/params.ts";
 import type { DigestSearchHit } from "../contract/results.ts";
 import type { DigestSearchEvents, SearchContext, SearchService } from "../contract/service.ts";
 import { nearestDigests } from "../persistence/digest-rows.ts";
+import { withActiveQuerySpace } from "../persistence/space.ts";
 import { SCOPED_POOL_K } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
 import { SCOPE_INSTRUCTIONS } from "../substrate/instructions.ts";
-import { withActiveQuerySpace } from "../substrate/space.ts";
 
 const MIN_TERM_LEN = 3;
 // SPLIT ON "NOT A LETTER OR DIGIT", NOT ON "NOT ASCII". `[^a-z0-9]+` treated every Cyrillic, Greek, CJK and

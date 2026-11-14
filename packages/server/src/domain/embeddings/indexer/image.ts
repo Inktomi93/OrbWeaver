@@ -6,9 +6,9 @@ import { isMissingFile } from "#primitives/errno";
 import { AssetFileCorruptError, AssetFileMissingError } from "../contract/errors.ts";
 import type { AvatarAnalysis } from "../contract/results.ts";
 import type { EmbeddingsContext, EmbeddingsService, PinnedGeneration, PinnedImageSpace } from "../contract/service.ts";
+import { resolveImageTargetGeneration } from "../persistence/generation.ts";
 import { readImageAnalysis, saveImageAnalysis } from "../persistence/image-analysis.ts";
 import { existingCaptionedRow, existingImageHash, existingImageSkip, insertImageSkip } from "../persistence/queries.ts";
-import { resolveImageTargetGeneration } from "../substrate/generation.ts";
 import { contentHash } from "../substrate/hash.ts";
 import { imageBelowFloor } from "../substrate/image-admission.ts";
 

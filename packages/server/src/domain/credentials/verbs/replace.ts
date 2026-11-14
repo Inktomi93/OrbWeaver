@@ -6,8 +6,8 @@ import type { ReplaceCredentialParams } from "../contract/params.ts";
 import type { CredentialContext, CredentialsService } from "../contract/service.ts";
 import { aadFor } from "../persistence/aad.ts";
 import { fetchOwnedCredential, rotateSealed } from "../persistence/queries.ts";
+import { reloadView, requireStorage } from "../persistence/stored.ts";
 import { requireOwned } from "../substrate/credential-not-found.ts";
-import { reloadView, requireStorage } from "../substrate/stored.ts";
 
 export function createReplace(ctx: CredentialContext): CredentialsService["replace"] {
   return async (params: ReplaceCredentialParams): Promise<CredentialView> => {

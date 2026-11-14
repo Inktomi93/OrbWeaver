@@ -5,7 +5,7 @@
 //     missing id never leaves a phantom audit row
 // Disabling revokes all of the target's live sessions (the kick tail) via the injected SessionAdminPort.
 //
-// The flip, its audit row and the kick are ONE batch (`substrate/audited-write.ts`). Not named in the
+// The flip, its audit row and the kick are ONE batch (`persistence/audited-write.ts`). Not named in the
 // row's three verbs, fixed with them because it is the same shape on the same seam and leaving it behind
 // would be half a migration: a containment action (disable) that returns success with no forensic row is the
 // same defect as an unaudited grant, and `logAudit` swallows in production.
@@ -30,8 +30,8 @@ import { ADMIN_OP_CODES } from "../contract/errors.ts";
 import type { SetEnabledParams } from "../contract/params.ts";
 import type { AdminContext, AdminService } from "../contract/service.ts";
 import { isBootstrapOwnerRole, requireAdmin } from "../guard.ts";
+import { commitAuditedWrite } from "../persistence/audited-write.ts";
 import { loadUser, toAdminUserData, userCols } from "../persistence/queries.ts";
-import { commitAuditedWrite } from "../substrate/audited-write.ts";
 
 const OWNER_ROLE = "owner";
 

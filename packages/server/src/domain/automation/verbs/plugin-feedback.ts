@@ -5,7 +5,7 @@ import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { PluginFeedbackDeps, PluginFeedbackOps } from "../contract/plugin-feedback.ts";
-import { resolveNotificationRecipients } from "../substrate/notification-recipients.ts";
+import { resolveNotificationRecipients } from "../persistence/notification-recipients.ts";
 
 /** Bind the plugin producer to the same recipient axis and feedback bus automation uses. */
 

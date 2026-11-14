@@ -9,7 +9,7 @@
 // `iteration` stamps stay 0-based per round.
 //
 // WHAT THE COUNTER IS NOT: THE IN-FLIGHT CLAIM — and it never becomes one. A round is
-// SERIALIZED by a separate LEASED claim on the session (`substrate/round-claim.ts`), taken here BEFORE the
+// SERIALIZED by a separate LEASED claim on the session (`persistence/round-claim.ts`), taken here BEFORE the
 // first model call and released on both the commit and the failure arm; a second concurrent round cannot take
 // it and is refused `RefineryRoundInFlightError` having spent nothing. The three alternatives that were
 // weighed and rejected are recorded because each looks reasonable until it is priced:
@@ -30,7 +30,7 @@ import { getLog } from "#foundation/observability";
 import { RefineryRoundInFlightError, RefineryStageNotReadyError } from "../contract/errors.ts";
 import type { RefineryContext, RefineryService, StageEngineDeps } from "../contract/service.ts";
 import { latestRunRowOf, loadOwnedSessionRow } from "../persistence/queries.ts";
-import { releaseRoundClaim, takeRoundClaim } from "../substrate/round-claim.ts";
+import { releaseRoundClaim, takeRoundClaim } from "../persistence/round-claim.ts";
 
 export function createIterate(ctx: RefineryContext, deps: StageEngineDeps): RefineryService["iterate"] {
   return async ({ principal, sessionId, guidance }) => {

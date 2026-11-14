@@ -6,8 +6,9 @@
 import { RosterPresetNameConflictError, RosterPresetNotFoundError } from "../contract/errors.ts";
 import type { UpdateRosterPresetParams } from "../contract/params.ts";
 import type { RosterPresetContext, RosterPresetService } from "../contract/service.ts";
+import { loadView } from "../persistence/load-view.ts";
 import { loadOwnedPresetRow, ownedPresetNameTaken, updatePresetWithMembers } from "../persistence/queries.ts";
-import { ensureAnchorOwned, ensureMembersOwned, loadView, parsedGameTemplate, parsedGroupConfig, resolveCastRules } from "../substrate/authored-input.ts";
+import { ensureAnchorOwned, ensureMembersOwned, parsedGameTemplate, parsedGroupConfig, resolveCastRules } from "../substrate/authored-input.ts";
 import { normalizeMembers } from "../substrate/members.ts";
 
 export function createUpdate(ctx: RosterPresetContext): RosterPresetService["update"] {

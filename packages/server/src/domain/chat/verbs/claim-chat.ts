@@ -40,8 +40,8 @@ import { batchLed } from "@orb/db/query";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import type { ChatContext } from "../contract/context.ts";
-import { classifyParticipant } from "../persistence/participant.ts";
 import { characterSeatedInAnotherChat, loadParticipants } from "../persistence/participants-read.ts";
+import { classifyParticipant } from "../substrate/participant-actor.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { appendStatsDeltas, canonMessageDelta, chatCreatedDelta, seatChatDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
 

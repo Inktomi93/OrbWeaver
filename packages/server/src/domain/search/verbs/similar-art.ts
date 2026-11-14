@@ -8,9 +8,9 @@ import type { SimilarArtParams } from "../contract/params.ts";
 import type { SimilarArtHit } from "../contract/results.ts";
 import type { SearchContext, SearchService } from "../contract/service.ts";
 import { nearestAvatarCharacters, readSeedAvatarVector } from "../persistence/image-nearest.ts";
+import { withActiveQuerySpace } from "../persistence/space.ts";
 import { CAPTION_LENS, OWNER_OVERFETCH } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
-import { withActiveQuerySpace } from "../substrate/space.ts";
 import { requirePositiveTopN } from "../substrate/top-n.ts";
 
 const DEFAULT_ART_LENS: ImageLens = "image-raw";

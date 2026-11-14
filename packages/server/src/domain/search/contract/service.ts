@@ -70,7 +70,7 @@ export interface QueryEmbedConnection extends EmbeddingConnectionFacts {
 export type ResolveQueryConnection = ResolveEmbeddingConnectionOp<QueryEmbedConnection>;
 
 /** The active generation a query is served from. `via` carries the joint-space rule's read-side answer
- *  (§10-3, `substrate/space.ts`): `"imageEmbed"` is the ordinary picture arm, `"embed"` the captioned-text
+ *  (§10-3, `persistence/space.ts`): `"imageEmbed"` is the ordinary picture arm, `"embed"` the captioned-text
  *  fallback for an owner with no image-capable embedder. `model` is the space tag `nearest.ts` filters on
  *  in both arms. */
 export interface ActiveQuerySpace {

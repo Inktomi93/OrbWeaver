@@ -29,14 +29,18 @@ import type { RandomSource } from "@orb/kit/macro";
 import type { SerialLanes } from "@orb/kit/serial-lanes";
 import type { Clock } from "@orb/kit/time";
 import type { DetachedSupervision, Logger } from "#foundation/observability";
+import type { AnalysisConfirmAct } from "./analysis.ts";
 import type {
+  AnalysisConfirmDeps,
   ApplyProseRewrite,
   ArmDispatch,
   AutomationOps,
   EnabledRuleIndex,
   IsPluginLive,
   ListRuleTools,
+  PendingSuggestion,
   PromptTransformIndex,
+  RuleRow,
   SuggestionStore,
 } from "./ops.ts";
 import type {
@@ -82,6 +86,9 @@ export interface AutomationContext {
   readonly listRuleTools: ListRuleTools;
   /** The service-owned arm dispatcher shares this context's ordering engine. */
   readonly runArm: ArmDispatch;
+  /** The analysis CONFIRM executor (`engine/analysis-confirm.ts`), bound beside {@link runArm} because the
+   *  confirm verb may not import `engine/` (`domain-substrate-mediates-subsystems`). */
+  readonly runAnalysisConfirm: (deps: AnalysisConfirmDeps, pending: PendingSuggestion, rule: RuleRow, act: AnalysisConfirmAct) => Promise<void>;
   /** The in-process pre-check index — maintained by the enable/disable/delete/trigger-change verbs. */
   readonly enabled: EnabledRuleIndex;
   /** S4 — the in-RAM pending-ask map (RULED F1). One per process, created at compose beside `enabled`;
@@ -119,7 +126,7 @@ export interface AutomationContext {
 }
 
 /** Service inputs exclude the two owner-built runtime operations. */
-export type AutomationServiceDeps = Omit<AutomationContext, "runArm" | "serialLanes">;
+export type AutomationServiceDeps = Omit<AutomationContext, "runArm" | "runAnalysisConfirm" | "serialLanes">;
 
 /** The automation surface. The global-variable slice is owner-scoped on `principal.userId`; the
  *  rule-lifecycle slice gates host authority over the chat's membership. */
