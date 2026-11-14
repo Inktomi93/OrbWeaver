@@ -147,7 +147,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
                 <Text voice="promoted">{plugin.name}</Text>
                 {status.tone === "success" ? null : (
                   // A plain "On" repeats the Enabled switch below; the badge speaks only for states the switch cannot (a warning, an error, a pending ask).
-                  <Badge tone={status.tone} size="sm">
+                  <Badge whitespace="normal" cap="fit" tone={status.tone} size="sm">
                     {status.label}
                   </Badge>
                 )}
