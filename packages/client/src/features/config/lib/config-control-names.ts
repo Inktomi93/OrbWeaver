@@ -5,7 +5,7 @@
 export const CONFIG_THEME_NAME_FIELD_NAME = "Theme name";
 
 /** The theme editor's base surface colour field. */
-export const CONFIG_THEME_BACKGROUND_FIELD_NAME = "Background";
+export const CONFIG_THEME_BACKGROUND_FIELD_NAME = "Background colour";
 
 /** The theme editor's accent colour field, and its row in the contrast report. */
 export const CONFIG_THEME_ACCENT_FIELD_NAME = "Accent";
