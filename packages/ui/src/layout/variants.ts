@@ -401,8 +401,7 @@ export const stackVariants = tv({
     cap: CAP,
     width: WIDTH,
     centred: CENTRED,
-    // `bandHead` is the solid head of a feathered art band, above where the feather starts.
-    height: { ...HEIGHT, bandHead: "block-3/5" },
+    height: HEIGHT,
     grow: GROW,
     floor: FLOOR,
     push: PUSH,

@@ -87,11 +87,15 @@ export const avatarVariants = tv({
   },
 });
 
+// The solid head of a feathered band spans three fifths of it: a little past where the feather starts to dissolve (`--art-feather-start`
+// on `.orb-art-band[data-art-image="false"]`, 55%), so the initials sit wholly on the pane's own fill.
+const BAND_HEAD = "block-3/5";
+
 /** The initials of an art pane with no picture, over the pane's own fill. `pane` fills the box; `bandHead` is the solid head of a feathered band. */
 export const monogramVariants = tv({
   base: MONOGRAM,
   variants: {
-    seat: { pane: PLACED.fill, bandHead: `${PLACED.topBand} block-3/5` },
+    seat: { pane: PLACED.fill, bandHead: `${PLACED.topBand} ${BAND_HEAD}` },
   },
 });
 
