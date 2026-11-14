@@ -143,7 +143,8 @@ function plainNotice(code: PlainChatWarningCode): NotifyNotice {
       };
     case "global_variable_dropped":
       return {
-        description: "A card or preset tried to save a global variable that was too large or too many. The reply and the other variables saved.",
+        description:
+          "A card or preset tried to save a global variable that was too large, or more variables than the limit allows. The reply and the other variables were saved.",
         title: "A global variable wasn't saved",
       };
     // Host-only by delivery: the reply stands, and members stop reading at the broken tag until the host mends it.
