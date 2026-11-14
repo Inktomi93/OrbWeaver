@@ -140,11 +140,11 @@ export interface TurnRetrievalWarningEpisode {
 
 /** A complete, aged-out block of canon (the `blockSize`-message digest/segment unit). `blockIdx` is the
  *  fixed-width index within the chat; the rows are the block's messages oldest→newest. */
-export interface BlockSpan {
+export interface BlockSpan<R extends Pick<MsgRow, "seq"> = MsgRow> {
   readonly blockIdx: number;
   readonly seqStart: number;
   readonly seqEnd: number;
-  readonly rows: readonly MsgRow[];
+  readonly rows: readonly R[];
 }
 
 /** The three token quantities the summarizer token-guard fits a block against (`generate/substrate/token-guard`
