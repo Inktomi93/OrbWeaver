@@ -12,9 +12,9 @@ import { and, eq } from "drizzle-orm";
 import { connectionFingerprint, generationIdOf, vectorSpaceFingerprint } from "#primitives/embedding-generation";
 import { SpaceMismatchError } from "../contract/errors.ts";
 import type { EmbeddingConnectionSnapshot, EmbeddingsContext, PinnedGeneration, PinnedImageSpace } from "../contract/service.ts";
-import { markGenerationComplete, switchTargetGeneration } from "../persistence/space-state.ts";
-import { embedFailure } from "./embed-failure.ts";
-import { resolveImageSpace } from "./task-model.ts";
+import { embedFailure } from "../substrate/embed-failure.ts";
+import { resolveImageSpace } from "../substrate/task-model.ts";
+import { markGenerationComplete, switchTargetGeneration } from "./space-state.ts";
 
 type TargetResolveCtx = Pick<EmbeddingsContext, "db" | "now" | "resolveEmbeddingConnection" | "onTargetGenerationMoved" | "scheduleTimeout" | "logger">;
 

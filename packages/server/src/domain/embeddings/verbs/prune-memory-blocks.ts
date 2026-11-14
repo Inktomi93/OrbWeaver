@@ -16,7 +16,7 @@
 import type { PruneMemoryBlocksParams } from "@orb/contracts/embeddings";
 import type { EmbeddingsContext, EmbeddingsService } from "../contract/service.ts";
 import { dropChatDigestKeys, pruneChatDigests, pruneChatSegments } from "../persistence/clear.ts";
-import { resolveTargetGeneration } from "../substrate/generation.ts";
+import { resolveTargetGeneration } from "../persistence/generation.ts";
 
 function assertNever(value: never): never {
   throw new Error(`pruneMemoryBlocks: unhandled lens ${String(value)}`);

@@ -8,9 +8,9 @@ import type { CharacterCardHit } from "../contract/results.ts";
 import type { SearchContext, SearchService } from "../contract/service.ts";
 import { resolveCharacterDisplay } from "../persistence/display.ts";
 import { nearestCharacters, readSeedCharacterVector } from "../persistence/nearest.ts";
+import { withActiveQuerySpace } from "../persistence/space.ts";
 import { OWNER_OVERFETCH } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
-import { withActiveQuerySpace } from "../substrate/space.ts";
 import { requirePositiveTopN } from "../substrate/top-n.ts";
 
 export function createSimilarCharacters(ctx: SearchContext): SearchService["similarCharacters"] {

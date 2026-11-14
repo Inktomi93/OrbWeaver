@@ -13,10 +13,10 @@ import type { DigestSourceHit, UnifiedSearchResult, UnifiedSearchRows } from "..
 import type { DigestCoverageOp, SearchContext, SearchService } from "../contract/service.ts";
 import { nearestDigests } from "../persistence/digest-rows.ts";
 import { resolveCharacterDisplay, resolveChatDisplay } from "../persistence/display.ts";
+import { withActiveQuerySpace } from "../persistence/space.ts";
 import { DISCOVER_SEGMENT_POOL_CAP, DISCOVER_SEGMENT_POOL_FACTOR, DISCOVER_SEGMENTS_PER_CHAR, OWNER_OVERFETCH, SCOPED_POOL_K } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
 import { SCOPE_INSTRUCTIONS } from "../substrate/instructions.ts";
-import { withActiveQuerySpace } from "../substrate/space.ts";
 
 /** Delegated retrieval retains producer scope; digest scopes share the current-host scan below. */
 type DelegateVerbs = Pick<SearchService, "knn" | "findCharacters" | "discover" | "corpus" | "images" | "documents">;

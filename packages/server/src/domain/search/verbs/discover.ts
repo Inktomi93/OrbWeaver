@@ -10,10 +10,10 @@ import type { ActiveQuerySpace, SearchContext, SearchService } from "../contract
 import { hostedChatIds, nearestSegments } from "../persistence/digest-rows.ts";
 import { resolveChatDisplay, resolveSegmentDisplay } from "../persistence/display.ts";
 import { readSourceAnchors } from "../persistence/source.ts";
+import { withActiveQuerySpace } from "../persistence/space.ts";
 import { DISCOVER_SEGMENT_POOL_CAP, DISCOVER_SEGMENT_POOL_FACTOR, DISCOVER_SEGMENTS_PER_CHAR, SNIPPET_CHARS } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
 import { collapseSegmentChunks } from "../substrate/dedupe.ts";
-import { withActiveQuerySpace } from "../substrate/space.ts";
 import { requirePositiveTopN } from "../substrate/top-n.ts";
 
 interface DiscoverCandidate {

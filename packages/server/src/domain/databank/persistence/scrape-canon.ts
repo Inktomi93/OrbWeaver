@@ -1,8 +1,8 @@
-// domain/databank/substrate/scrape-canon — the shared §2 canon-write tail every scraper ends in:
+// domain/databank/persistence/scrape-canon — the shared §2 canon-write tail every scraper ends in:
 // importHash over the fetched bytes → dedup → CAS store → synchronous extraction →
-// documents row → enqueue ingest. Homed in substrate/ (not verbs/) because it is shared verb logic — a verb file
-// importing a sibling verb's value is dep-cruiser `domain-no-cross-verb`; substrate is the domain-internal home
-// for the helper three verbs (web/youtube/wiki) close over. Extracted ONCE because all three run the identical
+// documents row → enqueue ingest. Not under verbs/ because it is shared verb logic — a verb file
+// importing a sibling verb's value is dep-cruiser `domain-no-cross-verb` — and not substrate because it writes rows;
+// it is the helper three verbs (web/youtube/wiki) close over. Extracted ONCE because all three run the identical
 // pipeline and differ only in origin/mime/name/sourceUrl (a 3-consumer duplication that changes together). The
 // scrape-specific concern each verb owns itself is the FETCH (URL derivation + the leak-free `ScrapeFailedError`
 // collapse); this tail assumes the bytes are already in hand and never touches the fetch.
@@ -12,10 +12,10 @@ import { sha256Hex } from "#primitives/content-hash";
 import type { ScrapeName, ScrapeWrite } from "../contract/params.ts";
 import type { UploadResult } from "../contract/results.ts";
 import type { DatabankContext } from "../contract/service.ts";
-import { findByImportHash, requireOwnedMeta, toDocumentView } from "../persistence/queries.ts";
-import { attachIngestDestination, insertIngestDocument, requireIngestDestination } from "../persistence/scope.ts";
-import { activeSpaceModel } from "./active-space.ts";
-import { queueIngest } from "./queue-ingest.ts";
+import { activeSpaceModel } from "../substrate/active-space.ts";
+import { queueIngest } from "../substrate/queue-ingest.ts";
+import { findByImportHash, requireOwnedMeta, toDocumentView } from "./queries.ts";
+import { attachIngestDestination, insertIngestDocument, requireIngestDestination } from "./scope.ts";
 
 const NAME_MAX = 500;
 

@@ -7,7 +7,7 @@ import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import { generationIdOf, isUnresolvableBinding, vectorSpaceFingerprint } from "#primitives/embedding-generation";
 import { SEARCH_NO_SPACE, SEARCH_SPACE_REINDEXING, SearchError } from "../contract/errors.ts";
 import type { ActiveQuerySpace, QueryEmbedConnection, SearchContext } from "../contract/service.ts";
-import { readActiveGeneration, readGeneration } from "../persistence/active-space.ts";
+import { readActiveGeneration, readGeneration } from "./active-space.ts";
 
 type SpaceContext = Pick<SearchContext, "db" | "resolveEmbeddingConnection">;
 

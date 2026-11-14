@@ -13,7 +13,7 @@ import type { CharacterId, UserId } from "@orb/kit/ids";
 import { GenerationSupersededError } from "#primitives/embedding-generation";
 import type { EmbedPassParams } from "../contract/params.ts";
 import type { EmbeddingsContext, EmbeddingsService } from "../contract/service.ts";
-import { completeGenerationScope, resolveTargetGeneration } from "../substrate/generation.ts";
+import { completeGenerationScope, resolveTargetGeneration } from "../persistence/generation.ts";
 import { requireTaskModel } from "../substrate/task-model.ts";
 
 interface CardSweep {

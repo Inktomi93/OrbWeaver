@@ -10,7 +10,7 @@ import { getLog } from "#foundation/observability";
 import { isUnresolvableBinding } from "#primitives/embedding-generation";
 import { EmbedFailedError } from "../contract/errors.ts";
 import type { EmbeddingsContext, EmbeddingsService } from "../contract/service.ts";
-import { landProvenTarget, pendingTargetMove, probeWidth, widthMismatchOf } from "../substrate/generation.ts";
+import { landProvenTarget, pendingTargetMove, probeWidth, widthMismatchOf } from "../persistence/generation.ts";
 import { resolveImageSpace } from "../substrate/task-model.ts";
 
 /** One target the sync may move: its task, and the role its vectors are embedded through. */
