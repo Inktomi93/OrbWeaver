@@ -19,11 +19,38 @@ import type { MessageRole } from "@orb/kit/message-role";
 import { MESSAGE_TALLY_FIELDS, modelKey, statsBucketStart, wordCount } from "@orb/kit/stats-tally";
 import type { ChatAccountingContext } from "../contract/accounting-context.ts";
 
-/** Append a canonical delta sequence without widening the injected single-delta write boundary. */
-export function appendStatsDeltas(ctx: Pick<ChatAccountingContext, "db" | "applyStatsDelta">, statements: BatchStmt[], deltas: readonly StatsDelta[]): void {
+/** Append a canonical delta sequence without widening the injected single-delta write boundary. When the sequence
+ *  retracts turns or swipes on net, the extrema of the owners and voices it lowers are re-derived from canon after
+ *  the deltas: a retraction carries no activity time, and a MAX merge cannot lower one a removed turn set. The
+ *  caller pushes its canon write before this call, so the re-derivation reads canon after the change. */
+export function appendStatsDeltas(
+  ctx: Pick<ChatAccountingContext, "db" | "applyStatsDelta" | "settleRetainedChatRebase">,
+  statements: BatchStmt[],
+  deltas: readonly StatsDelta[],
+): void {
   for (const delta of deltas) {
     ctx.applyStatsDelta(statements, ctx.db, delta);
   }
+  const retracted = retractedScope(deltas);
+  if (retracted.ownerIds.length > 0 || retracted.characterIds.length > 0) {
+    ctx.settleRetainedChatRebase(statements, ctx.db, retracted);
+  }
+}
+
+// A selection swap or a re-voice moves a contribution between grains and nets to zero where it lands; only a grain
+// left with fewer turns or swipes can lose the turn that set its extremum.
+function retractedScope(deltas: readonly StatsDelta[]): { readonly ownerIds: UserId[]; readonly characterIds: CharacterId[] } {
+  const owners = new Map<UserId, number>();
+  const voices = new Map<CharacterId, number>();
+  for (const delta of deltas) {
+    const turns = (delta.userTurns ?? 0) + (delta.assistantTurns ?? 0) + (delta.systemTurns ?? 0) + (delta.swipes ?? 0);
+    owners.set(delta.ownerId, (owners.get(delta.ownerId) ?? 0) + turns);
+    if (delta.characterId !== null) {
+      voices.set(delta.characterId, (voices.get(delta.characterId) ?? 0) + turns);
+    }
+  }
+  const lowered = <K>(net: Map<K, number>): K[] => [...net].flatMap(([key, value]) => (value < 0 ? [key] : []));
+  return { ownerIds: lowered(owners), characterIds: lowered(voices) };
 }
 
 /** Funding/actor labels on a builder template never choose the retained-data accounting cohort. */
@@ -492,14 +519,30 @@ function hasReasoningText(reasoning: string | null): boolean {
   return reasoning !== null && reasoning.trim().length > 0;
 }
 
+/** A signed canon contribution without its MAX candidates. A retraction is this body alone: last activity and
+ *  max context cannot be subtracted, so a `-1` carries neither and {@link appendStatsDeltas} re-derives them from
+ *  canon in the same batch. Only a turn is activity, so a retraction never stamps a time of its own. */
+type CanonContributionBody = Omit<StatsDelta, "lastAt" | "maxContextTokens"> & { readonly lastAt?: never; readonly maxContextTokens?: never };
+
 /**
  * The full contribution of one canon message (its selected variant) as a signed delta — the live mirror
- * of the rebuild's `foldMessage`. `sign:-1` is the delete-messages arm; `lastAt` re-floats to `now` (an
- * extremum can't be subtracted, the next reconcile settles it). `maxContextTokens` is carried only on
- * `+1` (a MAX candidate can't be retracted).
+ * of the rebuild's `foldMessage`. Only `+1` adds the activity and context candidates the row itself holds.
  */
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: a flat signed field-mapping of the rebuild's fold — every ternary is one column, no nesting; splitting it would scatter the drift-gate mirror.
 function legacyCanonMessageDelta(params: { readonly ownerId: UserId; readonly row: CanonRowInput; readonly sign: 1 | -1; readonly now: number }): StatsDelta {
+  const body = canonContributionBody(params);
+  if (params.sign < 0) {
+    return body;
+  }
+  return { ...body, lastAt: params.row.createdAt, ...(params.row.contextWindow !== null ? { maxContextTokens: params.row.contextWindow } : {}) };
+}
+
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: a flat signed field-mapping of the rebuild's fold — every ternary is one column, no nesting; splitting it would scatter the drift-gate mirror.
+function canonContributionBody(params: {
+  readonly ownerId: UserId;
+  readonly row: CanonRowInput;
+  readonly sign: 1 | -1;
+  readonly now: number;
+}): CanonContributionBody {
   const { row, sign } = params;
   const fields = MESSAGE_TALLY_FIELDS[row.role];
   const isAssistant = fields.turns === "assistantTurns";
@@ -547,8 +590,6 @@ function legacyCanonMessageDelta(params: { readonly ownerId: UserId; readonly ro
     reasoningGenerations: reasoningGen,
     variantMessages: settled ? sign : 0,
     activeIdxSum: settled ? row.selectedIdx * sign : 0,
-    ...(sign > 0 && row.contextWindow !== null ? { maxContextTokens: row.contextWindow } : {}),
-    lastAt: sign > 0 ? row.createdAt : params.now,
     now: params.now,
     ...canonModelSlice(creditsModel, {
       sign,
@@ -584,7 +625,7 @@ function canonModelSlice(
     readonly cacheR: number;
     readonly cacheW: number;
   },
-): Partial<StatsDelta> {
+): Partial<Omit<StatsDelta, "lastAt" | "maxContextTokens">> {
   if (!creditsModel) {
     return {};
   }

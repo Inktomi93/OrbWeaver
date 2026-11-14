@@ -36,5 +36,5 @@ export interface ChatAccountingContext {
 /** Retained canon writes do not receive room rekey or character-only accounting operations. */
 export type RetainedCanonContext = Pick<
   ChatAccountingContext,
-  "db" | "now" | "applyStatsDelta" | "resolveRetainedChatAccountingScope" | "bumpStatsCanonVersion"
+  "db" | "now" | "applyStatsDelta" | "settleRetainedChatRebase" | "resolveRetainedChatAccountingScope" | "bumpStatsCanonVersion"
 >;
