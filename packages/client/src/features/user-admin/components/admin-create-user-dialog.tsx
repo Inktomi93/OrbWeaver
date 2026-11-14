@@ -10,7 +10,7 @@ import { handleSchema, MIN_PASSWORD_LENGTH } from "@orb/contracts/identity";
 import type { ReactElement } from "react";
 import { DialogFailure, FormDialogPopup, FormDialogRoot } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { ACCOUNT_HANDLE_FIELD_NAME, ACCOUNT_PASSWORD_FIELD_NAME } from "#lib";
+import { ACCOUNT_HANDLE_FIELD_NAME, ACCOUNT_PASSWORD_FIELD_NAME, rethrowUnlessTrpcFailure } from "#lib";
 import { useCreateUser } from "../hooks/use-admin-mutations.ts";
 import { useCreateUserForm } from "../hooks/use-create-user-form.ts";
 import type { CreateUserFormValues } from "../lib/admin-model.ts";
@@ -60,7 +60,7 @@ function CreateUserFormBody({ viewerIsOwner, onDone }: { readonly viewerIsOwner:
         testKey: "adminCreateUserSubmit",
         onSubmit: (): void => {
           // The save's failure is already said, inline or by the toast; the rethrow carries nothing new.
-          form.handleSubmit().catch(() => undefined);
+          form.handleSubmit().catch(rethrowUnlessTrpcFailure);
         },
       }}
       testKey="adminCreateUserDialog"

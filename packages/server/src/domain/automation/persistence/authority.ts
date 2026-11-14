@@ -5,12 +5,13 @@
 // while its AUTHOR still holds host), the confirm re-check of a RULE ask, and the sweep. A second spelling is
 // how one of them ends up comparing `role === "host"` itself, which is precisely what `can()` exists to prevent.
 //
-// Fail-CLOSED on every uncertainty: no such user, not a present member, or a `can()` throw ⇒ false.
+// Fail-CLOSED on every uncertainty: no such user, not a present member, or a `can()` refusal ⇒ false.
 //
 // A disabled account stands nowhere (owner-ruled: a disabled human is treated exactly like a departed one). Its
 // chat rules stop firing and its asks stop executing, so nothing a member does in its room spends its
 // connections. Its own requests cannot arrive (no session), so this read is the only gate its rules meet.
 
+import { DomainForbiddenError } from "@orb/kit/errors";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { AuthorityDeps, PendingSuggestion } from "../contract/ops.ts";
 import { loadMembershipInstance } from "./ask-standing.ts";
@@ -38,14 +39,16 @@ export async function holdsChatHostAuthority(deps: AuthorityDeps, chatId: ChatId
   if (role === undefined || !enabled) {
     return false;
   }
-  // the `false` is the denial verdict itself: `decideChat` in
-  // `admin/guard.ts` throws only `DomainForbiddenError` for the role `loadCallerRole` already captured, and every
-  // caller reads the boolean (`dispatch.ts` records `authority_refused`; `confirm-suggestion.ts` refuses
-  // `author_lost_authority`). Ends if `can()` gains a throw that is not a refusal.
+  // the `false` is the denial verdict itself: `decideChat` in `admin/guard.ts` refuses with `DomainForbiddenError`,
+  // and every caller reads the boolean (`dispatch.ts` records `authority_refused`; `confirm-suggestion.ts` refuses
+  // `author_lost_authority`). Any other throw rejects.
   try {
     deps.can(principal, "host", { kind: "chat", membership: { role } });
     return true;
-  } catch {
+  } catch (error) {
+    if (!(error instanceof DomainForbiddenError)) {
+      throw error;
+    }
     return false;
   }
 }

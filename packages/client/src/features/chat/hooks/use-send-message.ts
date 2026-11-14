@@ -13,8 +13,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import { useState } from "react";
 import type { Trpc } from "#data";
-import { createEntityMutation, roomRosterOptions, UploadRefusedError, useInvalidation, useTRPC, useUploadAsset } from "#data";
-import { notify, trpcErrorCode, turnMutationToast, viewerTimeZone } from "#lib";
+import { createEntityMutation, isUploadFailure, roomRosterOptions, UploadRefusedError, useInvalidation, useTRPC, useUploadAsset } from "#data";
+import { notify, rethrowUnlessTrpcFailure, trpcErrorCode, turnMutationToast, viewerTimeZone } from "#lib";
 import { holdRoomForSend, subscribeUserMessageCommitted } from "#state";
 import { SEND_FAILED_TITLE } from "../lib/send-failure-copy.ts";
 
@@ -102,9 +102,14 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
       return;
     }
     setIsPending(true);
-    // Only a send failure reaches the mutation's errorToast; an upload rejection is dropped here with no notice.
+    // A send failure reaches the mutation's errorToast and an upload failure its own notice in runSend; any other
+    // fault rejects.
     runSend(trimmed, attachments)
-      .catch(() => undefined)
+      .catch((error: unknown) => {
+        if (!isUploadFailure(error)) {
+          rethrowUnlessTrpcFailure(error);
+        }
+      })
       .finally(() => setIsPending(false));
   };
 

@@ -2,6 +2,8 @@
 // `pnpm snap --probe` before navigation), surfaces showing wall-clock-relative text swap it for a fixed
 // placeholder. Read once and cached — the flag is seeded pre-navigation and never flips live.
 
+import { isStorageRefusal } from "./storage-refusal.ts";
+
 const PROBE_MODE_KEY = "orb:probe-mode";
 
 let cached: boolean | null = null;
@@ -12,7 +14,10 @@ export function isProbeMode(): boolean {
     // storage access refused degrades to the safe default (not probe mode) — probe mode is opt-in instrumentation, never required for correct rendering. Ends if probe mode becomes load-bearing.
     try {
       cached = globalThis.localStorage.getItem(PROBE_MODE_KEY) === "1";
-    } catch {
+    } catch (error) {
+      if (!isStorageRefusal(error)) {
+        throw error;
+      }
       cached = false;
     }
   }

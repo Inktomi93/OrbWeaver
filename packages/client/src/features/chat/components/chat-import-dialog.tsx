@@ -19,7 +19,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { DismissDialog, ImportedChatsMemoryOffer } from "#components";
 import { importChats, useInvalidation, useTRPC } from "#data";
-import { chatInLibraryNotice, chatsInLibraryNotice, DIALOG_VERBS, importedOfLead, inLibraryClause, notify } from "#lib";
+import { chatInLibraryNotice, chatsInLibraryNotice, DIALOG_VERBS, importedOfLead, inLibraryClause, notify, rethrowUnlessTrpcFailure } from "#lib";
 import { CHAT_IMPORT_TITLE } from "../lib/chat-surface-names.ts";
 
 // Both chat formats the single-chat door accepts: the ST/share transcript and the R6 orb-native BUNDLE
@@ -80,10 +80,14 @@ export function ChatImportDialog({ open, onOpenChange }: ChatImportDialogProps):
   // is still judged by the real switch; a failed read counts as off and closes the dialog, never strands it.
   useQuery({ ...trpc.settings.getUserSettings.queryOptions(), enabled: open });
   const readMemoryOn = (): Promise<boolean> =>
-    // a deliberate fail-closed; an unreadable switch takes the Memory-off arm, the import's own toast already reported what landed, and every chat still builds at its next reply. Ends if the offer becomes the only way imported chats build memory.
+    // A deliberate fail-closed: a switch that fails to read (a tRPC failure) takes the Memory-off arm, the import's own
+    // toast already reported what landed, and every chat still builds at its next reply. Any other fault rejects.
     queryClient.query({ ...trpc.settings.getUserSettings.queryOptions() }).then(
       (settings) => settings.config.memory.enabled,
-      () => false,
+      (error: unknown) => {
+        rethrowUnlessTrpcFailure(error);
+        return false;
+      },
     );
   // The scope on offer: every drop since the last started build, merged. A closed dialog forgets it.
   const [offer, setOffer] = useState<{ readonly scope: ImportWindow; readonly started: boolean } | null>(null);

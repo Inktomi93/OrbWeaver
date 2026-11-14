@@ -8,6 +8,7 @@ import type { FindOwnedPresets, ImportPreset, PresetImportOutcome } from "@orb/c
 import { parsePresetFile, presetContentKey } from "@orb/contracts/preset";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
+import { parseJsonText } from "@orb/kit/json";
 import { nextFreeName } from "@orb/kit/strings";
 import { getLog } from "#foundation/observability";
 import { mapYielding } from "#primitives/abort";
@@ -21,11 +22,8 @@ const IMPORTED_PRESET_KIND = "roleplay";
 
 /** Decode + JSON-parse without throwing — a non-UTF-8/non-JSON blob is a malformed file, not a crash. */
 function readJson(bytes: Uint8Array): { ok: true; value: unknown } | { ok: false } {
-  try {
-    return { ok: true, value: JSON.parse(new TextDecoder().decode(bytes)) };
-  } catch {
-    return { ok: false };
-  }
+  const value = parseJsonText(new TextDecoder().decode(bytes));
+  return value === undefined ? { ok: false } : { ok: true, value };
 }
 
 type OwnedPreset = Awaited<ReturnType<typeof listOwned>>[number];

@@ -16,7 +16,7 @@ import type { ReactElement, Ref } from "react";
 import { useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { notifyNewRoomPersona, useInvalidation, useTRPC } from "#data";
-import { DIALOG_VERBS, timeLib } from "#lib";
+import { DIALOG_VERBS, rethrowUnlessTrpcFailure, timeLib } from "#lib";
 import { useDismissNotification } from "../hooks/use-inbox.ts";
 import { useAcceptInvite, useDeclineInvite } from "../hooks/use-invite-actions.ts";
 import {
@@ -136,7 +136,7 @@ export function InboxRow({ item, ref, onAccepted, onRequestHandoff, acceptedHand
     // useDeclineInvite (hooks/use-invite-actions.ts) and useDismissNotification (hooks/use-inbox.ts) each carry an errorToast.
     // Ends if one drops its errorToast or a new `work` caller lacks one.
     void work()
-      .catch(() => undefined)
+      .catch(rethrowUnlessTrpcFailure)
       .finally(() => {
         actionOwned.current = false;
       });

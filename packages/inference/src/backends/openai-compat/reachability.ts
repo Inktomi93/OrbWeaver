@@ -5,6 +5,7 @@
 // base URL with a short TTL so a burst of availability reads (every composer render) shares one probe.
 
 import { toError } from "@orb/kit/error-message";
+import { isFetchFailure } from "@orb/kit/fetch-failure";
 import type { Reachability } from "#contract";
 import { ProviderError } from "#contract";
 import type { ProbeTarget, ReachabilityDeps, ReachabilityProber, SleepTarget } from "#src/contract/openai-backend.ts";
@@ -66,12 +67,17 @@ async function readJson(
 /** Whether the server says it sleeps. The sleep route is optional evidence: a server or proxy that does not serve it
  *  is not asleep, and only the model list can call that server down. */
 async function readsSleeping(deps: ReachabilityDeps, target: ProbeTarget, sleepPath: string, signal: AbortSignal | undefined): Promise<boolean> {
-  // a sleep read the server does not answer is `false`: `probeOnce` then asks the model list, and `wakeBeforeSend` in openai-compat/index.ts lets the task run, where it meets the same server and rejects with its own classified ProviderError. A cancel is rethrown here as `wakeAborted`. Ends if a caller needs the read's own failure.
+  // A sleep read the server does not answer is `false`: `probeOnce` then asks the model list, and `wakeBeforeSend` in
+  // openai-compat/index.ts lets the task run, where it meets the same server and rejects with its own classified
+  // ProviderError. A cancel is rethrown here as `wakeAborted`, and any fault that is not an unanswered read rejects.
   try {
     return readsAsleep(await readJson(deps, target, { url: sleepUrl(target.baseUrl, sleepPath), label: "sleep probe" }, signal));
   } catch (err) {
     if (signal?.aborted === true) {
       throw wakeAborted(err);
+    }
+    if (!(err instanceof ProviderError || isFetchFailure(err))) {
+      throw err;
     }
     return false;
   }
@@ -84,8 +90,13 @@ async function probeOnce(deps: ReachabilityDeps, target: ProbeTarget, signal?: A
     }
     await readJson(deps, target, { url: openAiPath(target.baseUrl, "/models"), label: "reachability probe" }, signal);
     return "up";
-    // a model list that does not answer is the returned `down` state, which the availability fold in resolve/availability.ts maps to `endpoint-unreachable`; reachability is advisory and never authorizes a request. Ends if callers need the failure cause.
-  } catch {
+  } catch (error) {
+    // A model list that does not answer (a classified ProviderError, or a body read that fails on the network or the
+    // deadline) is the returned `down` state, which the availability fold in resolve/availability.ts maps to
+    // `endpoint-unreachable`; reachability is advisory and never authorizes a request. Any other fault rejects.
+    if (!(error instanceof ProviderError || isFetchFailure(error))) {
+      throw error;
+    }
     return "down";
   }
 }
@@ -168,7 +179,9 @@ export function createReachabilityProber(deps: ReachabilityDeps): ReachabilityPr
   const wakeOnce = async (target: SleepTarget, signal: AbortSignal): Promise<boolean> => {
     invalidate(target.baseUrl);
     const post = deadlineSignal(signal, SERVER_READ_TIMEOUT_MS, deps.scheduleTimeout);
-    // a failed wake POST falls through to the bounded probe loop below, whose final `false` makes `wakeBeforeSend` (openai-compat/index.ts) throw a retryable `model_unavailable` ProviderError, and whose cancel check throws `wakeAborted`. Ends if the loop stops deciding success or timeout.
+    // A wake POST that fails on the network or its deadline falls through to the bounded probe loop below, whose final
+    // `false` makes `wakeBeforeSend` (openai-compat/index.ts) throw a retryable `model_unavailable` ProviderError, and
+    // whose cancel check throws `wakeAborted`. Any other fault rejects.
     await deps
       .fetch(sleepUrl(target.baseUrl, target.wakePath), {
         method: "POST",
@@ -176,7 +189,11 @@ export function createReachabilityProber(deps: ReachabilityDeps): ReachabilityPr
         redirect: "manual",
         signal: post.signal,
       })
-      .catch(() => undefined)
+      .catch((error: unknown) => {
+        if (!isFetchFailure(error)) {
+          throw error;
+        }
+      })
       .finally(post.dispose);
     const deadline = deps.now() + WAKE_TIMEOUT_MS;
     while (deps.now() < deadline) {

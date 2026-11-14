@@ -34,6 +34,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog, RowActionsMenu } from "#components";
 import { useInvalidation, useOpenRefinery, useTRPC } from "#data";
+import { rethrowUnlessTrpcFailure } from "#lib";
 import { clearCharacterSelection, openCharacterGallery, selectCharacter } from "#state";
 import { useCreatePersonaFromCharacter, useDuplicateCharacter, useRemoveCharacter, useSetWelcomeGreeter } from "../hooks/use-character-context-mutations.ts";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
@@ -70,13 +71,13 @@ export function CharacterActionsMenu({ characterId }: CharacterActionsMenuProps)
     void duplicate
       .mutateAsync({ characterId })
       .then((created) => selectCharacter(created.id))
-      .catch(() => undefined);
+      .catch(rethrowUnlessTrpcFailure);
   };
   const confirmDelete = (): void => {
     void remove
       .mutateAsync({ characterId })
       .then(() => clearCharacterSelection())
-      .catch(() => undefined);
+      .catch(rethrowUnlessTrpcFailure);
   };
 
   /** Every verb the `open` scope offers, wired. `null` = not click-dispatched from this map: `exportCard`
@@ -85,7 +86,7 @@ export function CharacterActionsMenu({ characterId }: CharacterActionsMenuProps)
   const handlers: Readonly<Record<OpenActionId, (() => void) | null>> = {
     openInRefinery: (): void => {
       // openRefinery's one failing call is `start.mutateAsync` (use-open-refinery.ts:103), whose mutation sets `errorToast` (use-open-refinery.ts:46); MutationCache.onError calls `toastFromMeta` (query-client.ts:81-83), which calls `notify.error`. Ends if that errorToast is dropped.
-      void openRefinery(characterId).catch(() => undefined);
+      void openRefinery(characterId).catch(rethrowUnlessTrpcFailure);
     },
     // Outside a chat there is no room to scope to, so the gallery opens without its "This chat" filter. The
     // dialog titles itself with the name, so the row waits for the detail read the editor already shares.

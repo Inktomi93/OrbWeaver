@@ -9,6 +9,7 @@ import type { ModelCatalogEntry, ModelListing } from "@orb/contracts/inference";
 import { foldFeatures } from "@orb/contracts/inference";
 import type { AccountCredits, EndpointInspection, GenerationCost } from "@orb/contracts/providers";
 import { errorMessage } from "@orb/kit/error-message";
+import { isFetchFailure } from "@orb/kit/fetch-failure";
 import { z } from "zod";
 import { fetchEndpointModels, fetchOpenRouterCatalog } from "#catalog";
 import type { DiagnosticRequestCommon, GenerationCostRequest, ListModelsRequest, ProviderScrubSet, Resolved } from "#contract";
@@ -293,8 +294,14 @@ async function inspectionOf(observed: Observed, secrets: ProviderScrubSet): Prom
   if (reply === undefined) {
     return { ok: false, request, response: null };
   }
-  // a preview read failure degrades to an explicit empty preview while status and headers remain inspectable. Precedent: the retired probe's mustPass fixture proved the same degraded inspection result. Ends if preview bytes become authoritative.
-  const text = await readBodyPreview(reply, secretScrubOverhang(secrets)).catch((): string => "");
+  // A body that dies mid-read (fetch's `TypeError`, or the abort of the send's own deadline) degrades to an explicit
+  // empty preview while status and headers remain inspectable. Any other fault rejects.
+  const text = await readBodyPreview(reply, secretScrubOverhang(secrets)).catch((error: unknown): string => {
+    if (!isFetchFailure(error)) {
+      throw error;
+    }
+    return "";
+  });
   return {
     ok: reply.ok,
     request,

@@ -18,7 +18,7 @@ import { useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { AutosaveStatus, createAutosaveEntityForm, touchedFieldError } from "#forms/editor";
 import type { DrillBack } from "#lib";
-import { DIALOG_VERBS, useFocusOnMount } from "#lib";
+import { DIALOG_VERBS, rethrowUnlessTrpcFailure, useFocusOnMount } from "#lib";
 import { setLabelNameFocus, useLabelNameFocus } from "#state";
 import { FOLDER_TYPE_ITEMS, tagColorValueLabel, tagUsageLabel } from "../lib/tag-model.ts";
 import { DetailHeader } from "./detail-header.tsx";
@@ -83,7 +83,8 @@ export function TagEditorBody(props: TagEditorBodyProps): ReactElement {
       try {
         await merging.settle;
         return;
-      } catch {
+      } catch (error) {
+        rethrowUnlessTrpcFailure(error);
         // Merge's mutation owns the failure; the surviving source still needs this ordinary save, even after dismissal.
       }
     }
@@ -363,7 +364,7 @@ function TagMergeControl({
         onMerged();
       })
       // The mutation's error toast owns merge refusal; the open confirmation and form draft remain available.
-      .catch(() => undefined);
+      .catch(rethrowUnlessTrpcFailure);
   };
 
   return (

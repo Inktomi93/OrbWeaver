@@ -9,7 +9,7 @@ import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { useTRPCClient } from "#data";
-import { embedRefusalText, REINDEX_CONFIRM_COPY, reindexConfirmDescription, reindexNeedsConfirm } from "#lib";
+import { embedRefusalText, REINDEX_CONFIRM_COPY, reindexConfirmDescription, reindexNeedsConfirm, rethrowUnlessTrpcFailure } from "#lib";
 import type { ConfirmDialogProps } from "./confirm-dialog.tsx";
 import { ConfirmDialog } from "./confirm-dialog.tsx";
 
@@ -54,24 +54,28 @@ export function useReindexConfirm(finalFocus?: ConfirmDialogProps["finalFocus"])
     setAsking(true);
     void client.connection.embedSpaceChangePreview
       .mutate({ change })
-      .then((preview): void => {
-        if (request !== latest.current) {
-          return;
-        }
-        if (preview.refusal !== null) {
-          setRefusal(preview.refusal);
-        } else if (reindexNeedsConfirm(preview)) {
-          setPending({ preview, write });
-        } else {
-          write(preview.reindex);
-        }
-      })
-      // An unreadable preview cannot establish that writing is safe; retain the unknown-cost confirmation.
-      .catch((): void => {
-        if (request === latest.current) {
-          setPending({ preview: null, write });
-        }
-      })
+      .then(
+        (preview): void => {
+          if (request !== latest.current) {
+            return;
+          }
+          if (preview.refusal !== null) {
+            setRefusal(preview.refusal);
+          } else if (reindexNeedsConfirm(preview)) {
+            setPending({ preview, write });
+          } else {
+            write(preview.reindex);
+          }
+        },
+        // A preview that fails (a tRPC failure) cannot establish that writing is safe; retain the unknown-cost
+        // confirmation. Any other fault rejects.
+        (error: unknown): void => {
+          rethrowUnlessTrpcFailure(error);
+          if (request === latest.current) {
+            setPending({ preview: null, write });
+          }
+        },
+      )
       .finally((): void => {
         if (request === latest.current) {
           setAsking(false);

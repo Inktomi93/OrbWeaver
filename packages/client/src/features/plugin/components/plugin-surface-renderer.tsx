@@ -41,7 +41,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { useGatedQuery, useInvalidation, useTRPC } from "#data";
-import { CONSOLE_STYLES } from "#lib";
+import { CONSOLE_STYLES, rethrowUnlessTrpcFailure } from "#lib";
 import { useInvokeUiAction } from "../lib/plugin-mutations.ts";
 import { collectDefaults, collectImageAssetIds, specNamesBundleAsset } from "../lib/plugin-surface-bindings.ts";
 import { applyPluginUiOutcome } from "../lib/plugin-ui-outcome.ts";
@@ -262,7 +262,7 @@ function PluginSurfaceForm({ pluginId, surfaceId, spec, anchor, chatId, sink, st
       void invoke
         .mutateAsync({ pluginId, surfaceId, actionId, values: merged, ...(chatId === undefined ? {} : { chatId }) })
         .then((outcome) => applyPluginUiOutcome(pluginId, outcome))
-        .catch(() => undefined);
+        .catch(rethrowUnlessTrpcFailure);
     },
     // A Tier-C action never has a pending network leg, so there is nothing to spin: `submitting` is false and
     // the guest's re-render IS the feedback.

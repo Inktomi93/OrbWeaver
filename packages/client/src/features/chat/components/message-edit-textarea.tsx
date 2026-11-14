@@ -11,7 +11,7 @@ import { Textarea } from "@orb/ui/textarea";
 import type { KeyboardEvent, ReactElement } from "react";
 import { useLayoutEffect, useRef } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { viewerTimeZone } from "#lib";
+import { rethrowUnlessTrpcFailure, viewerTimeZone } from "#lib";
 import { cancelEditingMessage, setMessageEditDraft, useMessageEditDraftText } from "#state";
 import { useEditMessageMutation } from "../hooks/use-message-mutations.ts";
 import { CHAT_CANCEL_EDIT_NAME, CHAT_SAVE_EDIT_NAME } from "../lib/chat-surface-names.ts";
@@ -63,7 +63,8 @@ export function MessageEditTextarea({ message, moveNeighbours }: MessageEditText
         timeZone: viewerTimeZone(),
       });
       cancelEditingMessage(message.id);
-    } catch {
+    } catch (error) {
+      rethrowUnlessTrpcFailure(error);
       // Stay in edit mode so the user can retry without retyping.
     }
   };

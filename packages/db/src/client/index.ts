@@ -144,18 +144,20 @@ export async function createDb(url: string, wrap?: LibSqlWrap): Promise<Db> {
 
 /**
  * Is `path` a COMPLETE sqlite db (i.e. a finished backup), or the debris of an interrupted one? Opens it
- * with a bare client (no pragmas, read-only in effect) and asks SQLite. Any throw ⇒ not usable.
+ * with a bare client (no pragmas, read-only in effect) and asks SQLite. A SQLite refusal ⇒ not usable.
  */
 async function isCompleteBackup(path: string): Promise<boolean> {
   const client = createClient({ url: pathToFileURL(path).href });
-  // this asks "does the file read as a complete db?"; `false` is the answer for
+  // this asks "does the file read as a complete db?"; `false` is SQLite's answer for
   // an unreadable file. `backupBeforeMigrate` is the only caller: it removes the debris and retries `VACUUM INTO`,
-  // and that retry's own failure throws with the cause and aborts boot.
-  // Ends if a caller needs the reason rather than the verdict.
+  // and that retry's own failure throws with the cause and aborts boot. Any fault that is not SQLite's refusal rejects.
   try {
     const result = await client.execute("PRAGMA quick_check");
     return result.rows[0]?.["quick_check"] === "ok";
-  } catch {
+  } catch (error) {
+    if (!(error instanceof LibsqlError)) {
+      throw error;
+    }
     return false;
   } finally {
     client.close();

@@ -12,19 +12,26 @@ import { DomainOperationError } from "@orb/kit/errors";
 import type { AddExternalBackgroundParams } from "../contract/params.ts";
 import type { SettingsContext, SettingsService } from "../contract/service.ts";
 
+const BACKGROUND_NAME = "Background";
+
 /** A human name for the entry, from the URL's last path segment (minus extension); "Background" otherwise. */
 function deriveName(url: string): string {
-  // safe floor — a display NAME derivation only; any
-  // parse/decode failure falls back to the same generic "Background" the empty-basename arm already returns.
-  // Ends if this name feeds anything beyond cosmetic display.
+  // A display NAME only: an unparseable URL or a malformed percent-escape falls back to the same generic "Background"
+  // the empty-basename arm returns.
+  const path = URL.parse(url)?.pathname;
+  if (path === undefined) {
+    return BACKGROUND_NAME;
+  }
   try {
-    const path = new URL(url).pathname;
     const last = decodeURIComponent(path.slice(path.lastIndexOf("/") + 1));
     const dot = last.lastIndexOf(".");
     const base = (dot > 0 ? last.slice(0, dot) : last).trim();
-    return base.length > 0 ? base : "Background";
-  } catch {
-    return "Background";
+    return base.length > 0 ? base : BACKGROUND_NAME;
+  } catch (error) {
+    if (!(error instanceof URIError)) {
+      throw error;
+    }
+    return BACKGROUND_NAME;
   }
 }
 

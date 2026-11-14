@@ -33,6 +33,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
+import { rethrowUnlessTrpcFailure } from "#lib";
 import { useRunSnippet } from "../lib/plugin-mutations.ts";
 
 type SnippetResult = inferOutput<Trpc["plugin"]["runSnippet"]>;
@@ -68,7 +69,7 @@ export function SnippetConsole({ chatId }: SnippetConsoleProps): ReactElement {
     setResult(null);
     // useRunSnippet (lib/plugin-mutations.ts) carries
     // errorToast serverReason("Couldn't run that snippet."). Ends if that mutation drops its errorToast.
-    runSnippet.mutateAsync({ chatId, code }).then(setResult, () => undefined);
+    runSnippet.mutateAsync({ chatId, code }).then(setResult, rethrowUnlessTrpcFailure);
   };
 
   return (

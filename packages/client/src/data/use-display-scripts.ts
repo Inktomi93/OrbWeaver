@@ -38,6 +38,7 @@ import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { ChatId } from "@orb/kit/ids";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { rethrowUnlessTrpcFailure } from "#lib";
 import { peekQueryData } from "./peek-query.ts";
 import type { Trpc } from "./trpc.ts";
 import { useTRPC } from "./trpc.ts";
@@ -134,11 +135,11 @@ export function usePrefetchDisplayScripts(chatId: ChatId): void {
     const room = roomDisplayScriptQuery(trpc, chatId);
     if (peekQueryData(queryClient, own.queryKey) === undefined) {
       // a failed warm-up leaves this key errored in the query cache, and regex-section.tsx:127 reads the same key with `useSuspenseQuery(trpc.regex.listScripts.queryOptions())`, which throws it to the error boundary. Ends if that suspense reader stops sharing this key.
-      void queryClient.query(own).catch(() => undefined);
+      void queryClient.query(own).catch(rethrowUnlessTrpcFailure);
     }
     if (peekQueryData(queryClient, room.queryKey) === undefined) {
       // useDisplayScripts' optional room transforms fall back to NO_SCRIPTS without changing canonical text; the native query cache retains error/retry state. Ends if the optional fallback or query-error ownership changes.
-      void queryClient.query(room).catch(() => undefined);
+      void queryClient.query(room).catch(rethrowUnlessTrpcFailure);
     }
   }, [queryClient, trpc, chatId]);
 }

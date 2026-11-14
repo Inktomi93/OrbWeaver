@@ -10,13 +10,15 @@
 // `undefined`, and `SandboxFrame` renders the srcdoc FLOOR — a strictly TIGHTER frame (it inherits the app
 // document's policy on top of its own). A card is never blank because the door was shut.
 
-import type { CardFrameMintRequest, CardFrameMintResponse, cardFrameMintRequestSchema } from "@orb/contracts/chat";
+import type { CardFrameMintRequest, cardFrameMintRequestSchema } from "@orb/contracts/chat";
 import { CARD_FRAME_ROUTE, cardFrameMintResponseSchema } from "@orb/contracts/chat";
 import { CSRF_HEADER } from "@orb/contracts/identity";
+import { isFetchFailure } from "@orb/kit/fetch-failure";
 import { useEffect, useState } from "react";
 import type { z } from "zod";
 import { surfaceDeferredFailure } from "#lib";
 import { forgetIfCurrent, rememberBounded } from "./bounded-memo.ts";
+import { readJsonBody } from "./http-error.ts";
 
 export type CardFrameRequest = Readonly<z.input<typeof cardFrameMintRequestSchema>> & Pick<CardFrameMintRequest, "chatId" | "characterId">;
 
@@ -46,24 +48,27 @@ function cardFrameMintBody(request: CardFrameRequest): CardFrameMintRequest {
   };
 }
 
-/** POST one serialized mint body; ANY failure resolves to `undefined` (the caller renders the floor). */
+/** POST one serialized mint body; a mint the network or the server refuses, or an answer that is not a mint, resolves
+ *  to `undefined` (the caller renders the floor). Any other fault rejects. */
 async function mintCardFrame(body: string): Promise<string | undefined> {
-  let parsed: CardFrameMintResponse;
-  // documented in the JSDoc above — any failure resolves to undefined and the caller renders the floor. Ends if the floor stops being an acceptable fallback UI.
+  let response: Response;
   try {
-    const response = await fetch(CARD_FRAME_ROUTE, {
+    response = await fetch(CARD_FRAME_ROUTE, {
       method: "POST",
       headers: { [CSRF_HEADER]: "1", "Content-Type": "application/json" },
       body,
     });
-    if (!response.ok) {
-      return;
+  } catch (error) {
+    if (!isFetchFailure(error)) {
+      throw error;
     }
-    parsed = cardFrameMintResponseSchema.parse(await response.json());
-  } catch {
     return;
   }
-  return parsed.url;
+  if (!response.ok) {
+    return;
+  }
+  const parsed = cardFrameMintResponseSchema.safeParse(await readJsonBody(response));
+  return parsed.success ? parsed.data.url : undefined;
 }
 
 /**

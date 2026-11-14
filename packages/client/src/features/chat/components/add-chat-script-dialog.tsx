@@ -29,7 +29,7 @@ import type { ReactElement, RefObject } from "react";
 import { useRef, useState } from "react";
 import { DialogFailure, DismissDialog, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { DIALOG_VERBS, regexScriptScent, regexScriptTitle, timeLib } from "#lib";
+import { DIALOG_VERBS, regexScriptScent, regexScriptTitle, rethrowUnlessTrpcFailure, timeLib } from "#lib";
 import { useAttachScriptToChat } from "../hooks/use-chat-regex-mutations.ts";
 import { CHAT_ATTACH_SCRIPTS_COMMIT_NAME, CHAT_ATTACH_SCRIPTS_FAILURE, chatAttachItemName } from "../lib/chat-attach-names.ts";
 
@@ -127,7 +127,8 @@ function ScriptPicker({ attachedIds, chatId, onClose, ownedRef }: PickerBodyProp
       }
       setPicked([]);
       onClose();
-    } catch {
+    } catch (error) {
+      rethrowUnlessTrpcFailure(error);
       setFailure(CHAT_ATTACH_SCRIPTS_FAILURE);
     } finally {
       ownedRef.current = false;

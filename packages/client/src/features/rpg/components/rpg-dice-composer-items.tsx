@@ -10,7 +10,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId } from "react";
 import { roomRosterOptions, useGatedQuery, useInvalidation, useTRPC } from "#data";
-import { notify } from "#lib";
+import { notify, rethrowUnlessTrpcFailure } from "#lib";
 import { readComposerDraft, requestComposerFocus, setComposerDraft } from "#state";
 import { useRollDice } from "../hooks/use-rpg-mutations.ts";
 import { RPG_ABILITY_CHECK_NAME, RPG_SCORE_UNSET_HINT } from "../lib/rpg-names.ts";
@@ -25,7 +25,8 @@ async function rollIntoDraft(chatId: ChatId, notation: string, rollDice: ReturnT
   try {
     const result = await rollDice.mutateAsync({ chatId, notation, ...(ability === undefined ? {} : { ability }) });
     insertStamp(chatId, result.stamp);
-  } catch {
+  } catch (error) {
+    rethrowUnlessTrpcFailure(error);
     notify.error("Couldn't roll the dice.");
   }
 }

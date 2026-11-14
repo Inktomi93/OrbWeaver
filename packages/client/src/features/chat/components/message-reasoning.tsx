@@ -12,6 +12,7 @@ import type { KeyboardEvent, ReactElement } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
+import { rethrowUnlessTrpcFailure } from "#lib";
 import { cancelEditingReasoning, setReasoningEditDraft, startEditingReasoning, useIsEditingReasoning, useReasoningEditDraftText } from "#state";
 import { useClearReasoningMutation, useEditReasoningMutation } from "../hooks/use-message-mutations.ts";
 import {
@@ -59,7 +60,8 @@ function ReasoningEditor({ message }: { readonly message: MessageView }): ReactE
     try {
       await edit.mutateAsync({ chatId: message.chatId, messageId: message.id, reasoning: draft });
       onDone();
-    } catch {
+    } catch (error) {
+      rethrowUnlessTrpcFailure(error);
       // Stay in the field so the reader can retry without retyping.
     }
   };

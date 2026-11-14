@@ -15,6 +15,7 @@ import { useState } from "react";
 import { QueryBoundary, SettingRowGroup, useFirstBootRows } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { saveStateOf, useReportSaveStatus } from "#forms";
+import { rethrowUnlessTrpcFailure } from "#lib";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { draftNumber, envFloor, isOverridden } from "../lib/app-override-model.ts";
 import { RATE_LIMITS_SUBCATEGORY } from "../lib/rate-limits-nav.ts";
@@ -85,7 +86,7 @@ function RateLimitsBody({ anchorId, sectionId }: { readonly anchorId: string; re
   useReportSaveStatus(sectionId, saveStateOf(save.isPending, save.error !== null, { dirty, invalid }));
 
   const onSave = (): void => {
-    save.mutateAsync({ partial: { rateLimits: patch } }).catch(() => undefined); // sticky error slot below
+    save.mutateAsync({ partial: { rateLimits: patch } }).catch(rethrowUnlessTrpcFailure); // sticky error slot below
   };
   // Reset the whole rateLimits override to the floor — a top-level `null` the deep-merge clears wholesale.
   // Re-sync the local draft to the RESOLVED floor the reset returned so each input VALUE flips to its default
@@ -95,7 +96,7 @@ function RateLimitsBody({ anchorId, sectionId }: { readonly anchorId: string; re
     save
       .mutateAsync({ partial: { rateLimits: null } })
       .then((resolvedAfter) => setDraft(toDraft(resolvedAfter.rateLimits)))
-      .catch(() => undefined);
+      .catch(rethrowUnlessTrpcFailure);
   };
 
   return (

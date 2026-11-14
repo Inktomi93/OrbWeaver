@@ -13,6 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useTRPC } from "#data";
+import { surfaceDeferredFailure } from "#lib";
 import { modelIdExample } from "../lib/add-connection-form-model.ts";
 import { editorPickerModels } from "../lib/connection-editor-model.ts";
 import { failedCatalogSource, modelCheckOf, modelListSource, typedModelAllowed } from "../lib/model-picker-model.ts";
@@ -89,7 +90,7 @@ export function ModelField({
   // the typed-id arm, not an error boundary for the whole editor.
   const catalog = useQuery({ ...trpc.connection.catalogModels.queryOptions({ connectionId }), retry: false });
   const recheck = (): void => {
-    catalog.refetch().catch(() => undefined); // the query's own error state carries the failure
+    catalog.refetch().catch(surfaceDeferredFailure); // the query's own error state carries the failure
   };
   // The model check reads the whole list; only the picker's offer is narrowed.
   const source = catalogSource(catalog, recheck);

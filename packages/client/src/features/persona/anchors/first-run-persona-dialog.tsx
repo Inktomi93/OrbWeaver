@@ -25,7 +25,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { RequiredFormDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { DIALOG_PENDING_VERBS, notify, testId } from "#lib";
+import { DIALOG_PENDING_VERBS, notify, rethrowUnlessTrpcFailure, testId } from "#lib";
 import { useSetPersonaSeed } from "../hooks/use-persona-identity.ts";
 import { useCreatePersona, useUpdatePersona } from "../hooks/use-persona-mutations.ts";
 import {
@@ -139,7 +139,8 @@ export function FirstRunPersonaDialog(): ReactElement | null {
     try {
       await update.mutateAsync({ personaId: orphan.id, input: { name: name.trim(), description: description.trim() } });
       return true;
-    } catch {
+    } catch (error) {
+      rethrowUnlessTrpcFailure(error);
       notify.error("Couldn't save your persona. Try again.");
       return false;
     }
@@ -151,7 +152,8 @@ export function FirstRunPersonaDialog(): ReactElement | null {
       const created = await create.mutateAsync({ input: { name: name.trim(), description: description.trim() } });
       setCreatedId(created.id);
       return created.id;
-    } catch {
+    } catch (error) {
+      rethrowUnlessTrpcFailure(error);
       notify.error(PERSONA_FIRST_RUN_FAILED);
       return null;
     }
@@ -175,7 +177,8 @@ export function FirstRunPersonaDialog(): ReactElement | null {
         section: "seeds",
         patch: { currentPersonaId: personaId, defaultPersonaId: personaId },
       });
-    } catch {
+    } catch (error) {
+      rethrowUnlessTrpcFailure(error);
       // NAMED HONESTLY: the persona exists. "Couldn't create your persona" over a persona that WAS created is
       // the lie that sent the reader back to a Create button.
       notify.error("Created your persona, but couldn't make it yours yet. Try again.");

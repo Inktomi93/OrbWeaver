@@ -10,6 +10,7 @@ import type { inferInput } from "@trpc/tanstack-react-query";
 import { useState } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
+import { rethrowUnlessTrpcFailure } from "#lib";
 import type { ReviewEntry } from "../lib/review-entries.ts";
 import { useDecideRefineryRewrite } from "./use-refinery-mutations.ts";
 
@@ -62,8 +63,9 @@ function enqueueSheetWrite(sheetWrite: SheetWrite, write: (vars: SheetWrite) => 
       }
       enqueueSheetWrite(next, write, onRefused);
     },
-    (): void => {
+    (error: unknown): void => {
       sheetQueues.delete(key);
+      rethrowUnlessTrpcFailure(error);
       onRefused();
     },
   );

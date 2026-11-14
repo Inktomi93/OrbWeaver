@@ -16,6 +16,7 @@ import { everyRow } from "@orb/kit/guards";
 import type { Branded, ModelId, PresetId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
+import { parseJsonText } from "@orb/kit/json";
 import type { UserMacroDef, UserMacroInputValue } from "@orb/kit/macro";
 import { MACRO_ARG_TYPES, MACRO_NAME_RE, USER_MACRO_INPUT_KINDS } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -3398,15 +3399,9 @@ function stStopStrings(powerUser: Record<string, unknown>): string[] | undefined
   if (typeof raw !== "string" || raw.trim().length === 0) {
     return;
   }
-  let parsed: unknown;
-  // ST mirror — JSON.parse of custom_stopping_strings
-  // yields nothing on failure, mirroring ST's own reader. Consumer: stStopStrings returns undefined, caller
-  // treats it as "no stop strings". Ends if the caller stops consuming the undefined return.
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return;
-  }
+  // ST mirror — a custom_stopping_strings value that is not JSON yields nothing, as ST's own reader does; the caller
+  // treats undefined as "no stop strings".
+  const parsed = parseJsonText(raw);
   if (!Array.isArray(parsed)) {
     return;
   }

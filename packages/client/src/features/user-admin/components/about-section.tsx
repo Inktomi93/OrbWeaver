@@ -26,7 +26,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
-import { testId, timeLib } from "#lib";
+import { surfaceDeferredFailure, testId, timeLib } from "#lib";
 import { ABOUT_SUBCATEGORY, ABOUT_UPDATES_SUBCATEGORY } from "../lib/about-nav.ts";
 
 /** The version section's own suspense/error boundary — it reads for itself, so it recovers for itself. */
@@ -95,7 +95,7 @@ export function AboutUpdatesSection({ anchorId }: { readonly anchorId: string })
             size="sm"
             disabled={update.isFetching}
             onClick={(): void => {
-              update.refetch().catch(() => undefined); // the verdict slot below renders the failure
+              update.refetch().catch(surfaceDeferredFailure); // the verdict slot below renders the failure
             }}
           >
             {update.isFetching ? "Checking…" : "Check for updates"}

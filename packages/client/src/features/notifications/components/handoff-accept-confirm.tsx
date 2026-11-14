@@ -27,7 +27,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { ConfirmDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { DIALOG_VERBS } from "#lib";
+import { DIALOG_VERBS, rethrowUnlessTrpcFailure } from "#lib";
 import { useAcceptHostHandoff } from "../hooks/use-handoff-actions.ts";
 import { useDismissNotification } from "../hooks/use-inbox.ts";
 import { HANDOFF_ACCEPT_CONFIRM_TITLE, HANDOFF_NOTHING_COPIED_DESCRIPTION } from "../lib/notifications-copy.ts";
@@ -90,7 +90,7 @@ export function HandoffAcceptConfirm({ chatId, notificationId, offer, onClose, o
     // not one transaction, and a failed CLEANUP must never re-open a decision that already succeeded (a
     // second accept can only fail). The mutation carries its own errorToast, which is the surface for it —
     // the `.catch` here only keeps a rejected cleanup from unhandling itself into the console.
-    void dismiss.mutateAsync({ notificationId }).catch(() => undefined);
+    void dismiss.mutateAsync({ notificationId }).catch(rethrowUnlessTrpcFailure);
   };
 
   return (

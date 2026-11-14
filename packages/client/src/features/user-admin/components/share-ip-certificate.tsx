@@ -9,7 +9,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { StatusChip } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { RETRY_NAME, timeLib } from "#lib";
+import { RETRY_NAME, rethrowUnlessTrpcFailure, timeLib } from "#lib";
 import { useIpCertificateForm } from "../hooks/use-ip-certificate-form.ts";
 import { useDisableIpCertificate, useEnableIpCertificate } from "../hooks/use-share-mutations.ts";
 import type { IpCertificateFormValues } from "../lib/share-model.ts";
@@ -173,7 +173,7 @@ function Offer({ initial }: { readonly initial: IpCertificateSetting | null }): 
           loading={enable.isPending}
           onClick={(): void => {
             // The save's failure is already said, inline or by the toast; the rethrow carries nothing new.
-            form.handleSubmit().catch(() => undefined);
+            form.handleSubmit().catch(rethrowUnlessTrpcFailure);
           }}
         >
           {submitLabel}

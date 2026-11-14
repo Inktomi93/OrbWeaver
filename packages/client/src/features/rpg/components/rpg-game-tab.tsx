@@ -30,7 +30,7 @@ import type { ReactElement } from "react";
 import { useId, useState } from "react";
 import { QueryBoundary, SettingCheckboxRow, Tip } from "#components";
 import { QueryErrorState, roomRosterOptions, SkeletonRows, useInvalidation, useReattributePersona, useSuspenseQuery, useTRPC } from "#data";
-import { notify } from "#lib";
+import { notify, rethrowUnlessTrpcFailure } from "#lib";
 import { requestRpgStatusSheet, setContextTab } from "#state";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useResyncFromStory, useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
@@ -363,7 +363,8 @@ function ResyncControl({ chatId }: { readonly chatId: ChatId }): ReactElement {
       if (verdict.ok && !verdict.rebuilt) {
         notify.info("Nothing to rebuild: the tracked state already matches the story.");
       }
-    } catch {
+    } catch (error) {
+      rethrowUnlessTrpcFailure(error);
       // The failed mutation's own error toast has already spoken; the rest of the sequence is abandoned.
     }
   };

@@ -23,6 +23,7 @@
     "./error-message": "./src/error-message/index.ts",
     "./errors": "./src/errors/index.ts",
     "./evidence-window": "./src/evidence-window/index.ts",
+    "./fetch-failure": "./src/fetch-failure/index.ts",
     "./fix-markdown": "./src/fix-markdown/index.ts",
     "./font-scale": "./src/font-scale/index.ts",
     "./guards": "./src/guards/index.ts",

@@ -40,14 +40,9 @@ function isDataUri(url: string): boolean {
 }
 
 function hostOf(url: string): string {
-  // MessageMedia renders hostOf(src.url) inside the click-to-load
-  // button ("External media — load from …?"), so a malformed url shows the "external source" label to the
-  // reader. Ends if that button stops rendering the returned string.
-  try {
-    return new URL(url).host;
-  } catch {
-    return "external source";
-  }
+  // MessageMedia renders hostOf(src.url) inside the click-to-load button ("External media — load from …?"), so a
+  // malformed url shows the "external source" label to the reader.
+  return URL.parse(url)?.host ?? "external source";
 }
 
 /**

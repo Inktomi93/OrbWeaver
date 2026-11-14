@@ -22,7 +22,7 @@ import { useState } from "react";
 import { ModelRunConfirmDialog, QueryBoundary, useFirstBootRows, useModelRunConfirm } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useSuspenseQueries, useTRPC } from "#data";
-import { DIALOG_VERBS, testId } from "#lib";
+import { DIALOG_VERBS, rethrowUnlessTrpcFailure, testId } from "#lib";
 import { useCancelWorkload, useRetryWorkload } from "../hooks/use-workload-mutations.ts";
 import { OTHERS_CONTROLS_HIDDEN_TEXT } from "../lib/workloads-failure-copy.ts";
 import { WORKLOADS_JOBS_SUBCATEGORY } from "../lib/workloads-jobs-nav.ts";
@@ -106,7 +106,7 @@ function WorkloadsJobsBody({ anchorId }: { readonly anchorId: string }): ReactEl
         estimates: [{ retryOf: workload.id }],
         run,
       })
-      .catch(() => undefined);
+      .catch(rethrowUnlessTrpcFailure);
   };
 
   const [filter, setFilter] = useState<WorkloadFilter>("all");

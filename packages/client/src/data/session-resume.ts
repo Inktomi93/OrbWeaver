@@ -20,6 +20,8 @@
 import { isPlainObject } from "@orb/kit/guards";
 import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { parseJsonText } from "@orb/kit/json";
+import { isStorageRefusal } from "#lib";
 
 /** The tab-scoped key the bounce writes under. */
 const RESUME_KEY = "orb:session-resume";
@@ -41,7 +43,10 @@ export function writeSessionResume(snapshot: SessionResumeSnapshot): void {
   // storage refused (private mode / disabled) — the bounce still works, it just lands on the landing view. Ends if the resume target becomes required for the bounce to work.
   try {
     tabStorage()?.setItem(RESUME_KEY, JSON.stringify(snapshot));
-  } catch {
+  } catch (error) {
+    if (!isStorageRefusal(error)) {
+      throw error;
+    }
     // Storage refused (private mode / disabled): the bounce still works, it just lands on the landing view.
   }
 }
@@ -57,23 +62,22 @@ export function takeSessionResume(): SessionResumeSnapshot | null {
   try {
     raw = storage.getItem(RESUME_KEY);
     storage.removeItem(RESUME_KEY);
-  } catch {
+  } catch (error) {
+    if (!isStorageRefusal(error)) {
+      throw error;
+    }
     return null;
   }
   if (raw === null) {
     return null;
   }
-  // a corrupt blob is discarded, never trusted (#11 autosave doctrine) — degrades to null, same as no snapshot.
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (!isPlainObject(parsed)) {
-      return null;
-    }
-    const { chatId } = parsed;
-    return { chatId: typeIdSchema(ID_PREFIX.chat).safeParse(chatId).data ?? null };
-  } catch {
-    return null; // a corrupt blob is discarded, never trusted (#11 autosave doctrine)
+  // A corrupt blob is discarded, never trusted (#11 autosave doctrine) — degrades to null, same as no snapshot.
+  const parsed = parseJsonText(raw);
+  if (!isPlainObject(parsed)) {
+    return null;
   }
+  const { chatId } = parsed;
+  return { chatId: typeIdSchema(ID_PREFIX.chat).safeParse(chatId).data ?? null };
 }
 
 /** Stash a signed-out visit's raw invite token for the sign-in round trip. A no-op where storage is refused. */
@@ -81,7 +85,10 @@ export function stashJoinToken(token: string): void {
   // storage refused (private mode / disabled) — the visitor still reaches /login, and the invite link still works once they open it signed in. Ends if the stash becomes the only way to join.
   try {
     tabStorage()?.setItem(JOIN_KEY, token);
-  } catch {
+  } catch (error) {
+    if (!isStorageRefusal(error)) {
+      throw error;
+    }
     // Storage refused: the sign-in still works; the visitor reopens the link afterwards.
   }
 }
@@ -92,7 +99,10 @@ export function peekJoinStash(): string | null {
   try {
     const token = tabStorage()?.getItem(JOIN_KEY) ?? null;
     return token !== null && token.length > 0 ? token : null;
-  } catch {
+  } catch (error) {
+    if (!isStorageRefusal(error)) {
+      throw error;
+    }
     return null;
   }
 }
@@ -102,7 +112,10 @@ export function clearJoinStash(): void {
   // storage access refused means nothing was stashed to clear. Ends if the stash becomes the only way to join.
   try {
     tabStorage()?.removeItem(JOIN_KEY);
-  } catch {
+  } catch (error) {
+    if (!isStorageRefusal(error)) {
+      throw error;
+    }
     // Nothing reachable to clear.
   }
 }

@@ -1737,7 +1737,7 @@ function fireRpgUserCommit(ctx: ChatContext, chatId: ChatId, messageId: MessageI
     const rpg = ctx.rpg;
     const settled = withRequestSpan({ traces: ctx.traces, requestId: rpgUserCommitRequestId(messageId) }, RPG_USER_COMMIT_SPAN, { chatId, messageId }, () =>
       rpg.onUserCommit(chatId, messageId),
-    ).catch(() => undefined);
+    ).catch((err: unknown) => getLog(ctx.logger).warn({ err, chatId, messageId }, "rpg: user-commit failed (message already committed)"));
     ctx.trackBackground(settled, chatId);
   }
 }

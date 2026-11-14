@@ -12,7 +12,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary, StatusChip, USER_ROLE_STATUS } from "#components";
-import { authConfigOptions, authMeOptions, QueryErrorState, signOut, useSuspenseQuery } from "#data";
+import { authConfigOptions, authMeOptions, isHttpFailure, QueryErrorState, signOut, useSuspenseQuery } from "#data";
 import { notify, testId } from "#lib";
 
 /** The identity strip + Log out. The `accountSurface`/`accountLogout` test ids moved here WITH the facts
@@ -54,10 +54,13 @@ function AccountFootBody(): ReactElement {
           data-testid={testId("accountLogout")}
           onClick={(): void => {
             setSigningOut(true);
-            // A failed sign-out re-enables the button (the redirect never happened, so the control must
-            // still work); a successful one navigates away and the reset is moot.
-            signOut().catch((): void => {
+            // A sign-out that fails as a request re-enables the button (the redirect never happened, so the control
+            // must still work); a successful one navigates away and the reset is moot. Any other fault rejects.
+            signOut().catch((error: unknown): void => {
               setSigningOut(false);
+              if (!isHttpFailure(error)) {
+                throw error;
+              }
               notify.error("Couldn't sign out. Try again.");
             });
           }}

@@ -12,6 +12,7 @@ import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { touchedFieldError } from "#forms/editor";
+import { surfaceDeferredFailure } from "#lib";
 import { RULE_CAPTURE_TOOL_RESULT_NAME, RULE_TOOL_ARGUMENTS_NAME, RULE_TOOL_CATALOG_READ_LABEL, RULE_TOOL_FIELD_NAME } from "../lib/automation-names.ts";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
 import { ruleToolArgumentGuidance, ruleToolParameterGuidance } from "../lib/rule-tool-arguments.ts";
@@ -167,7 +168,7 @@ function ToolCatalogFields({
       <Button
         variant="ghost"
         onClick={(): void => {
-          catalog.refetch().catch(() => undefined);
+          catalog.refetch().catch(surfaceDeferredFailure);
         }}
       >
         Refresh tools

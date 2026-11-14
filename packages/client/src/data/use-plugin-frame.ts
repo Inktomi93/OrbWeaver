@@ -16,11 +16,13 @@
 // plugin surface renders nothing — never a broken frame").
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
-import type { PluginFrameMintRequest, PluginFrameMintResponse, pluginFrameMintRequestSchema } from "@orb/contracts/plugin";
+import type { PluginFrameMintRequest, pluginFrameMintRequestSchema } from "@orb/contracts/plugin";
 import { PLUGIN_FRAME_ROUTE, pluginFrameMintResponseSchema } from "@orb/contracts/plugin";
+import { isFetchFailure } from "@orb/kit/fetch-failure";
 import { useEffect, useState } from "react";
 import type { z } from "zod";
 import { surfaceDeferredFailure } from "#lib";
+import { readJsonBody } from "./http-error.ts";
 
 export type PluginFrameRequest = Readonly<z.input<typeof pluginFrameMintRequestSchema>> & Pick<PluginFrameMintRequest, "pluginId">;
 
@@ -34,34 +36,40 @@ function pluginFrameMintBody(request: PluginFrameRequest): PluginFrameMintReques
   };
 }
 
-/** POST one serialized mint body; ANY failure resolves to `undefined` (the caller renders nothing). */
+/** POST one serialized mint body; a mint the network or the server refuses, or an answer that is not a mint, resolves
+ *  to `undefined` (the caller renders nothing). Any other fault rejects. */
 async function mintPluginFrame(body: string): Promise<string | undefined> {
-  let parsed: PluginFrameMintResponse;
-  // documented in the JSDoc above — any failure resolves to undefined and the caller renders nothing. Ends if rendering nothing stops being an acceptable fallback.
+  let response: Response;
   try {
-    const response = await fetch(PLUGIN_FRAME_ROUTE, {
+    response = await fetch(PLUGIN_FRAME_ROUTE, {
       method: "POST",
       headers: { [CSRF_HEADER]: "1", "Content-Type": "application/json" },
       body,
     });
-    if (!response.ok) {
-      return;
+  } catch (error) {
+    if (!isFetchFailure(error)) {
+      throw error;
     }
-    parsed = pluginFrameMintResponseSchema.parse(await response.json());
-  } catch {
     return;
   }
-  return parsed.url;
+  if (!response.ok) {
+    return;
+  }
+  const parsed = pluginFrameMintResponseSchema.safeParse(await readJsonBody(response));
+  return parsed.success ? parsed.data.url : undefined;
 }
 
 /** Revoke a minted frame handle. Best-effort: teardown must never surface an error into React cleanup. */
 async function revokePluginFrame(url: string): Promise<void> {
-  // a failed DELETE strands only a server-side handle, which the frame-handle store expires on its own (`live()` drops an entry past `expiresAt`, `packages/server/src/entry/http/frame-handle-store.ts:116`, set from `FRAME_HANDLE_TTL_MS` at `plugin-frame.ts:209`). Ends if the store stops expiring unrevoked handles.
+  // A DELETE the network drops strands only a server-side handle, which the frame-handle store expires on its own
+  // (`live()` drops an entry past `expiresAt`, set from `FRAME_HANDLE_TTL_MS`). Any other fault rejects.
   try {
     // keepalive: the cleanup often runs as the page navigates away, which cancels an ordinary request and logs an aborted DELETE.
     await fetch(url, { method: "DELETE", headers: { [CSRF_HEADER]: "1" }, keepalive: true });
-  } catch {
-    // The server-side TTL still bounds the abandoned handle.
+  } catch (error) {
+    if (!isFetchFailure(error)) {
+      throw error;
+    }
   }
 }
 

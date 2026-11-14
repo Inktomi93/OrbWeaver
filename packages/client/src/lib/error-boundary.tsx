@@ -26,11 +26,12 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, CatchStat
 
   override componentDidCatch(error: Error, _info: ErrorInfo): void {
     const ownerStack = IS_DEV ? captureOwnerStack() : null;
-    // the report path must never compound the crash it exists to report — there is no surface left to report a failed report to. Ends if onError gets its own independent error surface.
+    // The report path must never compound the crash it exists to report, so a throw from the reporter is logged to the
+    // console, the one surface left (the console-error ring records it), and never rethrown.
     try {
       this.props.onError?.(error, ownerStack);
-    } catch {
-      // The report path must never compound the crash it exists to report.
+    } catch (reportError) {
+      console.error("the crash report could not be sent", reportError);
     }
   }
 

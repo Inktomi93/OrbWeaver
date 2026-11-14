@@ -56,7 +56,11 @@ function compactJson(value: unknown): string {
   try {
     const str = JSON.stringify(value);
     return str.length > INPUT_MAX_CHARS ? `${str.slice(0, INPUT_TRUNCATE_AT)}…` : str;
-  } catch {
+  } catch (error) {
+    // `JSON.stringify` refuses a cycle or a BigInt with a `TypeError`; any other throw is a fault.
+    if (!(error instanceof TypeError)) {
+      throw error;
+    }
     return "[unserializable]";
   }
 }
