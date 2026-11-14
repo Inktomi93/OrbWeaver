@@ -2,7 +2,8 @@
 // never the plugin's crash when its guest leaves it uncaught: the Worker records it for its command, and the command, or
 // the rebuild it fails, fails as that refusal, for an async call and a synchronous one alike. A rebuild whose answer a
 // full channel refused fails as that refusal too, though the broker has already ended its runtime. A command the host
-// ended at its settlement wall strikes whatever refusal it met (D347). Each refusal case's control is a guest's own throw
+// ended at its settlement wall strikes whatever refusal it met (D347), and no host call after the wall can turn it into
+// a refusal: the port makes none between the wall and the ended throw. Each refusal case's control is a guest's own throw
 // in another command, which still counts. The crash count is read from the plugin's row, which no door shows.
 //
 // The edge's `refuseNextSent` stands in for the watchdog's full hop to the broker: it sends one routed app frame's own
@@ -22,7 +23,7 @@ import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/composed";
 import { capturePluginRows } from "@orb/testkit/node/rows";
 import { afterAll, beforeAll } from "vitest";
-import { PLUGIN_RESIDENT_LIMITS, settlementWallMs } from "#server/infra/plugin-host/budgets.ts";
+import { HOST_FN_DEADLINE_MS, PLUGIN_RESIDENT_LIMITS, settlementWallMs } from "#server/infra/plugin-host/budgets.ts";
 import { PLUGIN_CHANNEL_FULL, PLUGIN_HOST_UNAVAILABLE } from "#server/infra/plugin-host/process-protocol.ts";
 import { createPluginProcessEdge, frameField, hasOperation, PLUGIN_PROCESS_OPERATIONS, responseResult } from "../process-runtime.fixtures.ts";
 
@@ -33,6 +34,7 @@ const READ = "read";
 const DRAW = "draw";
 const READ_THEN = "read_then";
 const SET_MODE = "set_mode";
+const HANG = "hang";
 const CRASH = "crash";
 const CRASH_MESSAGE = "the guest's own failure";
 const CALLER_KEY = "k";
@@ -54,7 +56,9 @@ h.ui.registerCommand({ name: ${JSON.stringify(READ_THEN)}, describe: "Read, then
   await h.storage.get(${JSON.stringify(CALLER_KEY)}).catch(() => undefined);
   if (JSON.parse(args).stall === true) { await new Promise(() => {}); }
   throw new Error(${JSON.stringify(CRASH_MESSAGE)});
-} });`;
+} });
+h.ui.registerCommand({ name: ${JSON.stringify(HANG)}, describe: "Never settle, or return", onRun: ({ args }) =>
+  JSON.parse(args).stall === true ? new Promise(() => {}) : undefined });`;
 // main.js reads its mode, then its own storage; a refused read it rethrows uncaught, or in the stall mode never settles,
 // so a rebuild whose read is refused fails at once or at its wall. A command sets the mode for the next rebuild.
 const SLEEPER_SOURCE = `const h = orb.host(1);
@@ -74,8 +78,13 @@ h.ui.registerCommand({ name: ${JSON.stringify(SET_MODE)}, describe: "Set the reb
 const NEIGHBOUR_SOURCE = `orb.host(1).ui.registerCommand({ name: ${JSON.stringify(NOTE)}, describe: "Note a line", onRun: () => {} });`;
 // The hook boots a root and starts a real broker for three activations, which outruns the default hook budget.
 const BROKER_START_HOOK_TIMEOUT_MS = 30_000;
-// A wall case waits out one real settlement wall, a production bound no test clock reaches; the rest is a few commands.
-const WALL_CASE_TIMEOUT_MS = 3 * settlementWallMs(PLUGIN_RESIDENT_LIMITS);
+// A wall case waits out one real settlement wall, a production bound no test clock reaches, plus its Worker starts.
+// D347 sizes a Worker start's slack at one host-call deadline, about twice the slowest start it measured.
+const wallCaseTimeoutMs = (workerStarts: number): number => 3 * settlementWallMs(PLUGIN_RESIDENT_LIMITS) + workerStarts * HOST_FN_DEADLINE_MS;
+// With one Worker, every command on a sleeping plugin starts one: the caller wakes once per case; the rebuild case wakes
+// the neighbour and the sleeper twice each, once more to set the stall mode, and once for the stalled rebuild.
+const CALLER_WALL_STARTS = 1;
+const REBUILD_WALL_STARTS = 6;
 
 interface GuestView {
   readonly status: PluginStatus | undefined;
@@ -165,6 +174,26 @@ async function refuseResultOf(matches: (value: unknown) => boolean, run: () => P
   return { settled };
 }
 
+const clockRead = (value: unknown): boolean => hasOperation(value, PLUGIN_PROCESS_OPERATIONS.now);
+
+// Runs `run` and lets its first clock read through, the one taken before the guest runs. A later clock read in the same
+// command, which only a host call after the guest ran would make, is refused, as a full share at that moment would.
+async function refuseLaterClockRead(run: () => Promise<unknown>): Promise<unknown> {
+  using first = edge.holdNext(clockRead);
+  const settled = settle(run());
+  await first.reached;
+  using later = edge.holdNext(clockRead);
+  first.release();
+  const late = await Promise.race([later.reached, settled.then(() => null)]);
+  if (late !== null) {
+    const id = frameField(late, "id");
+    const refused = edge.refuseNextSent((value) => frameField(value, "kind") === "bridge-result" && frameField(value, "id") === id);
+    later.release();
+    await refused;
+  }
+  return await settled;
+}
+
 async function expectOwnThrowCounts(guest: Guest): Promise<void> {
   await expect(guest.run(CRASH)).rejects.toThrow(CRASH_MESSAGE);
   await expect.poll(async () => (await guest.view()).crashes).toBe(1);
@@ -221,7 +250,7 @@ test("a failed rebuild whose answer a full channel refused fails as that refusal
 // The case's only real wait is the production settlement wall, which no test clock reaches.
 test("a command that met a refused call and then never settled strikes at its wall, though the same command ending in a throw does not", {
   tags: ["slow"],
-  timeout: WALL_CASE_TIMEOUT_MS,
+  timeout: wallCaseTimeoutMs(CALLER_WALL_STARTS),
 }, async () => {
   await caller.run(NOTE);
   expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
@@ -241,7 +270,7 @@ test("a command that met a refused call and then never settled strikes at its wa
 // The case's only real wait is the production settlement wall, which no test clock reaches.
 test("a rebuild that met a refused read and then never settled strikes at its wall, though the same rebuild ending in a throw does not", {
   tags: ["slow"],
-  timeout: WALL_CASE_TIMEOUT_MS,
+  timeout: wallCaseTimeoutMs(REBUILD_WALL_STARTS),
 }, async () => {
   // Control: the rebuild rethrows its refused read, which is never the plugin's crash.
   await sleeper.run(SET_MODE, THROW_MODE);
@@ -258,4 +287,22 @@ test("a rebuild that met a refused read and then never settled strikes at its wa
   await expect(ended).resolves.toBeInstanceOf(Error);
   await expect.poll(async () => (await sleeper.view()).crashes).toBe(1);
   expect((await sleeper.view()).status).toBe(ENABLED);
+});
+
+// The case's only real wait is the production settlement wall, which no test clock reaches.
+test("an invocation ended at its wall strikes though a host call after the wall would be refused; the same command settling does not", {
+  tags: ["slow"],
+  timeout: wallCaseTimeoutMs(CALLER_WALL_STARTS),
+}, async () => {
+  await caller.run(NOTE);
+  expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
+
+  // Control: the command settles, and no strike.
+  await refuseLaterClockRead(() => caller.run(HANG, JSON.stringify({ stall: false })));
+  expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
+
+  // The command never settles: the host ends it at its wall, and nothing after the wall turns that into a refusal.
+  expect(await refuseLaterClockRead(() => caller.run(HANG, JSON.stringify({ stall: true })))).toBeInstanceOf(Error);
+  await expect.poll(async () => (await caller.view()).crashes).toBe(1);
+  expect((await caller.view()).status).toBe(ENABLED);
 });

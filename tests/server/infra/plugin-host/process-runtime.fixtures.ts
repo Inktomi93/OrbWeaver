@@ -12,6 +12,7 @@ import { parsePluginIpcMessage } from "#server/infra/plugin-host/process-channel
 
 export const PLUGIN_PROCESS_OPERATIONS = {
   mint: "seam.mintId",
+  now: "seam.nowEpochMs",
   draw: "seam.nextRandom",
   read: "storage.get",
   write: "storage.set",

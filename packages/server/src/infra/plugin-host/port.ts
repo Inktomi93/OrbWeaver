@@ -311,12 +311,15 @@ export function createLocalPluginHost(seams: LocalPluginHostSeams): {
         // RESIDUE FIRST: whatever a floated continuation logged since the last pickup is retained BEFORE
         // this invocation runs, so it reads in push order ahead of this run's own lines instead of being lost.
         // Inside the serialized slot on purpose — the same ring the guest is about to push into.
-        retainLog(resident, resident.sandbox.drainLog(), seams.nowEpochMs());
+        // One clock read stamps both drains, taken before the guest runs, as activation does. A host call after the
+        // invocation ends can be refused, and that refusal would replace an ended outcome and its strike (D347).
+        const at = seams.nowEpochMs();
+        retainLog(resident, resident.sandbox.drainLog(), at);
         const chatHandle = resident.sandbox.setInvocationChat(chat ?? null);
         const outcome = await resident.sandbox.invokeHandler(handler, typeof argsJson === "string" ? argsJson : argsJson(chatHandle));
         // RETAIN this invocation's drained lines (both arms — a crashing handler's last words are the ones an
-        // operator most wants). The stamp is the injected clock at drain time, the same seam activation uses.
-        retainLog(resident, outcome.logs, seams.nowEpochMs());
+        // operator most wants).
+        retainLog(resident, outcome.logs, at);
         if (!outcome.ok) {
           // A handler throw/deadline is contained data; the domain's crash policy classifies it. Re-throw
           // so the registrar's run() catches it as `threw` (errors-as-data to the model).
