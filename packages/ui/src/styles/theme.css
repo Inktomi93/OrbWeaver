@@ -400,6 +400,10 @@
   --spacing-combobox-wrap-sm: max(var(--spacing-field), calc(var(--size-touch-target) - var(--size-control-sm) + 2 * var(--border-width-control) + 2 * var(--spacing-field)));
   --spacing-combobox-wrap-md: max(var(--spacing-field), calc(var(--size-touch-target) - var(--size-control-md) + 2 * var(--border-width-control) + 2 * var(--spacing-field)));
   --spacing-combobox-wrap-lg: max(var(--spacing-field), calc(var(--size-touch-target) - var(--size-control-lg) + 2 * var(--border-width-control) + 2 * var(--spacing-field)));
+  --spacing-select-air-chip: calc((var(--size-touch-target) - 2 * var(--border-width-control) - var(--leading-field)) / 2);
+  --spacing-select-air-sm: calc((var(--size-control-sm) - 2 * var(--border-width-control) - var(--leading-field)) / 2);
+  --spacing-select-air-md: calc((var(--size-control-md) - 2 * var(--border-width-control) - var(--leading-field)) / 2);
+  --spacing-select-air-lg: calc((var(--size-control-lg) - 2 * var(--border-width-control) - var(--leading-field)) / 2);
   --size-switch-travel: calc(var(--size-switch-track) - var(--size-switch-track-height));
   --spacing-glyph-bleed: calc((var(--size-touch-target) - var(--size-glyph-xs)) / 2);
   --spacing-avatar-reach: max(var(--spacing-field), calc((var(--size-touch-target) - var(--size-avatar-sm)) / 2));

@@ -73,8 +73,8 @@ export const pickerCellVariants = tv({
     // The FOOTER is reserved whether or not a description exists — the reason two cards in one row used to
     // differ by 13px of height.
     body: "flex flex-1 flex-col gap-tight min-inline-0",
-    titleRow: "flex items-center justify-between gap-field min-inline-0",
-    label: "truncate",
+    titleRow: "flex flex-wrap items-center justify-between gap-field min-inline-0",
+    label: "min-inline-0",
     meta: "shrink-0",
     // 13px, muted — NOT `voice="gloss"` (10.5px). `undersized-ui-text` fired 8x of 16 judged on the
     // chat-style cards' glosses (#1099 F31): copy inside an interactive cell is read at the control's
