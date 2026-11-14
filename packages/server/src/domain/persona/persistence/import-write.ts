@@ -1,21 +1,21 @@
 // domain/persona/persistence/import-write — the persona-owned bulk-import WRITE. A named exception to
-// "persistence is queries only": batch-inserts a profile's personas. An owned persona with equal content —
-// folded name, description, title, placement and art (`findDuplicatePersona`, the ONE identity beside the
-// persona serde) — is reused. The same name with different content is a collision, resolved by the run's
-// per-collision choice: merge links to the owned persona and leaves its content alone (the default), keep-both
-// lands a second persona under the next free name (`nextFreeName`). The read-only twin for a dry run asks the same
-// decision (`reusedPersona`) under the same choices. No per-CRUD audit/user-bus — a bulk
-// migration writes silently; the driver reconciles + emits once at the run level.
+// "persistence is queries only": batch-inserts a profile's personas. An owned persona with equal content, or one an
+// earlier input of the batch lands — folded name, description, title, placement and art (`findDuplicatePersona`, the
+// ONE identity beside the persona serde) — is reused. The same name with different content as a persona owned before
+// the batch is a collision, resolved by the run's per-collision choice: merge links to the owned persona and leaves its
+// content alone (the default), keep-both lands a second persona under the next free name (`nextFreeName`). The dry
+// run is this same loop with the write left out, so a preview cannot drift from the run. No per-CRUD audit/user-bus —
+// a bulk migration writes silently; the driver reconciles + emits once at the run level.
 
-import type { ImportAnswer, PersonaCollisionChoice } from "@orb/contracts/import";
+import type { ImportAnswer, PersonaCollisionChoice, PersonaCollisionChoices } from "@orb/contracts/import";
 import { personaCollisionChoiceFor } from "@orb/contracts/import";
-import type { BulkImportPersonaInput, BulkImportPersonas, BulkImportPersonasResult, FindOwnedPersonas } from "@orb/contracts/persona";
+import type { BulkImportPersonaInput, BulkImportPersonas, BulkImportPersonasResult, DryRunPersonaInput } from "@orb/contracts/persona";
 import { personas } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, batchStmt } from "@orb/db/query";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { AssetId, PersonaId } from "@orb/kit/ids";
+import type { AssetId, PersonaId, UserId } from "@orb/kit/ids";
 import type { PersonaCandidate, PersonaIdentity } from "#primitives/serde/persona";
 import { findDuplicatePersona, findNameCollision, foldPersonaName, mintPersonaName, personaContentKey, personaPlacementOf } from "#primitives/serde/persona";
 import type { PersonaImportContext } from "../contract/import.ts";
@@ -26,20 +26,15 @@ function identityFrom(pi: Pick<BulkImportPersonaInput, "name" | "description" | 
   return { name: pi.name, title: null, description: pi.description, placement: personaPlacementOf(pi.metadata), artHash };
 }
 
-function identityOf(pi: BulkImportPersonaInput, artHashes: readonly { readonly id: AssetId; readonly hash: string }[]): PersonaIdentity {
-  const artHash = pi.avatarAssetId === null ? null : artHashes.find((row) => row.id === pi.avatarAssetId)?.hash;
-  return identityFrom(pi, artHash ?? null);
-}
-
 /** The persona an input lands on without minting a row, or null to mint a copy. Equal content is always
  *  reused; the same name with different content (a collision with a persona owned before the run) only when
- *  the choice is merge. The write and its read-only twin both ask this, so a preview cannot drift from the run. */
-function reusedPersona<Candidate extends PersonaIdentity>(
+ *  the choice is merge. */
+function reusedPersona(
   identity: PersonaIdentity,
-  candidates: readonly Candidate[],
-  owned: readonly Candidate[],
+  candidates: readonly PersonaCandidate[],
+  owned: readonly PersonaCandidate[],
   choice: PersonaCollisionChoice,
-): { readonly persona: Candidate; readonly kind: "skipped" | "merged" } | null {
+): { readonly persona: PersonaCandidate; readonly kind: "skipped" | "merged" } | null {
   const duplicate = findDuplicatePersona(identity, candidates);
   if (duplicate !== null) {
     return { persona: duplicate, kind: "skipped" };
@@ -48,115 +43,137 @@ function reusedPersona<Candidate extends PersonaIdentity>(
   return collision !== null && choice === "merge" ? { persona: collision, kind: "merged" } : null;
 }
 
-/** The read-only twin of {@link createBulkImportPersonas}'s reuse, for a preview that must not write. It judges the
- *  inputs in the order the write lands them and under the same choices: a persona equal to an owned one, or merged
- *  into the owned persona that holds its name, answers `"library"`; one equal to an earlier input answers `"upload"`. */
-export function createFindOwnedPersonas(assembly: Pick<DbAssemblyInput<PersonaImportContext>, "db">): FindOwnedPersonas {
-  const db = databaseForOwner(assembly.db);
-  return async ({ ownerId, personas: input, collisions }): Promise<readonly ImportAnswer[]> => {
-    const owned: readonly PersonaIdentity[] = await loadOwnedPersonaCandidates(db, ownerId);
-    // call-local: the owned identities plus the inputs judged so far that the write would mint. Ends if it outlives the call.
-    const candidates = [...owned];
-    return input.map((pi): ImportAnswer => {
-      const identity = identityFrom(pi, pi.artHash);
-      const keys = [personaContentKey(identity)];
-      const reused = reusedPersona(identity, candidates, owned, personaCollisionChoiceFor(collisions, foldPersonaName(pi.name)));
-      if (reused === null) {
-        candidates.push(identity);
-        return { reuse: null, keys };
-      }
-      return { reuse: owned.includes(reused.persona) ? "library" : "upload", keys };
-    });
-  };
+/** One input as the batch judged it, in order: the persona it reused, or the row it mints. */
+interface Judged<Input> {
+  readonly input: Input;
+  readonly key: string;
+  readonly identity: PersonaIdentity;
+  readonly reused: ReturnType<typeof reusedPersona>;
+  /** The minted row, when `reused` is null. */
+  readonly minted: PersonaCandidate | null;
+  /** The row the input resolves to: the reused persona or the minted one. */
+  readonly personaId: PersonaId;
 }
 
-/** Count a reused persona under its kind (a merge also records its folded name) and return its id. */
-function tally(
-  counts: { skipped: number },
-  mergedKeys: Set<string>,
-  key: string,
-  reused: { readonly persona: { readonly id: PersonaId }; readonly kind: "skipped" | "merged" },
-): PersonaId {
-  if (reused.kind === "merged") {
-    mergedKeys.add(key);
-  } else {
-    counts.skipped += 1;
-  }
-  return reused.persona.id;
+/** Judge every input against the owner's personas and the ones the batch mints before it. A minted persona is entered
+ *  as a candidate under its minted name, so a later equal input reuses it. */
+function judgeBatch<Input extends Pick<BulkImportPersonaInput, "name">>(args: {
+  readonly owned: readonly PersonaCandidate[];
+  readonly inputs: readonly Input[];
+  readonly identityOf: (input: Input) => PersonaIdentity;
+  readonly collisions: PersonaCollisionChoices | undefined;
+  readonly newPersonaId: PersonaImportContext["newPersonaId"];
+}): Judged<Input>[] {
+  const candidates = [...args.owned];
+  // call-local collision scan for the free-name mint over the owned names and the batch's mints. Ends if it outlives the call.
+  const takenNames = new Set(candidates.map((c) => foldPersonaName(c.name)));
+  return args.inputs.map((input) => {
+    const key = foldPersonaName(input.name);
+    const identity = args.identityOf(input);
+    const reused = reusedPersona(identity, candidates, args.owned, personaCollisionChoiceFor(args.collisions, key));
+    if (reused !== null) {
+      return { input, key, identity, reused, minted: null, personaId: reused.persona.id };
+    }
+    const name = mintPersonaName(input.name.trim(), takenNames);
+    takenNames.add(foldPersonaName(name));
+    const minted: PersonaCandidate = { ...identity, id: args.newPersonaId(), name };
+    candidates.push(minted);
+    return { input, key, identity, reused, minted, personaId: minted.id };
+  });
 }
+
+type Batch<Input> = Omit<Parameters<BulkImportPersonas>[0], "personas" | "dryRun"> & { readonly personas: readonly Input[] };
 
 /** Build the persona-owned bulk-import WRITE op. */
 export function createBulkImportPersonas(assembly: DbAssemblyInput<PersonaImportContext>): BulkImportPersonas {
   const ctx: PersonaImportContext = { ...assembly, db: databaseForOwner(assembly.db) };
-  return async ({ ownerId, personas: input, collisions }): Promise<BulkImportPersonasResult> => {
-    const { db } = ctx;
-    const avatarIds = input.map((pi) => pi.avatarAssetId).filter((id): id is AssetId => id !== null);
-    await ensureAvatarAssets(db, ownerId, avatarIds);
-    const candidates = await loadOwnedPersonaCandidates(db, ownerId);
-    // Only personas owned BEFORE this call can collide: two inputs sharing a name inside one run still land
-    // side by side, as they always did.
-    const owned = [...candidates];
-    const artHashes = await loadOwnedAssetHashes(db, ownerId, avatarIds);
-    // call-local collision scan for the free-name mint over the rows this call just read. Ends if it outlives the call.
-    const takenNames = new Set(candidates.map((c) => foldPersonaName(c.name)));
 
-    // `idByName` keys the INPUT's folded name (what a transcript's `user_name` says) to the row it resolved
-    // to; the first input under a name wins, as the chat attribution map it feeds keeps one id per name.
-    const idByName: Record<string, PersonaId> = {};
-    const counts = { created: 0, skipped: 0 };
-    // call-local record of the merged names for this run's result. Ends if it outlives the call.
-    const mergedKeys = new Set<string>();
-    let defaultPersonaId: PersonaId | null = null;
-    const inserts: BatchStmt[] = [];
+  async function insertMinted(ownerId: UserId, judged: readonly Judged<BulkImportPersonaInput>[]): Promise<void> {
     const at = ctx.now();
-
-    const mint = (identity: PersonaIdentity, pi: (typeof input)[number]): PersonaId => {
-      const personaId = ctx.newPersonaId();
-      const name = mintPersonaName(pi.name.trim(), takenNames);
-      takenNames.add(foldPersonaName(name));
-      const landed: PersonaCandidate = { ...identity, id: personaId, name };
-      candidates.push(landed);
-      inserts.push(
-        batchStmt(
-          db.insert(personas).values({
-            id: personaId,
-            ownerId,
-            name,
-            title: null,
-            description: pi.description,
-            starred: false,
-            avatarAssetId: pi.avatarAssetId,
-            metadata: pi.metadata,
-            createdAt: at,
-            updatedAt: at,
-          }),
-        ),
-      );
-      counts.created += 1;
-      return personaId;
-    };
-
-    for (const pi of input) {
-      const key = foldPersonaName(pi.name);
-      const identity = identityOf(pi, artHashes);
-      const reused = reusedPersona(identity, candidates, owned, personaCollisionChoiceFor(collisions, key));
-      const personaId = reused === null ? mint(identity, pi) : tally(counts, mergedKeys, key, reused);
-      idByName[key] ??= personaId;
-      if (pi.isDefault) {
-        defaultPersonaId = personaId;
-      }
-    }
-
+    const inserts: BatchStmt[] = judged.flatMap(({ input: pi, minted }) =>
+      minted === null
+        ? []
+        : [
+            batchStmt(
+              ctx.db.insert(personas).values({
+                id: minted.id,
+                ownerId,
+                name: minted.name,
+                title: null,
+                description: pi.description,
+                starred: false,
+                avatarAssetId: pi.avatarAssetId,
+                metadata: pi.metadata,
+                createdAt: at,
+                updatedAt: at,
+              }),
+            ),
+          ],
+    );
     if (inserts.length > 0) {
-      await db.batch(batchMany(inserts));
+      await ctx.db.batch(batchMany(inserts));
     }
-    return {
-      personasCreated: counts.created,
-      personasSkipped: counts.skipped,
-      personasMerged: mergedKeys.size,
-      mergedKeys: [...mergedKeys],
-      defaultPersonaId,
-      idByName,
-    };
+  }
+
+  async function bulkImportPersonas(args: Batch<DryRunPersonaInput> & { readonly dryRun: true }): Promise<readonly ImportAnswer[]>;
+  async function bulkImportPersonas(args: Batch<BulkImportPersonaInput> & { readonly dryRun: false }): Promise<BulkImportPersonasResult>;
+  async function bulkImportPersonas(
+    args: (Batch<DryRunPersonaInput> & { readonly dryRun: true }) | (Batch<BulkImportPersonaInput> & { readonly dryRun: false }),
+  ): Promise<readonly ImportAnswer[] | BulkImportPersonasResult> {
+    const { db } = ctx;
+    const { ownerId, collisions } = args;
+    const owned = await loadOwnedPersonaCandidates(db, ownerId);
+    if (args.dryRun) {
+      const judged = judgeBatch({ owned, inputs: args.personas, identityOf: (pi) => identityFrom(pi, pi.artHash), collisions, newPersonaId: ctx.newPersonaId });
+      return judged.map(({ identity, reused }): ImportAnswer => {
+        const keys = [personaContentKey(identity)];
+        if (reused === null) {
+          return { reuse: null, keys };
+        }
+        return { reuse: owned.includes(reused.persona) ? "library" : "upload", keys };
+      });
+    }
+
+    const avatarIds = args.personas.map((pi) => pi.avatarAssetId).filter((id): id is AssetId => id !== null);
+    await ensureAvatarAssets(db, ownerId, avatarIds);
+    const artHashes = await loadOwnedAssetHashes(db, ownerId, avatarIds);
+    const artHashOf = (pi: BulkImportPersonaInput): string | null =>
+      pi.avatarAssetId === null ? null : (artHashes.find((row) => row.id === pi.avatarAssetId)?.hash ?? null);
+    const judged = judgeBatch({
+      owned,
+      inputs: args.personas,
+      identityOf: (pi) => identityFrom(pi, artHashOf(pi)),
+      collisions,
+      newPersonaId: ctx.newPersonaId,
+    });
+    await insertMinted(ownerId, judged);
+    return resultOf(judged);
+  }
+  return bulkImportPersonas;
+}
+
+function resultOf(judged: readonly Judged<BulkImportPersonaInput>[]): BulkImportPersonasResult {
+  // `idByName` keys the INPUT's folded name (what a transcript's `user_name` says) to the row it resolved
+  // to; the first input under a name wins, as the chat attribution map it feeds keeps one id per name.
+  const idByName: Record<string, PersonaId> = {};
+  // call-local record of the merged names for this run's result. Ends if it outlives the call.
+  const mergedKeys = new Set<string>();
+  let defaultPersonaId: PersonaId | null = null;
+  for (const { input, key, reused, personaId } of judged) {
+    if (reused?.kind === "merged") {
+      mergedKeys.add(key);
+    }
+    idByName[key] ??= personaId;
+    if (input.isDefault) {
+      defaultPersonaId = personaId;
+    }
+  }
+  return {
+    personasCreated: judged.filter(({ minted }) => minted !== null).length,
+    personasSkipped: judged.filter(({ reused }) => reused?.kind === "skipped").length,
+    personasMerged: mergedKeys.size,
+    mergedKeys: [...mergedKeys],
+    defaultPersonaId,
+    idByName,
   };
 }

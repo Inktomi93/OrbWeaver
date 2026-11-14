@@ -1,18 +1,20 @@
-// verb: importThemeFile — the single-theme import door, a thin arm over the SAME `importTheme` op the backup
+// verb: importThemeFile — the single-theme import door, a batch of one through the SAME `importThemes` op the backup
 // bundle and the profile import call, so every door reads one parser and one collision rule.
 
-import type { ImportThemeOp } from "@orb/contracts/settings";
+import type { ImportThemes } from "@orb/contracts/settings";
 import { fileStem } from "@orb/kit/strings";
+import { NEVER_ABORTED, soleResult } from "#primitives/abort";
 import type { ImportThemeFileParams } from "../contract/params.ts";
 import type { ImportThemeFileOutcome } from "../contract/portability.ts";
 import type { SettingsService } from "../contract/service.ts";
 
 const ENC = new TextEncoder();
 
-export function createImportThemeFile(deps: { readonly importTheme: ImportThemeOp }): Pick<SettingsService, "importThemeFile"> {
+export function createImportThemeFile(deps: { readonly importThemes: ImportThemes }): Pick<SettingsService, "importThemeFile"> {
   async function importThemeFile({ principal, fileText, filename }: ImportThemeFileParams): Promise<ImportThemeFileOutcome> {
     const stem = filename === undefined ? "" : fileStem(filename);
-    const outcome = await deps.importTheme(principal.userId, ENC.encode(fileText), stem.length > 0 ? stem : undefined);
+    const file = { bytes: ENC.encode(fileText), ...(stem.length > 0 ? { fallbackName: stem } : {}) };
+    const outcome = soleResult(await deps.importThemes({ ownerId: principal.userId, files: [file], dryRun: false, signal: NEVER_ABORTED }));
     if (!outcome.ok) {
       return { ok: false, error: outcome.error };
     }
