@@ -188,9 +188,16 @@ export const MODEL_ROLES_PATH_TEXT = `${MODEL_ROLES_PATH.trail} → ${MODEL_ROLE
 /** Where the user adds a connection: the Connections list's add verb, spelled as a settings trail plus leaf. */
 export const ADD_CONNECTION_PATH = { trail: CONNECTIONS_TRAIL, leaf: "Add connection" } as const;
 
-/** A composer refusal reason: a server cause, or `no-chat-connection`, the host-side split of `no-connection`
+/** The send gate's one cause the client mints: the room's own read failed, so a message sent now would land under the failure
+ *  plate unseen. The server never sends it. */
+export const ROOM_READ_FAILED_CAUSE = "room-read-failed";
+
+/** A cause the send gate holds: the server's verdict, or the failed room read. */
+export type SendRefusalCause = RoomUnavailableCause | typeof ROOM_READ_FAILED_CAUSE;
+
+/** A composer refusal reason: a gate cause, or `no-chat-connection`, the host-side split of `no-connection`
  *  for a host with no connection that can serve chat, where the Model roles picker has nothing to offer. */
-export type SendRefusalKey = RoomUnavailableCause | "no-chat-connection" | "host-no-chat-connection";
+export type SendRefusalKey = SendRefusalCause | "no-chat-connection" | "host-no-chat-connection";
 
 const SEND_UNAVAILABLE_REASON: Record<SendRefusalKey, string> = {
   // No connection is BOUND to your Chat role (§7.2). A saved connection binds nothing on its own, so the copy
@@ -213,6 +220,8 @@ const SEND_UNAVAILABLE_REASON: Record<SendRefusalKey, string> = {
   // The room's host is outside its consent set. No unlock is named: a member is never told another account's state,
   // and the words are the refused send's own.
   [TURN_HOST_UNAVAILABLE_OP_CODE]: HOST_UNAVAILABLE_COPY,
+  // The room read failed; the plate above the composer carries the Retry that loads it.
+  [ROOM_READ_FAILED_CAUSE]: "This conversation didn't load, so nothing can be sent yet. Retry above to load it.",
 };
 
 // A cause this build has no words for. The server this build shipped with never sends one, so the only way here is
