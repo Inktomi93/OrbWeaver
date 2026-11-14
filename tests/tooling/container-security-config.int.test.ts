@@ -436,6 +436,16 @@ test("the runtime installs system certificate authorities for the pinned relay's
   expect(runtime).toMatch(/apt-get install[^\n]+\bca-certificates\b/u);
 });
 
+test("the runtime drops the base image's npm, which neither the entrypoint nor the command runs", ({ repoRoot }) => {
+  const runtime = read(repoRoot, "Dockerfile").split(/^FROM .* AS runtime$/mu)[1] ?? "";
+  expect(runtime).toMatch(/^RUN rm -rf \/usr\/local\/lib\/node_modules\/npm \/usr\/local\/bin\/npm \/usr\/local\/bin\/npx$/mu);
+  const launch = [...runtime.matchAll(/^(?:ENTRYPOINT|CMD|HEALTHCHECK[^\n]*\n\s*CMD) (.+)$/gmu)].map(([, command]) => command);
+  expect(launch).toHaveLength(3);
+  for (const source of [...launch, read(repoRoot, "docker/entrypoint.sh")]) {
+    expect(source).not.toMatch(/\b(?:npm|npx|corepack)\b/u);
+  }
+});
+
 test("compose publishes on loopback by default, ships a credentialed login mode, and keeps secrets out of the tracked env file", ({ repoRoot }) => {
   const compose = read(repoRoot, "docker-compose.yaml");
   const env = read(repoRoot, "docker/orbweaver.env");

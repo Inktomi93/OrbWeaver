@@ -205,6 +205,9 @@ for (const [workflowName, cacheTag, publishName, proofName] of [
     expect(env["BUILD_CACHE"]).toBe(`${env["IMAGE"]}:${cacheTag}`);
     expect(present(build)["tags"]).not.toContain(env["BUILD_CACHE"]);
     expect(build?.["load"]).toBe(true);
+    // A cached published stage would keep the OS packages of whichever build first wrote it.
+    expect(build?.["target"]).toBe("runtime");
+    expect(build?.["no-cache-filters"]).toBe(build?.["target"]);
     // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
     expect(build?.["builder"]).toBe("${{ steps.builder.outputs.name }}");
     expect(present(build)["push"]).not.toBe(true);
