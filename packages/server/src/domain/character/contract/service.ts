@@ -23,7 +23,7 @@ import type { ListCharacterIds } from "@orb/contracts/embeddings";
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { ProseOverrides } from "@orb/contracts/prose";
-import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
+import type { BumpStatsCanonVersion, RetireCharacterCensus } from "@orb/contracts/stats";
 import type { AttachCardTagByNameOp, DetachCardTagOp } from "@orb/contracts/tag";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
@@ -81,6 +81,7 @@ export interface CharacterContext {
   readonly logger: Logger;
   readonly db: Db;
   readonly bumpStatsCanonVersion: BumpStatsCanonVersion<BatchStmt[], Db>;
+  readonly retireCharacterCensus: RetireCharacterCensus<BatchStmt[], Db>;
   readonly now: Clock;
   readonly newCharacterId: () => CharacterId;
   readonly newSnapshotId: () => CharacterSnapshotId;
@@ -105,8 +106,9 @@ export interface CharacterContext {
   readonly generateGreetingText: GenerateGreetingTextOp;
 }
 
-export type CharacterAssemblyInput = Omit<DbAssemblyInput<CharacterContext>, "bumpStatsCanonVersion"> & {
+export type CharacterAssemblyInput = Omit<DbAssemblyInput<CharacterContext>, "bumpStatsCanonVersion" | "retireCharacterCensus"> & {
   readonly bumpStatsCanonVersion: BumpStatsCanonVersion<BatchHandle, DatabaseHandle>;
+  readonly retireCharacterCensus: RetireCharacterCensus<BatchHandle, DatabaseHandle>;
 };
 
 export interface CharacterService {

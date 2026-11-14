@@ -43,7 +43,7 @@ function freeCopyHandle(sourceHandle: CharacterHandle, taken: ReadonlySet<string
  *  nothing else changes. */
 async function deleteClone(ctx: CharacterContext, args: { readonly ownerId: UserId; readonly cloneId: CharacterId; readonly cause: unknown }): Promise<void> {
   try {
-    await deleteOwnedCharacter(ctx.db, args.cloneId, args.ownerId, ctx.bumpStatsCanonVersion);
+    await deleteOwnedCharacter(ctx.db, args.cloneId, args.ownerId, ctx.retireCharacterCensus);
   } catch (cleanupErr) {
     getLog(ctx.logger).error(
       { err: cleanupErr, cause: args.cause, characterId: args.cloneId },

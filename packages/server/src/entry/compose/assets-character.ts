@@ -179,10 +179,12 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     maxBytes: () => deps.maxImageBytes(),
   });
 
+  const statsWiring = createStatsBatchWiring(deps.idSource);
   const character = createCharacterService({
     logger: deps.logger,
     db,
-    bumpStatsCanonVersion: createStatsBatchWiring(deps.idSource).bumpStatsCanonVersion,
+    bumpStatsCanonVersion: statsWiring.bumpStatsCanonVersion,
+    retireCharacterCensus: statsWiring.retireCharacterCensus,
     now,
     newCharacterId: minter(ID_PREFIX.character, deps.idSource),
     newSnapshotId: minter(ID_PREFIX.characterSnapshot, deps.idSource),

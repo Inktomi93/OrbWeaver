@@ -16,18 +16,16 @@
 // is an idempotency key.
 
 import type { CardWriteBasis } from "@orb/contracts/character";
-import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
+import type { BumpStatsCanonVersion, RetireCharacterCensus } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { assets, characterSnapshots, characters } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
-import { batchLed, batchMany, isConstraintViolation } from "@orb/db/query";
+import { batchMany, isConstraintViolation } from "@orb/db/query";
 import type { AssetId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
-import { statsBucketStart } from "@orb/kit/stats-tally";
 import type { SQL } from "drizzle-orm";
 import { and, eq, exists, inArray, isNull, notExists, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { CHARACTER_BACKGROUND_UNAVAILABLE, CHARACTER_HANDLE_CONFLICT, CharacterOperationError } from "../contract/errors.ts";
-import type { CharacterHandoffCopyContext } from "../contract/handoff-copy.ts";
 
 // The self-join alias the provenance claim's NOT EXISTS reads through — a subquery over the table being
 // written needs its own name (the refinery schema-library precedent).
@@ -161,7 +159,7 @@ function classifyInsertFailure(err: unknown, values: CharacterInsert): unknown {
 export async function insertCharacterClaimingProvenance(
   db: Db,
   values: CharacterInsert & { readonly importedFrom: string },
-  accounting: Pick<CharacterHandoffCopyContext, "applyStatsDelta" | "bumpStatsCanonVersion" | "now">,
+  bumpCanonVersion: BumpStatsCanonVersion<BatchStmt[], Db>,
 ): Promise<boolean> {
   const unclaimed = notExists(
     db
@@ -178,19 +176,9 @@ export async function insertCharacterClaimingProvenance(
       db,
       values,
       [carriedBackgroundExists(db, backgroundAssetId(values.backgroundOverride)), unclaimed],
-      accounting.bumpStatsCanonVersion,
+      bumpCanonVersion,
     );
-    const now = accounting.now();
-    // Copies become library data even if the later room swap fails; only this guarded insert owns their census.
-    accounting.applyStatsDelta(statements, db, {
-      ownerId: values.ownerId,
-      characterId: null,
-      model: null,
-      provider: null,
-      bucketStart: statsBucketStart(now),
-      now,
-      newCharacter: true,
-    });
+    // A copy counts as a character only once the room swap seats it, so the mint carries no census.
     await db.batch(batchMany(statements));
     return true;
   } catch (err) {
@@ -319,21 +307,26 @@ export async function restoreCardInPlace(
 }
 
 /** Hard-delete an owned character (cascades snapshots / personas / downstream FKs). Returns `true` when a
- *  row was actually deleted (owned/found). The caller best-effort reaps the avatar asset afterwards. */
+ *  row was actually deleted (owned/found). The caller best-effort reaps the avatar asset afterwards.
+ *
+ *  THE CENSUS OP RIDES AHEAD OF THE DELETE: it decides inside its own statement whether the character was counted
+ *  (held a seat in a started room), and the cascade removes the seats that answer. So the delete's rows are the
+ *  batch's last result, not its first. */
 export async function deleteOwnedCharacter(
   db: Db,
   characterId: CharacterId,
   ownerId: UserId,
-  bumpCanonVersion: BumpStatsCanonVersion<BatchStmt[], Db>,
+  retireCharacterCensus: RetireCharacterCensus<BatchStmt[], Db>,
 ): Promise<boolean> {
   const deletion = db
     .delete(characters)
     .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId)))
     .returning({ id: characters.id });
   const statements: BatchStmt[] = [];
-  bumpCanonVersion(statements, db, ownerId);
-  const [deleted] = await db.batch(batchLed(deletion, statements));
-  return deleted.length > 0;
+  retireCharacterCensus(statements, db, { ownerId, characterId });
+  const results = await db.batch(batchMany([...statements, deletion]));
+  const deleted = results[statements.length];
+  return Array.isArray(deleted) && deleted.length > 0;
 }
 
 /** Archive / un-archive many owned characters in one statement. Returns the ids actually flipped.
