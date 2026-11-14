@@ -77,7 +77,7 @@ Finish an active plan before opening new work, and take P1 items first. `docs/pl
 
 ## Lane cap
 
-Owner ruling: run at most three agents beside the main session, at any model tier. Every agent counts, `code-reviewer` included. Raise the cap only on an explicit owner ruling, written here.
+Owner ruling: three agents beside the main session is a rule of thumb for box load, at any model tier, not a hard cap. Go over it when the work is independent and the box can take it; count the lanes that run browser tests or whole-tree checks.
 
 - Let over-cap lanes finish. Never refill above the cap.
 - Start broad compiler or application runs minutes apart to limit shared-host load.
