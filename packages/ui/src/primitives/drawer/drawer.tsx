@@ -13,7 +13,7 @@ import type {
   DrawerVirtualKeyboardProviderProps as BaseVirtualKeyboardProviderProps,
 } from "@base-ui/react/drawer";
 import { Drawer as BaseDrawer } from "@base-ui/react/drawer";
-import type { ReactElement } from "react";
+import type { ComponentProps, ReactElement } from "react";
 import { usePortalContainer } from "#lib";
 import { drawerVariants } from "./variants.ts";
 
@@ -77,6 +77,13 @@ export type DrawerTitleProps = Omit<BaseTitleProps, "className">;
 /** Accessible drawer heading (labels the panel for screen readers). */
 export function DrawerTitle(props: DrawerTitleProps): ReactElement {
   return <BaseDrawer.Title className={drawerVariants().title()} {...props} />;
+}
+
+export type DrawerTitleTextProps = Omit<ComponentProps<"span">, "className">;
+
+/** The title's words, the part a short sheet's one-line title cuts: a reader of the cut measures this box, and a reveal makes it the control that opens it whole. */
+export function DrawerTitleText(props: DrawerTitleTextProps): ReactElement {
+  return <span className={drawerVariants().titleText()} data-slot="drawer-title-text" {...props} />;
 }
 
 export type DrawerDescriptionProps = Omit<BaseDescriptionProps, "className">;

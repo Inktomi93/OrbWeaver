@@ -1,6 +1,6 @@
 import { CtIsolation } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
-import { Dialog, DialogFooter, DialogPopup, DialogTitle } from "@orb/ui/dialog";
+import { Dialog, DialogFooter, DialogPopup, DialogTitle, DialogTitleText } from "@orb/ui/dialog";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { NumberField } from "@orb/ui/number-field";
@@ -32,7 +32,9 @@ export function FullDialogStory(): ReactElement {
     <CtIsolation subject="Dialog" isolates="The title and the foot of a full dialog at enlarged text, without a feature body">
       <Dialog defaultOpen={true}>
         <DialogPopup size="full">
-          <DialogTitle truncate={true}>Rewrite the reply</DialogTitle>
+          <DialogTitle truncate={true}>
+            <DialogTitleText truncate={true}>Rewrite the reply</DialogTitleText>
+          </DialogTitle>
           <Stack>
             {BODY_LINES.map((line) => (
               <p key={line}>{line}</p>

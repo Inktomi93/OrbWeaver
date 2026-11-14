@@ -16,6 +16,7 @@ import type { DialogSubmit, NonEmptyLabel } from "#lib";
 import { DIALOG_VERBS, testId } from "#lib";
 import type { CommitExit } from "./commit-row.tsx";
 import { CommitRow } from "./commit-row.tsx";
+import { ModalTitle } from "./modal-title.tsx";
 
 /** A registered test-id key (the registry is the API — never a new literal). */
 type TestKey = Parameters<typeof testId>[0];
@@ -29,7 +30,8 @@ export interface FormDialogRootProps {
 }
 
 interface DialogFrameProps {
-  readonly title: ReactNode;
+  /** The title's whole text, which stays the dialog's name when a short window cuts it to one line. */
+  readonly title: string;
   /** Land focus on the title: a body filled by one tall control would otherwise open scrolled past the heading. */
   readonly arriveOnTitle?: boolean;
   /** Supporting copy under the title (DialogDescription IS a `<p>` — plain text/fragment only). Omit for a title-only dialog. */
@@ -125,7 +127,7 @@ function DialogFrame({
           stays visible on a phone. */}
       <DialogBody grow={true} gap="block">
         <DialogTitle clearsClose={closeButton} focusTarget={arriveOnTitle} id={titleId} {...(arriveOnTitle ? { ref: titleRef, tabIndex: -1 } : {})}>
-          {title}
+          <ModalTitle title={title} />
         </DialogTitle>
         {description === undefined ? null : <DialogDescription>{description}</DialogDescription>}
         {children}
