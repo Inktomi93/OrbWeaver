@@ -4,7 +4,7 @@
 
 import type { Resolved } from "@orb/inference";
 import { isResolveRefusal, runStructuredChat, withPresetWindow } from "@orb/inference";
-import type { ChatId, UserId } from "@orb/kit/ids";
+import type { ChatId, ConsentingHostId } from "@orb/kit/ids";
 import type { ExtractCtx, RpgRoundsDeps } from "#src/domain/rpg/contract/rounds.ts";
 
 /** The structured-output schema NAME the structured extraction passes as `responseFormat.name` (OpenAI
@@ -44,7 +44,7 @@ export async function roomWindowed(deps: RpgRoundsDeps, chatId: ChatId, conn: Re
  *  (`resolveTurnIdentity`), and the state round rides that turn's connection, so this is the connection a
  *  delivery verdict describes. `null` on a `no-connection` / requirement refusal; anything else (a DB fault)
  *  RETHROWS. */
-export async function resolveFunderChat(deps: RpgRoundsDeps, funderUserId: UserId): Promise<Resolved<"chat"> | null> {
+export async function resolveFunderChat(deps: RpgRoundsDeps, funderUserId: ConsentingHostId): Promise<Resolved<"chat"> | null> {
   const funder = await deps.resolveHostPrincipal(funderUserId);
   try {
     return (await deps.connection.resolve({ task: "chat", principal: funder })).resolved as Resolved<"chat">;

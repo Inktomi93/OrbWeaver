@@ -11,7 +11,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { DestructiveAction, DismissDialog } from "#components";
+import { DestructiveAction, DismissDialog, MutedLine } from "#components";
 import { QueryInlineStates, useInvalidation, useTRPC } from "#data";
 import { DIALOG_VERBS, timeLib } from "#lib";
 import { useRevokeSession, useRevokeUserSessions } from "../hooks/use-admin-mutations.ts";
@@ -68,7 +68,7 @@ export function AdminUserSessionsDialog(props: AdminUserDialogProps): ReactEleme
         isEmpty={rows.length === 0}
         pending="Loading sessions…"
         error="Couldn't load the sessions. Try reopening this dialog."
-        empty="No sessions on record. They've never signed in."
+        empty={<MutedLine>No sessions on record. They've never signed in.</MutedLine>}
       />
 
       <Stack gap="field">

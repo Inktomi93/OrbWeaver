@@ -10,7 +10,7 @@ import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmP
 import type { MapAtlasEvidence, MapEntry, MapShellEvidence, RawMapBridgeEvidence, RawMapEntry } from "../../contract/map.ts";
 import type { CaptureOutcome } from "../../contract/types.ts";
 import { buildSurfaceMapScript, READ_MAP_BRIDGE_SCRIPT } from "../../lib/map-browser.ts";
-import { scrubPrivateText } from "../../lib/private-values.ts";
+import { scrubPlaywrightText, scrubPrivateText } from "../../lib/private-values.ts";
 import { consumeOptionalSelector } from "../flags-support.ts";
 import { mapAtlasEvidence, mapBridgePayload, mapShellEvidence, rawMapEntries } from "../page-validate.ts";
 import { writeArmEvidenceFile } from "./evidence-file.ts";
@@ -76,7 +76,7 @@ async function captureSurfaceMap(
     // After the locator is proven: a name that holds a typed value reads as the mask, and its locator with it.
     return { entries: entries.map((entry) => ({ ...entry, name: scrubPrivateText(entry.name), selector: scrubPrivateText(entry.selector) })), error: null };
   } catch (error) {
-    return { entries: null, error: scrubPrivateText(errorMessage(error)) };
+    return { entries: null, error: scrubPlaywrightText(errorMessage(error)) };
   }
 }
 
@@ -91,7 +91,7 @@ async function captureMapBridge(page: Page): Promise<{
   try {
     raw = mapBridgePayload(await page.evaluate(READ_MAP_BRIDGE_SCRIPT));
   } catch (error) {
-    const detail = errorMessage(error);
+    const detail = scrubPlaywrightText(errorMessage(error));
     return { atlas: null, shell: null, atlasError: detail, shellError: detail };
   }
   let atlas: MapAtlasEvidence | null = null;
@@ -102,13 +102,13 @@ async function captureMapBridge(page: Page): Promise<{
   try {
     atlas = mapAtlasEvidence(raw.atlas);
   } catch (error) {
-    atlasError = errorMessage(error);
+    atlasError = scrubPrivateText(errorMessage(error));
   }
   // the shell shape failure becomes shellError, which printShell in lib/map-report.ts prints as MAP INSTRUMENT ERROR. Ends if printShell stops printing its error argument.
   try {
     shell = mapShellEvidence(raw.shell);
   } catch (error) {
-    shellError = errorMessage(error);
+    shellError = scrubPrivateText(errorMessage(error));
   }
   return { atlas, shell, atlasError, shellError };
 }

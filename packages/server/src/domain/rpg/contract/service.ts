@@ -65,6 +65,7 @@ import type {
   CharacterId,
   ChatId,
   ChatTurnId,
+  ConsentingHostId,
   IdSource,
   MessageId,
   MessageVariantId,
@@ -374,7 +375,7 @@ export type RpgPostNarratorMessage = (
  *  room host whoever sends (`resolveTurnIdentity`). The gather passes its turn's frozen funder; a read passes
  *  {@link RpgContext.resolveRoomFunder}'s answer, never the reader, because a member's own connection runs nothing
  *  in this room. `null` (a hostless room, or a host outside the consent set) is the closed verdict: no turn can run. */
-export type RpgResolveStateDelivery = (chatId: ChatId, funderUserId: UserId | null) => Promise<RpgStateDeliveryVerdict>;
+export type RpgResolveStateDelivery = (chatId: ChatId, funderUserId: ConsentingHostId | null) => Promise<RpgStateDeliveryVerdict>;
 
 /** What the resolved connection can do for THIS game's state delivery. Both fields are CAPABILITY-derived (the
  *  composition root reads the descriptor; rpg never sees a credential/source — D112's ban on a `credential.source`
@@ -663,12 +664,12 @@ export interface RpgContext {
   /** The user whose connection funds this room's turns (the present host, chat's own resolution), or `null` for a
    *  hostless room or a host outside the consent set. The reads price and judge THAT connection, because it is the
    *  one the next turn rides; a disabled host stands as a departed one, so no read resolves its connection. */
-  readonly resolveRoomFunder: (chatId: ChatId) => Promise<UserId | null>;
+  readonly resolveRoomFunder: (chatId: ChatId) => Promise<ConsentingHostId | null>;
   readonly resolveStateDelivery: RpgResolveStateDelivery;
   /** Does the post-commit state round fit the funder's chat connection window, over `baseState`? Wired at compose,
    *  which owns the round's prompt builders; `null` when it fits or the connection does not resolve. Kept off
    *  `resolveStateDelivery` because the gather calls that one every turn and this prices a whole request. */
-  readonly resolveStateRoundFit: (chatId: ChatId, funderUserId: UserId, baseState: RpgSnapshotState) => Promise<RpgStateRoundOverflow | null>;
+  readonly resolveStateRoundFit: (chatId: ChatId, funderUserId: ConsentingHostId, baseState: RpgSnapshotState) => Promise<RpgStateRoundOverflow | null>;
   readonly runToolRound: RpgRunToolRound;
   /** R1 (`folded` mode) — the character turn's TERMINAL tool mount (the gather calls it) and the fold of the
    *  calls it comes back with (the flush calls it). Together they replace the post-commit round with ZERO

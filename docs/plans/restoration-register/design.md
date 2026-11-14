@@ -184,7 +184,7 @@ Legacy paths below are relative to the external reference source named in [Spine
 | `server/infra/plugin-host/_broker-containment-proof.ts` | Unreviewed | No maintained home; | - |
 | `server/infra/plugin-host/broker-supervision.suite.test.ts` | Unreviewed | No maintained home; | - |
 | `server/infra/plugin-host/membrane.test.ts` | Unreviewed | No maintained home; | - |
-| `server/infra/plugin-host/process-permission.test.ts` | Partial | `tests/server/infra/plugin-host/worker-permission-drop.int.test.ts` | Compare the main-thread and Worker read denials (data-dir key, `.env`, workspace root, `/proc/<pid>/environ`), the allowed code read, the `node:sqlite` removal, and the spawn and network denials. |
+| `server/infra/plugin-host/process-permission.test.ts` | Accounted for | `tests/server/infra/plugin-host/worker-permission-drop.int.test.ts` runs the real broker under its production flags and observes its main thread and its guest Worker: the read denials (a data-dir key, the workspace data dir, the workspace root, `.env`, `/proc/<pid>/environ` on Linux), the allowed code read, the `node:sqlite` removal, and the spawn and network denials, each beside its positive; the Worker's permission drop; and the snippet the broker still serves. Dropped as inapplicable: the reference's grant of its own preload file, since the observer is a `data:` import. | - |
 | `server/infra/relay/pin.test.ts` | Unreviewed | No maintained home; | - |
 | `server/primitives/serde/card/index.test.ts` | Accounted for | `tests/server/primitives/serde/card/card-serde.contract.test.ts`; `tests/server/domain/import/loader/import-bundle.int.test.ts` | - |
 | `server/primitives/serde/chat-bundle/index.test.ts` | Accounted for | `tests/server/primitives/serde/chat-bundle/chat-bundle-serde.contract.test.ts`; `tests/server/domain/rpg/persistence/portable-json-boundaries.int.test.ts` | - |
@@ -228,7 +228,7 @@ The source assessment does not establish runtime failure or deployment exposure.
 
 1. [Compare existing contract and import coverage](../../work/1902-reconcile-implemented-contracts-and-import-coverage-before-restoration.md). Record covered, partial or qualification-only obligations before adding tests.
 2. Qualify subscription lifetime outcomes: compare adapter-owned protocol refusals. A maintained case already exercises actual inactivity expiry.
-3. [Compare plugin permission outcomes](../../work/1903-compare-plugin-permission-outcomes-before-restoring-runtime-tests.md). Preserve real denial assertions and allowed-operation positives on the current runtime.
+3. Plugin permission outcomes are compared: a maintained case under `tests/server/infra/plugin-host/` denies each reference outcome through the broker's permission flags and keeps the allowed-operation positives on the current runtime.
 4. Select persistence, RPG and automation remainders after the preceding comparisons close. Check existing migration and integration suites before claiming a gap.
 
 Use a bounded assignment with complete selected source reads and explicit acceptance criteria. Finish its decisions and affected verification before expanding the assignment.

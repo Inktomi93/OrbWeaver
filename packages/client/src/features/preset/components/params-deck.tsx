@@ -43,7 +43,7 @@ import { Select } from "@orb/ui/select";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { EditorPage, QueryBoundary, SettingRowGroup, SettingTrackRow } from "#components";
+import { EditorPage, MutedLine, QueryBoundary, SettingRowGroup, SettingTrackRow } from "#components";
 import { useSuspenseQuery, useTRPC } from "#data";
 import type { AppFormInstance } from "#forms/editor";
 import {
@@ -222,7 +222,7 @@ function SamplingCluster({
   if (knobs.length === 0 && !supportsSeed(capability)) {
     return (
       <Section kicker="Sampling">
-        <Text voice="gloss">This model exposes no sampling controls.</Text>
+        <MutedLine>This model exposes no sampling controls.</MutedLine>
       </Section>
     );
   }

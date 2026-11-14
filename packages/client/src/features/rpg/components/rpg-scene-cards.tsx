@@ -12,13 +12,12 @@ import { useSandboxTheme } from "@orb/ui/sandbox-frame";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary, ViewerDialog } from "#components";
+import { MutedLine, QueryBoundary, ViewerDialog } from "#components";
 import { QueryErrorState, roomRosterOptions, roomTailOptions, SkeletonRows, useCardFrameSrc, useSuspenseQueries, useTRPC } from "#data";
 import type { ArchivedCard } from "../lib/archived-cards.ts";
 import { cardLabel, collectArchivedCards } from "../lib/archived-cards.ts";
 import { RPG_JOURNAL_SCOPE_LABELS, RPG_SCENE_CARDS_READ_LABEL, RPG_SCENE_NO_CARDS_LINE } from "../lib/rpg-names.ts";
 import { RpgCardRow } from "./rpg-card-row.tsx";
-import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
 
 /** The archived-card LIGHTBOX — the one sandboxed-card dialog (this file is the gate-sanctioned Dialog
@@ -112,7 +111,7 @@ function ArchiveBody({ chatId }: Pick<RpgSceneCardsProps, "chatId">): ReactEleme
   const [openKey, setOpenKey] = useState<string | null>(null);
   const cards = collectArchivedCards(messages.messages, { participants: chat.participants, viewerUserId: chat.viewerUserId }).toReversed();
   if (cards.length === 0) {
-    return <RpgDoorwayLine>{RPG_SCENE_NO_CARDS_LINE}</RpgDoorwayLine>;
+    return <MutedLine>{RPG_SCENE_NO_CARDS_LINE}</MutedLine>;
   }
   return (
     <Stack gap="field">

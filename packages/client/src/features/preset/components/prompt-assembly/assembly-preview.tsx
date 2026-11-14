@@ -19,6 +19,7 @@ import { Icon, MessagesSquare } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { MutedLine } from "#components";
 import { PRESET_CHAT_HISTORY_LABEL } from "#src/features/preset/lib/preset-names.ts";
 import { MacroText } from "../macro-text.tsx";
 import type { AssembledPreview, PreviewBlock, RoleGroup } from "./preview-model.ts";
@@ -51,7 +52,7 @@ export function AssemblyPreview({ preview, onSelectBlock }: AssemblyPreviewProps
       ))}
 
       {preview.setup.length === 0 && preview.post.length === 0 && preview.splices.length === 0 ? (
-        <Text voice="gloss">Nothing to preview yet. Enable some sections in Compose.</Text>
+        <MutedLine>Nothing to preview yet. Enable some sections in Compose.</MutedLine>
       ) : null}
     </Stack>
   );
@@ -94,7 +95,7 @@ function ConversationBand({ preview, onSelect }: { readonly preview: AssembledPr
           {preview.historyEnabled ? null : <Text voice="gloss">(disabled)</Text>}
         </Row>
         {preview.splices.length === 0 ? (
-          <Text voice="gloss">your conversation splices in here</Text>
+          <MutedLine>your conversation splices in here</MutedLine>
         ) : (
           preview.splices.map((entry) => <SpliceView key={entry.section.id} block={entry} depth={entry.depth} order={entry.order} onSelect={onSelect} />)
         )}

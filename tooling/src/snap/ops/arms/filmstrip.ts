@@ -1,7 +1,7 @@
 // Bounded exact-page transition contact sheet over the existing Playwright page and argv action tape.
 import { relative } from "node:path";
 import type { Page } from "@playwright/test";
-import { artifactKey, routeSlug } from "../../../floor/artifacts/artifact-naming.ts";
+import { artifactKey } from "../../../floor/artifacts/artifact-naming.ts";
 import { activeRunSlot, artifactFile } from "../../../floor/artifacts/artifact-out.ts";
 import { artifactRef } from "../../../floor/artifacts/artifact-scope.ts";
 import type { ResultPair } from "../../../floor/artifacts/artifacts.ts";
@@ -15,6 +15,7 @@ import { FILMSTRIP_LIMITS } from "../../contract/filmstrip.ts";
 import type { ArmFactDataByArm } from "../../contract/run-facts.ts";
 import type { Args } from "../../contract/types.ts";
 import { captureScope } from "../../lib/capture-scope.ts";
+import { routeArtifactSlug } from "../../lib/disk-safe-argv.ts";
 import { writeFilmstripContactSheet } from "../../lib/filmstrip-sheet.ts";
 import type { FilmstripCaptureController } from "../filmstrip-capture.ts";
 import { startFilmstripCapture } from "../filmstrip-capture.ts";
@@ -96,7 +97,7 @@ async function finishCapture(
     if (missingActionFrame !== undefined) {
       throw new Error(`FILMSTRIP REFUSED: action-relative frame was not retained (${missingActionFrame.path})`);
     }
-    const base = artifactKey(opts.out ?? routeSlug(opts.route));
+    const base = artifactKey(opts.out ?? routeArtifactSlug(opts.route));
     const path = await artifactFile("filmstrip", `${base}${suffix(opts, pageIndex)}-filmstrip`, ".png", {
       producer: "filmstrip",
       producerArm: "filmstrip",

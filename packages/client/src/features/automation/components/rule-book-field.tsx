@@ -5,7 +5,7 @@ import { Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
+import { MutedLine, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { RULE_WORLD_BOOK_NAME, RULE_WORLD_BOOKS_READ_LABEL } from "../lib/automation-names.ts";
 
@@ -71,7 +71,7 @@ function BookSelect({ chatId, value, onChange, error, onBlur, books }: RuleBookF
           }}
         />
       </Field>
-      {items.length === 0 ? <Text voice="gloss">{emptyBookGuidance(chatId)}</Text> : null}
+      {items.length === 0 ? <MutedLine>{emptyBookGuidance(chatId)}</MutedLine> : null}
       {unavailable ? <Text voice="gloss">The saved book is retained. Replace it deliberately; an unavailable book can prevent saving.</Text> : null}
     </Stack>
   );
