@@ -14,9 +14,6 @@ const CONTAINER_IMPORT = "ImportDeclaration[source.value=/^@orb\\/ui\\/layout/] 
 const BODY_PROPS_CONTAINER =
   "JSXAttribute[name.name='bodyProps'] > JSXExpressionContainer > ObjectExpression > Property:matches([key.name='container'], [key.value='container']):not([value.value=false])";
 
-// An element's `role="alert"`, as a plain attribute string.
-const ALERT_ELEMENT = "JSXAttribute[name.name='role'] > Literal[value='alert']";
-
 const BODY_PROPS_OPAQUE =
   "JSXAttribute[name.name='bodyProps'] > JSXExpressionContainer > :matches(:not(ObjectExpression), ObjectExpression:has(> SpreadElement))";
 
@@ -195,18 +192,6 @@ export const UI_FEATURE_RESTRICTIONS = [
         selector: "ImportDeclaration[source.value='@orb/ui/dialog'] > ImportSpecifier[imported.name=/^(Dialog|DialogPopup)$/]",
         message:
           "A raw dialog part from @orb/ui/dialog outside the composites: use FormDialog to commit, DismissDialog, ContentDialog, FlowDialog, ViewerDialog or PickerDialog for nothing to commit, or ConfirmDialog for an alert.",
-      },
-    ],
-  },
-  {
-    // A dialog is an element named for one (`FormDialog`, `ConfirmDialog`, …) or a registry modal's commit hook, whose
-    // content the host's dialog draws. An alert drawn by a component the dialog renders is outside it.
-    id: "dialog-failure-via-owner",
-    selectors: [
-      {
-        selector: `:matches(JSXElement[openingElement.name.name=/Dialog$/], Program:has(ImportSpecifier[imported.name='ModalCommit'])) ${ALERT_ELEMENT}`,
-        message:
-          "A hand-spelled alert line in a dialog: a dialog's failure line is the `#components` `DialogFailure`, which reads at the body step like the dialog's description.",
       },
     ],
   },
