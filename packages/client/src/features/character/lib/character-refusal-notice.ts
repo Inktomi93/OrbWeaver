@@ -15,7 +15,7 @@
 // Pure, so it is unit-tested rather than CT'd: the CT QueryClient has no MutationCache seam, so toast copy
 // is unobservable in a CT (the same reason the turn mapper is a unit — see its header).
 
-import type { CharacterBulkTagResult } from "@orb/contracts/character";
+import type { CharacterBulkResult } from "@orb/contracts/character";
 import { CHARACTER_HANDLE_CONFLICT_OP_CODE, CHARACTER_HANDLE_RESERVED_OP_CODE, CHARACTER_STALE_BASIS_OP_CODE } from "@orb/contracts/character";
 import { trpcErrorReason } from "#lib";
 
@@ -79,7 +79,7 @@ export function characterRefusalCopy(error: unknown): string | null {
  * failure's own (never-raw) message; a fully-applied batch is `null` (no toast — the ordinary bus-driven
  * refresh is the only feedback a clean apply needs).
  */
-export function characterBulkTagRefusal(verb: "tag" | "untag", data: CharacterBulkTagResult): string | null {
+export function characterBulkTagRefusal(verb: "tag" | "untag", data: CharacterBulkResult): string | null {
   if (data.failed.length === 0) {
     return null;
   }

@@ -40,6 +40,7 @@ import {
 import type { ChatDocumentVisibility } from "@orb/contracts/databank";
 import { chatDocumentVisibilitySchema } from "@orb/contracts/databank";
 import type { Principal } from "@orb/contracts/identity";
+import { CANON_RETIREMENT_ATTEMPTS } from "@orb/contracts/stats";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import { backgroundMaterializeMessage, canonicalBackgroundSource, themeBackgroundSchema } from "@orb/contracts/theme";
 import { chatParticipants, chats } from "@orb/db";
@@ -718,6 +719,34 @@ async function seedJoinGreeting(
   return view;
 }
 
+// A seat that brings a started room back into its owner's stats scope (its last owned seat went with a deleted
+// character, or it never had one) carries the stats admission of that room in the seat's own batch. The admission's
+// guard comes first among the co-statements, ahead of the seat's own version bump, and its extrema settle comes last,
+// after the seat exists. A plan refused because a live write moved the canon is prepared again, up to the bound.
+async function seatWithAdmission(
+  ctx: ChatContext,
+  room: { readonly ownerId: UserId; readonly chatId: ChatId },
+  seat: (statements: readonly BatchStmt[]) => Promise<void>,
+  seatStatements: readonly BatchStmt[],
+): Promise<void> {
+  for (let attempt = 0; attempt < CANON_RETIREMENT_ATTEMPTS; attempt++) {
+    const admission = await ctx.prepareCanonAdmission(ctx.db, room);
+    const statements: BatchStmt[] = [];
+    admission.beforeSeat(statements, ctx.db);
+    statements.push(...seatStatements);
+    admission.afterSeat(statements, ctx.db);
+    try {
+      await seat(statements);
+      return;
+    } catch (error) {
+      if (!(await admission.refused(error))) {
+        throw error;
+      }
+    }
+  }
+  throw new ChatOperationError(CHAT_OP_CODES.aborted, "the room kept changing while the character was seated; try again shortly");
+}
+
 /** `addCharacterToChat` — host-only; the character participant-insert chokepoint. Stamps a fresh member
  *  row at the current canon head, emits chatUpdated, returns the resolved roster row. IDEMPOTENT: a character
  *  that already holds a PRESENT seat returns that seat's view unchanged — the character half of the roster has
@@ -776,19 +805,11 @@ function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent, claimCh
         }),
       );
     }
-    await insertParticipants(
-      ctx.db,
-      [
-        {
-          id: participantId,
-          chatId,
-          kind: "character",
-          characterId,
-          role: "member",
-          joinedAt: at,
-          joinSeq,
-        },
-      ],
+    await seatWithAdmission(
+      ctx,
+      { ownerId: principal.userId, chatId },
+      (statements) =>
+        insertParticipants(ctx.db, [{ id: participantId, chatId, kind: "character", characterId, role: "member", joinedAt: at, joinSeq }], statements),
       versionStatements,
     );
     await emit({ type: "chatUpdated", chatId });

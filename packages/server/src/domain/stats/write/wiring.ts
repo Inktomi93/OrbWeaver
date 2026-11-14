@@ -6,7 +6,7 @@ import type { ReconcileOpts } from "../contract/rebuild-from-canon.ts";
 import type { StatsBatchWiring } from "../contract/wiring.ts";
 import { reconcileOwnersMissingTimeline as rebuildMissingTimelines, reconcileStats as rebuildStats } from "../persistence/rebuild-from-canon.ts";
 import { settleRetainedChatRebase } from "../persistence/retained-chat-accounting.ts";
-import { createPrepareCanonRetirement } from "../persistence/retire-canon.ts";
+import { createPrepareCanonAdmission, createPrepareCanonRetirement } from "../persistence/retire-canon.ts";
 import { applyCharacterStatsDelta, applyStatsDelta, bumpStatsCanonVersion } from "./apply-delta.ts";
 import { shiftCharacterCensus } from "./character-census.ts";
 import { recordLedgerSpend } from "./ledger-spend.ts";
@@ -14,6 +14,7 @@ import { recordLedgerSpend } from "./ledger-spend.ts";
 /** Append through the operation's exact DB and mutable batch, never a captured root connection. */
 export function createStatsBatchWiring(idSource: IdSource): StatsBatchWiring {
   const prepareCanonRetirement = createPrepareCanonRetirement(idSource);
+  const prepareCanonAdmission = createPrepareCanonAdmission(idSource);
   return {
     applyStatsDelta: (batch, db, delta) => applyStatsDelta(batchForOwner(batch), databaseForOwner(db), delta, idSource),
     applyCharacterStatsDelta: (batch, db, delta) => applyCharacterStatsDelta(batchForOwner(batch), databaseForOwner(db), delta, idSource),
@@ -25,6 +26,14 @@ export function createStatsBatchWiring(idSource: IdSource): StatsBatchWiring {
         beforeDelete: (batch, batchDb) => retirement.beforeDelete(batchForOwner(batch), databaseForOwner(batchDb)),
         afterDelete: (batch, batchDb) => retirement.afterDelete(batchForOwner(batch), databaseForOwner(batchDb)),
         refused: retirement.refused,
+      };
+    },
+    prepareCanonAdmission: async (db, room): ReturnType<StatsBatchWiring["prepareCanonAdmission"]> => {
+      const admission = await prepareCanonAdmission(databaseForOwner(db), room);
+      return {
+        beforeSeat: (batch, batchDb) => admission.beforeSeat(batchForOwner(batch), databaseForOwner(batchDb)),
+        afterSeat: (batch, batchDb) => admission.afterSeat(batchForOwner(batch), databaseForOwner(batchDb)),
+        refused: admission.refused,
       };
     },
     shiftCharacterCensus: (batch, db, shift) => shiftCharacterCensus(batchForOwner(batch), databaseForOwner(db), shift),

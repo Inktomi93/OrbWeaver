@@ -7,7 +7,7 @@
 // The plan is read before the delete's batch; the batch opens with a guard that rolls everything back when a live write
 // moved an affected owner's canon in between, and the caller prepares again.
 
-import type { CanonRetirement, CanonRetirementScope, PrepareCanonRetirement, RetiredSpend } from "@orb/contracts/stats";
+import type { CanonAdmission, CanonRetirement, CanonRetirementScope, PrepareCanonAdmission, PrepareCanonRetirement, RetiredSpend } from "@orb/contracts/stats";
 import { RETIRED_CANON_KIND } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { characterStats, dailyStats, modelStats, ownerStats, spendLedger } from "@orb/db";
@@ -287,33 +287,34 @@ function appendRetirement(batch: BatchStmt[], db: Db, plan: OwnerRetirement, idS
 }
 
 // Before the delete: the census guards read the seats the delete's cascade removes.
-function appendCensus(batch: BatchStmt[], db: Db, scope: CanonRetirementScope, plan: OwnerRetirement): void {
+function appendCensus(
+  batch: BatchStmt[],
+  db: Db,
+  scope: CanonRetirementScope,
+  { ownerId, plan }: { readonly ownerId: UserId; readonly plan: OwnerRetirement | undefined },
+): void {
   if (scope.kind === "character") {
-    retireCharacterCensus(batch, db, { ownerId: plan.ownerId, characterId: scope.characterId });
+    retireCharacterCensus(batch, db, { ownerId, characterId: scope.characterId });
     return;
   }
-  for (const characterId of plan.seats.keys()) {
-    shiftCharacterCensus(batch, db, { ownerId: plan.ownerId, characterId, chatId: scope.chatId, direction: -1 });
+  for (const characterId of plan?.seats.keys() ?? []) {
+    shiftCharacterCensus(batch, db, { ownerId, characterId, chatId: scope.chatId, direction: -1 });
   }
 }
 
 const snapshotMoved = (before: CanonSnapshot, now: CanonSnapshot): boolean =>
   now.canonVersion !== before.canonVersion || now.characterCount !== before.characterCount;
 
-async function planOwner(db: Db, ownerId: UserId, rooms: readonly ChatId[]): Promise<OwnerRetirement> {
-  if (rooms.length > 0) {
-    return foldOwnerRetirement(db, ownerId, rooms);
+async function anyMoved(db: Db, plans: readonly OwnerRetirement[], error: unknown): Promise<boolean> {
+  if (plans.length === 0 || isConstraintViolation(error)?.kind !== "not-null") {
+    return false;
   }
-  // A deleted character with no last seat still moves the census, so its owner's canon is fenced like any other.
-  return {
-    ownerId,
-    snapshot: await ownerCanonSnapshot(db, ownerId),
-    accums: createOwnerAccums(),
-    kept: [],
-    rooms: [],
-    seats: new Map<CharacterId, never>(),
-    characters: [],
-  };
+  for (const plan of plans) {
+    if (snapshotMoved(plan.snapshot, await ownerCanonSnapshot(db, plan.ownerId))) {
+      return true;
+    }
+  }
+  return false;
 }
 
 async function leavingShares(db: Db, scope: CanonRetirementScope): Promise<{ ownerId: UserId; rooms: readonly ChatId[] }[]> {
@@ -330,34 +331,171 @@ async function leavingShares(db: Db, scope: CanonRetirementScope): Promise<{ own
 /** Stats-built: the caller has already authorized the delete this plan surrounds. */
 export function createPrepareCanonRetirement(idSource: IdSource): PrepareCanonRetirement<BatchStmt[], Db> {
   return async (db: Db, scope: CanonRetirementScope): Promise<CanonRetirement<BatchStmt[], Db>> => {
+    const shares = await leavingShares(db, scope);
+    // A share with no leaving room moves only the census, which decides inside its own statement, so it reads no
+    // canon and pays no guard: a bulk delete of unseated cards never contends with itself.
     const plans: OwnerRetirement[] = [];
-    for (const share of await leavingShares(db, scope)) {
-      plans.push(await planOwner(db, share.ownerId, share.rooms));
+    for (const share of shares.filter(({ rooms }) => rooms.length > 0)) {
+      plans.push(await foldOwnerRetirement(db, share.ownerId, share.rooms));
     }
+    const planOf = new Map(plans.map((plan) => [plan.ownerId, plan]));
     return {
       beforeDelete: (batch, batchDb): void => {
         batch.push(...plans.map((plan) => canonUnchangedStatement(batchDb, plan.ownerId, plan.snapshot)));
         for (const plan of plans) {
           appendRetirement(batch, batchDb, plan, idSource);
-          appendCensus(batch, batchDb, scope, plan);
+        }
+        for (const { ownerId } of shares) {
+          appendCensus(batch, batchDb, scope, { ownerId, plan: planOf.get(ownerId) });
         }
       },
       afterDelete: (batch, batchDb): void => {
+        if (plans.length === 0) {
+          return;
+        }
         const deleted = scope.kind === "character" ? scope.characterId : null;
         const characterIds = plans.flatMap((plan) => plan.characters.filter((id) => id !== deleted));
         settleRetainedChatRebase(batch, batchDb, { ownerIds: plans.map((plan) => plan.ownerId), characterIds });
       },
-      refused: async (error): Promise<boolean> => {
-        if (isConstraintViolation(error)?.kind !== "not-null") {
-          return false;
-        }
-        for (const plan of plans) {
-          if (snapshotMoved(plan.snapshot, await ownerCanonSnapshot(db, plan.ownerId))) {
-            return true;
-          }
-        }
-        return false;
+      refused: (error): Promise<boolean> => anyMoved(db, plans, error),
+    };
+  };
+}
+
+/** `column = column + value` for every column a retirement takes away. */
+function admittedSet<K extends string>(
+  columns: { readonly [P in K]: SQLiteColumn },
+  acc: { readonly [P in K]: number },
+  grain: Readonly<Record<K, Disposition>>,
+): Record<string, SQL> {
+  const set: Record<string, SQL> = {};
+  for (const key of Object.keys(grain) as K[]) {
+    if (grain[key] === "retire" && acc[key] !== 0) {
+      set[key] = sql`${columns[key]} + ${acc[key]}`;
+    }
+  }
+  return set;
+}
+
+/** The plain values a fresh timeline or model row starts from, for the grain's taken-away columns. */
+function admittedValues<K extends string>(acc: { readonly [P in K]: number }, grain: Readonly<Record<K, Disposition>>): Partial<Record<K, number>> {
+  const values: Partial<Record<K, number>> = {};
+  for (const key of Object.keys(grain) as K[]) {
+    if (grain[key] === "retire") {
+      values[key] = acc[key];
+    }
+  }
+  return values;
+}
+
+// The inverse of `appendRetirement` for one room coming back into scope. Spend is not added: the retirement kept it
+// on the live rollups, and one retired ledger row per paid sample leaves instead, so canon carries it again. A room no
+// owned seat holds voices no living owned character (a deleted voice reads as none), so the character grain is
+// untouched; the new seat's own delta counts its character. The timeline and model rows a retirement emptied were
+// deleted, so they are upserted here.
+function appendAdmission(batch: BatchStmt[], db: Db, plan: OwnerRetirement, idSource: IdSource): void {
+  const { ownerId, accums } = plan;
+  const forks = plan.rooms.filter((room) => room.forked).length;
+  batch.push(
+    db
+      .update(ownerStats)
+      .set({
+        ...admittedSet(ownerStats, accums.owner, OWNER_GRAIN),
+        chats: sql`${ownerStats.chats} + ${plan.rooms.length}`,
+        forkedChats: sql`${ownerStats.forkedChats} + ${forks}`,
+      })
+      .where(eq(ownerStats.ownerId, ownerId)),
+  );
+  const created = Map.groupBy(plan.rooms, (room) => statsBucketStart(room.createdAt));
+  for (const bucketStart of new Set([...accums.bucketMap.keys(), ...created.keys()])) {
+    const bucket = accums.bucketMap.get(bucketStart);
+    const chatsCreated = created.get(bucketStart)?.length ?? 0;
+    batch.push(
+      db
+        .insert(dailyStats)
+        .values({
+          id: idSource.typeId(ID_PREFIX.dailyStat),
+          ownerId,
+          bucketStart,
+          ...(bucket === undefined ? {} : admittedValues(bucket, BUCKET_GRAIN)),
+          chatsCreated,
+        })
+        .onConflictDoUpdate({
+          target: [dailyStats.ownerId, dailyStats.bucketStart],
+          set: {
+            ...(bucket === undefined ? {} : admittedSet(dailyStats, bucket, BUCKET_GRAIN)),
+            chatsCreated: sql`${dailyStats.chatsCreated} + ${chatsCreated}`,
+          },
+        }),
+    );
+  }
+  for (const entry of accums.modelMap.values()) {
+    const set = admittedSet(modelStats, entry.acc, MODEL_GRAIN);
+    if (Object.keys(set).length > 0) {
+      batch.push(
+        db
+          .insert(modelStats)
+          .values({
+            id: idSource.typeId(ID_PREFIX.modelStat),
+            ownerId,
+            model: entry.model,
+            provider: entry.provider ?? MODEL_PROVIDER_UNKNOWN,
+            ...admittedValues(entry.acc, MODEL_GRAIN),
+          })
+          .onConflictDoUpdate({ target: [modelStats.ownerId, modelStats.model, modelStats.provider], set }),
+      );
+    }
+  }
+  // Retired rows are facts with no identity of their own: two with equal facts are interchangeable for every figure,
+  // so each paid sample takes away any one row that states it.
+  for (const spend of plan.kept) {
+    const provider = spend.model === null ? null : spend.provider;
+    batch.push(
+      db
+        .delete(spendLedger)
+        .where(
+          eq(
+            spendLedger.id,
+            sql`(SELECT ${spendLedger.id} FROM ${spendLedger} WHERE ${and(
+              eq(spendLedger.ownerId, ownerId),
+              eq(spendLedger.kind, RETIRED_CANON_KIND),
+              eq(spendLedger.costUsd, spend.costUsd),
+              eq(spendLedger.createdAt, spend.now),
+              sql`${spendLedger.model} IS ${spend.model}`,
+              sql`${spendLedger.provider} IS ${provider}`,
+              eq(spendLedger.notional, spend.notional),
+            )} ORDER BY ${spendLedger.id} LIMIT 1)`,
+          ),
+        ),
+    );
+  }
+  bumpStatsCanonVersion(batch, db, ownerId);
+}
+
+const NO_ADMISSION: CanonAdmission<BatchStmt[], Db> = {
+  beforeSeat: () => undefined,
+  afterSeat: () => undefined,
+  refused: () => Promise.resolve(false),
+};
+
+/** Stats-built: the caller has already authorized the seat this plan surrounds. */
+export function createPrepareCanonAdmission(idSource: IdSource): PrepareCanonAdmission<BatchStmt[], Db> {
+  return async (db: Db, { ownerId, chatId }): Promise<CanonAdmission<BatchStmt[], Db>> => {
+    const [outOfScope] = await db.all<{ id: ChatId }>(sql`
+      SELECT ch.id AS id FROM chats ch WHERE ch.id = ${chatId} AND ch.started_at IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM chat_participants cp JOIN characters c ON c.id = cp.character_id
+          WHERE cp.chat_id = ch.id AND cp.kind = 'character' AND c.owner_id = ${ownerId})`);
+    if (outOfScope === undefined) {
+      return NO_ADMISSION;
+    }
+    const plan = await foldOwnerRetirement(db, ownerId, [chatId]);
+    return {
+      beforeSeat: (batch, batchDb): void => {
+        batch.push(canonUnchangedStatement(batchDb, ownerId, plan.snapshot));
+        appendAdmission(batch, batchDb, plan, idSource);
       },
+      afterSeat: (batch, batchDb): void => settleRetainedChatRebase(batch, batchDb, { ownerIds: [ownerId], characterIds: [] }),
+      refused: (error): Promise<boolean> => anyMoved(db, [plan], error),
     };
   };
 }
