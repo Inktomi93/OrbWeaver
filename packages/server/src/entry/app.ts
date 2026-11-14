@@ -24,7 +24,7 @@ import { timing } from "hono/timing";
 import type { ImportAssetPort } from "#domain/assets";
 import type { ImportCharacterPort } from "#domain/character";
 import type { ExportService } from "#domain/export";
-import type { SettleImportMemory } from "#domain/import";
+import type { ExportCurrentCard, SettleImportMemory } from "#domain/import";
 import type { SessionsService } from "#domain/sessions";
 import { readGlobalSettings } from "#domain/settings";
 import type { RelayController } from "#domain/share";
@@ -248,6 +248,8 @@ export interface AppDeps {
   readonly importWorldInfo: ImportWorldInfoPort;
   /** The card regex-script lift the Characters import dialog's door threads, so no door drops a card's scripts. */
   readonly importCardScripts: ImportCardScripts;
+  /** The import lookup's current-card step the card doors thread, so an exported card finds the row the app wrote (D290). */
+  readonly exportCurrentCard: ExportCurrentCard;
   readonly exportService: ExportService;
   readonly sessions: AuthSessionsPort;
   readonly isShuttingDown: HealthzDeps["isShuttingDown"];
@@ -461,6 +463,7 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
     tag: deps.services.tag,
     worldInfo: deps.importWorldInfo,
     importCardScripts: deps.importCardScripts,
+    exportCurrentCard: deps.exportCurrentCard,
     databank: deps.services.databank,
     maxImageBytes: () => deps.services.settings.getEffectiveConfig().maxImageBytes,
     maxDatabankBytes: () => deps.services.settings.getEffectiveConfig().maxDatabankBytes,

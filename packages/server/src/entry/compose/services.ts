@@ -92,6 +92,7 @@ import type { EmbeddingReindexTriggers, EmbeddingsIndexer, EmbeddingsService } f
 import { createRecordUsage, createResolveEmbeddingConnection, createVectorSweepOps } from "#domain/embeddings";
 import type { ExportService } from "#domain/export";
 import { createImageryPortability } from "#domain/imagery";
+import type { ExportCurrentCard } from "#domain/import";
 import { buildImportContext, cardPngIdentity, createInstallerCharacterImport, serializeImportCard } from "#domain/import";
 import { createSeedPersonaWithCompletion } from "#domain/persona";
 import type { DistributedPluginApplier, ExamplePluginSeeder } from "#domain/plugin";
@@ -174,6 +175,7 @@ import { buildAutomationPlugin } from "./automation-plugin.ts";
 import { createAutomationWatcherEnv } from "./automation-watcher.ts";
 import type { ChatComposeResult } from "./chat.ts";
 import { buildChatService, createSignupMinterCheck } from "./chat.ts";
+import { createExportCurrentCard, createExportCurrentChats } from "./current-export.ts";
 import { buildDatabank } from "./databank.ts";
 import type { EffectiveConfigWiring } from "./effective-config.ts";
 import { createEffectiveConfigWiring } from "./effective-config.ts";
@@ -359,6 +361,8 @@ export interface ServicesResult extends AsyncDisposable {
   readonly importWorldInfo: ImportWorldInfoPort;
   /** The card regex-script lift, for the HTTP card door (the same op every other import door threads). */
   readonly importCardScripts: ImportCardScripts;
+  /** The import lookup's current-card step, for the HTTP card doors (the same op every other import door threads). */
+  readonly exportCurrentCard: ExportCurrentCard;
   /** The kind-keyed workload contribution registry (the retired runner-env's replacement) — the worker
    *  driver dispatches through it. */
   readonly workloadContributions: WorkloadContributions;
@@ -1217,6 +1221,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     character,
   });
   const { worldInfo, importWorldInfo, bulkImportChats, bulkImportPersonas, resolveOwnerPrincipal } = worldInfoCompose;
+  // The import lookup's last step for a card or room the app wrote (D290), shared by every import door.
+  const exportCurrentCard = createExportCurrentCard({ character, exportService, resolveOwnerPrincipal });
+  const exportCurrentChats = createExportCurrentChats({ character, exportService, resolveOwnerPrincipal });
 
   // U8 seam 17 — the ONE per-installer character-import closure both plugin canon-write arms share.
   // It runs the SAME `importCharacter` funnel a file upload takes over the given bytes (the ContentChanged-
@@ -1236,6 +1243,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       characterOps: createCharacterImportOps(principal, character),
       storeAsset: createImportAvatarStore(principal, (args) => assets.store(args)),
       attachCardTag: createImportedCardTag(principal.userId, (args) => tag.attachCardTagByName(args)),
+      exportCurrentCard,
       importLorebook: (args) => importWorldInfo.importLorebook(args),
       hasPrimaryBook: (args) => importWorldInfo.hasPrimaryBook(args),
       linkCarriedBooks: (args) => importWorldInfo.linkCarriedBooks(args),
@@ -1347,6 +1355,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     databankCtx: databankPortability,
     persona,
     exportService,
+    exportCurrentCard,
+    exportCurrentChats,
     character,
     assets,
     attachCardTag: tag.attachCardTagByName,
@@ -1597,6 +1607,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     settleImportMemory,
     importWorldInfo,
     importCardScripts: regexCompose.importCardScripts,
+    exportCurrentCard,
     workloadContributions,
     databankIngest,
     runtime,

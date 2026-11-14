@@ -8,9 +8,17 @@ import type { PortableFile } from "@orb/contracts/portability";
 import type { ExportCardScripts } from "@orb/contracts/regex";
 import type { ExportRpgGame } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
+import type { ChatId } from "@orb/kit/ids";
 import type { ImageAdapter } from "#infra/image";
 import type { Cas } from "#infra/storage";
-import type { ExportCharacterParams, ExportChatBundleParams, ExportChatParams, ListHostChatsParams, SeatCardIdentity } from "./params.ts";
+import type {
+  ExportCharacterParams,
+  ExportChatBundleParams,
+  ExportChatParams,
+  ListHostChatsCreatedAtParams,
+  ListHostChatsParams,
+  SeatCardIdentity,
+} from "./params.ts";
 import type { ExportedCard, ExportedText, HostChatRef } from "./results.ts";
 
 /** The DI bundle every export verb closes over, wired at the composition root. */
@@ -49,4 +57,6 @@ export interface ExportService {
   /** Every chat the caller hosts + the handle of its primary seated character — the enumeration the bundle
    *  descriptor streams transcripts over. */
   readonly listHostChats: (params: ListHostChatsParams) => Promise<readonly HostChatRef[]>;
+  /** The hosted chats a restored bundle can be: those that seat its primary and were created when it says. */
+  readonly listHostChatsCreatedAt: (params: ListHostChatsCreatedAtParams) => Promise<readonly ChatId[]>;
 }

@@ -10,10 +10,11 @@
 // ONE query, not one-per-chat: the host seat and the character seat are the same table joined twice
 // (aliased), ordered so the FIRST row per chat is that chat's primary character.
 
-import { characters, chatParticipants } from "@orb/db";
+import { characters, chatParticipants, chats } from "@orb/db";
+import type { ChatId } from "@orb/kit/ids";
 import { and, asc, eq, isNotNull, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
-import type { ListHostChatsParams } from "../contract/params.ts";
+import type { ListHostChatsCreatedAtParams, ListHostChatsParams } from "../contract/params.ts";
 import type { HostChatRef } from "../contract/results.ts";
 import type { ExportContext, ExportService } from "../contract/service.ts";
 
@@ -39,5 +40,20 @@ export function createListHostChats(ctx: ExportContext): ExportService["listHost
       }
     }
     return out;
+  };
+}
+
+/** The chats the caller hosts that seat `characterId` and were created at `createdAt`: the rooms a chat bundle
+ *  written from this library can be, which the restore compares with their current export. */
+export function createListHostChatsCreatedAt(ctx: ExportContext): ExportService["listHostChatsCreatedAt"] {
+  return async ({ principal, characterId, createdAt }: ListHostChatsCreatedAtParams): Promise<readonly ChatId[]> => {
+    const rows = await ctx.db
+      .selectDistinct({ chatId: hostSeat.chatId })
+      .from(hostSeat)
+      .innerJoin(charSeat, and(eq(charSeat.chatId, hostSeat.chatId), eq(charSeat.characterId, characterId), isNull(charSeat.leftSeq)))
+      .innerJoin(chats, and(eq(chats.id, hostSeat.chatId), eq(chats.createdAt, createdAt)))
+      .where(and(eq(hostSeat.role, "host"), eq(hostSeat.userId, principal.userId), isNull(hostSeat.leftSeq)))
+      .orderBy(asc(hostSeat.chatId));
+    return rows.map((row) => row.chatId);
   };
 }

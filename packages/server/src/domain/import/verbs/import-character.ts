@@ -14,7 +14,9 @@
 // under a different picture is a separate character; the one exception is a JSON card followed by its PNG,
 // which gives the art-less row its art and keeps the JSON's identity as a second key, so the JSON still finds
 // it. Rows imported before the content identity landed carry the whole-file hash, so the lookup tries that
-// last (`findImportedCharacter`).
+// after the content keys. A row the app wrote carries no stored key, so the lookup's last step compares the card
+// with the current export of the owned row its carried handle names; a row edited since then does not match,
+// and the card lands beside it (`findImportedCharacter`, D290).
 
 import type { AttachedBookRef } from "@orb/contracts/character";
 import { deriveCharacterHandle, pluginImportedFrom } from "@orb/contracts/character";
@@ -29,6 +31,7 @@ import type { ImportCharacterResult } from "../contract/results.ts";
 import type { ImportContext, ImportService } from "../contract/service.ts";
 import {
   cardToCreateInput,
+  currentCardIdentity,
   findImportedCharacter,
   importFileHash,
   parseCardJson,
@@ -186,11 +189,11 @@ async function resolveExisting({
   readonly png: boolean;
   readonly importHash: string;
 }): Promise<CharacterId | null> {
-  const found = await findImportedCharacter((hash) => ctx.findByImportHash({ ownerId: ctx.ownerId, importHash: hash }), {
-    importHash,
-    textHash: parsedCardTextHash(parsed),
-    fileHash: importFileHash(bytes),
-  });
+  const found = await findImportedCharacter(
+    (hash) => ctx.findByImportHash({ ownerId: ctx.ownerId, importHash: hash }),
+    { importHash, textHash: parsedCardTextHash(parsed), fileHash: importFileHash(bytes) },
+    currentCardIdentity(ctx.exportCurrentCard, ctx.ownerId, parsed.handle),
+  );
   if (found === null) {
     return null;
   }
