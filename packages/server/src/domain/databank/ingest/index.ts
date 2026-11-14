@@ -34,7 +34,7 @@ import { eq } from "drizzle-orm";
 import { isAborted } from "#primitives/abort";
 import { DatabankNoEmbedSpaceError } from "../contract/errors.ts";
 import type { DatabankContext, DatabankIngest } from "../contract/service.ts";
-import { listAllDocumentIds, listOwnedDocumentIds, loadDocument } from "../persistence/queries.ts";
+import { isExtractionStale, listAllDocumentIds, listOwnedDocumentIds, loadDocument } from "../persistence/queries.ts";
 
 /** The loaded canon row — derived from the query's return (the db row type's home is `@orb/db`, never
  *  re-declared here). */
@@ -132,13 +132,13 @@ async function ingestOne(ctx: DatabankContext, doc: LoadedDocument, signal: Abor
   return { chunksUpserted, chunksNoop, chunksPruned: rowsDeleted };
 }
 
-/** Re-derive `extractedText` from the CAS bytes when the document was extracted by an OLDER extractor (the
- *  mode:'re-extract' predicate). A purged blob or a bytesless origin ('text') is skipped (nothing better to
- *  extract from). Returns the refreshed row when it re-extracted, else the original. The skip test's SQL twin is
- *  `countStaleExtractionDocuments`, the census behind the databank re-extract banner; change both together. */
+/** Re-derive `extractedText` from the CAS bytes when the document was extracted by an OLDER extractor of its own
+ *  format (the mode:'re-extract' predicate, `isExtractionStale`). A purged blob or a bytesless origin ('text') is
+ *  skipped (nothing better to extract from). Returns the refreshed row when it re-extracted, else the original.
+ *  `countStaleExtractionDocuments` is the census behind the databank re-extract banner and shares the predicate. */
 // the ingest plane's own row — `doc` came from `loadDocument`, which carries the twin read marker: reindex runs AFTER the enqueue authority check (the workload row's owner is the gate) over ids the enqueue itself resolved. The write refreshes derived extraction text, never user-authored content. Ends the day ingest takes a documentId straight off a request.
 async function maybeReExtract(ctx: DatabankContext, doc: LoadedDocument, acc: IngestAccumulator, signal: AbortSignal): Promise<LoadedDocument> {
-  if (isAborted(signal) || doc.sourceAssetId === null || doc.extractorVersion === ctx.extractorVersion) {
+  if (isAborted(signal) || doc.sourceAssetId === null || !isExtractionStale(ctx.extractorVersions, doc.mime, doc.extractorVersion)) {
     return doc;
   }
   const bytes = await ctx.loadAssetBytes(doc.sourceAssetId);
