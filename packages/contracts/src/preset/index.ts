@@ -2591,7 +2591,7 @@ export const PROMPT_LANE_STEPS: readonly PromptPipelineStep[] = [
   { kind: "regex", pass: "save", targets: ["USER_INPUT"] },
   { kind: "regex", pass: "prompt", targets: ["WORLD_INFO"] },
   ...ASSEMBLE_POST_PROCESS_ORDER.map((flag): PromptPipelineStep => ({ kind: "post-process", flag })),
-  { kind: "regex", pass: "prompt", targets: ["USER_INPUT", "AI_OUTPUT", "REASONING"] },
+  { kind: "regex", pass: "prompt", targets: ["USER_INPUT", "AI_OUTPUT"] },
 ];
 
 /** THE REPLY-SIDE LANE, in the order `applyReceiveTransforms` runs it: the inline-reasoning demux, the save
