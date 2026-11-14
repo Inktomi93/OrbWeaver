@@ -33,6 +33,9 @@ export type RegexTarget = (typeof REGEX_TARGETS)[number];
 /** The targets that are a chat row's own text, so a pass over them knows the row that wrote it. */
 export type RegexRowTarget = Exclude<RegexTarget, "WORLD_INFO">;
 
+/** The row targets the prompt pass reads: a row's body, never its reasoning (see {@link regexPassReadsTarget}). */
+export type RegexPromptRowTarget = Exclude<RegexRowTarget, "REASONING">;
+
 /** WHEN a script runs: `save` rewrites the text before it is stored, `display` changes what the reader sees, `prompt`
  *  changes the copy the model reads. */
 export const REGEX_PASSES = ["save", "display", "prompt"] as const;
@@ -92,7 +95,7 @@ export interface RegexRowStamps {
 }
 
 /** The target a row's body takes. Reasoning text is always `REASONING` and is not mapped here. */
-export function messageTargetOf(row: Pick<RegexRowStamps, "role">): Exclude<RegexRowTarget, "REASONING"> {
+export function messageTargetOf(row: Pick<RegexRowStamps, "role">): RegexPromptRowTarget {
   return row.role === "user" ? "USER_INPUT" : "AI_OUTPUT";
 }
 
@@ -380,15 +383,19 @@ function makeReplacer(script: RegexScriptInput, ctx: ProcessMacroOptions): Regex
 export type RegexPassCall =
   /** `edit` is true when the save is an edit of a stored row, where only a `runOnEdit` script runs. */
   | { readonly pass: "save"; readonly target: RegexTarget; readonly edit: boolean }
-  | {
-      readonly pass: EphemeralRegexPass;
-      readonly target: RegexRowTarget;
-      readonly row: RegexRowStamps;
-      /** The room's present seats, which a standing selector reads. */
-      readonly room: RoomStanding;
-      readonly depth: number | undefined;
-    }
+  | RegexRowPassCall<"display", RegexRowTarget>
+  | RegexRowPassCall<"prompt", RegexPromptRowTarget>
   | { readonly pass: "prompt"; readonly target: "WORLD_INFO"; readonly depth: number | undefined };
+
+/** An ephemeral call over a row's text, with what that pass knows about the row. */
+interface RegexRowPassCall<P extends EphemeralRegexPass, T extends RegexRowTarget> {
+  readonly pass: P;
+  readonly target: T;
+  readonly row: RegexRowStamps;
+  /** The room's present seats, which a standing selector reads. */
+  readonly room: RoomStanding;
+  readonly depth: number | undefined;
+}
 
 /** Arguments to {@link executeRegexScripts}. A single object (rather than positional args) keeps the
  *  call within the 4-param house cap and lets the optional execution seams ({@link RegexExecuteOptions})
@@ -430,11 +437,13 @@ export function regexSkipReason(script: RegexScriptInput, call: RegexPassCall): 
 const PASS_TARGETS: { readonly [P in RegexPass]: readonly RegexTarget[] } = {
   save: ["USER_INPUT", "AI_OUTPUT", "REASONING"],
   display: ["USER_INPUT", "AI_OUTPUT", "REASONING"],
-  prompt: ["USER_INPUT", "AI_OUTPUT", "WORLD_INFO", "REASONING"],
+  prompt: ["USER_INPUT", "AI_OUTPUT", "WORLD_INFO"],
 };
 
 /** Whether any call runs this target on this pass. World info is read only as the prompt is built, so it has no save
- *  or display call; every other pair has one. An editor greys out a pair this refuses. */
+ *  or display call. Reasoning has no prompt call: the only thinking a prompt carries back is provider-signed, which the
+ *  provider checks against its text, so it is never rewritten, and unsigned thinking is never stored to replay
+ *  (`reasoningPartsOf` in packages/inference/src/backends/v4/stream.ts). An editor greys out a pair this refuses. */
 export function regexPassReadsTarget(pass: RegexPass, target: RegexTarget): boolean {
   return PASS_TARGETS[pass].includes(target);
 }

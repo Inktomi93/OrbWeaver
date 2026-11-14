@@ -143,6 +143,13 @@ const SHAPES: readonly {
     old: { placement: ["REASONING", "USER_INPUT"], markdownOnly: false, promptOnly: false },
     axes: { targets: ["USER_INPUT", "REASONING"], passes: ["save"] },
   },
+  // The prompt pass reads no reasoning, so this row keeps its target and reaches nothing.
+  {
+    shape: "prompt only on reasoning",
+    change: "moved",
+    old: { placement: ["REASONING"], markdownOnly: false, promptOnly: true },
+    axes: { targets: ["REASONING"], passes: ["prompt"] },
+  },
   { shape: "already on two axes", old: { targets: ["REASONING"], passes: ["save"] }, axes: { targets: ["REASONING"], passes: ["save"] } },
 ];
 
@@ -219,6 +226,7 @@ test("boot names exactly the scripts the rewrite moves or narrows, with the reac
     dropped: ["save:AI_OUTPUT"],
     after: { targets: ["AI_OUTPUT"], passes: ["prompt"] },
   });
+  expect(named.find((line) => line.name === "prompt only on reasoning")?.dropped).toEqual(["save:REASONING"]);
   const counted = (change: RegexTwoAxisChangedScript["change"]): number => SHAPES.filter((seed) => seed.change === change).length;
   expect(lines.find((line) => line.moved !== undefined)).toMatchObject({ level: "info", moved: counted("moved"), narrowed: counted("narrowed") });
 });
