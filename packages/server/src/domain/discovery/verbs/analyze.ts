@@ -34,7 +34,7 @@ export function createAnalyze(ctx: DiscoveryContext, deps: AnalyzeDeps): Pick<Di
 
 // The structured-output payload (D79) — the zod schema is BOTH the wire constraint (via the one projection
 // rule) and the runtime validator inside runStructuredTurn.
-const NARRATIVE_PAYLOAD = z.object({ summary: z.string(), overlap: z.string(), distinction: z.string() });
+const NARRATIVE_PAYLOAD = z.object({ summary: z.string(), overlap: z.string(), distinction: z.string() }).strip();
 const NARRATIVE_RESPONSE_FORMAT: ResponseFormat = { name: "comparison_narrative", schema: projectJsonSchema(NARRATIVE_PAYLOAD) };
 
 /** null when the ids are equal or either card isn't owned/distilled (delegates the belt + diff to
@@ -97,7 +97,7 @@ function buildComparePrompt(cmp: CharacterComparison): string {
   ].join("\n");
 }
 
-const ANSWER_PAYLOAD = z.object({ answer: z.string(), grounded: z.boolean() });
+const ANSWER_PAYLOAD = z.object({ answer: z.string(), grounded: z.boolean() }).strip();
 const ANSWER_RESPONSE_FORMAT: ResponseFormat = { name: "card_answer", schema: projectJsonSchema(ANSWER_PAYLOAD) };
 
 /** null when the character isn't owned/distilled. Otherwise answers from the recent PLAYED scenes. */

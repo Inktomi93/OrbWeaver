@@ -25,18 +25,21 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  *  `gen-1789884256-ZeulFgkGknjAbAgCKe1S`): the per-phase upstream split and the BYOK bit. Optional throughout —
  *  a wire that reports none of it is simply not OpenRouter. */
 const reportedUsd = z.number().nonnegative().nullish().catch(null);
-const openRouterRawUsageSchema = z.object({
-  cost: reportedUsd,
-  cost_details: z
-    .object({
-      upstream_inference_cost: reportedUsd,
-      upstream_inference_prompt_cost: reportedUsd,
-      upstream_inference_completions_cost: reportedUsd,
-    })
-    .nullish()
-    .catch(null),
-  is_byok: z.boolean().nullish().catch(null),
-});
+const openRouterRawUsageSchema = z
+  .object({
+    cost: reportedUsd,
+    cost_details: z
+      .object({
+        upstream_inference_cost: reportedUsd,
+        upstream_inference_prompt_cost: reportedUsd,
+        upstream_inference_completions_cost: reportedUsd,
+      })
+      .strip()
+      .nullish()
+      .catch(null),
+    is_byok: z.boolean().nullish().catch(null),
+  })
+  .strip();
 
 function measuredCostWithDetails(args: {
   readonly cost: number;

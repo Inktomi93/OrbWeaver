@@ -192,6 +192,9 @@ test("an absent foregroundOpacity reads as 1 — an older walker's samples keep 
   const withoutField = checkContrast({ selector: ".line", color: DIM_TEXT, backdrop: NEAR_BLACK, fontSizePx: 14, fontWeight: 400 });
   const explicitOne = checkContrast({ selector: ".line", color: DIM_TEXT, backdrop: NEAR_BLACK, fontSizePx: 14, fontWeight: 400, foregroundOpacity: 1 });
   expect(withoutField).toEqual(explicitOne);
+  // The control: an explicit faint opacity does change the verdict, so the equality above is not a check that ignores opacity.
+  const faint = checkContrast({ selector: ".line", color: DIM_TEXT, backdrop: NEAR_BLACK, fontSizePx: 14, fontWeight: 400, foregroundOpacity: 0.05 });
+  expect(withoutField).not.toEqual(faint);
 });
 
 test("a dimmed foreground is composited per gradient STOP, and the finding says so", () => {

@@ -32,12 +32,10 @@ const INSPECT_API = "chat-completions";
 const CREDITS_PATH = "/credits";
 const GENERATION_PATH = "/generation";
 
-const creditsSchema = z.object({ data: z.object({ total_credits: z.number(), total_usage: z.number() }).loose() }).loose();
-const generationSchema = z
-  .object({
-    data: z.object({ total_cost: z.number(), tokens_prompt: z.number().nullable().optional(), tokens_completion: z.number().nullable().optional() }).loose(),
-  })
-  .loose();
+const creditsSchema = z.looseObject({ data: z.looseObject({ total_credits: z.number(), total_usage: z.number() }) });
+const generationSchema = z.looseObject({
+  data: z.looseObject({ total_cost: z.number(), tokens_prompt: z.number().nullable().optional(), tokens_completion: z.number().nullable().optional() }),
+});
 
 function requireBaseUrl(connection: Pick<Resolved, "baseUrl">, label: string): string {
   if (connection.baseUrl === null) {

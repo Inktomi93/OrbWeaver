@@ -194,7 +194,7 @@ export async function insertIngestDocument(
  *  strictly (branded `documentIdSchema`) at the trust boundary by `chatDocumentVisibilitySchema`; here on the
  *  READ path the ids are already-trusted stored values, and an id that isn't in the union is inert — so this
  *  only guards the SHAPE (a non-array / non-object heals to nothing-hidden), never re-validates the TypeID. */
-const storedVisibilitySchema = z.object({ hidden: z.array(z.string()) });
+const storedVisibilitySchema = z.object({ hidden: z.array(z.string()) }).strip();
 
 type DocumentScope = Parameters<ResolveActiveDocumentIdsOp>[0];
 type DocumentScopeQuery = SQLWrapper & PromiseLike<readonly Pick<typeof globalDocuments.$inferSelect, "documentId">[]>;

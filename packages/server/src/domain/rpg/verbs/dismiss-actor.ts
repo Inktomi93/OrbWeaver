@@ -26,13 +26,13 @@ import { writeHandState } from "../snapshot-edit.ts";
 
 export function createDismissActor(ctx: RpgContext): Pick<RpgService, "dismissActor"> {
   async function dismissActor(params: DismissActorParams): Promise<HandDoorResult> {
-    const { game, role } = await resolveMember(ctx, params.principal, params.chatId);
+    const { game, role, admission } = await resolveMember(ctx, params.principal, params.chatId);
     assertHostRole(ctx.can, params.principal, role, "host authority required to dismiss an actor");
     const ref = params.targetRef;
     const targetKey = actorRefKey(ref);
     const lockBase = rpgActorLockBase(ref);
 
-    const written = await writeHandState(ctx, game, (head) => {
+    const written = await writeHandState(ctx, { game, admission }, (head) => {
       const actorState = head.state.actorState.filter((a) => actorRefKey(a.actorRef) !== targetKey);
       // The presence half — since R2 the presence plane is a flat list of actor-ref KEYS, so dropping an
       // actor's presence is the same one-key filter for every kind (participant refs included). It used to need a

@@ -471,6 +471,7 @@ test("THE #2461 LIE: a body with every value export but the WRONG bytes is STALE
   const landed = `${CANARY_SOURCE}\nexport const tokens = { "text.code-field": 1 };`;
   const previous = `${CANARY_SOURCE}\nexport const tokens = {};`;
   expect(valueExportNames(previous)).toEqual(valueExportNames(landed));
+  expect(valueExportNames(landed)).toContain("tokens");
   const verdict = classifyServedTransform({ file: "packages/ui/src/tokens/index.ts", diskSource: landed, servedBody: servedWithMap(previous, previous) });
   expect(verdict.state).toBe("stale");
   expect(verdict.message).toContain("pnpm stack restart");

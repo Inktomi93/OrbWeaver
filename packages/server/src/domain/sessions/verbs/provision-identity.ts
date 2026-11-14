@@ -1,4 +1,5 @@
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
+import { userRoleChanged } from "@orb/contracts/identity";
 import { admitsHandle } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import type { Logger } from "#foundation/observability";
@@ -109,7 +110,7 @@ async function updateExisting(
     changes.email = identity.email;
   }
   let effectiveRole = existing.role;
-  if (!policy.isBootstrapOwner && ctx.rolePolicy.reDeriveRoleOnLogin() && policy.resolvedRole !== existing.role) {
+  if (!policy.isBootstrapOwner && ctx.rolePolicy.reDeriveRoleOnLogin() && userRoleChanged(existing.role, policy.resolvedRole)) {
     changes.role = policy.resolvedRole;
     effectiveRole = policy.resolvedRole;
   }

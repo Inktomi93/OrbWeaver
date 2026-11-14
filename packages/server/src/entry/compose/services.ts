@@ -533,7 +533,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
 
   const audit = deps.audit.log;
   const newUserId = (): UserId => idSource.userId();
-  const { applyStatsDelta, bumpStatsCanonVersion } = createStatsBatchWiring(idSource);
+  const { applyStatsDelta, bumpStatsCanonVersion } = createStatsBatchWiring(idSource, now);
   // biome-ignore lint/nursery/useDisposables: resources adopts this owner through the moved graph stack; local using would close it before the graph starts.
   const eventBus = resources.use(createDomainEventBus(background.supervise, newOpaqueId));
 
@@ -719,7 +719,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     imageToPng: (bytes) => imageAdapter.transform(bytes, { format: "png" }),
     agentSdk: {
       // D8 `session_entries` write path — the sealed backend never touches @orb/db itself.
-      sessionWriter: createSessionEntryWriter(db, minter(ID_PREFIX.sessionEntry, idSource)),
+      sessionWriter: createSessionEntryWriter(db, minter(ID_PREFIX.sessionEntry, idSource), now),
       ...(deps.providerSeams?.agentSdk ?? {}),
     },
     userRuntimeDir: (ownerId, tool) => userRuntimeDirs.dirFor(ownerId, tool),
@@ -1039,7 +1039,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     forkGame: (args) => rpgOps().forkGame(args),
     handoffHealStatements: (args) => rpgOps().handoffHealStatements(args),
     handoffWouldCopyGmPreset: (chatId, nomineeUserId) => rpgOps().handoffWouldCopyGmPreset(chatId, nomineeUserId),
-    handoffRekeyActors: (chatId, cardCopies) => rpgOps().handoffRekeyActors(chatId, cardCopies),
+    handoffRekeyActors: (admission, cardCopies) => rpgOps().handoffRekeyActors(admission, cardCopies),
   };
   // The memory-recall flight recorder. Built UNCONDITIONALLY (unlike `rpgTrace`): the slice it retains
   // is produced by every recall anyway (it is the assembly trace's memory row), so the ring's only cost is

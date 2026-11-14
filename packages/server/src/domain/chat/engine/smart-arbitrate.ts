@@ -215,12 +215,12 @@ async function askArbiter(
   const responders = z.array(z.enum([choices[0].label, ...choices.slice(1).map((c) => c.label)]));
   const responseFormat: ResponseFormat = {
     name: RESPONSE_NAME,
-    schema: projectJsonSchema(z.object({ responders: responders.min(1).max(MAX_SMART_RESPONDERS) })),
+    schema: projectJsonSchema(z.object({ responders: responders.min(1).max(MAX_SMART_RESPONDERS) }).strip()),
   };
   const systemPrompt = resolveProseText("chat.arbiter.system", params.prose);
   const userPrompt = buildArbiterPrompt(params, choices, roster, arbiter.contextTokens);
   const reply = await runStructuredTurn({
-    payloadSchema: z.object({ responders }),
+    payloadSchema: z.object({ responders }).strip(),
     run: async (correction) => {
       const result = await arbiter.structured([{ systemPrompt, userPrompt: correction === undefined ? userPrompt : `${userPrompt}\n\n${correction}` }], {
         ...params.sampling,

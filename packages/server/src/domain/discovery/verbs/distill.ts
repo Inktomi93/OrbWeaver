@@ -81,16 +81,18 @@ const TONES = ["dark", "lighthearted", "romantic", "comedic", "gritty", "wholeso
 const MAX_SUBGENRES = 3;
 const MIN_TAGS = 3;
 const MAX_TAGS = 8;
-const DISTILL_PAYLOAD = z.object({
-  genre: z.enum(GENRES),
-  subGenres: z.array(z.string()).max(MAX_SUBGENRES),
-  tone: z.enum(TONES),
-  // Free text, so a blank reply is trimmed to the empty string the facet census excludes.
-  setting: z.string().trim(),
-  tags: z.array(z.string()).min(MIN_TAGS).max(MAX_TAGS),
-  elevatorPitch: z.string(),
-  overview: z.string(),
-});
+const DISTILL_PAYLOAD = z
+  .object({
+    genre: z.enum(GENRES),
+    subGenres: z.array(z.string()).max(MAX_SUBGENRES),
+    tone: z.enum(TONES),
+    // Free text, so a blank reply is trimmed to the empty string the facet census excludes.
+    setting: z.string().trim(),
+    tags: z.array(z.string()).min(MIN_TAGS).max(MAX_TAGS),
+    elevatorPitch: z.string(),
+    overview: z.string(),
+  })
+  .strip();
 const DISTILL_RESPONSE_FORMAT: ResponseFormat = { name: "character_distillation", schema: projectJsonSchema(DISTILL_PAYLOAD) };
 
 const MAX_CARD_CHARS = 6000;

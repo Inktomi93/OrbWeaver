@@ -39,7 +39,7 @@ import { applyHandEdit } from "../snapshot-edit.ts";
 
 export function createEditSnapshot(ctx: RpgContext): Pick<RpgService, "editSnapshot"> {
   async function editSnapshot(params: EditSnapshotParams): Promise<HandDoorResult> {
-    const { game, role } = await resolveMember(ctx, params.principal, params.chatId);
+    const { game, role, admission } = await resolveMember(ctx, params.principal, params.chatId);
     // The member-own-actor volatile arm is deferred (the per-actor sub-field lock grammar is unfixed — see the
     // file header); v1 gates editSnapshot host-only. The doorway is kept: a member gets a FORBIDDEN, not a lie.
     assertHostRole(ctx.can, params.principal, role, "host authority required to hand-edit the snapshot");
@@ -71,7 +71,7 @@ export function createEditSnapshot(ctx: RpgContext): Pick<RpgService, "editSnaps
     const clearPaths = params.releaseLocks ?? [];
     // Gate 2 — the F1 write-boundary parse, inside the shared helper. A refusal wrote NOTHING (no row, no
     // slot, no locks), so there is no bus event to emit: the panel's rendered value is still the truth.
-    const written = await applyHandEdit(ctx, game, params.patch, { lock: lockPaths, clear: clearPaths });
+    const written = await applyHandEdit(ctx, { game, admission }, params.patch, { lock: lockPaths, clear: clearPaths });
     if (!written.ok) {
       return { ok: false, reason: written.reason };
     }

@@ -67,29 +67,33 @@ const GITDIR_FILE_RE = /^gitdir:\s*(?<dir>\S.*)$/u;
 
 /** The identity of one running Orbweaver. The wire shape of `settings.getVersion`, the `/healthz` `version`
  *  block, and the first header field of a bug-report bundle — one shape, everywhere a human looks. */
-export const versionIdentitySchema = z.object({
-  /** The root `package.json` `version` — the number release-please bumps on the `release` branch. */
-  version: z.string().min(1),
-  /** The full commit sha, or {@link UNKNOWN_COMMIT}. */
-  commit: z.string().min(1),
-  /** `commit` truncated to {@link SHORT_COMMIT_LENGTH}, or {@link UNKNOWN_COMMIT} unchanged. */
-  short: z.string().min(1),
-  /** ISO-8601 of the image build. Present only on the `container` arm — a checkout has no build instant. */
-  builtAt: z.string().min(1).optional(),
-  source: z.enum(VERSION_SOURCES),
-  channel: z.enum(RELEASE_CHANNELS),
-});
+export const versionIdentitySchema = z
+  .object({
+    /** The root `package.json` `version` — the number release-please bumps on the `release` branch. */
+    version: z.string().min(1),
+    /** The full commit sha, or {@link UNKNOWN_COMMIT}. */
+    commit: z.string().min(1),
+    /** `commit` truncated to {@link SHORT_COMMIT_LENGTH}, or {@link UNKNOWN_COMMIT} unchanged. */
+    short: z.string().min(1),
+    /** ISO-8601 of the image build. Present only on the `container` arm — a checkout has no build instant. */
+    builtAt: z.string().min(1).optional(),
+    source: z.enum(VERSION_SOURCES),
+    channel: z.enum(RELEASE_CHANNELS),
+  })
+  .strip();
 export type VersionIdentity = z.infer<typeof versionIdentitySchema>;
 
 /** The `version.json` an image build stamps beside the runtime file set. A SUBSET of the identity — `short`
  *  and `source` are DERIVED at read time rather than stored, so a hand-edited stamp cannot disagree with
  *  itself. The channel IS stored: an image carries no `.git` to re-derive it from. */
-export const versionStampSchema = z.object({
-  version: z.string().min(1),
-  commit: z.string().min(1),
-  builtAt: z.string().min(1),
-  channel: z.enum(RELEASE_CHANNELS),
-});
+export const versionStampSchema = z
+  .object({
+    version: z.string().min(1),
+    commit: z.string().min(1),
+    builtAt: z.string().min(1),
+    channel: z.enum(RELEASE_CHANNELS),
+  })
+  .strip();
 export type VersionStamp = z.infer<typeof versionStampSchema>;
 
 /** The raw bytes a commit derivation needs. Every field is "the file's text, or `null` when it is absent" —

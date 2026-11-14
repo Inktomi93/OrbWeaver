@@ -29,10 +29,9 @@ import { encodeTextWindows } from "./text-windows.ts";
 
 // Small on purpose — each ONNX session holds native (off-heap) memory.
 const MODEL_CACHE_CAP = 4;
-let transformersPromise: Promise<TransformersModule> | undefined;
+// The module loader caches the evaluated module, so a repeat call resolves the same namespace without a second load.
 function loadTransformers(): Promise<TransformersModule> {
-  transformersPromise ??= import("@huggingface/transformers");
-  return transformersPromise;
+  return import("@huggingface/transformers");
 }
 
 function isKernelModule(value: unknown): value is LocalLightKernelModule {
@@ -197,52 +196,54 @@ function isTransformersLoaderEscape(err: unknown): boolean {
   return stack.includes("@huggingface/transformers") && TRANSFORMERS_LOADER_FRAMES.some((frame) => stack.includes(frame));
 }
 
+type OwnModelLoad = <T>(load: () => Promise<T>) => Promise<T>;
+
+// One belt per model cache, and one cache per local-light worker, so the listener and its queue are that worker's.
 // ASSUMES(single-replica): live in-process promise rejectors tied to THIS process's in-flight loads.
-const inFlightLoadRejectors: ((err: Error) => void)[] = [];
-let beltInstalled = false;
-
-function onBeltRejection(err: unknown): void {
-  if (isTransformersLoaderEscape(err)) {
-    inFlightLoadRejectors.shift()?.(err instanceof Error ? err : new Error(String(err)));
-    return;
-  }
-  throw err;
-}
-
-function registerBeltLoad(reject: (err: Error) => void): () => void {
-  inFlightLoadRejectors.push(reject);
-  if (!beltInstalled) {
-    beltInstalled = true;
-    process.on("unhandledRejection", onBeltRejection);
-  }
-  return (): void => {
-    const idx = inFlightLoadRejectors.indexOf(reject);
-    if (idx >= 0) {
-      inFlightLoadRejectors.splice(idx, 1);
+function createLoadBelt(): OwnModelLoad {
+  const inFlightLoadRejectors: ((err: Error) => void)[] = [];
+  let installed = false;
+  const onRejection = (err: unknown): void => {
+    if (isTransformersLoaderEscape(err)) {
+      inFlightLoadRejectors.shift()?.(err instanceof Error ? err : new Error(String(err)));
+      return;
+    }
+    throw err;
+  };
+  const register = (reject: (err: Error) => void): (() => void) => {
+    inFlightLoadRejectors.push(reject);
+    if (!installed) {
+      installed = true;
+      process.on("unhandledRejection", onRejection);
+    }
+    return (): void => {
+      const idx = inFlightLoadRejectors.indexOf(reject);
+      if (idx >= 0) {
+        inFlightLoadRejectors.splice(idx, 1);
+      }
+    };
+  };
+  return async <T>(load: () => Promise<T>): Promise<T> => {
+    const { promise: orphanGuard, reject: rejectOrphan } = Promise.withResolvers<never>();
+    const cleanup = register(rejectOrphan);
+    try {
+      return await Promise.race([load(), orphanGuard]);
+    } finally {
+      cleanup();
     }
   };
 }
 
-async function ownModelLoad<T>(load: () => Promise<T>): Promise<T> {
-  const { promise: orphanGuard, reject: rejectOrphan } = Promise.withResolvers<never>();
-  const cleanup = registerBeltLoad(rejectOrphan);
-  try {
-    return await Promise.race([load(), orphanGuard]);
-  } finally {
-    cleanup();
-  }
-}
-
 // On failure with a non-CPU device, retry once on CPU so a missing/broken CUDA EP never bricks embeddings.
-async function loadWithCpuFallback<T>(device: DeviceType, log: InferenceLog, build: (device: DeviceType) => Promise<T>): Promise<T> {
+async function loadWithCpuFallback<T>(own: OwnModelLoad, device: DeviceType, log: InferenceLog, build: (device: DeviceType) => Promise<T>): Promise<T> {
   try {
-    return await ownModelLoad(() => build(device));
+    return await own(() => build(device));
   } catch (err) {
     if (device === CPU_DEVICE) {
       throw err;
     }
     log.warn({ err: String(err), device }, "local-light: model load failed on device; retrying on cpu");
-    return await ownModelLoad(() => build(CPU_DEVICE));
+    return await own(() => build(CPU_DEVICE));
   }
 }
 
@@ -569,11 +570,12 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
     return configured;
   };
   const { log } = config;
+  const ownLoad = createLoadBelt();
 
   const jinaEmbedder = createMemo(
     async (id) => {
       const { AutoModel } = await transformers();
-      return await loadWithCpuFallback(device, log, (dev) =>
+      return await loadWithCpuFallback(ownLoad, device, log, (dev) =>
         AutoModel.from_pretrained(id, { device: dev, dtype: embedDtype, session_options: sessionOptions }),
       );
     },
@@ -605,12 +607,14 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
       const mod = await transformers();
       const opts = { ...files, session_options: sessionOptions };
       if (onnx.head === "sequence-classification") {
-        const model = await loadWithCpuFallback(device, log, (dev) => mod.AutoModelForSequenceClassification.from_pretrained(id, { ...opts, device: dev }));
+        const model = await loadWithCpuFallback(ownLoad, device, log, (dev) =>
+          mod.AutoModelForSequenceClassification.from_pretrained(id, { ...opts, device: dev }),
+        );
         return { head: onnx.head, model };
       }
       // Settled, not `Promise.all`: a head that fails first must still wait for the encoder, or nothing owns its session.
       const [encoder, head] = await Promise.allSettled([
-        loadWithCpuFallback(device, log, (dev) => mod.AutoModel.from_pretrained(id, { ...opts, device: dev })),
+        loadWithCpuFallback(ownLoad, device, log, (dev) => mod.AutoModel.from_pretrained(id, { ...opts, device: dev })),
         loadHeadRepairing(mod, { modelId: id, revision: onnx.revision }, log),
       ]);
       if (encoder.status === "rejected") {

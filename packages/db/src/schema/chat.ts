@@ -33,8 +33,8 @@
 // (`satisfies`) — compile-time validity + a test-mirror over each column's `.enumValues`. Every CHECK is
 // built from the SAME tuple as a static raw fragment (a CHECK is DDL — no bound parameters).
 //
-// Timestamps are plain `integer("x_at")` epoch-MS NUMBERS (contracts view timestamps as `number`), born at
-// insert via `(unixepoch() * 1000)`; caller-set timestamps are required `integer` numbers. JSON columns
+// Timestamps are plain `integer("x_at")` epoch-MS NUMBERS (contracts view timestamps as `number`);
+// every timestamp is a required `integer` the caller states (`stampColumn` for a row stamp). JSON columns
 // are `$type<T>()` + read at the `@orb/db/query` parse-seam (`chats.metadata` lazy/fault-isolated sub-blobs;
 // `message_variants.params`/`promptSnapshot`/`metadata`). The `raw_request`/`raw_response` provider
 // envelopes are DELETED: nothing ever wrote them and the wire inspector reads `promptSnapshot`.
@@ -103,7 +103,7 @@ import type { IanaTimeZone } from "@orb/kit/time";
 import { sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { check, index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { nulFreeText } from "../custom-types/index.ts";
+import { nulFreeText, stampColumn } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { assets } from "./assets.ts";
 import { characters } from "./character.ts";
@@ -219,8 +219,8 @@ export const chats = sqliteTable(
     // with this column set (`packages/server/src/domain/chat/persistence/import-landing.ts`), never one by the
     // absence of its roster.
     landingAt: integer("landing_at"),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
-    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
+    updatedAt: stampColumn("updated_at"),
   },
   (t) => [
     // The lineage walk (membership-gated per ancestor — D18); also speeds the fork-children listing.
@@ -253,7 +253,7 @@ export const chatImportClaims = sqliteTable(
       .notNull()
       .references(() => characters.id, { onDelete: "cascade" }),
     importHash: nulFreeText("import_hash").notNull(),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [primaryKey({ columns: [t.characterId, t.importHash], name: "chat_import_claims_scope_pk" }), index("chat_import_claims_chat_idx").on(t.chatId)],
 );
@@ -376,7 +376,7 @@ export const messages = sqliteTable(
     // nothing, so origin is the slot's, not the variant's). `initiator` derives TURN_INITIATORS (no re-spell).
     initiator: text("initiator", { enum: TURN_INITIATORS }).notNull().default("human"),
     automationDepth: integer("automation_depth").notNull().default(0),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
     editedAt: integer("edited_at"),
   },
   (t) => [
@@ -565,7 +565,7 @@ export const messageVariants = sqliteTable(
     // contract; the parse proves it). Closing this type makes the stats rollups'
     // `json_extract(metadata, '$.reasoning_duration')` read a declared key.
     metadata: text("metadata", { mode: "json" }).$type<VariantMetadata>(),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     // The swipe set + its position; idx is unique within a message.
@@ -626,7 +626,7 @@ export const messageAssets = sqliteTable(
     // picture the model emitted mid-turn — the ONLY origin the wire-history projection sends back as an
     // assistant image part). NOT NULL, no default — every writer stamps it.
     origin: text("origin", { enum: MESSAGE_ASSET_ORIGINS }).$type<MessageAssetOrigin>().notNull(),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     // The per-message lookup ("what did this message attach?") + the CASCADE parent index.
@@ -679,7 +679,7 @@ export const chatParticipants = sqliteTable(
     talkativeness: real("talkativeness").notNull().default(DEFAULT_TALKATIVENESS),
     // Muted: cards/WI still contribute but never arbiter-selected; excluded from `{{groupNotMuted}}`.
     disabled: integer("disabled", { mode: "boolean" }).notNull().default(false),
-    joinedAt: integer("joined_at").notNull().default(sql`(unixepoch() * 1000)`),
+    joinedAt: stampColumn("joined_at"),
     // Lifecycle horizons live in `messages.seq` (NOT the stream cursor). `leftSeq` null = present.
     joinSeq: integer("join_seq").notNull(),
     leftSeq: integer("left_seq"),
@@ -800,7 +800,7 @@ export const messageReactions = sqliteTable(
     segmentIndex: integer("segment_index"),
     segmentSpeaker: nulFreeText("segment_speaker"),
     segmentSnippet: nulFreeText("segment_snippet"),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     // ONE reactor · ONE emoji · ONE target — as PHYSICS (a double-add is an `ON CONFLICT DO NOTHING` no-op,
@@ -863,7 +863,7 @@ export const chatInvites = sqliteTable(
     // The AUTH_MODE at mint; a signup redeem refuses under any other mode (D259). Null on a row minted before
     // the column existed, and never null on a signup row.
     mintMode: text("mint_mode", { enum: AUTH_MODES }),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     uniqueIndex("chat_invites_token_hash_unique").on(t.tokenHash),
@@ -921,7 +921,7 @@ export const pendingTurns = sqliteTable(
     messageId: nulFreeText("message_id")
       .$type<MessageId>()
       .references(() => messages.id, { onDelete: "set null" }),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     index("pending_turns_chat_idx").on(t.chatId),
@@ -971,7 +971,7 @@ export const chatEvents = sqliteTable(
     type: nulFreeText("type").$type<ChatBusEvent["type"]>().notNull(),
     // The full closed bus event (room-public; the contract's allowlist makes secrets unrepresentable).
     payload: text("payload", { mode: "json" }).$type<ChatBusEvent>().notNull(),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [uniqueIndex("chat_events_chat_seq_unique").on(t.chatId, t.seq), check("chat_events_type_check", sql.raw(`type in (${checkList(CHAT_EVENT_TYPES)})`))],
 );
@@ -1004,7 +1004,7 @@ export const chatInjections = sqliteTable(
     // Priority WITHIN a depth (ST `injection_order`; co-located in_chat injections splice DESC). `order`
     // is a SQL keyword — the column is `injection_order`.
     order: integer("injection_order"),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     index("chat_injections_chat_idx").on(t.chatId),
@@ -1046,7 +1046,7 @@ export const chatMemoryStrikes = sqliteTable(
     seqEnd: integer("seq_end").notNull(),
     contentHash: nulFreeText("content_hash").notNull(),
     topicAnchor: nulFreeText("topic_anchor"),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     // One strike per span, whatever copy it was made on: the character is not in the key, so a racing second strike

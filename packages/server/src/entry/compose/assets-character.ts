@@ -194,7 +194,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     maxBytes: () => deps.maxImageBytes(),
   });
 
-  const statsWiring = createStatsBatchWiring(deps.idSource);
+  const statsWiring = createStatsBatchWiring(deps.idSource, deps.now);
   const character = createCharacterService({
     logger: deps.logger,
     db,

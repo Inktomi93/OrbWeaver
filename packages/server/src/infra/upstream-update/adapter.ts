@@ -36,19 +36,31 @@ const DEADLINE_MS = 8000;
 /** The fields this op reads out of GitHub's commit payload. Everything else it returns is ignored by
  *  construction — `.parse` on a narrow schema means a payload reshuffle degrades to a named `unknown`
  *  verdict instead of an undefined sha rendering as a mismatch. */
-const commitPayload = z.object({
-  sha: z.string().min(1),
-  commit: z.object({ committer: z.object({ date: z.string().min(1) }).partial() }).partial(),
-});
+const commitPayload = z
+  .object({
+    sha: z.string().min(1),
+    commit: z
+      .object({
+        committer: z
+          .object({ date: z.string().min(1) })
+          .strip()
+          .partial(),
+      })
+      .strip()
+      .partial(),
+  })
+  .strip();
 
 // GitHub's snake_case wire names for the two release fields this op reads, as computed keys so they need no
 // `useNamingConvention` suppression: the tag release-please wrote, and when the release went out.
 const TAG_NAME = "tag_name";
 const PUBLISHED_AT = "published_at";
-const releasePayload = z.object({
-  [TAG_NAME]: z.string().min(1),
-  [PUBLISHED_AT]: z.string().min(1).nullable().optional(),
-});
+const releasePayload = z
+  .object({
+    [TAG_NAME]: z.string().min(1),
+    [PUBLISHED_AT]: z.string().min(1).nullable().optional(),
+  })
+  .strip();
 
 /** A release tag as release-please spells it: `v` then the plain three-part version. */
 const RELEASE_TAG_PREFIX = "v";

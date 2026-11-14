@@ -133,7 +133,7 @@ function assertTrackerExceptionHost(ctx: RpgContext, params: PatchSheetParams, r
 
 export function createPatchSheet(ctx: RpgContext): Pick<RpgService, "patchSheet"> {
   async function patchSheet(params: PatchSheetParams): Promise<void> {
-    const { game, role } = await resolveMember(ctx, params.principal, params.chatId);
+    const { game, role, admission } = await resolveMember(ctx, params.principal, params.chatId);
     assertOwnUserRef(ctx.can, params.principal, role, params.actorRef);
     // …and the second floor: WHOSE row is not the same question as WHICH FIELDS. Both refusals land before any
     // read of the current sheet, so a refused patch touches nothing and emits nothing.
@@ -143,13 +143,13 @@ export function createPatchSheet(ctx: RpgContext): Pick<RpgService, "patchSheet"
     if (params.patch.attributes !== undefined) {
       assertAttributes(game, params.patch.attributes);
     }
-    await ctx.claimChat(params.chatId);
+    const claim = await ctx.claimChat(admission);
 
     const actor = characterId !== null ? { characterId } : { userId: userId as UserId };
     const current = (await findSheet(ctx.db, game.id, actor))?.sheet ?? defaultSheet();
     const next = mergeSheet(current, params.patch);
 
-    const row = await upsertSheet(ctx.db, { id: ctx.ids.sheet(), gameId: game.id, characterId, userId, sheet: next, now: ctx.now() });
+    const row = await upsertSheet(ctx.db, claim, { id: ctx.ids.sheet(), gameId: game.id, characterId, userId, sheet: next, now: ctx.now() });
 
     // The Status/Sheet tabs refetch (§4.9). `sheetId` is the row's real id (upsert may reuse an existing row).
     ctx.emitBus({ type: "sheetChanged", chatId: params.chatId, sheetId: row.id });

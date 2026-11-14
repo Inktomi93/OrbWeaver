@@ -3,11 +3,12 @@
 
 import { Button } from "@orb/ui/button";
 import { DialogHeader } from "@orb/ui/dialog";
-import { Drawer, DrawerClose, DrawerPopup, DrawerTitle, DrawerVirtualKeyboardProvider } from "@orb/ui/drawer";
+import { Drawer, DrawerClose, DrawerPopup, DrawerTitle, DrawerTitleText, DrawerVirtualKeyboardProvider } from "@orb/ui/drawer";
 import { Icon, X } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { DIALOG_VERBS } from "#lib";
+import { ModalTitle } from "./modal-title.tsx";
 
 type DrawerRootProps = ComponentProps<typeof Drawer>;
 type DrawerPopupProps = ComponentProps<typeof DrawerPopup>;
@@ -15,7 +16,8 @@ type DrawerPopupProps = ComponentProps<typeof DrawerPopup>;
 export interface SheetDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (nextOpen: boolean) => void;
-  readonly title: ReactNode;
+  /** The title's whole text, which stays the sheet's name when a short window cuts it to one line. */
+  readonly title: string;
   /** The title's id, for a body that names itself by the title (a commit modal's form). */
   readonly titleId?: string;
   /** Themed portal target; Base UI portals the sheet here so it inherits the active theme's tokens. */
@@ -42,7 +44,9 @@ export function SheetDialog({ open, onOpenChange, title, titleId, container, fin
               Close the title wraps by its words and keeps Close on its line until a word cannot fit, as a dialog's does. */}
           <DialogHeader sticky={true} wrap={true}>
             <Row align="center" grow={true} minWidth="word">
-              <DrawerTitle {...(titleId === undefined ? {} : { id: titleId })}>{title}</DrawerTitle>
+              <DrawerTitle {...(titleId === undefined ? {} : { id: titleId })}>
+                <ModalTitle title={title} words={DrawerTitleText} />
+              </DrawerTitle>
             </Row>
             <DrawerClose
               render={

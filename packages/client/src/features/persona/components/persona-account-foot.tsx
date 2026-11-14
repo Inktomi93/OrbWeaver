@@ -11,7 +11,7 @@ import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary, StatusChip, USER_ROLE_STATUS } from "#components";
+import { QueryBoundary, roleChipAddsToHandle, StatusChip, USER_ROLE_STATUS } from "#components";
 import { authConfigOptions, authMeOptions, QueryErrorState, signOut, useSuspenseQuery } from "#data";
 import { notify, testId } from "#lib";
 
@@ -34,8 +34,8 @@ function AccountFootBody(): ReactElement {
   const { handle, role } = useSuspenseQuery(authMeOptions).data;
   const [signingOut, setSigningOut] = useState(false);
   const canLogout = mode === "local" || mode === "oidc";
-  // The role shows only when it says something the handle does not; the auth mode is plumbing, never shown.
-  const showRole = role !== null && role !== handle;
+  // The auth mode is plumbing, never shown.
+  const showRole = role !== null && roleChipAddsToHandle(role, handle);
 
   return (
     <Stack gap="field" data-testid={testId("accountSurface")}>

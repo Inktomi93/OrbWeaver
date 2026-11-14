@@ -66,6 +66,13 @@ export function DialogTitle(props: DialogTitleProps): ReactElement {
   return <BaseDialog.Title className={dialogVariants({ clearsClose, focusTarget, truncate }).title({ className })} {...rest} />;
 }
 
+export interface DialogTitleTextProps extends Omit<ComponentProps<"span">, "className">, Pick<VariantProps<typeof dialogVariants>, "truncate"> {}
+
+/** The title's words, the part a one-line title cuts: a reader of the cut measures this box, and a reveal makes it the control that opens it whole. */
+export function DialogTitleText({ truncate, ...rest }: DialogTitleTextProps): ReactElement {
+  return <span className={dialogVariants({ truncate }).titleText()} data-slot="dialog-title-text" {...rest} />;
+}
+
 export type DialogDescriptionProps = Omit<BaseDescriptionProps, "className">;
 
 export function DialogDescription(props: DialogDescriptionProps): ReactElement {

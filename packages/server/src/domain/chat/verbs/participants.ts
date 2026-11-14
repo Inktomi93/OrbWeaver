@@ -24,6 +24,8 @@ import type {
   MessageView,
   ParticipantData,
   PresentCharacterSeat,
+  RoomAdmission,
+  RoomClaim,
   SetGroupConfigParams,
   SetSeatKnobsParams,
 } from "@orb/contracts/chat";
@@ -157,14 +159,15 @@ async function commitStatsFencedChatUpdate(ctx: ChatContext, ownerId: UserId, st
 async function commitMetadataUpdate<K extends keyof ChatMetadata>(args: {
   readonly ctx: ChatContext;
   readonly ownerId: UserId;
-  readonly chatId: ChatId;
+  readonly claim: RoomClaim;
   readonly key: K;
   readonly value: NonNullable<ChatMetadata[K]>;
   /** The effective post-write metadata — read ONLY by the background-availability guard, never written. */
   readonly effective: ChatMetadata;
   readonly authority: "carried" | "owned";
 }): Promise<void> {
-  const { ctx, ownerId, chatId, effective, authority } = args;
+  const { ctx, ownerId, claim, effective, authority } = args;
+  const { chatId } = claim;
   const available = authority === "owned" ? ownedBackgroundAvailable(ctx.db, ownerId, effective) : carriedBackgroundAvailable(ctx.db, effective);
   const statement = chatMetadataSetStatement(ctx.db, { chatId, key: args.key, value: args.value, guard: available, now: ctx.now() });
   const statements: BatchStmt[] = [];
@@ -241,7 +244,7 @@ async function characterParticipantView(
  *  (F5, below). */
 function createSetGroupConfig(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setGroupConfig"] {
   return async ({ principal, chatId, config }: SetGroupConfigParams) => {
-    const { chat } = await requireHost(ctx, principal, chatId);
+    const { chat, admission } = await requireHost(ctx, principal, chatId);
     const parsed = groupConfigSchema.parse(config);
     // SEAL (D60 AP4a — F5): a GAME chat whose GM seat is AGENT-held may not be
     // flipped OFF narrator+merged (to `per-speaker`). narrator+merged keeps the GM tool loop on the narrator
@@ -259,11 +262,11 @@ function createSetGroupConfig(ctx: ChatContext, emit: EmitChatEvent, claimChat: 
         );
       }
     }
-    await claimChat(chatId);
+    const claim = await claimChat(admission);
     await commitMetadataUpdate({
       ctx,
       ownerId: principal.userId,
-      chatId,
+      claim,
       key: "group",
       value: parsed,
       effective: { ...chat.metadata, group: parsed },
@@ -288,7 +291,7 @@ function createSetGroupConfig(ctx: ChatContext, emit: EmitChatEvent, claimChat: 
  *  RETIRED `authorsNote` — at-depth steering is a `chat_injections` row now). */
 function createSetRoomOverrides(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setRoomOverrides"] {
   return async ({ principal, chatId, overrides }: SetRoomOverridesParams) => {
-    const { chat } = await requireHost(ctx, principal, chatId);
+    const { chat, admission } = await requireHost(ctx, principal, chatId);
     const parsed = roomOverridesSchema.safeParse(overrides);
     if (!parsed.success) {
       throw new ChatOperationError(
@@ -296,11 +299,11 @@ function createSetRoomOverrides(ctx: ChatContext, emit: EmitChatEvent, claimChat
         `chat ${chatId}: room overrides accept only the three-field allowlist (scenario / mainPrompt / postHistory)`,
       );
     }
-    await claimChat(chatId);
+    const claim = await claimChat(admission);
     await commitMetadataUpdate({
       ctx,
       ownerId: principal.userId,
-      chatId,
+      claim,
       key: "roomOverrides",
       value: parsed.data,
       effective: { ...chat.metadata, roomOverrides: parsed.data },
@@ -331,16 +334,16 @@ function createSetRoomOverrides(ctx: ChatContext, emit: EmitChatEvent, claimChat
  *  not become a databank membership oracle). */
 function createSetChatDocumentVisibility(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setChatDocumentVisibility"] {
   return async ({ principal, chatId, visibility }: SetChatDocumentVisibilityParams): Promise<ChatDocumentVisibility> => {
-    const { chat } = await requireHost(ctx, principal, chatId);
+    const { chat, admission } = await requireHost(ctx, principal, chatId);
     const parsed = chatDocumentVisibilitySchema.safeParse(visibility);
     if (!parsed.success) {
       throw new ChatOperationError(CHAT_OP_CODES.forbiddenOverride, `chat ${chatId}: databank visibility accepts only a { hidden: DocumentId[] } set`);
     }
-    await claimChat(chatId);
+    const claim = await claimChat(admission);
     // The POST-WRITE metadata, for the background-availability guard only: the write itself touches this one
     // JSON path and never re-asserts the siblings.
     const effective: ChatMetadata = { ...chat.metadata, databankVisibility: parsed.data };
-    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, key: "databankVisibility", value: parsed.data, effective, authority: "carried" });
+    await commitMetadataUpdate({ ctx, ownerId: principal.userId, claim, key: "databankVisibility", value: parsed.data, effective, authority: "carried" });
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       {
@@ -372,12 +375,12 @@ function createSetChatDocumentVisibility(ctx: ChatContext, emit: EmitChatEvent, 
  *  The write MERGES into the sibling sub-blobs (`...chat.metadata`) so it never nukes roomOverrides/group. */
 function createSetHostDisplayScripts(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setHostDisplayScripts"] {
   return async ({ principal, chatId, enabled }: SetHostDisplayScriptsParams): Promise<boolean> => {
-    const { chat } = await requireHost(ctx, principal, chatId);
-    await claimChat(chatId);
+    const { chat, admission } = await requireHost(ctx, principal, chatId);
+    const claim = await claimChat(admission);
     // The POST-WRITE metadata, for the background-availability guard only: the write itself touches this one
     // JSON path and never re-asserts the siblings.
     const effective: ChatMetadata = { ...chat.metadata, hostDisplayScripts: enabled };
-    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, key: "hostDisplayScripts", value: enabled, effective, authority: "carried" });
+    await commitMetadataUpdate({ ctx, ownerId: principal.userId, claim, key: "hostDisplayScripts", value: enabled, effective, authority: "carried" });
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       { actorUserId: principal.userId, action: "chat.setHostDisplayScripts", entityType: "chat", entityId: chatId, metadata: { enabled } },
@@ -406,8 +409,8 @@ function createSetHostDisplayScripts(ctx: ChatContext, emit: EmitChatEvent, clai
  *  devices repaint the section off the same event. */
 function createSetRegexAllow(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setRegexAllow"] {
   return async ({ principal, chatId, lever }: SetRegexAllowParams): Promise<HostTierRegexAllow> => {
-    const { chat } = await requireHost(ctx, principal, chatId);
-    await claimChat(chatId);
+    const { chat, admission } = await requireHost(ctx, principal, chatId);
+    const claim = await claimChat(admission);
     const stored = regexAllowOf(chat.metadata);
     const next: HostTierRegexAllow =
       lever.kind === "master"
@@ -423,9 +426,9 @@ function createSetRegexAllow(ctx: ChatContext, emit: EmitChatEvent, claimChat: C
       ...(next.tiers === undefined ? {} : { regexTiers: next.tiers }),
     };
     if (lever.kind === "master") {
-      await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, key: "regexEnabled", value: lever.enabled, effective, authority: "carried" });
+      await commitMetadataUpdate({ ctx, ownerId: principal.userId, claim, key: "regexEnabled", value: lever.enabled, effective, authority: "carried" });
     } else {
-      await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, key: "regexTiers", value: next.tiers ?? {}, effective, authority: "carried" });
+      await commitMetadataUpdate({ ctx, ownerId: principal.userId, claim, key: "regexTiers", value: next.tiers ?? {}, effective, authority: "carried" });
     }
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
@@ -457,12 +460,12 @@ function createSetRegexAllow(ctx: ChatContext, emit: EmitChatEvent, claimChat: C
  *  The write MERGES into the sibling sub-blobs (`...chat.metadata`) so it never nukes roomOverrides/group. */
 function createSetOfferChoices(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setOfferChoices"] {
   return async ({ principal, chatId, enabled }: SetOfferChoicesParams): Promise<boolean> => {
-    const { chat } = await requireHost(ctx, principal, chatId);
-    await claimChat(chatId);
+    const { chat, admission } = await requireHost(ctx, principal, chatId);
+    const claim = await claimChat(admission);
     // The POST-WRITE metadata, for the background-availability guard only: the write itself touches this one
     // JSON path and never re-asserts the siblings.
     const effective: ChatMetadata = { ...chat.metadata, offerChoices: enabled };
-    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, key: "offerChoices", value: enabled, effective, authority: "carried" });
+    await commitMetadataUpdate({ ctx, ownerId: principal.userId, claim, key: "offerChoices", value: enabled, effective, authority: "carried" });
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit({ actorUserId: principal.userId, action: "chat.setOfferChoices", entityType: "chat", entityId: chatId, metadata: { enabled } }, ctx.now());
     return enabled;
@@ -476,10 +479,10 @@ function createSetOfferChoices(ctx: ChatContext, emit: EmitChatEvent, claimChat:
  *  CONTENT (the `react` tool + its description reach the wire), so host authority. */
 function createSetCharactersCanReact(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setCharactersCanReact"] {
   return async ({ principal, chatId, enabled }: SetCharactersCanReactParams): Promise<boolean> => {
-    const { chat } = await requireHost(ctx, principal, chatId);
-    await claimChat(chatId);
+    const { chat, admission } = await requireHost(ctx, principal, chatId);
+    const claim = await claimChat(admission);
     const effective: ChatMetadata = { ...chat.metadata, charactersCanReact: enabled };
-    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, key: "charactersCanReact", value: enabled, effective, authority: "carried" });
+    await commitMetadataUpdate({ ctx, ownerId: principal.userId, claim, key: "charactersCanReact", value: enabled, effective, authority: "carried" });
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       { actorUserId: principal.userId, action: "chat.setCharactersCanReact", entityType: "chat", entityId: chatId, metadata: { enabled } },
@@ -497,10 +500,10 @@ function createSetCharactersCanReact(ctx: ChatContext, emit: EmitChatEvent, clai
  *  courtesy over that enforcement, not the mechanism. */
 function createSetReactionsEnabled(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setReactionsEnabled"] {
   return async ({ principal, chatId, enabled }: SetReactionsEnabledParams): Promise<boolean> => {
-    const { chat } = await requireHost(ctx, principal, chatId);
-    await claimChat(chatId);
+    const { chat, admission } = await requireHost(ctx, principal, chatId);
+    const claim = await claimChat(admission);
     const effective: ChatMetadata = { ...chat.metadata, reactionsEnabled: enabled };
-    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, key: "reactionsEnabled", value: enabled, effective, authority: "carried" });
+    await commitMetadataUpdate({ ctx, ownerId: principal.userId, claim, key: "reactionsEnabled", value: enabled, effective, authority: "carried" });
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       { actorUserId: principal.userId, action: "chat.setReactionsEnabled", entityType: "chat", entityId: chatId, metadata: { enabled } },
@@ -514,10 +517,10 @@ function createSetReactionsEnabled(ctx: ChatContext, emit: EmitChatEvent, claimC
  *  to keep members' persona books out of the shared prompt when off. */
 function createSetMemberPersonaLore(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setMemberPersonaLore"] {
   return async ({ principal, chatId, enabled }: SetMemberPersonaLoreParams): Promise<boolean> => {
-    const { chat } = await requireHost(ctx, principal, chatId);
-    await claimChat(chatId);
+    const { chat, admission } = await requireHost(ctx, principal, chatId);
+    const claim = await claimChat(admission);
     const effective: ChatMetadata = { ...chat.metadata, memberPersonaLore: enabled };
-    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, key: "memberPersonaLore", value: enabled, effective, authority: "carried" });
+    await commitMetadataUpdate({ ctx, ownerId: principal.userId, claim, key: "memberPersonaLore", value: enabled, effective, authority: "carried" });
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       { actorUserId: principal.userId, action: "chat.setMemberPersonaLore", entityType: "chat", entityId: chatId, metadata: { enabled } },
@@ -562,7 +565,7 @@ async function materializeExternal(ctx: ChatContext, principal: Principal, sourc
  *  — never the url/hash (a background can be card-body-like text). */
 function createSetChatBackground(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setChatBackground"] {
   return async ({ principal, chatId, background, signal }: SetChatBackgroundParams): Promise<ThemeBackground> => {
-    const { chat } = await requireHost(ctx, principal, chatId);
+    const { chat, admission } = await requireHost(ctx, principal, chatId);
     const parsed = themeBackgroundSchema.safeParse(background);
     if (!parsed.success) {
       throw new ChatOperationError(CHAT_OP_CODES.forbiddenOverride, `chat ${chatId}: invalid background source`);
@@ -582,11 +585,11 @@ function createSetChatBackground(ctx: ChatContext, emit: EmitChatEvent, claimCha
         throw new ChatOperationError(CHAT_OP_CODES.forbiddenOverride, `chat ${chatId}: an asset background must reference an asset you own`);
       }
     }
-    await claimChat(chatId);
+    const claim = await claimChat(admission);
     // The POST-WRITE metadata, for the background-availability guard only: the write itself touches this one
     // JSON path and never re-asserts the siblings.
     const effective: ChatMetadata = { ...chat.metadata, background: source };
-    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, key: "background", value: source, effective, authority: "owned" });
+    await commitMetadataUpdate({ ctx, ownerId: principal.userId, claim, key: "background", value: source, effective, authority: "owned" });
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       {
@@ -607,7 +610,7 @@ function createSetChatBackground(ctx: ChatContext, emit: EmitChatEvent, claimCha
  *  nukes roomOverrides/group. An out-of-range value is a `forbiddenOverride`, never a silent write. */
 function createSetToolRecurseLimit(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setToolRecurseLimit"] {
   return async ({ principal, chatId, limit }: SetToolRecurseLimitParams): Promise<number> => {
-    const { chat } = await requireHost(ctx, principal, chatId);
+    const { chat, admission } = await requireHost(ctx, principal, chatId);
     const parsed = toolRecurseLimitSchema.safeParse(limit);
     if (!parsed.success) {
       throw new ChatOperationError(
@@ -615,9 +618,9 @@ function createSetToolRecurseLimit(ctx: ChatContext, emit: EmitChatEvent, claimC
         `chat ${chatId}: toolRecurseLimit must be an integer between ${TOOL_RECURSE_LIMIT_MIN} and ${TOOL_RECURSE_LIMIT_MAX}`,
       );
     }
-    await claimChat(chatId);
+    const claim = await claimChat(admission);
     const effective: ChatMetadata = { ...chat.metadata, toolRecurseLimit: parsed.data };
-    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, key: "toolRecurseLimit", value: parsed.data, effective, authority: "carried" });
+    await commitMetadataUpdate({ ctx, ownerId: principal.userId, claim, key: "toolRecurseLimit", value: parsed.data, effective, authority: "carried" });
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       {
@@ -724,12 +727,12 @@ async function seedJoinGreeting(
 // after the seat exists. A plan refused because a live write moved the canon is prepared again, up to the bound.
 async function seatWithAdmission(
   ctx: ChatContext,
-  room: { readonly ownerId: UserId; readonly chatId: ChatId },
+  room: { readonly ownerId: UserId; readonly claim: RoomClaim },
   seat: (statements: readonly BatchStmt[]) => Promise<void>,
   seatStatements: readonly BatchStmt[],
 ): Promise<void> {
   for (let attempt = 0; attempt < CANON_RETIREMENT_ATTEMPTS; attempt++) {
-    const admission = await ctx.prepareCanonAdmission(ctx.db, room);
+    const admission = await ctx.prepareCanonAdmission(ctx.db, { ownerId: room.ownerId, chatId: room.claim.chatId });
     const statements: BatchStmt[] = [];
     admission.beforeSeat(statements, ctx.db);
     statements.push(...seatStatements);
@@ -755,7 +758,7 @@ async function seatWithAdmission(
  *  idiom (and the D60 design's still-unbuilt agent seat verb) — a re-add is a no-op, never a coded refusal. */
 function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["addCharacterToChat"] {
   return async ({ principal, chatId, characterId }: AddCharacterToChatParams) => {
-    const { chat } = await requireHost(ctx, principal, chatId);
+    const { chat, admission } = await requireHost(ctx, principal, chatId);
     // The character must be the host's own card (owner-scoped read — foreign or synthetic == missing, leak-free).
     // A roster character is always host-owned, keeping the stats rebuild's ownerId attribution consistent.
     await assertSeatableCharacters(ctx.db, principal.userId, [characterId]);
@@ -774,7 +777,7 @@ function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent, claimCh
     }
     // Before the seat: the claim replays the creation stats over the seats present at claim, and this seat's
     // own delta below counts the new one.
-    await claimChat(chatId);
+    const claim = await claimChat(admission);
     const at = ctx.now();
     const joinSeq = await loadMaxMessageSeq(ctx.db, chatId);
     const participantId = ctx.newParticipantId();
@@ -806,7 +809,7 @@ function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent, claimCh
     }
     await seatWithAdmission(
       ctx,
-      { ownerId: principal.userId, chatId },
+      { ownerId: principal.userId, claim },
       (statements) =>
         insertParticipants(ctx.db, [{ id: participantId, chatId, kind: "character", characterId, role: "member", joinedAt: at, joinSeq }], statements),
       versionStatements,
@@ -850,8 +853,8 @@ function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent, claimCh
  *  scene-cast prune, D58, not a live consumer today). */
 function createRemoveCharacterFromChat(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["removeCharacterFromChat"] {
   return async ({ principal, chatId, characterId }: RemoveCharacterFromChatParams): Promise<void> => {
-    await requireHost(ctx, principal, chatId);
-    await claimChat(chatId);
+    const { admission } = await requireHost(ctx, principal, chatId);
+    await claimChat(admission);
     // Present-only roster (`leftSeq IS NULL`); an already-left / never-present character has no seat → no-op.
     const seat = (await loadParticipants(ctx.db, chatId)).find((p) => {
       const actor = classifyParticipant(p);
@@ -922,7 +925,7 @@ function seatKnobsSet(patch: SetSeatKnobsParams["patch"]): { talkativeness?: num
 
 function createSetSeatKnobs(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setSeatKnobs"] {
   return async ({ principal, chatId, participantId, patch }: SetSeatKnobsParams) => {
-    await requireHost(ctx, principal, chatId);
+    const { admission } = await requireHost(ctx, principal, chatId);
     const seat = (await loadParticipants(ctx.db, chatId)).find((p) => p.id === participantId);
     if (seat === undefined || !isAiDriven(seat.kind)) {
       throw new ChatOperationError(CHAT_OP_CODES.participantNotFound, `chat ${chatId}: ${participantId} is not a present AI seat`);
@@ -931,7 +934,7 @@ function createSetSeatKnobs(ctx: ChatContext, emit: EmitChatEvent, claimChat: Cl
     const set = seatKnobsSet(patch);
     let row = seat;
     if (Object.keys(set).length > 0) {
-      await claimChat(chatId);
+      await claimChat(admission);
       const rows = await ctx.db
         .update(chatParticipants)
         .set(set)
@@ -1092,9 +1095,9 @@ function createNominateHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatS
 
 /** Finish the only non-statement-shaped handoff tail. Actor re-keying runs first and is retry-safe; the
  * accepted-host-scoped marker then claims exactly one durable completion append in the same batch. */
-async function completeHandoffResumption(ctx: ChatContext, emit: EmitChatEvent, resume: HandoffResumption): Promise<void> {
+async function completeHandoffResumption(ctx: ChatContext, emit: EmitChatEvent, resume: HandoffResumption, admission: RoomAdmission): Promise<void> {
   if (resume.actorRekeys.length > 0) {
-    await ctx.rpg?.handoffRekeyActors(resume.chatId, resume.actorRekeys);
+    await ctx.rpg?.handoffRekeyActors(admission, resume.actorRekeys);
   }
   if (
     (await emit(
@@ -1172,7 +1175,9 @@ async function prepareHandoffRebase(
   if (snapshot === null) {
     return null;
   }
-  const statements = [retainedChatFenceStatement(ctx.db, sql`select ${chats.id} from ${chats} where ${and(eq(chats.id, chatId), snapshot.predicate)}`)];
+  const statements = [
+    retainedChatFenceStatement(ctx.db, sql`select ${chats.id} from ${chats} where ${and(eq(chats.id, chatId), snapshot.predicate)}`, ctx.now()),
+  ];
   appendRetainedChatRebaseDeltas(ctx, statements, snapshot, rekeys);
   return {
     statements,
@@ -1213,10 +1218,10 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
   return async ({ principal, chatId }: AcceptHostHandoffParams): Promise<void> => {
     const acceptance = await requireHandoffAcceptance(ctx, principal, chatId);
     if (acceptance.kind === "resume") {
-      await completeHandoffResumption(ctx, emit, acceptance.resumption);
+      await completeHandoffResumption(ctx, emit, acceptance.resumption, acceptance.admission);
       return;
     }
-    const { offer } = acceptance;
+    const { offer, admission } = acceptance;
     // The previous host (for the post-swap notification) may be absent if they left after nominating.
     const participants = await loadParticipants(ctx.db, chatId);
     const oldHostUserId = hostUserIdOf(participants);
@@ -1287,11 +1292,16 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
     ];
     rebase?.settle(swap);
     await commitHandoffSwap(ctx, swap, { chatId, oldHostUserId, newHost: principal }, rebase?.predicate);
-    await completeHandoffResumption(ctx, emit, {
-      chatId,
-      acceptedByUserId: principal.userId,
-      actorRekeys: plan.cardCopies,
-    });
+    await completeHandoffResumption(
+      ctx,
+      emit,
+      {
+        chatId,
+        acceptedByUserId: principal.userId,
+        actorRekeys: plan.cardCopies,
+      },
+      admission,
+    );
   };
 }
 

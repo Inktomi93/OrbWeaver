@@ -28,6 +28,7 @@ import { carriedBackgroundAvailable } from "../persistence/background-write.ts";
 import { chatMetadataDropStatement, chatMetadataSetStatement } from "../persistence/chat-metadata-write.ts";
 import { commitHostFencedWrite } from "../persistence/host-fenced-write.ts";
 import { loadChatRow } from "../persistence/queries.ts";
+import { mintClaimExempt, mintRoomAdmission } from "../substrate/room-tokens.ts";
 
 /** The metadata a DETACH leaves behind — the `rpg` sub-blob stripped so the chat reads byte-identically to a
  *  never-a-game chat (the takeover gate reads PRESENCE, never `rpg === null`). Used only to compute the
@@ -39,16 +40,14 @@ function dropRpgPointer(metadata: ChatMetadata): ChatMetadata {
 
 export function createSetRpgPointer(input: ChatAssemblyContext, deps: SetRpgPointerDeps): SetRpgPointer {
   const ctx = createChatContext(input);
-  return async (chatId: ChatId, pointer: ChatRpgPointer | null): Promise<void> => {
+  const setRpgPointer = async (chatId: ChatId, pointer: ChatRpgPointer | null): Promise<void> => {
     const chat = await loadChatRow(ctx.db, chatId);
     if (chat === undefined) {
       return; // racing delete — nothing to point at
     }
     // A husk that points at a game is hidden from the Chats list and reaped with its game, so the set claims.
     // The detach is a server heal, not the host acting, so it never claims.
-    if (pointer !== null) {
-      await deps.claimChat(chatId);
-    }
+    const licence = pointer === null ? mintClaimExempt(chatId) : await deps.claimChat(mintRoomAdmission(chatId));
     // ONE JSON PATH, NEVER THE WHOLE BLOB. The old shape read the row, merged `rpg` in memory and
     // wrote the ENTIRE metadata column back, so a host knob written between that read and this write was
     // silently discarded — and a DETACH re-asserted the stale siblings it had read. `chatMetadataSetStatement`
@@ -61,7 +60,7 @@ export function createSetRpgPointer(input: ChatAssemblyContext, deps: SetRpgPoin
       pointer === null
         ? chatMetadataDropStatement(ctx.db, { chatId, key: "rpg", guard, now })
         : chatMetadataSetStatement(ctx.db, { chatId, key: "rpg", value: pointer, guard, now });
-    const [updated] = await commitHostFencedWrite(ctx, chatId, [statement]);
+    const [updated] = await commitHostFencedWrite(ctx, licence, [statement]);
     if (Array.isArray(updated) && updated.length > 0) {
       return;
     }
@@ -70,4 +69,5 @@ export function createSetRpgPointer(input: ChatAssemblyContext, deps: SetRpgPoin
       throw new ChatOperationError(CHAT_OP_CODES.backgroundUnavailable, `chat ${chatId}: the background asset is no longer available`);
     }
   };
+  return setRpgPointer;
 }

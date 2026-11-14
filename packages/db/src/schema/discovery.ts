@@ -35,7 +35,7 @@
 //     column is plain TEXT — the domain validates it, the db does not constrain it.
 //
 // Timestamps / provenance are plain `integer("x_at")` epoch-MS NUMBERS (NOT Date). `computedAt` is the
-// provenance stamp on each recompute, born via `(unixepoch() * 1000)`. Floats (`cslsScore`/`similarity`)
+// provenance stamp each recompute states (`stampColumn`). Floats (`cslsScore`/`similarity`)
 // are `real(...)`. `*Id` columns carry the type-only TypeID brand (`$type<XId>()`); the SQL is plain TEXT.
 
 import { RELATIONS } from "@orb/contracts/discovery";
@@ -52,7 +52,7 @@ import type {
 } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { nulFreeText } from "../custom-types/index.ts";
+import { nulFreeText, stampColumn } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { characters } from "./character.ts";
 import { chats } from "./chat.ts";
@@ -96,7 +96,7 @@ export const duplicateCharacterPairs = sqliteTable(
     // The embedding-space tag the pair was computed in (a pair is only meaningful within one space).
     model: nulFreeText("model").notNull(),
     // Provenance: the epoch-MS stamp of the recompute that wrote this row.
-    computedAt: integer("computed_at").notNull().default(sql`(unixepoch() * 1000)`),
+    computedAt: stampColumn("computed_at"),
   },
   (t) => [
     // The unordered pair is unique once canonicalized A<B (the recompute writes the smaller id as A).
@@ -136,7 +136,7 @@ export const duplicateChatPairs = sqliteTable(
     // `duplicate | forked` — derives RELATIONS (+ the CHECK below).
     relation: text("relation", { enum: RELATIONS }).notNull(),
     model: nulFreeText("model").notNull(),
-    computedAt: integer("computed_at").notNull().default(sql`(unixepoch() * 1000)`),
+    computedAt: stampColumn("computed_at"),
   },
   (t) => [
     uniqueIndex("duplicate_chat_pairs_pair_unique").on(t.chatIdA, t.chatIdB),
@@ -174,7 +174,7 @@ export const keywordCooccurrence = sqliteTable(
     keywordB: nulFreeText("keyword_b").notNull(),
     // How many tier-0 digests the pair co-occurred in (the co-occurrence weight).
     count: integer("count").notNull(),
-    computedAt: integer("computed_at").notNull().default(sql`(unixepoch() * 1000)`),
+    computedAt: stampColumn("computed_at"),
   },
   (t) => [
     // One row per (owner, keyword-pair) — the idempotent recompute upsert key.
@@ -203,7 +203,7 @@ export const characterKeywordProfiles = sqliteTable(
       .references(() => characters.id, { onDelete: "cascade" }),
     keyword: nulFreeText("keyword").notNull(),
     count: integer("count").notNull(),
-    computedAt: integer("computed_at").notNull().default(sql`(unixepoch() * 1000)`),
+    computedAt: stampColumn("computed_at"),
   },
   (t) => [
     // One row per (character, keyword) — the idempotent recompute upsert key.
@@ -239,7 +239,7 @@ export const characterSummaries = sqliteTable("character_summaries", {
   overview: nulFreeText("overview"),
   // The summarize-model id + the recompute provenance stamp.
   model: nulFreeText("model").notNull(),
-  computedAt: integer("computed_at").notNull().default(sql`(unixepoch() * 1000)`),
+  computedAt: stampColumn("computed_at"),
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -270,7 +270,7 @@ export const themeClusters = sqliteTable(
     // rep count — a fork-of-50 collapsing to one rep should still be named).
     size: integer("size").notNull(),
     model: nulFreeText("model").notNull(),
-    computedAt: integer("computed_at").notNull().default(sql`(unixepoch() * 1000)`),
+    computedAt: stampColumn("computed_at"),
   },
   (t) => [
     // One cluster per (owner, level, clusterIdx) — the idempotent recompute upsert key.
@@ -304,7 +304,7 @@ export const digestThemeAssignments = sqliteTable(
     // the writing happened) — NOT the time-interval midpoint. Epoch-MS NUMBER.
     // Backfilled idempotently for all tiers, so nullable until the backfill runs.
     msgMidAt: integer("msg_mid_at"),
-    computedAt: integer("computed_at").notNull().default(sql`(unixepoch() * 1000)`),
+    computedAt: stampColumn("computed_at"),
   },
   (t) => [
     // Composite PK: one row per (digest, cluster) — no TypeID brand (the pair IS the identity).

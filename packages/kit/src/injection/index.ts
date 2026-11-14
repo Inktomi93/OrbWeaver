@@ -27,10 +27,12 @@ export interface InjectionPlacement {
  *  directive — consumers that treat injection as opt-in-all-or-nothing, e.g. world-info, key off a failed
  *  parse to mean "no injection"); `role` is optional (the consumer's default fills it). The contracts
  *  write schema layers the prefill guard ON this, importing it down. */
-export const injectionDirectiveSchema = z.object({
-  depth: z.number().int().min(0).max(MAX_INJECTION_DEPTH),
-  role: z.enum(MESSAGE_ROLES).exactOptional(),
-});
+export const injectionDirectiveSchema = z
+  .object({
+    depth: z.number().int().min(0).max(MAX_INJECTION_DEPTH),
+    role: z.enum(MESSAGE_ROLES).exactOptional(),
+  })
+  .strip();
 const depthSchema = z.number().int().min(0).max(MAX_INJECTION_DEPTH);
 const roleSchema = z.enum(MESSAGE_ROLES);
 

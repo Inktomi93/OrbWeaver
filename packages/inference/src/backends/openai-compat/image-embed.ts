@@ -28,13 +28,15 @@ interface WireMessage {
   readonly role: "system" | "user";
   readonly content: ContentPart[];
 }
-const embeddingsResponseSchema = z
-  .object({
-    data: z.array(z.object({ index: z.number(), embedding: z.union([z.array(z.number()), z.string()]) }).loose()),
-    model: z.string().min(1).nullish(),
-    usage: z.object({ prompt_tokens: z.number().int().nonnegative().nullish(), total_tokens: z.number().int().nonnegative().nullish() }).nullish().catch(null),
-  })
-  .loose();
+const embeddingsResponseSchema = z.looseObject({
+  data: z.array(z.looseObject({ index: z.number(), embedding: z.union([z.array(z.number()), z.string()]) })),
+  model: z.string().min(1).nullish(),
+  usage: z
+    .object({ prompt_tokens: z.number().int().nonnegative().nullish(), total_tokens: z.number().int().nonnegative().nullish() })
+    .strip()
+    .nullish()
+    .catch(null),
+});
 type EmbeddingsResponse = z.infer<typeof embeddingsResponseSchema>;
 
 function toMessages(instruction: string, content: ContentPart[]): WireMessage[] {

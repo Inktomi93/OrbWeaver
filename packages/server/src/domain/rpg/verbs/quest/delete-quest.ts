@@ -11,13 +11,13 @@ import { applyHandEdit, currentSnapshotState } from "#src/domain/rpg/snapshot-ed
 
 export function createDeleteQuest(ctx: RpgContext): Pick<RpgService, "deleteQuest"> {
   async function deleteQuest(params: DeleteQuestParams): Promise<void> {
-    const { game } = await resolveHost(ctx, params.principal, params.chatId);
+    const { game, admission } = await resolveHost(ctx, params.principal, params.chatId);
     const state = await currentSnapshotState(ctx, game);
     if (!state.quests.some((q) => q.id === params.questId)) {
       throw new DomainNotFoundError("quest", params.questId);
     }
     const quests = state.quests.filter((q) => q.id !== params.questId);
-    const written = await applyHandEdit(ctx, game, { quests }, { clear: [`quests.${params.questId}`] });
+    const written = await applyHandEdit(ctx, { game, admission }, { quests }, { clear: [`quests.${params.questId}`] });
     if (!written.ok) {
       // The F1 write-boundary backstop refused — a removal cannot invalidate a valid base, so the base itself
       // is already contract-invalid. Surface it (no-swallow), never a silent no-op.

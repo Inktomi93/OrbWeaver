@@ -40,7 +40,7 @@ type TagLibrary = inferOutput<Trpc["tag"]["listTagsWithUsage"]>;
 export interface TagPickerDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
-  readonly title: ReactNode;
+  readonly title: string;
   readonly description: ReactNode;
   /** The confirm button's label for the ATTACH-EXISTING arm (e.g. "Apply"). The create arm overrides it
    *  with its own `Create "<name>"` so the click always says which of the two things it does. */

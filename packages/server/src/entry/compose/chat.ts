@@ -323,7 +323,7 @@ export interface ChatComposeResult extends AsyncDisposable {
  */
 export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   const { db, now, emitChatEvent, timers } = input;
-  const stats = createStatsBatchWiring(input.idSource);
+  const stats = createStatsBatchWiring(input.idSource, input.now);
   const auditStatements = input.auditStatements;
 
   const lifetime = new AsyncDisposableStack();
