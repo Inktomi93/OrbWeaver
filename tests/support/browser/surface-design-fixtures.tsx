@@ -494,6 +494,50 @@ export function SurfaceCutValueStory({
   );
 }
 
+// Taller than the pane-ink census's region floor, so a short ending leaves most of the region empty.
+const TALL_REGION_PX = 720;
+const PANE_INK_ROWS = ["Aster", "Briar", "Cinder"] as const;
+
+/**
+ * A tall region whose content ends early, in one of three endings: production member rows (`members`), short paragraphs
+ * (`prose`), or a bulleted list of prose lines (`bullets`). Only the member rows end where the data ends.
+ */
+export function SurfacePaneInkStory({ ending }: { readonly ending: "members" | "prose" | "bullets" }): ReactElement {
+  const endings: Record<typeof ending, ReactElement> = {
+    members: (
+      <Stack gap="tight">
+        {PANE_INK_ROWS.map((name) => (
+          <ListRow clickable={true} key={name} onClick={(): void => undefined} subtitle="One session" title={name} />
+        ))}
+      </Stack>
+    ),
+    prose: (
+      <Stack gap="row">
+        {PANE_INK_ROWS.map((name) => (
+          <Text as="p" key={name}>{`${name} keeps a short note here.`}</Text>
+        ))}
+      </Stack>
+    ),
+    bullets: (
+      <ul>
+        {PANE_INK_ROWS.map((name) => (
+          <li key={name}>{`${name} keeps a short note here.`}</li>
+        ))}
+      </ul>
+    ),
+  };
+  return (
+    <CtIsolation subject="Pane ink" isolates="A tall region and production rows need no application services.">
+      <main>
+        <Stack aria-label="Planted pane" padding="section" role="region" style={{ blockSize: TALL_REGION_PX }}>
+          <h1>Pane ink control</h1>
+          {endings[ending]}
+        </Stack>
+      </main>
+    </CtIsolation>
+  );
+}
+
 /** Adjacent production hit pseudos tile at the actual touch floor. */
 export function SurfaceTouchTilingStory(): ReactElement {
   return (
