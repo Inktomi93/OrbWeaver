@@ -277,6 +277,9 @@ state is honest. Two BOUND-COLLECTION arms make cardinality data instead of stru
 `tilesFrom: { $state }` (an array of `{id, title, subtitle?, badge?, assetId?, alt?}`, validated and clamped
 at resolve) with one grid-level `tileAction`, and an image's `assetFrom: { $state }`. State-sourced asset ids
 pass the same format wall and the same owner-scoped resolve as declared ones — a foreign id paints nothing.
+Any node below the root may carry `when: true | false | { $state }` to drop out of the layout: a bound
+`when` hides the node only while its path holds `false`, so a missing path shows it (card-atlas hides its
+pager on a one-page result). A grid's `empty` line may bind too, so it can say why the grid is empty.
 
 **Commands** (`ui.registerCommand`) ride `/plugin <your-slug> <name> …` and the command palette. Declare typed `args` (string/number/enum/boolean, required?) and the platform collects,
 autocompletes and validates them on both surfaces before `onRun` sees the typed `values` bag; the raw `args`

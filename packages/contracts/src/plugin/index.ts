@@ -229,6 +229,7 @@ export {
   resolvePluginBoundSelectOptions,
   resolvePluginBoundTabOptions,
   resolvePluginBoundTiles,
+  resolvePluginNodeShown,
   resolvePluginPrimaryButton,
 } from "./ui.ts";
 export type { PluginUiHostCallCode } from "./ui-host.ts";
