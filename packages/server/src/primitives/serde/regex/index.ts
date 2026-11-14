@@ -11,7 +11,7 @@
 import type { PortableParse } from "@orb/contracts/portability";
 import { REGEX_SCRIPT_SCHEMA_KIND } from "@orb/contracts/portability";
 import type { PortableRegexScript, RegexScriptCard } from "@orb/contracts/regex";
-import { portableRegexScriptSchema, regexScriptCardSchema } from "@orb/contracts/regex";
+import { portableRegexScriptSchema, regexScriptCardSchema, stRegexScriptFields } from "@orb/contracts/regex";
 import { decodePortableObject, defineJsonObjectSerde } from "#primitives/serde/lib";
 
 export { REGEX_SCRIPT_SCHEMA_KIND } from "@orb/contracts/portability";
@@ -39,6 +39,8 @@ const regexScriptSerde = defineJsonObjectSerde<PortableRegexScript, PortableRege
     trimStrings: [...script.trimStrings],
     substituteRegex: script.substituteRegex,
     global: script.global,
+    // SillyTavern imports this file as it is and reads only its own spelling, which an import here reads first too.
+    ...stRegexScriptFields(script),
   }),
   fromWire: (body) => body,
 });
