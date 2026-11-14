@@ -27,9 +27,9 @@ interface ImportNotice {
 /** Derive the toast from the REAL per-file outcome (never from the uploaded filenames) of a batch that landed a card. A
  *  `created: false` card is one the library already held (D290), and the toast says so rather than "imported". */
 function importNotice({ imported, failed }: CardImportResult): ImportNotice {
+  const landed = imported.filter((card) => card.created).length;
+  const held = imported.filter((card) => !card.created);
   if (failed.length === 0) {
-    const landed = imported.filter((card) => card.created).length;
-    const held = imported.filter((card) => !card.created);
     const [onlyHeld] = held;
     if (landed === 0) {
       return {
@@ -42,7 +42,7 @@ function importNotice({ imported, failed }: CardImportResult): ImportNotice {
   }
   return {
     kind: "info",
-    message: cardImportPartialLine(imported.length, failed),
+    message: cardImportPartialLine(landed, held.length, failed),
   };
 }
 

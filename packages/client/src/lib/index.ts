@@ -192,6 +192,7 @@ export {
   chatInLibraryNotice,
   chatsInLibraryNotice,
   IN_LIBRARY_DETAIL,
+  importedOfLead,
   inLibraryClause,
   WORLD_INFO_DUPLICATE_BOOK_NOTICE,
 } from "./in-library-copy.ts";

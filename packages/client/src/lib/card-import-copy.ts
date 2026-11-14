@@ -6,6 +6,7 @@
 
 import type { FailedCardReason } from "@orb/contracts/import";
 import { FAILED_CARD_REASONS } from "@orb/contracts/import";
+import { importedOfLead } from "./in-library-copy.ts";
 
 /** One file was refused: what a card is, so a plain picture knows why it did not take. */
 export const CARD_IMPORT_REFUSED_ONE =
@@ -70,8 +71,12 @@ export function cardImportRefusalLine(failed: readonly { readonly reason: Failed
   return sentences.join(" ");
 }
 
-/** The toast for a batch that landed some cards and refused others: how many came in, then one sentence for each reason that refused a file, naming those files. */
-export function cardImportPartialLine(imported: number, failed: readonly { readonly filename: string | null; readonly reason: FailedCardReason }[]): string {
+/** The toast for a batch that landed or held some cards and refused others: how many came in and how many the library already held, then one sentence for each reason that refused a file, naming those files. */
+export function cardImportPartialLine(
+  landed: number,
+  held: number,
+  failed: readonly { readonly filename: string | null; readonly reason: FailedCardReason }[],
+): string {
   const sentences: string[] = [];
   for (const reason of FAILED_CARD_REASONS) {
     const refused = failed.filter((card) => card.reason === reason);
@@ -82,5 +87,5 @@ export function cardImportPartialLine(imported: number, failed: readonly { reado
     const clause = refused.length === 1 ? REFUSAL_COPY[reason].partialOne : REFUSAL_COPY[reason].partialMany;
     sentences.push(`${clause}${names.length === 0 ? "" : `: ${names.join(", ")}`}.`);
   }
-  return `${String(imported)} of ${String(imported + failed.length)} imported. ${sentences.join(" ")}`;
+  return `${importedOfLead(landed, held, landed + held + failed.length)}. ${sentences.join(" ")}`;
 }

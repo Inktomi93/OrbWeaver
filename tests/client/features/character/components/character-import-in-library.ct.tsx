@@ -4,6 +4,7 @@
 // @subject packages/client/src/features/character/components/character-import-dialog.tsx
 import { createCharacterSchema } from "@orb/contracts/character";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
+import { CARD_REFUSAL_CODES } from "@orb/contracts/import";
 import { exportCharacterPath, PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { seedShellState } from "@orb/testkit/browser/spec";
@@ -11,6 +12,7 @@ import { noticeToast, routeAuthConfig, routeToServer, routeTrpc, SECTION_PROCEDU
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { CHARACTER_IMPORT_NAME } from "#client/features/character/lib/character-names.ts";
+import { cardImportPartialLine } from "#client/lib/card-import-copy.ts";
 import { cardInLibraryNotice } from "#client/lib/in-library-copy.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
@@ -21,6 +23,7 @@ const ROOT_OPTIONS = {
 } as const;
 const FILE_INPUT = 'input[type="file"]';
 const CARD_FILE = "harbor-keeper.png";
+const REFUSED_FILE = "broken.png";
 const HTTP_OK = 200;
 
 test.use({ viewport: { width: 1440, height: 1000 } });
@@ -48,5 +51,37 @@ test("a card's own unchanged export dropped back on the card import says it is a
   await (await chooser).setFiles([{ name: CARD_FILE, mimeType: "image/png", buffer: bytes }]);
 
   await expect(noticeToast(page, { title: cardInLibraryNotice(CARD_FILE) })).toHaveCount(1);
+  expect(sent()).toBe(1);
+});
+
+test("a batch of a held card and a refused file counts the held card as held, not imported", async ({ corpus, mount, page }) => {
+  await using root = await createServerHarness(ROOT_OPTIONS);
+  const principal = await root.principalFor(root.ownerId);
+  const character = await root.services.character.create({
+    principal,
+    input: createCharacterSchema.parse({ handle: "harbor-keeper", name: "Harbor Keeper", description: "Keeps the light." }),
+  });
+  const card = await root.http.request(exportCharacterPath(character.id));
+  expect(card.status).toBe(HTTP_OK);
+  const bytes = Buffer.from(await card.arrayBuffer());
+  await routeAuthConfig(page, corpus.auth.signedInConfig);
+  await routeTrpc(page, serveCorpusProcedures(await root.internalCallerFor(root.ownerId), [...SECTION_PROCEDURES, ...SHELL_MOUNT_PROCEDURES]));
+  const sent = await routeToServer(page, root, PORTABILITY_ROUTES.importCards);
+  await seedShellState(page, { activeSection: "characters", panelOverrides: { characters: { list: "docked", context: "collapsed" } } });
+  await mount<typeof ShellAmbientStory>(STORY, {});
+
+  await page.getByRole("button", { name: CHARACTER_IMPORT_NAME, exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: CHARACTER_IMPORT_NAME, exact: true });
+  const chooser = page.waitForEvent("filechooser");
+  await dialog.locator(FILE_INPUT).click();
+  await (await chooser).setFiles([
+    { name: CARD_FILE, mimeType: "image/png", buffer: bytes },
+    { name: REFUSED_FILE, mimeType: "image/png", buffer: Buffer.from("not a card") },
+  ]);
+
+  const [unreadable] = CARD_REFUSAL_CODES;
+  // One file is held and one refused: nothing wrote a row, so no file counts as imported.
+  const line = cardImportPartialLine(0, 1, [{ filename: REFUSED_FILE, reason: unreadable }]);
+  await expect(noticeToast(page, { title: line })).toHaveCount(1);
   expect(sent()).toBe(1);
 });

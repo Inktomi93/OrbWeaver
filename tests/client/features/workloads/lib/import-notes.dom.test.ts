@@ -30,8 +30,8 @@ test("card summaries retain success notes, omit empty or legacy notes, and keep 
     outcomes: [
       { path: "created.png", ok: true, detail: "Character card", notes: ["Regex kept"] },
       { path: "Unnamed card", ok: true, detail: "Character card" },
-      { path: "duplicate.png", ok: true, detail: IN_LIBRARY_DETAIL, notes: ["Book kept"] },
-      { path: "empty.png", ok: true, detail: IN_LIBRARY_DETAIL },
+      { path: "duplicate.png", ok: true, held: true, detail: IN_LIBRARY_DETAIL, notes: ["Book kept"] },
+      { path: "empty.png", ok: true, held: true, detail: IN_LIBRARY_DETAIL },
       { path: "broken.png", ok: false, detail: cardImportFailedDetail(INVALID) },
     ],
   });
