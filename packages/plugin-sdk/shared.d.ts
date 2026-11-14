@@ -924,7 +924,8 @@ interface PluginHostV1 {
   /** The PRIVATE event plane between the SAME installer's plugins — `plugin:<slug>:<name>` channels. Never a
    *  domain event, never automation, never another user. capability: plugin_events */
   readonly pubsub: {
-    /** Publish on YOUR channel (slug host-stamped). Emitting to nobody is free. Payload ≤ 16 KiB. */
+    /** Publish on YOUR channel (slug host-stamped). Emitting to nobody is free. Payload ≤ 16 KiB. 360 emits per hour
+     *  per plugin; past that the emit rejects until the hour turns, whether anyone listens or not. */
     emit: (name: string, data: Record<string, unknown>) => Promise<void>;
     /** Listen to one of the installer's plugins by slug. A slug not installed simply never fires. The
      *  handler runs with NO chat scope — put everything it needs in the payload. */

@@ -383,8 +383,14 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
     // manifest `slug` (`requirePlugin("pubsub.emit").slug` — a guest supplies only `name` + `data`, so it cannot
     // publish on another plugin's `plugin:<slug>:<name>` channel). It requires an installed plugin like `toast`
     // does: a snippet has no identity AND no `plugin_events` grant, so the capability gate refuses first.
+    // The hourly floor is claimed before the emit: an emit is a new invocation in each subscriber, the emitter's own
+    // included, and nothing else bounds how often a plugin wakes itself.
     pubsub: {
-      emit: (name, data) => ops.pubsub.emit({ installerUserId, emitterSlug: requirePlugin("pubsub.emit").slug, name, data }),
+      emit: async (name, data): Promise<void> => {
+        const emitter = requirePlugin("pubsub.emit");
+        belts.pubsubEmit.admit(emitter.id);
+        await ops.pubsub.emit({ installerUserId, emitterSlug: emitter.slug, name, data });
+      },
     },
   };
 }

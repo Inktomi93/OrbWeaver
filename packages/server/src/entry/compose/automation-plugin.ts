@@ -53,6 +53,7 @@ import {
   isPluginEnabledFor,
   PLUGIN_ASSET_EGRESS_PER_HOUR,
   PLUGIN_EGRESS_PER_HOUR,
+  PLUGIN_PUBSUB_EMIT_PER_HOUR,
   PLUGIN_QUIET_LLM_PER_HOUR,
   PLUGIN_SEARCH_QUERY_PER_HOUR,
   recordHostHaltFor,
@@ -314,6 +315,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     assetEgress: createPluginRateFloor(now, { capability: "net.fetchAsset", limit: PLUGIN_ASSET_EGRESS_PER_HOUR }),
     quietLlm: createPluginRateFloor(now, { capability: "llm.quiet", limit: PLUGIN_QUIET_LLM_PER_HOUR }),
     searchQuery: createPluginRateFloor(now, { capability: "search.query", limit: PLUGIN_SEARCH_QUERY_PER_HOUR }),
+    pubsubEmit: createPluginRateFloor(now, { capability: "pubsub.emit", limit: PLUGIN_PUBSUB_EMIT_PER_HOUR }),
     loreWrites: createSerialLanes(),
   };
   const pluginSurfaceState = createPluginSurfaceStateStore(deps.logger);

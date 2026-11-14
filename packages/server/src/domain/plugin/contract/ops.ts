@@ -541,6 +541,9 @@ export interface PluginBelts {
   /** The `search.query` hourly query-embedding ceiling, keyed to the installed plugin whose grant may
    *  spend the installer's hosted embedding credential. */
   readonly searchQuery: PluginRateFloor;
+  /** The `pubsub.emit` hourly ceiling: each emit opens an invocation in every subscriber, the emitter's own
+   *  subscriptions included, so it bounds the guest CPU a plugin can buy itself. */
+  readonly pubsubEmit: PluginRateFloor;
   /** One lane per (plugin, book), so the lore entry ceiling's count and write are one step. Process-local, like
    *  every lane: a second app process would still race. */
   readonly loreWrites: SerialLanes;
