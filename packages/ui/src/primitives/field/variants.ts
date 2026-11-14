@@ -1,4 +1,4 @@
-import { CAP, CAPTION, FIELD_LABEL, FIELD_STACK, GROW, INLINE_FIELD_ROW, tv } from "#lib";
+import { CAP, CAPTION, FIELD_LABEL, FIELD_STACK, FLOOR, GROW, INLINE_FIELD_ROW, tv } from "#lib";
 
 export const fieldVariants = tv({
   slots: {
@@ -40,6 +40,9 @@ export const fieldVariants = tv({
   variants: {
     grow: { true: { root: GROW.true }, fill: { root: GROW.fill } },
     cap: { paneSm: { root: CAP.paneSm } },
+    // The width a flexing field starts from, so a wrapping row gives it its own line before it squeezes the field toward zero: a `basis`
+    // of its own, which `grow` alone (a `flex-1` zero basis) never gives a wrap a reason to honour.
+    floor: { title: { root: FLOOR.title }, field: { root: FLOOR.field }, line: { root: FLOOR.line }, third: { root: FLOOR.third } },
     // `content` sizes the field to its control, for fields that share a row at their own widths.
     width: { full: {}, content: { root: "inline-auto" } },
     // Label + description left, control docked right in a fixed control column so a select can't stretch to 100%.
