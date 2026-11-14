@@ -8,6 +8,7 @@ export {
   DrawerProvider,
   DrawerSwipeArea,
   DrawerTitle,
+  DrawerTitleText,
   DrawerTrigger,
   DrawerVirtualKeyboardProvider,
 } from "./drawer.tsx";

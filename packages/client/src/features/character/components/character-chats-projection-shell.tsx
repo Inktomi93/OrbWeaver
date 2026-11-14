@@ -25,6 +25,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
+import { ContextTabBody } from "#components";
 import { useTRPC } from "#data";
 import type { CharacterChatsProjectionView } from "#lib";
 import { useSectionContextMode } from "#state";
@@ -47,10 +48,10 @@ export function CharacterChatsProjectionShell({ characterId, chatsProjection }: 
   const heroVisible = useSectionContextMode("characters") === "docked";
 
   return (
-    <Stack minHeight="shrinks" height="fill" data-slot={CHARACTER_CHATS_PROJECTION_SLOT} gap="row">
+    <ContextTabBody kind="fill" data-slot={CHARACTER_CHATS_PROJECTION_SLOT}>
       <Stack minHeight="shrinks" grow={true}>
         {chatsProjection({ characterId, characterName: name, onNewChat: heroVisible ? null : (): void => startChatWith(characterId) })}
       </Stack>
-    </Stack>
+    </ContextTabBody>
   );
 }

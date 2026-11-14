@@ -27,7 +27,7 @@ import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId } from "react";
-import { QueryBoundary } from "#components";
+import { ContextTabBody, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useExternalMediaBlocked, useInteractiveCardsAllowed, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { usePreviewRenderPolicy } from "../hooks/use-preview-render-policy.ts";
@@ -78,14 +78,16 @@ export function CharacterTrustTab({ characterId }: CharacterAppearanceTabProps):
   return (
     // RESERVED (#1098) — the Trust tab settles into the render-policy rows; its sibling Look tab is keyed
     // for the same reason, and two tabs in one panel that resize differently is the worse half of it.
-    <QueryBoundary
-      resetKeys={[characterId]}
-      fallback={<SkeletonRows count={4} />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="trust" onRetry={retry} />}
-      reserveKey="character.context.trust"
-    >
-      <TrustTabBody characterId={characterId} />
-    </QueryBoundary>
+    <ContextTabBody>
+      <QueryBoundary
+        resetKeys={[characterId]}
+        fallback={<SkeletonRows count={4} />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="trust" onRetry={retry} />}
+        reserveKey="character.context.trust"
+      >
+        <TrustTabBody characterId={characterId} />
+      </QueryBoundary>
+    </ContextTabBody>
   );
 }
 

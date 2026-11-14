@@ -64,11 +64,11 @@ The owner is the composite family in `docs/law/client-architecture-lockdown.md`:
 | Raw dialogs in `packages/ui` | Converted (exit only) | Both sit in `packages/ui`, below the client composites, so they keep the raw primitive; each has a visible close control because every dialog needs a way out | - |
 | Phone sheet chrome | Converted | One sheet composite owns the phone sheet chrome: keyboard provider, popup, title and close row | - |
 | Anchored popovers that carry input: `packages/client/src/components/editable-tag-chip.tsx`, `packages/client/src/features/app-shell/components/bug-report-button.tsx`, `packages/client/src/features/chat/components/talkativeness-popover.tsx`, `packages/client/src/features/chat/components/add-member-popover.tsx`, `packages/client/src/features/refinery/components/start-session-door.tsx`, `packages/client/src/features/refinery/components/character-door.tsx`, `packages/client/src/features/automation/components/rule-preset-picker.tsx`, `packages/client/src/features/rpg/components/rpg-pack-rows.tsx` | Keep | An anchored popover that carries input is not a centered dialog: the trigger stays in view and the popover traps focus | |
-| Commit footers built inside a dismiss dialog | Convert | A dialog that commits is `FormDialog` or `FlowDialog`, which own Cancel and the submit; the composite gains a second stage, a footer that stands down and a variable submit | [2580](../../work/2580-dialogs-that-commit-use-the-form-or-flow.md) |
-| Picker footer lead | Convert | `PickerDialog` takes the `footerLead` that `FormDialogPopup` already has | [2580](../../work/2580-dialogs-that-commit-use-the-form-or-flow.md) |
+| Commit footers built inside a dismiss dialog | Converted | A dialog that commits is `FormDialog` or `FlowDialog`, which own Cancel and the submit; the composite has a second stage, a footer that stands down and a variable submit; owner: `packages/client/src/components/commit-row.tsx` | |
+| Picker footer lead | Converted | `PickerDialog` takes the `footerLead` that `FormDialogPopup` already has | |
 | Registry modal footers built by each body | Converted | A modal definition declares its submit and the host draws the form, Cancel and the submit in the dialog and the sheet | - |
 | Dismiss as the action of an `EmptyState`: `packages/client/src/features/chat/components/add-chat-book-dialog.tsx`, `packages/client/src/features/chat/components/add-chat-document-dialog.tsx`, `packages/client/src/features/chat/components/add-chat-script-dialog.tsx` | Keep | `DialogClose` is the action of an `EmptyState`; the action slot is the owner and leaving is the one action available | |
-| Dialog lint scope | Convert | `orb/dialog-via-composite` matches only `Dialog` and `DialogPopup`; it also refuses `DialogFooter` and `DialogClose` in a feature outside an `EmptyState` action once 2580 and 2581 land | [2582](../../work/2582-the-dialog-lint-refuses-a-hand-built-footer.md) |
+| Dialog lint scope | Converted | `orb/dialog-via-composite` matches only `Dialog` and `DialogPopup`; it also refuses `DialogFooter` and `DialogClose` in a feature outside an `EmptyState` action | |
 
 #### Empty states
 
@@ -104,13 +104,11 @@ The owner of a CONTEXT tab body is `ContextTabBody` in `packages/client/src/comp
 | Group | Decision | Reason | Item |
 | - | - | - | - |
 | Bodies already on `ContextTabBody`: `packages/client/src/features/databank/components/databank-context-body.tsx`, `packages/client/src/features/refinery/components/context-tabs.tsx`, `packages/client/src/features/regex/components/regex-context-body.tsx`, `packages/client/src/features/world-info/components/world-info-context-body.tsx` | Keep | The body already uses the owner | |
-| Roots that spell the CONTEXT inset per file | Convert | The CONTEXT panel viewport has one inset in the density table and each root spells it per file, most without the block padding; `ContextTabBody` gains the kinds they need (own scroll, height fill) | [2588](../../work/2588-every-context-tab-body-draws-contexttabbody-the-law.md) |
-| Roots not yet read | Convert, after a read | The root is not read to its end; 2588 reads each and puts it on a `ContextTabBody` kind or records why its root differs | [2588](../../work/2588-every-context-tab-body-draws-contexttabbody-the-law.md) |
+| Roots that spell the CONTEXT inset per file | Converted | The CONTEXT panel viewport has one inset in the density table and each root spells it per file, most without the block padding; `ContextTabBody` gains the kinds they need (own scroll, height fill); owner: `packages/client/src/components/context-tab-body.tsx` | |
+| Roots not yet read | Converted | Each root was read and is on a `ContextTabBody` kind or records why its root differs | |
 | Definitions with no body: `packages/client/src/features/home/lib/home-section.tsx`, `packages/client/src/features/plugin/lib/extensions-section.tsx`, `packages/client/src/features/roster-preset/lib/roster-collection.tsx`, `packages/client/src/features/config/lib/config-context.tsx` | Keep | The definition has no body to draw | |
 
 #### Order
-
-The regex and world-info bodies in [2588](../../work/2588-every-context-tab-body-draws-contexttabbody-the-law.md) wait for the shared-list work. [2582](../../work/2582-the-dialog-lint-refuses-a-hand-built-footer.md) waits on [2580](../../work/2580-dialogs-that-commit-use-the-form-or-flow.md).
 
 ### Template API
 
