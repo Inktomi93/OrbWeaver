@@ -6,7 +6,15 @@ import { spawn } from "node:child_process";
 import { contextToggleLabel, SIDECAR_PANELS_NOUN, sectionBackName } from "@orb/client/lib";
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
 import type { ChatId } from "@orb/kit/ids";
-import { emulateMedia, LAYOUT_SUBPIXEL_PX, releaseEmulatedMedia, resolvedLength, seedShellState, shellTracks } from "@orb/testkit/browser/spec";
+import {
+  emulateMedia,
+  LAYOUT_SUBPIXEL_PX,
+  releaseEmulatedMedia,
+  resolvedLength,
+  seedShellState,
+  setPlatformTextSize,
+  shellTracks,
+} from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
@@ -86,12 +94,23 @@ interface Census {
   readonly end: Frame;
 }
 
+// A corpus room whose thread fits the WIDE_REM20 port at the engine's text size and outgrows it at twice that; the growth
+// case asserts both, so a corpus change that breaks the premise fails there, not silently.
+const SHORT_ROOM_TITLE = "Getting started with Assistant";
+
 let root: Awaited<ReturnType<typeof createCorpusHarness>>;
 let roomId: ChatId;
+let shortRoomId: ChatId;
 
 test.beforeAll(async () => {
   root = await createCorpusHarness(undefined, { pluginSpawn: spawn });
-  roomId = namedGroupRoom((await (await root.internalCallerFor(root.ownerId)).chat.listChats({ limit: 100 })).items).id;
+  const rooms = (await (await root.internalCallerFor(root.ownerId)).chat.listChats({ limit: 100 })).items;
+  roomId = namedGroupRoom(rooms).id;
+  const short = rooms.find((room) => room.title === SHORT_ROOM_TITLE);
+  if (short === undefined) {
+    throw new Error(`The corpus has no room titled ${SHORT_ROOM_TITLE}`);
+  }
+  shortRoomId = short.id;
 });
 
 test.beforeEach(async ({ page }) => {
@@ -1072,6 +1091,67 @@ function axisGap(tracks: Record<keyof typeof ROOM_TRACKS, TrackBox>): number {
   return Math.abs(centreOf(tracks.chat) - centreOf(tracks.composer));
 }
 
+/** A viewport height at WIDE_REM20's width whose port the short room's thread outgrows. */
+const SHORT_PORT_HEIGHT = 400;
+/** Frames a thread state must hold before the next step, so a step's settle is sampled, not only its first frame. */
+const THREAD_SETTLE_FRAMES = 10;
+/** A bound on the thread sampler, so it cannot outlive its case. */
+const THREAD_SAMPLE_LIMIT = 1200;
+const THREAD_SCROLLER = '[data-slot="message-list-scroll"]';
+const GUTTER_PROPERTY = "--orb-message-list-gutter";
+
+const ThreadFrame = z.object({ chat: z.number(), composer: z.number(), gutter: z.number(), property: z.string(), overflows: z.boolean() });
+type ThreadFrame = z.infer<typeof ThreadFrame>;
+
+/** Record the tracks' middles and the thread's scroller (the width it gives up, the property it publishes, whether its rows overflow) on every animation frame from now on, up to the bound. */
+function startThreadSampler(page: Page): Promise<void> {
+  return page.evaluate(
+    ({ selectors, scroller, property, limit }) => {
+      const frames: Record<string, number | string | boolean>[] = [];
+      Reflect.set(globalThis, "__threadFrames", frames);
+      const centre = (selector: string): number => {
+        const box = Array.from(document.querySelectorAll(selector)).at(-1)?.getBoundingClientRect();
+        return box === undefined ? Number.NaN : box.left + box.width / 2;
+      };
+      const tick = (): void => {
+        const el = document.querySelector<HTMLElement>(scroller);
+        if (el !== null) {
+          frames.push({
+            chat: centre(selectors.chat),
+            composer: centre(selectors.composer),
+            gutter: el.offsetWidth - el.clientWidth,
+            property: el.style.getPropertyValue(property),
+            overflows: el.scrollHeight > el.clientHeight,
+          });
+        }
+        if (frames.length < limit) {
+          requestAnimationFrame(tick);
+        }
+      };
+      requestAnimationFrame(tick);
+    },
+    { selectors: ROOM_TRACKS, scroller: THREAD_SCROLLER, property: GUTTER_PROPERTY, limit: THREAD_SAMPLE_LIMIT },
+  );
+}
+
+/** Wait until the sampled thread has held `overflows` for {@link THREAD_SETTLE_FRAMES} frames. */
+function waitForThreadOverflow(page: Page, overflows: boolean): Promise<unknown> {
+  return page.waitForFunction(
+    ({ want, settle }) => {
+      const frames: unknown = Reflect.get(globalThis, "__threadFrames");
+      if (!Array.isArray(frames) || frames.length < settle) {
+        return false;
+      }
+      return frames.slice(-settle).every((frame: unknown) => typeof frame === "object" && frame !== null && Reflect.get(frame, "overflows") === want);
+    },
+    { want: overflows, settle: THREAD_SETTLE_FRAMES },
+  );
+}
+
+async function readThreadFrames(page: Page): Promise<ThreadFrame[]> {
+  return z.array(ThreadFrame).parse(await page.evaluate((): unknown => Reflect.get(globalThis, "__threadFrames")));
+}
+
 /** The room's door and axis cases, under one scrollbar regime. */
 function roomMotionCases(it: typeof test, scrollbars: ScrollbarRegime): void {
   it.describe(`${scrollbars.title}the doors in an open room`, () => {
@@ -1258,6 +1338,42 @@ function roomMotionCases(it: typeof test, scrollbars: ScrollbarRegime): void {
       // The port gives up what the scrollbar takes, and in equal halves, so the rows centre where the composer does.
       expect(port.start + port.end).toBeCloseTo(port.gutter, 0);
       expect(Math.abs(port.start - port.end)).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
+    });
+
+    it("a short thread that outgrows its port and shrinks back keeps the rows on the composer's axis on every frame and publishes the gutter it gives up", async ({
+      corpus,
+      mount,
+      page,
+    }) => {
+      await routeRoom(page, corpus, WIDE_REM20.width, "absent");
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: shortRoomId });
+      await restingTracks(page, "absent");
+      await startThreadSampler(page);
+      await waitForThreadOverflow(page, false);
+      const [short] = await readThreadFrames(page);
+      expect(short?.overflows, "the thread starts inside its port, so the growth below is its first overflow").toBe(false);
+      expect.soft((short?.gutter ?? 0) > 0, "the gutter is reserved before the thread first overflows").toBe(scrollbars.scrollbarTakesSpace);
+      {
+        // Twice the engine's text size grows the rows past the port and keeps the desktop shell at this width.
+        await using _text = await setPlatformTextSize(page, 2);
+        await waitForThreadOverflow(page, true);
+      }
+      await waitForThreadOverflow(page, false);
+      // The port shrinking under the rows is the other way into overflow, and a zoom's way of changing the scrollbar.
+      await page.setViewportSize({ width: WIDE_REM20.width, height: SHORT_PORT_HEIGHT });
+      await waitForThreadOverflow(page, true);
+      await page.setViewportSize(WIDE_REM20);
+      await waitForThreadOverflow(page, false);
+      const frames = await readThreadFrames(page);
+      expect(new Set(frames.map((frame) => frame.overflows)), "the frames cover the thread in and out of overflow").toStrictEqual(new Set([true, false]));
+      expect(
+        frames.filter((frame) => Math.abs(frame.chat - frame.composer) > LAYOUT_SUBPIXEL_PX),
+        "frames off the composer's axis",
+      ).toStrictEqual([]);
+      expect(
+        frames.filter((frame) => frame.property !== (frame.gutter > 0 ? `${String(frame.gutter)}px` : "")),
+        "frames whose published gutter is not the one the port gives up",
+      ).toStrictEqual([]);
     });
 
     for (const width of [1280, 1440]) {

@@ -2,7 +2,7 @@ import { AVATAR_REACH_PADDING, HEIGHT, SCROLLER, tv } from "#lib";
 
 // The transcript's scroller. A phone-width pane gives up its gutter here, so the bubbles take the room. A scrollbar that takes
 // layout space is reserved on both edges, so the rows keep the middle of the scroller's box (`scrollbar-gutter.ts` sets the mark).
-// A browser without `scrollbar-gutter` keeps the one gutter, and the published width still tells the door arithmetic.
+// A browser without `scrollbar-gutter` reserves nothing: its one gutter comes and goes with overflow, off the rows' middle.
 export const messageListVariants = tv({
   base: [SCROLLER, "supports-[scrollbar-gutter:stable]:data-scrollbar-space:scrollbar-gutter-both"],
   variants: {
