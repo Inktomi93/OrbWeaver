@@ -22,7 +22,7 @@ import type {
 } from "#lib";
 import { defineContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
-import { chatDeletedFromList, chatSectionSelection, openNewChatPicker, selectChatFromList } from "#state";
+import { chatSectionSelection, openNewChatPicker, selectChatFromList } from "#state";
 import { ChatListAnchor } from "../anchors/chat-list-anchor.tsx";
 import { AssemblyPreviewPanel } from "../components/assembly-preview-panel.tsx";
 import { ChatContent } from "../components/chat-content.tsx";
@@ -132,7 +132,7 @@ export function makeChatsSection({ contextTabs, contextRegions, surfaces, toolRe
     },
     list: () => (
       <ChatListAnchor>
-        <ChatListSurface onDeletedChat={chatDeletedFromList} onNewChat={openNewChatPicker} onSelect={selectChatFromList} />
+        <ChatListSurface onNewChat={openNewChatPicker} onSelect={selectChatFromList} />
       </ChatListAnchor>
     ),
     // The LIST chrome-band content (§4 N2): "CHATS" title + count + the ONE primary New action.
