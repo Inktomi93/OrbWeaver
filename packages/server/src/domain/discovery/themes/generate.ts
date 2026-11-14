@@ -4,6 +4,7 @@
 // are excluded (they belong to the synthetic group character, not an owner's solo theme space).
 
 import type { ThemeLevel } from "@orb/contracts/discovery";
+import { THEME_LEVELS } from "@orb/contracts/discovery";
 import type { RolePresetParams } from "@orb/contracts/preset";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { RoleClients, SummarizeInput } from "@orb/contracts/role-clients";
@@ -14,7 +15,7 @@ import { batchMany, chunkRows } from "@orb/db/query";
 import { resolveSideGenSampling } from "@orb/inference";
 import type { ThemeClusterId, UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import type { ComputeThemesOptions, ThemeNameEstimateOptions } from "../contract/params.ts";
+import type { ComputeThemesOptions, ThemeNameCeilingOptions, ThemeNameEstimateOptions } from "../contract/params.ts";
 import type { ThemeComputeStats } from "../contract/results.ts";
 import type { ComputeThemesDeps } from "../contract/service.ts";
 import type { readOwnedDigestVectors } from "../persistence/embed-store-reads.ts";
@@ -187,6 +188,20 @@ export async function countThemeNameCalls(db: Db, opts: ThemeNameEstimateOptions
     return 0;
   }
   return buildDrafts(solo, opts, opts.seed ?? DEFAULT_SEED).filter(nameWorthy).length;
+}
+
+/** The most naming calls a recompute can make once a backfill ahead of it adds digests: at most `k` clusters per level
+ *  in each embedding space a solo digest is in, per owner, counting one space for an owner who has none yet, since a
+ *  backfill writes its digests in the owner's one memory space. */
+export async function countThemeNameCeiling(db: Db, opts: ThemeNameCeilingOptions): Promise<number> {
+  const spaces = new Map<string, Set<string>>();
+  for (const row of await readEstimateDigestVectors(db, opts)) {
+    if (!row.isGroup) {
+      spaces.set(row.ownerId, (spaces.get(row.ownerId) ?? new Set()).add(row.model));
+    }
+  }
+  const owners = opts.ownerId === null ? [...spaces.values()] : [spaces.get(opts.ownerId) ?? new Set<string>()];
+  return owners.reduce((sum, owned) => sum + opts.k * THEME_LEVELS.length * Math.max(owned.size, 1), 0);
 }
 
 /**

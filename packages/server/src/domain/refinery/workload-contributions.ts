@@ -7,6 +7,7 @@
 
 import type { RefineryScoreSweepResult } from "@orb/contracts/refinery";
 import { refineScoreSweepWorkloadParams } from "@orb/contracts/refinery";
+import type { ModelCallCount } from "@orb/contracts/workloads";
 import { requireWorkloadFunder } from "@orb/contracts/workloads";
 import type { WorkloadContribution } from "#domain/workloads";
 import type { RefineryWorkloadDeps } from "./contract/service.ts";
@@ -33,9 +34,9 @@ export function createRefineryWorkloadContributions(deps: RefineryWorkloadDeps):
     {
       kind: "refine-score-sweep",
       params: refineScoreSweepWorkloadParams,
-      modelCalls: ({ params, ...scope }): Promise<number> => {
+      modelCalls: async ({ params, before: _chain, ...scope }): Promise<ModelCallCount> => {
         requireWorkloadFunder(scope.funderUserId);
-        return countCalls({ ...scope, rescoreAll: params.rescoreAll ?? false });
+        return { calls: await countCalls({ ...scope, rescoreAll: params.rescoreAll ?? false }), bound: "exact" };
       },
       // One model call per card — long by construction, exactly like `distill-characters`.
       lane: "sweep",

@@ -129,8 +129,8 @@ test("exact estimates remain count-only and owner/mode admission refuses ordinar
   const input = { kind: "distill-characters", params: {} } satisfies StartWorkloadInput;
   const before = [...wire.requests];
   const beforeJobs = await root.db.select().from(workloads);
-  expect(await ownerCaller.workloads.estimateModelCalls({ input, mode: "bulk" })).toEqual({ calls: 2 });
-  expect(await memberCaller.workloads.estimateModelCalls({ input, mode: "singular" })).toEqual({ calls: 1 });
+  expect(await ownerCaller.workloads.estimateModelCalls({ input, mode: "bulk" })).toEqual({ calls: 2, bound: "exact" });
+  expect(await memberCaller.workloads.estimateModelCalls({ input, mode: "singular" })).toEqual({ calls: 1, bound: "exact" });
   await expect(memberCaller.workloads.estimateModelCalls({ input, mode: "bulk" })).toThrowTRPCError("FORBIDDEN");
   await expect(memberCaller.workloads.start({ input, mode: "bulk" })).toThrowTRPCError("FORBIDDEN");
   await expect(adminCaller.workloads.estimateModelCalls({ input, mode: "bulk" })).toThrowTRPCError("FORBIDDEN");
@@ -149,7 +149,7 @@ test("exact estimates remain count-only and owner/mode admission refuses ordinar
   await expect(root.services.workloads.estimateRetryModelCalls({ caller: member, id: ref.id })).rejects.toThrow(DomainNotFoundError);
 
   const bulk = await root.services.workloads.start({ caller: owner, mode: "bulk", ownerId: owner.userId, input });
-  expect(await root.services.workloads.estimateRetryModelCalls({ caller: owner, id: bulk.id })).toEqual({ calls: 2 });
+  expect(await root.services.workloads.estimateRetryModelCalls({ caller: owner, id: bulk.id })).toEqual({ calls: 2, bound: "exact" });
   expect(await root.services.workloads.get({ caller: admin, id: bulk.id })).toMatchObject({ ownerId: null, mode: "bulk" });
   await expect(root.services.workloads.estimateRetryModelCalls({ caller: admin, id: bulk.id })).rejects.toBeInstanceOf(DomainNotFoundError);
   await expect(root.services.workloads.retry({ caller: admin, id: bulk.id })).rejects.toBeInstanceOf(DomainNotFoundError);

@@ -1,5 +1,5 @@
 import type { Principal } from "@orb/contracts/identity";
-import type { StartWorkloadParams, WorkloadKind, WorkloadStatus } from "@orb/contracts/workloads";
+import type { StartWorkloadInput, StartWorkloadParams, WorkloadKind, WorkloadStatus } from "@orb/contracts/workloads";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
 
 // domain/workloads/contract/params — verb argument + result shapes. Every verb carries
@@ -11,6 +11,8 @@ import type { UserId, WorkloadId } from "@orb/kit/ids";
  *  caller is always a person, because the estimate exists for a confirm a person reads. */
 export interface EstimateModelCallsParams extends Pick<StartWorkloadParams, "input" | "mode" | "targetOwnerId"> {
   readonly caller: Principal;
+  /** The stages a chained confirm runs before `input`, in order, each counted under this estimate's mode and owner. */
+  readonly after?: readonly StartWorkloadInput[] | undefined;
   /** Count the run as if its owning domain would admit it. A run `start` would refuse is otherwise counted as 0
    *  calls; a confirm that precedes the switch which would admit it (turning Memory on) asks for the count anyway. */
   readonly assumeAdmitted?: boolean | undefined;

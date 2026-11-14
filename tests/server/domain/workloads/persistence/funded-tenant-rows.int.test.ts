@@ -39,7 +39,7 @@ test("restart and a different retry caller preserve admitted funding and owned e
   await root[Symbol.asyncDispose]();
   await using resumed = await createServerHarness({ db, ownerId: owner.userId, clock: root.clock, ids: root.ids, providerFetch: wire.execute });
   const before = wire.funders.length;
-  expect(await resumed.services.workloads.estimateRetryModelCalls({ caller: owner, id: ref.id })).toEqual({ calls: 1 });
+  expect(await resumed.services.workloads.estimateRetryModelCalls({ caller: owner, id: ref.id })).toEqual({ calls: 1, bound: "exact" });
   expect(wire.funders).toHaveLength(before);
   await executeAdmitted(resumed, ref.id);
   const retry = await resumed.services.workloads.retry({ caller: owner, id: ref.id });
