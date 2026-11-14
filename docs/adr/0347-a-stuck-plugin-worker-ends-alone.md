@@ -1,7 +1,7 @@
 ---
 kind: adr
 status: active
-updated: 2026-11-12
+updated: 2026-11-14
 ---
 
 # A stuck plugin Worker ends alone
@@ -34,7 +34,7 @@ The bound is eight times the worst send gap of healthy brokers, 125 ms, measured
 
 **A late command fails alone.** The parent times only each runtime's oldest outstanding command, from when it became the oldest, so time queued behind earlier commands is never charged to it. `EVENT_QUEUE_DEPTH` bounds the queue and refuses the next invoke. A runtime starts its next invoke one macrotask after the previous one answers, so the broker never charges that invoke's first span to the command before it. Past `PLUGIN_COMMAND_TIMEOUT_MS` for its kind, the parent fails that command as an ended invocation and asks the broker to end the runtime; the broker does so, as above, only if it still holds that command. For every kind, the worst case is under that backstop: the budget, the allowance and two checks, the settlement walls the kind waits out, the host work no span counts, one `HOST_FN_DEADLINE_MS` of slack, and the liveness bound. The slack is about twice the slowest Worker start measured (2.65 s).
 
-**A plugin answers for its own stall, and only for its own.** The crash policy counts a rejected invocation as a strike. The plugin takes the strike for an invocation ended at its wall or by its Worker's end, for a stall after its command returned (on its next invocation), and for its own command that runs past the parent's backstop. A refusal for a runtime replaced before the command ran, for a broker replaced on its heartbeat or otherwise lost, or for shutdown is host-unavailable: a conflict, which the policy never counts. A command still inside its worst case when the broker hangs fails with the broker, never at its backstop, so a broker hang strikes no plugin and a bystander is never struck. A watchdog hang has no check of its own and falls to the backstops, which strike.
+**A plugin answers for its own stall, and only for its own.** The crash policy counts a rejected invocation as a strike. The plugin takes the strike for an invocation ended at its wall or by its Worker's end, for a stall after its command returned (on its next invocation), and for its own command that runs past the parent's backstop. It takes it even when the same command met a host refusal, which excuses only a failure the refusal could have caused (D348): a plugin that never settled is not excused by one provoked refusal. A refusal for a runtime replaced before the command ran, for a broker replaced on its heartbeat or otherwise lost, or for shutdown is host-unavailable: a conflict, which the policy never counts. A command still inside its worst case when the broker hangs fails with the broker, never at its backstop, so a broker hang strikes no plugin and a bystander is never struck. A watchdog hang has no check of its own and falls to the backstops, which strike.
 
 **Homes.**
 
@@ -45,6 +45,7 @@ The bound is eight times the worst send gap of healthy brokers, 125 ms, measured
 - The heartbeat, `endStuckRuntime`, `commandOverran`, the span check and the `end-runtime` request in `packages/server/src/infra/plugin-host/broker-entry.ts`.
 - `handleRuntimeEnded`, `owedRefusal`, `armBackstop`, `backstop`, `recordBrokerLoss`, `haltRecords`, `PluginHostUnavailableError` and `onDisconnect` in `packages/server/src/infra/plugin-host/process-runtime.ts`.
 - The strike classifier `isHostAdmissionRefusal` in `packages/server/src/domain/plugin/activation/activate.ts`.
+- The ended invocation's host-set mark: `ended` on `EvalOutcome` in `packages/server/src/infra/plugin-host/sandbox.ts`, `invocationEnded` in `packages/server/src/infra/plugin-host/port.ts`, and `isInvocationEnded`, `commandWithAuthority` and `wakeBinding` in `packages/server/src/infra/plugin-host/process-runtime.ts`.
 - Tests: `tests/server/infra/plugin-host/`.
 
 ## Consequences

@@ -48,10 +48,10 @@ import type { ParticipantRow } from "../contract/participant-row.ts";
 import type { ForkData } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireParticipant } from "../guard.ts";
+import { resolveAnchor } from "../persistence/anchor.ts";
 import { carriesAssetBackground, guardedChatId } from "../persistence/background-write.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { loadMessageAssetLinks } from "../persistence/message-asset-links.ts";
-import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import {
   loadChatInjections,
@@ -67,7 +67,7 @@ import { permitsHost } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { continuationToolsAreUndone } from "../substrate/content-signatures.ts";
 import { viewerReadsHidden } from "../substrate/member-visibility.ts";
-import { resolveAnchor } from "../substrate/participants-humans.ts";
+import { classifyParticipant } from "../substrate/participant-actor.ts";
 import { foldChain } from "../substrate/runtime-variables.ts";
 import { appendStatsDeltas, canonMessageDelta, chatCreatedDelta, seatChatDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
 import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";

@@ -1,20 +1,17 @@
-// The create/update validation ladder + the shared detail re-read — ONE spelling for both write verbs
-// (verb files may not value-import each other; the chat `substrate/auth` precedent for ctx-consuming
-// feature-local helpers). The belts run BEFORE any write: the FK proves a referenced row EXISTS, never
-// that it is the caller's (the persona `ensureAvatarAsset` posture), so ownership is verified here at the
-// producer verb (D18/D20 — gate at the producer, derive everywhere else).
+// The create/update validation ladder — ONE spelling for both write verbs (verb files may not value-import
+// each other; the chat `substrate/auth` precedent for ctx-consuming feature-local helpers). The belts run
+// BEFORE any write: the FK proves a referenced row EXISTS, never that it is the caller's (the persona
+// `ensureAvatarAsset` posture), so ownership is verified here at the producer verb (D18/D20 — gate at the
+// producer, derive everywhere else). The shared detail re-read is `persistence/load-view.ts`.
 
 import type { GroupConfigInput } from "@orb/contracts/chat";
 import { groupConfigSchema } from "@orb/contracts/chat";
-import type { CreateRosterPresetInput, RosterPresetView } from "@orb/contracts/roster-preset";
+import type { CreateRosterPresetInput } from "@orb/contracts/roster-preset";
 import type { RpgGameTemplate } from "@orb/contracts/rpg";
 import { rpgGameTemplateSchema } from "@orb/contracts/rpg";
-import type { PersonaId, RosterPresetId, UserId } from "@orb/kit/ids";
-import { RosterPresetCharacterNotFoundError, RosterPresetNotFoundError, RosterPresetPersonaNotFoundError } from "../contract/errors.ts";
+import type { PersonaId, UserId } from "@orb/kit/ids";
+import { RosterPresetCharacterNotFoundError, RosterPresetPersonaNotFoundError } from "../contract/errors.ts";
 import type { CastRuleWrite, MemberWrite, RosterPresetContext } from "../contract/service.ts";
-import { loadCastRuleRows, loadMemberCardRows, loadOwnedPresetRow, viewOf } from "../persistence/queries.ts";
-import { groupMemberViews } from "./members.ts";
-import { groupCastRuleViews } from "./rules.ts";
 
 /** The member-ownership belt — throws on the FIRST member that is missing / another user's. */
 export async function ensureMembersOwned(ctx: RosterPresetContext, ownerId: UserId, members: readonly MemberWrite[]): Promise<void> {
@@ -62,17 +59,4 @@ export function resolveCastRules(ctx: RosterPresetContext, rules: CreateRosterPr
     position: index,
     knobs: ctx.automation.resolveChatRulePresetKnobs(rule.rulePresetId, rule.knobs ?? {}),
   }));
-}
-
-/** The detail read create/update/get share (card names + avatar hashes joined; members in position
- *  order; cast rules in stored order). The not-owned and not-found answers collapse into one leak-free
- *  NotFound. */
-export async function loadView(ctx: RosterPresetContext, ownerId: UserId, presetId: RosterPresetId): Promise<RosterPresetView> {
-  const row = await loadOwnedPresetRow(ctx.db, ownerId, presetId);
-  if (row === undefined) {
-    throw new RosterPresetNotFoundError(presetId);
-  }
-  const members = groupMemberViews(await loadMemberCardRows(ctx.db, ownerId, [presetId])).get(presetId) ?? [];
-  const rules = groupCastRuleViews(await loadCastRuleRows(ctx.db, [presetId])).get(presetId) ?? [];
-  return viewOf(row, members, rules);
 }

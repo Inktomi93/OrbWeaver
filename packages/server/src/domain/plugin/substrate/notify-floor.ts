@@ -1,7 +1,7 @@
 // domain/plugin/substrate/notify-floor — the `notify` capability's COOLDOWN, the one belt design 02 §2 pairs
 // with the grant + participants-only recipients ("grant + host + participants-only recipients + the 60 s
 // floor") that the plugin path shipped without. The RULE path enforces the same floor twice — at authoring
-// (`substrate/validate.ts` refuses a `post_notification` rule with a smaller `cooldownSeconds`) and at fire
+// (`persistence/validate.ts` refuses a `post_notification` rule with a smaller `cooldownSeconds`) and at fire
 // time (`engine/budget-gate.ts`, off the fire log) — and both are unreachable for a plugin: a plugin has no
 // rule row to constrain and no fire log to count. So the floor lives where the plugin's call does.
 //

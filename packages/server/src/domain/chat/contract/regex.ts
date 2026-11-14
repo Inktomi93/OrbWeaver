@@ -37,7 +37,7 @@ export interface HostTierRegexSources {
    *
    *  REQUIRED, not optional, and that is the point: every caller of the resolver must state the room's
    *  levers, so there is no "forgot to pass it" arm in which a tier the host switched off silently runs
-   *  anyway. tsc forces both turn callers (`substrate/assemble-gather.ts`, `verbs/edit.ts`) and the read.
+   *  anyway. tsc forces both turn callers (`assembly/gather.ts`, `verbs/edit.ts`) and the read.
    *  Both members are ABSENT-⇒-ALLOWED (`isRegexEnabledInChat` / `isRegexTierAllowed`), so a room that never
    *  touched the section resolves byte-identically to before. */
   readonly allow: HostTierRegexAllow;

@@ -61,7 +61,7 @@ export interface RulePresetRuleDef {
   readonly arms: readonly AutomationActionInput[];
   /** Law 4 — set explicitly on COUNTER rules. Absent ⇒ `createRule`'s per-rule default (30/hr). */
   readonly maxFiresPerHour?: number;
-  /** Absent ⇒ 0. A `post_notification` arm forces ≥ 60 (`substrate/validate.ts`'s cooldown floor). */
+  /** Absent ⇒ 0. A `post_notification` arm forces ≥ 60 (`persistence/validate.ts`'s cooldown floor). */
   readonly cooldownSeconds?: number;
 }
 
@@ -192,11 +192,11 @@ function loreRevealPredicate(minEntries: number): string {
 }
 
 // ── named bounds (noMagicNumbers) ─────────────────────────────────────────────────────────────────────
-/** Law 4's explicit high cap for a per-beat COUNTER rule. Equals `substrate/validate.ts`'s
+/** Law 4's explicit high cap for a per-beat COUNTER rule. Equals `persistence/validate.ts`'s
  *  `RULE_MAX_FIRES_CAP` ceiling — the per-preset int tests mint against the real verb, so a drift below this
  *  becomes a typed mint refusal rather than silent rot. (The per-CHAT 120/hr belt still applies above it.) */
 const COUNTER_RULE_MAX_FIRES_PER_HOUR = 240;
-/** A `post_notification` rule's cooldown floor (`substrate/validate.ts`). */
+/** A `post_notification` rule's cooldown floor (`persistence/validate.ts`). */
 const NOTIFY_COOLDOWN_SECONDS = 60;
 /** A preset steer/guidance line is a sentence, not the 4 KiB `guidedTemplate` ceiling. */
 const STEER_TEXT_MAX = 600;
@@ -775,7 +775,7 @@ const CUTAWAYS = defineRulePreset({
  *  fact populates it, but the guard keeps a manual/odd dispatch from throwing), the law-2 `int()` coercions,
  *  and `automationDepth == 0` — belt-and-suspenders over the engine's own default cascade suppression, so an
  *  automation-triggered reply can never count as a beat even for a rule opted into cascades. Mint REFUSES on
- *  an active-game chat (`substrate/validate.ts` `active_game` — the game owns its own steering, D109;
+ *  an active-game chat (`persistence/validate.ts` `active_game` — the game owns its own steering, D109;
  *  §3-S5.7, revisitable). */
 const STORY_PACING = defineRulePreset({
   id: "storyPacing",
@@ -828,7 +828,7 @@ const STORY_PACING = defineRulePreset({
  *
  *  Knobs: the SPAN FLOOR (the cadence — how many beats accrue between distill passes, so the settled span the
  *  pass reads is at least this deep) and the TARGET BOOK (the `entityRef` chooser over this chat's attached
- *  books). Mint REFUSES an unattached book (`substrate/validate.ts` — the attach gate follows the origin,
+ *  books). Mint REFUSES an unattached book (`persistence/validate.ts` — the attach gate follows the origin,
  *  re-checked at confirm) and an active-game chat (D109; both inherited from the arm's own admission rows). */
 const DISTILL_LORE = defineRulePreset({
   id: "distillLore",
@@ -1056,7 +1056,7 @@ const PROSE_AUDIT = defineRulePreset({
  *  Law 1 is why the `!has(…)` arm exists, and its semantics here are deliberate rather than defensive: on the
  *  first-ever post there is no stamp, so the nudge fires — an async table's first beat is precisely when the
  *  other seats want telling. The `post_notification` arm forces `cooldownSeconds ≥ 60`
- *  (`substrate/validate.ts`), which also bounds a burst of first posts. */
+ *  (`persistence/validate.ts`), which also bounds a burst of first posts. */
 const ASYNC_TABLE_NUDGE = defineRulePreset({
   id: "asyncTableNudge",
   title: "Async table nudge",

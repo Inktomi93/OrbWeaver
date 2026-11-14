@@ -74,7 +74,7 @@ export async function loadPresentHumanMemberIds(db: Db, chatId: ChatId): Promise
  *  (the TriggerFact wire shape) and is parsed here only to query — a re-read gate, never a trust transfer.
  *  The drizzle table stays module-private (the caller names a KIND, not a schema object).
  *
- *  Consumed by the plugin fan-out's visibility gate (`substrate/plugin-subscribers::canInstallerSeeFact`). The
+ *  Consumed by the plugin fan-out's visibility gate (`engine/plugin-subscribers::canInstallerSeeFact`). The
  *  CHAT arm of that gate is deliberately NOT here: a chat verdict is chat's `resolveViewerVisibility` op
  *  (membership AND floor as one answer), never a membership select this domain re-derives. */
 export async function isDomainRowOwnedBy(db: Db, kind: DomainRowKind, id: string, userId: UserId): Promise<boolean> {

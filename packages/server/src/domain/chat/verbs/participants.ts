@@ -18,9 +18,12 @@ import type {
   ClaimChatOp,
   DurableChatBusEvent,
   GroupConfig,
+  HandoffOffer,
+  HandoffOfferContents,
   HostTierRegexAllow,
   MessageView,
   ParticipantData,
+  PresentCharacterSeat,
   SetGroupConfigParams,
   SetSeatKnobsParams,
 } from "@orb/contracts/chat";
@@ -30,6 +33,7 @@ import {
   handoffOfferSchema,
   isAiDriven,
   NO_HANDOFF_OFFER,
+  NO_HANDOFF_OFFER_CONTENTS,
   roomOverridesSchema,
   TALKATIVENESS_DEFAULT,
 } from "@orb/contracts/chat";
@@ -77,11 +81,11 @@ import { requireHandoffAcceptance, requireHandoffNominee, requireHost, requirePa
 import { carriedBackgroundAvailable, ownedBackgroundAvailable } from "../persistence/background-write.ts";
 import { isRetainedParentFenceViolation, restampChatCharacterStatement, retainedChatFenceStatement } from "../persistence/canon-write.ts";
 import { chatMetadataSetStatement } from "../persistence/chat-metadata-write.ts";
+import { buildGreetingSeed } from "../persistence/greeting-seed.ts";
 import { clearHandoffResumptionStatement, insertHandoffResumptionStatement } from "../persistence/handoff-resume.ts";
 import {
   acceptHostHandoffSwapStatements,
   assertForcedCharacterMember,
-  classifyParticipant,
   insertParticipants,
   markParticipantLeftStatement,
   markUserLeft,
@@ -92,9 +96,8 @@ import {
 import { captureParticipantRow, characterEverSeatedInChat, characterSeatedInAnotherChat, loadParticipants } from "../persistence/participants-read.ts";
 import { loadHasUserMessage, loadMaxMessageSeq } from "../persistence/queries.ts";
 import { assertSeatableCharacters } from "../persistence/seat-characters.ts";
-import { buildGreetingSeed } from "../substrate/greeting-seed.ts";
-import { previewHandoffCopyPlan, resolveHandoffCopyPlan } from "../substrate/handoff-copy.ts";
 import { viewerHoldsHost } from "../substrate/member-visibility.ts";
+import { classifyParticipant } from "../substrate/participant-actor.ts";
 import { REMOVED_CHARACTER_LABEL } from "../substrate/participant-name.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { regexAllowOf } from "../substrate/regex-tier.ts";
@@ -1283,4 +1286,185 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
       actorRekeys: plan.cardCopies,
     });
   };
+}
+
+// THE ACCEPTED-OFFER COPY PLAN for `acceptHostHandoff`. It takes no principal and gates nothing —
+// `acceptHostHandoff` has already proven the caller IS the nominee — and it carries its own crash contract:
+// the swap owns the atomic room move, this owns the LIBRARY half that must land before it.
+//
+// WHAT THE ARM IS FOR. Under the built code a handoff transfers the room + history but DROPS the outgoing
+// host's character seats (D64) — cards are single-owned, so a seat whose card the new host cannot read would
+// collapse to a blank name. That is correct and stays the default. The owner's ruling added the missing
+// OPTION: at nominate the departing host may offer point-in-time COPIES of the characters and worldbooks they
+// brought, and if the nominee accepts, this section mints them and the swap re-points the room onto them. From
+// that moment the room references only the new host's property, so the old host editing or deleting their
+// originals cannot reach it.
+//
+// NOTHING HERE IS A LICENSE. Every read carries an owner in its WHERE: the candidate seats are the ones whose
+// card resolves under the DEPARTING host (theirs to give) and NOT under the nominee (already theirs — a gift
+// of what you own is a duplicate, not a transfer). The roster's `characterId` grants no read.
+//
+// The mints go through INJECTED ops, never a table: `characters` is the character domain's, the books are
+// world-info's, the room's regex scripts are the regex domain's. Chat composes the plan and owns only the
+// room-side statements.
+
+/** The present character seats the DEPARTING host owns — the copy candidates for an accepted offer.
+ *
+ *  Two ownership axes, both load-bearing (the injected-op caller gate): a seat is a candidate only when its
+ *  card resolves under the OLD HOST (it is theirs to give) and does NOT resolve under the NOMINEE (a card the
+ *  nominee already owns is a live seat, not a gift — copying it would mint a pointless second library row and
+ *  orphan the original's history). A seat that satisfies neither is left to `resolveDroppedCharacterSeatIds`.
+ *  Nothing here reads a card the old host does not own: the roster's `characterId` is not a license. */
+async function resolvePresentCharacterSeats(
+  ctx: ChatContext,
+  oldHostUserId: UserId,
+  newOwnerUserId: UserId,
+  participants: readonly ParticipantRow[],
+): Promise<PresentCharacterSeat[]> {
+  const seats = participants.flatMap((p) => {
+    const actor = classifyParticipant(p);
+    return actor?.kind === "character" && p.leftSeq === null ? [{ participantId: p.id, characterId: actor.characterId }] : [];
+  });
+  const verdicts = await Promise.all(
+    seats.map(async (seat) => {
+      const [fromOld, fromNew] = await Promise.all([
+        ctx.getCard({ ownerId: oldHostUserId, characterId: seat.characterId }),
+        ctx.getCard({ ownerId: newOwnerUserId, characterId: seat.characterId }),
+      ]);
+      return fromOld !== null && fromNew === null;
+    }),
+  );
+  return seats.filter((_, i) => verdicts[i] === true);
+}
+
+/** The no-copy plan — what every offer-less accept resolves to, spelled once so no arm can drift. */
+const EMPTY_COPY_PLAN: HandoffCopyPlan = { seats: [], cardCopies: [], bookRepoint: [], regexRepoint: [] };
+
+/** EXECUTE the accepted offer's LIBRARY half — everything that can land BEFORE the room changes hands.
+ *
+ *  THE ORDERING IS THE CRASH CONTRACT (§5, "copy-fully-lands then swap"). True cross-domain atomicity is not
+ *  available: the cards, books and preset are separate front-door writes into the nominee's own library, and
+ *  no batch spans them. So they land FIRST and the room moves in ONE atomic batch afterwards. A crash in
+ *  between leaves the nominee holding ORDINARY LIBRARY ROWS — their own cards and books, editable and
+ *  deletable, not corruption and not anyone's ghost — plus a nomination that is still intact, so the accept
+ *  can simply be re-tried. The retry converges on the SAME copies rather than minting a second set (cards by
+ *  their `handoff:<chatId>:<sourceId>` provenance, books by the copy card already carrying junctions / the
+ *  recipient already owning that book name on this chat, the preset by its `forkedFrom` lineage).
+ *
+ *  Minting AFTER the swap was never an option: a crash there would leave a promoted host holding a room whose
+ *  seated characters had just been dropped, with nothing to show for the offer they accepted. */
+async function executeHandoffCopy(
+  ctx: ChatContext,
+  params: { readonly chatId: ChatId; readonly oldHostUserId: UserId; readonly nomineeUserId: UserId },
+  seats: readonly PresentCharacterSeat[],
+): Promise<HandoffCopyPlan> {
+  const { chatId, oldHostUserId, nomineeUserId } = params;
+  // THE REGEX ARM RUNS BEFORE (AND INDEPENDENTLY OF) THE SEAT CHECK. A room's chat-tier scripts are
+  // room state: they are attached to the ROOM, not carried by a card, so a room with no giftable seat can
+  // still be running the departing host's find/replace. Gating them on `seats.length` would leave exactly the
+  // hole this arm exists to close. Same shape as the books' room half otherwise: mints land now, the
+  // `chat_regex_scripts` move comes back UNEXECUTED for the swap batch.
+  const regexRepoint = (await ctx.copyHandoffRegexScripts({ fromOwnerId: oldHostUserId, toOwnerId: nomineeUserId, chatId })).map(statementForOwner);
+  // THE SEAT GATE IS THE CARD MINT'S, NOT THE WHOLE COPY'S. `copyHandoffBooks` does two halves: the
+  // seated cards' lore (derived from `cardCopies`) and the ROOM's own `chat_books`, which hangs off the room
+  // and owes the seats nothing. Returning early on `seats.length === 0` took the room half down with the card
+  // half, so an offer accepted in a seat-less room left the departed host's book firing into a room they had
+  // left — the regex arm's hole, one table over. An empty `cardCopies` is already the op's own "room half only"
+  // input (`pendingCardCopies([])` ⇒ the card loop never runs), so the fix is to stop skipping the CALL.
+  //
+  // The two halves stay in ONE op deliberately: they share the call-local source→copy map, so a book attached
+  // to BOTH a seated card and the room is copied ONCE and shared exactly as the originals shared it. Splitting
+  // them into two injected ops would give each its own map and fork the room's lore into divergent duplicates
+  // — the failure `world-info/persistence/handoff-copy-write` names in its own header. Both pinned.
+  const cardCopies =
+    seats.length === 0
+      ? []
+      : await ctx.copyHandoffCards({
+          fromOwnerId: oldHostUserId,
+          toOwnerId: nomineeUserId,
+          chatId,
+          characterIds: seats.map((s) => s.characterId),
+        });
+  const copyOf = new Map(cardCopies.map((c) => [c.sourceCharacterId, c]));
+  const bookRepoint = (await ctx.copyHandoffBooks({ fromOwnerId: oldHostUserId, toOwnerId: nomineeUserId, chatId, cardCopies })).map(statementForOwner);
+  return {
+    // A seat whose card did not copy (deleted between nominate and accept) is absent here and falls through
+    // to the D64 drop — the honest degrade, never a blank-name seat.
+    seats: seats.flatMap((seat) => {
+      const copy = copyOf.get(seat.characterId);
+      return copy === undefined ? [] : [{ participantId: seat.participantId, copy }];
+    }),
+    cardCopies,
+    bookRepoint,
+    regexRepoint,
+  };
+}
+
+/** THE DISCLOSURE — what the offer would copy, resolved AT NOMINATE so the nominee's inbox row can
+ *  say it before they press Accept. The receiving side used to render a bare Accept for a press that lands
+ *  four classes of the departing host's property in the accepter's own library, one of which EXECUTES on
+ *  their text (the room's regex scripts).
+ *
+ *  IT IS THE COPY'S OWN RESOLUTION, ASKED WITHOUT WRITING, and every branch below is the accept's branch:
+ *  the same `copyCharacters` gate, the same {@link resolvePresentCharacterSeats} (both ownership axes — theirs to
+ *  give, not already the nominee's), the owning domains' own count ops over their own copy plans, and rpg's
+ *  own knob/ownership gate. Nothing here re-derives a rule, because a disclosure derived separately is a
+ *  number that can disagree with the rows that arrive.
+ *
+ *  A CEILING, NOT A CONTRACT. Acceptance is what freezes the point in time (§5), so the host may edit or
+ *  delete between nominate and accept and the accept copies what is there THEN. The disclosure can therefore
+ *  over-state and never under-state — the honest direction: nobody receives property they were not told
+ *  about, and someone may receive less than they were offered.
+ *
+ *  `gmPreset` rides its OWN offer flag, exactly as the accept does (the heal takes `offer.copyGmPreset`
+ *  whatever the card arm decided), so a preset-only offer discloses the preset and zero of everything else. */
+async function previewHandoffCopyPlan(
+  ctx: ChatContext,
+  params: {
+    readonly chatId: ChatId;
+    readonly oldHostUserId: UserId;
+    readonly nomineeUserId: UserId;
+    readonly offer: HandoffOffer;
+    readonly participants: readonly ParticipantRow[];
+  },
+): Promise<HandoffOfferContents> {
+  const { chatId, oldHostUserId, nomineeUserId, offer, participants } = params;
+  if (oldHostUserId === nomineeUserId) {
+    return NO_HANDOFF_OFFER_CONTENTS;
+  }
+  const gmPreset = offer.copyGmPreset ? ((await ctx.rpg?.handoffWouldCopyGmPreset(chatId, nomineeUserId)) ?? false) : false;
+  if (!offer.copyCharacters) {
+    return { ...NO_HANDOFF_OFFER_CONTENTS, gmPreset };
+  }
+  const seats = await resolvePresentCharacterSeats(ctx, oldHostUserId, nomineeUserId, participants);
+  const [worldBooks, regexScripts] = await Promise.all([
+    ctx.countHandoffBooks({ fromOwnerId: oldHostUserId, toOwnerId: nomineeUserId, chatId, characterIds: seats.map((seat) => seat.characterId) }),
+    ctx.countHandoffRegexScripts({ fromOwnerId: oldHostUserId, toOwnerId: nomineeUserId, chatId }),
+  ]);
+  return { characters: seats.length, worldBooks, regexScripts, gmPreset };
+}
+
+/** The ONE door the accept calls: decide whether the offer applies at all, resolve the candidate seats, and
+ *  execute the library half. Returns {@link EMPTY_COPY_PLAN} for every accept that copies nothing.
+ *
+ *  The copy needs a DEPARTING HOST to derive ownership from. If they already left the room (a host who
+ *  nominated and then walked), there is nobody whose property this is — the offer degrades to the built D64
+ *  drop rather than reading cards under a guess. A nominee accepting their OWN nomination as sitting host
+ *  (the hostless-room heal) likewise copies nothing: there is no transfer of property to make. */
+async function resolveHandoffCopyPlan(
+  ctx: ChatContext,
+  params: {
+    readonly chatId: ChatId;
+    readonly oldHostUserId: UserId | null;
+    readonly nomineeUserId: UserId;
+    readonly offer: HandoffOffer;
+    readonly participants: readonly ParticipantRow[];
+  },
+): Promise<HandoffCopyPlan> {
+  const { chatId, oldHostUserId, nomineeUserId, offer, participants } = params;
+  if (!offer.copyCharacters || oldHostUserId === null || oldHostUserId === nomineeUserId) {
+    return EMPTY_COPY_PLAN;
+  }
+  const seats = await resolvePresentCharacterSeats(ctx, oldHostUserId, nomineeUserId, participants);
+  return executeHandoffCopy(ctx, { chatId, oldHostUserId, nomineeUserId }, seats);
 }

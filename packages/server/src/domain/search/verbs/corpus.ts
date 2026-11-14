@@ -11,10 +11,10 @@ import type { DigestCoverageOp, SearchContext, SearchService } from "../contract
 import { hostedChatIds, nearestDigests, nearestSegments, segmentBlockKeys } from "../persistence/digest-rows.ts";
 import { resolveChatDisplay } from "../persistence/display.ts";
 import { readSourceAnchors } from "../persistence/source.ts";
+import { withActiveQuerySpace } from "../persistence/space.ts";
 import { SCOPED_POOL_K } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust } from "../substrate/csls.ts";
 import { collapseByContentHash } from "../substrate/dedupe.ts";
-import { withActiveQuerySpace } from "../substrate/space.ts";
 
 interface CorpusCandidate {
   readonly id: string;

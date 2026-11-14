@@ -2,7 +2,7 @@
 // stored text cut at its first NUL: a stored NUL would read back as a different string, and two keys differing only
 // after one would read back as one. Each refusal writes nothing; the same write without the NUL is stored.
 // The relay door is `tests/server/domain/plugin/verbs/ui-host-call-refusals.int.test.ts`.
-// @subject packages/server/src/domain/plugin/substrate/storage.ts
+// @subject packages/server/src/domain/plugin/persistence/storage.ts
 // @subject packages/server/src/domain/automation/verbs/set-global-variable.ts
 import { spawn } from "node:child_process";
 import { expect, test } from "@orb/testkit/node";

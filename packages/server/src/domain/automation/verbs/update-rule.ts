@@ -9,8 +9,9 @@ import type { UpdateRuleParams } from "../contract/params.ts";
 import type { AutomationContext, AutomationService } from "../contract/service.ts";
 import { requireRuleAuthority } from "../guard.ts";
 import { applyRuleUpdate, selectRuleRow, toRuleView } from "../persistence/rules.ts";
+import { validateRuleInput } from "../persistence/validate.ts";
 import { notifyRulesChanged } from "../substrate/rule-feed.ts";
-import { assertRuleName, validateRuleInput } from "../substrate/validate.ts";
+import { assertRuleName } from "../substrate/validate.ts";
 
 export function createUpdateRule(ctx: AutomationContext): AutomationService["updateRule"] {
   return async (params: UpdateRuleParams): Promise<RuleView> => {

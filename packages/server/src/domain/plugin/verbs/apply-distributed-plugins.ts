@@ -34,8 +34,9 @@ import type { ApplyDistributedPluginsParams } from "../contract/params.ts";
 import type { DistributedPluginApplication } from "../contract/results.ts";
 import type { DistributionInstallDeps, PluginContext, PluginDistributionDeps, PluginService } from "../contract/service.ts";
 import { listDistributions } from "../persistence/distributed-plugins.ts";
+import { alreadyHolds } from "../persistence/distribution.ts";
 
-import { alreadyHolds, installDistributedCopy } from "../substrate/distribution.ts";
+import { installDistributedCopy } from "../substrate/distribution.ts";
 
 export function createApplyDistributedPlugins(
   ctx: PluginContext,
