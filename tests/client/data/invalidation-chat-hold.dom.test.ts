@@ -1,8 +1,11 @@
 // @subject packages/client/src/data/invalidation.ts
 // A chat wave replaces a stale in-flight read with a refetch held until the flush. The held query function must reach
 // that refetch alone: any other fetch reads at once, and a retired held refetch never reads.
+
+import { setImmediate } from "node:timers/promises";
 import type { Invalidation } from "@orb/client/data";
 import { useInvalidation } from "@orb/client/data";
+import { setActiveSection } from "@orb/client/state";
 import type { MessageId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { AppDataProviders, createClientRuntime } from "@orb/testkit/browser";
@@ -126,6 +129,39 @@ test("a held refetch a cancelQueries revert rolls back after the flush still owe
     await vi.waitFor(() => expect(room.runtime.queryClient.getQueryState(room.queryKey)?.fetchStatus).toBe("idle"));
   } finally {
     unsubscribeRemount();
+  }
+});
+
+test("a held refetch reads only once the crossfade a section swap started has settled", async () => {
+  using room = new HeldRoom();
+  const crossfade = Promise.withResolvers<void>();
+  let swapped: Promise<void> = Promise.resolve();
+  // The platform edge: a native transition whose visual settlement the case controls. The swap itself is the product's.
+  vi.stubGlobal("document", {
+    visibilityState: "visible",
+    startViewTransition: (update: () => void | Promise<void>): { readonly finished: Promise<void> } => {
+      swapped = Promise.resolve(update());
+      return { finished: crossfade.promise };
+    },
+  });
+  const observer = room.observer();
+  const unsubscribe = observer.subscribe(() => undefined);
+  try {
+    setActiveSection("config");
+    const { stale } = await holdRefetch(room, observer);
+    room.holding = false;
+    // The flush runs while the crossfade does: the wave's refetch has not read, so no row changes under the fade.
+    vi.runOnlyPendingTimers();
+    await setImmediate();
+    expect(room.reads).toBe(2);
+    crossfade.resolve();
+    await vi.waitFor(() => expect(room.reads).toBe(3));
+    await Promise.all([stale, swapped]);
+    await vi.waitFor(() => expect(room.runtime.queryClient.getQueryState(room.queryKey)?.fetchStatus).toBe("idle"));
+  } finally {
+    crossfade.resolve();
+    unsubscribe();
+    vi.unstubAllGlobals();
   }
 });
 

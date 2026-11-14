@@ -368,7 +368,8 @@ export function createInvalidation(deps: { readonly queryClient: QueryClient; re
   };
   const flushBusWave = (wave: BusWave): void => {
     busWaves.delete(deps.queryClient);
-    wave.gate.resolve();
+    // The held refetch reads when the gate opens, so it waits for a running crossfade like the flush's own refetches do.
+    runAfterViewTransition(() => wave.gate.resolve());
     invalidateFilters(
       collapseFilters(wave.filters).map((filter) => ({
         ...filter,
