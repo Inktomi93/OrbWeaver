@@ -1,6 +1,7 @@
 // A room's chat-attached world books, regex scripts and documents across a host handoff, through the owners' own verbs.
 
 import { createCharacterSchema } from "@orb/contracts/character";
+import type { PromptConfig } from "@orb/contracts/preset";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
 import type { DocumentId, RegexScriptId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
@@ -115,22 +116,34 @@ export async function sendTurn(h: ChatRoot, sender: Person, content: string): Pr
   return { wire: wireText(newest), stored: user.content };
 }
 
+/** What the memory build's summarizer answers, and the room's preset when the room needs its own. */
+interface DocumentRoomOptions {
+  readonly summary?: Parameters<typeof summaryReply>[0];
+  readonly promptConfig?: PromptConfig;
+}
+
+const WITNESS_SUMMARY = { anchor: "An indexed witness scene", facts: "Two witnesses were recorded.", keywords: ["witness"] } as const;
+
 /** A room whose provider answers the memory build's summary requests as well as the finite turn replies, so
  *  {@link embedDocuments} can run the host's real memory sweep. */
-export async function documentRoom(replies: readonly string[]): Promise<ChatRoot> {
+export async function documentRoom(replies: readonly string[], options: DocumentRoomOptions = {}): Promise<ChatRoot> {
   await using construction = new AsyncDisposableStack();
   const nextReply = construction.use(finiteReplies("document room", replies)).take;
+  const summary = summaryReply(options.summary ?? WITNESS_SUMMARY);
   const provider = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
-    chatText: (body): string =>
-      body.includes(SUMMARIZE_TRANSCRIPT_MARKER)
-        ? summaryReply({ anchor: "An indexed witness scene", facts: "Two witnesses were recorded.", keywords: ["witness"] })
-        : nextReply(),
+    chatText: (body): string => (body.includes(SUMMARIZE_TRANSCRIPT_MARKER) ? summary : nextReply()),
   });
-  const h = construction.use(await createChatRoot({ providerFetch: provider.execute, memoryEnabled: false }));
+  const h = construction.use(
+    await createChatRoot({
+      providerFetch: provider.execute,
+      memoryEnabled: false,
+      ...(options.promptConfig === undefined ? {} : { promptConfig: options.promptConfig }),
+    }),
+  );
   const lifetime = construction.move();
   return { ...h, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
 }

@@ -1,10 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-11-11
+updated: 2026-11-14
 priority: P3
 area: tests
-plan: checked-law
+plan: typed-enforcers
 ---
 
 # Follow-ups from the blind-catch rule: fault tests the harness cannot script, and literals in its tests
