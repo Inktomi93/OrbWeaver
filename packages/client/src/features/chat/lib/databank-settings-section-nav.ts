@@ -6,7 +6,7 @@ import type { ConfigSubcategory } from "#state";
 
 export const DATABANK_SETTINGS_SUBCATEGORY: ConfigSubcategory = {
   id: "databank",
-  label: "Databank",
+  label: "Document retrieval",
   keywords: ["databank", "documents", "retrieval", "rag", "chunks", "rerank", "knowledge"],
   teach: {
     summary: "Per-chat document retrieval: attach files the model pulls from during a conversation, with chunking and reranking for relevant context.",
