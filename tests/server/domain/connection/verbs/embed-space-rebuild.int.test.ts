@@ -93,8 +93,7 @@ async function twoEncoders(stack: AsyncDisposableStack): Promise<Box> {
     const refused = statements.some((statement) => refuses(sqlOf(statement)));
     return refused ? Promise.reject(new Error("controlled workload insert refusal")) : batch(statements, mode);
   });
-  // The property resolves to the overload set whose last signature is the deprecated zero-argument form; every call below passes its mode.
-  // eslint-disable-next-line @typescript-eslint/no-deprecated
+  // eslint-disable-next-line @typescript-eslint/no-deprecated -- the property resolves to the overload set whose last signature is the deprecated zero-argument form; every call below passes its mode.
   const transaction: (mode: TransactionMode) => ReturnType<NativeDriver["transaction"]> = driver.transaction.bind(driver);
   vi.spyOn(driver, "transaction").mockImplementation(async (mode?: TransactionMode) => {
     if (mode === undefined) {

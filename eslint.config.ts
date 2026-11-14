@@ -2527,6 +2527,11 @@ export default [
     rules: { "orb/enforcement-claim-cites-checker": "error" },
   },
   {
+    files: ["packages/**/*.{ts,tsx}", "tooling/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}", "scripts/**/*.{ts,tsx}"],
+    plugins: { orb: localPlugin },
+    rules: { "orb/disable-directive-reason": "error" },
+  },
+  {
     files: rootSources("@server", "@inference"),
     ignores: ["packages/server/src/**/persistence/**"],
     plugins: { orb: localPlugin },
