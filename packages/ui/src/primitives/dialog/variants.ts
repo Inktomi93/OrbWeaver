@@ -53,8 +53,12 @@ export const dialogVariants = tv({
     // The action row: the LAST child of a DialogBody, never of the popup itself. The popup's padding
     // surrounds that region, so `sticky bottom-0` lands the buttons exactly one popup inset above the popup edge.
     // A tiny dialog (enlarged text on a landscape phone) stacks its actions to a height that can exceed the body, so the row
-    // scrolls with the sheet there instead of covering every field.
-    footer: "sticky inset-be-0 z-(--z-raised) flex shrink-0 flex-wrap items-center justify-end-safe gap-field bg-popover pbs-field dialog-tiny:static",
+    // scrolls with the sheet there instead of covering every field; a tiny phone sheet's row does the same.
+    footer: `
+      sticky inset-be-0 z-(--z-raised) flex shrink-0 flex-wrap items-center justify-end-safe gap-field bg-popover pbs-field
+      dialog-tiny:static
+      sheet-tiny:static
+    `,
   },
   variants: {
     spaced: { true: { popup: "gap-block" } },
@@ -69,12 +73,15 @@ export const dialogVariants = tv({
     // A header that stays in view while the body scrolls under it (a drawer's title and close), on the card fill so
     // scrolled rows do not show through. A sticky box rests against the scroller's content edge, not its padding edge,
     // so the header grows upward by the drawer's own inset (`p-section`) and rests against the true top: rows never
-    // scroll through the padding above it. A window short and narrow in text units (enlarged text on a phone, either way up) gives the
-    // header's insets back: the close control alone is a third of that window, and the pinned title and Close must leave the body room.
+    // scroll through the padding above it. A short sheet follows the short-box law (ui-platform-rulings §8.1) on its own viewport:
+    // on a phone screen under 30rem wide its header scrolls away with the body, and a tiny one spends none of its height on insets.
     stickyHeader: {
       true: {
-        header:
-          "sticky -inset-bs-section z-(--z-raised) -mbs-section mbe-block bg-card pbs-section inline-narrow:glass-short:pbs-0 inline-narrow:glass-short:pbe-0",
+        header: `
+          sticky -inset-bs-section z-(--z-raised) -mbs-section mbe-block bg-card pbs-section
+          sheet-short:inline-narrow:glass-short:static
+          sheet-tiny:glass-short:pbs-0 sheet-tiny:glass-short:pbe-0
+        `,
       },
     },
     // The foot sets at the end of a tall body: only the block-end arm has a caller, so it is the only arm.
