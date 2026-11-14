@@ -66,6 +66,8 @@ export type {
   ShapeRowSource,
   ShapeTrace,
   ShapeTraceRow,
+  TurnGlobalVariables,
+  TurnGlobalVariablesMode,
   VariantWireView,
 } from "./assemble.ts";
 export {

@@ -29,4 +29,6 @@ export { createPluginSuggestionRaiser, createSuggestionStore } from "./substrate
 export { createAutomationTeachingContributions } from "./teaching-contribution.ts";
 export { createPluginFeedbackOps } from "./verbs/plugin-feedback.ts";
 export { createAutomationRuntimeOps } from "./verbs/runtime-ops.ts";
+// D337 — the chat turn's read cache and reply-batch upserts over the per-user global plane.
+export { createTurnGlobalVariableOps } from "./verbs/turn-global-variables.ts";
 export { startAutomationWatcher } from "./watcher/start-automation-watcher.ts";

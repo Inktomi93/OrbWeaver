@@ -28,6 +28,7 @@ import type {
   RequestTurnParams,
   SmartPicker,
   SpeakerRef,
+  TurnGlobalVariables,
   TurnKind,
   UserMacroDraws,
 } from "@orb/contracts/chat";
@@ -814,6 +815,7 @@ async function buildTurnContext(
   // The gather sink: the caller's SEND sink when present (so `sendUserText` still surfaces), else a private
   // one — either way `gatherMemory` stages `memoryRecall` here for the engine's per-speaker witnessed re-run.
   const sink: SendRegexSink = out ?? {};
+  const globalVariables = await stageTurnGlobalVariables(ctx, args.runAsUserId, args.presentHumanUserIds);
   const assembleContext = await gatherAssembleContext(
     ctx,
     {
@@ -826,6 +828,7 @@ async function buildTurnContext(
       // The pending row's author for the recall query. `none` ⇒ null (the union has no third arm).
       triggerUserId: args.trigger.kind === "human" ? args.trigger.userId : null,
       multiHuman: seatsMultipleHumans(args.presentHumanUserIds),
+      globalVariables,
       generationType: GENERATION_TYPE_FOR_KIND[args.kind],
       prng: deps.prng,
       choicePicks: "random",
@@ -864,6 +867,17 @@ async function buildTurnContext(
     cardKeepLastX: rpg?.cardKeepLastX,
     ...userMacroFields(userMacros),
   };
+}
+
+/** The turn's global plane (D46) is the host's, the human whose preset and library assemble the turn. It stages only
+ *  while the host is the room's only present human: a member's persona text renders with full macro power inside
+ *  the host's turn and the macro engine records no macro's author, so with anyone else present a member could write
+ *  the host's plane or read it into the reply. Held, reads give "" and writes are dropped, and the commit warns. */
+async function stageTurnGlobalVariables(ctx: ChatContext, runAsUserId: UserId, presentHumanUserIds: readonly UserId[]): Promise<TurnGlobalVariables> {
+  if (presentHumanUserIds.every((userId) => userId === runAsUserId)) {
+    return { mode: "staged", values: await ctx.loadGlobalVariables(runAsUserId), writes: [], heldReads: [] };
+  }
+  return { mode: "held", values: {}, writes: [], heldReads: [] };
 }
 
 /** Settles the game's reminder against the line the player's message became, and splits out the form an auto-mode beat

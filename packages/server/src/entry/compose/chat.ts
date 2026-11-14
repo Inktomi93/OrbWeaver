@@ -32,6 +32,7 @@ import { createSignupMinterCheck as createAdminSignupMinterCheck } from "#domain
 import type { AssetsService, ChatAssetOpsDeps } from "#domain/assets";
 import { createChatAssetOps } from "#domain/assets";
 import type { AutomationOps } from "#domain/automation";
+import { createTurnGlobalVariableOps } from "#domain/automation";
 import type { CharacterService } from "#domain/character";
 import { createCharacterRoomProjections, createCopyHandoffCards, createLoadSeatCards } from "#domain/character";
 import type {
@@ -564,6 +565,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     teaching: [...createChatTeachingContributions({ db }), ...(input.teaching ?? [])],
     // The D50 PromptTransform apply op — the registry's `apply`. Zero registrants ⇒ byte-identical.
     promptTransforms: promptTransformRegistry.apply,
+    // The per-user global plane (D46) is automation's table: the turn's read cache, and the upserts the reply batch places.
+    ...createTurnGlobalVariableOps({ db, now }),
     // The per-turn plugin-macro resolve (U6). Null ⇒ no plugin host wired (byte-identical no-op).
     pluginMacros: input.pluginMacros ?? null,
     listPluginMacros: input.listPluginMacros ?? null,

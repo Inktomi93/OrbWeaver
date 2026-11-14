@@ -24,6 +24,7 @@ function cadenceOf(code: ChatWarningCode): Cadence {
     case "background_task_degraded":
     case "smart_arbitration_degraded":
     case "speaker_rerank_unavailable":
+    case "global_variables_held":
       return "once-per-session";
     case "memory_build_failed":
     case "memory_rerank_unavailable":
@@ -38,6 +39,7 @@ function cadenceOf(code: ChatWarningCode): Cadence {
     case "context_trimmed_no_summary":
     case "provider_refused":
     case "reply_image_failed":
+    case "global_variable_dropped":
     case "hidden_tag_broken":
       return "each";
     default:

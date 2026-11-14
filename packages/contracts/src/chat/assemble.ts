@@ -641,6 +641,21 @@ export interface VariantWireView {
 /** The immutable per-turn context (RESOLVE + GATHER produce it; BUILD + SHAPE take it + a speaker). Most
  *  fields are optional so hand-built / preview / solo contexts degrade to byte-identical output (the §10.4
  *  degenerate-case doctrine: solo is the trivial roster, never an `if(isGroup)` branch). */
+/** How a turn's global plane stands. `staged`: the host is the room's only present human, so the host's plane
+ *  reads and the turn's writes commit with its reply. `held`: another human is present, and the macro engine
+ *  records no macro's author, so a member's text could write or read the host's plane: reads give "" and writes
+ *  are dropped, and the turn warns when either was asked for. */
+export type TurnGlobalVariablesMode = "staged" | "held";
+
+/** One turn's global plane: the read cache, the `{{setglobalvar}}` writes the commit drains, and the keys a
+ *  held plane refused to read. The arrays are the turn's own sinks, cleared after each commit. */
+export interface TurnGlobalVariables {
+  readonly mode: TurnGlobalVariablesMode;
+  readonly values: Record<string, string>;
+  readonly writes: { readonly key: string; readonly value: string }[];
+  readonly heldReads: string[];
+}
+
 export interface AssembleContext {
   /** The active/primary character for this turn. */
   character: AssembleCharacter;
@@ -763,6 +778,9 @@ export interface AssembleContext {
   /** The ORDERED log of variable mutations the macro engine records this turn — after the turn it IS the
    *  produced variant's `variable_delta`. Absent ⇒ mutations applied but not recorded (previews/tests). */
   opLog?: VarOp[] | undefined;
+  /** The turn's per-user global plane (D46), threaded BY REFERENCE like {@link AssembleContext.opLog}. Absent ⇒
+   *  `{{getglobalvar}}` reads "" and `{{setglobalvar}}` records nothing (previews). */
+  globalVariables?: TurnGlobalVariables | undefined;
   /** One-turn ephemeral guidance for the `{{guided_instruction}}` marker. NEVER persisted; ALWAYS dynamic. */
   guidedInstruction?: string | null;
   /** Set true when a `system`-placement guided steer FELL BACK to a depth-0 injection because the active

@@ -13,7 +13,16 @@
 // The foreign DTO supplies promptConfig/personas/globalRegexScripts/scanDepth/injectionTokenBudget/
 // memoryConfig (settings/preset/persona reads chat must not perform).
 
-import type { AssembleContext, ChatInjection, GuidedSteer, MacroFreezeRecord, MacroSlice, MemoryRecallSlice, MessageView } from "@orb/contracts/chat";
+import type {
+  AssembleContext,
+  ChatInjection,
+  GuidedSteer,
+  MacroFreezeRecord,
+  MacroSlice,
+  MemoryRecallSlice,
+  MessageView,
+  TurnGlobalVariables,
+} from "@orb/contracts/chat";
 import type { GenerationType } from "@orb/contracts/preset";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry, RandomSource } from "@orb/kit/macro";
@@ -310,6 +319,8 @@ export async function gatherAssembleContext(
     readonly triggerUserId?: UserId | null | undefined;
     /** The room seats more than one present human — carried onto the built ctx for SHAPE's name-stamp. */
     readonly multiHuman?: boolean | undefined;
+    /** The turn's per-user global plane; absent ⇒ none (a preview). */
+    readonly globalVariables?: TurnGlobalVariables | undefined;
     readonly pendingUserText?: string | undefined;
     readonly sendDraft?: string | undefined;
     /** The one-turn typed steer — threaded to the BUILD, which resolves the action template once and
@@ -484,6 +495,7 @@ export async function gatherAssembleContext(
       // on a present summary (a stale seq never trims); null/absent ⇒ no exclusion.
       compactedThroughSeq: chatRow?.compactedAtSeq,
       variableValues: mergedVariables,
+      ...(args.globalVariables !== undefined ? { globalVariables: args.globalVariables } : {}),
       injectionTokenBudget: foreign.injectionTokenBudget,
       hostTierRegexScripts,
       model,

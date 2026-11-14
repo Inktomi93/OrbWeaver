@@ -135,6 +135,17 @@ function plainNotice(code: PlainChatWarningCode): NotifyNotice {
         description: "The words came through, but the picture didn't save. Swiping again usually redraws it.",
         title: "A picture in this reply couldn't be saved",
       };
+    // Says where globals do work, so the reader knows the card is not broken.
+    case "global_variables_held":
+      return {
+        description: "This reply's prompt reads or sets global variables, which only run when you're the only person in the room.",
+        title: "Global variables were skipped in this shared room",
+      };
+    case "global_variable_dropped":
+      return {
+        description: "A card or preset tried to save a global variable that was too large or too many. The reply and the other variables saved.",
+        title: "A global variable wasn't saved",
+      };
     // Host-only by delivery: the reply stands, and members stop reading at the broken tag until the host mends it.
     case "hidden_tag_broken":
       return {

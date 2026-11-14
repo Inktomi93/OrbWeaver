@@ -170,6 +170,10 @@ export const AUTOMATION_RULE_DEFAULT_MAX_FIRES_PER_HOUR = 30;
 
 export const GLOBAL_VARIABLE_KEY_MAX_CHARS = 128;
 export const GLOBAL_VARIABLE_VALUE_MAX_BYTES = 65_536; // 64 KiB
+/** The distinct keys one chat turn's `{{setglobalvar}}` writes may store; card text is untrusted, so a later key is dropped. */
+export const GLOBAL_VARIABLE_TURN_WRITES_MAX = 16;
+/** A chat turn's `{{setglobalvar}}` creates no new key once its owner holds this many; it may still update a held key. */
+export const GLOBAL_VARIABLE_MACRO_KEYS_MAX = 256;
 
 const NUL = "\u0000";
 

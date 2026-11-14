@@ -24,9 +24,11 @@ import type {
   DurableChatBusEvent,
   GenerationObservationParent,
   MessageView,
+  PlainChatWarningCode,
   RpgTurnTranscriptMessage,
   TokenProvenance,
   TurnAbortReason,
+  TurnGlobalVariables,
   VariantMetadata,
 } from "@orb/contracts/chat";
 import {
@@ -49,6 +51,7 @@ import {
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { BatchStmt } from "@orb/db/query";
 import { isConstraintViolation } from "@orb/db/query";
+import { statementForOwner } from "@orb/db/wiring-owner";
 // A VALUE import from infra, unlike this file's other `#infra/providers` type-only imports: the fault-outcome
 // arm needs `instanceof` against the real class to read a thrown turn's OWN classification (see
 // `providerTerminalReason`). Legal in the tier order (domain sits ABOVE infra); the reverse edge is what
@@ -570,6 +573,18 @@ function buildCommitPlan(args: {
   };
 }
 
+/** The warning a committed turn owes for its global plane: a held plane that a macro read or wrote, or staged writes
+ *  a cap refused. */
+function globalVariablesWarning(globals: TurnGlobalVariables | undefined, dropped: number): PlainChatWarningCode | null {
+  if (globals === undefined) {
+    return null;
+  }
+  if (globals.mode === "held") {
+    return globals.writes.length > 0 || globals.heldReads.length > 0 ? "global_variables_held" : null;
+  }
+  return dropped > 0 ? "global_variable_dropped" : null;
+}
+
 /** Commits a turn's generation per the persist mode + the stats delta in one atomic batch, then emits
  *  `messageCommitted`. Funding stays frozen; retained accounting follows the canonical cohort. */
 async function commitGeneration(args: {
@@ -600,6 +615,8 @@ async function commitGeneration(args: {
   );
   const now = ctx.now();
   const variant = variantPayloadOf(prep, result, genStartedAt, genFinishedAt);
+  const globals = prep.assembleContext.globalVariables;
+  let droppedGlobalWrites = 0;
 
   const attempt = async (seq: number): Promise<MessageView> => {
     const { statements, speakerCharacterId, messageId, loadView } = buildCommitPlan({
@@ -651,6 +668,13 @@ async function commitGeneration(args: {
         ? [...currentDeltas, { seq, delta: turnDelta }]
         : currentDeltas.map((e) => (e.messageId === target.messageId ? { seq: e.seq, delta: turnDelta } : e));
     statements.push(runtimeVariablesUpdateStatement(ctx.db, prep.chatId, foldChain(postEntries)));
+    // The turn's `{{setglobalvar}}` writes commit with the reply (D337), so a failed or aborted turn stores none.
+    // A swipe re-renders and re-commits its writes: an upsert of the same key, never a second row.
+    if (globals?.mode === "staged" && globals.writes.length > 0) {
+      const planned = await ctx.globalVariableWriteStatements(prep.runAsUserId, globals.writes);
+      statements.push(...planned.statements.map(statementForOwner));
+      droppedGlobalWrites = planned.dropped.length;
+    }
 
     // THE WRITE FENCE — the LAST thing before the batch, and re-run on the seq-retry. Everything
     // above is in-memory statement building; this is where the turn stops being reversible.
@@ -677,7 +701,13 @@ async function commitGeneration(args: {
   // committed, and a retry on that same context wrote an empty `variableDelta`. The snapshot is taken at
   // `variantPayloadOf`; only the producer-state reset belongs here, and only on success.
   prep.assembleContext.opLog?.splice(0);
+  const globalWarning = globalVariablesWarning(globals, droppedGlobalWrites);
+  globals?.writes.splice(0);
+  globals?.heldReads.splice(0);
   await deps.emit({ type: "messageCommitted", chatId: prep.chatId, messageId: view.id, view, turnId: args.announcedTurnId });
+  if (globalWarning !== null) {
+    await deps.emit({ type: "warning", chatId: prep.chatId, code: globalWarning });
+  }
   // Decided here, not in the stream scrub: a turn commits one body, and it is the transformed text members actually read.
   // A scrub sees every delta, sees bytes a receive transform may still rewrite, and sees turns that never commit.
   if (concealsBrokenHiddenTag(view.content, view.finishReason !== null && CUT_OFF_FINISH_REASONS.has(view.finishReason))) {

@@ -2,6 +2,7 @@
 import type { DurableChatBusEvent, PromptTransformPoint, PromptTransformResult, ProviderWaitBusEvent, ToolCallRecord } from "@orb/contracts/chat";
 import type { ChatMembership } from "@orb/contracts/identity";
 import type { AttachmentQuality } from "@orb/contracts/inference";
+import type { StatementToken } from "@orb/db/wiring";
 import type { ChatToolDefinition, GeneratedImage, InferenceRuntime, Resolved, ToolCallInput } from "@orb/inference";
 import type { ContentImageRef } from "@orb/kit/content";
 import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageAssetId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
@@ -95,6 +96,20 @@ export type ResolveImageUrlOp = (params: {
 // Null drops only the refused picture, never the model's prose or a dangling canon asset reference.
 type StoreInlineReplyImageOp = (ownerId: UserId, image: GeneratedImage) => Promise<{ readonly assetId: AssetId } | null>;
 
+/** Why a turn's `{{setglobalvar}}` write was not stored: a key or value the plane refuses, a key past the turn's
+ *  write count, or a new key past the owner's key total. */
+export type GlobalVariableDropReason = "invalid" | "turn_cap" | "owner_cap";
+
+/** D337 — automation's upserts for one turn's global writes, unexecuted, for the reply's commit batch; the writes the
+ *  caps refuse come back as `dropped` instead. Last write per key wins. */
+export type GlobalVariableWriteStatementsOp = (
+  ownerId: UserId,
+  writes: readonly { readonly key: string; readonly value: string }[],
+) => Promise<{
+  readonly statements: readonly StatementToken[];
+  readonly dropped: readonly { readonly key: string; readonly reason: GlobalVariableDropReason }[];
+}>;
+
 export interface EngineContext extends Pick<ChatAccountingContext, "db" | "now" | "applyStatsDelta" | "resolveRetainedChatAccountingScope"> {
   readonly logger: Logger;
   /** The root's trace ring the engine's detached post-turn roots seal into. */
@@ -119,6 +134,7 @@ export interface EngineContext extends Pick<ChatAccountingContext, "db" | "now" 
   readonly storeInlineReplyImage: StoreInlineReplyImageOp;
   readonly promptTransforms: ApplyPromptTransformsOp | null;
   readonly rpg: RpgTurnOps | null;
+  readonly globalVariableWriteStatements: GlobalVariableWriteStatementsOp;
 }
 
 // Collect forbidden keys before intersecting so a narrow union member cannot hide a wider one.

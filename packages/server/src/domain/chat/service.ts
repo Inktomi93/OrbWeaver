@@ -99,6 +99,7 @@ export function createChatService(
       resolveImageUrl: ctx.resolveImageUrl,
       storeInlineReplyImage: ctx.storeInlineReplyImage,
       promptTransforms: ctx.promptTransforms,
+      globalVariableWriteStatements: ctx.globalVariableWriteStatements,
       timers: ctx.timers,
       ...(ctx.backgroundSignal === undefined ? {} : { backgroundSignal: ctx.backgroundSignal }),
       trackBackground: ctx.trackBackground,

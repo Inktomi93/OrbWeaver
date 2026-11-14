@@ -20,6 +20,7 @@ export const JOINT_BATCH_RULINGS = [
       { owner: "rpg", op: "rpgRestoreStatement" },
       { owner: "chat", op: "NotificationsEmitOp" },
       { owner: "chat", op: "claimStatement" },
+      { owner: "automation", op: "globalVariableWriteStatements" },
       { owner: "chat", op: "reseatPersonaSeatsStatement" },
     ],
   },
