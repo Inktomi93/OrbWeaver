@@ -38,6 +38,7 @@ import type { Args } from "../../contract/types.ts";
 import { DESIGN_AUDIT_SESSION_CALL_BASE_MS } from "../../lib/budgets.ts";
 import { designAuditProblems } from "../../lib/design-audit-problems.ts";
 import { designAuditDenominators, designAuditPairs, printDesignAudit } from "../../lib/design-audit-report.ts";
+import { diskSafeUrl } from "../../lib/disk-safe-argv.ts";
 import type { DesignAuditMeasurement } from "../design-audit-walk.ts";
 import { walkDesignAudit } from "../design-audit-walk.ts";
 
@@ -104,7 +105,7 @@ async function writeAuditArtifact(name: string, opts: Args, measurement: DesignA
     `${JSON.stringify(
       {
         contract: "snap-design-audit-v1",
-        route: opts.route,
+        route: diskSafeUrl(opts.route),
         url: measurement.url,
         viewport: opts.viewport,
         device: opts.device,

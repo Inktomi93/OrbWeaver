@@ -5,17 +5,18 @@ import { DEFAULT_BASE } from "../../floor/browser/browser.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { ORB_APP_PORT_NUMBERS } from "../../floor/host/ports.ts";
 import type { Args } from "../contract/types.ts";
+import { diskSafeUrl } from "../lib/disk-safe-argv.ts";
 import { knownRouteSections, serverRouteSegments, staticRouteSegments } from "../lib/section-ids.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
-/** `/<segment>` (and nothing past the first `/` or `?`) is the one shape `resolveSectionPath` reads;
+/** `/<segment>` (and nothing past the first `/`, `?` or `#`) is the one shape `resolveSectionPath` reads;
  *  the bare root `/` and a non-route target (`--file`, a raw URL passed as `--base`) carry no segment. */
 function routeSegment(route: string): string | null {
   if (!route.startsWith("/") || route === "/") {
     return null;
   }
-  const segment = route.slice(1).split(/[/?]/u)[0] ?? "";
+  const segment = route.slice(1).split(/[/?#]/u)[0] ?? "";
   return segment === "" ? null : segment;
 }
 
@@ -40,7 +41,7 @@ export function validateRouteSection(args: Args): string[] {
     return [];
   }
   return [
-    `route "${args.route}" names the unknown section "${segment}" — the app renders its not-found page there, ` +
+    `route "${diskSafeUrl(args.route)}" names the unknown section "${segment}" — the app renders its not-found page there, ` +
       "not the section, so a snap of it reports the not-found render rather than the surface you asked for. " +
       `Valid sections: ${sections.join(", ")}; other routes: ${statics.join(", ")}. To reach a Configuration group, drive client state instead of a URL: ` +
       "--goto config:<group> — pnpm snap --map --atlas lists the live groups.",
