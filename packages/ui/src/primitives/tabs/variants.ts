@@ -1,4 +1,4 @@
-import { COLOR_MOTION, DISABLED_STATE, FOCUS_RING, FOCUS_RING_INSET, GROUND, GROW, SCROLLER_Y, tv } from "#lib";
+import { CAP, COLOR_MOTION, DISABLED_STATE, FOCUS_RING, FOCUS_RING_INSET, GROUND, GROW, SCROLLER_Y, tv } from "#lib";
 import type { Tone } from "#tokens";
 
 // The tabs skin (D62 UIP-307) — an UNDERLINE strip, not a segmented pill: the list is a plain row
@@ -138,12 +138,24 @@ export const TABS_ACCENT_TONE = "primary" satisfies Tone;
 
 export const tabsListBoxVariants = tv({
   variants: {
-    // How the list lays its tabs: `cells` an equal track per tab, `strip` one line that scrolls inside the row inset.
+    // How the list lays its tabs: `fit` the tabs' own width up to the pane, `cells` an equal track per tab, `strip` one line that scrolls inside the row
+    // inset, `free` the tabs' own width with no cap, for a caller whose own wrapper is the scroll box.
+    //
+    // `fit` is the default because a `fit-content` list of nowrap tabs measures its whole content, so a pane narrower than the tabs (enlarged text on a
+    // phone) was widened by the list instead of clipping it. The cap makes the list the scroll box. A scroll box clips its block axis too, and the tab's
+    // offset ring paints outside the tab, so the list pays the ring's headroom as block padding: the tab, not the list's edge, stays where the eye puts it.
+    //
     // THE READABLE-CAPTION FLOOR, ON EVERY RAIL. In `minmax(max-content, 1fr)` the `1fr` keeps the cells equal columns filling the rail whenever there is
     // slack (the owner ruling against "bitsy buttons bunched left"), and the `max-content` refuses to shrink a cell below its whole caption, so the tracks
     // overflow and scroll: degrade to a scroll, never into an ellipsis. Not gated on the cell count: at the narrowest pane even four equal cells clip a caption.
-    track: { cells: "grid auto-cols-[minmax(max-content,1fr)] grid-flow-col gap-tight overflow-x-auto", strip: "flex-nowrap overflow-x-auto px-row" },
+    track: {
+      fit: `${CAP.fit} data-[orientation=horizontal]:overflow-x-auto data-[orientation=horizontal]:py-tight`,
+      free: "",
+      cells: "grid auto-cols-[minmax(max-content,1fr)] grid-flow-col gap-tight overflow-x-auto",
+      strip: "flex-nowrap overflow-x-auto px-row",
+    },
   },
+  defaultVariants: { track: "fit" },
 });
 
 export const tabsPanelBoxVariants = tv({
