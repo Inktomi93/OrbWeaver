@@ -16,15 +16,28 @@ import {
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
-import { CHARACTER_DESCRIPTION_FIELD_NAME, CHARACTER_NAME_FIELD_NAME, CHARACTER_NEW_NAME } from "#client/features/character/lib/character-names.ts";
+import {
+  CHARACTER_DESCRIPTION_FIELD_NAME,
+  CHARACTER_NAME_FIELD_NAME,
+  CHARACTER_NEW_DESCRIPTION,
+  CHARACTER_NEW_NAME,
+} from "#client/features/character/lib/character-names.ts";
 import { characterRefusalCopy } from "#client/features/character/lib/character-refusal-notice.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
+import { BAND_NEW_LABEL } from "#client/lib/list-band-names.ts";
 
+// The band says the word where there is room, and the phone's icon names itself in full.
+const NEW_DOOR = new RegExp(`^(?:${BAND_NEW_LABEL}|${CHARACTER_NEW_NAME})$`, "u");
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const READ_PROCEDURES = [...SECTION_PROCEDURES, "tag.listTagFilterVocabulary"] as const;
 const TAKEN = "Held name";
 // What the client holds once the wire answers the held create with the coded reason.
 const HANDLE_CONFLICT = { data: { reason: CHARACTER_HANDLE_CONFLICT_OP_CODE } } as const;
+
+const REGIMES = [
+  { name: "desktop 1440px", viewport: { width: 1440, height: 900 }, coarse: false },
+  { name: "phone 390px", viewport: { width: 390, height: 844 }, coarse: true },
+] as const;
 
 type Corpus = Parameters<typeof createShellAmbientReads>[0];
 type Harness = Awaited<ReturnType<typeof createCorpusHarness>>;
@@ -60,7 +73,7 @@ function refusalToast(page: Page): Locator {
 }
 
 async function submitTakenName(page: Page, held: HeldRefusal): Promise<void> {
-  await page.getByRole("button", { name: CHARACTER_NEW_NAME, exact: true }).first().click();
+  await page.getByRole("button", { name: NEW_DOOR }).first().click();
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("textbox", { name: CHARACTER_NAME_FIELD_NAME, exact: true }).fill(TAKEN);
   await dialog.getByRole("textbox", { name: CHARACTER_DESCRIPTION_FIELD_NAME, exact: true }).fill("A second card.");
@@ -103,3 +116,31 @@ test("a name refusal that lands while the dialog is open is said in the dialog",
   held.land();
   await expect(page.getByRole("dialog").getByRole("alert")).toBeVisible();
 });
+
+function fontSizeOf(node: Locator): Promise<number> {
+  return node.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
+}
+
+for (const regime of REGIMES) {
+  test.describe(regime.name, () => {
+    test.use({ viewport: regime.viewport, isMobile: regime.coarse, hasTouch: regime.coarse });
+
+    test("the name refusal reads at least as large as the description it qualifies", async ({ corpus, mount, page }) => {
+      await using root = await createCorpusHarness(undefined, { startJobs: false });
+      const held = await heldHandleRefusal(root, page, corpus);
+      await mount<typeof ShellAmbientStory>(STORY, {});
+      await submitTakenName(page, held);
+
+      held.land();
+      const dialog = page.getByRole("dialog");
+      const refusal = dialog.getByRole("alert");
+      const description = dialog.getByText(CHARACTER_NEW_DESCRIPTION, { exact: true });
+      await expect(refusal).toBeVisible();
+      await expect(description).toBeVisible();
+      const [refusalSize, descriptionSize] = await Promise.all([fontSizeOf(refusal), fontSizeOf(description)]);
+      // The control: the description is a real, painted step, so "at least as large" cannot pass on two zeros.
+      expect(descriptionSize).toBeGreaterThan(0);
+      expect(refusalSize).toBeGreaterThanOrEqual(descriptionSize);
+    });
+  });
+}

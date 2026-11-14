@@ -87,6 +87,9 @@ export function characterShowMoreTagsName(count: string): string {
 /** The band's icon-only door to the import dialog, and that dialog's name. */
 export const CHARACTER_IMPORT_NAME = "Import a character card";
 
+/** The create dialog's supporting line under its title. */
+export const CHARACTER_NEW_DESCRIPTION = "Give them a name and a one-line description. You can flesh out the rest in the editor.";
+
 /** The create dialog's name field. */
 export const CHARACTER_NAME_FIELD_NAME = "Character name";
 
