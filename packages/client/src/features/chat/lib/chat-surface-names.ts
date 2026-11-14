@@ -43,6 +43,9 @@ export const CHAT_DELETE_MESSAGE_TITLE = "Delete this message?";
 /** The gallery add-picker's exit to the upload zone. */
 export const CHAT_GALLERY_UPLOAD_INSTEAD_NAME = "Upload instead";
 
+/** The gallery add-picker's commit. */
+export const CHAT_GALLERY_ADD_SELECTED_NAME = "Add selected";
+
 /** The gallery add-picker's image grid. */
 export const CHAT_GALLERY_IMAGES_NAME = "Your images";
 

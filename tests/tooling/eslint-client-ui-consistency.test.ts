@@ -164,6 +164,18 @@ test("a component-tier composer cannot reach the raw dialog either; the composit
   expect(await findings("orb/dialog-via-composite", raw, "packages/client/src/components/content-dialog.tsx")).toEqual([]);
 });
 
+test("a feature builds no dialog footer or exit of its own; an empty state's action may close its dialog", async () => {
+  const footer = "export const A = () => <DialogFooter><Button>Add</Button></DialogFooter>;";
+  const exit = "export const A = () => <Stack><DialogClose render={<Button>Cancel</Button>} /></Stack>;";
+  const emptyAction = 'export const A = () => <EmptyState title="None" action={<DialogClose render={<Button>Close</Button>} />} />;';
+  expect(await findings("orb/dialog-via-composite", footer)).toHaveLength(1);
+  expect(await findings("orb/dialog-via-composite", exit)).toHaveLength(1);
+  expect(await findings("orb/dialog-via-composite", emptyAction)).toEqual([]);
+  // A close inside some other prop of an empty state is still a hand-built exit.
+  expect(await findings("orb/dialog-via-composite", emptyAction.replace("action=", "icon="))).toHaveLength(1);
+  expect(await findings("orb/dialog-via-composite", footer, "packages/client/src/components/commit-row.tsx")).toEqual([]);
+});
+
 const DIALOG_FAILURE = "orb/dialog-failure-via-owner";
 
 // The shapes of the hand-spelled failure lines `DialogFailure` replaced, each reduced to the dialog and the local components between

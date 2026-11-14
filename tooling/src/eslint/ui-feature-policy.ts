@@ -193,6 +193,19 @@ export const UI_FEATURE_RESTRICTIONS = [
         message:
           "A raw dialog part from @orb/ui/dialog outside the composites: use FormDialog to commit, DismissDialog, ContentDialog, FlowDialog, ViewerDialog or PickerDialog for nothing to commit, or ConfirmDialog for an alert.",
       },
+      {
+        // A hand-built footer skips the composite's exit and submit contract.
+        selector: "JSXOpeningElement[name.name='DialogFooter']",
+        message:
+          "A hand-built dialog footer: a commit footer is `CommitFooter` (or FormDialog's own), and a footer of actions is the `footer` of ContentDialog, FlowDialog or PickerDialog.",
+      },
+      {
+        // Leaving is the one act an empty dialog has, so an `EmptyState` action may close it; every other exit is the composite's.
+        selector:
+          "JSXOpeningElement[name.name='DialogClose']:not(JSXOpeningElement[name.name='EmptyState'] > JSXAttribute[name.name='action'] JSXOpeningElement)",
+        message:
+          "A hand-built dialog exit: the composite draws the way out (Cancel, Back, a dismiss label or the corner close). Only an EmptyState action may close a dialog.",
+      },
     ],
   },
   {

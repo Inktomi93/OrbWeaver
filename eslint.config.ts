@@ -2082,7 +2082,11 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     {
       files: ["packages/client/src/features/**/*.{ts,tsx}", "packages/client/src/components/**/*.{ts,tsx}"],
       // The composites themselves: each types the way out a raw dialog could lose.
-      ignores: homes("packages/client/src/components/content-dialog.tsx", "packages/client/src/components/form-dialog.tsx"),
+      ignores: homes(
+        "packages/client/src/components/commit-row.tsx",
+        "packages/client/src/components/content-dialog.tsx",
+        "packages/client/src/components/form-dialog.tsx",
+      ),
       rules: { "orb/dialog-via-composite": "error" },
     },
     {
