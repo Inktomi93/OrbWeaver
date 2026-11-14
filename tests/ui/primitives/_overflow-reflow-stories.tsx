@@ -66,6 +66,22 @@ export function ToggleGroupFillStory(): ReactElement {
   );
 }
 
+/** A Button and a Toggle that ask to wrap, each carrying the one long word, in a phone-wide column. */
+export function WrapControlsStory(): ReactElement {
+  return (
+    <CtIsolation subject="Button and Toggle" isolates="The shared multiline break rule against one word wider than the column">
+      <Stack data-probe="column" gap="row">
+        <Button wrap={true} variant="outline">
+          {LONG_WORD}
+        </Button>
+        <Toggle aria-label="Wrapping toggle" wrap={true}>
+          {LONG_WORD}
+        </Toggle>
+      </Stack>
+    </CtIsolation>
+  );
+}
+
 const LONG_LINE = "A line of running copy far longer than the phone column, with spaces in it, that a span is asked to cut with an ellipsis. ".repeat(3);
 
 /** A truncating span inside a paragraph (an inline context), and the same span as a flex item (a blockified one). */

@@ -1,12 +1,13 @@
 // @subject packages/ui/src/primitives/accordion/variants.ts
 // @subject packages/ui/src/primitives/tooltip/variants.ts
 // @subject packages/ui/src/primitives/toggle-group/variants.ts
+// @subject packages/ui/src/lib/control-wrap.ts
 // @subject packages/ui/src/primitives/text/variants.ts
 // Shared primitives at the browser's enlarged text on a phone: an open accordion panel leaves the focus ring of a control flush with its inline
 // edge whole, a tooltip breaks a word wider than its measure inside its popup, and an equal-cell toggle strip keeps a one-word label inside its cell.
 import { LAYOUT_SUBPIXEL_PX, PLATFORM_TEXT_SCALES, ringCuts, setPlatformTextSize } from "@orb/testkit/browser/spec";
 import { expect, test } from "@playwright/test";
-import type { AccordionEdgeStory, ToggleGroupFillStory, TooltipLongWordStory, TruncatingSpansStory } from "./_overflow-reflow-stories.tsx";
+import type { AccordionEdgeStory, ToggleGroupFillStory, TooltipLongWordStory, TruncatingSpansStory, WrapControlsStory } from "./_overflow-reflow-stories.tsx";
 
 const STORIES = "tests/ui/primitives/_overflow-reflow-stories";
 const PHONE_WIDTH = 390;
@@ -84,6 +85,34 @@ for (const scale of PLATFORM_TEXT_SCALES) {
       expect(reach.column).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
       await expect(column).toBeVisible();
     });
+  });
+}
+
+for (const scale of PLATFORM_TEXT_SCALES) {
+  test(`at ${String(scale * 100)}% text a Button and a Toggle that wrap break one long word inside their column`, async ({ browserName, mount, page }) => {
+    test.skip(browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
+    await using _textSize = await setPlatformTextSize(page, scale);
+    const component = await mount<typeof WrapControlsStory>(`${STORIES}/WrapControlsStory`, {});
+    const controls = component.locator('[data-probe="column"] button');
+    await expect(controls).toHaveCount(2);
+    const overshoot = await controls.evaluateAll((nodes) =>
+      nodes.map((control) => {
+        const host = control.closest('[data-probe="column"]');
+        if (host === null) {
+          throw new Error("the controls sit in their column");
+        }
+        const text = document.createRange();
+        text.selectNodeContents(control);
+        return Math.max(
+          0,
+          text.getBoundingClientRect().right - control.getBoundingClientRect().right,
+          control.getBoundingClientRect().right - host.getBoundingClientRect().right,
+        );
+      }),
+    );
+    for (const past of overshoot) {
+      expect(past).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
+    }
   });
 }
 
