@@ -362,6 +362,8 @@ async function rowsOf(h: ChatRoot, ownerId: UserId): Promise<{ readonly key: str
     .orderBy(asc(globalVariables.key));
 }
 
+// A handoff without copies takes the prior host's chat books and scripts out of the room, so their later edits never
+// reach the prompt; the plane holds besides, as the room was shared.
 test("a prior host's chat book and chat regex, edited after they left, neither read nor write the new host's plane", async () => {
   await using h = await textRoom(["ok"]);
   const prior = h.owner;
@@ -395,12 +397,13 @@ test("a prior host's chat book and chat regex, edited after they left, neither r
   using warnings = warningsOf(h);
 
   const wire = await sentText(h, host, "hello there");
-  expect(wire).toContain("Room lore");
+  expect(wire).toContain("The host's own.");
+  expect(wire).not.toContain("Room lore");
   expect(wire).not.toContain("secret");
   expect(await rowsOf(h, host.userId)).toEqual([{ key: "mood", value: "secret" }]);
-  expect(warnings.codes).toEqual(["global_variables_held"]);
+  expect(warnings.codes).toEqual([]);
   await reinvite(h, host, prior);
-  expect(await h.root.services.chat.getRuntimeVariables({ principal: prior, chatId: h.chatId })).toMatchObject({ leak: "" });
+  expect(await h.root.services.chat.getRuntimeVariables({ principal: prior, chatId: h.chatId })).not.toHaveProperty("leak");
 });
 
 test("a prior host's author's note neither reads nor writes the new host's plane, whether the prior host left or stayed", async () => {
