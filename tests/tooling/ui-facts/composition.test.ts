@@ -876,3 +876,33 @@ test("every modal popover is a census site with its trigger; an unfenced popover
   const section = lines.slice(lines.indexOf("### Modal popovers"));
   expect(section.filter((line) => line.startsWith(`| ${path}:`))).toHaveLength(5);
 });
+
+/** Each member of the named cohort as the line and value of one column. */
+function cohortCells(root: string, name: string, column: string): readonly (readonly [number | undefined, string | undefined])[] {
+  const members = analyse(root, [], null).cohorts.find((entry) => entry.name === name)?.members ?? [];
+  return members.map((entry) => [entry.cells[column]?.line, entry.cells[column]?.value] as const);
+}
+
+test("a toned Card with a status fill is a hand-built notice beside the Notice owner, and a Card without a tone or a fill is no member", ({ scratch }) => {
+  const root = plantDir(scratch, "notice");
+  plant(root, {
+    "components/boxes.tsx": [
+      'import { Card } from "@orb/ui/card";',
+      'import { Notice } from "#components";',
+      "export const A = ({ tone }) => (",
+      "  <>",
+      '    <Card tone="warning" variant="soft">x</Card>',
+      "    <Card tone={tone} variant={tone}>x</Card>",
+      '    <Card variant="soft">x</Card>',
+      '    <Card tone="info">x</Card>',
+      '    <Notice tone="warning" title="t" />',
+      "  </>",
+      ");",
+    ].join("\n"),
+  });
+  expect(cohortCells(root, "notice", "composite")).toEqual([
+    [5, "hand-built"],
+    [6, "hand-built"],
+    [9, "Notice"],
+  ]);
+});

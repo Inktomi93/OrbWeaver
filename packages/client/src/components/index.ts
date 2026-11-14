@@ -36,6 +36,7 @@ export { MacroBrowser } from "./macro-browser.tsx";
 export { SCHEDULE_SAVE_ESTIMATE_FAILED, SCHEDULE_SAVE_OWNER_ONLY } from "./model-run-confirm-copy.ts";
 export type { ModelRunConfirmDialogProps } from "./model-run-confirm-dialog.tsx";
 export { ModelRunConfirmDialog } from "./model-run-confirm-dialog.tsx";
+export { Notice } from "./notice.tsx";
 export type { OverflowAction } from "./overflow-actions.tsx";
 export { OverflowActions, OverflowMenuForms } from "./overflow-actions.tsx";
 export { PanelEdgeControl } from "./panel-edge-control.tsx";

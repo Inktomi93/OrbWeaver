@@ -15,7 +15,7 @@ import {
   mounted,
   SLOT_HOPS,
 } from "../eslint/index.ts";
-import type { Cell, Cohort, Member } from "../floor/verdict/cohort-compare.ts";
+import type { Cell, Cohort, KeptRead, Member } from "../floor/verdict/cohort-compare.ts";
 import { NOT_APPLICABLE } from "../floor/verdict/cohort-compare.ts";
 
 const cell = (value: string, line: number): Cell => ({ value, line });
@@ -294,6 +294,60 @@ function modalPopoverMembers(facts: FileFacts): readonly Member[] {
   });
 }
 
+// ── notices ──────────────────────────────────────────────────────────────────────────────────────
+
+const NOTICE = "Notice";
+const HAND_BUILT = "hand-built";
+// A Card in a colour tone with the soft or outline fill is a status box (UI-Density-Law §4.3, the Card `variant` row).
+const STATUS_FILLS = new Set(["soft", "outline"]);
+const NOTICE_SITES = "packages/client/src/components/notice.tsx";
+
+const kept = (path: string, label: string, count: number, reason: string): KeptRead => ({ path, label, value: HAND_BUILT, count, reason });
+const CHOICE_ISLAND = "a choice island: the options a turn offers as a set of buttons, not one condition and its recovery";
+const NOTICE_KEPT: readonly KeptRead[] = [
+  kept(
+    "packages/client/src/features/chat/components/composer-drop-target.tsx",
+    "Card",
+    1,
+    "a drop affordance, not a status box (docs/plans/cross-surface-consistency/design.md, Empty states)",
+  ),
+  kept("packages/client/src/features/chat/components/message-choices-block.tsx", "Card", 1, CHOICE_ISLAND),
+  kept("packages/client/src/features/rpg/components/rpg-choice-echo.tsx", "Card", 1, CHOICE_ISLAND),
+  kept(
+    "packages/client/src/features/refinery/components/payload-view.tsx",
+    "Card",
+    1,
+    "the verdict banner: a run's verdict heading, its prose and its gauge, tinted by the schema author's tone map",
+  ),
+  kept(
+    "packages/client/src/features/rpg/components/rpg-veiled-section.tsx",
+    "Card",
+    2,
+    "a veiled ledger row: a host-only record with its turn and a reveal gate, one row per lie or hidden line",
+  ),
+];
+
+/** A toned Card with a status fill, written in a feature: a notice the feature drew by hand. */
+function handBuiltNotice(elem: Elem): boolean {
+  const fill = elem.attrs.get("variant");
+  const literal = attrString(fill);
+  return elem.tag === "Card" && elem.attrs.has("tone") && fill !== undefined && (literal === undefined || STATUS_FILLS.has(literal));
+}
+
+function noticeMembers(facts: FileFacts): readonly Member[] {
+  if (facts.source.path === NOTICE_SITES) {
+    return [];
+  }
+  return facts.elems.flatMap((elem) => {
+    if (elem.tag === NOTICE) {
+      return [member(facts, NOTICE, { composite: cell(NOTICE, elem.line), tone: cell(attrString(elem.attrs.get("tone")) ?? RUNTIME, elem.line) })];
+    }
+    return inFeature(facts) && handBuiltNotice(elem)
+      ? [member(facts, "Card", { composite: cell(HAND_BUILT, elem.line), tone: cell(attrString(elem.attrs.get("tone")) ?? RUNTIME, elem.line) })]
+      : [];
+  });
+}
+
 // ── destructive actions ──────────────────────────────────────────────────────────────────────────
 
 const DESTRUCTIVE_WORD = /^(?:Restore|Delete|Remove|Reset|Discard|Clear|Revert|Drop|Wipe|Erase|Overwrite|Replace)\b/iu;
@@ -546,6 +600,16 @@ export function buildCohorts(all: readonly FileFacts[]): readonly Cohort[] {
       columns: [],
       info: ["modal", "trigger"],
       members: client.flatMap(modalPopoverMembers),
+    },
+    {
+      name: "notice",
+      what: "status boxes: the Notice composite, and every toned soft or outline Card a feature draws",
+      columns: ["composite"],
+      info: ["tone"],
+      // One notice composite owns a status box (packages/client/src/components/notice.tsx header).
+      defects: { composite: [HAND_BUILT] },
+      keptReads: { composite: NOTICE_KEPT },
+      members: client.flatMap(noticeMembers),
     },
     {
       name: "context-tab",
