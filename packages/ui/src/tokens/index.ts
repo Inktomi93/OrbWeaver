@@ -236,7 +236,7 @@ export const TOKENS = {
   "opacity.receded": { cssVar: "--opacity-receded", value: "60%" },
   "opacity.muted-seat": { cssVar: "--opacity-muted-seat", value: "84%" },
   "opacity.faint": { cssVar: "--opacity-faint", value: "40%" },
-  "opacity.disabled": { cssVar: "--opacity-disabled", value: "50%" },
+  "opacity.disabled": { cssVar: "--opacity-disabled", value: "55%" },
   "opacity.dragging": { cssVar: "--opacity-dragging", value: "50%" },
   "opacity.loading": { cssVar: "--opacity-loading", value: "70%" },
   "opacity.hover": { cssVar: "--opacity-hover", value: "80%" },

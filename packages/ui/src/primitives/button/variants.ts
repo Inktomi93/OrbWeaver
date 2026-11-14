@@ -62,12 +62,15 @@ export const buttonVariants = tv({
     justify: { start: "justify-start text-start", between: "justify-between" },
     // THE FILL STYLE (D336), painted only with the roles of the stamped tone, so every tone works with every style.
     variant: {
-      // A disabled solid drops its fill for the neutral muted pair (a half-opacity fill read as nearly enabled).
+      // A disabled solid drops its fill for the neutral muted pair at full opacity (a half-opacity fill read as nearly enabled, and the pair dimmed again fell under the legibility floor).
       // A busy (`loading`) button is disabled too but is working, so it keeps its fill; `primitives.css` quiets its ring to match.
       solid: [
         "bg-tone-solid text-tone-foreground hover:bg-tone-solid-hover active:bg-tone-solid-active",
-        "disabled:not-aria-busy:bg-muted disabled:not-aria-busy:text-muted-foreground disabled:not-aria-busy:shadow-none",
-        "data-disabled:not-aria-busy:bg-muted data-disabled:not-aria-busy:text-muted-foreground data-disabled:not-aria-busy:shadow-none",
+        "disabled:not-aria-busy:bg-muted disabled:not-aria-busy:text-muted-foreground disabled:not-aria-busy:opacity-100 disabled:not-aria-busy:shadow-none",
+        `
+          data-disabled:not-aria-busy:bg-muted data-disabled:not-aria-busy:text-muted-foreground data-disabled:not-aria-busy:opacity-100
+          data-disabled:not-aria-busy:shadow-none
+        `,
       ],
       // The resting hairline: a secondary action, or a filter chip in a wrapping rail, where the drawn edge is what
       // makes the pill radius read at all.

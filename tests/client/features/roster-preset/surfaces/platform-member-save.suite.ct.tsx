@@ -3,6 +3,7 @@ import { rulePresetKnobBagToInputs } from "@orb/contracts/automation";
 import { createRosterPresetSchema } from "@orb/contracts/roster-preset";
 import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { StreamFrame } from "@orb/contracts/stream";
+import { readSurfaceDesignAudit } from "@orb/testkit/browser/spec";
 import type { ServedHold, TrpcRecorder } from "@orb/testkit/ct";
 import { holdServed, routeOrbSocket, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -124,6 +125,11 @@ test("a successful own save acknowledges the saved baseline and preserves every 
   const editor = page.locator('[data-slot="roster-member-editor"]');
   const save = editor.getByRole("button", { name: DIALOG_VERBS.save, exact: true });
   await expect(save).toBeDisabled();
+  const { audit } = await readSurfaceDesignAudit(page);
+  expect(
+    audit.findings.filter(({ rule }) => rule === "inactive-control-legibility").map(({ selector, value }) => `${selector} ${value}`),
+    "the design audit finds the disabled Save legible",
+  ).toEqual([]);
   await editor.getByRole("textbox", { name: ROSTER_NAME_FIELD_NAME, exact: true }).fill(` ${SAVED_NAME} `);
   await editor.getByRole("textbox", { name: ROSTER_DESCRIPTION_FIELD_NAME, exact: true }).fill("The saved description.");
   await expect(save).toBeEnabled();
