@@ -84,7 +84,12 @@ function respell(specifier: string, importer: string, moved: string, plan: Reado
       return null;
     }
     const spelled = relativeSpecifier(dirOf(moved), next);
-    return spelled === specifier ? null : spelled;
+    // Inside one package's source a relative import climbs at most one directory (`package-parent-climb`);
+    // a deeper target is spelled through the package's own alias instead.
+    const movedSrc = PACKAGE_SRC.exec(moved)?.[1];
+    const deepInSrc = spelled.startsWith("../../") && movedSrc !== undefined && next.startsWith(`${movedSrc}/`);
+    const final = deepInSrc ? `${SRC_ALIAS}${next.slice(movedSrc.length + 1)}` : spelled;
+    return final === specifier ? null : final;
   }
   const src = PACKAGE_SRC.exec(importer)?.[1];
   if (specifier.startsWith(SRC_ALIAS) && src !== undefined) {
