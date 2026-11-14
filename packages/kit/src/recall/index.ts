@@ -1,8 +1,8 @@
 // Pure rules of memory recall: the tiered bridge over a pool of digest positions, the query shape, the `{{memory}}` block format,
-// the block identity string and the live-window boundary. Rows arrive as structural shapes so the rules name no
+// the block identity string, the live-window boundary and which digests a player's strikes leave out. Rows arrive as structural shapes so the rules name no
 // domain type.
 
-import type { CharacterId, ChatId } from "#ids";
+import type { CharacterId, ChatId, MessageId } from "#ids";
 
 /** The block-level identity of one digest/segment block. `search.corpus` dedupes ranked blocks by this
  *  key, and `memory`'s tiered bridge passes the surviving keys as `MemoryQueryOptions.candidates`.
@@ -158,6 +158,70 @@ export function formatMemory<K extends BlockKey>(
     }
   }
   return { text: parts.join("\n\n"), rendered };
+}
+
+/** A player's strike as recall matches it. `scopedCharacterId` null names the room's shared bucket, whichever
+ *  character holds it this turn. The endpoints are the covered span's first and last message ids. */
+export interface RecallStrike {
+  readonly scopedCharacterId: CharacterId | null;
+  readonly tier: number;
+  readonly messageStartId: MessageId;
+  readonly messageEndId: MessageId;
+  readonly contentHash: string;
+}
+
+/** A pooled digest as strike matching reads it: its grid position, bucket, staleness hash and resolved span
+ *  endpoints. `span` is null when the span cannot be resolved from stored segments. */
+export interface StrikeCandidate extends BridgeRow {
+  readonly contentHash: string;
+  readonly span: { readonly startId: MessageId; readonly endId: MessageId } | null;
+}
+
+/** Which pooled digests a room's strikes leave out: each struck digest with the strike that names it, and each
+ *  same-bucket consolidation whose tier-0 range covers a struck digest, because it retells the struck scene. */
+export interface StrikeMatch<R, S> {
+  readonly struck: ReadonlyMap<R, S>;
+  readonly coversStruck: ReadonlySet<R>;
+}
+
+/** Match strikes to pooled digests. A strike names a digest when bucket and tier agree and either its span
+ *  endpoints are the digest's or its stored hash is the digest's current hash. Grid position alone never matches:
+ *  a re-sliced block at the same position covers different messages. */
+export function matchStrikes<R extends StrikeCandidate, S extends RecallStrike>(
+  rows: readonly R[],
+  strikes: readonly S[],
+  grid: { readonly sharedBucket: CharacterId; readonly fanOut: number },
+): StrikeMatch<R, S> {
+  const struck = new Map<R, S>();
+  if (strikes.length === 0) {
+    return { struck, coversStruck: new Set() };
+  }
+  for (const row of rows) {
+    const strike = strikes.find(
+      (s) =>
+        (s.scopedCharacterId ?? grid.sharedBucket) === row.scopedCharacterId &&
+        s.tier === row.tier &&
+        (s.contentHash === row.contentHash || (row.span !== null && row.span.startId === s.messageStartId && row.span.endId === s.messageEndId)),
+    );
+    if (strike !== undefined) {
+      struck.set(row, strike);
+    }
+  }
+  const coversStruck = new Set<R>();
+  for (const row of rows) {
+    if (struck.has(row)) {
+      continue;
+    }
+    const range = tier0RangeOf(grid.fanOut, row.tier, row.blockIdx);
+    for (const hit of struck.keys()) {
+      const inner = tier0RangeOf(grid.fanOut, hit.tier, hit.blockIdx);
+      if (hit.scopedCharacterId === row.scopedCharacterId && row.tier > hit.tier && range.startIdx <= inner.startIdx && inner.endIdx <= range.endIdx) {
+        coversStruck.add(row);
+        break;
+      }
+    }
+  }
+  return { struck, coversStruck };
 }
 
 /**

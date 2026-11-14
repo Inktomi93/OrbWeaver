@@ -42,6 +42,8 @@ const RECALL_VERDICT_LABEL: Record<MemoryRecallVerdict, string> = {
   "mode-excluded": "not eligible in this mode",
   "live-window": "still in the live history",
   unwitnessed: "not witnessed by this speaker",
+  struck: "struck by the host",
+  "covers-struck": "retells a struck memory",
 };
 
 /** `relevance` is cosine similarity in 0..1; the readout is a percentage, the only unit a host has intuition
