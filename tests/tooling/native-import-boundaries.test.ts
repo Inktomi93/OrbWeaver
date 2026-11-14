@@ -4,7 +4,7 @@ import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
 import eslintConfig from "../../eslint.config.ts";
-import { SERVER_IMPORT_HOMES, SERVER_SOURCE_ROOT } from "../../tooling/src/eslint/security-policy.ts";
+import { CHAT_ART_GATE_SOURCES, SERVER_IMPORT_HOMES, SERVER_SOURCE_ROOT } from "../../tooling/src/eslint/security-policy.ts";
 import { resolvedConfig } from "./_eslint-config.ts";
 
 type ImportCase = readonly [path: string, source: string, refusals: number];
@@ -54,6 +54,22 @@ test("the configured PNG import restriction preserves aliases, nested doors and 
     ["packages/server/src/domain/import/substrate/probe.ts", 'import { readCardChunk } from "@orb/kit/png-card-chunk";', 0],
     ["packages/server/src/domain/export/verbs/probe.ts", 'import { writeCardChunk } from "@orb/kit/png-card-chunk";', 0],
     ["packages/client/src/features/character/probe.ts", 'import { readCardChunk } from "@orb/kit/png-card-chunk";', 0],
+  ];
+  expect(await linted(repoRoot, cases)).toEqual(cases);
+});
+
+test("chat's art gate refuses the asset, character and persona tables through either db door, and only in the gate", async ({ repoRoot }) => {
+  const [gate] = CHAT_ART_GATE_SOURCES;
+  const cases: readonly ImportCase[] = [
+    [gate, 'import { assets } from "@orb/db";', 1],
+    [gate, 'import { characters as owned } from "@orb/db/schema";', 1],
+    // The settings row refuses the namespace as well.
+    [gate, 'import * as db from "@orb/db";', 2],
+    [gate, 'export { personas } from "@orb/db";', 1],
+    [gate, 'import { chats, messageAssets } from "@orb/db";', 0],
+    [gate, 'import { settings } from "@orb/db";', 1],
+    ...CHAT_ART_GATE_SOURCES.map((path): ImportCase => [path, 'import { personas } from "@orb/db";', 1]),
+    [`${SERVER_SOURCE_ROOT}domain/chat/persistence/identity.ts`, 'import { assets } from "@orb/db";', 0],
   ];
   expect(await linted(repoRoot, cases)).toEqual(cases);
 });

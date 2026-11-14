@@ -1,7 +1,7 @@
 import {
-  CAP,
   COLOR_MOTION,
   CONTROL_SIZE,
+  CONTROL_WRAP,
   DISABLED_STATE,
   DISABLED_STATE_NATIVE,
   FOCUS_RING,
@@ -43,7 +43,7 @@ export const toggleVariants = tv({
     ink: INKS,
     size: CONTROL_SIZE,
     // A label that breaks anywhere, so a toggle in a pane narrower than its longest word stays inside the pane; the box grows with the lines.
-    wrap: { true: `wrap-anywhere ${CAP.fit}`, false: "" },
+    wrap: { true: CONTROL_WRAP.anywhere, false: "" },
     // THE RADIUS AXIS — Button's own. `rounded-control` is a custom `--radius-*` token, so the radius is a declared
     // choice rather than a call-site class that tailwind-merge would resolve by order.
     shape: {

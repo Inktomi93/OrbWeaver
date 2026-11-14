@@ -138,6 +138,9 @@ export function refineryEmptySlotLabel(slotLabel: string): string {
 export const REFINERY_SCHEMA_DESCRIBE_NAME = "Describe the structure";
 export const REFINERY_SCHEMA_JSON_NAME = "Schema (JSON: the full vocabulary)";
 export const REFINERY_SCHEMA_NAME_FIELD_NAME = "Name";
+/** The two draft-authoring rows above the JSON pane: the arm picker and the refine instruction. */
+export const REFINERY_FORGE_ARM_NAME = "How to build it";
+export const REFINERY_REFINE_DRAFT_NAME = "Refine the draft";
 /** The render-hint picker beside the JSON pane: its role select and the press that writes the hint. */
 export const REFINERY_RENDER_HINT_ROLE_NAME = "Render hint role";
 export const REFINERY_INSERT_RENDER_HINT_NAME = "Insert render hint";

@@ -1,0 +1,20 @@
+[
+  {
+    "title": "The transcript's first read leaves alone, so a slow sibling never holds it",
+    "kind": "bug",
+    "what": "The room's transcript reads its first page with useSuspenseQuery on chat.listMessages in packages/client/src/features/chat/components/transcript-window.tsx (the tail read and LatestPageFallback). With the roster already cached, the composer mounts in the same commit and sends chat.checkSendAvailability (probes the chat engine's endpoint) and the next-turn line's connection.resolveChatCapability (warms the endpoint's facts) in the same tick, so one batch response waits for the slowest of them. Tag the transcript's first read through a typed options helper beside roomRosterOptions in packages/client/src/data/trpc.ts, exported through #data, and read it at both call sites; the observer in use-room-read.ts never fetches and needs no tag.",
+    "why": "A batch is answered after its slowest call, so an endpoint that is asleep or down holds the transcript behind a probe whose timeout it does not need. The room roster already rides alone for the same reason; the transcript is the other read the room paints from.",
+    "done": "The transcript's first read carries the unbatched context through one options helper; a dom test sends it beside a held slow read through createTrpcClient and sees it settle first on its own request, and removing the tag turns it red.",
+    "priority": "P3",
+    "area": "client"
+  },
+  {
+    "title": "Reads that dial an endpoint are surveyed against the surfaces that paint from a sibling read",
+    "kind": "task",
+    "what": "Reads that dial a provider or endpoint on the server: chat.checkSendAvailability, chat.previewContextFit, connection.catalogModels, connection.accountCredits, connection.generationCost, connection.tokenizeWords, connection.capabilities and connection.resolveChatCapability on a cold endpoint mirror, search.search. Each sits in a surface owned by another lane (credentials connection editor, preset params deck and logit-bias editor, discovery corpus search results and dossier, chat composer next-turn line and message list). For each, read its mount beside the surface's suspense reads and either tag the read the surface paints from, or record that the dialing read mounts after the first paint.",
+    "why": "The same batching hazard as the room roster holds wherever a dialing read mounts in the same tick as a read a surface waits on; only the room roster is tagged today.",
+    "done": "Each listed read is either shown to mount after the surface's first paint or has the paint-gating read beside it tagged through the typed options helper, with a dom test per tag.",
+    "priority": "P3",
+    "area": "client"
+  }
+]

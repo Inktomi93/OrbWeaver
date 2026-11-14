@@ -186,7 +186,7 @@ function InjectionRow({ row, ordinal, isHost, onSave, onDelete, rowFocus }: Inje
                       editor. The accessible name COMPUTES from the trigger's own content ("Injection 1 …"),
                       so it can never disagree with the visible label (WCAG 2.5.3). */}
                   <CollapsibleTrigger ref={rowFocus.bodyRef(row.key)} inset="block" width="full" size="control">
-                    <Row gap="field" align="center" justify="between" className="min-inline-0" grow={true}>
+                    <Row gap="field" align="center" justify="between" className="min-inline-0" grow={true} wrap={true}>
                       <Text voice="label">{injectionRowLabel(ordinal)}</Text>
                       {/* An empty-content row is INERT: assembly skips it at every position, so it reaches
                           no prompt. With no enabled/disabled toggle ("off" = delete the row), a blank row is
@@ -196,7 +196,7 @@ function InjectionRow({ row, ordinal, isHost, onSave, onDelete, rowFocus }: Inje
                           takes the summary's slot rather than sitting beside it — an empty row opens
                           itself, so its position/role are already spelled by the fields below. */}
                       {values.content.trim() === "" ? (
-                        <Badge tone="warning" size="sm">
+                        <Badge tone="warning" size="sm" whitespace="normal">
                           Not delivered: no content
                         </Badge>
                       ) : (

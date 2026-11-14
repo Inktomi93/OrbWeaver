@@ -1,9 +1,11 @@
 ---
 kind: decision
-status: open
+status: doing
 updated: 2026-11-14
 priority: P3
 area: client
+lane: wt/agent-ade2044bafe7c0374
+plan: cross-surface-consistency
 ---
 
 # A cut dialog title has a way to be read in full

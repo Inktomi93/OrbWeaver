@@ -88,7 +88,8 @@ export function AboutUpdatesSection({ anchorId }: { readonly anchorId: string })
   return (
     <Section divider={true} heading={ABOUT_UPDATES_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="field">
-        <Row align="center" gap="row">
+        {/* The check and its verdict wrap onto further lines when enlarged text outgrows the column. */}
+        <Row align="center" cap="fit" gap="row" wrap={true}>
           <Button
             variant="outline"
             size="sm"
@@ -134,7 +135,7 @@ function behindLine(remote: Upstream | null): string {
 function UpdateVerdict({ check }: { readonly check: UpdateCheck }): ReactElement {
   if (check.status === "up-to-date") {
     return (
-      <Row align="center" gap="row" data-testid={testId("aboutUpdateVerdict")}>
+      <Row align="center" cap="fit" gap="row" wrap={true} data-testid={testId("aboutUpdateVerdict")}>
         <Badge tone="success" variant="solid">
           Up to date
         </Badge>
@@ -144,7 +145,7 @@ function UpdateVerdict({ check }: { readonly check: UpdateCheck }): ReactElement
   }
   if (check.status === "behind") {
     return (
-      <Row align="center" gap="row" data-testid={testId("aboutUpdateVerdict")}>
+      <Row align="center" cap="fit" gap="row" wrap={true} data-testid={testId("aboutUpdateVerdict")}>
         <Badge tone="warning" variant="solid">
           Update available
         </Badge>
@@ -153,7 +154,7 @@ function UpdateVerdict({ check }: { readonly check: UpdateCheck }): ReactElement
     );
   }
   return (
-    <Row align="center" gap="row" data-testid={testId("aboutUpdateVerdict")}>
+    <Row align="center" cap="fit" gap="row" wrap={true} data-testid={testId("aboutUpdateVerdict")}>
       <Badge>Couldn't check</Badge>
       <Text voice="gloss">{check.reason ?? "The upstream head could not be read."}</Text>
     </Row>

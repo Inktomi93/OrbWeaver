@@ -1,7 +1,7 @@
 // `@orb/contracts/stats` — the chat↔stats economics WIRE: `StatsDelta` (the per-canon-write increment
 // payload chat produces every turn) + `ApplyStatsDelta` (the injected-op signature stats' write
 // substrate fulfils). Lives here (not `domain/stats`) because a feature home would force an illegal
-// chat→stats sideways import; the apply IMPL lives in `domain/stats/write/apply-delta.ts`.
+// chat→stats sideways import; the apply IMPL lives in `packages/server/src/domain/stats/persistence/apply-delta.ts`.
 
 import type { CharacterId, ChatId, ChatParticipantId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";

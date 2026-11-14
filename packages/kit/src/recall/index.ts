@@ -208,10 +208,13 @@ export interface StrikeMatch<R, S> {
  * position, so it only re-finds that item). Grid position alone never matches: a re-sliced block at the same
  * position covers different messages.
  *
- * A HIGHER TIER WHOSE SPAN CONTAINS THE STRIKE'S OWN SPAN RETELLS IT, in any bucket, whether or not a summary of the
- * struck scene is still pooled. The build can drop a scene's summary (a blank re-summary) and keep the longer summary
- * built from it, so containment is tested against the strike's seqs, never against matched rows. A scoped longer
- * summary over a block its character never witnessed is left out too: over-dropping a retelling is the safe side.
+ * A SUMMARY AT THE STRIKE'S TIER OR ABOVE WHOSE SPAN CONTAINS THE STRIKE'S OWN SPAN RETELLS IT, in any bucket,
+ * whether or not a summary of the struck scene is still pooled. The build can drop a scene's summary (a blank
+ * re-summary) and keep the longer summary built from it, so containment is tested against the strike's seqs, never
+ * against matched rows. A same-tier summary contains a strike's span when the strike names only part of a block: a
+ * fork carries a strike onto the struck turns it copied into a block still open at the fork, and the block that
+ * closes around them retells them. A scoped longer summary over a block its character never witnessed is left out
+ * too: over-dropping a retelling is the safe side.
  */
 export function matchStrikes<R extends StrikeCandidate, S extends ResolvedStrike>(rows: readonly R[], strikes: readonly S[]): StrikeMatch<R, S> {
   const struck = new Map<R, S>();
@@ -234,7 +237,7 @@ export function matchStrikes<R extends StrikeCandidate, S extends ResolvedStrike
     if (struck.has(row) || outer === null) {
       continue;
     }
-    const retold = strikes.find((s) => s.seqSpan !== null && row.tier > s.tier && outer.seqStart <= s.seqSpan.seqStart && s.seqSpan.seqEnd <= outer.seqEnd);
+    const retold = strikes.find((s) => s.seqSpan !== null && row.tier >= s.tier && outer.seqStart <= s.seqSpan.seqStart && s.seqSpan.seqEnd <= outer.seqEnd);
     if (retold !== undefined) {
       coversStruck.set(row, retold);
     }

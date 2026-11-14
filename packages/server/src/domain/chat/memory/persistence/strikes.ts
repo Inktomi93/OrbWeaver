@@ -30,8 +30,8 @@ export interface StoredMemoryStrike extends RecallStrike {
   readonly topicAnchor: string | null;
 }
 
-/** The room's strikes, oldest first. */
-export async function loadMemoryStrikes(db: Db, chatId: ChatId): Promise<StoredMemoryStrike[]> {
+// The room's strikes, oldest first.
+async function loadMemoryStrikes(db: Db, chatId: ChatId): Promise<StoredMemoryStrike[]> {
   return await db
     .select({
       id: chatMemoryStrikes.id,
@@ -47,7 +47,8 @@ export async function loadMemoryStrikes(db: Db, chatId: ChatId): Promise<StoredM
     .orderBy(asc(chatMemoryStrikes.createdAt), asc(chatMemoryStrikes.id));
 }
 
-/** The room's strikes with each span resolved to the seqs of its endpoint messages, null when one is gone. */
+/** The room's strikes, oldest first, with each span resolved to the seqs of its endpoint messages, null when one is
+ *  gone. */
 export async function loadResolvedStrikes(db: Db, chatId: ChatId): Promise<(StoredMemoryStrike & ResolvedStrike)[]> {
   const strikes = await loadMemoryStrikes(db, chatId);
   const endpointIds = [...new Set(strikes.flatMap((s) => [s.messageStartId, s.messageEndId]))];

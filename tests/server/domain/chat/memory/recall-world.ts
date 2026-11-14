@@ -6,6 +6,7 @@ import type { MemoryItemView, MemoryRecallCandidate, MemoryRecallSlice, MemoryRe
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { modelIdSchema } from "@orb/contracts/inference";
 import { resolveProseText } from "@orb/contracts/prose";
+import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import { present } from "@orb/testkit/iso";
 import { expect } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
@@ -76,6 +77,16 @@ function lineText(arc: Arc): string {
   return `line-${arc}. They went on about the ${arc}.`;
 }
 
+/** One transcript line of `arc`'s scene, long enough that a few later lines push it out of the prompt's window. */
+export function sceneLine(arc: Arc): string {
+  return `${lineText(arc)} ${FILLER}`;
+}
+
+/** One long transcript line that names no arc, so its block is summarized as filler. */
+export function fillerLine(index: number): string {
+  return `Filler ${index}: ${FILLER}`;
+}
+
 function digestText(arc: Arc): string {
   return summaryReply({ anchor: `Arc ${arc}`, facts: `arc-${arc}. The ${arc} scene happened here.`, keywords: [arc] });
 }
@@ -86,11 +97,12 @@ interface RecallWorld extends AsyncDisposable {
   readonly h: ChatRoot;
   /** The arc the scripted cross-encoder scores highest. */
   readonly rerankPrefers: (arc: Arc) => void;
-  /** Run one production sweep to completion, as the sweeps that built this room did. */
-  readonly sweep: (input: WorkloadInput) => Promise<void>;
+  /** Run one production sweep to completion, as the sweeps that built this room did: the owner's, or `as`'s, which
+   *  reaches the rooms `as` hosts. */
+  readonly sweep: (input: StartWorkloadInput, as?: ChatRoot["owner"]) => Promise<void>;
+  /** The sweeps that built this room, in order: they put the memory built so far in the active vector space. */
+  readonly activate: (as?: ChatRoot["owner"]) => Promise<void>;
 }
-
-type WorkloadInput = Parameters<ChatRoot["caller"]["workloads"]["start"]>[0]["input"];
 
 export interface World {
   readonly build: (config: {
@@ -154,8 +166,8 @@ export const world: World = {
         ],
         ...(config.scout === true ? { group: { output: "per-speaker" as const, policy: "list" as const, cardScope: "scoped" as const } } : {}),
         transcript: [
-          ...ARCS.flatMap((arc) => [0, 1].map(() => ({ role: "assistant" as const, content: `${lineText(arc)} ${FILLER}` }))),
-          ...Array.from({ length: FILLER_LINES }, (_, index) => ({ role: "assistant" as const, content: `Filler ${index}: ${FILLER}` })),
+          ...ARCS.flatMap((arc) => [0, 1].map(() => ({ role: "assistant" as const, content: sceneLine(arc) }))),
+          ...Array.from({ length: FILLER_LINES }, (_, index) => ({ role: "assistant" as const, content: fillerLine(index) })),
         ],
       }),
     );
@@ -190,17 +202,21 @@ export const world: World = {
     if (runAdmittedWorkload === undefined) {
       throw new Error("the recall world has no admitted-workload driver");
     }
-    const sweep = async (input: WorkloadInput): Promise<void> => {
-      const job = await h.caller.workloads.start({ input, mode: "singular" });
+    const sweep = async (input: StartWorkloadInput, as: ChatRoot["owner"] = h.owner): Promise<void> => {
+      const job = await h.root.services.workloads.start({ caller: as, ownerId: as.userId, mode: "singular", input });
       await runAdmittedWorkload(job.id, lifetime.signal);
     };
-    for (const input of [
+    const activation: readonly StartWorkloadInput[] = [
       { kind: "index", params: { source: "text" } },
       { kind: "memory-backfill", params: {} },
       { kind: "databank-reindex", params: { scope: { kind: "owner" }, mode: "chunk-embed" } },
-    ] as const satisfies WorkloadInput[]) {
-      await sweep(input);
-    }
+    ];
+    const activate = async (as?: ChatRoot["owner"]): Promise<void> => {
+      for (const input of activation) {
+        await sweep(input, as);
+      }
+    };
+    await activate();
     // The build runs under mixB: a room with memory off has nothing to back fill. The case's own mode applies after it.
     await h.caller.settings.updateAppSettings({ partial: { memoryDefaults: { mode: config.mode } } });
     const kept = construction.move();
@@ -210,6 +226,7 @@ export const world: World = {
         preferred = arc;
       },
       sweep,
+      activate,
       [Symbol.asyncDispose]: () => kept.disposeAsync(),
     };
   },

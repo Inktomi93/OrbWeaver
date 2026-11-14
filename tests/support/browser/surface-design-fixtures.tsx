@@ -23,7 +23,7 @@ import { WeaveVeil } from "@orb/ui/web-weave";
 import type { ComponentProps, ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { CtIsolation } from "./ct-isolated-subject.tsx";
-import { LEAVING_RELEASE_EVENT } from "./leaving-cover.ts";
+import { LEAVING_COVER_CONTROL_NAME, LEAVING_RELEASE_EVENT } from "./leaving-cover.ts";
 
 /** Exercise the production density map and its sanctioned variant overrides under real containment. */
 export function SurfaceDesignStory({ width }: { readonly width: number }): ReactElement {
@@ -332,7 +332,7 @@ export function SurfaceLeavingCoverStory({ cover }: { readonly cover: "leaving" 
       <main>
         <Stack padding="section">
           <h1>Leaving cover control</h1>
-          <Button variant="outline">Restore</Button>
+          <Button variant="outline">{LEAVING_COVER_CONTROL_NAME}</Button>
         </Stack>
       </main>
       <AlertDialog

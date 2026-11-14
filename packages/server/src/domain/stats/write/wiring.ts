@@ -4,11 +4,11 @@ import { batchForOwner, bootDatabaseForOwner, databaseForOwner } from "@orb/db/w
 import type { IdSource } from "@orb/kit/ids";
 import type { ReconcileOpts } from "../contract/rebuild-from-canon.ts";
 import type { StatsBatchWiring } from "../contract/wiring.ts";
+import { applyCharacterStatsDelta, applyStatsDelta, bumpStatsCanonVersion } from "../persistence/apply-delta.ts";
+import { shiftCharacterCensus } from "../persistence/character-census.ts";
 import { reconcileOwnersMissingTimeline as rebuildMissingTimelines, reconcileStats as rebuildStats } from "../persistence/rebuild-from-canon.ts";
 import { settleRetainedChatRebase } from "../persistence/retained-chat-accounting.ts";
 import { createPrepareCanonAdmission, createPrepareCanonRetirement } from "../persistence/retire-canon.ts";
-import { applyCharacterStatsDelta, applyStatsDelta, bumpStatsCanonVersion } from "./apply-delta.ts";
-import { shiftCharacterCensus } from "./character-census.ts";
 import { recordLedgerSpend } from "./ledger-spend.ts";
 
 /** Append through the operation's exact DB and mutable batch, never a captured root connection. */

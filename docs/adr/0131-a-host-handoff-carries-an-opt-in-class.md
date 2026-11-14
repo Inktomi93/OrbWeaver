@@ -1,7 +1,7 @@
 ---
 kind: adr
 status: active
-updated: 2026-11-14
+updated: 2026-09-23
 ---
 
 # A host handoff carries an OPT-IN, CLASS-LEVEL, POINT-IN-TIME property offer. AMENDS \[\[D64]]:
@@ -26,7 +26,7 @@ the seated-character drop stays the default and the decline path, and beside it 
 
 **(F) AVATARS ARE RE-OWNED, NEVER CARRIED.** `assets` is per-owner with a `(ownerId, hash)` dedup key (D21), so a carried `avatarAssetId` on the nominee's card is BOTH a pointer into a library they cannot read AND a GC root holding the departed host's blob alive through a row they no longer control. Content addressing makes the re-own cheap and idempotent (the same bytes under an owner who already has them resolve to their existing row); a source asset that is gone lands the copy FACELESS rather than not at all.
 
-**(G) PERSONAS ARE NEVER COPIED, AND THE PIN IS NEVER TOUCHED.** Personas are owner-sacred (D122), so no persona row moves. A handoff leaves `chats.anchorPersonaId` exactly as it was: the pin holds and reads live, whoever owns it, until the host re-pins or clears it (D315).
+**(G) PERSONAS ARE NEVER COPIED, AND THE PIN IS NEVER TOUCHED.** The room's persona pin stays as it is through the swap, including a pin whose persona the incoming host cannot read; the pin holds and is read through the chat (D315, D64). Personas are owner-sacred (D122): a handoff moves no persona row and writes no persona pointer.
 
 ## Consequences
 

@@ -110,6 +110,25 @@ test("restored onto the library that wrote it, a room whose strike was lifted af
   expect(await standingStrikeAnchors(w.h)).toEqual([storm.topicAnchor]);
 });
 
+test("a room file imported twice into a room whose memory has not built holds one strike on the span, listed once", async () => {
+  await using w = await world.build({ mode: "mixB", maxTier: 0 });
+  await w.h.caller.chat.strikeMemory({ chatId: w.h.chatId, item: sceneKey(await w.h.caller.chat.memoryView({ chatId: w.h.chatId }), "storm") });
+  const [file] = await exportRooms(w.h);
+  // The library no longer holds the room, so the file lands it fresh and its strike waits for summaries that never
+  // built: every stored strike row is listed, and a second row on the span would show as a second entry.
+  await w.h.root.services.chat.delete({ principal: w.h.owner, chatId: w.h.chatId });
+  await expect(chatArm(w.h).importFile(w.h.root.ownerId, present(file))).resolves.toMatchObject({ ok: true, created: true });
+  const roomId = present((await roomIds(w.h))[0]);
+  const first = (await w.h.caller.chat.memoryView({ chatId: roomId })).unmatchedStrikes;
+  expect(first).toHaveLength(1);
+
+  await expect(chatArm(w.h).importFile(w.h.root.ownerId, present(file))).resolves.toMatchObject({ ok: true, created: false });
+  const again = await w.h.caller.chat.memoryView({ chatId: roomId });
+  expect(again.items).toEqual([]);
+  // The standing row stays as the first import wrote it: the second import adds no row and replaces none.
+  expect(again.unmatchedStrikes).toEqual(first);
+});
+
 test("restored into a library that never held the room, the strike lands on the same span and leaves the scene out of its prompt", {
   tags: ["slow"],
 }, async () => {

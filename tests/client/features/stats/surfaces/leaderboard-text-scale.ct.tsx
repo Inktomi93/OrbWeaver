@@ -5,11 +5,11 @@
 import { CORPUS_MODE_LABELS, testId } from "@orb/client/lib";
 import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { PLATFORM_TEXT_SCALES, resolvedLength, seedShellState, setPlatformTextSize } from "@orb/testkit/browser/spec";
-import { routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import { routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/test";
-import { CORPUS_MODE_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
+import { CORPUS_INSIGHTS_LIST_DOOR_NAME, CORPUS_MODE_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
 import { ANALYTICS_LEADERBOARD_NAME } from "#client/features/stats/lib/analytics-names.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
@@ -28,8 +28,8 @@ for (const scale of PLATFORM_TEXT_SCALES) {
     await seedShellState(page, { activeSection: "corpus", panelOverrides: { corpus: { list: "docked", context: "collapsed" } } });
     await mount<typeof ShellAmbientStory>(STORY, {});
     await page.getByRole("radiogroup", { name: CORPUS_MODE_NAME, exact: true }).getByRole("radio", { name: CORPUS_MODE_LABELS.insights, exact: true }).click();
-    // The phone lands Insights on its dashboard, so the finder sits behind the topbar's list door, which names the Characters it lists.
-    await page.getByRole("button", { name: SECTION_LABELS.characters, exact: true }).click();
+    // The phone lands Insights on its dashboard, so the finder sits behind the topbar's list door.
+    await page.getByRole("button", { name: CORPUS_INSIGHTS_LIST_DOOR_NAME, exact: true }).click();
     const surface = page.getByTestId(testId("analyticsListSurface"));
     const list = surface.getByRole("list", { name: ANALYTICS_LEADERBOARD_NAME });
     await expect(list).toBeVisible();

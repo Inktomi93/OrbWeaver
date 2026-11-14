@@ -5,6 +5,7 @@ updated: 2026-11-14
 priority: P3
 area: server
 lane: wt/agent-a253b95f39b2389ae
+plan: checked-law
 ---
 
 # A substrate file cannot reach I/O through its own engine or service

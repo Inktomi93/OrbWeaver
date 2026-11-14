@@ -13,11 +13,12 @@ import { skippedByReason } from "#data";
 import { cardImportFailedDetail, cardImportRefusalLine, IN_LIBRARY_DETAIL, inLibraryClause } from "#lib";
 import { IMPORT_LEFT_ON_DISK_PHRASE, importPreviewUncomparedNote, importSummaryImported } from "./import-library-names.ts";
 
-/** One normalized per-file outcome for the report summary. `notes` mirrors the server's per-card
+/** One normalized per-file outcome for the report summary. `held` marks a file the library already held: it reused its row
+ *  and wrote none. `notes` mirrors the server's per-card
  *  `skippedOverlays` (#1598/#1709) — the planes THIS file's import deliberately did not assert (e.g. "book
  *  kept: primary already exists"). Absent on a failed outcome (nothing landed, so nothing was skipped). */
 type ImportOutcomeView = { readonly path: string; readonly detail: string } & (
-  | { readonly ok: true; readonly notes?: readonly string[] }
+  | { readonly ok: true; readonly held?: true; readonly notes?: readonly string[] }
   | { readonly ok: false; readonly notes?: never }
 );
 
@@ -196,6 +197,7 @@ export function summarizeCardImport(result: CardImportResult): ImportSummary {
         return {
           path: card.filename ?? UNNAMED_CARD,
           ok: true,
+          held: true,
           detail: IN_LIBRARY_DETAIL,
           ...(notes.length > 0 ? { notes } : {}),
         };

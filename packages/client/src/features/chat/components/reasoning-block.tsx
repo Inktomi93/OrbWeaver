@@ -91,7 +91,7 @@ export function ReasoningBlock({
   return (
     <Collapsible open={expanded} onOpenChange={(next): void => setOverride(next)}>
       <CollapsibleTrigger chevron={false}>
-        <Row gap="field" align="center">
+        <Row gap="field" align="center" cap="fit" wrap={true}>
           <Icon icon={expanded ? ChevronDown : ChevronRight} size="sm" />
           {/* Decorative — the adjacent label text already names the disclosure. */}
           {showIcon ? <Icon icon={BrainCircuit} size="sm" /> : null}

@@ -1,6 +1,7 @@
 // Arrival cases retain the production room and isolate only the first read or CAS HTTP delivery.
 import { blobUrl } from "@orb/contracts/assets";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
+import type { MessageId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { seedShellState } from "@orb/testkit/browser/spec";
@@ -19,7 +20,7 @@ import {
 } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import sharp from "sharp";
-import { CHAT_LIST_NAME, CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { CHAT_LIST_NAME, CHAT_MESSAGE_INPUT_NAME, CHAT_WINDOW_BACK_TO_CORPUS_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { deriveChatTitle } from "#client/lib/chat-title.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
@@ -30,6 +31,9 @@ const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/Ch
 const ROOM_SURFACE = '[data-slot="chat-room-surface"]';
 const MESSAGE_ROW = '[data-slot="message-row"]';
 const ROSTER_PROCEDURE = "chat.getChat";
+const TAIL_PROCEDURE = "chat.listMessages";
+const WINDOW_PROCEDURE = "chat.getMessageWindow";
+const TRPC_MOUNT = "/api/trpc/";
 // tRPC's batch link marks a batched request with this query parameter; an unbatched request carries none.
 const BATCH_PARAM = "batch";
 const EXTRA_READS = ["rpg.getGame", "rpg.listTurnToolCalls", "assets.resolveChatBlobRefs"] as const;
@@ -180,6 +184,104 @@ test("a roster read a Chats row started on approach draws the room's composer wh
     await expect(page.locator(ROOM_SURFACE)).toBeVisible();
     await expectComposerOnRosterAlone(page, reads);
   } finally {
+    await component.unmount();
+  }
+});
+
+/** Every request that carries `procedure`, alone or beside others, recorded as it leaves the browser. */
+function recordRequests(page: Page, procedure: string): readonly URL[] {
+  const urls: URL[] = [];
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (
+      decodeURIComponent(url.pathname.split(TRPC_MOUNT)[1] ?? "")
+        .split(",")
+        .includes(procedure)
+    ) {
+      urls.push(url);
+    }
+  });
+  return urls;
+}
+
+/**
+ * The room's first reads each leave on their own request. Which reads share a tick is the browser's scheduling and a hold cannot
+ * force it, so the proof is the request itself: the batch link marks even a one-call request, so any batched one is a read left to it.
+ */
+function expectEveryRequestAlone(urls: readonly URL[]): void {
+  expect(urls.length).toBeGreaterThan(0);
+  expect(urls.filter((url) => url.searchParams.has(BATCH_PARAM))).toEqual([]);
+}
+
+/**
+ * Two persisted rooms served from the corpus except `first`'s endpoint probe, which waits on its hold: it dials the chat engine's
+ * server, so it is the read that can answer late. `first`'s roster is warmed the way a Chats row warms it on approach, so opening
+ * it draws the composer, and sends the probe, in the render that starts the transcript's first read.
+ */
+async function warmRoomWithHeldProbe(
+  page: Page,
+  corpus: CorpusPlayback,
+  root: Root,
+): Promise<{ readonly first: Room; readonly second: Room; readonly target: MessageId; readonly probe: ServedHold }> {
+  const caller = await root.internalCallerFor(root.ownerId);
+  const [first, second] = (await caller.chat.listChats({ limit: 2 })).items;
+  const target = first === undefined ? undefined : (await caller.chat.listMessages({ chatId: first.id })).messages[0];
+  if (first === undefined || second === undefined || target === undefined) {
+    throw new Error("The corpus needs two distinct persisted rooms and a message in the first");
+  }
+  await caller.settings.updateUserSettingsSection({ section: "appearance", patch: appearanceSettingsSchema.parse({}) });
+  const probe = holdServed();
+  await routeTrpc(page, {
+    ...createShellAmbientReads(corpus, root.ownerId),
+    ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, ...EXTRA_READS, "chat.getMessageWindow"]),
+    ...serveCorpusProcedures(caller, ["chat.checkSendAvailability"], ({ chatId }) => (chatId === first.id ? probe : undefined)),
+  });
+  return { first, second, target: target.id, probe };
+}
+
+async function warmRosterOnApproach(page: Page, room: Room): Promise<void> {
+  await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true })).toBeVisible();
+  const warmed = page.waitForResponse((response) => response.url().includes(ROSTER_PROCEDURE));
+  await page.getByLabel(CHAT_LIST_NAME, { exact: true }).getByText(deriveChatTitle(room.title, room.participantNames), { exact: true }).first().hover();
+  await warmed;
+}
+
+test("a room's transcript read leaves alone and its rows draw while the composer's endpoint probe is held", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness();
+  await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "docked", context: "collapsed" } } });
+  const { first, second, probe } = await warmRoomWithHeldProbe(page, corpus, root);
+  const tails = recordRequests(page, TAIL_PROCEDURE);
+  await using heldProbe = new AsyncDisposableStack();
+  heldProbe.defer(probe.release);
+  const component = await mount<typeof ChatRoomShellStory>(STORY, { chatId: second.id });
+  try {
+    await warmRosterOnApproach(page, first);
+    await component.update({ chatId: first.id });
+    await probe.requested;
+    await expect(page.locator(MESSAGE_ROW).first()).toBeVisible();
+    expectEveryRequestAlone(tails);
+  } finally {
+    probe.release();
+    await component.unmount();
+  }
+});
+
+test("a source window's first read leaves alone and its toolbar draws while the composer's endpoint probe is held", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness();
+  await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "docked", context: "collapsed" } } });
+  const { first, second, target, probe } = await warmRoomWithHeldProbe(page, corpus, root);
+  const windows = recordRequests(page, WINDOW_PROCEDURE);
+  await using heldProbe = new AsyncDisposableStack();
+  heldProbe.defer(probe.release);
+  const component = await mount<typeof ChatRoomShellStory>(STORY, { chatId: second.id });
+  try {
+    await warmRosterOnApproach(page, first);
+    await component.update({ chatId: first.id, moment: { kind: "message", messageId: target } });
+    await probe.requested;
+    await expect(page.getByRole("button", { name: CHAT_WINDOW_BACK_TO_CORPUS_NAME, exact: true })).toBeVisible();
+    expectEveryRequestAlone(windows);
+  } finally {
+    probe.release();
     await component.unmount();
   }
 });

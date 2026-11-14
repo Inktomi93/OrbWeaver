@@ -6,7 +6,7 @@
 // The chat scope is membership-scoped (D18 — no chats.ownerId); its guards (requireChatHost/Member) arrive
 // as injected ops from chat's own guards, wired at the composition root (the world-info shape).
 
-import type { RequireHostOp, RequireParticipantOp, ResolveVisibleRoomsOp } from "@orb/contracts/chat";
+import type { RequireHostOp, RequireParticipantOp, ResolveChatHostOp, ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type { PortableFile } from "@orb/contracts/portability";
 import type {
   BulkResult,
@@ -61,6 +61,8 @@ export interface RegexContext {
   readonly audit: AuditWiring["log"];
   readonly requireChatHost: RequireHostOp;
   readonly requireChatMember: RequireParticipantOp;
+  /** The room's present host: the owner a chat-attached script must have for the room to apply it (D64). */
+  readonly resolveChatHost: ResolveChatHostOp;
   /** D121-E display-tier room OPTION (owner ruling): resolve WHOSE display scripts this room
    *  broadcasts. Injected from chat because both halves are chat's data — the room's host seat and the
    *  `chatMetadata.hostDisplayScripts` flag. Regex reads neither the roster nor chat metadata itself (the
@@ -147,7 +149,7 @@ export interface RegexService {
   /** Host authority — a room-wide text transform is a one-shot jailbreak surface (the `chat_books` rule). */
   readonly attachToChat: (params: AttachToChatParams) => Promise<void>;
   readonly detachFromChat: (params: DetachFromChatParams) => Promise<DetachResult>;
-  /** Room-public, not owner-filtered: every script attached to the room. A turn applies only the host-owned ones (D64). */
+  /** Member-read: the room's attached scripts the present host owns, the set a turn applies (D64). */
   readonly listForChat: (params: ListForChatParams) => Promise<RegexScriptRow[]>;
 
   /** The room's BROADCAST display set (D121-E host option). Member-readable: any present member needs it to

@@ -9,7 +9,17 @@ import type { ReactElement, ReactNode, RefCallback } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
-import { pressForPage, QueryErrorState, roomRosterOptions, SkeletonRows, useSuspenseInfiniteQuery, useSuspenseQuery, useTRPC } from "#data";
+import {
+  pressForPage,
+  QueryErrorState,
+  RIDES_ALONE,
+  roomRosterOptions,
+  roomTailOptions,
+  SkeletonRows,
+  useSuspenseInfiniteQuery,
+  useSuspenseQuery,
+  useTRPC,
+} from "#data";
 import { RETRY_NAME } from "#lib";
 import { clearChatMoment, setActiveSection, useChatMoment } from "#state";
 import {
@@ -59,7 +69,7 @@ function mergePages(pages: readonly CanonPage[]): CanonPage {
 function OrdinaryThread(props: TranscriptWindowProps): ReactElement {
   const trpc = useTRPC();
   // Composer readers and the live carrier share this finite tail; it wins every overlapping row.
-  const { data: tail } = useSuspenseQuery(trpc.chat.listMessages.queryOptions({ chatId: props.chatId }));
+  const { data: tail } = useSuspenseQuery(roomTailOptions(trpc, { chatId: props.chatId }));
   return <OrdinaryHistory {...props} tail={tail} />;
 }
 
@@ -279,6 +289,7 @@ function AnchoredThread({
     trpc.chat.getMessageWindow.infiniteQueryOptions(
       { chatId: props.chatId, target },
       {
+        ...RIDES_ALONE,
         initialCursor: null,
         getNextPageParam: (page) => {
           const last = page.messages.at(-1);
@@ -392,6 +403,6 @@ function LatestPageFallback({
   readonly render: (page: CanonPage, edges: TranscriptEdges) => ReactElement;
 }): ReactElement {
   const trpc = useTRPC();
-  const { data: page } = useSuspenseQuery(trpc.chat.listMessages.queryOptions({ chatId }));
+  const { data: page } = useSuspenseQuery(roomTailOptions(trpc, { chatId }));
   return render(page, { earlier: page.previousCursor !== null, later: false, settling: false });
 }

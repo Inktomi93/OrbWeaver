@@ -28,6 +28,7 @@ import {
   embedderCheckingText,
   embedRefusalOf,
   embedRefusalText,
+  embedWindowNotice,
   openConnectionName,
   REBUILD_JOBS_LABEL,
   REBUILD_STATUS_COPY,
@@ -265,6 +266,7 @@ export function ConnectionRoleSlot({
               {row.standingEffect}
             </Text>
           )}
+          <EmbedWindowNote own={isVectorRole} task={row.task} view={view} />
           <EmbedderNote check={shownCheck} refused={embedRefusal} />
           {isVectorRole ? <RebuildLine rebuild={rebuild} /> : null}
           {repairs.map((connection) => (
@@ -299,6 +301,25 @@ interface SlotEmbedRefusal {
 /** The pick being checked: the write's own check, else the change the server is still sizing before the confirm. */
 function shownCheckOf<T>(writeCheck: T | null, sizing: boolean, sized: T | null): T | null {
   return writeCheck ?? (sizing ? sized : null);
+}
+
+/** What the user's own text embedder's window means for a long card. It reads the persisted binding, like the readout: a
+ *  pick the picker only shows has not changed what is indexed. */
+function EmbedWindowNote({
+  own,
+  task,
+  view,
+}: {
+  readonly own: boolean;
+  readonly task: RoleRow["task"];
+  readonly view: BindingView | null;
+}): ReactElement | null {
+  const notice = own && task === "embed" ? embedWindowNotice(view?.resolved?.capability ?? null) : null;
+  return notice === null ? null : (
+    <Text voice="gloss" cap="prose" tone="info" data-embed-window-notice="">
+      {notice}
+    </Text>
+  );
 }
 
 /** The row's embedder line: that the server is checking the pick, else the last refusal. */

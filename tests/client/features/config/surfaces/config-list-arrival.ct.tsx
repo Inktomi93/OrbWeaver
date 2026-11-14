@@ -1,3 +1,4 @@
+import { LAYOUT_SUBPIXEL_PX } from "@orb/testkit/browser/spec";
 import { routeTrpc, serveCorpusProcedures, trpcHold } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusReadResponder } from "@orb/testkit/iso";
@@ -111,5 +112,17 @@ test("no section row repeats the name of the group band it sits under", async ({
     const name = ((await band.textContent()) ?? "").trim();
     expect(name).not.toBe("");
     await expect(rows.getByRole("button", { name, exact: true }), `a row under the ${name} band carries the band's name`).toHaveCount(0);
+    // The row labels are whole: no box in a row holds more text than it paints.
+    for (const row of await rows.getByRole("button").all()) {
+      // A screen-reader-only twin of the label is a one-pixel clip box; only a box that paints can cut a name.
+      const clipped = await row.evaluate(
+        (node: Element, tolerance: number) =>
+          [node, ...node.querySelectorAll("*")]
+            .filter((part) => part.clientWidth > tolerance && part.scrollWidth > part.clientWidth + tolerance)
+            .map((part) => part.tagName.toLowerCase()),
+        LAYOUT_SUBPIXEL_PX,
+      );
+      expect({ row: await row.textContent(), clipped }).toEqual({ row: await row.textContent(), clipped: [] });
+    }
   }
 });

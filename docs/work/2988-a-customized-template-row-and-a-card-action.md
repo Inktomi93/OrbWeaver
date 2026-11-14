@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: client
+plan: test-foundation
 ---
 
 # A customized template row and a card action row have no enlarged-text reflow case

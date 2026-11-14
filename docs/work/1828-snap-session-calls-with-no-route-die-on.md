@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: testing
+plan: test-foundation
 ---
 
 # Snap session calls with no route die on the load kill under 24 load

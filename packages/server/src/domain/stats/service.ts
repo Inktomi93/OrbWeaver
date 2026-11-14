@@ -1,7 +1,7 @@
 // domain/stats — COMPOSITION ROOT: wires the read verbs + the one write verb over the DI bundle (zero
 // logic). The tRPC
 // `stats.*` router's single delegation target, with `ownerId = principal.userId` (never input — §7.1). The
-// rollups are maintained LIVE on the write path (write/apply-delta.ts, injected into chat); the full
+// rollups are maintained LIVE on the write path (persistence/apply-delta.ts, injected into chat); the full
 // rebuild (persistence/rebuild-from-canon.ts) is reached BOTH ways: the `reconcile` verb (caller-scoped, awaited)
 // and the `reconcile-stats` workload (the all-owners bulk sweep). `applyStatsDelta` is not a verb here.
 

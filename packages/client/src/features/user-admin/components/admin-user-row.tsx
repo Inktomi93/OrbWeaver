@@ -53,7 +53,8 @@ export function AdminUserRow(props: AdminUserRowProps): ReactElement {
         title={user.handle}
         subtitle={subtitle}
         actions={
-          <Row align="center" gap="row">
+          // The cluster wraps its controls onto further lines when enlarged text outgrows the row, and never runs past the row's end edge.
+          <Row align="center" cap="fit" gap="row" wrap={true}>
             {isOwnerRow ? <StatusChip status={user.role} vocabulary={USER_ROLE_STATUS} /> : null}
             {user.enabled ? null : (
               <Badge tone="destructive" variant="solid">

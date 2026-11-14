@@ -10,7 +10,7 @@ import { batchMany } from "@orb/db/query";
 import type { IdSource, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { asc, eq } from "drizzle-orm";
-import { bumpStatsCanonVersion } from "../write/apply-delta.ts";
+import { bumpStatsCanonVersion } from "./apply-delta.ts";
 
 type LedgerEntry = PortableSpendLedger["entries"][number];
 type LedgerFacts = Omit<typeof spendLedger.$inferSelect, "id" | "ownerId">;

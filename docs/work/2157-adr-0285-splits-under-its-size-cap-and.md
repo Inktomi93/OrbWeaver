@@ -1,9 +1,10 @@
 ---
 kind: decision
 status: open
-updated: 2026-11-08
+updated: 2026-11-14
 priority: P3
 area: chat
+plan: checked-law
 ---
 
 # ADR 0285 splits under its size cap and covers an away host
