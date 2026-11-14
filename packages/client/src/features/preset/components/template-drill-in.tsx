@@ -38,7 +38,7 @@ import { GUIDED_INPUT_TOKEN, guidedFooterState } from "../lib/assembly-model.ts"
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
 import { PRESET_BACK_TO_ACTIONS_NAME, presetTemplateEditorName } from "../lib/preset-names.ts";
 import type { TemplateRow } from "../lib/template-rows.ts";
-import { isGuidedActionKind, proseTemplateDraft } from "../lib/template-rows.ts";
+import { isGuidedActionKind, proseTemplateDraft, TEMPLATE_KIND_LABEL } from "../lib/template-rows.ts";
 import { DeliveryCluster } from "./delivery-cluster.tsx";
 import { PresetMacroSuggestions } from "./preset-macro-suggestions.tsx";
 
@@ -83,10 +83,9 @@ export function TemplateDrillIn({ form, presetId, row, onBack }: TemplateDrillIn
           <Heading level={3} voice="label">
             {def.label}
           </Heading>
-          {/* The SAME chip the list row wears (crunch items 7/14) — outlined neutral, one kind vocabulary
-              drawn one way on both surfaces. */}
+          {/* The kind's display word, the same one the list's group kicker wears, never the wire word. */}
           <Badge variant="outline" size="sm">
-            {def.kind}
+            {TEMPLATE_KIND_LABEL[def.kind]}
           </Badge>
         </Row>
         {/* DESCRIPTIVE ONLY — never a control (§5.0, owner-ratified). */}

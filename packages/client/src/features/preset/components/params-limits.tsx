@@ -46,6 +46,7 @@ import { pageStep, verbosityLevelsFor } from "../lib/capability-panel-model.ts";
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { SENT_WINDOW_PROVENANCE } from "../lib/effective-knobs.ts";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
+import { PRESET_ADVANCED_NAME } from "../lib/preset-names.ts";
 import { COMPACTION_MODE_ITEMS, compactionModeLabel } from "../lib/preset-nav.ts";
 import { SAMPLING_FLAG_LABELS } from "../lib/sampling-knob-catalog.ts";
 import { KnobGrid, KnobRow } from "./knob-row.tsx";
@@ -328,9 +329,9 @@ function AdvancedCluster({ form }: { readonly form: AppForm }): ReactElement {
           stylesheet order). The trigger is `inline-flex`, so the box grows
           around the word rather than claiming the row's width. */}
       <CollapsibleTrigger size="control">
-        <Text voice="label">Advanced</Text>
+        <Text voice="label">{PRESET_ADVANCED_NAME}</Text>
       </CollapsibleTrigger>
-      <CollapsiblePanel>
+      <CollapsiblePanel offset="row">
         <Stack gap="field">
           <LogitBiasEditor form={form} />
           <SettingRowGroup>

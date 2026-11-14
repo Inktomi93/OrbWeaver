@@ -48,8 +48,7 @@ export function isGuidedActionKind(id: TemplateDefId): id is GuidedActionKind {
 /** The GROUP HEADING for one registry kind. The enum member is a code identifier (`steer`, `voice`) — the
  *  kicker over a group of rows is a heading a person reads, so it gets a human plural (side-eye F-30 /
  *  ARIA rec 10). Keyed by the union, so a new kind is a `tsc` error here until it has a label — the D117
- *  registration cost, unchanged. The raw member survives as a taxonomy chip ONLY in the drill-in header
- *  (the LIST dropped it with the IA — under a kind-titled kicker it discriminated nothing on any row). */
+ *  registration cost, unchanged. The drill-in header's kind chip wears the same word; the raw member is a wire word and shows nowhere. */
 export const TEMPLATE_KIND_LABEL: Record<TemplateKind, string> = {
   steer: "Steers",
   voice: "Voice",
