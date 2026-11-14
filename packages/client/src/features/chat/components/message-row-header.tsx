@@ -167,6 +167,7 @@ export function renderRowNameRow(args: {
       actions={args.actions}
       chipped={args.chip !== null}
       stickyAttribution={args.stickyAttribution}
+      pins={true}
       actionsReveal={args.actionsReveal}
       edges={args.edges}
       mirrored={mirrored}
@@ -201,7 +202,7 @@ export function renderGhostNameRow(args: {
   /** `RowSkin.actionsRow.identity`. A style that names nobody still reserves the empty bar line its
    *  settled last row will carry, so the commit does not shift the reply down a line. */
   readonly named: boolean;
-  /** The hidden stand-in for the settled row's action cluster (`GhostActionsFootprint`), which sets the card's width. */
+  /** The hidden stand-in for the settled row's action cluster (`GhostActionsFootprint`), which sets the card's width and the bar's height, named or not. */
   readonly actionsFootprint: ReactNode;
   /** The identity chip the skin seats in the header, or null. */
   readonly chip: ReactNode;
@@ -213,9 +214,10 @@ export function renderGhostNameRow(args: {
     return (
       <NameRowFrame
         identity={null}
-        actions={null}
+        actions={args.actionsFootprint}
         chipped={false}
-        stickyAttribution={false}
+        stickyAttribution={args.stickyAttribution}
+        pins={false}
         actionsReveal="expanded"
         edges={args.edges}
         mirrored={false}
@@ -241,6 +243,7 @@ export function renderGhostNameRow(args: {
       actions={args.actionsFootprint}
       chipped={args.chip !== null}
       stickyAttribution={args.stickyAttribution}
+      pins={true}
       actionsReveal="expanded"
       edges={args.edges}
       // The ghost is always the assistant side; there is no own-message mirror to take.
