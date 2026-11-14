@@ -11,7 +11,7 @@ import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { refuseExportNote } from "#primitives/stored-config";
 import type { WorldInfoContext, WorldInfoService } from "./contract/service.ts";
-import { createImportStandaloneLorebook } from "./persistence/import-write.ts";
+import { createImportStandaloneLorebooks } from "./persistence/import-write.ts";
 import {
   createAttachGlobal,
   createAttachToCharacter,
@@ -57,7 +57,7 @@ export function createWorldInfoService(input: DbAssemblyInput<WorldInfoContext>)
   // ratified thin-arm law): one producer, one parser, so a book shared one-at-a-time and a book inside a
   // backup zip can never diverge. Both factories are pure over this same DI bundle.
   const exportBook = createExportWorldBook(input);
-  const importBook = createImportWorldBook({ importStandalone: createImportStandaloneLorebook(input) });
+  const importBook = createImportWorldBook({ importStandalone: createImportStandaloneLorebooks(input) });
   return {
     // One book has nothing else to deliver, so an entry it cannot carry as stored refuses it, naming the entry.
     exportBook: ({ principal, bookId }) => exportBook({ ownerId: principal.userId, bookId, note: refuseExportNote }),

@@ -1,8 +1,9 @@
 // verb: import — the STANDALONE world-info-book import: parse an untrusted upload (orb-native envelope or a
 // raw SillyTavern world file) through the ONE serde core, then the UNATTACHED additive owned write. Never
-// throws for a malformed file: a parse miss returns `{ ok:false, error }`. `export.ts` is the round-trip twin.
+// throws for a malformed file: a parse miss returns `{ ok:false, error }`. The write is a batch of one. `export.ts` is the round-trip twin.
 
 import { fileStem } from "@orb/kit/strings";
+import { NEVER_ABORTED, soleResult } from "#primitives/abort";
 import { portableParseError } from "#primitives/serde/lib";
 import { parseWorldBookFile, WORLD_INFO_SCHEMA_KIND } from "#primitives/serde/world-info";
 import type { ImportWorldBook, ImportWorldBookContext, ImportWorldBookOutcome } from "../contract/import.ts";
@@ -21,7 +22,7 @@ export function createImportWorldBook(ctx: ImportWorldBookContext): ImportWorldB
     if (!parsed.ok) {
       return { ok: false, error: portableParseError(WORLD_INFO_SCHEMA_KIND, parsed.reason) };
     }
-    const result = await ctx.importStandalone({ ownerId, book: parsed.value });
+    const result = soleResult(await ctx.importStandalone({ ownerId, books: [parsed.value], dryRun: false, signal: NEVER_ABORTED }));
     return { ok: true, created: result.created, name: result.name, renamedFrom: result.renamedFrom };
   };
 }

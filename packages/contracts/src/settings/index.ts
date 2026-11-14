@@ -1129,16 +1129,29 @@ export type MarkDistributedPluginAppliedOp = (principal: Principal) => Promise<v
 /** Slug → this user's owned scene-plate background ref, or `null` when the shipped pack has no such plate. */
 export type ResolveSeededPlateOp = (principal: Principal, slug: string) => Promise<ThemeBackground | null>;
 
-/** The settings-owned theme import: a bundle descriptor, a profile import or a single file. `fallbackName` names
- *  a raw SillyTavern theme that carries no `name`. */
-export type ImportThemeOp = (ownerId: UserId, bytes: Uint8Array, fallbackName?: string) => Promise<SettingsImportOutcome>;
+/** One theme file of an import batch. `fallbackName` names a raw SillyTavern theme that carries no `name`. */
+export interface ThemeImportFile {
+  readonly bytes: Uint8Array;
+  readonly fallbackName?: string;
+}
 
-/** For each file, in order, what {@link ImportThemeOp} would do with it: reuse the owner's theme for every theme in
- *  it (`"library"`), reuse themes an earlier file of this list lands (`"upload"`), or write a new one (`null`), with
- *  one content key per theme in the file. A read: it writes nothing, and it loads the owner's themes once for the
- *  whole list. A file that does not parse, or carries no theme, answers `null` with no key. Once `signal` aborts it
- *  stops and returns the answers so far, which the aborted caller discards. */
-export type FindOwnedThemes = (ownerId: UserId, files: readonly Uint8Array[], signal: Cancellation) => Promise<readonly ImportAnswer[]>;
+interface ThemeImportBatch {
+  readonly ownerId: UserId;
+  readonly files: readonly ThemeImportFile[];
+  readonly signal: Cancellation;
+}
+
+/** The settings-owned theme import, in order, for a bundle descriptor, a profile import or a single file (a batch of
+ *  one): a theme equal to an owned one, or to one an earlier theme of the batch lands, reuses that row; a different
+ *  one under a taken name lands under the next free name. With `dryRun` it writes nothing and answers, per file, what
+ *  the write does with it: reuse the owner's theme for every theme in it (`"library"`), reuse a theme for every theme
+ *  in it with at least one landed earlier in the batch (`"upload"`), or write (`null`), with one content key per
+ *  theme. A file that does not parse, or carries no theme, answers `null` with no key. Once `signal` aborts it stops
+ *  after the file in hand and returns what it has. */
+export interface ImportThemes {
+  (args: ThemeImportBatch & { readonly dryRun: true }): Promise<readonly ImportAnswer[]>;
+  (args: ThemeImportBatch & { readonly dryRun: false }): Promise<readonly SettingsImportOutcome[]>;
+}
 
 /** The content hashes of the owner's background library, which a stored background image joins by its own hash. */
 export type OwnedBackgroundHashes = (ownerId: UserId) => Promise<ReadonlySet<string>>;

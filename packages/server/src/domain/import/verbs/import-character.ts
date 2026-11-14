@@ -32,12 +32,12 @@ import type { ImportContext, ImportService } from "../contract/service.ts";
 import {
   cardToCreateInput,
   currentCardIdentity,
-  findImportedCharacter,
   importFileHash,
   parseCardJson,
   parseCardPng,
   parsedCardImportHash,
   parsedCardTextHash,
+  reusedCardRow,
 } from "../substrate/card.ts";
 
 const PNG_MIME = "image/png";
@@ -189,20 +189,25 @@ async function resolveExisting({
   readonly png: boolean;
   readonly importHash: string;
 }): Promise<CharacterId | null> {
-  const found = await findImportedCharacter(
-    (hash) => ctx.findByImportHash({ ownerId: ctx.ownerId, importHash: hash }),
-    { importHash, textHash: parsedCardTextHash(parsed), fileHash: importFileHash(bytes) },
-    currentCardIdentity(ctx.exportCurrentCard, ctx.ownerId, parsed.handle),
-  );
-  if (found === null) {
-    return null;
-  }
-  if (found.match !== "text" || !png) {
-    return found.characterId;
-  }
-  const avatarAssetId = await ctx.storeAsset({ ownerId: ctx.ownerId, bytes, mime: PNG_MIME });
-  const tookArt = await ctx.attachImportedArt({ ownerId: ctx.ownerId, characterId: found.characterId, avatarAssetId, importHash });
-  return tookArt ? found.characterId : null;
+  const found = await reusedCardRow({
+    find: (hash) => ctx.findByImportHash({ ownerId: ctx.ownerId, importHash: hash }),
+    hashes: { importHash, textHash: parsedCardTextHash(parsed), fileHash: importFileHash(bytes) },
+    current: currentCardIdentity(ctx.exportCurrentCard, ctx.ownerId, parsed.handle),
+    takeArt: async (characterId) => {
+      if (!png) {
+        return true;
+      }
+      const avatarAssetId = await ctx.storeAsset({ ownerId: ctx.ownerId, bytes, mime: PNG_MIME });
+      return await ctx.attachImportedArt({ ownerId: ctx.ownerId, characterId, avatarAssetId, importHash });
+    },
+  });
+  return found?.characterId ?? null;
+}
+
+/** The name a held card is shown by: what the owner calls the row now, or the card's own name when the row was deleted
+ *  since the lookup matched it. */
+async function heldName(ctx: ImportContext, characterId: CharacterId, cardName: string): Promise<string> {
+  return (await ctx.characterName({ ownerId: ctx.ownerId, characterId })) ?? cardName;
 }
 
 type ParsedCardIdentity = NonNullable<ReturnType<typeof parseCardJson>>;
@@ -235,7 +240,7 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
     const existing = await resolveExisting({ ctx, parsed, bytes, png, importHash });
     if (existing !== null) {
       const attached = await attachAllPlanes(ctx, existing, tags, carried);
-      return { characterId: existing, created: false, importHash, ...attached };
+      return { characterId: existing, created: false, name: await heldName(ctx, existing, characterCard.name), importHash, ...attached };
     }
 
     // Content-addressed store: a byte-identical re-import resolves to the same asset id.
@@ -258,6 +263,6 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
     const characterId = ref.characterId;
     const attached = await attachAllPlanes(ctx, characterId, tags, carried);
 
-    return { characterId, created: true, importHash, ...attached };
+    return { characterId, created: true, name: baseInput.name, importHash, ...attached };
   };
 }

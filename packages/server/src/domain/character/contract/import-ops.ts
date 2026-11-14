@@ -11,7 +11,7 @@ import type { AdmitsImportedArtParams, AttachImportedArtParams, FindByNameParams
 import type { CharacterService } from "./service.ts";
 
 /** The import consumer needs identity only; the source signatures remain the actual owner's params. */
-export interface ImportCharacterPort extends Pick<CharacterService, "attachImportedArt" | "admitsImportedArt"> {
+export interface ImportCharacterPort extends Pick<CharacterService, "attachImportedArt" | "admitsImportedArt" | "get"> {
   readonly create: (...args: Parameters<CharacterService["create"]>) => Promise<Pick<CharacterDetail, "id">>;
   readonly findByImportHash: CharacterService["findByImportHash"];
   readonly findByHandle: CharacterService["findByHandle"];
@@ -29,4 +29,6 @@ export interface CharacterImportOps {
   readonly findByName: (args: Omit<FindByNameParams, "ownerId">) => Promise<readonly CharacterId[]>;
   readonly attachImportedArt: (args: Omit<AttachImportedArtParams, "ownerId">) => Promise<boolean>;
   readonly admitsImportedArt: (args: Omit<AdmitsImportedArtParams, "ownerId">) => Promise<boolean>;
+  /** The owned character's current name, or null when the importer holds no such character. */
+  readonly characterName: (args: { readonly characterId: CharacterId }) => Promise<string | null>;
 }
