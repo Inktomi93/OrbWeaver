@@ -17,7 +17,7 @@ import { Text } from "@orb/ui/text";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary } from "#components";
+import { MutedLine, QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { testId } from "#lib";
@@ -89,7 +89,7 @@ function PortraitFit({ report }: { readonly report: PortraitReport }): ReactElem
   return (
     <Section heading="Portrait fit">
       {report.count === 0 ? (
-        <Text voice="gloss">No portrait↔card alignment computed yet.</Text>
+        <MutedLine>No portrait↔card alignment computed yet.</MutedLine>
       ) : (
         <Stack gap="block">
           {/* The portrait↔card cosine is spoken in WORDS here and in the dossier (`matchWord`), never as a bare percentage. */}
@@ -150,11 +150,11 @@ function FacetExplorer({ facets }: { readonly facets: ImageFacets }): ReactEleme
         // TWO DIFFERENT NOTHINGS (issue #164). `captioned > 0, total === 0` is a real corpus whose avatars were
         // described before the breakdown pass existed — the fix is a re-run of the image index, and saying so
         // is the difference between an empty state and a door. `captioned === 0` is simply an unindexed library.
-        <Text voice="gloss">
+        <MutedLine>
           {facets.captioned === 0
             ? "No captioned avatars to explore yet."
             : `${facets.captioned.toString()} avatars are captioned but not yet broken down: re-run the image index to read them.`}
-        </Text>
+        </MutedLine>
       ) : (
         <Stack gap="block" data-testid={testId("corpusFacetDrill")}>
           <Row gap="block" wrap={true}>
@@ -162,7 +162,7 @@ function FacetExplorer({ facets }: { readonly facets: ImageFacets }): ReactEleme
             <ParamSelect label="Value" value={value} items={valueItems} onValueChange={setValue} />
           </Row>
           {rows.length === 0 ? (
-            <Text voice="gloss">No {view.label.toLowerCase()} captioned yet.</Text>
+            <MutedLine>{`No ${view.label.toLowerCase()} captioned yet.`}</MutedLine>
           ) : (
             <BarList
               label={view.label}
@@ -197,7 +197,7 @@ function FacetMembers({ facet, value }: { readonly facet: FacetKey; readonly val
   const { data: members } = useSuspenseQuery(trpc.discovery.charactersByImageFacet.queryOptions({ facet, value }));
 
   if (members.length === 0) {
-    return <Text voice="gloss">No avatars carry “{value}”.</Text>;
+    return <MutedLine>{`No avatars carry “${value}”.`}</MutedLine>;
   }
   return (
     <Stack gap="row" role="list">

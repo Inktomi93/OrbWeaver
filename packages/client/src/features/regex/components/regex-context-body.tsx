@@ -39,7 +39,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { ContextTabBody, RegexScopeOrder, SettingSwitchRow } from "#components";
+import { ContextTabBody, MutedLine, RegexScopeOrder, SettingSwitchRow } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { deriveChatTitle, regexRunsNowhere, regexScriptTitle, rowQualifiers, timeLib } from "#lib";
 import { useAttachRegexGlobal, useDetachRegexGlobal } from "../hooks/use-regex-library.ts";
@@ -176,7 +176,7 @@ function AttachmentList({
   return (
     <Section data-slot={`regex-usage-${noun}`} kicker={`Attached by ${noun} · ${rows.length}`}>
       {rows.length === 0 ? (
-        <Text voice="gloss">{emptyText}</Text>
+        <MutedLine>{emptyText}</MutedLine>
       ) : (
         <Stack gap="tight">
           {rows.map((row) => (
@@ -219,7 +219,7 @@ function RoomList({ rooms }: { readonly rooms: readonly VisibleRoomRef[] }): Rea
   return (
     <Section data-slot="regex-usage-rooms" kicker={`Attached by rooms · ${rooms.length}`}>
       {rooms.length === 0 ? (
-        <Text voice="gloss">No room attaches this script yet. Open a chat's This-chat panel to attach it there.</Text>
+        <MutedLine>No room attaches this script yet. Open a chat's This-chat panel to attach it there.</MutedLine>
       ) : (
         <Stack gap="tight">
           {rooms.map((room, index) => {

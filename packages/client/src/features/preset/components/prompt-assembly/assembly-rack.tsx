@@ -16,14 +16,12 @@
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { Card } from "@orb/ui/card";
-import { Icon, TriangleAlert } from "@orb/ui/icons";
-import { Row, Stack, Surface } from "@orb/ui/layout";
+import { Stack, Surface } from "@orb/ui/layout";
 import type { SortableItemKey } from "@orb/ui/sortable";
 import { SortableList } from "@orb/ui/sortable";
-import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
+import { Notice } from "#components";
 import type { AppFormInstance } from "#forms/editor";
 import { isPivotSection } from "#src/features/preset/lib/assembly-model.ts";
 import type { PresetEditorValues } from "#src/features/preset/lib/preset-editor-values.ts";
@@ -108,29 +106,23 @@ export function AssemblyRack({
                 Skip the section list
               </Button>
               {zones.missingPivot ? (
-                <Card tone="warning" variant="soft">
-                  <Row align="center" gap="row">
-                    <Icon icon={TriangleAlert} size="sm" tone="warning" />
-                    <Text grow={true} voice="label">
-                      No chat history marker. The conversation has nowhere to splice in.
-                    </Text>
+                <Notice
+                  action={
                     <Button variant="outline" onClick={onAddChatHistory} size="sm" type="button">
                       Add chat history
                     </Button>
-                  </Row>
-                </Card>
+                  }
+                  title="No chat history marker. The conversation has nowhere to splice in."
+                  tone="warning"
+                />
               ) : null}
               {cacheBusters.length > 0 ? (
-                <Card tone="warning" variant="soft">
-                  <Row align="center" gap="row">
-                    <Icon icon={TriangleAlert} size="sm" tone="warning" />
-                    <Text data-slot="prompt-cache-warning" voice="label">
-                      {`Content that can change between turns above Chat History invalidates the history cache. Move ${cacheBusters
-                        .map(sectionName)
-                        .join(", ")} below Chat History to keep the cache.`}
-                    </Text>
-                  </Row>
-                </Card>
+                <Notice
+                  title={`Content that can change between turns above Chat History invalidates the history cache. Move ${cacheBusters
+                    .map(sectionName)
+                    .join(", ")} below Chat History to keep the cache.`}
+                  tone="warning"
+                />
               ) : null}
 
               <SortableList

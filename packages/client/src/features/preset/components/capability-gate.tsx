@@ -34,11 +34,9 @@
 // `CapabilityGatePending` as that boundary's fallback, so each arm is the boundary's own state.
 
 import { Button } from "@orb/ui/button";
-import { Card } from "@orb/ui/card";
-import { Icon, TriangleAlert } from "@orb/ui/icons";
-import { Row, Section, Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
+import { Section } from "@orb/ui/layout";
 import type { ReactElement } from "react";
+import { Notice } from "#components";
 import { SkeletonRows } from "#data";
 import { DIALOG_VERBS, MODEL_ROLES_PATH_TEXT } from "#lib";
 import { failureCause, resolveFailureMessage } from "../lib/resolve-failure.ts";
@@ -77,33 +75,25 @@ export function CapabilityGate({ error, onRetry }: CapabilityGateProps): ReactEl
   // unearned arm states the READ and stops, exactly as the classifier's own `unknown` copy does.
   const routing = failureCause(error) === "routing";
   const message = resolveFailureMessage(error);
+  const guidance = routing
+    ? `This is a routing problem, not a missing connection: fix it under ${MODEL_ROLES_PATH_TEXT}.`
+    : `Check your model roles under ${MODEL_ROLES_PATH_TEXT}, then retry.`;
   return (
     <Section kicker="Sampling · reasoning · output">
-      <Card tone="warning" variant="soft">
-        <Row align="start" gap="field">
-          <Icon icon={TriangleAlert} size="sm" tone="warning" />
-          <Stack gap="tight">
-            <Text cap="prose" prose={true} voice="label">
-              {routing
-                ? "Your chat model couldn't be resolved, so these knobs can't be shown at your model's real caps."
-                : "Your model's capabilities couldn't be read, so these knobs can't be shown at their real caps."}
-            </Text>
-            {message === null ? null : (
-              <Text cap="prose" prose={true} voice="gloss">
-                {message}
-              </Text>
-            )}
-            <Text cap="prose" prose={true} voice="gloss">
-              {routing
-                ? `This is a routing problem, not a missing connection: fix it under ${MODEL_ROLES_PATH_TEXT}.`
-                : `Check your model roles under ${MODEL_ROLES_PATH_TEXT}, then retry.`}
-            </Text>
-            <Button self="start" variant="outline" onClick={onRetry} size="sm" type="button">
-              {DIALOG_VERBS.retry}
-            </Button>
-          </Stack>
-        </Row>
-      </Card>
+      <Notice
+        action={
+          <Button variant="outline" onClick={onRetry} size="sm" type="button">
+            {DIALOG_VERBS.retry}
+          </Button>
+        }
+        detail={message === null ? [guidance] : [message, guidance]}
+        title={
+          routing
+            ? "Your chat model couldn't be resolved, so these knobs can't be shown at your model's real caps."
+            : "Your model's capabilities couldn't be read, so these knobs can't be shown at their real caps."
+        }
+        tone="warning"
+      />
     </Section>
   );
 }

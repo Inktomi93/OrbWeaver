@@ -34,7 +34,7 @@ import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { RegexScopeOrder } from "#components";
+import { MutedLine, RegexScopeOrder } from "#components";
 import { regexScriptTitle, rowQualifiers, timeLib } from "#lib";
 import { CHAT_ATTACH_SCRIPT_NAME } from "../lib/chat-attach-names.ts";
 import { regexRowAlsoAt, regexTierInForceCount, regexTierKicker, regexTierProvenance } from "../lib/regex-section-model.ts";
@@ -99,7 +99,7 @@ export function RegexTierGroup({ chatId, isHost, tier, rows, tiers, labels, owne
       {rows.length === 0 ? (
         // Never render nothing — an empty tier is a normal state (a room with no preset, a card with no
         // scripts) and a blank block reads as a failed load.
-        <Text voice="gloss">{emptyLine(tier.scope, isHost)}</Text>
+        <MutedLine>{emptyLine(tier.scope, isHost)}</MutedLine>
       ) : (
         <TierRows chatId={chatId} effectiveCount={effectiveCount} isRoomTier={isRoomTier} isHost={isHost} renderRow={renderRow} rows={rows} />
       )}

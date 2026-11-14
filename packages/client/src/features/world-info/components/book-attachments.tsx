@@ -10,7 +10,7 @@ import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { CHARACTER_SEARCH_NAME, QueryBoundary } from "#components";
+import { CHARACTER_SEARCH_NAME, MutedLine, QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQueries, useSuspenseQuery, useTRPC } from "#data";
 import { CLEAR_SEARCH_NAME, SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
@@ -97,7 +97,7 @@ function PersonasSection({
   return (
     <Section kicker={worldInfoAttachedByPersonasKicker(attachments.personaIds.length)}>
       {personas.length === 0 ? (
-        <Text voice="gloss">No personas yet. Create one from the rail-foot Account &amp; personas panel.</Text>
+        <MutedLine>No personas yet. Create one from the rail-foot Account &amp; personas panel.</MutedLine>
       ) : (
         <Stack gap="row">
           {personas.map((persona) => (
@@ -159,16 +159,9 @@ function CharacterMatches({
   const { data } = useSuspenseQuery(trpc.character.list.queryOptions({ limit: PICKER_PAGE_LIMIT, ...(needle === "" ? {} : { search: needle }) }));
   if (data.items.length === 0) {
     return needle === "" ? (
-      <Text voice="gloss">No characters yet.</Text>
+      <MutedLine>No characters yet.</MutedLine>
     ) : (
-      <Stack gap="field">
-        <Text voice="gloss">{`No character matches "${needle}".`}</Text>
-        <Row>
-          <Button variant="outline" onClick={onClearSearch} size="sm">
-            {CLEAR_SEARCH_NAME}
-          </Button>
-        </Row>
-      </Stack>
+      <MutedLine action={{ label: CLEAR_SEARCH_NAME, onAction: onClearSearch }}>{`No character matches "${needle}".`}</MutedLine>
     );
   }
   return (
