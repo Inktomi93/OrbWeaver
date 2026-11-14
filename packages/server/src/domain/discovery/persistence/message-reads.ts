@@ -1,11 +1,12 @@
 // domain/discovery/persistence/message-reads — the semantic messages projection. discovery reads messages
 // only through role/createdAt/characterId — never an economics column (tokens/cost live on
-// message_variants and arrive pre-aggregated through the injected stats op).
+// message_variants and arrive pre-aggregated through the injected stats op). The library reads reach messages by
+// character, not membership, so each leaves out a room an import is still landing (`chats.landing_at`).
 
 import type { Db } from "@orb/db";
-import { assets, characters, messages, messageVariants } from "@orb/db";
+import { assets, characters, chats, messages, messageVariants } from "@orb/db";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
-import { aliasedTable, and, desc, eq, gt, sql } from "drizzle-orm";
+import { aliasedTable, and, desc, eq, gt, isNull, sql } from "drizzle-orm";
 import { ownedRealCharacters } from "./character-scope.ts";
 
 type ForgottenGemCandidateRow = Pick<typeof characters.$inferSelect, "name"> & {
@@ -31,6 +32,7 @@ export async function readForgottenGemCandidates(db: Db, ownerId: UserId): Promi
     })
     .from(messages)
     .innerJoin(characters, eq(characters.id, messages.characterId))
+    .innerJoin(chats, and(eq(chats.id, messages.chatId), isNull(chats.landingAt)))
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
     .leftJoin(assets, eq(assets.id, characters.avatarAssetId))
     .where(and(ownedRealCharacters(ownerId), eq(messages.role, "assistant")))
@@ -56,6 +58,7 @@ export async function readCharacterMessageSamples(db: Db, ownerId: UserId, chara
     .select({ content: messageVariants.content })
     .from(messages)
     .innerJoin(characters, and(eq(characters.id, messages.characterId), ownedRealCharacters(ownerId)))
+    .innerJoin(chats, and(eq(chats.id, messages.chatId), isNull(chats.landingAt)))
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
     .where(and(eq(messages.characterId, characterId), eq(messages.role, "assistant")))
     .orderBy(desc(messages.createdAt))

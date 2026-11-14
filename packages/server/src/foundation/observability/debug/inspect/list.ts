@@ -5,7 +5,7 @@
 
 import type { ReadOnlyDb } from "@orb/db";
 import { characters, chatParticipants, chats, messages } from "@orb/db";
-import { count, desc, eq } from "drizzle-orm";
+import { count, desc, eq, isNull } from "drizzle-orm";
 import type { CharacterListRow, ChatListRow } from "#src/foundation/observability/contract/inspect.ts";
 
 export type { CharacterListRow, ChatListRow } from "#src/foundation/observability/contract/inspect.ts";
@@ -18,7 +18,12 @@ export async function chatListSummaries(db: ReadOnlyDb): Promise<ChatListRow[]> 
   const partById = new Map(partCounts.map((r) => [r.chatId, r.n]));
   const msgById = new Map(msgCounts.map((r) => [r.chatId, r.n]));
 
-  const rows = await db.select({ id: chats.id, title: chats.title, updatedAt: chats.updatedAt }).from(chats).orderBy(desc(chats.updatedAt));
+  // A room an import is still landing is not a room yet; it shows here once its last stage lands.
+  const rows = await db
+    .select({ id: chats.id, title: chats.title, updatedAt: chats.updatedAt })
+    .from(chats)
+    .where(isNull(chats.landingAt))
+    .orderBy(desc(chats.updatedAt));
   return rows.map((r) => ({
     id: r.id,
     title: r.title,

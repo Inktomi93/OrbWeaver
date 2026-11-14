@@ -126,6 +126,13 @@ function macroOptionsFor(ctx: AssembleContext, persona: AssemblePersona | null |
   setIf(opts, "frozenMacros", extras.frozenMacros);
   // Thread the same per-assembly op-log by reference so mutation handlers record this turn's ops onto it.
   setIf(opts, "opLog", ctx.opLog);
+  // The global plane's sinks ride by reference too; only a held plane records reads, which is what its warning reports.
+  const globals = ctx.globalVariables;
+  if (globals !== undefined) {
+    opts.globalVars = globals.values;
+    opts.globalVarWrites = globals.writes;
+    setIf(opts, "globalVarReads", globals.mode === "held" ? globals.heldReads : undefined);
+  }
   return opts;
 }
 

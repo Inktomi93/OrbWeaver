@@ -3,7 +3,7 @@
 // whole. Each case is read on the far side of the crossing it proves. A guest reports what it saw as its own JSON,
 // which escapes a NUL, so the report itself never depends on the crossing under test. Card data is stored as JSON
 // text, so its round trip also shows that store keeps a NUL; the text stores refuse one instead
-// (`tests/server/domain/plugin/substrate/stored-text-nul.int.test.ts`). A host error reaches the guest with its name
+// (`tests/server/domain/plugin/persistence/stored-text-nul.int.test.ts`). A host error reaches the guest with its name
 // and message, and a promise the guest hands the host is refused unread.
 // @subject packages/server/src/infra/plugin-host/marshal.ts
 import { spawn } from "node:child_process";

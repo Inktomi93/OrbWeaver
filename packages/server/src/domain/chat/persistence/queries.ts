@@ -84,6 +84,8 @@ interface ChatRow {
   temporary: boolean;
   parentChatId: ChatId | null;
   forkedAt: number | null;
+  /** A human other than the host has held a seat here or in a room this was copied from (`chats.everShared`). */
+  everShared: boolean;
   anchorPersonaId: PersonaId | null;
   /** The pending host-handoff nominee; null = no nomination in flight. */
   pendingHostUserId: UserId | null;
@@ -109,6 +111,7 @@ const chatRowSelection = {
   temporary: chats.temporary,
   parentChatId: chats.parentChatId,
   forkedAt: chats.forkedAt,
+  everShared: chats.everShared,
   anchorPersonaId: chats.anchorPersonaId,
   pendingHostUserId: chats.pendingHostUserId,
   compactSummary: chats.compactSummary,
@@ -640,13 +643,21 @@ export async function loadMaxMessageSeq(db: Db, chatId: ChatId): Promise<number>
 
 /** The text of the latest user-role message's selected variant, or `null` (no user line yet). `role='user'`
  *  scopes it to human sends (never a narrator/assistant line); newest by `seq`. A hidden message is off the wire,
- *  so it is not "the latest" for a reader asking what the model sees. */
-export async function loadPendingUserText(db: Db, chatId: ChatId): Promise<string | null> {
+ *  so it is not "the latest" for a reader asking what the model sees. With `messageId`, only that user message is
+ *  read: a drained queued turn answers its own send, which a later send may have followed. */
+export async function loadPendingUserText(db: Db, chatId: ChatId, messageId?: MessageId): Promise<string | null> {
   const rows = await db
     .select({ text: messageVariants.content })
     .from(messages)
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
-    .where(and(eq(messages.chatId, chatId), eq(messages.role, "user"), eq(messages.excludedFromPrompt, false)))
+    .where(
+      and(
+        eq(messages.chatId, chatId),
+        eq(messages.role, "user"),
+        eq(messages.excludedFromPrompt, false),
+        messageId === undefined ? undefined : eq(messages.id, messageId),
+      ),
+    )
     .orderBy(desc(messages.seq))
     .limit(LIMIT_ONE);
   return rows.at(0)?.text ?? null;
