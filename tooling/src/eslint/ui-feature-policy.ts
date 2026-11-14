@@ -196,6 +196,16 @@ export const UI_FEATURE_RESTRICTIONS = [
     ],
   },
   {
+    id: "sheet-via-composite",
+    selectors: [
+      {
+        selector: "ImportDeclaration[source.value='@orb/ui/drawer']",
+        message:
+          "The drawer primitive outside the sheet composite: a phone bottom sheet is a `#components` `SheetDialog`, which owns the sticky header, Close and the keyboard wrap.",
+      },
+    ],
+  },
+  {
     id: "required-dialog-home",
     selectors: [
       {
