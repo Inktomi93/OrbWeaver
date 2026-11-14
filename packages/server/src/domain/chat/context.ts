@@ -19,5 +19,13 @@ export function createChatContext(input: ChatAssemblyContext): ChatContext {
     bumpStatsCanonVersion: (batch, _db, ownerId) => input.bumpStatsCanonVersion(batchHandle(batch), input.db, ownerId),
     shiftCharacterCensus: (batch, _db, shift) => input.shiftCharacterCensus(batchHandle(batch), input.db, shift),
     recordLedgerSpend: (batch, _db, spend) => input.recordLedgerSpend(batchHandle(batch), input.db, spend),
+    prepareCanonRetirement: async (_db, scope): ReturnType<ChatContext["prepareCanonRetirement"]> => {
+      const retirement = await input.prepareCanonRetirement(input.db, scope);
+      return {
+        beforeDelete: (batch) => retirement.beforeDelete(batchHandle(batch), input.db),
+        afterDelete: (batch) => retirement.afterDelete(batchHandle(batch), input.db),
+        refused: retirement.refused,
+      };
+    },
   };
 }

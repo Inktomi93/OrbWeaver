@@ -224,6 +224,8 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
   const { superviseDetached } = createDetachedSupervision(log, seams.rings.traces);
 
   let isShuttingDown = false;
+  // A signal during boot stops a boot repair between owners, so the drain never closes the DB under a rebuild.
+  const bootAbort = new AbortController();
   let shutdownCompletion: Promise<void> | undefined;
   let credentialsKeyOk = false;
   let db: Db | null = null;
@@ -346,7 +348,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     await repairStaleJoinSeqOnBoot({ logger: seams.logger, db: bootDb });
     // DATA repair, same window: the `daily_stats` timeline re-grain drops rows only canon can rebuild, so every
     // owner with activity and an empty timeline is rebuilt before the first Insights read.
-    await rebuildStatsTimelineOnBoot({ logger: seams.logger, db: bootDb, now, idSource: seams.idSource });
+    await rebuildStatsTimelineOnBoot({ logger: seams.logger, db: bootDb, now, idSource: seams.idSource, signal: bootAbort.signal });
 
     // The boot secrets, phase two: with the schema in place, an absent keyfile is generated only when no row
     // depends on it; otherwise this REFUSES and names the file (owner ruling — a regenerated secret would
@@ -693,6 +695,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
   async function drain(request: { readonly drainMs?: number }): Promise<void> {
     const httpDrainMs = request.drainMs ?? SHUTDOWN_DRAIN_MS;
     isShuttingDown = true;
+    bootAbort.abort();
     log.info(SHUTDOWN_MESSAGES.draining);
     let shareFailure: Error | undefined;
     if (sharing !== null) {

@@ -36,6 +36,7 @@ import type { ChatInjectionView, ClaimChatOp, LiveOnlyChatBusEvent, UserMacroPic
 import { NEW_CHAT_INJECTION_PLACEMENT } from "@orb/contracts/chat";
 import type { UserMacroSpec, UserMacroValues } from "@orb/contracts/preset";
 import { userMacroValuesSchema } from "@orb/contracts/preset";
+import { CANON_RETIREMENT_ATTEMPTS } from "@orb/contracts/stats";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
@@ -73,7 +74,6 @@ import type { ReapResult } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireHost, requireParticipant } from "../guard.ts";
 import {
-  commitGenerationObservationRemoval,
   generationObservationRemovalRefused,
   generationObservationRemovalStatements,
   loadGenerationObservationsForRemoval,
@@ -229,6 +229,45 @@ function appendRemovalVersions(ctx: ChatContext, statements: BatchStmt[], caller
   }
 }
 
+type RoomRemoval = { readonly kind: "removed"; readonly deleted: boolean } | { readonly kind: "observations-moved"; readonly error: unknown };
+
+// The one batch both delete paths commit. The observation fence must stay the batch's first statement, because its
+// refusal is read by position; the stats retirement goes right after it, ahead of the observation inverses, whose own
+// stats writes would otherwise move the canon version the retirement's guard compares.
+async function removeRoom(ctx: ChatContext, chatId: ChatId, predicate: SQL | undefined, callerId: UserId): Promise<RoomRemoval> {
+  for (let attempt = 0; attempt < CANON_RETIREMENT_ATTEMPTS; attempt++) {
+    const retainedStats = await prepareRoomRemovalStats(ctx, chatId);
+    const scope = { chatIds: [chatId], chatPredicate: sql`${and(predicate, retainedStats.predicate)}` };
+    const groups = await loadGenerationObservationsForRemoval(ctx, scope);
+    const retirement = await ctx.prepareCanonRetirement(ctx.db, { kind: "room", chatId });
+    const statements = generationObservationRemovalStatements(ctx, scope, groups);
+    const retiring: BatchStmt[] = [];
+    retirement.beforeDelete(retiring, ctx.db);
+    statements.splice(1, 0, ...retiring);
+    const deleteIndex = statements.length;
+    statements.push(
+      ctx.db
+        .delete(chats)
+        .where(and(eq(chats.id, chatId), predicate))
+        .returning({ id: chats.id }),
+    );
+    retirement.afterDelete(statements, ctx.db);
+    appendRemovalVersions(ctx, statements, callerId, retainedStats.ownerIds);
+    try {
+      const deleted = (await ctx.db.batch(batchMany(statements)))[deleteIndex];
+      return { kind: "removed", deleted: Array.isArray(deleted) && deleted.length > 0 };
+    } catch (error) {
+      if (await generationObservationRemovalRefused(ctx, scope, groups, error)) {
+        return { kind: "observations-moved", error };
+      }
+      if (!(await retirement.refused(error))) {
+        throw error;
+      }
+    }
+  }
+  throw new ChatOperationError(CHAT_OP_CODES.aborted, "the room kept changing while it was deleted; try again shortly");
+}
+
 /** `delete` — host-only. Drop the chat row; every child cascades (FK). Fans `chatDeleted` on the live-only
  *  lane + writes the best-effort audit row after the delete lands.
  *
@@ -256,16 +295,13 @@ function createDelete(ctx: ChatContext, emitLive: EmitChatEventLive, abortTurns:
       ),
     ];
     abortTurns(chatId);
-    const retainedStats = await prepareRoomRemovalStats(ctx, chatId);
-    const scope = { chatIds: [chatId], chatPredicate: retainedStats.predicate };
-    const groups = await loadGenerationObservationsForRemoval(ctx, scope);
-    const statements = generationObservationRemovalStatements(ctx, scope, groups);
-    const deleteIndex = statements.length;
-    statements.push(ctx.db.delete(chats).where(eq(chats.id, chatId)).returning({ id: chats.id }));
-    appendRemovalVersions(ctx, statements, principal.userId, retainedStats.ownerIds);
-    const results = await commitGenerationObservationRemoval(ctx, scope, groups, statements);
-    const removed = results[deleteIndex];
-    if (Array.isArray(removed) && removed.length > 0) {
+    const removal = await removeRoom(ctx, chatId, undefined, principal.userId);
+    if (removal.kind === "observations-moved") {
+      const refusal = new ChatOperationError(CHAT_OP_CODES.aborted, "the generation facts changed before their source could be removed");
+      refusal.cause = removal.error;
+      throw refusal;
+    }
+    if (removal.deleted) {
       emitLive({ type: "chatDeleted", chatId });
     }
     await ctx.emitChatChanged(chatId, { detail: true, extraUserIds: members });
@@ -295,27 +331,8 @@ function callerHostsChat(ctx: ChatContext, userId: UserId): SQL | undefined {
 }
 
 async function deleteQualifiedRoom(ctx: ChatContext, chatId: ChatId, predicate: SQL, ownerId: UserId): Promise<boolean> {
-  const retainedStats = await prepareRoomRemovalStats(ctx, chatId);
-  const scope = { chatIds: [chatId], chatPredicate: sql`${and(predicate, retainedStats.predicate)}` };
-  const groups = await loadGenerationObservationsForRemoval(ctx, scope);
-  const statements = generationObservationRemovalStatements(ctx, scope, groups);
-  const deleteIndex = statements.length;
-  statements.push(
-    ctx.db
-      .delete(chats)
-      .where(and(eq(chats.id, chatId), predicate))
-      .returning({ id: chats.id }),
-  );
-  appendRemovalVersions(ctx, statements, ownerId, retainedStats.ownerIds);
-  try {
-    const deleted = (await ctx.db.batch(batchMany(statements)))[deleteIndex];
-    return Array.isArray(deleted) && deleted.length > 0;
-  } catch (error) {
-    if (await generationObservationRemovalRefused(ctx, scope, groups, error)) {
-      return false;
-    }
-    throw error;
-  }
+  const removal = await removeRoom(ctx, chatId, predicate, ownerId);
+  return removal.kind === "removed" && removal.deleted;
 }
 
 // The one delete both reap arms take. It holds the room closed only for the delete, so an admission meets a closed

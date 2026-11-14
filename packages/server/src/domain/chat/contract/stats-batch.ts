@@ -1,7 +1,14 @@
 // The stats batch ops D337 rules into chat's committed turn. Stats builds them; chat folds each into its batch and the
 // composition root wires them, so the signatures are chat's own, over `@orb/db` handles.
 
-import type { ApplyStatsDelta, BumpStatsCanonVersion, RecordLedgerSpend, SettleRetainedChatRebase, ShiftCharacterCensus } from "@orb/contracts/stats";
+import type {
+  ApplyStatsDelta,
+  BumpStatsCanonVersion,
+  PrepareCanonRetirement,
+  RecordLedgerSpend,
+  SettleRetainedChatRebase,
+  ShiftCharacterCensus,
+} from "@orb/contracts/stats";
 import type { BatchHandle, DatabaseHandle } from "@orb/db/wiring";
 
 export interface ChatStatsBatchWiring {
@@ -11,4 +18,5 @@ export interface ChatStatsBatchWiring {
   readonly bumpStatsCanonVersion: BumpStatsCanonVersion<BatchHandle, DatabaseHandle>;
   readonly shiftCharacterCensus: ShiftCharacterCensus<BatchHandle, DatabaseHandle>;
   readonly recordLedgerSpend: RecordLedgerSpend<BatchHandle, DatabaseHandle>;
+  readonly prepareCanonRetirement: PrepareCanonRetirement<BatchHandle, DatabaseHandle>;
 }

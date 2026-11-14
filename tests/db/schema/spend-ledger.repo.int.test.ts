@@ -31,8 +31,8 @@ test("the spend-ledger migration keeps every compaction pass as a compaction row
 
   await expect(assertReferentialIntegrity(db)).resolves.toBeUndefined();
   expect(await db.select().from(spendLedger).orderBy(spendLedger.createdAt)).toEqual([
-    { id: first, ownerId: owner.id, kind: "compaction", costUsd: 0.25, createdAt: 1000 },
-    { id: second, ownerId: owner.id, kind: "compaction", costUsd: 0.5, createdAt: 2000 },
+    { id: first, ownerId: owner.id, kind: "compaction", costUsd: 0.25, createdAt: 1000, model: null, provider: null, notional: false },
+    { id: second, ownerId: owner.id, kind: "compaction", costUsd: 0.5, createdAt: 2000, model: null, provider: null, notional: false },
   ]);
   for (const kind of SPEND_LEDGER_KINDS) {
     await db.insert(spendLedger).values({ id: ids.typeId(ID_PREFIX.spendLedger), ownerId: owner.id, kind, costUsd: 1, createdAt: 3000 });
