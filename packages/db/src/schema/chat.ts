@@ -1,7 +1,7 @@
 // schema/chat — the chat cluster (producer: domain/chat; the biggest, most intricate slice). The retained chat tables:
 // chats · messages · message_variants · message_assets · message_reactions · chat_participants ·
 // chat_invites · pending_turns · chat_events ·
-// chat_injections · chat_locks · chat_import_claims · chat_handoff_resumptions ·
+// chat_injections · chat_memory_strikes · chat_locks · chat_import_claims · chat_handoff_resumptions ·
 // chat_generation_observations. Built
 // WHOLE (no feature-phasing — ledger D16); the authoritative spec is `docs/law/Tier-1-DB.md`.
 //
@@ -84,6 +84,7 @@ import type {
   ChatId,
   ChatInjectionId,
   ChatInviteId,
+  ChatMemoryStrikeId,
   ChatParticipantId,
   ChatTurnId,
   MessageAssetId,
@@ -997,6 +998,46 @@ export const chatInjections = sqliteTable(
     index("chat_injections_chat_idx").on(t.chatId),
     check("chat_injections_position_check", sql.raw(`position in (${checkList(INJECTION_POSITIONS)})`)),
     check("chat_injections_role_check", sql.raw(`role in (${checkList(MESSAGE_ROLES)})`)),
+  ],
+);
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// chat_memory_strikes — the host's strikes on remembered items: recall leaves a struck digest out of every later
+// prompt. User arrangement, not derived data, so it never lives on `chat_digests`, which is deleted and rebuilt
+// from canon. A strike names its item by bucket, tier and the covered span's endpoint message ids, which survive a
+// re-embed and a re-summarize; `content_hash` and `topic_anchor` are what the item held when struck.
+//   • `scoped_character_id` NULL is the room's SHARED bucket, whichever character holds it. A scoped character's
+//     strike CASCADES with that character, as its digests do; it never falls back to the shared bucket.
+//   • The endpoint columns carry NO FK on purpose: a hidden or deleted endpoint orphans the strike, and the orphan
+//     stays listed for the host instead of vanishing.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+export const chatMemoryStrikes = sqliteTable(
+  "chat_memory_strikes",
+  {
+    id: nulFreeText("id").$type<ChatMemoryStrikeId>().primaryKey(),
+    chatId: nulFreeText("chat_id")
+      .$type<ChatId>()
+      .notNull()
+      .references(() => chats.id, { onDelete: "cascade" }),
+    scopedCharacterId: nulFreeText("scoped_character_id")
+      .$type<CharacterId>()
+      .references(() => characters.id, { onDelete: "cascade" }),
+    tier: integer("tier").notNull(),
+    messageStartId: nulFreeText("message_start_id").$type<MessageId>().notNull(),
+    messageEndId: nulFreeText("message_end_id").$type<MessageId>().notNull(),
+    contentHash: nulFreeText("content_hash").notNull(),
+    topicAnchor: nulFreeText("topic_anchor"),
+    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [
+    // SQLite UNIQUE treats NULLs as distinct, so the shared bucket needs its own partial index.
+    uniqueIndex("chat_memory_strikes_shared_unique").on(t.chatId, t.tier, t.messageStartId, t.messageEndId).where(sql`scoped_character_id is null`),
+    uniqueIndex("chat_memory_strikes_scoped_unique")
+      .on(t.chatId, t.scopedCharacterId, t.tier, t.messageStartId, t.messageEndId)
+      .where(sql`scoped_character_id is not null`),
+    index("chat_memory_strikes_scoped_character_idx").on(t.scopedCharacterId),
+    check("chat_memory_strikes_tier_check", sql.raw("tier >= 0")),
   ],
 );
 
