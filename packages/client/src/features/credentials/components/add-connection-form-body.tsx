@@ -52,7 +52,8 @@ export interface AddConnectionFormBodyProps {
   readonly trpc: Trpc;
   readonly invalidation: Invalidation;
   readonly purpose: "connection" | "utility";
-  readonly onSaved: (created: ConnectionView) => void;
+  /** Settles once the dialog has chosen its next step, so the submit holds until then and cannot add the row twice. */
+  readonly onSaved: (created: ConnectionView) => Promise<void>;
   readonly onCancel: (() => void) | undefined;
   /** The deployment can store a secret; off ⇒ a provider that needs one cannot be added. */
   readonly keyStorage: boolean;
@@ -220,7 +221,7 @@ export function AddConnectionFormBody({
     if (modelCheck === "listed") {
       pushRecentModel(provider.id, values.model.trim());
     }
-    onSaved(created);
+    await onSaved(created);
     return values;
   };
 

@@ -184,3 +184,63 @@ export function sequenceChipSubject(noun: string, shown: string): string {
 export function sequenceAddName(noun: string): string {
   return `Add ${noun}`;
 }
+
+/** The Output cluster's two token caps. */
+export const PRESET_MAX_OUTPUT_LABEL = "Max output tokens";
+export const PRESET_MAX_CONTEXT_LABEL = "Max context tokens";
+
+/** The Output cluster's door to the chat connection's own limit settings, shown when its limits are a guess. */
+export const PRESET_SET_REAL_LIMITS_NAME = "Set this model's real limits";
+
+/** The Output cluster's line when the chat connection's limits are a guess; each argument is the guessed number as the
+ *  row prints it, or `null` when that limit is reported. */
+export function presetGuessedLimitsNotice(context: string | null, output: string | null): string {
+  const guesses = [context === null ? null : `${context} tokens of context`, output === null ? null : `${output} tokens per reply`].filter(
+    (guess): guess is string => guess !== null,
+  );
+  return `This model's connection doesn't say how much it can take, so these limits are a guess: ${guesses.join(" and ")}. If the model takes more, set its real limits.`;
+}
+
+/** Max output tokens' hint: what the knob does, then the ceiling, said as a guess when the connection reports none. */
+export function presetMaxOutputHint(ceiling: string, guessed: boolean): string {
+  return guessed
+    ? `Caps the length of one reply. This model's connection doesn't report its longest reply, so the slider stops at a guess of ${ceiling} tokens; the model may take more.`
+    : `Caps the length of one reply. This model accepts up to ${ceiling} output tokens.`;
+}
+
+/** Max context tokens' hint on a route that caps below the window: the window, said as a guess when the connection
+ *  reports none, and the room left for prompt and history. */
+export function presetMaxContextHint(window: string, room: string, guessed: boolean): string {
+  const size = guessed
+    ? `This model's connection doesn't report its window, so we guess ${window} tokens; the model may take more.`
+    : `This model's window is ${window} tokens;`;
+  return `Soft-caps the working set below the model window: older turns beyond this are trimmed. ${size} ${room} of them fit prompt and history after the reply and the safety margin.`;
+}
+
+/** Max context tokens' hint on a route that sends the window: the knob sets how much the server runs. */
+export function presetSentWindowHint(settableMax: string, window: string): string {
+  return `How much context this server runs, up to ${settableMax} tokens. Unset, it runs ${window}.`;
+}
+
+/** Appended to the Max context hint when the cap leaves no room beside the reply. */
+export function presetReplyExceedsCapNote(reply: string): string {
+  return `The reply (${reply}) is larger than this limit, so only the newest message is sent.`;
+}
+
+/** A blank Max output tokens row: what a reply is capped at when the preset sets nothing. `sends` is the number sent,
+ *  `appDefault` the app's own default; they differ only when the model's limit is lower. */
+export function presetBlankOutputNote(sends: string, appDefault: string): string {
+  return sends === appDefault
+    ? `Blank: replies stop at ${appDefault} tokens, the app's default. A higher model limit doesn't change this; set a number for longer replies.`
+    : `Blank: replies stop at ${sends} tokens, this model's limit, below the app's default of ${appDefault}.`;
+}
+
+/** A stored context cap above a ceiling the connection reports. */
+export function presetCappedOnConnectionNote(ceiling: string): string {
+  return `capped at ${ceiling} on this connection`;
+}
+
+/** A stored limit above a guessed ceiling: the value stays, and the turn is capped at the guess. */
+export function presetCappedByGuessNote(stored: string, ceiling: string): string {
+  return `Saved as ${stored}, but capped at ${ceiling} because this model's limit is a guess. Set the real limits to use more.`;
+}

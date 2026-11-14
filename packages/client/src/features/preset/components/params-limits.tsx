@@ -30,11 +30,13 @@ import {
   MANAGED_COMPACT_DEFAULT_PCT,
   MANAGED_VERBATIM_TAIL,
 } from "@orb/contracts/preset";
+import type { UserConnectionId } from "@orb/kit/ids";
 import { groupThousands } from "@orb/kit/strings";
 import { windowInputRoom } from "@orb/kit/tokens";
+import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Field } from "@orb/ui/field";
-import { Section, Stack } from "@orb/ui/layout";
+import { Row, Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
 import { Switch } from "@orb/ui/switch";
@@ -42,11 +44,26 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { SettingRowGroup, SettingTrackRow } from "#components";
 import type { AppFormInstance } from "#forms/editor";
+import { CONNECTIONS_LIST_ADDRESS } from "#lib";
+import { openConfigTo, requestConnectionEditor } from "#state";
 import { pageStep, verbosityLevelsFor } from "../lib/capability-panel-model.ts";
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { SENT_WINDOW_PROVENANCE } from "../lib/effective-knobs.ts";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
-import { PRESET_ADVANCED_NAME } from "../lib/preset-names.ts";
+import {
+  PRESET_ADVANCED_NAME,
+  PRESET_MAX_CONTEXT_LABEL,
+  PRESET_MAX_OUTPUT_LABEL,
+  PRESET_SET_REAL_LIMITS_NAME,
+  presetBlankOutputNote,
+  presetCappedByGuessNote,
+  presetCappedOnConnectionNote,
+  presetGuessedLimitsNotice,
+  presetMaxContextHint,
+  presetMaxOutputHint,
+  presetReplyExceedsCapNote,
+  presetSentWindowHint,
+} from "../lib/preset-names.ts";
 import { COMPACTION_MODE_ITEMS, compactionModeLabel } from "../lib/preset-nav.ts";
 import { SAMPLING_FLAG_LABELS } from "../lib/sampling-knob-catalog.ts";
 import { KnobGrid, KnobRow } from "./knob-row.tsx";
@@ -60,14 +77,16 @@ export interface ParamsLimitsProps {
   readonly form: AppForm;
   readonly capability: GenerationCapability | undefined;
   readonly effective: EffectiveProfileRow | undefined;
+  /** The connection `capability` was resolved on, whose limit settings the Output cluster opens. */
+  readonly chatConnectionId: UserConnectionId | undefined;
 }
 
-export function ParamsLimits({ form, capability, effective }: ParamsLimitsProps): ReactElement {
+export function ParamsLimits({ form, capability, effective, chatConnectionId }: ParamsLimitsProps): ReactElement {
   return (
     <>
       {/* No capability ⇒ OUTPUT is absent with its two sibling clusters, under the deck's ONE gate note
           (side-eye F-02: three per-cluster notes printed the same sentence three times). */}
-      {capability === undefined ? null : <OutputCluster capability={capability} effective={effective} form={form} />}
+      {capability === undefined ? null : <OutputCluster capability={capability} chatConnectionId={chatConnectionId} effective={effective} form={form} />}
       {effective === undefined ? null : <ResponseReplayCluster effective={effective} form={form} />}
       <ContextCluster form={form} />
       <AdvancedCluster form={form} />
@@ -81,34 +100,26 @@ function OutputCluster({
   form,
   capability,
   effective,
+  chatConnectionId,
 }: {
   readonly form: AppForm;
   readonly capability: GenerationCapability;
   readonly effective: EffectiveProfileRow | undefined;
+  readonly chatConnectionId: UserConnectionId | undefined;
 }): ReactElement {
   const outputMax = capability.output.maxTokens.max;
   const window = capability.context.window;
   // On a route that sends the window (Ollama's native `num_ctx`) this knob sets it, so it reaches the trained maximum.
   const contextMax = capability.context.settable?.max ?? window;
+  // A ceiling no tier stated is the kind floor's guess; a window the preset itself sends is no guess to correct here.
+  const outputGuessed = capability.output.maxTokensEstimated === true;
+  const windowGuessed = capability.context.windowEstimated === true && capability.context.settable === undefined;
   const verbosityLevels = verbosityLevelsFor(capability);
   return (
     <Section kicker="Output">
       {/* The two LONGEST names on the deck live here, and the fixed label box clipped both at every pane
           width until the column became a content-sized grid track (side-eye 2026-08-19 P1-1). */}
       <KnobGrid>
-        {/* Blank-means-default in STORAGE; the ghost shows what the turn would actually send. Max output's
-            ghost is the funnel's own floor (`DEFAULT_MAX_OUTPUT_TOKENS`, provenance `default`). */}
-        <KnobRow
-          effective={effective?.knobs["maxOutputTokens"]}
-          form={form}
-          hint={`Caps the length of one reply. This model accepts up to ${outputMax} output tokens.`}
-          label="Max output tokens"
-          largeStep={pageStep(1, outputMax)}
-          max={outputMax}
-          min={1}
-          name="params.maxOutputTokens"
-          step={1}
-        />
         {/* `maxContextTokens` never enters the turn funnel (it is OUR history soft-cap, not a wire knob),
             so `resolveEffective` deliberately reports nothing for it — the ghost is the model's window,
             read straight off the capability, with the `full window` gloss the mock carries. */}
@@ -119,26 +130,63 @@ function OutputCluster({
           })}
         >
           {(limits): ReactElement => (
-            <KnobRow
-              effective={{ value: window, provenance: capability.context.settable === undefined ? "window" : SENT_WINDOW_PROVENANCE }}
-              form={form}
-              hint={maxContextHint(capability.context, Math.min(limits.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS, outputMax), limits.maxContextTokens)}
-              label="Max context tokens"
-              largeStep={pageStep(1, contextMax)}
-              max={contextMax}
-              min={1}
-              name="params.maxContextTokens"
-              // A stored value past this connection's window (set on a wider one) is capped here, not sent as typed.
-              note={
-                limits.maxContextTokens !== undefined && limits.maxContextTokens > contextMax
-                  ? `capped at ${groupThousands(contextMax)} on this connection`
-                  : undefined
-              }
-              step={1}
-            />
+            <>
+              {/* Blank-means-default in STORAGE; the ghost shows what the turn would actually send, and the note
+                  says that a blank row sends the app's default however high the model's own limit is. */}
+              <KnobRow
+                effective={effective?.knobs["maxOutputTokens"]}
+                form={form}
+                hint={presetMaxOutputHint(outputGuessed ? groupThousands(outputMax) : String(outputMax), outputGuessed)}
+                label={PRESET_MAX_OUTPUT_LABEL}
+                largeStep={pageStep(1, outputMax)}
+                max={outputMax}
+                min={1}
+                name="params.maxOutputTokens"
+                note={maxOutputNote(limits.maxOutputTokens, outputMax, outputGuessed)}
+                step={1}
+              />
+              <KnobRow
+                effective={{ value: window, provenance: capability.context.settable === undefined ? "window" : SENT_WINDOW_PROVENANCE }}
+                form={form}
+                hint={maxContextHint(
+                  capability.context,
+                  Math.min(limits.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS, outputMax),
+                  limits.maxContextTokens,
+                  windowGuessed,
+                )}
+                label={PRESET_MAX_CONTEXT_LABEL}
+                largeStep={pageStep(1, contextMax)}
+                max={contextMax}
+                min={1}
+                name="params.maxContextTokens"
+                // A stored value past this connection's window (set on a wider one) is kept, and capped here rather
+                // than sent as typed.
+                note={maxContextNote(limits.maxContextTokens, contextMax, windowGuessed)}
+                step={1}
+              />
+            </>
           )}
         </form.Subscribe>
       </KnobGrid>
+      {outputGuessed || windowGuessed ? (
+        <Row align="center" gap="field" wrap={true}>
+          <Text cap="prose" prose={true} voice="gloss">
+            {presetGuessedLimitsNotice(windowGuessed ? groupThousands(window) : null, outputGuessed ? groupThousands(outputMax) : null)}
+          </Text>
+          {chatConnectionId === undefined ? null : (
+            <Button
+              onClick={(): void => {
+                openConfigTo(CONNECTIONS_LIST_ADDRESS.group, CONNECTIONS_LIST_ADDRESS.sub);
+                requestConnectionEditor(chatConnectionId, { openAdvanced: true });
+              }}
+              size="sm"
+              variant="ghost"
+            >
+              {PRESET_SET_REAL_LIMITS_NAME}
+            </Button>
+          )}
+        </Row>
+      ) : null}
       <SettingRowGroup>
         {verbosityLevels === undefined ? null : (
           <SettingTrackRow>
@@ -186,16 +234,39 @@ function OutputCluster({
 /** The Max context tokens hint: the model window, the room it leaves for prompt and history once the reply and
  *  the safety margin are held back (the number the chat Preview bar draws), and a warning when the cap leaves no
  *  room beside the reply. On a route that sends the window, the knob sets it rather than capping below it. */
-function maxContextHint(context: GenerationCapability["context"], reserveOutputTokens: number, maxContextTokens: number | undefined): string {
+function maxContextHint(
+  context: GenerationCapability["context"],
+  reserveOutputTokens: number,
+  maxContextTokens: number | undefined,
+  windowGuessed: boolean,
+): string {
   const { window, settable } = context;
   const room = windowInputRoom(window, reserveOutputTokens);
   const base =
     settable === undefined
-      ? `Soft-caps the working set below the model window: older turns beyond this are trimmed. This model's window is ${groupThousands(window)} tokens; ${groupThousands(room)} of them fit prompt and history after the reply and the safety margin.`
-      : `How much context this server runs, up to ${groupThousands(settable.max)} tokens. Unset, it runs ${groupThousands(window)}.`;
+      ? presetMaxContextHint(groupThousands(window), groupThousands(room), windowGuessed)
+      : presetSentWindowHint(groupThousands(settable.max), groupThousands(window));
   return maxContextTokens !== undefined && maxContextTokens <= reserveOutputTokens
-    ? `${base} The reply (${groupThousands(reserveOutputTokens)}) is larger than this limit, so only the newest message is sent.`
+    ? `${base} ${presetReplyExceedsCapNote(groupThousands(reserveOutputTokens))}`
     : base;
+}
+
+/** Max output tokens' visible line: a blank row names what it sends (the shared default, held under the model's cap as
+ *  the funnel holds it); a stored value over a guessed cap keeps its number and says the turn is capped at the guess.
+ *  `undefined` leaves the row's own clamp line. */
+function maxOutputNote(stored: number | undefined, outputMax: number, guessed: boolean): string | undefined {
+  if (stored === undefined) {
+    return presetBlankOutputNote(groupThousands(Math.min(DEFAULT_MAX_OUTPUT_TOKENS, outputMax)), groupThousands(DEFAULT_MAX_OUTPUT_TOKENS));
+  }
+  return guessed && stored > outputMax ? presetCappedByGuessNote(groupThousands(stored), groupThousands(outputMax)) : undefined;
+}
+
+/** Max context tokens' visible line for a stored value past this connection's ceiling. */
+function maxContextNote(stored: number | undefined, contextMax: number, guessed: boolean): string | undefined {
+  if (stored === undefined || stored <= contextMax) {
+    return;
+  }
+  return guessed ? presetCappedByGuessNote(groupThousands(stored), groupThousands(contextMax)) : presetCappedOnConnectionNote(groupThousands(contextMax));
 }
 
 /** `params.banEos`: on stores `true`, off clears the field (the server's own default lets the reply end). */

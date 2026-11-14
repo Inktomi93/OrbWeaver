@@ -139,6 +139,7 @@ function statedCapabilityRow(
     source,
     overridden,
     setElsewhere,
+    estimated,
     edit: leaf.edit,
     draft: draftOf(leaf.edit, value),
     siblings: siblingsFor(leaf.path, capability),
@@ -180,4 +181,25 @@ export function capabilityFactRows(capability: Capability, declared: DeclaredCap
     rows.push(statedCapabilityRow(leaf, value, { capability, declared, baseline }));
   }
   return rows;
+}
+
+/** The two limits the history fit and the reply cap run against, keyed by their fact path. */
+const LIMIT_KINDS = ["window", "output"] as const;
+type LimitKind = (typeof LIMIT_KINDS)[number];
+const LIMIT_PATH: Readonly<Record<LimitKind, string>> = { window: WINDOW_PATH, output: MAX_TOKENS_PATH };
+
+/** One limit whose value is a floor guess, with the fact row an override of it writes through. */
+export interface GuessedLimit {
+  readonly kind: LimitKind;
+  readonly row: FactRow;
+}
+
+/** The limits whose value is a floor guess: what the add dialog asks the user to correct, written through the same
+ *  rows the Advanced tier overrides. A window the preset sets (`setElsewhere`) is never one of them. */
+export function guessedLimits(capability: Capability, declared: DeclaredCapability | null, baseline: Capability): readonly GuessedLimit[] {
+  const rows = capabilityFactRows(capability, declared, baseline);
+  return LIMIT_KINDS.flatMap((kind) => {
+    const row = rows.find((candidate) => candidate.path === LIMIT_PATH[kind]);
+    return row?.estimated === true ? [{ kind, row }] : [];
+  });
 }

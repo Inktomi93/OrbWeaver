@@ -55,6 +55,8 @@ export interface FactRow {
   readonly overridden: boolean;
   /** `true` ⇒ the value is set somewhere else, which `source` names, so the row offers no `Override`. */
   readonly setElsewhere?: boolean;
+  /** `true` ⇒ the value is the fold's floor guess, not a report, and the row has no override yet. */
+  readonly estimated?: boolean;
   readonly edit: FactEdit;
   /** What the Override control opens seeded with — the resolved value in the control's own spelling. */
   readonly draft: string;

@@ -22,6 +22,7 @@ const SERVED = [
   "connection.providersAvailable",
   "connection.draftCatalogModels",
   "connection.create",
+  "connection.capabilities",
   "connection.update",
   "connection.setBinding",
   "credentials.list",
@@ -43,7 +44,16 @@ async function setupRoot(): Promise<SetupRoot> {
     const url = new URL(new Request(input, init).url);
     const rows = url.searchParams.has("output_modalities")
       ? []
-      : [{ id: MODEL, architecture: { ["input_modalities"]: ["text"], ["output_modalities"]: ["text"] }, ["supported_parameters"]: [] }];
+      : [
+          // OpenRouter states each model's limits, so the add goes straight on to the first-model step.
+          {
+            id: MODEL,
+            ["context_length"]: 128_000,
+            ["top_provider"]: { ["max_completion_tokens"]: 16_384 },
+            architecture: { ["input_modalities"]: ["text"], ["output_modalities"]: ["text"] },
+            ["supported_parameters"]: [],
+          },
+        ];
     return Promise.resolve(Response.json({ data: rows }));
   };
   await using construction = new AsyncDisposableStack();

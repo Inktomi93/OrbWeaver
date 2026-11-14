@@ -35,6 +35,7 @@
 
 import type { EffortLevel, GenerationCapability, Range } from "@orb/contracts/inference";
 import type { Quality } from "@orb/contracts/preset";
+import type { UserConnectionId } from "@orb/kit/ids";
 import { Field } from "@orb/ui/field";
 import { Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
@@ -79,6 +80,8 @@ export interface ParamsDeckProps {
    *  preset's own values. The model-fed clusters read the descriptor themselves under the deck's boundary,
    *  whose PENDING arm holds a skeleton and whose FAILED arm quotes the server (`CapabilityGate`). */
   readonly capability: GenerationCapability | undefined;
+  /** The connection `capability` was resolved on, whose limit settings the Output cluster opens. */
+  readonly chatConnectionId: UserConnectionId | undefined;
   /** The funnel projected for this preset (`preset.resolveEffective`) — `undefined` while it is
    *  unavailable (no chat model, or the read has not landed), which degrades to un-ghosted rows. */
   readonly effective: EffectiveProfileRow | undefined;
@@ -89,7 +92,7 @@ export interface ParamsDeckProps {
 /** A knob row whose slider moves in whole steps — it also pages by a range-sized step. */
 const INTEGER_STEP = 1;
 
-export function ParamsDeck({ form, capability, effective, samplerSpelling }: ParamsDeckProps): ReactElement {
+export function ParamsDeck({ form, capability, chatConnectionId, effective, samplerSpelling }: ParamsDeckProps): ReactElement {
   return (
     <>
       {/* THE DECK HAS ITS OWN MEASURE CAP (side-eye 2026-08-19 P2). The editor's content column BREATHES to
@@ -124,7 +127,7 @@ export function ParamsDeck({ form, capability, effective, samplerSpelling }: Par
         >
           <ModelFedClusters effective={effective} form={form} samplerSpelling={samplerSpelling} />
         </QueryBoundary>
-        <ParamsLimits capability={capability} effective={effective} form={form} />
+        <ParamsLimits capability={capability} chatConnectionId={chatConnectionId} effective={effective} form={form} />
       </EditorPage>
     </>
   );

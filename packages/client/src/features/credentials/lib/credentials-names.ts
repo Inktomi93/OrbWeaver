@@ -165,3 +165,25 @@ export const PROMPT_CACHE_RETENTION_FIELD_LABEL = "Provider prefix retention";
 export function promptCacheRetentionName(connection: string): string {
   return `${PROMPT_CACHE_RETENTION_FIELD_LABEL} on ${connection}`;
 }
+
+/** The add dialog's limits step, shown when a new connection's limits are a guess: its title, what it says, the field
+ *  for each guessed limit, and its two ways on. */
+export const CONNECTION_LIMITS_TITLE = "How much can this model take?";
+export const CONNECTION_LIMITS_DESCRIPTION = "This server doesn't say, so these limits are a guess. A guess that is too low cuts your chats short.";
+export const CONNECTION_LIMITS_LEAD =
+  "Long chats lose their oldest messages once they pass the context window, and replies stop at the longest reply. Your provider lists both numbers on the model's page, in tokens (a token is about three quarters of a word). Leave a box empty to keep the guess. You can change these later under Advanced in this connection's settings.";
+export const CONNECTION_LIMIT_FIELD_NAMES = { window: "Context window, in tokens", output: "Longest reply, in tokens" } as const;
+export const CONNECTION_LIMITS_SAVE_NAME = "Save these limits";
+export const CONNECTION_LIMITS_KEEP_NAME = "Keep the guess";
+/** What one limit field says about the value now in use; `guess` is that number as the field prints it. */
+export function connectionLimitGuessLabel(guess: string): string {
+  return `Our guess: ${guess}.`;
+}
+/** What the limits step's read failure names as the thing that did not load. */
+export const CONNECTION_LIMITS_READ_LABEL = "this connection's limits";
+/** A typed limit that is not a whole number of tokens above zero. */
+export const CONNECTION_LIMIT_INVALID = "Type a whole number of tokens, or leave it empty.";
+/** The limits step's line for a save the server refused; `reason` is the server's own words. */
+export function connectionLimitsFailureLabel(reason: string): string {
+  return `The limits weren't saved: ${reason}`;
+}

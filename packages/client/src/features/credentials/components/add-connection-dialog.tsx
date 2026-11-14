@@ -3,18 +3,21 @@
 import type { ProviderDef } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { WebSpinner } from "@orb/ui/spinner";
+import { useQueryClient } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, RefObject } from "react";
 import { useState } from "react";
 import { DismissDialog, QueryBoundary, useSetBinding } from "#components";
 import type { Invalidation, Trpc } from "#data";
-import { useSuspenseQuery } from "#data";
+import { readFresh, useSuspenseQuery } from "#data";
 import { CHAT_ROLE_DOOR } from "#lib";
 import { openConfigTo } from "#state";
 import { ADD_DIALOG_COPY } from "../lib/add-connection-form-model.ts";
+import { guessedLimits } from "../lib/connection-capability-fact-model.ts";
 import { providerPickerItems } from "../lib/connections-model.ts";
 import type { AddConnectionFormBodyProps } from "./add-connection-form-body.tsx";
 import { AddConnectionFormBody } from "./add-connection-form-body.tsx";
+import { ConnectionLimitsStep } from "./connection-limits-step.tsx";
 import { FirstModelSetup } from "./first-model-setup.tsx";
 
 export interface AddConnectionDialogProps {
@@ -28,11 +31,14 @@ export interface AddConnectionDialogProps {
 
 type ConnectionView = inferOutput<Trpc["connection"]["create"]>;
 
-/** What the dialog is doing: adding a connection, the first-model step, or adding the Utility model that step asked for. */
-type AddStep =
-  | { readonly kind: "add" }
+/** A step that follows a save: the first-model step, or the Utility add it asked for. */
+type FollowStep =
   | { readonly kind: "setup"; readonly chat: ConnectionView; readonly picked: ConnectionView["id"] | null; readonly chatBinding: Promise<string | null> }
   | { readonly kind: "add-utility"; readonly chat: ConnectionView; readonly chatBinding: Promise<string | null> };
+
+/** What the dialog is doing: adding a connection, asking for the real limits of one just saved (then going on to `next`,
+ *  or closing when it is `null`), or one of the steps that follow a save. */
+type AddStep = { readonly kind: "add" } | { readonly kind: "limits"; readonly created: ConnectionView; readonly next: FollowStep | null } | FollowStep;
 
 const ADD_STEP: AddStep = { kind: "add" };
 
@@ -43,6 +49,7 @@ export function AddConnectionDialog({ open, onOpenChange, trpc, invalidation, re
     setCloseTarget({ open, chat: open ? false : closeTarget.chat });
   }
   const setBinding = useSetBinding({ trpc, invalidation });
+  const queryClient = useQueryClient();
   // the binding's refusal string is returned to FirstModelSetup, whose `settled` writes it to `setChatState` (inline alert) while mounted or to `notify.error` after close, beside the mutation's own toast; ends if either path stops reaching that component.
   const bindChat = (chat: ConnectionView): Promise<string | null> =>
     setBinding.mutateAsync({ task: "chat", connectionId: chat.id }).then(() => null, errorMessage);
@@ -53,18 +60,36 @@ export function AddConnectionDialog({ open, onOpenChange, trpc, invalidation, re
     }
     onOpenChange(next);
   };
-  const onSaved = (created: ConnectionView, firstChatModel: boolean): void => {
+  const followOrClose = (next: FollowStep | null): void => {
+    if (next === null) {
+      changeOpen(false);
+    } else {
+      setStep(next);
+    }
+  };
+  const followStep = (created: ConnectionView, firstChatModel: boolean): FollowStep | null => {
     if (step.kind === "add-utility") {
-      setStep({ kind: "setup", chat: step.chat, picked: created.id, chatBinding: step.chatBinding });
-      return;
+      return { kind: "setup", chat: step.chat, picked: created.id, chatBinding: step.chatBinding };
     }
     if (firstChatModel) {
       // Start before mounting setup: closing it never cancels the saved connection's Chat assignment.
-      const chatBinding = bindChat(created);
-      setStep({ kind: "setup", chat: created, picked: null, chatBinding });
-      return;
+      return { kind: "setup", chat: created, picked: null, chatBinding: bindChat(created) };
     }
-    changeOpen(false);
+    return null;
+  };
+  // The saved row's capability is read before the form lets go, so a second press cannot add it twice. A read that
+  // fails still opens the limits step, whose own boundary states the failure with a retry.
+  const onSaved = async (created: ConnectionView, firstChatModel: boolean): Promise<void> => {
+    const next = followStep(created, firstChatModel);
+    const guessed = await readFresh(queryClient, trpc.connection.capabilities.queryOptions({ connectionId: created.id })).then(
+      (view) => guessedLimits(view.capability, created.declared, view.baseline).length > 0,
+      () => true,
+    );
+    if (guessed) {
+      setStep({ kind: "limits", created, next });
+    } else {
+      followOrClose(next);
+    }
   };
   return (
     <DismissDialog
@@ -83,6 +108,15 @@ export function AddConnectionDialog({ open, onOpenChange, trpc, invalidation, re
     >
       {/* DELIBERATELY UNRESERVED (#1098): a dialog body sizes itself around its content. */}
       <QueryBoundary resetKeys={[step.kind]} fallback={<WebSpinner label="Checking key storage…" />}>
+        {step.kind === "limits" ? (
+          <ConnectionLimitsStep
+            connectionId={step.created.id}
+            declared={step.created.declared}
+            invalidation={invalidation}
+            onDone={(): void => followOrClose(step.next)}
+            trpc={trpc}
+          />
+        ) : null}
         {step.kind === "setup" ? (
           <FirstModelSetup
             chat={step.chat}
@@ -99,7 +133,8 @@ export function AddConnectionDialog({ open, onOpenChange, trpc, invalidation, re
             picked={step.picked}
             trpc={trpc}
           />
-        ) : (
+        ) : null}
+        {step.kind === "add" || step.kind === "add-utility" ? (
           <AddConnectionGate
             invalidation={invalidation}
             key={step.kind}
@@ -110,7 +145,7 @@ export function AddConnectionDialog({ open, onOpenChange, trpc, invalidation, re
             purpose={step.kind === "add-utility" ? "utility" : "connection"}
             trpc={trpc}
           />
-        )}
+        ) : null}
       </QueryBoundary>
     </DismissDialog>
   );
@@ -125,7 +160,7 @@ interface GateProps {
   readonly invalidation: Invalidation;
   readonly purpose: AddPurpose;
   /** Called once the row exists; `firstChatModel` = it is the first of the user's connections that can chat. */
-  readonly onSaved: (created: ConnectionView, firstChatModel: boolean) => void;
+  readonly onSaved: (created: ConnectionView, firstChatModel: boolean) => Promise<void>;
   /** Replaces the footer's Cancel close with a step back, where the form is a step inside a longer flow. */
   readonly onCancel: (() => void) | undefined;
 }
@@ -146,7 +181,7 @@ function AddConnectionGate({ trpc, invalidation, purpose, onSaved, onCancel }: G
       trpc={trpc}
       invalidation={invalidation}
       purpose={purpose}
-      onSaved={(created): void => onSaved(created, !hadChatModel && created.tasks.includes("chat"))}
+      onSaved={(created): Promise<void> => onSaved(created, !hadChatModel && created.tasks.includes("chat"))}
       onCancel={onCancel}
       credentials={credentials}
       keyStorage={storage.enabled}
