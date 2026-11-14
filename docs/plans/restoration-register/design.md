@@ -123,7 +123,7 @@ Legacy paths below are relative to the external reference source named in [Spine
 | `server/domain/chat/assembly/shape-system-row-placement.test.ts` | Unreviewed | No maintained home; | - |
 | `server/domain/chat/persistence/identity.int.test.ts` | Accounted for | `tests/server/domain/chat/persistence/identity.int.test.ts` | - |
 | `server/domain/chat/persona-resolution.suite.int.test.ts` | Accounted for | `tests/server/domain/chat/persona-resolution.suite.int.test.ts`; `tests/server/domain/chat/assembly/turn-personas.int.test.ts`; `tests/server/domain/chat/verbs/prompt-config-triggerer.suite.int.test.ts` | - |
-| `server/domain/chat/substrate/backfill-estimate.int.test.ts` | Partial | `tests/server/domain/chat/substrate/backfill-estimate.int.test.ts` | Consolidation parents above tier zero and an import window over a very large chat set. |
+| `server/domain/chat/substrate/backfill-estimate.int.test.ts` | Partial | `tests/server/domain/chat/memory/backfill/backfill-estimate.int.test.ts` | Consolidation parents above tier zero and an import window over a very large chat set. |
 | `server/domain/chat/substrate/teaching.int.test.ts` | Partial | `tests/server/domain/chat/verbs/turn-teaching.suite.int.test.ts`; `tests/server/domain/chat/verbs/turn-offer-choices.suite.int.test.ts` | The order of host rows against the state block at one depth. |
 | `server/domain/chat/substrate/teaching.test.ts` | Accounted for | `tests/server/domain/chat/verbs/turn-offer-choices.suite.int.test.ts`; `tests/server/domain/chat/verbs/turn-teaching.suite.int.test.ts` | - |
 | `server/domain/chat/teaching-contribution.test.ts` | Accounted for | `tests/server/domain/chat/verbs/turn-teaching.suite.int.test.ts` | - |

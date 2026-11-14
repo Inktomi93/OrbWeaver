@@ -25,7 +25,7 @@ export function buildBulkTagResult(outcomes: readonly BulkTagOutcome[]): Charact
   const failed: CharacterBulkFailure[] = [];
   for (const outcome of outcomes) {
     if ("failed" in outcome) {
-      failed.push({ error: classifyBulkTagFailure(outcome.failed) });
+      failed.push({ characterId: outcome.characterId, error: classifyBulkTagFailure(outcome.failed) });
     } else if (outcome.applied) {
       applied.push(outcome.characterId);
     }

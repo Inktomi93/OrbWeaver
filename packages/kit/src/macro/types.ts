@@ -361,6 +361,8 @@ export interface MacroContext {
   // them) — the domain drains + upserts the writes at TURN COMMIT (last-write-wins; a swipe never rewinds).
   globalVars?: Record<string, string>;
   globalVarWrites?: GlobalVarWrite[];
+  // Each key a `{{getglobalvar}}` asked for, so a domain that holds the plane back can say it did. Absent ⇒ unrecorded.
+  globalVarReads?: string[];
   // The CEL activation the `{{expr::…}}` macro evaluates against — the env minus `event`
   // (vars/choice/global/chat/now), staged by the assembler/dispatcher. Absent ⇒ `{{expr}}` evaluates
   // against an empty binding (any field reference then errors → "" + an expr-error diagnostic).

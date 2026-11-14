@@ -11,6 +11,7 @@
 // no longer drift into three names for one verb. This bar renders BUTTONS, not menu items, so it owns its
 // own chrome (no glyphs, `tone="destructive"` on the last one) and takes only the labels + order.
 
+import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Row } from "@orb/ui/layout";
@@ -20,11 +21,12 @@ import { useState } from "react";
 import { ConfirmDialog, TagPickerDialog } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
-import { DIALOG_VERBS } from "#lib";
+import { DIALOG_VERBS, notify } from "#lib";
 import { useBulkAddCardTag, useBulkArchiveCharacters, useBulkRemoveCharacters } from "../hooks/use-character-mutations.ts";
 import type { CHARACTER_ACTION_SCOPE_IDS } from "../lib/character-actions.ts";
 import { characterActionsForScope } from "../lib/character-actions.ts";
 import { characterBulkDeleteTitle, characterBulkTagTitle } from "../lib/character-names.ts";
+import { characterBulkRemoveRefusal } from "../lib/character-refusal-notice.ts";
 
 /** File-local — exactly the verbs the `bulk` scope offers. */
 type BulkActionId = (typeof CHARACTER_ACTION_SCOPE_IDS)["bulk"][number];
@@ -34,11 +36,13 @@ export interface CharacterBulkBarProps {
   readonly selectedCount: number;
   readonly onClear: () => void;
   readonly onRemoveSubmitted: (ids: readonly string[]) => void;
+  /** The name the library lists for a card, for the notice that says which cards a delete left behind. */
+  readonly characterName: (characterId: CharacterId) => string | undefined;
   readonly trpc: Trpc;
 }
 
 /** The selection bar + its tag-picker Dialog. */
-export function CharacterBulkBar({ ids, selectedCount, onClear, onRemoveSubmitted, trpc }: CharacterBulkBarProps): ReactElement {
+export function CharacterBulkBar({ ids, selectedCount, onClear, onRemoveSubmitted, characterName, trpc }: CharacterBulkBarProps): ReactElement {
   const invalidation = useInvalidation();
   const bulkTag = useBulkAddCardTag({ trpc, invalidation });
   const bulkArchive = useBulkArchiveCharacters({ trpc, invalidation });
@@ -55,10 +59,18 @@ export function CharacterBulkBar({ ids, selectedCount, onClear, onRemoveSubmitte
       .catch(() => undefined);
   };
 
+  // The cards whose delete was refused stay selected, so the bar keeps counting the ones the reader still has to deal with.
   const confirmDelete = (): void => {
     void bulkRemove
       .mutateAsync({ characterIds })
-      .then(() => onRemoveSubmitted(characterIds))
+      .then((result) => {
+        const refusal = characterBulkRemoveRefusal(result, characterName);
+        if (refusal !== null) {
+          notify.error(refusal);
+        }
+        const stayed = new Set<string>(result.failed.map((failure) => failure.characterId));
+        onRemoveSubmitted(characterIds.filter((id) => !stayed.has(id)));
+      })
       .catch(() => undefined);
   };
 

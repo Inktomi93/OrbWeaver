@@ -12,11 +12,12 @@
 // which is an internal derivation the create dialog never shows); fall through to the caller's own
 // verb-specific fallback so a real fault still toasts unchanged.
 //
-// Pure, so it is unit-tested rather than CT'd: the CT QueryClient has no MutationCache seam, so toast copy
-// is unobservable in a CT (the same reason the turn mapper is a unit — see its header).
+// Pure: a CT reads the toast a mapper raises through `noticeToast`, over the copy the mapper computes.
 
 import type { CharacterBulkResult } from "@orb/contracts/character";
 import { CHARACTER_HANDLE_CONFLICT_OP_CODE, CHARACTER_HANDLE_RESERVED_OP_CODE, CHARACTER_STALE_BASIS_OP_CODE } from "@orb/contracts/character";
+import type { CharacterId } from "@orb/kit/ids";
+import type { NotifyNotice } from "#lib";
 import { trpcErrorReason } from "#lib";
 
 // The honest copy for a per-owner handle collision. Names the CAUSE in the user's own vocabulary (the name
@@ -90,4 +91,26 @@ export function characterBulkTagRefusal(verb: "tag" | "untag", data: CharacterBu
     return `Couldn't ${verbPhrase} ${subject}: ${reason}`;
   }
   return `Could only ${verbPhrase} ${data.applied.length} of ${data.applied.length + data.failed.length} characters: ${reason}`;
+}
+
+/** The name a card the library no longer lists answers to: the wire carries ids, and the list is the only place a name lives. */
+const UNLISTED_CHARACTER_NAME = "a character";
+
+/**
+ * The toast for a `character.bulkRemove` that resolved with refusals: which cards stayed, and why. It is not a
+ * `refusal` config on the factory because the notice needs the cards' names, which the wire does not carry and
+ * only the library's list holds, so the bulk bar raises it with the list's lookup. `null` for a clean delete.
+ */
+export function characterBulkRemoveRefusal(data: CharacterBulkResult, nameOf: (characterId: CharacterId) => string | undefined): NotifyNotice | null {
+  if (data.failed.length === 0) {
+    return null;
+  }
+  const total = data.applied.length + data.failed.length;
+  const title =
+    data.applied.length === 0
+      ? `Couldn't delete ${data.failed.length === 1 ? "that character" : `${data.failed.length} characters`}`
+      : `Deleted ${data.applied.length} of ${total} characters`;
+  const stayed = data.failed.map((failure) => nameOf(failure.characterId) ?? UNLISTED_CHARACTER_NAME).join(", ");
+  const reason = data.failed[0]?.error.message ?? "an unexpected error";
+  return { title, description: `Still in your library: ${stayed}. ${reason}` };
 }

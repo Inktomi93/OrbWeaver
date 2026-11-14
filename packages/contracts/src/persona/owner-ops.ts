@@ -6,9 +6,6 @@ import type { ImportAnswer, PersonaCollisionChoices } from "#import";
 import type { PortableExportNotes, PortableFile } from "#portability";
 import type { BulkImportPersonaInput, BulkImportPersonasResult, JoinerPersona, PersonaDetail } from "./schemas.ts";
 
-/** Capture a persona's room seats before its delete; the thunk re-seats exactly those seats with the persona it is handed. */
-export type CapturePersonaSeatsForDeleteOp = (ownerId: UserId, personaId: PersonaId) => Promise<(reseatWith: PersonaId) => Promise<void>>;
-
 /** Capture the rooms a persona reaches before junction teardown; call the thunk only after the owner-scoped write succeeds. */
 export type CapturePersonaRoomReachOp = (personaId: PersonaId) => Promise<() => void>;
 

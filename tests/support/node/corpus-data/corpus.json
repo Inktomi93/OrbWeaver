@@ -143,7 +143,7 @@
             "id": "plugin_000000000000000000000000df",
             "slug": "card-atlas",
             "name": "Card Atlas",
-            "version": "1.3.12",
+            "version": "1.3.13",
             "status": "disabled",
             "origin": "upload",
             "sourceUrl": null,
@@ -181,7 +181,7 @@
             "id": "plugin_000000000000000000000000cc",
             "slug": "draft-polish",
             "name": "Draft Polish",
-            "version": "1.2.0",
+            "version": "1.2.1",
             "status": "disabled",
             "origin": "upload",
             "sourceUrl": null,
@@ -244,7 +244,7 @@
             "id": "plugin_000000000000000000000000d1",
             "slug": "pocket-arcade",
             "name": "Pocket Arcade",
-            "version": "1.0.2",
+            "version": "1.0.3",
             "status": "disabled",
             "origin": "upload",
             "sourceUrl": null,
@@ -319,7 +319,7 @@
             "id": "plugin_000000000000000000000000ct",
             "slug": "story-clocks",
             "name": "Story Clocks",
-            "version": "1.0.9",
+            "version": "1.0.10",
             "status": "disabled",
             "origin": "upload",
             "sourceUrl": null,
@@ -396,7 +396,7 @@
             "id": "plugin_000000000000000000000000df",
             "slug": "card-atlas",
             "name": "Card Atlas",
-            "version": "1.3.12",
+            "version": "1.3.13",
             "status": "disabled",
             "origin": "upload",
             "sourceUrl": null,
@@ -434,7 +434,7 @@
             "id": "plugin_000000000000000000000000cc",
             "slug": "draft-polish",
             "name": "Draft Polish",
-            "version": "1.2.0",
+            "version": "1.2.1",
             "status": "disabled",
             "origin": "upload",
             "sourceUrl": null,
@@ -497,7 +497,7 @@
             "id": "plugin_000000000000000000000000d1",
             "slug": "pocket-arcade",
             "name": "Pocket Arcade",
-            "version": "1.0.2",
+            "version": "1.0.3",
             "status": "disabled",
             "origin": "upload",
             "sourceUrl": null,
@@ -572,7 +572,7 @@
             "id": "plugin_000000000000000000000000ct",
             "slug": "story-clocks",
             "name": "Story Clocks",
-            "version": "1.0.9",
+            "version": "1.0.10",
             "status": "disabled",
             "origin": "upload",
             "sourceUrl": null,
@@ -688,7 +688,7 @@
             "id": "plugin_000000000000000000000000vd",
             "slug": "card-atlas",
             "name": "Card Atlas",
-            "version": "1.3.12",
+            "version": "1.3.13",
             "status": "disabled",
             "origin": "upload",
             "sourceUrl": null,
@@ -726,7 +726,7 @@
             "id": "plugin_000000000000000000000000ta",
             "slug": "draft-polish",
             "name": "Draft Polish",
-            "version": "1.2.0",
+            "version": "1.2.1",
             "status": "disabled",
             "origin": "upload",
             "sourceUrl": null,
@@ -789,7 +789,7 @@
             "id": "plugin_000000000000000000000000tz",
             "slug": "pocket-arcade",
             "name": "Pocket Arcade",
-            "version": "1.0.2",
+            "version": "1.0.3",
             "status": "disabled",
             "origin": "upload",
             "sourceUrl": null,
@@ -864,7 +864,7 @@
             "id": "plugin_000000000000000000000000tr",
             "slug": "story-clocks",
             "name": "Story Clocks",
-            "version": "1.0.9",
+            "version": "1.0.10",
             "status": "disabled",
             "origin": "upload",
             "sourceUrl": null,
@@ -980,7 +980,7 @@
             "id": "plugin_000000000000000000000000df",
             "slug": "card-atlas",
             "name": "Card Atlas",
-            "version": "1.3.12",
+            "version": "1.3.13",
             "status": "disabled",
             "origin": "upload",
             "sourceUrl": null,
@@ -1018,7 +1018,7 @@
             "id": "plugin_000000000000000000000000cc",
             "slug": "draft-polish",
             "name": "Draft Polish",
-            "version": "1.2.0",
+            "version": "1.2.1",
             "status": "disabled",
             "origin": "upload",
             "sourceUrl": null,
@@ -1081,7 +1081,7 @@
             "id": "plugin_000000000000000000000000d1",
             "slug": "pocket-arcade",
             "name": "Pocket Arcade",
-            "version": "1.0.2",
+            "version": "1.0.3",
             "status": "disabled",
             "origin": "upload",
             "sourceUrl": null,
@@ -1156,7 +1156,7 @@
             "id": "plugin_000000000000000000000000ct",
             "slug": "story-clocks",
             "name": "Story Clocks",
-            "version": "1.0.9",
+            "version": "1.0.10",
             "status": "disabled",
             "origin": "upload",
             "sourceUrl": null,
@@ -1252,7 +1252,7 @@
           "id": "plugin_000000000000000000000000df",
           "slug": "card-atlas",
           "name": "Card Atlas",
-          "version": "1.3.12",
+          "version": "1.3.13",
           "status": "disabled",
           "origin": "upload",
           "sourceUrl": null,
@@ -1290,7 +1290,7 @@
           "id": "plugin_000000000000000000000000cc",
           "slug": "draft-polish",
           "name": "Draft Polish",
-          "version": "1.2.0",
+          "version": "1.2.1",
           "status": "disabled",
           "origin": "upload",
           "sourceUrl": null,
@@ -1353,7 +1353,7 @@
           "id": "plugin_000000000000000000000000d1",
           "slug": "pocket-arcade",
           "name": "Pocket Arcade",
-          "version": "1.0.2",
+          "version": "1.0.3",
           "status": "disabled",
           "origin": "upload",
           "sourceUrl": null,
@@ -1428,7 +1428,7 @@
           "id": "plugin_000000000000000000000000ct",
           "slug": "story-clocks",
           "name": "Story Clocks",
-          "version": "1.0.9",
+          "version": "1.0.10",
           "status": "disabled",
           "origin": "upload",
           "sourceUrl": null,
@@ -1472,11 +1472,11 @@
   },
   "notificationInbox": {
     "readerRaised": {
-      "viewerUserId": "000000000000000000000007gj",
+      "viewerUserId": "000000000000000000000007gz",
       "output": {
         "items": [
           {
-            "id": "notification_000000000000000000000007hf",
+            "id": "notification_000000000000000000000007hv",
             "actionable": true,
             "seq": 2,
             "readAt": null,
@@ -1485,14 +1485,14 @@
             "type": "invite",
             "payload": {
               "type": "invite",
-              "recipientUserId": "000000000000000000000007gj",
-              "chatId": "chat_000000000000000000000007h7",
-              "inviteId": "chat_invite_000000000000000000000007he",
-              "invitedByHandle": "c-000000000000000000000007gs"
+              "recipientUserId": "000000000000000000000007gz",
+              "chatId": "chat_000000000000000000000007hm",
+              "inviteId": "chat_invite_000000000000000000000007ht",
+              "invitedByHandle": "c-000000000000000000000007h6"
             }
           },
           {
-            "id": "notification_000000000000000000000007hd",
+            "id": "notification_000000000000000000000007hs",
             "actionable": true,
             "seq": 1,
             "readAt": null,
@@ -1501,10 +1501,10 @@
             "type": "invite",
             "payload": {
               "type": "invite",
-              "recipientUserId": "000000000000000000000007gj",
-              "chatId": "chat_000000000000000000000007h7",
-              "inviteId": "chat_invite_000000000000000000000007hc",
-              "invitedByHandle": "c-000000000000000000000007gs"
+              "recipientUserId": "000000000000000000000007gz",
+              "chatId": "chat_000000000000000000000007hm",
+              "inviteId": "chat_invite_000000000000000000000007hr",
+              "invitedByHandle": "c-000000000000000000000007h6"
             }
           }
         ],
@@ -1512,11 +1512,11 @@
       }
     },
     "readerRead": {
-      "viewerUserId": "000000000000000000000007gj",
+      "viewerUserId": "000000000000000000000007gz",
       "output": {
         "items": [
           {
-            "id": "notification_000000000000000000000007hf",
+            "id": "notification_000000000000000000000007hv",
             "actionable": true,
             "seq": 2,
             "readAt": 1750003801001,
@@ -1525,14 +1525,14 @@
             "type": "invite",
             "payload": {
               "type": "invite",
-              "recipientUserId": "000000000000000000000007gj",
-              "chatId": "chat_000000000000000000000007h7",
-              "inviteId": "chat_invite_000000000000000000000007he",
-              "invitedByHandle": "c-000000000000000000000007gs"
+              "recipientUserId": "000000000000000000000007gz",
+              "chatId": "chat_000000000000000000000007hm",
+              "inviteId": "chat_invite_000000000000000000000007ht",
+              "invitedByHandle": "c-000000000000000000000007h6"
             }
           },
           {
-            "id": "notification_000000000000000000000007hd",
+            "id": "notification_000000000000000000000007hs",
             "actionable": true,
             "seq": 1,
             "readAt": 1750003801001,
@@ -1541,10 +1541,10 @@
             "type": "invite",
             "payload": {
               "type": "invite",
-              "recipientUserId": "000000000000000000000007gj",
-              "chatId": "chat_000000000000000000000007h7",
-              "inviteId": "chat_invite_000000000000000000000007hc",
-              "invitedByHandle": "c-000000000000000000000007gs"
+              "recipientUserId": "000000000000000000000007gz",
+              "chatId": "chat_000000000000000000000007hm",
+              "inviteId": "chat_invite_000000000000000000000007hr",
+              "invitedByHandle": "c-000000000000000000000007h6"
             }
           }
         ],
@@ -1552,11 +1552,11 @@
       }
     },
     "readerSettled": {
-      "viewerUserId": "000000000000000000000007gj",
+      "viewerUserId": "000000000000000000000007gz",
       "output": {
         "items": [
           {
-            "id": "notification_00000000000000000000000805",
+            "id": "notification_0000000000000000000000080g",
             "actionable": true,
             "seq": 13,
             "readAt": null,
@@ -1565,14 +1565,14 @@
             "type": "invite",
             "payload": {
               "type": "invite",
-              "recipientUserId": "000000000000000000000007gj",
-              "chatId": "chat_000000000000000000000007zz",
-              "inviteId": "chat_invite_00000000000000000000000804",
-              "invitedByHandle": "c-000000000000000000000007gs"
+              "recipientUserId": "000000000000000000000007gz",
+              "chatId": "chat_0000000000000000000000080b",
+              "inviteId": "chat_invite_0000000000000000000000080f",
+              "invitedByHandle": "c-000000000000000000000007h6"
             }
           },
           {
-            "id": "notification_000000000000000000000007hf",
+            "id": "notification_000000000000000000000007hv",
             "actionable": false,
             "seq": 2,
             "readAt": 1750003801001,
@@ -1581,14 +1581,14 @@
             "type": "invite",
             "payload": {
               "type": "invite",
-              "recipientUserId": "000000000000000000000007gj",
-              "chatId": "chat_000000000000000000000007h7",
-              "inviteId": "chat_invite_000000000000000000000007he",
-              "invitedByHandle": "c-000000000000000000000007gs"
+              "recipientUserId": "000000000000000000000007gz",
+              "chatId": "chat_000000000000000000000007hm",
+              "inviteId": "chat_invite_000000000000000000000007ht",
+              "invitedByHandle": "c-000000000000000000000007h6"
             }
           },
           {
-            "id": "notification_000000000000000000000007hd",
+            "id": "notification_000000000000000000000007hs",
             "actionable": false,
             "seq": 1,
             "readAt": 1750003801001,
@@ -1597,10 +1597,10 @@
             "type": "invite",
             "payload": {
               "type": "invite",
-              "recipientUserId": "000000000000000000000007gj",
-              "chatId": "chat_000000000000000000000007h7",
-              "inviteId": "chat_invite_000000000000000000000007hc",
-              "invitedByHandle": "c-000000000000000000000007gs"
+              "recipientUserId": "000000000000000000000007gz",
+              "chatId": "chat_000000000000000000000007hm",
+              "inviteId": "chat_invite_000000000000000000000007hr",
+              "invitedByHandle": "c-000000000000000000000007h6"
             }
           }
         ],
@@ -1608,11 +1608,11 @@
       }
     },
     "readerFinal": {
-      "viewerUserId": "000000000000000000000007gj",
+      "viewerUserId": "000000000000000000000007gz",
       "output": {
         "items": [
           {
-            "id": "notification_00000000000000000000000834",
+            "id": "notification_0000000000000000000000083e",
             "actionable": false,
             "seq": 22,
             "readAt": null,
@@ -1621,13 +1621,13 @@
             "type": "deferred-turn-dropped",
             "payload": {
               "type": "deferred-turn-dropped",
-              "recipientUserId": "000000000000000000000007gj",
-              "chatId": "chat_0000000000000000000000082k",
+              "recipientUserId": "000000000000000000000007gz",
+              "chatId": "chat_0000000000000000000000082y",
               "reason": "chat-gone"
             }
           },
           {
-            "id": "notification_0000000000000000000000082s",
+            "id": "notification_00000000000000000000000833",
             "actionable": false,
             "seq": 21,
             "readAt": null,
@@ -1636,24 +1636,24 @@
             "type": "invite",
             "payload": {
               "type": "invite",
-              "recipientUserId": "000000000000000000000007gj",
-              "chatId": "chat_0000000000000000000000082k",
-              "inviteId": "chat_invite_0000000000000000000000082r",
-              "invitedByHandle": "c-000000000000000000000007gs"
+              "recipientUserId": "000000000000000000000007gz",
+              "chatId": "chat_0000000000000000000000082y",
+              "inviteId": "chat_invite_00000000000000000000000832",
+              "invitedByHandle": "c-000000000000000000000007h6"
             }
           },
           {
-            "id": "notification_0000000000000000000000082d",
+            "id": "notification_0000000000000000000000082r",
             "actionable": false,
             "seq": 20,
             "readAt": null,
             "dismissedAt": null,
             "createdAt": 1750003801001,
             "type": "plugin-disabled",
-            "payload": { "type": "plugin-disabled", "recipientUserId": "000000000000000000000007gj", "pluginId": "plugin_0000000000000000000000081w" }
+            "payload": { "type": "plugin-disabled", "recipientUserId": "000000000000000000000007gz", "pluginId": "plugin_00000000000000000000000827" }
           },
           {
-            "id": "notification_00000000000000000000000820",
+            "id": "notification_0000000000000000000000082b",
             "actionable": false,
             "seq": 19,
             "readAt": null,
@@ -1662,14 +1662,14 @@
             "type": "automation-notice",
             "payload": {
               "type": "automation-notice",
-              "recipientUserId": "000000000000000000000007gj",
-              "chatId": "chat_000000000000000000000007h7",
-              "source": { "kind": "plugin", "pluginId": "plugin_0000000000000000000000081w" },
+              "recipientUserId": "000000000000000000000007gz",
+              "chatId": "chat_000000000000000000000007hm",
+              "source": { "kind": "plugin", "pluginId": "plugin_00000000000000000000000827" },
               "message": "The resident keeper has checked the ledger.The resident keeper has checked the ledger.The resident keeper has checked the ledger.The resident keeper has checked the ledger.The resident keeper has chec"
             }
           },
           {
-            "id": "notification_0000000000000000000000081m",
+            "id": "notification_0000000000000000000000081z",
             "actionable": false,
             "seq": 18,
             "readAt": null,
@@ -1678,24 +1678,24 @@
             "type": "automation-notice",
             "payload": {
               "type": "automation-notice",
-              "recipientUserId": "000000000000000000000007gj",
-              "chatId": "chat_000000000000000000000007h7",
-              "source": { "kind": "rule", "ruleId": "automation_rule_0000000000000000000000081e" },
+              "recipientUserId": "000000000000000000000007gz",
+              "chatId": "chat_000000000000000000000007hm",
+              "source": { "kind": "rule", "ruleId": "automation_rule_0000000000000000000000081s" },
               "message": "The room's ledger is ready for its witnesses."
             }
           },
           {
-            "id": "notification_0000000000000000000000080t",
+            "id": "notification_00000000000000000000000815",
             "actionable": false,
             "seq": 15,
             "readAt": 1750003801001,
             "dismissedAt": null,
             "createdAt": 1750003801001,
             "type": "kicked",
-            "payload": { "type": "kicked", "recipientUserId": "000000000000000000000007gj", "chatId": "chat_000000000000000000000007zz" }
+            "payload": { "type": "kicked", "recipientUserId": "000000000000000000000007gz", "chatId": "chat_0000000000000000000000080b" }
           },
           {
-            "id": "notification_0000000000000000000000080f",
+            "id": "notification_0000000000000000000000080t",
             "actionable": false,
             "seq": 14,
             "readAt": 1750003801001,
@@ -1704,13 +1704,13 @@
             "type": "handoff-nominated",
             "payload": {
               "type": "handoff-nominated",
-              "recipientUserId": "000000000000000000000007gj",
-              "chatId": "chat_000000000000000000000007h7",
+              "recipientUserId": "000000000000000000000007gz",
+              "chatId": "chat_000000000000000000000007hm",
               "offer": { "characters": 0, "worldBooks": 0, "regexScripts": 0, "gmPreset": false }
             }
           },
           {
-            "id": "notification_00000000000000000000000805",
+            "id": "notification_0000000000000000000000080g",
             "actionable": false,
             "seq": 13,
             "readAt": 1750003801001,
@@ -1719,14 +1719,14 @@
             "type": "invite",
             "payload": {
               "type": "invite",
-              "recipientUserId": "000000000000000000000007gj",
-              "chatId": "chat_000000000000000000000007zz",
-              "inviteId": "chat_invite_00000000000000000000000804",
-              "invitedByHandle": "c-000000000000000000000007gs"
+              "recipientUserId": "000000000000000000000007gz",
+              "chatId": "chat_0000000000000000000000080b",
+              "inviteId": "chat_invite_0000000000000000000000080f",
+              "invitedByHandle": "c-000000000000000000000007h6"
             }
           },
           {
-            "id": "notification_000000000000000000000007hf",
+            "id": "notification_000000000000000000000007hv",
             "actionable": false,
             "seq": 2,
             "readAt": 1750003801001,
@@ -1735,10 +1735,10 @@
             "type": "invite",
             "payload": {
               "type": "invite",
-              "recipientUserId": "000000000000000000000007gj",
-              "chatId": "chat_000000000000000000000007h7",
-              "inviteId": "chat_invite_000000000000000000000007he",
-              "invitedByHandle": "c-000000000000000000000007gs"
+              "recipientUserId": "000000000000000000000007gz",
+              "chatId": "chat_000000000000000000000007hm",
+              "inviteId": "chat_invite_000000000000000000000007ht",
+              "invitedByHandle": "c-000000000000000000000007h6"
             }
           }
         ],
@@ -1746,11 +1746,11 @@
       }
     },
     "foreignBefore": {
-      "viewerUserId": "000000000000000000000007h1",
+      "viewerUserId": "000000000000000000000007he",
       "output": {
         "items": [
           {
-            "id": "notification_000000000000000000000007hh",
+            "id": "notification_000000000000000000000007hx",
             "actionable": true,
             "seq": 1,
             "readAt": null,
@@ -1759,10 +1759,10 @@
             "type": "invite",
             "payload": {
               "type": "invite",
-              "recipientUserId": "000000000000000000000007h1",
-              "chatId": "chat_000000000000000000000007h7",
-              "inviteId": "chat_invite_000000000000000000000007hg",
-              "invitedByHandle": "c-000000000000000000000007gs"
+              "recipientUserId": "000000000000000000000007he",
+              "chatId": "chat_000000000000000000000007hm",
+              "inviteId": "chat_invite_000000000000000000000007hw",
+              "invitedByHandle": "c-000000000000000000000007h6"
             }
           }
         ],
@@ -1770,11 +1770,11 @@
       }
     },
     "foreignAfter": {
-      "viewerUserId": "000000000000000000000007h1",
+      "viewerUserId": "000000000000000000000007he",
       "output": {
         "items": [
           {
-            "id": "notification_000000000000000000000007hh",
+            "id": "notification_000000000000000000000007hx",
             "actionable": true,
             "seq": 1,
             "readAt": null,
@@ -1783,10 +1783,10 @@
             "type": "invite",
             "payload": {
               "type": "invite",
-              "recipientUserId": "000000000000000000000007h1",
-              "chatId": "chat_000000000000000000000007h7",
-              "inviteId": "chat_invite_000000000000000000000007hg",
-              "invitedByHandle": "c-000000000000000000000007gs"
+              "recipientUserId": "000000000000000000000007he",
+              "chatId": "chat_000000000000000000000007hm",
+              "inviteId": "chat_invite_000000000000000000000007hw",
+              "invitedByHandle": "c-000000000000000000000007h6"
             }
           }
         ],
@@ -1794,11 +1794,11 @@
       }
     },
     "hostAccepted": {
-      "viewerUserId": "000000000000000000000007gt",
+      "viewerUserId": "000000000000000000000007h7",
       "output": {
         "items": [
           {
-            "id": "notification_0000000000000000000000080m",
+            "id": "notification_0000000000000000000000080z",
             "actionable": false,
             "seq": 1,
             "readAt": null,
@@ -1807,9 +1807,9 @@
             "type": "handoff-accepted",
             "payload": {
               "type": "handoff-accepted",
-              "recipientUserId": "000000000000000000000007gt",
-              "chatId": "chat_000000000000000000000007h7",
-              "newHostHandle": "c-000000000000000000000007gh"
+              "recipientUserId": "000000000000000000000007h7",
+              "chatId": "chat_000000000000000000000007hm",
+              "newHostHandle": "c-000000000000000000000007gy"
             }
           }
         ],
@@ -1820,12 +1820,12 @@
   "chatLifecycleMember": {
     "heldDuring": {
       "viewerUserId": "000000000000000000000000w1",
-      "chatId": "chat_000000000000000000000003m8",
+      "chatId": "chat_000000000000000000000003mk",
       "output": {
         "messages": [
           {
-            "id": "message_000000000000000000000003mt",
-            "chatId": "chat_000000000000000000000003m8",
+            "id": "message_000000000000000000000003n5",
+            "chatId": "chat_000000000000000000000003mk",
             "seq": 1,
             "position": 1,
             "role": "user",
@@ -1836,7 +1836,7 @@
             "excludedFromPrompt": false,
             "createdAt": 1750003773000,
             "editedAt": null,
-            "selectedVariantId": "message_variant_000000000000000000000003mv",
+            "selectedVariantId": "message_variant_000000000000000000000003n6",
             "selectedVariantIdx": 0,
             "variantCount": 1,
             "hasContinuation": false,
@@ -1868,7 +1868,7 @@
           }
         ],
         "identities": [
-          { "kind": "character", "id": "character_000000000000000000000003m2", "name": "Lifecycle witness", "avatarHash": null },
+          { "kind": "character", "id": "character_000000000000000000000003md", "name": "Lifecycle witness", "avatarHash": null },
           {
             "kind": "persona",
             "id": "persona_0000000000000000000000014m",
@@ -1883,12 +1883,12 @@
     },
     "heldCompleted": {
       "viewerUserId": "000000000000000000000000w1",
-      "chatId": "chat_000000000000000000000003m8",
+      "chatId": "chat_000000000000000000000003mk",
       "output": {
         "messages": [
           {
-            "id": "message_000000000000000000000003mt",
-            "chatId": "chat_000000000000000000000003m8",
+            "id": "message_000000000000000000000003n5",
+            "chatId": "chat_000000000000000000000003mk",
             "seq": 1,
             "position": 1,
             "role": "user",
@@ -1899,7 +1899,7 @@
             "excludedFromPrompt": false,
             "createdAt": 1750003773000,
             "editedAt": null,
-            "selectedVariantId": "message_variant_000000000000000000000003mv",
+            "selectedVariantId": "message_variant_000000000000000000000003n6",
             "selectedVariantIdx": 0,
             "variantCount": 1,
             "hasContinuation": false,
@@ -1930,19 +1930,19 @@
             "toolCalls": []
           },
           {
-            "id": "message_000000000000000000000003nb",
-            "chatId": "chat_000000000000000000000003m8",
+            "id": "message_000000000000000000000003np",
+            "chatId": "chat_000000000000000000000003mk",
             "seq": 2,
             "position": 2,
             "role": "assistant",
             "kind": "standard",
             "authorUserId": null,
-            "characterId": "character_000000000000000000000003m2",
+            "characterId": "character_000000000000000000000003md",
             "personaId": null,
             "excludedFromPrompt": false,
             "createdAt": 1750003773000,
             "editedAt": null,
-            "selectedVariantId": "message_variant_000000000000000000000003nc",
+            "selectedVariantId": "message_variant_000000000000000000000003nq",
             "selectedVariantIdx": 0,
             "variantCount": 1,
             "hasContinuation": false,
@@ -1974,7 +1974,7 @@
           }
         ],
         "identities": [
-          { "kind": "character", "id": "character_000000000000000000000003m2", "name": "Lifecycle witness", "avatarHash": null },
+          { "kind": "character", "id": "character_000000000000000000000003md", "name": "Lifecycle witness", "avatarHash": null },
           {
             "kind": "persona",
             "id": "persona_0000000000000000000000014m",
@@ -1989,12 +1989,12 @@
     },
     "abortedDuring": {
       "viewerUserId": "000000000000000000000000w1",
-      "chatId": "chat_000000000000000000000003nz",
+      "chatId": "chat_000000000000000000000003pa",
       "output": {
         "messages": [
           {
-            "id": "message_000000000000000000000003ph",
-            "chatId": "chat_000000000000000000000003nz",
+            "id": "message_000000000000000000000003pw",
+            "chatId": "chat_000000000000000000000003pa",
             "seq": 1,
             "position": 1,
             "role": "user",
@@ -2005,7 +2005,7 @@
             "excludedFromPrompt": false,
             "createdAt": 1750003773000,
             "editedAt": null,
-            "selectedVariantId": "message_variant_000000000000000000000003pj",
+            "selectedVariantId": "message_variant_000000000000000000000003px",
             "selectedVariantIdx": 0,
             "variantCount": 1,
             "hasContinuation": false,
@@ -2037,7 +2037,7 @@
           }
         ],
         "identities": [
-          { "kind": "character", "id": "character_000000000000000000000003ns", "name": "Lifecycle witness", "avatarHash": null },
+          { "kind": "character", "id": "character_000000000000000000000003p4", "name": "Lifecycle witness", "avatarHash": null },
           {
             "kind": "persona",
             "id": "persona_0000000000000000000000014m",
@@ -2052,12 +2052,12 @@
     },
     "abortedCompleted": {
       "viewerUserId": "000000000000000000000000w1",
-      "chatId": "chat_000000000000000000000003nz",
+      "chatId": "chat_000000000000000000000003pa",
       "output": {
         "messages": [
           {
-            "id": "message_000000000000000000000003ph",
-            "chatId": "chat_000000000000000000000003nz",
+            "id": "message_000000000000000000000003pw",
+            "chatId": "chat_000000000000000000000003pa",
             "seq": 1,
             "position": 1,
             "role": "user",
@@ -2068,7 +2068,7 @@
             "excludedFromPrompt": false,
             "createdAt": 1750003773000,
             "editedAt": null,
-            "selectedVariantId": "message_variant_000000000000000000000003pj",
+            "selectedVariantId": "message_variant_000000000000000000000003px",
             "selectedVariantIdx": 0,
             "variantCount": 1,
             "hasContinuation": false,
@@ -2100,7 +2100,7 @@
           }
         ],
         "identities": [
-          { "kind": "character", "id": "character_000000000000000000000003ns", "name": "Lifecycle witness", "avatarHash": null },
+          { "kind": "character", "id": "character_000000000000000000000003p4", "name": "Lifecycle witness", "avatarHash": null },
           {
             "kind": "persona",
             "id": "persona_0000000000000000000000014m",
@@ -2118,9 +2118,9 @@
     "viewerUserId": "00000000000000000000000004",
     "ids": {
       "libraryBookId": "world_book_00000000000000000000000157",
-      "orderedBookId": "world_book_000000000000000000000005hm",
-      "entryId": "world_entry_000000000000000000000005hp",
-      "demotedCharacterId": "character_000000000000000000000005he",
+      "orderedBookId": "world_book_000000000000000000000005hx",
+      "entryId": "world_entry_000000000000000000000005hz",
+      "demotedCharacterId": "character_000000000000000000000005hq",
       "characterId": "character_0000000000000000000000014e",
       "personaId": "persona_0000000000000000000000014m",
       "chatId": "chat_0000000000000000000000014r"
@@ -2128,8 +2128,8 @@
     "reads": {
       "orderedEntries": [
         {
-          "id": "world_entry_000000000000000000000005hw",
-          "worldBookId": "world_book_000000000000000000000005hm",
+          "id": "world_entry_000000000000000000000005j5",
+          "worldBookId": "world_book_000000000000000000000005hx",
           "title": "Inner archive",
           "description": null,
           "content": "The inner archive preserves the second witness.",
@@ -2140,8 +2140,8 @@
           "metadata": null
         },
         {
-          "id": "world_entry_000000000000000000000005hp",
-          "worldBookId": "world_book_000000000000000000000005hm",
+          "id": "world_entry_000000000000000000000005hz",
+          "worldBookId": "world_book_000000000000000000000005hx",
           "title": "Outer archive",
           "description": null,
           "content": "The outer archive preserves the first witness.",
@@ -2153,12 +2153,12 @@
         }
       ],
       "demoted": [
-        { "id": "world_book_000000000000000000000005jc", "name": "Native replacement ledger", "description": null, "role": "primary" },
-        { "id": "world_book_000000000000000000000005hm", "name": "Native lifecycle ledger", "description": null, "role": "auxiliary" }
+        { "id": "world_book_000000000000000000000005jn", "name": "Native replacement ledger", "description": null, "role": "primary" },
+        { "id": "world_book_000000000000000000000005hx", "name": "Native lifecycle ledger", "description": null, "role": "auxiliary" }
       ],
       "books": [
-        { "id": "world_book_000000000000000000000005jc", "name": "Native replacement ledger", "description": null },
-        { "id": "world_book_000000000000000000000005hm", "name": "Native lifecycle ledger", "description": null },
+        { "id": "world_book_000000000000000000000005jn", "name": "Native replacement ledger", "description": null },
+        { "id": "world_book_000000000000000000000005hx", "name": "Native lifecycle ledger", "description": null },
         { "id": "world_book_00000000000000000000000157", "name": "Orbital ledger canon", "description": null },
         { "id": "world_book_00000000000000000000000121", "name": "Demo World — The Loom", "description": "Lore for the demo group chat." },
         { "id": "world_book_000000000000000000000000b5", "name": "Gullwrack Light", "description": "The book Elias has waited a century to finish." },
@@ -2183,14 +2183,14 @@
       "detail": { "id": "world_book_00000000000000000000000157", "name": "Orbital ledger canon", "description": null },
       "usage": [
         {
-          "id": "world_book_000000000000000000000005jc",
+          "id": "world_book_000000000000000000000005jn",
           "name": "Native replacement ledger",
           "description": null,
           "entryCount": 0,
           "usage": { "characters": 1, "personas": 0, "chats": 0, "global": false, "total": 1 }
         },
         {
-          "id": "world_book_000000000000000000000005hm",
+          "id": "world_book_000000000000000000000005hx",
           "name": "Native lifecycle ledger",
           "description": null,
           "entryCount": 2,
@@ -2286,8 +2286,8 @@
         "personaIds": ["persona_0000000000000000000000014m"]
       },
       "entry": {
-        "id": "world_entry_000000000000000000000005hp",
-        "worldBookId": "world_book_000000000000000000000005hm",
+        "id": "world_entry_000000000000000000000005hz",
+        "worldBookId": "world_book_000000000000000000000005hx",
         "title": "Outer archive",
         "description": null,
         "content": "The outer archive preserves the first witness.",
@@ -2323,7 +2323,7 @@
   "regexLibrary": {
     "viewerUserId": "00000000000000000000000004",
     "ids": {
-      "scriptId": "regex_script_000000000000000000000005k1",
+      "scriptId": "regex_script_000000000000000000000005ka",
       "characterId": "character_0000000000000000000000014e",
       "presetId": "preset_0000000000000000000000014p",
       "chatId": "chat_0000000000000000000000014r"
@@ -2339,7 +2339,7 @@
           "runOnEdit": false,
           "trimStrings": [],
           "substituteRegex": 0,
-          "id": "regex_script_000000000000000000000005k1",
+          "id": "regex_script_000000000000000000000005ka",
           "name": "Native display ledger 0",
           "enabled": true,
           "updatedAt": 1750003797001
@@ -2353,7 +2353,7 @@
           "runOnEdit": false,
           "trimStrings": [],
           "substituteRegex": 0,
-          "id": "regex_script_000000000000000000000005k3",
+          "id": "regex_script_000000000000000000000005kc",
           "name": "Native display ledger 1",
           "enabled": true,
           "updatedAt": 1750003797001
@@ -2369,7 +2369,7 @@
           "runOnEdit": false,
           "trimStrings": [],
           "substituteRegex": 0,
-          "id": "regex_script_000000000000000000000005k3",
+          "id": "regex_script_000000000000000000000005kc",
           "name": "Native display ledger 1",
           "enabled": true,
           "updatedAt": 1750003797001
@@ -2383,7 +2383,7 @@
           "runOnEdit": false,
           "trimStrings": [],
           "substituteRegex": 0,
-          "id": "regex_script_000000000000000000000005k1",
+          "id": "regex_script_000000000000000000000005ka",
           "name": "Native display ledger 0",
           "enabled": true,
           "updatedAt": 1750003797001
@@ -2400,7 +2400,7 @@
           "runOnEdit": false,
           "trimStrings": [],
           "substituteRegex": 0,
-          "id": "regex_script_000000000000000000000005k1",
+          "id": "regex_script_000000000000000000000005ka",
           "name": "Native display ledger 0",
           "enabled": true,
           "updatedAt": 1750003797001
@@ -2414,7 +2414,7 @@
           "runOnEdit": false,
           "trimStrings": [],
           "substituteRegex": 0,
-          "id": "regex_script_000000000000000000000005k3",
+          "id": "regex_script_000000000000000000000005kc",
           "name": "Native display ledger 1",
           "enabled": true,
           "updatedAt": 1750003797001
@@ -2444,7 +2444,7 @@
           "runOnEdit": false,
           "trimStrings": [],
           "substituteRegex": 0,
-          "id": "regex_script_000000000000000000000005k1",
+          "id": "regex_script_000000000000000000000005ka",
           "name": "Native display ledger 0",
           "enabled": true,
           "updatedAt": 1750003797001
@@ -2458,7 +2458,7 @@
           "runOnEdit": false,
           "trimStrings": [],
           "substituteRegex": 0,
-          "id": "regex_script_000000000000000000000005k3",
+          "id": "regex_script_000000000000000000000005kc",
           "name": "Native display ledger 1",
           "enabled": true,
           "updatedAt": 1750003797001
@@ -2549,7 +2549,7 @@
           "runOnEdit": false,
           "trimStrings": [],
           "substituteRegex": 0,
-          "id": "regex_script_000000000000000000000005k1",
+          "id": "regex_script_000000000000000000000005ka",
           "name": "Native display ledger 0",
           "enabled": true,
           "updatedAt": 1750003797001
@@ -2565,7 +2565,7 @@
           "runOnEdit": false,
           "trimStrings": [],
           "substituteRegex": 0,
-          "id": "regex_script_000000000000000000000005k1",
+          "id": "regex_script_000000000000000000000005ka",
           "name": "Native display ledger 0",
           "enabled": true,
           "updatedAt": 1750003797001
@@ -2581,7 +2581,7 @@
           "runOnEdit": false,
           "trimStrings": [],
           "substituteRegex": 0,
-          "id": "regex_script_000000000000000000000005k1",
+          "id": "regex_script_000000000000000000000005ka",
           "name": "Native display ledger 0",
           "enabled": true,
           "updatedAt": 1750003797001
@@ -2592,18 +2592,18 @@
   "libraryRelations": {
     "viewerUserId": "00000000000000000000000004",
     "ids": {
-      "tagId": "tag_000000000000000000000005kx",
+      "tagId": "tag_000000000000000000000005m6",
       "characterId": "character_0000000000000000000000014e",
       "personaId": "persona_0000000000000000000000014m",
-      "rosterPresetId": "roster_preset_000000000000000000000005ms",
-      "rosterChatId": "chat_000000000000000000000005mm",
+      "rosterPresetId": "roster_preset_000000000000000000000005n2",
+      "rosterChatId": "chat_000000000000000000000005mx",
       "presetId": "preset_0000000000000000000000014p",
       "connectionId": "user_connection_000000000000000000000000vq"
     },
     "reads": {
       "tagPending": [
         {
-          "id": "tag_000000000000000000000005kx",
+          "id": "tag_000000000000000000000005m6",
           "name": "Native lifecycle label",
           "color": null,
           "color2": null,
@@ -2715,7 +2715,7 @@
       ],
       "tagBefore": [
         {
-          "id": "tag_000000000000000000000005kx",
+          "id": "tag_000000000000000000000005m6",
           "name": "Native lifecycle label",
           "color": null,
           "color2": null,
@@ -3125,7 +3125,7 @@
       ],
       "tagUsage": [
         {
-          "id": "tag_000000000000000000000005kx",
+          "id": "tag_000000000000000000000005m6",
           "name": "Native lifecycle label",
           "color": null,
           "color2": null,
@@ -3535,7 +3535,7 @@
       ],
       "tagList": [
         {
-          "id": "tag_000000000000000000000005kx",
+          "id": "tag_000000000000000000000005m6",
           "name": "Native lifecycle label",
           "color": null,
           "color2": null,
@@ -3877,7 +3877,7 @@
       ],
       "tagVocabulary": [
         { "id": "tag_0000000000000000000000013d", "name": "demo", "isHiddenOnCard": false, "characters": 1 },
-        { "id": "tag_000000000000000000000005kx", "name": "Native lifecycle label", "isHiddenOnCard": false, "characters": 1 },
+        { "id": "tag_000000000000000000000005m6", "name": "Native lifecycle label", "isHiddenOnCard": false, "characters": 1 },
         { "id": "tag_00000000000000000000000086", "name": "americana", "isHiddenOnCard": false, "characters": 0 },
         { "id": "tag_0000000000000000000000002q", "name": "assistant", "isHiddenOnCard": false, "characters": 0 },
         { "id": "tag_00000000000000000000000074", "name": "banter", "isHiddenOnCard": false, "characters": 0 },
@@ -3943,7 +3943,7 @@
       ],
       "personaCharacters": [{ "id": "character_0000000000000000000000014e", "name": "The ledger archivist" }],
       "rosterDetail": {
-        "id": "roster_preset_000000000000000000000005ms",
+        "id": "roster_preset_000000000000000000000005n2",
         "name": "Native library party",
         "description": "",
         "anchorPersonaId": "persona_0000000000000000000000014m",
@@ -3963,7 +3963,7 @@
         "game": null,
         "members": [
           {
-            "characterId": "character_000000000000000000000005me",
+            "characterId": "character_000000000000000000000005mq",
             "position": 0,
             "talkativeness": 0.25,
             "disabled": true,
@@ -4063,14 +4063,14 @@
           "hasGroupConfig": false
         },
         {
-          "id": "roster_preset_000000000000000000000005ms",
+          "id": "roster_preset_000000000000000000000005n2",
           "name": "Native library party",
           "description": "",
           "anchorPersonaId": "persona_0000000000000000000000014m",
           "game": null,
           "members": [
             {
-              "characterId": "character_000000000000000000000005me",
+              "characterId": "character_000000000000000000000005mq",
               "position": 0,
               "talkativeness": 0.25,
               "disabled": true,
@@ -4225,7 +4225,7 @@
         }
       ],
       "rosterApplied": {
-        "added": ["character_000000000000000000000005me"],
+        "added": ["character_000000000000000000000005mq"],
         "alreadyPresent": ["character_0000000000000000000000014e"],
         "skipped": [],
         "rulesMinted": ["openerChips"],
@@ -4234,14 +4234,14 @@
       },
       "rosterAppliedAgain": {
         "added": [],
-        "alreadyPresent": ["character_000000000000000000000005me", "character_0000000000000000000000014e"],
+        "alreadyPresent": ["character_000000000000000000000005mq", "character_0000000000000000000000014e"],
         "skipped": [],
         "rulesMinted": [],
         "rulesAlreadyPresent": ["openerChips"],
         "rulesSkipped": []
       },
       "rosterChat": {
-        "id": "chat_000000000000000000000005mm",
+        "id": "chat_000000000000000000000005mx",
         "title": null,
         "starred": false,
         "archived": false,
@@ -4253,8 +4253,8 @@
         "anchorOwnerHandle": null,
         "participants": [
           {
-            "id": "chat_participant_000000000000000000000005mn",
-            "chatId": "chat_000000000000000000000005mm",
+            "id": "chat_participant_000000000000000000000005my",
+            "chatId": "chat_000000000000000000000005mx",
             "kind": "human",
             "userId": "00000000000000000000000004",
             "characterId": null,
@@ -4275,8 +4275,8 @@
             "backgroundOverride": null
           },
           {
-            "id": "chat_participant_000000000000000000000005mp",
-            "chatId": "chat_000000000000000000000005mm",
+            "id": "chat_participant_000000000000000000000005mz",
+            "chatId": "chat_000000000000000000000005mx",
             "kind": "character",
             "userId": null,
             "characterId": "character_0000000000000000000000014e",
@@ -4297,11 +4297,11 @@
             "backgroundOverride": null
           },
           {
-            "id": "chat_participant_000000000000000000000005mx",
-            "chatId": "chat_000000000000000000000005mm",
+            "id": "chat_participant_000000000000000000000005n6",
+            "chatId": "chat_000000000000000000000005mx",
             "kind": "character",
             "userId": null,
-            "characterId": "character_000000000000000000000005me",
+            "characterId": "character_000000000000000000000005mq",
             "role": "member",
             "activePersonaId": null,
             "talkativeness": 0.25,
@@ -4322,7 +4322,7 @@
         "viewerActivePersonaId": "persona_0000000000000000000000014m",
         "viewerIsHost": true,
         "viewerUserId": "00000000000000000000000004",
-        "viewerOwnedCharacterIds": ["character_0000000000000000000000014e", "character_000000000000000000000005me"],
+        "viewerOwnedCharacterIds": ["character_0000000000000000000000014e", "character_000000000000000000000005mq"],
         "viewerGalleryCharacterId": "character_0000000000000000000000014e",
         "pendingHostUserId": null,
         "group": {
@@ -4354,7 +4354,7 @@
         "updatedAt": 1750003797001,
         "identities": [
           { "kind": "character", "id": "character_0000000000000000000000014e", "name": "The ledger archivist", "avatarHash": null },
-          { "kind": "character", "id": "character_000000000000000000000005me", "name": "Native roster witness", "avatarHash": null },
+          { "kind": "character", "id": "character_000000000000000000000005mq", "name": "Native roster witness", "avatarHash": null },
           {
             "kind": "persona",
             "id": "persona_0000000000000000000000014m",
@@ -5068,7 +5068,7 @@
           "updatedAt": 1750003773000
         },
         {
-          "id": "preset_000000000000000000000003vp",
+          "id": "preset_000000000000000000000003w0",
           "name": "Recursive RPG corpus",
           "kind": "custom",
           "isSystemDefault": false,
@@ -5078,7 +5078,7 @@
           "updatedAt": 1750003773001
         },
         {
-          "id": "preset_000000000000000000000003yg",
+          "id": "preset_000000000000000000000003yt",
           "name": "Offered observatory GM preset",
           "kind": "custom",
           "isSystemDefault": false,
@@ -5088,7 +5088,7 @@
           "updatedAt": 1750003773001
         },
         {
-          "id": "preset_0000000000000000000000041n",
+          "id": "preset_0000000000000000000000041y",
           "name": "Post-commit RPG corpus",
           "kind": "custom",
           "isSystemDefault": false,
@@ -5098,7 +5098,7 @@
           "updatedAt": 1750003773001
         },
         {
-          "id": "preset_000000000000000000000005fg",
+          "id": "preset_000000000000000000000005fs",
           "name": "Native account corpus",
           "kind": "custom",
           "isSystemDefault": false,
@@ -5131,8 +5131,8 @@
       },
       "rulesFirst": [
         {
-          "id": "automation_rule_000000000000000000000005n9",
-          "chatId": "chat_000000000000000000000005mm",
+          "id": "automation_rule_000000000000000000000005nj",
+          "chatId": "chat_000000000000000000000005mx",
           "name": "Opener chips",
           "description": "When you open the room, offer a short deck of starters you can edit before sending.",
           "enabled": true,
@@ -5166,8 +5166,8 @@
       ],
       "rulesRepeated": [
         {
-          "id": "automation_rule_000000000000000000000005n9",
-          "chatId": "chat_000000000000000000000005mm",
+          "id": "automation_rule_000000000000000000000005nj",
+          "chatId": "chat_000000000000000000000005mx",
           "name": "Opener chips",
           "description": "When you open the room, offer a short deck of starters you can edit before sending.",
           "enabled": true,
@@ -5207,7 +5207,7 @@
       "recentChats": {
         "items": [
           {
-            "id": "chat_000000000000000000000006mr",
+            "id": "chat_000000000000000000000006n1",
             "title": null,
             "starred": false,
             "archived": false,
@@ -5217,10 +5217,10 @@
             "lastMessagePreview": "The traveller witnesses the orbital loom.",
             "isGame": false,
             "gamePaused": false,
-            "participantNames": ["Image variant witness", "c-000000000000000000000005qw"],
+            "participantNames": ["Image variant witness", "c-000000000000000000000005r5"],
             "participantPortraits": [
               {
-                "characterId": "character_000000000000000000000006mc",
+                "characterId": "character_000000000000000000000006mn",
                 "name": "Image variant witness",
                 "avatarHash": "45388cd52ff5a33fb2e3139d816f35ebaa044fe8bdbef19faf0a3f90a882a864"
               }
@@ -5229,7 +5229,7 @@
             "updatedAt": 1750003801001
           },
           {
-            "id": "chat_000000000000000000000005mm",
+            "id": "chat_000000000000000000000005mx",
             "title": null,
             "starred": false,
             "archived": false,
@@ -5242,13 +5242,13 @@
             "participantNames": ["The ledger archivist", "Native roster witness"],
             "participantPortraits": [
               { "characterId": "character_0000000000000000000000014e", "name": "The ledger archivist", "avatarHash": null },
-              { "characterId": "character_000000000000000000000005me", "name": "Native roster witness", "avatarHash": null }
+              { "characterId": "character_000000000000000000000005mq", "name": "Native roster witness", "avatarHash": null }
             ],
             "viewerRole": "host",
             "updatedAt": 1750003797001
           },
           {
-            "id": "chat_000000000000000000000005fs",
+            "id": "chat_000000000000000000000005g2",
             "title": null,
             "starred": false,
             "archived": false,
@@ -5259,12 +5259,12 @@
             "isGame": false,
             "gamePaused": false,
             "participantNames": ["Native account witness"],
-            "participantPortraits": [{ "characterId": "character_000000000000000000000005fk", "name": "Native account witness", "avatarHash": null }],
+            "participantPortraits": [{ "characterId": "character_000000000000000000000005fw", "name": "Native account witness", "avatarHash": null }],
             "viewerRole": "host",
             "updatedAt": 1750003797001
           },
           {
-            "id": "chat_000000000000000000000004rp",
+            "id": "chat_000000000000000000000004rz",
             "title": "Uncredited search transcript",
             "starred": false,
             "archived": false,
@@ -5286,7 +5286,7 @@
             "updatedAt": 1750003783001
           },
           {
-            "id": "chat_000000000000000000000004gp",
+            "id": "chat_000000000000000000000004gz",
             "title": "Native search observatory",
             "starred": false,
             "archived": false,
@@ -5298,14 +5298,14 @@
             "gamePaused": false,
             "participantNames": ["Search co-star first", "Search co-star second"],
             "participantPortraits": [
-              { "characterId": "character_000000000000000000000004g8", "name": "Search co-star first", "avatarHash": null },
-              { "characterId": "character_000000000000000000000004ge", "name": "Search co-star second", "avatarHash": null }
+              { "characterId": "character_000000000000000000000004gh", "name": "Search co-star first", "avatarHash": null },
+              { "characterId": "character_000000000000000000000004gq", "name": "Search co-star second", "avatarHash": null }
             ],
             "viewerRole": "host",
             "updatedAt": 1750003783001
           },
           {
-            "id": "chat_0000000000000000000000045t",
+            "id": "chat_00000000000000000000000463",
             "title": null,
             "starred": false,
             "archived": false,
@@ -5316,12 +5316,12 @@
             "isGame": true,
             "gamePaused": false,
             "participantNames": ["Corpus round keeper", "companion"],
-            "participantPortraits": [{ "characterId": "character_0000000000000000000000045m", "name": "Corpus round keeper", "avatarHash": null }],
+            "participantPortraits": [{ "characterId": "character_0000000000000000000000045x", "name": "Corpus round keeper", "avatarHash": null }],
             "viewerRole": "host",
             "updatedAt": 1750003773001
           },
           {
-            "id": "chat_00000000000000000000000422",
+            "id": "chat_0000000000000000000000042b",
             "title": null,
             "starred": false,
             "archived": false,
@@ -5332,12 +5332,12 @@
             "isGame": true,
             "gamePaused": false,
             "participantNames": ["Corpus round keeper", "companion"],
-            "participantPortraits": [{ "characterId": "character_0000000000000000000000041w", "name": "Corpus round keeper", "avatarHash": null }],
+            "participantPortraits": [{ "characterId": "character_00000000000000000000000425", "name": "Corpus round keeper", "avatarHash": null }],
             "viewerRole": "host",
             "updatedAt": 1750003773001
           },
           {
-            "id": "chat_00000000000000000000000404",
+            "id": "chat_0000000000000000000000040e",
             "title": "Host observatory fork",
             "starred": false,
             "archived": false,
@@ -5348,25 +5348,25 @@
             "isGame": false,
             "gamePaused": false,
             "participantNames": ["Corpus recursive keeper"],
-            "participantPortraits": [{ "characterId": "character_000000000000000000000003vx", "name": "Corpus recursive keeper", "avatarHash": null }],
+            "participantPortraits": [{ "characterId": "character_000000000000000000000003w7", "name": "Corpus recursive keeper", "avatarHash": null }],
             "viewerRole": "host",
             "updatedAt": 1750003773001
           }
         ],
-        "nextCursor": { "recencyAt": 1750003773001, "id": "chat_00000000000000000000000404" },
+        "nextCursor": { "recencyAt": 1750003773001, "id": "chat_0000000000000000000000040e" },
         "totalCount": 27,
         "viewerLastTurnAt": 1750003801001
       },
       "quickPicks": {
         "items": [
           {
-            "id": "character_000000000000000000000006mc",
+            "id": "character_000000000000000000000006mn",
             "handle": "image-variant-witness",
             "name": "Image variant witness",
             "starred": false,
             "archived": false,
             "themeOverride": null,
-            "avatarAssetId": "asset_000000000000000000000006nz",
+            "avatarAssetId": "asset_000000000000000000000006p8",
             "avatarHash": "45388cd52ff5a33fb2e3139d816f35ebaa044fe8bdbef19faf0a3f90a882a864",
             "createdAt": 1750003801001,
             "tags": [],
@@ -5374,12 +5374,12 @@
             "tokenSize": 19,
             "elevatorPitch": null,
             "lastChattedAt": 1750003801001,
-            "lastChatId": "chat_000000000000000000000006mr",
+            "lastChatId": "chat_000000000000000000000006n1",
             "chatCount": 1,
             "nameIsAmbiguous": false
           },
           {
-            "id": "character_000000000000000000000005me",
+            "id": "character_000000000000000000000005mq",
             "handle": "library-roster",
             "name": "Native roster witness",
             "starred": false,
@@ -5393,12 +5393,12 @@
             "tokenSize": 19,
             "elevatorPitch": null,
             "lastChattedAt": 1750003797001,
-            "lastChatId": "chat_000000000000000000000005mm",
+            "lastChatId": "chat_000000000000000000000005mx",
             "chatCount": 1,
             "nameIsAmbiguous": false
           },
           {
-            "id": "character_000000000000000000000005fk",
+            "id": "character_000000000000000000000005fw",
             "handle": "native-account-witness",
             "name": "Native account witness",
             "starred": false,
@@ -5412,7 +5412,7 @@
             "tokenSize": 18,
             "elevatorPitch": null,
             "lastChattedAt": 1750003797001,
-            "lastChatId": "chat_000000000000000000000005fs",
+            "lastChatId": "chat_000000000000000000000005g2",
             "chatCount": 1,
             "nameIsAmbiguous": false
           },
@@ -5428,7 +5428,7 @@
             "createdAt": 1750000002000,
             "tags": [
               {
-                "id": "tag_000000000000000000000005kx",
+                "id": "tag_000000000000000000000005m6",
                 "name": "Native lifecycle label",
                 "color": null,
                 "color2": null,
@@ -5442,12 +5442,12 @@
             "tokenSize": 17,
             "elevatorPitch": "A traveller repairs the orbital loom.",
             "lastChattedAt": 1750003797001,
-            "lastChatId": "chat_000000000000000000000005mm",
+            "lastChatId": "chat_000000000000000000000005mx",
             "chatCount": 2,
             "nameIsAmbiguous": false
           },
           {
-            "id": "character_000000000000000000000004ge",
+            "id": "character_000000000000000000000004gq",
             "handle": "search-costar-second",
             "name": "Search co-star second",
             "starred": false,
@@ -5461,12 +5461,12 @@
             "tokenSize": 16,
             "elevatorPitch": "A traveller repairs the orbital loom.",
             "lastChattedAt": 1750003783001,
-            "lastChatId": "chat_000000000000000000000004gp",
+            "lastChatId": "chat_000000000000000000000004gz",
             "chatCount": 1,
             "nameIsAmbiguous": false
           },
           {
-            "id": "character_000000000000000000000004g8",
+            "id": "character_000000000000000000000004gh",
             "handle": "search-costar-first",
             "name": "Search co-star first",
             "starred": false,
@@ -5480,12 +5480,12 @@
             "tokenSize": 15,
             "elevatorPitch": "A traveller repairs the orbital loom.",
             "lastChattedAt": 1750003783001,
-            "lastChatId": "chat_000000000000000000000004gp",
+            "lastChatId": "chat_000000000000000000000004gz",
             "chatCount": 1,
             "nameIsAmbiguous": false
           }
         ],
-        "nextCursor": { "sort": "recent", "lastChattedAt": 1750003783001, "createdAt": 1750003783001, "id": "character_000000000000000000000004g8" },
+        "nextCursor": { "sort": "recent", "lastChattedAt": 1750003783001, "createdAt": 1750003783001, "id": "character_000000000000000000000004gh" },
         "totalCount": 38
       },
       "rosterPreview": [
@@ -5569,14 +5569,14 @@
           "hasGroupConfig": false
         },
         {
-          "id": "roster_preset_000000000000000000000005ms",
+          "id": "roster_preset_000000000000000000000005n2",
           "name": "Native library party",
           "description": "",
           "anchorPersonaId": "persona_0000000000000000000000014m",
           "game": null,
           "members": [
             {
-              "characterId": "character_000000000000000000000005me",
+              "characterId": "character_000000000000000000000005mq",
               "position": 0,
               "talkativeness": 0.25,
               "disabled": true,
@@ -5745,14 +5745,14 @@
           "hasGroupConfig": false
         },
         {
-          "id": "roster_preset_000000000000000000000005ms",
+          "id": "roster_preset_000000000000000000000005n2",
           "name": "Native library party",
           "description": "",
           "anchorPersonaId": "persona_0000000000000000000000014m",
           "game": null,
           "members": [
             {
-              "characterId": "character_000000000000000000000005me",
+              "characterId": "character_000000000000000000000005mq",
               "position": 0,
               "talkativeness": 0.25,
               "disabled": true,
@@ -5909,7 +5909,7 @@
       "recentDocuments": {
         "items": [
           {
-            "id": "document_000000000000000000000005nn",
+            "id": "document_000000000000000000000005ny",
             "name": "Native lifecycle source",
             "mime": "text/plain",
             "origin": "text",
@@ -5954,7 +5954,7 @@
       "inbox": {
         "items": [
           {
-            "id": "notification_0000000000000000000000041h",
+            "id": "notification_0000000000000000000000041t",
             "actionable": false,
             "seq": 11,
             "readAt": null,
@@ -5964,12 +5964,12 @@
             "payload": {
               "type": "handoff-accepted",
               "recipientUserId": "00000000000000000000000004",
-              "chatId": "chat_000000000000000000000003w3",
+              "chatId": "chat_000000000000000000000003wd",
               "newHostHandle": "companion"
             }
           },
           {
-            "id": "notification_000000000000000000000003sn",
+            "id": "notification_000000000000000000000003sz",
             "actionable": false,
             "seq": 10,
             "readAt": null,
@@ -5979,7 +5979,7 @@
             "payload": {
               "type": "handoff-accepted",
               "recipientUserId": "00000000000000000000000004",
-              "chatId": "chat_000000000000000000000003q4",
+              "chatId": "chat_000000000000000000000003qf",
               "newHostHandle": "companion"
             }
           },
@@ -6000,7 +6000,7 @@
     },
     "recentRooms": [
       {
-        "id": "chat_000000000000000000000006mr",
+        "id": "chat_000000000000000000000006n1",
         "title": null,
         "starred": false,
         "archived": false,
@@ -6012,8 +6012,8 @@
         "anchorOwnerHandle": null,
         "participants": [
           {
-            "id": "chat_participant_000000000000000000000006ms",
-            "chatId": "chat_000000000000000000000006mr",
+            "id": "chat_participant_000000000000000000000006n2",
+            "chatId": "chat_000000000000000000000006n1",
             "kind": "human",
             "userId": "00000000000000000000000004",
             "characterId": null,
@@ -6034,11 +6034,11 @@
             "backgroundOverride": null
           },
           {
-            "id": "chat_participant_000000000000000000000006mt",
-            "chatId": "chat_000000000000000000000006mr",
+            "id": "chat_participant_000000000000000000000006n3",
+            "chatId": "chat_000000000000000000000006n1",
             "kind": "character",
             "userId": null,
-            "characterId": "character_000000000000000000000006mc",
+            "characterId": "character_000000000000000000000006mn",
             "role": "member",
             "activePersonaId": null,
             "talkativeness": 0.5,
@@ -6049,17 +6049,17 @@
             "joinHistoryVisibility": "full",
             "displayName": "Image variant witness",
             "handle": null,
-            "avatarAssetId": "asset_000000000000000000000006nz",
+            "avatarAssetId": "asset_000000000000000000000006p8",
             "avatarHash": "45388cd52ff5a33fb2e3139d816f35ebaa044fe8bdbef19faf0a3f90a882a864",
             "renderPolicy": { "htmlTrust": "interactive", "forbidExternalMedia": true },
             "themeOverride": null,
             "backgroundOverride": null
           },
           {
-            "id": "chat_participant_000000000000000000000006nc",
-            "chatId": "chat_000000000000000000000006mr",
+            "id": "chat_participant_000000000000000000000006nn",
+            "chatId": "chat_000000000000000000000006n1",
             "kind": "human",
-            "userId": "000000000000000000000005qx",
+            "userId": "000000000000000000000005r6",
             "characterId": null,
             "role": "member",
             "activePersonaId": null,
@@ -6069,8 +6069,8 @@
             "joinSeq": 1,
             "leftSeq": null,
             "joinHistoryVisibility": "full",
-            "displayName": "c-000000000000000000000005qw",
-            "handle": "c-000000000000000000000005qw",
+            "displayName": "c-000000000000000000000005r5",
+            "handle": "c-000000000000000000000005r5",
             "avatarAssetId": null,
             "avatarHash": null,
             "renderPolicy": { "htmlTrust": "untrusted", "forbidExternalMedia": true },
@@ -6081,8 +6081,8 @@
         "viewerActivePersonaId": "persona_0000000000000000000000014m",
         "viewerIsHost": true,
         "viewerUserId": "00000000000000000000000004",
-        "viewerOwnedCharacterIds": ["character_000000000000000000000006mc"],
-        "viewerGalleryCharacterId": "character_000000000000000000000006mc",
+        "viewerOwnedCharacterIds": ["character_000000000000000000000006mn"],
+        "viewerGalleryCharacterId": "character_000000000000000000000006mn",
         "pendingHostUserId": null,
         "group": {
           "output": "per-speaker",
@@ -6114,7 +6114,7 @@
         "identities": [
           {
             "kind": "character",
-            "id": "character_000000000000000000000006mc",
+            "id": "character_000000000000000000000006mn",
             "name": "Image variant witness",
             "avatarHash": "45388cd52ff5a33fb2e3139d816f35ebaa044fe8bdbef19faf0a3f90a882a864"
           },
@@ -6128,7 +6128,7 @@
         ]
       },
       {
-        "id": "chat_000000000000000000000005mm",
+        "id": "chat_000000000000000000000005mx",
         "title": null,
         "starred": false,
         "archived": false,
@@ -6140,8 +6140,8 @@
         "anchorOwnerHandle": null,
         "participants": [
           {
-            "id": "chat_participant_000000000000000000000005mn",
-            "chatId": "chat_000000000000000000000005mm",
+            "id": "chat_participant_000000000000000000000005my",
+            "chatId": "chat_000000000000000000000005mx",
             "kind": "human",
             "userId": "00000000000000000000000004",
             "characterId": null,
@@ -6162,8 +6162,8 @@
             "backgroundOverride": null
           },
           {
-            "id": "chat_participant_000000000000000000000005mp",
-            "chatId": "chat_000000000000000000000005mm",
+            "id": "chat_participant_000000000000000000000005mz",
+            "chatId": "chat_000000000000000000000005mx",
             "kind": "character",
             "userId": null,
             "characterId": "character_0000000000000000000000014e",
@@ -6184,11 +6184,11 @@
             "backgroundOverride": null
           },
           {
-            "id": "chat_participant_000000000000000000000005mx",
-            "chatId": "chat_000000000000000000000005mm",
+            "id": "chat_participant_000000000000000000000005n6",
+            "chatId": "chat_000000000000000000000005mx",
             "kind": "character",
             "userId": null,
-            "characterId": "character_000000000000000000000005me",
+            "characterId": "character_000000000000000000000005mq",
             "role": "member",
             "activePersonaId": null,
             "talkativeness": 0.25,
@@ -6209,7 +6209,7 @@
         "viewerActivePersonaId": "persona_0000000000000000000000014m",
         "viewerIsHost": true,
         "viewerUserId": "00000000000000000000000004",
-        "viewerOwnedCharacterIds": ["character_0000000000000000000000014e", "character_000000000000000000000005me"],
+        "viewerOwnedCharacterIds": ["character_0000000000000000000000014e", "character_000000000000000000000005mq"],
         "viewerGalleryCharacterId": "character_0000000000000000000000014e",
         "pendingHostUserId": null,
         "group": {
@@ -6241,7 +6241,7 @@
         "updatedAt": 1750003797001,
         "identities": [
           { "kind": "character", "id": "character_0000000000000000000000014e", "name": "The ledger archivist", "avatarHash": null },
-          { "kind": "character", "id": "character_000000000000000000000005me", "name": "Native roster witness", "avatarHash": null },
+          { "kind": "character", "id": "character_000000000000000000000005mq", "name": "Native roster witness", "avatarHash": null },
           {
             "kind": "persona",
             "id": "persona_0000000000000000000000014m",
@@ -6252,7 +6252,7 @@
         ]
       },
       {
-        "id": "chat_000000000000000000000005fs",
+        "id": "chat_000000000000000000000005g2",
         "title": null,
         "starred": false,
         "archived": false,
@@ -6264,8 +6264,8 @@
         "anchorOwnerHandle": null,
         "participants": [
           {
-            "id": "chat_participant_000000000000000000000005ft",
-            "chatId": "chat_000000000000000000000005fs",
+            "id": "chat_participant_000000000000000000000005g3",
+            "chatId": "chat_000000000000000000000005g2",
             "kind": "human",
             "userId": "00000000000000000000000004",
             "characterId": null,
@@ -6286,11 +6286,11 @@
             "backgroundOverride": null
           },
           {
-            "id": "chat_participant_000000000000000000000005fv",
-            "chatId": "chat_000000000000000000000005fs",
+            "id": "chat_participant_000000000000000000000005g4",
+            "chatId": "chat_000000000000000000000005g2",
             "kind": "character",
             "userId": null,
-            "characterId": "character_000000000000000000000005fk",
+            "characterId": "character_000000000000000000000005fw",
             "role": "member",
             "activePersonaId": null,
             "talkativeness": 0.5,
@@ -6311,8 +6311,8 @@
         "viewerActivePersonaId": "persona_0000000000000000000000014m",
         "viewerIsHost": true,
         "viewerUserId": "00000000000000000000000004",
-        "viewerOwnedCharacterIds": ["character_000000000000000000000005fk"],
-        "viewerGalleryCharacterId": "character_000000000000000000000005fk",
+        "viewerOwnedCharacterIds": ["character_000000000000000000000005fw"],
+        "viewerGalleryCharacterId": "character_000000000000000000000005fw",
         "pendingHostUserId": null,
         "group": {
           "output": "per-speaker",
@@ -6342,7 +6342,7 @@
         "createdAt": 1750003797001,
         "updatedAt": 1750003797001,
         "identities": [
-          { "kind": "character", "id": "character_000000000000000000000005fk", "name": "Native account witness", "avatarHash": null },
+          { "kind": "character", "id": "character_000000000000000000000005fw", "name": "Native account witness", "avatarHash": null },
           {
             "kind": "persona",
             "id": "persona_0000000000000000000000014m",
@@ -6353,7 +6353,7 @@
         ]
       },
       {
-        "id": "chat_000000000000000000000004rp",
+        "id": "chat_000000000000000000000004rz",
         "title": "Uncredited search transcript",
         "starred": false,
         "archived": false,
@@ -6365,8 +6365,8 @@
         "anchorOwnerHandle": null,
         "participants": [
           {
-            "id": "chat_participant_000000000000000000000004rq",
-            "chatId": "chat_000000000000000000000004rp",
+            "id": "chat_participant_000000000000000000000004s0",
+            "chatId": "chat_000000000000000000000004rz",
             "kind": "human",
             "userId": "00000000000000000000000004",
             "characterId": null,
@@ -6387,8 +6387,8 @@
             "backgroundOverride": null
           },
           {
-            "id": "chat_participant_000000000000000000000004rr",
-            "chatId": "chat_000000000000000000000004rp",
+            "id": "chat_participant_000000000000000000000004s1",
+            "chatId": "chat_000000000000000000000004rz",
             "kind": "character",
             "userId": null,
             "characterId": "character_0000000000000000000000002h",
@@ -6478,7 +6478,7 @@
         ]
       },
       {
-        "id": "chat_000000000000000000000004gp",
+        "id": "chat_000000000000000000000004gz",
         "title": "Native search observatory",
         "starred": false,
         "archived": false,
@@ -6490,8 +6490,8 @@
         "anchorOwnerHandle": null,
         "participants": [
           {
-            "id": "chat_participant_000000000000000000000004gq",
-            "chatId": "chat_000000000000000000000004gp",
+            "id": "chat_participant_000000000000000000000004h0",
+            "chatId": "chat_000000000000000000000004gz",
             "kind": "human",
             "userId": "00000000000000000000000004",
             "characterId": null,
@@ -6512,11 +6512,11 @@
             "backgroundOverride": null
           },
           {
-            "id": "chat_participant_000000000000000000000004gr",
-            "chatId": "chat_000000000000000000000004gp",
+            "id": "chat_participant_000000000000000000000004h1",
+            "chatId": "chat_000000000000000000000004gz",
             "kind": "character",
             "userId": null,
-            "characterId": "character_000000000000000000000004g8",
+            "characterId": "character_000000000000000000000004gh",
             "role": "member",
             "activePersonaId": null,
             "talkativeness": 0.5,
@@ -6534,11 +6534,11 @@
             "backgroundOverride": null
           },
           {
-            "id": "chat_participant_000000000000000000000004gs",
-            "chatId": "chat_000000000000000000000004gp",
+            "id": "chat_participant_000000000000000000000004h2",
+            "chatId": "chat_000000000000000000000004gz",
             "kind": "character",
             "userId": null,
-            "characterId": "character_000000000000000000000004ge",
+            "characterId": "character_000000000000000000000004gq",
             "role": "member",
             "activePersonaId": null,
             "talkativeness": 0.5,
@@ -6559,8 +6559,8 @@
         "viewerActivePersonaId": "persona_0000000000000000000000014m",
         "viewerIsHost": true,
         "viewerUserId": "00000000000000000000000004",
-        "viewerOwnedCharacterIds": ["character_000000000000000000000004g8", "character_000000000000000000000004ge"],
-        "viewerGalleryCharacterId": "character_000000000000000000000004g8",
+        "viewerOwnedCharacterIds": ["character_000000000000000000000004gh", "character_000000000000000000000004gq"],
+        "viewerGalleryCharacterId": "character_000000000000000000000004gh",
         "pendingHostUserId": null,
         "group": {
           "output": "per-speaker",
@@ -6590,8 +6590,8 @@
         "createdAt": 1750003783001,
         "updatedAt": 1750003783001,
         "identities": [
-          { "kind": "character", "id": "character_000000000000000000000004g8", "name": "Search co-star first", "avatarHash": null },
-          { "kind": "character", "id": "character_000000000000000000000004ge", "name": "Search co-star second", "avatarHash": null },
+          { "kind": "character", "id": "character_000000000000000000000004gh", "name": "Search co-star first", "avatarHash": null },
+          { "kind": "character", "id": "character_000000000000000000000004gq", "name": "Search co-star second", "avatarHash": null },
           {
             "kind": "persona",
             "id": "persona_0000000000000000000000014m",
@@ -6602,7 +6602,7 @@
         ]
       },
       {
-        "id": "chat_0000000000000000000000045t",
+        "id": "chat_00000000000000000000000463",
         "title": null,
         "starred": false,
         "archived": false,
@@ -6614,8 +6614,8 @@
         "anchorOwnerHandle": null,
         "participants": [
           {
-            "id": "chat_participant_0000000000000000000000045v",
-            "chatId": "chat_0000000000000000000000045t",
+            "id": "chat_participant_00000000000000000000000464",
+            "chatId": "chat_00000000000000000000000463",
             "kind": "human",
             "userId": "00000000000000000000000004",
             "characterId": null,
@@ -6636,11 +6636,11 @@
             "backgroundOverride": null
           },
           {
-            "id": "chat_participant_0000000000000000000000045w",
-            "chatId": "chat_0000000000000000000000045t",
+            "id": "chat_participant_00000000000000000000000465",
+            "chatId": "chat_00000000000000000000000463",
             "kind": "character",
             "userId": null,
-            "characterId": "character_0000000000000000000000045m",
+            "characterId": "character_0000000000000000000000045x",
             "role": "member",
             "activePersonaId": null,
             "talkativeness": 0.5,
@@ -6658,8 +6658,8 @@
             "backgroundOverride": null
           },
           {
-            "id": "chat_participant_00000000000000000000000467",
-            "chatId": "chat_0000000000000000000000045t",
+            "id": "chat_participant_0000000000000000000000046g",
+            "chatId": "chat_00000000000000000000000463",
             "kind": "human",
             "userId": "000000000000000000000000w1",
             "characterId": null,
@@ -6683,8 +6683,8 @@
         "viewerActivePersonaId": "persona_0000000000000000000000014m",
         "viewerIsHost": true,
         "viewerUserId": "00000000000000000000000004",
-        "viewerOwnedCharacterIds": ["character_0000000000000000000000045m"],
-        "viewerGalleryCharacterId": "character_0000000000000000000000045m",
+        "viewerOwnedCharacterIds": ["character_0000000000000000000000045x"],
+        "viewerGalleryCharacterId": "character_0000000000000000000000045x",
         "pendingHostUserId": null,
         "group": {
           "output": "per-speaker",
@@ -6707,14 +6707,14 @@
         "reactionsEnabled": null,
         "memberPersonaLore": true,
         "background": null,
-        "rpg": { "gameId": "rpg_game_00000000000000000000000464", "engaged": true },
+        "rpg": { "gameId": "rpg_game_0000000000000000000000046d", "engaged": true },
         "opening": "none",
         "compactSummary": null,
         "compactedAtSeq": null,
         "createdAt": 1750003773001,
         "updatedAt": 1750003773001,
         "identities": [
-          { "kind": "character", "id": "character_0000000000000000000000045m", "name": "Corpus round keeper", "avatarHash": null },
+          { "kind": "character", "id": "character_0000000000000000000000045x", "name": "Corpus round keeper", "avatarHash": null },
           {
             "kind": "persona",
             "id": "persona_0000000000000000000000014m",
@@ -6725,7 +6725,7 @@
         ]
       },
       {
-        "id": "chat_00000000000000000000000422",
+        "id": "chat_0000000000000000000000042b",
         "title": null,
         "starred": false,
         "archived": false,
@@ -6737,8 +6737,8 @@
         "anchorOwnerHandle": null,
         "participants": [
           {
-            "id": "chat_participant_00000000000000000000000423",
-            "chatId": "chat_00000000000000000000000422",
+            "id": "chat_participant_0000000000000000000000042c",
+            "chatId": "chat_0000000000000000000000042b",
             "kind": "human",
             "userId": "00000000000000000000000004",
             "characterId": null,
@@ -6759,11 +6759,11 @@
             "backgroundOverride": null
           },
           {
-            "id": "chat_participant_00000000000000000000000424",
-            "chatId": "chat_00000000000000000000000422",
+            "id": "chat_participant_0000000000000000000000042d",
+            "chatId": "chat_0000000000000000000000042b",
             "kind": "character",
             "userId": null,
-            "characterId": "character_0000000000000000000000041w",
+            "characterId": "character_00000000000000000000000425",
             "role": "member",
             "activePersonaId": null,
             "talkativeness": 0.5,
@@ -6781,8 +6781,8 @@
             "backgroundOverride": null
           },
           {
-            "id": "chat_participant_0000000000000000000000042f",
-            "chatId": "chat_00000000000000000000000422",
+            "id": "chat_participant_0000000000000000000000042r",
+            "chatId": "chat_0000000000000000000000042b",
             "kind": "human",
             "userId": "000000000000000000000000w1",
             "characterId": null,
@@ -6806,8 +6806,8 @@
         "viewerActivePersonaId": "persona_0000000000000000000000014m",
         "viewerIsHost": true,
         "viewerUserId": "00000000000000000000000004",
-        "viewerOwnedCharacterIds": ["character_0000000000000000000000041w"],
-        "viewerGalleryCharacterId": "character_0000000000000000000000041w",
+        "viewerOwnedCharacterIds": ["character_00000000000000000000000425"],
+        "viewerGalleryCharacterId": "character_00000000000000000000000425",
         "pendingHostUserId": null,
         "group": {
           "output": "per-speaker",
@@ -6830,14 +6830,14 @@
         "reactionsEnabled": null,
         "memberPersonaLore": true,
         "background": null,
-        "rpg": { "gameId": "rpg_game_0000000000000000000000042c", "engaged": true },
+        "rpg": { "gameId": "rpg_game_0000000000000000000000042n", "engaged": true },
         "opening": "none",
         "compactSummary": null,
         "compactedAtSeq": null,
         "createdAt": 1750003773001,
         "updatedAt": 1750003773001,
         "identities": [
-          { "kind": "character", "id": "character_0000000000000000000000041w", "name": "Corpus round keeper", "avatarHash": null },
+          { "kind": "character", "id": "character_00000000000000000000000425", "name": "Corpus round keeper", "avatarHash": null },
           {
             "kind": "persona",
             "id": "persona_0000000000000000000000014m",
@@ -6848,7 +6848,7 @@
         ]
       },
       {
-        "id": "chat_00000000000000000000000404",
+        "id": "chat_0000000000000000000000040e",
         "title": "Host observatory fork",
         "starred": false,
         "archived": false,
@@ -6860,8 +6860,8 @@
         "anchorOwnerHandle": null,
         "participants": [
           {
-            "id": "chat_participant_00000000000000000000000406",
-            "chatId": "chat_00000000000000000000000404",
+            "id": "chat_participant_0000000000000000000000040p",
+            "chatId": "chat_0000000000000000000000040e",
             "kind": "human",
             "userId": "00000000000000000000000004",
             "characterId": null,
@@ -6882,11 +6882,11 @@
             "backgroundOverride": null
           },
           {
-            "id": "chat_participant_00000000000000000000000407",
-            "chatId": "chat_00000000000000000000000404",
+            "id": "chat_participant_0000000000000000000000040q",
+            "chatId": "chat_0000000000000000000000040e",
             "kind": "character",
             "userId": null,
-            "characterId": "character_000000000000000000000003vx",
+            "characterId": "character_000000000000000000000003w7",
             "role": "member",
             "activePersonaId": null,
             "talkativeness": 0.5,
@@ -6907,8 +6907,8 @@
         "viewerActivePersonaId": "persona_0000000000000000000000014m",
         "viewerIsHost": true,
         "viewerUserId": "00000000000000000000000004",
-        "viewerOwnedCharacterIds": ["character_000000000000000000000003vx"],
-        "viewerGalleryCharacterId": "character_000000000000000000000003vx",
+        "viewerOwnedCharacterIds": ["character_000000000000000000000003w7"],
+        "viewerGalleryCharacterId": "character_000000000000000000000003w7",
         "pendingHostUserId": null,
         "group": {
           "output": "per-speaker",
@@ -6938,7 +6938,7 @@
         "createdAt": 1750003773001,
         "updatedAt": 1750003773001,
         "identities": [
-          { "kind": "character", "id": "character_000000000000000000000003vx", "name": "Corpus recursive keeper", "avatarHash": null },
+          { "kind": "character", "id": "character_000000000000000000000003w7", "name": "Corpus recursive keeper", "avatarHash": null },
           {
             "kind": "persona",
             "id": "persona_0000000000000000000000014m",
@@ -7585,8 +7585,8 @@
   "searchLibrary": {
     "viewerUserId": "00000000000000000000000004",
     "ids": {
-      "chatId": "chat_000000000000000000000004gp",
-      "povId": "character_000000000000000000000004g8",
+      "chatId": "chat_000000000000000000000004gz",
+      "povId": "character_000000000000000000000004gh",
       "imageSeedId": "character_000000000000000000000003d1"
     },
     "rooms": [
@@ -7894,7 +7894,7 @@
         ]
       },
       {
-        "id": "chat_000000000000000000000004gp",
+        "id": "chat_000000000000000000000004gz",
         "title": "Native search observatory",
         "starred": false,
         "archived": false,
@@ -7906,8 +7906,8 @@
         "anchorOwnerHandle": null,
         "participants": [
           {
-            "id": "chat_participant_000000000000000000000004gq",
-            "chatId": "chat_000000000000000000000004gp",
+            "id": "chat_participant_000000000000000000000004h0",
+            "chatId": "chat_000000000000000000000004gz",
             "kind": "human",
             "userId": "00000000000000000000000004",
             "characterId": null,
@@ -7928,11 +7928,11 @@
             "backgroundOverride": null
           },
           {
-            "id": "chat_participant_000000000000000000000004gr",
-            "chatId": "chat_000000000000000000000004gp",
+            "id": "chat_participant_000000000000000000000004h1",
+            "chatId": "chat_000000000000000000000004gz",
             "kind": "character",
             "userId": null,
-            "characterId": "character_000000000000000000000004g8",
+            "characterId": "character_000000000000000000000004gh",
             "role": "member",
             "activePersonaId": null,
             "talkativeness": 0.5,
@@ -7950,11 +7950,11 @@
             "backgroundOverride": null
           },
           {
-            "id": "chat_participant_000000000000000000000004gs",
-            "chatId": "chat_000000000000000000000004gp",
+            "id": "chat_participant_000000000000000000000004h2",
+            "chatId": "chat_000000000000000000000004gz",
             "kind": "character",
             "userId": null,
-            "characterId": "character_000000000000000000000004ge",
+            "characterId": "character_000000000000000000000004gq",
             "role": "member",
             "activePersonaId": null,
             "talkativeness": 0.5,
@@ -7975,8 +7975,8 @@
         "viewerActivePersonaId": "persona_0000000000000000000000014m",
         "viewerIsHost": true,
         "viewerUserId": "00000000000000000000000004",
-        "viewerOwnedCharacterIds": ["character_000000000000000000000004g8", "character_000000000000000000000004ge"],
-        "viewerGalleryCharacterId": "character_000000000000000000000004g8",
+        "viewerOwnedCharacterIds": ["character_000000000000000000000004gh", "character_000000000000000000000004gq"],
+        "viewerGalleryCharacterId": "character_000000000000000000000004gh",
         "pendingHostUserId": null,
         "group": {
           "output": "per-speaker",
@@ -8006,8 +8006,8 @@
         "createdAt": 1750003783001,
         "updatedAt": 1750003783001,
         "identities": [
-          { "kind": "character", "id": "character_000000000000000000000004g8", "name": "Search co-star first", "avatarHash": null },
-          { "kind": "character", "id": "character_000000000000000000000004ge", "name": "Search co-star second", "avatarHash": null },
+          { "kind": "character", "id": "character_000000000000000000000004gh", "name": "Search co-star first", "avatarHash": null },
+          { "kind": "character", "id": "character_000000000000000000000004gq", "name": "Search co-star second", "avatarHash": null },
           {
             "kind": "persona",
             "id": "persona_0000000000000000000000014m",
@@ -8018,7 +8018,7 @@
         ]
       },
       {
-        "id": "chat_000000000000000000000004rp",
+        "id": "chat_000000000000000000000004rz",
         "title": "Uncredited search transcript",
         "starred": false,
         "archived": false,
@@ -8030,8 +8030,8 @@
         "anchorOwnerHandle": null,
         "participants": [
           {
-            "id": "chat_participant_000000000000000000000004rq",
-            "chatId": "chat_000000000000000000000004rp",
+            "id": "chat_participant_000000000000000000000004s0",
+            "chatId": "chat_000000000000000000000004rz",
             "kind": "human",
             "userId": "00000000000000000000000004",
             "characterId": null,
@@ -8052,8 +8052,8 @@
             "backgroundOverride": null
           },
           {
-            "id": "chat_participant_000000000000000000000004rr",
-            "chatId": "chat_000000000000000000000004rp",
+            "id": "chat_participant_000000000000000000000004s1",
+            "chatId": "chat_000000000000000000000004rz",
             "kind": "character",
             "userId": null,
             "characterId": "character_0000000000000000000000002h",
@@ -8161,13 +8161,13 @@
           { "characterId": "character_000000000000000000000001hq", "score": 0.13016942327376455, "relevance": 0 },
           { "characterId": "character_0000000000000000000000006w", "score": 0.15729805726732593, "relevance": 0 },
           { "characterId": "character_0000000000000000000000009j", "score": 0.22420826824381948, "relevance": 0 },
-          { "characterId": "character_000000000000000000000003vx", "score": 0.23942577838897705, "relevance": 0.26057422161102295 },
+          { "characterId": "character_000000000000000000000003w7", "score": 0.23942577838897705, "relevance": 0.26057422161102295 },
           { "characterId": "character_000000000000000000000000ag", "score": 0.25063004046678544, "relevance": 0 },
           { "characterId": "character_00000000000000000000000048", "score": 0.2734797943383455, "relevance": 0 },
           { "characterId": "character_00000000000000000000000291", "score": 0.31813114881515503, "relevance": 0.18186885118484497 },
           { "characterId": "character_000000000000000000000003d1", "score": 0.36039483547210693, "relevance": 0.13960516452789307 },
-          { "characterId": "character_000000000000000000000005fk", "score": 0.370380163192749, "relevance": 0.12961983680725098 },
-          { "characterId": "character_000000000000000000000003sr", "score": 0.37708204984664917, "relevance": 0.12291795015335083 }
+          { "characterId": "character_000000000000000000000005fw", "score": 0.370380163192749, "relevance": 0.12961983680725098 },
+          { "characterId": "character_000000000000000000000003t2", "score": 0.37708204984664917, "relevance": 0.12291795015335083 }
         ],
         "coverage": { "requestLimit": 20, "candidateLimit": 80, "evidencePerCharacter": null, "reranked": false }
       },
@@ -8305,7 +8305,7 @@
             "elevatorPitch": "A traveller repairs the orbital loom."
           },
           {
-            "characterId": "character_000000000000000000000003vx",
+            "characterId": "character_000000000000000000000003w7",
             "score": 0.23942577838897705,
             "relevance": 0.26057422161102295,
             "name": "Corpus recursive keeper",
@@ -8355,7 +8355,7 @@
             "elevatorPitch": "A traveller repairs the orbital loom."
           },
           {
-            "characterId": "character_000000000000000000000005fk",
+            "characterId": "character_000000000000000000000005fw",
             "score": 0.370380163192749,
             "relevance": 0.12961983680725098,
             "name": "Native account witness",
@@ -8365,7 +8365,7 @@
             "elevatorPitch": null
           },
           {
-            "characterId": "character_000000000000000000000003sr",
+            "characterId": "character_000000000000000000000003t2",
             "score": 0.37708204984664917,
             "relevance": 0.12291795015335083,
             "name": "Portrait witness",
@@ -8456,7 +8456,7 @@
             ]
           },
           {
-            "characterId": "character_000000000000000000000004g8",
+            "characterId": "character_000000000000000000000004gh",
             "score": 0.4135017991065979,
             "relevance": 0.0864982008934021,
             "name": "Search co-star first",
@@ -8468,20 +8468,20 @@
             "segments": [
               {
                 "source": {
-                  "chatId": "chat_000000000000000000000004gp",
+                  "chatId": "chat_000000000000000000000004gz",
                   "generationId": "098ae2b043a6c336d61716cbbc8c649fe650f5c9ab73946f6d9f3bde3d0802cf",
                   "fingerprint": "792b535bf5392c15a9f77e3e554c8bcd229b079e170afa638eb36564760751d5",
-                  "contentHash": "aa25c1a218f106f9bb4517417afc00e95d9ba954c0ef47adc5f35c42e4d56935",
+                  "contentHash": "dc18b5305952a20013354ea3a261cbcd586d05e7d0651261f407e335069d64fc",
                   "blockIdx": 0,
                   "seqStart": 1,
                   "seqEnd": 8,
-                  "messageStartId": "message_000000000000000000000004hb",
-                  "messageEndId": "message_000000000000000000000004mr",
+                  "messageStartId": "message_000000000000000000000004hm",
+                  "messageEndId": "message_000000000000000000000004n1",
                   "kind": "segment",
-                  "rowId": "chat_segment_0000000000000000000000052g",
+                  "rowId": "chat_segment_0000000000000000000000052s",
                   "chunkIdx": 0
                 },
-                "chatId": "chat_000000000000000000000004gp",
+                "chatId": "chat_000000000000000000000004gz",
                 "snippet": "User: Record both co-star witnesses beside the ledger.\nSearch co-star first: The keeper preserves the ledger and remembers its witnesses.\nSearch co-star second: The keeper preserves the ledger and remembers its witnesses.\nUser: Search observatory scene 0: Both witnesses preserve ",
                 "score": 0.4135017991065979,
                 "relevance": 0.0864982008934021,
@@ -8490,7 +8490,7 @@
             ]
           },
           {
-            "characterId": "character_000000000000000000000004ge",
+            "characterId": "character_000000000000000000000004gq",
             "score": 0.4135017991065979,
             "relevance": 0.0864982008934021,
             "name": "Search co-star second",
@@ -8502,20 +8502,20 @@
             "segments": [
               {
                 "source": {
-                  "chatId": "chat_000000000000000000000004gp",
+                  "chatId": "chat_000000000000000000000004gz",
                   "generationId": "098ae2b043a6c336d61716cbbc8c649fe650f5c9ab73946f6d9f3bde3d0802cf",
                   "fingerprint": "792b535bf5392c15a9f77e3e554c8bcd229b079e170afa638eb36564760751d5",
-                  "contentHash": "aa25c1a218f106f9bb4517417afc00e95d9ba954c0ef47adc5f35c42e4d56935",
+                  "contentHash": "dc18b5305952a20013354ea3a261cbcd586d05e7d0651261f407e335069d64fc",
                   "blockIdx": 0,
                   "seqStart": 1,
                   "seqEnd": 8,
-                  "messageStartId": "message_000000000000000000000004hb",
-                  "messageEndId": "message_000000000000000000000004mr",
+                  "messageStartId": "message_000000000000000000000004hm",
+                  "messageEndId": "message_000000000000000000000004n1",
                   "kind": "segment",
-                  "rowId": "chat_segment_0000000000000000000000052g",
+                  "rowId": "chat_segment_0000000000000000000000052s",
                   "chunkIdx": 0
                 },
-                "chatId": "chat_000000000000000000000004gp",
+                "chatId": "chat_000000000000000000000004gz",
                 "snippet": "User: Record both co-star witnesses beside the ledger.\nSearch co-star first: The keeper preserves the ledger and remembers its witnesses.\nSearch co-star second: The keeper preserves the ledger and remembers its witnesses.\nUser: Search observatory scene 0: Both witnesses preserve ",
                 "score": 0.4135017991065979,
                 "relevance": 0.0864982008934021,
@@ -8612,20 +8612,20 @@
             "segments": [
               {
                 "source": {
-                  "chatId": "chat_000000000000000000000004rp",
+                  "chatId": "chat_000000000000000000000004rz",
                   "generationId": "098ae2b043a6c336d61716cbbc8c649fe650f5c9ab73946f6d9f3bde3d0802cf",
                   "fingerprint": "792b535bf5392c15a9f77e3e554c8bcd229b079e170afa638eb36564760751d5",
                   "contentHash": "3d3ca642e323067c812e3360ceff0c8c1e883292a4765d16a0f47df96fa72695",
                   "blockIdx": 0,
                   "seqStart": 1,
                   "seqEnd": 8,
-                  "messageStartId": "message_000000000000000000000004s5",
-                  "messageEndId": "message_000000000000000000000004vj",
+                  "messageStartId": "message_000000000000000000000004se",
+                  "messageEndId": "message_000000000000000000000004vv",
                   "kind": "segment",
-                  "rowId": "chat_segment_0000000000000000000000052h",
+                  "rowId": "chat_segment_0000000000000000000000052t",
                   "chunkIdx": 0
                 },
-                "chatId": "chat_000000000000000000000004rp",
+                "chatId": "chat_000000000000000000000004rz",
                 "snippet": "User: Uncredited native scene 0: The orbital ledger records an anonymous witness.\nUser: Uncredited native scene 1: The orbital ledger records an anonymous witness.\nUser: Uncredited native scene 2: The orbital ledger records an anonymous witness.\nUser: Uncredited native scene 3: T",
                 "score": 0.523614764213562,
                 "relevance": 0,
@@ -8987,91 +8987,91 @@
             "scopedCharacterName": "Arc ledger traveller"
           },
           {
-            "blockKey": { "chatId": "chat_000000000000000000000004gp", "tier": 0, "blockIdx": 0, "scopedCharacterId": "character_000000000000000000000004jf" },
+            "blockKey": { "chatId": "chat_000000000000000000000004gz", "tier": 0, "blockIdx": 0, "scopedCharacterId": "character_000000000000000000000004jr" },
             "score": 0.7383689880371094,
             "relevance": 0,
             "text": "The harbor witness\nThe keeper finds the missing tool beside the harbor.\nKeywords: harbor, tool",
             "source": {
-              "chatId": "chat_000000000000000000000004gp",
+              "chatId": "chat_000000000000000000000004gz",
               "generationId": "098ae2b043a6c336d61716cbbc8c649fe650f5c9ab73946f6d9f3bde3d0802cf",
               "fingerprint": "792b535bf5392c15a9f77e3e554c8bcd229b079e170afa638eb36564760751d5",
-              "contentHash": "0d583d2e908fadc52f4d4a26d7fea0b235887b9cc9e5b58f83b8abd06e937453",
+              "contentHash": "24bbfaf96e6a095ccfcd9fa3f05f65ec0665f3c46fe32e3dcfaa6cd2dbc0e57e",
               "blockIdx": 0,
               "seqStart": 1,
               "seqEnd": 8,
-              "messageStartId": "message_000000000000000000000004hb",
-              "messageEndId": "message_000000000000000000000004mr",
+              "messageStartId": "message_000000000000000000000004hm",
+              "messageEndId": "message_000000000000000000000004n1",
               "kind": "digest",
-              "rowId": "chat_digest_0000000000000000000000052p",
+              "rowId": "chat_digest_0000000000000000000000052z",
               "tier": 0,
-              "scopedCharacterId": "character_000000000000000000000004jf"
+              "scopedCharacterId": "character_000000000000000000000004jr"
             },
             "chatTitle": "Native search observatory",
             "scopedCharacterName": null
           },
           {
-            "blockKey": { "chatId": "chat_000000000000000000000004gp", "tier": 0, "blockIdx": 0, "scopedCharacterId": "character_000000000000000000000004g8" },
+            "blockKey": { "chatId": "chat_000000000000000000000004gz", "tier": 0, "blockIdx": 0, "scopedCharacterId": "character_000000000000000000000004gh" },
             "score": 0.7383689880371094,
             "relevance": 0,
             "text": "The harbor witness\nThe keeper finds the missing tool beside the harbor.\nKeywords: harbor, tool",
             "source": {
-              "chatId": "chat_000000000000000000000004gp",
+              "chatId": "chat_000000000000000000000004gz",
               "generationId": "098ae2b043a6c336d61716cbbc8c649fe650f5c9ab73946f6d9f3bde3d0802cf",
               "fingerprint": "792b535bf5392c15a9f77e3e554c8bcd229b079e170afa638eb36564760751d5",
-              "contentHash": "3062d2cc272c7d9299a7afd9d589d4c0f06545a7e1b857c7b2ad232d0a684816",
+              "contentHash": "8cb094e496a43635708746d79eaaeef668a3f406ed586d209e6b04ea4d90d111",
               "blockIdx": 0,
               "seqStart": 1,
               "seqEnd": 8,
-              "messageStartId": "message_000000000000000000000004hb",
-              "messageEndId": "message_000000000000000000000004mr",
+              "messageStartId": "message_000000000000000000000004hm",
+              "messageEndId": "message_000000000000000000000004n1",
               "kind": "digest",
-              "rowId": "chat_digest_0000000000000000000000052v",
+              "rowId": "chat_digest_00000000000000000000000534",
               "tier": 0,
-              "scopedCharacterId": "character_000000000000000000000004g8"
+              "scopedCharacterId": "character_000000000000000000000004gh"
             },
             "chatTitle": "Native search observatory",
             "scopedCharacterName": "Search co-star first"
           },
           {
-            "blockKey": { "chatId": "chat_000000000000000000000004gp", "tier": 0, "blockIdx": 0, "scopedCharacterId": "character_000000000000000000000004ge" },
+            "blockKey": { "chatId": "chat_000000000000000000000004gz", "tier": 0, "blockIdx": 0, "scopedCharacterId": "character_000000000000000000000004gq" },
             "score": 0.7383689880371094,
             "relevance": 0,
             "text": "The harbor witness\nThe keeper finds the missing tool beside the harbor.\nKeywords: harbor, tool",
             "source": {
-              "chatId": "chat_000000000000000000000004gp",
+              "chatId": "chat_000000000000000000000004gz",
               "generationId": "098ae2b043a6c336d61716cbbc8c649fe650f5c9ab73946f6d9f3bde3d0802cf",
               "fingerprint": "792b535bf5392c15a9f77e3e554c8bcd229b079e170afa638eb36564760751d5",
-              "contentHash": "3966502530cf6a42c07eb1f5ce21f4b9112397738d177d3d2b5b5265d9a614d2",
+              "contentHash": "ec1e670287081417daf866af5d888ba283eca223c0ec9d28877f5574686e9b29",
               "blockIdx": 0,
               "seqStart": 1,
               "seqEnd": 8,
-              "messageStartId": "message_000000000000000000000004hb",
-              "messageEndId": "message_000000000000000000000004mr",
+              "messageStartId": "message_000000000000000000000004hm",
+              "messageEndId": "message_000000000000000000000004n1",
               "kind": "digest",
-              "rowId": "chat_digest_00000000000000000000000530",
+              "rowId": "chat_digest_00000000000000000000000539",
               "tier": 0,
-              "scopedCharacterId": "character_000000000000000000000004ge"
+              "scopedCharacterId": "character_000000000000000000000004gq"
             },
             "chatTitle": "Native search observatory",
             "scopedCharacterName": "Search co-star second"
           },
           {
-            "blockKey": { "chatId": "chat_000000000000000000000004rp", "tier": 0, "blockIdx": 0, "scopedCharacterId": "character_0000000000000000000000002h" },
+            "blockKey": { "chatId": "chat_000000000000000000000004rz", "tier": 0, "blockIdx": 0, "scopedCharacterId": "character_0000000000000000000000002h" },
             "score": 0.7383689880371094,
             "relevance": 0,
             "text": "The harbor witness\nThe keeper finds the missing tool beside the harbor.\nKeywords: harbor, tool",
             "source": {
-              "chatId": "chat_000000000000000000000004rp",
+              "chatId": "chat_000000000000000000000004rz",
               "generationId": "098ae2b043a6c336d61716cbbc8c649fe650f5c9ab73946f6d9f3bde3d0802cf",
               "fingerprint": "792b535bf5392c15a9f77e3e554c8bcd229b079e170afa638eb36564760751d5",
               "contentHash": "192efa37d523b698353735cf236b379c90e8d3d1463ea1e5960bf7093266e8de",
               "blockIdx": 0,
               "seqStart": 1,
               "seqEnd": 8,
-              "messageStartId": "message_000000000000000000000004s5",
-              "messageEndId": "message_000000000000000000000004vj",
+              "messageStartId": "message_000000000000000000000004se",
+              "messageEndId": "message_000000000000000000000004vv",
               "kind": "digest",
-              "rowId": "chat_digest_00000000000000000000000535",
+              "rowId": "chat_digest_0000000000000000000000053e",
               "tier": 0,
               "scopedCharacterId": "character_0000000000000000000000002h"
             },
@@ -9132,23 +9132,23 @@
           },
           {
             "source": {
-              "chatId": "chat_000000000000000000000004gp",
+              "chatId": "chat_000000000000000000000004gz",
               "generationId": "098ae2b043a6c336d61716cbbc8c649fe650f5c9ab73946f6d9f3bde3d0802cf",
               "fingerprint": "792b535bf5392c15a9f77e3e554c8bcd229b079e170afa638eb36564760751d5",
-              "contentHash": "aa25c1a218f106f9bb4517417afc00e95d9ba954c0ef47adc5f35c42e4d56935",
+              "contentHash": "dc18b5305952a20013354ea3a261cbcd586d05e7d0651261f407e335069d64fc",
               "blockIdx": 0,
               "seqStart": 1,
               "seqEnd": 8,
-              "messageStartId": "message_000000000000000000000004hb",
-              "messageEndId": "message_000000000000000000000004mr",
+              "messageStartId": "message_000000000000000000000004hm",
+              "messageEndId": "message_000000000000000000000004n1",
               "kind": "segment",
-              "rowId": "chat_segment_0000000000000000000000052g",
+              "rowId": "chat_segment_0000000000000000000000052s",
               "chunkIdx": 0
             },
             "blockKeys": [
-              { "chatId": "chat_000000000000000000000004gp", "tier": 0, "blockIdx": 0, "scopedCharacterId": "character_000000000000000000000004jf" },
-              { "chatId": "chat_000000000000000000000004gp", "tier": 0, "blockIdx": 0, "scopedCharacterId": "character_000000000000000000000004g8" },
-              { "chatId": "chat_000000000000000000000004gp", "tier": 0, "blockIdx": 0, "scopedCharacterId": "character_000000000000000000000004ge" }
+              { "chatId": "chat_000000000000000000000004gz", "tier": 0, "blockIdx": 0, "scopedCharacterId": "character_000000000000000000000004jr" },
+              { "chatId": "chat_000000000000000000000004gz", "tier": 0, "blockIdx": 0, "scopedCharacterId": "character_000000000000000000000004gh" },
+              { "chatId": "chat_000000000000000000000004gz", "tier": 0, "blockIdx": 0, "scopedCharacterId": "character_000000000000000000000004gq" }
             ],
             "chatTitle": "Native search observatory",
             "relevance": 0.0864982008934021,
@@ -9240,9 +9240,9 @@
             "score": 0.11449927091598511
           },
           {
-            "documentId": "document_000000000000000000000005nn",
+            "documentId": "document_000000000000000000000005ny",
             "documentName": "Native lifecycle source",
-            "chunkId": "document_chunk_000000000000000000000005pp",
+            "chunkId": "document_chunk_000000000000000000000005pz",
             "content": "The native archive records an intact intake and its independently preserved witness.",
             "score": 0.3815348148345947
           },
@@ -9525,18 +9525,18 @@
           { "characterId": "character_0000000000000000000000014e", "score": 3.193009379559819, "name": "The ledger archivist", "avatarHash": null },
           { "characterId": "character_00000000000000000000000222", "score": 3.193009379559819, "name": "Loom traveller", "avatarHash": null },
           { "characterId": "character_000000000000000000000003fh", "score": 3.193009379559819, "name": "Lifecycle witness", "avatarHash": null },
-          { "characterId": "character_000000000000000000000003j0", "score": 3.193009379559819, "name": "Lifecycle witness", "avatarHash": null },
-          { "characterId": "character_000000000000000000000003jy", "score": 3.193009379559819, "name": "Lifecycle witness", "avatarHash": null },
-          { "characterId": "character_000000000000000000000003m2", "score": 3.193009379559819, "name": "Lifecycle witness", "avatarHash": null },
-          { "characterId": "character_000000000000000000000003ns", "score": 3.193009379559819, "name": "Lifecycle witness", "avatarHash": null },
-          { "characterId": "character_000000000000000000000003py", "score": 3.193009379559819, "name": "Lifecycle witness", "avatarHash": null },
-          { "characterId": "character_000000000000000000000003sr", "score": 3.193009379559819, "name": "Portrait witness", "avatarHash": null },
+          { "characterId": "character_000000000000000000000003jb", "score": 3.193009379559819, "name": "Lifecycle witness", "avatarHash": null },
+          { "characterId": "character_000000000000000000000003k9", "score": 3.193009379559819, "name": "Lifecycle witness", "avatarHash": null },
+          { "characterId": "character_000000000000000000000003md", "score": 3.193009379559819, "name": "Lifecycle witness", "avatarHash": null },
+          { "characterId": "character_000000000000000000000003p4", "score": 3.193009379559819, "name": "Lifecycle witness", "avatarHash": null },
+          { "characterId": "character_000000000000000000000003q9", "score": 3.193009379559819, "name": "Lifecycle witness", "avatarHash": null },
+          { "characterId": "character_000000000000000000000003t2", "score": 3.193009379559819, "name": "Portrait witness", "avatarHash": null },
           { "characterId": "character_00000000000000000000000291", "score": 3.1161039828804777, "name": "Arc ledger traveller", "avatarHash": null },
           { "characterId": "character_000000000000000000000001hq", "score": 3.091556286095063, "name": "Ledger keeper", "avatarHash": null },
           { "characterId": "character_000000000000000000000001j5", "score": 3.091556286095063, "name": "Branch ledger keeper", "avatarHash": null },
           { "characterId": "character_000000000000000000000001jv", "score": 3.091556286095063, "name": "Harbor witness", "avatarHash": null },
           {
-            "characterId": "character_000000000000000000000006mc",
+            "characterId": "character_000000000000000000000006mn",
             "score": 3.091556286095063,
             "name": "Image variant witness",
             "avatarHash": "45388cd52ff5a33fb2e3139d816f35ebaa044fe8bdbef19faf0a3f90a882a864"
@@ -9709,8 +9709,8 @@
   },
   "memberIdentities": {
     "notificationReader": {
-      "viewer": { "userId": "000000000000000000000007gj", "handle": "c-000000000000000000000007gh", "globalRole": "user" },
-      "authMe": { "authenticated": true, "handle": "c-000000000000000000000007gh", "role": "user" },
+      "viewer": { "userId": "000000000000000000000007gz", "handle": "c-000000000000000000000007gy", "globalRole": "user" },
+      "authMe": { "authenticated": true, "handle": "c-000000000000000000000007gy", "role": "user" },
       "authConfig": {
         "discreetLogin": false,
         "defaultHandle": "owner",
@@ -9777,7 +9777,7 @@
             "defaultPersonaId": "persona_0000000000000000000000014m",
             "currentPersonaId": "persona_0000000000000000000000014m",
             "welcomeAssistantCharacterId": "character_0000000000000000000000002h",
-            "defaultPresetId": "preset_000000000000000000000005fg",
+            "defaultPresetId": "preset_000000000000000000000005fs",
             "summarizePreset": null
           },
           "worldInfo": { "scanDepth": 6, "tokenBudget": 1024 },
@@ -9832,12 +9832,12 @@
               "research-familiar": "1.3.1",
               "oracle-deck": "1.1.9",
               "affinity-tracker": "1.2.2",
-              "draft-polish": "1.2.0",
+              "draft-polish": "1.2.1",
               "scene-chips": "1.1.2",
-              "story-clocks": "1.0.9",
-              "pocket-arcade": "1.0.2",
+              "story-clocks": "1.0.10",
+              "pocket-arcade": "1.0.3",
               "keepsake-camera": "1.1.7",
-              "card-atlas": "1.3.12"
+              "card-atlas": "1.3.13"
             },
             "distributedPluginsApplied": true
           },
@@ -10029,7 +10029,7 @@
           "isDefault": false
         },
         {
-          "id": "theme_000000000000000000000007eg",
+          "id": "theme_000000000000000000000007ez",
           "name": "Corpus ST palette (SillyTavern)",
           "override": { "bodyColor": "oklch(0.9249 0.0000 0.00)", "background": "oklch(0.2076 0.0135 258.37)" },
           "css": null,
@@ -10037,7 +10037,7 @@
           "isDefault": false
         },
         {
-          "id": "theme_000000000000000000000007dy",
+          "id": "theme_000000000000000000000007ed",
           "name": "Corpus default palette copy",
           "override": {
             "accent": "oklch(0.72 0.175 52)",
@@ -10058,7 +10058,7 @@
           "isDefault": false
         },
         {
-          "id": "theme_000000000000000000000007dr",
+          "id": "theme_000000000000000000000007e7",
           "name": "Corpus edited palette",
           "override": { "accent": "#bbccdd" },
           "css": null,
@@ -10066,7 +10066,7 @@
           "isDefault": false
         },
         {
-          "id": "theme_000000000000000000000007dp",
+          "id": "theme_000000000000000000000007e5",
           "name": "Corpus settings palette",
           "override": { "accent": "#aabbcc", "background": "#202830", "density": "compact" },
           "css": ".corpus-witness { color: #aabbcc; }",
@@ -10074,7 +10074,7 @@
           "isDefault": false
         },
         {
-          "id": "theme_000000000000000000000007eb",
+          "id": "theme_000000000000000000000007et",
           "name": "Corpus settings palette 2",
           "override": { "accent": "#112233" },
           "css": null,
@@ -10087,13 +10087,13 @@
       {
         "items": [
           {
-            "id": "character_000000000000000000000006mc",
+            "id": "character_000000000000000000000006mn",
             "handle": "image-variant-witness",
             "name": "Image variant witness",
             "starred": false,
             "archived": false,
             "themeOverride": null,
-            "avatarAssetId": "asset_000000000000000000000006nz",
+            "avatarAssetId": "asset_000000000000000000000006p8",
             "avatarHash": "45388cd52ff5a33fb2e3139d816f35ebaa044fe8bdbef19faf0a3f90a882a864",
             "createdAt": 1750003801001,
             "tags": [],
@@ -10101,12 +10101,12 @@
             "tokenSize": 19,
             "elevatorPitch": null,
             "lastChattedAt": 1750003801001,
-            "lastChatId": "chat_000000000000000000000006mr",
+            "lastChatId": "chat_000000000000000000000006n1",
             "chatCount": 1,
             "nameIsAmbiguous": false
           },
           {
-            "id": "character_000000000000000000000005me",
+            "id": "character_000000000000000000000005mq",
             "handle": "library-roster",
             "name": "Native roster witness",
             "starred": false,
@@ -10120,12 +10120,12 @@
             "tokenSize": 19,
             "elevatorPitch": null,
             "lastChattedAt": 1750003797001,
-            "lastChatId": "chat_000000000000000000000005mm",
+            "lastChatId": "chat_000000000000000000000005mx",
             "chatCount": 1,
             "nameIsAmbiguous": false
           },
           {
-            "id": "character_000000000000000000000005fk",
+            "id": "character_000000000000000000000005fw",
             "handle": "native-account-witness",
             "name": "Native account witness",
             "starred": false,
@@ -10139,7 +10139,7 @@
             "tokenSize": 18,
             "elevatorPitch": null,
             "lastChattedAt": 1750003797001,
-            "lastChatId": "chat_000000000000000000000005fs",
+            "lastChatId": "chat_000000000000000000000005g2",
             "chatCount": 1,
             "nameIsAmbiguous": false
           },
@@ -10155,7 +10155,7 @@
             "createdAt": 1750000002000,
             "tags": [
               {
-                "id": "tag_000000000000000000000005kx",
+                "id": "tag_000000000000000000000005m6",
                 "name": "Native lifecycle label",
                 "color": null,
                 "color2": null,
@@ -10169,12 +10169,12 @@
             "tokenSize": 17,
             "elevatorPitch": "A traveller repairs the orbital loom.",
             "lastChattedAt": 1750003797001,
-            "lastChatId": "chat_000000000000000000000005mm",
+            "lastChatId": "chat_000000000000000000000005mx",
             "chatCount": 2,
             "nameIsAmbiguous": false
           },
           {
-            "id": "character_000000000000000000000004ge",
+            "id": "character_000000000000000000000004gq",
             "handle": "search-costar-second",
             "name": "Search co-star second",
             "starred": false,
@@ -10188,12 +10188,12 @@
             "tokenSize": 16,
             "elevatorPitch": "A traveller repairs the orbital loom.",
             "lastChattedAt": 1750003783001,
-            "lastChatId": "chat_000000000000000000000004gp",
+            "lastChatId": "chat_000000000000000000000004gz",
             "chatCount": 1,
             "nameIsAmbiguous": false
           },
           {
-            "id": "character_000000000000000000000004g8",
+            "id": "character_000000000000000000000004gh",
             "handle": "search-costar-first",
             "name": "Search co-star first",
             "starred": false,
@@ -10207,7 +10207,7 @@
             "tokenSize": 15,
             "elevatorPitch": "A traveller repairs the orbital loom.",
             "lastChattedAt": 1750003783001,
-            "lastChatId": "chat_000000000000000000000004gp",
+            "lastChatId": "chat_000000000000000000000004gz",
             "chatCount": 1,
             "nameIsAmbiguous": false
           },
@@ -10249,12 +10249,12 @@
             "tokenSize": 889,
             "elevatorPitch": "A traveller repairs the orbital loom.",
             "lastChattedAt": 1750003783001,
-            "lastChatId": "chat_000000000000000000000004rp",
+            "lastChatId": "chat_000000000000000000000004rz",
             "chatCount": 3,
             "nameIsAmbiguous": false
           },
           {
-            "id": "character_0000000000000000000000045m",
+            "id": "character_0000000000000000000000045x",
             "handle": "corpus-rpg-foreign-stop",
             "name": "Corpus round keeper",
             "starred": false,
@@ -10268,12 +10268,12 @@
             "tokenSize": 15,
             "elevatorPitch": "A traveller repairs the orbital loom.",
             "lastChattedAt": 1750003773001,
-            "lastChatId": "chat_0000000000000000000000045t",
+            "lastChatId": "chat_00000000000000000000000463",
             "chatCount": 1,
             "nameIsAmbiguous": true
           },
           {
-            "id": "character_0000000000000000000000041w",
+            "id": "character_00000000000000000000000425",
             "handle": "corpus-rpg-cancelled",
             "name": "Corpus round keeper",
             "starred": false,
@@ -10287,12 +10287,12 @@
             "tokenSize": 15,
             "elevatorPitch": "A traveller repairs the orbital loom.",
             "lastChattedAt": 1750003773001,
-            "lastChatId": "chat_00000000000000000000000422",
+            "lastChatId": "chat_0000000000000000000000042b",
             "chatCount": 1,
             "nameIsAmbiguous": true
           },
           {
-            "id": "character_000000000000000000000003vx",
+            "id": "character_000000000000000000000003w7",
             "handle": "corpus-rpg-recursive",
             "name": "Corpus recursive keeper",
             "starred": false,
@@ -10306,12 +10306,12 @@
             "tokenSize": 21,
             "elevatorPitch": "A traveller repairs the orbital loom.",
             "lastChattedAt": 1750003773001,
-            "lastChatId": "chat_00000000000000000000000404",
+            "lastChatId": "chat_0000000000000000000000040e",
             "chatCount": 2,
             "nameIsAmbiguous": false
           },
           {
-            "id": "character_000000000000000000000003sr",
+            "id": "character_000000000000000000000003t2",
             "handle": "corpus-native-imagery",
             "name": "Portrait witness",
             "starred": false,
@@ -10325,12 +10325,12 @@
             "tokenSize": 14,
             "elevatorPitch": "A traveller repairs the orbital loom.",
             "lastChattedAt": 1750003773000,
-            "lastChatId": "chat_000000000000000000000003sy",
+            "lastChatId": "chat_000000000000000000000003t8",
             "chatCount": 1,
             "nameIsAmbiguous": false
           },
           {
-            "id": "character_000000000000000000000003ns",
+            "id": "character_000000000000000000000003p4",
             "handle": "corpus-lifecycle-abort",
             "name": "Lifecycle witness",
             "starred": false,
@@ -10344,12 +10344,12 @@
             "tokenSize": 15,
             "elevatorPitch": "A traveller repairs the orbital loom.",
             "lastChattedAt": 1750003773000,
-            "lastChatId": "chat_000000000000000000000003nz",
+            "lastChatId": "chat_000000000000000000000003pa",
             "chatCount": 1,
             "nameIsAmbiguous": true
           },
           {
-            "id": "character_000000000000000000000003m2",
+            "id": "character_000000000000000000000003md",
             "handle": "corpus-lifecycle-held",
             "name": "Lifecycle witness",
             "starred": false,
@@ -10363,12 +10363,12 @@
             "tokenSize": 15,
             "elevatorPitch": "A traveller repairs the orbital loom.",
             "lastChattedAt": 1750003773000,
-            "lastChatId": "chat_000000000000000000000003m8",
+            "lastChatId": "chat_000000000000000000000003mk",
             "chatCount": 1,
             "nameIsAmbiguous": true
           },
           {
-            "id": "character_000000000000000000000003jy",
+            "id": "character_000000000000000000000003k9",
             "handle": "corpus-lifecycle-empty",
             "name": "Lifecycle witness",
             "starred": false,
@@ -10382,12 +10382,12 @@
             "tokenSize": 15,
             "elevatorPitch": "A traveller repairs the orbital loom.",
             "lastChattedAt": 1750003773000,
-            "lastChatId": "chat_000000000000000000000003k4",
+            "lastChatId": "chat_000000000000000000000003kf",
             "chatCount": 1,
             "nameIsAmbiguous": true
           },
           {
-            "id": "character_000000000000000000000003j0",
+            "id": "character_000000000000000000000003jb",
             "handle": "corpus-lifecycle-compact",
             "name": "Lifecycle witness",
             "starred": false,
@@ -10401,7 +10401,7 @@
             "tokenSize": 15,
             "elevatorPitch": "A traveller repairs the orbital loom.",
             "lastChattedAt": 1750003773000,
-            "lastChatId": "chat_000000000000000000000003j6",
+            "lastChatId": "chat_000000000000000000000003jh",
             "chatCount": 1,
             "nameIsAmbiguous": true
           },
@@ -10420,7 +10420,7 @@
             "tokenSize": 15,
             "elevatorPitch": "A traveller repairs the orbital loom.",
             "lastChattedAt": 1750003773000,
-            "lastChatId": "chat_000000000000000000000003he",
+            "lastChatId": "chat_000000000000000000000003hs",
             "chatCount": 2,
             "nameIsAmbiguous": true
           },
@@ -10594,7 +10594,7 @@
             "nameIsAmbiguous": false
           },
           {
-            "id": "character_000000000000000000000006mj",
+            "id": "character_000000000000000000000006mv",
             "handle": "image-unseated-witness",
             "name": "Unseated witness",
             "starred": false,
@@ -10613,7 +10613,7 @@
             "nameIsAmbiguous": false
           },
           {
-            "id": "character_000000000000000000000005he",
+            "id": "character_000000000000000000000005hq",
             "handle": "library-lifecycle",
             "name": "Library lifecycle keeper",
             "starred": false,
@@ -10632,7 +10632,7 @@
             "nameIsAmbiguous": false
           },
           {
-            "id": "character_0000000000000000000000048d",
+            "id": "character_0000000000000000000000048p",
             "handle": "search-quartz-described",
             "name": "Search witness",
             "starred": false,
@@ -10651,7 +10651,7 @@
             "nameIsAmbiguous": false
           },
           {
-            "id": "character_000000000000000000000003py",
+            "id": "character_000000000000000000000003q9",
             "handle": "corpus-lifecycle-deferred",
             "name": "Lifecycle witness",
             "starred": false,
@@ -10999,7 +10999,7 @@
       {
         "items": [
           {
-            "id": "chat_000000000000000000000006mr",
+            "id": "chat_000000000000000000000006n1",
             "title": null,
             "starred": false,
             "archived": false,
@@ -11009,10 +11009,10 @@
             "lastMessagePreview": "The traveller witnesses the orbital loom.",
             "isGame": false,
             "gamePaused": false,
-            "participantNames": ["Image variant witness", "c-000000000000000000000005qw"],
+            "participantNames": ["Image variant witness", "c-000000000000000000000005r5"],
             "participantPortraits": [
               {
-                "characterId": "character_000000000000000000000006mc",
+                "characterId": "character_000000000000000000000006mn",
                 "name": "Image variant witness",
                 "avatarHash": "45388cd52ff5a33fb2e3139d816f35ebaa044fe8bdbef19faf0a3f90a882a864"
               }
@@ -11021,7 +11021,7 @@
             "updatedAt": 1750003801001
           },
           {
-            "id": "chat_000000000000000000000005mm",
+            "id": "chat_000000000000000000000005mx",
             "title": null,
             "starred": false,
             "archived": false,
@@ -11034,13 +11034,13 @@
             "participantNames": ["The ledger archivist", "Native roster witness"],
             "participantPortraits": [
               { "characterId": "character_0000000000000000000000014e", "name": "The ledger archivist", "avatarHash": null },
-              { "characterId": "character_000000000000000000000005me", "name": "Native roster witness", "avatarHash": null }
+              { "characterId": "character_000000000000000000000005mq", "name": "Native roster witness", "avatarHash": null }
             ],
             "viewerRole": "host",
             "updatedAt": 1750003797001
           },
           {
-            "id": "chat_000000000000000000000005fs",
+            "id": "chat_000000000000000000000005g2",
             "title": null,
             "starred": false,
             "archived": false,
@@ -11051,12 +11051,12 @@
             "isGame": false,
             "gamePaused": false,
             "participantNames": ["Native account witness"],
-            "participantPortraits": [{ "characterId": "character_000000000000000000000005fk", "name": "Native account witness", "avatarHash": null }],
+            "participantPortraits": [{ "characterId": "character_000000000000000000000005fw", "name": "Native account witness", "avatarHash": null }],
             "viewerRole": "host",
             "updatedAt": 1750003797001
           },
           {
-            "id": "chat_000000000000000000000004rp",
+            "id": "chat_000000000000000000000004rz",
             "title": "Uncredited search transcript",
             "starred": false,
             "archived": false,
@@ -11078,7 +11078,7 @@
             "updatedAt": 1750003783001
           },
           {
-            "id": "chat_000000000000000000000004gp",
+            "id": "chat_000000000000000000000004gz",
             "title": "Native search observatory",
             "starred": false,
             "archived": false,
@@ -11090,14 +11090,14 @@
             "gamePaused": false,
             "participantNames": ["Search co-star first", "Search co-star second"],
             "participantPortraits": [
-              { "characterId": "character_000000000000000000000004g8", "name": "Search co-star first", "avatarHash": null },
-              { "characterId": "character_000000000000000000000004ge", "name": "Search co-star second", "avatarHash": null }
+              { "characterId": "character_000000000000000000000004gh", "name": "Search co-star first", "avatarHash": null },
+              { "characterId": "character_000000000000000000000004gq", "name": "Search co-star second", "avatarHash": null }
             ],
             "viewerRole": "host",
             "updatedAt": 1750003783001
           },
           {
-            "id": "chat_0000000000000000000000045t",
+            "id": "chat_00000000000000000000000463",
             "title": null,
             "starred": false,
             "archived": false,
@@ -11108,12 +11108,12 @@
             "isGame": true,
             "gamePaused": false,
             "participantNames": ["Corpus round keeper", "companion"],
-            "participantPortraits": [{ "characterId": "character_0000000000000000000000045m", "name": "Corpus round keeper", "avatarHash": null }],
+            "participantPortraits": [{ "characterId": "character_0000000000000000000000045x", "name": "Corpus round keeper", "avatarHash": null }],
             "viewerRole": "host",
             "updatedAt": 1750003773001
           },
           {
-            "id": "chat_00000000000000000000000422",
+            "id": "chat_0000000000000000000000042b",
             "title": null,
             "starred": false,
             "archived": false,
@@ -11124,12 +11124,12 @@
             "isGame": true,
             "gamePaused": false,
             "participantNames": ["Corpus round keeper", "companion"],
-            "participantPortraits": [{ "characterId": "character_0000000000000000000000041w", "name": "Corpus round keeper", "avatarHash": null }],
+            "participantPortraits": [{ "characterId": "character_00000000000000000000000425", "name": "Corpus round keeper", "avatarHash": null }],
             "viewerRole": "host",
             "updatedAt": 1750003773001
           },
           {
-            "id": "chat_00000000000000000000000404",
+            "id": "chat_0000000000000000000000040e",
             "title": "Host observatory fork",
             "starred": false,
             "archived": false,
@@ -11140,12 +11140,12 @@
             "isGame": false,
             "gamePaused": false,
             "participantNames": ["Corpus recursive keeper"],
-            "participantPortraits": [{ "characterId": "character_000000000000000000000003vx", "name": "Corpus recursive keeper", "avatarHash": null }],
+            "participantPortraits": [{ "characterId": "character_000000000000000000000003w7", "name": "Corpus recursive keeper", "avatarHash": null }],
             "viewerRole": "host",
             "updatedAt": 1750003773001
           },
           {
-            "id": "chat_000000000000000000000003z1",
+            "id": "chat_000000000000000000000003zb",
             "title": "Host observatory fork",
             "starred": false,
             "archived": false,
@@ -11156,12 +11156,12 @@
             "isGame": true,
             "gamePaused": false,
             "participantNames": ["Corpus recursive keeper"],
-            "participantPortraits": [{ "characterId": "character_000000000000000000000003vx", "name": "Corpus recursive keeper", "avatarHash": null }],
+            "participantPortraits": [{ "characterId": "character_000000000000000000000003w7", "name": "Corpus recursive keeper", "avatarHash": null }],
             "viewerRole": "host",
             "updatedAt": 1750003773001
           },
           {
-            "id": "chat_000000000000000000000003w3",
+            "id": "chat_000000000000000000000003wd",
             "title": null,
             "starred": false,
             "archived": false,
@@ -11172,12 +11172,12 @@
             "isGame": true,
             "gamePaused": false,
             "participantNames": ["Corpus recursive keeper", "companion"],
-            "participantPortraits": [{ "characterId": "character_0000000000000000000000040k", "name": "Corpus recursive keeper", "avatarHash": null }],
+            "participantPortraits": [{ "characterId": "character_0000000000000000000000040x", "name": "Corpus recursive keeper", "avatarHash": null }],
             "viewerRole": "member",
             "updatedAt": 1750003773001
           },
           {
-            "id": "chat_000000000000000000000003sy",
+            "id": "chat_000000000000000000000003t8",
             "title": null,
             "starred": false,
             "archived": false,
@@ -11188,12 +11188,12 @@
             "isGame": false,
             "gamePaused": false,
             "participantNames": ["Portrait witness"],
-            "participantPortraits": [{ "characterId": "character_000000000000000000000003sr", "name": "Portrait witness", "avatarHash": null }],
+            "participantPortraits": [{ "characterId": "character_000000000000000000000003t2", "name": "Portrait witness", "avatarHash": null }],
             "viewerRole": "host",
             "updatedAt": 1750003773000
           },
           {
-            "id": "chat_000000000000000000000003q4",
+            "id": "chat_000000000000000000000003qf",
             "title": null,
             "starred": false,
             "archived": false,
@@ -11204,12 +11204,12 @@
             "isGame": false,
             "gamePaused": false,
             "participantNames": ["Lifecycle witness", "companion"],
-            "participantPortraits": [{ "characterId": "character_000000000000000000000003s0", "name": "Lifecycle witness", "avatarHash": null }],
+            "participantPortraits": [{ "characterId": "character_000000000000000000000003sb", "name": "Lifecycle witness", "avatarHash": null }],
             "viewerRole": "member",
             "updatedAt": 1750003773000
           },
           {
-            "id": "chat_000000000000000000000003nz",
+            "id": "chat_000000000000000000000003pa",
             "title": null,
             "starred": false,
             "archived": false,
@@ -11220,12 +11220,12 @@
             "isGame": false,
             "gamePaused": false,
             "participantNames": ["Lifecycle witness", "companion"],
-            "participantPortraits": [{ "characterId": "character_000000000000000000000003ns", "name": "Lifecycle witness", "avatarHash": null }],
+            "participantPortraits": [{ "characterId": "character_000000000000000000000003p4", "name": "Lifecycle witness", "avatarHash": null }],
             "viewerRole": "host",
             "updatedAt": 1750003773000
           },
           {
-            "id": "chat_000000000000000000000003m8",
+            "id": "chat_000000000000000000000003mk",
             "title": null,
             "starred": false,
             "archived": false,
@@ -11236,12 +11236,12 @@
             "isGame": false,
             "gamePaused": false,
             "participantNames": ["Lifecycle witness", "companion"],
-            "participantPortraits": [{ "characterId": "character_000000000000000000000003m2", "name": "Lifecycle witness", "avatarHash": null }],
+            "participantPortraits": [{ "characterId": "character_000000000000000000000003md", "name": "Lifecycle witness", "avatarHash": null }],
             "viewerRole": "host",
             "updatedAt": 1750003773000
           },
           {
-            "id": "chat_000000000000000000000003k4",
+            "id": "chat_000000000000000000000003kf",
             "title": null,
             "starred": false,
             "archived": false,
@@ -11252,12 +11252,12 @@
             "isGame": false,
             "gamePaused": false,
             "participantNames": ["Lifecycle witness"],
-            "participantPortraits": [{ "characterId": "character_000000000000000000000003jy", "name": "Lifecycle witness", "avatarHash": null }],
+            "participantPortraits": [{ "characterId": "character_000000000000000000000003k9", "name": "Lifecycle witness", "avatarHash": null }],
             "viewerRole": "host",
             "updatedAt": 1750003773000
           },
           {
-            "id": "chat_000000000000000000000003j6",
+            "id": "chat_000000000000000000000003jh",
             "title": null,
             "starred": false,
             "archived": false,
@@ -11268,12 +11268,12 @@
             "isGame": false,
             "gamePaused": false,
             "participantNames": ["Lifecycle witness"],
-            "participantPortraits": [{ "characterId": "character_000000000000000000000003j0", "name": "Lifecycle witness", "avatarHash": null }],
+            "participantPortraits": [{ "characterId": "character_000000000000000000000003jb", "name": "Lifecycle witness", "avatarHash": null }],
             "viewerRole": "host",
             "updatedAt": 1750003773000
           },
           {
-            "id": "chat_000000000000000000000003he",
+            "id": "chat_000000000000000000000003hs",
             "title": "",
             "starred": false,
             "archived": false,
@@ -11295,8 +11295,8 @@
             "archived": false,
             "lastMessageAt": 1750003773000,
             "viewerLastTurnAt": 1750003773000,
-            "messageCount": 2,
-            "lastMessagePreview": "The lifecycle witness preserves the orbital ledger.",
+            "messageCount": 3,
+            "lastMessagePreview": "A line after the export.",
             "isGame": false,
             "gamePaused": false,
             "participantNames": ["Lifecycle witness"],
@@ -11857,7 +11857,7 @@
       {
         "items": [
           {
-            "id": "document_000000000000000000000005nn",
+            "id": "document_000000000000000000000005ny",
             "name": "Native lifecycle source",
             "mime": "text/plain",
             "origin": "text",
@@ -11907,7 +11907,7 @@
       {
         "items": [
           {
-            "id": "notification_0000000000000000000000041h",
+            "id": "notification_0000000000000000000000041t",
             "actionable": false,
             "seq": 11,
             "readAt": null,
@@ -11917,12 +11917,12 @@
             "payload": {
               "type": "handoff-accepted",
               "recipientUserId": "00000000000000000000000004",
-              "chatId": "chat_000000000000000000000003w3",
+              "chatId": "chat_000000000000000000000003wd",
               "newHostHandle": "companion"
             }
           },
           {
-            "id": "notification_000000000000000000000003sn",
+            "id": "notification_000000000000000000000003sz",
             "actionable": false,
             "seq": 10,
             "readAt": null,
@@ -11932,7 +11932,7 @@
             "payload": {
               "type": "handoff-accepted",
               "recipientUserId": "00000000000000000000000004",
-              "chatId": "chat_000000000000000000000003q4",
+              "chatId": "chat_000000000000000000000003qf",
               "newHostHandle": "companion"
             }
           },
@@ -12477,7 +12477,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000003j0",
+          "characterId": "character_000000000000000000000003jb",
           "characterName": "Lifecycle witness"
         },
         {
@@ -12489,7 +12489,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000003jy",
+          "characterId": "character_000000000000000000000003k9",
           "characterName": "Lifecycle witness"
         },
         {
@@ -12501,7 +12501,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000003m2",
+          "characterId": "character_000000000000000000000003md",
           "characterName": "Lifecycle witness"
         },
         {
@@ -12513,7 +12513,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000003ns",
+          "characterId": "character_000000000000000000000003p4",
           "characterName": "Lifecycle witness"
         },
         {
@@ -12525,7 +12525,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000003py",
+          "characterId": "character_000000000000000000000003q9",
           "characterName": "Lifecycle witness"
         },
         {
@@ -12537,7 +12537,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000003sr",
+          "characterId": "character_000000000000000000000003t2",
           "characterName": "Portrait witness"
         },
         {
@@ -12549,7 +12549,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000003vx",
+          "characterId": "character_000000000000000000000003w7",
           "characterName": "Corpus recursive keeper"
         },
         {
@@ -12561,7 +12561,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_0000000000000000000000041w",
+          "characterId": "character_00000000000000000000000425",
           "characterName": "Corpus round keeper"
         },
         {
@@ -12573,7 +12573,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_0000000000000000000000045m",
+          "characterId": "character_0000000000000000000000045x",
           "characterName": "Corpus round keeper"
         },
         {
@@ -12585,7 +12585,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_0000000000000000000000048d",
+          "characterId": "character_0000000000000000000000048p",
           "characterName": "Search witness"
         },
         {
@@ -12597,7 +12597,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000004g8",
+          "characterId": "character_000000000000000000000004gh",
           "characterName": "Search co-star first"
         },
         {
@@ -12609,7 +12609,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000004ge",
+          "characterId": "character_000000000000000000000004gq",
           "characterName": "Search co-star second"
         },
         {
@@ -12897,7 +12897,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000003j0",
+          "characterId": "character_000000000000000000000003jb",
           "characterName": "Lifecycle witness"
         },
         {
@@ -12909,7 +12909,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000003jy",
+          "characterId": "character_000000000000000000000003k9",
           "characterName": "Lifecycle witness"
         },
         {
@@ -12921,7 +12921,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000003m2",
+          "characterId": "character_000000000000000000000003md",
           "characterName": "Lifecycle witness"
         },
         {
@@ -12933,7 +12933,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000003ns",
+          "characterId": "character_000000000000000000000003p4",
           "characterName": "Lifecycle witness"
         },
         {
@@ -12945,7 +12945,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000003py",
+          "characterId": "character_000000000000000000000003q9",
           "characterName": "Lifecycle witness"
         },
         {
@@ -12957,7 +12957,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000003sr",
+          "characterId": "character_000000000000000000000003t2",
           "characterName": "Portrait witness"
         },
         {
@@ -12969,7 +12969,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000003vx",
+          "characterId": "character_000000000000000000000003w7",
           "characterName": "Corpus recursive keeper"
         },
         {
@@ -12981,7 +12981,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_0000000000000000000000041w",
+          "characterId": "character_00000000000000000000000425",
           "characterName": "Corpus round keeper"
         },
         {
@@ -12993,7 +12993,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_0000000000000000000000045m",
+          "characterId": "character_0000000000000000000000045x",
           "characterName": "Corpus round keeper"
         },
         {
@@ -13005,7 +13005,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_0000000000000000000000048d",
+          "characterId": "character_0000000000000000000000048p",
           "characterName": "Search witness"
         },
         {
@@ -13017,7 +13017,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000004g8",
+          "characterId": "character_000000000000000000000004gh",
           "characterName": "Search co-star first"
         },
         {
@@ -13029,7 +13029,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000004ge",
+          "characterId": "character_000000000000000000000004gq",
           "characterName": "Search co-star second"
         },
         {
@@ -13413,7 +13413,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000003j0",
+          "characterId": "character_000000000000000000000003jb",
           "characterName": "Lifecycle witness"
         },
         {
@@ -13425,7 +13425,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000003jy",
+          "characterId": "character_000000000000000000000003k9",
           "characterName": "Lifecycle witness"
         },
         {
@@ -13437,7 +13437,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000003m2",
+          "characterId": "character_000000000000000000000003md",
           "characterName": "Lifecycle witness"
         },
         {
@@ -13449,7 +13449,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000003ns",
+          "characterId": "character_000000000000000000000003p4",
           "characterName": "Lifecycle witness"
         },
         {
@@ -13461,7 +13461,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000003py",
+          "characterId": "character_000000000000000000000003q9",
           "characterName": "Lifecycle witness"
         },
         {
@@ -13473,7 +13473,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000003sr",
+          "characterId": "character_000000000000000000000003t2",
           "characterName": "Portrait witness"
         },
         {
@@ -13485,7 +13485,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000003vx",
+          "characterId": "character_000000000000000000000003w7",
           "characterName": "Corpus recursive keeper"
         },
         {
@@ -13497,7 +13497,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_0000000000000000000000041w",
+          "characterId": "character_00000000000000000000000425",
           "characterName": "Corpus round keeper"
         },
         {
@@ -13509,7 +13509,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_0000000000000000000000045m",
+          "characterId": "character_0000000000000000000000045x",
           "characterName": "Corpus round keeper"
         },
         {
@@ -13521,7 +13521,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_0000000000000000000000048d",
+          "characterId": "character_0000000000000000000000048p",
           "characterName": "Search witness"
         },
         {
@@ -13533,7 +13533,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000004g8",
+          "characterId": "character_000000000000000000000004gh",
           "characterName": "Search co-star first"
         },
         {
@@ -13545,7 +13545,7 @@
           "folderType": "NONE",
           "sortOrder": null,
           "isHiddenOnCard": false,
-          "characterId": "character_000000000000000000000004ge",
+          "characterId": "character_000000000000000000000004gq",
           "characterName": "Search co-star second"
         },
         {
@@ -13665,19 +13665,19 @@
     "stats.overview": [
       {
         "reasoningMs": 0,
-        "costUsd": 0.00032,
+        "costUsd": 0.0005300000000000001,
         "forkedChats": 2,
         "variantMessages": 1,
         "throughputTps": 0,
         "avgSwipeDepth": 0,
         "swipeRate": 0.03333333333333333,
         "cacheHitRate": null,
-        "characters": 44,
+        "characters": 23,
         "chats": 25,
-        "userTurns": 188,
+        "userTurns": 189,
         "assistantTurns": 30,
         "swipes": 2,
-        "userWords": 11448,
+        "userWords": 11453,
         "assistantWords": 973,
         "swipeWords": 18,
         "tokensIn": 1365,
@@ -13698,13 +13698,13 @@
     "stats.wrapped": [
       {
         "firstChatAt": 1750000000000,
-        "characters": 44,
+        "characters": 23,
         "chats": 25,
-        "words": 12421,
+        "words": 12426,
         "replies": 30,
         "swipes": 2,
         "genTimeMs": 0,
-        "costUsd": 0.00032,
+        "costUsd": 0.0005300000000000001,
         "avgSwipeDepth": 0,
         "swipeRate": 0.03333333333333333,
         "forkedChats": 2,
@@ -13848,7 +13848,7 @@
           "personaId": "persona_0000000000000000000000014m",
           "name": "The ledger keeper",
           "chatCount": 23,
-          "messageCount": 212,
+          "messageCount": 213,
           "tokensOut": 393,
           "tokensOutProvenance": "measured",
           "lastUsedAt": 1750003801001
@@ -13869,7 +13869,7 @@
         {
           "bucketStart": 1750003200000,
           "chatsCreated": 18,
-          "userTurns": 131,
+          "userTurns": 132,
           "assistantTurns": 15,
           "tokensOut": 313,
           "tokensOutProvenance": "measured",
@@ -13929,7 +13929,7 @@
             "totalGenTimeMs": 0
           },
           {
-            "characterId": "character_000000000000000000000003vx",
+            "characterId": "character_000000000000000000000003w7",
             "name": "Corpus recursive keeper",
             "assistantTurns": 2,
             "tokensOut": 70,
@@ -13937,7 +13937,7 @@
             "totalGenTimeMs": 0
           },
           {
-            "characterId": "character_0000000000000000000000041w",
+            "characterId": "character_00000000000000000000000425",
             "name": "Corpus round keeper",
             "assistantTurns": 2,
             "tokensOut": 45,
@@ -13969,7 +13969,7 @@
             "totalGenTimeMs": 0
           },
           {
-            "characterId": "character_000000000000000000000003m2",
+            "characterId": "character_000000000000000000000003md",
             "name": "Lifecycle witness",
             "assistantTurns": 1,
             "tokensOut": 15,
@@ -13977,7 +13977,7 @@
             "totalGenTimeMs": 0
           },
           {
-            "characterId": "character_000000000000000000000003ys",
+            "characterId": "character_000000000000000000000003z3",
             "name": "Group",
             "assistantTurns": 1,
             "tokensOut": null,
@@ -13985,7 +13985,7 @@
             "totalGenTimeMs": 0
           },
           {
-            "characterId": "character_00000000000000000000000405",
+            "characterId": "character_0000000000000000000000040f",
             "name": "Group",
             "assistantTurns": 1,
             "tokensOut": null,
@@ -13993,7 +13993,7 @@
             "totalGenTimeMs": 0
           },
           {
-            "characterId": "character_0000000000000000000000045m",
+            "characterId": "character_0000000000000000000000045x",
             "name": "Corpus round keeper",
             "assistantTurns": 1,
             "tokensOut": 30,
@@ -14001,7 +14001,7 @@
             "totalGenTimeMs": 0
           },
           {
-            "characterId": "character_000000000000000000000004g8",
+            "characterId": "character_000000000000000000000004gh",
             "name": "Search co-star first",
             "assistantTurns": 1,
             "tokensOut": 15,
@@ -14009,7 +14009,7 @@
             "totalGenTimeMs": 0
           },
           {
-            "characterId": "character_000000000000000000000004ge",
+            "characterId": "character_000000000000000000000004gq",
             "name": "Search co-star second",
             "assistantTurns": 1,
             "tokensOut": 15,
@@ -14017,7 +14017,7 @@
             "totalGenTimeMs": 0
           },
           {
-            "characterId": "character_000000000000000000000005fk",
+            "characterId": "character_000000000000000000000005fw",
             "name": "Native account witness",
             "assistantTurns": 1,
             "tokensOut": 3,
@@ -14041,7 +14041,7 @@
             "totalGenTimeMs": 0
           },
           {
-            "characterId": "character_000000000000000000000003j0",
+            "characterId": "character_000000000000000000000003jb",
             "name": "Lifecycle witness",
             "assistantTurns": 0,
             "tokensOut": null,
@@ -14049,7 +14049,7 @@
             "totalGenTimeMs": 0
           },
           {
-            "characterId": "character_000000000000000000000003jy",
+            "characterId": "character_000000000000000000000003k9",
             "name": "Lifecycle witness",
             "assistantTurns": 0,
             "tokensOut": null,
@@ -14057,7 +14057,7 @@
             "totalGenTimeMs": 0
           },
           {
-            "characterId": "character_000000000000000000000003ns",
+            "characterId": "character_000000000000000000000003p4",
             "name": "Lifecycle witness",
             "assistantTurns": 0,
             "tokensOut": null,
@@ -14065,7 +14065,7 @@
             "totalGenTimeMs": 0
           },
           {
-            "characterId": "character_000000000000000000000003sr",
+            "characterId": "character_000000000000000000000003t2",
             "name": "Portrait witness",
             "assistantTurns": 0,
             "tokensOut": null,
@@ -14073,7 +14073,7 @@
             "totalGenTimeMs": 0
           },
           {
-            "characterId": "character_000000000000000000000005me",
+            "characterId": "character_000000000000000000000005mq",
             "name": "Native roster witness",
             "assistantTurns": 0,
             "tokensOut": null,
@@ -14081,7 +14081,7 @@
             "totalGenTimeMs": 0
           },
           {
-            "characterId": "character_000000000000000000000006mc",
+            "characterId": "character_000000000000000000000006mn",
             "name": "Image variant witness",
             "assistantTurns": 0,
             "tokensOut": null,
@@ -14104,15 +14104,15 @@
         { "characterId": "character_0000000000000000000000025x", "name": "Corpus provider traveller", "bucketStart": 1750003200000, "replies": 1 },
         { "characterId": "character_00000000000000000000000291", "name": "Arc ledger traveller", "bucketStart": 1750003200000, "replies": 1 },
         { "characterId": "character_000000000000000000000003fh", "name": "Lifecycle witness", "bucketStart": 1750003200000, "replies": 2 },
-        { "characterId": "character_000000000000000000000003m2", "name": "Lifecycle witness", "bucketStart": 1750003200000, "replies": 1 },
-        { "characterId": "character_000000000000000000000003vx", "name": "Corpus recursive keeper", "bucketStart": 1750003200000, "replies": 2 },
-        { "characterId": "character_000000000000000000000003ys", "name": "Group", "bucketStart": 1750003200000, "replies": 1 },
-        { "characterId": "character_00000000000000000000000405", "name": "Group", "bucketStart": 1750003200000, "replies": 1 },
-        { "characterId": "character_0000000000000000000000041w", "name": "Corpus round keeper", "bucketStart": 1750003200000, "replies": 2 },
-        { "characterId": "character_0000000000000000000000045m", "name": "Corpus round keeper", "bucketStart": 1750003200000, "replies": 1 },
-        { "characterId": "character_000000000000000000000004g8", "name": "Search co-star first", "bucketStart": 1750003200000, "replies": 1 },
-        { "characterId": "character_000000000000000000000004ge", "name": "Search co-star second", "bucketStart": 1750003200000, "replies": 1 },
-        { "characterId": "character_000000000000000000000005fk", "name": "Native account witness", "bucketStart": 1750003200000, "replies": 1 }
+        { "characterId": "character_000000000000000000000003md", "name": "Lifecycle witness", "bucketStart": 1750003200000, "replies": 1 },
+        { "characterId": "character_000000000000000000000003w7", "name": "Corpus recursive keeper", "bucketStart": 1750003200000, "replies": 2 },
+        { "characterId": "character_000000000000000000000003z3", "name": "Group", "bucketStart": 1750003200000, "replies": 1 },
+        { "characterId": "character_0000000000000000000000040f", "name": "Group", "bucketStart": 1750003200000, "replies": 1 },
+        { "characterId": "character_00000000000000000000000425", "name": "Corpus round keeper", "bucketStart": 1750003200000, "replies": 2 },
+        { "characterId": "character_0000000000000000000000045x", "name": "Corpus round keeper", "bucketStart": 1750003200000, "replies": 1 },
+        { "characterId": "character_000000000000000000000004gh", "name": "Search co-star first", "bucketStart": 1750003200000, "replies": 1 },
+        { "characterId": "character_000000000000000000000004gq", "name": "Search co-star second", "bucketStart": 1750003200000, "replies": 1 },
+        { "characterId": "character_000000000000000000000005fw", "name": "Native account witness", "bucketStart": 1750003200000, "replies": 1 }
       ]
     ]
   }

@@ -267,15 +267,15 @@ CT tests assert the CONTAINMENT properties, not just rendering:
 
 D333 ends custom static UI checks. Keep the product rules in this document. Verify changed runtime behavior with native tests and rendered checks. `pnpm test:ct` runs component tests.
 
-Native ESLint in `eslint.config.ts` checks direct props-ref overwrites, direct `Omit` narrowing of Base UI callbacks, and unresolved callback styles in CSS object spreads. Browser tests check lifecycle and hit behavior.
+Native ESLint in `eslint.config.ts` checks direct props-ref overwrites, direct `Omit` narrowing of Base UI callbacks, and unresolved callback styles in CSS object spreads.
 
 ## 9. Build order
 
-Standing bar for any new primitive is §13, not a wave history.
+Standing bar for any new primitive is §13.
 
 ## 10. Recorded deltas (the live WHYs)
 
-Two WHYs stay live because they still constrain the code:
+Two WHYs constrain the code:
 
 - **`Meter` is a HYBRID over Base UI's `meter`:** `Meter.Root` supplies the a11y shell (`role="meter"`
   - `aria-value*` + `Intl.NumberFormat` `aria-valuetext`); the custom SVG geometry (arc/ticks/
@@ -294,11 +294,9 @@ D333 ends custom static gate and checker enforcement. This document states produ
 ## 12. Neo-parity primitive coverage
 
 The current primitive inventory is `packages/ui/package.json#exports` (the truth), not a list here.
-The derivation table and the deliberately-excluded list (`resizable`/`sheet`/`label`/…) are in git
-history.
 Inclusion rule for any new primitive: **domain-agnostic** (a `Button`/`Badge`/`Card`, never a
 `CharacterCard`) AND referenced by ≥1 committed design; domain components live in `client/features`.
-The **proposal-diff** pattern (chat-crew 07) is a FEATURE over `@orb/ui/diff`, not a ui primitive;
+The **proposal-diff** pattern is a FEATURE over `@orb/ui/diff`, not a ui primitive;
 `WeaveGlyph` lives in `@orb/ui` (`packages/ui/src/art/web-weave/weave-glyph.tsx`) and enters through the
 `@orb/ui/web-weave` door.
 
@@ -356,21 +354,23 @@ the codebase.
 WebFetch `https://base-ui.com/react/components/<name>`. Record any API delta in the component
 doc-comment — factually, no theories.
 
-> **Review:** Use R1–R9 when building or extending a primitive. Verify behavior with the required CT cases.
+> **Review:** Use these rules when building or extending a primitive. Verify behavior with the required CT cases.
 
 **R9 — DERIVE, NEVER RE-SPELL, any prop that shadows a Base UI prop name.** A sealed prop that reuses
 a Base UI prop's NAME must take its TYPE from Base UI — `extends` / `Pick<>` / `Omit<>` /
 `Parameters<NonNullable<BaseXProps["onYChange"]>>[N]` — never a hand-written signature. The failure
 mode is silent and permanent: hand-spelling `onValueChange?: (value: string) => void` drops the
 second `ChangeEventDetails` argument (`reason` · `cancel()` · `allowPropagation()` · `isCanceled`),
-so a caller can never veto a change, and a Base UI minor that adds a new change `reason` (1.7 added
-`input-press` and `cancel-open`) reaches a DERIVED seal for free and never reaches a re-spelled one.
+so a caller can never veto a change, and a Base UI minor that adds a new change `reason`
+reaches a DERIVED seal for free and never reaches a re-spelled one.
 This applies to open/close callbacks too, including composite primitives that merely forward one
 (`ColorField.onOpenChange` derives from `Popover.Root`'s). It does NOT apply to a composite's own
 invented callback that forwards nothing (`ColorField.onValueChange` is a clamp-gated commit, not a
 passthrough) — say so inline where it is not obvious.
 
 **R10 — A prose run states its measure.** `Text` and `Heading` take `prose` only with a `cap`: `prose` for a paragraph, `code` in the code voice, `fit` for a truncated or clamped run. An inline run (`as="span"`) takes the measure of its line, so it takes `prose` with no cap. The `TextProps` type in `packages/ui/src/primitives/text/text.tsx` enforces it; its cases are `tests/ui/primitives/text/axis-vocabulary.dom.test-d.ts`.
+
+**R11 — A stepped number field is never narrower than one touch target.** A column narrower than `--size-touch-target` widens `NumberField` at `layout="field"` to that floor, so no stepper hit area lies over a neighbour. `tests/ui/primitives/number-field/stacked-hit-areas.ct.tsx` holds it.
 
 ## 14. The Base UI anatomy ledger (every part: exposed · sealed-away · n/a)
 
@@ -467,4 +467,4 @@ Recorded because it looks like an oversight and is not.
   satisfies, so the shim is a reduced enhancement, not a broken requirement. A proper seal
   (`primitives/context-menu/`: Root/Trigger/Backdrop/Portal/Positioner/Popup/Arrow/Item/LinkItem/
   Separator/Group/GroupLabel/Submenu\*/Checkbox\*/Radio\* plus a trigger area, reusing
-  `menuVariants`) plus its CT would close both gaps. Owner decides whether to build it.
+  `menuVariants`) plus its CT would close both gaps.

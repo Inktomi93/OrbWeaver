@@ -16,6 +16,7 @@ import type {
   MemoryRecallSlice,
   RoomOverrides,
   SpeakerRef,
+  TurnGlobalVariables,
 } from "@orb/contracts/chat";
 import { speakerKey, stripSendPlaceholders } from "@orb/contracts/chat";
 import type { GenerationType, PromptConfig } from "@orb/contracts/preset";
@@ -390,6 +391,8 @@ interface BuildAssembleContextInput {
   /** The one-turn typed steer, resolved once in BUILD; never persisted or re-routed at splice time. */
   readonly guided?: GuidedSteer | undefined;
   readonly variableValues: Record<string, string>;
+  /** The turn's per-user global plane, staged by the turn verb. Absent ⇒ no plane (a preview). */
+  readonly globalVariables?: TurnGlobalVariables | undefined;
   readonly generationType?: GenerationType | undefined;
   /** The IANA zone `{{time}}`/`{{date}}` read in: the viewer's per-request browser zone, not a stored setting.
    *  UTC for a turn with no viewer. */
@@ -478,6 +481,7 @@ function buildBaseContext(
     timezone: input.timezone,
   };
   setIf(base, "roomOverrides", input.roomOverrides);
+  setIf(base, "globalVariables", input.globalVariables);
   setIf(base, "multiHuman", input.multiHuman);
   setIf(base, "lastMessage", input.lastMessage);
   setIf(base, "lastUserMessage", input.lastUserMessage);

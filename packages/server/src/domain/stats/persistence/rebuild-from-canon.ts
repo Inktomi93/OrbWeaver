@@ -55,8 +55,12 @@ import { ownerChatIds, retainedCharacterSeatPredicate } from "./owner-chat-scope
 
 export type { ReconcileStatsResult } from "@orb/contracts/stats";
 
-/** Rows per streaming page; bounds peak memory on large corpora. */
-export const CHUNK = 5000;
+/**
+ * Rows per streaming page. The driver reads a page synchronously, so a page's query and its fold hold the event loop
+ * together: the page is small enough that this stays well under half a second on a heavy library, and each scan yields
+ * between pages. Paging also bounds peak memory on large corpora.
+ */
+export const CHUNK = 250;
 // Per-table column counts for the bound-variable chunker — must track the insert shapes below.
 const CHAR_COLS = 30;
 const DAILY_COLS = 22;
@@ -339,6 +343,7 @@ async function scanEmbeddingSpend(db: Db, ownerId: UserId, a: Accums): Promise<v
     if (calls.length < CHUNK) {
       break;
     }
+    await yieldToLoop();
   }
 }
 

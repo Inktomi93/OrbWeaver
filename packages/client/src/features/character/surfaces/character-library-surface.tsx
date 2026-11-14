@@ -322,6 +322,7 @@ export function CharacterLibrarySurface(): ReactElement {
       </Stack>
       {bulkMode && selectedCount > 0 ? (
         <CharacterBulkBar
+          characterName={(characterId): string | undefined => items.find((item) => item.id === characterId)?.name}
           ids={[...collection.selection.selected]}
           onClear={collection.selection.clear}
           onRemoveSubmitted={collection.selection.remove}

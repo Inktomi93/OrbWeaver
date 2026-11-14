@@ -1,21 +1,23 @@
 // A bulk remove deletes every owned card it names with no outside contention, seated or not: the deletes retire
 // their canon one after another, so siblings never refuse each other, and every deleted card gets its audit row, its
-// avatar reaped, one change event for the call, and its id in the result.
+// avatar reaped, one change event for the call, and its id in the result. A card whose delete is refused stays, is
+// named in the result's `failed`, and is neither audited nor reaped, while its siblings are deleted all the same.
 // @subject packages/server/src/domain/character/verbs/bulk-remove.ts
 // @subject packages/server/src/domain/stats/persistence/retire-canon.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
-import { assetKinds, assets, auditLogs } from "@orb/db";
+import { assetKinds, assets, auditLogs, characters } from "@orb/db";
 import type { AssetId, CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness, makeAssetBytes, seedAsset } from "@orb/testkit/node/composed";
+import { createServerHarness, makeAssetBytes, refuseWrites, seedAsset } from "@orb/testkit/node/composed";
 import { and, eq } from "drizzle-orm";
 
 const CARDS = 6;
+const FAULT_MESSAGE = "this card's delete is refused";
 // A publish after the call marks the end of what the call delivered, so a missing event cannot hang the read.
 const END: UserBusEvent = { type: "settingsChanged" };
 
@@ -102,3 +104,39 @@ for (const layout of LAYOUT_NAMES) {
     }
   });
 }
+
+test("a bulk remove whose delete is refused for one card names it, keeps it whole and deletes and announces the others", async () => {
+  await using root = await createServerHarness();
+  const owner = await root.principalFor(root.ownerId);
+  const [refused, ...rest] = await cards(root, owner, LAYOUTS.mixed);
+  if (refused === undefined) {
+    throw new Error("The case seeded no cards");
+  }
+  await using fault = await refuseWrites(root.db, { table: characters, event: "DELETE", message: FAULT_MESSAGE, when: `OLD.id = '${refused}'` });
+  const stop = new AbortController();
+  const events = root.app.liveBuses.user.subscribeUserEvents(owner.userId, stop.signal)[Symbol.asyncIterator]();
+  try {
+    const result = await root.services.character.bulkRemove({ principal: owner, characterIds: [refused, ...rest] });
+
+    expect(result.applied).toEqual(rest);
+    expect(result.failed).toEqual([{ characterId: refused, error: { message: expect.stringContaining(FAULT_MESSAGE) } }]);
+    // The refused card is still there with its avatar and no removal audit; the deleted ones are gone.
+    expect((await root.services.character.get({ principal: owner, characterId: refused })).id).toBe(refused);
+    expect(await root.services.character.count({ principal: owner })).toBe(1);
+    expect(await removalAudits(root, owner)).toEqual(rest.toSorted((a, b) => a.localeCompare(b)));
+    expect(await ownedAvatars(root, owner)).toHaveLength(1);
+    root.app.liveBuses.user.publishUserEvent(owner.userId, END);
+    const seen: UserBusEvent[] = [];
+    for (let next = await events.next(); !next.done && next.value !== END; next = await events.next()) {
+      seen.push(next.value);
+    }
+    expect(seen.filter((event) => event.type === "charactersChanged")).toEqual([{ type: "charactersChanged" }]);
+
+    // Control: with the refusal lifted the same card deletes, so the refusal and nothing else kept it.
+    await fault.lift();
+    expect(await root.services.character.bulkRemove({ principal: owner, characterIds: [refused] })).toEqual({ applied: [refused], failed: [] });
+    expect(await root.services.character.count({ principal: owner })).toBe(0);
+  } finally {
+    stop.abort();
+  }
+});

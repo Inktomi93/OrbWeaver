@@ -299,7 +299,10 @@ test("a departed member's persona and attachment art stops serving to the room, 
   expect(await served(room, viewer, pinned.avatar.hash)).toEqual(REFUSES);
 });
 
-test("a fork carries the held pin's face to a member seated only in the fork, and the origin's pin grants that member nothing", async () => {
+// The sign-ins, the fork and the full variant ladder fetched on each pass run past the default case budget alone.
+test("a fork carries the held pin's face to a member seated only in the fork, and the origin's pin grants that member nothing", {
+  tags: ["slow"],
+}, async () => {
   await using room = await openRoom();
   const leaver = await admit(room, "floor-pinned-player", "full");
   const stayer = await admit(room, "floor-origin-stayer", "full");

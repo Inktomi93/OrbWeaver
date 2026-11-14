@@ -112,7 +112,7 @@ export async function loadPresentHostUserId(db: Db, chatId: ChatId): Promise<Use
  *  `disabled` RIDES ALONG rather than being a WHERE predicate, because the two misses are different
  *  answers to a MODEL: "there is nobody by that name here" routes it to another seated character, "that one is
  *  muted" tells it the seat exists and is switched off. The verb owns the refusal words; the seat's mute is
- *  the same kill-switch `participant::isArbiterEligible` applies to speaking. */
+ *  the same kill-switch `substrate/participant-actor::isArbiterEligible` applies to speaking. */
 export async function loadCharacterSeatByName(
   db: Db,
   chatId: ChatId,

@@ -91,6 +91,7 @@ export function transcriptFile(params: Omit<SeedTranscriptParams, "ownerId">): P
     updatedAt: FROZEN_AT_MS,
     starred: false,
     archived: false,
+    everShared: false,
     compactSummary: null,
     compactedAtSeq: null,
     metadata: params.chat?.metadata ?? null,

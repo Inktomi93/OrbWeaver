@@ -2,7 +2,7 @@
 // Shared by the recall pipeline suite and the persistence suites that remove a stored row from the same room.
 
 import { createCharacterSchema } from "@orb/contracts/character";
-import type { MemoryRecallCandidate, MemoryRecallSlice, MemoryRecallVerdict } from "@orb/contracts/chat";
+import type { MemoryItemView, MemoryRecallCandidate, MemoryRecallSlice, MemoryRecallVerdict, MemoryView } from "@orb/contracts/chat";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { modelIdSchema } from "@orb/contracts/inference";
 import { resolveProseText } from "@orb/contracts/prose";
@@ -17,6 +17,7 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
+  readRoomCanon,
   SECRET_BOX_TEST_KEY,
   SUMMARIZE_TRANSCRIPT_MARKER,
   summaryReply,
@@ -106,9 +107,14 @@ export interface World {
 // The consolidation prompt leads with this slot; its default text is the one production sends when the host sets no override.
 const CONSOLIDATION_LEAD = resolveProseText("chat.memory.consolidationLead", {});
 
+/** The facts the scripted consolidation reply carries. */
+export const MERGED_FACTS = "The scenes merged into one arc.";
+/** The storm arc's consolidation, told apart from the other merged arcs so the prompt shows which one it carries. */
+export const STORM_ARC = "The storm arc was merged into one telling.";
+
 export function generatedText(body: string): string {
   if (body.includes(CONSOLIDATION_LEAD)) {
-    return summaryReply({ anchor: "Merged arc", facts: "The scenes merged into one arc.", keywords: ["merged"] });
+    return summaryReply({ anchor: "Merged arc", facts: MERGED_FACTS, keywords: ["merged"] });
   }
   if (!body.includes(SUMMARIZE_TRANSCRIPT_MARKER)) {
     return "The keeper answers.";
@@ -248,3 +254,33 @@ export function blockOf(arc: Arc): number {
 }
 
 export const ask = (arc: Arc | typeof OFF_CORPUS): string => `Tell me about the scene. ${probe(arc)}`;
+
+/** Two scenes in one query, the storm scene weighted first; both clear the floor, so both are admitted unstruck. */
+export const BOTH = `Tell me about the scene. ${probe("bath")} ${probe("storm")}`;
+export const RECALL_KNOBS = { minScore: 0.05, queryWindow: 1, keywordMatch: false } as const;
+
+export function itemAt(view: MemoryView, tier: number, blockIdx: number): MemoryItemView {
+  return present(view.items.find((item) => item.key.tier === tier && item.key.blockIdx === blockIdx));
+}
+
+export function sceneOf(view: MemoryView, arc: Arc): MemoryItemView {
+  return itemAt(view, 0, blockOf(arc));
+}
+
+/** Rebuild the room's memory after a canon change: the live pass after a turn, then the corpus sweep. */
+export async function redigest(w: Pick<RecallWorld, "h" | "sweep">): Promise<void> {
+  const keeper = present(w.h.characters[0]);
+  const turn = await w.h.root.services.chat.forceCharacterTurn({ principal: w.h.owner, chatId: w.h.chatId, characterId: keeper.id, intent: TURN_INTENT });
+  expect(turn.aborted).toBe(false);
+  await w.h.root.settleBackground();
+  await w.sweep({ kind: "memory-backfill", params: {} });
+}
+
+/** Rewrite the first transcript line of `arc`'s scene, keeping the marker the scripted summarizer keys on. */
+export async function editScene(h: ChatRoot, arc: Arc): Promise<void> {
+  const line = (await readRoomCanon(h.root, h.owner, h.chatId)).find((message) => message.content.includes(`line-${arc}.`));
+  if (line === undefined) {
+    throw new Error(`the room holds no ${arc} line`);
+  }
+  await h.root.services.chat.editMessage({ principal: h.owner, chatId: h.chatId, messageId: line.id, content: `line-${arc}. The ${arc} was told again.` });
+}

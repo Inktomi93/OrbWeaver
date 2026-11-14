@@ -1,6 +1,7 @@
 // Canon leaving owners' stats scope: a deleted room, or the started rooms a deleted character was its owner's last seat
 // in. The rebuild is the truth for counts and activity, so the live rollups lose exactly the contribution the rebuild's
-// own fold gives that canon, and the extrema are re-derived from what is left. Paid spend never lowers: it stays on the
+// own fold gives that canon, and the settle after the delete re-derives the extrema and drops a timeline or model row left
+// all zero. Paid spend never lowers: it stays on the
 // owner, timeline and model rollups and moves into the owner-stamped spend ledger as `retired-canon` rows, one per paid
 // sample, which the rebuild folds in place of the canon. The character grain loses the room's spend with its counts:
 // the ledger is the owner's money (D23), not a character's.
@@ -19,7 +20,7 @@ import { MODEL_PROVIDER_UNKNOWN, statsBucketStart } from "@orb/kit/stats-tally";
 import type { SQL } from "drizzle-orm";
 import { and, eq, sql } from "drizzle-orm";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
-import type { Accums, BucketAccum, CharAccum, ModelAccum, OwnerAccum } from "../contract/rebuild-from-canon.ts";
+import type { Accums } from "../contract/rebuild-from-canon.ts";
 import { RETAINED_CHAT_OWNERS_ALIAS } from "../contract/retained-chat-accounting.ts";
 import { createOwnerAccums, foldCanonMessage, foldCanonSwipe, retiredSpendOf } from "../substrate/rebuild-rollups.ts";
 import { bumpStatsCanonVersion } from "../write/apply-delta.ts";
@@ -28,106 +29,10 @@ import { retainedCharacterSeatPredicate, retainedChatOwners } from "./owner-chat
 import type { CanonSnapshot } from "./rebuild-from-canon.ts";
 import { canonUnchangedStatement, ownerCanonSnapshot, scanMessages, scanSwipes } from "./rebuild-from-canon.ts";
 import { settleRetainedChatRebase } from "./retained-chat-accounting.ts";
+import type { Disposition } from "./rollup-grains.ts";
+import { BUCKET_GRAIN, CHARACTER_GRAIN, MODEL_GRAIN, OWNER_GRAIN } from "./rollup-grains.ts";
 
 const CHARACTER_ID = typeIdSchema(ID_PREFIX.character);
-
-type Additive<T> = { [K in keyof T]-?: T[K] extends number ? K : never }[keyof T];
-// Spend the retirement keeps on the live rollups, because the ledger rows carry it; every other additive column leaves.
-type Disposition = "retire" | "keep";
-
-// Last activity is an extremum: the settle after the delete re-derives it, so it has no disposition here.
-const OWNER_GRAIN: Readonly<Record<Exclude<Additive<OwnerAccum>, "lastActivityAt">, Disposition>> = {
-  userTurns: "retire",
-  assistantTurns: "retire",
-  systemTurns: "retire",
-  swipes: "retire",
-  userWords: "retire",
-  assistantWords: "retire",
-  swipeWords: "retire",
-  tokensIn: "retire",
-  tokensOut: "retire",
-  tokensInMeasuredSamples: "retire",
-  tokensInEstimatedSamples: "retire",
-  tokensOutMeasuredSamples: "retire",
-  tokensOutEstimatedSamples: "retire",
-  genTimeMs: "retire",
-  genSamples: "retire",
-  reasoningGenerations: "retire",
-  reasoningMs: "retire",
-  costUsd: "keep",
-  costSamples: "keep",
-  notionalCostSamples: "keep",
-  activeIdxSum: "retire",
-  variantMessages: "retire",
-  contentChars: "retire",
-  cacheReadTokens: "retire",
-  cacheWriteTokens: "retire",
-};
-
-const BUCKET_GRAIN: Readonly<Record<Additive<BucketAccum>, Disposition>> = {
-  userTurns: "retire",
-  assistantTurns: "retire",
-  systemTurns: "retire",
-  swipes: "retire",
-  userWords: "retire",
-  assistantWords: "retire",
-  tokensIn: "retire",
-  tokensOut: "retire",
-  tokensInMeasuredSamples: "retire",
-  tokensInEstimatedSamples: "retire",
-  tokensOutMeasuredSamples: "retire",
-  tokensOutEstimatedSamples: "retire",
-  genTimeMs: "retire",
-  costUsd: "keep",
-  costSamples: "keep",
-  notionalCostSamples: "keep",
-};
-
-const MODEL_GRAIN: Readonly<Record<Additive<ModelAccum>, Disposition>> = {
-  generations: "retire",
-  tokensIn: "retire",
-  tokensOut: "retire",
-  tokensInMeasuredSamples: "retire",
-  tokensInEstimatedSamples: "retire",
-  tokensOutMeasuredSamples: "retire",
-  tokensOutEstimatedSamples: "retire",
-  genTimeMs: "retire",
-  genSamples: "retire",
-  reasoningGenerations: "retire",
-  reasoningMs: "retire",
-  costUsd: "keep",
-  costSamples: "keep",
-  notionalCostSamples: "keep",
-  cacheReadTokens: "retire",
-  cacheWriteTokens: "retire",
-};
-
-// The character's last message is its last activity, re-derived by the settle like the owner's.
-const CHARACTER_GRAIN: Readonly<Record<Exclude<Additive<CharAccum>, "lastMsgAt">, Disposition>> = {
-  userTurns: "retire",
-  assistantTurns: "retire",
-  systemTurns: "retire",
-  swipes: "retire",
-  userWords: "retire",
-  assistantWords: "retire",
-  swipeWords: "retire",
-  tokensIn: "retire",
-  tokensOut: "retire",
-  tokensInMeasuredSamples: "retire",
-  tokensInEstimatedSamples: "retire",
-  tokensOutMeasuredSamples: "retire",
-  tokensOutEstimatedSamples: "retire",
-  genTimeMs: "retire",
-  genSamples: "retire",
-  reasoningGenerations: "retire",
-  reasoningMs: "retire",
-  costUsd: "retire",
-  costSamples: "retire",
-  notionalCostSamples: "retire",
-  activeIdxSum: "retire",
-  variantMessages: "retire",
-  contentChars: "retire",
-};
 
 /** `column = column - value` for every retired column of one grain. */
 function retiredSet<K extends string>(
@@ -143,15 +48,6 @@ function retiredSet<K extends string>(
   }
   return set;
 }
-
-// The rebuild writes a timeline or model row only for a grain something still lands on, so a row the retirement left
-// all zero is deleted with it rather than shown as an empty bucket the rebuild would not have.
-function emptied<K extends string>(columns: { readonly [P in K]: SQLiteColumn }, keys: readonly K[]): SQL[] {
-  return keys.map((key) => eq(columns[key], 0));
-}
-
-const BUCKET_COLUMNS = [...(Object.keys(BUCKET_GRAIN) as (keyof typeof BUCKET_GRAIN)[]), "chatsCreated"] as const;
-const MODEL_COLUMNS = Object.keys(MODEL_GRAIN) as (keyof typeof MODEL_GRAIN)[];
 
 /** One owner's share of the leaving canon: its fold, the paid samples it keeps, and the rooms' library counts. */
 interface OwnerRetirement {
@@ -236,7 +132,6 @@ function appendRetirement(batch: BatchStmt[], db: Db, plan: OwnerRetirement, idS
   const created = Map.groupBy(plan.rooms, (room) => statsBucketStart(room.createdAt));
   for (const bucketStart of new Set([...accums.bucketMap.keys(), ...created.keys()])) {
     const bucket = accums.bucketMap.get(bucketStart);
-    const row = and(eq(dailyStats.ownerId, ownerId), eq(dailyStats.bucketStart, bucketStart));
     batch.push(
       db
         .update(dailyStats)
@@ -244,15 +139,18 @@ function appendRetirement(batch: BatchStmt[], db: Db, plan: OwnerRetirement, idS
           ...(bucket === undefined ? {} : retiredSet(dailyStats, bucket, BUCKET_GRAIN)),
           chatsCreated: sql`${dailyStats.chatsCreated} - ${created.get(bucketStart)?.length ?? 0}`,
         })
-        .where(row),
-      db.delete(dailyStats).where(and(row, ...emptied(dailyStats, BUCKET_COLUMNS))),
+        .where(and(eq(dailyStats.ownerId, ownerId), eq(dailyStats.bucketStart, bucketStart))),
     );
   }
   for (const entry of accums.modelMap.values()) {
     const set = retiredSet(modelStats, entry.acc, MODEL_GRAIN);
     if (Object.keys(set).length > 0) {
-      const row = and(eq(modelStats.ownerId, ownerId), eq(modelStats.model, entry.model), eq(modelStats.provider, entry.provider ?? MODEL_PROVIDER_UNKNOWN));
-      batch.push(db.update(modelStats).set(set).where(row), db.delete(modelStats).where(and(row, ...emptied(modelStats, MODEL_COLUMNS))));
+      batch.push(
+        db
+          .update(modelStats)
+          .set(set)
+          .where(and(eq(modelStats.ownerId, ownerId), eq(modelStats.model, entry.model), eq(modelStats.provider, entry.provider ?? MODEL_PROVIDER_UNKNOWN))),
+      );
     }
   }
   for (const characterId of plan.characters) {

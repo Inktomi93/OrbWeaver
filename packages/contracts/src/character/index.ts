@@ -691,10 +691,11 @@ export const CHARACTER_STALE_BASIS_OP_CODE = "stale_basis" as const;
 // `bulkAddCardTag`/`bulkRemoveCardTag` used to `allSettled` the per-character writes, audit + announce the
 // siblings that committed, then RETHROW the first rejection unchanged — so the caller saw one typed error
 // for a batch that had, in fact, partially landed. The honest shape is a per-item result: which characters
-// kept the write, and how many refused and why. `error.message` is wire-safe text, never a raw `Error`
+// kept the write, and which refused and why. `error.message` is wire-safe text, never a raw `Error`
 // serialized onto the wire.
 
 const characterBulkFailureSchema = z.strictObject({
+  characterId: typeIdSchema(ID_PREFIX.character),
   error: z.strictObject({
     message: z.string(),
   }),

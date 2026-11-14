@@ -310,7 +310,7 @@ export function createReactAsCharacter(input: ChatAssemblyContext, deps: Reactio
       return { ok: false, reason: `No present character named "${characterName}" in this chat — use a present character's exact name.` };
     }
     // THE SEAT KILL-SWITCH. `disabled` is the host's per-seat mute: the arbiter never selects that
-    // character (`participant::isArbiterEligible`) and `{{groupNotMuted}}` excludes it. A reaction is that seat
+    // character (`substrate/participant-actor::isArbiterEligible`) and `{{groupNotMuted}}` excludes it. A reaction is that seat
     // SPEAKING onto the transcript, so a muted seat may not author one — and nothing upstream enforces it: the
     // attach gate is knob-level only (`teaching-contribution.ts` attaches the tool when the ROOM's
     // `reactionsEnabled && charactersCanReact` resolve on; it knows no seat, and the model picks the name at

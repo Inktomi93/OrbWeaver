@@ -426,6 +426,7 @@ export async function gatherAssembleContext(
       // on a present summary (a stale seq never trims); null/absent ⇒ no exclusion.
       compactedThroughSeq: chatRow?.compactedAtSeq,
       variableValues: mergedVariables,
+      ...(args.globalVariables !== undefined ? { globalVariables: args.globalVariables } : {}),
       injectionTokenBudget: foreign.injectionTokenBudget,
       hostTierRegexScripts,
       model,

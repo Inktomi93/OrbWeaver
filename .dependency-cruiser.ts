@@ -949,6 +949,10 @@ const PACKAGE_TEST_REACHES = {
     "packages/contracts/src/chat/roster.ts":
       "JOIN_UNAVAILABLE_CODE and ACCOUNT_EXISTS_CODE: the refusal codes the pending-join story answers with, which no contracts door forwards",
   },
+  "tests/client/features/character/components/bulk-remove-refusal.ct.tsx": {
+    "packages/db/src/index.ts":
+      "characters: the table a storage trigger refuses one card's delete on, so the case runs the server's own per-card failure; no client door reaches the database",
+  },
   "tests/client/features/plugin/native-guest-protocol.ct.tsx": {
     "packages/client/src/lib/plugin-ui-guest-protocol.ts":
       "UI_GUEST_BUDGETS.eventCpuMs: a case holds a host call past one event's CPU budget, and the lib door forwards only the walls that sum it",

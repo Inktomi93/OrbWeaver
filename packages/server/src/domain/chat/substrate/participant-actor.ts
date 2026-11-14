@@ -1,8 +1,11 @@
 // domain/chat/substrate/participant-actor — the pure chat_participants kind-shape parser and the seat predicates
-// every roster-derived read narrows through. No row access: callers pass the rows they loaded.
+// every roster-derived read narrows through, and the pure seat checks (forced character role, arbiter eligibility).
+// No row access: callers pass the rows they loaded.
 
 import type { ParticipantKind } from "@orb/contracts/chat";
 import { isUserBacked } from "@orb/contracts/chat";
+import type { ParticipantRole } from "@orb/contracts/identity";
+import { isHostRole } from "@orb/contracts/identity";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { ParticipantActor } from "../contract/participant-row.ts";
 
@@ -68,6 +71,25 @@ export function characterIdsOf(rows: readonly ParticipantRowShape[]): CharacterI
  *  gallery. `null` for a room with no character seat. */
 export function firstCharacterIdOf(rows: readonly ParticipantRowShape[]): CharacterId | null {
   return characterIdsOf(rows)[0] ?? null;
+}
+
+/** A `character` participant is always `role='member'` — a character can never be the host. */
+export function assertForcedCharacterMember(p: { readonly kind: ParticipantKind; readonly role: ParticipantRole }): void {
+  if (p.kind === "character" && isHostRole(p.role)) {
+    throw new Error(`a character participant must be role 'member' (got '${p.role}')`);
+  }
+}
+
+// `leftSeq IS NULL` ⇒ present (in every union — WI/roster/arbitration).
+function isPresent(p: { readonly leftSeq: number | null }): boolean {
+  return p.leftSeq === null;
+}
+
+/** Present and not muted. A `disabled` participant still contributes cards/WI but is never
+ *  arbiter-selected + is excluded from `{{groupNotMuted}}`. Reuses {@link isPresent} — one home for
+ *  the presence half of the rule (this used to re-spell `leftSeq === null` inline). */
+export function isArbiterEligible(p: { readonly leftSeq: number | null; readonly disabled: boolean }): boolean {
+  return isPresent(p) && !p.disabled;
 }
 
 /** The PRINCIPAL kill-switch arm of the present-and-contributing predicate. Wired for `human` (owner-ruled)

@@ -9,7 +9,7 @@ import { webVitalsSource } from "@orb/testkit/node/helpers";
 import type { Locator, Page, TestInfo } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { MemberRowNameStory } from "../../client/features/chat/components/_member-row-name-stories.tsx";
-import type { ClosedCoverStory, DroppedWordsStory, MenuOverTargetStory } from "./_accessibility-scan-stories.tsx";
+import type { ClosedCoverStory, DescribedSubtitleStory, DroppedWordsStory, MenuOverTargetStory } from "./_accessibility-scan-stories.tsx";
 
 const MENU_STORY = "tests/support/browser/_accessibility-scan-stories/MenuOverTargetStory";
 const COVER_STORY = "tests/support/browser/_accessibility-scan-stories/ClosedCoverStory";
@@ -108,6 +108,7 @@ test("a control a plain node covers stays a finding", async ({ mount, page }) =>
 
 const MEMBER_ROW_STORY = "tests/client/features/chat/components/_member-row-name-stories/MemberRowNameStory";
 const DROPPED_WORDS_STORY = "tests/support/browser/_accessibility-scan-stories/DroppedWordsStory";
+const DESCRIBED_SUBTITLE_STORY = "tests/support/browser/_accessibility-scan-stories/DescribedSubtitleStory";
 const NAME_RULE = "label-content-name-mismatch";
 
 type MemberRow = Parameters<typeof MemberRowNameStory>[0]["row"];
@@ -164,6 +165,14 @@ for (const { title, row } of MEMBER_ROWS) {
     expect(await nameRuleFindings(page)).toEqual({ violations: 0, incomplete: 1, raw: 1, reclassified: 1 });
   });
 }
+
+// A subtitle that is the control's description is outside its name (N2): the vendor rule counts its words as shown text the name lacks, and the
+// scan judges the control apart because the title it still shows is the whole name.
+test("a control whose subtitle is its description meets Label in Name, so its vendor name mismatch is judged apart", async ({ mount, page }) => {
+  await mount<typeof DescribedSubtitleStory>(DESCRIBED_SUBTITLE_STORY, {});
+  await expect(page.getByRole("button", { name: "Ledger of ashes", exact: true })).toBeVisible();
+  expect(await nameRuleFindings(page)).toEqual({ violations: 0, incomplete: 1, raw: 1, reclassified: 1 });
+});
 
 // A description is not a label, but stripping one cannot leave a control with nothing shown to compare: a control
 // whose whole shown text is its own description has no label in its name.
