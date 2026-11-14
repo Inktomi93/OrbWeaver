@@ -80,6 +80,8 @@ jobs:
           checkout_sha=$(git rev-parse HEAD)
           test "$checkout_sha" = "$GITHUB_SHA" || { echo "::error title=Release source::Tag checkout=$checkout_sha differs from workflow source=$GITHUB_SHA"; exit 1; }
       - uses: $/.github/actions/setup
+        with:
+          cache: "false"
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
         id: builder
@@ -234,6 +236,8 @@ jobs:
           checkout_sha=$(git rev-parse HEAD)
           test "$checkout_sha" = "$GITHUB_SHA" || { echo "::error title=Release source::Tag checkout=$checkout_sha differs from workflow source=$GITHUB_SHA"; exit 1; }
       - uses: $/.github/actions/setup
+        with:
+          cache: "false"
       - name: Add the upgrade steps to the release notes
         run: |
           pnpm exec node scripts/ci/release-promotion.ts
@@ -296,6 +300,8 @@ jobs:
           checkout_sha=$(git rev-parse HEAD)
           test "$checkout_sha" = "$GITHUB_SHA" || { echo "::error title=Release source::Tag checkout=$checkout_sha differs from workflow source=$GITHUB_SHA"; exit 1; }
       - uses: $/.github/actions/setup
+        with:
+          cache: "false"
       - name: Build the SDK and toolchain tarballs
         run: pnpm plugin:author-release dist/plugin-authoring
       - name: Attest the plugin-authoring tarballs

@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup
+      - uses: $/.github/actions/setup
       - run: pnpm --filter @orb/showcase-plugins build
       - run: pnpm lint
       - run: pnpm typecheck
@@ -48,7 +48,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup
+      - uses: $/.github/actions/setup
       - run: pnpm --filter @orb/showcase-plugins build
       - run: pnpm lint:eslint:parts ${{ matrix.part }}
 
@@ -59,7 +59,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup
+      - uses: $/.github/actions/setup
       - run: bash scripts/ci/install-media.sh
       - run: pnpm --filter @orb/showcase-plugins build
       - run: pnpm test --maxWorkers=2 --reporter=default --reporter=json --outputFile=reports/test-report.json
@@ -84,7 +84,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup
+      - uses: $/.github/actions/setup
         with:
           browsers: "true"
       - run: pnpm --filter @orb/showcase-plugins build
@@ -107,7 +107,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup
+      - uses: $/.github/actions/setup
         with:
           browsers: "true"
       - run: bash scripts/ci/install-media.sh
