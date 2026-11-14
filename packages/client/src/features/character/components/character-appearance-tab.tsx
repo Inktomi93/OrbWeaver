@@ -206,7 +206,7 @@ function ThemeControlsBody({ characterName, session }: ThemeControlsBodyProps): 
               is the same emptiness "nothing to reset" already reads. */}
           <form.Subscribe selector={(state): ThemeOverride | null => overrideFromCharacterThemeForm(state.values)}>
             {(override): ReactElement => (
-              <Row gap="field" align="center">
+              <Row gap="field" align="center" wrap={true}>
                 <SaveAsThemeButton characterName={characterName} override={override} />
                 <DestructiveAction
                   confirm={{
@@ -216,7 +216,7 @@ function ThemeControlsBody({ characterName, session }: ThemeControlsBodyProps): 
                   }}
                   onConfirm={resetToGlobal}
                   trigger={
-                    <Button variant="ghost" disabled={override === null}>
+                    <Button variant="ghost" wrap={true} disabled={override === null}>
                       {CHARACTER_RESET_LOOK_NAME}
                     </Button>
                   }
@@ -323,6 +323,7 @@ function SaveAsThemeButton({ characterName, override }: { readonly characterName
   return (
     <Button
       variant="ghost"
+      wrap={true}
       disabled={override === null || promote.isPending}
       onClick={(): void => {
         if (override === null) {
@@ -371,7 +372,7 @@ function StartFromThemeField({ onPick }: { readonly onPick: (theme: Theme) => vo
     <Menu>
       <MenuTrigger
         render={
-          <Button disabled={rows.length === 0} variant="outline" size="sm">
+          <Button disabled={rows.length === 0} variant="outline" size="sm" wrap={true}>
             {CHARACTER_START_FROM_THEME_NAME}
             <Icon icon={ChevronDown} size="xs" />
           </Button>
