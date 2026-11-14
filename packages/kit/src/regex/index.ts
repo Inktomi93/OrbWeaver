@@ -1,95 +1,122 @@
+import type { CharacterId, PersonaId, UserId } from "#ids";
 import type { ProcessMacroOptions } from "#macro";
 import { processMacros } from "#macro";
+import type { MessageKind, ParticipantKind } from "#message-author";
+import { participantOf } from "#message-author";
+import type { MessageRole } from "#message-role";
 
-// Pure regex-script executor — usable from both client and server. The same find/replace pipeline
-// runs client-side for DISPLAY-placement scripts and server-side for prompt-side placements; the
-// server wraps in its own onScriptFailure + a node:vm-sandboxed `applyReplace` with a per-call
-// timeout (node:vm can't live here — kit is browser-safe).
-// The executor reads a kit-local structural `RegexScriptInput` (below) rather than the persisted
-// `@orb/contracts` schema, since kit must not import contracts; `RegexScript satisfies
-// RegexScriptInput` keeps them aligned from the contracts side.
+// Pure regex-script executor, usable from both client and server. The server wraps it in its own onScriptFailure
+// and a node:vm-sandboxed `applyReplace` with a per-call timeout (node:vm cannot live here; kit is browser-safe).
+// The executor reads a kit-local structural `RegexScriptInput` rather than the persisted `@orb/contracts` schema,
+// since kit must not import contracts; `RegexScriptRow satisfies RegexScriptInput` keeps them aligned.
+//
+// TWO AXES. A script states WHAT text it touches (`targets`) and WHEN it runs (`passes`), as two independent
+// settings; it runs on a call only when both name the call. This is SillyTavern's own model: its placement says
+// what, and its two "alter chat display" and "alter outgoing prompt" switches say when, with neither switch meaning
+// the stored text is rewritten. The save pass is persistent (what it writes is canon); the display and prompt
+// passes are ephemeral (they change a copy and never a row).
+//
+// A ROW'S TARGET is USER_INPUT for a user row and AI_OUTPUT for every other, on every pass. A narrator-kind row is
+// group narration, the assistant's own output, so it is AI_OUTPUT; SillyTavern's narrator target (its placement 3)
+// is a typed system line a human writes, which has no counterpart here. `messageTargetOf` is that one mapping, and
+// a script that must tell narration apart selects on the row's kind in its author scope.
+//
+// DEPTH AND AUTHORS live only on the ephemeral passes: depth is a position in a rendered transcript or an assembled
+// history, and a save-time target already names its author. Depth 0 is the newest non-system message and counts
+// backwards; the message a continue extends sits at -1, so the floor is -1.
 
-/** Where in the pipeline a script runs. `DISPLAY` is frontend-only (render-time); the rest are
- *  prompt-side legs. EVERY member has an execution leg (D121-E order table) — a placement the pipeline
- *  cannot run is a dead switch (D107), which is why ST's `SLASH_COMMAND` is NOT here: orbweaver has no
- *  server slash pipeline (the client palette is a command launcher, never a text leg). A card carrying it
- *  accepts-and-drops the value at the contracts lift seam.
- *
- *  `PROMPT_HISTORY` IS THE EPHEMERAL LEG, and it is the only one that transforms text WITHOUT that text
- *  ever being persisted: every other prompt-side placement runs at PERSIST time (`USER_INPUT` on the
- *  composer draft before the row is written, `AI_OUTPUT`/`REASONING` on the reply before it is committed),
- *  so what they produce IS canon. `PROMPT_HISTORY` runs at prompt-BUILD time over the already-assembled
- *  history, so it rewrites the copy the model reads and leaves the stored row byte-identical — ST's
- *  "strip it from the prompt, keep it in the log". It is also the ONLY placement `historyDepth` can scope
- *  ({@link RegexScriptInput.historyDepth}): depth is a position in the assembled history, which no
- *  persist-time leg possesses. */
-export const REGEX_PLACEMENTS = ["USER_INPUT", "AI_OUTPUT", "WORLD_INFO", "PROMPT_HISTORY", "REASONING", "DISPLAY"] as const;
+/** WHAT text a script touches. Every member has a pass that reads it; SillyTavern's slash-command and narrator
+ *  target has no text here (orbweaver has no server slash pipeline, D107). */
+export const REGEX_TARGETS = ["USER_INPUT", "AI_OUTPUT", "WORLD_INFO", "REASONING"] as const;
+export type RegexTarget = (typeof REGEX_TARGETS)[number];
 
-export type RegexPlacement = (typeof REGEX_PLACEMENTS)[number];
+/** The targets that are a chat row's own text, so a pass over them knows the row that wrote it. */
+export type RegexRowTarget = Exclude<RegexTarget, "WORLD_INFO">;
 
-/** The one placement `historyDepth` scopes — named once so the executor, the contracts check and the
- *  client's derive boundary all cite the same member rather than three string literals. */
-export const HISTORY_DEPTH_PLACEMENT = "PROMPT_HISTORY" satisfies RegexPlacement;
+/** WHEN a script runs: `save` rewrites the text before it is stored, `display` changes what the reader sees, `prompt`
+ *  changes the copy the model reads. */
+export const REGEX_PASSES = ["save", "display", "prompt"] as const;
+export type RegexPass = (typeof REGEX_PASSES)[number];
 
-/** How deep in the assembled history a `PROMPT_HISTORY` script applies. DEPTH 0 IS THE NEWEST MESSAGE and
- *  counts BACKWARDS (ST `script.js:4478` — `depth = coreChat.length - index - 1`), so `{min: 0, max: 0}`
- *  means "the latest message only" and `{min: 3, max: null}` means "everything older than the last three".
- *
- *  The gate is ST's, minus its dead arms: it skips when `depth < minDepth` or `depth > maxDepth`
- *  (`extensions/regex/engine.js:361-372`). ST's sentinel values (`null`/`NaN`/`minDepth < -1` = "no
- *  bound") collapse here into a floor of 0 and an explicit `max: null`, so there is exactly ONE spelling
- *  of "unbounded" instead of four. */
-export interface RegexHistoryDepth {
-  /** Inclusive floor — the script skips any message NEWER than this depth. `0` ⇒ no floor. */
+/** The passes that change a copy and never a row. Depth and an author scope are legal only beside one of them. */
+export const EPHEMERAL_REGEX_PASSES = ["display", "prompt"] as const satisfies readonly RegexPass[];
+export type EphemeralRegexPass = (typeof EPHEMERAL_REGEX_PASSES)[number];
+
+/** The shallowest depth a bound may name: the reply a continue extends. */
+export const REGEX_DEPTH_FLOOR = -1;
+/** The deepest depth a bound may name; SillyTavern's editor caps both fields here. */
+export const REGEX_DEPTH_MAX = 9999;
+
+/** Which messages by position an ephemeral pass applies to, both bounds inclusive. Depth 0 is the newest non-system
+ *  message and counts backwards; -1 is the reply a continue extends. `max: null` is no ceiling. A bound of
+ *  {@link REGEX_DEPTH_FLOOR} as `min` is no floor. */
+export interface RegexDepth {
   readonly min: number;
-  /** Inclusive ceiling — the script skips any message OLDER than this depth. `null` ⇒ no ceiling. */
   readonly max: number | null;
 }
 
-// ── THE PLACEMENT-DERIVED FIELDS (the INVERSE of the executor masks below) ─────────────────────────────
-// `markdownOnly`/`promptOnly`/`historyDepth` are NEVER authored beside `placement` — they are decided BY it,
-// at the one save boundary that writes a script. These pure functions ARE that decision, homed here beside
-// the masks they mirror so BOTH callers derive identically: the client's save boundary
-// (`features/regex/lib/derive-tier-flags` `withDerivedTierFlags`) and the server's bulk-placement verb, which
-// re-derives every row's flags/scope after a bulk placement change. Isomorphic + zero-I/O + zero-domain, so
-// they live in kit and cannot import the `@orb/contracts` shapes they feed (the one-directional cake) — each
-// caller assembles the contract row from the plain shape returned here.
-//
-// WHY DERIVE AND NOT AUTHOR. Both tier flags are pure MASKS over `placement`: `skipsScript` (below) skips a
-// `markdownOnly` script on every non-`DISPLAY` leg and a `promptOnly` one on `DISPLAY`. As independent
-// switches they add no expressive power — they only subtract from the placement set — so a switch beside the
-// chips can only ever CONTRADICT them. Deriving makes the dead state unrepresentable (owner-ratified). `historyDepth` is not a mask but the same shape of fact: it has no meaning
-// without the `PROMPT_HISTORY` leg (the contract refuses either half alone), so it too is paired here.
+/** One member of an author scope, over a row's existing stamps: the participant kind that wrote it, the row's
+ *  message kind, or one character, persona or user by id. */
+export type RegexAuthorSelector =
+  | { readonly by: "participant"; readonly participant: ParticipantKind }
+  | { readonly by: "kind"; readonly kind: MessageKind }
+  | { readonly by: "character"; readonly characterId: CharacterId }
+  | { readonly by: "persona"; readonly personaId: PersonaId }
+  | { readonly by: "user"; readonly userId: UserId };
 
-/** The tier flags a placement set implies. THREE ARMS, exhaustive over the set:
- *  · `DISPLAY` alone            ⇒ `markdownOnly` — render-tier only.
- *  · no `DISPLAY` at all        ⇒ `promptOnly`   — never touches what is rendered.
- *  · `DISPLAY` + a prompt-side  ⇒ neither        — it runs on both sides, which is what the chips say.
- *  An EMPTY set lands on the middle arm (`promptOnly`) and is inert either way: `skipsScript` already skips a
- *  script whose placement list does not contain the running leg. The pair can never BOTH be true — the
- *  contradiction the two old switches allowed is now unspellable. */
-export function deriveRegexTierFlags(placement: readonly RegexPlacement[]): { readonly markdownOnly: boolean; readonly promptOnly: boolean } {
-  const hasDisplay = placement.includes("DISPLAY");
-  const hasPromptSide = placement.some((member) => member !== "DISPLAY");
-  return { markdownOnly: hasDisplay && !hasPromptSide, promptOnly: !hasDisplay };
+/** The members of {@link RegexAuthorSelector}, one per `by`. */
+export const REGEX_AUTHOR_SELECTOR_KINDS = ["participant", "kind", "character", "persona", "user"] as const satisfies readonly RegexAuthorSelector["by"][];
+
+/** Which authors' rows an ephemeral pass applies to, beyond what the target already says. An empty `include` admits
+ *  every author; `exclude` then removes its members. */
+export interface RegexAuthorScope {
+  readonly include: readonly RegexAuthorSelector[];
+  readonly exclude: readonly RegexAuthorSelector[];
 }
 
-/** The depth scope a freshly-scoped history script gets: the WHOLE history. It is written out rather than
- *  left absent because the contract pairs `historyDepth` with the `PROMPT_HISTORY` leg in BOTH directions —
- *  the leg without a scope is as unrepresentable as a scope without the leg, so "everything" has exactly one
- *  spelling instead of being inferred from a missing key. */
-export const WHOLE_HISTORY_DEPTH: RegexHistoryDepth = { min: 0, max: null };
+/** The stamps a chat row carries, as an ephemeral pass reads its author and its target off them. */
+export interface RegexRowStamps {
+  readonly role: MessageRole;
+  readonly kind: MessageKind;
+  readonly authorUserId: UserId | null;
+  readonly characterId: CharacterId | null;
+  readonly personaId: PersonaId | null;
+}
 
-/** The history-depth scope a placement set implies — present IFF the set carries `PROMPT_HISTORY` (the one
- *  leg {@link RegexHistoryDepth} scopes). A set that GAINED the leg keeps an authored scope or takes the
- *  whole history; a set that LOST it drops the scope entirely, because a bound that governs no leg is invisible
- *  state no reader can see or clear. Keeping a "remembered" scope across a toggle-off-and-back-on is
- *  deliberately NOT attempted (the save boundary is autosaving; a hidden bound would be unclearable). */
-export function deriveRegexHistoryDepth(placement: readonly RegexPlacement[], current: RegexHistoryDepth | undefined): RegexHistoryDepth | undefined {
-  if (!placement.includes(HISTORY_DEPTH_PLACEMENT)) {
-    return;
+/** The target a row's body takes. Reasoning text is always `REASONING` and is not mapped here. */
+export function messageTargetOf(row: Pick<RegexRowStamps, "role">): Exclude<RegexRowTarget, "REASONING"> {
+  return row.role === "user" ? "USER_INPUT" : "AI_OUTPUT";
+}
+
+function selectorMatches(selector: RegexAuthorSelector, row: RegexRowStamps): boolean {
+  switch (selector.by) {
+    case "participant":
+      return participantOf(row) === selector.participant;
+    case "kind":
+      return row.kind === selector.kind;
+    case "character":
+      return row.characterId === selector.characterId;
+    case "persona":
+      return row.personaId === selector.personaId;
+    case "user":
+      return row.authorUserId === selector.userId;
+    default:
+      return assertNeverSelector(selector);
   }
-  return current ?? WHOLE_HISTORY_DEPTH;
+}
+
+function assertNeverSelector(selector: never): never {
+  throw new Error(`unhandled regex author selector ${JSON.stringify(selector)}`);
+}
+
+/** Whether a script's author scope admits a row. An absent scope admits every author: that is its only reading, and
+ *  every stored native script has none. */
+export function authorScopeAdmits(scope: RegexAuthorScope | undefined, row: RegexRowStamps): boolean {
+  if (scope === undefined) {
+    return true;
+  }
+  const included = scope.include.length === 0 || scope.include.some((selector) => selectorMatches(selector, row));
+  return included && !scope.exclude.some((selector) => selectorMatches(selector, row));
 }
 
 /** Whether (and how) macros run on the FIND pattern before it is compiled: `none` = verbatim; `raw` =
@@ -110,33 +137,32 @@ export type SubstituteFindRegex = (typeof SubstituteFindRegex)[keyof typeof Subs
 export const MAX_FIND_REGEX_LENGTH = 16_384;
 
 /** The minimal structural shape the executor reads off a regex script. The persisted
- *  `RegexScript` (in `@orb/contracts`) is a superset and is declared to `satisfy` this. */
+ *  `RegexScriptRow` (in `@orb/contracts`) is a superset and is declared to `satisfy` this. */
 export interface RegexScriptInput {
   readonly enabled: boolean;
-  /** Placements this script applies to — the executor runs it only when the requested
-   *  placement is in this list. */
-  readonly placement: readonly RegexPlacement[];
+  /** What text the script touches; it runs only on a call whose target is listed. */
+  readonly targets: readonly RegexTarget[];
+  /** When the script runs; it runs only on a call whose pass is listed. */
+  readonly passes: readonly RegexPass[];
   readonly findRegex: string;
   readonly replaceString: string;
   // Optional fields are `?: T | undefined` (not bare `?: T`) so a zod-`.optional()`-inferred shape
   // still `satisfies` this under `exactOptionalPropertyTypes`.
   /** Macro-substitution mode for the FIND pattern (default-equivalent: `none`). */
   readonly substituteRegex?: SubstituteFindRegex | undefined;
-  /** ST card-format leg flags. `markdownOnly` = display-only (skip on any non-DISPLAY
-   *  placement); `promptOnly` = prompt-only (skip on DISPLAY). */
-  readonly markdownOnly?: boolean | undefined;
-  readonly promptOnly?: boolean | undefined;
   /** Substrings stripped from each spliced capture before it is inserted (macros run on each). */
   readonly trimStrings?: readonly string[] | undefined;
-  /** History-position scoping for the `PROMPT_HISTORY` leg ({@link RegexHistoryDepth}). Absent ⇒ the whole
-   *  assembled history. Meaningful ONLY on that leg — the contracts schema refuses it beside any other
-   *  placement set, and a caller that supplies no `depth` (every persist-time leg) ignores it. */
-  readonly historyDepth?: RegexHistoryDepth | undefined;
+  /** The positions an ephemeral pass applies to ({@link RegexDepth}). Absent is every position; a save call
+   *  carries no position, so it never reads this. */
+  readonly depth?: RegexDepth | undefined;
+  /** The authors an ephemeral pass applies to ({@link RegexAuthorScope}). Absent is every author, its only
+   *  reading; a save call and a world-info call have no row author, so they never read this. */
+  readonly authors?: RegexAuthorScope | undefined;
 }
 
-/** Whether a script's depth scope admits a message at `depth`. Unscoped scripts and depth-less legs both
- *  pass — the gate can only ever SUBTRACT from what `placement` already selected. */
-function withinHistoryDepth(scope: RegexHistoryDepth | undefined, depth: number | undefined): boolean {
+// Whether a depth bound admits a position. A call with no position (a hidden row on display, a world-info entry
+// that is not placed at depth) passes, as SillyTavern's gate checks depth only when the caller supplies a number.
+function withinDepth(scope: RegexDepth | undefined, depth: number | undefined): boolean {
   if (scope === undefined || depth === undefined) {
     return true;
   }
@@ -336,54 +362,54 @@ function makeReplacer(script: RegexScriptInput, ctx: ProcessMacroOptions): Regex
   return (...args: unknown[]): string => buildReplacement(args, script, ctx);
 }
 
+/** One executor call: the pass, the target, and what that pass knows about the text. The row's stamps are required
+ *  on a display or prompt call over a row's text, so no call site can forget them and run an author-scoped script
+ *  on every row. `depth` is the row's position, or undefined for a row the count skips. */
+export type RegexPassCall =
+  | { readonly pass: "save"; readonly target: RegexTarget }
+  | { readonly pass: EphemeralRegexPass; readonly target: RegexRowTarget; readonly row: RegexRowStamps; readonly depth: number | undefined }
+  | { readonly pass: "prompt"; readonly target: "WORLD_INFO"; readonly depth: number | undefined };
+
 /** Arguments to {@link executeRegexScripts}. A single object (rather than positional args) keeps the
  *  call within the 4-param house cap and lets the optional execution seams ({@link RegexExecuteOptions})
  *  ride alongside the required inputs without conflating them with the macro context. */
 export interface ExecuteRegexScriptsArgs extends RegexExecuteOptions {
-  text: string;
-  scripts: readonly RegexScriptInput[];
-  placement: RegexPlacement;
+  readonly text: string;
+  readonly scripts: readonly RegexScriptInput[];
+  readonly call: RegexPassCall;
   /** Macro context for the find/replace template passes (the same shape `processMacros` consumes). */
-  ctx: ProcessMacroOptions;
-  /** The running text's position in the assembled history — 0 = newest, counting backwards. Supplied ONLY
-   *  by the `PROMPT_HISTORY` leg (which runs once per history row); absent everywhere else, which is what
-   *  makes `historyDepth` inert on every persist-time leg rather than silently half-applied. */
-  depth?: number | undefined;
+  readonly ctx: ProcessMacroOptions;
 }
 
-/** EVERY reason a script sits out this call, in one place and in gate order: switched off · not on this
- *  leg · the two tier masks (`markdownOnly` is display-only, `promptOnly` skips DISPLAY) · out of depth
- *  scope. Extracted from the loop so the gates read as one list rather than five interleaved `continue`s —
- *  they are a single decision, and each new gate would otherwise deepen the executor by one branch. */
-function skipsScript(script: RegexScriptInput, placement: RegexPlacement, depth: number | undefined): boolean {
-  if (!(script.enabled && script.placement.includes(placement))) {
+/** Every reason a script sits out a call, in gate order: switched off, not on this pass, not on this target, out of
+ *  depth, not by this author. */
+function skipsScript(script: RegexScriptInput, call: RegexPassCall): boolean {
+  if (!(script.enabled && script.passes.includes(call.pass) && script.targets.includes(call.target))) {
     return true;
   }
-  if (script.markdownOnly === true && placement !== "DISPLAY") {
+  if (call.pass === "save") {
+    return false;
+  }
+  if (!withinDepth(script.depth, call.depth)) {
     return true;
   }
-  if (script.promptOnly === true && placement === "DISPLAY") {
-    return true;
-  }
-  // Depth scoping (`PROMPT_HISTORY` only — the caller supplies `depth` there and nowhere else).
-  return !withinHistoryDepth(script.historyDepth, depth);
+  return "row" in call && !authorScopeAdmits(script.authors, call.row);
 }
 
 /**
- * Apply every enabled script whose `placement` includes the given placement — and, when the caller
- * supplies `depth`, whose `historyDepth` admits that position — in order. Returns the processed text. A
- * script that throws (bad regex, too complex, or a timeout from a sandboxed `applyReplace`) is caught +
- * reported via `onScriptFailure` so one bad regex can't poison the whole list; the next script runs on the
- * text as-is.
+ * Apply, in order, every enabled script whose passes and targets both name the call and whose depth and author
+ * scope admit it. Returns the processed text. A script that throws (bad regex, too complex, or a timeout from a
+ * sandboxed `applyReplace`) is caught and reported via `onScriptFailure` so one bad regex can't poison the whole
+ * list; the next script runs on the text as-is.
  */
 export function executeRegexScripts(args: ExecuteRegexScriptsArgs): string {
-  const { scripts, placement, ctx } = args;
+  const { scripts, call, ctx } = args;
   const applyReplace: NonNullable<RegexExecuteOptions["applyReplace"]> =
     args.applyReplace ?? ((text, regex, replacer): string => text.replace(regex, replacer));
   let result = args.text;
 
   for (const script of scripts) {
-    if (skipsScript(script, placement, args.depth)) {
+    if (skipsScript(script, call)) {
       continue;
     }
 
