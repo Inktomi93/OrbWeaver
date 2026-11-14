@@ -20,7 +20,7 @@ const MS_PER_WEEK = 604_800_000;
  *  turns, then share one wait on a dead server instead of each dialing it again; past it the next warm asks again. */
 const FAILED_WARM_HOLD_MS = 10_000;
 
-const snapshotSchema = z.object({ fetchedAt: z.number(), value: z.unknown() });
+const snapshotSchema = z.object({ fetchedAt: z.number(), value: z.unknown() }).strip();
 
 export function createMirror<T>(args: { readonly key: string; readonly schema: z.ZodType<T>; readonly deps: MirrorDeps }): Mirror<T> {
   const { key, schema, deps } = args;

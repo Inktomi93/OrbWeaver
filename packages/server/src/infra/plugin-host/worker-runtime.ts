@@ -231,8 +231,8 @@ function callAsync(operation: PluginBridgeOperation, args: readonly unknown[], l
 }
 
 const syncReplySchema = z.discriminatedUnion("ok", [
-  z.object({ ok: z.literal(true), value: z.unknown() }),
-  z.object({ ok: z.literal(false), error: z.unknown() }),
+  z.object({ ok: z.literal(true), value: z.unknown() }).strip(),
+  z.object({ ok: z.literal(false), error: z.unknown() }).strip(),
 ]);
 const syncNumberSchema = z.number();
 const syncStringSchema = z.string();
