@@ -274,6 +274,7 @@ export function ImportLibrarySection(): ReactElement {
         justify="start"
         align="center"
         gap="field"
+        wrap="cq-20"
         onFocusCapture={(event): void => {
           folderPickerRef.current = event.target;
         }}
