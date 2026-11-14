@@ -87,6 +87,9 @@ export const CORPUS_PARAM_NAMES = {
   setting: "Setting",
 } as const;
 
+/** The topbar door that opens Insights' character list on a phone, which lands on the dashboard. */
+export const CORPUS_INSIGHTS_LIST_DOOR_NAME = "Characters";
+
 /** The Corpus home's kicker over its headline. */
 export const CORPUS_UNDERSTANDING_HEADING = "Library understanding";
 

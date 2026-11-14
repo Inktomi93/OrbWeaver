@@ -18,7 +18,7 @@ import { CorpusVisualsTab } from "../components/corpus-visuals-tab.tsx";
 import type { CorpusModes } from "../components/corpus-workspace.tsx";
 import { CorpusWorkspaceContent, CorpusWorkspaceList } from "../components/corpus-workspace.tsx";
 import { useCorpusListHeader } from "../hooks/use-corpus-list-header.tsx";
-import { CORPUS_CONTEXT_TAB_LABELS } from "./corpus-control-names.ts";
+import { CORPUS_CONTEXT_TAB_LABELS, CORPUS_INSIGHTS_LIST_DOOR_NAME } from "./corpus-control-names.ts";
 import { CORPUS_SECTION_LABEL } from "./corpus-section-label.ts";
 import { useCorpusSelectionTitle } from "./corpus-selection-title.ts";
 
@@ -79,7 +79,7 @@ export function makeCorpusSection(contributions: CorpusSectionContributions): Se
     listDoorLabel: {
       useLabel: (): string | null => {
         const mode = useCorpusMode();
-        return mode === "insights" ? "Characters" : null;
+        return mode === "insights" ? CORPUS_INSIGHTS_LIST_DOOR_NAME : null;
       },
       useContentLabel: (): string => CORPUS_MODE_LABELS[useCorpusMode()],
     },
