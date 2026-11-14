@@ -3296,6 +3296,34 @@ const DROPPABLE_FIELDS: readonly StDroppedField[] = [
   { field: "enable_web_search", reason: "no web-search knob" },
 ];
 
+// Every top-level ST field this mapper reads into a seat. A field on neither this list nor `DROPPABLE_FIELDS` is
+// reported as unrecognised, so a new read must be added here or its field is reported as lost while it maps.
+const MAPPED_FIELDS: ReadonlySet<string> = new Set([
+  "prompts",
+  "prompt_order",
+  "temperature",
+  "top_p",
+  "top_k",
+  "top_a",
+  "min_p",
+  "frequency_penalty",
+  "presence_penalty",
+  "repetition_penalty",
+  "openai_max_tokens",
+  "openai_max_context",
+  "seed",
+  "reasoning_effort",
+  "show_thoughts",
+  "squash_system_messages",
+  "names_behavior",
+  "continue_postfix",
+  "continue_nudge_prompt",
+  "impersonation_prompt",
+  "new_chat_prompt",
+]);
+
+const DROPPABLE_FIELD_NAMES: ReadonlySet<string> = new Set(DROPPABLE_FIELDS.map(({ field }) => field));
+
 /** A dropped field is "meaningful" (worth reporting) when it carries a real value. */
 function isMeaningful(v: unknown): boolean {
   return (
@@ -3348,12 +3376,19 @@ function buildSections(
   return sections;
 }
 
-/** The top-level ST fields with no neo home that carry a meaningful value (reported to the user). */
-function collectDroppableFields(rawObj: Record<string, unknown>): StDroppedField[] {
+/** The top-level ST fields with no neo home that carry a meaningful value (reported to the user): the listed ones
+ *  with their reasons, then every other populated field the mapper does not read. `handled` names the fields the
+ *  caller reads itself. */
+function collectDroppableFields(rawObj: Record<string, unknown>, handled: readonly string[]): StDroppedField[] {
   const out: StDroppedField[] = [];
   for (const { field, reason } of DROPPABLE_FIELDS) {
     if (isMeaningful(rawObj[field])) {
       out.push({ field, reason });
+    }
+  }
+  for (const [field, value] of Object.entries(rawObj)) {
+    if (!(MAPPED_FIELDS.has(field) || DROPPABLE_FIELD_NAMES.has(field) || handled.includes(field)) && isPopulatedValue(value)) {
+      out.push({ field, reason: "not a field orb recognises — no orb seat" });
     }
   }
   return out;
@@ -3462,10 +3497,10 @@ const DROPPABLE_POWER_USER_FIELDS: readonly StDroppedField[] = [
   { field: "sysprompt", reason: "text-completion system-prompt template — text-completion is out of product scope (owner ruling, reaffirmed 2026-08-15)" },
 ];
 
-/** A `power_user` value worth reporting as dropped: a non-empty string, a `true`, a non-zero number, or a
- *  non-empty object (the three template blobs are objects and are ALWAYS present in a real profile, so an
+/** A value worth reporting as dropped: a non-empty string, a `true`, a non-zero number, or a non-empty object or
+ *  array (the three `power_user` template blobs are objects and are always present in a real profile, so an
  *  object counts only when it carries keys). */
-function isMeaningfulPowerUserValue(value: unknown): boolean {
+function isPopulatedValue(value: unknown): boolean {
   if (value !== null && typeof value === "object") {
     return Object.keys(value).length > 0;
   }
@@ -3487,7 +3522,7 @@ function stPowerUserGenerationKnobs(powerUser: unknown): {
     stop: stStopStrings(pu),
     postProcess: stPostProcess(pu),
     reasoningParse: stReasoningParse(pu),
-    dropped: DROPPABLE_POWER_USER_FIELDS.filter(({ field }) => isMeaningfulPowerUserValue(pu[field])),
+    dropped: DROPPABLE_POWER_USER_FIELDS.filter(({ field }) => isPopulatedValue(pu[field])),
   };
 }
 
@@ -3499,6 +3534,16 @@ function stPowerUserGenerationKnobs(powerUser: unknown): {
  *
  *  `recognised` is the discriminant on purpose: it is the question the caller is actually asking, and it
  *  reads correctly at the call site without the caller re-deriving it from `reason` bytes. */
+/** What the caller adds to {@link tryImportStChatCompletionPreset}'s read of the preset. */
+export interface StImportOptions {
+  /** ST's global `settings.json.power_user` blob, supplied only for the live `oai_settings` preset: its
+   *  generation-adjacent knobs fold onto the config and its seat-less ones join `dropped`. A saved preset file
+   *  carries none of them. */
+  readonly powerUser?: unknown;
+  /** Top-level fields the caller reads itself, so they are not reported as unrecognised. */
+  readonly handledFields?: readonly string[];
+}
+
 export type StImportOutcome =
   | { readonly ok: true; readonly result: StImportResult }
   | { readonly ok: false; readonly recognised: false; readonly reason: string }
@@ -3539,10 +3584,9 @@ function stSchemaRejection(
 /** Import a SillyTavern Chat Completion preset (parsed JSON) into a validated PromptConfig, as a TYPED
  *  OUTCOME — the one home for both refusals and their diagnostic reasons.
  *
- *  `powerUser` is ST's GLOBAL `settings.json.power_user` blob, supplied ONLY when importing the LIVE
- *  `oai_settings` preset (see the section above): its generation-adjacent knobs fold onto the config, and its
- *  seat-less ones join `dropped`. Omitted for a saved preset FILE, which carries none of them. */
-export function tryImportStChatCompletionPreset(raw: unknown, powerUser?: unknown): StImportOutcome {
+ *  Every populated top-level field the mapper neither maps nor lists joins `dropped` by name, except the
+ *  `handledFields` the caller reads itself. */
+export function tryImportStChatCompletionPreset(raw: unknown, options: StImportOptions = {}): StImportOutcome {
   const parsed = stPresetSchema.safeParse(raw);
   if (!(parsed.success && (parsed.data.prompts || parsed.data.prompt_order))) {
     return { ok: false, recognised: false, reason: "Not a SillyTavern Chat Completion preset (expected prompts[] + prompt_order)." };
@@ -3556,7 +3600,7 @@ export function tryImportStChatCompletionPreset(raw: unknown, powerUser?: unknow
 
   const dropped: StDroppedField[] = [];
   const sections = buildSections(byId, walk, dropped);
-  return Array.isArray(sections) ? stConfigOutcome(rawObj, sections, dropped, powerUser) : unkeyedRefusal(sections.unkeyed);
+  return Array.isArray(sections) ? stConfigOutcome(rawObj, sections, dropped, options) : unkeyedRefusal(sections.unkeyed);
 }
 
 function unkeyedRefusal(identifier: string): StImportOutcome {
@@ -3568,9 +3612,9 @@ function unkeyedRefusal(identifier: string): StImportOutcome {
 }
 
 /** The mapped config's validated outcome once every section is keyed. */
-function stConfigOutcome(rawObj: Record<string, unknown>, sections: PromptSection[], dropped: StDroppedField[], powerUser: unknown): StImportOutcome {
+function stConfigOutcome(rawObj: Record<string, unknown>, sections: PromptSection[], dropped: StDroppedField[], options: StImportOptions): StImportOutcome {
   const params = mapParams(rawObj);
-  dropped.push(...collectDroppableFields(rawObj));
+  dropped.push(...collectDroppableFields(rawObj, options.handledFields ?? []));
 
   const namesBehavior = namesBehaviorOf(rawObj["names_behavior"]);
   const rawPostfix = rawObj["continue_postfix"];
@@ -3578,7 +3622,7 @@ function stConfigOutcome(rawObj: Record<string, unknown>, sections: PromptSectio
   const formatStrings = collectFormatStrings(rawObj);
 
   // The GLOBAL `power_user` half of ST's generation config (live preset only — see the section above).
-  const { stop, postProcess, reasoningParse, dropped: powerUserDropped } = stPowerUserGenerationKnobs(powerUser);
+  const { stop, postProcess, reasoningParse, dropped: powerUserDropped } = stPowerUserGenerationKnobs(options.powerUser);
   dropped.push(...powerUserDropped);
 
   // Construct + validate through the canonical walk — but read its PROVENANCE, not just its value.
