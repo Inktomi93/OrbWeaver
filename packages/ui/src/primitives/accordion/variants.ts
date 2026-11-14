@@ -23,7 +23,7 @@ export const accordionVariants = tv({
     // (`orb-fold-clip` in styles/primitives.css). The inline axis stays visible, so the focus ring of a control flush with the
     // panel's inline edge is not cut.
     panel: `
-      orb-fold-clip text-body leading-body text-muted-foreground transition-[height] duration-(--motion-layout) ease-out-expo block-(--accordion-panel-height)
+      text-body leading-body text-muted-foreground transition-[height] duration-(--motion-layout) ease-out-expo block-(--accordion-panel-height) orb-fold-clip
       data-ending-style:block-0
       data-starting-style:block-0
     `,

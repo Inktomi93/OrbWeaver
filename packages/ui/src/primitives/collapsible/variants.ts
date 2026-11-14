@@ -22,8 +22,7 @@ export const collapsibleVariants = tv({
     // (`orb-fold-clip` in styles/primitives.css). The inline axis stays visible, so the focus ring of a control flush with the
     // panel's inline edge is not cut. A shut panel is unmounted or `hidden`, so the widened clip shows nothing once folded.
     panel: `
-      orb-fold-clip text-body leading-body text-muted-foreground transition-[height] duration-(--motion-layout) ease-out-expo
-      block-(--collapsible-panel-height)
+      text-body leading-body text-muted-foreground transition-[height] duration-(--motion-layout) ease-out-expo block-(--collapsible-panel-height) orb-fold-clip
       data-ending-style:block-0
       data-starting-style:block-0
     `,

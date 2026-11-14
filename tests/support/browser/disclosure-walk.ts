@@ -13,6 +13,8 @@ const LIST_ROW_DISCLOSURE = '[data-slot="list-row-root"]:is([data-open], [data-c
 const TRIGGER = `[data-slot="collapsible-trigger"], ${LIST_ROW_DISCLOSURE} > [data-slot="list-row-body"]`;
 const ROOT = `[data-slot="collapsible-root"], ${LIST_ROW_DISCLOSURE}`;
 const CLOSED_TRIGGER = `:is(${TRIGGER})[aria-expanded="false"]:not([aria-haspopup])`;
+// The trigger inside one root: a chained locator matches within its root alone, so the ListRow arm is the root's own child.
+const ROOT_TRIGGER = '[data-slot="collapsible-trigger"], :scope > [data-slot="list-row-body"]';
 
 export interface DisclosureWalkHooks {
   /** The most disclosures one scope opens, and the deepest `<details>` nesting the walk follows. */
@@ -48,12 +50,12 @@ export async function walkDisclosures(scope: Locator, path: string, hooks: Discl
         if (host === null) {
           throw new Error("The disclosure has no semantic host");
         }
-        return [...(container?.querySelectorAll(root) ?? [])].indexOf(host);
+        return [...container.querySelectorAll(root)].indexOf(host);
       },
       { container: await scope.elementHandle(), root: ROOT },
     );
     expect(rootIndex).toBeGreaterThanOrEqual(0);
-    const trigger = scope.locator(ROOT).nth(rootIndex).locator(TRIGGER).first();
+    const trigger = scope.locator(ROOT).nth(rootIndex).locator(ROOT_TRIGGER).first();
     const id = hooks.id(path, "disclosure", index);
     hooks.expect(id, "disclosure");
     await hooks.action(id, {
