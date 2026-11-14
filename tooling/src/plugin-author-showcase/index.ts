@@ -5,7 +5,6 @@ import { dirname, join } from "node:path";
 import process from "node:process";
 import { compareSemver } from "@orb/kit/semver";
 import type { PluginAuthorArtifact, PluginAuthorCompilerObserver, PluginAuthorDiagnostic, PluginAuthorResult } from "@orb/plugin-toolchain";
-import { packPluginDirectory } from "@orb/plugin-toolchain";
 import { SHOWCASE_PLUGIN_SLUGS, showcaseBundleEntries } from "@orb/showcase-plugins";
 
 export interface ShowcaseArtifact {
@@ -51,6 +50,8 @@ export function showcaseBundleDirectory(repoRoot: string): string {
 }
 
 export async function compileShowcasePlugins(repoRoot: string, compilerObserver?: PluginAuthorCompilerObserver): Promise<ShowcaseAuthorResult> {
+  // The toolchain loads the TypeScript compiler; the testkit's bundle lookup reads only the receipt half of this module.
+  const { packPluginDirectory } = await import("@orb/plugin-toolchain");
   const sourceRoot = join(repoRoot, "packages", "showcase-plugins", "bundles");
   // Resolve the SDK through its package exports, as the orb-plugin CLI does in a template checkout.
   const sdkDirectory = dirname(createRequire(join(repoRoot, "packages", "showcase-plugins", "package.json")).resolve("@orb/plugin-sdk/package.json"));
