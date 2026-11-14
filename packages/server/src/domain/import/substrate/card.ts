@@ -279,6 +279,23 @@ export async function findImportedCharacter<Row = CharacterId>(
   return live !== null && sameCard(hashes, live.hashes) ? { characterId: live.characterId, match: "current" } : null;
 }
 
+/** The row a card reuses, the one rule the card write and its dry run share: the row an equal card landed as, where a
+ *  match by text alone (a row from the JSON card, and this is its PNG) holds only when `takeArt` gives the row this
+ *  card's art. `find` sees every row the upload landed before this card as well as the owner's: the write reads the
+ *  database it has been writing, the dry run its record of the rows it would have written. */
+export async function reusedCardRow<Row>(args: {
+  readonly find: FindCharacterByHash<Row>;
+  readonly hashes: CardIdentityHashes;
+  readonly current?: CurrentCardIdentity<Row> | undefined;
+  readonly takeArt: (row: Row) => Promise<boolean>;
+}): Promise<{ readonly characterId: Row; readonly match: ImportedCharacterMatch } | null> {
+  const found = await findImportedCharacter(args.find, args.hashes, args.current);
+  if (found?.match !== "text") {
+    return found;
+  }
+  return (await args.takeArt(found.characterId)) ? found : null;
+}
+
 /** @throws {@link ImportCardError} card_invalid when the normalized card fails the canonical schema. */
 export function cardToCreateInput(parsed: Pick<ParsedCard, "card" | "handle">, avatarAssetId: AssetId | null): CreateCharacterInput {
   const { card } = parsed;

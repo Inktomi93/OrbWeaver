@@ -3,7 +3,7 @@
 // of the user (a second dialog, or a format picker, would be a second home for one job):
 //
 //   · `orb.preset`  → the ORB-NATIVE arm: the file text goes to `preset.importFile`, the thin door over the
-//     bundle's own `ImportPreset` verb. Its collision rule travels with it and the dialog STATES it before
+//     bundle's own `ImportPresets` op. Its collision rule travels with it and the dialog STATES it before
 //     the commit — a same-named preset is MERGED in place, else created — because "import" silently
 //     overwriting a preset the owner still wants is the one outcome this door must not surprise anyone with.
 //     The server strict-parses and reports a bad file as an OUTCOME, so its error lands in this dialog.

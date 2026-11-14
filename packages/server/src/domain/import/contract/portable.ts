@@ -25,6 +25,7 @@ export interface OwnerImportDeps {
     | "findOwnedAssetIdsByHash"
     | "heldChatHashes"
     | "exportCurrentChats"
+    | "ownedChatTitle"
     | "adoptDefaultPersona"
   >;
 }

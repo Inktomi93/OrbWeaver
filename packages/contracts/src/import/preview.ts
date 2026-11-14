@@ -30,13 +30,21 @@ const IMPORT_PREVIEW_TAIL_MAX = 5000;
 /** The longest name, source or reason a preview holds. */
 export const IMPORT_PREVIEW_TEXT_MAX = 200;
 
-const previewText = z.string().max(IMPORT_PREVIEW_TEXT_MAX);
+/** A name from an imported file as an import may show it: clipped to {@link IMPORT_PREVIEW_TEXT_MAX} and well formed,
+ *  since a clip can split a surrogate pair. */
+export function clipImportText(text: string): string {
+  return text.slice(0, IMPORT_PREVIEW_TEXT_MAX).toWellFormed();
+}
+
+/** The wire shape of a name {@link clipImportText} clipped. */
+export const importTextSchema = z.string().max(IMPORT_PREVIEW_TEXT_MAX);
+const previewText = importTextSchema;
 
 /** Why a run writes nothing for an entry: the owner's library holds equal content, or an earlier entry of the same
- *  upload does. The owning domain's read-only twin of each write answers it with the write's own equality rule. */
+ *  upload does. The owning domain's write answers it in dry-run mode, with its own equality rule. */
 export type ImportReuse = "library" | "upload";
 
-/** What an owning domain's read-only twin answers for one entry of a dry run: why a run writes nothing for it
+/** What an owning domain's write answers for one entry of a dry run: why a run writes nothing for it
  *  (`reuse`, null when it writes it) and the content keys of the owner's own equality rule (`keys`: one for most
  *  kinds, one per theme of a theme file, one for a group: the set of its transcripts' keys). The preview sends the
  *  keys' digests, never the keys, so two uploads of one folder can tell that their entries are equal. */

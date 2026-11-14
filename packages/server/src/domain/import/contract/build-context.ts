@@ -10,6 +10,6 @@ export interface ImportContextWiring
   readonly principal: Principal;
   readonly characterOps: Pick<
     ImportContext,
-    "createCharacter" | "findByImportHash" | "findByHandle" | "findByName" | "attachImportedArt" | "admitsImportedArt"
+    "createCharacter" | "findByImportHash" | "findByHandle" | "findByName" | "attachImportedArt" | "admitsImportedArt" | "characterName"
   >;
 }

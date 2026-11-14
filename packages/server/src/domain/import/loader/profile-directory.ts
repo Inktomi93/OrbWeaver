@@ -1,6 +1,7 @@
 import type { StoreAvatarAsset } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
 import type { ImportDirectory, ImportFsPort, ImportKindCounts, ImportPreview } from "@orb/contracts/import";
+import { IMPORT_PREVIEW_KINDS } from "@orb/contracts/import";
 import type { ImportGlobalScripts, RegexScriptCard } from "@orb/contracts/regex";
 import type { BackgroundLibraryEntry } from "@orb/contracts/settings";
 import { ASSET_UPLOAD_MAX_BYTES, IMPORT_TREE_MAX_FILE_BYTES, IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
@@ -27,7 +28,7 @@ import type { ImportReport, ImportSkippedCard, ImportSkippedCardTag, ImportUnres
 import { createImportService } from "../service.ts";
 import { buildImportContext } from "../substrate/build-context.ts";
 import { seatsOf } from "../substrate/group.ts";
-import { buildImportPreview, countImportKinds, refusedGroups } from "../substrate/preview.ts";
+import { buildImportPreview, countHeldKinds, countImportKinds, refusedGroups } from "../substrate/preview.ts";
 import { collectBundlesFromDir } from "./collect.ts";
 import { findOwnership } from "./profile-ownership.ts";
 
@@ -358,11 +359,18 @@ async function importCollectedWorlds(
   let created = 0;
   const notes: ImportWorldNote[] = [];
   const landed = new Map<string, WorldBookId>();
-  for (const world of worlds) {
-    if (deps.signal.aborted) {
+  const results = await deps.importStandaloneLorebooks({
+    ownerId: deps.principal.userId,
+    books: worlds.map(({ book }) => book),
+    dryRun: false,
+    signal: deps.signal,
+  });
+  for (const [i, world] of worlds.entries()) {
+    const bookResult = results[i];
+    // An aborted batch stops short; the books after it were never attempted.
+    if (bookResult === undefined) {
       break;
     }
-    const bookResult = await deps.importStandaloneLorebook({ ownerId: deps.principal.userId, book: world.book });
     if (bookResult.created) {
       created += 1;
     }
@@ -436,13 +444,16 @@ interface ReportArgs {
   readonly found: ImportKindCounts;
   /** Present ONLY on a dryRun — the names behind the counts. */
   readonly preview?: ImportPreview;
+  /** Present ONLY on a real run. */
+  readonly held?: ImportReport["held"];
 }
 
-function reportFrom({ collected, scanned, changed, skippedCards, waves, found, dryRun, preview }: ReportArgs): ImportReport {
+function reportFrom({ collected, scanned, changed, skippedCards, waves, found, dryRun, preview, held }: ReportArgs): ImportReport {
   return {
     scanned,
     changed,
     dryRun,
+    ...(held === undefined ? {} : { held }),
     found,
     preview: preview ?? null,
     skippedCards: [...collected.invalidCards, ...skippedCards],
@@ -770,8 +781,9 @@ function contextFor(deps: ProfileDirImportDeps, store: StoreAvatarAsset): Return
       enqueueImportIndex: (): Promise<void> => Promise.resolve(),
       heldChatHashes: deps.heldChatHashes,
       exportCurrentChats: deps.exportCurrentChats,
-      ...(deps.importPreset !== undefined ? { importPreset: deps.importPreset } : {}),
-      ...(deps.importTheme !== undefined ? { importTheme: deps.importTheme } : {}),
+      ownedChatTitle: deps.ownedChatTitle,
+      importPresets: deps.importPresets,
+      importThemes: deps.importThemes,
       adoptDefaultPersona: deps.adoptDefaultPersona,
       ...(deps.importPresetScripts !== undefined ? { importPresetScripts: deps.importPresetScripts } : {}),
     },
@@ -806,9 +818,14 @@ export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<I
   // The card avatar is CAS-stored inside importCharacter via ctx.storeAsset → this capped store.
   const store: StoreAvatarAsset = (params) => deps.storeAvatar({ ...params, maxBytes: ASSET_UPLOAD_MAX_BYTES });
   const service = createImportService(contextFor(deps, store));
+  // What the library and the upload already hold, judged before any write by the rules the waves below write by, so
+  // the run reports its held entries in `found`'s units. Personas are counted by their own write instead: the judge
+  // reads a merged persona as held, and a merge has its own count.
+  const held = countHeldKinds(collected, await findOwnership(deps, collected));
 
   let changed = 0;
   let personasMergedKeys: readonly string[] = [];
+  let personasReused = 0;
 
   // Personas FIRST — populates personaByUserName so the chat importers can attribute their user_names.
   const personaInputs: ImportPersonaInput[] = [];
@@ -827,6 +844,7 @@ export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<I
     const personaResult = await service.importPersonas({ personas: personaInputs, collisions: deps.personaCollisions });
     changed += personaResult.personasCreated;
     personasMergedKeys = personaResult.mergedKeys;
+    personasReused = personaResult.personasReused;
   }
 
   // Standalone ST worlds BEFORE characters — imported as UNATTACHED owner library books (additive by content).
@@ -836,7 +854,7 @@ export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<I
 
   // ST chat-completion presets — independent of every other plane (a preset references no character), so the
   // wave runs before the characters and its `changed` counts as new canon like a world book does.
-  const presetResult = await service.importPresets({ presets: collected.presets });
+  const presetResult = await service.importPresets({ presets: collected.presets, signal: deps.signal });
   // Only CREATES are net-new canon — a merged preset is the idempotent re-run path (see ImportPresetsResult),
   // exactly as `importCollectedWorlds` counts only a book it did not replace.
   changed += presetResult.presetsCreated;
@@ -844,7 +862,7 @@ export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<I
   // ST UI THEMES — independent of every other plane (a palette references nothing), so the wave runs beside
   // the presets. Each was already converted (and safety-gated) by the collector; the settings domain owns the
   // write and the (ownerId, name) merge rule. Only CREATES count as new canon, like every other wave.
-  const themeResult = await service.importThemes({ themes: collected.themes });
+  const themeResult = await service.importThemes({ themes: collected.themes, signal: deps.signal });
   changed += themeResult.themesCreated;
 
   // ST GLOBAL regex scripts (`extension_settings.regex`) → the library + `global_regex_scripts` (orb's
@@ -912,12 +930,14 @@ export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<I
     await deps.enqueueImportIndex({ ownerId: deps.principal.userId });
   }
 
+  const heldEntries = IMPORT_PREVIEW_KINDS.reduce((sum, kind) => sum + (kind === "personas" ? personasReused : held[kind]), 0);
   return reportFrom({
     collected,
     scanned,
     changed,
     dryRun: false,
     found,
+    held: { inLibrary: heldEntries, skipped: collected.skipped + refusedGroups(collected).length },
     skippedCards: bundleResult.skippedCards,
     waves: {
       presetsImported: presetResult.presetsImported,

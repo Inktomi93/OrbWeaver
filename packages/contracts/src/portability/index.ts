@@ -8,6 +8,7 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
 import { versionedParseFailureSchema } from "#versioned-config";
+import { importTextSchema } from "../import/preview.ts";
 import type { AppearanceSettings } from "../settings/appearance.ts";
 import type { PortableSchemaKind } from "./envelope.ts";
 
@@ -260,6 +261,8 @@ export const portableImportOutcomeSchema = z.discriminatedUnion("ok", [
   z.strictObject({
     ok: z.literal(true),
     created: z.boolean().exactOptional(),
+    /** The name the library row carries, clipped: the row's current name when the file was held, else the written row's. */
+    label: importTextSchema.exactOptional(),
     error: z.never().exactOptional(),
     notes: z.array(z.string()).readonly().exactOptional(),
     memoryChatIds: z.array(typeIdSchema(ID_PREFIX.chat)).readonly().exactOptional(),
@@ -268,6 +271,7 @@ export const portableImportOutcomeSchema = z.discriminatedUnion("ok", [
     ok: z.literal(false),
     error: z.string(),
     created: z.never().exactOptional(),
+    label: z.never().exactOptional(),
     notes: z.never().exactOptional(),
     memoryChatIds: z.never().exactOptional(),
   }),

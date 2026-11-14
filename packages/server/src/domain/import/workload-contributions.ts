@@ -18,6 +18,10 @@ import { createBackfillTokenUsage } from "./verbs/backfill-token-usage.ts";
 
 // Planner statistics are derived maintenance: a failed refresh must not reject committed import data.
 /** The result's merged persona keys, present only when a persona was merged. */
+function heldFields(result: { readonly inLibrary?: number; readonly skipped?: number }): { readonly inLibrary?: number; readonly skipped?: number } {
+  return { ...(result.inLibrary === undefined ? {} : { inLibrary: result.inLibrary }), ...(result.skipped === undefined ? {} : { skipped: result.skipped }) };
+}
+
 function mergedField(mergedKeys: readonly string[] | undefined): { readonly mergedKeys?: readonly string[] } {
   return mergedKeys !== undefined && mergedKeys.length > 0 ? { mergedKeys } : {};
 }
@@ -230,6 +234,7 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
           ...(result.reportPath !== undefined ? { reportPath: result.reportPath } : {}),
           ...(dryRun ? {} : { memoryScope: result.memoryScope }),
           found: result.found,
+          ...heldFields(result),
           ...previewField(result.preview),
         };
       },
