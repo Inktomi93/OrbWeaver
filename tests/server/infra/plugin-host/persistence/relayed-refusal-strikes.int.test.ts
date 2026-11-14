@@ -3,12 +3,17 @@
 // the rebuild it fails, fails as that refusal, for an async call and a synchronous one alike. A rebuild whose answer a
 // full channel refused fails as that refusal too, though the broker has already ended its runtime. A command the host
 // ended at its settlement wall strikes whatever refusal it met (D347), and no host call after the wall can turn it into
-// a refusal: the port makes none between the wall and the ended throw. Each refusal case's control is a guest's own throw
-// in another command, which still counts. The crash count is read from the plugin's row, which no door shows.
+// a refusal: the port makes none between the wall and the ended throw, and an ended answer a full channel refuses still
+// arrives ended. Each refusal case's control is a guest's own throw in another command, which still counts. The crash
+// count is read from the plugin's row, which no door shows.
 //
 // The edge's `refuseNextSent` stands in for the watchdog's full hop to the broker: it sends one routed app frame's own
 // route refusal in its place, the frame `relayFrame` in `packages/server/src/infra/plugin-host/process-channel.ts`
 // passes on when its target refuses the frame, which for a result is the channel-full result `sendBridgeResult` routes.
+// `refusedInPlaceOf` does the same for a frame the broker routes to the app, its answer's refusal from `answer` in
+// `packages/server/src/infra/plugin-host/broker-entry.ts`: the broker sends that one frame when its own hop is full, and
+// the watchdog passes it on when its hop to the app is. No edge fills the broker's own hop, so that branch is the same
+// frame reached through the watchdog's.
 // @subject packages/server/src/infra/plugin-host/worker-runtime.ts
 // @subject packages/server/src/infra/plugin-host/process-runtime.ts
 // @subject packages/server/src/infra/plugin-host/port.ts
@@ -25,7 +30,7 @@ import { capturePluginRows } from "@orb/testkit/node/rows";
 import { afterAll, beforeAll } from "vitest";
 import { HOST_FN_DEADLINE_MS, PLUGIN_RESIDENT_LIMITS, settlementWallMs } from "#server/infra/plugin-host/budgets.ts";
 import { PLUGIN_CHANNEL_FULL, PLUGIN_HOST_UNAVAILABLE } from "#server/infra/plugin-host/process-protocol.ts";
-import { createPluginProcessEdge, frameField, hasOperation, PLUGIN_PROCESS_OPERATIONS, responseResult } from "../process-runtime.fixtures.ts";
+import { createPluginProcessEdge, frameField, hasOperation, PLUGIN_PROCESS_OPERATIONS, refusedInPlaceOf, responseResult } from "../process-runtime.fixtures.ts";
 
 const ENABLED = "enabled" satisfies PluginStatus;
 const RESPONSE = "response";
@@ -194,6 +199,14 @@ async function refuseLaterClockRead(run: () => Promise<unknown>): Promise<unknow
   return await settled;
 }
 
+// Runs `run` and replaces its command's answer with the refusal a full hop sends in its place.
+async function refuseAnswerOf(run: () => Promise<unknown>): Promise<unknown> {
+  using answer = edge.holdNext((value) => frameField(value, "kind") === RESPONSE);
+  const settled = settle(run());
+  answer.release(refusedInPlaceOf(await answer.reached));
+  return await settled;
+}
+
 async function expectOwnThrowCounts(guest: Guest): Promise<void> {
   await expect(guest.run(CRASH)).rejects.toThrow(CRASH_MESSAGE);
   await expect.poll(async () => (await guest.view()).crashes).toBe(1);
@@ -303,6 +316,24 @@ test("an invocation ended at its wall strikes though a host call after the wall 
 
   // The command never settles: the host ends it at its wall, and nothing after the wall turns that into a refusal.
   expect(await refuseLaterClockRead(() => caller.run(HANG, JSON.stringify({ stall: true })))).toBeInstanceOf(Error);
+  await expect.poll(async () => (await caller.view()).crashes).toBe(1);
+  expect((await caller.view()).status).toBe(ENABLED);
+});
+
+// The case's only real wait is the production settlement wall, which no test clock reaches.
+test("an invocation ended at its wall whose answer a full channel refused still strikes; a settled answer the channel refused does not", {
+  tags: ["slow"],
+  timeout: wallCaseTimeoutMs(CALLER_WALL_STARTS),
+}, async () => {
+  await caller.run(NOTE);
+  expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
+
+  // Control: a settled command whose answer the channel refused fails as the refusal, and no strike.
+  expect(await refuseAnswerOf(() => caller.run(HANG, JSON.stringify({ stall: false })))).toBeInstanceOf(Error);
+  expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
+
+  // The command never settles: its ended answer finds the channel full, and the plugin still takes the strike.
+  expect(await refuseAnswerOf(() => caller.run(HANG, JSON.stringify({ stall: true })))).toBeInstanceOf(Error);
   await expect.poll(async () => (await caller.view()).crashes).toBe(1);
   expect((await caller.view()).status).toBe(ENABLED);
 });
