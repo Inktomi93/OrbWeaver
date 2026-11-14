@@ -1,7 +1,7 @@
 // Macro rendering, authoring metadata and registration share this directory door (D15).
 // Implementation-only helpers and bookkeeping remain in their owning modules.
 export { macroTextInvalidatesCache } from "./cache-safety.ts";
-export { neutralizeMacros, swapIdentityMacros } from "./content.ts";
+export { neutralizeMacros, neutralizeSplice, swapIdentityMacros } from "./content.ts";
 export {
   createMacroContext,
   globalMacroRegistry,
