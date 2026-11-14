@@ -14,12 +14,12 @@ import type {
   WorkloadRunnerDeps,
 } from "../contract/service.ts";
 import type { AuthorizeWorkloadRead, WorkloadReads } from "../contract/workload-row.ts";
-import { reclaimInFlightOnBoot as reclaim } from "../engine/boot-reclaim.ts";
-import { createNextRunnableWorkload as bindNextRunnable } from "../engine/next-runnable.ts";
-import { reapOrphanedWorkloads as reap } from "../engine/reaper.ts";
-import { runWorkload as run } from "../engine/runner.ts";
-import { tickWorkloadSchedules as tick } from "../engine/schedule-tick.ts";
 import { loadWorkload as load } from "../persistence/queries.ts";
+import { reclaimInFlightOnBoot as reclaim } from "./boot-reclaim.ts";
+import { createNextRunnableWorkload as bindNextRunnable } from "./next-runnable.ts";
+import { reapOrphanedWorkloads as reap } from "./reaper.ts";
+import { runWorkload as run } from "./runner.ts";
+import { tickWorkloadSchedules as tick } from "./schedule-tick.ts";
 
 /** Bind the existing queue scanner and its durable failure publisher. */
 export function createNextRunnableWorkload(input: DbAssemblyInput<NextRunnableWorkloadDeps>): NextRunnableWorkload {
