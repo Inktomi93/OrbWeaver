@@ -57,6 +57,10 @@ export interface NameRowFrameProps {
   /** The identity carries the skin's avatar chip: the gap to the actions then holds the chip's touch square and the glyphs' clear of each other. */
   readonly chipped: boolean;
   readonly stickyAttribution: boolean;
+  /** Whether the bar pins while it scrolls under the top edge. A bar that holds the pinned bar's block inset without
+   *  pinning keeps its height equal to the settled bar's, so a streaming turn whose actions are only a hidden footprint
+   *  does not pin an empty band over its own text. */
+  readonly pins: boolean;
   readonly actionsReveal: ActionsReveal;
   /** The skin's header placement and the row's own surface its pinned bar paints (`RowSkin`). */
   readonly edges: HeaderEdges;
@@ -74,6 +78,7 @@ export function NameRowFrame({
   actions,
   chipped,
   stickyAttribution,
+  pins,
   actionsReveal,
   edges,
   mirrored,
@@ -81,7 +86,9 @@ export function NameRowFrame({
   shape,
   rule,
 }: NameRowFrameProps): ReactElement {
-  const sticky = stickyAttribution && (shape.ownLine || actions !== null);
+  const holdsInset = stickyAttribution && (shape.ownLine || actions !== null);
+  const sticky = holdsInset && pins;
+  const blockInset = blockInsetOf(holdsInset, pins);
   const { ref, pinned } = usePinnedHeader(sticky);
   const outside = edges.headerPlacement === "outside";
   const pinnedHeader = edges.pinnedHeader;
@@ -92,6 +99,7 @@ export function NameRowFrame({
       rowRef={ref}
       placement={edges.headerPlacement}
       sticky={sticky}
+      blockInset={blockInset}
       pinned={pinned}
       bubbleInk={pinned ? pinnedHeader.fill === "role" : !outside}
       plate={outside && !pinned ? outsidePlate(sticky) : undefined}
@@ -116,6 +124,12 @@ export function NameRowFrame({
       )}
     </FrameRow>
   );
+}
+
+/** The block inset a bar holds at rest. A pinning bar holds both edges and its pinned box cancels the top one with a negative
+ *  margin, so a bar that holds the inset without pinning keeps the bottom edge alone and takes the same room in the flow. */
+function blockInsetOf(holdsInset: boolean, pins: boolean): { readonly paddingBlock: "row" | undefined; readonly paddingBlockEnd: "row" | undefined } {
+  return { paddingBlock: holdsInset && pins ? "row" : undefined, paddingBlockEnd: holdsInset && !pins ? "row" : undefined };
 }
 
 // An overlaid row takes the first track beside the content: a band floors at the name row, an at-rest row is the glyph's height.
@@ -154,6 +168,7 @@ interface FrameRowProps {
   readonly rowRef: ReturnType<typeof usePinnedHeader>["ref"];
   readonly placement: HeaderEdges["headerPlacement"];
   readonly sticky: boolean;
+  readonly blockInset: ReturnType<typeof blockInsetOf>;
   readonly pinned: boolean;
   readonly bubbleInk: boolean;
   readonly plate: "island" | "chrome" | undefined;
@@ -189,6 +204,7 @@ function FrameRow({
   rowRef,
   placement,
   sticky,
+  blockInset,
   pinned,
   bubbleInk,
   plate,
@@ -223,7 +239,8 @@ function FrameRow({
       ground={paint.ground}
       cardCorners={paint.cardCorners}
       reveal={overlayReveal}
-      paddingBlock={sticky ? "row" : undefined}
+      paddingBlock={blockInset.paddingBlock}
+      paddingBlockEnd={blockInset.paddingBlockEnd}
       paddingInline={FRAME_INSET[inset].paddingInline}
       reach={FRAME_INSET[inset].reach}
       pinned={stickyPin(stickyOutside, stickyInside)}
