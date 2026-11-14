@@ -28,6 +28,7 @@ import type {
 } from "./params.ts";
 import type { WorkloadProgressBus } from "./progress-bus.ts";
 import type { WorkloadScheduleService } from "./schedule.ts";
+import type { WorkloadReads } from "./workload-row.ts";
 
 /** Mint a fresh `WorkloadId` — the injected determinism seam. */
 type NewWorkloadId = () => WorkloadId;
@@ -63,6 +64,8 @@ export interface WorkloadServiceContext {
   readonly abortRun: WorkloadProgressBus["abortWorkloadRun"];
   /** The per-user freshness plane: a system-started owned row announces `workloadsChanged` to its owner. */
   readonly emitUserEvent: EmitUserEvent;
+  /** The rows whose unreadable stored result the log already names, minted once by the service root. */
+  readonly reportedUnreadable: WorkloadReads["reportedUnreadable"];
 }
 
 /**

@@ -75,6 +75,10 @@ type AttachImportedArt = (args: {
   readonly importHash: string;
 }) => Promise<boolean>;
 
+/** Character-owned: whether {@link AttachImportedArt} would give the owner's character art now, asked without writing,
+ *  so a dry run follows the write. */
+type AdmitsImportedArt = (args: { readonly ownerId: UserId; readonly characterId: CharacterId }) => Promise<boolean>;
+
 /** Enqueues the owner's post-import text `index` pass (embeds no chat memory and calls no Utility model).
  *  An import never enqueues `memory-backfill`: the client offers that build over the result's `memoryChatIds`,
  *  behind the model-run confirm, so an import spends nothing paid without a yes. */
@@ -150,6 +154,7 @@ export interface ImportContext {
   readonly findByName: FindCharacterByName;
   readonly storeAsset: StoreImportAsset;
   readonly attachImportedArt: AttachImportedArt;
+  readonly admitsImportedArt: AdmitsImportedArt;
   /** The lookup's last step: the current card of the owned row a carried handle names (D290). Required, so every
    *  door that imports a card finds a row the app wrote. */
   readonly exportCurrentCard: ExportCurrentCard;

@@ -8,5 +8,8 @@ export interface ImportContextWiring
     "storeAsset" | "attachCardTag" | "exportCurrentCard" | "importLorebook" | "hasPrimaryBook" | "linkCarriedBooks" | "importCardScripts" | "profile"
   > {
   readonly principal: Principal;
-  readonly characterOps: Pick<ImportContext, "createCharacter" | "findByImportHash" | "findByHandle" | "findByName" | "attachImportedArt">;
+  readonly characterOps: Pick<
+    ImportContext,
+    "createCharacter" | "findByImportHash" | "findByHandle" | "findByName" | "attachImportedArt" | "admitsImportedArt"
+  >;
 }

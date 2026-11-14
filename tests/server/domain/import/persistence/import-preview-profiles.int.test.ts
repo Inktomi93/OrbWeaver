@@ -222,7 +222,7 @@ test("a refused card marks its own profile's source and no card of another profi
   const shown = await shownFor(root, files);
 
   expect(shown.skipped.items.filter(({ source }) => source.path === "broken.png")).toEqual([
-    { source: { profile: BOB, path: "broken.png" }, reason: expect.any(String) },
+    { source: { profile: BOB, path: "broken.png" }, sourceDigest: expect.any(String), reason: expect.any(String) },
   ]);
   // The control: both profiles' `characters/Card.png` are listed, and neither is a skip.
   expect(shown.kinds.characters.items.map(({ source }) => source.profile).toSorted((a, b) => a.localeCompare(b))).toEqual([ALICE, BOB]);
@@ -271,13 +271,11 @@ test("a hostile profile directory name is clipped to the preview's text limit", 
   expect(profiles).toContain(BOB);
 });
 
-test("a dry run stored with the older bare-string source reads without its result, keeps its params and leaves the jobs list answering", async () => {
+test("a dry run stored with the older bare-string source reads as unreadable by id, without its result", async () => {
   await using root = await harness();
   const files = inProfile(ALICE, profileFiles(root, ALICE, false));
   const stale = await admit(root, files, [TREE_DRY_RUN_VALUE]);
   await finish(root, stale);
-  const fresh = await admit(root, files, [TREE_DRY_RUN_VALUE]);
-  await finish(root, fresh);
   const [stored] = await root.db.select({ result: workloads.result }).from(workloads).where(eq(workloads.id, stale));
   const older: unknown = JSON.parse(JSON.stringify(present(stored).result), (key, value: unknown) =>
     key === "source" && typeof value === "object" && value !== null && "path" in value ? value.path : value,
@@ -288,14 +286,86 @@ test("a dry run stored with the older bare-string source reads without its resul
     .where(eq(workloads.id, stale));
   const caller = await root.principalFor(root.ownerId);
 
-  const listed = await root.services.workloads.list({ caller, kind: "import-st" });
+  await expect(root.services.workloads.get({ caller, id: stale })).resolves.toMatchObject({ status: "succeeded", poison: true, params: null, result: null });
+  // The control: the same run left as it was stored reads its preview.
+  const fresh = await admit(root, files, [TREE_DRY_RUN_VALUE]);
+  await finish(root, fresh);
+  await expect(root.services.workloads.get({ caller, id: fresh })).resolves.toMatchObject({ poison: false, result: { preview: expect.any(Object) } });
+});
 
-  const readable = listed.find((row) => row.id === fresh);
-  const unreadable = listed.find((row) => row.id === stale);
-  expect(unreadable).toMatchObject({ poison: false, result: null, params: { dryRun: true } });
-  expect(readable).toMatchObject({ poison: false });
-  expect(present(readable).result).not.toBeNull();
-  await expect(root.services.workloads.get({ caller, id: stale })).resolves.toMatchObject({ poison: false, result: null });
+test("two paths in one profile that share their first characters past the clip are two entries in the preview, as many as the run writes", async () => {
+  await using root = await harness();
+  // Both paths run past the preview's text limit and agree up to it; a file system takes either as one name.
+  const shared = `worlds/${"w".repeat(IMPORT_PREVIEW_TEXT_MAX)}`;
+  const lore = (text: string): string => JSON.stringify({ entries: { "0": { uid: 0, key: [text], comment: text, content: `${text} lore.`, order: 100 } } });
+  const files = inProfile(ALICE, { [ST_SETTINGS_FILE]: settings({}), [`${shared}-east.json`]: lore("east"), [`${shared}-west.json`]: lore("west") });
+
+  const raw = await dryRun(root, files);
+  const shown = mergeImportPreviews([raw]);
+  const before = await WRITTEN.worlds(root);
+  await finish(root, await admit(root, files));
+
+  expect(new Set(raw.kinds.worlds.items.map(({ sourceDigest }) => sourceDigest)).size).toBe(2);
+  expect(shown.kinds.worlds.total).toBe(2);
+  expect(shown.kinds.worlds.items).toHaveLength(2);
+  expect(shown.kinds.worlds.counts.writes).toBe(2);
+  // Display stays clipped: both entries read the same clipped path.
+  expect(nonEmpty(shown.kinds.worlds.items).every(({ source }) => source.path.length === IMPORT_PREVIEW_TEXT_MAX)).toBe(true);
+  expect(await WRITTEN.worlds(root)).toBe(before + 2);
+});
+
+/** The name of the character each room of a group seats, by the room's title. */
+async function seatedByRoom(root: ServerTestHarness): Promise<Map<string, string[]>> {
+  const rows = await root.db.all<{ title: string; name: string }>(
+    sql`SELECT chats.title AS title, characters.name AS name FROM chats
+        JOIN chat_participants ON chat_participants.chat_id = chats.id AND chat_participants.kind = 'character'
+        JOIN characters ON characters.id = chat_participants.character_id
+        WHERE chats.imported_from = ${`${GROUP_LEAF}.jsonl`} ORDER BY characters.name`,
+  );
+  const seated = new Map<string, string[]>();
+  for (const { title, name } of rows) {
+    seated.set(title, [...(seated.get(title) ?? []), name]);
+  }
+  return seated;
+}
+
+test("a group seats its own profile's card when another profile keeps a different card under the same filename", async () => {
+  await using root = await harness();
+
+  await finish(root, await admit(root, twoProfiles(root, false)));
+
+  const seated = await seatedByRoom(root);
+  const roomOf = (who: string): string[] | undefined => [...seated].find(([title]) => title.startsWith(`${who} crew`))?.[1];
+  expect(roomOf(ALICE)).toEqual([`${ALICE} card`]);
+  expect(roomOf(BOB)).toEqual([`${BOB} card`]);
+});
+
+test("a group whose member card only another profile keeps is refused, and a group of the profile that keeps it is seated", async () => {
+  await using root = await harness();
+  const crewOf = (who: string, member: string): string => JSON.stringify({ name: `${who} crew`, members: [member], chats: [GROUP_LEAF] });
+  const files = {
+    ...inProfile(ALICE, {
+      [ST_SETTINGS_FILE]: settings({}),
+      "characters/Lone.png": cardPng(root, "lone card"),
+      "groups/crew.json": crewOf(ALICE, "Lone.png"),
+      [`group chats/${GROUP_LEAF}.jsonl`]: chatOf("alice room"),
+    }),
+    ...inProfile(BOB, {
+      [ST_SETTINGS_FILE]: settings({}),
+      "characters/Other.png": cardPng(root, "other card"),
+      "groups/crew.json": crewOf(BOB, "Lone.png"),
+      [`group chats/${GROUP_LEAF}.jsonl`]: chatOf("bob room"),
+    }),
+  };
+
+  const shown = await shownFor(root, files);
+  await finish(root, await admit(root, files));
+
+  expect(shown.kinds.groups.items.map(({ source }) => source.profile)).toEqual([ALICE]);
+  expect(shown.skipped.items.filter(({ source }) => source.path === "groups/crew.json").map(({ source }) => source.profile)).toEqual([BOB]);
+  const seated = await seatedByRoom(root);
+  expect([...seated.values()]).toEqual([["lone card"]]);
+  expect(nonEmpty([...seated.keys()]).every((title) => title.startsWith(`${ALICE} crew`))).toBe(true);
 });
 
 test("two profile directories whose names share their first characters stay two profiles in the preview", async () => {

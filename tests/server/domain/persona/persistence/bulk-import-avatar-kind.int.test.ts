@@ -3,6 +3,7 @@
 // picture kind, any other kind refused with the same code and no persona written.
 import { ASSET_UPLOAD_REFUSAL_CODES } from "@orb/contracts/assets";
 import type { BulkImportPersonaInput } from "@orb/contracts/persona";
+import { isPersonaImportName } from "@orb/contracts/persona";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import type { AssetId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -13,6 +14,9 @@ import { magicBytes, principal } from "@orb/testkit/node/helpers";
 const PDF = new TextEncoder().encode("%PDF-1.4\n%not a picture\n");
 
 function imported(name: string, avatarAssetId: AssetId): BulkImportPersonaInput {
+  if (!isPersonaImportName(name)) {
+    throw new Error(`a persona import name is never blank: ${JSON.stringify(name)}`);
+  }
   return { name, description: "Imported from a profile.", avatarAssetId, metadata: null, isDefault: false };
 }
 

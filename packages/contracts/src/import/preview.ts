@@ -2,8 +2,10 @@
 // it and caps each list; `total` and `counts` stay exact over every entry when `items` is capped, and the count line
 // reads them, never the list. The client renders names as plain text.
 // An entry's identity is its source: the profile directory it sits in plus its path inside that profile, so two
-// profiles of one upload that share a relative path are two entries. `mergeImportPreviews` is the one place that
-// keys on it. A skip at the upload's root, beside the profiles, has `profile: null`. Equal content is each owning
+// profiles of one upload that share a relative path are two entries. The shown source is clipped, so the identity is
+// the digest of the whole source (`sourceDigest`): two paths that agree up to the clip stay two entries.
+// `mergeImportPreviews` is the one place that keys on it. A skip at the upload's root, beside the profiles, has
+// `profile: null`. Equal content is each owning
 // domain's rule, so an entry carries digests of the keys that rule compares by (its identities), and the merge marks
 // an entry a repeat when an earlier entry holds them all; it keeps no equality rule of its own. Across uploads a card
 // is compared by its import hash alone, and a group by the set of transcripts it brings, so a JSON card and the PNG of
@@ -49,13 +51,12 @@ const importSourceSchema = z.strictObject({ profile: previewText, path: previewT
 
 /** A skip's source: a profile entry, or `profile: null` for an entry beside the profiles at the upload's root. */
 const importSkipSourceSchema = z.strictObject({ profile: previewText.nullable(), path: previewText });
-type ImportSkipSource = z.infer<typeof importSkipSourceSchema>;
 
 const importPreviewItemSchema = z.strictObject({
-  /** The item's identity in the upload. The same file of the same profile in two uploads of a split folder is
-   *  one item. */
+  /** Where the item sits, clipped for display. */
   source: importSourceSchema,
-  /** A digest of the source, so the merge can tell that an upload's unlisted entry is one another upload lists. */
+  /** The item's identity in the upload: a digest of its whole, unclipped source. The same file of the same profile
+   *  in two uploads of a split folder is one item, and the merge also tells an unlisted entry by it. */
   sourceDigest: previewText,
   name: previewText,
   /** Something the owner already has (a character, book, preset, chat and so on); a run adds nothing for it.
@@ -143,7 +144,8 @@ export function importPreviewListOf(items: readonly ImportPreviewItem[]): Import
   };
 }
 
-const importPreviewSkipSchema = z.strictObject({ source: importSkipSourceSchema, reason: previewText });
+/** `sourceDigest` is the skip's identity, a digest of its whole source, as an item's is. */
+const importPreviewSkipSchema = z.strictObject({ source: importSkipSourceSchema, sourceDigest: previewText, reason: previewText });
 export type ImportPreviewSkip = z.infer<typeof importPreviewSkipSchema>;
 
 const importPreviewSkippedSchema = z.strictObject({
@@ -196,14 +198,9 @@ function distinct<T>(lists: readonly { readonly items: readonly T[] }[], identit
 }
 
 function skippedOf(lists: readonly ImportPreview["skipped"][]): ImportPreview["skipped"] {
-  const items = distinct(lists, (item) => `${sourceKey(item.source)}\n${item.reason}`);
+  const items = distinct(lists, (item) => `${item.sourceDigest}\n${item.reason}`);
   const unlisted = lists.reduce((sum, list) => sum + list.total - list.items.length, 0);
   return { total: items.length + unlisted, items: items.slice(0, IMPORT_PREVIEW_LIST_MAX) };
-}
-
-// A JSON tuple keeps a hostile profile or path from reading as the other half of the key.
-function sourceKey(source: ImportSkipSource): string {
-  return JSON.stringify([source.profile, source.path]);
 }
 
 function isReused(item: ImportPreviewItem): boolean {
@@ -280,14 +277,14 @@ function unmatchedOf(list: ImportPreviewList): Tally {
   };
 }
 
-/** One kind over the uploads of a split folder. Listed items union by source and are marked a repeat when an earlier
+/** One kind over the uploads of a split folder. Listed items union by source digest and are marked a repeat when an earlier
  *  entry holds their identities. An unlisted entry counts when no listed entry and no earlier upload's unlisted entry has
  *  its source digest, so an entry that several uploads hold (a shared file, a group's member card) is counted once. The
  *  entries no upload sent a digest for are added as the upload counted them. Neither an unlisted entry nor an entry with
  *  no identities can be compared by content with another upload, and an entry with no digest cannot be matched, so a split
  *  folder reports the writes among the first two, and every one of the last, as `uncompared`: the run may write fewer. */
 function mergeKind(lists: readonly ImportPreviewList[]): ImportPreviewList {
-  const items = flagRepeats(distinct(lists, (item) => sourceKey(item.source)));
+  const items = flagRepeats(distinct(lists, (item) => item.sourceDigest));
   const held = new Set(items.map((item) => item.sourceDigest));
   const parts: Tally[] = [countedOf(items)];
   let uncompared = items.filter((item) => !isReused(item) && item.identities.length === 0).length;
@@ -308,9 +305,10 @@ function mergeKind(lists: readonly ImportPreviewList[]): ImportPreviewList {
 }
 
 /** One preview over the uploads of a split folder. Shared files and repeated cards repeat across uploads, so
- *  listed items union by source (profile and path). Each upload judged its entries alone, so an entry whose content
- *  an earlier upload already lands is then marked a repeat, by the keys its owner's equality rule gave it. A skip
- *  unions by source and reason together: one source can be skipped two ways, and each way is its own row. */
+ *  listed items union by their whole source (profile and path, through its digest). Each upload judged its entries
+ *  alone, so an entry whose content an earlier upload already lands is then marked a repeat, by the keys its owner's
+ *  equality rule gave it. A skip unions by source and reason together: one source can be skipped two ways, and each
+ *  way is its own row. */
 export function mergeImportPreviews(previews: readonly ImportPreview[]): ImportPreview {
   const kinds = Object.fromEntries(IMPORT_PREVIEW_KINDS.map((kind) => [kind, mergeKind(previews.map((preview) => preview.kinds[kind]))]));
   return importPreviewSchema.parse({ kinds, skipped: skippedOf(previews.map((preview) => preview.skipped)) });

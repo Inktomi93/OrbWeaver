@@ -18,5 +18,6 @@ export function createCharacterImportOps(principal: Principal, character: Import
     findByName: async ({ name, caseInsensitive }) =>
       (await character.findByName({ ownerId, name, ...(caseInsensitive === undefined ? {} : { caseInsensitive }) })).map((ref) => ref.characterId),
     attachImportedArt: ({ characterId, avatarAssetId, importHash }) => character.attachImportedArt({ ownerId, characterId, avatarAssetId, importHash }),
+    admitsImportedArt: ({ characterId }) => character.admitsImportedArt({ ownerId, characterId }),
   };
 }

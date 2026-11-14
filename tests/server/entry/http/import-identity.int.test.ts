@@ -19,6 +19,7 @@ import {
   TREE_FILE_FIELD,
 } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
+import { UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
 import type { CharacterId, WorkloadId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
@@ -30,7 +31,6 @@ import { CSRF_HEADERS } from "./_body-limit-inputs.ts";
 
 const DIALOG_ROUTE = PORTABILITY_ROUTES.importCards;
 const TREE_ROUTE = PORTABILITY_ROUTES.importTree;
-const DIALOG_FIELD = "file";
 const WRAPPER = "default-user";
 const ENCODER = new TextEncoder();
 const OVERLONG_NAME_LENGTH = 100_000;
@@ -87,7 +87,7 @@ function bytesOf(value: Bytes): Uint8Array<ArrayBuffer> {
 /** The Characters dialog door over one file. */
 async function dialog(root: ServerTestHarness, filename: string, bytes: Bytes): Promise<ReturnType<typeof cardImportResultSchema.parse>> {
   const form = new FormData();
-  form.append(DIALOG_FIELD, new File([bytesOf(bytes)], filename));
+  form.append(UPLOAD_FILE_FIELD, new File([bytesOf(bytes)], filename));
   const response = await root.http.request(DIALOG_ROUTE, { method: "POST", headers: CSRF_HEADERS, body: form });
   expect(response.status).toBe(200);
   return cardImportResultSchema.parse(await response.json());

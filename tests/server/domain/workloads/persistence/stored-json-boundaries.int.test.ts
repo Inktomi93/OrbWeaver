@@ -115,7 +115,7 @@ function unreadableResultLines(harness: ServerTestHarness, id: WorkloadId): stri
   return harness.observability.logLines(LOG_SCAN_LIMIT).filter((line) => line.includes(UNREADABLE_RESULT_LINE) && line.includes(id));
 }
 
-test("one row whose stored result no longer parses keeps its params, hides the result, and the rest of the list still answers", async ({ harness }) => {
+test("one row whose stored result no longer parses reads as unreadable with the result hidden, and the rest of the list still answers", async ({ harness }) => {
   const stale = await actor(harness);
   const healthy = await actor(harness);
   const unreadable = await enqueue(harness, stale);
@@ -127,17 +127,17 @@ test("one row whose stored result no longer parses keeps its params, hides the r
 
   const listed = await harness.services.workloads.list({ caller: null, status: "queued" });
 
-  expect(listed.find((row) => row.id === unreadable.id)).toMatchObject({ poison: false, params: { dryRun: true }, result: null });
+  expect(listed.find((row) => row.id === unreadable.id)).toMatchObject({ poison: true, params: null, result: null });
   expect(listed.find((row) => row.id === readable.id)).toMatchObject({ poison: false, params: { dryRun: true } });
   await expect(harness.services.workloads.get({ caller: stale, id: unreadable.id })).resolves.toMatchObject({
-    poison: false,
-    params: { dryRun: true },
+    poison: true,
+    params: null,
     result: null,
   });
   expect(JSON.stringify(listed)).not.toContain("stored by an older build");
 });
 
-test("an unreadable stored result is logged once per read with the row id and never its content", async ({ harness }) => {
+test("an unreadable stored result is logged once however often its row is read, with the row id and never its content", async ({ harness }) => {
   harness.logger.level = "info";
   const stale = await actor(harness);
   const healthy = await actor(harness);
@@ -149,6 +149,8 @@ test("an unreadable stored result is logged once per read with the row id and ne
     .where(eq(workloads.id, unreadable.id));
 
   await harness.services.workloads.get({ caller: stale, id: unreadable.id });
+  await harness.services.workloads.get({ caller: stale, id: unreadable.id });
+  await harness.services.workloads.list({ caller: null, status: "queued" });
   await harness.services.workloads.get({ caller: healthy, id: readable.id });
 
   const lines = unreadableResultLines(harness, unreadable.id);

@@ -10,13 +10,15 @@
 import { setImmediate as yieldToEventLoop } from "node:timers/promises";
 import type { ImportAnswer } from "@orb/contracts/import";
 import { narrowPersonaMetadata } from "@orb/contracts/persona";
+import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import type { CharacterId } from "@orb/kit/ids";
 import { mapYielding } from "#primitives/abort";
 import { sha256Hex } from "#primitives/content-hash";
-import type { CollectedCard, CollectedChat } from "../contract/collection.ts";
+import type { CollectedCard, CollectedChat, CollectedPersona } from "../contract/collection.ts";
+import type { CardIdentityHashes, ImportedCharacterMatch } from "../contract/identity.ts";
 import type { ImportOwnership, ProfileCollected, ProfileDirImportDeps } from "../contract/profile-directory.ts";
 import { currentCardIdentity, findImportedCharacter, importFileHash } from "../substrate/card.ts";
-import { partitionGroups, resolveMembers } from "../substrate/group.ts";
+import { partitionGroups, resolveMembers, seatsOf } from "../substrate/group.ts";
 import { orphanImportHash } from "../substrate/handle.ts";
 import { presetBytes, themeBytes } from "../substrate/landing-bytes.ts";
 
@@ -73,34 +75,48 @@ async function judgeChats(
   }
 }
 
-/** What the card pass learned: the answer for each card, the row each card filename resolves to (the group wave's
- *  member key, the last card under a filename winning as it does in the run), and the owned character behind a row. */
+/** What the card pass learned: the answer for each card, the row each card resolves to (which a group of its profile
+ *  seats by filename), and the owned character behind a row. */
 interface CardPass {
   readonly characters: Map<CollectedCard, ImportAnswer>;
-  readonly rowByFilename: Map<string, RowKey>;
+  readonly rowByCard: Map<CollectedCard, RowKey>;
   readonly ownedByRow: Map<RowKey, CharacterId>;
 }
 
 /** A character is reused when an equal card landed (the one lookup order every door uses), in the library or earlier
  *  in this upload. A taken handle is not a match: different content under it lands beside the owned character with
- *  a suffixed handle (D290). A text-only match counts: whether that row may take the PNG's art is decided by the
- *  write, not predicted here. Its chats are held only under the equal card's own row. */
+ *  a suffixed handle (D290). A card matched by its text alone reuses the owned row only by giving it its art, as the
+ *  write does (`resolveExisting` in import-character.ts): when the row has none and no earlier card of this upload
+ *  took it. The row is then keyed by that card's art, so a later card equal to it is a repeat and a card under other
+ *  art lands beside it. Its chats are held only under the equal card's own row. */
 async function passCards(deps: ProfileDirImportDeps, collected: ProfileCollected, chats: ChatJudge): Promise<CardPass> {
   const ownerId = deps.principal.userId;
   const { characterOps, exportCurrentCard } = deps.contextFor(deps.principal, deps.storeAvatar);
-  const pass: CardPass = { characters: new Map(), rowByFilename: new Map(), ownedByRow: new Map() };
+  const pass: CardPass = { characters: new Map(), rowByCard: new Map(), ownedByRow: new Map() };
   // call-local: the row each landed card identity lands under, so a later equal card finds it. Ends if it outlives the pass.
   const landed = new Map<string, RowKey>();
+  // call-local: the owned art-less rows a card of this upload has given art to. Ends if it outlives the pass.
+  const artTaken = new Set<CharacterId>();
+  const ownedMatch = async (
+    bundle: CollectedCard,
+    hashes: CardIdentityHashes,
+  ): Promise<{ readonly characterId: CharacterId; readonly match: ImportedCharacterMatch } | null> => {
+    const owned = await findImportedCharacter(
+      async (importHash) => await characterOps.findByImportHash({ ownerId, importHash }),
+      hashes,
+      currentCardIdentity(exportCurrentCard, ownerId, bundle.carriedHandle),
+    );
+    if (owned?.match !== "text") {
+      return owned;
+    }
+    return !artTaken.has(owned.characterId) && (await characterOps.admitsImportedArt({ ownerId, characterId: owned.characterId })) ? owned : null;
+  };
   for (const bundle of collected.bundles) {
     if (deps.signal.aborted) {
       break;
     }
     const hashes = { importHash: bundle.contentHash, textHash: bundle.textHash, fileHash: importFileHash(bundle.cardBytes) };
-    const found = await findImportedCharacter(
-      async (importHash) => await characterOps.findByImportHash({ ownerId, importHash }),
-      hashes,
-      currentCardIdentity(exportCurrentCard, ownerId, bundle.carriedHandle),
-    );
+    const found = await ownedMatch(bundle, hashes);
     const earlier = found === null ? await findImportedCharacter<RowKey>((importHash) => Promise.resolve(landed.get(importHash) ?? null), hashes) : null;
     const keys = [bundle.contentHash];
     let row = newCardRow(bundle.contentHash);
@@ -108,6 +124,10 @@ async function passCards(deps: ProfileDirImportDeps, collected: ProfileCollected
       row = ownedRow(found.characterId);
       pass.ownedByRow.set(row, found.characterId);
       pass.characters.set(bundle, { reuse: "library", keys });
+      if (found.match === "text") {
+        artTaken.add(found.characterId);
+        landed.set(bundle.contentHash, row);
+      }
     } else if (earlier !== null) {
       row = earlier.characterId;
       pass.characters.set(bundle, { reuse: "upload", keys });
@@ -115,7 +135,7 @@ async function passCards(deps: ProfileDirImportDeps, collected: ProfileCollected
       landed.set(bundle.contentHash, row);
       pass.characters.set(bundle, { reuse: null, keys });
     }
-    pass.rowByFilename.set(bundle.filename, row);
+    pass.rowByCard.set(bundle, row);
     await judgeChats(deps, chats, { key: row, characterId: pass.ownedByRow.get(row) ?? null }, bundle.chats);
     // These reads resolve on microtasks, so a large folder would otherwise hold the event loop for the whole pass.
     await yieldToEventLoop();
@@ -150,10 +170,10 @@ async function passOrphans(deps: ProfileDirImportDeps, collected: ProfileCollect
   return orphans;
 }
 
-/** A group's founding character is its first member the import set carries; a member that is not yet in
- *  the library stands in as the row the upload creates for it, so a held member after it never becomes the founder. */
-function groupFounder(group: ProfileCollected["groups"][number], rowByFilename: ReadonlyMap<string, RowKey>): RowKey | null {
-  return resolveMembers(group, rowByFilename).seated[0]?.characterId ?? null;
+/** A group's founding character is its first member its profile carries; a member that is not yet in the library
+ *  stands in as the row the upload creates for it, so a held member after it never becomes the founder. */
+function groupFounder(group: ProfileCollected["groups"][number], seats: ReadonlyMap<string, RowKey>): RowKey | null {
+  return resolveMembers(group, seats).seated[0]?.characterId ?? null;
 }
 
 /** A group is reused when every transcript it brings is: the write counts a room only when it adds one. A group the
@@ -162,15 +182,17 @@ function groupFounder(group: ProfileCollected["groups"][number], rowByFilename: 
  *  group holding one cannot be compared. */
 async function passGroups(deps: ProfileDirImportDeps, collected: ProfileCollected, cards: CardPass, chats: ChatJudge): Promise<ImportOwnership["groups"]> {
   const groups = new Map<ProfileCollected["groups"][number], ImportAnswer>();
-  const { importable } = partitionGroups(
-    collected.groups,
-    collected.bundles.map((bundle) => bundle.filename),
+  const seatsByGroup = new Map(
+    collected.profiles.flatMap(({ result }) => {
+      const seats = seatsOf(result.bundles, cards.rowByCard);
+      return result.groups.map((group) => [group, seats] as const);
+    }),
   );
-  for (const group of importable) {
+  for (const group of partitionGroups(collected.profiles).importable) {
     if (deps.signal.aborted) {
       break;
     }
-    const founder = groupFounder(group, cards.rowByFilename);
+    const founder = groupFounder(group, seatsByGroup.get(group) ?? new Map());
     if (founder !== null) {
       await judgeChats(deps, chats, { key: founder, characterId: cards.ownedByRow.get(founder) ?? null }, group.chats);
     }
@@ -202,12 +224,27 @@ function answersOf<Item>(items: readonly Item[], answers: readonly ImportAnswer[
   return answered;
 }
 
-async function passPersonas(deps: ProfileDirImportDeps, collected: ProfileCollected): Promise<ImportOwnership["personas"]> {
-  const personas = await mapYielding(collected.personas, deps.signal, ({ parsed, avatarBytes }) => ({
-    name: parsed.name,
-    description: parsed.description,
-    metadata: narrowPersonaMetadata(parsed.metadata),
-    artHash: avatarBytes === undefined ? null : sha256Hex(avatarBytes),
+/** The personas the run lands without art. The run offers each avatar to the store under the upload cap and lands the
+ *  persona art-less when the store refuses it (`toPersonaInput` in profile-directory.ts), so the store's own twin
+ *  decides here. */
+function personasWithoutArt(deps: ProfileDirImportDeps, collected: ProfileCollected): ReadonlySet<CollectedPersona> {
+  return new Set(
+    collected.personas.filter(
+      ({ avatarBytes }) => avatarBytes === undefined || !deps.ownership.admitsAvatar({ bytes: avatarBytes, maxBytes: ASSET_UPLOAD_MAX_BYTES }),
+    ),
+  );
+}
+
+async function passPersonas(
+  deps: ProfileDirImportDeps,
+  collected: ProfileCollected,
+  artless: ReadonlySet<CollectedPersona>,
+): Promise<ImportOwnership["personas"]> {
+  const personas = await mapYielding(collected.personas, deps.signal, (persona) => ({
+    name: persona.parsed.name,
+    description: persona.parsed.description,
+    metadata: narrowPersonaMetadata(persona.parsed.metadata),
+    artHash: persona.avatarBytes === undefined || artless.has(persona) ? null : sha256Hex(persona.avatarBytes),
   }));
   return answersOf(collected.personas, await deps.ownership.findPersonas({ ownerId: deps.principal.userId, personas, collisions: deps.personaCollisions }));
 }
@@ -251,12 +288,14 @@ export async function findOwnership(deps: ProfileDirImportDeps, collected: Profi
   const cards = await passCards(deps, collected, chats);
   const orphans = await passOrphans(deps, collected, chats);
   const groups = await passGroups(deps, collected, cards, chats);
+  const artless = personasWithoutArt(deps, collected);
   return {
     characters: cards.characters,
     chats: chats.answers,
-    personas: await passPersonas(deps, collected),
+    personas: await passPersonas(deps, collected, artless),
     ...(await passLibrary(deps, collected)),
     groups,
     orphans,
+    personasWithoutArt: artless,
   };
 }

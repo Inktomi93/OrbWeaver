@@ -11,6 +11,7 @@ import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABILITY_ROUTES, PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { createThemeInputSchema } from "@orb/contracts/theme";
+import { UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -20,7 +21,6 @@ import { CSRF_HEADERS } from "./_body-limit-inputs.ts";
 const TREE_ROUTE = PORTABILITY_ROUTES.importTree;
 const EXPORT_ROUTE = PORTABILITY_ROUTES.exportLibrary;
 const ASSET_UPLOAD_ROUTE = "/api/assets/upload";
-const ASSET_FILE_FIELD = "file";
 const WRAPPER = "backup";
 
 /** One exported backup entry: its archive path and exact bytes. */
@@ -45,7 +45,7 @@ async function exportedBackup(root: ServerTestHarness): Promise<readonly BackupE
     input: createRegexScriptSchema.parse({ name: "Batch tidy", findRegex: "a", replaceString: "b", placement: ["AI_OUTPUT"] }),
   });
   const art = new FormData();
-  art.set(ASSET_FILE_FIELD, new File([new Uint8Array(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)))], "aria.png", { type: "image/png" }));
+  art.set(UPLOAD_FILE_FIELD, new File([new Uint8Array(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)))], "aria.png", { type: "image/png" }));
   art.set("kind", "avatar");
   const upload = await root.http.request(ASSET_UPLOAD_ROUTE, { method: "POST", headers: CSRF_HEADERS, body: art });
   expect(upload.status).toBe(200);

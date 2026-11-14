@@ -4,6 +4,7 @@
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { cardImportResultSchema } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
+import { UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
 import { present } from "@orb/testkit/iso";
@@ -41,7 +42,7 @@ function disagreeingCard(root: ServerTestHarness): Uint8Array {
 
 async function importedName(root: ServerTestHarness, png: Uint8Array): Promise<string> {
   const form = new FormData();
-  form.append("file", new File([new Uint8Array(png)], "keeper.png"));
+  form.append(UPLOAD_FILE_FIELD, new File([new Uint8Array(png)], "keeper.png"));
   const response = await root.http.request(PORTABILITY_ROUTES.importCards, { method: "POST", headers: CSRF_HEADERS, body: form });
   expect(response.status).toBe(200);
   const result = cardImportResultSchema.parse(await response.json());

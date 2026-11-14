@@ -52,8 +52,8 @@ function parseKindParams(contributions: WorkloadContributions, input: StartWorkl
 }
 
 /** What a verb's row read narrows against: the registry as of this call, and the domain's log. */
-export function workloadReads(ctx: Pick<WorkloadServiceContext, "getContributions" | "logger">): WorkloadReads {
-  return { contributions: ctx.getContributions(), logger: ctx.logger };
+export function workloadReads(ctx: Pick<WorkloadServiceContext, "getContributions" | "logger" | "reportedUnreadable">): WorkloadReads {
+  return { contributions: ctx.getContributions(), logger: ctx.logger, reportedUnreadable: ctx.reportedUnreadable };
 }
 
 /** The account a stored run answers to. A bulk row's owner is only the account it targets, which the box owner may
@@ -133,6 +133,11 @@ export function resolveAdmissionKey<K extends WorkloadKind>(contributions: Workl
 export function resolveLane<K extends WorkloadKind>(contributions: WorkloadContributions, kind: K, params: WorkloadParamsByKind[K]): WorkloadLane {
   const contribution = contributions[kind];
   return contribution.laneFor?.(params) ?? contribution.lane;
+}
+
+/** Whether a row is stamped transient: the kind's params-dependent answer, else a run its owner keeps. */
+export function resolveTransient<K extends WorkloadKind>(contributions: WorkloadContributions, kind: K, params: WorkloadParamsByKind[K]): boolean {
+  return contributions[kind].transientFor?.(params) ?? false;
 }
 
 /**
