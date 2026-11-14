@@ -177,7 +177,7 @@ export function imageGenerationSpendDelta(args: {
 
 /** What a `spend_ledger` row records: priced model spend that leaves no canon row of its own. A consumer that
  *  handles each kind maps over this tuple, so a new kind fails `tsc` where it is missing. */
-export const SPEND_LEDGER_KINDS = ["compaction", "image-extraction", "image-caption"] as const;
+export const SPEND_LEDGER_KINDS = ["compaction", "image-extraction", "image-caption", "retired-canon"] as const;
 export type SpendLedgerKind = (typeof SPEND_LEDGER_KINDS)[number];
 
 /** One ledger entry as its writer states it. `now` is the spend's clock, stamped on the row and the delta alike. */
