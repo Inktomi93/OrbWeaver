@@ -1,5 +1,5 @@
 // The engine's actual capabilities: frozen turn inputs and execution, never request authorization.
-import type { DurableChatBusEvent, PromptTransformPoint, PromptTransformResult, ToolCallRecord } from "@orb/contracts/chat";
+import type { DurableChatBusEvent, PromptTransformPoint, PromptTransformResult, ProviderWaitBusEvent, ToolCallRecord } from "@orb/contracts/chat";
 import type { ChatMembership } from "@orb/contracts/identity";
 import type { AttachmentQuality } from "@orb/contracts/inference";
 import type { ChatToolDefinition, GeneratedImage, InferenceRuntime, Resolved, ToolCallInput } from "@orb/inference";
@@ -37,6 +37,9 @@ export type DelayOp = (ms: number) => Promise<void>;
  *  `continuedBody` is the stored text a continue's `turnStarted` resumes. It warms the member stamper and is never
  *  written or fanned: a continue's own stream can open inside a hidden tag that body left unclosed. */
 export type EmitDurableChatEventOp = (event: DurableChatBusEvent, continuedBody?: string) => Promise<void>;
+
+/** The live-only fan of a turn's first-token wait phase. Synchronous, never throws into the turn path. */
+export type EmitProviderWaitOp = (event: ProviderWaitBusEvent) => void;
 
 // Detail changes the room row; extra recipients include members just removed from its roster.
 interface EmitChatChangedOptions {
@@ -131,6 +134,7 @@ export type EngineContextInput<Context extends EngineContext> = Context &
 /** Composition binds memory and compaction outside the engine; no callback accepts a chat context. */
 export interface EngineDeps {
   readonly emit: EmitDurableChatEventOp;
+  readonly emitProviderWait: EmitProviderWaitOp;
   readonly holder: string;
   readonly lockTtlMs: number;
   readonly generateMemory: (args: BuildTurnMemoryArgs) => Promise<void>;

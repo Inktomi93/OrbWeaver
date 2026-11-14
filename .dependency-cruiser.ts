@@ -402,6 +402,8 @@ const TEST_CONSTANT_HOMES = {
     "the greeting strip's control names: the add and remove buttons and the numbered greeting label",
   "packages/server/src/foundation/data-layout/contract.ts": "the data-layout slot key constants: the env keys that override one slot each",
   "packages/server/src/domain/chat/contract/metadata.ts": "TOOL_RECURSE_LIMIT_DEFAULT: the default the corpus writes back",
+  "packages/server/src/domain/chat/engine/provider-wait.ts":
+    "PROVIDER_WAIT_NOTICE_MS: the first-token delay the provider-wait suite holds a turn just short of and just past",
   "packages/server/src/domain/chat/persistence/participants-read.ts": "loadPresentRole: the production role read the authority suite compares against",
   "packages/server/src/domain/search/substrate/instructions.ts":
     "SCOPE_INSTRUCTIONS: the per-scope retrieval and rerank instructions the image search suite reads the request prefix against",

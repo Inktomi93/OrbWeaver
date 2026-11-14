@@ -80,6 +80,8 @@ const BUS_FILTERS: BusFilterMap = {
   turnStarted: nothing,
   // #313 — a transient store-axis feed for the header brain-icon; nothing durable changed, no refetch.
   memoryRecall: nothing,
+  // The provider's first-token wait, a pending-row phase on the turn slot; nothing durable changed, no refetch.
+  providerWait: nothing,
   warning: nothing,
   worldInfoActivated: nothing,
 

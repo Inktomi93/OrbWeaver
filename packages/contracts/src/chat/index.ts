@@ -116,6 +116,8 @@ export type {
   PromptTransformOutcome,
   PromptTransformPoint,
   PromptTransformResult,
+  ProviderWaitBusEvent,
+  ProviderWaitPhase,
   RoomEntityKind,
   TurnAbortReason,
   TurnInitiator,

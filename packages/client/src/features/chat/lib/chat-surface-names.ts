@@ -91,6 +91,9 @@ export function chatArchiveToggleName(archived: boolean): string {
   return archived ? CHAT_UNARCHIVE_NAME : CHAT_ARCHIVE_NAME;
 }
 
+/** The pending reply's status while its turn's provider has answered nothing past the notice delay. */
+export const CHAT_PROVIDER_WAITING_NOTE = "Waiting for the provider to start…";
+
 /** The corrections dialog's instruction field. */
 export const CHAT_CORRECTION_INSTRUCTION_NAME = "Correction instruction";
 

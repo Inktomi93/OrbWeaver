@@ -270,6 +270,12 @@ export type TurnAbortReason = (typeof TURN_ABORT_REASONS)[number];
 const MEMORY_RECALL_PHASES = ["recalling", "recalled"] as const;
 export type MemoryRecallPhase = (typeof MEMORY_RECALL_PHASES)[number];
 
+// The provider's first-token wait the pending row reflects (the `providerWait` bus member). `"waiting"` is stamped
+//  when a dispatched request has answered nothing for a short while, so a large local model still loading reads as a
+//  wait rather than a hang; `"started"` follows on the first chunk after a `"waiting"`. A fast provider emits neither.
+const PROVIDER_WAIT_PHASES = ["waiting", "started"] as const;
+export type ProviderWaitPhase = (typeof PROVIDER_WAIT_PHASES)[number];
+
 /** The `DomainOperationError.code` a lock-loss / cancel / fault turn abort surfaces to an AWAITING caller —
  *  the wire-vocabulary home the client keys on off a tRPC error's `data.reason` (the seat-refusal precedent:
  *  reason codes live ONCE in contracts, and the server's `CHAT_OP_CODES` derives this literal). A turn that
@@ -542,6 +548,13 @@ export type ChatBusEvent =
   // `count` is null on `"recalling"` (not known yet) and the surfaced block count on `"recalled"`.
   | { type: "memoryRecall"; chatId: ChatId; phase: "recalling"; count: null }
   | { type: "memoryRecall"; chatId: ChatId; phase: "recalled"; count: number }
+  // ── The provider's FIRST-TOKEN WAIT (the pending row's live feed) ──────────────
+  // A turn's request reached the provider and nothing has come back past a short delay: the pending row says the
+  // provider is starting. It is a phase, never a deadline: the idle window alone ends a stalled request, so a large
+  // local model's cold start keeps its turn. Stamped at the ONE dispatch seam (`domain/chat/engine/provider-wait.ts`),
+  // at most once per phase per turn. LIVE-ONLY by SEMANTICS, like `memoryRecall`: replaying a stale "waiting" would
+  // be a lie, and the turn's own first token or terminal ends the state on every device that saw it.
+  | { type: "providerWait"; chatId: ChatId; turnId: ChatTurnId; phase: ProviderWaitPhase }
   // ── Turn warning (domain-originated; e.g. image parts dropped for a non-vision model, D45) ──
   //    TWO ARMS, and the split is the enforcer: `settings_adjusted` is the only code whose notice
   //    cannot be written from the code alone, so it is the only arm that carries detail — and it carries it
@@ -666,6 +679,7 @@ export const CHAT_BUS_EVENT_TYPES = {
   turnCompleted: true,
   turnAborted: true,
   memoryRecall: true,
+  providerWait: true,
   warning: true,
   worldInfoActivated: true,
   personaSwitched: true,
@@ -696,7 +710,7 @@ export const CHAT_BUS_EVENT_TYPES = {
  *  the heal is the attach synthesis). Its frame carries `seq: null`, which the client seq guard admits without
  *  moving its high-water mark.
  *
- *  THE THREE MEMBERS JOIN FOR DIFFERENT REASONS, and each is stated so a fourth is classified rather than
+ *  THE MEMBERS JOIN FOR DIFFERENT REASONS, and each is stated so the next one is classified rather than
  *  guessed: `roomEntityChanged` is live-only as an ECONOMY (a durable row per seated room per card edit buys
  *  nothing — the heal is the attach synthesis, and it is DERIVED over `ROOM_ENTITY_KINDS` so it cannot fall
  *  behind the kinds this economy applies to); `chatDeleted` is live-only by PHYSICS (its log row cascades
@@ -704,12 +718,13 @@ export const CHAT_BUS_EVENT_TYPES = {
  *  append-free is precisely what lets its two producers DELETE FIRST and fan only what `RETURNING` proves
  *  gone; `memoryRecall` is live-only by SEMANTICS — it is an EPHEMERAL per-turn phase feeding the
  *  header brain-icon, so replaying a stale "recalling" from a prior subscription would be a lie, and there is
- *  no state to persist (the icon idles from an absent event). Only `roomEntityChanged` is quiet-coalescable
+ *  no state to persist (the icon idles from an absent event); `providerWait` joins for the same SEMANTICS, the
+ *  pending row's per-turn wait phase. Only `roomEntityChanged` is quiet-coalescable
  *  (`transport/trpc/quiet-fanout.ts`): a room death is one terminal event per room, never a storm, and
  *  silencing it would strand an open room on a dead chat — and `memoryRecall` must NOT coalesce either, since
  *  its "recalling"→"recalled" transition IS the signal (its volume is already bounded: at most one pair per
- *  scoped speaker per turn). */
-export const LIVE_ONLY_CHAT_EVENT_TYPES = ["roomEntityChanged", "chatDeleted", "memoryRecall"] as const;
+ *  scoped speaker per turn), and `providerWait` must not coalesce for the same reason. */
+export const LIVE_ONLY_CHAT_EVENT_TYPES = ["roomEntityChanged", "chatDeleted", "memoryRecall", "providerWait"] as const;
 export type LiveOnlyChatEventType = (typeof LIVE_ONLY_CHAT_EVENT_TYPES)[number];
 
 /** A `ChatBusEvent` that MAY be appended to the durable `chat_events` log — the union minus the live-only
@@ -719,6 +734,9 @@ export type DurableChatBusEvent = Exclude<ChatBusEvent, { type: LiveOnlyChatEven
 /** The complement: a `ChatBusEvent` fanned WITHOUT a durable append — what
  *  `entry/compose/services::emitChatEventLive` accepts. */
 export type LiveOnlyChatBusEvent = Extract<ChatBusEvent, { type: LiveOnlyChatEventType }>;
+
+/** The `providerWait` member on its own: the one shape the engine's dispatch seam builds. */
+export type ProviderWaitBusEvent = Extract<ChatBusEvent, { type: "providerWait" }>;
 
 /** Whether a durable event whose append the bus dropped still fans live with `seq: null` (D342). `true` unless a row
  *  below says why not: a dropped event that does not fan leaves an attached device or an automation rule (the watcher
