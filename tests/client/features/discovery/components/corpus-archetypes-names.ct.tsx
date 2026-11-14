@@ -12,6 +12,10 @@ import { CORPUS_CONTEXT_TAB_LABELS } from "#client/features/discovery/lib/corpus
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const CONTEXT = '.shell-panel[data-panel-side="context"]';
+const TRAIL_MENU_TRIGGER = '.shell-topbar-trail [data-slot="overflow-actions-trigger"]';
+const DOOR_SETTLE_MS = 2000;
+// At 300% text the clusters can mount past the default expect window while the pane reflows.
+const CLUSTERS_SETTLE_MS = 30_000;
 const PHONE = { width: 390, height: 844 } as const;
 const CLUSTER_NAME_STEM = "The long-remembered keepers of the northern lighthouse and the storm-season vigil";
 const MEMBER_NAMES = [
@@ -47,10 +51,22 @@ for (const scale of PLATFORM_TEXT_SCALES) {
     });
     await seedShellState(page, { activeSection: "corpus" });
     await mount<typeof ShellAmbientStory>(STORY, {});
-    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     const context = page.locator(CONTEXT);
+    const doorName = contextToggleLabel(true);
+    const toggle = page.getByRole("button", { name: doorName, exact: true });
+    // The topbar settles a frame after the text size lands, so the door may have moved from the row into its menu.
+    await expect(async () => {
+      await page.keyboard.press("Escape");
+      if (await toggle.isVisible()) {
+        await toggle.click();
+      } else {
+        await page.locator(TRAIL_MENU_TRIGGER).click();
+        await page.getByRole("menuitem", { name: doorName, exact: true }).click();
+      }
+      await expect(context).not.toHaveAttribute("data-panel-mode", "collapsed", { timeout: DOOR_SETTLE_MS });
+    }).toPass();
     await context.getByRole("tab", { name: CORPUS_CONTEXT_TAB_LABELS.archetypes, exact: true }).click();
-    await expect(context.getByRole("button", { name: MEMBER_NAMES[0], exact: true }).first()).toBeVisible();
+    await expect(context.getByRole("button", { name: MEMBER_NAMES[0], exact: true }).first()).toBeVisible({ timeout: CLUSTERS_SETTLE_MS });
 
     const pane = await boxOf(context);
     const buttons = context.getByRole("group").getByRole("button");
