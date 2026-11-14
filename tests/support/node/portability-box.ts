@@ -24,6 +24,8 @@ const HTTP_ACCEPTED = 202;
 export interface SignedInBoxOptions {
   readonly ids?: SeededIds;
   readonly providerFetch?: typeof fetch;
+  /** The key the box seals provider credentials with; a box without one refuses to store a credential. */
+  readonly secretBoxKey?: Buffer;
 }
 
 /** A local-auth box with no background jobs, after its owner's first-login seed has settled. */
@@ -36,6 +38,7 @@ export async function signedInBox(options: SignedInBoxOptions = {}): Promise<Ser
       env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
       ...(options.ids === undefined ? {} : { ids: options.ids }),
       ...(options.providerFetch === undefined ? {} : { providerFetch: options.providerFetch }),
+      ...(options.secretBoxKey === undefined ? {} : { secretBoxKey: options.secretBoxKey }),
     }),
   );
   const response = await root.http.request(SIGNED_IN_ROUTE, { headers: { [CSRF_HEADER]: "1" } });

@@ -191,6 +191,7 @@ function outputStatement(
         callId: sql`(${claim})`.as("call_id"),
         importHash: sql`${importHash}`.as("import_hash"),
         importSource: sql`${JSON.stringify(source)}`.as("import_source"),
+        genTimeMs: sql`${execution.genTimeMs}`.as("gen_time_ms"),
       })
       .from(assets)
       .where(

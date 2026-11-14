@@ -8,6 +8,7 @@
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { IdSource } from "@orb/kit/ids";
+import type { SpendLedgerPortabilityService } from "./contract/portability.ts";
 import type { StatsContext, StatsService } from "./contract/service.ts";
 import { createReconcileInFlight } from "./reconcile-in-flight.ts";
 import { createByModel } from "./verbs/by-model.ts";
@@ -20,6 +21,7 @@ import { createMomentum } from "./verbs/momentum.ts";
 import { createOverview } from "./verbs/overview.ts";
 import { createPersonaUsage } from "./verbs/persona-usage.ts";
 import { createReconcile } from "./verbs/reconcile.ts";
+import { createSpendLedgerPortability } from "./verbs/spend-ledger-portability.ts";
 import { createTimeseries } from "./verbs/timeseries.ts";
 import { createWrapped } from "./verbs/wrapped.ts";
 
@@ -42,4 +44,9 @@ export function createStatsService(db: DatabaseHandle, now: () => number, idSour
     ...createEconomics(ctx),
     ...createReconcile(ctx, reconcileInFlight),
   };
+}
+
+/** The spend ledger's backup descriptor halves over the same DI bundle the read verbs use. */
+export function createSpendLedgerBackup(db: DatabaseHandle, idSource: IdSource): SpendLedgerPortabilityService {
+  return createSpendLedgerPortability({ db: databaseForOwner(db), idSource });
 }

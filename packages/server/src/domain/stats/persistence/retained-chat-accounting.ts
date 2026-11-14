@@ -7,11 +7,11 @@ import {
   chatGenerationObservations,
   chatParticipants,
   chats,
-  compactionSpend,
   embeddingCalls,
   messages,
   messageVariants,
   ownerStats,
+  spendLedger,
 } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { immutableCollection, rowTuple, ROW_TUPLE_ALIAS as TUPLE_ALIAS } from "@orb/db/query";
@@ -165,10 +165,9 @@ function ownerActivity(ownerId: UserId): SQL {
   const roomIds = ownerChatIds(ownerId);
   const messageIds = sql`select id from messages where chat_id in (${roomIds})`;
   return sql`select max(at) from (
-    select updated_at as at from chats where id in (${roomIds})
-    union all select created_at as at from messages where id in (${messageIds})
+    select created_at as at from messages where id in (${messageIds})
     union all ${retainedLegActivity(messageIds)}
-    union all select ${compactionSpend.createdAt} as at from ${compactionSpend} where ${compactionSpend.ownerId} = ${ownerId}
+    union all select ${spendLedger.createdAt} as at from ${spendLedger} where ${spendLedger.ownerId} = ${ownerId}
     union all select ${embeddingCalls.createdAt} as at from ${embeddingCalls} where ${embeddingCalls.ownerId} = ${ownerId}
     union all select ${chatGenerationObservations.observedAt} as at from ${chatGenerationObservations} where ${chatGenerationObservations.funderUserId} = ${ownerId}
   )`;
@@ -198,8 +197,7 @@ export const settleRetainedChatRebase: SettleRetainedChatRebase<BatchStmt[], Db>
         .set({
           firstChatAt: sql`(select min(created_at) from chats where id in (${roomIds}))`,
           lastActivityAt: sql`(select max(at) from (
-        select updated_at as at from chats where id in (${roomIds})
-        union all select created_at as at from messages where id in (${messageIds})
+        select created_at as at from messages where id in (${messageIds})
         union all ${retainedLegActivity(messageIds)}
       ))`,
         })

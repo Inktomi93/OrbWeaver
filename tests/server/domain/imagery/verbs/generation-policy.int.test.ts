@@ -2,7 +2,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { IMAGERY_NEGATIVE_SLOT_ID } from "@orb/contracts/imagery";
-import { modelIdSchema, providerDefSchema, WARNING_CODE } from "@orb/contracts/inference";
+import { providerDefSchema, WARNING_CODE } from "@orb/contracts/inference";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
 import { resolveImageryCaption, resolveImageryTemplate } from "@orb/contracts/settings";
@@ -12,23 +12,26 @@ import { ID_PREFIX } from "@orb/kit/ids";
 import { processMacros } from "@orb/kit/macro";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { AppRouter } from "@orb/server";
-import { finiteReplies, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
+import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import {
-  CORPUS_PROVIDER_ENDPOINT,
-  captureCookieAuth,
-  createCorpusProviderExecution,
-  createServerHarness,
-  makeAssetBytes,
-  seedAdminProvider,
-  seedChatInvite,
-  seedCorpusConnections,
-  seedInvitedChatParticipant,
-} from "@orb/testkit/node/composed";
+import { captureCookieAuth, createServerHarness, makeAssetBytes, seedAdminProvider } from "@orb/testkit/node/composed";
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import { proseOverrideFromLegacy } from "#contracts/prose-slot/index.ts";
 import { SIZE_PRESETS } from "#server/domain/imagery/substrate/size.ts";
+import {
+  CAPTION,
+  CAPTION_MODE,
+  HOST_CAPTION,
+  HOST_KEY,
+  HOST_MODEL,
+  HOST_NEGATIVE,
+  HOST_TEMPLATE,
+  IMAGE_MODEL,
+  LIVE_MODEL,
+  physicalExecution,
+  policyRoom,
+} from "./imagery-policy-room.fixtures.ts";
 
 // The link hands its fetch a URL string; a URL or a Request still names its address explicitly.
 function requestAddress(input: Parameters<typeof fetch>[0]): string {
@@ -36,116 +39,6 @@ function requestAddress(input: Parameters<typeof fetch>[0]): string {
     return input;
   }
   return input instanceof URL ? input.href : input.url;
-}
-
-const HOST_MODEL = modelIdSchema.parse("imagery-host-utility");
-const LIVE_MODEL = modelIdSchema.parse("imagery-host-utility-live");
-const IMAGE_MODEL = modelIdSchema.parse("imagery-host-image");
-const HOST_CAPTION = "Describe the host portrait.";
-const HOST_TEMPLATE = "Extract the host portrait.";
-const HOST_NEGATIVE = "host excluded detail";
-const HOST_KEY = "imagery-host-funded-key";
-const CAPTION = "  traveller, blue coat  ";
-const CAPTION_MODE = "character_multimodal";
-
-function physicalExecution(replies: readonly string[]): Disposable & { execute: typeof fetch; requests: Request[]; images: Uint8Array[] } {
-  using construction = new DisposableStack();
-  const nextReply = construction.use(finiteReplies("imagery completion", replies)).take;
-  const requests: Request[] = [];
-  const images: Uint8Array[] = [];
-  const provider = createCorpusProviderExecution({
-    modelIds: [HOST_MODEL, LIVE_MODEL, IMAGE_MODEL],
-    embedding: [1, 0, 0],
-    chatText: () => nextReply(),
-    structuredReplies: new Map(),
-    images,
-    usage: { promptTokens: 40, completionTokens: 15 },
-  });
-  const execute: typeof fetch = async (input, init) => {
-    const request = new Request(input, init);
-    if (request.method === "POST") {
-      requests.push(request.clone());
-    }
-    return await provider.execute(request);
-  };
-  const lifetime = construction.move();
-  return {
-    [Symbol.dispose]: () => lifetime.dispose(),
-    execute,
-    requests,
-    images,
-  };
-}
-
-async function policyRoom(root: ServerTestHarness): Promise<{
-  host: Principal;
-  member: Principal;
-  character: Awaited<ReturnType<ServerTestHarness["services"]["character"]["create"]>>;
-  chat: Awaited<ReturnType<ServerTestHarness["services"]["chat"]["startChat"]>>["chat"];
-  utility: Awaited<ReturnType<ServerTestHarness["services"]["connection"]["create"]>>;
-  avatarBytes: Uint8Array;
-}> {
-  const host = await root.principalFor((await root.actor()).id);
-  const member = await root.principalFor((await root.actor()).id);
-  await root.services.settings.updateAppSettings({
-    principal: await root.principalFor(root.ownerId),
-    partial: { privateEndpointAllowlist: [new URL(CORPUS_PROVIDER_ENDPOINT).hostname] },
-  });
-  await seedCorpusConnections(root, host);
-  const credential = await root.services.credentials.add({ principal: host, provider: "custom-openai", key: HOST_KEY });
-  const utility = await root.services.connection.create({
-    principal: host,
-    providerId: "custom-openai",
-    credentialId: credential.id,
-    baseUrl: CORPUS_PROVIDER_ENDPOINT,
-    model: HOST_MODEL,
-    allowBackground: true,
-    declared: {
-      kind: "generation",
-      generation: { input: ["text", "image"], context: { window: 32_000 }, sampling: { temperature: { min: 0, max: 2 } } },
-      features: { detectServer: false, pricing: { inputPerMTok: 1, outputPerMTok: 2 } },
-    },
-  });
-  const image = await root.services.connection.create({
-    principal: host,
-    providerId: "custom-openai",
-    credentialId: credential.id,
-    baseUrl: CORPUS_PROVIDER_ENDPOINT,
-    model: IMAGE_MODEL,
-    allowBackground: true,
-    declared: {
-      kind: "generation",
-      generation: { context: { window: 32_000 }, output: { modalities: ["image"] } },
-      features: { detectServer: false, images: "images-api" },
-    },
-  });
-  await root.services.connection.setBinding({ principal: host, task: "chat", connectionId: utility.id });
-  await root.services.connection.setBinding({ principal: host, task: "summarize", connectionId: utility.id });
-  await root.services.connection.setBinding({ principal: host, task: "generateImage", connectionId: image.id });
-  const avatarBytes = makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset));
-  const avatar = await root.services.assets.store({ principal: host, bytes: avatarBytes, kind: "avatar", mime: "image/png", enforceMagic: true });
-  const character = await root.services.character.create({
-    principal: host,
-    input: createCharacterSchema.parse({
-      handle: "policy-portrait",
-      name: "Traveller",
-      description: "A traveller in a blue coat.",
-      avatarAssetId: avatar.assetId,
-    }),
-  });
-  const { chat } = await root.services.chat.startChat({ principal: host, characterIds: [character.id], opening: "none" });
-  const invite = await seedChatInvite(root, { principal: host, chatId: chat.id, input: { invitedHandle: member.handle } });
-  await seedInvitedChatParticipant(root, { principal: member, inviteId: invite.invite.id });
-  await root.services.chat.commitMessage({ principal: host, chatId: chat.id, content: "The traveller stands beside the loom." });
-  await root.services.settings.updateUserSettingsSection({
-    principal: member,
-    input: { section: "imagery", patch: { templates: { character: "Member extraction." }, captions: { [CAPTION_MODE]: "Member caption." } } },
-  });
-  await root.services.settings.updateUserSettingsSection({
-    principal: member,
-    input: { section: "prose", patch: { [IMAGERY_NEGATIVE_SLOT_ID]: proseOverrideFromLegacy("member excluded detail") } },
-  });
-  return { host, member, character, chat, utility, avatarBytes };
 }
 
 test("member previews use the host's live Utility binding, preset and instructions; empty and unfunded calls refuse", async () => {
