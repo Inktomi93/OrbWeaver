@@ -1,10 +1,10 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-11
+updated: 2026-11-14
 priority: P3
 area: tooling
-plan: checked-law
+plan: typed-enforcers
 ---
 
 # Ambient node:crypto randomness in e2e specs and helpers
