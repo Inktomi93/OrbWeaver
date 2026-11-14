@@ -27,7 +27,11 @@
 // of tier k lands on every complete tier-k position of the fork (tier-0 blocks, and the arcs `tier0RangeOf` builds from
 // them) whose seq span shares a seq with the strike's span; a strike that overlaps no fork position (wholly below the
 // floor, or wholly past the fork point) is not carried. Tiers do not cross: a fork arc holding a re-keyed block is left
-// out by `matchStrikes`'s containment rule. The grid uses the forker's memory config, since the forker hosts the fork.
+// out by `matchStrikes`'s containment rule. The one position still open at the fork (a partial last block, or an arc
+// missing a child) has no end message yet, so the strike lands there on just the struck turns the fork copied into it;
+// the block that later closes around them contains that span and is left out by the same rule. This holds whatever
+// shortens the copied tail: a fork point, rows hidden from the prompt, or a verbatim window under the block size.
+// The grid uses the forker's memory config, since the forker hosts the fork.
 // When several strikes land on one position, the one whose whole span the fork copied wins, else the oldest: the winner's
 // anchor and hash then still name a scene the fork holds. The content hash carries, so an unmoved scene's summary reads
 // as unchanged since the strike.
@@ -66,7 +70,6 @@ import {
   resolveDigestSpans,
   restampMemoryStrikesStatement,
 } from "./persistence/strikes.ts";
-import type { BlockSpan } from "./types.ts";
 
 /** The bucket every speaker recalls, as the turn resolves it (`gatherMemory`): the room's synthetic group character,
  *  else its first seated character. Null in a room with no character seated. */
@@ -291,18 +294,35 @@ interface ForkPosition {
   readonly last: ForkSlot;
 }
 
-// Every complete position at `tier` over the fork's complete blocks; an arc missing a child block is not complete yet.
-function forkPositions(blocks: readonly BlockSpan<ForkSlot>[], tier: number, fanOut: number): ForkPosition[] {
-  const positions: ForkPosition[] = [];
+/** The fork's grid at one tier: its complete positions, then the copied messages of the one position still open. */
+interface ForkTier {
+  readonly complete: readonly ForkPosition[];
+  readonly open: readonly ForkSlot[];
+}
+
+// The first position missing a block (a partial last block, or an arc missing a child) is the open one: every copied
+// message from its first block on.
+function forkTier(copied: readonly ForkSlot[], cfg: { readonly blockSize: number; readonly fanOut: number }, tier: number): ForkTier {
+  const blocks = sliceBlocks(copied, cfg.blockSize);
+  const complete: ForkPosition[] = [];
   for (let blockIdx = 0; ; blockIdx += 1) {
-    const range = tier0RangeOf(fanOut, tier, blockIdx);
+    const range = tier0RangeOf(cfg.fanOut, tier, blockIdx);
     const first = blocks[range.startIdx]?.rows.at(0);
     const last = blocks[range.endIdx]?.rows.at(-1);
     if (first === undefined || last === undefined) {
-      return positions;
+      return { complete, open: copied.slice(range.startIdx * cfg.blockSize) };
     }
-    positions.push({ first, last });
+    complete.push({ first, last });
   }
+}
+
+// The open position's struck turns: the strike lands on just those, and the block that closes around them contains
+// them (`matchStrikes`).
+function openPosition(open: readonly ForkSlot[], span: { readonly seqStart: number; readonly seqEnd: number }): ForkPosition | null {
+  const struck = open.filter((slot) => slot.seq >= span.seqStart && slot.seq <= span.seqEnd);
+  const first = struck.at(0);
+  const last = struck.at(-1);
+  return first === undefined || last === undefined ? null : { first, last };
 }
 
 interface CarriedStrike {
@@ -313,11 +333,7 @@ interface CarriedStrike {
 }
 
 // One carried strike per fork position, from the room's strikes oldest first.
-function carryStrikes(
-  strikes: readonly Strike[],
-  copiedWhole: (strike: Strike) => boolean,
-  positionsAt: (tier: number) => readonly ForkPosition[],
-): CarriedStrike[] {
+function carryStrikes(strikes: readonly Strike[], copiedWhole: (strike: Strike) => boolean, tierAt: (tier: number) => ForkTier): CarriedStrike[] {
   const carried = new Map<string, CarriedStrike>();
   for (const strike of strikes) {
     const span = strike.seqSpan;
@@ -325,10 +341,10 @@ function carryStrikes(
       continue;
     }
     const whole = copiedWhole(strike);
-    for (const position of positionsAt(strike.tier)) {
-      if (position.first.seq > span.seqEnd || position.last.seq < span.seqStart) {
-        continue;
-      }
+    const grid = tierAt(strike.tier);
+    const overlapped = grid.complete.filter((position) => position.first.seq <= span.seqEnd && position.last.seq >= span.seqStart);
+    const open = openPosition(grid.open, span);
+    for (const position of open === null ? overlapped : [...overlapped, open]) {
       const key = spanKey({ tier: strike.tier, messageStartId: position.first.id, messageEndId: position.last.id });
       const current = carried.get(key);
       // Strikes arrive oldest first, so only a strike the fork copied whole displaces one it did not.
@@ -354,14 +370,13 @@ export async function forkMemoryStrikes(ctx: ChatContext, args: Parameters<Memor
     const id = slotIdMap.get(slot.id);
     return id === undefined ? [] : [{ id, seq: slot.seq }];
   });
-  const blocks = sliceBlocks(copied, cfg.blockSize);
-  const positionsByTier = new Map<number, readonly ForkPosition[]>();
-  const positionsAt = (tier: number): readonly ForkPosition[] => {
-    const positions = positionsByTier.get(tier) ?? forkPositions(blocks, tier, cfg.fanOut);
-    positionsByTier.set(tier, positions);
-    return positions;
+  const tiers = new Map<number, ForkTier>();
+  const tierAt = (tier: number): ForkTier => {
+    const grid = tiers.get(tier) ?? forkTier(copied, cfg, tier);
+    tiers.set(tier, grid);
+    return grid;
   };
-  const carried = carryStrikes(strikes, (strike) => slotIdMap.has(strike.messageStartId) && slotIdMap.has(strike.messageEndId), positionsAt);
+  const carried = carryStrikes(strikes, (strike) => slotIdMap.has(strike.messageStartId) && slotIdMap.has(strike.messageEndId), tierAt);
   const rows = carried.map(({ strike, tier, position, whole }) => ({
     id: ctx.newMemoryStrikeId(),
     chatId: args.newChatId,
