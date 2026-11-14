@@ -1,20 +1,24 @@
 // The schema editor runs the contracts belt before the Save press and names each refusal at the field the author fixes it in, so a bad
 // name or a score schema with no overall score is never told it is fine and then failed with an error nobody can act on. A refusal the
-// server still answers after the press, such as a taken name, is stated in the dialog's refusal note.
+// server still answers after the press (a taken name, a draft nested past the JSON bound) is stated in the dialog's refusal note,
+// and a bound refusal reads as a sentence naming its limit.
 // @subject packages/client/src/features/refinery/components/schema-editor-dialog.tsx
 // @subject packages/client/src/features/refinery/components/refusal-note.tsx
 import { REFINERY_SCHEMA_DESCRIPTION_MAX, REFINERY_SCHEMA_STAGES, refinerySchemaDocumentSchema } from "@orb/contracts/refinery";
-import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { JSON_BOUND_REFUSALS, JSON_MAX_DEPTH } from "@orb/kit/json";
+import { routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import { REFINERY_SCHEMA_DESCRIBE_NAME, REFINERY_SCHEMA_JSON_NAME, REFINERY_SCHEMA_NAME_FIELD_NAME } from "#client/features/refinery/lib/refinery-names.ts";
+import { refusalSentenceOf } from "#client/features/refinery/lib/schema-draft.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import { SCORE_MAX, SCORE_MIN } from "#contracts/refinery/core.ts";
 import type { SchemaPreviewStory } from "./_payload-stories.tsx";
 
 const STORY = "tests/client/features/refinery/components/_payload-stories/SchemaPreviewStory";
 const [STAGE] = REFINERY_SCHEMA_STAGES;
+const [MAX_DEPTH_REFUSAL] = JSON_BOUND_REFUSALS;
 const READS = ["settings.getUserSettings", "sessions.me", "character.list", "refinery.schemaPlan"] as const;
 const SCORE_SCHEMA = {
   type: "object",
@@ -23,6 +27,8 @@ const SCORE_SCHEMA = {
 };
 const NO_OVERALL_SCORE = { type: "object", properties: { mood: { type: "string" } }, required: ["mood"] };
 const VALID_NAME = "mood_scorer";
+// The refusal note is a Stack of alert lines; `@orb/ui` primitives carry no test id, so the lines are found by role inside the dialog.
+const NAMES_THE_LIMIT = new RegExp(`\\b${String(JSON_MAX_DEPTH)}\\b`, "u");
 
 function documentOf(overrides: { readonly name?: string; readonly description?: string; readonly schema?: Record<string, unknown> }): unknown {
   return { name: VALID_NAME, description: "", stage: STAGE, schema: SCORE_SCHEMA, ...overrides };
@@ -36,6 +42,14 @@ function beltSentence(doc: unknown): string {
     throw new Error("The draft was meant to fail the belt");
   }
   return issue.message;
+}
+
+function nested(depth: number): unknown {
+  let value: unknown = 1;
+  for (let level = 0; level < depth; level += 1) {
+    value = [value];
+  }
+  return value;
 }
 
 function editorFields(page: Page): {
@@ -113,6 +127,56 @@ for (const profile of PROFILES) {
       await description.fill("");
       await expect(description).toHaveAccessibleDescription("");
       await expect(save).toBeEnabled();
+    });
+
+    test("a draft nested past the JSON bound is refused at the JSON pane with a sentence that names the limit", async ({ mount, page }) => {
+      await using root = await createCorpusHarness();
+      const caller = await root.internalCallerFor(root.ownerId);
+      await routeTrpc(page, serveCorpusProcedures(caller, READS));
+      await mount<typeof SchemaPreviewStory>(STORY, {});
+      const { name, schema, save } = editorFields(page);
+      await name.fill(VALID_NAME);
+
+      await schema.fill(JSON.stringify({ ...SCORE_SCHEMA, default: nested(JSON_MAX_DEPTH + 1) }));
+      await expect(schema).toHaveAccessibleDescription(NAMES_THE_LIMIT);
+      await expect(schema).toHaveAccessibleDescription(refusalSentenceOf(MAX_DEPTH_REFUSAL));
+      await expect(save).toBeDisabled();
+
+      // Positive controls: a draft nested inside the bound is judged by the belt, not the bound, and a draft the belt accepts saves.
+      await schema.fill(JSON.stringify({ ...SCORE_SCHEMA, default: nested(JSON_MAX_DEPTH - 2) }));
+      await expect(schema).not.toHaveAccessibleDescription(NAMES_THE_LIMIT);
+      await expect(schema).not.toHaveAccessibleDescription("");
+      await schema.fill(JSON.stringify(SCORE_SCHEMA));
+      await expect(schema).toHaveAccessibleDescription("");
+      await expect(save).toBeEnabled();
+    });
+
+    test("a save the server refuses for its bound is stated in the refusal note as a sentence that names the limit", async ({ mount, page }) => {
+      await using root = await createCorpusHarness();
+      const caller = await root.internalCallerFor(root.ownerId);
+      // The answer the server gives a draft nested past the bound, as a client that skipped the editor's own check would get it.
+      const refusal = await caller.refinery
+        .createSchema({ name: VALID_NAME, description: "", stage: STAGE, schema: { ...SCORE_SCHEMA, default: nested(JSON_MAX_DEPTH + 1) } })
+        .then(
+          () => null,
+          (error: unknown) => error,
+        );
+      if (!(refusal instanceof Error)) {
+        throw new Error("The server accepted a draft nested past the bound");
+      }
+      await routeTrpc(page, {
+        ...serveCorpusProcedures(caller, READS),
+        ...serveCorpusProcedures(caller, ["refinery.createSchema"], () => trpcError({ code: "BAD_REQUEST", message: refusal.message })),
+      });
+      await mount<typeof SchemaPreviewStory>(STORY, {});
+      const { name, schema, save } = editorFields(page);
+      await name.fill(VALID_NAME);
+      await schema.fill(JSON.stringify(SCORE_SCHEMA));
+      await save.click();
+
+      const note = page.getByRole("dialog").getByRole("alert");
+      await expect(note).toHaveText(NAMES_THE_LIMIT);
+      await expect(note).not.toContainText(MAX_DEPTH_REFUSAL);
     });
 
     test("a taken name is answered by the server and stated in the refusal note, where the editor's own check passes it", async ({ mount, page }) => {
