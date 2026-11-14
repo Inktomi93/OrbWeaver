@@ -17,10 +17,9 @@
 import type { DocumentDestination, UploadResult } from "@orb/contracts/databank";
 import { DOCUMENT_DESTINATION_FORM_FIELD, documentUploadRefusalSchema, uploadResultSchema } from "@orb/contracts/databank";
 import { CSRF_HEADER } from "@orb/contracts/identity";
-import { DATABANK_UPLOAD_ROUTE } from "@orb/contracts/uploads";
+import { DATABANK_UPLOAD_ROUTE, UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
 import { throwHttpError } from "./http-error.ts";
 
-const UPLOAD_FIELD = "file";
 const NAME_FIELD = "name";
 
 /** The server refused the document and said why in a body {@link documentUploadRefusalSchema} accepts. `reason` is the
@@ -44,7 +43,7 @@ export class DocumentUploadRefusedError extends Error {
  *  `loading`/`success` contract, `@orb/ui`). `name` defaults to the file's own name server-side when omitted. */
 export async function uploadDocument(file: File, name?: string, destination?: DocumentDestination): Promise<UploadResult> {
   const form = new FormData();
-  form.set(UPLOAD_FIELD, file);
+  form.set(UPLOAD_FILE_FIELD, file);
   if (destination !== undefined) {
     form.set(DOCUMENT_DESTINATION_FORM_FIELD, JSON.stringify(destination));
   }

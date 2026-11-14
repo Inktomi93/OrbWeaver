@@ -34,7 +34,7 @@ import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import { and, asc, desc, eq, getTableColumns, gt, gte, inArray, isNotNull, isNull, lt, lte, ne, notExists, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, exists, getTableColumns, gt, gte, inArray, isNotNull, isNull, lt, lte, ne, notExists, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 import type { Logger } from "#foundation/observability";
@@ -640,15 +640,35 @@ export async function findActiveForBootSweep(db: Db): Promise<ActiveWorkloadRow[
 }
 
 /** Delete the TERMINAL transient rows: when `scope` names them, one owner's of one kind other than the row that just
- *  ended, else every one (the boot sweep). A transient row still queued or running is never deleted: its run owns it,
- *  and it ends through its own verbs. Returns how many went. */
+ *  ended; else (the boot sweep) every one but each owner's newest of each kind, which an open review may not have read
+ *  yet and the owner's next transient row of the kind deletes when it ends. A transient row still queued or running is
+ *  never deleted: its run owns it, and it ends through its own verbs. Returns how many went. */
 // THE ENGINE PLANE (D20 un-principal) — the scope is the owner of a row the runner itself claimed, or none at boot. Ends if a door passes a caller-authored owner here.
 export async function deleteTerminalTransientWorkloads(
   db: Db,
   scope?: { readonly kind: WorkloadKind; readonly ownerId: UserId | null; readonly exceptId: WorkloadId },
 ): Promise<number> {
   const filters: SQL[] = [eq(workloads.transient, true), inArray(workloads.status, [...TERMINAL_STATUSES])];
-  if (scope !== undefined) {
+  if (scope === undefined) {
+    const later = alias(workloads, "later_transient");
+    filters.push(
+      exists(
+        db
+          .select({ id: later.id })
+          .from(later)
+          .where(
+            and(
+              eq(later.transient, true),
+              inArray(later.status, [...TERMINAL_STATUSES]),
+              eq(later.kind, workloads.kind),
+              // SQLite's IS is equality that holds for two nulls, so a system row's newest is kept too.
+              sql`${later.ownerId} IS ${workloads.ownerId}`,
+              or(gt(later.createdAt, workloads.createdAt), and(eq(later.createdAt, workloads.createdAt), gt(later.id, workloads.id))),
+            ),
+          ),
+      ),
+    );
+  } else {
     filters.push(
       eq(workloads.kind, scope.kind),
       scope.ownerId === null ? isNull(workloads.ownerId) : eq(workloads.ownerId, scope.ownerId),

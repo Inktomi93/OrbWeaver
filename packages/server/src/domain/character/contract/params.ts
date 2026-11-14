@@ -115,6 +115,10 @@ export interface AttachImportedArtParams {
   readonly importHash: string;
 }
 
+/** The read-only twin of {@link AttachImportedArtParams}'s write (import-injected, internal): asks, without writing,
+ *  whether the owner's character would take a PNG's art now. */
+export type AdmitsImportedArtParams = Pick<AttachImportedArtParams, "ownerId" | "characterId">;
+
 /** A shipped card's own export identity (seeder-injected, internal), written only onto a row that has none. */
 export interface StampImportIdentityParams {
   readonly ownerId: UserId;

@@ -129,7 +129,8 @@ export async function reclaimInFlightOnBoot(args: BootReclaimArgs): Promise<Boot
     cancelled: dispositions.filter((disposition) => disposition === "cancelled").length,
   };
   getLog(args.logger).info(report, "workloads: boot reclaim of orphaned in-flight rows (raised cancels finished, resumable kinds re-queued, the rest reaped)");
-  // After the dispositions, so a transient row reaped just now goes too; one re-queued to run is kept.
+  // After the dispositions, so a transient row reaped just now counts as finished; one re-queued to run is kept. Each
+  // owner's newest finished one of a kind stays for a review that has not read it.
   const transientDeleted = await deleteTerminalTransientWorkloads(args.db);
   getLog(args.logger).info({ transientDeleted }, "workloads: boot sweep of finished transient rows");
   await sweepAbandoned(args);

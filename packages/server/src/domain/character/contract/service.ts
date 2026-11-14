@@ -35,6 +35,7 @@ import type { CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { AuditWiring, Logger } from "#foundation/observability";
 import type {
+  AdmitsImportedArtParams,
   AttachImportedArtParams,
   BulkAddCardTagParams,
   BulkArchiveParams,
@@ -152,6 +153,8 @@ export interface CharacterService {
   /** Give an art-less owned character its avatar and re-key its import identity, in one conditional write.
    *  True when the row took the art; false when it already had one (nothing written). */
   readonly attachImportedArt: (params: AttachImportedArtParams) => Promise<boolean>;
+  /** Whether {@link CharacterService.attachImportedArt} would give the character art now, asked without writing. */
+  readonly admitsImportedArt: (params: AdmitsImportedArtParams) => Promise<boolean>;
   /** Give a seeded card the import identity its own export carries, so restoring that export onto a box that
    *  seeded the same card dedups. True when written; false when the row already carries an identity. */
   readonly stampImportIdentity: (params: StampImportIdentityParams) => Promise<boolean>;

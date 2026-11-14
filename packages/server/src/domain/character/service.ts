@@ -10,6 +10,7 @@
 
 import { batchHandle, databaseForOwner } from "@orb/db/wiring-owner";
 import type { CharacterAssemblyInput, CharacterContext, CharacterService } from "./contract/service.ts";
+import { createAdmitsImportedArt } from "./verbs/admits-imported-art.ts";
 import { createAttachImportedArt } from "./verbs/attach-imported-art.ts";
 import { createBulkAddCardTag } from "./verbs/bulk-add-card-tag.ts";
 import { createBulkArchive } from "./verbs/bulk-archive.ts";
@@ -72,6 +73,7 @@ export function createCharacterService(input: CharacterAssemblyInput): Character
     listEmbeddableCharacterIds: createListEmbeddableCharacterIds(ctx),
     findByImportHash: createFindByImportHash(ctx),
     attachImportedArt: createAttachImportedArt(ctx),
+    admitsImportedArt: createAdmitsImportedArt(ctx),
     stampImportIdentity: createStampImportIdentity(ctx),
     mintSyntheticGroupCharacter: createMintSyntheticGroupCharacter(ctx),
     findSyntheticGroupCharacter: createFindSyntheticGroupCharacter(ctx),

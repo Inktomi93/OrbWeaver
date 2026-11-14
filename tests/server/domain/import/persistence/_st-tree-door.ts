@@ -15,6 +15,7 @@ import {
   TREE_FILE_FIELD,
 } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
+import { UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
 import type { MaintenanceResult } from "@orb/contracts/workloads";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -35,7 +36,9 @@ export type Files = Readonly<Record<string, Bytes>>;
 
 // The owner's default content seeds in the background after the first authed request. Settling it here keeps a
 // test's before/after row deltas from racing the seed.
-export async function harness(options: Pick<ServerHarnessOptions, "db" | "startJobs" | "providerFetch"> = {}): Promise<ServerTestHarness> {
+export async function harness(
+  options: Pick<ServerHarnessOptions, "db" | "startJobs" | "providerFetch" | "ownerId" | "clock" | "ids"> = {},
+): Promise<ServerTestHarness> {
   await using construction = new AsyncDisposableStack();
   const root = construction.use(
     await createServerHarness({
@@ -71,13 +74,10 @@ export function cardPngUnderOtherArt(root: ServerTestHarness, name: string): Uin
   return writeCardChunk(Uint8Array.from([...png.slice(0, -IEND_CHUNK_BYTES), ...ABCD_CHUNK, ...png.slice(-IEND_CHUNK_BYTES)]), cardJson(name));
 }
 
-// The Characters dialog's upload field. The route reads it from `UPLOAD_FIELD`, which `entry/http/upload.ts` does not export.
-const DIALOG_FIELD = "file";
-
 /** One card file through the Characters dialog door. */
 export async function importThroughDialog(root: ServerTestHarness, filename: string, bytes: Bytes): Promise<void> {
   const form = new FormData();
-  form.append(DIALOG_FIELD, new File([typeof bytes === "string" ? ENCODER.encode(bytes) : new Uint8Array(bytes)], filename));
+  form.append(UPLOAD_FILE_FIELD, new File([typeof bytes === "string" ? ENCODER.encode(bytes) : new Uint8Array(bytes)], filename));
   const response = await root.http.request(PORTABILITY_ROUTES.importCards, { method: "POST", headers: CSRF_HEADERS, body: form });
   expect(response.status).toBe(200);
   expect(cardImportResultSchema.parse(await response.json()).failed).toEqual([]);

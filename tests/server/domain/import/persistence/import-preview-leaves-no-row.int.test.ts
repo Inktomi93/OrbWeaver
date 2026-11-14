@@ -6,13 +6,17 @@
 // @subject packages/server/src/domain/import/workload-contributions.ts
 
 import type { PersonaCollisionChoices } from "@orb/contracts/import";
-import { ST_SETTINGS_FILE, TREE_DRY_RUN_VALUE } from "@orb/contracts/import";
+import { importStartedSchema, ST_SETTINGS_FILE, TREE_DRY_RUN_VALUE } from "@orb/contracts/import";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { WorkloadId } from "@orb/kit/ids";
 import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
+import type { SignedIn } from "@orb/testkit/node/auth";
+import { createAuthModeRoot, mintMember, ownerSubject, signIn } from "@orb/testkit/node/auth";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import { WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
 import { sql } from "drizzle-orm";
+import { CSRF_HEADERS } from "../../../entry/http/_body-limit-inputs.ts";
 import type { Files } from "./_st-tree-door.ts";
 import { admit, cardPng, finish, finishRun, harness, post, settings } from "./_st-tree-door.ts";
 
@@ -112,4 +116,27 @@ test("a finished dry run stays readable and cancellable while the next one has n
 
   await expect(root.services.workloads.get({ caller, id: earlier })).rejects.toThrow(DomainNotFoundError);
   await expect(root.services.workloads.get({ caller, id: next })).resolves.toMatchObject({ status: "succeeded" });
+});
+
+test("an owner's next dry run deletes only that owner's finished one, never another account's", async () => {
+  await using root = await createAuthModeRoot("local", { physicalPeer: () => "127.0.0.1", startJobs: false });
+  const owner = await signIn(root, await ownerSubject(root));
+  const member = await signIn(root, await mintMember(root));
+  const headersOf = (who: SignedIn): Readonly<Record<string, string>> => ({ ...CSRF_HEADERS, ...who.headers });
+  const dryRunAs = async (who: SignedIn, files: Files): Promise<WorkloadId> => {
+    const response = await post(root, files, [TREE_DRY_RUN_VALUE], { headers: headersOf(who) });
+    expect(response.status).toBe(202);
+    const { workloadId } = importStartedSchema.parse(await response.json());
+    await root.runAdmittedWorkload?.(workloadId, AbortSignal.timeout(WORKLOAD_DEADLINE_MS));
+    await expect(root.services.workloads.get({ caller: who.principal, id: workloadId })).resolves.toMatchObject({ status: "succeeded" });
+    return workloadId;
+  };
+  const ownerFirst = await dryRunAs(owner, PERSONA_FILES);
+  const memberRun = await dryRunAs(member, PERSONA_FILES);
+
+  await dryRunAs(owner, PERSONA_FILES);
+
+  // The control: the owner's own earlier dry run went.
+  await expect(root.services.workloads.get({ caller: owner.principal, id: ownerFirst })).rejects.toThrow(DomainNotFoundError);
+  await expect(root.services.workloads.get({ caller: member.principal, id: memberRun })).resolves.toMatchObject({ status: "succeeded" });
 });

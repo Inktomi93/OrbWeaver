@@ -5,11 +5,12 @@
 import type { AdmitsAvatar } from "@orb/contracts/assets";
 import { sniffMime } from "@orb/kit/image-sniff";
 import { AssetContentRejectedError } from "../contract/errors.ts";
+import { exceedsAssetCap } from "../substrate/cap.ts";
 import { assertKindAdmits, assertMagicMatches } from "../substrate/mime.ts";
 
 export function createAdmitsAvatar(): AdmitsAvatar {
   return ({ bytes, maxBytes }) => {
-    if (bytes.byteLength > maxBytes) {
+    if (exceedsAssetCap(bytes, maxBytes)) {
       return false;
     }
     try {

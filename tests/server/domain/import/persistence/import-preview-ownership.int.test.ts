@@ -119,26 +119,56 @@ test("a group the run refuses is a skip, not a new room, and the preview counts 
   expect(preview.kinds.chats.items.map((item) => item.name)).not.toContain("Memberless: ghost-room");
 });
 
-test("an owned art-less card takes the art of the first same-text PNG only, so the preview flags that one and the run lands the other", async () => {
+const ARTS = ["owned", "other"] as const;
+type Art = (typeof ARTS)[number];
+const VERDICTS = ["library", "repeat", "write"] as const;
+type Verdict = (typeof VERDICTS)[number];
+
+/** Two same-text PNGs of an owned Aria, in the folder's name order, and what the preview must say of each. An owned
+ *  row that has no art takes the first text match's art once and is then keyed by that art; one that already has art
+ *  is left alone, so a card under other art lands beside it. */
+const ART_CASES: readonly {
+  readonly name: string;
+  readonly ownedHasArt: boolean;
+  readonly cards: readonly [Art, Art];
+  readonly verdicts: readonly [Verdict, Verdict];
+}[] = [
+  { name: "the same art twice", ownedHasArt: false, cards: ["owned", "owned"], verdicts: ["library", "repeat"] },
+  { name: "one art, then other art", ownedHasArt: false, cards: ["owned", "other"], verdicts: ["library", "write"] },
+  { name: "other art, then the first art", ownedHasArt: false, cards: ["other", "owned"], verdicts: ["library", "write"] },
+  { name: "an owned row that already has art", ownedHasArt: true, cards: ["owned", "other"], verdicts: ["library", "write"] },
+];
+
+test.for(ART_CASES)("same-text PNGs of an owned card, $name: the preview says what the run writes", async ({ ownedHasArt, cards, verdicts }) => {
   await using root = await harness();
   await importThroughDialog(root, "aria.json", cardJson("Aria"));
+  if (ownedHasArt) {
+    await importThroughDialog(root, "aria.png", cardPng(root, "Aria"));
+  }
+  const png = (art: Art): Uint8Array => (art === "owned" ? cardPng(root, "Aria") : cardPngUnderOtherArt(root, "Aria"));
   const files = {
     [ST_SETTINGS_FILE]: settings({}),
-    // The collector reads a folder's cards in name order, so `first.png` is the one the owned row takes art from.
-    "characters/first.png": cardPng(root, "Aria"),
-    "characters/second.png": cardPngUnderOtherArt(root, "Aria"),
+    // The collector reads a folder's cards in name order.
+    "characters/first.png": png(cards[0]),
+    "characters/second.png": png(cards[1]),
   };
   const ariaCount = async (): Promise<number> =>
     (await (await root.internalCallerFor(root.ownerId)).character.list({})).items.filter((item) => item.name === "Aria").length;
+  // The control: the dialog left exactly one owned Aria for the folder to meet.
+  expect(await ariaCount()).toBe(1);
 
   const preview = await dryRun(root, files);
-
-  expect(preview.kinds.characters.items.map((item) => ({ source: item.source.path, inLibrary: item.inLibrary }))).toEqual([
-    { source: "first.png", inLibrary: true },
-    { source: "second.png", inLibrary: undefined },
-  ]);
-  expect(preview.kinds.characters.counts).toMatchObject({ inLibrary: 1, writes: 1 });
-
   await finish(root, await admit(root, files));
-  expect(await ariaCount()).toBe(2);
+
+  const verdictOf = (item: (typeof preview.kinds.characters.items)[number]): Verdict => {
+    if (item.inLibrary === true) {
+      return "library";
+    }
+    return item.repeat === true ? "repeat" : "write";
+  };
+  expect(preview.kinds.characters.items.map((item) => [item.source.path, verdictOf(item)])).toEqual([
+    ["first.png", verdicts[0]],
+    ["second.png", verdicts[1]],
+  ]);
+  expect(await ariaCount()).toBe(1 + preview.kinds.characters.counts.writes);
 });
