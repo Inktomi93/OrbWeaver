@@ -1,7 +1,7 @@
 // The shell's PANEL-MODE algebra + its vocabulary — the pure half of the layout store, apart from
 // `shell-store.ts`. Pure by construction: no store handle, no React, no
 // viewport read. `shell-store.ts` owns the STATE and the hooks that feed this function; every caller
-// (the feature-tier `useShellLayout`, the `#state` projection `useSectionListMode`) resolves through THIS one
+// (the feature-tier `useShellLayout`, the `#state` projections `useSectionListMode` and `useSectionContextMode`) resolves through THIS one
 // function so the tiers can never drift (the M10 correction).
 
 import type { CorpusMode } from "#lib";
@@ -41,6 +41,20 @@ export const CORPUS_PHONE_LANDING: Readonly<Record<CorpusMode, PhoneLanding>> = 
   insights: "content",
   labels: "list",
 };
+
+/** Does CONTEXT take the closed slide-over regime? The registry says both panes are real and LIST requests a dock, and the content column has
+ *  shrunk to its floor: CONTEXT then floats over the content instead of taxing the reading column. It deliberately ignores CONTEXT's own
+ *  default, so opening a collapsed CONTEXT enters the regime at once. `useShellLayout` and `useSectionContextMode` both ask here, so the shell and a
+ *  feature never disagree about whether the pane floats. */
+export function contextAutoOverlay(inputs: {
+  readonly contextContentConstrained: boolean;
+  readonly listAvailable: boolean;
+  readonly contextAvailable: boolean;
+  /** The LIST pane's override-or-default request, before the regime is applied. */
+  readonly listRequest: PanelMode;
+}): boolean {
+  return inputs.contextContentConstrained && inputs.listAvailable && inputs.contextAvailable && inputs.listRequest === "docked";
+}
 
 /** The ONE mode-resolution algebra — both `useShellLayout`'s `resolvePanel` (feature-tier hook, reads the
  *  section registry for `panelDefaults`) and `useSectionListMode` (the `#state` tier) call this SAME function so

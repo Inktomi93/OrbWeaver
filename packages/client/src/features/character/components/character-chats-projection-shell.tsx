@@ -27,6 +27,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useTRPC } from "#data";
 import type { CharacterChatsProjectionView } from "#lib";
+import { useSectionContextMode } from "#state";
 import { CHARACTER_CHATS_PROJECTION_SLOT, useStartChatWithCharacter } from "../lib/character-chat-intents.ts";
 
 export interface CharacterChatsProjectionShellProps {
@@ -41,11 +42,14 @@ export function CharacterChatsProjectionShell({ characterId, chatsProjection }: 
   const { data } = useQuery(trpc.character.get.queryOptions({ characterId }));
   const name = data?.name ?? "";
   const startChatWith = useStartChatWithCharacter();
+  // The hero's New chat sits in the content column, so it is on screen only while that column is not covered. A pane that floats
+  // over the content (a phone's sheet, a narrow desktop, a column at its floor) hides the hero behind it and keeps its own door.
+  const heroVisible = useSectionContextMode("characters") === "docked";
 
   return (
     <Stack minHeight="shrinks" height="fill" data-slot={CHARACTER_CHATS_PROJECTION_SLOT} gap="row">
       <Stack minHeight="shrinks" grow={true}>
-        {chatsProjection({ characterId, characterName: name, onNewChat: (): void => startChatWith(characterId) })}
+        {chatsProjection({ characterId, characterName: name, onNewChat: heroVisible ? null : (): void => startChatWith(characterId) })}
       </Stack>
     </Stack>
   );

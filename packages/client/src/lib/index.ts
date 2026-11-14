@@ -33,6 +33,7 @@ export type { ScreenTitle } from "./census-title.ts";
 export { censusSuffix, censusTitle } from "./census-title.ts";
 export {
   BLANK_CHAT_NAME,
+  CHARACTER_NEW_CHAT_NAME,
   NEW_CHAT_DIALOG_TITLE,
   NO_CHAT_SELECTED_TITLE,
   START_NEW_CHAT_NAME,

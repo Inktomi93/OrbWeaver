@@ -28,6 +28,7 @@ import { QueryBoundary, useAvatarUpload } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation } from "#data";
 import type { AppFormInstance } from "#forms/editor";
+import { CHARACTER_NEW_CHAT_NAME } from "#lib";
 import { toggleSpoilerBlur, useSpoilerBlur } from "#state";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { usePreviewRenderPolicy } from "../hooks/use-preview-render-policy.ts";
@@ -245,7 +246,7 @@ function HeroActions({
     <Row gap="row" align="center" wrap={true}>
       <Button type="button" onClick={onNewChat}>
         <Icon icon={MessagesSquare} size="sm" />
-        New chat
+        {CHARACTER_NEW_CHAT_NAME}
       </Button>
       {chatCount > 0 ? (
         // The chat-count DOOR is a glance echo of the band's `N chats` chip and of the rail's own Chats

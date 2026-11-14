@@ -290,8 +290,9 @@ export interface CharacterChatsProjectionView {
   readonly characterId: CharacterId;
   /** Names the pane + its empty state ("No chats with Aveline yet"). */
   readonly characterName: string;
-  /** Start a fresh chat with her. HOST-owned: it also leaves the section, which is the host's call. */
-  readonly onNewChat: () => void;
+  /** Start a fresh chat with her. HOST-owned: it also leaves the section, which is the host's call. `null` while the
+   *  character hero's own New chat is on screen beside the pane, so one screen holds one door to the action. */
+  readonly onNewChat: (() => void) | null;
 }
 
 /** The Chats CONTEXT-panel state projection — the `ChatDetail` wire fields the tabs read, plus

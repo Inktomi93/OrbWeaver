@@ -295,7 +295,7 @@ export type { ModalSlotId } from "./modal-slot-ids.ts";
 export { MODAL_SLOT_IDS } from "./modal-slot-ids.ts";
 export { onNewCharacterRequest, requestNewCharacter, takeNewCharacterRequest } from "./new-character-request-store.ts";
 export type { PanelMode, PanelName } from "./panel-resolve.ts";
-export { resolvePanelMode } from "./panel-resolve.ts";
+export { contextAutoOverlay, resolvePanelMode } from "./panel-resolve.ts";
 export { takePersonaEditorFocus, usePersonaEditorFocusRequest } from "./persona-editor-focus-store.ts";
 export { openPersonaEditor, selectPersonaEditor, usePersonaEditorId } from "./persona-editor-selection-store.ts";
 export { clearPluginCommandArgs, openPluginCommandArgs, usePluginCommandArgsSubject } from "./plugin-command-args-store.ts";
@@ -369,6 +369,7 @@ export { resolveSectionPath, SECTION_IDS } from "./section-ids.ts";
 export {
   LIST_OFF_SCREEN_HINT,
   useSectionBackTarget,
+  useSectionContextMode,
   useSectionHasSelection,
   useSectionListIsScreen,
   useSectionListMode,
@@ -406,6 +407,7 @@ export {
   revealContextPanel,
   revealContextPanelBesideContent,
   setActiveSection,
+  setContextContentConstrained,
   setContextTab,
   setMobileViewport,
   setNarrowViewport,
