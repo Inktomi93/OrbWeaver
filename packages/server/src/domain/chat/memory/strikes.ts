@@ -2,7 +2,7 @@
 // (`verbs/memory-strikes.ts`) through `ChatContext.memoryStrikes`.
 //
 // A STRIKE NAMES A SPAN OF THE STORY. Recall leaves out every bucket's summary of a struck span and every longer
-// summary covering it (`matchStrikes` in `packages/kit/src/recall/index.ts`). So the view shows one struck entry per
+// summary retelling one (`matchStrikes` in `packages/kit/src/recall/index.ts`). So the view shows one struck entry per
 // span (the item the host struck, else the first listed copy) and marks the other copies `retellsStruck`; a strike
 // on an already struck span answers the standing strike; a restore lifts the span for every bucket.
 //

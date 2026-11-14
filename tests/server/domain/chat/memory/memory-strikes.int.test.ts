@@ -1,14 +1,17 @@
-// The host's strike on a remembered item, through the composed root: a strike leaves the item out of the next turn's
-// prompt and restoring it brings it back; only the host strikes; a strike outlives the scene being summarized again;
-// a longer summary retelling a struck scene leaves with it; a solo room's strike holds once a second character is
-// seated; a member's view stops at their history floor; and an empty view says why it is empty.
+// The host's strike on a remembered scene, through the composed root: a strike leaves the scene out of the next turn's
+// prompt and restoring it brings it back; only the host strikes, and only the host gets strike ids; a strike outlives
+// the scene being summarized again; a longer summary retelling a struck scene leaves with it; a strike names the span
+// in every bucket, so it holds for every speaker of a group room, across a solo room gaining a second character, and
+// over a speaker's own longer summary; a restore is room-bound; a strike survives a host handoff; a member's view
+// stops at their history floor; and an empty view says why it is empty.
 // Digests come from the production memory build; only the provider edges are scripted (`recall-world.ts`).
 // @subject packages/server/src/domain/chat/verbs/memory-strikes.ts
 // @subject packages/server/src/domain/chat/memory/recall/recall.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { MemoryItemView, MemoryView } from "@orb/contracts/chat";
-import { present } from "@orb/testkit/iso";
+import type { CharacterId } from "@orb/kit/ids";
+import { nonEmpty, present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
@@ -22,7 +25,7 @@ import {
 import { CHAT_OP_CODES } from "#server/domain/chat/contract/errors.ts";
 import { invitePerson } from "../persona-cache-physical.ts";
 import { wireOf } from "../scenario-physical.ts";
-import type { Arc } from "./recall-world.ts";
+import type { Arc, RecallRun } from "./recall-world.ts";
 import { BLOCK_SIZE, blockOf, embeddingFor, FAN_OUT, generatedText, probe, recallTurn, TURN_INTENT, verdicts, world } from "./recall-world.ts";
 
 /** Two scenes in one query, the storm scene weighted first; both clear the floor, so both are admitted unstruck. */
@@ -101,11 +104,13 @@ test("a member is refused a strike and a restore as not the host, and the host's
   await expect(w.h.root.services.chat.restoreMemory({ principal: member, chatId: w.h.chatId, strikeId })).rejects.toMatchObject({
     code: CHAT_OP_CODES.notHost,
   });
-  // The member reads the host's strike: the room's memory is the same for everyone in it.
+  // The member reads that the scene is struck (the room's memory is the same for everyone in it), but only the host,
+  // who alone restores, gets the strike id.
   expect(sceneOf(await w.h.root.services.chat.memoryView({ principal: member, chatId: w.h.chatId }), "duel").strike).toEqual({
-    strikeId,
+    strikeId: null,
     changedSinceStrike: false,
   });
+  expect(sceneOf(await w.h.caller.chat.memoryView({ chatId: w.h.chatId }), "duel").strike).toEqual({ strikeId, changedSinceStrike: false });
 });
 
 test("a strike outlives its scene being summarized again, and a key read before that summary is refused as stale", async () => {
@@ -169,6 +174,13 @@ test("a member with a join floor is not shown a summary straddling the floor, an
   expect(joinedAt % BLOCK_SIZE).toBe(0);
   const member = await invitePerson(w.h);
   await w.h.root.services.chat.setMemberHistoryVisibility({ principal: w.h.owner, chatId: w.h.chatId, userId: member.userId, visibility: "from-join" });
+  // Every stored summary ends at or before the floor, so the member is told the memory predates them, not that it is
+  // still being written; the host reads the same room as ready.
+  expect(await w.h.root.services.chat.memoryView({ principal: member, chatId: w.h.chatId })).toMatchObject({
+    status: { kind: "before-your-history" },
+    items: [],
+  });
+  expect((await w.h.caller.chat.memoryView({ chatId: w.h.chatId })).status).toEqual({ kind: "ready" });
   // One exchange after the join fills the next block wholly above the floor.
   await recallTurn(w.h, BOTH);
   await w.h.root.settleBackground();
@@ -281,7 +293,7 @@ test("striking the shared summary leaves the scene out of every speaker's prompt
   expect(listed.filter((item) => item.strike !== null)).toEqual([
     expect.objectContaining({ bucket: "shared", strike: { strikeId, changedSinceStrike: false } }),
   ]);
-  expect(listed.filter((item) => item.strike === null).every((item) => item.retellsStruck)).toBe(true);
+  expect(nonEmpty(listed.filter((item) => item.strike === null)).every((item) => item.retellsStruck)).toBe(true);
   // Striking another copy of the same scene answers the standing strike.
   const scoped = present(listed.find((item) => item.bucket === "scoped"));
   await expect(w.h.caller.chat.strikeMemory({ chatId: w.h.chatId, item: scoped.key })).resolves.toEqual({ strikeId });
@@ -290,7 +302,7 @@ test("striking the shared summary leaves the scene out of every speaker's prompt
   for (const speaker of speakers) {
     expect((await speakerTurn(w.h, speaker)).prompt).toContain("arc-storm.");
   }
-  expect(copies(await w.h.caller.chat.memoryView({ chatId: w.h.chatId })).every((item) => item.strike === null && !item.retellsStruck)).toBe(true);
+  expect(nonEmpty(copies(await w.h.caller.chat.memoryView({ chatId: w.h.chatId }))).every((item) => item.strike === null && !item.retellsStruck)).toBe(true);
 });
 
 test("a struck shared scene also leaves out a speaker's own longer summary covering it", async () => {

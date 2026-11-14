@@ -179,7 +179,7 @@ export interface StrikeCandidate extends BridgeRow {
 }
 
 /** Which pooled digests a room's strikes leave out: each struck digest with the strike that names it, and each
- *  consolidation whose tier-0 range covers a struck digest, because it retells the struck scene. */
+ *  same-bucket consolidation whose tier-0 range covers a struck digest, because it retells the struck scene. */
 export interface StrikeMatch<R, S> {
   readonly struck: ReadonlyMap<R, S>;
   readonly coversStruck: ReadonlySet<R>;
@@ -194,8 +194,10 @@ export interface StrikeMatch<R, S> {
  * one scene share tier and endpoints. A strike names every digest, in any bucket, whose tier and span endpoints are
  * the strike's, or whose current hash is the strike's stored hash (the hash is bound to the struck item's bucket and
  * position, so it only re-finds that item). Grid position alone never matches: a re-sliced block at the same
- * position covers different messages. A higher tier in any bucket whose tier-0 range contains a struck digest's
- * range retells it and leaves with it.
+ * position covers different messages. A higher tier whose tier-0 range contains a struck digest's range in its own
+ * bucket retells it and leaves with it. That test stays inside the bucket because a consolidation retells only its
+ * own bucket's children: a scoped one over a block its character did not witness never read that block, and every
+ * bucket that did summarize the span already has its own copy struck.
  */
 export function matchStrikes<R extends StrikeCandidate, S extends RecallStrike>(
   rows: readonly R[],
@@ -224,7 +226,7 @@ export function matchStrikes<R extends StrikeCandidate, S extends RecallStrike>(
     const range = tier0RangeOf(grid.fanOut, row.tier, row.blockIdx);
     for (const hit of struck.keys()) {
       const inner = tier0RangeOf(grid.fanOut, hit.tier, hit.blockIdx);
-      if (row.tier > hit.tier && range.startIdx <= inner.startIdx && inner.endIdx <= range.endIdx) {
+      if (hit.scopedCharacterId === row.scopedCharacterId && row.tier > hit.tier && range.startIdx <= inner.startIdx && inner.endIdx <= range.endIdx) {
         coversStruck.add(row);
         break;
       }

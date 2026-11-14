@@ -213,8 +213,8 @@ export async function findSpanStrike(db: Db, chatId: ChatId, span: StrikeSpan): 
 /** Lift the span one strike of this room names: that row and any other row on the same span, so every bucket's
  *  item of the scene returns. Returns true when a row moved.
  *
- *  THE ROOM FILTER ON THE LOOKUP IS THE ONLY GUARD. A member reads strike ids from the view and can call restore
- *  under a room they host; the verb's host gate passes there, so only `chatId` here keeps another room's strike. */
+ *  THE ROOM FILTERS ARE THE GUARD. A caller holding another room's strike id can call restore under a room they
+ *  host; the verb's host gate passes there, so only `chatId`, on the lookup and on the delete, keeps that strike. */
 export async function deleteSpanStrikes(db: Db, chatId: ChatId, strikeId: ChatMemoryStrikeId): Promise<boolean> {
   const [named] = await db
     .select({ tier: chatMemoryStrikes.tier, messageStartId: chatMemoryStrikes.messageStartId, messageEndId: chatMemoryStrikes.messageEndId })
