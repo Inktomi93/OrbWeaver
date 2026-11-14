@@ -172,9 +172,24 @@ export interface RecallStrike {
 }
 
 /** A covered span in message seqs, first and last inclusive. */
-interface SeqSpan {
+export interface SeqSpan {
   readonly seqStart: number;
   readonly seqEnd: number;
+}
+
+/**
+ * A strike's span in seqs: each endpoint at its live message's seq, else at the seq the strike stored for it.
+ *
+ * @remarks
+ * The ids stay the match, since only the host's reorder renumbers seqs and the ids follow it. A stored seq answers
+ * for an endpoint whose message is gone: a delete never renumbers, so the struck turns that survive still sit between
+ * the two seqs, and a member deleting their own message at a span's edge cannot lift the host's strike. A reorder can
+ * carry a live endpoint past a gone one's stored seq, so the ends are ordered rather than left inverted and empty.
+ */
+export function resolveStrikeSpan(stored: SeqSpan, live: { readonly seqStart: number | undefined; readonly seqEnd: number | undefined }): SeqSpan {
+  const start = live.seqStart ?? stored.seqStart;
+  const end = live.seqEnd ?? stored.seqEnd;
+  return { seqStart: Math.min(start, end), seqEnd: Math.max(start, end) };
 }
 
 /** A pooled digest as strike matching reads it: its grid position, bucket, staleness hash and resolved span, as
@@ -185,9 +200,9 @@ export interface StrikeCandidate extends BridgeRow {
   readonly seqSpan: SeqSpan | null;
 }
 
-/** A strike with its endpoints resolved to seqs; `seqSpan` is null when an endpoint message is gone. */
+/** A strike with its endpoints resolved to seqs by {@link resolveStrikeSpan}. */
 export interface ResolvedStrike extends RecallStrike {
-  readonly seqSpan: SeqSpan | null;
+  readonly seqSpan: SeqSpan;
 }
 
 /** Which pooled digests a room's strikes leave out: each struck digest with the strike that names it, and each
@@ -238,7 +253,7 @@ export function matchStrikes<R extends StrikeCandidate, S extends ResolvedStrike
     if (struck.has(row) || outer === null) {
       continue;
     }
-    const retold = strikes.find((s) => s.seqSpan !== null && row.tier >= s.tier && outer.seqStart <= s.seqSpan.seqEnd && s.seqSpan.seqStart <= outer.seqEnd);
+    const retold = strikes.find((s) => row.tier >= s.tier && outer.seqStart <= s.seqSpan.seqEnd && s.seqSpan.seqStart <= outer.seqEnd);
     if (retold !== undefined) {
       coversStruck.set(row, retold);
     }

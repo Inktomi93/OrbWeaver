@@ -21,6 +21,15 @@ export interface MacroSpan {
   readonly length: number;
 }
 
+/** How one call delivered its args to the handler. The first `given` args are the call's own; padded declared
+ *  defaults follow them. When `raw` (the `?` flag or a lazy registration) the call's own args arrive unresolved;
+ *  otherwise the engine already resolved them. A block's body is always resolved by the engine. @internal */
+export interface ArgDelivery {
+  readonly raw: boolean;
+  readonly given: number;
+  readonly block: boolean;
+}
+
 /** A single macro-DX diagnostic — an arg-validation / parse / expr failure carrying the source span of
  *  the offending macro call so editors render it inline and assembly threads it into `AssembleTrace`.
  *  Lives here (not metadata.ts) because MacroContext's diagnostics sink references it and only
@@ -370,6 +379,10 @@ export interface MacroContext {
   // The span of the macro call CURRENTLY being handled — set by the evaluator right before invoking a
   // handler so a handler that emits diagnostics ({{expr::…}}) can locate itself. @internal.
   __currentSpan?: MacroSpan | undefined;
+  // How the call CURRENTLY being handled delivered its args — set by the evaluator right before the handler, so a
+  // handler that resolves args itself never resolves twice an argument the engine already resolved. A nested
+  // call overwrites it: read it on entry. @internal.
+  __delivered?: ArgDelivery | undefined;
   // Arg-validation mode. `true` → a bad-arity/bad-arg-type call renders "" + an `error`
   // diagnostic (the rule/template EDITORS hold new authorship to the bar); `false`/undefined
   // (default) → best-effort render + a `warning` diagnostic (imported content can be loosely formed).

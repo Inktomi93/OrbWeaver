@@ -3,7 +3,7 @@
 // left out beside it.
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { ResolvedStrike, StrikeCandidate } from "@orb/kit/recall";
-import { matchStrikes } from "@orb/kit/recall";
+import { matchStrikes, resolveStrikeSpan } from "@orb/kit/recall";
 import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 
@@ -43,7 +43,7 @@ function digest(
 }
 
 function strikeOn(row: StrikeCandidate, bucket: typeof shared | null = null): ResolvedStrike {
-  if (row.span === null) {
+  if (row.span === null || row.seqSpan === null) {
     throw new Error("a strike is made on a resolved item");
   }
   return {
@@ -83,8 +83,6 @@ test("a longer summary over a struck span is left out even when no summary of th
   const match = matchStrikes([arc, digest(1, 1)], [strike]);
   expect(match.struck.size).toBe(0);
   expect([...match.coversStruck]).toEqual([[arc, strike]]);
-  // A strike whose endpoint message is gone contains nothing.
-  expect(matchStrikes([arc], [{ ...strike, seqSpan: null }]).coversStruck.size).toBe(0);
 });
 
 test("a strike made on a scoped summary leaves the shared summary of the same span out too", () => {
@@ -167,4 +165,15 @@ test("a struck consolidation leaves its children eligible", () => {
   const match = matchStrikes([...children, arc], [strikeOn(arc)]);
   expect([...match.struck.keys()]).toEqual([arc]);
   expect(match.coversStruck.size).toBe(0);
+});
+
+test("a strike's span takes each live endpoint's seq, falls back to the stored seq for a gone one, and stays ordered", () => {
+  const stored = { seqStart: 4, seqEnd: 7 };
+  // Both endpoints live after a reorder: the live seqs win over what was stored.
+  expect(resolveStrikeSpan(stored, { seqStart: 5, seqEnd: 9 })).toEqual({ seqStart: 5, seqEnd: 9 });
+  // A member deleted the first message: the span keeps its stored start, so the surviving struck turns stay inside it.
+  expect(resolveStrikeSpan(stored, { seqStart: undefined, seqEnd: 7 })).toEqual(stored);
+  expect(resolveStrikeSpan(stored, { seqStart: undefined, seqEnd: undefined })).toEqual(stored);
+  // A reorder carried the live end below the gone start's stored seq: the span orders its ends rather than inverting.
+  expect(resolveStrikeSpan(stored, { seqStart: undefined, seqEnd: 2 })).toEqual({ seqStart: 2, seqEnd: 4 });
 });
