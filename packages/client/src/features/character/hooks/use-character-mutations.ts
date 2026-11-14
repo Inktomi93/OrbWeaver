@@ -99,8 +99,10 @@ export const useBulkRemoveCardTag = createEntityMutation<
   refusal: (data) => characterBulkTagRefusal("untag", data),
 });
 
-/** §4.6 bulk: delete many. `busDriven` — `charactersChanged` covers `character.list`. */
-export const useBulkRemoveCharacters = createEntityMutation<inferInput<Trpc["character"]["bulkRemove"]>, unknown>({
+/** §4.6 bulk: delete many. `busDriven` — `charactersChanged` covers `character.list`. The verb resolves
+ *  `{applied, failed}` like the tag verbs, but has no `refusal` here: its notice names the cards that stayed, and
+ *  only the bulk bar can look their names up (`characterBulkRemoveRefusal`), so the bar reads the result. */
+export const useBulkRemoveCharacters = createEntityMutation<inferInput<Trpc["character"]["bulkRemove"]>, inferOutput<Trpc["character"]["bulkRemove"]>>({
   options: (trpc) => trpc.character.bulkRemove.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't delete the selected characters.",

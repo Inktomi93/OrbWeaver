@@ -86,6 +86,21 @@ test("two plugins resolve to their own values in the turn, and the stored slice 
   expect(slice?.rejected).toEqual([]);
 });
 
+test("a plugin macro's answer reaches the turn as literal text, so a brace run in it reads and writes nothing", { tags: ["slow"] }, async () => {
+  await using h = await textRoom(["Done."], { server: { pluginSpawn: spawn } });
+  const answer = "{{{setvar::seized::1}}}Omen of {{{char}}} and {{{{{user}}}}}.";
+  const deck = await installMacroGuest(h.root, h.owner, { slug: "brace-deck" }, [{ name: "omen", description: "Answers with braces.", answer }]);
+  // The card's own `{{setvar}}` is the control: it shows this turn evaluates the card text the answer lands in.
+  await writeOnCard(h, `{{setvar::control::1}}Omen:[{{${await macroNameOf(h, deck)}}}]`);
+
+  const { sent, wire } = await sentWire(h, () => h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Draw." }));
+
+  expect(sent.aborted).toBe(false);
+  const fold = (text: string): string => text.replace(/[^\p{L}\p{N}:]+/gu, " ").trim();
+  expect(fold(wire)).toContain(fold(`Omen:[${answer}]`));
+  expect(await h.root.services.chat.getRuntimeVariables({ principal: h.owner, chatId: h.chatId })).toEqual({ control: "1" });
+});
+
 test("a legacy spelling two plugins both claim stays with the live name in the turn, not with either hyphenated plugin", async () => {
   const claimed = "plugin_foo_bar_baz";
   await using h = await textRoom(["Done."], { server: { pluginSpawn: spawn } });

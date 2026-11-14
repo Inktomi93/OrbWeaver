@@ -194,6 +194,8 @@ export interface BulkImportChatInput {
   readonly starred?: boolean;
   /** `chats.archived`. Absent ⇒ false (the column default). */
   readonly archived?: boolean;
+  /** `chats.everShared`: another human once held a seat in the exported room. Absent ⇒ false. */
+  readonly everShared?: boolean;
   /** The portable compaction checkpoint (D25) — the summary text + the seq it covers through. Absent ⇒ null. */
   readonly compactSummary?: string | null;
   readonly compactedAtSeq?: number | null;

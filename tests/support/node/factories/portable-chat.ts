@@ -72,6 +72,7 @@ export function makePortableChat(over: Partial<PortableChat> = {}): PortableChat
     updatedAt: FROZEN_AT_MS,
     starred: false,
     archived: false,
+    everShared: false,
     compactSummary: null,
     compactedAtSeq: null,
     metadata: null,

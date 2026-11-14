@@ -298,3 +298,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D349 | [No plugin owner holds the whole Worker pool](0349-no-plugin-owner-holds-the-whole-worker-pool.md) | active |
 | D350 | [An asset kind belongs to each use of a stored file](0350-asset-kind-belongs-to-each-use.md) | active |
 | D351 | [A plugin's surface state is capped by key count](0351-plugin-surface-state-is-capped-by-key-count.md) | active |
+| D352 | [Another account's document text reaches a prompt as literal text](0352-another-account-s-document-text-reaches-a-prompt-as-literal-text.md) | active |

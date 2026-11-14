@@ -1,8 +1,11 @@
 // A chat_books and a chat_regex_scripts row owned by a former host, as a handoff that did not detach them left
-// them, must apply nothing: the world-info pool and the regex resolver read a chat attachment only when the room's
-// host owns it (D64). The rows are planted directly because no current write path leaves one behind.
+// them, must apply nothing and be listed nowhere: the world-info pool and the regex resolver read a chat attachment
+// only when the room's host owns it, and the member racks list through the same owner check (D64). The rows are
+// planted directly because no current write path leaves one behind.
 // @subject packages/server/src/domain/chat/assembly/world-info/pool.ts
 // @subject packages/server/src/domain/regex/persistence/resolve-sources.ts
+// @subject packages/server/src/domain/world-info/verbs/attachments/list-for-chat.ts
+// @subject packages/server/src/domain/regex/verbs/attachments/list-for-chat.ts
 
 import { chatBooks, chatRegexScripts } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
@@ -42,7 +45,7 @@ function expectOnlyHostAttachments(turn: SentTurn): void {
   }
 }
 
-test("a former host's book and script left attached apply nothing to the new host's turn, however the former host edits them", async () => {
+test("a former host's book and script left attached are listed by neither rack and apply nothing to the new host's turn, however the former host edits them", async () => {
   await using h = await textRoom(["First reply.", "Second reply."]);
   const formerHost = h.owner;
   const stale = await attachRoomAttachments(h, formerHost, FORMER);
@@ -51,9 +54,8 @@ test("a former host's book and script left attached apply nothing to the new hos
   await seatOwnCard(h, newHost);
   const own = await attachRoomAttachments(h, newHost, NEW_HOST);
   await plantStaleRows(h, stale);
-  const rack = await roomRack(h, newHost);
-  expect(rack.books).toEqual(expect.arrayContaining([stale.bookId, own.bookId]));
-  expect(rack.scripts).toEqual(expect.arrayContaining([stale.scriptId, own.scriptId]));
+  // The racks hide the row the room no longer applies; the new host's own attachment is the positive control.
+  expect(await roomRack(h, newHost)).toEqual({ books: [own.bookId], scripts: [own.scriptId] });
 
   await editAttachments(h, formerHost, stale, SEATED_EDIT);
   await expect(h.root.services.regex.attachToChat({ principal: formerHost, chatId: h.chatId, scriptId: stale.scriptId })).rejects.toMatchObject({

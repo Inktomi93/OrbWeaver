@@ -9,7 +9,7 @@
 // (#616) — so rpg/agents/automation graft at the door without importing chat. The bundle is exactly why
 // the fifth seam cost one FIELD and zero arity churn at the door and both CT overrides.
 
-import { Eye, MessagesSquare, SlidersHorizontal, Users } from "@orb/ui/icons";
+import { BrainCircuit, Eye, MessagesSquare, SlidersHorizontal, Users } from "@orb/ui/icons";
 import type {
   ChatContextTabId,
   ChatSettingsSectionContribution,
@@ -29,6 +29,7 @@ import { ChatContent } from "../components/chat-content.tsx";
 import { ChatsTopbarHeader, ChatsTopbarMark } from "../components/chats-topbar-header.tsx";
 import type { CommittedMembersTabProps } from "../components/committed-members-tab.tsx";
 import { CommittedMembersTab } from "../components/committed-members-tab.tsx";
+import { MemoryViewTab } from "../components/memory-view-tab.tsx";
 import { CommittedSettingsTab } from "../components/settings-context-tab.tsx";
 import { useChatContextResetKeys, useChatContextState } from "../hooks/use-chat-context-state.ts";
 import { useChatListHeader } from "../hooks/use-chat-list-header.tsx";
@@ -88,6 +89,13 @@ function chatContextTabs(
           sections={settingsSections}
         />
       ),
+    },
+    // Everyone reads what the story remembers; only the host's rows carry strike and restore.
+    {
+      id: "memory",
+      label: CHAT_CONTEXT_TAB_LABELS.memory,
+      icon: BrainCircuit,
+      body: (s) => <MemoryViewTab chatId={s.chatId} isHost={s.isHost} participants={s.participants} />,
     },
     {
       id: "preview",

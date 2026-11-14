@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-11-14
 priority: P3
 area: tests
+lane: wt/agent-a253b95f39b2389ae
 ---
 
 # A stale showcase bundle is refused by name

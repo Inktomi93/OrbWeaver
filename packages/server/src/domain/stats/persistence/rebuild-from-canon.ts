@@ -38,6 +38,7 @@ import { DomainUnavailableError } from "@orb/kit/errors";
 import type { IdSource, ModelId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { eq, sql } from "drizzle-orm";
+import { yieldToLoop } from "#primitives/abort";
 import { calendarBucketStartSql } from "#primitives/calendar-bucket-sql";
 import type { Accums, CanonMessage, CharChatMeta, ChatMeta, OwnerRollupRows, ReconcileOpts, SwipeRow } from "../contract/rebuild-from-canon.ts";
 import {
@@ -54,7 +55,12 @@ import { ownerChatIds, retainedCharacterSeatPredicate } from "./owner-chat-scope
 
 export type { ReconcileStatsResult } from "@orb/contracts/stats";
 
-const CHUNK = 5000; // rows per streaming page — bounds peak memory on large corpora
+/**
+ * Rows per streaming page. The driver reads a page synchronously, so a page's query and its fold hold the event loop
+ * together: the page is small enough that this stays well under half a second on a heavy library, and each scan yields
+ * between pages. Paging also bounds peak memory on large corpora.
+ */
+export const CHUNK = 250;
 // Per-table column counts for the bound-variable chunker — must track the insert shapes below.
 const CHAR_COLS = 30;
 const DAILY_COLS = 22;
@@ -208,6 +214,9 @@ export async function scanMessages(db: Db, rooms: SQL, visit: (row: CanonMessage
     if (rows.length < CHUNK) {
       break;
     }
+    // A local read settles as a microtask, so without this the whole library is one turn of the loop. A write that
+    // lands between pages moves the canon version, and `untilCanonStable` folds the owner again.
+    await yieldToLoop();
   }
 }
 
@@ -240,6 +249,7 @@ export async function scanSwipes(db: Db, rooms: SQL, visit: (row: SwipeRow) => v
     if (rows.length < CHUNK) {
       break;
     }
+    await yieldToLoop();
   }
 }
 
@@ -333,6 +343,7 @@ async function scanEmbeddingSpend(db: Db, ownerId: UserId, a: Accums): Promise<v
     if (calls.length < CHUNK) {
       break;
     }
+    await yieldToLoop();
   }
 }
 

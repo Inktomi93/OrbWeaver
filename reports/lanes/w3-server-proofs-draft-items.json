@@ -1,0 +1,20 @@
+[
+  {
+    "title": "The avatar admission check's magic-signature step has a test",
+    "kind": "work",
+    "what": "In packages/server/src/domain/assets/verbs/admits-avatar.ts, the call to assertMagicMatches after assertKindAdmits can be removed and every server test still passes. The new cap case holds bytes the kind and magic checks both admit, so it cannot see that step.",
+    "why": "An import preview reads this check to say whether art lands. If it stops applying the magic check, the preview promises art the store then refuses.",
+    "done": "A case builds the avatar check with bytes whose sniffed type and signature disagree and shows it refuses them, beside the store refusing the same bytes. The case fails when the magic step is removed from the avatar check.",
+    "priority": "P3",
+    "area": "server"
+  },
+  {
+    "title": "The per-rule entry cap refuses a confirmed analysis lore card, proven",
+    "kind": "work",
+    "what": "The confirm of an analysis lore card re-checks the per-rule entry cap in a book through the shared lore write. The new confirm case proves the attach gate refusal only. No case fills a book to the cap and confirms a card.",
+    "why": "A confirmed card that skips the cap lets a rule overfill a book that the direct arm would refuse.",
+    "done": "A server case through the composed root fills a book with the rule's own entries to the cap, confirms a lore card for new titles and shows the confirm refused with the book unchanged and the watermark unmoved.",
+    "priority": "P3",
+    "area": "server"
+  }
+]

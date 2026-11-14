@@ -21,6 +21,11 @@
 // whatever sits at that position now. The strike stores the covered span's endpoint message ids, so a re-summary
 // of the same messages stays struck (`chat_memory_strikes` in `packages/db/src/schema/chat.ts`). The one place a
 // strike leaves the prompt is recall (`dropStruck` in `recall/recall.ts`).
+//
+// A FORK CARRIES THE STRIKES ITS COPIED CANON HOLDS WHOLE. A strike with an endpoint among the messages the fork did
+// not copy (the fork point falls inside the span, or the span starts below the forker's history floor) is not
+// carried. The content hash carries too, so the fork's own summary of the same scene reads as unchanged since the
+// strike.
 
 import type { HandoffCardPair, MemoryItemKey, MemoryItemStrikeView, MemoryItemView, MemoryView, UnmatchedStrikeView } from "@orb/contracts/chat";
 import { memoryOffReason, memoryViewStatus, NO_HISTORY_FLOOR } from "@orb/contracts/chat";
@@ -41,7 +46,9 @@ import {
   findSpanStrike,
   IMPORTED_STRIKE_HASH,
   insertMemoryStrike,
+  insertMemoryStrikesStatement,
   loadDigestAt,
+  loadMemoryStrikes,
   loadRecentWindowStart,
   loadResolvedStrikes,
   loadRoomDigests,
@@ -259,6 +266,30 @@ export async function writeMemoryStrike(
 
 export async function restoreMemoryStrike(ctx: ChatContext, args: Parameters<MemoryStrikeOps["restore"]>[0]): Promise<boolean> {
   return await deleteSpanStrikes(ctx.db, args.chatId, args.strikeId);
+}
+
+export async function forkMemoryStrikes(ctx: ChatContext, args: Parameters<MemoryStrikeOps["forkStrikes"]>[0]): Promise<BatchStmt[]> {
+  const rows = (await loadMemoryStrikes(ctx.db, args.sourceChatId)).flatMap((strike) => {
+    const messageStartId = args.slotIdMap.get(strike.messageStartId);
+    const messageEndId = args.slotIdMap.get(strike.messageEndId);
+    if (messageStartId === undefined || messageEndId === undefined) {
+      return [];
+    }
+    return [
+      {
+        id: ctx.newMemoryStrikeId(),
+        chatId: args.newChatId,
+        scopedCharacterId: strike.scopedCharacterId !== null && args.seatedCharacterIds.has(strike.scopedCharacterId) ? strike.scopedCharacterId : null,
+        tier: strike.tier,
+        messageStartId,
+        messageEndId,
+        contentHash: strike.contentHash,
+        topicAnchor: strike.topicAnchor,
+        createdAt: args.createdAt,
+      },
+    ];
+  });
+  return rows.length === 0 ? [] : [insertMemoryStrikesStatement(ctx.db, rows)];
 }
 
 export function restampStrikesForHandoff(ctx: ChatContext, chatId: ChatId, pairs: readonly HandoffCardPair[]): BatchStmt[] {
