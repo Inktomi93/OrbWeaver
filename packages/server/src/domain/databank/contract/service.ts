@@ -37,7 +37,7 @@ import type {
   PurgeDocumentVectorsOp,
   StoreResult,
 } from "@orb/contracts/embeddings";
-import type { ExtractTextOp } from "@orb/contracts/extraction";
+import type { ExtractorVersions, ExtractTextOp } from "@orb/contracts/extraction";
 import type { Can, Principal, ResolveUserEnabled } from "@orb/contracts/identity";
 import type { SearchDocumentsOp } from "@orb/contracts/search";
 import type { GetDatabankSettingsOp } from "@orb/contracts/settings";
@@ -175,8 +175,9 @@ export interface DatabankContext {
    *  (verbs/list.ts states the declared limit and its escalation path). */
   readonly chunkCountsByOwner: CountDocumentChunksByOwnerOp;
   readonly extractText: ExtractTextOp;
-  /** The current `infra/extraction` EXTRACTOR_VERSION — the re-extract-on-upgrade selection predicate. */
-  readonly extractorVersion: string;
+  /** The current `infra/extraction` version of each format — the re-extract-on-upgrade selection predicate
+   *  compares a document's stamp with its own format's entry. */
+  readonly extractorVersions: ExtractorVersions;
   /** The web-document fetch (DB7 scrapeWeb) — the ANY_HOST safeFetch guard, allowlist + cap compose-bound.
    *  THROWS on any refusal or fetch failure; the verb collapses that to a leak-free `ScrapeFailedError` without
    *  branching on why it failed (it asks infra only whether the firewall already recorded the block, so one refusal

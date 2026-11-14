@@ -65,8 +65,8 @@ export const documents = sqliteTable(
     importHash: nulFreeText("import_hash").notNull(),
     // source-byte size; for 'text', extractedText UTF-8 length.
     byteSize: integer("byte_size").notNull(),
-    // EXTRACTOR_VERSION at extract time (the re-extract-on-upgrade selection predicate); "none" for
-    // origin 'text' (no extractor ran).
+    // The document's own format's extractor version at extract time (the re-extract-on-upgrade selection
+    // predicate); "none" for origin 'text' (no extractor ran).
     extractorVersion: nulFreeText("extractor_version").notNull(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
     // Bumped by rename + re-extract (a doc whose canon can be rewritten in place needs a visible write
