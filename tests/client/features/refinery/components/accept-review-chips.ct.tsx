@@ -3,7 +3,7 @@
 // word, tone and paint for a kept field and for a discarded one, and a discarded rewrite is the safe outcome, so it is neutral in both.
 // The review is the production refinery surface over a real server's session, and each decision goes through the server's own verb.
 // The review's own geometry holds at desktop, in a narrow pane at enlarged text and on a phone with touch at enlarged text: the before and
-// after panels are tinted and draw no box inside the result.
+// after panels are tinted and draw no box inside the result, and the open field's chip and verbs stay inside their block.
 import { testId } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
@@ -158,17 +158,20 @@ interface Regime {
   readonly enlarged: boolean;
   readonly coarse: boolean;
   readonly viewport: { readonly width: number; readonly height: number };
+  /** Whether the open queue row's chip no longer fits beside the field name, so it wraps to its own line. */
+  readonly chipWraps: boolean;
 }
 
 const REGIMES: readonly Regime[] = [
-  { name: "desktop", width: WIDTH, enlarged: false, coarse: false, viewport: DESKTOP_VIEWPORT },
-  { name: "a narrow pane at enlarged text", width: NARROW_WIDTH, enlarged: true, coarse: false, viewport: DESKTOP_VIEWPORT },
+  { name: "desktop", width: WIDTH, enlarged: false, coarse: false, viewport: DESKTOP_VIEWPORT, chipWraps: false },
+  { name: "a narrow pane at enlarged text", width: NARROW_WIDTH, enlarged: true, coarse: false, viewport: DESKTOP_VIEWPORT, chipWraps: true },
   {
     name: "a phone with touch at enlarged text",
     width: PHONE_WIDTH,
     enlarged: true,
     coarse: true,
     viewport: { width: PHONE_WIDTH, height: PHONE_HEIGHT },
+    chipWraps: true,
   },
 ];
 
@@ -236,5 +239,81 @@ for (const regime of REGIMES) {
         ).toEqual([]);
       }
     });
+
+    test("the open field's state chip stays whole inside its block", async ({ mount, page }) => {
+      await using root = await createServerHarness({ startJobs: false });
+      const caller = await root.internalCallerFor(root.ownerId);
+      const review = await openReview({ mount, page }, caller, regime);
+      const block = review.locator('[data-slot="compare-block"]');
+      const chip = block.locator('[data-slot="compare-block-state"]');
+      await expect(chip).toBeVisible();
+      const [blockBox, chipBox, clip] = await Promise.all([
+        block.boundingBox(),
+        chip.boundingBox(),
+        chip.evaluate((node) => ({ textWidth: node.scrollWidth, boxWidth: node.clientWidth })),
+      ]);
+      if (blockBox === null || chipBox === null) {
+        throw new Error("The open field's block and its state chip must paint");
+      }
+      expect(clip.textWidth, "the chip's words are not clipped").toBeLessThanOrEqual(clip.boxWidth);
+      expect(chipBox.x, "the chip starts inside the block").toBeGreaterThanOrEqual(blockBox.x);
+      expect(chipBox.x + chipBox.width, "the chip ends inside the block").toBeLessThanOrEqual(blockBox.x + blockBox.width + 1);
+    });
+
+    test("the open field's verbs stay inside its block when the field clears", async ({ mount, page }) => {
+      await using root = await createServerHarness({ startJobs: false });
+      const caller = await root.internalCallerFor(root.ownerId);
+      const review = await openReview({ mount, page }, caller, regime);
+      const verbs = review.locator('[data-slot="compare-block-verbs"]');
+      await verbs.getByRole("button").first().click();
+      await expect(verbs.getByRole("button", { name: new RegExp(`^${RegExp.escape(REFINERY_KEEP_CLEARING_VERB)} `, "u") })).toBeVisible();
+      const buttons = verbs.getByRole("button");
+      await expect(buttons).toHaveCount(2);
+      const block = review.locator('[data-slot="compare-block"]');
+      const blockBox = await block.boundingBox();
+      if (blockBox === null) {
+        throw new Error("The open field's block must paint");
+      }
+      for (const button of await buttons.all()) {
+        const box = await button.boundingBox();
+        if (box === null) {
+          throw new Error("Each verb must paint");
+        }
+        expect(box.x + box.width, "the verb ends inside the block").toBeLessThanOrEqual(blockBox.x + blockBox.width + 1);
+      }
+    });
+
+    test(
+      regime.chipWraps
+        ? "the open row's chip wraps under its name from the row's left edge, level with the other rows' field names"
+        : "the open row's chip sits beside its name",
+      async ({ mount, page }) => {
+        await using root = await createServerHarness({ startJobs: false });
+        const caller = await root.internalCallerFor(root.ownerId);
+        const review = await openReview({ mount, page }, caller, regime);
+        const openRow = review.locator('[data-queue-state="open"]');
+        const chip = openRow.locator('[data-slot="badge"]');
+        await expect(chip).toBeVisible();
+        const name = openRow.locator('[data-slot="text"]').first();
+        const siblingName = review.locator('[data-queue-state="undecided"]').first().getByRole("button").first();
+        const [chipBox, nameBox, rowBox, siblingBox] = await Promise.all([
+          chip.boundingBox(),
+          name.boundingBox(),
+          openRow.boundingBox(),
+          siblingName.boundingBox(),
+        ]);
+        if (chipBox === null || nameBox === null || rowBox === null || siblingBox === null) {
+          throw new Error("The open row, its name, its chip and a sibling's name must paint");
+        }
+        const below = chipBox.y >= nameBox.y + nameBox.height - 1;
+        expect(below, "the chip wraps below the name exactly when it no longer fits beside it").toBe(regime.chipWraps);
+        expect(Math.round(chipBox.x) === Math.round(rowBox.x), "a wrapped chip starts on the row's left edge, a chip beside the name does not").toBe(
+          regime.chipWraps,
+        );
+        expect(Math.round(chipBox.x) === Math.round(siblingBox.x), "and a wrapped chip shares the left edge of every other row's field name").toBe(
+          regime.chipWraps,
+        );
+      },
+    );
   });
 }
