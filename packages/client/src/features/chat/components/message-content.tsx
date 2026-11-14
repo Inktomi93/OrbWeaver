@@ -12,11 +12,10 @@ import { Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
-import type { ReactElement } from "react";
+import type { ReactElement, RefCallback } from "react";
 import type { PluginDisplayRow } from "#data";
-import { usePluginDisplayText } from "#data";
+import { useDisplayText, usePluginDisplayText } from "#data";
 import type { MessageRenderContext, RowRenderPolicy } from "#lib";
-import { renderMessageForDisplay } from "#lib";
 import { toContentBlocks } from "../lib/content-blocks.ts";
 import { colorForCharacter } from "../lib/speaker-color.ts";
 import type { CardOrigin } from "./card-block.tsx";
@@ -72,9 +71,14 @@ interface MessageSegmentProps {
   readonly render: RowRenderPolicy;
   readonly keyPrefix: string;
   readonly cardOrigin: CardOrigin | undefined;
+  /** The display pass's hold, set only on the body's outer element: while its scripts have not answered the
+   *  body is laid out but not shown (`data-display-pending`, which the client stylesheet hides). */
+  readonly pending?: boolean | undefined;
+  /** Observes the body's outer element, so the display-pass queue runs it first while it is on screen. */
+  readonly observeBody?: RefCallback<HTMLElement> | undefined;
 }
 
-function MessageSegment({ text, render, keyPrefix, cardOrigin }: MessageSegmentProps): ReactElement {
+function MessageSegment({ text, render, keyPrefix, cardOrigin, pending, observeBody }: MessageSegmentProps): ReactElement {
   // §4.3 trust routing: ONE trust authority (`render-trust`) resolves BOTH the markdown trust and the card
   // TIER — this renderer only dispatches. The tier mapping was INVERTED here until 2026-08-04 (trusted rows
   // were sent to tierA, whose allowlist forbids `<style>`, so every trusted card rendered as unstyled HTML
@@ -84,7 +88,11 @@ function MessageSegment({ text, render, keyPrefix, cardOrigin }: MessageSegmentP
   // never re-tokenizes — and, with the index+kind keys below stable for an unchanged body, never reloads a
   // card's srcdoc.
   const blocks = toContentBlocks(text, { cardTrust: render.cardTier, lenientHtml: render.lenientCards });
-  return <Stack gap="row">{blocks.map((block, index) => renderBlock(block, `${keyPrefix}${index}-${block.kind}`, render, cardOrigin))}</Stack>;
+  return (
+    <Stack gap="row" ref={observeBody} data-display-pending={pending === true ? "" : undefined}>
+      {blocks.map((block, index) => renderBlock(block, `${keyPrefix}${index}-${block.kind}`, render, cardOrigin))}
+    </Stack>
+  );
 }
 
 export interface MessageContentProps {
@@ -112,6 +120,8 @@ export interface MessageContentProps {
    *  Absent (a ghost row, a preview, a story mount) ⇒ no transform runs, byte-identical. Present ⇒ the viewer's
    *  OWN plugins may annotate the rendered text, after macros and after DISPLAY regex, before markdown. */
   readonly pluginDisplayRow?: PluginDisplayRow | undefined;
+  /** This body's place in the display-pass queue: a higher value runs first. The row's sequence number. */
+  readonly displayOrder?: number | undefined;
 }
 
 export function MessageContent({
@@ -124,21 +134,26 @@ export function MessageContent({
   narratorVoiced = false,
   cardOrigin,
   pluginDisplayRow,
+  displayOrder,
 }: MessageContentProps): ReactElement {
-  const rendered = renderContext === undefined ? content : renderMessageForDisplay(content, renderContext, rowCharacterId, rowPersonaId);
+  const {
+    text: displayed,
+    pending,
+    observeBody,
+  } = useDisplayText(content, renderContext, { characterId: rowCharacterId, personaId: rowPersonaId, order: displayOrder });
   // The LAST step before markup (§5.5/§5.29): the viewer's own plugins annotate what the house pipeline
   // produced. Inert without a row or without a registered transform — same string in, same string out.
-  const resolvedContent = usePluginDisplayText(rendered, pluginDisplayRow);
+  const resolvedContent = usePluginDisplayText(displayed, pluginDisplayRow);
   const characterNames = narratorVoiced && speakerThemes !== undefined ? [...speakerThemes.keys()] : NO_CHARACTER_NAMES;
   const spans = parseSpeakerSpans(resolvedContent, characterNames);
 
   const [onlySpan] = spans;
   if (spans.length === 1 && onlySpan !== undefined && onlySpan.speaker === null) {
-    return <MessageSegment text={onlySpan.text} render={render} keyPrefix="" cardOrigin={cardOrigin} />;
+    return <MessageSegment text={onlySpan.text} render={render} keyPrefix="" cardOrigin={cardOrigin} pending={pending} observeBody={observeBody} />;
   }
 
   return (
-    <Stack gap="block" data-slot="message-content-spans">
+    <Stack gap="block" data-slot="message-content-spans" ref={observeBody} data-display-pending={pending ? "" : undefined}>
       {spans.map((span, index) => {
         const key = `${index}-${span.speaker ?? "narrator"}`;
         if (span.speaker === null) {

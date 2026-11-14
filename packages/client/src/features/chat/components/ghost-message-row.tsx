@@ -42,8 +42,8 @@ import { TypingDots, useSmoothText } from "@orb/ui/stream";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { useDisplayText } from "#data";
 import type { MessageRenderContext } from "#lib";
-import { renderMessageForDisplay } from "#lib";
 import { useArtViewer } from "../hooks/art-viewer-context.tsx";
 import { useArtControl } from "../hooks/use-art-control.ts";
 import { useEnterMotion } from "../hooks/use-enter-motion.ts";
@@ -281,10 +281,12 @@ export function GhostMessageRow({
   // literal text the renderer cannot tell from prose. The slot text is empty outside a live turn.
   const text = holdTornMacro(useGhostText(chatId));
   const rawReasoning = holdTornMacro(useGhostReasoning(chatId));
-  const reasoning = renderMessageForDisplay(rawReasoning, renderContext, speakerCharacterId, null);
+  // Live: never held; while a token's scripts run, the previous token's answer stays on screen.
+  const reasoning = useDisplayText(rawReasoning, renderContext, { characterId: speakerCharacterId, personaId: null, live: true }).text;
   const thinking = useGhostThinking(chatId);
   const providerWaiting = useGhostProviderWaiting(chatId);
-  const paced = useSmoothText(renderMessageForDisplay(text, renderContext, speakerCharacterId, null), {
+  const displayed = useDisplayText(text, renderContext, { characterId: speakerCharacterId, personaId: null, live: true }).text;
+  const paced = useSmoothText(displayed, {
     enabled: streaming && smoothStream,
     cps: smoothStreamCps,
   });

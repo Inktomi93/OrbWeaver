@@ -206,6 +206,9 @@ const SUBPATH_LEAF_IMPORTERS = [
   "packages/client/src/features/credentials/lib/connection-editor-model.ts",
   "packages/client/src/features/credentials/lib/connections-model.ts",
   "packages/ui/src/primitives/icons/orb-web.ts",
+  // The lib barrel deliberately omits the display pipeline that runs scripts on the calling thread; only the
+  // Worker-backed display hook reads it.
+  "packages/client/src/data/use-display-text.ts",
   // The lib barrel deliberately omits these development-only leaves.
   "packages/client/src/features/app-shell/lib/bug-report-capture.ts",
   "packages/client/src/features/chat/components/message-row.tsx",
@@ -625,6 +628,8 @@ const TEST_CONSTANT_HOMES = {
     "AVATAR_UPLOAD_FAILED and its siblings: the lines the shared avatar upload control prints for a failed upload and a refused write",
   "packages/client/src/lib/turn-refusal-copy.ts":
     "TURN_ROOM_CLOSING_COPY and its siblings: the toast a refused turn raises for each room state, which the send refusal case reads",
+  "packages/client/src/lib/display-pass-copy.ts":
+    "displayScriptsStoppedTitle and its siblings: the one notice the display pass raises for a stopped regex script, which the display script cases read",
   "packages/client/src/features/chat/lib/send-failure-copy.ts": "SEND_FAILED_TITLE: the toast a failed send raises for a reason the turn copy does not name",
   "packages/client/src/lib/card-import-copy.ts":
     "CARD_IMPORT_REFUSED_ONE and its siblings: the refusal sentence the character import dialog and the backup import both say for a picture that is not a card",
@@ -1704,6 +1709,21 @@ const CLIENT_BOUNDARIES = [
     severity: "error",
     from: { path: `${CLIENT}features/plugin/lib/ui-guest/ui-guest\\.worker\\.ts$` },
     to: { path: [`${CLIENT}lib/index\\.ts$`, "\\.tsx$"], reachable: true },
+  },
+  {
+    name: "display-pass-worker-no-react",
+    comment: "React refresh reads window at load; the display-pass Worker cannot reach React modules through any chain.",
+    severity: "error",
+    from: { path: `${CLIENT}lib/display-pass\\.worker\\.ts$` },
+    to: { path: [`${CLIENT}lib/index\\.ts$`, "\\.tsx$"], reachable: true },
+  },
+  {
+    name: "display-scripts-off-main-thread",
+    comment:
+      "message-render.ts can run display regex scripts on the calling thread; a browser surface reads the pipeline through useDisplayText, which runs them in the display-pass Worker.",
+    severity: "error",
+    from: { path: CLIENT, pathNot: [`${CLIENT}lib/`, `${CLIENT}data/use-display-text\\.ts$`] },
+    to: { path: `${CLIENT}lib/message-render\\.ts$`, dependencyTypesNot: ["type-only"] },
   },
 ] satisfies IForbiddenRuleType[];
 

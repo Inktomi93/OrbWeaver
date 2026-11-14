@@ -245,12 +245,14 @@ function ChatThread({
     characterAvatarsById,
     kind: ghostKind,
   });
-  // Macros only: the ghost renders untransformed by the viewer's display scripts, so none ride this context.
+  // The settled rows' display set rides the ghost too, so a reply streams as it will settle and its committed
+  // row reads the ghost's last display-pass answer from the cache instead of blinking at commit.
   const ghostRenderContext = resolveMessageRenderContext({
     participants,
     characterNamesById,
     personaNamesById,
     anchorPersonaId: chatDetail.anchorPersonaId,
+    displayScripts,
   });
   // The ghost's CARD TIER, resolved through the ONE trust authority with the SAME inputs `MessageRow` will
   // use once this turn settles — so a card that mounts mid-stream (at its fence CLOSE, §4.5) does not change

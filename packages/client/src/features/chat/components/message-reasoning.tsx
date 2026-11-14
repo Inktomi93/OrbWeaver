@@ -11,7 +11,8 @@ import { Textarea } from "@orb/ui/textarea";
 import type { KeyboardEvent, ReactElement } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "#components";
-import { useInvalidation, useTRPC } from "#data";
+import { useDisplayText, useInvalidation, useTRPC } from "#data";
+import type { MessageRenderContext } from "#lib";
 import { cancelEditingReasoning, setReasoningEditDraft, startEditingReasoning, useIsEditingReasoning, useReasoningEditDraftText } from "#state";
 import { useClearReasoningMutation, useEditReasoningMutation } from "../hooks/use-message-mutations.ts";
 import {
@@ -105,14 +106,23 @@ function ReasoningEditor({ message }: { readonly message: MessageView }): ReactE
 
 export interface MessageReasoningProps {
   readonly message: MessageView;
-  /** The reasoning after the display macro pass; the editor works on the stored bytes, never this. */
-  readonly displayText: string;
+  /** The room's display context. The block shows the reasoning through the display pass, the same one the
+   *  ghost's live trace gets, so `{{char}}`/`{{user}}` read identically before and after commit; the editor
+   *  works on the stored bytes. */
+  readonly renderContext: MessageRenderContext;
   readonly showIcon: boolean;
   /** The viewer is the message's author or the room host. */
   readonly canEdit: boolean;
 }
 
-export function MessageReasoning({ message, displayText, showIcon, canEdit }: MessageReasoningProps): ReactElement {
+export function MessageReasoning({ message, renderContext, showIcon, canEdit }: MessageReasoningProps): ReactElement {
+  // The block opens collapsed, so it is not held while its scripts run.
+  const display = useDisplayText(message.reasoning ?? "", renderContext, {
+    characterId: message.characterId,
+    personaId: message.personaId,
+    order: message.seq,
+  });
+  const displayText = display.text;
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const clear = useClearReasoningMutation({ trpc, invalidation, failureShownInline: "the clear-reasoning confirm's alert line" });
