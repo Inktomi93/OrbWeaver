@@ -2,7 +2,7 @@
 // The deletes run one after another: each one retires its canon from the owner's stats behind a guard on the owner's
 // canon, and a sibling committing in between would refuse it. Each delete catches its own failure, so every card that
 // was deleted is still audited, announced and reaped, and the result names each card that failed.
-import type { CharacterBulkRemoveResult } from "@orb/contracts/character";
+import type { CharacterBulkResult } from "@orb/contracts/character";
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { BulkRemoveParams } from "../contract/params.ts";
@@ -64,7 +64,7 @@ async function announce(ctx: CharacterContext, ownerId: UserId, deleted: readonl
 }
 
 export function createBulkRemove(ctx: CharacterContext): CharacterService["bulkRemove"] {
-  return async ({ principal, characterIds }: BulkRemoveParams): Promise<CharacterBulkRemoveResult> => {
+  return async ({ principal, characterIds }: BulkRemoveParams): Promise<CharacterBulkResult> => {
     const ownerId = principal.userId;
     const at = ctx.now();
     const { outcomes, deleted } = await deleteInTurn(ctx, ownerId, characterIds);
