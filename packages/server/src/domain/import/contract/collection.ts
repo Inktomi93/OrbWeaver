@@ -53,6 +53,9 @@ export interface CollectedCard {
    *  — what the dry run's create prediction asks by, in the one lookup order every door uses. */
   readonly contentHash: string;
   readonly textHash: string;
+  /** The handle an orbweaver export carried (`ParsedCard.handle`), null for a foreign card: the row the lookup's
+   *  current step compares, so the dry run asks what the write asks. */
+  readonly carriedHandle: CharacterHandle | null;
   readonly filename: string;
   /** The card's DISPLAY name off the parsed card. Carried because the ST group importer needs a card-name →
    *  seat fallback for pre-group-era transcript lines that carry no `original_avatar` filename; the handle is

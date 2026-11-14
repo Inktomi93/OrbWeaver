@@ -30,7 +30,7 @@ import type { AssetsService, ImportAssetPort } from "#domain/assets";
 import { AssetContentRejectedError } from "#domain/assets";
 import type { ImportCharacterPort } from "#domain/character";
 import type { DatabankService } from "#domain/databank";
-import type { ImportFile } from "#domain/import";
+import type { ExportCurrentCard, ImportFile } from "#domain/import";
 import { hasCsrfHeader } from "#infra/auth";
 import { classifyDomainError, domainReason } from "#transport/trpc";
 import { runCardLorebookRestore, runProfileImport } from "../import/index.ts";
@@ -74,6 +74,8 @@ export interface UploadDeps {
   readonly assets: UploadAssetsPort & ImportAssetPort;
   readonly character: ImportCharacterPort;
   readonly tag: ImportTagPort;
+  /** So a card exported from this library finds the row the app wrote instead of landing a twin (D290). */
+  readonly exportCurrentCard: ExportCurrentCard;
   /** So an imported card's `character_book` actually lands (without it embedded books are dropped). */
   readonly worldInfo: ImportWorldInfoPort;
   /** So an imported card's embedded regex scripts land as attached library rows (without it they are dropped). */
@@ -258,6 +260,7 @@ export function registerUpload(app: Hono<PrincipalEnv>, deps: UploadDeps): void 
         character: deps.character,
         assets: deps.assets,
         tag: deps.tag,
+        exportCurrentCard: deps.exportCurrentCard,
         worldInfo: deps.worldInfo,
         file: { bytes: await fileBytes(file), filename: file.name },
       }),
@@ -285,6 +288,7 @@ export function registerUpload(app: Hono<PrincipalEnv>, deps: UploadDeps): void 
       character: deps.character,
       assets: deps.assets,
       tag: deps.tag,
+      exportCurrentCard: deps.exportCurrentCard,
       worldInfo: deps.worldInfo,
       importCardScripts: deps.importCardScripts,
       files,

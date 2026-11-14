@@ -19,14 +19,14 @@ import type { ThemeBackground } from "@orb/contracts/theme";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
 import type { BulkImportLorebookInput, EntryMetadata } from "@orb/contracts/world-info";
 import { narrowedEntryMetadataSchema } from "@orb/contracts/world-info";
-import type { AssetId, CharacterHandle, CharacterId, RegexScriptId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, RegexScriptId, UserId } from "@orb/kit/ids";
 import { parseJsonText } from "@orb/kit/json";
 import { readCardChunk, stripCardChunks } from "@orb/kit/png-card-chunk";
 import { z } from "zod";
 import { sha256Hex } from "#primitives/content-hash";
 import { cardFromJson, cardImportHash, extractLorebook, loreEntryColumns, loreEntryMetadata, selectBestCharacterBook } from "#primitives/serde/card";
 import { ImportCardError } from "../contract/errors.ts";
-import type { CardIdentityHashes, FindCharacterByHash, ImportedCharacterMatch } from "../contract/identity.ts";
+import type { CardIdentityHashes, CurrentCardIdentity, ExportCurrentCard, FindCharacterByHash, ImportedCharacterMatch } from "../contract/identity.ts";
 import { carriedHandle, requestedHandle } from "./handle.ts";
 
 // UTF-8 BOM codepoint — Windows exports + some editors prepend one and `JSON.parse` rejects it.
@@ -235,10 +235,31 @@ export async function cardPngIdentity(bytes: Uint8Array): Promise<CardIdentityHa
   return parsed === null ? null : { importHash: parsedCardImportHash(parsed), textHash: parsedCardTextHash(parsed), fileHash: importFileHash(bytes) };
 }
 
-/** The owner's character an equal card already landed as, in ONE lookup order for every door. */
+/** The current identity of the owner's character `handle` names, or undefined for a card that carries no handle
+ *  (a foreign card, which no row the app wrote can equal). */
+export function currentCardIdentity(exportCurrentCard: ExportCurrentCard, ownerId: UserId, handle: CharacterHandle | null): CurrentCardIdentity | undefined {
+  if (handle === null) {
+    return undefined;
+  }
+  return async () => {
+    const current = await exportCurrentCard({ ownerId, handle });
+    const hashes = current === null ? null : await cardPngIdentity(current.bytes);
+    return current === null || hashes === null ? null : { characterId: current.characterId, hashes };
+  };
+}
+
+// The current export is always a PNG. A JSON card carries no art, so it equals the export's text identity; a PNG
+// card equals the full one.
+function sameCard(incoming: CardIdentityHashes, current: CardIdentityHashes): boolean {
+  return incoming.importHash === current.importHash || (incoming.importHash === incoming.textHash && incoming.textHash === current.textHash);
+}
+
+/** The owner's character an equal card already landed as, in ONE lookup order for every door. The stored keys come
+ *  first; only when they all miss does `current` export the one row the card's carried handle names (D290). */
 export async function findImportedCharacter<Row = CharacterId>(
   find: FindCharacterByHash<Row>,
   hashes: CardIdentityHashes,
+  current?: CurrentCardIdentity<Row>,
 ): Promise<{ readonly characterId: Row; readonly match: ImportedCharacterMatch } | null> {
   const byContent = await find(hashes.importHash);
   if (byContent !== null) {
@@ -251,7 +272,11 @@ export async function findImportedCharacter<Row = CharacterId>(
     }
   }
   const byFile = await find(hashes.fileHash);
-  return byFile === null ? null : { characterId: byFile, match: "file" };
+  if (byFile !== null) {
+    return { characterId: byFile, match: "file" };
+  }
+  const live = current === undefined ? null : await current();
+  return live !== null && sameCard(hashes, live.hashes) ? { characterId: live.characterId, match: "current" } : null;
 }
 
 /** @throws {@link ImportCardError} card_invalid when the normalized card fails the canonical schema. */

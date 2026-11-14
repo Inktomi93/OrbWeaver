@@ -15,7 +15,7 @@ import { mapYielding } from "#primitives/abort";
 import { sha256Hex } from "#primitives/content-hash";
 import type { CollectedCard, CollectedChat } from "../contract/collection.ts";
 import type { ImportOwnership, ProfileCollected, ProfileDirImportDeps } from "../contract/profile-directory.ts";
-import { findImportedCharacter, importFileHash } from "../substrate/card.ts";
+import { currentCardIdentity, findImportedCharacter, importFileHash } from "../substrate/card.ts";
 import { partitionGroups, resolveMembers } from "../substrate/group.ts";
 import { orphanImportHash } from "../substrate/handle.ts";
 import { presetBytes, themeBytes } from "../substrate/landing-bytes.ts";
@@ -87,7 +87,7 @@ interface CardPass {
  *  write, not predicted here. Its chats are held only under the equal card's own row. */
 async function passCards(deps: ProfileDirImportDeps, collected: ProfileCollected, chats: ChatJudge): Promise<CardPass> {
   const ownerId = deps.principal.userId;
-  const { characterOps } = deps.contextFor(deps.principal, deps.storeAvatar);
+  const { characterOps, exportCurrentCard } = deps.contextFor(deps.principal, deps.storeAvatar);
   const pass: CardPass = { characters: new Map(), rowByFilename: new Map(), ownedByRow: new Map() };
   // call-local: the row each landed card identity lands under, so a later equal card finds it. Ends if it outlives the pass.
   const landed = new Map<string, RowKey>();
@@ -96,7 +96,11 @@ async function passCards(deps: ProfileDirImportDeps, collected: ProfileCollected
       break;
     }
     const hashes = { importHash: bundle.contentHash, textHash: bundle.textHash, fileHash: importFileHash(bundle.cardBytes) };
-    const found = await findImportedCharacter(async (importHash) => await characterOps.findByImportHash({ ownerId, importHash }), hashes);
+    const found = await findImportedCharacter(
+      async (importHash) => await characterOps.findByImportHash({ ownerId, importHash }),
+      hashes,
+      currentCardIdentity(exportCurrentCard, ownerId, bundle.carriedHandle),
+    );
     const earlier = found === null ? await findImportedCharacter<RowKey>((importHash) => Promise.resolve(landed.get(importHash) ?? null), hashes) : null;
     const keys = [bundle.contentHash];
     let row = newCardRow(bundle.contentHash);

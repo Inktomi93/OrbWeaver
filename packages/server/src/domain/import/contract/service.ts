@@ -2,7 +2,7 @@
 // (verb interface) + the injected cross-feature op types the composition root wires at the root.
 
 import type { CreateCharacterInput } from "@orb/contracts/character";
-import type { BulkImportChatsOp } from "@orb/contracts/chat";
+import type { BulkImportChatsOp, FindImportedChatHashes } from "@orb/contracts/chat";
 import type { PersonaCollisionChoices } from "@orb/contracts/import";
 import type { BulkImportPersonas } from "@orb/contracts/persona";
 import type { PortableFile } from "@orb/contracts/portability";
@@ -15,6 +15,7 @@ import type { BulkImportLorebook, HasPrimaryBook, LinkCarriedBooks } from "@orb/
 import type { AssetId, CharacterHandle, CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { CollectedPreset, CollectedTheme } from "./collection.ts";
+import type { ExportCurrentCard, ExportCurrentChats } from "./identity.ts";
 import type {
   ImportCharacterInput,
   ImportChatsInput,
@@ -118,6 +119,11 @@ export interface ImportProfileDeps {
    *  through the `ImportedChatRemap` the chat write op returns, before this ever sees it. */
   readonly importRpgGame?: ImportRpgGame;
   readonly findOwnedAssetIdsByHash?: FindOwnedAssetIdsByHashOp;
+  /** A chat bundle's lookup for a room the app wrote, which carries no stored key (D290): when the bundle's own key
+   *  is not held under its primary (`heldChatHashes`), it compares with the current export of each candidate room
+   *  (`exportCurrentChats`). Required: an unwired lookup would twin every room the app wrote on a restore. */
+  readonly heldChatHashes: FindImportedChatHashes;
+  readonly exportCurrentChats: ExportCurrentChats;
   /** Preset-owned import write op — the ST preset wave hands it orb-native `orb.preset` BYTES, so the preset
    *  domain keeps its one serde AND its one (ownerId, name) collision rule and import owns neither. OPTIONAL on
    *  the `importLorebook` precedent: absent ⇒ the preset plane simply does not restore (the profile-import
@@ -144,6 +150,9 @@ export interface ImportContext {
   readonly findByName: FindCharacterByName;
   readonly storeAsset: StoreImportAsset;
   readonly attachImportedArt: AttachImportedArt;
+  /** The lookup's last step: the current card of the owned row a carried handle names (D290). Required, so every
+   *  door that imports a card finds a row the app wrote. */
+  readonly exportCurrentCard: ExportCurrentCard;
   readonly attachCardTag: AttachImportedCardTag;
   /** Optional: the card-only upload path skips embedded books. Destructive on a character that already holds a
    *  primary book, so the card-import verb gates it behind `hasPrimaryBook`. */

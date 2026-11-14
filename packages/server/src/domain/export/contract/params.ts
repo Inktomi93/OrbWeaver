@@ -25,6 +25,12 @@ interface ExportActorParams {
 /** No scope beyond the actor: the owner's own hosted chats. */
 export type ListHostChatsParams = ExportActorParams;
 
+/** The owner's hosted chats that seat `characterId` and were created at `createdAt` (epoch ms). */
+export interface ListHostChatsCreatedAtParams extends ExportActorParams {
+  readonly characterId: CharacterId;
+  readonly createdAt: number;
+}
+
 export interface ExportCharacterParams extends ExportActorParams {
   readonly characterId: CharacterId;
   /** Defaults to `png` — the bundle descriptor never passes it, so a backup always carries cards. */

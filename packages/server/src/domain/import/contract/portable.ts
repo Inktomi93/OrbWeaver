@@ -22,6 +22,8 @@ export interface OwnerImportDeps {
     | "attachChatTagByName"
     | "importRpgGame"
     | "findOwnedAssetIdsByHash"
+    | "heldChatHashes"
+    | "exportCurrentChats"
     | "adoptDefaultPersona"
   >;
 }

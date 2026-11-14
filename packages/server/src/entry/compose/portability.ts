@@ -18,7 +18,7 @@ import { createExportDocument, createImportDocument, createListOwnedDocumentIds 
 import type { ExportService, PortableExportDeps } from "#domain/export";
 import { createPortableExports } from "#domain/export";
 import type { ImageryPortabilityService } from "#domain/imagery";
-import type { ImportProfileDeps } from "#domain/import";
+import type { ExportCurrentCard, ImportProfileDeps } from "#domain/import";
 import { createPortableImports } from "#domain/import";
 import type { PersonaService } from "#domain/persona";
 import type { PresetAssemblyContext } from "#domain/preset";
@@ -51,6 +51,10 @@ export interface PortabilityDeps {
   readonly listOwnedCharacterIds: PortableExportDeps["listCharacterIds"];
   readonly storeAvatar: StoreAvatarAsset;
   readonly attachCardTag: AttachCardTagByNameOp;
+  /** The lookup's last step for a card or room the app wrote, which carries no stored key (D290). */
+  readonly exportCurrentCard: ExportCurrentCard;
+  readonly heldChatHashes: ImportProfileDeps["heldChatHashes"];
+  readonly exportCurrentChats: ImportProfileDeps["exportCurrentChats"];
   readonly importLorebook: ImportWorldInfoPort["importLorebook"];
   /** The seat oracle that keeps a re-uploaded card from replacing an edited primary book. */
   readonly hasPrimaryBook: ImportWorldInfoPort["hasPrimaryBook"];
@@ -101,6 +105,7 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
       characterOps: createCharacterImportOps(principal, deps.character),
       storeAsset: createImportAvatarStore(principal, deps.storeAvatar),
       attachCardTag: createImportedCardTag(principal.userId, deps.attachCardTag),
+      exportCurrentCard: deps.exportCurrentCard,
       importLorebook: deps.importLorebook,
       hasPrimaryBook: deps.hasPrimaryBook,
       linkCarriedBooks: deps.linkCarriedBooks,
@@ -115,6 +120,8 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
       attachChatTagByName: deps.attachChatTagByName,
       importRpgGame: deps.importRpgGame,
       findOwnedAssetIdsByHash: deps.findOwnedAssetIdsByHash,
+      heldChatHashes: deps.heldChatHashes,
+      exportCurrentChats: deps.exportCurrentChats,
       adoptDefaultPersona: createAdoptImportedDefaultPersona(deps.settingsCtx),
     },
   });

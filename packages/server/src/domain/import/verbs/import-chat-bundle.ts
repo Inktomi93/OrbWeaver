@@ -21,6 +21,9 @@
 //     `ImportedChatRemap` the chat write op returns. This is the load-bearing step: get it wrong and every
 //     snapshot, journal entry and tool-call record anchors to the wrong turn (or to nothing).
 //
+// IDENTITY: the bundle's file hash, kept as the room's stored key; a room the app wrote carries none, so an
+// unchanged one is found by its current export (`heldAsCurrentRoom`, D290).
+//
 // ORDERING: canon FIRST (it mints the ids everything else re-links against), then the tag overlay and the
 // campaign. A failed re-link never un-writes the chat — a restored room missing its labels is strictly better
 // than no room, and the outcome still reports `ok`.
@@ -32,7 +35,7 @@ import type { RpgPortableGame } from "@orb/contracts/rpg";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
 import { relinkContentAssets } from "@orb/kit/content";
 import { isPlainObject } from "@orb/kit/guards";
-import type { AssetId, CharacterHandle, CharacterId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import { sha256Hex } from "#primitives/content-hash";
 import type { PortableChat, PortableChatVariant, PortableRpgGame } from "#primitives/serde/chat-bundle";
 import { CHAT_BUNDLE_SCHEMA_KIND, parseChatBundleFile } from "#primitives/serde/chat-bundle";
@@ -406,6 +409,29 @@ export function createImportChatBundle(ctx: ImportContext): ImportService["impor
   };
 }
 
+/** Is the bundle a room the app wrote in this library and has not changed since (D290)? Such a room carries no
+ *  stored key, so when the bundle's own key is not held under its primary, the bundle is compared with the current
+ *  export of each room the owner hosts that seats the primary and was created when the bundle says. A room changed
+ *  since the export does not match, and the bundle lands beside it; no import updates an owned row. */
+async function heldAsCurrentRoom(args: {
+  readonly profile: ImportProfileDeps;
+  readonly ownerId: UserId;
+  readonly primary: CharacterId;
+  readonly createdAt: number;
+  readonly importHash: string;
+}): Promise<boolean> {
+  const { profile, ownerId, primary, createdAt, importHash } = args;
+  if ((await profile.heldChatHashes({ ownerId, characterId: primary, hashes: [importHash] })).has(importHash)) {
+    return false;
+  }
+  for await (const room of profile.exportCurrentChats({ ownerId, characterId: primary, createdAt })) {
+    if (sha256Hex(room.bytes) === importHash) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /** The write half, split out so the refusal ladder above reads as one screen of preconditions. */
 async function writeBundle(args: {
   readonly ctx: ImportContext;
@@ -416,13 +442,15 @@ async function writeBundle(args: {
   readonly bytes: Uint8Array;
 }): Promise<ImportChatFileOutcome> {
   const { ctx, profile, bundle, characterIds, filename, bytes } = args;
+  const importHash = sha256Hex(bytes);
+  if (await heldAsCurrentRoom({ profile, ownerId: ctx.ownerId, primary: characterIds.primary, createdAt: bundle.createdAt, importHash })) {
+    return { ok: true, created: false, skippedOverlays: [], memoryChatIds: [] };
+  }
   const personaIdByName = await resolvePersonas(profile, ctx.ownerId, referencedPersonaNames(bundle));
   const result = await profile.bulkImportChats({
     ownerId: ctx.ownerId,
     characterId: characterIds.primary,
-    chats: [
-      toChatInput({ bundle: await relinkCarriedAssets(profile, ctx.ownerId, bundle), characterIds, personaIdByName, filename, importHash: sha256Hex(bytes) }),
-    ],
+    chats: [toChatInput({ bundle: await relinkCarriedAssets(profile, ctx.ownerId, bundle), characterIds, personaIdByName, filename, importHash })],
   });
   // The same clause `importChats` runs: a real conversation queues the free index pass, never a memory build.
   if (result.realConversationsWritten.length > 0) {

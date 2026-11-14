@@ -8,7 +8,7 @@ import type { ExportContext, ExportService } from "./contract/service.ts";
 import { createExportCharacter } from "./verbs/export-character.ts";
 import { createExportChat } from "./verbs/export-chat.ts";
 import { createExportChatBundle } from "./verbs/export-chat-bundle.ts";
-import { createListHostChats } from "./verbs/list-host-chats.ts";
+import { createListHostChats, createListHostChatsCreatedAt } from "./verbs/list-host-chats.ts";
 
 export function createExportService(input: DbAssemblyInput<ExportContext>): ExportService {
   const ctx: ExportContext = { ...input, db: databaseForOwner(input.db) };
@@ -18,5 +18,6 @@ export function createExportService(input: DbAssemblyInput<ExportContext>): Expo
     exportChat: createExportChat(ctx),
     exportChatBundle: createExportChatBundle(ctx, exportCharacter),
     listHostChats: createListHostChats(ctx),
+    listHostChatsCreatedAt: createListHostChatsCreatedAt(ctx),
   };
 }

@@ -7,7 +7,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import { PORTABILITY_ROUTES, PORTABLE_DIRECTORIES, WHOLE_LIBRARY_ONLY_KINDS } from "@orb/contracts/portability";
 import type { ModelStatRow, OwnerStatsView } from "@orb/contracts/stats";
-import { dailyStats, spendLedger } from "@orb/db";
+import { characters, chats, dailyStats, spendLedger } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { reconcileOwnersMissingTimeline } from "@orb/server/domain/stats";
 import { createFrozenClock } from "@orb/testkit/iso";
@@ -15,7 +15,7 @@ import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, exportLibrary, makeAssetBytes, readLibraryExport, restoreBundle, signedInBox } from "@orb/testkit/node/composed";
 import { bootGrantFor } from "@orb/testkit/node/helpers";
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import {
   allowCorpusEndpoint,
   CAPTION,
@@ -102,12 +102,18 @@ test("the spend ledger travels only in the whole-library bundle, and a restore a
   expect(ledgerFile((await readLibraryExport(source)).files.keys())).toBe(true);
   const bundle = await exportLibrary(source);
   // Restored onto the library that wrote it, every carried entry is already held, so the spend is unchanged on the live
-  // rollups and on a rebuild; the bundle's character and chat restore beside the originals, which spend never counts.
+  // rollups and on a rebuild, and the bundle's character and chat land on the rows they came from (D290).
   const sourceLedger = async (): Promise<readonly string[]> =>
     (await source.db.select().from(spendLedger).where(eq(spendLedger.ownerId, source.ownerId))).map((row) => row.id).toSorted();
+  const libraryRows = async (): Promise<{ readonly characters: number; readonly chats: number }> => ({
+    characters: (await source.db.select({ n: count() }).from(characters).get())?.n ?? 0,
+    chats: (await source.db.select({ n: count() }).from(chats).get())?.n ?? 0,
+  });
   const heldBefore = await sourceLedger();
+  const rowsBefore = await libraryRows();
   expect(await restoreBundle(source, bundle)).toMatchObject({ status: "succeeded", failed: 0 });
   expect(await sourceLedger()).toEqual(heldBefore);
+  expect(await libraryRows()).toEqual(rowsBefore);
   const afterSelfRestore = await shown(source, owner);
   expect(afterSelfRestore.overview?.costUsd).toBe(spent.overview?.costUsd);
   expect(await rebuilt(source, owner)).toEqual(afterSelfRestore);

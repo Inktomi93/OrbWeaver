@@ -49,6 +49,7 @@ type HttpAppDeps = Pick<
     | "settleImportMemory"
     | "importWorldInfo"
     | "importCardScripts"
+    | "exportCurrentCard"
     | "rpgTrace"
     | "wireCaptureOn"
     | "recallRecorder"
@@ -143,6 +144,7 @@ export function createHttpApp(deps: HttpAppDeps): ReturnType<typeof createApp> {
     settleImportMemory: built.settleImportMemory,
     importWorldInfo: built.importWorldInfo,
     importCardScripts: built.importCardScripts,
+    exportCurrentCard: built.exportCurrentCard,
     sessions: built.sessions,
     isShuttingDown: deps.isShuttingDown,
     credentialsKeyOk: deps.credentialsKeyOk,

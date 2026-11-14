@@ -3,6 +3,7 @@
 export type { ImportFile } from "./contract/cards.ts";
 export type { UploadedFile } from "./contract/collection.ts";
 export type { ImportDriverDeps } from "./contract/drivers.ts";
+export type { ExportCurrentCard, ExportCurrentChats } from "./contract/identity.ts";
 export type { ProfileDirImportDeps } from "./contract/profile-directory.ts";
 export type {
   ImportReport,

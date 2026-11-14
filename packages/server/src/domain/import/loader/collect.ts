@@ -302,6 +302,7 @@ async function collectCards(fs: ImportFsPort, profileDir: ImportDirectory, state
       cardBytes: bytes,
       contentHash: parsedCardImportHash(parsed),
       textHash: parsedCardTextHash(parsed),
+      carriedHandle: parsed.handle,
       filename: ent.name,
       cardName: parsed.card.name,
       worldName,

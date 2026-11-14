@@ -15,7 +15,7 @@ import { createCompareAndSetImportedTokenUsage, createFindImportedChatHashes, cr
 import type { DatabankPortabilityAssemblyContext } from "#domain/databank";
 import type { ExportService } from "#domain/export";
 import type { ImageryPortabilityService } from "#domain/imagery";
-import type { ImportDriverDeps, ImportWorkloadDeps, SettleImportMemory } from "#domain/import";
+import type { ExportCurrentCard, ExportCurrentChats, ImportDriverDeps, ImportWorkloadDeps, SettleImportMemory } from "#domain/import";
 import {
   createEnqueueImportIndex,
   createImportLibraryEmitter,
@@ -75,6 +75,9 @@ export interface PortabilityRunnerComposeDeps {
   readonly databankCtx: DatabankPortabilityAssemblyContext;
   readonly persona: PersonaService;
   readonly exportService: ExportService;
+  /** The import lookup's last step for a card or room the app wrote (D290). */
+  readonly exportCurrentCard: ExportCurrentCard;
+  readonly exportCurrentChats: ExportCurrentChats;
   readonly character: CharacterService;
   readonly assets: AssetsService;
   readonly attachCardTag: TagService["attachCardTagByName"];
@@ -127,6 +130,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     character: deps.character,
     storeAvatar: deps.assets.store,
     attachCardTag: deps.attachCardTag,
+    exportCurrentCard: deps.exportCurrentCard,
     importLorebook: deps.importWorldInfo.importLorebook,
     hasPrimaryBook: deps.importWorldInfo.hasPrimaryBook,
     linkCarriedBooks: deps.importWorldInfo.linkCarriedBooks,
@@ -134,6 +138,8 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     bulkImportChats: deps.bulkImportChats,
     bulkImportPersonas: deps.bulkImportPersonas,
     enqueueImportIndex,
+    heldChatHashes: createFindImportedChatHashes({ db }),
+    exportCurrentChats: deps.exportCurrentChats,
     // R6 — the orb-native chat bundle's three cross-domain re-links (persona by name, the chat-tag overlay,
     // the rpg campaign). Shared by both consumers exactly like the rest of this slice.
     findPersonaByName: ({ ownerId, name }: { readonly ownerId: UserId; readonly name: string }): Promise<PersonaId | null> => findPersonaByName(ownerId, name),

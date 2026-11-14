@@ -788,6 +788,8 @@ function contextFor(deps: ProfileDirImportDeps, store: StoreAvatarAsset): Return
       bulkImportPersonas: deps.bulkImportPersonas,
       // NO-OP (see the header): the driver owns the one enqueue, so this per-chat call enqueues nothing.
       enqueueImportIndex: (): Promise<void> => Promise.resolve(),
+      heldChatHashes: deps.heldChatHashes,
+      exportCurrentChats: deps.exportCurrentChats,
       ...(deps.importPreset !== undefined ? { importPreset: deps.importPreset } : {}),
       ...(deps.importTheme !== undefined ? { importTheme: deps.importTheme } : {}),
       adoptDefaultPersona: deps.adoptDefaultPersona,
