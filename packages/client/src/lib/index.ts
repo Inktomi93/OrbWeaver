@@ -304,6 +304,7 @@ export {
   duplicateActionName,
   groupOrdinalQualifiers,
   positionQualifier,
+  ROW_MORE_LEAD,
   renameActionName,
   rowActionSubject,
   rowActionsName,

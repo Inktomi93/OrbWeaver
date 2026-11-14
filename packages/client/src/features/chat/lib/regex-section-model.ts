@@ -141,14 +141,16 @@ export const REGEX_ON_SCREEN_LIST = "On screen";
 
 /**
  * A script row's enable switch, in a tier group and in the On screen roster. It is the library row's own flag, so it
- * reaches every room: `Enabled everywhere: <script> · <list>`.
+ * reaches every room: `Enabled everywhere: <subject> · <list>`.
  *
+ * @param subject - the row's action subject (`rowActionSubject`), the same one its menu names, so two same-titled scripts
+ * in one list are two names.
  * @param list - the heading the row sits under ({@link regexTierKicker} or {@link REGEX_ON_SCREEN_LIST}). One script
- * draws in a tier group and in the roster, and two tiers can hold same-titled scripts, so the bare script name is not
+ * draws in a tier group and in the roster, and two tiers can hold same-titled scripts, so the subject alone is not
  * one name per switch.
  */
-export function regexScriptEverywhereSwitchName(scriptName: string, list: string): string {
-  return itemSwitchName(REGEX_SCRIPT_ENABLED_SETTING, scriptName, list);
+export function regexScriptEverywhereSwitchName(subject: string, list: string): string {
+  return itemSwitchName(REGEX_SCRIPT_ENABLED_SETTING, subject, list);
 }
 
 /** A tier's lever in the strip, whether the tier runs in this room: `Allow scripts from: <tier>`. */
