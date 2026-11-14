@@ -55,6 +55,10 @@ interface ShellState {
    *  resolution downgrades to a CLOSED slide-over (`collapsed`) while narrow, opening to `overlay` only on
    *  demand, and restoring the dock on re-widen. Device-transient, never persisted. */
   readonly narrowViewport: boolean;
+  /** The content column has shrunk to its floor, so CONTEXT floats over it instead of docking (`contextAutoOverlay`). Published the
+   *  same way, from the shell's measured sentinel, so a feature projection resolves CONTEXT's mode without importing app-shell.
+   *  Device-transient, never persisted. */
+  readonly contextContentConstrained: boolean;
 }
 
 /** Only the layout preference persists — `openModal` is transient (never reopen a modal on reload). */
@@ -78,6 +82,7 @@ const DEFAULT_STATE: ShellState = {
   openOverlayPanel: null,
   mobileViewport: false,
   narrowViewport: false,
+  contextContentConstrained: false,
 };
 
 // v2: the persisted shape changed from a single global panel pair to per-section `panelOverrides`.
@@ -156,6 +161,7 @@ function migrate(persisted: unknown): ShellState {
     openOverlayPanel: null,
     mobileViewport: false,
     narrowViewport: false,
+    contextContentConstrained: false,
   };
 }
 
@@ -357,6 +363,15 @@ export function setNarrowViewport(isNarrow: boolean): void {
   useShellStore.setState({ narrowViewport: isNarrow }, false, "shell/setNarrowViewport");
 }
 
+/** Publish whether the content column is at its floor — same caller, same seed, same unchanged-is-not-a-change rule as
+ *  {@link setMobileViewport}. */
+export function setContextContentConstrained(constrained: boolean): void {
+  if (useShellStore.getState().contextContentConstrained === constrained) {
+    return;
+  }
+  useShellStore.setState({ contextContentConstrained: constrained }, false, "shell/setContextContentConstrained");
+}
+
 // ── The read API — narrow hooks so chrome re-renders only on the slice it reads. ──
 
 export function useActiveSection(): SectionId {
@@ -383,6 +398,11 @@ export function useNarrowViewport(): boolean {
  *  branch on it without importing app-shell's matchMedia hook (`no-raw-matchmedia`). */
 export function useMobileViewport(): boolean {
   return useShellStore((s) => s.mobileViewport);
+}
+
+/** The shell's published content-floor regime — the `useNarrowViewport` twin, for the CONTEXT projection. */
+export function useContextContentConstrained(): boolean {
+  return useShellStore((s) => s.contextContentConstrained);
 }
 
 export function useOpenModal(): ModalSlotId | null {

@@ -10,6 +10,9 @@ export const START_NEW_CHAT_NAME = "Start a new chat";
 /** The new-chat picker dialog's title, and the label of its modal trigger. */
 export const NEW_CHAT_DIALOG_TITLE = "New chat";
 
+/** The press that starts a fresh chat with an open character: the character hero's primary, and the chats pane's empty-state action while that hero is covered. */
+export const CHARACTER_NEW_CHAT_NAME = "New chat";
+
 /** The Home temp-chat tile's control, which opens the picker for a temporary room. */
 export const START_TEMP_CHAT_NAME = "Start a temp chat";
 

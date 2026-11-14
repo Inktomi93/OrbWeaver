@@ -1,5 +1,5 @@
 import type { PanelMode, PanelName } from "@orb/client/state";
-import { resolvePanelMode } from "@orb/client/state";
+import { contextAutoOverlay, resolvePanelMode } from "@orb/client/state";
 import { expect, test } from "@orb/testkit/node";
 
 type Regime = Parameters<typeof resolvePanelMode>[2];
@@ -63,6 +63,17 @@ test("mobile list-as-screen docks the list unless the user closed it with none",
 
 test("list-as-screen never docks the context panel", () => {
   expect(resolvePanelMode("context", "docked", { ...MOBILE, listIsScreen: true })).toBe("collapsed");
+});
+
+test("context floats over a content column at its floor only while both panes exist and the list asks to dock", () => {
+  const floating = { contextContentConstrained: true, listAvailable: true, contextAvailable: true, listRequest: "docked" } as const;
+  expect(contextAutoOverlay(floating)).toBe(true);
+  expect(contextAutoOverlay({ ...floating, contextContentConstrained: false })).toBe(false);
+  expect(contextAutoOverlay({ ...floating, listAvailable: false })).toBe(false);
+  expect(contextAutoOverlay({ ...floating, contextAvailable: false })).toBe(false);
+  for (const request of ["overlay", "collapsed"] as const) {
+    expect(contextAutoOverlay({ ...floating, listRequest: request })).toBe(false);
+  }
 });
 
 test("listIsScreen is inert off mobile", () => {

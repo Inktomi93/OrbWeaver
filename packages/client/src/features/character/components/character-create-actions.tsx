@@ -32,6 +32,7 @@ import {
   CHARACTER_IMPORT_CARD_NAME,
   CHARACTER_IMPORT_NAME,
   CHARACTER_NAME_FIELD_NAME,
+  CHARACTER_NEW_DESCRIPTION,
   CHARACTER_NEW_NAME,
 } from "../lib/character-names.ts";
 import { CHARACTER_CREATE_FAILED, characterMutationToast, characterRefusalCopy } from "../lib/character-refusal-notice.ts";
@@ -93,7 +94,7 @@ export function NewCharacterDialog({
 
   return (
     <FormDialog
-      description="Give them a name and a one-line description. You can flesh out the rest in the editor."
+      description={CHARACTER_NEW_DESCRIPTION}
       {...(finalFocus === undefined ? {} : { finalFocus })}
       onOpenChange={onOpenChange}
       open={open}
@@ -122,11 +123,11 @@ export function NewCharacterDialog({
           value={name}
           {...(refusal === null ? {} : { "aria-errormessage": refusalId, "aria-invalid": true })}
         />
-        {/* THE LINE SITS UNDER THE FIELD IT IS ABOUT (#548). It used to render below BOTH controls, where
-            its only tie to the Name box was the sentence's own wording — for a sighted reader "at the
-            control" (the #542 note's own WCAG 3.3.1 cite) means adjacent, not somewhere in the dialog. */}
+        {/* The line sits under the field it is about: for a sighted reader "at the control" (WCAG 3.3.1) means
+            adjacent, not somewhere in the dialog. It takes the body step, the dialog description's own, because
+            a refusal that reads smaller than the text it qualifies is easy to miss. */}
         {failure === null ? null : (
-          <Text tone="destructive" id={refusalId} role="alert" voice="label">
+          <Text tone="destructive" id={refusalId} role="alert">
             {failure}
           </Text>
         )}
@@ -140,10 +141,8 @@ export function NewCharacterDialog({
           value={description}
         />
       </Stack>
-      {/* LOAD-BEARING: it names why Create is disabled, so it keeps the `label` voice (the landed
-          requirement/error line grammar), never the receding `gloss`. It speaks for BOTH fields, so this
-          is where it belongs — unlike the #542 refusal line, which moved up under the Name field it is
-          about (#548, see its note there). */}
+      {/* It names why Create is disabled, so it keeps the `label` voice, never the receding `gloss`. It speaks
+          for BOTH fields, so it sits below them, unlike the refusal line under the Name field it is about. */}
       {incomplete ? (
         <Text ink="muted" voice="label">
           A name and a description are both required.
