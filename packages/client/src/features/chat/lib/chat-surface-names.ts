@@ -7,6 +7,9 @@ export const OVERRIDE_CLEAR_VERB = "Clear";
 /** The chat list search box's clear button. */
 export const CHAT_CLEAR_SEARCH_NAME = "Clear the search";
 
+/** The title of a room whose opening policy seeded nothing, before its first turn. */
+export const CHAT_EMPTY_THREAD_TITLE = "No messages yet";
+
 /** The composer's continue button, before the direction a typed line adds to it. */
 export const CHAT_CONTINUE_REPLY_NAME = "Continue the reply";
 

@@ -12,7 +12,7 @@ import type { ReactElement, ReactNode } from "react";
 import { Suspense, useState } from "react";
 
 /** The rpg context tabs the stories mount, by their production contribution id. */
-const RPG_TAB_IDS = ["rpg.status", "rpg.scene", "rpg.journal", "rpg.game"] as const;
+const RPG_TAB_IDS = ["rpg.status", "rpg.scene", "rpg.quests", "rpg.journal", "rpg.game"] as const;
 type RpgTabId = (typeof RPG_TAB_IDS)[number];
 
 // Calls the section's resolver the way the shell's context host does: as a hook handed in by the definition.

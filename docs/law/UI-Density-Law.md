@@ -131,6 +131,10 @@ A surface has exactly ONE tier. A `form` island inside an `instrument` surface i
 - **CD2 — one box deep, maximum.** A bordered/rounded/filled element whose ancestor is also bordered/rounded/filled is RED. Alignment and separation INSIDE a box are done with hairlines (`border-t` on siblings) and gaps, never a nested card.
 - **CD3 — one focal element per surface.** Exactly one element per surface may carry accent fill, glow, or elevated shadow at rest. The visual twin of the one-focal-Button-per-region rule: everything around the focal is deliberately quiet so it stays the one bold thing.
 
+### 3.3 Empty states by region
+
+A pane and a Home hearth tile draw `EmptyState` with its action (`client-architecture-state-and-gates.md` §11, the three-states law). A Home shelf tile states its empty state at shelf weight: a label line, its doors and a gloss, flush to the shelf's edge. The shelf is a companion column of one-line blocks, and a centred island there is the only centred block on the page and spends the largest title step on the emptiest sentence. `HOME_TILE_REGIONS` in `packages/client/src/state/home-tile-contracts.ts` lists the regions.
+
 ## 4. Mechanism — impossible by construction
 
 Features cannot express the wrong thing because they never express spacing or radius at all (the D294 pattern). Three moving parts.

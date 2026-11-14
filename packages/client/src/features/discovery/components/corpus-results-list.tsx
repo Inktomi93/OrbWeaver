@@ -4,7 +4,12 @@ import { useLayoutEffect, useRef } from "react";
 import { testId } from "#lib";
 import { readCorpusResultScroll, setCorpusResultScroll } from "#state";
 
-/** Explore restores its result scroller after the query has produced the same list again. */
+/**
+ * Explore restores its result scroller after the query has produced the same list again.
+ *
+ * The scroller holds one row of window itself: it shares the bounded pane with the status line and the notes above it, and at
+ * enlarged text those take the whole pane's floor and leave the results none.
+ */
 export function CorpusResultsList({
   label,
   children,
@@ -26,6 +31,7 @@ export function CorpusResultsList({
       aria-label={`Search results: ${label}`}
       scroll="y"
       grow={true}
+      minHeight="scrollShort"
       data-testid={testId("corpusSearchResults")}
       gap="row"
       role="list"

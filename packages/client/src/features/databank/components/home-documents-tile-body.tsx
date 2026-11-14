@@ -91,47 +91,18 @@ export function HomeDocumentsTileBody(): ReactElement {
 
   if (documents.length === 0) {
     return (
-      // THE RAIL FORM, NOT THE PANE FORM (side-eye 2026-08-16 F2). `EmptyState` is the right primitive for
-      // a CONTENT pane — a centred island with a glyph, a 16px title and a button, filling a space that is
-      // otherwise blank. In a rail SLOT it was a register break: 442x239px of centred column, the only
-      // centred thing on a page whose every other block is flush-left, 20% of the page's height for the one
-      // block with nothing in it, and at 2000px a centred island beside ~350px of void. It also spent the
-      // ramp's only 16px on the emptiest sentence on the surface (F8).
-      //
-      // The mock's own answer, and the RULED one: the block keeps its kicker band and says the same three
-      // things at rail weight — a label line, the doors, and the shared gloss. ~60px, in the flow, left
-      // edge shared with the four document rows it replaces. The COPY is unchanged; only the register is.
-      // (The gloss ran SECOND when that ruling landed; #499 moved it last — see the note on the Row.)
+      // A SHELF TILE STATES ITS EMPTINESS AT SHELF WEIGHT (UI-Density-Law §3.3): a label line, the doors and the shared
+      // gloss, flush to the shelf's edge. `EmptyState` is a centred island with a glyph and a large title; in the shelf
+      // it is the only centred block beside flush-left blocks and takes a fifth of the page for the one block with
+      // nothing in it.
       <Stack align="start" gap="field">
         <Text voice="label">{DATABANK_EMPTY_TITLE}</Text>
-        {/* THE DOORS COME BEFORE THE TEACHING LINE (#499, the residual half of side-eye rail-home P2-1).
-            Measured at 1280×800 on the shipped registry: both CTAs ended 51px past the fold, and #455's
-            roadmap fold could not reach them — at a narrow pane the shelf's foot subgrid is ONE track, so
-            the block it folded sits BELOW this tile. What was left is this block's own reading order, and
-            it was the odd one out on the shelf: `home-temp-chat-tile-body.tsx` — the peer-rank CTA one
-            block up, in this same column, at this same rank — leads with its button and explains
-            afterwards. This one led with three lines of explanation and put the doors under them, which
-            spent the whole fold budget on the sentence and cut the two controls the state exists to offer.
-            NOTHING IS THINNED and nothing below moves: the block's height is identical, the gloss is
-            unchanged and still `prose`-measured, and the tile's own box (and therefore every reservation
-            derived from it) is untouched. Only which end of the block the fold lands on changes.
-            THE STATE LINE STAYS ON TOP: "no documents yet" is the answer to what the tile was asked, and a
-            door offered before the state it answers is a control with no subject. */}
-        {/* TWO AFFORDANCES, ONE STYLE (side-eye rail sweep P3-16 + the IA finding, 2026-08-17).
-            [1] THE CEREMONY stays first and stays the promise the label makes (side-eye 2026-08-08 P1-2:
-            it used to `setActiveSection("databank")` and land the user on the library's own empty state —
-            the same sentence again, with the real button under it).
-            [2] THE SECTION DOOR is new. Every other block on home can be entered; the bank could only be
-            entered while it had rows in it (the trailing "All documents" action hides on an empty bank —
-            2026-08-08 P2-b, which is preserved: that ruling is about a link PROMISING A LIST OF NOTHING,
-            and "Open Databank" promises the section, which exists and teaches). It is the SECOND control,
-            so the ceremony is still the path this block recommends.
-            AND THE STYLE IS THE SHELF'S, not this tile's own: the `px-0` ghost text-link that used to sit
-            here was 171×32 beside temp chat's 169×34 bordered secondary — two peer-rank CTAs, one column,
-            two registers. Both are `secondary`/`sm` now (temp chat came down to `sm` in the same pass).
-            The old ruling's reason — "not a second button competing with the hero across the gutter" —
-            is answered by the hero itself: it is an ELEVATED, glowing island now rather than a form-tier
-            box, so an `sm` secondary on the shelf is no longer in the same weight class. */}
+        {/* The state line stays on top: "no documents yet" answers what the tile was asked, and a door offered before the
+            state it answers is a control with no subject. The doors then lead the gloss, as the temp-chat tile's button
+            leads its own explanation one block up, so the controls the state exists to offer stay inside the first fold.
+            The ceremony is the first door and the path this block recommends; "Open Databank" is the second, because
+            the section exists and teaches even while the bank is empty. Both are outline `sm` buttons, the shelf's
+            one style for a peer-rank door. */}
         {/* The two doors wrap: side by side they overrun a phone's column. */}
         <Row wrap={true} gap="field">
           <Button variant="outline" onClick={(): void => openModal("addDocument")} size="sm">
@@ -143,11 +114,7 @@ export function HomeDocumentsTileBody(): ReactElement {
             <TrailingArrow />
           </Button>
         </Row>
-        {/* MEASURED (#1130, H5), the peer of the temp-chat gloss one block up: it resolved `max-width:
-            none` and was saved from the 153ch arm only by the 1920 sub-column split, which is a layout
-            accident rather than a measure. A cap makes it a property of the prose — and since #1145 that
-            cap is `--reading-measure-prose`, the TEACHING measure, because the house one is 75 CSS `ch`
-            and a CSS `ch` is ~1.5 of the characters the design law counts. */}
+        {/* The cap is the teaching measure, a property of the prose rather than an accident of the column width. */}
         <Text cap="prose" clamp={3} voice="gloss" prose={true}>
           {DATABANK_INGEST_GLOSS}
         </Text>

@@ -3,3 +3,9 @@
 
 /** A search bar's submit, which the host draws when the guest names the action it fires. */
 export const PLUGIN_SEARCH_SUBMIT_NAME = "Search";
+
+/** What a selected plugin page or dialog says when its guest has booted and published nothing for it. */
+export const PLUGIN_SURFACE_EMPTY_TITLE = "This plugin has no content to show here yet.";
+
+/** The empty plugin surface's way out: it boots the guest again. */
+export const PLUGIN_SURFACE_RELOAD_NAME = "Reload";
