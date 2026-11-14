@@ -17,8 +17,9 @@ export interface HintTriggerProps {
   readonly subject?: ReactNode;
   /** Layout of the trigger beside its labelled subject. */
   readonly className?: string;
-  /** `"inline"` is the 24px target square at a fine pointer, seated whole in its row so no clipping box cuts it;
-   *  coarse pointers promote the real button box to the touch floor. `"md"` is the `md` control step as a square.
+  /** `"inline"` costs no vertical space at a fine pointer (field.tsx's original rationale — a full
+   *  control-size box made a hinted label row taller than an unhinted sibling); coarse pointers promote
+   *  the real button box to the touch floor. `"md"` is the `md` control step as a square.
    *  @defaultValue "inline" */
   readonly size?: "inline" | "md";
   /** An OPTIONAL activation that REPLACES the built-in popover door (the config teacher's `i` opens the

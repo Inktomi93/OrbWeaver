@@ -1,7 +1,10 @@
 // @subject packages/client/src/features/automation/components/rule-row.tsx
 // A rule row is a disclosure named by the rule: a press on its enable switch flips the rule and leaves the row shut, and Enter on the
-// row opens the actions behind it, with the rule's own sentence as the row's description.
+// row opens the actions behind it, with the rule's own sentence as the row's description. The surface walk's disclosure walker opens a
+// rule row and shuts it again.
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
+import type { DisclosureWalkHooks } from "@orb/testkit/browser/spec";
+import { walkDisclosures } from "@orb/testkit/browser/spec";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -48,4 +51,44 @@ test("the enable switch flips the rule without opening its row, and Enter on the
   await expect(row).toHaveAttribute("aria-expanded", "true");
   await expect(testAction).toBeVisible();
   await expect(row).toBeFocused();
+});
+
+test("the surface walk opens a rule row's disclosure and shuts it again", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  await routeTrpc(page, serveCorpusProcedures(caller, READS));
+  await mount<typeof RuleActionGroupsStory>(STORY, { width: 960, appearance: appearanceSettingsSchema.parse({}) });
+  const rows = page.locator('[data-slot="list-row-body"][aria-expanded]');
+  // Positive control: the rule rows render as disclosures.
+  await expect(rows.first()).toBeVisible();
+  const first = rows.first();
+  const checkpoints: string[] = [];
+  const openWhileWalked: (string | null)[] = [];
+  const hooks: DisclosureWalkHooks = {
+    limit: 1,
+    depthLimit: 1,
+    completed: "visited",
+    id: (path, kind, index) => `${path}/${kind}-${String(index)}`,
+    expect: () => undefined,
+    action: async (_id, step) => {
+      await step.action();
+      await step.ready();
+    },
+    checkpoint: (id) => {
+      checkpoints.push(id);
+      return Promise.resolve();
+    },
+    record: () => undefined,
+    ready: async (body) => {
+      await expect(body).toBeVisible();
+    },
+    opened: async () => {
+      openWhileWalked.push(await first.getAttribute("aria-expanded"));
+    },
+    summary: (path) => ({ disclosures: `${path}/disclosures`, nestedDetails: `${path}/nested-details` }),
+  };
+  await walkDisclosures(page.locator("body"), "rules", hooks);
+  expect(checkpoints).toEqual(["rules/disclosure-0"]);
+  expect(openWhileWalked).toEqual(["true"]);
+  await expect(first).toHaveAttribute("aria-expanded", "false");
 });

@@ -395,7 +395,7 @@
   --size-control-clearance: calc(var(--size-control-sm) + var(--spacing-row));
   --size-dialog-footer-clear: calc(var(--size-control-lg) + var(--spacing-field));
   --size-typing-line: calc(var(--size-dot-sm) + 2 * var(--spacing-field));
-  --size-room-island-inset-narrow: calc(var(--spacing-field) - var(--spacing-tight));
+  --size-room-island-inset-narrow: round(down, min(calc(var(--spacing-field) - var(--spacing-tight)), max(0.5dvw, 2px)), 1px);
   --size-combobox-chip-sm: calc(var(--size-control-sm) - 2 * var(--border-width-control) - 2 * var(--spacing-field));
   --size-combobox-chip-md: calc(var(--size-control-md) - 2 * var(--border-width-control) - 2 * var(--spacing-field));
   --size-combobox-chip-lg: calc(var(--size-control-lg) - 2 * var(--border-width-control) - 2 * var(--spacing-field));
@@ -967,7 +967,7 @@
     --size-control-clearance: calc(var(--size-control-sm) + var(--spacing-row));
     --size-dialog-footer-clear: calc(var(--size-control-lg) + var(--spacing-field));
     --size-typing-line: calc(var(--size-dot-sm) + 2 * var(--spacing-field));
-    --size-room-island-inset-narrow: calc(var(--spacing-field) - var(--spacing-tight));
+    --size-room-island-inset-narrow: round(down, min(calc(var(--spacing-field) - var(--spacing-tight)), max(0.5dvw, 2px)), 1px);
     --size-combobox-chip-sm: calc(var(--size-control-sm) - 2 * var(--border-width-control) - 2 * var(--spacing-field));
     --size-combobox-chip-md: calc(var(--size-control-md) - 2 * var(--border-width-control) - 2 * var(--spacing-field));
     --size-combobox-chip-lg: calc(var(--size-control-lg) - 2 * var(--border-width-control) - 2 * var(--spacing-field));

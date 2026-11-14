@@ -420,7 +420,7 @@ export const TOKENS = {
   "size.control-clearance": { cssVar: "--size-control-clearance", value: "calc(var(--size-control-sm) + var(--spacing-row))" },
   "size.dialog-footer-clear": { cssVar: "--size-dialog-footer-clear", value: "calc(var(--size-control-lg) + var(--spacing-field))" },
   "size.typing-line": { cssVar: "--size-typing-line", value: "calc(var(--size-dot-sm) + 2 * var(--spacing-field))" },
-  "size.room-island-inset-narrow": { cssVar: "--size-room-island-inset-narrow", value: "calc(var(--spacing-field) - var(--spacing-tight))" },
+  "size.room-island-inset-narrow": { cssVar: "--size-room-island-inset-narrow", value: "round(down, min(calc(var(--spacing-field) - var(--spacing-tight)), max(0.5dvw, 2px)), 1px)" },
   "size.combobox-chip-sm": { cssVar: "--size-combobox-chip-sm", value: "calc(var(--size-control-sm) - 2 * var(--border-width-control) - 2 * var(--spacing-field))" },
   "size.combobox-chip-md": { cssVar: "--size-combobox-chip-md", value: "calc(var(--size-control-md) - 2 * var(--border-width-control) - 2 * var(--spacing-field))" },
   "size.combobox-chip-lg": { cssVar: "--size-combobox-chip-lg", value: "calc(var(--size-control-lg) - 2 * var(--border-width-control) - 2 * var(--spacing-field))" },
