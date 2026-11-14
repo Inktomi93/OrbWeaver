@@ -4,7 +4,7 @@ import type { PopoverNativePartsStory, PopoverStyleStory } from "./_native-parts
 test("the popover transition names opacity and scale", async ({ mount, page }) => {
   await mount<typeof PopoverNativePartsStory>("tests/ui/primitives/popover/_native-parts-stories/PopoverNativePartsStory");
   await page.getByRole("button", { name: "Open remotely", exact: true }).click();
-  const popup = page.getByRole("dialog", { name: "Details", exact: true });
+  const popup = page.getByRole("dialog", { name: "Sample details", exact: true });
   await expect(popup).toBeVisible();
   // An unpolled read: a retrying matcher would wait out the fade and pass.
   expect(await popup.evaluate((node) => getComputedStyle(node).transitionProperty)).toBe("opacity, scale");
@@ -12,7 +12,7 @@ test("the popover transition names opacity and scale", async ({ mount, page }) =
 
 test("an anchored handle and detached trigger retain their description through viewport composition", async ({ mount, page }) => {
   await mount<typeof PopoverNativePartsStory>("tests/ui/primitives/popover/_native-parts-stories/PopoverNativePartsStory");
-  const popup = page.getByRole("dialog", { name: "Details", exact: true });
+  const popup = page.getByRole("dialog", { name: "Sample details", exact: true });
   const viewport = page.locator('[data-slot="popover-viewport"]');
   await expect(popup).toBeHidden();
   await page.getByRole("button", { name: "Open remotely", exact: true }).click();

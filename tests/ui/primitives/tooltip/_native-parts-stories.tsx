@@ -11,11 +11,11 @@ export function TooltipDescriptionStory(): ReactElement {
       <span id={hintId}>Also mentioned elsewhere</span>
       <Tooltip>
         <TooltipTrigger aria-describedby={hintId} delay={0}>
-          Regenerate
+          Sample action
         </TooltipTrigger>
         <TooltipPopup>
           <TooltipArrow />
-          <TooltipViewport>Regenerate the last reply</TooltipViewport>
+          <TooltipViewport>Runs the sample action</TooltipViewport>
         </TooltipPopup>
       </Tooltip>
       <Button>Outside tooltip</Button>

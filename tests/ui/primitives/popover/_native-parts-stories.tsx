@@ -31,7 +31,7 @@ export function PopoverNativePartsStory(): ReactElement {
           <PopoverPopup>
             <PopoverArrow />
             <PopoverViewport>
-              <PopoverTitle>Details</PopoverTitle>
+              <PopoverTitle>Sample details</PopoverTitle>
               <PopoverDescription>{payload}</PopoverDescription>
               <PopoverClose>Done</PopoverClose>
             </PopoverViewport>
