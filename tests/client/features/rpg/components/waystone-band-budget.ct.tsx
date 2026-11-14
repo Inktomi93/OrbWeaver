@@ -148,6 +148,43 @@ for (const cell of BUDGET_CELLS) {
       expect(share).toBeLessThanOrEqual(cell.set ? D119A_CHROME_SHARE.setMax : D119A_CHROME_SHARE.compactMax);
       expect(Math.abs(report.band - Math.round(report.band))).toBeLessThanOrEqual(WHOLE_PIXEL_TOLERANCE);
     });
+
+    // The falling-weather group's animated box reaches above the band, but the stone's SVG clips it: what is PAINTED stays inside.
+    // So each element's reach is measured through the clip of every ancestor that does not paint overflow, not by its raw box.
+    test("nothing the band paints reaches above the band's own top edge", async ({ corpus, mount, page }) => {
+      await using root = await createCorpusHarness();
+      await openBand(cell, { corpus, mount, page }, root);
+      const overhang = await page.locator('[data-slot="context-bracket-band"]').evaluate((band) => {
+        const top = band.getBoundingClientRect().top;
+        const paintedTop = (element: Element): number => {
+          let painted = element.getBoundingClientRect().top;
+          for (let ancestor = element.parentElement; ancestor !== null && ancestor !== band; ancestor = ancestor.parentElement) {
+            if (getComputedStyle(ancestor).overflowY !== "visible") {
+              painted = Math.max(painted, ancestor.getBoundingClientRect().top);
+            }
+          }
+          return painted;
+        };
+        const stone = band.querySelector('[data-slot="waystone"]');
+        const measured = [...band.querySelectorAll("*")]
+          .filter((element) => element.getBoundingClientRect().height > 0)
+          .map((element) => ({ element, reach: top - paintedTop(element) }));
+        return {
+          measured: measured.length,
+          stoneOverflow: stone === null ? null : getComputedStyle(stone).overflowY,
+          overhang: measured
+            .filter(({ reach }) => reach > 0)
+            .map(
+              ({ element, reach }) =>
+                `${element.tagName.toLowerCase()}[${element.getAttribute("data-slot") ?? ""}] ${element.getAttribute("class") ?? ""} paints ${reach}px above the band`,
+            ),
+        };
+      });
+      // The control: the walk reached the stone's own elements, and the stone declares the clip the walk relies on.
+      expect(overhang.measured).toBeGreaterThan(0);
+      expect(overhang.stoneOverflow).toBe("hidden");
+      expect(overhang.overhang).toEqual([]);
+    });
   });
 }
 

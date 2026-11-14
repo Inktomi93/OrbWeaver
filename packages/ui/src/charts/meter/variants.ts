@@ -230,7 +230,9 @@ export const waystoneVariants = tv({
     // idiom RingGauge's track shares).
     //
     // D119 keeps a clock-set stone focal, stepping down by container width, never by pointer type.
-    root: "block",
+    // The weather's falling layer animates a box that reaches past the stone's edge; the root clips it, stated here
+    // so the clip is the stone's own rule and not the browser's default for an inner svg.
+    root: "block overflow-hidden",
     // THE DIAL TRACK TAKES THE EDGE TOKEN, for the reason and by the measurement `arcMeterVariants.track`
     // states (#685, swept here by #693): `text-muted` is a SURFACE token, and one ramp step is all it can
     // ever be against the panel this stone sits on. MEASURED in situ — the dial ring is drawn OUTSIDE the
