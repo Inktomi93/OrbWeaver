@@ -18,6 +18,7 @@
 
 import type { AnalyticsEmptyReason } from "@orb/contracts/discovery";
 import type { WorkloadKind, WorkloadResultByKind } from "@orb/contracts/workloads";
+import { inLibraryClause } from "#lib";
 
 /** What a succeeded row says when no renderer can speak for its result. */
 const RESULT_SUMMARY_FALLBACK = "Finished: this run reported no readable summary.";
@@ -134,9 +135,14 @@ const fsckSummary: WorkloadResultRenderer<"assets-fsck"> = (result) => {
   return count(result.danglingRows, "dangling row") === null ? null : "No faults found.";
 };
 
-/** A bundle import's per-entity tallies. */
+/** A bundle import's per-entity tallies. A held file wrote nothing, so it is neither in `imported` nor in `skipped`. */
 const bundleImportSummary: WorkloadResultRenderer<"import-bundle"> = (result) =>
-  summarize([tally(result.imported, "imported"), tallyIfAny(result.skipped, "skipped"), tallyIfAny(result.failed, "failed")]);
+  summarize([
+    tally(result.imported, "imported"),
+    result.inLibrary > 0 ? inLibraryClause(result.inLibrary) : null,
+    tallyIfAny(result.skipped, "skipped"),
+    tallyIfAny(result.failed, "failed"),
+  ]);
 
 /** The stats rollup rebuild: owners swept, character rollups rewritten. */
 const reconcileStatsSummary: WorkloadResultRenderer<"reconcile-stats"> = (result) =>

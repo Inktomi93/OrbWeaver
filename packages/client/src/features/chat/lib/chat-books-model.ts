@@ -27,10 +27,9 @@ export function inheritedBookLabel(source: NonNullable<ChatBookView["inherited"]
 /**
  * The picker's offer set: the caller's own books minus the ones already attached to this room.
  *
- * The subtraction runs over the room's WHOLE attachment list, which is NOT owner-filtered (`listForChat`
- * returns every book the room carries, including one a previous host attached — the verb's own header says
- * so). So a book already feeding this room is never offered again, even when this caller does not own the
- * attachment that put it there; re-attaching would be a control whose only effect is an idempotent no-op.
+ * The subtraction runs over the room's attachment list (`listForChat`: the books the present host owns), so a
+ * book already feeding this room is never offered again, even when this caller does not own the attachment
+ * that put it there; re-attaching would be a control whose only effect is an idempotent no-op.
  */
 export function attachableBooks(library: readonly OwnedBook[], attachedIds: readonly WorldBookId[]): readonly OwnedBook[] {
   const attached = new Set(attachedIds);

@@ -16,6 +16,7 @@ import {
   LIST_MODELS_NAME,
   MODEL_SEARCH_PLACEHOLDER,
 } from "#client/features/credentials/lib/credentials-names.ts";
+import { CONCEAL_SECRET_NAME, REVEAL_SECRET_NAME } from "#client/forms/editor/bound-fields/secret-field-names.ts";
 import type { ConnectionsListStory } from "./_connections-list-stories.tsx";
 
 const STORY = "tests/client/features/credentials/components/_connections-list-stories/ConnectionsListStory";
@@ -221,6 +222,68 @@ test("a list that lands while the key field has the caret does not take it", asy
   await expect(dialog.getByPlaceholder(MODEL_SEARCH_PLACEHOLDER)).not.toBeFocused();
 });
 
+// The reader leaves the key field for the reveal press while the list is still being read: by a click, and by Tab.
+for (const move of [
+  { how: "a click", go: async ({ reveal }: { readonly key: Locator; readonly reveal: Locator }): Promise<void> => await reveal.click() },
+  { how: "Tab", go: async ({ key }: { readonly key: Locator; readonly reveal: Locator }): Promise<void> => await key.press("Tab") },
+] as const) {
+  test(`a list that lands after the reader moved to the reveal press by ${move.how} leaves focus there`, async ({ corpus, mount, page }) => {
+    await using keyed = await keyedRoot();
+    const { root, providers } = keyed;
+    const requests: DraftRequest[] = [];
+    const provider = providerWhere(
+      providers,
+      (candidate) => candidate.auth === "apiKey" && candidate.id !== PUBLIC_CATALOG_PROVIDER,
+      "hosted provider that lists under a key",
+    );
+    const held = trpcHold<"connection.draftCatalogModels">();
+    const dialog = await openDialogOn(root, provider, {
+      corpus,
+      mount,
+      page,
+      requests,
+      respond: (input) => {
+        requests.push(input);
+        return held;
+      },
+    });
+    const key = dialog.getByRole("textbox", { name: API_KEY_FIELD_NAME, exact: true });
+    // A press on it flips its name, so the one control is found under either.
+    const reveal = dialog
+      .getByRole("button", { name: REVEAL_SECRET_NAME, exact: true })
+      .or(dialog.getByRole("button", { name: CONCEAL_SECRET_NAME, exact: true }));
+
+    await key.fill(PASTED_KEY);
+    await held.requested;
+    await move.go({ key, reveal });
+    await expect(reveal).toBeFocused();
+    held.release(catalog);
+
+    await expect(dialog.getByRole("option", { name: LISTED_ROW })).toBeVisible();
+    await expect(reveal).toBeFocused();
+    await expect(dialog.getByPlaceholder(MODEL_SEARCH_PLACEHOLDER)).not.toBeFocused();
+  });
+}
+
+test("a list read for a saved key the reader chose takes the caret when it lands", async ({ corpus, mount, page }) => {
+  await using keyed = await keyedRoot();
+  const { root, providers } = keyed;
+  const requests: DraftRequest[] = [];
+  const provider = providerWhere(
+    providers,
+    (candidate) => candidate.auth === "apiKey" && candidate.id !== PUBLIC_CATALOG_PROVIDER,
+    "hosted provider that lists under a key",
+  );
+  const caller = await root.internalCallerFor(root.ownerId);
+  await caller.credentials.add({ provider: provider.id, key: PASTED_KEY, label: "Work key" });
+  const dialog = await openDialogOn(root, provider, { corpus, mount, page, requests });
+
+  await dialog.getByRole("combobox", { name: SAVED_KEY_FIELD_NAME, exact: true }).click();
+  await page.getByRole("option", { name: "Work key" }).click();
+  await expect(dialog.getByRole("option", { name: LISTED_ROW })).toBeVisible();
+  await expect(dialog.getByPlaceholder(MODEL_SEARCH_PLACEHOLDER)).toBeFocused();
+});
+
 test("an answer for a key that has since changed never replaces the list for the current key", async ({ corpus, mount, page }) => {
   await using keyed = await keyedRoot();
   const { root, providers } = keyed;
@@ -292,3 +355,38 @@ test("an own server still lists on the press, never while its URL is half typed"
   await expect(dialog.getByRole("option", { name: LISTED_ROW })).toBeVisible();
   expect(requests).toHaveLength(1);
 });
+
+// The List models press hands the caret to the search box when the list lands, and a click on nothing while the read ran does not take it back.
+for (const strayClick of [false, true]) {
+  test(`an own server's list takes the caret after the List models press${strayClick ? " and a click on the dialog's title" : ""}`, async ({
+    corpus,
+    mount,
+    page,
+  }) => {
+    await using keyed = await keyedRoot();
+    const { root, providers } = keyed;
+    const requests: DraftRequest[] = [];
+    const provider = providerWhere(providers, (candidate) => candidate.auth === "endpoint", "own-server provider");
+    const held = trpcHold<"connection.draftCatalogModels">();
+    const dialog = await openDialogOn(root, provider, {
+      corpus,
+      mount,
+      page,
+      requests,
+      respond: (input) => {
+        requests.push(input);
+        return held;
+      },
+    });
+    await dialog.getByRole("textbox", { name: "Server URL", exact: true }).fill("http://localhost:11434");
+    await dialog.getByRole("button", { name: LIST_MODELS_NAME, exact: true }).click();
+    await held.requested;
+    if (strayClick) {
+      await dialog.getByRole("heading").first().click();
+    }
+    held.release(catalog);
+
+    await expect(dialog.getByRole("option", { name: LISTED_ROW })).toBeVisible();
+    await expect(dialog.getByPlaceholder(MODEL_SEARCH_PLACEHOLDER)).toBeFocused();
+  });
+}

@@ -3,8 +3,17 @@ import type { CreateCharacterInput } from "@orb/contracts/character";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { RefinableField } from "@orb/contracts/refinery";
 import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
-import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import {
+  createShellAmbientReads,
+  routeAuthConfig,
+  routeTrpc,
+  SECTION_PROCEDURES,
+  SHELL_MOUNT_PROCEDURES,
+  serveCorpusProcedures,
+  trpcError,
+} from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -30,6 +39,7 @@ import type { RefineryCompositionShellStory } from "./_refinery-composition-stor
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 type Caller = Awaited<ReturnType<Root["internalCallerFor"]>>;
 const STORY = "tests/client/features/app-shell/surfaces/_refinery-composition-stories/RefineryCompositionShellStory";
+const AMBIENT_STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const CARD_NAME = "Lantern keeper";
 const ORIGINAL_DESCRIPTION = "Keeps the observatory lantern lit for {{user}}.";
 const ORIGINAL_GREETING = "Welcome to the observatory, {{user}}.";
@@ -317,6 +327,57 @@ test.describe("explicitly named equal to the card", () => {
     await expect(masthead).toBeVisible();
     await expect(page.locator('.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title')).toHaveText(CARD_NAME);
     await expectIdentity(masthead, CARD_NAME, false);
+  });
+});
+
+/** The content owner of `tail`: the nearest ancestor that scrolls on y and holds more than it shows. Scrolling it to its end is what a reader's wheel or drag does. */
+async function scrollOwnerToEnd(tail: Locator): Promise<void> {
+  await tail.evaluate((node) => {
+    let port = node.parentElement;
+    while (port !== null && !(/auto|scroll/u.test(getComputedStyle(port).overflowY) && port.scrollHeight > port.clientHeight)) {
+      port = port.parentElement;
+    }
+    if (port === null) {
+      throw new Error("The Refinery content has no scrollable owner");
+    }
+    port.scrollTop = port.scrollHeight;
+  });
+}
+
+test.describe("coarse landscape content reach", () => {
+  test.use({ viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true });
+
+  test("the session workbench scrolls to its last control", async ({ corpus, page, mount }) => {
+    await using root = await createCorpusHarness();
+    const caller = await root.internalCallerFor(root.ownerId);
+    const session = await seedSession(caller, null);
+    await routeTrpc(page, {
+      ...createShellAmbientReads(corpus, root.ownerId),
+      ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, "refinery.getSession", "refinery.listRuns", "refinery.preflight"]),
+    });
+    await seedShellState(page, { activeSection: "refinery", panelOverrides: { refinery: { list: "collapsed", context: "collapsed" } } });
+    await mount<typeof RefineryCompositionShellStory>(STORY, { sessionId: session.id });
+    await expect(page.getByTestId(testId("refineryMasthead"))).toBeVisible();
+    const last = page.getByTestId(testId("refineryContent")).getByRole("button").last();
+    await expect(last).toBeVisible();
+    // The window is short enough that the last control starts below it.
+    await expect(last).not.toBeInViewport();
+    await scrollOwnerToEnd(last);
+    await expect(last).toBeInViewport({ ratio: 1 });
+  });
+
+  test("the landing scrolls to its last row", async ({ corpus, page, mount }) => {
+    await using root = await createCorpusHarness();
+    const caller = await root.internalCallerFor(root.ownerId);
+    await routeAuthConfig(page, corpus.auth.signedInConfig);
+    await routeTrpc(page, serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...SHELL_MOUNT_PROCEDURES, "refinery.listSessions", "character.list"]));
+    await seedShellState(page, { activeSection: "refinery", panelOverrides: { refinery: { list: "collapsed", context: "collapsed" } } });
+    await mount<typeof ShellAmbientStory>(AMBIENT_STORY, {});
+    const steps = page.getByTestId(testId("refineryTeachingSteps"));
+    await expect(steps).toBeAttached();
+    await expect(steps).not.toBeInViewport();
+    await scrollOwnerToEnd(steps);
+    await expect(steps).toBeInViewport({ ratio: 1 });
   });
 });
 

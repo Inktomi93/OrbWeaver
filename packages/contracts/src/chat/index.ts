@@ -294,6 +294,7 @@ export type {
   RequireHostOp,
   RequireParticipantOp,
   ResolveCharacterTagsOp,
+  ResolveChatHostOp,
   ResolveRegexSources,
   ResolveRoomRunAsOp,
   ResolveSeatDecoOp,

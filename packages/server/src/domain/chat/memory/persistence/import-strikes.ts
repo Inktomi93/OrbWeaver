@@ -8,8 +8,9 @@
 // whose endpoints are not this room's messages is dropped, never written at a guess; one whose character holds no
 // seat here is written as a shared strike, since the character only records which copy was struck.
 //
-// A strike names a span (`matchStrikes` in `packages/kit/src/recall/index.ts`), so a span the room already holds a
-// strike on, in any bucket, gets no second row, and a same-library restore never doubles one.
+// A strike names a span (`matchStrikes` in `packages/kit/src/recall/index.ts`), so a room holds one strike per span in
+// any bucket. The unique index `chat_memory_strikes_span_unique` owns that: the insert yields to a standing row on the
+// span, whichever of a file's strikes or an earlier import wrote it, so a same-library restore never doubles one.
 //
 // A REPEATED IMPORT RE-ADDS A RESTORED STRIKE, deliberately. Importing the same file again onto a room it already
 // wrote runs every overlay again (the tag overlay's retry semantics: an interrupted import completes on the next
@@ -24,7 +25,7 @@ import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { CharacterId, ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import type { ImportMemoryStrikesContext } from "#src/domain/chat/contract/import.ts";
-import { IMPORTED_STRIKE_HASH, loadMemoryStrikes } from "./strikes.ts";
+import { IMPORTED_STRIKE_HASH } from "./strikes.ts";
 
 const LIMIT_ONE = 1;
 
@@ -72,17 +73,7 @@ export function createImportMemoryStrikes(input: DbAssemblyInput<ImportMemoryStr
     if (strikes.length === 0 || !(await holdsHostSeat(ctx.db, chatId, hostUserId))) {
       return;
     }
-    const spanOf = (s: Pick<ImportedMemoryStrike, "tier" | "messageStartId" | "messageEndId">): string => `${s.tier}:${s.messageStartId}:${s.messageEndId}`;
-    const taken = new Set((await loadMemoryStrikes(ctx.db, chatId)).map(spanOf));
-    const fresh = (await placeable(ctx.db, chatId, strikes)).filter((s) => {
-      const span = spanOf(s);
-      if (taken.has(span)) {
-        return false;
-      }
-      taken.add(span);
-      return true;
-    });
-    const rows = fresh.map((s) => ({
+    const rows = (await placeable(ctx.db, chatId, strikes)).map((s) => ({
       id: ctx.newMemoryStrikeId(),
       chatId,
       scopedCharacterId: s.scopedCharacterId,

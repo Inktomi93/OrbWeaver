@@ -1,5 +1,5 @@
 ---
-kind: decision
+kind: bug
 status: open
 updated: 2026-11-14
 priority: P2
@@ -10,7 +10,7 @@ area: chat
 
 ## What
 
-A fork counts its memory blocks from its first copied message. When a member's fork starts at a floor that is not on a block edge, every block shifts, so a strike carried from the parent room matches no summary in the fork and stays on the unmatched list. Whether struck text can then reach a fork prompt is not shown. Rule one of: carry only the strikes that land on the fork's grid, or re-key a carried strike onto each fork block it overlaps. The third fork case in tests/server/domain/chat/memory/memory-strikes-fork.int.test.ts builds no memory in the fork.
+A fork counts its memory blocks from its first copied message. When a member's fork starts at a floor that is not on a block edge, every block shifts, so a strike carried from the parent room matches no summary in the fork and stays on the unmatched list. Ruling: a carried strike is re-keyed onto every fork block its span overlaps, so the host's strike keeps holding in the fork even where the fork's blocks cut the scene differently. A strike whose span lies wholly before the fork's floor is not carried.
 
 ## Why
 
@@ -18,7 +18,7 @@ A host's strike is a promise that the scene stays out of prompts; a fork must ke
 
 ## Done when
 
-The ruling is recorded, the fork applies it, and a case builds the fork's memory after a floored fork and asserts the struck scene is absent from a forced-turn prompt.
+A fork re-keys each carried strike onto every fork block its span overlaps, inside the fork's own batch and without a collision on the span-unique index. A case forks at a floor off a block edge, builds the fork's memory and asserts the struck scene is absent from a forced-turn prompt and that no carried strike is listed unmatched.
 
 ## Evidence
 

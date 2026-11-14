@@ -31,7 +31,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import { useEffect, useState } from "react";
 import type { Trpc, TrpcClient } from "#data";
-import { createEntityMutation, useInvalidation, useTRPC, useTRPCClient } from "#data";
+import { createEntityMutation, roomTailOptions, useInvalidation, useTRPC, useTRPCClient } from "#data";
 import { GENERATION_FAILED_DETAIL, isSilencedTurnAbort, turnMutationToast, viewerTimeZone } from "#lib";
 import type { ComposerDraftWrite } from "#state";
 import { pushFiredSteer } from "#state";
@@ -174,7 +174,7 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
     };
   };
 
-  const tailQuery = useQuery(trpc.chat.listMessages.queryOptions({ chatId }));
+  const tailQuery = useQuery(roomTailOptions(trpc, { chatId }));
   // The raw tail IS the tail a reader means (D124: every canon row is a real message now — the rpg
   // state-anchor slot this used to skip no longer exists).
   const tailMessage = tailQuery.data?.messages.at(-1);
