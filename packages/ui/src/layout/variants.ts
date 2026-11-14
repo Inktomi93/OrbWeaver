@@ -59,18 +59,21 @@ const GAP = {
   // Between glyph buttons: pointer-conditional and density-proof, so their touch-floor hit areas never overlap.
   glyph: "gap-glyph-gap",
 } as const;
+// The `block` and `section` insets are held to a share of the screen on their inline sides, so a phone at enlarged text keeps the width
+// between them for the text; at the default size they are the steps. Every prop that pads an inline side at those steps writes the held
+// token (`padding`, `paddingInline`, `paddingInlineStart` and `paddingInlineEnd`), so two boxes at one step never disagree. The all-sides arm
+// keeps the step on the block axis and lets its inline sides override the shorthand.
 const PADDING = {
   tight: "p-tight",
   field: "p-field",
   row: "p-row",
-  block: "p-block",
-  section: "p-section",
+  block: "p-block px-inset-block",
+  section: "p-section px-inset-section",
   gutter: "p-gutter",
 } as const;
 // One axis of the same ramp: `paddingInline` writes `px-*` and `paddingBlock` writes `py-*`. `tight` is the atom inset
 // of a small island (a diagram's margin, a divider's side room); the narrow arms below step a roomy inset down for a pane
-// too tight to spend it. Each class is a whole literal so Tailwind's scanner sees it. The `block` and `section` insets are held to a share
-// of the screen, so a phone at enlarged text keeps the width between them for the text; at the default size they are the steps.
+// too tight to spend it. Each class is a whole literal so Tailwind's scanner sees it.
 const PADDING_INLINE = {
   tight: "px-tight",
   field: "px-field",
@@ -109,8 +112,8 @@ const PADDING_INLINE_START = {
   tight: "ps-tight",
   field: "ps-field",
   row: "ps-row",
-  block: "ps-block",
-  section: "ps-section",
+  block: "ps-inset-block",
+  section: "ps-inset-section",
   gutter: "ps-gutter",
 } as const;
 const PADDING_INLINE_END = {
@@ -120,8 +123,8 @@ const PADDING_INLINE_END = {
   // The room the room's plugin column takes beside the transcript, kept clear by what shares the transcript's axis.
   flank: "pe-(--dimension-room-flank)",
   row: "pe-row",
-  block: "pe-block",
-  section: "pe-section",
+  block: "pe-inset-block",
+  section: "pe-inset-section",
   gutter: "pe-gutter",
 } as const;
 // The inline inset a box gives up below the `cq-28` container step (a phone-width pane), on both sides. It only ever steps down,

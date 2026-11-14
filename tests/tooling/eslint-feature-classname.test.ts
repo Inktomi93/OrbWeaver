@@ -301,7 +301,7 @@ test.for([
     ownedBy(JUSTIFY_END, "justify", "end"),
   ],
   ["a parked box", `${PRIMITIVES}export const T = (<Row className="orb-out-of-flow" />);\n`, "`outOfFlow={true}`"],
-  ["a side inset a padding prop writes", `${BOXES}export const T = (<Row className="pe-block" />);\n`, '`pe-block` is `paddingInlineEnd="block"`'],
+  ["a side inset a padding prop writes", `${BOXES}export const T = (<Row className="pe-inset-block" />);\n`, '`pe-inset-block` is `paddingInlineEnd="block"`'],
   ["a side inset off the ramp", `${BOXES}export const T = (<Stack className="ps-(--spacing-block)" />);\n`, "is a step `paddingInlineStart` chooses among"],
   ["a bleed the reach prop pays back", `${BOXES}export const T = (<Stack className="-mx-inset-section" />);\n`, "`-mx-inset-section` is `reach="],
   [

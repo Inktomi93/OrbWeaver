@@ -82,6 +82,7 @@ type ArmsByTable = Readonly<Record<string, readonly string[]>>;
 const INSET_SPENT: Readonly<Record<string, ArmsByTable>> = {
   "indent > artDecoration": { [STACK]: ["true"] },
   "indent > reach": { [ROW]: ["true"], [STACK]: ["true"] },
+  "padding > reach": { [ROW]: ["block", "section"], [STACK]: ["block", "section"] },
   "paddingInline > reach": {
     [GRID]: ["block", "field", "gutter", "row", "section", "tight"],
     [ROW]: ["block", "field", "gutter", "row", "section", "tight"],
@@ -135,6 +136,7 @@ const REFINES: Readonly<Record<string, ArmsByTable>> = {
   "layout > typeStep": { [INPUT]: ["field", "inline"] },
   "layout > width": { [INPUT]: ["field", "inline"] },
   "lines > whitespace": { [TEXT]: ["2"] },
+  "padding > paddingInline": { [ROW]: ["block", "section"], [STACK]: ["block", "section"] },
   "pinned > layer": { [ROW]: ["header", "headerOutside"] },
   "pinned > paddingBlockShort": { [ROW]: ["dialogFooter"] },
   "prose > artScale": { [TEXT]: ["true"] },
