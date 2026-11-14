@@ -34,7 +34,7 @@ function importNotice({ imported, failed }: CardImportResult): ImportNotice {
     if (landed === 0) {
       return {
         kind: "info",
-        message: held.length === 1 && onlyHeld !== undefined ? cardInLibraryNotice(onlyHeld.filename) : cardsInLibraryNotice(held.length),
+        message: held.length === 1 && onlyHeld !== undefined ? cardInLibraryNotice(onlyHeld.name) : cardsInLibraryNotice(held.length),
       };
     }
     const landedLine = landed === 1 ? "Card imported" : `${landed} cards imported`;

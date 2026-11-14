@@ -16,7 +16,7 @@ import { messageRoleFromSt } from "@orb/kit/message-role";
 import type { Clock } from "@orb/kit/time";
 import { msToWallClock } from "@orb/kit/time";
 import type { ParsedChat, ParsedChatMessage, ParsedNotePlacement, ParsedScriptInject } from "#primitives/serde/chat";
-import { ST_DEFAULT_WALL_CLOCK_ZONE } from "#primitives/serde/chat";
+import { ST_WALL_CLOCK_ZONE } from "#primitives/serde/chat";
 import type { CollectedChat } from "../contract/collection.ts";
 import type { GroupChatInputDeps } from "../contract/params.ts";
 import type { ImportUnresolvedPinnedPersona } from "../contract/results.ts";
@@ -342,7 +342,7 @@ export function unresolvedPinnedPersonas(chats: readonly CollectedChat[], person
 function chatShell(
   ci: CollectedChat,
   displayName: string,
-  deps: { readonly now: Clock; readonly personaByUserName: Map<string, PersonaId>; readonly wallClockZone?: string },
+  deps: { readonly now: Clock; readonly personaByUserName: Map<string, PersonaId> },
 ): BulkImportChatInput {
   const pc: ParsedChat = ci.parsed;
   const created = pc.createDate ?? pc.messages.find((m) => m.sendDate !== null)?.sendDate ?? deps.now();
@@ -361,7 +361,7 @@ function chatShell(
   const injections = [...(note === null ? [] : [note]), ...importedScriptInjections(pc.scriptInjects, created)];
 
   return {
-    title: importedChatTitle(displayName, created, deps.wallClockZone ?? ST_DEFAULT_WALL_CLOCK_ZONE) ?? ci.importedFrom.replace(JSONL_EXT, ""),
+    title: importedChatTitle(displayName, created, ST_WALL_CLOCK_ZONE) ?? ci.importedFrom.replace(JSONL_EXT, ""),
     importedFrom: ci.importedFrom,
     importHash: ci.importHash,
     ...(ci.fileHash === undefined ? {} : { fileHash: ci.fileHash }),
@@ -388,8 +388,6 @@ export function buildBulkImportChatInput(
   deps: {
     readonly now: Clock;
     readonly personaByUserName: Map<string, PersonaId>;
-    /** The zone ST's wall-clock dates were written in — the title's date is rendered in the SAME one. */
-    readonly wallClockZone?: string;
   },
 ): BulkImportChatInput {
   return chatShell(ci, ci.parsed.characterName, deps);
@@ -423,7 +421,6 @@ export function buildGroupChatInput(ci: CollectedChat, deps: GroupChatInputDeps)
   const base = chatShell(ci, deps.roomName, {
     now: deps.now,
     personaByUserName: deps.personaByUserName,
-    ...(deps.wallClockZone === undefined ? {} : { wallClockZone: deps.wallClockZone }),
   });
   const messages = base.messages.map((message, i): BulkImportMessageInput => {
     const parsed = ci.parsed.messages[i];

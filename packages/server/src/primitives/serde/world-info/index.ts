@@ -2,7 +2,6 @@
 // in one home, raw SillyTavern detection beside the native envelope, and the book content identity.
 // The embedded-in-card book path is #primitives/serde/card and stays independent; both share the entry mapper.
 
-import type { ImportAnswer } from "@orb/contracts/import";
 import type { PortableParse } from "@orb/contracts/portability";
 import { WORLD_INFO_SCHEMA_KIND } from "@orb/contracts/portability";
 import type { BulkImportLorebookInput, BulkImportLoreEntryInput, EntryMetadata } from "@orb/contracts/world-info";
@@ -197,31 +196,11 @@ export interface DedupCandidateBook extends DedupBook {
   readonly id: WorldBookId;
 }
 
-// The content-equality key: the SORTED per-entry canonical JSON. Two books with the same entry set produce
-//  the same key, under any names.
-function bookContentKey(book: Pick<DedupBook, "entries">): string {
+/** The content-equality key: the SORTED per-entry canonical JSON. Two books with the same entry set produce the same
+ *  key, under any names. */
+export function bookContentKey(book: Pick<DedupBook, "entries">): string {
   const entryKeys = book.entries.map((entry) => stableStringify(loreEntryIdentity(entry))).sort();
   return stableStringify({ entries: entryKeys });
-}
-
-/** What the standalone import does with each incoming book, asked in the order it lands them: reuse an owned book,
- *  reuse the book an earlier incoming one landed, or write a new one, with the content key it compares by. The
- *  library's keys are built once. */
-export function bookReuseJudge(candidates: readonly DedupCandidateBook[]): (incoming: Pick<DedupBook, "entries">) => ImportAnswer {
-  const owned = new Set(candidates.map(bookContentKey));
-  // call-local: the keys of the incoming books judged so far. Ends if it outlives the judge.
-  const landed = new Set<string>();
-  return (incoming) => {
-    const key = bookContentKey(incoming);
-    if (owned.has(key)) {
-      return { reuse: "library", keys: [key] };
-    }
-    if (landed.has(key)) {
-      return { reuse: "upload", keys: [key] };
-    }
-    landed.add(key);
-    return { reuse: null, keys: [key] };
-  };
 }
 
 /** The owned library book the incoming book content-matches (its id and the name it carries), or null

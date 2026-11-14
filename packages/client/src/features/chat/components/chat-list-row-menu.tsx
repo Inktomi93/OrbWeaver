@@ -63,7 +63,7 @@ export function ChatListRowMenu({ actions, chatId, title, displayTitle, rowName,
     setRenameOpen(false);
   };
   const confirmDelete = (): void => {
-    // `actions.remove` is `useDeleteChat`'s mutateAsync (hooks/use-chat-row-mutations.ts), whose errorToast "Couldn't delete the chat." is the surface; the user stays on the chat. Ends if useDeleteChat drops errorToast or `remove` stops being that mutateAsync.
+    // `actions.remove` is `useDeleteChat`'s mutateAsync (hooks/use-chat-row-mutations.ts), whose errorToast `CHAT_DELETE_FAILED_TITLE` is the surface; the user stays on the chat. Ends if useDeleteChat drops errorToast or `remove` stops being that mutateAsync.
     deleteOwnChat(chatId, () => actions.remove({ chatId }));
   };
 

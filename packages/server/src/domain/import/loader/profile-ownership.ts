@@ -1,8 +1,9 @@
 // The dry run's ownership read: which collected items of every kind a run writes nothing for, because the owner
 // already holds them or because an earlier item of the same upload lands them, and the content keys each item is
-// compared by. Every library lookup asks the owning domain's read-only twin of the write that would land the item,
-// and every in-upload lookup repeats the write's own equality rule over the items before it in the run's order, so a
-// preview and a real run agree on what "already yours" means. Nothing here writes. A verdict belongs to the
+// compared by. Books, presets, themes and personas are judged by the owning domain's own batch write in dry-run mode.
+// Characters are judged by the write's own reuse rule (`reusedCardRow`) over a record of the rows the upload's earlier
+// cards would land; chats, orphans and backgrounds by the write's equality rule over the items before them in the
+// run's order. So a preview and a real run agree on what "already yours" means. Nothing here writes. A verdict belongs to the
 // collected entry itself, never to its source string, because two profiles of one folder can share a path. A key
 // is the owner's own key for the item (a card's import hash, a transcript's hash under the row it lands under), so
 // the uploads of a split folder can tell, after the fact, which of their entries are one.
@@ -15,9 +16,9 @@ import type { CharacterId } from "@orb/kit/ids";
 import { mapYielding } from "#primitives/abort";
 import { sha256Hex } from "#primitives/content-hash";
 import type { CollectedCard, CollectedChat, CollectedPersona } from "../contract/collection.ts";
-import type { CardIdentityHashes, ImportedCharacterMatch } from "../contract/identity.ts";
+import type { CurrentCardIdentity } from "../contract/identity.ts";
 import type { ImportOwnership, ProfileCollected, ProfileDirImportDeps } from "../contract/profile-directory.ts";
-import { currentCardIdentity, findImportedCharacter, importFileHash } from "../substrate/card.ts";
+import { currentCardIdentity, importFileHash, reusedCardRow } from "../substrate/card.ts";
 import { partitionGroups, resolveMembers, seatsOf } from "../substrate/group.ts";
 import { orphanImportHash } from "../substrate/handle.ts";
 import { presetBytes, themeBytes } from "../substrate/landing-bytes.ts";
@@ -83,58 +84,115 @@ interface CardPass {
   readonly ownedByRow: Map<RowKey, CharacterId>;
 }
 
-/** A character is reused when an equal card landed (the one lookup order every door uses), in the library or earlier
- *  in this upload. A taken handle is not a match: different content under it lands beside the owned character with
- *  a suffixed handle (D290). A card matched by its text alone reuses the owned row only by giving it its art, as the
- *  write does (`resolveExisting` in import-character.ts): when the row has none and no earlier card of this upload
- *  took it. The row is then keyed by that card's art, so a later card equal to it is a repeat and a card under other
- *  art lands beside it. Its chats are held only under the equal card's own row. */
-async function passCards(deps: ProfileDirImportDeps, collected: ProfileCollected, chats: ChatJudge): Promise<CardPass> {
+/** The rows a dry run would have written for the cards before the one in hand, standing in for the database the write
+ *  reads: each landed row under the key the write stores for it, which rows still have no art, and which art-less rows a
+ *  card of the upload has already given art to. */
+interface CardLedger {
+  readonly landed: Map<string, RowKey>;
+  readonly artless: Set<RowKey>;
+  readonly artTaken: Set<RowKey>;
+  /** The owned character behind each owned row a lookup has named. */
+  readonly ownedIds: Map<RowKey, CharacterId>;
+}
+
+/** The lookups the shared reuse rule (`reusedCardRow`) runs for one card of the dry run: the owner's rows first, then
+ *  the rows the upload landed, for each key in the write's order; art goes to a row that has none, once. A row found
+ *  through the upload's record goes in `fromUpload`. */
+function cardLookups(
+  deps: ProfileDirImportDeps,
+  ledger: CardLedger,
+  bundle: CollectedCard,
+  fromUpload: Set<RowKey>,
+): Omit<Parameters<typeof reusedCardRow<RowKey>>[0], "hashes"> {
   const ownerId = deps.principal.userId;
   const { characterOps, exportCurrentCard } = deps.contextFor(deps.principal, deps.storeAvatar);
-  const pass: CardPass = { characters: new Map(), rowByCard: new Map(), ownedByRow: new Map() };
-  // call-local: the row each landed card identity lands under, so a later equal card finds it. Ends if it outlives the pass.
-  const landed = new Map<string, RowKey>();
-  // call-local: the owned art-less rows a card of this upload has given art to. Ends if it outlives the pass.
-  const artTaken = new Set<CharacterId>();
-  const ownedMatch = async (
-    bundle: CollectedCard,
-    hashes: CardIdentityHashes,
-  ): Promise<{ readonly characterId: CharacterId; readonly match: ImportedCharacterMatch } | null> => {
-    const owned = await findImportedCharacter(
-      async (importHash) => await characterOps.findByImportHash({ ownerId, importHash }),
-      hashes,
-      currentCardIdentity(exportCurrentCard, ownerId, bundle.carriedHandle),
-    );
-    if (owned?.match !== "text") {
-      return owned;
-    }
-    return !artTaken.has(owned.characterId) && (await characterOps.admitsImportedArt({ ownerId, characterId: owned.characterId })) ? owned : null;
+  const rowOf = (characterId: CharacterId): RowKey => {
+    const row = ownedRow(characterId);
+    ledger.ownedIds.set(row, characterId);
+    return row;
   };
+  const live = currentCardIdentity(exportCurrentCard, ownerId, bundle.carriedHandle);
+  const current: CurrentCardIdentity<RowKey> | undefined =
+    live === undefined
+      ? undefined
+      : async (): ReturnType<CurrentCardIdentity<RowKey>> => {
+          const owned = await live();
+          return owned === null ? null : { characterId: rowOf(owned.characterId), hashes: owned.hashes };
+        };
+  return {
+    find: async (importHash: string): Promise<RowKey | null> => {
+      const owned = await characterOps.findByImportHash({ ownerId, importHash });
+      if (owned !== null) {
+        return rowOf(owned);
+      }
+      const landed = ledger.landed.get(importHash) ?? null;
+      if (landed !== null) {
+        fromUpload.add(landed);
+      }
+      return landed;
+    },
+    current,
+    takeArt: async (row: RowKey): Promise<boolean> => {
+      const characterId = ledger.ownedIds.get(row);
+      const admits =
+        !ledger.artTaken.has(row) && (characterId === undefined ? ledger.artless.has(row) : await characterOps.admitsImportedArt({ ownerId, characterId }));
+      if (admits) {
+        ledger.artTaken.add(row);
+      }
+      return admits;
+    },
+  };
+}
+
+/** Record what the dry run's write would do with one card: the row it lands under and its answer. */
+function landCard(
+  ledger: CardLedger,
+  bundle: CollectedCard,
+  found: Awaited<ReturnType<typeof reusedCardRow<RowKey>>>,
+  fromUpload: ReadonlySet<RowKey>,
+): { readonly row: RowKey; readonly owned: CharacterId | undefined; readonly answer: ImportAnswer } {
+  const keys = [bundle.contentHash];
+  if (found === null) {
+    const row = newCardRow(bundle.contentHash);
+    ledger.landed.set(bundle.contentHash, row);
+    // A card whose identity carries no art is a JSON card: its row has no picture until a PNG of it gives one.
+    if (bundle.contentHash === bundle.textHash) {
+      ledger.artless.add(row);
+    }
+    return { row, owned: undefined, answer: { reuse: null, keys } };
+  }
+  const row = found.characterId;
+  // The write keys a row that took this card's art by the card's own identity too.
+  if (found.match === "text") {
+    ledger.landed.set(bundle.contentHash, row);
+  }
+  const owned = ledger.ownedIds.get(row);
+  // An owned row an earlier card of the upload gave its art to is that card's landing, so this card repeats it.
+  return { row, owned, answer: { reuse: owned === undefined || fromUpload.has(row) ? "upload" : "library", keys } };
+}
+
+/** A character is reused by the rule the write itself runs (`reusedCardRow`): an equal card landed, in the library
+ *  or earlier in this upload. A taken handle is not a match: different content under it lands beside the owned
+ *  character with a suffixed handle (D290). A card matched by its text alone reuses a row only by giving it its art:
+ *  when the row has none and no earlier card of this upload took it. The row is then keyed by that card's art, so a
+ *  later card equal to it is a repeat and a card under other art lands beside it. Its chats are held only under the
+ *  equal card's own row. */
+async function passCards(deps: ProfileDirImportDeps, collected: ProfileCollected, chats: ChatJudge): Promise<CardPass> {
+  const pass: CardPass = { characters: new Map(), rowByCard: new Map(), ownedByRow: new Map() };
+  const ledger: CardLedger = { landed: new Map(), artless: new Set(), artTaken: new Set(), ownedIds: new Map() };
   for (const bundle of collected.bundles) {
     if (deps.signal.aborted) {
       break;
     }
     const hashes = { importHash: bundle.contentHash, textHash: bundle.textHash, fileHash: importFileHash(bundle.cardBytes) };
-    const found = await ownedMatch(bundle, hashes);
-    const earlier = found === null ? await findImportedCharacter<RowKey>((importHash) => Promise.resolve(landed.get(importHash) ?? null), hashes) : null;
-    const keys = [bundle.contentHash];
-    let row = newCardRow(bundle.contentHash);
-    if (found !== null) {
-      row = ownedRow(found.characterId);
-      pass.ownedByRow.set(row, found.characterId);
-      pass.characters.set(bundle, { reuse: "library", keys });
-      if (found.match === "text") {
-        artTaken.add(found.characterId);
-        landed.set(bundle.contentHash, row);
-      }
-    } else if (earlier !== null) {
-      row = earlier.characterId;
-      pass.characters.set(bundle, { reuse: "upload", keys });
-    } else {
-      landed.set(bundle.contentHash, row);
-      pass.characters.set(bundle, { reuse: null, keys });
+    // call-local: the rows this card's lookups found through the upload's record. Ends if it outlives the card.
+    const fromUpload = new Set<RowKey>();
+    const found = await reusedCardRow({ ...cardLookups(deps, ledger, bundle, fromUpload), hashes });
+    const { row, owned, answer } = landCard(ledger, bundle, found, fromUpload);
+    if (owned !== undefined) {
+      pass.ownedByRow.set(row, owned);
     }
+    pass.characters.set(bundle, answer);
     pass.rowByCard.set(bundle, row);
     await judgeChats(deps, chats, { key: row, characterId: pass.ownedByRow.get(row) ?? null }, bundle.chats);
     // These reads resolve on microtasks, so a large folder would otherwise hold the event loop for the whole pass.
@@ -246,20 +304,22 @@ async function passPersonas(
     metadata: narrowPersonaMetadata(persona.parsed.metadata),
     artHash: persona.avatarBytes === undefined || artless.has(persona) ? null : sha256Hex(persona.avatarBytes),
   }));
-  return answersOf(collected.personas, await deps.ownership.findPersonas({ ownerId: deps.principal.userId, personas, collisions: deps.personaCollisions }));
+  const answers = await deps.bulkImportPersonas({ ownerId: deps.principal.userId, personas, collisions: deps.personaCollisions, dryRun: true });
+  return answersOf(collected.personas, answers);
 }
 
-/** The planes whose items another domain keeps in the owner's library: books, presets, themes and backgrounds. Each
- *  owner reads its library once for the whole folder. */
+/** The planes whose items another domain keeps in the owner's library: books, presets, themes and backgrounds. Books,
+ *  presets and themes are judged by the batch op the run writes them with, in dry-run mode. */
 async function passLibrary(
   deps: ProfileDirImportDeps,
   collected: ProfileCollected,
 ): Promise<Pick<ImportOwnership, "worlds" | "presets" | "themes" | "backgrounds">> {
-  const { ownership, principal } = deps;
+  const { ownership, principal, signal } = deps;
   const ownerId = principal.userId;
-  const books = await ownership.findBooks({ ownerId, books: collected.worlds.map(({ book }) => book), signal: deps.signal });
-  const presetFiles = await mapYielding(collected.presets, deps.signal, presetBytes);
-  const themeFiles = await mapYielding(collected.themes, deps.signal, themeBytes);
+  const books = await deps.importStandaloneLorebooks({ ownerId, books: collected.worlds.map(({ book }) => book), dryRun: true, signal });
+  const presets = await deps.importPresets({ ownerId, files: await mapYielding(collected.presets, signal, presetBytes), dryRun: true, signal });
+  const themeFiles = await mapYielding(collected.themes, signal, (theme) => ({ bytes: themeBytes(theme) }));
+  const themes = await deps.importThemes({ ownerId, files: themeFiles, dryRun: true, signal });
   const heldHashes = collected.backgrounds.length === 0 ? new Set<string>() : await ownership.backgroundHashes(ownerId);
   // call-local: the images the earlier backgrounds of the upload store; identical bytes share one stored image. Ends if it outlives the pass.
   const landedHashes = new Set<string>();
@@ -276,8 +336,8 @@ async function passLibrary(
   });
   return {
     worlds: answersOf(collected.worlds, books),
-    presets: answersOf(collected.presets, await ownership.findPresets({ ownerId, files: presetFiles, signal: deps.signal })),
-    themes: answersOf(collected.themes, await ownership.findThemes(ownerId, themeFiles, deps.signal)),
+    presets: answersOf(collected.presets, presets),
+    themes: answersOf(collected.themes, themes),
     backgrounds: answersOf(collected.backgrounds, backgrounds),
   };
 }

@@ -24,6 +24,10 @@ export type ExportCurrentChats = (args: {
   readonly createdAt: number;
 }) => AsyncIterable<{ readonly chatId: ChatId; readonly bytes: Uint8Array }>;
 
+/** The owned room's current title, which a held room is named by; null when the importer holds no such room or the
+ *  room has no title. */
+export type OwnedChatTitle = (args: { readonly ownerId: UserId; readonly chatId: ChatId }) => Promise<string | null>;
+
 /** The identity of the owned character a card's carried handle names, read off that row's current export, or null. */
 export type CurrentCardIdentity<Row = CharacterId> = () => Promise<{ readonly characterId: Row; readonly hashes: CardIdentityHashes } | null>;
 

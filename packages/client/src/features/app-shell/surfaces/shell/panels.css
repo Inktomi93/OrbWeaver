@@ -14,13 +14,16 @@
      * carrier (`.shell-panel::before`, client globals); without it the fill escapes the pane. */
     container: shell-panel / size;
   }
-  /* A pane this short at the enlarged root cannot hold a LIST page's chrome and its rows, so the page scrolls and the
-   * rows keep a floor, the room's own answer in content.css. */
+  /* A pane this short at the enlarged root cannot hold a LIST page's chrome and its rows, so the pane scrolls as a whole
+   * and the rows keep a floor, the room's own answer in content.css. The page flows at its content's height and the pane
+   * body is the one scroller: a page under a pane-wide head (the Corpus mode switch) would otherwise be squeezed to no
+   * height below that head, its own scroller with it. */
   @container shell-panel (height <= 20rem) {
     [data-list-page="scroll"],
     [data-list-page="bounded"] {
-      overflow-y: auto;
-      overscroll-behavior: contain;
+      flex: none;
+      block-size: auto;
+      overflow-y: visible;
     }
     [data-list-page] > :is([data-slot="library-list-scroll"], [data-slot="library-list-bounded"]) {
       flex: none;
