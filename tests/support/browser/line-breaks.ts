@@ -28,7 +28,8 @@ export function lineStarts(root: Element): LineStart[] {
     }
     range.setStart(text, offset);
     range.setEnd(text, offset + 1);
-    const box = range.getBoundingClientRect();
+    // A character after a soft hyphen that broke the line has two rects: the painted hyphen ending the line above and the character itself. The last is the character's.
+    const box = Array.from(range.getClientRects()).at(-1) ?? range.getBoundingClientRect();
     if (lineTop !== undefined && box.top > lineTop + box.height / 2) {
       starts.push({ offset, previous: content[offset - 1] ?? "" });
     }
