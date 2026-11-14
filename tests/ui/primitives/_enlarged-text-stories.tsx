@@ -55,7 +55,7 @@ export function EndRowStory(): ReactElement {
     <CtIsolation subject="Row" isolates="End alignment of an over-wide control inside a scroller">
       <Stack className="overflow-x-auto" data-probe="scroller">
         <Row justify="end" data-probe="row">
-          <Button className="min-inline-(--width-popup-floor)">Add selected</Button>
+          <Button className="min-inline-(--width-popup-floor)">Carry the picked rows over</Button>
         </Row>
       </Stack>
     </CtIsolation>
