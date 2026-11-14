@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: server
+plan: test-foundation
 ---
 
 # The avatar admission check's magic-signature step has a test

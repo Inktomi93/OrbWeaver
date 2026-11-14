@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: server
+plan: test-foundation
 ---
 
 # The per-rule entry cap refuses a confirmed analysis lore card, proven

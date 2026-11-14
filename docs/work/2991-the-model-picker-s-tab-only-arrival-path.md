@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: client
+plan: test-foundation
 ---
 
 # The model picker's Tab-only arrival path has no keyboard-first test of the List models press

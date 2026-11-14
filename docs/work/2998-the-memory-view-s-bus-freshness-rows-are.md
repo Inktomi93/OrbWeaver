@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: chat
+plan: test-foundation
 ---
 
 # The memory view's bus freshness rows are proven

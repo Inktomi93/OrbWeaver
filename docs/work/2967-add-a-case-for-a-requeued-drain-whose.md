@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: chat
+plan: test-foundation
 ---
 
 # Add a case for a requeued drain whose first request faults
