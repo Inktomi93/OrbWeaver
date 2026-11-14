@@ -3203,69 +3203,6 @@ function pickOrder(orders: StOrderGroup[]): StOrderGroup["order"] {
   return orders.reduce((best, o): StOrderGroup => (o.order.length > best.order.length ? o : best)).order;
 }
 
-const readNum = (raw: Record<string, unknown>, k: string): number | undefined => {
-  const v = raw[k];
-  return typeof v === "number" && Number.isFinite(v) ? v : undefined;
-};
-const setNum = (out: Record<string, unknown>, k: string, v: number | undefined): void => {
-  if (v !== undefined) {
-    out[k] = v;
-  }
-};
-const setNumAbove = (out: Record<string, unknown>, k: string, v: number | undefined, floor: number): void => {
-  if (v !== undefined && v > floor) {
-    out[k] = v;
-  }
-};
-
-/** Map ST sampling/behavior scalars onto UserIntent. Every scalar ST carries now HAS a home (G1 closed the
- *  last one, `top_a`); the remaining drops are TOP-LEVEL fields, reported by `DROPPABLE_FIELDS`. */
-function mapParams(raw: Record<string, unknown>): UserIntent {
-  const out: Record<string, unknown> = {};
-  setNum(out, "temperature", readNum(raw, "temperature"));
-  setNum(out, "topP", readNum(raw, "top_p"));
-  setNumAbove(out, "topK", readNum(raw, "top_k"), ST_DISABLED_NUMERIC); // ST 0 = disabled
-  setNum(out, "frequencyPenalty", readNum(raw, "frequency_penalty"));
-  setNum(out, "presencePenalty", readNum(raw, "presence_penalty"));
-  setNum(out, "repetitionPenalty", readNum(raw, "repetition_penalty"));
-  // ST's default (0) means "off", so only carry a non-default value.
-  const minP = readNum(raw, "min_p");
-  if (minP !== undefined && minP !== ST_MIN_P_DEFAULT) {
-    out["minP"] = minP;
-  }
-  setNumAbove(out, "maxOutputTokens", readNum(raw, "openai_max_tokens"), ST_DISABLED_NUMERIC);
-  setNumAbove(out, "maxContextTokens", readNum(raw, "openai_max_context"), ST_DISABLED_NUMERIC);
-
-  const seed = readNum(raw, "seed");
-  if (seed !== undefined && seed >= ST_DISABLED_NUMERIC) {
-    out["seed"] = seed; // ST -1 = random/unset
-  }
-  const effort = raw["reasoning_effort"];
-  if (typeof effort === "string" && (EFFORT_LEVELS as readonly string[]).includes(effort)) {
-    out["effort"] = effort;
-  }
-  const showThoughts = raw["show_thoughts"];
-  if (typeof showThoughts === "boolean") {
-    out["thinkingDisplay"] = showThoughts ? "summarized" : "omitted";
-  }
-
-  // Only carry a `true` (ST's default `false` = "no preference", never pinned).
-  if (raw["squash_system_messages"] === true) {
-    out["advanced"] = { squashSystemMessages: true };
-  }
-
-  // G1 (redesign §10): `top_a` HAS sampling vocab (`userIntentSchema.topA`) and now an editor — the drop
-  // was a stale claim contradicting the schema two hundred lines up. Mapped exactly like `min_p`: ST's
-  // default (0 = off) is not carried.
-  const topA = readNum(raw, "top_a");
-  if (topA !== undefined && topA !== ST_TOP_A_DEFAULT) {
-    out["topA"] = topA;
-  }
-
-  // `.catch({})` keeps a stray field from sinking the whole blob.
-  return userIntentSchema.catch({}).parse(out);
-}
-
 const ST_CONTINUE_POSTFIX: Record<string, ContinuePostfix> = {
   "": "none",
   " ": "space",
@@ -3295,31 +3232,118 @@ const DROPPABLE_FIELDS: readonly StDroppedField[] = [
   { field: "enable_web_search", reason: "no web-search knob" },
 ];
 
-// Every top-level ST field this mapper reads into a seat. A field on neither this list nor `DROPPABLE_FIELDS` is
-// reported as unrecognised, so a new read must be added here or its field is reported as lost while it maps.
-const MAPPED_FIELDS: ReadonlySet<string> = new Set([
-  "prompts",
-  "prompt_order",
-  "temperature",
-  "top_p",
-  "top_k",
-  "top_a",
-  "min_p",
-  "frequency_penalty",
-  "presence_penalty",
-  "repetition_penalty",
-  "openai_max_tokens",
-  "openai_max_context",
-  "seed",
-  "reasoning_effort",
-  "show_thoughts",
-  "squash_system_messages",
-  "names_behavior",
-  "continue_postfix",
-  "continue_nudge_prompt",
-  "impersonation_prompt",
-  "new_chat_prompt",
-]);
+const finiteNumber = (v: unknown): number | undefined => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
+const setNum = (out: Record<string, unknown>, k: string, v: number | undefined): void => {
+  if (v !== undefined) {
+    out[k] = v;
+  }
+};
+
+/** Where the mapped ST fields land: the sampling intent, the format strings, and the two prompt-config knobs. */
+interface StSeats {
+  readonly params: Record<string, unknown>;
+  readonly formatStrings: Record<string, string>;
+  namesBehavior?: NamesBehavior;
+  continuePostfix?: ContinuePostfix;
+}
+
+type StSeatReader = (value: unknown, seats: StSeats) => void;
+
+const intoParam =
+  (key: string): StSeatReader =>
+  (value, seats): void => {
+    setNum(seats.params, key, finiteNumber(value));
+  };
+
+/** A numeric knob ST disables at or below `floor`. */
+const intoParamAbove =
+  (key: string, floor: number): StSeatReader =>
+  (value, seats): void => {
+    const n = finiteNumber(value);
+    setNum(seats.params, key, n !== undefined && n > floor ? n : undefined);
+  };
+
+/** A numeric knob whose ST default means "off", so only another value is carried. */
+const intoParamUnless =
+  (key: string, off: number): StSeatReader =>
+  (value, seats): void => {
+    const n = finiteNumber(value);
+    setNum(seats.params, key, n === off ? undefined : n);
+  };
+
+/** A prompt-string slot. A blank slot is omitted so the assembler falls back to `DEFAULT_FORMAT_STRINGS`, and each is
+ *  bounded to the schema max so a hostile import cannot smuggle an oversized nudge. */
+const intoFormatString =
+  (slot: string): StSeatReader =>
+  (value, seats): void => {
+    if (typeof value === "string" && value.trim().length > 0) {
+      seats.formatStrings[slot] = value.slice(0, MAX_INJECTION_TEMPLATE_LENGTH);
+    }
+  };
+
+// Every top-level ST field the mapper reads, with the seat it lands on, in one table: the unrecognised-field report
+// reads its keys, so a field the mapper reads is never reported as lost and a listed field always has a reader.
+// `new_chat_prompt` lands on `formatStrings.newChatMarker`, the history-start boundary the assembler reads.
+const ST_FIELD_SEATS: Readonly<Record<string, StSeatReader>> = {
+  temperature: intoParam("temperature"),
+  top_p: intoParam("topP"),
+  top_k: intoParamAbove("topK", ST_DISABLED_NUMERIC),
+  frequency_penalty: intoParam("frequencyPenalty"),
+  presence_penalty: intoParam("presencePenalty"),
+  repetition_penalty: intoParam("repetitionPenalty"),
+  min_p: intoParamUnless("minP", ST_MIN_P_DEFAULT),
+  top_a: intoParamUnless("topA", ST_TOP_A_DEFAULT),
+  openai_max_tokens: intoParamAbove("maxOutputTokens", ST_DISABLED_NUMERIC),
+  openai_max_context: intoParamAbove("maxContextTokens", ST_DISABLED_NUMERIC),
+  // ST -1 is random, so only a seed of 0 or more is carried.
+  seed: (value, seats): void => {
+    const n = finiteNumber(value);
+    setNum(seats.params, "seed", n !== undefined && n >= ST_DISABLED_NUMERIC ? n : undefined);
+  },
+  reasoning_effort: (value, seats): void => {
+    if (typeof value === "string" && (EFFORT_LEVELS as readonly string[]).includes(value)) {
+      seats.params["effort"] = value;
+    }
+  },
+  show_thoughts: (value, seats): void => {
+    if (typeof value === "boolean") {
+      seats.params["thinkingDisplay"] = value ? "summarized" : "omitted";
+    }
+  },
+  // Only a `true` is carried: ST's default `false` is "no preference".
+  squash_system_messages: (value, seats): void => {
+    if (value === true) {
+      seats.params["advanced"] = { squashSystemMessages: true };
+    }
+  },
+  names_behavior: (value, seats): void => {
+    const names = namesBehaviorOf(value);
+    if (names !== undefined) {
+      seats.namesBehavior = names;
+    }
+  },
+  continue_postfix: (value, seats): void => {
+    const postfix = typeof value === "string" ? ST_CONTINUE_POSTFIX[value] : undefined;
+    if (postfix !== undefined) {
+      seats.continuePostfix = postfix;
+    }
+  },
+  continue_nudge_prompt: intoFormatString("continueNudge"),
+  impersonation_prompt: intoFormatString("impersonateNudge"),
+  new_chat_prompt: intoFormatString("newChatMarker"),
+};
+
+/** Map every top-level ST field the mapper has a seat for. */
+function mapSeats(raw: Record<string, unknown>): StSeats {
+  const seats: StSeats = { params: {}, formatStrings: {} };
+  for (const [field, read] of Object.entries(ST_FIELD_SEATS)) {
+    read(raw[field], seats);
+  }
+  return seats;
+}
+
+// The fields read structurally (the prompt list and its order) plus every field with a seat.
+const MAPPED_FIELDS: ReadonlySet<string> = new Set([...Object.keys(stPresetSchema.shape), ...Object.keys(ST_FIELD_SEATS)]);
 
 const DROPPABLE_FIELD_NAMES: ReadonlySet<string> = new Set(DROPPABLE_FIELDS.map(({ field }) => field));
 
@@ -3391,26 +3415,6 @@ function collectDroppableFields(rawObj: Record<string, unknown>, handled: readon
     }
   }
   return out;
-}
-
-/** Map ST's prompt-string slots onto the preset's `formatStrings`. `impersonation_prompt` →
- *  `impersonateNudge` (previously dropped), `continue_nudge_prompt` → `continueNudge`, and
- *  `new_chat_prompt` → `newChatMarker` (the history-START boundary the assembler reads — the seat exists, so it
- *  is mapped rather than dropped). A blank/absent
- *  slot is omitted so the assembler falls back to `DEFAULT_FORMAT_STRINGS`. Bounds each to the schema max
- *  so a hostile import can't smuggle an oversized nudge. */
-function collectFormatStrings(rawObj: Record<string, unknown>): PromptConfig["formatStrings"] {
-  const out: Record<string, string> = {};
-  const take = (key: string, slot: string): void => {
-    const v = rawObj[key];
-    if (typeof v === "string" && v.trim().length > 0) {
-      out[slot] = v.slice(0, MAX_INJECTION_TEMPLATE_LENGTH);
-    }
-  };
-  take("continue_nudge_prompt", "continueNudge");
-  take("impersonation_prompt", "impersonateNudge");
-  take("new_chat_prompt", "newChatMarker");
-  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 // ── The ST `power_user` GENERATION-adjacent knobs (owner ruling) ────────────────────────
@@ -3612,13 +3616,13 @@ function unkeyedRefusal(identifier: string): StImportOutcome {
 
 /** The mapped config's validated outcome once every section is keyed. */
 function stConfigOutcome(rawObj: Record<string, unknown>, sections: PromptSection[], dropped: StDroppedField[], options: StImportOptions): StImportOutcome {
-  const params = mapParams(rawObj);
+  const seats = mapSeats(rawObj);
+  // `.catch({})` keeps a stray field from sinking the whole blob.
+  const params = userIntentSchema.catch({}).parse(seats.params);
   dropped.push(...collectDroppableFields(rawObj, options.handledFields ?? []));
 
-  const namesBehavior = namesBehaviorOf(rawObj["names_behavior"]);
-  const rawPostfix = rawObj["continue_postfix"];
-  const continuePostfix = typeof rawPostfix === "string" ? ST_CONTINUE_POSTFIX[rawPostfix] : undefined;
-  const formatStrings = collectFormatStrings(rawObj);
+  const { namesBehavior, continuePostfix } = seats;
+  const formatStrings = Object.keys(seats.formatStrings).length > 0 ? seats.formatStrings : undefined;
 
   // The GLOBAL `power_user` half of ST's generation config (live preset only — see the section above).
   const { stop, postProcess, reasoningParse, dropped: powerUserDropped } = stPowerUserGenerationKnobs(options.powerUser);

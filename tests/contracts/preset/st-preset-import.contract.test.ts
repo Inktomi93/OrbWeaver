@@ -167,6 +167,45 @@ test("format strings map to their native seats and unsupported group fields repo
   expect(blank.result.dropped).toEqual([]);
 });
 
+test("every field the mapper has a seat for maps with no report, and each one changes the mapped config", () => {
+  // SillyTavern wire keys are snake_case by spec. Each value is one the mapper carries, not a default it skips.
+  const seated: Readonly<Record<string, unknown>> = {
+    temperature: 0.8,
+    ["top_p"]: 0.9,
+    ["top_k"]: 12,
+    ["top_a"]: 0.2,
+    ["min_p"]: 0.07,
+    ["frequency_penalty"]: 0.3,
+    ["presence_penalty"]: 0.4,
+    ["repetition_penalty"]: 1.1,
+    ["openai_max_tokens"]: 512,
+    ["openai_max_context"]: 8192,
+    seed: 7,
+    ["reasoning_effort"]: "high",
+    ["show_thoughts"]: true,
+    ["squash_system_messages"]: true,
+    ["names_behavior"]: 1,
+    ["continue_postfix"]: "\n",
+    ["continue_nudge_prompt"]: "keep going",
+    ["impersonation_prompt"]: "speak as the user",
+    ["new_chat_prompt"]: "[Start a new Chat]",
+  };
+  const configOf = (preset: Readonly<Record<string, unknown>>): { readonly config: unknown; readonly dropped: readonly string[] } => {
+    const outcome = tryImportStChatCompletionPreset({ prompts: [], ...preset });
+    if (!outcome.ok) {
+      throw new Error(outcome.reason);
+    }
+    return { config: outcome.result.config, dropped: outcome.result.dropped.map(({ field }) => field) };
+  };
+
+  const full = configOf(seated);
+  expect(full.dropped).toEqual([]);
+  for (const field of Object.keys(seated)) {
+    const { [field]: _left, ...without } = seated;
+    expect({ field, changed: JSON.stringify(configOf(without).config) !== JSON.stringify(full.config) }).toEqual({ field, changed: true });
+  }
+});
+
 test("every populated top-level field the mapper neither maps nor lists is named, an empty one is not, and a caller-handled one is left to the caller", () => {
   // SillyTavern wire keys are snake_case by spec; these are fields a public preset carries that orb has no seat for.
   const preset = {
