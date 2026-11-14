@@ -2115,17 +2115,10 @@
         }
       },
       "indexes": {
-        "chat_memory_strikes_shared_unique": {
-          "name": "chat_memory_strikes_shared_unique",
+        "chat_memory_strikes_span_unique": {
+          "name": "chat_memory_strikes_span_unique",
           "columns": ["chat_id", "tier", "message_start_id", "message_end_id"],
-          "isUnique": true,
-          "where": "scoped_character_id is null"
-        },
-        "chat_memory_strikes_scoped_unique": {
-          "name": "chat_memory_strikes_scoped_unique",
-          "columns": ["chat_id", "scoped_character_id", "tier", "message_start_id", "message_end_id"],
-          "isUnique": true,
-          "where": "scoped_character_id is not null"
+          "isUnique": true
         },
         "chat_memory_strikes_scoped_character_idx": {
           "name": "chat_memory_strikes_scoped_character_idx",
@@ -2149,7 +2142,7 @@
           "tableTo": "characters",
           "columnsFrom": ["scoped_character_id"],
           "columnsTo": ["id"],
-          "onDelete": "cascade",
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
