@@ -1,4 +1,4 @@
-import { CAP, COLOR_MOTION, FOCUS_RING, HEIGHT, TONE_ARMS, TONE_TINT_HOVER, tv, WIDTH } from "#lib";
+import { CAP, COLOR_MOTION, FOCUS_RING, HEIGHT, TONE_ARMS, TONE_TINT, TONE_TINT_HOVER, tv, WIDTH } from "#lib";
 import { ART_DECORATION } from "#src/lib/art-decoration.ts";
 
 // Card is a generic SURFACE, not a domain card — features (character cards, config panels)
@@ -36,7 +36,7 @@ export const cardVariants = tv({
       surface: "border-tone-edge bg-card tone-host-card",
       // The tone's tint under its meaning edge, and its on-tint ink for content that sets no ink of its own: a status
       // box, a quoted block that reads as an artifact, a nested box that must lift off a card fill.
-      soft: `${MEANING_EDGE} bg-tone-tint text-tone-text-on-tint`,
+      soft: `${MEANING_EDGE} ${TONE_TINT}`,
       // The meaning edge alone: a box that groups or marks without lifting off its ground.
       outline: `${MEANING_EDGE} bg-transparent`,
     },

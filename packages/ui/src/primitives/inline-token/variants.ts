@@ -1,4 +1,4 @@
-import { TONE_ARMS, tv } from "#lib";
+import { TONE_ARMS, TONE_TINT, tv } from "#lib";
 
 // A chip that behaves like a word in a run of prose (a `{{macro}}` token in a preview). It paints the soft tone roles:
 // the opaque tint and the on-tint ink.
@@ -15,7 +15,7 @@ import { TONE_ARMS, tv } from "#lib";
 // the x-height and takes its gap as a margin (`gap` is a flex property).
 export const inlineTokenVariants = tv({
   base: `
-    inline rounded-inset bg-tone-tint px-tight font-medium whitespace-nowrap text-tone-text-on-tint select-text
+    inline rounded-inset px-tight font-medium whitespace-nowrap select-text ${TONE_TINT}
     [&>svg]:me-field [&>svg]:inline-block [&>svg]:align-middle
   `,
   variants: {
