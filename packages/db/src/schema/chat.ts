@@ -902,10 +902,18 @@ export const pendingTurns = sqliteTable(
     // The sender's zone AT DEFER TIME, so the drained turn's time macros read their clock even if the sender's
     // zone has moved since. Null (no zone reported) drains on the UTC clock.
     timeZone: nulFreeText("time_zone").$type<IanaTimeZone>(),
+    // The user message this deferred turn answers, so the drained reply reads that send's own dice stamp, not the
+    // room's latest line. Null on a row queued before the column, or after its message was deleted: it drains on the
+    // latest user message.
+    messageId: nulFreeText("message_id")
+      .$type<MessageId>()
+      .references(() => messages.id, { onDelete: "set null" }),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
     index("pending_turns_chat_idx").on(t.chatId),
+    // The message FK SET-NULLs on a message delete (FK-index test).
+    index("pending_turns_message_idx").on(t.messageId),
     // Both turn-identity FKs CASCADE on user delete; SQLite auto-indexes neither, so a user hard-delete
     // would scan the whole table twice (FK-index test).
     index("pending_turns_triggered_by_idx").on(t.triggeredBy),
