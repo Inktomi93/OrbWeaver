@@ -25,7 +25,7 @@ import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { ChatId } from "@orb/kit/ids";
 import { BookOpen, Icon } from "@orb/ui/icons";
 import { InlineToken } from "@orb/ui/inline-token";
-import { Row, Section, Stack } from "@orb/ui/layout";
+import { Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { MenuItem } from "@orb/ui/menu";
 import { Switch } from "@orb/ui/switch";
@@ -92,7 +92,7 @@ function DisplayScriptRow({ isYours, script }: { readonly isYours: boolean; read
       {...(isYours
         ? {
             actions: (
-              <Row align="center" gap="tight">
+              <>
                 {/* The same "everywhere" setting as a tier row's switch, because it is the same flag on the same
                     library row; the list word keeps the two switches of a script drawn in both places apart. */}
                 <Switch
@@ -114,7 +114,7 @@ function DisplayScriptRow({ isYours, script }: { readonly isYours: boolean; read
                     Open in library
                   </MenuItem>
                 </RowActionsMenu>
-              </Row>
+              </>
             ),
           }
         : {})}

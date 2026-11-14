@@ -10,6 +10,7 @@ import { routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
+import type { Locator } from "@playwright/test";
 import type { ChatContextTabStory } from "./_chat-forks-stories.tsx";
 
 const TAB_STORY = "tests/client/features/chat/components/_chat-forks-stories/ChatContextTabStory";
@@ -35,10 +36,32 @@ const PHONES = [
   { width: 320, height: 568 },
 ] as const;
 const LARGEST_TEXT = PLATFORM_TEXT_SCALES[2];
+const ENLARGED_TEXT = [PLATFORM_TEXT_SCALES[1], PLATFORM_TEXT_SCALES[2]] as const;
 const TIER_NAME = "Quotation marks smoothed across every speaker in the long vigil at the lighthouse keeper's cottage";
 const SCREEN_NAME = "Narration tinted by speaker through the storm season at the lighthouse keeper's cottage and after";
 
 type Harness = Awaited<ReturnType<typeof createCorpusHarness>>;
+
+interface ActionEdges {
+  readonly past: number;
+  readonly before: number;
+  readonly line: boolean;
+}
+
+/** How far a row's switch and buttons reach past its end edge or before its start edge, and whether they sit beside the body rather than under it. */
+function actionEdges(row: Locator): Promise<ActionEdges> {
+  return row.evaluate((element) => {
+    const rowBox = element.getBoundingClientRect();
+    const body = element.querySelector('[data-slot="list-row-body"]')?.getBoundingClientRect();
+    const parts = [...element.querySelectorAll('[data-slot="list-row-actions"] :is([role="switch"], button)')].map((part) => part.getBoundingClientRect());
+    return {
+      past: Math.max(...parts.map((box) => Math.round(box.right - rowBox.right))),
+      before: Math.max(...parts.map((box) => Math.round(rowBox.left - box.left))),
+      // Beside the body, not under it: the first control starts inside the body's own vertical extent.
+      line: parts.every((box) => box.top < (body?.bottom ?? 0)),
+    };
+  });
+}
 
 async function hostRoom(root: Harness): Promise<ChatId> {
   const host = await root.internalCallerFor(root.ownerId);
@@ -109,20 +132,7 @@ for (const phone of PHONES) {
       await expect(row).toHaveCount(1);
       const controls = row.locator('[data-slot="list-row-actions"]').getByRole("switch").or(row.locator('[data-slot="list-row-actions"]').getByRole("button"));
       await expect(controls).toHaveCount(2);
-      const edges = async (): Promise<{ readonly past: number; readonly before: number; readonly line: boolean }> =>
-        row.evaluate((element) => {
-          const rowBox = element.getBoundingClientRect();
-          const body = element.querySelector('[data-slot="list-row-body"]')?.getBoundingClientRect();
-          const parts = [...element.querySelectorAll('[data-slot="list-row-actions"] :is([role="switch"], button)')].map((part) =>
-            part.getBoundingClientRect(),
-          );
-          return {
-            past: Math.max(...parts.map((box) => Math.round(box.right - rowBox.right))),
-            before: Math.max(...parts.map((box) => Math.round(rowBox.left - box.left))),
-            // Beside the body, not under it: the first control starts inside the body's own vertical extent.
-            line: parts.every((box) => box.top < (body?.bottom ?? 0)),
-          };
-        });
+      const edges = (): Promise<ActionEdges> => actionEdges(row);
       {
         await using _textSize = await setPlatformTextSize(page, LARGEST_TEXT);
         await expect.poll(async () => (await edges()).past).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
@@ -132,5 +142,31 @@ for (const phone of PHONES) {
       await expect.poll(async () => (await edges()).past).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
       expect((await edges()).line).toBe(true);
     });
+
+    for (const scale of ENLARGED_TEXT) {
+      test(`an on-screen row's switch and More menu end inside the row at ${String(scale * 100)}% text`, async ({ mount, page, corpusMedia }) => {
+        await using root = await createCorpusHarness();
+        const chatId = await hostRoom(root);
+        const host = await root.internalCallerFor(root.ownerId);
+        await host.regex.createScript({
+          input: createRegexScriptSchema.parse({ name: SCREEN_NAME, findRegex: "x", replaceString: "y", placement: ["DISPLAY"], enabled: true }),
+        });
+        await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
+        await routeTrpc(page, serveCorpusProcedures(host, TAB_PROCEDURES));
+        await corpusMedia();
+        await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId, width: phone.width });
+        await page.getByRole("button", { name: /^Regex/u }).click();
+        const row = page
+          .locator('[data-slot="list-row-root"]')
+          .filter({ has: page.locator('[data-slot="list-row-title"]').getByText(SCREEN_NAME, { exact: true }) });
+        await expect(row).toHaveCount(1);
+        await expect(
+          row.locator('[data-slot="list-row-actions"]').getByRole("switch").or(row.locator('[data-slot="list-row-actions"]').getByRole("button")),
+        ).toHaveCount(2);
+        await using _textSize = await setPlatformTextSize(page, scale);
+        await expect.poll(async () => (await actionEdges(row)).past).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
+        expect((await actionEdges(row)).before).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
+      });
+    }
   });
 }
