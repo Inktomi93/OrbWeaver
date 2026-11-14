@@ -1,5 +1,6 @@
 // A player's strike names a span of the story: it matches every bucket's digest of that span by tier and endpoints,
-// never by grid position alone, and any longer summary whose span contains the strike's is left out beside it.
+// never by grid position alone, and any summary at its tier or above whose span contains the strike's is left out
+// beside it.
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { ResolvedStrike, StrikeCandidate } from "@orb/kit/recall";
 import { matchStrikes } from "@orb/kit/recall";
@@ -116,6 +117,15 @@ test("a re-sliced block at the struck position is a different item and is not su
   expect(match.coversStruck.size).toBe(0);
   // The positive control: the same row with the original span is struck.
   expect(matchStrikes([original], [strike]).struck.size).toBe(1);
+});
+
+test("a strike on part of a block leaves out the same-tier block that closed around it, and only that block", () => {
+  // A fork carried the strike onto the one struck turn it copied into a block still open at the fork.
+  const closed = digest(0, 1);
+  const partial: ResolvedStrike = { ...strikeOn(closed), contentHash: "hash-of-the-room's-summary", messageEndId: msg(2), seqSpan: { seqStart: 2, seqEnd: 2 } };
+  const match = matchStrikes([digest(0, 0), closed, digest(0, 2)], [partial]);
+  expect(match.struck.size).toBe(0);
+  expect([...match.coversStruck]).toEqual([[closed, partial]]);
 });
 
 test("a struck consolidation leaves its children eligible", () => {

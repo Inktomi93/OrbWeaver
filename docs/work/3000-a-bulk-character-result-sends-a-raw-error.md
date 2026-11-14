@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: character
+plan: cross-surface-consistency
 ---
 
 # A bulk character result sends a raw error message to the wire and the toast

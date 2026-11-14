@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: client
+plan: cross-surface-consistency
 ---
 
 # Character provenance: the import and refinery tail in both panes needs a ruling

@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: import
+plan: test-foundation
 ---
 
 # The large-chat yield case fails with a wide margin when stages are not bounded

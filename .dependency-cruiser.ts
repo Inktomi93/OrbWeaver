@@ -163,6 +163,8 @@ const NODE_BUILTINS = `^(?:node:)?(?:${builtinModules.map((name) => RegExp.escap
 const CLIENT_CSS_ENTRY = `${CLIENT}styles/index\\.ts$`;
 const CLIENT_SHELL_CSS = `${CLIENT}features/app-shell/surfaces/shell\\.css$`;
 const FIXED_SLOTS = "(contract|verbs|persistence|substrate)";
+// The fixed slots a subsystem import may start from: every fixed slot but persistence/, which holds queries only.
+const MEDIATING_SLOTS = "(contract|verbs|substrate)";
 function moduleShapes(pkg: keyof typeof GROUPING_DIRS): { own: string[]; internal: string[] } {
   const root = `packages/${pkg}/src/`;
   const grouping: readonly string[] = GROUPING_DIRS[pkg];
@@ -544,6 +546,8 @@ const TEST_CONSTANT_HOMES = {
     "IMAGE_NEGATIVE_PROMPT_NOUN and IMAGE_NEGATIVE_PROMPT_FIELD_NAME: the image field's name, which the rule editor's optional field controls are named by",
   "packages/client/src/lib/view-transition-names.ts": "SHELL_SWAP_DEADLINE_PROPERTY: the grid property a swap spec stretches to hold the old frame",
   "packages/client/src/forms/editor/bound-fields/macro-field-names.ts": "macroTokenCountLine: the estimated token count a macro field prints under its value",
+  "packages/client/src/forms/editor/bound-fields/secret-field-names.ts":
+    "REVEAL_SECRET_NAME and CONCEAL_SECRET_NAME: the reveal press beside a secret field, which the add-connection spec moves focus to",
   "packages/client/src/features/rpg/lib/tracker-names.ts":
     "trackerFieldName and the tracker value names: the per-carrier field and rest-button names the rpg panels print",
   "packages/client/src/forms/editor/autosave-status-names.ts": "AUTOSAVE_SAVED_TEXT and its siblings: the words the shared autosave readout prints",
@@ -2039,10 +2043,11 @@ const DOMAIN_AUTHORITY = [
   },
   {
     name: "domain-no-cross-subsystem",
+    comment: "A named subsystem reaches another only through substrate/. persistence/ is database access (Core-0 §4), so it reaches no subsystem at all.",
     severity: "error",
     from: {
       path: `${SRV}domain/([^/]+)/([^/]+)/`,
-      pathNot: [`${SRV}domain/[^/]+/${FIXED_SLOTS}/`],
+      pathNot: [`${SRV}domain/[^/]+/${MEDIATING_SLOTS}/`],
     },
     to: {
       path: `${SRV}domain/([^/]+)/([^/]+)/`,

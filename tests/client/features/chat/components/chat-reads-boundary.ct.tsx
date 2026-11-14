@@ -3,6 +3,7 @@
 // one the shared error block, and Retry shows the settled answer. A deleted variant is the typed gone state, not the error block.
 
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { LAYOUT_SUBPIXEL_PX } from "@orb/testkit/browser/spec";
 import { heldThenFailing, holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createSeededIds } from "@orb/testkit/iso";
@@ -57,6 +58,25 @@ test("a held recent-chats read shows the strip's reserved skeleton, a failed one
   await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(page.getByText(queryFailedLabel(CHAT_RECENT_CHARACTERS_READ_LABEL), { exact: true })).toHaveCount(0);
   await expect(page.locator("[data-face-pending]")).toHaveCount(0);
+});
+
+test("the faces strip holds its box when the recent-chats read lands", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const hold = holdServed();
+  await routeTrpc(page, { ...serveCorpusProcedures(caller, SHELL_READS), ...serveCorpusProcedures(caller, ["chat.listChats"], () => hold) });
+  await mount<typeof ChatListFacesStripStory>(`${STORIES}/ChatListFacesStripStory`, {});
+  await hold.requested;
+  await expect(page.locator("[data-face-pending]")).toBeVisible();
+  // The story renders the strip and nothing else, so the mount root's box is the strip's.
+  const root$ = page.locator("#root");
+  const held = (await root$.boundingBox())?.height ?? Number.NaN;
+  hold.release();
+  await expect(page.locator("[data-face-pending]")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^Show chats with/u }).first()).toBeVisible();
+  const landed = (await root$.boundingBox())?.height ?? Number.NaN;
+  expect(held).toBeGreaterThan(0);
+  expect(Math.abs(held - landed)).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
 });
 
 test("a scoped face focused while the recent-chats read is held keeps focus when the read lands", async ({ mount, page }) => {

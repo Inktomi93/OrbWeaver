@@ -21,7 +21,7 @@ import { can } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import type { ChatServiceDeps } from "#domain/chat";
-import { createBulkImportChats, createReadInheritedChatBooks, createWiredChatGuards } from "#domain/chat";
+import { createBulkImportChats, createReadInheritedChatBooks, createWiredChatGuards, loadPresentHostUserId } from "#domain/chat";
 import { createBulkImportPersonas } from "#domain/persona";
 import type { SessionsService } from "#domain/sessions";
 import { createResolveUserEnabled } from "#domain/sessions";
@@ -85,6 +85,7 @@ export function buildWorldInfo(deps: WorldInfoComposeDeps): WorldInfoComposeResu
     audit,
     requireChatHost: chatGuards.requireHost,
     requireChatMember: chatGuards.requireParticipant,
+    resolveChatHost: (chatId) => loadPresentHostUserId(db, chatId),
     readInheritedChatBooks: createReadInheritedChatBooks({
       db,
       can,

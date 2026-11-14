@@ -12,6 +12,9 @@ import { COLOR_MOTION } from "./state-motion.ts";
 // The inline reach is capped at the 44px physical floor, or the box when the box is wider: the touch token grows with
 // the text, and an uncapped square at enlarged text overhangs a small box past its column's edge, which scrolls the
 // column sideways. The block axis keeps the token; a column bounds only the inline axis.
+// At default text a box narrower than the floor still overhangs by half the difference on each inline side. That reach ends
+// inside the inline inset the row or pane gives its content (axis 3 in `docs/law/UI-Architecture-and-Layout.md`), so nothing
+// here clips it: a hit area shrunk to the box would break the floor.
 export const TOUCH_TARGET_PSEUDO =
   "before:absolute before:inset-bs-1/2 before:inset-s-1/2 before:block-(--size-touch-target) before:inline-(--size-touch-target) before:max-inline-(--size-touch-target-physical) before:min-inline-full before:-translate-x-1/2 rtl:before:translate-x-1/2 before:-translate-y-1/2 before:content-['']";
 

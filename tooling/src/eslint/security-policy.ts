@@ -549,6 +549,25 @@ export const SERVER_IMPORT_HOMES = [
   },
 ] as const;
 
+/**
+ * Chat's co-participant art gate: the files that decide which art a room member may load.
+ * @remarks Dependency-cruiser cannot tell the named exports of the `@orb/db` door apart (D335), so ESLint's
+ * `no-restricted-imports` refuses these tables in these files. A direct join would skip the owner reads the gate
+ * depends on. Add a chat file here once it stops importing the tables.
+ */
+export const CHAT_ART_GATE_SOURCES = [
+  `${SERVER_SOURCE_ROOT}domain/chat/persistence/co-participant-assets.ts`,
+  `${SERVER_SOURCE_ROOT}domain/chat/verbs/load-co-participant-owner.ts`,
+  `${SERVER_SOURCE_ROOT}domain/chat/verbs/load-chat-asset-refs.ts`,
+] as const;
+
+/** The other domains' tables the art gate reads through owner ops, through either door that exports them. */
+export const CHAT_ART_GATE_RESTRICTION = {
+  regex: "^@orb/db(?:/schema)?$",
+  importNames: ["assets", "characters", "personas"],
+  message: "chat reads these rows through the owner ops its contract declares",
+} as const;
+
 export const TURN_IDENTITY_RESTRICTIONS = [
   {
     id: "turn-identity-name",

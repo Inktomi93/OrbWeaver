@@ -1,7 +1,7 @@
 schema_version: "1.0"
 name: "move-module-files"
 version: "0.1.0"
-description: "Repoint relative and #src module specifiers for a planned set of file moves, in importers and in the moved files."
+description: "Repoint relative, alias and mock module specifiers and comment path cites for a planned set of file moves, in importers and in the moved files."
 author: "Orbweaver"
 license: "MIT"
 targets:

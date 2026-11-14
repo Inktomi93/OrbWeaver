@@ -208,9 +208,14 @@ export const textVariants = tv({
     // ONE LINE, CLIPPED WITH AN ELLIPSIS (`overflow: hidden; text-overflow: ellipsis; white-space: nowrap`). The
     // clip makes the box a scroll container, so as a flex or grid child it already shrinks to zero and needs no
     // `min-inline-0`. `fill` is the line that takes the rest of a row and gives way to its siblings.
+    // `inline` is the same clip for a `span` that sits in a line of prose, where the parent lays text out inline: an inline box ignores
+    // `overflow`, so the run would paint on past its line with no ellipsis, and this arm makes it a box no wider than its parent that sits
+    // on the line's bottom edge. The caller states it, because no class on the parent says whether the parent is a flex or grid box (a
+    // stylesheet or a container-query arm can make it one), and a `display` written on a flex item changes the width its row gives it.
     truncate: {
       true: "truncate",
       fill: "flex-1 truncate",
+      inline: "inline-block truncate align-bottom max-inline-full",
       false: "",
     },
     // A run in a flex row that takes the room that is left (`grow`) from a starting width (`floor`). The `min-inline-0` that lets it

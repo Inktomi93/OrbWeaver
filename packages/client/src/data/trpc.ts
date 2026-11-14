@@ -96,11 +96,12 @@ const jsonOnlyFetch: NonNullable<Parameters<typeof httpBatchLink>[0]["fetch"]> =
  * Revisit only with both addressed; the CSRF header itself is fine (identical `headers` seam).
  *
  * A batch is one response written after its slowest call settles, so a fast read batched beside a slow one
- * waits for it. A read that gates input therefore skips batching: an operation whose context carries
- * `skipBatch` rides an `httpLink` built from the same options as the batch link, so it passes the same
- * server checks (the mount reads the method, content type and CSRF header per request, never the batch flag).
- * The room's roster read is that read ({@link roomRosterOptions}): the composer waits for it, and it must never
- * wait for the room's transcript.
+ * waits for it. A read that gates a paint or an input therefore skips batching: an operation whose context carries
+ * `skipBatch` ({@link RIDES_ALONE}) rides an `httpLink` built from the same options as the batch link, so it passes
+ * the same server checks (the mount reads the method, content type and CSRF header per request, never the batch flag).
+ * The room's reads are those reads: the roster ({@link roomRosterOptions}) draws the composer and must never wait
+ * for the transcript, and the transcript ({@link roomTailOptions}, the anchored window) draws the rows and must
+ * never wait for the composer's endpoint probes.
  */
 export function createTrpcClient(url: string = TRPC_URL): TrpcClient {
   // One option set for both request links, so a header or fetch rule added here reaches the unbatched link too.
@@ -140,7 +141,18 @@ export function createTrpcClient(url: string = TRPC_URL): TrpcClient {
   });
 }
 
+/**
+ * The request options that send one read alone, never in a batch. The one home of the `skipBatch` context object:
+ * every read that gates a surface's first paint spreads or passes this, so a batch's slowest call never holds it.
+ */
+export const RIDES_ALONE = { trpc: { context: { skipBatch: true } } } as const;
+
 type RoomRoster = inferOutput<Trpc["chat"]["getChat"]>;
+type RoomTail = inferOutput<Trpc["chat"]["listMessages"]>;
+
+/** What a room read's `queryOptions` returns, spelled once because `useExplicitReturnType` needs it on each helper. */
+type RoomReadOptions<TData> = UnusedSkipTokenOptions<TData, TrpcReadError, TData, TRPCQueryKey> &
+  TRPCQueryOptionsResult & { readonly queryKey: DataTag<TRPCQueryKey, TData, TrpcReadError> };
 
 /**
  * The room's roster read (`chat.getChat`), the one spelling every reader and warmer of that key uses.
@@ -149,12 +161,20 @@ type RoomRoster = inferOutput<Trpc["chat"]["getChat"]>;
  * It rides alone, never batched, whichever reader starts the fetch: the room draws its composer from this read,
  * and a batch would hold it until the room's transcript read answers.
  */
-export function roomRosterOptions(
-  trpc: Trpc,
-  input: { readonly chatId: ChatId },
-): UnusedSkipTokenOptions<RoomRoster, TrpcReadError, RoomRoster, TRPCQueryKey> &
-  TRPCQueryOptionsResult & { readonly queryKey: DataTag<TRPCQueryKey, RoomRoster, TrpcReadError> } {
-  return trpc.chat.getChat.queryOptions(input, { trpc: { context: { skipBatch: true } } });
+export function roomRosterOptions(trpc: Trpc, input: { readonly chatId: ChatId }): RoomReadOptions<RoomRoster> {
+  return trpc.chat.getChat.queryOptions(input, RIDES_ALONE);
+}
+
+/**
+ * The room's transcript tail (`chat.listMessages` with no cursor), the one spelling every reader of that key uses.
+ *
+ * @remarks
+ * It rides alone, whichever reader starts the fetch: the room's rows draw from this read, and the composer that
+ * mounts beside it sends the chat engine's endpoint probe, which can leave in the same tick and which a batch
+ * would make the rows wait for.
+ */
+export function roomTailOptions(trpc: Trpc, input: { readonly chatId: ChatId }): RoomReadOptions<RoomTail> {
+  return trpc.chat.listMessages.queryOptions(input, RIDES_ALONE);
 }
 
 /**

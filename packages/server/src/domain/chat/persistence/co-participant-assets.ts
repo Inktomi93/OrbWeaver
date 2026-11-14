@@ -1,7 +1,8 @@
 // The chat-table reads of the co-participant art gate. Every read needs a structural reference into a room where the
 // CALLER is present, never a bare hash or id; a link read also needs the linking message at or above the caller's
 // history floor. The asset, character and persona rows arrive through the owner reads in `../contract/room-art-reads.ts`,
-// and the verbs join them with these rows, so this file names no table chat does not own (Core-0 §4).
+// and the verbs join them with these rows, so this file names no table chat does not own (Core-0 §4). ESLint's
+// `no-restricted-imports` refuses those three tables here and in the gate's verbs (`CHAT_ART_GATE_SOURCES`).
 
 import type { Db } from "@orb/db";
 import { chatParticipants, chats, messageAssets, messages } from "@orb/db";

@@ -1,9 +1,9 @@
 // @subject packages/client/src/features/chat/components/rewrite-dialog.tsx
 // The Rewrite dialog keeps its correction as one of the chat's injections, over the real composed server: the host opens
 // it from the composer's own menu, the kept correction shows in the room's injections list with its remove control,
-// and the same words cannot be kept twice.
+// and the same words cannot be kept twice. Its disabled Keep control passes the design audit's inactive-control-legibility rule.
 import { contextToggleLabel, MESSAGE_TOOLS_LABEL } from "@orb/client/lib";
-import { seedShellState } from "@orb/testkit/browser/spec";
+import { readSurfaceDesignAudit, seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeAuthConfig, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -67,6 +67,11 @@ test("a kept correction lands in the injections list once, and leaves through it
   const keep = dialog.getByRole("button", { name: CHAT_SAVE_CORRECTION_NAME, exact: true });
   // Nothing typed is nothing to keep.
   await expect(keep).toBeDisabled();
+  const { audit } = await readSurfaceDesignAudit(page);
+  expect(
+    audit.findings.filter(({ rule }) => rule === "inactive-control-legibility").map(({ selector, value }) => `${selector} ${value}`),
+    "the design audit finds the disabled Keep control legible",
+  ).toEqual([]);
   const instruction = dialog.getByRole("textbox", { name: CHAT_CORRECTION_INSTRUCTION_NAME, exact: true });
   await instruction.fill(CORRECTION);
   await expect(keep).toBeEnabled();

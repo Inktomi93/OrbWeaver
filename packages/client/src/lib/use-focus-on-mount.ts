@@ -80,9 +80,15 @@ export function holdArrivalWhilePending(): () => void {
     }
   };
 }
+// When the reader last moved focus by their own input: a click, or Enter or Tab. A surface that waits on a read compares it with when
+// it began to wait, so focus the reader moved while it waited is told from focus left by the press that started the wait.
+let lastReaderMoveAt = Number.NEGATIVE_INFINITY;
 browserDocument?.addEventListener(
   "keydown",
   ({ key, target }) => {
+    if (key === "Enter" || key === "Tab") {
+      lastReaderMoveAt = performance.now();
+    }
     if (key === "Enter") {
       pressedFrom = browserDocument.activeElement;
       notePress(target);
@@ -93,6 +99,7 @@ browserDocument?.addEventListener(
 browserDocument?.addEventListener(
   "click",
   ({ target }) => {
+    lastReaderMoveAt = performance.now();
     const active = browserDocument.activeElement;
     pressedFrom = active === target ? null : active;
     notePress(target);
@@ -191,17 +198,28 @@ function useArrivalFocus(ref: RefObject<FocusTarget | null>, { enabled, repeatOn
  *  protects the rail's tab order on a cold load; a surface using THIS hook must only mount as the direct result
  *  of a user activation.
  *
- *  `yieldToTextField` stands it down for a text field outside the target that holds focus: a surface that lands
- *  after a read, while the reader is typing elsewhere, must not turn their next keystrokes into its own input. */
-export function useFocusOnSwap(ref: RefObject<FocusTarget | null>, enabled = true, yieldToTextField = false): void {
+ *  `yieldToReader` stands it down for a control the reader is using: a text field outside the target that holds focus, or
+ *  any control outside the target that holds focus because the reader moved it there (a click, Enter or Tab) after the surface
+ *  began to wait; an overlay root, or the control that held focus when the wait began, is not such a move. A surface that
+ *  lands after a read must not turn the reader's next keystrokes into its own input, nor take focus from the control they went
+ *  to. The press that started the wait came before it began, so focus it left on its own control is still taken. */
+export function useFocusOnSwap(ref: RefObject<FocusTarget | null>, enabled = true, yieldToReader = false): void {
+  const waitBegan = useRef<{ readonly at: number; readonly focus: MinimalElement | null } | null>(null);
   useEffect(() => {
     if (!enabled) {
+      waitBegan.current = { at: performance.now(), focus: browserDocument?.activeElement ?? null };
       return;
     }
     const active = browserDocument?.activeElement ?? null;
-    if (yieldToTextField && active?.matches(TEXT_ENTRY) === true && !isInside(ref.current, active)) {
-      return;
+    if (yieldToReader && active !== null && !isInside(ref.current, active)) {
+      const began = waitBegan.current;
+      // A click on nothing leaves focus on an overlay root, which is no control the reader went to.
+      const movedWhileWaiting =
+        began !== null && lastReaderMoveAt > began.at && active !== browserDocument?.body && active !== began.focus && !active.matches(OVERLAY_FOCUS_SCOPE);
+      if (active.matches(TEXT_ENTRY) || movedWhileWaiting) {
+        return;
+      }
     }
     ref.current?.focus();
-  }, [ref, enabled, yieldToTextField]);
+  }, [ref, enabled, yieldToReader]);
 }

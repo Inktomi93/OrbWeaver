@@ -89,7 +89,7 @@ function OverrideCollapseCard({ label, isSet, snippet, open, onOpenChange, clear
             it pointer-conditional (a fine pointer's 32px is under the shipped 40px, so the desktop box is
             unchanged) and inside the `ui-size-via-variant` seal. */}
         <CollapsibleTrigger inset="block" width="full" size="control" aria-label={overrideRowName(label, isSet)}>
-          <Row align="center" gap="field" justify="between" grow={true}>
+          <Row align="center" gap="field" justify="between" grow={true} wrap={true}>
             <Text voice="label">{label}</Text>
             {/* A text node between flex items paints nothing; it keeps the two words apart in the DOM text, which is how axe reads the visible label. */}{" "}
             {/* Half the trigger's own name, so it takes the `label` step, not the micro gloss: the state word

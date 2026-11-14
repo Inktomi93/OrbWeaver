@@ -91,7 +91,9 @@ test("tone inks ghost, outline and secondary; underline, reserveEdge and confirm
 test("quietDisabled keeps a disabled control at full strength, where a plain disabled control dims", async ({ mount }) => {
   const root = await mount<typeof ButtonFinishStory>(`${STORIES}/ButtonFinishStory`, {});
   expect(await computedStyle(root.getByRole("button", { name: "quiet disabled", exact: true }), "opacity")).toBe("1");
-  expect(await computedStyle(root.getByRole("button", { name: "dim disabled", exact: true }), "opacity")).toBe("0.5");
+  expect(await computedStyle(root.getByRole("button", { name: "dim disabled", exact: true }), "opacity")).toBe(
+    await probe(root, "disabled-opacity", "opacity"),
+  );
 });
 
 test("the sidebar focus ring offsets into the sidebar fill, and the rail marks only the selected row", async ({ mount, page }) => {

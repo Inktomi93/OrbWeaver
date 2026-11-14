@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P2
 area: stats
+plan: import-robustness
 ---
 
 # A post-import stats rebuild that live chat starves fails an import that already landed

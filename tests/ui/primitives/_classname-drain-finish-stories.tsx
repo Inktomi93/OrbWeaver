@@ -149,6 +149,7 @@ export function ButtonFinishStory(): ReactElement {
       <span data-case="away">elsewhere</span>
       <Probe name="primary" style={{ color: `var(${TOKENS["color.primary"].cssVar})`, backgroundColor: `var(${TOKENS["color.primary"].cssVar})` }} />
       <Probe name="foreground" style={{ color: `var(${TOKENS["color.foreground"].cssVar})` }} />
+      <Probe name="disabled-opacity" style={{ opacity: `var(${TOKENS["opacity.disabled"].cssVar})` }} />
       <Probe name="muted" style={{ color: `var(${TOKENS["color.muted-foreground"].cssVar})` }} />
       <Probe name="sidebar" style={{ color: `var(${TOKENS["color.sidebar"].cssVar})` }} />
       <Probe name="accent" style={{ color: `var(${TOKENS["color.accent"].cssVar})` }} />

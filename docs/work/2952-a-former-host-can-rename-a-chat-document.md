@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P2
 area: databank
+plan: authorization-and-visibility
 ---
 
 # A former host can rename a chat document after a handoff and the new name reaches the room's prompt

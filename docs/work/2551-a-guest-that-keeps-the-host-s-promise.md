@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
-updated: 2026-11-12
+status: doing
+updated: 2026-11-14
 priority: P3
 area: security
+lane: wt/agent-a45fd91007dd324f7
 ---
 
 # A guest that keeps the host's promise resolve function leaks handles and breaks teardown

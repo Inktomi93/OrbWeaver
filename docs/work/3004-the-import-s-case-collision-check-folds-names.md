@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P2
 area: import
+plan: import-robustness
 ---
 
 # The import's case-collision check folds names with toLowerCase

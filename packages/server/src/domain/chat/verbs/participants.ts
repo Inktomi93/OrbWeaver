@@ -1192,8 +1192,8 @@ async function prepareHandoffRebase(
 /** `acceptHostHandoff` — step 2: the nominee accepts (a self-action). The caller must equal
  *  chats.pendingHostUserId, else not_turn_owner. On pass, atomically swaps roles, drops the outgoing host's
  *  character seats the new host doesn't own, detaches every chat book and script the new host doesn't own,
- *  HEALS the two room pointers that would otherwise degrade silently under the new authority (the D51 anchor persona + — through the injected rpg op — the game's
- *  GM-voice preset), and clears the nomination in one batch; emits chatUpdated and notifies the previous host.
+ *  heals the game's GM-voice preset pointer through the injected rpg op, and clears the nomination in one batch; emits chatUpdated and
+ *  notifies the previous host. The persona pin (`chats.anchorPersonaId`) is never touched: it holds through a handoff and is read through the chat (D315, D64).
  *
  *  WITH AN ACCEPTED OFFER (§5/§6(f)) it also executes the departing host's point-in-time gift: their seated
  *  cards, the lore behind them and the room's own regex scripts are copied into the nominee's library, and

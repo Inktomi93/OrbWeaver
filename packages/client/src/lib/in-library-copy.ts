@@ -32,5 +32,12 @@ export function inLibraryClause(count: number): string {
   return `${String(count)} already in your library`;
 }
 
-/** The report's detail beside a file the library already held. */
+/** The lead of a batch line when some files were refused: how many of the batch wrote a row, and how many were already
+ *  held. A held file is neither imported nor refused, so it takes its own clause. */
+export function importedOfLead(landed: number, held: number, total: number): string {
+  const lead = `${String(landed)} of ${String(total)} imported`;
+  return held === 0 ? lead : `${lead}, ${inLibraryClause(held)}`;
+}
+
+/** The report's detail beside a file the library already held, and the name of its icon. */
 export const IN_LIBRARY_DETAIL = "Already in your library";

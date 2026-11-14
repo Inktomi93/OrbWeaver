@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P2
 area: databank
+plan: authorization-and-visibility
 ---
 
 # Databank text written by an account other than the host is macro-evaluated in the host's turn

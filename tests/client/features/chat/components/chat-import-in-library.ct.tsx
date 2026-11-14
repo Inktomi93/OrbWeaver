@@ -11,7 +11,7 @@ import { noticeToast, routeAuthConfig, routeToServer, routeTrpc, SECTION_PROCEDU
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { CHAT_IMPORT_NAME, CHAT_IMPORT_TITLE } from "#client/features/chat/lib/chat-surface-names.ts";
-import { chatInLibraryNotice } from "#client/lib/in-library-copy.ts";
+import { chatInLibraryNotice, importedOfLead } from "#client/lib/in-library-copy.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const ROOT_OPTIONS = {
@@ -20,6 +20,7 @@ const ROOT_OPTIONS = {
   startJobs: false,
 } as const;
 const FILE_INPUT = 'input[type="file"]';
+const REFUSED_FILE = "broken.jsonl";
 
 test.use({ viewport: { width: 1440, height: 1000 } });
 
@@ -48,5 +49,38 @@ test("a room's own unchanged export dropped back on the chat import says it is a
   await (await chooser).setFiles([{ name: file.filename, mimeType: "application/json", buffer: Buffer.from(file.bytes) }]);
 
   await expect(noticeToast(page, { title: chatInLibraryNotice(file.filename) })).toHaveCount(1);
+  expect(sent()).toBe(1);
+});
+
+test("a batch of a held room and a refused file counts the held room as held, not imported", async ({ corpus, mount, page }) => {
+  await using root = await createServerHarness(ROOT_OPTIONS);
+  const principal = await root.principalFor(root.ownerId);
+  const character = await root.services.character.create({
+    principal,
+    input: createCharacterSchema.parse({ handle: "harbor-keeper", name: "Harbor Keeper", description: "Keeps the light." }),
+  });
+  const { chat } = await root.services.chat.startChat({ principal, characterIds: [character.id], opening: "none" });
+  const file = await root.app.exportService.exportChatBundle({ principal, chatId: chat.id });
+  if (file === null) {
+    throw new Error("the owner's own room did not export");
+  }
+  await routeAuthConfig(page, corpus.auth.signedInConfig);
+  await routeTrpc(page, serveCorpusProcedures(await root.internalCallerFor(root.ownerId), [...SECTION_PROCEDURES, ...SHELL_MOUNT_PROCEDURES]));
+  const sent = await routeToServer(page, root, PORTABILITY_ROUTES.importChat);
+  await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "docked", context: "collapsed" } } });
+  await mount<typeof ShellAmbientStory>(STORY, {});
+
+  await page.getByRole("button", { name: CHAT_IMPORT_NAME, exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: CHAT_IMPORT_TITLE, exact: true });
+  const chooser = page.waitForEvent("filechooser");
+  await dialog.locator(FILE_INPUT).click();
+  await (await chooser).setFiles([
+    { name: file.filename, mimeType: "application/json", buffer: Buffer.from(file.bytes) },
+    { name: REFUSED_FILE, mimeType: "application/x-ndjson", buffer: Buffer.from("not a transcript") },
+  ]);
+
+  // One file is held and one refused: nothing wrote a row, so no file counts as imported. The line ends in the server's reason.
+  const lead = new RegExp(`^${RegExp.escape(importedOfLead(0, 1, 2))}: ${RegExp.escape(REFUSED_FILE)}: `, "u");
+  await expect(page.locator('[data-slot="toast-title"]').filter({ hasText: lead })).toHaveCount(1);
   expect(sent()).toBe(1);
 });
