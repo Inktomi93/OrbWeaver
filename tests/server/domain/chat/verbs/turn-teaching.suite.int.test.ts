@@ -186,6 +186,34 @@ test("a hidden stamped message is off the wire, so a swipe is not told its roll"
   expect([...sent, ...swiped]).toEqual([true, false]);
 });
 
+// Each queued send is a moment apart, so the drain takes them in the order they were sent.
+const QUEUE_STEP_MS = 1000;
+
+test("two sends queued while the host is away drain into replies that each answer their own send's stamp", async () => {
+  await using h = await turnRpgRoom(replies(4));
+  const member = await h.root.principalFor((await h.root.actor()).id);
+  const invite = await h.root.services.chat.createInvite({ principal: h.owner, chatId: h.chatId, input: { invitedHandle: member.handle } });
+  await h.root.services.chat.acceptInvite({ principal: member, inviteId: invite.invite.id });
+  const queue = async (content: string): Promise<void> => {
+    h.root.clock.advance(QUEUE_STEP_MS);
+    const outcome = await h.root.services.chat.send({ principal: member, chatId: h.chatId, content });
+    expect(outcome.messages.map(({ role }) => role)).toEqual(["user"]);
+  };
+  const drain = async (): Promise<void> => {
+    expect(await h.root.services.chat.drainDeferredTurns({ hostUserId: h.owner.userId })).toEqual({ ran: 2, dropped: 0 });
+    await h.root.settleBackground();
+  };
+
+  await queue(`I leap. ${STAMP}`);
+  await queue("I walk on.");
+  const stampedFirst = await rollNotes(h, drain);
+  await queue("I walk on.");
+  await queue(`I leap. ${STAMP}`);
+  const stampedLast = await rollNotes(h, drain);
+
+  expect({ stampedFirst, stampedLast }).toEqual({ stampedFirst: [true, false], stampedLast: [false, true] });
+});
+
 test("a USER_INPUT regex that strips the stamp leaves nothing for the note to answer", async () => {
   await using h = await turnRpgRoom(replies(1));
   const script = await h.root.services.regex.createScript({

@@ -652,6 +652,17 @@ export async function loadPendingUserText(db: Db, chatId: ChatId): Promise<strin
   return rows.at(0)?.text ?? null;
 }
 
+/** One user message's selected text in `chatId`, or undefined when that message is gone. */
+export async function loadUserMessageText(db: Db, chatId: ChatId, messageId: MessageId): Promise<string | undefined> {
+  const rows = await db
+    .select({ text: messageVariants.content })
+    .from(messages)
+    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+    .where(and(eq(messages.id, messageId), eq(messages.chatId, chatId), eq(messages.role, "user")))
+    .limit(LIMIT_ONE);
+  return rows.at(0)?.text;
+}
+
 /** Slot-adjacency for the rpg dice feed-forward (D58): does the `targetMessageId` slot DIRECTLY
  *  respond to the latest user message — i.e. is it the FIRST message after the latest user-role message (nothing
  *  committed between them)? True for a swipe/regen of the die-response; false for a swipe of an older slot or when
