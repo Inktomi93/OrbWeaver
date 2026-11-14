@@ -4,7 +4,7 @@
 // (+rerank) over the bridge; tiered → consolidation bridge, uncovered-digests-only (pure assembly).
 //
 // The pool is the mode-switch union: the shared bucket (synthetic group-as-character) ∪ the speaker's own
-// bucket, then witnessing-filtered by the speaker's join/leave horizons — a character can't recall a scene
+// bucket, minus every digest the host struck (and the consolidations retelling one), then witnessing-filtered by the speaker's join/leave horizons — a character can't recall a scene
 // it wasn't in. The recall window-filter additionally drops any digest still verbatim in this turn's live
 // history window (token-driven, distinct from the fixed build-protect window).
 //
@@ -20,12 +20,13 @@ import { MEMORY_RECALL_REJECTS_SHOWN } from "@orb/contracts/chat";
 import type { ScoredBlock } from "@orb/contracts/search";
 import type { CharacterId } from "@orb/kit/ids";
 import type { BlockKey } from "@orb/kit/recall";
-import { blockKeyStr, computeBridge, formatMemory, inLiveWindow } from "@orb/kit/recall";
+import { blockKeyStr, computeBridge, formatMemory, inLiveWindow, matchStrikes } from "@orb/kit/recall";
 import type { ChatContext } from "#src/domain/chat/contract/context.ts";
 import type { RecallMemoryArgs } from "#src/domain/chat/contract/memory.ts";
 import { resolveCfg } from "../constants.ts";
 import { spanWitnessed } from "../generate/substrate/witnessing.ts";
 import { loadDigestsForScope, loadSegmentSpans } from "../persistence/queries.ts";
+import { loadMemoryStrikes, resolveDigestSpans } from "../persistence/strikes.ts";
 import type { DigestRow, MemoryRecallResult, MemoryScope, TurnRetrievalWarningEpisode, WitnessInterval } from "../types.ts";
 import { buildRecallQuery } from "./query.ts";
 
@@ -61,9 +62,10 @@ export async function recallMemory(ctx: ChatContext, args: RecallMemoryArgs): Pr
     const key = rowKey(scope, d);
     verdicts.set(blockKeyStr(key), { key, verdict: "admitted" });
   }
+  const unstruck = await dropStruck(ctx, { raw, fanOut: cfg.fanOut, sharedBucket: args.groupCharacterId, scope, verdicts });
   const union = await filterPool(ctx, {
     chatId: scope.chatId,
-    union: raw,
+    union: unstruck,
     fanOut: cfg.fanOut,
     horizons: args.witnessing,
     liveWindowCutoffSeq: args.liveWindowCutoffSeq,
@@ -161,7 +163,9 @@ function finish(ctx: ChatContext, args: RecallMemoryArgs, env: { readonly text: 
   });
   const rejects: MemoryRecallCandidate[] = [];
   for (const entry of p.verdicts.values()) {
-    if (entry.verdict === "admitted" || rejects.length >= MEMORY_RECALL_REJECTS_SHOWN) {
+    // A host strike is always shown past the cap: the readout must say what the host's own choice left out.
+    const struckByHost = entry.verdict === "struck" || entry.verdict === "covers-struck";
+    if (entry.verdict === "admitted" || (rejects.length >= MEMORY_RECALL_REJECTS_SHOWN && !struckByHost)) {
       continue;
     }
     rejects.push({ tier: entry.key.tier, blockIdx: entry.key.blockIdx, scopedCharacterId: entry.key.scopedCharacterId, verdict: entry.verdict });
@@ -191,6 +195,45 @@ function finish(ctx: ChatContext, args: RecallMemoryArgs, env: { readonly text: 
     ctx.emitRecallPhase?.({ type: "memoryRecall", chatId: args.scope.chatId, phase: "recalled", count: slice.surfaced });
   }
   return { text: env.text, trace: slice };
+}
+
+/** Leave out every digest the host struck, and every same-bucket consolidation that retells one, before any other
+ *  stage, so a strike outranks witnessing, the live window and the mode. This is the ONE place a strike reaches the
+ *  prompt: both the round recall and the per-speaker re-run come through `recallMemory`. A room with no strike pays
+ *  one indexed read and nothing else. */
+async function dropStruck(
+  ctx: ChatContext,
+  env: {
+    readonly raw: readonly DigestRow[];
+    readonly fanOut: number;
+    readonly sharedBucket: CharacterId;
+    readonly scope: MemoryScope;
+    readonly verdicts: Verdicts;
+  },
+): Promise<DigestRow[]> {
+  const strikes = await loadMemoryStrikes(ctx.db, env.scope.chatId);
+  if (strikes.length === 0) {
+    return [...env.raw];
+  }
+  const resolved = await resolveDigestSpans(ctx.db, env.scope.chatId, env.raw, env.fanOut);
+  const match = matchStrikes(resolved, strikes, { sharedBucket: env.sharedBucket, fanOut: env.fanOut });
+  const mark = (d: DigestRow, verdict: MemoryRecallVerdict): void => {
+    const entry = env.verdicts.get(blockKeyStr(rowKey(env.scope, d)));
+    if (entry !== undefined) {
+      entry.verdict = verdict;
+    }
+  };
+  const kept: DigestRow[] = [];
+  for (const d of resolved) {
+    if (match.struck.has(d)) {
+      mark(d, "struck");
+    } else if (match.coversStruck.has(d)) {
+      mark(d, "covers-struck");
+    } else {
+      kept.push(d);
+    }
+  }
+  return kept;
 }
 
 /** Apply the witnessing + recall-window guards to the pool, uniformly before any mode dispatch. Missing span

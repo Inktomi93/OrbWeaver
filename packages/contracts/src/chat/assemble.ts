@@ -217,8 +217,8 @@ export interface MemoryRecallCandidate {
  *  (including the early returns: a `mode: "off"` / empty-pool turn produces a slice saying exactly that,
  *  because "memory did nothing" is the answer a reader is most often hunting).
  *
- *  `candidates` is deliberately NOT the whole pool: every ADMITTED block is present, plus a bounded head of
- *  the rejected ones (`MEMORY_RECALL_REJECTS_SHOWN`) in pool order — a long chat's pool runs to hundreds of
+ *  `candidates` is deliberately NOT the whole pool: every ADMITTED block and every block a host strike left out
+ *  is present, plus a bounded head of the other rejected ones (`MEMORY_RECALL_REJECTS_SHOWN`) in pool order — a long chat's pool runs to hundreds of
  *  blocks, and this shape rides a per-turn trace + a bounded debug ring. The COUNTS (`poolSize`,
  *  `candidateCount`, `surfaced`) are always exact, so a truncated candidate list can never be mistaken for a
  *  small pool.

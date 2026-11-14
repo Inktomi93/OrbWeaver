@@ -190,7 +190,8 @@ export interface StrikeMatch<R, S> {
 export function matchStrikes<R extends StrikeCandidate, S extends RecallStrike>(
   rows: readonly R[],
   strikes: readonly S[],
-  grid: { readonly sharedBucket: CharacterId; readonly fanOut: number },
+  // A room with no shared bucket yet (no character seated) matches no shared-bucket strike.
+  grid: { readonly sharedBucket: CharacterId | null; readonly fanOut: number },
 ): StrikeMatch<R, S> {
   const struck = new Map<R, S>();
   if (strikes.length === 0) {
