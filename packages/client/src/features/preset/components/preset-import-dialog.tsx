@@ -3,10 +3,9 @@
 // of the user (a second dialog, or a format picker, would be a second home for one job):
 //
 //   · `orb.preset`  → the ORB-NATIVE arm: the file text goes to `preset.importFile`, the thin door over the
-//     bundle's own `ImportPreset` verb. Its collision rule travels with it and the dialog STATES it before
-//     the commit — a same-named preset is MERGED in place, else created — because "import" silently
-//     overwriting a preset the owner still wants is the one outcome this door must not surprise anyone with.
-//     The server strict-parses and reports a bad file as an OUTCOME, so its error lands in this dialog.
+//     bundle's own `ImportPresets` op. The dialog states its rule before the commit: an import never edits
+//     an owned preset, so an equal preset is reused and a different one under a taken name lands beside it
+//     under a free name (D290). The server strict-parses and reports a bad file as an OUTCOME, so its error lands in this dialog.
 //   · anything else → the SillyTavern arm: parsed client-side by `tryImportStChatCompletionPreset` (the
 //     TYPED outcome — #1580: the reader's "I never claimed this" and "I claimed it and refused it" are two
 //     different answers to the owner, and one Error could not carry the difference), with the dropped-field
@@ -28,7 +27,7 @@ import { FormDialog } from "#components";
 import { PRESET_IMPORT_NAME, PRESET_IMPORT_TITLE } from "../lib/preset-names.ts";
 
 /** The `.json` extension, stripped off the picked filename to seed the preset name (ST arm only — an
- *  orb.preset file carries its own name, and that name IS the merge key). */
+ *  orb.preset file carries its own name). */
 const JSON_EXT = /\.json$/i;
 
 /** A parsed-and-ready import, by arm: the orb file's raw text + its declared name, or the ST mapper's
@@ -59,7 +58,7 @@ function reasonOf(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);
 }
 
-/** The name an `orb.preset` file declares — the merge key the dialog names in its summary. Falls back to
+/** The name an `orb.preset` file declares, which the dialog names in its summary. Falls back to
  *  the verb's own default for a nameless file, so the copy can't promise a name the server won't use. */
 function orbFileName(parsed: unknown): string {
   const raw = isPlainObject(parsed) ? parsed["name"] : undefined;
@@ -172,11 +171,9 @@ export function PresetImportDialog({ open, onOpenChange, onImportSt, onImportOrb
   return (
     <FormDialog
       closeButton={true}
-      // THE OUTCOME, not the mechanism (side-eye F-10): "the format is detected" tells you what the DIALOG
-      // does; what a user needs before committing is what happens to their library — and the orb arm's
-      // bundle semantics MERGE over a same-named preset, which is the one outcome this door must never
-      // surprise anyone with. The per-arm summary below repeats no part of this line.
-      description="Pick an orbweaver preset export or a SillyTavern Chat Completion preset (.json). An orbweaver export REPLACES the settings of a preset with the same name, if you have one; anything else is created as a new preset."
+      // The outcome, not the mechanism: what a user needs before committing is what happens to their library.
+      // An import never edits an owned preset (D290). The per-arm summary below repeats no part of this line.
+      description="Pick an orbweaver preset export or a SillyTavern Chat Completion preset (.json). An orbweaver export equal to a preset you have is already in your library; a different one with a name you use is added under a new name. Anything else is created as a new preset."
       onOpenChange={(next): void => {
         if (!next) {
           reset();
@@ -224,13 +221,12 @@ function ImportSummary({ parsed }: { readonly parsed: ParsedImport }): ReactElem
   return <StImportSummary name={parsed.name} result={parsed.result} />;
 }
 
-/** The orb-native summary — it names the merge KEY, the one fact the dialog-level rule cannot carry (which
- *  name this particular file will collide on). The rule itself is stated once, above (side-eye F-10). */
+/** The orb-native summary — it names the file's preset; the rule for a name already in use is stated once, above. */
 function OrbSummary({ name }: { readonly name: string }): ReactElement {
   return (
     <Section kicker="Ready to import">
       <Text cap="prose" prose={true} voice="label">
-        orbweaver preset export: "{name}". That name is the merge key.
+        orbweaver preset export: "{name}".
       </Text>
     </Section>
   );

@@ -12,7 +12,6 @@
 
 import { characters, chatParticipants, chats, messages, messageVariants, personas } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
-import { hostTimeZone } from "@orb/kit/time";
 import { and, asc, eq, getTableColumns, inArray, isNotNull, isNull } from "drizzle-orm";
 import type { ParsedChat, ParsedChatMessage, ParsedVariant } from "#primitives/serde/chat";
 import { buildChatJsonl, buildChatTxt, classifyChat } from "#primitives/serde/chat";
@@ -214,9 +213,6 @@ export function createExportChat(ctx: ExportContext): ExportService["exportChat"
     if (format === "txt") {
       return { text: buildChatTxt(parsedChat), filename: `${base}.txt` };
     }
-    // The SAME wall-clock zone the ST-interchange import doors read in. ST's reader resolves the human
-    // `send_date` form naively (locally), so emitting UTC would show a shifted transcript in ST and would
-    // drift an export→import round trip on this box by the offset.
-    return { text: buildChatJsonl(parsedChat, { wallClockZone: hostTimeZone() }), filename: `${base}.jsonl` };
+    return { text: buildChatJsonl(parsedChat), filename: `${base}.jsonl` };
   };
 }

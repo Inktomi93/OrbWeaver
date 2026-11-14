@@ -11,10 +11,10 @@ test("card summaries retain success notes, omit empty or legacy notes, and keep 
   const characterId = mintTypeId(ID_PREFIX.character, ids.next);
   const result = cardImportResultSchema.parse({
     imported: [
-      { filename: "duplicate.png", characterId, created: false, importHash: "duplicate", notes: ["Book kept"] },
-      { filename: "created.png", characterId, created: true, importHash: "created", notes: ["Regex kept"] },
-      { filename: null, characterId, created: true, importHash: "legacy" },
-      { filename: "empty.png", characterId, created: false, importHash: "empty", notes: [] },
+      { filename: "duplicate.png", characterId, created: false, name: "Aria", importHash: "duplicate", notes: ["Book kept"] },
+      { filename: "created.png", characterId, created: true, name: "Aria", importHash: "created", notes: ["Regex kept"] },
+      { filename: null, characterId, created: true, name: "Aria", importHash: "legacy" },
+      { filename: "empty.png", characterId, created: false, name: "Aria", importHash: "empty", notes: [] },
     ],
     failed: [{ filename: "broken.png", reason: INVALID, error: "Invalid card" }],
   });

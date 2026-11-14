@@ -752,6 +752,9 @@ const SERVER_TEST_REACHES = {
   "tests/server/domain/import/persistence/import-stats-equal-rebuild.int.test.ts": {
     "domain/chat": "LANDING_STAGE_ROWS: the rows one landing stage commits",
   },
+  "tests/server/domain/import/persistence/large-chat-yields.int.test.ts": {
+    "domain/chat": "LANDING_STAGE_ROWS: the most rows one landing stage commits between two turns of the loop",
+  },
   "tests/server/domain/sessions/persistence/users.int.test.ts": {
     "domain/admin": "ADMIN_OP_CODES: the refusals of the admin SSO link claim, which binds a sessions-owned row",
   },

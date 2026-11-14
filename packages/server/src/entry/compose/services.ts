@@ -131,7 +131,7 @@ import { createImportedCardTag, createReadAttachedEntity, createTagService } fro
 import { createToolUseTeachingContributions } from "#domain/tool-use";
 import type { WorkloadContributions, WorkloadProgressBus } from "#domain/workloads";
 import { createWorkloadProgressBus } from "#domain/workloads";
-import { createAttachOwnedBooksByName, createImportStandaloneLorebook } from "#domain/world-info";
+import { createAttachOwnedBooksByName, createImportStandaloneLorebooks } from "#domain/world-info";
 import { APP_NAME, APP_URL } from "#foundation/config";
 import type { Env } from "#foundation/env/record";
 import { allowedHostsInput, installKind, publicAddresses } from "#foundation/env/record";
@@ -176,7 +176,7 @@ import { buildAutomationPlugin } from "./automation-plugin.ts";
 import { createAutomationWatcherEnv } from "./automation-watcher.ts";
 import type { ChatComposeResult } from "./chat.ts";
 import { buildChatService, createSignupMinterCheck } from "./chat.ts";
-import { createExportCurrentCard, createExportCurrentChats } from "./current-export.ts";
+import { createExportCurrentCard, createExportCurrentChats, createOwnedChatTitle } from "./current-export.ts";
 import { buildDatabank } from "./databank.ts";
 import type { EffectiveConfigWiring } from "./effective-config.ts";
 import { createEffectiveConfigWiring } from "./effective-config.ts";
@@ -1232,6 +1232,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // The import lookup's last step for a card or room the app wrote (D290), shared by every import door.
   const exportCurrentCard = createExportCurrentCard({ character, exportService, resolveOwnerPrincipal });
   const exportCurrentChats = createExportCurrentChats({ character, exportService, resolveOwnerPrincipal });
+  const ownedChatTitle = createOwnedChatTitle({ chat, resolveOwnerPrincipal });
 
   // U8 seam 17 — the ONE per-installer character-import closure both plugin canon-write arms share.
   // It runs the SAME `importCharacter` funnel a file upload takes over the given bytes (the ContentChanged-
@@ -1338,7 +1339,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     settingsCtx,
     presetCtx,
     worldInfoExportCtx: { db },
-    importStandaloneLorebook: createImportStandaloneLorebook({
+    importStandaloneLorebooks: createImportStandaloneLorebooks({
       db,
       now,
       newBookId: minter(ID_PREFIX.worldBook, idSource),
@@ -1365,6 +1366,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     exportService,
     exportCurrentCard,
     exportCurrentChats,
+    ownedChatTitle,
     character,
     assets,
     attachCardTag: tag.attachCardTagByName,

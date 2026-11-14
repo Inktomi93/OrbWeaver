@@ -1,10 +1,10 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-08
+updated: 2026-11-14
 priority: P3
 area: tests
-plan: test-foundation
+plan: typed-enforcers
 ---
 
 # PaintedArt cannot be cast into being

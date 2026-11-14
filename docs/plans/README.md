@@ -13,16 +13,16 @@ This is the work order: plans are worked in rank order, active before parked, an
 | - | - | - |
 | 1 | [Who may act on whose data, and who may see it](authorization-and-visibility/design.md) | active |
 | 2 | [The product behaves the same on Windows, macOS and Linux](cross-platform/design.md) | active |
-| 3 | [Tests on the production harness](test-foundation/design.md) | active |
-| 4 | [Mechanical checks that keep tests on production](test-enforcement/design.md) | active |
-| 5 | [Every ruling names its checker, and every claim in prose resolves](checked-law/design.md) | active |
-| 6 | [An import survives bad input and reports each failure](import-robustness/design.md) | active |
-| 7 | [Stored data that cannot be read is named, kept and repairable](stored-data-integrity/design.md) | active |
-| 8 | [Cross-surface visual consistency](cross-surface-consistency/design.md) | active |
-| 9 | [Automated product surface review](surface-walk/design.md) | active |
-| 10 | [Find and judge every unwired and dead piece of code](unwired-code/design.md) | active |
-| 11 | [Snap never writes a secret to disk, argv or a trace](snap-secret-hygiene/design.md) | active |
-| 14 | [Stats and spend stay true after a delete, a regenerate, an import and a rebuild](stats-and-spend/design.md) | active |
-| 15 | [Repeat defects are closed by a type, then a rule, with every site at zero](typed-enforcers/design.md) | active |
-| 12 | [Inference flow: owners, ports and callers](inference-flow/design.md) | parked |
-| 13 | [Restoration register](restoration-register/design.md) | parked |
+| 3 | [Repeat defects are closed by a type, then a rule, with every site at zero](typed-enforcers/design.md) | active |
+| 4 | [Tests on the production harness](test-foundation/design.md) | active |
+| 5 | [Mechanical checks that keep tests on production](test-enforcement/design.md) | active |
+| 6 | [Every ruling names its checker, and every claim in prose resolves](checked-law/design.md) | active |
+| 7 | [An import survives bad input and reports each failure](import-robustness/design.md) | active |
+| 8 | [Stored data that cannot be read is named, kept and repairable](stored-data-integrity/design.md) | active |
+| 9 | [Cross-surface visual consistency](cross-surface-consistency/design.md) | active |
+| 10 | [Automated product surface review](surface-walk/design.md) | active |
+| 11 | [Find and judge every unwired and dead piece of code](unwired-code/design.md) | active |
+| 12 | [Snap never writes a secret to disk, argv or a trace](snap-secret-hygiene/design.md) | active |
+| 15 | [Stats and spend stay true after a delete, a regenerate, an import and a rebuild](stats-and-spend/design.md) | active |
+| 13 | [Inference flow: owners, ports and callers](inference-flow/design.md) | parked |
+| 14 | [Restoration register](restoration-register/design.md) | parked |

@@ -19,7 +19,7 @@ import type {
   ImportPreviewSkip,
   ImportReuse,
 } from "@orb/contracts/import";
-import { IMPORT_PREVIEW_LIST_MAX, IMPORT_PREVIEW_TEXT_MAX, importPreviewListOf } from "@orb/contracts/import";
+import { clipImportText, IMPORT_PREVIEW_LIST_MAX, IMPORT_PREVIEW_TEXT_MAX, importPreviewListOf } from "@orb/contracts/import";
 import { sha256Hex } from "#primitives/content-hash";
 import type { CollectedChat, CollectedGroup, CollectResult } from "../contract/collection.ts";
 import type { ImportOwnership, ProfileCollected } from "../contract/profile-directory.ts";
@@ -27,10 +27,6 @@ import type { GroupRefusal } from "./group.ts";
 import { partitionGroups } from "./group.ts";
 
 const JSONL_EXT = /\.jsonl$/iu;
-
-function clip(text: string): string {
-  return text.slice(0, IMPORT_PREVIEW_TEXT_MAX).toWellFormed();
-}
 
 /** One profile directory's result under its own name and the name the preview shows it by. */
 interface LabeledProfile {
@@ -44,10 +40,10 @@ interface LabeledProfile {
 function labelProfiles(profiles: ProfileCollected["profiles"]): readonly LabeledProfile[] {
   const taken = new Set<string>();
   return profiles.map(({ name, result }) => {
-    let label = clip(name);
+    let label = clipImportText(name);
     for (let ordinal = 2; taken.has(label); ordinal += 1) {
       const suffix = ` (${String(ordinal)})`;
-      label = `${clip(name.slice(0, IMPORT_PREVIEW_TEXT_MAX - suffix.length))}${suffix}`;
+      label = `${clipImportText(name.slice(0, IMPORT_PREVIEW_TEXT_MAX - suffix.length))}${suffix}`;
     }
     taken.add(label);
     return { name, label, result };
@@ -64,7 +60,7 @@ function sourceDigestOf(profile: string | null, path: string): string {
 type ItemBase = Omit<ImportPreviewItem, "identities">;
 
 function item(profile: LabeledProfile, path: string, name: string): ItemBase {
-  return { source: { profile: profile.label, path: clip(path) }, sourceDigest: sourceDigestOf(profile.name, path), name: clip(name) };
+  return { source: { profile: profile.label, path: clipImportText(path) }, sourceDigest: sourceDigestOf(profile.name, path), name: clipImportText(name) };
 }
 
 /** What an item's keys are on the wire: digests, so the preview never carries the file content a key is built from.
@@ -87,9 +83,9 @@ function chatItems(
 /** A skip at the upload's root, beside the profiles, has no profile. */
 function skip(profile: LabeledProfile | null, path: string, reason: string): ImportPreviewSkip {
   return {
-    source: { profile: profile?.label ?? null, path: clip(path) },
+    source: { profile: profile?.label ?? null, path: clipImportText(path) },
     sourceDigest: sourceDigestOf(profile?.name ?? null, path),
-    reason: clip(reason),
+    reason: clipImportText(reason),
   };
 }
 

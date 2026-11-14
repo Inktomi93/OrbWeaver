@@ -611,6 +611,9 @@ export interface MemoryStrikeOps {
   readonly restore: (args: { readonly chatId: ChatId; readonly strikeId: ChatMemoryStrikeId }) => Promise<boolean>;
   /** The handoff re-key of scoped strikes, in the swap batch beside the digests' re-key. */
   readonly restampForHandoff: (chatId: ChatId, pairs: readonly HandoffCardPair[]) => BatchStmt[];
+  /** The reorder's re-stamp of every strike's stored seqs onto its live endpoints, for the reorder's own batch after
+   *  the re-sequence statements. */
+  readonly restampSeqsAfterReorder: (chatId: ChatId) => BatchStmt;
   /** The fork's copy of the room's strikes, as statements for the fork's own batch: each strike lands re-keyed onto
    *  every position of the fork's own grid its span overlaps, laid out over the copied messages (`slotIdMap` holds
    *  only those) with `hostUserId`'s memory config. A scoped strike keeps its character only when that character holds

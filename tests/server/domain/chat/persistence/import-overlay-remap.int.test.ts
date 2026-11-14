@@ -16,6 +16,8 @@ const sceneAfter = (line: string): string => `Scene after: ${line}`;
 interface ImportedRoom {
   readonly chatId: ChatId;
   readonly slots: readonly MessageId[];
+  /** The name the first import gave the room, which a re-import of the unrenamed room repeats. */
+  readonly label: unknown;
   readonly reimport: () => Promise<unknown>;
 }
 
@@ -36,7 +38,8 @@ async function importedRoom(h: ChatRoot, legacy: boolean, keepCampaign = false):
   const file = { filename: exported.filename, bytes: exported.bytes };
   // The source room moves on after its export, so the file is an older room and lands beside it (D290).
   await h.caller.chat.commitMessage({ chatId: h.chatId, timeZone: UTC_TIME_ZONE, content: "A line after the export." });
-  expect(await descriptor.importFile(h.owner.userId, file)).toMatchObject({ ok: true, created: true });
+  const first = await descriptor.importFile(h.owner.userId, file);
+  expect(first).toMatchObject({ ok: true, created: true, label: expect.any(String) });
   const rooms = await h.root.db.selectDistinct({ chatId: messages.chatId }).from(messages);
   const chatId = rooms.map((row) => row.chatId).find((id) => id !== h.chatId);
   if (chatId === undefined) {
@@ -51,7 +54,7 @@ async function importedRoom(h: ChatRoot, legacy: boolean, keepCampaign = false):
   }
   expect(await importedSeqs(h, chatId)).toEqual(legacy ? [0, 1, 2, 3] : [1, 2, 3, 4]);
   const slots = await h.root.db.select({ id: messages.id }).from(messages).where(eq(messages.chatId, chatId)).orderBy(asc(messages.seq));
-  return { chatId, slots: slots.map((slot) => slot.id), reimport: () => descriptor.importFile(h.owner.userId, file) };
+  return { chatId, slots: slots.map((slot) => slot.id), label: first.ok ? first.label : null, reimport: () => descriptor.importFile(h.owner.userId, file) };
 }
 
 /** Each scene-bearing snapshot of the room's campaign and the line of the slot it is stamped as of (null when its
@@ -81,7 +84,7 @@ test.for(LEGACY_IMPORT_ARMS)("$title: a re-import after a deleted slot re-links 
   const room = await importedRoom(h, legacy);
   await h.root.services.chat.deleteMessages({ principal: h.owner, chatId: room.chatId, messageIds: [slotAt(room, 1)] });
 
-  expect(await room.reimport()).toEqual({ ok: true, created: false });
+  expect(await room.reimport()).toEqual({ ok: true, created: false, label: room.label });
   expect(await anchoredLines(h, room.chatId)).toEqual(LINES.map((line, index) => ({ location: sceneAfter(line), line: index === 1 ? null : line })));
 });
 
@@ -91,7 +94,7 @@ test.for(LEGACY_IMPORT_ARMS)("$title: a room that lost both origin proofs refuse
   const room = await importedRoom(h, legacy);
   await h.root.services.chat.deleteMessages({ principal: h.owner, chatId: room.chatId, messageIds: [slotAt(room, 0), slotAt(room, LINES.length - 1)] });
 
-  expect(await room.reimport()).toEqual({ ok: true, created: false, notes: [expect.any(String)] });
+  expect(await room.reimport()).toEqual({ ok: true, created: false, label: room.label, notes: [expect.any(String)] });
   expect(await h.root.db.select({ id: rpgGames.id }).from(rpgGames).where(eq(rpgGames.chatId, room.chatId))).toEqual([]);
 });
 
@@ -103,7 +106,7 @@ test("a live slot written into a deleted import seq takes no carried snapshot", 
   await h.caller.chat.commitMessage({ chatId: room.chatId, timeZone: UTC_TIME_ZONE, content: "A live line." });
   expect(await importedSeqs(h, room.chatId)).toEqual([0, 1, 2, 3]);
 
-  expect(await room.reimport()).toEqual({ ok: true, created: false });
+  expect(await room.reimport()).toEqual({ ok: true, created: false, label: room.label });
   expect(await anchoredLines(h, room.chatId)).toEqual(
     LINES.map((line, index) => ({ location: sceneAfter(line), line: index === LINES.length - 1 ? null : line })),
   );
@@ -115,5 +118,5 @@ test.for(LEGACY_IMPORT_ARMS)("$title: a room that lost both origin proofs but ke
   const room = await importedRoom(h, legacy, true);
   await h.root.services.chat.deleteMessages({ principal: h.owner, chatId: room.chatId, messageIds: [slotAt(room, 0), slotAt(room, LINES.length - 1)] });
 
-  expect(await room.reimport()).toEqual({ ok: true, created: false });
+  expect(await room.reimport()).toEqual({ ok: true, created: false, label: room.label });
 });

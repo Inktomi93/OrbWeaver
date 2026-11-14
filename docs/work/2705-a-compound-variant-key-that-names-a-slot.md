@@ -1,9 +1,9 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-12
+updated: 2026-11-14
 priority: P3
-plan: checked-law
+plan: typed-enforcers
 ---
 
 # A compound variant key that names a slot is refused

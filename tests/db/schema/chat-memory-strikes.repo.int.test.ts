@@ -7,7 +7,7 @@ import { assertReferentialIntegrity, characters, chatMemoryStrikes, chats, creat
 import { isConstraintViolation } from "@orb/db/query";
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
-import { createSeededIds } from "@orb/testkit/iso";
+import { createSeededIds, present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { ownDb, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
 import { seedCharacterRow, seedChatRow, seedMessageRow, seedUser } from "@orb/testkit/node/rows";
@@ -25,6 +25,7 @@ test("strikes cascade with their room, outlive their character and their endpoin
   const middle = await seedMessageRow(db, { chatId: room.id, seq: 2 }, ids);
   const end = await seedMessageRow(db, { chatId: room.id, seq: 3 }, ids);
   const otherStart = await seedMessageRow(db, { chatId: other.id, seq: 1 }, ids);
+  const seqOf = (id: MessageId): number => present([start, middle, end, otherStart].find((message) => message.id === id)).seq;
   const strike = (
     chatId: ChatId,
     scopedCharacterId: CharacterId | null,
@@ -37,6 +38,8 @@ test("strikes cascade with their room, outlive their character and their endpoin
     tier,
     messageStartId: span[0],
     messageEndId: span[1],
+    seqStart: seqOf(span[0]),
+    seqEnd: seqOf(span[1]),
     contentHash: "",
     topicAnchor: null,
     createdAt: 1000,

@@ -85,7 +85,7 @@ export interface CollectedWorld {
 }
 
 /** One ST chat-completion preset mapped to the orb-native portable file, with the fields that did not travel.
- *  `file` is fed verbatim to the preset domain's own `ImportPreset` op (as UTF-8 JSON bytes) — the import
+ *  `file` is fed verbatim to the preset domain's own `ImportPresets` op (as UTF-8 JSON bytes) — the import
  *  domain mints no preset row and owns no collision rule. */
 export interface ParsedStPreset {
   readonly name: string;

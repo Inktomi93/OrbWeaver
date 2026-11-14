@@ -3,7 +3,7 @@
 // only db + clock + id minters, no audit/user-bus/chat guards (a bulk migration writes silently).
 
 import type { PortableImportOutcome } from "@orb/contracts/portability";
-import type { ImportStandaloneLorebook } from "@orb/contracts/world-info";
+import type { ImportStandaloneLorebooks } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import type { UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
@@ -18,7 +18,7 @@ export interface WorldInfoImportContext {
 // ── the STANDALONE (unattached) path — the worlds/*.json portability lane ──────────
 
 export interface ImportWorldBookContext {
-  readonly importStandalone: ImportStandaloneLorebook;
+  readonly importStandalone: ImportStandaloneLorebooks;
 }
 
 /** ok:false + error for a malformed upload (never thrown); created:false when the book content-matched an

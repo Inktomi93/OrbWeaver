@@ -10,19 +10,22 @@ import type { PresetImportOutcome } from "./portability.ts";
  *  stored config cannot be exported as the user's data is left out and reported to `note`. */
 export type ExportPresets = (args: { readonly ownerId: UserId; readonly note: PortableExportNotes }) => Promise<PortableFile[]>;
 
-/** Idempotent on (ownerId, name): merges an existing same-named preset in place, else creates fresh. */
-export type ImportPreset = (args: { readonly ownerId: UserId; readonly bytes: Uint8Array }) => Promise<PresetImportOutcome>;
-
-/** For each file, in order, what {@link ImportPreset} would do with it: reuse the owner's preset (`"library"`),
- *  reuse a preset an earlier file of this list lands (`"upload"`), or write a new one (`null`), with the preset's
- *  content key. A read: it writes nothing, and it loads the owner's presets once for the whole list. An unreadable
- *  file answers `null` with no key. Once `signal` aborts it stops and returns the answers so far, which the aborted
- *  caller discards. */
-export type FindOwnedPresets = (args: {
+interface PresetImportBatch {
   readonly ownerId: UserId;
   readonly files: readonly Uint8Array[];
   readonly signal: Cancellation;
-}) => Promise<readonly ImportAnswer[]>;
+}
+
+/** Land preset files in the owner's library, additively and in order: a preset whose content equals an owned one, or
+ *  one an earlier file of the batch lands, reuses that row; a different one under a taken name lands under the next
+ *  free name. A single-file door is a batch of one. With `dryRun` it writes nothing and answers, per file, what the
+ *  write does with it (`"library"`, `"upload"` or `null` for a new row) with the preset's content key, so a preview is
+ *  the write's own decision. An unreadable file is a refusal outcome, or a `null` answer with no key. Once `signal`
+ *  aborts it stops after the file in hand and returns what it has. */
+export interface ImportPresets {
+  (args: PresetImportBatch & { readonly dryRun: true }): Promise<readonly ImportAnswer[]>;
+  (args: PresetImportBatch & { readonly dryRun: false }): Promise<readonly PresetImportOutcome[]>;
+}
 
 /** Is `presetId` readable by `userId` (owned, or the shared system default)? */
 export type PresetReadable = (presetId: PresetId, userId: UserId) => Promise<boolean>;

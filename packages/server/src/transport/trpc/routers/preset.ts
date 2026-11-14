@@ -114,7 +114,7 @@ export const presetRouter = t.router({
     .input(presetIdInputSchema)
     .query(({ ctx, input }) => ctx.services.preset.listUsage({ principal: ctx.auth, id: input.id })),
 
-  // The single-preset import door (G6) — a thin arm over the ONE `ImportPreset` verb the profile bundle uses,
+  // The single-preset import door (G6) — a batch of one through the ONE `ImportPresets` op the profile bundle uses,
   // so the merge/collision semantics are the bundle's by construction. The file is UTF-8 JSON text.
   importFile: authedProcedure
     .output(presetImportOutcomeSchema)

@@ -2,7 +2,7 @@
 kind: plan
 status: active
 updated: 2026-11-14
-rank: 15
+rank: 3
 ---
 
 # Repeat defects are closed by a type, then a rule, with every site at zero

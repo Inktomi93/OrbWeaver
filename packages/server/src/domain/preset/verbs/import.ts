@@ -1,13 +1,15 @@
-// verb: import — the orb-native preset backup import: parse an untrusted orb.preset upload via
-// parsePresetFile, then write the preset domain's own presets table ADDITIVELY (owner ruling): an owned
-// preset with equal content is reused; a different one under the same name keeps its row and the file lands
-// under the next free name. Never throws for a malformed file — returns { ok:false, error }.
+// verb: import — the orb-native preset backup import: parse each untrusted orb.preset upload via parsePresetFile,
+// then write the preset domain's own presets table ADDITIVELY (owner ruling): an owned preset with equal content, or
+// one an earlier file of the batch landed, is reused; a different one under a taken name keeps its row and the file
+// lands under the next free name. The dry run is this same loop with the write left out, so a preview cannot drift
+// from the run. Never throws for a malformed file: it is a refusal outcome.
 
 import type { ImportAnswer } from "@orb/contracts/import";
-import type { FindOwnedPresets, ImportPreset, PresetImportOutcome } from "@orb/contracts/preset";
+import type { ImportPresets, PresetImportOutcome } from "@orb/contracts/preset";
 import { parsePresetFile, presetContentKey } from "@orb/contracts/preset";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
+import type { PresetId, UserId } from "@orb/kit/ids";
 import { nextFreeName } from "@orb/kit/strings";
 import { getLog } from "#foundation/observability";
 import { mapYielding } from "#primitives/abort";
@@ -18,6 +20,10 @@ const PRESET_IMPORT = "preset.import";
 const PRESET_ENTITY = "preset";
 // The portable file carries no `kind`; a freshly-imported preset lands under this neutral label.
 const IMPORTED_PRESET_KIND = "roleplay";
+const UNREADABLE_FILE = "Not a valid JSON preset file.";
+
+type Batch = Omit<Parameters<ImportPresets>[0], "dryRun">;
+type ParsedPreset = Extract<ReturnType<typeof parsePresetFile>, { ok: true }>;
 
 /** Decode + JSON-parse without throwing — a non-UTF-8/non-JSON blob is a malformed file, not a crash. */
 function readJson(bytes: Uint8Array): { ok: true; value: unknown } | { ok: false } {
@@ -28,101 +34,104 @@ function readJson(bytes: Uint8Array): { ok: true; value: unknown } | { ok: false
   }
 }
 
-type OwnedPreset = Awaited<ReturnType<typeof listOwned>>[number];
-
-/** The reuse test, keyed once over the owned rows: the owned row an incoming config equals, or undefined. The
- *  stored blob is compared as stored, so a row this build cannot read never equals a readable file; the file
- *  lands beside it and the unreadable row stays for the owner to delete. The first row wins on equal content. */
-function reusablePreset(owned: readonly OwnedPreset[]): (config: Parameters<typeof presetContentKey>[0]) => OwnedPreset | undefined {
-  const byKey = new Map<string, OwnedPreset>();
-  for (const row of owned) {
-    const key = presetContentKey(row.config);
-    if (!byKey.has(key)) {
-      byKey.set(key, row);
-    }
-  }
-  return (config) => byKey.get(presetContentKey(config));
+interface LandedPreset {
+  readonly id: PresetId;
+  readonly name: string;
 }
 
-/** The read-only twin of {@link createImportPresets}'s reuse test, for a preview that must not write. It judges the
- *  files in the order the import lands them, so a preset equal to an earlier file's answers `"upload"`, and answers
- *  each with the content key the test compares by. */
-export function createFindOwnedPresets(input: DbAssemblyInput<Pick<PresetContext, "db">>): FindOwnedPresets {
-  const db = databaseForOwner(input.db);
-  return async ({ ownerId, files, signal }): Promise<readonly ImportAnswer[]> => {
-    const reuse = reusablePreset(await listOwned(db, ownerId));
-    // call-local: the content keys of the files judged so far. Ends if it outlives the call.
-    const landed = new Set<string>();
-    return await mapYielding(files, signal, (bytes): ImportAnswer => {
-      const decoded = readJson(bytes);
-      const parsed = decoded.ok ? parsePresetFile(decoded.value) : null;
-      if (parsed?.ok !== true) {
-        return { reuse: null, keys: [] };
-      }
-      const key = presetContentKey(parsed.config);
-      if (reuse(parsed.config) !== undefined) {
-        return { reuse: "library", keys: [key] };
-      }
-      if (landed.has(key)) {
-        return { reuse: "upload", keys: [key] };
-      }
-      landed.add(key);
-      return { reuse: null, keys: [key] };
-    });
+/** The batch's library: each content key's row (the first owned row wins on equal content, then each row the batch
+ *  lands), whether the owner held it before the batch, and every name taken. The stored blob is keyed as stored, so a
+ *  row this build cannot read never equals a readable file; the file lands beside it. */
+interface PresetLibrary {
+  readonly byKey: Map<string, { readonly row: LandedPreset; readonly owned: boolean }>;
+  readonly takenNames: Set<string>;
+}
+
+function libraryOf(owned: Awaited<ReturnType<typeof listOwned>>): PresetLibrary {
+  const library: PresetLibrary = { byKey: new Map(), takenNames: new Set(owned.map((row) => row.name)) };
+  for (const row of owned) {
+    const key = presetContentKey(row.config);
+    if (!library.byKey.has(key)) {
+      library.byKey.set(key, { row: { id: row.id, name: row.name }, owned: true });
+    }
+  }
+  return library;
+}
+
+/** What the batch does with one file, in the batch's order: the answer a preview shows, the outcome the run reports,
+ *  and the row to write when it is new. A new row is entered in `library`, so a later equal file reuses it. */
+interface Decision {
+  readonly answer: ImportAnswer;
+  readonly outcome: PresetImportOutcome;
+  readonly create?: { readonly row: LandedPreset; readonly parsed: ParsedPreset };
+}
+
+function decide(library: PresetLibrary, bytes: Uint8Array, newId: () => PresetId): Decision {
+  const decoded = readJson(bytes);
+  const parsed = decoded.ok ? parsePresetFile(decoded.value) : null;
+  if (parsed?.ok !== true) {
+    return { answer: { reuse: null, keys: [] }, outcome: { ok: false, error: parsed?.error ?? UNREADABLE_FILE } };
+  }
+  const key = presetContentKey(parsed.config);
+  const same = library.byKey.get(key);
+  if (same !== undefined) {
+    return {
+      answer: { reuse: same.owned ? "library" : "upload", keys: [key] },
+      outcome: { ok: true, created: false, presetId: same.row.id, name: same.row.name, renamedFrom: null },
+    };
+  }
+  const row: LandedPreset = { id: newId(), name: nextFreeName(parsed.name, library.takenNames) };
+  library.takenNames.add(row.name);
+  library.byKey.set(key, { row, owned: false });
+  return {
+    answer: { reuse: null, keys: [key] },
+    outcome: { ok: true, created: true, presetId: row.id, name: row.name, renamedFrom: row.name === parsed.name ? null : parsed.name },
+    create: { row, parsed },
   };
 }
 
-export function createImportPresets(input: DbAssemblyInput<PresetContext>): ImportPreset {
+export function createImportPresets(input: DbAssemblyInput<PresetContext>): ImportPresets {
   const ctx: PresetContext = { ...input, db: databaseForOwner(input.db) };
-  return async ({ ownerId, bytes }): Promise<PresetImportOutcome> => {
-    const decoded = readJson(bytes);
-    if (!decoded.ok) {
-      return { ok: false, error: "Not a valid JSON preset file." };
-    }
-    const parsed = parsePresetFile(decoded.value);
-    if (!parsed.ok) {
-      return { ok: false, error: parsed.error };
-    }
+  const log = getLog(input.logger);
 
-    const { config } = parsed;
+  async function write(ownerId: UserId, { row, parsed }: NonNullable<Decision["create"]>): Promise<void> {
     const at = ctx.now();
-    const owned = await listOwned(ctx.db, ownerId);
-    const same = reusablePreset(owned)(config);
-    if (same !== undefined) {
-      getLog(input.logger).info({ userId: ownerId, presetId: same.id }, "preset: import reused an equal preset");
-      return { ok: true, created: false, presetId: same.id, name: same.name, renamedFrom: null };
-    }
-
-    const name = nextFreeName(
-      parsed.name,
-      owned.map((row) => row.name),
-    );
-    const presetId = ctx.newPresetId();
     await insertPreset(ctx.db, {
-      id: presetId,
+      id: row.id,
       ownerId,
-      name,
+      name: row.name,
       kind: IMPORTED_PRESET_KIND,
-      config,
-      schemaVersion: config.schemaVersion,
+      config: parsed.config,
+      schemaVersion: parsed.config.schemaVersion,
       // An import is born here — its provenance is the FILE, and the source preset (if any) is not a row
       // in this database.
       forkedFrom: null,
       createdAt: at,
       updatedAt: at,
     });
-    await ctx.audit(
-      {
-        actorUserId: ownerId,
-        action: PRESET_IMPORT,
-        entityType: PRESET_ENTITY,
-        entityId: presetId,
-        metadata: { name, renamedFrom: name === parsed.name ? null : parsed.name },
-      },
-      at,
-    );
-    ctx.emitUserEvent(ownerId, { type: "presetsChanged", presetId });
-    getLog(input.logger).info({ userId: ownerId, presetId }, "preset: imported (created)");
-    return { ok: true, created: true, presetId, name, renamedFrom: name === parsed.name ? null : parsed.name };
-  };
+    const metadata = { name: row.name, renamedFrom: row.name === parsed.name ? null : parsed.name };
+    await ctx.audit({ actorUserId: ownerId, action: PRESET_IMPORT, entityType: PRESET_ENTITY, entityId: row.id, metadata }, at);
+    ctx.emitUserEvent(ownerId, { type: "presetsChanged", presetId: row.id });
+    log.info({ userId: ownerId, presetId: row.id }, "preset: imported (created)");
+  }
+
+  async function importPresets(args: Batch & { readonly dryRun: true }): Promise<readonly ImportAnswer[]>;
+  async function importPresets(args: Batch & { readonly dryRun: false }): Promise<readonly PresetImportOutcome[]>;
+  async function importPresets({
+    ownerId,
+    files,
+    signal,
+    dryRun,
+  }: Batch & { readonly dryRun: boolean }): Promise<readonly ImportAnswer[] | readonly PresetImportOutcome[]> {
+    const library = libraryOf(await listOwned(ctx.db, ownerId));
+    const decided = await mapYielding(files, signal, async (bytes): Promise<Decision> => {
+      const decision = decide(library, bytes, ctx.newPresetId);
+      if (!dryRun && decision.create !== undefined) {
+        await write(ownerId, decision.create);
+      }
+      return decision;
+    });
+    return dryRun ? decided.map(({ answer }) => answer) : decided.map(({ outcome }) => outcome);
+  }
+  return importPresets;
 }

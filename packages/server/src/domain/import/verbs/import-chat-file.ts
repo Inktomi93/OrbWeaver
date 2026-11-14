@@ -23,6 +23,7 @@ import { sha256Hex } from "#primitives/content-hash";
 import { chatContentHash, parseChatJsonl } from "#primitives/serde/chat";
 import type { ImportChatFileOutcome } from "../contract/results.ts";
 import type { ImportContext, ImportService } from "../contract/service.ts";
+import { requireProfile } from "../guard.ts";
 import { carriedHandle, requestedHandle } from "../substrate/handle.ts";
 
 const DEC = new TextDecoder();
@@ -85,11 +86,9 @@ export function createImportChatFile(
     const slash = filename.indexOf("/");
     const dirName = slash === -1 ? "" : filename.slice(0, slash);
     const leaf = filename.slice(slash + 1);
-    // These are SillyTavern's bytes, so its zone-less wall-clock dates resolve in the injected ST zone.
     const parsed = await parseChatJsonl(DEC.decode(bytes), {
       fileName: leaf,
       charDirName: dirName,
-      ...(ctx.profile?.stWallClockZone !== undefined ? { wallClockZone: ctx.profile.stWallClockZone } : {}),
     });
     if (parsed === null) {
       return { ok: false, error: "not a valid chat .jsonl file" };
@@ -102,9 +101,11 @@ export function createImportChatFile(
       characterId: character.characterId,
       chats: [{ parsed, importedFrom: filename, sourceFile: filename, importHash: await chatContentHash(parsed), fileHash: sha256Hex(bytes) }],
     });
+    const [room] = result.rooms;
+    const title = room === undefined ? null : await requireProfile(ctx).ownedChatTitle({ ownerId: ctx.ownerId, chatId: room.chatId });
     // The ST interchange carries no overlay planes at all (no tags, no campaign — that is the whole reason
     // the orb-native bundle exists), so this arm can never skip one. The EMPTY list still rides: an absent
     // field would read as "not looked at" at the door that renders it.
-    return { ok: true, created: result.chatsImported > 0, skippedOverlays: [], memoryChatIds: result.memoryChatIds };
+    return { ok: true, created: result.chatsImported > 0, title: title ?? room?.title ?? leaf, skippedOverlays: [], memoryChatIds: result.memoryChatIds };
   };
 }

@@ -1117,6 +1117,7 @@ function createMoveMessage(ctx: ChatContext, emit: EmitDurableChatEventOp, activ
           by: plan.by,
         }),
         ...plan.assignments.map((a) => setMessageSeqStatement(ctx.db, a.id, a.seq)),
+        ctx.memoryStrikes.restampSeqsAfterReorder(chatId),
         runtimeVariablesUpdateStatement(ctx.db, chatId, refolded),
       ]),
     );

@@ -36,6 +36,7 @@ import { z } from "zod";
 import { queryFailedLabel } from "#client/data/query-state-copy.ts";
 import { CHAT_CLOSE_NAME, CHAT_DELETE_NAME, CHAT_OPTIONS_NAME } from "#client/features/chat/lib/chat-options-names.ts";
 import {
+  CHAT_DELETE_FAILED_TITLE,
   CHAT_GONE_DRAFT_NOTICE,
   CHAT_LIST_NAME,
   CHAT_MESSAGE_INPUT_NAME,
@@ -474,6 +475,9 @@ test("a delete the reader sent that failed leaves a later delete by someone else
   await page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true }).fill(DRAFT);
   await expect.poll(async () => (await storedDrafts(page))[room.id]).toBe(DRAFT);
   await deleteFromChatOptions(page);
+  // The refusal has landed once its notice shows: the draft is still there before it does, so the draft alone would let the
+  // other session's delete arrive while the reader's own delete is still in flight, and that delete is rightly taken as theirs.
+  await expect(noticeToast(page, { title: CHAT_DELETE_FAILED_TITLE })).toHaveCount(1);
   // The refused delete leaves the reader in the room with the draft.
   await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true })).toHaveValue(DRAFT);
   refuse = false;

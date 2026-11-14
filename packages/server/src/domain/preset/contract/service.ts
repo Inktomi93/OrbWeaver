@@ -90,8 +90,8 @@ export interface PresetService {
    *  whose rpg GM voice redirects to it. Gated like `get` (readable-by-this-caller or `PresetNotFoundError`);
    *  the rooms are membership-filtered by the injected resolver, never listed raw. A read — no audit. */
   readonly listUsage: (params: ListPresetUsageParams) => Promise<PresetUsageView>;
-  /** Import ONE orb-native preset file — the thin single-preset arm over the SAME `ImportPreset` verb the
-   *  whole-profile bundle uses (idempotent on `(ownerId, name)`: a same-named preset is MERGED in place).
+  /** Import ONE orb-native preset file — a batch of one through the SAME `ImportPresets` op the
+   *  whole-profile bundle uses (additive: an equal preset is reused, a same-named different one lands beside it).
    *  Never throws for a malformed file; the outcome carries the error. */
   readonly importFile: (params: ImportPresetFileParams) => Promise<PresetImportOutcome>;
 }

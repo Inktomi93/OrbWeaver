@@ -2,7 +2,7 @@
 kind: plan
 status: active
 updated: 2026-11-14
-rank: 14
+rank: 15
 ---
 
 # Stats and spend stay true after a delete, a regenerate, an import and a rebuild
