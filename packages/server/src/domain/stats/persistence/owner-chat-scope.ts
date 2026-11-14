@@ -42,9 +42,11 @@ export function retainedCharacterSeatPredicate(ownerId: SQL): SQL {
   return sql`c.owner_id = ${ownerId} AND cp.kind = 'character' AND ch.started_at IS NOT NULL`;
 }
 
-/** Whether the owner's character holds a seat, past seats included, in a started room: the rebuild's per-character
- *  census asked of one character, so a live write can decide inside its own statement whether the character counts. */
-export function characterHoldsRetainedSeat(ownerId: UserId, characterId: CharacterId): SQL {
+/** Whether the owner's character holds a seat, past seats included, in a started room other than `exceptChatId`
+ *  (any room when omitted): the rebuild's per-character census asked of one character, so a live write can decide
+ *  inside its own statement whether the character counts. */
+export function characterHoldsRetainedSeat(ownerId: UserId, characterId: CharacterId, exceptChatId?: ChatId): SQL {
+  const otherRoom = exceptChatId === undefined ? sql`` : sql` AND cp.chat_id != ${exceptChatId}`;
   return sql`exists (select 1 FROM chat_participants cp JOIN chats ch ON ch.id = cp.chat_id JOIN characters c ON c.id = cp.character_id
-    WHERE cp.character_id = ${characterId} AND ${retainedCharacterSeatPredicate(sql`${ownerId}`)})`;
+    WHERE cp.character_id = ${characterId} AND ${retainedCharacterSeatPredicate(sql`${ownerId}`)}${otherRoom})`;
 }

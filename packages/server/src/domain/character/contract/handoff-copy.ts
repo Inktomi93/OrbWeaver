@@ -1,6 +1,6 @@
 import type { CopyAssetToOwner } from "@orb/contracts/assets";
 import type { HandoffCardCopy } from "@orb/contracts/chat";
-import type { ApplyStatsDelta, BumpStatsCanonVersion } from "@orb/contracts/stats";
+import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import type { BatchHandle, DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
@@ -41,15 +41,13 @@ import type { Clock } from "@orb/kit/time";
 export interface CharacterHandoffCopyContext {
   readonly db: Db;
   readonly bumpStatsCanonVersion: BumpStatsCanonVersion<BatchStmt[], Db>;
-  readonly applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db>;
   readonly now: Clock;
   readonly newCharacterId: () => CharacterId;
   readonly copyAsset: CopyAssetToOwner;
 }
 
-export type CharacterHandoffCopyAssemblyContext = Omit<DbAssemblyInput<CharacterHandoffCopyContext>, "bumpStatsCanonVersion" | "applyStatsDelta"> & {
+export type CharacterHandoffCopyAssemblyContext = Omit<DbAssemblyInput<CharacterHandoffCopyContext>, "bumpStatsCanonVersion"> & {
   readonly bumpStatsCanonVersion: BumpStatsCanonVersion<BatchHandle, DatabaseHandle>;
-  readonly applyStatsDelta: ApplyStatsDelta<BatchHandle, DatabaseHandle>;
 };
 
 /** Copy the named cards from `fromOwnerId`'s library into `toOwnerId`'s, point-in-time and verbatim.

@@ -22,12 +22,10 @@ import { assets, characterSnapshots, characters } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, isConstraintViolation } from "@orb/db/query";
 import type { AssetId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
-import { statsBucketStart } from "@orb/kit/stats-tally";
 import type { SQL } from "drizzle-orm";
 import { and, eq, exists, inArray, isNull, notExists, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { CHARACTER_BACKGROUND_UNAVAILABLE, CHARACTER_HANDLE_CONFLICT, CharacterOperationError } from "../contract/errors.ts";
-import type { CharacterHandoffCopyContext } from "../contract/handoff-copy.ts";
 
 // The self-join alias the provenance claim's NOT EXISTS reads through — a subquery over the table being
 // written needs its own name (the refinery schema-library precedent).
@@ -161,7 +159,7 @@ function classifyInsertFailure(err: unknown, values: CharacterInsert): unknown {
 export async function insertCharacterClaimingProvenance(
   db: Db,
   values: CharacterInsert & { readonly importedFrom: string },
-  accounting: Pick<CharacterHandoffCopyContext, "applyStatsDelta" | "bumpStatsCanonVersion" | "now">,
+  bumpCanonVersion: BumpStatsCanonVersion<BatchStmt[], Db>,
 ): Promise<boolean> {
   const unclaimed = notExists(
     db
@@ -178,19 +176,9 @@ export async function insertCharacterClaimingProvenance(
       db,
       values,
       [carriedBackgroundExists(db, backgroundAssetId(values.backgroundOverride)), unclaimed],
-      accounting.bumpStatsCanonVersion,
+      bumpCanonVersion,
     );
-    const now = accounting.now();
-    // Copies become library data even if the later room swap fails; only this guarded insert owns their census.
-    accounting.applyStatsDelta(statements, db, {
-      ownerId: values.ownerId,
-      characterId: null,
-      model: null,
-      provider: null,
-      bucketStart: statsBucketStart(now),
-      now,
-      newCharacter: true,
-    });
+    // A copy counts as a character only once the room swap seats it, so the mint carries no census.
     await db.batch(batchMany(statements));
     return true;
   } catch (err) {

@@ -455,7 +455,6 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     copyHandoffCards: createCopyHandoffCards({
       db: input.db,
       bumpStatsCanonVersion: stats.bumpStatsCanonVersion,
-      applyStatsDelta: stats.applyStatsDelta,
       now: input.now,
       newCharacterId: minter(ID_PREFIX.character, input.idSource),
       // The picture RE-OWN, avatar AND carried background: `assets` is per-owner with an
@@ -511,6 +510,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     resolveRetainedChatRebase: createResolveRetainedChatRebase(db),
     settleRetainedChatRebase: stats.settleRetainedChatRebase,
     bumpStatsCanonVersion: stats.bumpStatsCanonVersion,
+    shiftCharacterCensus: stats.shiftCharacterCensus,
     summarize: inferenceOps.summarize,
     resolveSpeakerReranker: inferenceOps.resolveSpeakerReranker,
     resolveSpeakerArbiter: inferenceOps.resolveSpeakerArbiter,

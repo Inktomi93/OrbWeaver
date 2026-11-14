@@ -159,6 +159,9 @@ function appendRebasedSeatCensus(
           characterChats: sign,
           characterForkedChats: snapshot.chat.parentChatId === null ? 0 : sign,
         });
+        // The owner's character count follows the seat too: the copy counts once it is seated, and the original
+        // stops counting when this was its only seat in a started room.
+        ctx.shiftCharacterCensus(statements, ctx.db, { ownerId, characterId, chatId: snapshot.chat.id, direction: sign });
       }
     }
   }

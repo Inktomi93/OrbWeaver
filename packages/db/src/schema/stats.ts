@@ -98,8 +98,8 @@ export const ownerStats = sqliteTable("owner_stats", {
     .$type<UserId>()
     .primaryKey()
     .references(() => users.id, { onDelete: "restrict" }),
-  // Owner-grain counts. `characters` is the owner's characters holding a seat in a started room; a first seat and a delete
-  // move it live (packages/server/src/domain/stats/write/character-census.ts), and a rebuild counts the same set.
+  // Owner-grain counts. `characters` is the owner's characters holding a seat in a started room; a first seat, a delete and
+  // a handoff re-point move it live (packages/server/src/domain/stats/write/character-census.ts), and a rebuild counts the same set.
   characters: integer("characters").notNull().default(0),
   chats: integer("chats").notNull().default(0),
   userTurns: integer("user_turns").notNull().default(0),

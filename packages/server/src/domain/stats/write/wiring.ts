@@ -7,7 +7,7 @@ import type { StatsBatchWiring } from "../contract/wiring.ts";
 import { reconcileOwnersMissingTimeline as rebuildMissingTimelines, reconcileStats as rebuildStats } from "../persistence/rebuild-from-canon.ts";
 import { settleRetainedChatRebase } from "../persistence/retained-chat-accounting.ts";
 import { applyCharacterStatsDelta, applyStatsDelta, bumpStatsCanonVersion } from "./apply-delta.ts";
-import { retireCharacterCensus } from "./character-census.ts";
+import { retireCharacterCensus, shiftCharacterCensus } from "./character-census.ts";
 
 /** Append through the operation's exact DB and mutable batch, never a captured root connection. */
 export function createStatsBatchWiring(idSource: IdSource): StatsBatchWiring {
@@ -17,6 +17,7 @@ export function createStatsBatchWiring(idSource: IdSource): StatsBatchWiring {
     settleRetainedChatRebase: (batch, db, scope) => settleRetainedChatRebase(batchForOwner(batch), databaseForOwner(db), scope),
     bumpStatsCanonVersion: (batch, db, ownerId) => bumpStatsCanonVersion(batchForOwner(batch), databaseForOwner(db), ownerId),
     retireCharacterCensus: (batch, db, character) => retireCharacterCensus(batchForOwner(batch), databaseForOwner(db), character),
+    shiftCharacterCensus: (batch, db, shift) => shiftCharacterCensus(batchForOwner(batch), databaseForOwner(db), shift),
   };
 }
 
