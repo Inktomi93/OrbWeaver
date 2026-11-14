@@ -767,11 +767,10 @@ export function createDefaultRegistry(): MacroRegistry {
     charField((ctx) => ctx.databank),
     recursiveChat,
   );
-  registry.register(
-    "guided_instruction",
-    charField((ctx) => ctx.guidedInstruction),
-    recursiveChat,
-  );
+  // SECURITY (D353): the value is the guided template the assembler already rendered, so its macros have run.
+  // Evaluating it again would run what that render produced, such as a member's `{{setvar}}` that
+  // `{{lastUserMessage}}` returned as text. A plain read.
+  registry.register("guided_instruction", (_args, ctx) => ctx.guidedInstruction ?? "", recursiveChat);
 
   // The 8 rpg* data-fed macros — a game turn's GATHER stages `ctx.rpgMacros`; each reads its
   // value or "". Registered here (the databank/memory precedent) so a preset referencing `{{rpgSceneState}}` in

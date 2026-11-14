@@ -21,18 +21,21 @@ The constraint is one home. The kit handler `storyField` reads each slot's value
 | `{{memory}}` | `formatMemory` in `packages/kit/src/recall/index.ts`, called by `packages/server/src/domain/chat/memory/recall/recall.ts` | the summarizer model over room messages |
 | `{{compact_summary}}` and its section | `chats.compactSummary`, read by `packages/server/src/domain/chat/assembly/gather.ts` | the room's model through `packages/server/src/domain/chat/verbs/compaction.ts`; a chat bundle import; a fork copy |
 | `{{rpgSceneState}}`, `{{rpgCast}}`, `{{rpgQuests}}`, `{{rpgDelta}}` and the other game macros | `buildRpgMacroFeed` in `packages/server/src/domain/rpg/chat-ops/macro-view.ts` | the state round (model), including the plot through the scene tool; host hand edits through `editSnapshot` and the quest verbs; a game import; the preset's cast-header prose and the game's labels |
+| `{{guided_instruction}}` | the guided action template, rendered once by `packages/server/src/domain/chat/assembly/context.ts`; that render is its only writer | the host's guided template, with the steer input neutralized, plus whatever its macros read, such as a member's message through `{{lastUserMessage}}` |
 
-`{{databank}}` stays under D352: the host's own documents keep their macros there.
+`{{databank}}` stays under D352: the host's own documents keep their macros there. `{{guided_instruction}}` is a plain read: its value is already rendered, so it is neither evaluated nor neutralized again.
 
-A user macro resolves a bound argument again only when the engine did not: an argument the call delivered raw (the `?` flag), or a padded default from the macro's own definition. An argument the engine already resolved, such as a variable read, splices in as literal text. A value spliced into a template is also guarded at its edges, so a brace the template writes against the slot cannot pair with it.
+A user macro resolves a bound argument again only when the engine did not: an argument the call delivered raw (the `?` flag), or a padded default from the macro's own definition. An argument the engine already resolved, such as a variable read, splices in as literal text. A spliced value whose first or last character is any brace gets a zero-width space on that edge, so a brace of either kind the template writes against the slot cannot pair with it. The splice inserts the value verbatim, so a `$&` or `$$` in it stays text.
 
-Homes: `storyField` in `packages/kit/src/macro/registry.ts` · `neutralizeMacros` and `neutralizeSplice` in `packages/kit/src/macro/content.ts` · the argument delivery record (`ArgDelivery`) set by `packages/kit/src/macro/evaluator.ts` and read by the user-macro handler in `packages/kit/src/macro/user-macros.ts`. Cases: `tests/server/domain/chat/verbs/story-text-literal.int.test.ts` · `tests/kit/macro/story-slots-literal.test.ts` · `tests/kit/macro/user-macro-delivery.test.ts` · `tests/kit/macro/neutralize-brace-runs.test.ts`.
+Homes: `storyField` and the `guided_instruction` registration in `packages/kit/src/macro/registry.ts` · `neutralizeMacros` and `neutralizeSplice` in `packages/kit/src/macro/content.ts` · the argument delivery record (`ArgDelivery`) set by `packages/kit/src/macro/evaluator.ts` and read by the user-macro handler in `packages/kit/src/macro/user-macros.ts`. Cases: `tests/server/domain/chat/verbs/story-text-literal.int.test.ts` · `tests/kit/macro/story-slots-literal.test.ts` · `tests/kit/macro/user-macro-delivery.test.ts` · `tests/kit/macro/neutralize-brace-runs.test.ts`.
 
 ## Consequences
 
 A name macro in story text is shown as typed. No summarizer, compaction or state-round prompt asks the model for one, and no write path stores one on purpose: the memory transcript resolves names before the summarizer reads it.
 
 A host preset that passes `{{getvar::x}}`, or any value holding braces, into a user macro now splices that value as literal text instead of running its macros. A `{{?name::…}}` call still resolves its own argument once.
+
+A host's override of the cast-header prose loses its macros where `{{rpgCast}}` and `{{rpgSceneState}}` carry it, as the game reminder already renders it verbatim.
 
 A fork copy of a summary needs no rule of its own: the read-side home covers it.
 

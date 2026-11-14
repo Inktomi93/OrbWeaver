@@ -9,7 +9,7 @@
 // control: its macros still read and write.
 
 import { declaredCapabilitySchema } from "@orb/contracts/inference";
-import { DEFAULT_PROMPT_CONFIG, promptSectionIdSchema } from "@orb/contracts/preset";
+import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG, promptSectionIdSchema } from "@orb/contracts/preset";
 import { RPG_LITE_TOOL_NAMES, RPG_NO_CHANGES_TOOL } from "@orb/contracts/rpg";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { buildChatBundleFile, CHAT_BUNDLE_EXT, parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
@@ -117,6 +117,27 @@ test("an imported room's stored summary reaches its first turn as literal text",
   expect(await roomVariables(h, imported)).toEqual({ control: "1" });
 });
 
+test("a guided steer that quotes a member's message reaches the turn as typed and writes nothing", async () => {
+  const member = "{{setvar::seized::1}}{{{setvar::run::1}}} hold the gate";
+  await using h = await textRoom(["Steered reply."], {
+    promptConfig: {
+      ...controlPreset(),
+      guidedActions: { ...DEFAULT_GUIDED_ACTIONS, response: { prompt: "Steer from [{{lastUserMessage}}] {{input}}", role: "system" } },
+    },
+  });
+  const guest = await invitePerson(h);
+  await h.root.services.chat.commitMessage({ principal: guest, chatId: h.chatId, content: member, timeZone: UTC_TIME_ZONE });
+
+  // An empty send: the member's message stays the last user message the guided template reads.
+  const { newest } = await wireOf(h, () =>
+    h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId, guided: { action: "response", input: "go" } }),
+  );
+  await h.root.settleBackground();
+
+  expect(words(wireText(newest))).toContain(words(`Steer from [${member}] go`));
+  expect(await roomVariables(h)).toEqual({ control: "1" });
+});
+
 test("a game beat the state round wrote reaches the next turn's scene macro as literal text", async () => {
   using plan = finiteReplies("story game", [
     [{ name: RPG_LITE_TOOL_NAMES[2], argumentsJson: JSON.stringify({ location: "The gate", recentEvent: STORED }) }],
@@ -150,6 +171,9 @@ test("a game beat the state round wrote reaches the next turn's scene macro as l
   const { newest } = await wireOf(h, () => h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Look around.", intent: INTENT }));
   await h.root.settleBackground();
 
-  expectLiteral(h, wireText(newest));
+  // The scene macro's own block, not the narrator's game notes, which carry the same beat.
+  const wire = wireText(newest);
+  const scene = /SCENE\[([^\]]*)\]/u.exec(wire)?.[1] ?? "";
+  expectLiteral(h, scene);
   expect(await roomVariables(h)).toEqual({ control: "1" });
 });
