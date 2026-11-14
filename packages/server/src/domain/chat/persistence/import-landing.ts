@@ -11,9 +11,14 @@ import type { ChatId } from "@orb/kit/ids";
 import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { yieldToLoop } from "#primitives/abort";
 
-/** Messages one landing stage commits, and one cleanup chunk deletes. A message costs SQLite about 20 µs to write
- *  with its variant and indexes on a file database, so a stage holds the loop about 40 ms. */
-export const LANDING_STAGE_MESSAGES = 2000;
+/** The most messages one landing stage commits, and one cleanup chunk deletes. A short message costs about 20 µs to
+ *  write with its variant and indexes on a quiet box and up to 90 µs on a fully loaded one, so a stage of short
+ *  messages holds the loop 10 to 45 ms. */
+export const LANDING_STAGE_MESSAGES = 500;
+
+/** The most characters of message text one landing stage carries. A long message costs by its text, not its count:
+ *  a 1000-message stage of reply-length turns (about 1 MB) held the loop 232 ms on a loaded box. */
+export const LANDING_STAGE_CHARS = 131_072;
 
 /** Delete one landing room: its messages a chunk at a time (variants, assets and the rest cascade from each
  *  message), then the room, whose claim and every other child cascade with it. A room that has landed meanwhile

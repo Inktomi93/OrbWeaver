@@ -106,8 +106,12 @@ export async function seedCharacterRow(
   return row;
 }
 
+// `landing_at` stays at its column default unless overridden: a migration case seeds rooms into a database one
+// migration behind, where the newest column does not exist yet.
+type SeededChatRow = Omit<ChatRow, "landingAt"> & Partial<Pick<ChatRow, "landingAt">>;
+
 // D18 makes a membership-free room row legal at the schema; the caller inserts any seats it needs.
-function makeChat(overrides: Partial<ChatRow>, source: IdSource): ChatRow {
+function makeChat(overrides: Partial<ChatRow>, source: IdSource): SeededChatRow {
   return {
     id: source.typeId(ID_PREFIX.chat),
     title: null,
@@ -136,7 +140,7 @@ function makeChat(overrides: Partial<ChatRow>, source: IdSource): ChatRow {
 }
 
 /** A bare room row, born started at the frozen clock; the caller inserts the seats its case needs. */
-export async function seedChatRow(db: Db, overrides: Partial<ChatRow> = {}, source: IdSource = ids): Promise<ChatRow> {
+export async function seedChatRow(db: Db, overrides: Partial<ChatRow> = {}, source: IdSource = ids): Promise<SeededChatRow> {
   const row = makeChat(overrides, source);
   await db.insert(chats).values(row);
   return row;

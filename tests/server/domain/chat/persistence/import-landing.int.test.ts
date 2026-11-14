@@ -1,28 +1,26 @@
-// An imported chat lands in stages and no reader sees it until the last stage: a failed stage, a crash and a
-// second import of the same file each leave either the whole room or none of it.
+// An imported chat lands in stages and no reader sees it until the last stage: a failed stage and a second import of
+// the same file each leave either the whole room or none of it. The crash case is
+// `tests/server/entry/boot/persistence/import-landing-sweep.int.test.ts`.
 // @subject packages/server/src/domain/chat/persistence/import-write.ts
 // @subject packages/server/src/domain/chat/persistence/import-landing.ts
-// @subject packages/server/src/entry/boot/reclaim-locks.ts
 import { performance } from "node:perf_hooks";
 import { createCharacterSchema } from "@orb/contracts/character";
-import { chatImportClaims, chatParticipants, chats, messageAssets, messages } from "@orb/db";
+import { chatImportClaims, chats, messageAssets, messages } from "@orb/db";
 import { ASSET_SCHEME } from "@orb/kit/content";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { AssetId, CharacterId, ChatId } from "@orb/kit/ids";
+import type { AssetId, ChatId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { reclaimLocksOnBoot } from "@orb/server/entry/boot";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, makeAssetBytes } from "@orb/testkit/node/composed";
-import { bootGrantFor } from "@orb/testkit/node/helpers";
-import { count, eq, isNotNull, sql } from "drizzle-orm";
+import { count, eq, isNotNull } from "drizzle-orm";
 
 const HANDLE = "stair-keeper";
 const SENT = "2025-07-19@12h00m01s";
 const FILENAME = `${HANDLE}/${HANDLE} - 2025-07-19@12h00m00s.jsonl`;
 const PNG = "image/png";
-// About ten landing stages, so a reader started after the first finishes long before the last.
-const ROOM_MESSAGES = 20_001;
+// Several landing stages, so a reader started after the first finishes before the last; each case checks it did.
+const ROOM_MESSAGES = 5001;
 const MAX_GAP_MS = 200;
 
 function transcript(messageCount: number, lastLine = "the last lamp"): Uint8Array {
@@ -36,21 +34,17 @@ function transcript(messageCount: number, lastLine = "the last lamp"): Uint8Arra
 }
 
 interface Box {
-  readonly characterId: CharacterId;
   readonly importFile: (bytes: Uint8Array) => Promise<unknown>;
 }
 
 async function box(root: ServerTestHarness): Promise<Box> {
   const principal = await root.principalFor(root.ownerId);
-  const character = await root.services.character.create({
-    principal,
-    input: createCharacterSchema.parse({ handle: HANDLE, name: HANDLE, description: "Counts the lamps." }),
-  });
+  await root.services.character.create({ principal, input: createCharacterSchema.parse({ handle: HANDLE, name: HANDLE, description: "Counts the lamps." }) });
   const descriptor = root.app.portability.find((entity) => entity.kind === "chat");
   if (descriptor === undefined) {
     throw new Error("the production chat import descriptor is missing");
   }
-  return { characterId: character.id, importFile: (bytes) => descriptor.importFile(root.ownerId, { filename: FILENAME, bytes }) };
+  return { importFile: (bytes) => descriptor.importFile(root.ownerId, { filename: FILENAME, bytes }) };
 }
 
 async function landingRoom(root: ServerTestHarness): Promise<ChatId | null> {
@@ -60,17 +54,18 @@ async function landingRoom(root: ServerTestHarness): Promise<ChatId | null> {
 
 /** Run `during` once the import has opened its room and before the room lands, polling a turn at a time. */
 async function duringLanding<T>(root: ServerTestHarness, landing: Promise<unknown>, during: (chatId: ChatId) => Promise<T>): Promise<T> {
-  let settled = false;
-  void landing.finally(() => {
-    settled = true;
-  });
+  const progress = { settled: false };
+  const markSettled = (): void => {
+    progress.settled = true;
+  };
+  landing.then(markSettled, markSettled);
   for (;;) {
     await new Promise((resolve) => setImmediate(resolve));
     const chatId = await landingRoom(root);
     if (chatId !== null) {
       return await during(chatId);
     }
-    if (settled) {
+    if (progress.settled) {
       throw new Error("the import settled without a landing stage the test could see");
     }
   }
@@ -90,17 +85,6 @@ async function settle(promise: Promise<unknown>): Promise<string> {
   } catch (error) {
     return error instanceof DomainNotFoundError ? "not-found" : `error: ${String(error)}`;
   }
-}
-
-async function reboot(root: ServerTestHarness): Promise<void> {
-  await reclaimLocksOnBoot({
-    logger: root.logger,
-    db: bootGrantFor(root.db),
-    contributions: root.app.workloadContributions,
-    now: root.clock.now,
-    holder: "import-landing",
-    emitWorkloadEvent: root.app.workloadEvents.emitWorkloadEvent,
-  });
 }
 
 /** The longest stretch `work` held the event loop, read from a chain of immediates. */
@@ -151,7 +135,8 @@ test("a room still landing is absent from the list, the room read, the export an
 
   // The control: the reads ran while the room was landing, and the same reads see all of it once it has landed.
   expect(seen.stillLanding).toBe(true);
-  expect(seen.reads).toEqual({ listed: 0, searched: 0, opened: "not-found", exported: "not-found", turns: 0 });
+  // The bundle export answers null for a room the caller does not host.
+  expect(seen.reads).toEqual({ listed: 0, searched: 0, opened: "not-found", exported: "null", turns: 0 });
   expect(await reads(seen.chatId)).toEqual({ listed: 1, searched: 1, opened: "value", exported: "value", turns: ROOM_MESSAGES });
   expect(await landingRoom(root)).toBeNull();
 });
@@ -202,36 +187,4 @@ test("a second import of the same file while the first is landing is skipped, an
   expect(await rowCounts(root)).toEqual({ rooms: 1, messages: ROOM_MESSAGES, claims: 1 });
   // The control: once landed, the same file is a plain repeat of the landed room.
   expect(await importFile(bytes)).toMatchObject({ ok: true, created: false });
-});
-
-test("a boot after a crash mid-landing removes the half-landed room in chunks and keeps a landed room with no roster", async () => {
-  await using root = await createServerHarness();
-  const { characterId, importFile } = await box(root);
-  expect(await importFile(transcript(ROOM_MESSAGES))).toMatchObject({ ok: true, created: true });
-  const [crashed] = await root.db.select({ id: chats.id }).from(chats);
-  if (crashed === undefined) {
-    throw new Error("the production import landed no room");
-  }
-  // What a process that died before the last stage leaves: the room still marked landing, without its roster.
-  await root.db.update(chats).set({ landingAt: root.clock.now() }).where(eq(chats.id, crashed.id));
-  await root.db.delete(chatParticipants).where(eq(chatParticipants.chatId, crashed.id));
-  // A landed room that lost its roster rows is not a landing room, whatever else it lacks.
-  const kept = await root.services.chat.startChat({ principal: await root.principalFor(root.ownerId), characterIds: [characterId], opening: "none" });
-  await root.db.delete(chatParticipants).where(eq(chatParticipants.chatId, kept.chat.id));
-
-  const hold = await longestHold(() => reboot(root));
-
-  const survivors = await root.db.select({ id: chats.id }).from(chats);
-  const [left] = await root.db.select({ n: count() }).from(messages).where(eq(messages.chatId, crashed.id));
-  expect({ survivors: survivors.map((row) => row.id), crashedMessages: left?.n }).toEqual({ survivors: [kept.chat.id], crashedMessages: 0 });
-  expect(hold).toBeLessThan(MAX_GAP_MS);
-
-  // The re-import after the sweep lands as a new room: the sweep took the claim with the room.
-  expect(await importFile(transcript(ROOM_MESSAGES))).toMatchObject({ ok: true, created: true });
-  const [landedMessages] = await root.db
-    .select({ n: count() })
-    .from(messages)
-    .innerJoin(chats, eq(chats.id, messages.chatId))
-    .where(sql`${chats.id} <> ${kept.chat.id}`);
-  expect({ messages: landedMessages?.n, landing: await landingRoom(root) }).toEqual({ messages: ROOM_MESSAGES, landing: null });
 });

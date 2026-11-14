@@ -49,7 +49,7 @@ import type { ChatImportAssemblyContext, ChatImportContext } from "../contract/i
 import { parseChatMetadata } from "../contract/metadata.ts";
 import { importedObservationRows } from "../substrate/import-observations.ts";
 import { carriesAssetBackground, guardedChatId } from "./background-write.ts";
-import { deleteLandingChat, LANDING_STAGE_MESSAGES } from "./import-landing.ts";
+import { deleteLandingChat, LANDING_STAGE_CHARS, LANDING_STAGE_MESSAGES } from "./import-landing.ts";
 import { assertSeatableCharacters } from "./seat-characters.ts";
 
 // Budget a scope bind alongside each varying value, so the statement's fixed scope always fits too.
@@ -57,8 +57,32 @@ const SCOPED_FILTER_BIND_BUDGET = 2;
 // Marks a slot the bulk import wrote, never a requested turn.
 const IMPORT_INITIATOR = "import" satisfies TurnInitiator;
 
+type ImportMessage = BulkImportChatInput["messages"][number];
+
+/** A chat's messages cut into landing stages: each holds at most {@link LANDING_STAGE_MESSAGES} messages and, past its
+ *  first message, at most {@link LANDING_STAGE_CHARS} characters of variant text. `start` is the first message's index. */
+function* landingStages(all: readonly ImportMessage[]): Generator<{ readonly start: number; readonly stage: readonly ImportMessage[] }> {
+  let stage: ImportMessage[] = [];
+  let chars = 0;
+  let start = 0;
+  for (const [index, message] of all.entries()) {
+    const weight = message.variants.reduce((total, variant) => total + variant.content.length, 0);
+    if (stage.length > 0 && (stage.length >= LANDING_STAGE_MESSAGES || chars + weight > LANDING_STAGE_CHARS)) {
+      yield { start, stage };
+      stage = [];
+      chars = 0;
+      start = index;
+    }
+    stage.push(message);
+    chars += weight;
+  }
+  if (stage.length > 0) {
+    yield { start, stage };
+  }
+}
+
 /** The distinct inline `asset:<id>` refs in a message's content, across all its variants. */
-function assetRefsInMessage(message: BulkImportChatInput["messages"][number]): AssetId[] {
+function assetRefsInMessage(message: ImportMessage): AssetId[] {
   // query-local dedup Set for asset refs in a message. Ends if it outlives the call.
   return [...new Set(message.variants.flatMap((v) => assetIdsInContent(v.content)))];
 }
@@ -648,7 +672,7 @@ function importedSeq(index: number): number {
   return index + IMPORT_SEQ_ORIGINS.current;
 }
 
-/** Commit ONE imported chat's message slots and variants, {@link LANDING_STAGE_MESSAGES} messages a batch, and
+/** Commit ONE imported chat's message slots and variants, one {@link landingStages} stage a batch, and
  *  return the identity of what landed. `identity` is INDEX-ALIGNED to `ci.messages` — the R6 remap
  *  (`ImportedChatIdentity`); the tallies the caller reports are derived from it rather than counted separately,
  *  so the count and the remap cannot disagree about what landed. */
@@ -657,9 +681,9 @@ async function landMessages(args: OneChatArgs): Promise<ImportedChatIdentity> {
   const { db } = ctx;
   const messageIds: MessageId[] = [];
   const variantIds: (readonly MessageVariantId[])[] = [];
-  for (let start = 0; start < ci.messages.length; start += LANDING_STAGE_MESSAGES) {
+  for (const { start, stage } of landingStages(ci.messages)) {
     const selections: { readonly messageId: MessageId; readonly variantId: MessageVariantId }[] = [];
-    const rows = ci.messages.slice(start, start + LANDING_STAGE_MESSAGES).map((m, offset) => {
+    const rows = stage.map((m, offset) => {
       const messageId = ctx.newMessageId();
       const built = messageRows({
         ctx,
@@ -731,13 +755,13 @@ function everyReferencedCharacter(primary: CharacterId, input: readonly BulkImpo
 async function filterImportedAssetIds(ctx: ChatImportContext, ownerId: UserId, ci: BulkImportChatInput): Promise<AssetId[]> {
   // call-local dedup of the complete chat's inline references. Ends if it outlives the call.
   const requested = new Set<AssetId>();
-  for (let start = 0; start < ci.messages.length; start += LANDING_STAGE_MESSAGES) {
-    for (const message of ci.messages.slice(start, start + LANDING_STAGE_MESSAGES)) {
+  for (const { stage } of landingStages(ci.messages)) {
+    for (const message of stage) {
       for (const assetId of assetRefsInMessage(message)) {
         requested.add(assetId);
       }
     }
-    // Reading every message's content for refs costs time per message, as the write does.
+    // Tokenizing every message's text for refs costs time by its length, as the write does.
     await yieldToLoop();
   }
   const existing: AssetId[] = [];
