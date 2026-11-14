@@ -140,6 +140,7 @@ const MOUNT_HELPER_FILES = {
   "^tests/client/components/_described-menu-item-labels\\.ts$": "the command labels the described-menu story authors and its spec presses",
   "^tests/client/components/_entry-list-labels\\.ts$": "the add label the entry-list rebase story authors and its spec finds the button by",
   "^tests/client/components/_form-dialog-labels\\.ts$": "the title the form dialog create story authors and its spec finds the dialog by",
+  "^tests/client/data/_plugin-frame-src-names\\.ts$": "the button name the plugin frame story authors and its revoke spec presses",
   "^tests/client/lib/use-focus-on-mount-names\\.ts$": "the control and surface names the arrival-focus stories author and their spec reads",
   "^tests/client/features/auth/components/pending-join-fixtures\\.ts$": "the pending-join story's parsed fixtures",
   "^tests/client/features/chat/components/_chat-room-shell-names\\.ts$": "the room name the chat room shell story authors and the pagination suite reads",
