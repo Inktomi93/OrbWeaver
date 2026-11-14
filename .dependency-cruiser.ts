@@ -619,6 +619,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/automation/lib/automation-names.ts":
     "RULE_EDITOR_NAME, ruleTestName and their siblings: the rule list, row, editor and library-wide section names",
   "packages/client/src/features/workloads/lib/workloads-schedule-model.ts": "scheduleEnabledSwitchName: the per-schedule enable switch name",
+  "packages/client/src/features/workloads/lib/workloads-result-copy.ts":
+    "INDEX_SKIPPED_LABEL and INGEST_SKIPPED_LABEL: the words a finished index or databank job prints after its skipped count",
   "packages/client/src/features/workloads/lib/workloads-failure-copy.ts":
     "OTHERS_CONTROLS_HIDDEN_TEXT: the line a delegated admin reads when the account list fails",
   "packages/client/src/features/preset/lib/assembly-model.ts": "sectionEnabledSwitchName: the per-section enable switch name on a rack row and in its drill-in",
