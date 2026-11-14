@@ -25,7 +25,7 @@ import { LoginPendingJoin } from "../components/login-pending-join.tsx";
 import { LoginSignupForm } from "../components/login-signup-form.tsx";
 import { LoginTransportNotice } from "../components/login-transport-notice.tsx";
 import { authErrorMessage } from "../lib/auth-error.ts";
-import { continueWithName, INVITE_LOADING_NAME, INVITED_HEADING, SIGN_IN_NAME, SIGN_IN_TO_JOIN_NAME } from "../lib/pending-join-names.ts";
+import { BACK_TO_APP_NAME, continueWithName, INVITE_LOADING_NAME, INVITED_HEADING, SIGN_IN_NAME, SIGN_IN_TO_JOIN_NAME } from "../lib/pending-join-names.ts";
 import { isPendingJoinLanding, oidcLoginUrl, shouldAutoRedirectToSso } from "../lib/sso-redirect.ts";
 
 /** The per-mode login card content (mounted inside `LoginShellAnchor` by the /login route). */
@@ -202,7 +202,7 @@ function LoginBody({
           <Text ink="muted" voice="gloss" cap="prose" prose={true}>
             No login needed. You're already in.
           </Text>
-          <Button onClick={onDone}>Back to the app</Button>
+          <Button onClick={onDone}>{BACK_TO_APP_NAME}</Button>
         </Stack>
       );
     default:

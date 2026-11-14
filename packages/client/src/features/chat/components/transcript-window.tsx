@@ -12,7 +12,13 @@ import type { Trpc } from "#data";
 import { pressForPage, QueryErrorState, roomRosterOptions, SkeletonRows, useSuspenseInfiniteQuery, useSuspenseQuery, useTRPC } from "#data";
 import { RETRY_NAME } from "#lib";
 import { clearChatMoment, setActiveSection, useChatMoment } from "#state";
-import { CHAT_EARLIER_MESSAGES_NAME, CHAT_HISTORY_DISMISS_NAME, CHAT_HISTORY_FAILURE_COPY, CHAT_WINDOW_PRESS_FAILURE } from "../lib/chat-surface-names.ts";
+import {
+  CHAT_EARLIER_MESSAGES_NAME,
+  CHAT_HISTORY_DISMISS_NAME,
+  CHAT_HISTORY_FAILURE_COPY,
+  CHAT_WINDOW_BACK_TO_CORPUS_NAME,
+  CHAT_WINDOW_PRESS_FAILURE,
+} from "../lib/chat-surface-names.ts";
 import type { HistoryFailure, HistoryFetchView } from "../lib/history-failures.ts";
 import { dismissHistoryFailure, noHistoryFailures, observeHistoryFetch, pressAsked, pressLost, shownHistoryFailure } from "../lib/history-failures.ts";
 import type { TranscriptEdges } from "../lib/move-neighbours.ts";
@@ -350,7 +356,7 @@ function AnchoredThread({
             Latest messages
           </Button>
           <Button variant="ghost" size="sm" onClick={(): void => setActiveSection("corpus")}>
-            Back to Corpus
+            {CHAT_WINDOW_BACK_TO_CORPUS_NAME}
           </Button>
         </Row>
         <Text id={pagingDescription} voice="gloss">

@@ -40,6 +40,9 @@ export const CHAT_GALLERY_UPLOAD_INSTEAD_NAME = "Upload instead";
 /** The gallery add-picker's image grid. */
 export const CHAT_GALLERY_IMAGES_NAME = "Your images";
 
+/** The Corpus source window's way back to Corpus. */
+export const CHAT_WINDOW_BACK_TO_CORPUS_NAME = "Back to Corpus";
+
 /** The Home also-open tile's door to the chat list. */
 export const CHAT_ALL_CHATS_NAME = "All chats";
 
