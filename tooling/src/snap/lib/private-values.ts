@@ -137,32 +137,37 @@ function notedPrefixLength(window: string): number {
   return longest;
 }
 
-// How many UTF-16 units of a noted value Playwright left right before the ellipsis at `end`, or 0 when no cut of its own
-// ends there. A cut keeps exactly `cap - 1` code points after its opener, so ordinary text that ends in an ellipsis is
-// never judged.
-function cutPrefixAt(text: string, end: number): number {
-  const points = Array.from(text.slice(0, end));
+// How many UTF-16 units of a noted value Playwright left right before the ellipsis at code point `end` of `points`, or 0
+// when no cut of its own ends there. A cut keeps exactly `cap - 1` code points after its opener, so ordinary text that
+// ends in an ellipsis is never judged.
+function cutPrefixAt(points: readonly string[], end: number): number {
   let longest = 0;
   for (const { cap, opens } of PLAYWRIGHT_CUTS) {
-    const keep = cap - TRUNCATION_MARK.length;
-    if (points.length < keep || !opens.test(points.slice(Math.max(0, points.length - keep - CUT_OPENER_LOOKBACK), points.length - keep).join(""))) {
+    const start = end - (cap - TRUNCATION_MARK.length);
+    if (start < 0 || !opens.test(points.slice(Math.max(0, start - CUT_OPENER_LOOKBACK), start).join(""))) {
       continue;
     }
-    longest = Math.max(longest, notedPrefixLength(points.slice(points.length - keep).join("")));
+    longest = Math.max(longest, notedPrefixLength(points.slice(start, end).join("")));
   }
   return longest;
 }
 
 // The windows are found on the raw text: a whole-value replacement first would change the code-point count of a cut.
+// The text is split into code points once, so a string with many ellipses costs one pass, not one per ellipsis.
 function scrubPlaywrightCuts(text: string): string {
-  let scrubbed = text;
-  for (let end = text.lastIndexOf(TRUNCATION_MARK); end >= 0; end = end === 0 ? -1 : text.lastIndexOf(TRUNCATION_MARK, end - 1)) {
-    const cut = cutPrefixAt(text, end);
-    if (cut > 0) {
-      scrubbed = `${scrubbed.slice(0, end - cut)}${PRIVATE_MASK}${scrubbed.slice(end)}`;
+  const points = Array.from(text);
+  const cuts: { readonly unit: number; readonly length: number }[] = [];
+  let unit = 0;
+  for (const [index, point] of points.entries()) {
+    if (point === TRUNCATION_MARK) {
+      const length = cutPrefixAt(points, index);
+      if (length > 0) {
+        cuts.push({ unit, length });
+      }
     }
+    unit += point.length;
   }
-  return scrubbed;
+  return cuts.reduceRight((scrubbed, cut) => `${scrubbed.slice(0, cut.unit - cut.length)}${PRIVATE_MASK}${scrubbed.slice(cut.unit)}`, text);
 }
 
 /**
