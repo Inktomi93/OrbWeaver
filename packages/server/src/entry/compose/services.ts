@@ -42,6 +42,7 @@
 
 import { resolve } from "node:path";
 import type { IsMemoryEnabledOp } from "@orb/contracts/chat";
+import type { ExtractorVersions } from "@orb/contracts/extraction";
 import type { AuthModeSource, Principal } from "@orb/contracts/identity";
 import type { BindingActor } from "@orb/contracts/inference";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
@@ -151,7 +152,7 @@ import type { AuthConfig, ForwardJwtVerifier } from "#infra/auth";
 import { createForwardJwtVerifier, createOperatorKeys, createPasswordHasher } from "#infra/auth";
 import type { SecretBox } from "#infra/crypto";
 import { createSecretBox } from "#infra/crypto";
-import { createExtractText } from "#infra/extraction";
+import { createExtractText, EXTRACTOR_VERSIONS } from "#infra/extraction";
 import { createImageAdapter } from "#infra/image";
 import { createVideoPreparer } from "#infra/media";
 import type { ScopedEgress, ScopedEgressOptions } from "#infra/network";
@@ -236,6 +237,10 @@ export interface ServicesDeps {
   /** Reads a shipped showcase bundle's bytes for the example-plugin seeder; absent ⇒ the `@orb/showcase-plugins` pack.
    *  A test root withholds a bundle here to reach the seeder's missing-bundle retry. */
   readonly showcaseBundles?: typeof packShowcaseBundle;
+  /** Versions laid over the shipped per-format extractor versions; the one merged table is both stamped onto documents
+   *  and compared by the databank banner and re-extract sweep. A test root raises one format's version here to reach
+   *  a sweep over documents an older extractor of that format stamped. */
+  readonly extractorVersions?: Partial<ExtractorVersions>;
   /** The fetch and resolver every egress this graph builds uses (`systemFetch` and `systemResolver` from `createProcessSeams`). */
   readonly networkExecution: Pick<ScopedEgressOptions, "fetch" | "resolver">;
   /** The physical dial every egress this graph builds uses (`systemConnector` from `createProcessSeams`). */
@@ -637,7 +642,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const secretBox = createSecretBox(deps.secretBoxKey);
   const cas = createCas(deps.casDir, deps.logger);
   const variants = createVariantCache(deps.variantDir);
-  const extractText = createExtractText(deps.logger);
+  const extractorVersions: ExtractorVersions = { ...EXTRACTOR_VERSIONS, ...deps.extractorVersions };
+  const extractText = createExtractText(deps.logger, extractorVersions);
   const passwordHasher = createPasswordHasher(deps.sessionSecret);
   const userRuntimeDirs = createUserRuntimeDirs(userRuntimeDir);
 
@@ -998,6 +1004,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     loadAssetBytes: createAssetEmbeddingReads(assets).loadAssetBytes,
     embeddings,
     extractText,
+    extractorVersions,
     roleClientsFor,
     search,
     workloads,

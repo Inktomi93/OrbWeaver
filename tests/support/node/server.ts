@@ -53,7 +53,9 @@ type AuthConfig = ReturnType<typeof authConfigFromEnv>;
 
 /** The root's options. Every env key reaches the record through its {@link ENV_SEAMS} row: the named options in
  *  {@link EnvSeamOptions}, or `env` for a raw row. */
-export interface ServerHarnessOptions extends EnvSeamOptions, Partial<Pick<ServicesDeps, "secretBoxKey" | "variantDir" | "holder" | "showcaseBundles">> {
+export interface ServerHarnessOptions
+  extends EnvSeamOptions,
+    Partial<Pick<ServicesDeps, "secretBoxKey" | "variantDir" | "holder" | "showcaseBundles" | "extractorVersions">> {
   /** Raw values for the raw rows, parsed with the rest of the record by the production parse, so a value production
    *  refuses is refused here. */
   readonly env?: RawEnvInput;
@@ -774,6 +776,7 @@ export async function createServerHarness(
     secretBoxKey: options.secretBoxKey ?? null,
     ...replicaOf(options),
     ...(options.showcaseBundles === undefined ? {} : { showcaseBundles: options.showcaseBundles }),
+    ...(options.extractorVersions === undefined ? {} : { extractorVersions: options.extractorVersions }),
     sessionSecret: SESSION_SECRET,
     sessionsCrypto,
     ...dataSlots,

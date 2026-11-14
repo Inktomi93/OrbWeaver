@@ -10,7 +10,6 @@ export const RPG_CONTEXT_TAB_LABELS = {
   scene: "Scene",
   quests: "Quests",
   journal: "Journal",
-  map: "Map",
   game: "Game",
 } as const;
 
