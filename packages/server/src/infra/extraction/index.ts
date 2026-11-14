@@ -1,6 +1,6 @@
 // infra/extraction — the server-side text-extraction adapter. A SEALED, db-free,
 // domain-free I/O executor (dep-cruiser `infra-no-db` + `infra-below-domain`) behind ONE injected op:
-// `(bytes, declaredMime) → ExtractionResult`. `entry/compose` constructs `createExtractText(logger)` once and injects
+// `(bytes, declaredMime) → ExtractionResult`. `entry/compose` constructs `createExtractText(logger, versions)` once and injects
 // it into `DatabankContext.extractText`; the domain's only compile-time dependency is
 // `@orb/contracts/extraction` — it NEVER imports infra (the `EmbedRequest`/`@orb/contracts/providers`
 // precedent). Superseded the dep-free `entry/compose/databank-extract.ts` textlike passthrough (deleted): its
@@ -14,7 +14,7 @@
 // is NOT an error — the op returns it truthfully (`charCount` tells the story; the upload verb surfaces an
 // `empty-extraction` warning, not a throw).
 
-import type { DocFormat, ExtractionMeta, ExtractionResult, ExtractTextOp } from "@orb/contracts/extraction";
+import type { DocFormat, ExtractionMeta, ExtractionResult, ExtractorVersions, ExtractTextOp } from "@orb/contracts/extraction";
 import { docFormatForMime, ExtractionFailedError, ExtractionTooLargeError, UnsupportedDocTypeError } from "@orb/contracts/extraction";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
@@ -22,7 +22,6 @@ import type { RawExtraction } from "./contract.ts";
 import { ExpansionBudgetError } from "./contract.ts";
 import { LOADERS } from "./formats.ts";
 import { normalizeText } from "./normalize.ts";
-import { EXTRACTOR_VERSIONS } from "./version.ts";
 
 export { EXTRACTOR_VERSIONS } from "./version.ts";
 
@@ -36,14 +35,15 @@ function formatFor(mime: string): DocFormat {
   return format;
 }
 
-/** Normalize the loader's raw text (§2) and stamp the meta — the ONE place the format's `EXTRACTOR_VERSIONS` entry +
- *  `charCount` are applied, so every format returns an identically-shaped `ExtractionResult`. */
+/** Normalize the loader's raw text (§2) and stamp the meta — the ONE place the format's version + `charCount` are
+ *  applied, so every format returns an identically-shaped `ExtractionResult`. */
 function toResult(
   meta: Pick<Extract<ExtractionMeta, { readonly format: "pdf" }>, "format" | "pageCount"> | Pick<Exclude<ExtractionMeta, { readonly format: "pdf" }>, "format">,
   raw: RawExtraction,
+  versions: ExtractorVersions,
 ): ExtractionResult {
   const text = normalizeText(raw.text);
-  const fields = { extractorVersion: EXTRACTOR_VERSIONS[meta.format], charCount: text.length };
+  const fields = { extractorVersion: versions[meta.format], charCount: text.length };
   const title = raw.title === undefined ? {} : { title: raw.title };
   return {
     text,
@@ -52,15 +52,16 @@ function toResult(
 }
 
 /** Construct the injected `extractText` op. Stateless (the loaders hold no per-call state); `log` is the root's
- *  logger, where the cause of a loader failure is recorded because the wire carries only the format. */
-export function createExtractText(log: Logger): ExtractTextOp {
+ *  logger, where the cause of a loader failure is recorded because the wire carries only the format. `versions` is
+ *  the table the databank compares stamps against, so the stamp written and the stamp compared come from one table. */
+export function createExtractText(log: Logger, versions: ExtractorVersions): ExtractTextOp {
   return async (bytes: Uint8Array, mime: string): Promise<ExtractionResult> => {
     const format = formatFor(mime);
     let raw: RawExtraction;
     try {
       if (format === "pdf") {
         const pdf = await LOADERS.pdf(bytes);
-        return toResult({ format, pageCount: pdf.pageCount }, pdf);
+        return toResult({ format, pageCount: pdf.pageCount }, pdf, versions);
       }
       raw = await LOADERS[format](bytes);
     } catch (error) {
@@ -70,6 +71,6 @@ export function createExtractText(log: Logger): ExtractTextOp {
       // A size-budget refusal is an intact file the person can split; every other loader throw is a damaged one.
       throw error instanceof ExpansionBudgetError ? new ExtractionTooLargeError(format, { cause: error }) : new ExtractionFailedError(format, { cause: error });
     }
-    return toResult({ format }, raw);
+    return toResult({ format }, raw, versions);
   };
 }
