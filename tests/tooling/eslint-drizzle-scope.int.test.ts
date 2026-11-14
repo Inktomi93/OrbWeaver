@@ -67,13 +67,17 @@ test("native bulk delete permissions admit only their statements and preserve sc
 test("the where-rules reach every database handle spelling and leave collections alone", async ({ repoRoot }) => {
   const path = "packages/server/src/domain/probe/persistence/probe.ts";
   const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: repoRoot });
-  const native: Linter.Config = await resolvedConfig(eslint, path);
-  const rules = Object.fromEntries([DELETE_RULE, UPDATE_RULE].map((rule) => [rule, native.rules?.[rule] ?? "off"]));
+  const native: Linter.Config | undefined = await resolvedConfig(eslint, path);
+  if (native.rules === undefined || native.languageOptions === undefined || native.plugins === undefined) {
+    throw new Error(`No native Drizzle configuration for ${path}`);
+  }
+  const languageOptions: Linter.LanguageOptions = native.languageOptions;
+  const { rules: nativeRules } = native;
   const config: Linter.Config = {
     files: [path],
-    languageOptions: { ...native.languageOptions, parserOptions: { ...native.languageOptions?.parserOptions, project: false, projectService: false } },
-    ...(native.plugins === undefined ? {} : { plugins: native.plugins }),
-    rules,
+    languageOptions: { ...languageOptions, parserOptions: { ...languageOptions.parserOptions, project: false, projectService: false } },
+    plugins: native.plugins,
+    rules: Object.fromEntries([DELETE_RULE, UPDATE_RULE].map((rule) => [rule, nativeRules[rule] ?? "off"])),
   };
   const ruleIdsOf = (input: string): readonly (string | null)[] =>
     new Linter({ cwd: repoRoot }).verify(input, [config], { filename: path }).map(({ ruleId }) => ruleId);
