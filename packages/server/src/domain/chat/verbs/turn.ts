@@ -2947,8 +2947,10 @@ async function runDeferredRound(
   if (chat === undefined) {
     throw new ChatNotFoundError(row.chatId);
   }
-  // Two queued sends drain in turn after the room has moved past both, so each reply reads its own send's text.
-  const answeredUserText = row.messageId === null ? undefined : ((await loadPendingUserText(ctx.db, row.chatId, row.messageId)) ?? undefined);
+  // Two queued sends drain in turn after the room has moved past both, so each reply reads its own send's text. A send
+  // that was deleted (its id cleared by the FK) or hidden is off the wire: its turn answers no player message, so it
+  // is told about no roll and never borrows a later send's.
+  const answeredUserText = row.messageId === null ? null : await loadPendingUserText(ctx.db, row.chatId, row.messageId);
   const room = await loadRoom(ctx, row.chatId, chat.anchorPersonaId, row.runAsUserId); // hostless/gone → chat-gone drop; frozen host disabled or left → consent drop
   const identity = { triggeredBy: row.triggeredBy, funderUserId: row.runAsUserId, runAsUserId: row.runAsUserId };
   const connection = await deps.resolveConnection({ funderUserId: identity.funderUserId, chatId: row.chatId });
@@ -2970,8 +2972,8 @@ async function runDeferredRound(
     trigger: { kind: "none" },
     // A deferred drain is the FIRST AI response to the offline-host's committed user send (D58) —
     // it directly responds to that user message, so its queued d20 still feeds (the die wasn't lost to the defer).
-    respondsToLatestUserTurn: true,
-    answeredUserText,
+    respondsToLatestUserTurn: answeredUserText !== null,
+    ...(answeredUserText !== null ? { answeredUserText } : {}),
     // The Ruling-B host `{{char}}` (joined candidate names / solo single) for the rpg steeringNote render (chat owns it).
     candidateCharForHostRow: joinedCandidateName(room.speakerCandidates),
     chatMetadata: chat.metadata,

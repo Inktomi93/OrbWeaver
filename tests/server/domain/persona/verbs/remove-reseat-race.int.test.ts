@@ -35,6 +35,7 @@ function refusedForTheDelete(reason: unknown, doomed: PersonaId): boolean {
 }
 
 interface Outcome {
+  readonly lead: "remove" | "switch";
   readonly landed: boolean;
   readonly refusedForTheDelete: boolean;
   readonly seat: PersonaId | null;
@@ -54,7 +55,7 @@ test("a switch onto a persona racing its delete never leaves the seat empty, at 
 
   // One race: `first` starts, then the other starts `turns` microtasks later. `firstSettled` says the first had
   // already finished by then, so a longer lead cannot interleave the two any further.
-  const raceOnce = async (first: "remove" | "switch", turns: number, name: string): Promise<{ readonly outcome: Outcome; readonly firstSettled: boolean }> => {
+  const raceOnce = async (first: Outcome["lead"], turns: number, name: string): Promise<{ readonly outcome: Outcome; readonly firstSettled: boolean }> => {
     await root.services.persona.setActivePersona({ principal, chatId: chat.id, targetUserId: root.ownerId, personaId: worn });
     const doomed = await mint(root, name);
     const startRemove = (): Promise<unknown> => root.services.persona.remove({ principal, personaId: doomed });
@@ -71,6 +72,7 @@ test("a switch onto a persona racing its delete never leaves the seat empty, at 
     const switched = first === "remove" ? trail : lead;
     return {
       outcome: {
+        lead: first,
         landed: switched.status === "fulfilled",
         refusedForTheDelete: switched.status === "rejected" && refusedForTheDelete(switched.reason, doomed),
         seat: (await seatOf(root, chat.id)).seat,
@@ -92,8 +94,10 @@ test("a switch onto a persona racing its delete never leaves the seat empty, at 
   // A switch that committed first is re-seated with the owner's default; a refused one leaves the seat it found.
   expect(outcomes.map(({ seat }) => seat)).toEqual(outcomes.map(({ landed }) => (landed ? crown : worn)));
   expect(outcomes.map(({ landed, refusedForTheDelete: refused }) => landed || refused)).not.toContain(false);
-  // Both orders occurred, so the sweep reached the window between the delete's reads and its commit.
-  expect(outcomes.map(({ landed }) => landed)).toContain(true);
+  // A switch that started after the remove and still landed committed inside the remove's window: after the remove
+  // began and before its delete committed, since a later write meets the foreign key. A sweep point that reached it
+  // is the case the batch exists for; the first assertion holds its seat to the default.
+  expect(outcomes.filter(({ lead }) => lead === "remove").map(({ landed }) => landed)).toContain(true);
   expect(outcomes.map(({ landed }) => landed)).toContain(false);
 });
 

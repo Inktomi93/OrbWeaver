@@ -214,6 +214,28 @@ test("two sends queued while the host is away drain into replies that each answe
   expect({ stampedFirst, stampedLast }).toEqual({ stampedFirst: [true, false], stampedLast: [false, true] });
 });
 
+test("a queued send hidden before the drain is told about no roll, not a later send's", async () => {
+  await using h = await turnRpgRoom(replies(2));
+  const member = await h.root.principalFor((await h.root.actor()).id);
+  const invite = await h.root.services.chat.createInvite({ principal: h.owner, chatId: h.chatId, input: { invitedHandle: member.handle } });
+  await h.root.services.chat.acceptInvite({ principal: member, inviteId: invite.invite.id });
+  for (const content of ["I walk on.", `I leap. ${STAMP}`]) {
+    h.root.clock.advance(QUEUE_STEP_MS);
+    await h.root.services.chat.send({ principal: member, chatId: h.chatId, content });
+  }
+  const [plain] = (await h.root.services.chat.listMessages({ principal: h.owner, chatId: h.chatId })).messages.filter(({ role }) => role === "user");
+  if (plain === undefined) {
+    throw new Error("the queued sends wrote no user rows");
+  }
+  await h.root.services.chat.setMessageHidden({ principal: h.owner, chatId: h.chatId, messageId: plain.id, hidden: true });
+
+  const notes = await rollNotes(h, async () => {
+    expect(await h.root.services.chat.drainDeferredTurns({ hostUserId: h.owner.userId })).toEqual({ ran: 2, dropped: 0 });
+    await h.root.settleBackground();
+  });
+  expect(notes).toEqual([false, true]);
+});
+
 test("a USER_INPUT regex that strips the stamp leaves nothing for the note to answer", async () => {
   await using h = await turnRpgRoom(replies(1));
   const script = await h.root.services.regex.createScript({

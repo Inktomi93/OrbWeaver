@@ -1,5 +1,5 @@
 // A queued turn names the send it answers. Deleting that send keeps the owed turn, its message id cleared, and the
-// drained reply answers the room's latest user message instead. The database is built by the shipped migration chain,
+// drained reply is told about no roll, never a later send's. The database is built by the shipped migration chain,
 // so the case reads the delete rule the migration SQL declares, not the one the schema file states.
 // @subject packages/db/src/migrations/0014_pending-turn-message-id.sql
 // @subject packages/server/src/domain/chat/verbs/turn.ts
@@ -16,7 +16,7 @@ const ROLL_NOTE = PROSE_SLOTS["rpg.reminder.playerRolledDice"].text;
 const STAMP = "[dice: d20 → 7]";
 const QUEUE_STEP_MS = 1000;
 
-test("deleting a queued send keeps its owed turn, which drains on the latest user message", async () => {
+test("deleting a queued send keeps its owed turn, which drains told about no roll", async () => {
   using migrated = ownDb(await createDb(":memory:"));
   await runMigrations(migrated.db, SHIPPED_MIGRATIONS);
   await using h = await turnRpgRoom(
@@ -47,6 +47,6 @@ test("deleting a queued send keeps its owed turn, which drains on the latest use
     expect(await h.root.services.chat.drainDeferredTurns({ hostUserId: h.owner.userId })).toEqual({ ran: 2, dropped: 0 });
     await h.root.settleBackground();
   });
-  // The orphaned turn falls back to the latest user message, the stamped one, as its own send's turn does.
-  expect(drained.bodies.map((body) => wireText(body).includes(ROLL_NOTE))).toEqual([true, true]);
+  // The orphaned turn's own send is gone, so it is told about no roll; it never borrows the stamped send's.
+  expect(drained.bodies.map((body) => wireText(body).includes(ROLL_NOTE))).toEqual([false, true]);
 });
