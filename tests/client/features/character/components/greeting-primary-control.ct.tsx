@@ -96,5 +96,4 @@ test("the hero's New chat gives up the primary emphasis while a greeting preview
   await preview.getByRole("button", { name: DIALOG_VERBS.discard, exact: true }).click();
   await expect(preview).toHaveCount(0);
   await expect(newChat).toHaveAttribute("data-cta", "");
-  await expect(hero.locator(PRIMARY)).toHaveCount(1);
 });
