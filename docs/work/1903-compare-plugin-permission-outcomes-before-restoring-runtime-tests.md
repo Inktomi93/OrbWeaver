@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
-updated: 2026-11-03
+status: doing
+updated: 2026-11-14
 priority: P2
 area: security
+lane: wt/agent-a45fd91007dd324f7
 plan: restoration-register
 ---
 

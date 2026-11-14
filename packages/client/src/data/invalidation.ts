@@ -98,7 +98,9 @@ const BUS_FILTERS: BusFilterMap = {
   reasoningEdited: (_e, trpc) => chatReads(trpc),
   reasoningCleared: (_e, trpc) => chatReads(trpc),
 
-  turnCompleted: (_e, trpc) => [...chatCanonReads(trpc), ...runtimeVariablesRead(trpc)],
+  // The memory view rides the turn terminal: the post-turn build is detached and emits nothing of its own, so a
+  // summary written after this event shows on the next turn or when the tab opens again.
+  turnCompleted: (e, trpc) => [...chatCanonReads(trpc), ...runtimeVariablesRead(trpc), trpc.chat.memoryView.queryFilter({ chatId: e.chatId })],
   turnAborted: (_e, trpc) => chatReads(trpc),
 
   personaSwitched: (e, trpc) => personaWriteReads(trpc, e.chatId),
@@ -160,6 +162,8 @@ const BUS_FILTERS: BusFilterMap = {
     trpc.chat.getNextTurnConnection.queryFilter({ chatId: e.chatId }),
     trpc.chat.getGroupConfig.queryFilter({ chatId: e.chatId }),
     trpc.chat.listChatInjections.queryFilter({ chatId: e.chatId }),
+    // The memory view: a strike, a restore and a handoff (which moves the host whose switch the view reads) all emit this.
+    trpc.chat.memoryView.queryFilter({ chatId: e.chatId }),
     // `getUserMacroPicks` rides here for the SAME reason as `getGroupConfig`/`listChatInjections`: the MU
     // picks pane reads the room's `chats.user_macro_values` through its OWN proc (not under `getChat`), and
     // `setUserMacroValues` emits this catch-all. Without the row only the writing tab reconciled — a second

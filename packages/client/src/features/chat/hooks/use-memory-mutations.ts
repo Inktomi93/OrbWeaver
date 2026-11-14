@@ -13,6 +13,23 @@ export const useSetMemoryEnabled = createEntityMutation<SectionPatchVars<"memory
   errorToast: "Couldn't save your memory settings.",
 });
 
+// The host's strike and restore re-read the view themselves as well as through `chatUpdated`: a refused or stale
+// strike emits nothing, and the stale refusal promises the host a refreshed list.
+
+/** `chat.strikeMemory`: the host drops one remembered scene from every later reply. */
+export const useStrikeMemory = createEntityMutation<inferInput<Trpc["chat"]["strikeMemory"]>, unknown>({
+  options: (trpc) => trpc.chat.strikeMemory.mutationOptions(),
+  invalidates: (trpc, vars) => [trpc.chat.memoryView.queryFilter({ chatId: vars.chatId })],
+  failureShownInline: "the struck row's alert line",
+});
+
+/** `chat.restoreMemory`: the host returns a struck scene to the story. */
+export const useRestoreMemory = createEntityMutation<inferInput<Trpc["chat"]["restoreMemory"]>, unknown>({
+  options: (trpc) => trpc.chat.restoreMemory.mutationOptions(),
+  invalidates: (trpc, vars) => [trpc.chat.memoryView.queryFilter({ chatId: vars.chatId })],
+  failureShownInline: "the struck row's alert line",
+});
+
 /** The Memory backfill over the viewer's own chats, the opt-in the turn-on confirm offers. */
 export const useStartMemoryBackfill = createEntityMutation<inferInput<Trpc["workloads"]["start"]>, WorkloadRef>({
   options: (trpc) => trpc.workloads.start.mutationOptions(),

@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-11-14
 priority: P3
 area: chat
+lane: wt/agent-a253b95f39b2389ae
 ---
 
 # ESLint refuses another domain's tables in chat's co-participant art gate

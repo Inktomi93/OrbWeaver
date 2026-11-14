@@ -26,6 +26,10 @@ export type MemoryItemKey = z.infer<typeof memoryItemKeySchema>;
 export const strikeMemoryInputSchema = z.strictObject({ item: memoryItemKeySchema });
 export type StrikeMemoryInput = z.infer<typeof strikeMemoryInputSchema>;
 
+/** The `DomainOperationError.code` `strikeMemory` refuses with when the item changed since the host read it; the
+ *  server's `CHAT_OP_CODES.memoryItemStale` derives this literal. */
+export const MEMORY_ITEM_STALE_OP_CODE = "memory_item_stale" as const;
+
 /** The `restoreMemory` wire input, beside the chat id the router adds. */
 export const restoreMemoryInputSchema = z.strictObject({ strikeId: typeIdSchema(ID_PREFIX.chatMemoryStrike) });
 export type RestoreMemoryInput = z.infer<typeof restoreMemoryInputSchema>;

@@ -11,6 +11,8 @@
 // authority refusal, not a leak. (Authoritative auth surface: docs/law/Spine-Identity-and-Auth.md.)
 
 import {
+  CHAT_NOT_HOST_OP_CODE,
+  MEMORY_ITEM_STALE_OP_CODE,
   TURN_ABORTED_OP_CODE,
   TURN_HOST_UNAVAILABLE_OP_CODE,
   TURN_LOCKED_OP_CODE,
@@ -42,7 +44,7 @@ export const CHAT_OP_CODES = {
   promptExceedsWindow: "prompt_exceeds_window",
   /** A host-only verb (roster mutation, group-config, room-overrides, force-character, kick, delete-chat,
    *  invites, handoff, anchor-reassignment, memberCardVisibility) called by a non-host member. */
-  notHost: "not_host",
+  notHost: CHAT_NOT_HOST_OP_CODE,
   /** An edit/delete-a-slot verb (`author-or-host`) called by a member who is neither the slot's
    *  `authorUserId` nor the room host — a known-existence authority refusal (the caller IS a member). */
   notAuthor: "not_author",
@@ -154,7 +156,7 @@ export const CHAT_OP_CODES = {
   /** `strikeMemory`'s content pin missed: the item the host read is gone, was summarized again, or no longer
    *  resolves to the messages it covered. A strike names the item the host read, so it is refused rather than
    *  landed on whatever now sits at that position; the view re-reads and the host decides again. */
-  memoryItemStale: "memory_item_stale",
+  memoryItemStale: MEMORY_ITEM_STALE_OP_CODE,
   /** A registered D50 prompt transform DELIBERATELY aborted the generation — an
    *  automation `transform_draft` rule or a plugin returned `{abort}` instead of a draft. Deliberately NOT the
    *  D53 skip: a broken/slow transform is skipped silently and the turn proceeds, while this is a transform

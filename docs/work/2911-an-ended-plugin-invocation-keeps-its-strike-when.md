@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-14
 priority: P3
 area: server
+lane: wt/agent-a45fd91007dd324f7
 ---
 
 # An ended plugin invocation keeps its strike when its answer frame is refused

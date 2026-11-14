@@ -15,6 +15,7 @@ export const CHAT_CONTEXT_EMPTY = {
 export const CHAT_CONTEXT_TAB_LABELS = {
   members: "Members",
   settings: "This chat",
+  memory: "Memory",
   preview: "Preview",
   plugins: CHAT_PLUGINS_TAB_LABEL,
 } as const satisfies Record<ChatContextTabId, string>;

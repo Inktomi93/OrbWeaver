@@ -79,6 +79,8 @@ export const USER_BUS_FILTERS: UserBusFilterMap = {
     // precisely a settings write, and without this row the CONTEXT panel would keep calling the old pick
     // "your active preset" until a reload. Narrow, for the same reason as the line above.
     trpc.preset.listUsage.pathFilter(),
+    // The host's Memory switch is what an open memory view reads as "off by the host".
+    trpc.chat.memoryView.pathFilter(),
     // The same settings feed the ASSEMBLY the fit measures (chat behavior, the resolved model/capability the
     // shaper builds against) — the preview must move with the budget, never lag a knob behind it.
     ...promptPreviewReads(trpc),
