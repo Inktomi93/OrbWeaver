@@ -85,7 +85,6 @@ import { buildGreetingSeed } from "../persistence/greeting-seed.ts";
 import { clearHandoffResumptionStatement, insertHandoffResumptionStatement } from "../persistence/handoff-resume.ts";
 import {
   acceptHostHandoffSwapStatements,
-  assertForcedCharacterMember,
   insertParticipants,
   markParticipantLeftStatement,
   markUserLeft,
@@ -97,7 +96,7 @@ import { captureParticipantRow, characterEverSeatedInChat, characterSeatedInAnot
 import { loadHasUserMessage, loadMaxMessageSeq } from "../persistence/queries.ts";
 import { assertSeatableCharacters } from "../persistence/seat-characters.ts";
 import { viewerHoldsHost } from "../substrate/member-visibility.ts";
-import { classifyParticipant } from "../substrate/participant-actor.ts";
+import { assertForcedCharacterMember, classifyParticipant } from "../substrate/participant-actor.ts";
 import { REMOVED_CHARACTER_LABEL } from "../substrate/participant-name.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { regexAllowOf } from "../substrate/regex-tier.ts";

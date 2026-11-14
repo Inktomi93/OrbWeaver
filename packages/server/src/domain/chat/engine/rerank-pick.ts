@@ -14,7 +14,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
 import { clampToTokenBudget, estimateTokens, safeTokenWindow } from "@orb/kit/tokens";
 import type { ArbiterCandidate, SmartArbitrationResult, SpeakerCandidate, SpeakerReranker, TranscriptLine } from "../contract/arbitration.ts";
-import { isArbiterEligible } from "../persistence/participant.ts";
+import { isArbiterEligible } from "../substrate/participant-actor.ts";
 import { addressedGroups, MAX_SMART_RESPONDERS, selectSpeakers } from "./select-speakers.ts";
 
 // A cross-encoder spends a few tokens of its window on the pair's own markers ([CLS] q [SEP] d [SEP]).

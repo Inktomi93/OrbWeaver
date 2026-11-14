@@ -30,7 +30,7 @@ import type { AddressCandidate, LineAddress } from "@orb/kit/speaker-address";
 import { addressedGroups as kitAddressedGroups, nameMentionsOf } from "@orb/kit/speaker-address";
 import { NAME_END_BOUNDARY } from "@orb/kit/speaker-label";
 import type { ArbiterCandidate, SpeakerCandidate, TranscriptLine } from "../contract/arbitration.ts";
-import { isArbiterEligible } from "../persistence/participant.ts";
+import { isArbiterEligible } from "../substrate/participant-actor.ts";
 
 /** The arbitration inputs (file-local — callers pass a literal). */
 interface SelectSpeakersParams {

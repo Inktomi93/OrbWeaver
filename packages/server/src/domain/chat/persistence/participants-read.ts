@@ -15,7 +15,7 @@ import type { CharacterId, ChatId, ChatParticipantId, PersonaId, UserId } from "
 import { and, asc, eq, inArray, isNotNull, isNull, ne } from "drizzle-orm";
 import { captureParticipantRole } from "#primitives/role-data";
 import type { ParticipantInsertRow, ParticipantRow } from "../contract/participant-row.ts";
-import { assertForcedCharacterMember } from "./participant.ts";
+import { assertForcedCharacterMember } from "../substrate/participant-actor.ts";
 
 /** How many rows an existence probe needs. */
 const LIMIT_ONE = 1;

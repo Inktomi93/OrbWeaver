@@ -17,9 +17,7 @@
 // `participantId` is therefore consumed by the INSERT arm only; a re-join discards it, and both invite doors
 // re-read the roster afterwards rather than trusting the id they minted.
 
-import type { HandoffOffer, ParticipantKind } from "@orb/contracts/chat";
-import type { ParticipantRole } from "@orb/contracts/identity";
-import { isHostRole } from "@orb/contracts/identity";
+import type { HandoffOffer } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chatInvites, chatParticipants, chats, messages } from "@orb/db";
 import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
@@ -28,25 +26,6 @@ import type { CharacterId, ChatId, ChatInviteId, ChatParticipantId, PersonaId, U
 import type { AnyColumn, SQL } from "drizzle-orm";
 import { and, eq, gt, isNotNull, isNull, sql } from "drizzle-orm";
 import type { ParticipantInsertRow } from "../contract/participant-row.ts";
-
-/** A `character` participant is always `role='member'` — a character can never be the host. */
-export function assertForcedCharacterMember(p: { readonly kind: ParticipantKind; readonly role: ParticipantRole }): void {
-  if (p.kind === "character" && isHostRole(p.role)) {
-    throw new Error(`a character participant must be role 'member' (got '${p.role}')`);
-  }
-}
-
-// `leftSeq IS NULL` ⇒ present (in every union — WI/roster/arbitration).
-function isPresent(p: { readonly leftSeq: number | null }): boolean {
-  return p.leftSeq === null;
-}
-
-/** Present and not muted. A `disabled` participant still contributes cards/WI but is never
- *  arbiter-selected + is excluded from `{{groupNotMuted}}`. Reuses {@link isPresent} — one home for
- *  the presence half of the rule (this used to re-spell `leftSeq === null` inline). */
-export function isArbiterEligible(p: { readonly leftSeq: number | null; readonly disabled: boolean }): boolean {
-  return isPresent(p) && !p.disabled;
-}
 
 /** Bulk-insert participant rows (the initial host+character roster, or a host adding a character). */
 export async function insertParticipants(db: Db, rows: readonly ParticipantInsertRow[], coStatements: readonly BatchStmt[] = []): Promise<void> {
