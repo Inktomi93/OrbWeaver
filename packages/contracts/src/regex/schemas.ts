@@ -34,7 +34,7 @@
 import type { CharacterId, ChatId, PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { RegexHistoryDepth, RegexPlacement } from "@orb/kit/regex";
-import { HISTORY_DEPTH_PLACEMENT, MAX_FIND_REGEX_LENGTH, REGEX_PLACEMENTS, SubstituteFindRegex } from "@orb/kit/regex";
+import { findPatternLimitBreak, HISTORY_DEPTH_PLACEMENT, MAX_FIND_REGEX_LENGTH, REGEX_PLACEMENTS, SubstituteFindRegex } from "@orb/kit/regex";
 import { z } from "zod";
 // The chat MODULE FILE, not the `#chat` barrel: `chat/assemble.ts` imports this module, so routing through
 // the barrel would close a cycle (`no-circular`). The shape's home is unchanged — chat owns it.
@@ -46,7 +46,9 @@ const MIN_CARD_ID_LENGTH = 1;
 const MAX_CARD_ID_LENGTH = 128;
 /** The cap on a script name. */
 export const REGEX_SCRIPT_NAME_MAX = 200;
-const MAX_REPLACE_LENGTH = 10_000;
+/** The cap on a stored replacement. It bounds storage only: a replacement is inert text until it renders, and the
+ *  render tier is its guard, so it is set to fit a public HUD preset's largest panel. */
+export const MAX_REPLACE_LENGTH = 65_536;
 const MAX_TRIM_STRING_LENGTH = 2000;
 const MAX_TRIM_STRINGS = 100;
 
@@ -227,6 +229,27 @@ export const regexScriptCardSchema = z.preprocess(
 );
 
 export type RegexScriptCard = z.output<typeof regexScriptCardSchema>;
+
+/** The guard an imported script broke: a stored-length cap, or the find pattern's stacked-quantifier check. `max` is
+ *  the largest value the guard admits. */
+export interface RegexScriptLimitBreak {
+  readonly limit: "find-length" | "replace-length" | "stacked-quantifiers";
+  readonly max: number;
+  readonly actual: number;
+}
+
+/** The guard a candidate script breaks, read before the card schema parses it, so an import names the limit instead
+ *  of reporting a malformed script. Null when no guard is broken. */
+export function regexScriptLimitBreak(candidate: unknown): RegexScriptLimitBreak | null {
+  if (typeof candidate !== "object" || candidate === null) {
+    return null;
+  }
+  const { findRegex, replaceString } = candidate as Record<string, unknown>;
+  if (typeof replaceString === "string" && replaceString.length > MAX_REPLACE_LENGTH) {
+    return { limit: "replace-length", max: MAX_REPLACE_LENGTH, actual: replaceString.length };
+  }
+  return typeof findRegex === "string" ? findPatternLimitBreak(findRegex) : null;
+}
 
 /** What one card hands the regex lift. `carried` are the orbweaver-namespaced references (the attached-book twin) - each is
  *  attached DIRECTLY when it names a row this owner already has, and ignored otherwise. `scripts` is the

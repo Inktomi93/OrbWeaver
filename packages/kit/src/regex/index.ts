@@ -104,8 +104,10 @@ export const SubstituteFindRegex = {
 export type SubstituteFindRegex = (typeof SubstituteFindRegex)[keyof typeof SubstituteFindRegex];
 
 // Single source of truth: the executor rejects a pattern longer than this before `new RegExp`, and
-// the contracts schema rejects it at the storage boundary — keep them equal.
-export const MAX_FIND_REGEX_LENGTH = 2048;
+// the contracts schema rejects it at the storage boundary — keep them equal. Length is a weak stand-in for
+// cost, so it is set to fit a public HUD preset's panel patterns; the cost guards are the stacked-quantifier
+// check below and the server's per-call timeout (`packages/server/src/primitives/regex/index.ts`).
+export const MAX_FIND_REGEX_LENGTH = 16_384;
 
 /** The minimal structural shape the executor reads off a regex script. The persisted
  *  `RegexScript` (in `@orb/contracts`) is a superset and is declared to `satisfy` this. */
@@ -152,15 +154,32 @@ const DECIMAL_RADIX = 10;
 // captureCount = total args − (match + offset + subject) − (named-groups object present ? 1 : 0).
 const REPLACE_FIXED_ARGS = 3;
 
-function tooComplex(pattern: string): string | null {
+/** The find-pattern guard a pattern broke: its length, or the stacked-quantifier count. `max` is the bound. */
+export interface FindPatternLimitBreak {
+  readonly limit: "find-length" | "stacked-quantifiers";
+  readonly max: number;
+  readonly actual: number;
+}
+
+/** The find-pattern guard `pattern` breaks, or null. The executor refuses such a pattern before it compiles, so an
+ *  import names the same break instead of storing a script that never runs. */
+export function findPatternLimitBreak(pattern: string): FindPatternLimitBreak | null {
   if (pattern.length > MAX_PATTERN_LENGTH) {
-    return `pattern length ${pattern.length} exceeds cap ${MAX_PATTERN_LENGTH}`;
+    return { limit: "find-length", max: MAX_PATTERN_LENGTH, actual: pattern.length };
   }
-  const stacks = pattern.match(/[*+?}][)\]]*[*+?]/g);
-  if (stacks && stacks.length >= MAX_STACKED_QUANTIFIERS) {
-    return `pattern stacks ${stacks.length} quantifiers (cap ${MAX_STACKED_QUANTIFIERS})`;
+  const stacks = pattern.match(/[*+?}][)\]]*[*+?]/g)?.length ?? 0;
+  // The guard refuses at the cap itself, so the largest count it admits is one under it.
+  return stacks >= MAX_STACKED_QUANTIFIERS ? { limit: "stacked-quantifiers", max: MAX_STACKED_QUANTIFIERS - 1, actual: stacks } : null;
+}
+
+function tooComplex(pattern: string): string | null {
+  const broken = findPatternLimitBreak(pattern);
+  if (broken === null) {
+    return null;
   }
-  return null;
+  return broken.limit === "find-length"
+    ? `pattern length ${broken.actual} exceeds cap ${broken.max}`
+    : `pattern stacks ${broken.actual} quantifiers (cap ${MAX_STACKED_QUANTIFIERS})`;
 }
 
 // Used as the macro `postProcess` hook in `escaped` mode so a substituted value is matched literally.
