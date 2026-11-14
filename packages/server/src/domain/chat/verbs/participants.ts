@@ -1250,6 +1250,8 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
       ...plan.seats.map(({ participantId, copy }) => repointCharacterSeatStatement(ctx.db, participantId, copy.characterId)),
       ...plan.cardCopies.map((c) => restampChatCharacterStatement(ctx.db, chatId, c.sourceCharacterId, c.characterId)),
       ...digestRestamp,
+      // A scoped strike follows its character to the nominee's copy, or deleting the old card would cascade it away.
+      ...ctx.memoryStrikes.restampForHandoff(chatId, plan.cardCopies),
       ...plan.bookRepoint,
       ...plan.regexRepoint,
       ...droppedSeatIds.map((id) => markParticipantLeftStatement(ctx.db, id, dropSeq)),

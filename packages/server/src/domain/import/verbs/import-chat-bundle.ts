@@ -17,6 +17,8 @@
 //   • the tag overlay — resolve-or-create by name through tag's own by-name attach (D30 per-tagger overlay).
 //   • the room background and inline images — by the content hash each carries, onto the owner's own copy of
 //     those bytes, since a target that already held them keeps its own asset row.
+//   • the memory strikes — span positions through the same remap, the scoped character by the seat map; a strike
+//     with an endpoint or a character that did not land is dropped, and a scoped one never widens to shared.
 //   • the rpg campaign — the carried POSITIONS (`messages[i].variants[j]`) remapped through the
 //     `ImportedChatRemap` the chat write op returns. This is the load-bearing step: get it wrong and every
 //     snapshot, journal entry and tool-call record anchors to the wrong turn (or to nothing).
@@ -29,7 +31,14 @@
 // than no room, and the outcome still reports `ok`.
 
 import { assetIdSchema } from "@orb/contracts/assets";
-import type { BulkImportChatInput, BulkImportMessageInput, ContentSignatures, ImportedChatRemap, VariantMetadata } from "@orb/contracts/chat";
+import type {
+  BulkImportChatInput,
+  BulkImportMessageInput,
+  ContentSignatures,
+  ImportedChatRemap,
+  ImportedMemoryStrike,
+  VariantMetadata,
+} from "@orb/contracts/chat";
 import type { PortableFile } from "@orb/contracts/portability";
 import type { RpgPortableGame } from "@orb/contracts/rpg";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
@@ -343,10 +352,29 @@ function remapRpg(game: PortableRpgGame, remap: Extract<ImportedChatRemap, { kin
   };
 }
 
+/** The carried strikes on this box's ids. A position the remap could not pair, or a scoped handle no seat
+ *  resolved, drops that strike: landing it on the shared bucket would strike an item the host never struck. */
+function remapMemoryStrikes(
+  strikes: NonNullable<PortableChat["memoryStrikes"]>,
+  remap: Extract<ImportedChatRemap, { kind: "aligned" }>,
+  characterIds: ResolvedCharacterIds,
+): ImportedMemoryStrike[] {
+  return strikes.flatMap((strike): ImportedMemoryStrike[] => {
+    const messageStartId = remap.messageIds[strike.startMessageIndex] ?? null;
+    const messageEndId = remap.messageIds[strike.endMessageIndex] ?? null;
+    // The character only records which copy was struck; an unresolved one keeps the span struck as a shared strike.
+    const scopedCharacterId = strike.characterHandle === null ? null : (characterIds.idByHandle.get(strike.characterHandle) ?? null);
+    if (messageStartId === null || messageEndId === null) {
+      return [];
+    }
+    return [{ scopedCharacterId, tier: strike.tier, messageStartId, messageEndId, topicAnchor: strike.topicAnchor, createdAt: strike.createdAt }];
+  });
+}
+
 /** The re-links that ride AFTER the canon write, each isolated: a failing overlay must not un-write a room
  *  that already restored.
  *
- *  Returns the planes this composition could NOT restore, one operator-facing line each. Both
+ *  Returns the planes this composition could NOT restore, one operator-facing line each. The
  *  ops are OPTIONAL on the ST-only precedent, and an unwired one used to drop its whole plane with no `else`
  *  and nowhere to say so — a bundle carrying an entire rpg campaign answered `{ok:true, created:true}` having
  *  discarded it. The room still imports either way; the loss is now NAMED. */
@@ -384,7 +412,25 @@ async function restoreOverlays(args: {
       );
     }
   }
-  return skipped;
+  const strikesLost = await restoreMemoryStrikes(args);
+  return strikesLost === null ? skipped : [...skipped, strikesLost];
+}
+
+/** The strike overlay. Returns the operator-facing line when the carried strikes could not restore, else null. */
+async function restoreMemoryStrikes(args: Parameters<typeof restoreOverlays>[0]): Promise<string | null> {
+  const { profile, ownerId, bundle, remap, characterIds } = args;
+  const strikes = bundle.memoryStrikes ?? [];
+  if (strikes.length === 0) {
+    return null;
+  }
+  if (profile.importMemoryStrikes === undefined) {
+    return `${strikes.length} struck memory item(s) not restored — the strike import is not wired into this composition`;
+  }
+  if (remap.kind !== "aligned") {
+    return `${strikes.length} struck memory item(s) not re-linked — messages deleted from this room since its first import leave no way to match them to the file's turns`;
+  }
+  await profile.importMemoryStrikes({ chatId: remap.chatId, hostUserId: ownerId, strikes: remapMemoryStrikes(strikes, remap, characterIds) });
+  return null;
 }
 
 export function createImportChatBundle(ctx: ImportContext): ImportService["importChatBundle"] {

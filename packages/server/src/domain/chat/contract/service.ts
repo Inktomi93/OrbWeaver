@@ -26,6 +26,7 @@ import type {
   InvitePreview,
   InviteView,
   MemberCardView,
+  MemoryView,
   MessageVariantSummary,
   MessageView,
   MessageWindow,
@@ -36,6 +37,7 @@ import type {
   SetGroupConfigOp,
   SetSeatKnobsOp,
   ShapeTrace,
+  StrikeMemoryResult,
   UserMacroPicksView,
   VariablePicksView,
   VariantWireView,
@@ -88,6 +90,7 @@ import type {
   ListMessageVariantsParams,
   ListParticipantsParams,
   ListReactionsParams,
+  MemoryViewParams,
   MoveMessageParams,
   NominateHostHandoffParams,
   PreviewActionTemplatesParams,
@@ -102,6 +105,7 @@ import type {
   RemoveCharacterFromChatParams,
   ReplayChatEventsParams,
   ReplayLiveTurnParams,
+  RestoreMemoryParams,
   RevertContinueParams,
   RevokeInviteParams,
   SaveCorrectionParams,
@@ -127,6 +131,7 @@ import type {
   SetVariablesParams,
   StarChatParams,
   StartChatParams,
+  StrikeMemoryParams,
   SwipeParams,
   ToggleReactionParams,
   UndoContinueParams,
@@ -275,6 +280,14 @@ export interface ChatService {
   readonly saveCorrection: (params: SaveCorrectionParams) => Promise<ChatInjectionView>;
   readonly listChatInjections: (params: ListChatInjectionsParams) => Promise<ChatInjectionView[]>;
   readonly deleteChatInjection: (params: DeleteChatInjectionParams) => Promise<void>;
+
+  // ── story memory ──────────────────────────────────────────────────────────────
+  /** The room's remembered items in plain parts, with the host's strikes. Member-gated and floor-clamped. */
+  readonly memoryView: (params: MemoryViewParams) => Promise<MemoryView>;
+  /** Strike one remembered item from every later prompt (host-only; `memory_item_stale` when it changed since read). */
+  readonly strikeMemory: (params: StrikeMemoryParams) => Promise<StrikeMemoryResult>;
+  /** Remove one strike, so the item is recalled again (host-only; idempotent). */
+  readonly restoreMemory: (params: RestoreMemoryParams) => Promise<void>;
 
   // ── variables ─────────────────────────────────────────────────────────────────
   readonly setVariables: (params: SetVariablesParams) => Promise<void>;

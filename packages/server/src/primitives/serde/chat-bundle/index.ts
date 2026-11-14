@@ -14,6 +14,8 @@
 //   • a message is `messages[i]` — `messageIndex`
 //   • a variant is `messages[i].variants[j]` — `{ messageIndex, variantIdx }`
 //   • a checkpoint's snapshot is `rpg.snapshots[k]` — `snapshotIndex`
+//   • a memory strike's span is `{ startMessageIndex, endMessageIndex }` — the digests it strikes are DERIVED
+//     and re-summarize on the target, so the strike travels and the digest does not
 // The import verb writes the canon first, collects the new ids in the SAME order, and re-links the rpg planes
 // through that remap. A reference that points past the end of its plane is DROPPED at parse (see
 // `pruneDangling`) rather than landing an orphan row — the one place this file is opinionated about the
@@ -185,6 +187,19 @@ export interface PortableSeatCard {
   readonly fileHash: string;
 }
 
+/** One host strike on a remembered item, named by its bucket, tier and the covered span's endpoint messages.
+ *  `characterHandle: null` is the room's shared bucket. No content hash travels: the target re-summarizes, so
+ *  a carried hash could only ever mismatch, and the strike matches by its endpoints alone. */
+export interface PortableMemoryStrike {
+  // Untrusted portable-file text, resolved against the destination library only by the import verb.
+  readonly characterHandle: string | null;
+  readonly tier: number;
+  readonly startMessageIndex: number;
+  readonly endMessageIndex: number;
+  readonly topicAnchor: string | null;
+  readonly createdAt: number;
+}
+
 /** One chat, whole. `characterHandles` is the seated cast with the PRIMARY first (the run's fallback voice);
  *  `importHash` is the per-chat dedup oracle that makes a re-import idempotent instead of duplicating. */
 export interface PortableChat {
@@ -213,6 +228,8 @@ export interface PortableChat {
   /** The content hash of each asset an inline image names, keyed by the carried asset id. The target may hold
    *  those bytes under its own id, so the import re-links each inline image by its hash. */
   readonly assetHashes?: Readonly<Record<string, string>>;
+  /** Absent when the room holds no strike, so a strikeless chat's bytes match a bundle written before strikes. */
+  readonly memoryStrikes?: readonly PortableMemoryStrike[];
   readonly rpg: PortableRpgGame | null;
 }
 
@@ -354,6 +371,24 @@ const wireChatSchema = z.object({
   messages: z.array(wireMessageSchema),
   pendingGenerationObservations: pendingGenerationObservationsSchema.optional(),
   assetHashes: z.record(z.string(), z.string()).optional().catch(undefined),
+  // Healed per entry: a malformed strike is dropped alone, never its siblings or the chat; its scene comes back into
+  // recall, visibly, in the view. A list that is not a list at all loses only the plane.
+  memoryStrikes: z
+    .array(
+      z
+        .object({
+          characterHandle: z.string().trim().min(1).nullable(),
+          tier: index,
+          startMessageIndex: index,
+          endMessageIndex: index,
+          topicAnchor: z.string().nullish().catch(null),
+          createdAt: z.int(),
+        })
+        .nullable()
+        .catch(null),
+    )
+    .optional()
+    .catch(undefined),
   rpg: wireRpgSchema.nullish().catch(null),
 });
 
@@ -403,6 +438,19 @@ function pruneDangling(rpg: PortableRpgGame, messages: readonly PortableChatMess
     turnToolCalls: rpg.turnToolCalls.filter((t) => variantExists(messages, t.messageIndex, t.variantIdx)),
     checkpoints: rpg.checkpoints.filter((c) => snapshots[c.snapshotIndex] !== undefined),
   };
+}
+
+/** The strikes whose span still names messages this file carries, start before end. A strike with a dead or
+ *  inverted span names no item, and landing it would strike nothing while listing a ghost. */
+function memoryStrikesFromWire(
+  wire: WireChat["memoryStrikes"],
+  messages: readonly PortableChatMessage[],
+): { readonly memoryStrikes?: readonly PortableMemoryStrike[] } {
+  const kept = (wire ?? []).filter(
+    (s): s is NonNullable<typeof s> =>
+      s !== null && s.startMessageIndex <= s.endMessageIndex && messages[s.startMessageIndex] !== undefined && messages[s.endMessageIndex] !== undefined,
+  );
+  return kept.length === 0 ? {} : { memoryStrikes: kept.map((s): PortableMemoryStrike => ({ ...s, topicAnchor: s.topicAnchor ?? null })) };
 }
 
 // ── the serde ─────────────────────────────────────────────────────────────────────────────────────────────
@@ -589,6 +637,18 @@ const chatBundleSerde = defineJsonObjectSerde<PortableChat, WireChat>({
     rpg: chat.rpg === null ? null : rpgToWire(chat.rpg),
     ...(chat.pendingGenerationObservations === undefined ? {} : { pendingGenerationObservations: [...chat.pendingGenerationObservations] }),
     ...(chat.assetHashes === undefined ? {} : { assetHashes: { ...chat.assetHashes } }),
+    ...(chat.memoryStrikes === undefined || chat.memoryStrikes.length === 0
+      ? {}
+      : {
+          memoryStrikes: chat.memoryStrikes.map((s) => ({
+            characterHandle: s.characterHandle,
+            tier: s.tier,
+            startMessageIndex: s.startMessageIndex,
+            endMessageIndex: s.endMessageIndex,
+            topicAnchor: s.topicAnchor,
+            createdAt: s.createdAt,
+          })),
+        }),
   }),
   fromWire: (body) => {
     const messages = body.messages.map(
@@ -641,6 +701,7 @@ const chatBundleSerde = defineJsonObjectSerde<PortableChat, WireChat>({
             ),
           }),
       ...(body.assetHashes === undefined ? {} : { assetHashes: body.assetHashes }),
+      ...memoryStrikesFromWire(body.memoryStrikes, messages),
       rpg,
     };
   },

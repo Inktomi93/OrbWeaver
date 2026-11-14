@@ -13,9 +13,11 @@ import type {
   ReattributeScope,
   RedeemInviteInput,
   RegexTierKey,
+  RestoreMemoryInput,
   RoomOverrides,
   SaveCorrectionInput,
   SendContentBlock,
+  StrikeMemoryInput,
   ToolCallEditAction,
   ToolCallId,
 } from "@orb/contracts/chat";
@@ -367,6 +369,15 @@ export interface SetChatInjectionParams extends ChatScopedParams, Readonly<ChatI
 export interface SaveCorrectionParams extends ChatScopedParams, Readonly<SaveCorrectionInput> {}
 
 export type ListChatInjectionsParams = ChatScopedParams;
+
+/** `memoryView` — the room's remembered items, clamped to the caller's history floor. */
+export type MemoryViewParams = ChatScopedParams;
+
+/** `strikeMemory` — the host's strike on the item the key names, pinned to the hash the host read. */
+export interface StrikeMemoryParams extends ChatScopedParams, Readonly<StrikeMemoryInput> {}
+
+/** `restoreMemory` — the host's removal of one strike. */
+export interface RestoreMemoryParams extends ChatScopedParams, Readonly<RestoreMemoryInput> {}
 
 export interface DeleteChatInjectionParams extends ChatScopedParams {
   readonly injectionId: ChatInjectionId;
