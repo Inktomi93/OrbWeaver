@@ -2,8 +2,8 @@
 // the empty arm of a list ("No injections yet.") and the doorway to where a thing is set up ("Set up trackers in the
 // Game tab."). A surface's own empty state is `EmptyState` (the three-states law), never this.
 //
-// - It lives beside `QueryErrorState` and `SkeletonRows`, the error and loading arms of the same slot, so the data
-//   tier's own `QueryInlineStates` can draw it and every tier above reads it through `#data`.
+// - It is a cross-feature composite, not a data-layer primitive (UI-Architecture-and-Layout §2.1), so it lives in
+//   `components/`. The data tier cannot import it (`client-data-direction`), so `QueryInlineStates` takes it from its caller.
 // - The voice is `quiet`, the muted body line its voice header names for an empty-state line (owner ruling), at every
 //   site, so the line reads the same in every pane.
 // - `announce` is for a filter miss: focus stays in the search box, so the line is a status message a keyboard reader

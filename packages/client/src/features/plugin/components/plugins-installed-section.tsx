@@ -12,8 +12,8 @@
 import type { PluginStatus } from "@orb/contracts/plugin";
 import { Section, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
-import { MutedLine, QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
+import { MutedLine, QueryBoundary } from "#components";
+import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { PLUGINS_INSTALLED_SUBCATEGORY } from "../lib/plugins-nav.ts";
 import { PluginRow } from "./plugin-row.tsx";
 

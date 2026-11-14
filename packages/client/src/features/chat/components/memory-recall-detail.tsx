@@ -13,8 +13,8 @@ import { Badge } from "@orb/ui/badge";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { QueryBoundary } from "#components";
-import { MutedLine, QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
+import { MutedLine, QueryBoundary } from "#components";
+import { QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
 import { viewerTimeZone } from "#lib";
 
 /** The instrument's section voice (micro-caps, muted) — a panel-width heading, never the `Section` default

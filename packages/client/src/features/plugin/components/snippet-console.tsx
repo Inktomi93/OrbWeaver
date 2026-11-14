@@ -31,8 +31,9 @@ import { Textarea } from "@orb/ui/textarea";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { MutedLine } from "#components";
 import type { Trpc } from "#data";
-import { MutedLine, useInvalidation, useTRPC } from "#data";
+import { useInvalidation, useTRPC } from "#data";
 import { useRunSnippet } from "../lib/plugin-mutations.ts";
 
 type SnippetResult = inferOutput<Trpc["plugin"]["runSnippet"]>;

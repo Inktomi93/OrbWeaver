@@ -39,8 +39,8 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { ContextTabBody, RegexScopeOrder, SettingSwitchRow } from "#components";
-import { MutedLine, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { ContextTabBody, MutedLine, RegexScopeOrder, SettingSwitchRow } from "#components";
+import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { deriveChatTitle, regexScriptTitle, rowQualifiers, timeLib } from "#lib";
 import { useAttachRegexGlobal, useDetachRegexGlobal } from "../hooks/use-regex-library.ts";
 

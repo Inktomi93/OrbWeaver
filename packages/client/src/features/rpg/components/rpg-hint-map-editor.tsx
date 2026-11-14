@@ -15,8 +15,7 @@ import { Icon, Plus, Trash } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { removeActionName } from "@orb/ui/lib";
 import type { ReactElement, ReactNode } from "react";
-import { Tip } from "#components";
-import { MutedLine } from "#data";
+import { MutedLine, Tip } from "#components";
 import { Kicker } from "./rpg-kicker.tsx";
 import { AddRow, HintEditor } from "./tracker-blocks/index.ts";
 

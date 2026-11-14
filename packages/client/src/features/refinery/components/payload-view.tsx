@@ -24,7 +24,7 @@ import { Skeleton } from "@orb/ui/skeleton";
 import { Heading, NoValue, Text } from "@orb/ui/text";
 import type { ComponentProps, ReactElement } from "react";
 import { Fragment, useState } from "react";
-import { MutedLine } from "#data";
+import { MutedLine } from "#components";
 import { testId } from "#lib";
 import { useCountUp } from "../hooks/use-count-up.ts";
 import type { PlanField, RenderPlan, RowPlan } from "../lib/render-plan.ts";

@@ -27,7 +27,7 @@ import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { MutedLine } from "#data";
+import { MutedLine } from "#components";
 import { includeBodyText, parseIncludeBody } from "../lib/connection-editor-model.ts";
 
 /** The `responseMap` paths, in the pane's reading order with their plain-word names. A `Record` over the

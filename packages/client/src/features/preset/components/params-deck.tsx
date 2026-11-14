@@ -42,8 +42,8 @@ import { Select } from "@orb/ui/select";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { EditorPage, QueryBoundary, SettingRowGroup, SettingTrackRow } from "#components";
-import { MutedLine, useSuspenseQuery, useTRPC } from "#data";
+import { EditorPage, MutedLine, QueryBoundary, SettingRowGroup, SettingTrackRow } from "#components";
+import { useSuspenseQuery, useTRPC } from "#data";
 import type { AppFormInstance } from "#forms/editor";
 import {
   pageStep,

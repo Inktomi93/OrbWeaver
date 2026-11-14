@@ -16,8 +16,8 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { CharacterPicker, PickerDialog, QueryBoundary } from "#components";
-import { MutedLine, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { CharacterPicker, MutedLine, PickerDialog, QueryBoundary } from "#components";
+import { SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { useConnectCharacter, useDisconnectCharacter } from "../hooks/use-persona-mutations.ts";
 
 /** Keeps junction loading and retry local to the editor section. */

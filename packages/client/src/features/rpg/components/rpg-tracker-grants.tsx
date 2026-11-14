@@ -26,7 +26,8 @@ import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId } from "react";
-import { MutedLine, useInvalidation, useTRPC } from "#data";
+import { MutedLine } from "#components";
+import { useInvalidation, useTRPC } from "#data";
 import { usePatchSheet } from "../hooks/use-rpg-mutations.ts";
 import { Kicker } from "./rpg-kicker.tsx";
 

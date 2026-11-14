@@ -914,7 +914,7 @@ test("a Text drawn in a list's empty arm is a hand-built muted line beside the M
   plant(root, {
     "components/lines.tsx": [
       'import { Text } from "@orb/ui/text";',
-      'import { MutedLine } from "#data";',
+      'import { MutedLine } from "#components";',
       "export const A = ({ rows, go }) => (",
       "  <>",
       '    {rows.length === 0 ? <Text voice="gloss">none</Text> : <Text>{rows.length}</Text>}',

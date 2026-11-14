@@ -1,4 +1,4 @@
-import { MutedLine } from "@orb/client/data";
+import { MutedLine } from "@orb/client/components";
 import { CtClientProviders } from "@orb/testkit/browser";
 import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";

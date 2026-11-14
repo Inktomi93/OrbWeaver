@@ -7,8 +7,8 @@ import { ListRow } from "@orb/ui/list-row";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
-import { MutedLine, QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
+import { MutedLine, QueryBoundary } from "#components";
+import { QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
 import { tagTargetTitle } from "#lib";
 import { openConfigTo, openPersonaEditor, selectCharacter, selectChat, selectCollectionMember, selectPreset, setActiveSection } from "#state";
 

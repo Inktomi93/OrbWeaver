@@ -13,7 +13,8 @@
 import type { PluginId } from "@orb/kit/ids";
 import { LogViewer } from "@orb/ui/log-viewer";
 import type { ReactElement } from "react";
-import { MutedLine, useSuspenseQuery, useTRPC } from "#data";
+import { MutedLine } from "#components";
+import { useSuspenseQuery, useTRPC } from "#data";
 import { timeLib } from "#lib";
 
 /** `13:42  couldn't reach api.example.com` — the stamp through the ONE time seam (`timeLib`), never a raw

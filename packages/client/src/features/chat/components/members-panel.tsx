@@ -70,7 +70,7 @@ import { ScrollArea } from "@orb/ui/scroll-area";
 import { Text } from "@orb/ui/text";
 import type { KeyboardEvent, ReactElement, RefObject } from "react";
 import { useEffect, useId, useRef, useState } from "react";
-import { MutedLine } from "#data";
+import { MutedLine } from "#components";
 import { testId } from "#lib";
 import { CHAT_MEMBERS_ROSTER_NAME } from "../lib/chat-surface-names.ts";
 import type { MemberCharacterRow, MemberPersonRow, MemberRowActions } from "../lib/member-rows.ts";

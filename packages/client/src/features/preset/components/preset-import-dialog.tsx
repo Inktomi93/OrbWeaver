@@ -24,8 +24,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { FormDialog } from "#components";
-import { MutedLine } from "#data";
+import { FormDialog, MutedLine } from "#components";
 import { PRESET_IMPORT_NAME, PRESET_IMPORT_TITLE } from "../lib/preset-names.ts";
 
 /** The `.json` extension, stripped off the picked filename to seed the preset name (ST arm only — an

@@ -9,9 +9,9 @@ import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { Key, ReactElement, ReactNode } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
-import { MutedLine } from "#data";
 import { DIALOG_VERBS } from "#lib";
 import { ConfirmDialog } from "./confirm-dialog.tsx";
+import { MutedLine } from "./muted-line.tsx";
 
 export interface EntryListEditorProps<TItem> {
   /** The group's NAME. Rendered in the `kicker` voice — see the note at the render site. */

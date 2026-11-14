@@ -36,8 +36,8 @@ import { Select } from "@orb/ui/select";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { SettingCheckboxRow } from "#components";
-import { MutedLine, useInvalidation, useSuspenseQueries, useTRPC } from "#data";
+import { MutedLine, SettingCheckboxRow } from "#components";
+import { useInvalidation, useSuspenseQueries, useTRPC } from "#data";
 import { isUnknownMacroPick, unknownMacroPickCopy, useSetUserMacroValues, useSetVariables } from "../hooks/use-context-panel-mutations.ts";
 
 /** ONE stored pick, DERIVED from the wire bag (never re-spelled): string | boolean | string[]. Kit's

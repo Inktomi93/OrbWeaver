@@ -1,4 +1,4 @@
-// @subject packages/client/src/data/muted-line.tsx
+// @subject packages/client/src/components/muted-line.tsx
 // The muted line of a list keeps its sentence and its action inside the width at every text size: the action wraps under the
 // sentence rather than pushing past the edge, and it fires its own callback. A filter miss is announced; a plain empty line is not.
 import { PLATFORM_TEXT_SCALES, setPlatformTextSize } from "@orb/testkit/browser/spec";
@@ -7,7 +7,7 @@ import { expect, test } from "@playwright/test";
 import { MUTED_LINE_STORY } from "./_muted-line-labels.ts";
 import type { MutedLineStory } from "./_muted-line-stories.tsx";
 
-const STORY = "tests/client/data/_muted-line-stories/MutedLineStory";
+const STORY = "tests/client/components/_muted-line-stories/MutedLineStory";
 // A sub-pixel tolerance for edges that meet: layout rounds each box on its own.
 const EDGE_PX = 1;
 

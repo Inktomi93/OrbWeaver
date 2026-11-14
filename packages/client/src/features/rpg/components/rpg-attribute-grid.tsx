@@ -18,7 +18,7 @@ import type { RpgActorView, RpgStatProfile } from "@orb/contracts/rpg";
 import { readOwnKey } from "@orb/kit/objects";
 import { Grid, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { MutedLine } from "#data";
+import { MutedLine } from "#components";
 import { Kicker } from "./rpg-kicker.tsx";
 import { StatCell } from "./tracker-blocks/index.ts";
 

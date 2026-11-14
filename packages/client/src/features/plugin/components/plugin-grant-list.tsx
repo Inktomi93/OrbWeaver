@@ -109,7 +109,8 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId } from "react";
-import { MutedLine, useGatedQuery, useTRPC } from "#data";
+import { MutedLine } from "#components";
+import { useGatedQuery, useTRPC } from "#data";
 import { CAPABILITY_COPY_ROWS, capabilityCopy, HOSTS_COLLAPSE_AT, hostsDisclosureLabel, NO_IMAGE_MODEL_NOTE, SPEND_ROLE_TASKS } from "../lib/plugin-copy.ts";
 
 /** Whose model roles a spend permission is judged against: an installed plugin's own fold, or the installer's. */

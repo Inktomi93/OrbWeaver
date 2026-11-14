@@ -11,9 +11,9 @@ import { Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { MutedLine } from "#data";
 import { DIALOG_VERBS } from "#lib";
 import { DismissDialog } from "./form-dialog.tsx";
+import { MutedLine } from "./muted-line.tsx";
 
 /** One related/available entity in a relation section — the ListRow projection (id keeps its brand). */
 export interface RelationManagerItem<TId extends string = string> {

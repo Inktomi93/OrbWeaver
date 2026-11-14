@@ -5,8 +5,8 @@ import { Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
-import { MutedLine, QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
+import { MutedLine, QueryBoundary } from "#components";
+import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { RULE_WORLD_BOOK_NAME, RULE_WORLD_BOOKS_READ_LABEL } from "../lib/automation-names.ts";
 
 interface RuleBookFieldProps {

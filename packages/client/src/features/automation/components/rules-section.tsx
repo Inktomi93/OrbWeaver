@@ -26,8 +26,8 @@ import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
-import { MutedLine, QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
+import { MutedLine, QueryBoundary } from "#components";
+import { QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
 import { RuleManager } from "./rule-manager.tsx";
 
 /** The section's opening line — one gloss, painted in BOTH arms (settled and reserving) because it depends

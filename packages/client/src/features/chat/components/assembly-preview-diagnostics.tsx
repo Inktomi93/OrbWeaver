@@ -16,7 +16,7 @@ import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/colla
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { MutedLine } from "#data";
+import { MutedLine } from "#components";
 import { CHAT_PREVIEW_DIAGNOSTICS_LABEL } from "../lib/chat-surface-names.ts";
 import { MacroSliceDetail } from "./macro-slice-detail.tsx";
 import { MemoryRecallDetail } from "./memory-recall-detail.tsx";

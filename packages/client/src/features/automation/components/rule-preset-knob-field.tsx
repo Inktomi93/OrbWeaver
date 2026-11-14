@@ -41,8 +41,8 @@ import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
-import { MutedLine, QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
+import { MutedLine, QueryBoundary } from "#components";
+import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { RULE_ROOM_WORLD_BOOKS_READ_LABEL } from "../lib/automation-names.ts";
 // the value shape is the CONTRACT's wire-input bag (`lib/rule-preset-knob-model.ts` states why).
 import { clampKnobNumber, knobBlockingLine, knobIssue } from "../lib/rule-preset-knob-model.ts";

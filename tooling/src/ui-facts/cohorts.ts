@@ -302,7 +302,7 @@ const HAND_BUILT = "hand-built";
 // A Card in a colour tone with the soft or outline fill is a status box (UI-Density-Law §4.3, the Card `variant` row).
 const STATUS_FILLS = new Set(["soft", "outline"]);
 const NOTICE_SITES = "packages/client/src/components/notice.tsx";
-const MUTED_LINE_SITES = "packages/client/src/data/muted-line.tsx";
+const MUTED_LINE_SITES = "packages/client/src/components/muted-line.tsx";
 // The condition of an arm that draws the empty branch of a list.
 const EMPTY_CONDITION = /\.length\s*===?\s*0|\bisEmpty\b/u;
 
@@ -683,7 +683,7 @@ export function buildCohorts(all: readonly FileFacts[]): readonly Cohort[] {
       what: "the muted line of a list inside a surface: the MutedLine owner, and every Text a feature draws in an empty arm",
       columns: ["line"],
       info: ["action", "announce"],
-      // One owner draws the muted line (packages/client/src/data/muted-line.tsx header).
+      // One owner draws the muted line (packages/client/src/components/muted-line.tsx header).
       defects: { line: [HAND_BUILT] },
       keptReads: { line: MUTED_LINE_KEPT },
       members: client.flatMap(mutedLineMembers),

@@ -13,7 +13,7 @@ import { Button } from "@orb/ui/button";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { MutedLine } from "#data";
+import { MutedLine } from "#components";
 import type { ReferenceCount, ReferenceSite } from "#src/features/preset/lib/reference-scan.ts";
 import { scanReferences } from "#src/features/preset/lib/reference-scan.ts";
 import { selectPresetSection } from "#state";

@@ -11,7 +11,7 @@ import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useId } from "react";
-import { MutedLine } from "#data";
+import { MutedLine } from "#components";
 import type { ServableRole } from "../lib/connection-editor-model.ts";
 import { KIND_VERDICT_ITEMS, KIND_VERDICT_LABELS } from "../lib/connection-editor-model.ts";
 

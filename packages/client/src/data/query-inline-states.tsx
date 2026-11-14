@@ -1,12 +1,12 @@
 // QueryInlineStates: the non-suspense sibling of QueryBoundary. A
 // dialog/poll read (a plain `useQuery`, mounted-while-open or self-refetching) can't suspend, so it
 // hand-ladders `isPending ? … : isError ? … : empty ? …` inline — the exact three-copy shape that drifts
-// across admin panes. This bakes the ladder ONCE: pending in `muted`, error in `destructive`, empty as the shared
-// `MutedLine`, and null (render the rows below) on a successful non-empty read.
+// across admin panes. This bakes the ladder ONCE: pending in `muted`, error in `destructive`, the caller's empty line,
+// and null (render the rows below) on a successful non-empty read. The empty line is the caller's element because its
+// owner, `MutedLine`, is a composite above this tier (`client-data-direction`).
 
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { MutedLine } from "./muted-line.tsx";
 
 export interface QueryInlineStatesProps {
   /** The non-suspense query's status flags — pass a plain `useQuery` result straight through. */
@@ -17,8 +17,8 @@ export interface QueryInlineStatesProps {
   readonly pending: string;
   /** Error copy, e.g. "Couldn't load the sessions — try reopening this dialog.". */
   readonly error: string;
-  /** No-rows copy, e.g. "No sessions on record — they've never signed in.". */
-  readonly empty: string;
+  /** The no-rows line: the shared `MutedLine` with its sentence. */
+  readonly empty: ReactElement;
 }
 
 /**
@@ -34,7 +34,7 @@ export function QueryInlineStates({ status, isEmpty, pending, error, empty }: Qu
     return <Text tone="destructive">{error}</Text>;
   }
   if (status.isSuccess && isEmpty) {
-    return <MutedLine>{empty}</MutedLine>;
+    return empty;
   }
   return null;
 }

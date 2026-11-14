@@ -20,8 +20,8 @@ import { ListRow } from "@orb/ui/list-row";
 import { StatFigure } from "@orb/ui/stat-figure";
 import { shownValue, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
-import { MutedLine, QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
+import { MutedLine, QueryBoundary } from "#components";
+import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { testId } from "#lib";
 import { useSelectedAnalyticsCharacterId } from "#state";
 import {

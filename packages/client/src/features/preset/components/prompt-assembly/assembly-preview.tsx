@@ -19,7 +19,7 @@ import { Icon, MessagesSquare } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { MutedLine } from "#data";
+import { MutedLine } from "#components";
 import { PRESET_CHAT_HISTORY_LABEL } from "#src/features/preset/lib/preset-names.ts";
 import { MacroText } from "../macro-text.tsx";
 import type { AssembledPreview, PreviewBlock, RoleGroup } from "./preview-model.ts";
