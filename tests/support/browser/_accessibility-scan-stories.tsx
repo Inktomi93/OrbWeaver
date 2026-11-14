@@ -68,6 +68,25 @@ export function DroppedWordsStory({ described = false }: { readonly described?: 
   );
 }
 
+/**
+ * A control named by its visible title whose subtitle is its description, the split UI-Primitives-and-Reuse §13.10 N2 gives a list row:
+ * the vendor rule wants the subtitle's words in the name, the house Label-in-Name check strips the description and keeps the title.
+ */
+export function DescribedSubtitleStory(): ReactElement {
+  const subtitleId = useId();
+  return (
+    <CtIsolation subject="Described subtitle" isolates="What the label-content-name-mismatch rule reports for a control whose subtitle is its description">
+      <main>
+        <h1>Described subtitle</h1>
+        <button aria-describedby={subtitleId} aria-label="Ledger of ashes" type="button">
+          <span>Ledger of ashes</span>
+          <span id={subtitleId}>Opened by the archivist</span>
+        </button>
+      </main>
+    </CtIsolation>
+  );
+}
+
 /** A closed select whose trigger can be laid over the planted target, and a plain button that can too. */
 export function ClosedCoverStory(): ReactElement {
   return (
