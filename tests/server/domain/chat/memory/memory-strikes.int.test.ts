@@ -172,7 +172,9 @@ test("striking a scene leaves out the consolidation retelling it, and restoring 
 const STORM_ARC = "The storm arc was merged into one telling.";
 const MERGED_FACTS = "The scenes merged into one arc.";
 
-test("a longer summary over a struck scene stays out after the scene's own summary is dropped, and the view shows it struck", async () => {
+test("a strike outlives its scene's summary being dropped: it waits listed, then holds on the summaries built again", {
+  tags: ["slow"],
+}, async () => {
   let blankStorm = false;
   await using w = await world.build({
     mode: "tiered",
@@ -182,7 +184,7 @@ test("a longer summary over a struck scene stays out after the scene's own summa
       if (scripted.includes(MERGED_FACTS)) {
         return body.includes("arc-storm.") ? scripted.replace(MERGED_FACTS, STORM_ARC) : undefined;
       }
-      // A blank re-summary of the edited storm scene: the build drops that summary and keeps its parent.
+      // A blank re-summary of the edited storm scene: the build drops that summary and the longer one built from it.
       return blankStorm && body.includes(SUMMARIZE_TRANSCRIPT_MARKER) && body.includes("line-storm.") ? "" : undefined;
     },
   });
@@ -193,18 +195,24 @@ test("a longer summary over a struck scene stays out after the scene's own summa
   blankStorm = true;
   await editScene(w.h, "storm");
   await redigest(w);
-  const after = await w.h.caller.chat.memoryView({ chatId: w.h.chatId });
-  // The premise: the scene's own summary is gone and the longer one built from it is still stored.
-  expect(nonEmpty([...after.items]).some((item) => item.key.tier === 0 && item.key.blockIdx === blockOf("storm"))).toBe(false);
-  expect(itemAt(after, 1, arc.key.blockIdx).text).toBe(arc.text);
+  const dropped = await w.h.caller.chat.memoryView({ chatId: w.h.chatId });
+  // The premise: the scene's summary and the longer one built from it are both gone, so the strike matches nothing.
+  expect(nonEmpty([...dropped.items]).some((item) => item.key.tier === 0 && item.key.blockIdx === blockOf("storm"))).toBe(false);
+  expect(nonEmpty([...dropped.items]).some((item) => item.key.tier === 1 && item.key.blockIdx === arc.key.blockIdx)).toBe(false);
+  expect(dropped.unmatchedStrikes).toEqual([expect.objectContaining({ strikeId, tier: 0 })]);
+
+  // The summarizer answers again: the scene's summary comes back struck, as changed since, and the longer one with it.
+  blankStorm = false;
+  await w.sweep({ kind: "memory-backfill", params: {} });
+  const rebuilt = await w.h.caller.chat.memoryView({ chatId: w.h.chatId });
+  expect(sceneOf(rebuilt, "storm").strike).toEqual({ strikeId, changedSinceStrike: true });
+  expect(itemAt(rebuilt, 1, arc.key.blockIdx).retellsStruck).toBe(true);
+  expect(rebuilt.unmatchedStrikes).toEqual([]);
   const run = await recallTurn(w.h, BOTH);
   expect(run.prompt).not.toContain(STORM_ARC);
   expect(verdicts(run.trace, "covers-struck").map((candidate) => [candidate.tier, candidate.blockIdx])).toEqual([[1, arc.key.blockIdx]]);
-  // The view carries the strike on the longer summary it still leaves out, not as an unmatched strike.
-  expect(itemAt(after, 1, arc.key.blockIdx)).toMatchObject({ strike: { strikeId, changedSinceStrike: true } });
-  expect(after.unmatchedStrikes).toEqual([]);
 
-  // The control: restored, the longer summary reaches the prompt.
+  // The control: restored, the rebuilt longer summary reaches the prompt.
   await w.h.caller.chat.restoreMemory({ chatId: w.h.chatId, strikeId });
   expect((await recallTurn(w.h, BOTH)).prompt).toContain(STORM_ARC);
 });
