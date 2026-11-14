@@ -61,7 +61,9 @@ export function ThemeImportLeftovers({ themeName, created, leftovers }: ThemeImp
   const outcome = THEME_IMPORT_OUTCOME[created ? "created" : "reused"];
   return (
     <Stack gap="field" data-slot="theme-import-leftovers" role="note">
-      <Text voice="label">{themeImportLeftoverTitle(themeName, leftovers.length, created)}</Text>
+      <Text cap="prose" voice="lead">
+        {themeImportLeftoverTitle(themeName, leftovers.length, created)}
+      </Text>
       <Text voice="quiet" cap="prose">
         {appearance.length > 0 ? outcome : `${outcome} ${THEME_IMPORT_NOTHING_TO_DO}`}
       </Text>
@@ -71,13 +73,13 @@ export function ThemeImportLeftovers({ themeName, created, leftovers }: ThemeImp
         </Text>
       ))}
       <Collapsible open={open} onOpenChange={setOpen}>
-        <CollapsibleTrigger>{themeImportLeftoverToggleName(open)}</CollapsibleTrigger>
+        <CollapsibleTrigger self="start">{themeImportLeftoverToggleName(open)}</CollapsibleTrigger>
         <CollapsiblePanel>
           <Stack gap="field">
             {groups.map(({ kind, keys }) => (
               <Stack data-kind={kind} data-slot="theme-import-names" gap="tight" key={kind}>
                 <Text voice="label">{themeImportGroupNamesLabel(kind)}</Text>
-                <Text voice="datumMono" wrap="anywhere">
+                <Text cap="prose" voice="datumMono" wrap="anywhere">
                   {keys.join(", ")}
                 </Text>
               </Stack>
