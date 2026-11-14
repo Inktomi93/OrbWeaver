@@ -35,6 +35,7 @@ import { roomRosterOptions, useDisplayEntries, useInvalidation, useSuspenseQuery
 import { ROW_MORE_LEAD, regexScriptTitle, rowActionSubject, rowQualifiers, timeLib } from "#lib";
 import { openConfigTo, selectCollectionMember } from "#state";
 import { useSetRegexScriptEnabled } from "../hooks/use-chat-regex-mutations.ts";
+import { useStoppedDisplayScripts } from "../hooks/use-display-text.ts";
 import { REGEX_OFF_MARK, REGEX_ON_SCREEN_LIST, regexScriptEverywhereSwitchName, regexTierKicker } from "../lib/regex-section-model.ts";
 import { HostDisplayScriptsControl } from "./host-display-scripts-control.tsx";
 
@@ -47,15 +48,6 @@ const YOURS = "yours";
 /** The mark and its spoken reason on a script the display pass stopped. */
 const STOPPED_MARK = "Stopped";
 const STOPPED_REASON = "It took too long to run on this device and is stopped until you reload.";
-
-const NO_STOPPED: ReadonlySet<RegexScriptId> = new Set<RegexScriptId>();
-
-// The scripts the display pass stopped this session. It returns none until `#data`'s `useStoppedDisplayScripts`
-// lands; the hookup is the one `stopped` line in `RegexOnScreenGroup`, which becomes a set of that hook's ids, and
-// this function goes.
-function stoppedDisplayScripts(_chatId: ChatId): ReadonlySet<RegexScriptId> {
-  return NO_STOPPED;
-}
 
 export interface RegexOnScreenGroupProps {
   readonly chatId: ChatId;
@@ -73,7 +65,7 @@ export function RegexOnScreenGroup({ chatId, isHost, labels, switchedOff }: Rege
   const entries = useDisplayEntries(chatId);
   const { data: owned } = useSuspenseQuery(trpc.regex.listScripts.queryOptions());
   const { data: chat } = useSuspenseQuery(roomRosterOptions(trpc, { chatId }));
-  const stopped = stoppedDisplayScripts(chatId);
+  const stopped = new Set<RegexScriptId>(useStoppedDisplayScripts().map((script) => script.id));
   const ownedIds = new Set(owned.map((script) => script.id));
   const rows: readonly RegexDisplayEntry[] = [...entries, ...switchedOff];
   const names = withSeatNames(labels, rows, chat.participants);

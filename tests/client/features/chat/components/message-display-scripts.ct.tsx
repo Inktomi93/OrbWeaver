@@ -1,7 +1,7 @@
 // Display regex scripts through the real transcript: `MessageListSurface` renders each row through
 // `useDisplayText`, which runs the viewer's scripts in the display-pass Worker under its deadlines. The
-// scripts are created through `regex.createScript` on a corpus root and reach the page through the room's
-// display-set read, so each case runs what a viewer's own library would. The scoping cases read each row's
+// scripts are created through `regex.createScript` on a corpus root, attached Everywhere, and reach the page through
+// the room's display-set read, so each case runs what the room resolves for the viewer. The scoping cases read each row's
 // target, author stamps, depth and the room's seats off the row's own data, as the transcript passes them.
 
 import type { MessageView } from "@orb/contracts/chat";
@@ -32,8 +32,11 @@ type Script = Pick<CreateInput, "name" | "findRegex" | "replaceString"> & Partia
 /** Both of a transcript row's body targets: the leg 1 cases draw on whichever row they rewrite. */
 const BODY_TARGETS: CreateInput["targets"] = ["AI_OUTPUT", "USER_INPUT"];
 
+/** A display script runs where it is attached, so each one is made one of the owner's Everywhere scripts: the room's
+ *  global tier when the owner hosts, the viewer's own tier when they do not. */
 async function addDisplayScript(owner: Owner, { targets = BODY_TARGETS, ...script }: Script): Promise<void> {
-  await owner.regex.createScript({ input: { ...script, targets: [...targets], passes: ["display"] } });
+  const created = await owner.regex.createScript({ input: { ...script, targets: [...targets], passes: ["display"] } });
+  await owner.regex.attachGlobal({ scriptId: created.id });
 }
 
 /** A row the transcript counts toward depth: it would reach the model. */
