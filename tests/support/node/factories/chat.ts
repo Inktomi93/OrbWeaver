@@ -65,7 +65,7 @@ export interface TranscriptLine
   extends Pick<PortableChatMessage, "role">,
     Partial<Pick<PortableChatMessage, "kind" | "speakerHandle" | "personaName">>,
     Pick<PortableChatVariant, "content">,
-    Partial<Pick<PortableChatVariant, "reasoning" | "metadata">> {}
+    Partial<Pick<PortableChatVariant, "reasoning" | "metadata" | "model">> {}
 
 export interface SeedTranscriptParams {
   readonly ownerId: UserId;
@@ -79,13 +79,8 @@ export interface SeededTranscript {
   readonly chatId: ChatId;
 }
 
-/** A history with assistant rows is bulk data: the native chat import writes it in one call, with no turn. */
-export async function seedTranscript(root: ServerProducerRoot, params: SeedTranscriptParams): Promise<SeededTranscript> {
-  const descriptor = root.app.portability.find((entity) => entity.kind === "chat");
-  if (descriptor === undefined) {
-    throw new Error("production composition has no chat portability descriptor");
-  }
-  const importFile = descriptor.importFile;
+/** The orb-native chat file a transcript imports from, for a case that drives the import itself. */
+export function transcriptFile(params: Omit<SeedTranscriptParams, "ownerId">): PortableFile {
   const [primary] = params.characterHandles;
   if (primary === undefined) {
     throw new Error("a transcript import needs a seated character; production refuses a characterless room");
@@ -108,7 +103,17 @@ export async function seedTranscript(root: ServerProducerRoot, params: SeedTrans
     messages: params.lines.map(transcriptMessage),
     rpg: null,
   });
-  const file: PortableFile = { filename: `${primary}/transcript${CHAT_BUNDLE_EXT}`, bytes };
+  return { filename: `${primary}/transcript${CHAT_BUNDLE_EXT}`, bytes };
+}
+
+/** A history with assistant rows is bulk data: the native chat import writes it in one call, with no turn. */
+export async function seedTranscript(root: ServerProducerRoot, params: SeedTranscriptParams): Promise<SeededTranscript> {
+  const descriptor = root.app.portability.find((entity) => entity.kind === "chat");
+  if (descriptor === undefined) {
+    throw new Error("production composition has no chat portability descriptor");
+  }
+  const importFile = descriptor.importFile;
+  const file = transcriptFile(params);
   // The import names no room, so the one the owner's list gains is the room this call wrote.
   const owner = await root.internalCallerFor(params.ownerId);
   const listed = async (): Promise<readonly ChatId[]> => (await owner.chat.listChats({})).items.map(({ id }) => id);
@@ -137,7 +142,7 @@ export function transcriptMessage(line: TranscriptLine): PortableChatMessage {
       {
         idx: 0,
         content: line.content,
-        model: null,
+        model: line.model ?? null,
         provider: null,
         tokensIn: null,
         tokensOut: null,

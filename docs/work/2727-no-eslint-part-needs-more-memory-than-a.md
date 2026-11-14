@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
-updated: 2026-11-12
+status: open
+updated: 2026-11-14
 priority: P2
 area: tooling
-lane: wt/agent-afa486f082b1e1884
 plan: cross-platform
 ---
 
