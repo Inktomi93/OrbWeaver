@@ -148,6 +148,10 @@ type DetachHandoffBooksOp = (args: { readonly chatId: ChatId; readonly hostUserI
  *  `chat_regex_scripts` delete of every script on `chatId` the incoming host does not own. */
 type DetachHandoffRegexScriptsOp = (args: { readonly chatId: ChatId; readonly hostUserId: UserId }) => StatementToken;
 
+/** The host-handoff DOCUMENT detach (databank's `DetachHandoffDocuments`, declared structurally): the UNEXECUTED
+ *  `chat_documents` delete of every document on `chatId` the incoming host does not own. */
+type DetachHandoffDocumentsOp = (args: { readonly chatId: ChatId; readonly hostUserId: UserId }) => StatementToken;
+
 /** The host-handoff DIGEST re-key (embeddings' `HandoffRestampStatements`, declared structurally). Returns
  *  UNEXECUTED statements scoped to this chat; empty for an empty pair list. */
 type RestampHandoffDigestsOp = (args: { readonly chatId: ChatId; readonly pairs: readonly HandoffCardPair[] }) => Promise<readonly StatementToken[]>;
@@ -668,11 +672,12 @@ export interface ChatContext extends EngineContext, ChatAccountingContext, ChatC
    *  find/replace running on the transferred room's prompts and rendered output — the chat-book license,
    *  except executable, and un-flippable by anyone still in the room. */
   readonly copyHandoffRegexScripts: CopyHandoffRegexScriptsOp;
-  /** HOST HANDOFF, the D64 detach: the UNEXECUTED `chat_books` and `chat_regex_scripts` deletes the swap batch
-   *  commits after the copy re-points, so the room carries only attachments the new host owns. Injected
-   *  because both tables belong to their domains (D337). */
+  /** HOST HANDOFF, the D64 detach: the UNEXECUTED `chat_books`, `chat_regex_scripts` and `chat_documents` deletes
+   *  the swap batch commits after the copy re-points, so the room carries only attachments the new host owns.
+   *  Injected because each table belongs to its domain (D337). */
   readonly detachHandoffBooks: DetachHandoffBooksOp;
   readonly detachHandoffRegexScripts: DetachHandoffRegexScriptsOp;
+  readonly detachHandoffDocuments: DetachHandoffDocumentsOp;
   /** HOST HANDOFF, the NOMINATE-side disclosure: how many books / scripts an accept would land in
    *  the nominee's library. Injected for the same reason their copy twins are — the tables are world-info's
    *  and regex's — and they exist as their own ops rather than as a dry-run flag on the copies because a

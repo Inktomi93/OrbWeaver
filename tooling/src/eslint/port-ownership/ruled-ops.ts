@@ -19,6 +19,7 @@ export const JOINT_BATCH_RULINGS = [
       { owner: "regex", op: "copyHandoffRegexScripts" },
       { owner: "world-info", op: "detachHandoffBooks" },
       { owner: "regex", op: "detachHandoffRegexScripts" },
+      { owner: "databank", op: "detachHandoffDocuments" },
       { owner: "rpg", op: "rpgRestoreStatement" },
       { owner: "chat", op: "NotificationsEmitOp" },
       { owner: "chat", op: "claimStatement" },

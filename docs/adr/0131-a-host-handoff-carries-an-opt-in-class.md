@@ -1,7 +1,7 @@
 ---
 kind: adr
 status: active
-updated: 2026-09-23
+updated: 2026-11-14
 ---
 
 # A host handoff carries an OPT-IN, CLASS-LEVEL, POINT-IN-TIME property offer. AMENDS \[\[D64]]:
@@ -14,7 +14,7 @@ Not recorded in the ledger row.
 
 the seated-character drop stays the default and the decline path, and beside it the departing host may offer COPIES of the characters and the GM preset they brought. Design: commit `9e5d2894ba` §5/§6(f). Homes: `handoffOfferSchema`/`NO_HANDOFF_OFFER` (`@orb/contracts/chat` roster.ts) · `chats.pendingHandoffOffer` · `domain/chat/verbs/participants.ts` (the plan and the swap) · `domain/character/contract/handoff-copy.ts` (the minting op) · `entry/boot/migrate-handoff-offer-vocab.ts` (the boot-time key rewrite that keeps a blob written before the current spelling readable — the read seam degrades an unrecognised offer to `NO_HANDOFF_OFFER`, so an un-rewritten row drops a recorded consent silently).
 
-**(A) THE OFFER IS MADE AT NOMINATE AND EXECUTED AT ACCEPT** — acceptance is what freezes the point in time, and nobody receives property they have not accepted. `HandoffOffer {copyCharacters, copyGmPreset}`; **both false, or a null column, is BYTE-IDENTICAL to a handoff with no offer at all** (the built D64 drop runs, the `gmPresetId` and anchor heals run, nothing is copied). It is CLASS-LEVEL, never a per-item matrix (owner: the point is OPTIONS, and a matrix is the jank the ruling's own addendum asked to avoid) — the blob is an OBJECT rather than a boolean precisely so a later per-class case needs no schema churn. Message VARIANTS are deliberately absent from the shape: they are rows keyed to THIS chat and transfer with the room by construction.
+**(A) THE OFFER IS MADE AT NOMINATE AND EXECUTED AT ACCEPT** — acceptance is what freezes the point in time, and nobody receives property they have not accepted. `HandoffOffer {copyCharacters, copyGmPreset}`; **both false, or a null column, is BYTE-IDENTICAL to a handoff with no offer at all** (the built D64 drop runs, the `gmPresetId` heal runs, nothing is copied). It is CLASS-LEVEL, never a per-item matrix (owner: the point is OPTIONS, and a matrix is the jank the ruling's own addendum asked to avoid) — the blob is an OBJECT rather than a boolean precisely so a later per-class case needs no schema churn. Message VARIANTS are deliberately absent from the shape: they are rows keyed to THIS chat and transfer with the room by construction.
 
 **(B) NOTHING IN THE COPY IS A LICENSE.** A seat is a candidate only when its card resolves under the OLD HOST (it is theirs to give) **and does NOT resolve under the NOMINEE** (a card the nominee already owns is a live seat, not a gift — copying it would mint a pointless second library row and orphan the original's history). Every read carries an owner in its WHERE; the roster's `characterId` grants no read (D18/D21/D23). A seat that satisfies neither falls through to the D64 drop, as does one whose card vanished between nominate and accept — the honest degrade, never a blank-name seat. No departing host (they walked) or a self-accept copies nothing.
 
@@ -26,7 +26,7 @@ the seated-character drop stays the default and the decline path, and beside it 
 
 **(F) AVATARS ARE RE-OWNED, NEVER CARRIED.** `assets` is per-owner with a `(ownerId, hash)` dedup key (D21), so a carried `avatarAssetId` on the nominee's card is BOTH a pointer into a library they cannot read AND a GC root holding the departed host's blob alive through a row they no longer control. Content addressing makes the re-own cheap and idempotent (the same bytes under an owner who already has them resolve to their existing row); a source asset that is gone lands the copy FACELESS rather than not at all.
 
-**(G) PERSONAS ARE NEVER COPIED — the pointer heals instead.** An anchor persona the incoming host cannot read is NULLED in the same swap batch (the honest degrade: otherwise `{{user}}` silently falls through while the knob serves an id they can never inspect). Personas are owner-sacred (D122); this heals a pointer, it never moves a row.
+**(G) PERSONAS ARE NEVER COPIED, AND THE PIN IS NEVER TOUCHED.** Personas are owner-sacred (D122), so no persona row moves. A handoff leaves `chats.anchorPersonaId` exactly as it was: the pin holds and reads live, whoever owns it, until the host re-pins or clears it (D315).
 
 ## Consequences
 
