@@ -410,7 +410,7 @@ export function SurfaceTabStripStory({ wrapper }: { readonly wrapper: "strip" | 
         <Tabs defaultValue={STRIP_TABS[0]}>
           <div data-planted="scroller" style={{ inlineSize: SIDEWAYS_SCROLLER_PX, overflowX: "auto" }}>
             {wrapper === "text" ? UNBREAKABLE_WORD : null}
-            <TabsList aria-label="Planted views">
+            <TabsList aria-label="Planted views" track="free">
               {(wrapper === "text" ? STRIP_TABS.slice(0, 1) : STRIP_TABS).map((tab) => (
                 <TabsTab key={tab} value={tab}>
                   {tab}
