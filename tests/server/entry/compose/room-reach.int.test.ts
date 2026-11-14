@@ -1,4 +1,5 @@
 // Real composed writes and transport frames prove reach authority, confirmed deletion, and failure isolation.
+import { createCharacterSchema } from "@orb/contracts/character";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { chatDocuments, chatRegexScripts } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -9,7 +10,7 @@ import { withheldTable } from "@orb/testkit/node/composed";
 import { onTestFinished, vi } from "vitest";
 import { test } from "./room-reach.fixtures.ts";
 
-test("bulk regex capture fans only confirmed owned scripts, once per room, and never a host-only library tier", async ({
+test("bulk regex capture fans only confirmed owned scripts, once per room, and reaches the rooms a global tier draws in", async ({
   app,
   ids,
   ownerCaller,
@@ -22,6 +23,8 @@ test("bulk regex capture fans only confirmed owned scripts, once per room, and n
   const foreign = await otherCaller.regex.createScript({ input: { ...input, name: "foreign" } });
   const ownedRoom = (await ownerCaller.chat.startChat({ characterIds: [] })).chat;
   const foreignRoom = (await otherCaller.chat.startChat({ characterIds: [] })).chat;
+  // Only the owner's global tier reaches this room; the stranger's room holds no seat of the owner's.
+  const globalRoom = (await ownerCaller.chat.startChat({ characterIds: [] })).chat;
   await ownerCaller.regex.attachToChat({ chatId: ownedRoom.id, scriptId: first.id });
   await ownerCaller.regex.attachToChat({ chatId: ownedRoom.id, scriptId: second.id });
   await ownerCaller.regex.attachGlobal({ scriptId: global.id });
@@ -38,7 +41,50 @@ test("bulk regex capture fans only confirmed owned scripts, once per room, and n
     affected: 3,
   });
   expect((await otherCaller.regex.listScripts()).map(({ id }) => id)).toContain(foreign.id);
-  expect(frames).toEqual([{ seq: null, event: { type: "roomEntityChanged", chatId: ownedRoom.id, entity: "regex" } }]);
+  expect(new Set(frames.map((frame) => frame.event.chatId))).toEqual(new Set([ownedRoom.id, globalRoom.id]));
+  expect(frames).toHaveLength(2);
+});
+
+test("a script's room hears every tier write that changes what the host's tiers draw there, and a room it no longer reaches hears none", async ({
+  app,
+  ownerCaller,
+  otherCaller,
+}): Promise<void> => {
+  const card = await ownerCaller.character.create({
+    input: createCharacterSchema.parse({ handle: "reach-card", name: "Mira", description: "Keeps the lamp." }),
+  });
+  const preset = await ownerCaller.preset.create({ name: "Reach preset", kind: "custom" });
+  const room = (await ownerCaller.chat.startChat({ characterIds: [card.id] })).chat;
+  // A room the owner holds no seat in, which no step below may reach.
+  await otherCaller.chat.startChat({ characterIds: [] });
+  const script = await ownerCaller.regex.createScript({
+    input: createRegexScriptSchema.parse({ name: "panel", findRegex: "x", replaceString: "y", targets: ["AI_OUTPUT"], passes: ["display"] }),
+  });
+  const rename = (name: string): Promise<unknown> => ownerCaller.regex.updateScript({ scriptId: script.id, input: { name } });
+  const rooms: unknown[] = [];
+  onTestFinished(
+    app.liveBuses.chat.subscribeAllChatEvents((frame) => {
+      if (frame.event.type === "roomEntityChanged" && frame.event.entity === "regex") {
+        rooms.push(frame.event.chatId);
+      }
+    }),
+  );
+  const heard = async (write: () => Promise<unknown>): Promise<unknown[]> => {
+    rooms.length = 0;
+    await write();
+    return [...rooms];
+  };
+
+  expect(await heard(() => rename("unattached"))).toEqual([]);
+  expect(await heard(() => ownerCaller.regex.attachGlobal({ scriptId: script.id }))).toEqual([room.id]);
+  expect(await heard(() => ownerCaller.regex.applyScopeOrder({ scope: { kind: "global" }, orderedScriptIds: [script.id] }))).toEqual([room.id]);
+  expect(await heard(() => ownerCaller.regex.detachGlobal({ scriptId: script.id }))).toEqual([room.id]);
+  expect(await heard(() => ownerCaller.regex.attachToPreset({ presetId: preset.id, scriptId: script.id }))).toEqual([room.id]);
+  expect(await heard(() => ownerCaller.regex.detachFromPreset({ presetId: preset.id, scriptId: script.id }))).toEqual([room.id]);
+  expect(await heard(() => ownerCaller.regex.attachToCharacter({ characterId: card.id, scriptId: script.id }))).toEqual([room.id]);
+  expect(await heard(() => rename("seated"))).toEqual([room.id]);
+  expect(await heard(() => ownerCaller.regex.detachFromCharacter({ characterId: card.id, scriptId: script.id }))).toEqual([room.id]);
+  expect(await heard(() => rename("detached"))).toEqual([]);
 });
 
 test("global document reach credits a present member rather than only the host, then drops that departed member", async ({

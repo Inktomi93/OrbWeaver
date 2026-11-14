@@ -13,6 +13,8 @@ export function createDetachFromPreset(ctx: RegexContext): RegexService["detachF
     const ownerId = principal.userId;
     await ensurePresetOwned(ctx.db, ownerId, presetId);
     await requireOwnedScript(ctx.db, ownerId, scriptId);
+    // The junction row is the reach, so the rooms are read before it goes.
+    const announce = await ctx.captureRoomReachForDelete([scriptId]);
     const at = ctx.now();
     const result = await ctx.db
       .delete(presetRegexScripts)
@@ -21,6 +23,7 @@ export function createDetachFromPreset(ctx: RegexContext): RegexService["detachF
     if (detached) {
       await ctx.audit({ actorUserId: ownerId, action: "regex.detachFromPreset", entityType: "regex_script", entityId: scriptId, metadata: { presetId } }, at);
       ctx.emitUserEvent(ownerId, { type: "regexChanged", scriptId });
+      announce([scriptId]);
     }
     return { detached };
   };
