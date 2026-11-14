@@ -355,3 +355,38 @@ test("an own server still lists on the press, never while its URL is half typed"
   await expect(dialog.getByRole("option", { name: LISTED_ROW })).toBeVisible();
   expect(requests).toHaveLength(1);
 });
+
+// The List models press hands the caret to the search box when the list lands, and a click on nothing while the read ran does not take it back.
+for (const strayClick of [false, true]) {
+  test(`an own server's list takes the caret after the List models press${strayClick ? " and a click on the dialog's title" : ""}`, async ({
+    corpus,
+    mount,
+    page,
+  }) => {
+    await using keyed = await keyedRoot();
+    const { root, providers } = keyed;
+    const requests: DraftRequest[] = [];
+    const provider = providerWhere(providers, (candidate) => candidate.auth === "endpoint", "own-server provider");
+    const held = trpcHold<"connection.draftCatalogModels">();
+    const dialog = await openDialogOn(root, provider, {
+      corpus,
+      mount,
+      page,
+      requests,
+      respond: (input) => {
+        requests.push(input);
+        return held;
+      },
+    });
+    await dialog.getByRole("textbox", { name: "Server URL", exact: true }).fill("http://localhost:11434");
+    await dialog.getByRole("button", { name: LIST_MODELS_NAME, exact: true }).click();
+    await held.requested;
+    if (strayClick) {
+      await dialog.getByRole("heading").first().click();
+    }
+    held.release(catalog);
+
+    await expect(dialog.getByRole("option", { name: LISTED_ROW })).toBeVisible();
+    await expect(dialog.getByPlaceholder(MODEL_SEARCH_PLACEHOLDER)).toBeFocused();
+  });
+}

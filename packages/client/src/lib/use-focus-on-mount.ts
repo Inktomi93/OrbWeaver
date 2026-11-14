@@ -199,19 +199,23 @@ function useArrivalFocus(ref: RefObject<FocusTarget | null>, { enabled, repeatOn
  *  of a user activation.
  *
  *  `yieldToReader` stands it down for a control the reader is using: a text field outside the target that holds focus, or
- *  any element outside the target the reader moved to (a click, Enter or Tab) after the surface began to wait. A surface that
+ *  any control outside the target that holds focus because the reader moved it there (a click, Enter or Tab) after the surface
+ *  began to wait; an overlay root, or the control that held focus when the wait began, is not such a move. A surface that
  *  lands after a read must not turn the reader's next keystrokes into its own input, nor take focus from the control they went
  *  to. The press that started the wait came before it began, so focus it left on its own control is still taken. */
 export function useFocusOnSwap(ref: RefObject<FocusTarget | null>, enabled = true, yieldToReader = false): void {
-  const waitBeganAt = useRef<number | null>(null);
+  const waitBegan = useRef<{ readonly at: number; readonly focus: MinimalElement | null } | null>(null);
   useEffect(() => {
     if (!enabled) {
-      waitBeganAt.current = performance.now();
+      waitBegan.current = { at: performance.now(), focus: browserDocument?.activeElement ?? null };
       return;
     }
     const active = browserDocument?.activeElement ?? null;
     if (yieldToReader && active !== null && !isInside(ref.current, active)) {
-      const movedWhileWaiting = active !== browserDocument?.body && waitBeganAt.current !== null && lastReaderMoveAt > waitBeganAt.current;
+      const began = waitBegan.current;
+      // A click on nothing leaves focus on an overlay root, which is no control the reader went to.
+      const movedWhileWaiting =
+        began !== null && lastReaderMoveAt > began.at && active !== browserDocument?.body && active !== began.focus && !active.matches(OVERLAY_FOCUS_SCOPE);
       if (active.matches(TEXT_ENTRY) || movedWhileWaiting) {
         return;
       }

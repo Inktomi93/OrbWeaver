@@ -544,6 +544,8 @@ const TEST_CONSTANT_HOMES = {
     "IMAGE_NEGATIVE_PROMPT_NOUN and IMAGE_NEGATIVE_PROMPT_FIELD_NAME: the image field's name, which the rule editor's optional field controls are named by",
   "packages/client/src/lib/view-transition-names.ts": "SHELL_SWAP_DEADLINE_PROPERTY: the grid property a swap spec stretches to hold the old frame",
   "packages/client/src/forms/editor/bound-fields/macro-field-names.ts": "macroTokenCountLine: the estimated token count a macro field prints under its value",
+  "packages/client/src/forms/editor/bound-fields/secret-field-names.ts":
+    "REVEAL_SECRET_NAME and CONCEAL_SECRET_NAME: the reveal press beside a secret field, which the add-connection spec moves focus to",
   "packages/client/src/features/rpg/lib/tracker-names.ts":
     "trackerFieldName and the tracker value names: the per-carrier field and rest-button names the rpg panels print",
   "packages/client/src/forms/editor/autosave-status-names.ts": "AUTOSAVE_SAVED_TEXT and its siblings: the words the shared autosave readout prints",
