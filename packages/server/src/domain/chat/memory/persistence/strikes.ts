@@ -12,6 +12,7 @@ import type { CharacterId, ChatDigestId, ChatId, ChatMemoryStrikeId, MessageId }
 import type { RecallStrike, StrikeCandidate } from "@orb/kit/recall";
 import { tier0RangeOf } from "@orb/kit/recall";
 import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
+import type { ChatContext } from "#src/domain/chat/contract/context.ts";
 import type { DigestRow } from "../types.ts";
 import { loadSegmentSpans } from "./queries.ts";
 
@@ -241,7 +242,7 @@ export function restampMemoryStrikesStatement(db: Db, chatId: ChatId, sourceChar
  *  shared-bucket strike stays, for the group bucket's summary of the same span. */
 export async function copySharedStrikesStatements(
   db: Db,
-  args: { readonly chatId: ChatId; readonly characterId: CharacterId; readonly newId: () => ChatMemoryStrikeId },
+  args: { readonly chatId: ChatId; readonly characterId: CharacterId; readonly newMemoryStrikeId: ChatContext["newMemoryStrikeId"] },
 ): Promise<BatchStmt[]> {
   const shared = await db
     .select()
@@ -251,7 +252,7 @@ export async function copySharedStrikesStatements(
     batchStmt(
       db
         .insert(chatMemoryStrikes)
-        .values({ ...row, id: args.newId(), scopedCharacterId: args.characterId })
+        .values({ ...row, id: args.newMemoryStrikeId(), scopedCharacterId: args.characterId })
         .onConflictDoNothing(),
     ),
   );

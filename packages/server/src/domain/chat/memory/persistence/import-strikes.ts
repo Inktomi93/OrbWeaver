@@ -19,7 +19,7 @@ import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { CharacterId, ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
-import type { ImportMemoryStrikesContext } from "../../contract/import.ts";
+import type { ImportMemoryStrikesContext } from "#src/domain/chat/contract/import.ts";
 import { IMPORTED_STRIKE_HASH } from "./strikes.ts";
 
 const LIMIT_ONE = 1;

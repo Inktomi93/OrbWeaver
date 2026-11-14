@@ -73,7 +73,6 @@ import type {
 import type { ParticipantRow } from "../contract/participant-row.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireHandoffAcceptance, requireHandoffNominee, requireHost, requireParticipant } from "../guard.ts";
-import { copySharedStrikesStatements, restampMemoryStrikesStatement } from "../memory/persistence/strikes.ts";
 import { carriedBackgroundAvailable, ownedBackgroundAvailable } from "../persistence/background-write.ts";
 import { isRetainedParentFenceViolation, restampChatCharacterStatement, retainedChatFenceStatement } from "../persistence/canon-write.ts";
 import { chatMetadataSetStatement } from "../persistence/chat-metadata-write.ts";
@@ -95,6 +94,7 @@ import { assertSeatableCharacters } from "../persistence/seat-characters.ts";
 import { buildGreetingSeed } from "../substrate/greeting-seed.ts";
 import { previewHandoffCopyPlan, resolveHandoffCopyPlan } from "../substrate/handoff-copy.ts";
 import { viewerHoldsHost } from "../substrate/member-visibility.ts";
+import { restampMemoryStrikesVia, soloStrikeCarryStatements } from "../substrate/memory-strikes.ts";
 import { REMOVED_CHARACTER_LABEL } from "../substrate/participant-name.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { regexAllowOf } from "../substrate/regex-tier.ts";
@@ -716,20 +716,6 @@ async function seedJoinGreeting(
   return view;
 }
 
-/** The strike carry a solo room owes when it gains its second character: until the group character exists, the
- *  shared bucket is the lone character (`gatherMemory`), so its shared-bucket strikes are copied onto that
- *  character's scoped bucket in the seat's batch (`copySharedStrikesStatements` holds why). */
-async function soloStrikeCarry(
-  ctx: ChatContext,
-  args: { readonly chatId: ChatId; readonly hostUserId: UserId; readonly seated: readonly { readonly characterId: CharacterId }[] },
-): Promise<BatchStmt[]> {
-  const [sole, ...others] = args.seated;
-  if (sole === undefined || others.length > 0 || (await ctx.findSyntheticGroupCharacter({ ownerId: args.hostUserId, chatId: args.chatId })) !== null) {
-    return [];
-  }
-  return await copySharedStrikesStatements(ctx.db, { chatId: args.chatId, characterId: sole.characterId, newId: ctx.newMemoryStrikeId });
-}
-
 /** `addCharacterToChat` — host-only; the character participant-insert chokepoint. Stamps a fresh member
  *  row at the current canon head, emits chatUpdated, returns the resolved roster row. IDEMPOTENT: a character
  *  that already holds a PRESENT seat returns that seat's view unchanged — the character half of the roster has
@@ -789,7 +775,7 @@ function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent, claimCh
         }),
       );
     }
-    versionStatements.push(...(await soloStrikeCarry(ctx, { chatId, hostUserId: principal.userId, seated: seatedCharacters })));
+    versionStatements.push(...(await soloStrikeCarryStatements(ctx, { chatId, hostUserId: principal.userId, seated: seatedCharacters })));
     await insertParticipants(
       ctx.db,
       [
@@ -1244,7 +1230,7 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
       ...plan.cardCopies.map((c) => restampChatCharacterStatement(ctx.db, chatId, c.sourceCharacterId, c.characterId)),
       ...digestRestamp,
       // A scoped strike follows its character's digests to the nominee's copy, or it would name no item after the swap.
-      ...plan.cardCopies.map((c) => restampMemoryStrikesStatement(ctx.db, chatId, c.sourceCharacterId, c.characterId)),
+      ...plan.cardCopies.map((c) => restampMemoryStrikesVia(ctx.db, chatId, c.sourceCharacterId, c.characterId)),
       ...plan.bookRepoint,
       ...plan.regexRepoint,
       ...droppedSeatIds.map((id) => markParticipantLeftStatement(ctx.db, id, dropSeq)),
