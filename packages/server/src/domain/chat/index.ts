@@ -83,13 +83,13 @@ export { scrubDeltaEventForMember, stripChatEventForMember } from "./substrate/m
 // contract/context, re-exported above.)
 export { createPromptTransformRegistry } from "./substrate/prompt-transforms.ts";
 export { createChatPublication } from "./substrate/publication.ts";
-// The standalone (out-of-turn) variable write — the injected `applyVariableOps`
-// op automation wires at the composition root; principal-free, teaches chat nothing automation-shaped.
-export { applyStandaloneVariableOps } from "./substrate/variable-ops.ts";
 export { eventViewMessageId, withViewPosition } from "./substrate/view-position.ts";
 // Chat's OWN S2 teaching contributions (the ratified `teaching-contribution.ts` root slot) — the rpg-gather
 // projection. Assembled into `ChatContext.teaching` at `entry/compose` and nowhere else.
 export { createChatTeachingContributions } from "./teaching-contribution.ts";
+// The standalone (out-of-turn) variable write — the injected `applyVariableOps`
+// op automation wires at the composition root; principal-free, teaches chat nothing automation-shaped.
+export { applyStandaloneVariableOps } from "./verbs/apply-standalone-variable-ops.ts";
 export { createChatAutomationReads } from "./verbs/automation-reads.ts";
 export { createChatBoundBackfillOps } from "./verbs/bound-backfill.ts";
 export { createCapturePersonaSeatsForDelete } from "./verbs/capture-persona-seats-for-delete.ts";

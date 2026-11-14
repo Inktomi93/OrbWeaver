@@ -97,6 +97,7 @@ import {
   insertMessageAssetStatements,
   isRetainedParentFenceViolation,
 } from "../persistence/canon-write.ts";
+import { commitHostFencedWrite } from "../persistence/host-fenced-write.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { claimPendingTurn, insertPendingTurn, loadPendingTurns, loadPendingTurnsForHost, loadPendingTurnsForReclaim } from "../persistence/invites.ts";
 import { loadTailIsUserMessage } from "../persistence/message-window.ts";
@@ -120,7 +121,6 @@ import { buildTurnUserMacros, freezeVolatileMacros, renderHistoryMacros, resolve
 import { isBelowHistoryFloor } from "../substrate/auth/index.ts";
 import { stampGameState, swapGameState } from "../substrate/game-state-injections.ts";
 import { refuseClosedAdmission } from "../substrate/handoff-barrier.ts";
-import { commitHostFencedWrite } from "../substrate/host-fenced-write.ts";
 import { createViewerTextScrub, projectViewReturnForViewer, stripMessagesForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { ownedCitedAssetIds } from "../substrate/owned-citations.ts";
 import { classifyParticipant } from "../substrate/participant-actor.ts";

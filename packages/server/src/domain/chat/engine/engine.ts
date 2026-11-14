@@ -103,12 +103,13 @@ import {
   readRetainedCanonContributions,
 } from "../persistence/queries.ts";
 import { prepareRetainedCanonStats } from "../persistence/retained-canon.ts";
+import { runtimeVariablesUpdateStatement } from "../persistence/runtime-variables.ts";
 import { buildHistoryBudget, fitCeiling, historyTurnTokens } from "../substrate/assembly-access.ts";
 import { isCoveredByCompaction } from "../substrate/compaction-coverage.ts";
 import { continuedSignatureMetadata } from "../substrate/content-signatures.ts";
 import { projectInlineReplyImages } from "../substrate/inline-reply-images.ts";
 import { projectRpgTranscript } from "../substrate/rpg-transcript.ts";
-import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables.ts";
+import { foldChain } from "../substrate/runtime-variables.ts";
 import { appendStatsDeltas, assistantTurnDelta, canonMessageDelta, canonRowOf, swipeVariantDelta } from "../substrate/stats-delta.ts";
 import { runTurnPipeline } from "./pipeline.ts";
 import { watchProviderWait } from "./provider-wait.ts";

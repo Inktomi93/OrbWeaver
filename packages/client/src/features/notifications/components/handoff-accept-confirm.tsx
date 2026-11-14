@@ -8,7 +8,7 @@
 // giving side's checkbox label only if they were the one giving.
 //
 // THE COUNTS ARE THE NOTIFICATION'S, NOT A SECOND ASK. `payload.offer` is frozen at nominate by the same
-// resolvers the accept executes (`domain/chat/substrate/handoff-copy.previewHandoffCopyPlan`), so this
+// resolvers the accept executes (`domain/chat/verbs/participants.previewHandoffCopyPlan`), so this
 // surface renders a number rather than deriving one — there is no client-side query here to disagree with
 // the server, and no in-flight state to flash.
 //

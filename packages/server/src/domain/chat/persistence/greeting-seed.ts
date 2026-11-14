@@ -1,4 +1,4 @@
-// domain/chat/substrate/greeting-seed — the ONE builder for VERBATIM greeting canon rows.
+// domain/chat/persistence/greeting-seed — the ONE builder for VERBATIM greeting canon rows.
 //
 // A "greeting" is a character's card greeting committed as a plain assistant slot: no generation, no
 // economics, one variant. Two verbs seed them and they must agree byte-for-byte, so the row shape lives here
@@ -18,7 +18,7 @@ import type { MessageView } from "@orb/contracts/chat";
 import type { BatchStmt } from "@orb/db/query";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import type { ChatContext } from "../contract/context.ts";
-import { buildCommittedMessageView, insertCanonMessageStatements } from "../persistence/canon-write.ts";
+import { buildCommittedMessageView, insertCanonMessageStatements } from "./canon-write.ts";
 
 /** One character's resolved greeting text. An empty/whitespace text seeds NO row (a cleared greeting). */
 interface GreetingText {

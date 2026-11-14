@@ -78,11 +78,11 @@ import {
   generationObservationRemovalStatements,
   loadGenerationObservationsForRemoval,
 } from "../persistence/generation-observation.ts";
+import { commitHostFencedWrite } from "../persistence/host-fenced-write.ts";
 import { findKeptInjection, insertChatInjectionIfAbsent } from "../persistence/injection-write.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import { loadChatInjections, loadRuntimeVariables, loadStoredUserMacroValues, loadStoredVariables } from "../persistence/queries.ts";
 import { prepareRetainedCanonStats } from "../persistence/retained-canon.ts";
-import { commitHostFencedWrite } from "../substrate/host-fenced-write.ts";
 import { classifyParticipant } from "../substrate/participant-actor.ts";
 import { ownedByConsentingHuman } from "../substrate/participants-humans.ts";
 import { shadowPresetUserMacros } from "../substrate/user-macros.ts";
@@ -128,7 +128,7 @@ type ChatLifecycleVerbs = Pick<
 >;
 
 /** Commit a rebuild-consumed chat-row mutation with the current host owner's retry token. The trio itself
- *  lives in `substrate/host-fenced-write` (four verbs had spelled it out); this stays as the
+ *  lives in `persistence/host-fenced-write` (four verbs had spelled it out); this stays as the
  *  single-statement shape this file's callers pass. */
 async function commitFencedChatWrite(ctx: ChatContext, chatId: ChatId, statement: BatchStmt): Promise<void> {
   await commitHostFencedWrite(ctx, chatId, [statement]);

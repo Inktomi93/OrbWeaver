@@ -1,4 +1,4 @@
-// domain/chat/substrate/host-fenced-write — the ONE spelling of "commit these chat statements WITH the
+// domain/chat/persistence/host-fenced-write — the ONE spelling of "commit these chat statements WITH the
 // room host's stats-canon bump". Four verbs had hand-rolled the same three steps (jscpd found the
 // chat-lifecycle↔turn pair; a `hostUserIdOf(await loadParticipants(…))` grep finds the other two) — resolve
 // the room's host off the participant rows, bump the stats canon version onto the statement list when there
@@ -8,7 +8,7 @@
 // bump is what invalidates the host's cached stats canon after a canon-shaped write, so a fifth site that
 // spells the first and third lines and forgets the second writes canon the stats reads keep serving stale —
 // silently, with no test of its own able to see it. One home makes forgetting it impossible; that is the
-// same reason `hostUserIdOf` (the lookup this composes) exists one file over.
+// same reason `hostUserIdOf` (the lookup this composes) exists in `substrate/participants-host.ts`.
 //
 // HOSTLESS IS A NO-OP, NOT A REFUSAL. An archived orphan or a racing delete answers `null`, and the write
 // still commits: the bump has no owner to credit, and refusing the write would turn a stats-cache concern
@@ -20,8 +20,8 @@ import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
 import type { ChatId } from "@orb/kit/ids";
 import type { ChatContext } from "../contract/context.ts";
-import { loadParticipants } from "../persistence/participants-read.ts";
-import { hostUserIdOf } from "./participants-host.ts";
+import { hostUserIdOf } from "../substrate/participants-host.ts";
+import { loadParticipants } from "./participants-read.ts";
 
 /** Append the room host's stats-canon bump to `statements` and commit them in ONE batch, returning the
  *  batch's results so a caller can read its own RETURNING rows (the rpg-pointer guard reads `results[0]` to

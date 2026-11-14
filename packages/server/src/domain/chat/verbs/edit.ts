@@ -116,6 +116,7 @@ import {
   retainOpenGreetingWindow,
 } from "../persistence/queries.ts";
 import { commitRetainedCanonStats, prepareRetainedCanonStats } from "../persistence/retained-canon.ts";
+import { runtimeVariablesUpdateStatement } from "../persistence/runtime-variables.ts";
 import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
 import { buildTurnMacroContext, freezeVolatileMacros } from "../substrate/assembly-access.ts";
 import { assertAuthorOrHost, isBelowHistoryFloor, permitsHost } from "../substrate/auth/index.ts";
@@ -126,7 +127,7 @@ import { classifyParticipant } from "../substrate/participant-actor.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { hostConsentOf, humanSeatPersonasOf, presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
 import { regexAllowOf, resolveHostTierRegexScripts } from "../substrate/regex-tier.ts";
-import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables.ts";
+import { foldChain } from "../substrate/runtime-variables.ts";
 import {
   appendStatsDeltas,
   canonMessageDelta,

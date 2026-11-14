@@ -1,4 +1,4 @@
-// domain/chat/substrate/variable-ops — the STANDALONE (out-of-turn) runtime-variable write (automation-
+// domain/chat/verbs/apply-standalone-variable-ops — the STANDALONE (out-of-turn) runtime-variable write (automation-
 // design/03 §1.1). The IN-TURN half is LIVE (a `{{setvar}}` records a `VarOp` on `assembleContext.opLog`,
 // flushed to the produced variant's `variable_delta` at commit → `foldVarOps` → `chats.runtime_variables`).
 // THIS is the half chat shipped without: an `applyVariableOps` made with NO turn in flight (an automation
@@ -41,7 +41,8 @@ import type { VarOp } from "@orb/kit/macro";
 import type { ChatContext } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import { loadMaxMessageSeq, loadMessageVariableDeltas, loadStandaloneVariableDeltasWithRaw, toStandaloneFoldRow } from "../persistence/queries.ts";
-import { foldChain, standaloneVariableCasStatement } from "./runtime-variables.ts";
+import { standaloneVariableCasStatement } from "../persistence/runtime-variables.ts";
+import { foldChain } from "../substrate/runtime-variables.ts";
 
 /** The live value of every precondition key in `fold` (`null` = unset) — what a `stale` refusal hands back so
  *  the caller re-derives from the winner's state instead of taking a second read of its own. Scoped to the keys

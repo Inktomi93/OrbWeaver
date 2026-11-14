@@ -116,6 +116,7 @@ import type { HistoryBudgetInput, HistoryMacroNames } from "../contract/results.
 import type { ChatService } from "../contract/service.ts";
 import type { ChatBusReplayEvent, ChatDetailData, ChatEventAttach, ChatLineageData, ChatListPageData, ChatSummaryData } from "../contract/views.ts";
 import { gateLineagePerAncestor, requireHost, requireParticipant } from "../guard.ts";
+import { resolveAnchor } from "../persistence/anchor.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { loadInlineReplyAssetIds } from "../persistence/message-asset-links.ts";
 import { loadMessagePositions, positionCanonPage } from "../persistence/message-positions.ts";
@@ -173,7 +174,6 @@ import {
   humanSeatPersonasOf,
   lorePersonaIdsOf,
   presentAndEnabledHumanUserIdsOf,
-  resolveAnchor,
   seatsMultipleHumans,
 } from "../substrate/participants-humans.ts";
 import { regexAllowOf, resolveRegexTiers } from "../substrate/regex-tier.ts";
