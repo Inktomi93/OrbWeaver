@@ -13,6 +13,9 @@ export const IMAGE_DETAIL_TITLE = "Image";
 /** The image edit dialog's title, and the detail dialog's door to it. */
 export const IMAGE_EDIT_NAME = "Edit image";
 
+/** The image edit dialog's way back to the detail dialog on the same image. */
+export const IMAGE_EDIT_BACK_NAME = "Back to the image";
+
 /** The prompt field. */
 export const IMAGINE_PROMPT_NAME = "Image prompt";
 

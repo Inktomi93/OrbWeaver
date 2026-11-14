@@ -1,11 +1,15 @@
 // The scan keeps the vendor result whole and judges apart what is not the page's: a control an OPEN popup covers is reclassified, a control a
-// closed select's trigger or a plain node covers stays a finding.
+// closed select's trigger or a plain node covers stays a finding; a control that meets Label in Name is reclassified, one whose name drops a
+// shown word stays a finding.
 import { readFile } from "node:fs/promises";
+import { ID_PREFIX, mintUserId } from "@orb/kit/ids";
 import { accessibilityEvidence, surfaceCheckpoint, webVitalsInitScript } from "@orb/testkit/browser/spec";
+import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import { webVitalsSource } from "@orb/testkit/node/helpers";
 import type { Locator, Page, TestInfo } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import type { ClosedCoverStory, MenuOverTargetStory } from "./_accessibility-scan-stories.tsx";
+import type { MemberRowNameStory } from "../../client/features/chat/components/_member-row-name-stories.tsx";
+import type { ClosedCoverStory, DroppedWordsStory, MenuOverTargetStory } from "./_accessibility-scan-stories.tsx";
 
 const MENU_STORY = "tests/support/browser/_accessibility-scan-stories/MenuOverTargetStory";
 const COVER_STORY = "tests/support/browser/_accessibility-scan-stories/ClosedCoverStory";
@@ -101,6 +105,78 @@ test("a control a plain node covers stays a finding", async ({ mount, page }) =>
   await laySpotUnder(page, page.getByRole("button", { name: "Cover", exact: true }));
   expect(await targetSizeFindings(page)).toMatchObject({ violations: 1, incomplete: 0, raw: 1, reclassified: [] });
 });
+
+const MEMBER_ROW_STORY = "tests/client/features/chat/components/_member-row-name-stories/MemberRowNameStory";
+const DROPPED_WORDS_STORY = "tests/support/browser/_accessibility-scan-stories/DroppedWordsStory";
+const NAME_RULE = "label-content-name-mismatch";
+
+type MemberRow = Parameters<typeof MemberRowNameStory>[0]["row"];
+const ids = createSeededIds(FIXTURE_ID_CURSOR);
+
+async function nameRuleFindings(page: Page): Promise<{ violations: number; incomplete: number; raw: number; reclassified: number }> {
+  const { raw, results, reclassified } = await accessibilityEvidence(page);
+  const count = (rules: typeof results.violations): number => rules.filter(({ id }) => id === NAME_RULE).flatMap(({ nodes }) => nodes).length;
+  return {
+    violations: count(results.violations),
+    incomplete: count(results.incomplete),
+    raw: count(raw.violations),
+    reclassified: reclassified.filter(({ ruleId }) => ruleId === NAME_RULE).length,
+  };
+}
+
+// The Members row prints a state word and keeps the responding mark out of its name; axe wants the shown words as one run of the name.
+const MEMBER_ROWS: readonly { readonly title: string; readonly row: () => MemberRow }[] = [
+  {
+    title: "a responding character seat",
+    row: () => ({
+      kind: "character",
+      key: "scan-member",
+      characterId: ids.typeId(ID_PREFIX.character),
+      displayName: "Charlotte",
+      disabled: false,
+      talkativeness: 0.5,
+      avatarHash: null,
+      responding: true,
+    }),
+  },
+  {
+    title: "the viewer's own host seat, online",
+    row: () => ({
+      kind: "person",
+      key: "scan-member",
+      userId: mintUserId(ids.next),
+      displayName: "Riley",
+      isHost: true,
+      isViewer: true,
+      avatarHash: null,
+      pendingNominee: false,
+      historyVisibility: "full",
+      online: true,
+      lastSeenAt: null,
+    }),
+  },
+];
+
+for (const { title, row } of MEMBER_ROWS) {
+  test(`${title} meets Label in Name, so its vendor name mismatch is judged apart`, async ({ mount, page }) => {
+    const component = await mount<typeof MemberRowNameStory>(MEMBER_ROW_STORY, { row: row() });
+    await expect(component.locator('[data-slot="member-row"]').getByRole("button")).toBeVisible();
+    expect(await nameRuleFindings(page)).toEqual({ violations: 0, incomplete: 1, raw: 1, reclassified: 1 });
+  });
+}
+
+// A description is not a label, but stripping one cannot leave a control with nothing shown to compare: a control
+// whose whole shown text is its own description has no label in its name.
+for (const { title, described } of [
+  { title: "a control whose name drops the words it shows", described: false },
+  { title: "a control whose whole shown text is its own description", described: true },
+] as const) {
+  test(`${title} stays a name mismatch`, async ({ mount, page }) => {
+    await mount<typeof DroppedWordsStory>(DROPPED_WORDS_STORY, { described });
+    await expect(page.getByRole("button", { name: "Save", exact: true })).toBeVisible();
+    expect(await nameRuleFindings(page)).toEqual({ violations: 1, incomplete: 0, raw: 1, reclassified: 0 });
+  });
+}
 
 test("the walk's axe attachment keeps the covered control a violation and a second record names what was judged apart", async ({ mount, page }, info) => {
   await page.addInitScript({ content: webVitalsInitScript(await webVitalsSource()) });

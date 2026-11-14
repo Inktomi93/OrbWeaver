@@ -33,6 +33,7 @@ import {
 } from "@orb/contracts/plugin";
 import type { AssetId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { PLUGIN_GRID_EMPTY_DEFAULT } from "./plugin-surface-names.ts";
 
 /** A `meter` with no explicit `max` scales to 100 (the house percentage default). */
 export const METER_DEFAULT_MAX = 100;
@@ -91,6 +92,10 @@ export function specBindsState(node: PluginSurfaceNode): boolean {
 
 /** Does THIS node (ignoring its children) bind a value to published state? */
 function ownBinding(node: PluginSurfaceNode): boolean {
+  // A bound `when` makes the node's PRESENCE follow state, whatever its kind binds.
+  if (node.when !== undefined && isBinding(node.when)) {
+    return true;
+  }
   if (node.kind === "text" || node.kind === "markdown" || node.kind === "meter") {
     return isBinding(node.value);
   }
@@ -122,6 +127,7 @@ function browseOwnBinding(node: PluginSurfaceNode): boolean {
       // A bound `loading` (#799) is a binding by construction — a browse page whose grid is skeletoned by
       // state must not read as "purely static" (the §4.9 silence rule).
       (node.loading !== undefined && isBinding(node.loading)) ||
+      (node.empty !== undefined && isBinding(node.empty)) ||
       node.tiles.some(
         (tile) => isBinding(tile.title) || (tile.subtitle !== undefined && isBinding(tile.subtitle)) || (tile.badge !== undefined && isBinding(tile.badge)),
       )
@@ -308,6 +314,14 @@ export function tabOptions(node: Extract<PluginSurfaceNode, { kind: "tabs" }>, s
  *  skeleton). Absent ⇒ not loading. */
 export function gridLoading(node: Extract<PluginSurfaceNode, { kind: "grid" }>, state: Record<string, unknown>): boolean {
   return node.loading !== undefined && resolvePluginBoundBoolean(state, node.loading);
+}
+
+/** A grid's effective EMPTY line — the declared literal or the bound path, else {@link PLUGIN_GRID_EMPTY_DEFAULT}.
+ *  A miss resolves to `""` through {@link resolveString}, and an empty state with no title is the silent section
+ *  the three-states law refuses, so a blank resolves to the default too. */
+export function gridEmptyText(node: Extract<PluginSurfaceNode, { kind: "grid" }>, state: Record<string, unknown>): string {
+  const text = node.empty === undefined ? "" : resolveString(node.empty, state);
+  return text === "" ? PLUGIN_GRID_EMPTY_DEFAULT : text;
 }
 
 /** A button's effective DISABLED verdict — the declared literal or the bound path through the contracts-side

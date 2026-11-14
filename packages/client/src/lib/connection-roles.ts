@@ -139,12 +139,24 @@ const ROLE_RENDER_ORDER: readonly RoutableTask[] = ["chat", "summarize", "genera
 /** The role rows in render order; a routable task missing from the order list is a `tsc`-visible gap in the test. */
 export const ROLE_ROWS_ORDERED: readonly RoleRow[] = ROLE_RENDER_ORDER.map((task) => ROLE_ROWS[task]);
 
+const NO_BREAK_SPACE_CODE_POINT = 0xa0;
+const ZERO_WIDTH_SPACE_CODE_POINT = 0x20_0b;
+const NO_BREAK_SPACE = String.fromCodePoint(NO_BREAK_SPACE_CODE_POINT);
+const ZERO_WIDTH_SPACE = String.fromCodePoint(ZERO_WIDTH_SPACE_CODE_POINT);
+/** The separator with its leading space made unbreakable, so a wrapped label never starts a line on the dot. */
+const BOUND_SEPARATOR = `${NO_BREAK_SPACE}${CONNECTION_LABEL_SEPARATOR.trimStart()}`;
+
 /** A connection row's one-line identity, the one label Model roles' picker, readout and repair all show:
  *  `<label> · <model name>` when the label was not auto-minted from the model. The model reads by its own name,
- *  the id's last path segment, never its repository path (`jinaai/jina-clip-v2` reads `jina-clip-v2`). */
+ *  the id's last path segment, never its repository path (`jinaai/jina-clip-v2` reads `jina-clip-v2`).
+ *
+ *  The text is for reading, not storing: the separator's dot is bound to the provider before it, and a slash is a
+ *  zero-width place to break, because the browser offers none after one and would split a model id inside a name.
+ *  Both characters are invisible to the accessible name, which whitespace-normalizing matchers read unchanged. */
 export function connectionSummary(row: { readonly label: string; readonly model: string }): string {
   const name = row.model.slice(row.model.lastIndexOf("/") + 1);
-  return labelNamesModel(row.label, row.model) ? row.label : `${row.label}${CONNECTION_LABEL_SEPARATOR}${name}`;
+  const text = labelNamesModel(row.label, row.model) ? row.label : `${row.label}${CONNECTION_LABEL_SEPARATOR}${name}`;
+  return text.replaceAll(CONNECTION_LABEL_SEPARATOR, BOUND_SEPARATOR).replaceAll("/", `/${ZERO_WIDTH_SPACE}`);
 }
 
 /** The connection setting that lets unattended work run on a row. */

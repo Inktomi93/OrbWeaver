@@ -58,6 +58,9 @@ export function chatWithActionName(subject: string): string {
   return `${CHAT_WITH_ACTION_LEAD} ${subject}`;
 }
 
+/** The words a row menu trigger's name opens with, before the subject it names and the items it holds. */
+export const ROW_MORE_LEAD = "More for";
+
 /** The accessible name of a speaker's art in the transcript, which opens it full size — `View <subject>'s image`. */
 export function viewImageActionName(subject: string): string {
   return `View ${subject}'s image`;

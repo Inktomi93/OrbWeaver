@@ -101,7 +101,7 @@ export function HintTrigger({ hint, subject, className, size = "inline", onClick
       </Tooltip>
       {/* The popup is a `role="dialog"` with no visible title (its whole body IS the hint), so it takes the
           trigger's own derived name rather than announcing as a nameless dialog. */}
-      <PopoverPopup aria-label={ariaLabel} data-slot="hint-popup" side="top">
+      <PopoverPopup aria-label={ariaLabel} className={slots.popup()} data-slot="hint-popup" side="top">
         {hint}
       </PopoverPopup>
     </Popover>

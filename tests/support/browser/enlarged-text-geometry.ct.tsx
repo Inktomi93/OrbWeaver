@@ -71,7 +71,7 @@ test("the probe still fails a control an open dialog's layers stand over", async
 
 test("the probe fails a picker whose value is cut with an ellipsis", async ({ mount, page }) => {
   await mount<typeof SurfaceCutValueStory>(CUT_STORY, { width: NARROW, cut: "value" });
-  await expect(page.getByRole("combobox", { name: "Connection", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Connection", exact: true })).toBeVisible();
   expect(await enlargedTextFindings(page.getByRole("main"))).toEqual([expect.stringMatching(VALUE_CUT)]);
 });
 
@@ -101,7 +101,7 @@ test("the probe stays silent for a facet preview line the design truncates", asy
 
 test("the probe fails a picker cut inside a list row's actions", async ({ mount, page }) => {
   await mount<typeof SurfaceCutValueStory>(CUT_STORY, { width: ACTIONS_ROW, cut: "action" });
-  await expect(page.getByRole("combobox", { name: "Connection", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Connection", exact: true })).toBeVisible();
   expect(await enlargedTextFindings(page.getByRole("main"))).toEqual([expect.stringMatching(VALUE_CUT)]);
 });
 

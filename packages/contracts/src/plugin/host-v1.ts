@@ -27,7 +27,7 @@ import type {
   PluginCommandArgValue,
   PluginCommandPlacement,
   PluginSurfaceAnchor,
-  PluginSurfaceNode,
+  PluginSurfaceSpec,
   PluginSurfaceTier,
   PluginToastLevel,
 } from "./ui.ts";
@@ -643,7 +643,7 @@ export interface PluginHostV1 {
       title: string; // the shell label line (≤ 80 chars)
       tier: PluginSurfaceTier; // scripted requires the bundle's ui.js (U4)
       toolName?: string; // required for, and only for, the tool-card anchor (ui.ts registration schema)
-      spec?: PluginSurfaceNode; // REQUIRED for the static tier; zod-validated host-side (ui.ts)
+      spec?: PluginSurfaceSpec; // REQUIRED for the static tier; zod-validated host-side (ui.ts)
       onAction?: (a: { actionId: string; values: Record<string, string>; chat: ChatHandle | null }) => void | Promise<void>;
     }) => void;
     /** Publish surface STATE (the data the spec's `$state` bindings resolve against). ≤ 16 KiB JSON; replaces

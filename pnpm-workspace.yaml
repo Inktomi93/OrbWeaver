@@ -141,8 +141,8 @@ catalog:
   mysql2: 3.24.6
   "@libsql/client": ^0.18.0
   # --- server ---
-  hono: ^4.13.13
-  "@hono/node-server": ^2.1.5
+  hono: ^4.13.18
+  "@hono/node-server": ^2.1.8
   openid-client: ^6.8.8
   isomorphic-git: 1.44.3
   # cloudflared: the quick-tunnel process wrapper only (`Tunnel.quick`, `use`, its output and exit events). Exact pin:
@@ -391,12 +391,6 @@ overrides:
   "@libsql/client@0.18.0>libsql": "0.6.0-pre.43"
   "libsql@0.6.0-pre.43>libsql-win32-x64-msvc": "npm:@libsql/win32-x64-msvc@0.6.0-pre.43"
   "libsql@0.6.0-pre.43>libsql-linux-arm64-musl": "npm:@libsql/linux-arm64-musl@0.6.0-pre.43"
-  # @modelcontextprotocol/sdk declares `@hono/node-server: ^1.19.9 || ^2.0.5`. Unpinned, pnpm resolves it onto the
-  # 2.x copy the catalog installs, which puts the agent SDK's chain under that line's open advisories
-  # (GHSA-qv5m-9pm6-hqp3, GHSA-jpvv-r467-5p4w, patched by 2.1.6). This holds the chain on the patched 1.x line; drop
-  # it when the catalog's `@hono/node-server` resolves to 2.1.6 or later. Scoped to the parent, because a bare key
-  # would move the server's own 2.x dependency onto 1.x.
-  "@modelcontextprotocol/sdk>@hono/node-server": ^1.19.15
   # @huggingface/transformers@4.2.0 declares its own `sharp: ^0.34.5` dependency (matching our own
   # pre-bump floor), which resolves to a separate 0.34.5 tree alongside our catalog `sharp: ^0.35.0` —
   # duplicating the GHSA-f88m-g3jw-g9cj-vulnerable version instead of deduping onto the fixed one.
@@ -424,7 +418,6 @@ peerDependencyRules:
 auditConfig:
   ignoreGhsas:
     - GHSA-2p57-rm9w-gvfp # ip, via node-av's WebRTC code, never loaded
-    - GHSA-86w9-cpqp-85rv # node-forge, acme-client runs on its native crypto interface
     - GHSA-ggr8-5vv4-36mx # deepmerge-ts, html-to-text merges only a fixed options constant
     - GHSA-w5hq-g745-h8pq # uuid, typeid-js calls v7; the advisory covers v3, v5 and v6
     - GHSA-67mh-4wv8-2f99 # esbuild, drizzle-kit dev dependency, dev server never started
@@ -498,7 +491,7 @@ patchedDependencies:
   "drizzle-kit@0.31.11": patches/drizzle-kit@0.31.11.patch
   "drizzle-orm@0.45.4": patches/drizzle-orm@0.45.4.patch
   "gel@2.2.1": patches/gel@2.2.1.patch
-  "hono@4.13.13": patches/hono@4.13.13.patch
+  "hono@4.13.18": patches/hono@4.13.18.patch
   "lighthouse@13.5.0": patches/lighthouse@13.5.0.patch
   "mutation-testing-report-schema@3.8.4": patches/mutation-testing-report-schema@3.8.4.patch
   "onnxruntime-common@1.30.0": patches/onnxruntime-common@1.30.0.patch

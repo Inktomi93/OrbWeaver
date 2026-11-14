@@ -476,6 +476,11 @@ export function buildCohorts(all: readonly FileFacts[]): readonly Cohort[] {
           },
         },
         focus: {
+          "packages/client/src/features/config/surfaces/config-list-surface.tsx": {
+            value: "useFocusOnMount",
+            reason:
+              "the Settings band carries no primary action, so the shared list arrival would fall back to a root with no visible focus; arrival lands on the active group's band, a control with the house ring (UI-Architecture-and-Layout.md §4.3, rule 6)",
+          },
           "packages/client/src/features/discovery/surfaces/corpus-list-surface.tsx": {
             value: "useFocusOnMount",
             reason: "arrival lands on the omnibox, because the Corpus LIST is the search omnibox (UI-Architecture-and-Layout.md §4.1)",

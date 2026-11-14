@@ -13,5 +13,8 @@ export const hintTriggerVariants = tv({
     trigger: "shrink-0 text-muted-foreground hover:text-foreground pointer-coarse:block-(--size-touch-target) pointer-coarse:inline-(--size-touch-target)",
     // The inline step only: the `md` step is already a control-size square.
     inlineBox: "-m-field justify-center block-(--size-glyph-md) inline-(--size-glyph-md) pointer-coarse:m-0",
+    // The popup shrink-wraps its hint under the popover's width cap, so a word wider than the cap would hold the popup's min-content past it
+    // and the popup would scroll sideways. `wrap-anywhere` also counts the break points in that min-content, so the word breaks inside the popup.
+    popup: "wrap-anywhere",
   },
 });

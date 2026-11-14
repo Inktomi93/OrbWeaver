@@ -53,18 +53,28 @@ function settledNotFound(read: ReadState): boolean {
   return settled(read) && trpcErrorCode(read.error) === "NOT_FOUND";
 }
 
-function roomReadOf(roster: ReadState & { readonly data: RoomChat | undefined; readonly errorUpdateCount: number }, gone: boolean): RoomRead {
+interface RosterRead extends ReadState {
+  readonly data: RoomChat | undefined;
+  readonly errorUpdateCount: number;
+}
+
+/** Whether the roster read has failed and holds nothing to show: the one answer the failure plate and the composer's send gate share.
+ *  A read that has failed with no data stays failed while it is fetched again. TanStack puts a dataless query back to pending,
+ *  its error cleared, the moment it refetches, and the readers the room draws on failing (its composer among them) refetch it as
+ *  they mount; reading that as loading would take them away again, a loop. The failure count outlives the refetch. A not-found is
+ *  never a failure: settled, it is gone. The transcript reads the same roster under its boundary, so its plate's Retry is this read's retry. */
+export function roomReadFailed(roster: RosterRead): boolean {
+  return roster.data === undefined && roster.errorUpdateCount > 0 && trpcErrorCode(roster.error) !== "NOT_FOUND";
+}
+
+function roomReadOf(roster: RosterRead, gone: boolean): RoomRead {
   if (gone) {
     return { kind: "gone" };
   }
   if (roster.data !== undefined) {
     return { kind: "ready", chat: roster.data };
   }
-  // A read that has failed with no data stays failed while it is fetched again. TanStack puts a dataless query back to pending,
-  // its error cleared, the moment it refetches, and the readers the room draws on failing (its composer among them) refetch it as
-  // they mount; reading that as loading would take them away again, a loop. The failure count outlives the refetch. A not-found is
-  // never a failure: settled, it is gone above. The transcript reads the same roster under its boundary, so its plate's Retry is this read's retry.
-  return roster.errorUpdateCount > 0 && trpcErrorCode(roster.error) !== "NOT_FOUND" ? { kind: "failed" } : { kind: "loading" };
+  return roomReadFailed(roster) ? { kind: "failed" } : { kind: "loading" };
 }
 
 /** The open room's read state, and the one leave for a room whose own read answers not found. */
