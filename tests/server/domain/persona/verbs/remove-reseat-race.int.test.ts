@@ -52,26 +52,41 @@ test("a switch onto a persona racing its delete never leaves the seat empty, at 
   });
   const { chat } = await caller.chat.startChat({ characterIds: [], opening: "none" });
 
-  const outcomes: Outcome[] = [];
-  // Each offset starts the switch one microtask later, until the switch starts after the delete has settled.
-  for (let offset = 0, settledFirst = false; !settledFirst; offset += 1) {
+  // One race: `first` starts, then the other starts `turns` microtasks later. `firstSettled` says the first had
+  // already finished by then, so a longer lead cannot interleave the two any further.
+  const raceOnce = async (first: "remove" | "switch", turns: number, name: string): Promise<{ readonly outcome: Outcome; readonly firstSettled: boolean }> => {
     await root.services.persona.setActivePersona({ principal, chatId: chat.id, targetUserId: root.ownerId, personaId: worn });
-    const doomed = await mint(root, `Doomed ${String(offset)}`);
-    let removed = false;
-    const removal = root.services.persona.remove({ principal, personaId: doomed }).then(() => {
-      removed = true;
+    const doomed = await mint(root, name);
+    const startRemove = (): Promise<void> => root.services.persona.remove({ principal, personaId: doomed });
+    const startSwitch = (): Promise<unknown> =>
+      root.services.persona.setActivePersona({ principal, chatId: chat.id, targetUserId: root.ownerId, personaId: doomed });
+    let firstSettled = false;
+    const leading = (first === "remove" ? startRemove() : startSwitch()).finally(() => {
+      firstSettled = true;
     });
-    await yieldTurns(offset);
-    settledFirst = removed;
-    const [switched] = await Promise.allSettled([
-      root.services.persona.setActivePersona({ principal, chatId: chat.id, targetUserId: root.ownerId, personaId: doomed }),
-      removal,
-    ]);
-    outcomes.push({
-      landed: switched.status === "fulfilled",
-      refusedForTheDelete: switched.status === "rejected" && refusedForTheDelete(switched.reason, doomed),
-      seat: (await seatOf(root, chat.id)).seat,
-    });
+    await yieldTurns(turns);
+    const settledAtStart = firstSettled;
+    const trailing = first === "remove" ? startSwitch() : startRemove();
+    const [lead, trail] = await Promise.allSettled([leading, trailing]);
+    const switched = first === "remove" ? trail : lead;
+    return {
+      outcome: {
+        landed: switched.status === "fulfilled",
+        refusedForTheDelete: switched.status === "rejected" && refusedForTheDelete(switched.reason, doomed),
+        seat: (await seatOf(root, chat.id)).seat,
+      },
+      firstSettled: settledAtStart,
+    };
+  };
+
+  const outcomes: Outcome[] = [];
+  // Sweep each lead one microtask at a time, from both sides, until the leader has finished before the other starts.
+  for (const first of ["switch", "remove"] as const) {
+    for (let turns = 0, settled = false; !settled; turns += 1) {
+      const race = await raceOnce(first, turns, `Doomed ${first} ${String(turns)}`);
+      outcomes.push(race.outcome);
+      settled = race.firstSettled;
+    }
   }
 
   // A switch that committed first is re-seated with the owner's default; a refused one leaves the seat it found.
