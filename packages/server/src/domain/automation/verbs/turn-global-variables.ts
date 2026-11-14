@@ -5,6 +5,7 @@
 // GLOBAL_VARIABLE_MACRO_KEYS_MAX. A refused write is dropped and named, never a failed turn. The key total is read
 // before the batch, so two turns racing past the cap can each add their keys: the batch's own latency is the window.
 
+import type { GlobalVariableDropReason, LoadGlobalVariablesOp } from "@orb/contracts/automation";
 import { GLOBAL_VARIABLE_MACRO_KEYS_MAX, GLOBAL_VARIABLE_TURN_WRITES_MAX } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput, StatementToken } from "@orb/db/wiring";
@@ -14,11 +15,9 @@ import { writeOwnKey } from "@orb/kit/objects";
 import type { Clock } from "@orb/kit/time";
 import { globalVariableRefusal, listGlobalVariables, loadGlobalVariableHoldings, upsertGlobalVariableStatement } from "../persistence/queries.ts";
 
-type DropReason = "invalid" | "turn_cap" | "owner_cap";
-
 interface Dropped {
   readonly key: string;
-  readonly reason: DropReason;
+  readonly reason: GlobalVariableDropReason;
 }
 
 interface WriteStatements {
@@ -27,7 +26,7 @@ interface WriteStatements {
 }
 
 interface TurnGlobalVariableOps {
-  readonly loadGlobalVariables: (ownerId: UserId) => Promise<Record<string, string>>;
+  readonly loadGlobalVariables: LoadGlobalVariablesOp;
   readonly globalVariableWriteStatements: (ownerId: UserId, writes: readonly { readonly key: string; readonly value: string }[]) => Promise<WriteStatements>;
 }
 

@@ -57,7 +57,7 @@ test("a switch onto a persona racing its delete never leaves the seat empty, at 
   const raceOnce = async (first: "remove" | "switch", turns: number, name: string): Promise<{ readonly outcome: Outcome; readonly firstSettled: boolean }> => {
     await root.services.persona.setActivePersona({ principal, chatId: chat.id, targetUserId: root.ownerId, personaId: worn });
     const doomed = await mint(root, name);
-    const startRemove = (): Promise<void> => root.services.persona.remove({ principal, personaId: doomed });
+    const startRemove = (): Promise<unknown> => root.services.persona.remove({ principal, personaId: doomed });
     const startSwitch = (): Promise<unknown> =>
       root.services.persona.setActivePersona({ principal, chatId: chat.id, targetUserId: root.ownerId, personaId: doomed });
     let firstSettled = false;

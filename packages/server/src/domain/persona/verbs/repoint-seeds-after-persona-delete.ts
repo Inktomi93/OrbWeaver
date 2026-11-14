@@ -18,7 +18,7 @@ export function createPlanSeedRepointForPersonaDelete(assembly: DbAssemblyInput<
       currentPersonaId: seeds.currentPersonaId,
     };
     if (stored.defaultPersonaId !== deletedId && stored.currentPersonaId !== deletedId) {
-      return { next: { ...stored, defaultMoved: false }, write: async (): Promise<void> => undefined };
+      return { next: { ...stored, defaultMoved: false }, write: (): Promise<void> => Promise.resolve() };
     }
     const newest = await loadNewestPersonaId(deps.db, ownerId, deletedId);
     const next = nextSeedsAfterPersonaDelete(stored, deletedId, newest);

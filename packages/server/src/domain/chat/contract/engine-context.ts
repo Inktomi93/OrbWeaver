@@ -1,4 +1,5 @@
 // The engine's actual capabilities: frozen turn inputs and execution, never request authorization.
+import type { GlobalVariableDropReason } from "@orb/contracts/automation";
 import type { DurableChatBusEvent, PromptTransformPoint, PromptTransformResult, ProviderWaitBusEvent, ToolCallRecord } from "@orb/contracts/chat";
 import type { ChatMembership } from "@orb/contracts/identity";
 import type { AttachmentQuality } from "@orb/contracts/inference";
@@ -95,10 +96,6 @@ export type ResolveImageUrlOp = (params: {
 // Store in the frozen host's CAS so every room member can read it; compose owns SSRF and byte validation.
 // Null drops only the refused picture, never the model's prose or a dangling canon asset reference.
 type StoreInlineReplyImageOp = (ownerId: UserId, image: GeneratedImage) => Promise<{ readonly assetId: AssetId } | null>;
-
-/** Why a turn's `{{setglobalvar}}` write was not stored: a key or value the plane refuses, a key past the turn's
- *  write count, or a new key past the owner's key total. */
-export type GlobalVariableDropReason = "invalid" | "turn_cap" | "owner_cap";
 
 /** D337 — automation's upserts for one turn's global writes, unexecuted, for the reply's commit batch; the writes the
  *  caps refuse come back as `dropped` instead. Last write per key wins. */

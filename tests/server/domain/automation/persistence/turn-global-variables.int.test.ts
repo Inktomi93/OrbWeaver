@@ -11,14 +11,15 @@ import {
   GLOBAL_VARIABLE_TURN_WRITES_MAX,
   GLOBAL_VARIABLE_VALUE_MAX_BYTES,
 } from "@orb/contracts/automation";
-import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { PlainChatWarningCode } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG, promptSectionIdSchema } from "@orb/contracts/preset";
 import { globalVariables } from "@orb/db";
-import { makePromptConfig } from "@orb/testkit/iso";
+import { makePromptConfig, nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { connectDevice } from "@orb/testkit/node/composed";
 import { asc, eq } from "drizzle-orm";
+import { SETTINGS_ADJUSTED_CODE } from "#contracts/chat/bus.ts";
 import { invitePerson } from "../../chat/persona-cache-physical.ts";
 import { textRoom, wireOf, wireText } from "../../chat/scenario-physical.ts";
 
@@ -36,14 +37,12 @@ async function planeRoom(content: string, replies: number): Promise<ChatRoot> {
   );
 }
 
-type PlainWarningCode = Exclude<Extract<ChatBusEvent, { readonly type: "warning" }>["code"], "settings_adjusted">;
-
 /** The room's plain warning codes, collected from the live chat bus until the returned handle is disposed. The
- *  corpus provider's own `settings_adjusted` notices are not this file's subject. */
-function warningsOf(h: ChatRoot): { readonly codes: PlainWarningCode[] } & Disposable {
-  const codes: PlainWarningCode[] = [];
+ *  corpus provider's own settings-adjusted notices are not this file's subject. */
+function warningsOf(h: ChatRoot): { readonly codes: PlainChatWarningCode[] } & Disposable {
+  const codes: PlainChatWarningCode[] = [];
   const unsubscribe = h.root.app.liveBuses.chat.subscribeAllChatEvents(({ event }) => {
-    if (event.type === "warning" && event.chatId === h.chatId && event.code !== "settings_adjusted") {
+    if (event.type === "warning" && event.chatId === h.chatId && event.code !== SETTINGS_ADJUSTED_CODE) {
       codes.push(event.code);
     }
   });
@@ -154,6 +153,6 @@ test("at the owner's key total a turn may update a held key but adds no new one"
   const rows = await ownerRows(h);
   expect(rows).toHaveLength(GLOBAL_VARIABLE_MACRO_KEYS_MAX);
   expect(rows.find(({ key }) => key === "held000")).toEqual({ key: "held000", value: "updated" });
-  expect(rows.some(({ key }) => key === "fresh")).toBe(false);
+  expect(nonEmpty(rows).some(({ key }) => key === "fresh")).toBe(false);
   expect(warnings.codes).toEqual(["global_variable_dropped"]);
 });

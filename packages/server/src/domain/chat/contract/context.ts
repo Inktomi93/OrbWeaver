@@ -1,4 +1,5 @@
 import type { FilterOwnedAssetIdsOp, ResolveAssetHashOp } from "@orb/contracts/assets";
+import type { LoadGlobalVariablesOp } from "@orb/contracts/automation";
 import type { CharacterCard, FindSyntheticGroupCharacterOp, MintSyntheticGroupCharacterOp } from "@orb/contracts/character";
 import type {
   ClaimChatOp,
@@ -598,7 +599,7 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
   readonly resolveChatProse: ResolveChatProseOp;
   /** The owner's per-user global plane (D46) as the turn's macro read cache. Injected because `global_variables`
    *  is automation's table; its write half is {@link EngineContext.globalVariableWriteStatements}. */
-  readonly loadGlobalVariables: (ownerId: UserId) => Promise<Record<string, string>>;
+  readonly loadGlobalVariables: LoadGlobalVariablesOp;
   /** B7 — a user's per-user reaction defaults (`UserSettings.chat.{reactionsEnabled,charactersCanReact}`),
    *  the VERB-TIME half of the resolve pair: `toggleReaction`/`listReactions`/`reactAsCharacter` gate on
    *  `resolveReactionsEnabled(room, hostDefault)` and no ForeignInputs exists outside the turn path (the

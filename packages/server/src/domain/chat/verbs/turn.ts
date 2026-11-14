@@ -111,9 +111,9 @@ import {
   loadIsReplyToLatestUserMessage,
   loadMaxMessageSeq,
   loadMessageView,
+  loadPendingUserText,
   loadSlotTarget,
   loadStoredUserMacroValues,
-  loadUserMessageText,
 } from "../persistence/queries.ts";
 import { commitRetainedCanonStats } from "../persistence/retained-canon.ts";
 import { prepareContinueRestoreForRoleData } from "../persistence/role-encoding.ts";
@@ -2948,7 +2948,7 @@ async function runDeferredRound(
     throw new ChatNotFoundError(row.chatId);
   }
   // Two queued sends drain in turn after the room has moved past both, so each reply reads its own send's text.
-  const answeredUserText = row.messageId === null ? undefined : await loadUserMessageText(ctx.db, row.chatId, row.messageId);
+  const answeredUserText = row.messageId === null ? undefined : ((await loadPendingUserText(ctx.db, row.chatId, row.messageId)) ?? undefined);
   const room = await loadRoom(ctx, row.chatId, chat.anchorPersonaId, row.runAsUserId); // hostless/gone → chat-gone drop; frozen host disabled or left → consent drop
   const identity = { triggeredBy: row.triggeredBy, funderUserId: row.runAsUserId, runAsUserId: row.runAsUserId };
   const connection = await deps.resolveConnection({ funderUserId: identity.funderUserId, chatId: row.chatId });

@@ -640,27 +640,24 @@ export async function loadMaxMessageSeq(db: Db, chatId: ChatId): Promise<number>
 
 /** The text of the latest user-role message's selected variant, or `null` (no user line yet). `role='user'`
  *  scopes it to human sends (never a narrator/assistant line); newest by `seq`. A hidden message is off the wire,
- *  so it is not "the latest" for a reader asking what the model sees. */
-export async function loadPendingUserText(db: Db, chatId: ChatId): Promise<string | null> {
+ *  so it is not "the latest" for a reader asking what the model sees. With `messageId`, only that user message is
+ *  read: a drained queued turn answers its own send, which a later send may have followed. */
+export async function loadPendingUserText(db: Db, chatId: ChatId, messageId?: MessageId): Promise<string | null> {
   const rows = await db
     .select({ text: messageVariants.content })
     .from(messages)
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
-    .where(and(eq(messages.chatId, chatId), eq(messages.role, "user"), eq(messages.excludedFromPrompt, false)))
+    .where(
+      and(
+        eq(messages.chatId, chatId),
+        eq(messages.role, "user"),
+        eq(messages.excludedFromPrompt, false),
+        messageId === undefined ? undefined : eq(messages.id, messageId),
+      ),
+    )
     .orderBy(desc(messages.seq))
     .limit(LIMIT_ONE);
   return rows.at(0)?.text ?? null;
-}
-
-/** One user message's selected text in `chatId`, or undefined when that message is gone. */
-export async function loadUserMessageText(db: Db, chatId: ChatId, messageId: MessageId): Promise<string | undefined> {
-  const rows = await db
-    .select({ text: messageVariants.content })
-    .from(messages)
-    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
-    .where(and(eq(messages.id, messageId), eq(messages.chatId, chatId), eq(messages.role, "user")))
-    .limit(LIMIT_ONE);
-  return rows.at(0)?.text;
 }
 
 /** Slot-adjacency for the rpg dice feed-forward (D58): does the `targetMessageId` slot DIRECTLY
