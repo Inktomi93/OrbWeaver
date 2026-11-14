@@ -2,6 +2,7 @@
 // report still reads what the run did; the value an operator typed does not. The session socket and the parser keep
 // the raw argv: those are the operation, and neither reaches a file.
 import { routeSlug } from "../../floor/artifacts/artifact-naming.ts";
+import { maskSecretPathSegments, URL_SECRET_PAIR_NAMES, URL_SECRET_PATH_NAMES, URL_WORD_PAIR_NAMES } from "../../floor/browser/url-secret-names.ts";
 import { splitFirstEq, splitPageSuffix, splitSelectorEq } from "../../floor/instrument/argv.ts";
 import type { DiskSafeArgv, DiskSafeOp, DiskSafeUrl, PrivateText } from "../contract/disk-safe-argv.ts";
 import { PRIVATE_MASK } from "../contract/disk-safe-argv.ts";
@@ -17,18 +18,19 @@ const SPECIAL_SCHEMES: ReadonlySet<string> = new Set(["ftp:", "file:", "http:", 
 // The URL parser drops these anywhere in its input, so `ht<TAB>tp:` is `http:` and `to<TAB>ken` is `token`.
 const PARSER_DROPPED = /[\t\n\r]/gu;
 
-// Private only as whole URL pair names: `?key=` is the usual API-key spelling and `?code=` an OAuth code. The shared
-// predicate stays without them, because it also judges JSON keys, where `code` and `key` are ordinary fields.
-const URL_ONLY_SENSITIVE_NAMES: ReadonlySet<string> = new Set(["key", "code"]);
-
 function sensitiveUrlPairName(name: string): boolean {
-  return URL_ONLY_SENSITIVE_NAMES.has(name.toLowerCase()) || isSensitiveEvidenceName(name);
+  const lower = name.toLowerCase();
+  return URL_WORD_PAIR_NAMES.has(lower) || URL_SECRET_PAIR_NAMES.has(lower) || isSensitiveEvidenceName(name);
+}
+
+// URLSearchParams decodes as the query parser does, and leaves a malformed escape as written instead of throwing.
+function decodedUrlName(encoded: string): string {
+  const name = encoded.replace(PARSER_DROPPED, "");
+  return [...new URLSearchParams(`${name}=`).keys()][0] ?? name;
 }
 
 function sensitivePairName(encoded: string): boolean {
-  // URLSearchParams decodes as the query parser does, and leaves a malformed escape as written instead of throwing.
-  const name = encoded.replace(PARSER_DROPPED, "");
-  return sensitiveUrlPairName([...new URLSearchParams(`${name}=`).keys()][0] ?? name);
+  return sensitiveUrlPairName(decodedUrlName(encoded));
 }
 
 function maskPairs(section: string): string {
@@ -41,13 +43,16 @@ function maskPairs(section: string): string {
     .join("&");
 }
 
-/** The query and the fragment (`#access_token=…`), each sensitive pair's value masked and every other byte kept. */
-function maskQueryAndFragment(url: string): string {
+/** The path, the query and the fragment (`#access_token=…`), each secret segment and sensitive pair's value masked and
+ *  every other byte kept. */
+function maskPathQueryAndFragment(url: string): string {
   const hash = url.indexOf("#");
   const beforeHash = hash < 0 ? url : url.slice(0, hash);
   const fragment = hash < 0 ? "" : `#${maskPairs(url.slice(hash + 1))}`;
   const query = beforeHash.indexOf("?");
-  return query < 0 ? `${beforeHash}${fragment}` : `${beforeHash.slice(0, query + 1)}${maskPairs(beforeHash.slice(query + 1))}${fragment}`;
+  const path = query < 0 ? beforeHash : beforeHash.slice(0, query);
+  const search = query < 0 ? "" : `?${maskPairs(beforeHash.slice(query + 1))}`;
+  return `${maskSecretPathSegments(path, PRIVATE_MASK)}${search}${fragment}`;
 }
 
 const LAST_STRIPPED_CODE = 0x20;
@@ -78,7 +83,7 @@ function decodedUserinfo(encoded: string): string {
 export function diskSafeUrl(raw: string): DiskSafeUrl {
   const lead = strippedLeadLength(raw);
   // The query is masked even where the parser reads `raw` only against a base: navigation resolves it, token and all.
-  return `${raw.slice(0, lead)}${maskQueryAndFragment(maskUserinfo(raw.slice(lead)))}` as DiskSafeUrl;
+  return `${raw.slice(0, lead)}${maskPathQueryAndFragment(maskUserinfo(raw.slice(lead)))}` as DiskSafeUrl;
 }
 
 /** The default artifact base for a route, built from the masked route: it becomes a file name, a batch id and a printed line. */
@@ -139,7 +144,13 @@ export function noteUrlSecrets(url: string): void {
   }
   for (const [name, value] of [...parsed.searchParams, ...new URLSearchParams(parsed.hash.slice(1))]) {
     if (sensitiveUrlPairName(name)) {
-      privateText(value, URL_ONLY_SENSITIVE_NAMES.has(name.toLowerCase()) ? "urlWord" : "secret").reveal();
+      privateText(value, URL_WORD_PAIR_NAMES.has(name.toLowerCase()) ? "urlWord" : "secret").reveal();
+    }
+  }
+  const segments = parsed.pathname.split("/").map(decodedUserinfo);
+  for (const [index, segment] of segments.entries()) {
+    if (segment !== "" && URL_SECRET_PATH_NAMES.has((segments[index - 1] ?? "").toLowerCase())) {
+      privateText(segment).reveal();
     }
   }
 }
