@@ -93,26 +93,30 @@ export const memoryViewSchema = z.strictObject({
     z.strictObject({ kind: z.literal("pending") }),
     z.strictObject({ kind: z.literal("ready") }),
   ]),
-  items: z.array(
-    z.strictObject({
-      key: memoryItemKeySchema,
-      bucket: z.enum(["shared", "scoped"]),
-      topicAnchor: z.string().nullable(),
-      text: z.string(),
-      keywords: z.array(z.string()),
-      speakers: z.array(typeIdSchema(ID_PREFIX.character)),
-      strike: z.strictObject({ strikeId: strikeIdSchema, changedSinceStrike: z.boolean() }).nullable(),
-      retellsStruck: z.boolean(),
-    }),
-  ),
-  unmatchedStrikes: z.array(
-    z.strictObject({
-      strikeId: strikeIdSchema,
-      tier: z.int().min(0),
-      scopedCharacterId: typeIdSchema(ID_PREFIX.character).nullable(),
-      topicAnchor: z.string().nullable(),
-    }),
-  ),
+  items: z
+    .array(
+      z.strictObject({
+        key: memoryItemKeySchema,
+        bucket: z.enum(["shared", "scoped"]),
+        topicAnchor: z.string().nullable(),
+        text: z.string(),
+        keywords: z.array(z.string()).readonly(),
+        speakers: z.array(typeIdSchema(ID_PREFIX.character)).readonly(),
+        strike: z.strictObject({ strikeId: strikeIdSchema, changedSinceStrike: z.boolean() }).nullable(),
+        retellsStruck: z.boolean(),
+      }),
+    )
+    .readonly(),
+  unmatchedStrikes: z
+    .array(
+      z.strictObject({
+        strikeId: strikeIdSchema,
+        tier: z.int().min(0),
+        scopedCharacterId: typeIdSchema(ID_PREFIX.character).nullable(),
+        topicAnchor: z.string().nullable(),
+      }),
+    )
+    .readonly(),
   recentWindowStartsAt: typeIdSchema(ID_PREFIX.message).nullable(),
 }) satisfies z.ZodType<MemoryView>;
 
