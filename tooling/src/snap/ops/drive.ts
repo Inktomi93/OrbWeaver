@@ -11,7 +11,7 @@ import type { Args, DriveFailure } from "../contract/types.ts";
 import { MOUNT_SETTLE_MS, SNAP_CEILINGS_MS } from "../lib/budgets.ts";
 import { noteUrlSecrets } from "../lib/disk-safe-argv.ts";
 import { READ_FAILURE_SURFACE_JS } from "../lib/failure-surface.ts";
-import { scrubPrivateText } from "../lib/private-values.ts";
+import { scrubPlaywrightText } from "../lib/private-values.ts";
 import { markStageSettled, markStageUnsettled } from "../lib/stage-run-binding.ts";
 import { driveBudgets } from "../lib/throttle.ts";
 import { waitDriveFailure } from "./drive-failure-naming.ts";
@@ -144,7 +144,7 @@ export async function navigate(page: Page, opts: Args, url: string, failures?: D
     try {
       await page.locator(opts.waitSelector).first().waitFor({ state: "visible", timeout: SNAP_CEILINGS_MS.waitSelector });
     } catch (error) {
-      failures?.push(waitDriveFailure(opts.waitSelector, scrubPrivateText(errorMessage(error))));
+      failures?.push(waitDriveFailure(opts.waitSelector, scrubPlaywrightText(errorMessage(error))));
       throw error;
     }
   }

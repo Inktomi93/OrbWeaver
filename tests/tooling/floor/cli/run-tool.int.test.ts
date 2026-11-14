@@ -83,7 +83,7 @@ const CRASHES = {
 function crashScript(body: string, options: string): string {
   return script(
     [
-      `import { scrubPrivateText } from ${JSON.stringify(PRIVATE_VALUES_URL)};`,
+      `import { scrubPlaywrightText } from ${JSON.stringify(PRIVATE_VALUES_URL)};`,
       `import { noteUrlSecrets } from ${JSON.stringify(DISK_SAFE_ARGV_URL)};`,
       `await runTool(async () => { noteUrlSecrets(${JSON.stringify(CANARY_URL)}); ${body} }${options});`,
     ].join("\n"),
@@ -91,7 +91,7 @@ function crashScript(body: string, options: string): string {
 }
 
 test.for(Object.entries(CRASHES))("an %s under runTool with snap's scrub prints the noted token masked", async ([_kind, body], { plantedTree }) => {
-  const res = await runScratch(plantedTree, crashScript(body, ", { scrubCrashText: scrubPrivateText }"));
+  const res = await runScratch(plantedTree, crashScript(body, ", { scrubCrashText: scrubPlaywrightText }"));
   expect(res.code).toBe(EXIT.toolError);
   expect(res.stderr).toContain(`token=${PRIVATE_MASK}`);
   expect(res.stderr).not.toContain(CANARY);

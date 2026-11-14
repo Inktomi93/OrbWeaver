@@ -113,25 +113,70 @@ test.each([
   expect(scrubPrivateText("typed hunter2 here")).toBe(`typed ${PRIVATE_MASK} here`);
 });
 
-// Playwright cuts an element preview's text and a pending navigation's URL to a cap and ends the cut with an ellipsis
-// (`trimStringWithEllipsis` in playwright-core), so a long value survives only as its prefix in the action log.
+// Playwright's `trimStringWithEllipsis` (playwright-core `coreBundle.js`), the external edge these lines come from: a text
+// over its cap keeps cap - 1 code points and an ellipsis, so a long value survives only as its prefix.
+function playwrightCut(text: string, cap: number): string {
+  const points = [...text];
+  return points.length <= cap ? text : `${points.slice(0, cap - 1).join("")}…`;
+}
+
 const CUT_TOKEN = "plant-trace-token-0d4be29c71aa";
-test.for([
-  ["an element preview", `  locator resolved to <div>Signed in with ${CUT_TOKEN.slice(0, 15)}…</div>`],
-  ["a pending navigation", `  waiting for "http://h.test/cb?lang=en&token=${CUT_TOKEN.slice(0, 9)}…" navigation to finish...`],
-] as const)("a value Playwright cut at %s is scrubbed from the trace by its prefix", async ([_name, message], { scratch }) => {
-  using _values = revealed();
-  noteUrlSecrets(`http://h.test/cb?lang=en&token=${CUT_TOKEN}`);
-  const line = { type: "log", callId: "call@7", time: 12.5, message };
-  // The positive control: a cut word that is no value's prefix keeps its text.
-  const kept = { type: "log", callId: "call@8", time: 13.5, message: "  locator resolved to <div>Signed in with an ordinary wor…</div>" };
-  const entries = await scrubbed(scratch, { "trace.trace": strToU8(`${JSON.stringify(line)}\n${JSON.stringify(kept)}\n`) });
-  const [cut, plain] = Buffer.from(entries["trace.trace"] ?? [])
+const URL_WORD = "homepage-dashboard-v2";
+const TYPED = "Loading the composer draft";
+
+/** Note a URL token, a `?key=` word and a typed fill for one case, and forget them at its end. */
+function notedForCuts(): Disposable {
+  forgetPrivateValues();
+  privateText(TYPED).reveal();
+  noteUrlSecrets(`http://h.test/cb?lang=en&token=${CUT_TOKEN}&key=${URL_WORD}`);
+  return { [Symbol.dispose]: forgetPrivateValues };
+}
+
+async function traceLines(scratch: string, lines: readonly Record<string, unknown>[]): Promise<readonly string[]> {
+  const entries = await scrubbed(scratch, { "trace.trace": strToU8(lines.map((line) => `${JSON.stringify(line)}\n`).join("")) });
+  return Buffer.from(entries["trace.trace"] ?? [])
     .toString("utf8")
-    .split("\n");
+    .split("\n")
+    .filter((line) => line !== "");
+}
+
+test.for([
+  [
+    "element preview text",
+    { type: "log", message: `  locator resolved to <div>${playwrightCut(`${"Signed in with ".padEnd(40, ".")}${CUT_TOKEN}`, 50)}</div>` },
+  ],
+  [
+    "element preview attributes",
+    { type: "log", message: `  locator resolved to <a${playwrightCut(` class="${"c".repeat(460)}" href="/cb?token=${CUT_TOKEN}"`, 500)}>Back</a>` },
+  ],
+  [
+    "a pending navigation URL",
+    { type: "log", message: `  waiting for "${playwrightCut(`http://h.test/cb?${"a=1&".repeat(42)}token=${CUT_TOKEN}`, 200)}" navigation to finish...` },
+  ],
+  ["a quoted URL argument", { type: "before", title: `Wait for URL "${playwrightCut(`http://h.test/cb?lang=en&token=${CUT_TOKEN}`, 50)}"` }],
+  [
+    "a long key word past its own floor",
+    { type: "log", message: `  locator resolved to <div>${playwrightCut(`${"Go to ".padEnd(30, ".")}${URL_WORD}`, 50)}</div>` },
+  ],
+] as const)("a value Playwright cut at %s is scrubbed from the trace by its prefix", async ([_name, line], { scratch }) => {
+  using _values = notedForCuts();
+  const [cut] = await traceLines(scratch, [line]);
   expect(cut).toContain(`${PRIVATE_MASK}…`);
   expect(cut).not.toContain(CUT_TOKEN.slice(0, 4));
-  expect(plain).toBe(JSON.stringify(kept));
+  expect(cut).not.toContain(URL_WORD.slice(0, 16));
+});
+
+// The prefix pass judges only Playwright's own cuts, each value at its own floor, so ordinary UI text survives a run.
+test("ordinary text ending in an ellipsis keeps its words after a fill and a key word are noted", async ({ scratch }) => {
+  using _values = notedForCuts();
+  expect(scrubPrivateText("Loading…")).toBe("Loading…");
+  expect(scrubPrivateText("Back to home…")).toBe("Back to home…");
+  const kept = [
+    { type: "log", message: "  locator resolved to <div>Loading…</div>" },
+    { type: "log", message: "  locator resolved to <span>Back to home…</span>" },
+    { type: "log", message: `  locator resolved to <div>${playwrightCut(`${"Go to the dashboard ".padEnd(45, ".")}${URL_WORD}`, 50)}</div>` },
+  ];
+  expect(await traceLines(scratch, kept)).toEqual(kept.map((line) => JSON.stringify(line)));
 });
 
 test("a trace that cannot be scrubbed is not kept, and its failure quotes none of it", async ({ scratch }) => {

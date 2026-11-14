@@ -6,7 +6,7 @@
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { runTool } from "../floor/cli/run-tool.ts";
-import { openSnapHost, scrubPrivateText } from "./index.ts";
+import { openSnapHost, scrubPlaywrightText } from "./index.ts";
 
 const cliEntry = process.argv[1];
 if (cliEntry !== undefined && import.meta.url === pathToFileURL(cliEntry).href) {
@@ -17,6 +17,6 @@ if (cliEntry !== undefined && import.meta.url === pathToFileURL(cliEntry).href) 
       return await host.run(argv);
     },
     // A late page or browser throw reaches only the runner's handlers, and its message quotes the URL it was given.
-    { scrubCrashText: scrubPrivateText },
+    { scrubCrashText: scrubPlaywrightText },
   );
 }

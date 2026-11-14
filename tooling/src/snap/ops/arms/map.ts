@@ -11,7 +11,7 @@ import type { MapAtlasEvidence, MapEntry, MapShellEvidence, RawMapBridgeEvidence
 import type { CaptureOutcome } from "../../contract/types.ts";
 import { diskSafeUrl } from "../../lib/disk-safe-argv.ts";
 import { buildSurfaceMapScript, READ_MAP_BRIDGE_SCRIPT } from "../../lib/map-browser.ts";
-import { scrubPrivateText } from "../../lib/private-values.ts";
+import { scrubPlaywrightText, scrubPrivateText } from "../../lib/private-values.ts";
 import { consumeOptionalSelector } from "../flags-support.ts";
 import { mapAtlasEvidence, mapBridgePayload, mapShellEvidence, rawMapEntries } from "../page-validate.ts";
 import { writeArmEvidenceFile } from "./evidence-file.ts";
@@ -77,7 +77,7 @@ async function captureSurfaceMap(
     // After the locator is proven: a name that holds a typed value reads as the mask, and its locator with it.
     return { entries: entries.map((entry) => ({ ...entry, name: scrubPrivateText(entry.name), selector: scrubPrivateText(entry.selector) })), error: null };
   } catch (error) {
-    return { entries: null, error: scrubPrivateText(errorMessage(error)) };
+    return { entries: null, error: scrubPlaywrightText(errorMessage(error)) };
   }
 }
 
@@ -104,7 +104,7 @@ async function captureMapBridge(page: Page): Promise<{
   try {
     raw = mapBridgePayload(await page.evaluate(READ_MAP_BRIDGE_SCRIPT));
   } catch (error) {
-    const detail = scrubPrivateText(errorMessage(error));
+    const detail = scrubPlaywrightText(errorMessage(error));
     return { atlas: null, shell: null, atlasError: detail, shellError: detail };
   }
   let atlas: MapAtlasEvidence | null = null;

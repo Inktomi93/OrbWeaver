@@ -20,16 +20,35 @@ const SUBSTRING_MIN_CHARS = { secret: 4, urlWord: 16 } as const;
 /** What kind of private value a {@link privateText} holds, which sets how short it may be and still be scrubbed inside text. */
 export type PrivateValueKind = keyof typeof SUBSTRING_MIN_CHARS;
 const TRUNCATION_MARK = "…";
+/**
+ * Every place Playwright cuts text it writes to a trace or a call log (`trimStringWithEllipsis`, playwright-core 1.64
+ * `coreBundle.js`): its cap, and what the text right before the cut text must end with.
+ */
+const PLAYWRIGHT_CUTS = [
+  // an element preview's text: `<tag attrs>TEXT…</tag>`
+  { cap: 50, opens: />$/u },
+  // an element preview's joined attributes: `<tag ATTRS…>`
+  { cap: 500, opens: /<[a-z][^\s<>/]*$/iu },
+  // a pending or committed navigation URL in the action log
+  { cap: 200, opens: /"$/u },
+  // a quoted URL argument in an action title
+  { cap: 50, opens: /"$/u },
+] as const;
+// Enough code points before a cut to read its opener, the longest being an element's tag name.
+const CUT_OPENER_LOOKBACK = 64;
 const JSON_LINE_ENTRY = /\.(?:trace|network)$/u;
 const PIXEL_ENTRY = /\.(?:jpe?g|png|webp)$/u;
 const TRACE_SCRATCH_PREFIX = "orb-snap-trace-";
 const RAW_TRACE_NAME = "raw.zip";
 const UNREADABLE_LINE = Symbol("unreadable trace line");
 
-// What was revealed stays noted until the host forgets it: a CLI process and a session daemon (one trace spans its
-// calls) never do; a host running several invocations in one process forgets after each (`forgetPrivateValues`).
+// What was revealed stays noted until the host forgets it (`forgetPrivateValues`), which it does when each run ends, a
+// one-shot CLI run included; a session daemon's run spans its whole life, so one trace keeps every call's values. A throw
+// detected after the run ends prints with nothing noted.
 const wholeStrings = new Set<string>();
 let substrings: readonly string[] = [];
+// The fewest leading characters of a spelling that count as a cut copy of it: its kind's floor inside text.
+const prefixFloors = new Map<string, number>();
 
 const jsonSpelling = (text: string): string => JSON.stringify(text).slice(1, -1);
 const formSpelling = (text: string): string => new URLSearchParams({ v: text }).toString().slice(2);
@@ -49,9 +68,13 @@ function notePrivateValue(value: string, kind: PrivateValueKind): void {
   for (const spelling of spellings) {
     wholeStrings.add(spelling);
   }
-  if (value.length >= SUBSTRING_MIN_CHARS[kind]) {
+  const floor = SUBSTRING_MIN_CHARS[kind];
+  if (value.length >= floor) {
     // Longest first: a noted value inside a longer one would otherwise leave the longer one's tail behind.
     substrings = [...new Set([...substrings, ...spellings])].toSorted((left, right) => right.length - left.length);
+    for (const spelling of spellings) {
+      prefixFloors.set(spelling, Math.min(prefixFloors.get(spelling) ?? floor, floor));
+    }
   }
 }
 
@@ -87,39 +110,6 @@ export function privateText(value: string, kind: PrivateValueKind = "secret"): P
   return new PrivateValue(value, kind);
 }
 
-// The longest prefix of a noted spelling that `head` ends with, or 0 below the shortest length scrubbed inside text.
-function cutPrefixLength(head: string): number {
-  let longest = 0;
-  for (const spelling of substrings) {
-    for (let length = Math.min(spelling.length, head.length); length > Math.max(longest, SUBSTRING_MIN_CHARS.secret - 1); length -= 1) {
-      if (head.endsWith(spelling.slice(0, length))) {
-        longest = length;
-        break;
-      }
-    }
-  }
-  return longest;
-}
-
-// Playwright cuts an element preview's text and attributes, a pending navigation's URL and a quoted argument to a cap
-// and ends the cut with an ellipsis (`trimStringWithEllipsis` in playwright-core). A value cut there survives only as
-// its own prefix, which no whole-value replacement finds, so the prefix right before each ellipsis is masked too.
-function scrubCutPrefixes(text: string): string {
-  if (!text.includes(TRUNCATION_MARK)) {
-    return text;
-  }
-  const parts = text.split(TRUNCATION_MARK);
-  return parts
-    .map((part, index) => {
-      if (index === parts.length - 1) {
-        return part;
-      }
-      const cut = cutPrefixLength(part);
-      return cut === 0 ? part : `${part.slice(0, part.length - cut)}${PRIVATE_MASK}`;
-    })
-    .join(TRUNCATION_MARK);
-}
-
 /** Replace every revealed private value in text read back from a page. The only mint of {@link DiskSafeText}. */
 export function scrubPrivateText(text: string): DiskSafeText {
   if (wholeStrings.has(text)) {
@@ -129,7 +119,58 @@ export function scrubPrivateText(text: string): DiskSafeText {
   for (const spelling of substrings) {
     scrubbed = scrubbed.replaceAll(spelling, PRIVATE_MASK);
   }
-  return scrubCutPrefixes(scrubbed) as DiskSafeText;
+  return scrubbed as DiskSafeText;
+}
+
+// The longest prefix of a noted spelling that `window` ends with, each spelling at its own kind's floor, or 0.
+function notedPrefixLength(window: string): number {
+  let longest = 0;
+  for (const spelling of substrings) {
+    const floor = prefixFloors.get(spelling) ?? spelling.length;
+    for (let length = Math.min(spelling.length, window.length); length >= Math.max(longest + 1, floor); length -= 1) {
+      if (window.endsWith(spelling.slice(0, length))) {
+        longest = length;
+        break;
+      }
+    }
+  }
+  return longest;
+}
+
+// How many UTF-16 units of a noted value Playwright left right before the ellipsis at `end`, or 0 when no cut of its own
+// ends there. A cut keeps exactly `cap - 1` code points after its opener, so ordinary text that ends in an ellipsis is
+// never judged.
+function cutPrefixAt(text: string, end: number): number {
+  const points = [...text.slice(0, end)];
+  let longest = 0;
+  for (const { cap, opens } of PLAYWRIGHT_CUTS) {
+    const keep = cap - TRUNCATION_MARK.length;
+    if (points.length < keep || !opens.test(points.slice(Math.max(0, points.length - keep - CUT_OPENER_LOOKBACK), points.length - keep).join(""))) {
+      continue;
+    }
+    longest = Math.max(longest, notedPrefixLength(points.slice(points.length - keep).join("")));
+  }
+  return longest;
+}
+
+// The windows are found on the raw text: a whole-value replacement first would change the code-point count of a cut.
+function scrubPlaywrightCuts(text: string): string {
+  let scrubbed = text;
+  for (let end = text.lastIndexOf(TRUNCATION_MARK); end >= 0; end = end === 0 ? -1 : text.lastIndexOf(TRUNCATION_MARK, end - 1)) {
+    const cut = cutPrefixAt(text, end);
+    if (cut > 0) {
+      scrubbed = `${scrubbed.slice(0, end - cut)}${PRIVATE_MASK}${scrubbed.slice(end)}`;
+    }
+  }
+  return scrubbed;
+}
+
+/**
+ * {@link scrubPrivateText} for text Playwright wrote: a trace line or an error with its call log. It also masks a noted
+ * value Playwright cut short, which survives only as its prefix.
+ */
+export function scrubPlaywrightText(text: string): DiskSafeText {
+  return scrubPrivateText(text.includes(TRUNCATION_MARK) && substrings.length > 0 ? scrubPlaywrightCuts(text) : text);
 }
 
 /**
@@ -139,23 +180,23 @@ export function scrubPrivateText(text: string): DiskSafeText {
  */
 export function scrubPrivateError(error: unknown): unknown {
   if (error instanceof Error) {
-    error.message = scrubPrivateText(error.message);
+    error.message = scrubPlaywrightText(error.message);
     if (error.stack !== undefined) {
-      error.stack = scrubPrivateText(error.stack);
+      error.stack = scrubPlaywrightText(error.stack);
     }
   }
   return error;
 }
 
 // String values only: a key or a `true` that happens to equal a typed value stays, or the line stops being JSON.
-function scrubJsonValue(value: unknown): unknown {
+function scrubJsonValue(value: unknown, scrub: (text: string) => DiskSafeText): unknown {
   if (typeof value === "string") {
-    return scrubPrivateText(value);
+    return scrub(value);
   }
   if (Array.isArray(value)) {
-    return value.map(scrubJsonValue);
+    return value.map((member) => scrubJsonValue(member, scrub));
   }
-  return isPlainObject(value) ? Object.fromEntries(Object.entries(value).map(([key, member]) => [key, scrubJsonValue(member)])) : value;
+  return isPlainObject(value) ? Object.fromEntries(Object.entries(value).map(([key, member]) => [key, scrubJsonValue(member, scrub)])) : value;
 }
 
 function parsedTraceLine(line: string): unknown {
@@ -175,7 +216,7 @@ function scrubJsonLine(line: string): string {
   if (parsed === UNREADABLE_LINE) {
     throw new Error("INSTRUMENT ERROR: a trace line could not be read, so the trace was not kept");
   }
-  return JSON.stringify(scrubJsonValue(parsed));
+  return JSON.stringify(scrubJsonValue(parsed, scrubPlaywrightText));
 }
 
 function scrubJsonLines(bytes: Uint8Array): Uint8Array {
@@ -233,7 +274,7 @@ export async function stopTraceToFile(tracing: { readonly stop: (options: { read
  * @remarks For a dump that holds no vocabulary of snap's own. Structured evidence scrubs where its text enters instead.
  */
 export function scrubPrivateJson<T>(value: T): T {
-  return wholeStrings.size === 0 ? value : (scrubJsonValue(value) as T);
+  return wholeStrings.size === 0 ? value : (scrubJsonValue(value, scrubPrivateText) as T);
 }
 
 /**
@@ -259,4 +300,5 @@ export async function scrubPrivateFile(path: string): Promise<void> {
 export function forgetPrivateValues(): void {
   wholeStrings.clear();
   substrings = [];
+  prefixFloors.clear();
 }
