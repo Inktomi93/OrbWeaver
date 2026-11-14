@@ -37,8 +37,8 @@ export const selectVariants = tv({
     ],
     // The selected value is what the reader chose the control for, so it is never cut: a value past the trigger's room wraps between its
     // words and the trigger grows from its step. `min-inline-0` lets the flex child shrink to the trigger's width, so only a word wider
-    // than the room breaks inside itself.
-    value: "text-start wrap-break-word whitespace-normal min-inline-0",
+    // than the room breaks inside itself, at one of the word's hyphenation points.
+    value: "text-start wrap-break-word hyphens-auto whitespace-normal min-inline-0",
     icon: "flex shrink-0 text-muted-foreground",
     positioner: "z-(--z-popover) outline-none",
     // Never narrower than the anchor, and grows to fit the longest LABEL. Descriptions do not size it (see
