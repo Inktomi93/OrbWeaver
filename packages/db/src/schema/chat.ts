@@ -1012,10 +1012,12 @@ export const chatInjections = sqliteTable(
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // chat_memory_strikes — the host's strikes on remembered items: recall leaves a struck digest out of every later
 // prompt. User arrangement, not derived data, so it never lives on `chat_digests`, which is deleted and rebuilt
-// from canon. A strike names its item by bucket, tier and the covered span's endpoint message ids, which survive a
-// re-embed and a re-summarize; `content_hash` and `topic_anchor` are what the item held when struck.
-//   • `scoped_character_id` NULL is the room's SHARED bucket, whichever character holds it. A scoped character's
-//     strike CASCADES with that character, as its digests do; it never falls back to the shared bucket.
+// from canon. A strike names a span of the story by tier and the covered span's endpoint message ids, which survive
+// a re-embed and a re-summarize, and recall drops every bucket's summary of it; `content_hash` and `topic_anchor`
+// are what the item held when struck.
+//   • `scoped_character_id` records only which bucket's item the host struck; NULL is the room's SHARED bucket, or a
+//     scoped character since deleted. It SETS NULL with that character, never cascades: the strike is room
+//     configuration, and deleting a library card (a former host's, after a handoff) must not lift it.
 //   • The endpoint columns carry NO FK on purpose: a hidden or deleted endpoint orphans the strike, and the orphan
 //     stays listed for the host instead of vanishing.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1030,7 +1032,7 @@ export const chatMemoryStrikes = sqliteTable(
       .references(() => chats.id, { onDelete: "cascade" }),
     scopedCharacterId: nulFreeText("scoped_character_id")
       .$type<CharacterId>()
-      .references(() => characters.id, { onDelete: "cascade" }),
+      .references(() => characters.id, { onDelete: "set null" }),
     tier: integer("tier").notNull(),
     messageStartId: nulFreeText("message_start_id").$type<MessageId>().notNull(),
     messageEndId: nulFreeText("message_end_id").$type<MessageId>().notNull(),
@@ -1039,11 +1041,9 @@ export const chatMemoryStrikes = sqliteTable(
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
-    // SQLite UNIQUE treats NULLs as distinct, so the shared bucket needs its own partial index.
-    uniqueIndex("chat_memory_strikes_shared_unique").on(t.chatId, t.tier, t.messageStartId, t.messageEndId).where(sql`scoped_character_id is null`),
-    uniqueIndex("chat_memory_strikes_scoped_unique")
-      .on(t.chatId, t.scopedCharacterId, t.tier, t.messageStartId, t.messageEndId)
-      .where(sql`scoped_character_id is not null`),
+    // One strike per span, whatever copy it was made on: the character is not in the key, so a racing second strike
+    // yields to the first and nulling a deleted character can never collide.
+    uniqueIndex("chat_memory_strikes_span_unique").on(t.chatId, t.tier, t.messageStartId, t.messageEndId),
     index("chat_memory_strikes_scoped_character_idx").on(t.scopedCharacterId),
     check("chat_memory_strikes_tier_check", sql.raw("tier >= 0")),
   ],
