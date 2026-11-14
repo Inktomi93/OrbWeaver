@@ -10,17 +10,16 @@
 
 import type { MessageKind, ParticipantKind, ParticipantRole } from "@orb/kit/message-author";
 import type { RegexAuthorScope, RegexAuthorSelector } from "@orb/kit/regex";
+import { REGEX_STANDING_HOST_NAME, REGEX_STANDING_MEMBER_NAME } from "./regex-names.ts";
 
 export const REGEX_PARTICIPANT_LABELS: Record<ParticipantKind, string> = {
   human: "People",
   character: "Characters",
 };
 
-/** Room standing. "Other players" and not "Members": the selector matches a seated human who is not the host, and a
- *  character's row or a departed person's row matches neither. */
 export const REGEX_STANDING_LABELS: Record<ParticipantRole, string> = {
-  host: "The host",
-  member: "Other players",
+  host: REGEX_STANDING_HOST_NAME,
+  member: REGEX_STANDING_MEMBER_NAME,
 };
 
 /** How a standing selector reads, said once under the lists. */

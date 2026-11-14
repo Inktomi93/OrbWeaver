@@ -136,6 +136,9 @@ export function regexTierLever(scope: RegexTierKey, labels: ReadonlyMap<RegexTie
 const REGEX_SCRIPT_ENABLED_SETTING = "Enabled everywhere";
 const REGEX_TIER_ALLOW_SETTING = "Allow scripts from";
 
+/** The mark a switched-off script's row carries, in the tier groups and the On screen roster. */
+export const REGEX_OFF_MARK = "Off";
+
 /** The display roster's heading, and the list word its row switches carry. */
 export const REGEX_ON_SCREEN_LIST = "On screen";
 

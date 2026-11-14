@@ -5,11 +5,11 @@ import { REGEX_TARGET_LABELS } from "@orb/client/lib";
 import { routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { REGEX_STANDING_LABELS } from "#client/features/regex/lib/regex-authors.ts";
 import {
   REGEX_AUTHORS_ADD_NAME,
   REGEX_AUTHORS_ONLY_NAME,
   REGEX_REPLACE_WITH_NAME,
+  REGEX_STANDING_HOST_NAME,
   REGEX_WHEN_CHOICE_NAMES,
   REGEX_WHEN_FIELD_NAME,
 } from "#client/features/regex/lib/regex-names.ts";
@@ -89,7 +89,7 @@ test("picking the host in the only-from list stores a standing selector on the s
   await mount<typeof RegexMemberSaveStory>(STORY, { scriptId: script.id });
 
   await page.getByRole("button", { name: `${REGEX_AUTHORS_ADD_NAME} to ${REGEX_AUTHORS_ONLY_NAME}`, exact: true }).click();
-  await page.getByRole("menuitem", { name: REGEX_STANDING_LABELS.host, exact: true }).click();
+  await page.getByRole("menuitem", { name: REGEX_STANDING_HOST_NAME, exact: true }).click();
   await expect
     .poll(async () => (await caller.regex.listScripts()).find((row) => row.id === script.id)?.authors)
     .toEqual({ include: [{ by: "standing", standing: "host" }], exclude: [] });

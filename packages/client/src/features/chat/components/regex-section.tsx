@@ -19,12 +19,12 @@
 // (`domain/chat/substrate/regex-tier.ts`), so a rank drawn here is the rank the next reply will apply. The
 // client's only rendering decision is WHERE a doubly-attached row draws (`lib/regex-section-model.ts`).
 //
-// TWO LEGS, TWO ROSTERS (§3 (b)). The tier groups list PROMPT participation — the only leg the tier levers
-// and the master reach. The display leg is ATTACHMENT-BLIND by the 2026-08-02 O-4 ruling (the viewer's whole
-// library ∩ DISPLAY, plus the host's broadcast — `data/use-display-scripts.ts`), so no lever here can touch
-// it and it must not appear to: `On screen` is its own roster at the foot, with its own switches, and it is
-// where `Host controls › Appearance` moved to (that disclosure retired with this section — a regex control
-// under an appearance name).
+// TWO PASSES, TWO ROSTERS (§3 (b)). The tier groups list PROMPT participation, the pass the tier levers and the
+// master govern there. The display pass resolves from the same attachments, server-side
+// (`regex.listDisplayScripts`, through `data/use-display-scripts.ts`), and `On screen` at the foot is its own
+// roster: what changes this viewer's screen, in run order, with each row's source. It is where
+// `Host controls › Appearance` moved to (that disclosure retired with this section — a regex control under an
+// appearance name).
 //
 // MEMBER VIEW (D19). The union resolves under the host's frozen `runAsUserId`, so the effective read is
 // host-gated and a member reads the room's own tier through `regex.listForChat` (member-gated, room-public).
@@ -157,7 +157,7 @@ function HostRegexBody({ chatId }: { readonly chatId: ChatId }): ReactElement {
           tiers={view.tiers}
         />
       ))}
-      <RegexOnScreenGroup chatId={chatId} isHost={true} />
+      <RegexOnScreenGroup chatId={chatId} isHost={true} labels={labels} />
     </Stack>
   );
 }
@@ -182,7 +182,7 @@ function MemberRegexBody({ chatId }: { readonly chatId: ChatId }): ReactElement 
         tier={tier}
         tiers={[tier]}
       />
-      <RegexOnScreenGroup chatId={chatId} isHost={false} />
+      <RegexOnScreenGroup chatId={chatId} isHost={false} labels={new Map<RegexTierKey, string>()} />
     </Stack>
   );
 }

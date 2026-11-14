@@ -55,6 +55,10 @@ export const REGEX_AUTHORS_ONLY_NAME = "Only messages from";
 export const REGEX_AUTHORS_ADD_NAME = "Add";
 export const REGEX_AUTHORS_ADD_CHARACTER_NAME = "Add a character";
 export const REGEX_AUTHORS_CLOSE_CHARACTERS_NAME = "Close the character list";
+/** The two room-standing choices in the author lists. "Other players" and not "Members": it matches a seated human
+ *  who is not the host, and a character's row or a departed person's row matches neither. */
+export const REGEX_STANDING_HOST_NAME = "The host";
+export const REGEX_STANDING_MEMBER_NAME = "Other players";
 export const REGEX_AUTHORS_NOT_NAME = "Not messages from";
 
 /** The run-on-edit switch, shown beside the save choice. */

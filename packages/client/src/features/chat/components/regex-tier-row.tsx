@@ -41,7 +41,7 @@ import { useInvalidation, useTRPC } from "#data";
 import { notify, ROW_MORE_LEAD, regexScriptTitle, rowActionSubject } from "#lib";
 import { openConfigTo, selectCollectionMember } from "#state";
 import { useDetachScriptFromChat, useSetRegexScriptEnabled } from "../hooks/use-chat-regex-mutations.ts";
-import { regexScriptEverywhereSwitchName } from "../lib/regex-section-model.ts";
+import { REGEX_OFF_MARK, regexScriptEverywhereSwitchName } from "../lib/regex-section-model.ts";
 
 /** The config group the script library lives in — the `⋯ → Open in library` destination. */
 const REGEX_COLLECTION = "regex";
@@ -178,7 +178,7 @@ function RowMarkers({
           </Text>
         </>
       )}
-      {enabled ? null : <InlineToken>Off</InlineToken>}
+      {enabled ? null : <InlineToken>{REGEX_OFF_MARK}</InlineToken>}
       {notYours ? <InlineToken>Previous host</InlineToken> : null}
     </Row>
   );

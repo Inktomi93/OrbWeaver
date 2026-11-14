@@ -139,7 +139,7 @@ test("a script attach in flight keeps the picker open, so its failure is said in
   });
   const hold = holdServed();
   await openTab(root, page, host, {
-    ...serveCorpusProcedures(host, ["regex.listScripts"]),
+    ...serveCorpusProcedures(host, ["regex.listScripts", "regex.listGlobal"]),
     ...serveCorpusProcedures(host, ["regex.attachToChat"], () => hold),
   });
   await corpusMedia();

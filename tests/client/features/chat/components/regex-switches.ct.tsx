@@ -34,6 +34,7 @@ const TAB_PROCEDURES = [
   "worldInfo.listForChat",
   "regex.listForChat",
   "regex.listScripts",
+  "regex.listGlobal",
   "regex.listDisplayScripts",
   "regex.updateScript",
   "chat.listEffectiveRegex",
@@ -95,6 +96,10 @@ test("script rows, the on-screen roster and the tier levers are found by their s
   await host.regex.attachToChat({ chatId, scriptId: roomOn.id });
   await host.regex.attachToChat({ chatId, scriptId: roomOff.id });
   await host.regex.attachGlobal({ scriptId: everywhere.id });
+  // A display script runs where it is attached, so the shown one sits on the room and the switched-off one among the
+  // host's globals, where the roster keeps a switched-off script listed.
+  await host.regex.attachToChat({ chatId, scriptId: shown.id });
+  await host.regex.attachGlobal({ scriptId: dimmed.id });
   await host.chat.setRegexAllow({ chatId, lever: { kind: "tier", tier: "global", enabled: false } });
   await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
   const trpc = await routeTrpc(page, serveCorpusProcedures(host, TAB_PROCEDURES));
