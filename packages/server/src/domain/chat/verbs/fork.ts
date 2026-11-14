@@ -16,8 +16,8 @@
 //
 // Copied: the chat row's behavior (title/metadata/anchor/variables/user-macro picks), the character roster the forker owns
 // (an owner forking their own chat keeps all), the canon (whole, even a dropped character's prior lines),
-// each copied slot's asset links that its copied bodies still cite, the injections, the memory strikes whose span lies
-// wholly in the copied canon (`ChatContext.memoryStrikes.forkStrikes`). Reset:
+// each copied slot's asset links that its copied bodies still cite, the injections, the memory strikes re-keyed onto
+// the fork's own block grid wherever their span overlaps the copied canon (`ChatContext.memoryStrikes.forkStrikes`). Reset:
 // `parentChatId`/`forkedAt`/timestamps/`starred`/`archived`; the host becomes the forker. Other human participants are NOT copied (a fresh `chat_participants` insert is invite/host-action
 // only). The compaction checkpoint copies only when covered by the fork point, else reset to null — and under
 // a floor the variable delta LOG collapses the same way, into ONE synthetic baseline batch
@@ -775,6 +775,7 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
     const strikeCopy = await ctx.memoryStrikes.forkStrikes({
       sourceChatId: chatId,
       newChatId,
+      hostUserId: principal.userId,
       slotIdMap: canonCopy.slotIdMap,
       seatedCharacterIds: new Set(keptCharacterSeats.map((seat) => seat.characterId)),
       createdAt: now,

@@ -22,17 +22,26 @@
 // of the same messages stays struck (`chat_memory_strikes` in `packages/db/src/schema/chat.ts`). The one place a
 // strike leaves the prompt is recall (`dropStruck` in `recall/recall.ts`).
 //
-// A FORK CARRIES THE STRIKES ITS COPIED CANON HOLDS WHOLE. A strike with an endpoint among the messages the fork did
-// not copy (the fork point falls inside the span, or the span starts below the forker's history floor) is not
-// carried. The content hash carries too, so the fork's own summary of the same scene reads as unchanged since the
-// strike.
+// A FORK RE-KEYS EACH STRIKE ONTO EVERY FORK POSITION ITS SPAN OVERLAPS. The fork slices its own grid from its first
+// copied ingestible message, so under a history floor its blocks cut the story at other seqs than the room's. A strike
+// of tier k lands on every complete tier-k position of the fork (tier-0 blocks, and the arcs `tier0RangeOf` builds from
+// them) whose seq span shares a seq with the strike's span; a strike that overlaps no fork position (wholly below the
+// floor, or wholly past the fork point) is not carried. Tiers do not cross: a fork arc holding a re-keyed block is left
+// out by `matchStrikes`'s containment rule. The grid uses the forker's memory config, since the forker hosts the fork.
+// When several strikes land on one position, the one whose whole span the fork copied wins, else the oldest: the winner's
+// anchor and hash then still name a scene the fork holds. The content hash carries, so an unmoved scene's summary reads
+// as unchanged since the strike.
+//
+// A FORKER NEVER READS AN ANCHOR THAT RETELLS TURNS BELOW THEIR FLOOR. A carried strike whose span the fork did not copy
+// whole keeps no topic anchor: the forker hosts the fork and reads its unmatched list, so the anchor would retell turns
+// their floor withheld.
 
 import type { HandoffCardPair, MemoryItemKey, MemoryItemStrikeView, MemoryItemView, MemoryView, UnmatchedStrikeView } from "@orb/contracts/chat";
 import { memoryOffReason, memoryViewStatus, NO_HISTORY_FLOOR } from "@orb/contracts/chat";
 import type { BatchStmt } from "@orb/db/query";
-import type { CharacterId, ChatId, ChatMemoryStrikeId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatMemoryStrikeId, MessageId, UserId } from "@orb/kit/ids";
 import type { ResolvedStrike, StrikeMatch } from "@orb/kit/recall";
-import { matchStrikes } from "@orb/kit/recall";
+import { matchStrikes, tier0RangeOf } from "@orb/kit/recall";
 import type { ChatContext, MemoryStrikeOps } from "#src/domain/chat/contract/context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "#src/domain/chat/contract/errors.ts";
 import { loadParticipants } from "#src/domain/chat/persistence/participants-read.ts";
@@ -40,6 +49,8 @@ import { loadMaxMessageSeq } from "#src/domain/chat/persistence/queries.ts";
 import { loadPresentHostUserId } from "#src/domain/chat/persistence/reactions.ts";
 import { classifyParticipant } from "#src/domain/chat/substrate/participant-actor.ts";
 import { resolveCfg } from "./constants.ts";
+import { sliceBlocks } from "./generate/substrate/transcript.ts";
+import { loadIngestSlotIds } from "./persistence/queries.ts";
 import type { StoredMemoryStrike } from "./persistence/strikes.ts";
 import {
   deleteSpanStrikes,
@@ -48,7 +59,6 @@ import {
   insertMemoryStrike,
   insertMemoryStrikesStatement,
   loadDigestAt,
-  loadMemoryStrikes,
   loadRecentWindowStart,
   loadResolvedStrikes,
   loadRoomDigests,
@@ -56,6 +66,7 @@ import {
   resolveDigestSpans,
   restampMemoryStrikesStatement,
 } from "./persistence/strikes.ts";
+import type { BlockSpan } from "./types.ts";
 
 /** The bucket every speaker recalls, as the turn resolves it (`gatherMemory`): the room's synthetic group character,
  *  else its first seated character. Null in a room with no character seated. */
@@ -268,27 +279,100 @@ export async function restoreMemoryStrike(ctx: ChatContext, args: Parameters<Mem
   return await deleteSpanStrikes(ctx.db, args.chatId, args.strikeId);
 }
 
-export async function forkMemoryStrikes(ctx: ChatContext, args: Parameters<MemoryStrikeOps["forkStrikes"]>[0]): Promise<BatchStmt[]> {
-  const rows = (await loadMemoryStrikes(ctx.db, args.sourceChatId)).flatMap((strike) => {
-    const messageStartId = args.slotIdMap.get(strike.messageStartId);
-    const messageEndId = args.slotIdMap.get(strike.messageEndId);
-    if (messageStartId === undefined || messageEndId === undefined) {
-      return [];
+/** A copied ingestible message: its id in the fork, and its seq (a fork keeps every copied seq). */
+interface ForkSlot {
+  readonly id: MessageId;
+  readonly seq: number;
+}
+
+/** One position of the fork's grid at a tier, by the copied messages at its two ends. */
+interface ForkPosition {
+  readonly first: ForkSlot;
+  readonly last: ForkSlot;
+}
+
+// Every complete position at `tier` over the fork's complete blocks; an arc missing a child block is not complete yet.
+function forkPositions(blocks: readonly BlockSpan<ForkSlot>[], tier: number, fanOut: number): ForkPosition[] {
+  const positions: ForkPosition[] = [];
+  for (let blockIdx = 0; ; blockIdx += 1) {
+    const range = tier0RangeOf(fanOut, tier, blockIdx);
+    const first = blocks[range.startIdx]?.rows.at(0);
+    const last = blocks[range.endIdx]?.rows.at(-1);
+    if (first === undefined || last === undefined) {
+      return positions;
     }
-    return [
-      {
-        id: ctx.newMemoryStrikeId(),
-        chatId: args.newChatId,
-        scopedCharacterId: strike.scopedCharacterId !== null && args.seatedCharacterIds.has(strike.scopedCharacterId) ? strike.scopedCharacterId : null,
-        tier: strike.tier,
-        messageStartId,
-        messageEndId,
-        contentHash: strike.contentHash,
-        topicAnchor: strike.topicAnchor,
-        createdAt: args.createdAt,
-      },
-    ];
+    positions.push({ first, last });
+  }
+}
+
+interface CarriedStrike {
+  readonly strike: StoredMemoryStrike;
+  readonly tier: number;
+  readonly position: ForkPosition;
+  readonly whole: boolean;
+}
+
+// One carried strike per fork position, from the room's strikes oldest first.
+function carryStrikes(
+  strikes: readonly Strike[],
+  copiedWhole: (strike: Strike) => boolean,
+  positionsAt: (tier: number) => readonly ForkPosition[],
+): CarriedStrike[] {
+  const carried = new Map<string, CarriedStrike>();
+  for (const strike of strikes) {
+    const span = strike.seqSpan;
+    if (span === null) {
+      continue;
+    }
+    const whole = copiedWhole(strike);
+    for (const position of positionsAt(strike.tier)) {
+      if (position.first.seq > span.seqEnd || position.last.seq < span.seqStart) {
+        continue;
+      }
+      const key = spanKey({ tier: strike.tier, messageStartId: position.first.id, messageEndId: position.last.id });
+      const current = carried.get(key);
+      // Strikes arrive oldest first, so only a strike the fork copied whole displaces one it did not.
+      if (current === undefined || (whole && !current.whole)) {
+        carried.set(key, { strike, tier: strike.tier, position, whole });
+      }
+    }
+  }
+  return [...carried.values()];
+}
+
+export async function forkMemoryStrikes(ctx: ChatContext, args: Parameters<MemoryStrikeOps["forkStrikes"]>[0]): Promise<BatchStmt[]> {
+  const { sourceChatId, slotIdMap } = args;
+  const strikes = await loadResolvedStrikes(ctx.db, sourceChatId);
+  if (strikes.length === 0) {
+    return [];
+  }
+  const [cfg, ingest] = await Promise.all([
+    ctx.resolveMemoryConfig(args.hostUserId).then(resolveCfg),
+    loadMaxMessageSeq(ctx.db, sourceChatId).then((maxSeq) => loadIngestSlotIds(ctx.db, sourceChatId, maxSeq)),
+  ]);
+  const copied = ingest.flatMap((slot): ForkSlot[] => {
+    const id = slotIdMap.get(slot.id);
+    return id === undefined ? [] : [{ id, seq: slot.seq }];
   });
+  const blocks = sliceBlocks(copied, cfg.blockSize);
+  const positionsByTier = new Map<number, readonly ForkPosition[]>();
+  const positionsAt = (tier: number): readonly ForkPosition[] => {
+    const positions = positionsByTier.get(tier) ?? forkPositions(blocks, tier, cfg.fanOut);
+    positionsByTier.set(tier, positions);
+    return positions;
+  };
+  const carried = carryStrikes(strikes, (strike) => slotIdMap.has(strike.messageStartId) && slotIdMap.has(strike.messageEndId), positionsAt);
+  const rows = carried.map(({ strike, tier, position, whole }) => ({
+    id: ctx.newMemoryStrikeId(),
+    chatId: args.newChatId,
+    scopedCharacterId: strike.scopedCharacterId !== null && args.seatedCharacterIds.has(strike.scopedCharacterId) ? strike.scopedCharacterId : null,
+    tier,
+    messageStartId: position.first.id,
+    messageEndId: position.last.id,
+    contentHash: strike.contentHash,
+    topicAnchor: whole ? strike.topicAnchor : null,
+    createdAt: args.createdAt,
+  }));
   return rows.length === 0 ? [] : [insertMemoryStrikesStatement(ctx.db, rows)];
 }
 
