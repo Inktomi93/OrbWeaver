@@ -147,7 +147,7 @@ export interface RegexService {
   /** Host authority — a room-wide text transform is a one-shot jailbreak surface (the `chat_books` rule). */
   readonly attachToChat: (params: AttachToChatParams) => Promise<void>;
   readonly detachFromChat: (params: DetachFromChatParams) => Promise<DetachResult>;
-  /** Room-public, not owner-filtered — the room's set is what every member's turns assemble against. */
+  /** Room-public, not owner-filtered: every script attached to the room. A turn applies only the host-owned ones (D64). */
   readonly listForChat: (params: ListForChatParams) => Promise<RegexScriptRow[]>;
 
   /** The room's BROADCAST display set (D121-E host option). Member-readable: any present member needs it to

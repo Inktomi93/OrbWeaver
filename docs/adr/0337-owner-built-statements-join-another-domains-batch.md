@@ -23,6 +23,7 @@ A database handle crosses a domain boundary only as an owner-built statement, gu
 | `emptyMemoryScope` | chat (a `SQL` guard) | embeddings' space promotion and retire | The guard evaluates inside the batch, so no chat gains memory between the check and the delete |
 | `planGameBirth` | rpg | chat's creation batch | [D264](0264-roster-preset-carries-a-game-template.md): a failed birth leaves no room |
 | `handoffHealStatements`, `restampHandoffDigests`, `copyHandoffBooks`, `copyHandoffRegexScripts` | rpg, embeddings, world-info, regex | chat's handoff swap | [D131](0131-a-host-handoff-carries-an-opt-in-class.md) (D): the room moves in one atomic batch |
+| `detachHandoffBooks`, `detachHandoffRegexScripts` | world-info, regex | chat's handoff swap | [D64](0064-handoff-and-fork-drop-prior-host-characters.md): the chat attachments the new host does not own leave with the role swap, after the copy re-points |
 | `rpgRestoreStatement` | rpg | chat's restore | The game state restores with the message it belongs to |
 | `NotificationsEmitOp` coStatements and `claimStatement` | chat | notifications' emit | A notification and the chat write it announces commit together, so no notice points at an unsaved row and none is lost |
 

@@ -1,7 +1,6 @@
 // verb: listForChat — the room's attached scripts, in execution order. MEMBER-readable (the injected
-// `requireChatMember`) and NOT owner-filtered: a room's attachments are what every member's turns assemble
-// against, so a member sees the room's set even when the scripts are the host's property (the `listChatBooks`
-// ruling, D18/D64). A read: no audit.
+// `requireChatMember`) and NOT owner-filtered, so a member sees the room's set even when the scripts are the
+// host's property (D18). The turn applies only the host-owned rows (D64). A read: no audit.
 
 import type { ListForChatParams } from "#src/domain/regex/contract/params.ts";
 import type { RegexContext, RegexService } from "#src/domain/regex/contract/service.ts";

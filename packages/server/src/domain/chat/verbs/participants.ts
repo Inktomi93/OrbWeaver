@@ -1192,8 +1192,8 @@ async function prepareHandoffRebase(
 
 /** `acceptHostHandoff` — step 2: the nominee accepts (a self-action). The caller must equal
  *  chats.pendingHostUserId, else not_turn_owner. On pass, atomically swaps roles, drops the outgoing host's
- *  character seats the new host doesn't own, HEALS the two room pointers that would otherwise degrade
- *  silently under the new authority (the D51 anchor persona + — through the injected rpg op — the game's
+ *  character seats the new host doesn't own, detaches every chat book and script the new host doesn't own,
+ *  HEALS the two room pointers that would otherwise degrade silently under the new authority (the D51 anchor persona + — through the injected rpg op — the game's
  *  GM-voice preset), and clears the nomination in one batch; emits chatUpdated and notifies the previous host.
  *
  *  WITH AN ACCEPTED OFFER (§5/§6(f)) it also executes the departing host's point-in-time gift: their seated
@@ -1254,6 +1254,10 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
       ...ctx.memoryStrikes.restampForHandoff(chatId, plan.cardCopies),
       ...plan.bookRepoint,
       ...plan.regexRepoint,
+      // D64: after the re-points, every chat book and script the new host does not own leaves the room. Keyed
+      // on the new host, not the old one, so a host who left after nominating takes theirs too.
+      statementForOwner(ctx.detachHandoffBooks({ chatId, hostUserId: principal.userId })),
+      statementForOwner(ctx.detachHandoffRegexScripts({ chatId, hostUserId: principal.userId })),
       ...droppedSeatIds.map((id) => markParticipantLeftStatement(ctx.db, id, dropSeq)),
       ...rpgHeal,
       insertHandoffResumptionStatement(ctx.db, {

@@ -94,7 +94,7 @@ import { createPersonaOwned, createResolveConnectedPersona, createResolvePersona
 import type { PluginMacroRegistry } from "#domain/plugin";
 import type { PresetService } from "#domain/preset";
 import { createLoadOptionalPreset } from "#domain/preset";
-import { createCopyHandoffRegexScripts, createCountHandoffRegexScripts } from "#domain/regex";
+import { createCopyHandoffRegexScripts, createCountHandoffRegexScripts, createDetachHandoffRegexScripts } from "#domain/regex";
 import type { RpgAssemblyContext } from "#domain/rpg";
 import type { SearchService } from "#domain/search";
 import { withRetrievalDegrade } from "#domain/search";
@@ -103,7 +103,7 @@ import { createTokenHasher, selectHandleById, selectHandlesByIds } from "#domain
 import type { SettingsService } from "#domain/settings";
 import { createResolveRetainedChatAccountingScope, createResolveRetainedChatRebase, createStatsBatchWiring } from "#domain/stats";
 import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
-import { createCopyHandoffBooks, createCountHandoffBooks } from "#domain/world-info";
+import { createCopyHandoffBooks, createCountHandoffBooks, createDetachHandoffBooks } from "#domain/world-info";
 import type { AuditWiring, Logger, TraceRing } from "#foundation/observability";
 import { recordMemoryLog } from "#foundation/observability";
 import { waitForTimer } from "#infra/timers";
@@ -484,6 +484,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // the nominee has consented to anything, so they are structurally unable to mint (no clock, no minter).
     countHandoffBooks: createCountHandoffBooks(input.db),
     countHandoffRegexScripts: createCountHandoffRegexScripts(input.db),
+    detachHandoffBooks: createDetachHandoffBooks(input.db),
+    detachHandoffRegexScripts: createDetachHandoffRegexScripts(input.db),
     restampHandoffDigests: createHandoffRestampStatements({ db: input.db }),
     ...characterProjections,
     mintSyntheticGroupCharacter: (params) => input.character.mintSyntheticGroupCharacter(params),
