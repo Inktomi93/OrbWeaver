@@ -83,10 +83,17 @@ for (const phone of PHONES) {
       const chatId = await hostRoom(root);
       const host = await root.internalCallerFor(root.ownerId);
       const tier = await host.regex.createScript({
-        input: createRegexScriptSchema.parse({ name: TIER_NAME, findRegex: "x", replaceString: "y", placement: ["AI_OUTPUT"], enabled: true }),
+        input: createRegexScriptSchema.parse({ name: TIER_NAME, findRegex: "x", replaceString: "y", targets: ["AI_OUTPUT"], passes: ["save"], enabled: true }),
       });
       await host.regex.createScript({
-        input: createRegexScriptSchema.parse({ name: SCREEN_NAME, findRegex: "x", replaceString: "y", placement: ["DISPLAY"], enabled: true }),
+        input: createRegexScriptSchema.parse({
+          name: SCREEN_NAME,
+          findRegex: "x",
+          replaceString: "y",
+          targets: ["USER_INPUT", "AI_OUTPUT", "REASONING"],
+          passes: ["display"],
+          enabled: true,
+        }),
       });
       await host.regex.attachToChat({ chatId, scriptId: tier.id });
       await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
@@ -118,7 +125,7 @@ for (const phone of PHONES) {
       const chatId = await hostRoom(root);
       const host = await root.internalCallerFor(root.ownerId);
       const tier = await host.regex.createScript({
-        input: createRegexScriptSchema.parse({ name: TIER_NAME, findRegex: "x", replaceString: "y", placement: ["AI_OUTPUT"], enabled: true }),
+        input: createRegexScriptSchema.parse({ name: TIER_NAME, findRegex: "x", replaceString: "y", targets: ["AI_OUTPUT"], passes: ["save"], enabled: true }),
       });
       await host.regex.attachToChat({ chatId, scriptId: tier.id });
       await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
@@ -149,7 +156,14 @@ for (const phone of PHONES) {
         const chatId = await hostRoom(root);
         const host = await root.internalCallerFor(root.ownerId);
         await host.regex.createScript({
-          input: createRegexScriptSchema.parse({ name: SCREEN_NAME, findRegex: "x", replaceString: "y", placement: ["DISPLAY"], enabled: true }),
+          input: createRegexScriptSchema.parse({
+            name: SCREEN_NAME,
+            findRegex: "x",
+            replaceString: "y",
+            targets: ["USER_INPUT", "AI_OUTPUT", "REASONING"],
+            passes: ["display"],
+            enabled: true,
+          }),
         });
         await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
         await routeTrpc(page, serveCorpusProcedures(host, TAB_PROCEDURES));

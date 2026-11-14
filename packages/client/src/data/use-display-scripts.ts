@@ -36,6 +36,7 @@
 
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { ChatId } from "@orb/kit/ids";
+import type { RegexPass } from "@orb/kit/regex";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { peekQueryData } from "./peek-query.ts";
@@ -44,11 +45,11 @@ import { useTRPC } from "./trpc.ts";
 import { useGatedQuery } from "./use-gated-query.ts";
 
 const NO_SCRIPTS: never[] = [];
-/** The one leg this hook is about. EXPORTED because the room's `On screen` roster
+/** The one pass this hook is about. EXPORTED because the room's `On screen` roster
  *  (`features/chat/components/regex-on-screen-group.tsx`) must ask the same question of the viewer's
  *  DISABLED rows — the ones this hook filters out by definition — and a second spelling of the literal is a
  *  second definition of "a display script". */
-export const DISPLAY_PLACEMENT = "DISPLAY";
+export const DISPLAY_PASS = "display" satisfies RegexPass;
 
 /** The two reads this hook composes, in ONE spelling — so the prefetch below and the render read below can
  *  never drift into two different cache keys (which would make the warm-up warm the wrong entry silently). */
@@ -62,7 +63,7 @@ function roomDisplayScriptQuery(trpc: Trpc, chatId: ChatId): ReturnType<Trpc["re
 
 /** Narrow a library read to the scripts that would actually fire on the display leg. */
 function displaySlice(rows: readonly RegexScriptRow[]): readonly RegexScriptRow[] {
-  const selected = rows.filter((row) => row.enabled && row.placement.includes(DISPLAY_PLACEMENT));
+  const selected = rows.filter((row) => row.enabled && row.passes.includes(DISPLAY_PASS));
   return selected.length === 0 ? NO_SCRIPTS : selected;
 }
 

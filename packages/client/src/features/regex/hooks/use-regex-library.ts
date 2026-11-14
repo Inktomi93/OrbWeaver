@@ -71,12 +71,10 @@ export const useBulkSetRegexGlobal = createEntityMutation<inferInput<Trpc["regex
   errorToast: "Couldn't change those scripts' global scope.",
 });
 
-// The tier flags + depth scope are NOT in the placement input: the server re-derives them from the placement
-// set (`@orb/kit/regex`), so the whole point is that no flag rides along.
-export const useBulkSetRegexPlacement = createEntityMutation<inferInput<Trpc["regex"]["bulkSetPlacement"]>, RegexBulkOutcome>({
-  options: (trpc) => trpc.regex.bulkSetPlacement.mutationOptions(),
+export const useBulkSetRegexAxes = createEntityMutation<inferInput<Trpc["regex"]["bulkSetAxes"]>, RegexBulkOutcome>({
+  options: (trpc) => trpc.regex.bulkSetAxes.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't change where those scripts run.",
+  errorToast: "Couldn't change what those scripts change or when.",
 });
 
 export const useBulkRemoveRegexScripts = createEntityMutation<inferInput<Trpc["regex"]["bulkRemove"]>, RegexBulkOutcome>({

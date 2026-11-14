@@ -34,6 +34,8 @@
 import type { RegexTierGroupView, RegexTierKey } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { CharacterId, ChatId, RegexScriptId } from "@orb/kit/ids";
+import { REGEX_PASSES, REGEX_TARGETS } from "@orb/kit/regex";
+import type { LucideIcon } from "@orb/ui/icons";
 import { Icon } from "@orb/ui/icons";
 import { InlineToken } from "@orb/ui/inline-token";
 import { Row, Stack } from "@orb/ui/layout";
@@ -42,15 +44,11 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { roomRosterOptions, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { REGEX_PLACEMENT_GLYPHS, REGEX_PLACEMENT_LABELS } from "#lib";
+import { REGEX_PASS_GLYPHS, REGEX_PASS_LABELS, REGEX_TARGET_GLYPHS, REGEX_TARGET_LABELS } from "#lib";
 import { useSetRegexAllow } from "../hooks/use-chat-regex-mutations.ts";
 import { regexRowHomes, regexTierAllowedSwitchName, regexTierLabels, regexTierLever, regexTierLeverCount, regexTierRows } from "../lib/regex-section-model.ts";
 import { RegexOnScreenGroup } from "./regex-on-screen-group.tsx";
 import { RegexTierGroup } from "./regex-tier-group.tsx";
-
-/** The six pipeline stages, in the order the pipeline runs them — the legend's own source, and the same
- *  `RegexPlacement` axis the row glyphs key on (`#lib`'s one home). */
-const STAGE_LEGEND = Object.keys(REGEX_PLACEMENT_LABELS) as (keyof typeof REGEX_PLACEMENT_LABELS)[];
 
 export interface RegexSectionProps {
   readonly chatId: ChatId;
@@ -205,16 +203,25 @@ function memberChatTier(scripts: readonly RegexScriptRow[]): RegexTierGroupView 
   };
 }
 
-/** The one-line stage legend — the six placement glyphs named once, so the row strips are readable. */
+/** The legend: every target glyph, then every pass glyph, named once in words so the row strips read. */
 function StageLegend(): ReactElement {
   return (
     <Row wrap={true} gap="field">
-      {STAGE_LEGEND.map((placement) => (
-        <Row align="center" gap="tight" key={placement}>
-          <Icon icon={REGEX_PLACEMENT_GLYPHS[placement]} size="xs" />
-          <Text voice="gloss">{REGEX_PLACEMENT_LABELS[placement].toLowerCase()}</Text>
-        </Row>
+      {REGEX_TARGETS.map((target) => (
+        <LegendEntry glyph={REGEX_TARGET_GLYPHS[target]} key={target} label={REGEX_TARGET_LABELS[target]} />
       ))}
+      {REGEX_PASSES.map((pass) => (
+        <LegendEntry glyph={REGEX_PASS_GLYPHS[pass]} key={pass} label={REGEX_PASS_LABELS[pass]} />
+      ))}
+    </Row>
+  );
+}
+
+function LegendEntry({ glyph, label }: { readonly glyph: LucideIcon; readonly label: string }): ReactElement {
+  return (
+    <Row align="center" gap="tight">
+      <Icon icon={glyph} size="xs" />
+      <Text voice="gloss">{label.toLowerCase()}</Text>
     </Row>
   );
 }

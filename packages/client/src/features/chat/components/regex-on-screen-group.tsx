@@ -32,7 +32,7 @@ import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { RowActionsMenu } from "#components";
-import { DISPLAY_PLACEMENT, useDisplayScripts, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { DISPLAY_PASS, useDisplayScripts, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { ROW_MORE_LEAD, regexScriptTitle, rowActionSubject, rowQualifiers, timeLib } from "#lib";
 import { openConfigTo, selectCollectionMember } from "#state";
 import { useSetRegexScriptEnabled } from "../hooks/use-chat-regex-mutations.ts";
@@ -58,7 +58,7 @@ export function RegexOnScreenGroup({ chatId, isHost }: RegexOnScreenGroupProps):
   // the switch round-trippable: `useDisplayScripts` filters on `enabled` by construction, so a row flipped
   // off here would VANISH and the only way back would be the library. The off rows carry the `OFF` mark and
   // no rank claim — the canvas draws exactly that arm.
-  const rows = [...inForce, ...owned.filter((script) => !script.enabled && script.placement.includes(DISPLAY_PLACEMENT))];
+  const rows = [...inForce, ...owned.filter((script) => !script.enabled && script.passes.includes(DISPLAY_PASS))];
   // Two scripts can share a title, and a row's switch and menu then announce one name for two rows: the qualifier is resolved with the whole roster in hand.
   const qualifiers = rowQualifiers(
     rows.map((script) => ({ name: regexScriptTitle(script), at: script.updatedAt })),

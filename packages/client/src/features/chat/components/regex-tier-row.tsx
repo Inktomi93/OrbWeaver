@@ -36,9 +36,9 @@ import { MenuItem } from "@orb/ui/menu";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { RowActionsMenu } from "#components";
+import { RegexAxesGlyphs, RowActionsMenu } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { notify, REGEX_PLACEMENT_GLYPHS, REGEX_PLACEMENT_LABELS, ROW_MORE_LEAD, regexPlacementStages, regexScriptTitle, rowActionSubject } from "#lib";
+import { notify, ROW_MORE_LEAD, regexScriptTitle, rowActionSubject } from "#lib";
 import { openConfigTo, selectCollectionMember } from "#state";
 import { useDetachScriptFromChat, useSetRegexScriptEnabled } from "../hooks/use-chat-regex-mutations.ts";
 import { regexScriptEverywhereSwitchName } from "../lib/regex-section-model.ts";
@@ -121,7 +121,7 @@ export function RegexTierRow({ chatId, row, alsoAt, scope, list, isHost, notYour
       }
       markers={<RowMarkers alsoAt={alsoAt} enabled={script.enabled} notYours={notYours} runsAt={row.runsAt} effectiveCount={effectiveCount} />}
       subtitle={patternOf(script.findRegex)}
-      subtitleLead={<StageGlyphs placement={script.placement} />}
+      subtitleLead={<RegexAxesGlyphs passes={script.passes} targets={script.targets} />}
       subtitlePlacement="inline"
       title={name}
     />
@@ -180,19 +180,6 @@ function RowMarkers({
       )}
       {enabled ? null : <InlineToken>Off</InlineToken>}
       {notYours ? <InlineToken>Previous host</InlineToken> : null}
-    </Row>
-  );
-}
-
-/** The stages this script bites on, as the shipped glyph strip — the same axis map every other regex surface
- *  reads (`#lib`), so a new placement lands here for free. Each glyph keeps its label in the accessible
- *  tree; the legend above the groups names them once in words. */
-function StageGlyphs({ placement }: { readonly placement: readonly (keyof typeof REGEX_PLACEMENT_GLYPHS)[] }): ReactElement {
-  return (
-    <Row align="center" inline={true} gap="tight">
-      {regexPlacementStages(placement).map((stage) => (
-        <Icon icon={REGEX_PLACEMENT_GLYPHS[stage]} key={stage} label={REGEX_PLACEMENT_LABELS[stage]} size="xs" />
-      ))}
     </Row>
   );
 }

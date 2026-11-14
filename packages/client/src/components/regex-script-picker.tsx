@@ -3,8 +3,8 @@
 //
 // This component is the whole user-visible payoff of the reshape. Before, a preset's Regex tab and a
 // character's regex facet each held their OWN array of scripts: the same rule written twice ran twice, the
-// character editor exposed four of the ten fields (so an in-app card script had `placement: []` and could
-// never fire), and there was no way to say "this preset and that character share this one rule". Now every
+// character editor exposed four of the ten fields (so an in-app card script could run nowhere and never
+// fire), and there was no way to say "this preset and that character share this one rule". Now every
 // surface picks from the ONE library the settings pane authors, and the row runs exactly once per turn even
 // when two scopes both claim it (the resolver dedupes on the row id, earliest tier wins).
 //
@@ -230,9 +230,9 @@ function EmptyLibrary({ onOpenLibrary }: { readonly onOpenLibrary: (() => void) 
 /** One library row + its attach switch.
  *
  *  THE SUBTITLE IS THE SHARED SCENT, WHOLE (side-eye X-15, then 2026-08-03 P2). This row used to append the
- *  pipeline stages after the scent; the scent now LEADS with those same stages (one home, `regexScriptScent`),
+ *  pipeline stages after the scent; the scent now LEADS with the script's two axes (one home, `regexScriptScent`),
  *  so the append became the line saying its first fact twice. Both halves of X-15's finding survive inside
- *  the shared function: the F-23 stage vocabulary, then the find pattern that tells two "New script" rows
+ *  the shared function: the axes in words, then the find pattern that tells two "New script" rows
  *  apart. */
 function PickerRow({
   scope,

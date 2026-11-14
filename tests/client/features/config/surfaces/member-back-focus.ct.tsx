@@ -63,7 +63,7 @@ interface Mounting {
 
 function createScript(caller: Caller, name: string): Promise<unknown> {
   return caller.regex.createScript({
-    input: createRegexScriptSchema.parse({ name, findRegex: "witness", replaceString: "", placement: ["AI_OUTPUT"], enabled: false }),
+    input: createRegexScriptSchema.parse({ name, findRegex: "witness", replaceString: "", targets: ["AI_OUTPUT"], passes: ["save"], enabled: false }),
   });
 }
 

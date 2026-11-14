@@ -1,11 +1,12 @@
-// THE PIPELINE DEBUGGER's model (REGX2) — "what will my scripts do to this text, on this leg, in what
+// THE PIPELINE DEBUGGER's model (REGX2) — "what will my scripts do to this text, at this time, in what
 // order", as data. The panel over it is `../components/regex-pipeline-panel.tsx`.
 //
 // IT IS NOT THE TESTER, AND MUST NOT BE UNIFIED WITH IT. `regex-preview.ts`'s `previewRegexScript` answers
-// "what does this find/replace DO" and deliberately NEUTRALISES the three run gates (enabled · placement ·
-// the two tier masks) so a switched-off draft still previews — ST's test mode does the same. This module
+// "what does this find/replace DO" and deliberately NEUTRALISES the run gates (enabled · passes · targets) so
+// a switched-off draft still previews — ST's test mode does the same. This module
 // answers the opposite question, "what will ACTUALLY happen", so it honours every gate and reports the
-// reason for each script that sits out. Both run through the SAME engine call
+// reason for each script that sits out, read from the kit's own `regexSkipReason` so the panel can never name a
+// gate the executor does not apply. Both run through the SAME engine call
 // (`runInstrumentedRegex`) — one executor, two questions.
 //
 // THE ORDER IS THE REAL ORDER, not a display convenience. `executeRegexScripts` applies its list in order and
@@ -18,21 +19,16 @@
 // WHAT IT HONESTLY CANNOT SHOW, and the panel says so rather than implying otherwise:
 //  · the preset / character / room slices. A library surface has no room, no characters and no active preset, so the
 //    scripts those scopes contribute are unknowable here.
-//  · `historyDepth`. The gate needs a message's POSITION in an assembled history; a loose sample has none, so
-//    the executor is called with no `depth` and the scope is inert (never half-applied).
+//  · depth and the author scope. Both read a message's POSITION in a chat and who wrote it; a loose sample has
+//    neither, so the call carries no depth and the scripts are run without their author scope: inert, never
+//    half-applied.
 
 import type { CreateRegexScriptInput, RegexScriptRow } from "@orb/contracts/regex";
-import type { RegexPlacement, RegexScriptInput } from "@orb/kit/regex";
+import type { UserId } from "@orb/kit/ids";
+import type { ParticipantRole, RoomStanding } from "@orb/kit/message-author";
+import type { RegexPass, RegexPassCall, RegexRowStamps, RegexScriptInput, RegexSkipReason, RegexTarget } from "@orb/kit/regex";
+import { regexSkipReason } from "@orb/kit/regex";
 import { runInstrumentedRegex } from "./regex-preview.ts";
-
-/** Why a script sat out this leg — the executor's own gates (`skipsScript`), in ITS order, named for a
- *  reader. `depth` is not among them: the debugger passes no position, so that gate never fires here.
- *
- *  The TUPLE is exported and the union is not (the `WORKLOAD_FILTERS` house shape): a consumer that needs
- *  the axis re-derives it — `Record<(typeof REGEX_SKIP_REASONS)[number], …>` — which is what makes a new
- *  member a tsc failure at every consumer instead of a silently-blank cell. */
-export const REGEX_SKIP_REASONS = ["disabled", "not-on-this-leg", "display-only", "prompt-only"] as const;
-type RegexSkipReason = (typeof REGEX_SKIP_REASONS)[number];
 
 interface RegexPipelineStageBase {
   readonly key: string;
@@ -52,31 +48,45 @@ export type RegexPipelineStage = RegexPipelineStageBase &
 
 export interface RegexPipelineRun {
   readonly stages: readonly RegexPipelineStage[];
-  /** The text after every stage — what the leg hands on. */
+  /** The text after every stage: what this time hands on. */
   readonly output: string;
   /** True when the subject is in the owner's global tier (so it was not appended). */
   readonly subjectIsGlobal: boolean;
 }
 
-const DISPLAY: RegexPlacement = "DISPLAY";
+/** A library page has no room, so no seat holds a standing. */
+const NO_ROOM: RoomStanding = { seatedRoles: new Map<UserId, ParticipantRole>() };
 
-/** THE GATE LADDER, mirroring `@orb/kit/regex`'s `skipsScript` arm for arm and in its order. It is written
- *  out rather than derived from the executor because the executor answers a BOOLEAN and this panel's whole
- *  job is the REASON — but any divergence is a defect: if a gate is ever added there, it is added here. */
-function skipReasonFor(script: RegexScriptInput, placement: RegexPlacement): RegexSkipReason | null {
-  if (!script.enabled) {
-    return "disabled";
+/** The sample as a row: a plain message whose role follows its target, written by nobody a scope could name. */
+function sampleRow(target: Exclude<RegexTarget, "WORLD_INFO">): RegexRowStamps {
+  return { role: target === "USER_INPUT" ? "user" : "assistant", kind: "standard", authorUserId: null, characterId: null, personaId: null };
+}
+
+/** One text at one time. World info is read only as the prompt is built, so it pairs with the prompt pass alone. */
+export type RegexPipelinePair =
+  | { readonly pass: RegexPass; readonly target: Exclude<RegexTarget, "WORLD_INFO"> }
+  | { readonly pass: "prompt"; readonly target: "WORLD_INFO" };
+
+/** The pair for a picked time and text: picking world info moves the time to the prompt, the one pass that reads it. */
+export function regexPipelinePair(pass: RegexPass, target: RegexTarget): RegexPipelinePair {
+  return target === "WORLD_INFO" ? { pass: "prompt", target } : { pass, target };
+}
+
+/** The executor call for a pair. A save is a new message, never an edit; no call carries a depth. */
+export function regexPipelineCall(pair: RegexPipelinePair): RegexPassCall {
+  if (pair.target === "WORLD_INFO") {
+    return { pass: "prompt", target: pair.target, depth: undefined };
   }
-  if (!script.placement.includes(placement)) {
-    return "not-on-this-leg";
+  if (pair.pass === "save") {
+    return { pass: "save", target: pair.target, edit: false };
   }
-  if (script.markdownOnly === true && placement !== DISPLAY) {
-    return "display-only";
-  }
-  if (script.promptOnly === true && placement === DISPLAY) {
-    return "prompt-only";
-  }
-  return null;
+  return { pass: pair.pass, target: pair.target, row: sampleRow(pair.target), room: NO_ROOM, depth: undefined };
+}
+
+/** A script as the run reads it: without its author scope, which a loose sample cannot answer (the header). */
+function withoutAuthorScope(script: RegexScriptInput): RegexScriptInput {
+  const { authors: _authors, ...rest } = script;
+  return rest;
 }
 
 /** One script's stage. A skipped script still gets a stage — an omitted one would leave the reader asking
@@ -85,20 +95,15 @@ function stageOf(
   entry: { readonly key: string; readonly name: string; readonly isSubject: boolean; readonly isAppended: boolean },
   script: RegexScriptInput,
   text: string,
-  placement: RegexPlacement,
+  call: RegexPassCall,
 ): RegexPipelineStage {
-  const skipped = skipReasonFor(script, placement);
+  const input = withoutAuthorScope(script);
+  const skipped = regexSkipReason(input, call);
   if (skipped !== null) {
     return { ...entry, before: text, after: text, matchCount: 0, error: null, skipped };
   }
-  const run = runInstrumentedRegex(script, text, placement);
+  const run = runInstrumentedRegex(input, text, call);
   return { ...entry, before: text, after: run.output, matchCount: run.matchCount, error: run.error, skipped: null };
-}
-
-/** The subject as the executor reads it — the LIVE authored form values, so the pipeline moves with every
- *  keystroke exactly as the tester does. `historyDepth` is carried but inert (no `depth` is passed). */
-function subjectInput(subject: CreateRegexScriptInput): RegexScriptInput {
-  return subject;
 }
 
 export interface RunRegexPipelineArgs {
@@ -109,11 +114,11 @@ export interface RunRegexPipelineArgs {
   /** The subject's row id, or `null` while it has none — decides whether it is found in `globals`. */
   readonly subjectId: string | null;
   readonly sample: string;
-  readonly placement: RegexPlacement;
+  readonly call: RegexPassCall;
 }
 
-/** Run the leg. Pure — safe to call in render, like the tester it sits beside. */
-export function runRegexPipeline({ globals, subject, subjectId, sample, placement }: RunRegexPipelineArgs): RegexPipelineRun {
+/** Run one text at one time. Pure — safe to call in render, like the tester it sits beside. */
+export function runRegexPipeline({ globals, subject, subjectId, sample, call }: RunRegexPipelineArgs): RegexPipelineRun {
   const subjectIsGlobal = subjectId !== null && globals.some((row) => row.id === subjectId);
   const stages: RegexPipelineStage[] = [];
   let text = sample;
@@ -122,14 +127,13 @@ export function runRegexPipeline({ globals, subject, subjectId, sample, placemen
     const isSubject = row.id === subjectId;
     // The SUBJECT's stage runs the LIVE form values, never the stored row: an unsaved edit that changes what
     // the pipeline does is the single most useful thing this panel can show.
-    const input: RegexScriptInput = isSubject ? subjectInput(subject) : row;
-    const stage = stageOf({ key: row.id, name: isSubject ? subject.name : row.name, isSubject, isAppended: false }, input, text, placement);
+    const stage = stageOf({ key: row.id, name: isSubject ? subject.name : row.name, isSubject, isAppended: false }, isSubject ? subject : row, text, call);
     stages.push(stage);
     text = stage.after;
   }
 
   if (!subjectIsGlobal) {
-    const stage = stageOf({ key: subjectId ?? "draft", name: subject.name, isSubject: true, isAppended: true }, subjectInput(subject), text, placement);
+    const stage = stageOf({ key: subjectId ?? "draft", name: subject.name, isSubject: true, isAppended: true }, subject, text, call);
     stages.push(stage);
     text = stage.after;
   }

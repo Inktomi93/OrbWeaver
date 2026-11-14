@@ -79,7 +79,7 @@ export { DocumentUploadRefusedError, uploadDocument } from "./upload-document.ts
 export { useCardFrameSrc } from "./use-card-frame.ts";
 export { useCarriedAppearance } from "./use-carried-appearance.ts";
 export { useColorQuotedSpeech } from "./use-color-quoted-speech.ts";
-export { DISPLAY_PLACEMENT, useDisplayScripts, usePrefetchDisplayScripts } from "./use-display-scripts.ts";
+export { DISPLAY_PASS, useDisplayScripts, usePrefetchDisplayScripts } from "./use-display-scripts.ts";
 export { useDecisionQuery, useGatedQuery } from "./use-gated-query.ts";
 export { useHuskReaper } from "./use-husk-reaper.ts";
 export { IdsContext, useIds } from "./use-ids.ts";

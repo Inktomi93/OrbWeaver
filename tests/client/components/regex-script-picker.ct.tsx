@@ -19,10 +19,10 @@ test("two scripts in opposite states are found by their stable names, and a flip
     throw new Error("The corpus has no room");
   }
   const attached = await host.regex.createScript({
-    input: createRegexScriptSchema.parse({ name: "Fix quotes", findRegex: "x", replaceString: "y", placement: ["AI_OUTPUT"] }),
+    input: createRegexScriptSchema.parse({ name: "Fix quotes", findRegex: "x", replaceString: "y", targets: ["AI_OUTPUT"], passes: ["save"] }),
   });
   const held = await host.regex.createScript({
-    input: createRegexScriptSchema.parse({ name: "Soften asides", findRegex: "x", replaceString: "y", placement: ["AI_OUTPUT"] }),
+    input: createRegexScriptSchema.parse({ name: "Soften asides", findRegex: "x", replaceString: "y", targets: ["AI_OUTPUT"], passes: ["save"] }),
   });
   await host.regex.attachToChat({ chatId, scriptId: attached.id });
   await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());

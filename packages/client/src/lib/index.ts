@@ -273,15 +273,22 @@ export type { CatalogMacro, MacroCatalog, MacroPlane } from "./prompt-macros.ts"
 export { BUILTIN_MACRO_SUGGESTIONS, MACRO_CATEGORY_WORDS, macroCatalog, macroSourceLabel, pluginMacroPlanes, presetNamesPlane } from "./prompt-macros.ts";
 export { PRIMARY_NAV_NAME, YOU_TAB_LABEL } from "./rail-names.ts";
 export {
-  REGEX_PLACEMENT_GLYPHS,
-  REGEX_PLACEMENT_ITEMS,
-  REGEX_PLACEMENT_LABELS,
-  regexPlacementStages,
-  regexPlacementStep,
+  REGEX_PASS_GLYPHS,
+  REGEX_PASS_LABELS,
+  REGEX_TARGET_GLYPHS,
+  REGEX_TARGET_ITEMS,
+  REGEX_TARGET_LABELS,
+  regexPassesRead,
+  regexPassStages,
   regexRowScent,
+  regexRunsNowhere,
   regexScriptScent,
   regexScriptTitle,
-} from "./regex-placement-labels.ts";
+  regexStepLabel,
+  regexTargetStages,
+  regexUnreadTargetName,
+  regexUnreadTargets,
+} from "./regex-script-labels.ts";
 export type { ContributorRegistry, Registry } from "./registry.ts";
 export { createContributorRegistry, createRegistry } from "./registry.ts";
 export type {

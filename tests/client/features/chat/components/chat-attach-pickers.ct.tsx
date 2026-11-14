@@ -135,7 +135,7 @@ test("a script attach in flight keeps the picker open, so its failure is said in
   await using root = await createCorpusHarness();
   const { chatId, host } = await hostRoom(root);
   const script = await host.regex.createScript({
-    input: createRegexScriptSchema.parse({ name: "Held script", findRegex: "x", replaceString: "y", placement: [] }),
+    input: createRegexScriptSchema.parse({ name: "Held script", findRegex: "x", replaceString: "y", targets: [], passes: [] }),
   });
   const hold = holdServed();
   await openTab(root, page, host, {
