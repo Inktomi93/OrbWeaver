@@ -33,6 +33,8 @@ import { ST_POWER_USER_KEY } from "./appearance.ts";
 export const ST_PRESET_DIR = "OpenAI Settings";
 /** The `settings.json` section holding the family's LIVE (selected + unsaved-edits) copy. */
 export const ST_PRESET_SETTINGS_KEY = "oai_settings";
+/** The preset's extension-field object, read here rather than by the shared mapper. */
+const ST_PRESET_EXTENSIONS_KEY = "extensions";
 /** The name qualifier — see the module header for why every imported preset carries one. */
 const FAMILY_LABEL = "OpenAI";
 
@@ -60,7 +62,7 @@ function parsePresetExtensions(raw: Record<string, unknown>): {
 } {
   const regexScripts: RegexScriptCard[] = [];
   const dropped: { field: string; reason: string }[] = [];
-  const ext = raw["extensions"];
+  const ext = raw[ST_PRESET_EXTENSIONS_KEY];
   if (!isPlainObject(ext)) {
     return { regexScripts, dropped };
   }
@@ -71,12 +73,12 @@ function parsePresetExtensions(raw: Record<string, unknown>): {
       if (parsed.success) {
         regexScripts.push(parsed.data);
       } else {
-        dropped.push({ field: `extensions.regex_scripts[${i}]`, reason: "not a recognizable regex script (malformed — dropped)" });
+        dropped.push({ field: `${ST_PRESET_EXTENSIONS_KEY}.regex_scripts[${i}]`, reason: "not a recognizable regex script (malformed — dropped)" });
       }
     }
   }
   for (const key of Object.keys(residue)) {
-    dropped.push({ field: `extensions.${key}`, reason: "preset-scoped extension state — no orb seat" });
+    dropped.push({ field: `${ST_PRESET_EXTENSIONS_KEY}.${key}`, reason: "preset-scoped extension state — no orb seat" });
   }
   return { regexScripts, dropped };
 }
@@ -98,7 +100,7 @@ function stPresetFromJson(raw: unknown, name: string, powerUser?: unknown): Pars
   if (!isPlainObject(raw)) {
     return null;
   }
-  const outcome = tryImportStChatCompletionPreset(raw, powerUser);
+  const outcome = tryImportStChatCompletionPreset(raw, { powerUser, handledFields: [ST_PRESET_EXTENSIONS_KEY] });
   if (!outcome.ok) {
     return null;
   }

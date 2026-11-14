@@ -166,3 +166,27 @@ test("format strings map to their native seats and unsupported group fields repo
   expect(blank.result.config.formatStrings).toBeUndefined();
   expect(blank.result.dropped).toEqual([]);
 });
+
+test("every populated top-level field the mapper neither maps nor lists is named, an empty one is not, and a caller-handled one is left to the caller", () => {
+  // SillyTavern wire keys are snake_case by spec; these are fields a public preset carries that orb has no seat for.
+  const preset = {
+    prompts: [],
+    temperature: 0.8,
+    ["stream_openai"]: true,
+    n: 1,
+    ["wi_format"]: "{0}",
+    ["max_context_unlocked"]: false,
+    ["send_if_empty"]: "",
+    ["media_inlining"]: true,
+    extensions: { ["regex_scripts"]: [] },
+  };
+  const fieldsOf = (outcome: ReturnType<typeof tryImportStChatCompletionPreset>): readonly string[] => {
+    if (!outcome.ok) {
+      throw new Error(outcome.reason);
+    }
+    return outcome.result.dropped.map(({ field }) => field);
+  };
+
+  expect(fieldsOf(tryImportStChatCompletionPreset(preset))).toEqual(["stream_openai", "n", "wi_format", "media_inlining", "extensions"]);
+  expect(fieldsOf(tryImportStChatCompletionPreset(preset, { handledFields: ["extensions"] }))).toEqual(["stream_openai", "n", "wi_format", "media_inlining"]);
+});
