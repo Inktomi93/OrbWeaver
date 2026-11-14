@@ -20,7 +20,6 @@ export function createImportChats(ctx: ImportContext): ImportService["importChat
         buildBulkImportChatInput(c, {
           now: profile.now,
           personaByUserName: profile.personaByUserName,
-          ...(profile.stWallClockZone === undefined ? {} : { wallClockZone: profile.stWallClockZone }),
         }),
       ),
     );

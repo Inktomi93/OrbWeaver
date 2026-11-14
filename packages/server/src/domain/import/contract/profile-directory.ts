@@ -126,10 +126,6 @@ export interface ProfileDirImportDeps {
   readonly heldChatHashes: ImportProfileDeps["heldChatHashes"];
   readonly exportCurrentChats: ImportProfileDeps["exportCurrentChats"];
   readonly now: Clock;
-  /** The zone the staged ST snapshot's wall-clock dates were written in. Omitted uses the importing host's zone — a
-   *  profile snapshot is imported on the box that produced it in the ordinary case, and ST built those
-   *  strings off that box's local `Date`. Explicit here so a test pins it instead of inheriting the host's. */
-  readonly stWallClockZone?: string;
   readonly dryRun: boolean;
   readonly signal: AbortSignal;
   /** The review's per-collision persona choices; an unlisted collision merges. */

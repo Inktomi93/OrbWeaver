@@ -3,7 +3,8 @@
 // core doesn't own: the whole-file importHash (dedup oracle over raw bytes, distinct from cardContentHash),
 // the flatten-to-create-input validation seam, and card tag extraction (cardFromJson drops data.tags).
 //
-// Pure: no DB, no fs, no logger. Text that is not JSON returns null; only a defect throws.
+// Pure: no DB, no fs, no logger. Text that is not JSON returns null; a card the import refuses for what it holds
+// (nesting past JSON_MAX_DEPTH, an embedded book the column refuses) throws ImportCardError; any other throw is a defect.
 
 import type { AttachedBookRef, CharacterCard, CreateCharacterInput } from "@orb/contracts/character";
 import {
@@ -20,7 +21,7 @@ import { themeBackgroundSchema } from "@orb/contracts/theme";
 import type { BulkImportLorebookInput, EntryMetadata } from "@orb/contracts/world-info";
 import { narrowedEntryMetadataSchema } from "@orb/contracts/world-info";
 import type { AssetId, CharacterHandle, CharacterId, RegexScriptId, UserId } from "@orb/kit/ids";
-import { parseJsonText } from "@orb/kit/json";
+import { JSON_MAX_DEPTH, nestsPastJsonMaxDepth, parseJsonText } from "@orb/kit/json";
 import { readCardChunk, stripCardChunks } from "@orb/kit/png-card-chunk";
 import { z } from "zod";
 import { sha256Hex } from "#primitives/content-hash";
@@ -184,6 +185,11 @@ function fromText(text: string, fallbackName: string, artHash: string | null): P
   const parsed = parseJsonText(text);
   if (typeof parsed !== "object" || parsed === null) {
     return null;
+  }
+  // Before any walk: the identity hash and the stored planes are walked recursively, so without this a deep card
+  // imports or overflows the stack depending on the host.
+  if (nestsPastJsonMaxDepth(parsed)) {
+    throw new ImportCardError("card_invalid", `the card nests deeper than ${String(JSON_MAX_DEPTH)} levels`);
   }
   return {
     card: cardFromJson(parsed, fallbackName),

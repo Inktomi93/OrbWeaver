@@ -168,7 +168,6 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
       group.chats.map((c) =>
         buildGroupChatInput(c, {
           now: profile.now,
-          ...(profile.stWallClockZone === undefined ? {} : { wallClockZone: profile.stWallClockZone }),
           roomName: group.parsed.name,
           personaByUserName: profile.personaByUserName,
           characterIds,

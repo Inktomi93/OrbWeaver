@@ -106,9 +106,28 @@ export function narrowJsonObject<Name extends string, T>(schema: z.ZodType<T>, r
   return schema.parse(raw) as NarrowedJsonObject<T, Name>;
 }
 
-/** How deep {@link boundedJsonObjectSchema} walks before it refuses. A projected tool schema at the JSON Schema lift's
- *  own depth cap spends about two JSON levels per schema level, so this holds it with room to spare. */
+/** How deep a JSON value may nest before the server walks it recursively: {@link boundedJsonObjectSchema} and
+ *  {@link nestsPastJsonMaxDepth} refuse past it. A projected tool schema at the JSON Schema lift's own depth cap
+ *  spends about two JSON levels per schema level, and a SillyTavern card's deepest spec path is under ten levels,
+ *  so this holds both with room to spare while a recursive walk at this depth stays far below any host's stack. */
 export const JSON_MAX_DEPTH = 128;
+
+/** Whether a decoded JSON value holds a member more than {@link JSON_MAX_DEPTH} levels below it (the value itself is
+ *  level 0). An explicit stack, so the answer is the same on every host however deep the value nests. */
+export function nestsPastJsonMaxDepth(value: JsonValue): boolean {
+  const pending: { readonly value: JsonValue; readonly depth: number }[] = [{ value, depth: 0 }];
+  for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+    if (next.depth > JSON_MAX_DEPTH) {
+      return true;
+    }
+    if (typeof next.value === "object" && next.value !== null) {
+      for (const member of Object.values(next.value)) {
+        pending.push({ value: member, depth: next.depth + 1 });
+      }
+    }
+  }
+  return false;
+}
 
 /** Why a value fails {@link boundedJsonObjectSchema}. */
 export const JSON_BOUND_REFUSALS = ["json_max_depth_exceeded", JSON_NOT_JSON, "json_cycle"] as const;

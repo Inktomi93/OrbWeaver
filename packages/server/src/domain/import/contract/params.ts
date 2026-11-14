@@ -51,10 +51,6 @@ export interface ImportOrphanCharacterInput {
  *  which is also what the chat write op's `assertSeatedSpeakers` gate would refuse. */
 export interface GroupChatInputDeps {
   readonly now: Clock;
-  /** The zone SillyTavern's zone-less wall-clock dates were written in (`ImportProfileDeps.stWallClockZone`).
-   *  The imported room's TITLE renders its date in this same zone, so the title says the day the ST filename
-   *  spelled. Absent ⇒ the serde's `"UTC"` default. */
-  readonly wallClockZone?: string;
   /** The ST group's own display name — the imported room's TITLE subject. A group transcript's header
    *  `character_name` is one member, so it cannot name the room. */
   readonly roomName: string;
