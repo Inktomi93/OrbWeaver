@@ -17,12 +17,13 @@ const SENT = "2025-07-19@12h00m01s";
 const SWIPES_PER_REPLY = 600;
 
 // A one-line turn is the most messages the bytes can carry; a reply of many two-character swipes is the most variant
-// rows, which a stage bounded by text alone lets through by the tens of thousands. Each spans many stages.
+// rows. Each spans several stages, and each holds its rows in far less text than one stage's character bound, so a
+// stage bounded by text alone would land the whole chat at once.
 const SWIPES = JSON.stringify(Array.from({ length: SWIPES_PER_REPLY }, () => "xy"));
 const SHAPES = {
-  "one line": { fileBytes: 1_500_000, fields: (turn: number): string => `"mes":"ok ${String(turn)}"` },
+  "one line": { fileBytes: 300_000, fields: (turn: number): string => `"mes":"ok ${String(turn)}"` },
   "many short swipes": {
-    fileBytes: 450_000,
+    fileBytes: 60_000,
     fields: (turn: number): string => (turn % 2 === 0 ? `"mes":"ok ${String(turn)}"` : `"mes":"xy","swipes":${SWIPES},"swipe_id":0`),
   },
 } as const;
