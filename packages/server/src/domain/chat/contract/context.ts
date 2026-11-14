@@ -1,4 +1,5 @@
 import type { FilterOwnedAssetIdsOp, ResolveAssetHashOp } from "@orb/contracts/assets";
+import type { LoadGlobalVariablesOp } from "@orb/contracts/automation";
 import type { CharacterCard, FindSyntheticGroupCharacterOp, MintSyntheticGroupCharacterOp } from "@orb/contracts/character";
 import type {
   AssembleContext,
@@ -600,6 +601,16 @@ export interface MemoryStrikeOps {
   readonly restore: (args: { readonly chatId: ChatId; readonly strikeId: ChatMemoryStrikeId }) => Promise<boolean>;
   /** The handoff re-key of scoped strikes, in the swap batch beside the digests' re-key. */
   readonly restampForHandoff: (chatId: ChatId, pairs: readonly HandoffCardPair[]) => BatchStmt[];
+  /** The fork's copy of the room's strikes, as statements for the fork's own batch: every strike whose two endpoint
+   *  messages were both copied (`slotIdMap` holds only the copied messages) lands re-keyed onto the copies. A scoped
+   *  strike keeps its character only when that character holds a seat in the fork. */
+  readonly forkStrikes: (args: {
+    readonly sourceChatId: ChatId;
+    readonly newChatId: ChatId;
+    readonly slotIdMap: ReadonlyMap<MessageId, MessageId>;
+    readonly seatedCharacterIds: ReadonlySet<CharacterId>;
+    readonly createdAt: number;
+  }) => Promise<BatchStmt[]>;
 }
 
 /** The DI bundle every chat verb/subsystem closes over. `db` routes queries through `persistence/`; `now` +
@@ -636,6 +647,9 @@ export interface ChatContext extends EngineContext, ChatAccountingContext, ChatC
   /** The room host's app-tier prose overrides — read by assembly (the anchor identity lead-in), the smart
    *  arbiter, compaction and the memory build. Empty ⇒ the shipped defaults. */
   readonly resolveChatProse: ResolveChatProseOp;
+  /** The owner's per-user global plane (D46) as the turn's macro read cache. Injected because `global_variables`
+   *  is automation's table; its write half is {@link EngineContext.globalVariableWriteStatements}. */
+  readonly loadGlobalVariables: LoadGlobalVariablesOp;
   /** The room host's memory tuning with their own switch folded in (`mode: "off"` when they turned memory off,
    *  D293) — the merge the turn and the backfill read, so the memory view reports the switch the turn obeys. */
   readonly resolveMemoryConfig: ResolveBackfillMemoryConfig;

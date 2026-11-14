@@ -346,8 +346,15 @@ function chatShell(
 ): BulkImportChatInput {
   const pc: ParsedChat = ci.parsed;
   const created = pc.createDate ?? pc.messages.find((m) => m.sendDate !== null)?.sendDate ?? deps.now();
-  const sendDates = pc.messages.flatMap((m) => (m.sendDate !== null ? [m.sendDate] : []));
-  const updatedAt = sendDates.length > 0 ? Math.max(...sendDates) : created;
+  // A fold, not `Math.max(...dates)`: a spread passes one argument per message and overflows the stack on a
+  // transcript as long as the upload cap admits.
+  let latestSend: number | null = null;
+  for (const { sendDate } of pc.messages) {
+    if (sendDate !== null && (latestSend === null || sendDate > latestSend)) {
+      latestSend = sendDate;
+    }
+  }
+  const updatedAt = latestSend ?? created;
   const chatPersonaId = resolveAnchorPersona(pc, deps.personaByUserName);
   const note = importedNoteInjection(pc.notePrompt, pc.notePlacement, created);
   // The note first, then the `/inject` rows in ST's own key order — ONE prose door for both ST channels.

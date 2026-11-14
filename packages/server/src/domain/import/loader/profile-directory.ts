@@ -86,18 +86,10 @@ function withProfileReadLimits(fs: ImportFsPort): ImportFsPort {
   return { ...fs, openTree: async (): Promise<ImportDirectory | null> => limited(await fs.openTree()) };
 }
 
-/** Union one profile dir's ST library tags into the run-wide map: a card/avatar FILENAME can recur across user
- *  dirs, so the tag lists merge rather than overwrite. */
-function mergeTags(into: Map<string, string[]>, from: ReadonlyMap<string, readonly string[]>): void {
-  for (const [key, names] of from) {
-    const merged = into.get(key) ?? [];
-    for (const name of names) {
-      if (!merged.includes(name)) {
-        merged.push(name);
-      }
-    }
-    into.set(key, merged);
-  }
+/** Every collected card with the profile result that holds it, in run order. A card's library tags and extra books
+ *  belong to its own profile: two profiles can keep different cards under one filename. */
+function cardsWithProfile(profiles: readonly CollectedProfile[]): { readonly bundle: CollectedCard; readonly result: CollectResult }[] {
+  return profiles.flatMap(({ result }) => result.bundles.map((bundle) => ({ bundle, result })));
 }
 
 /** Append one profile dir's "not imported" records onto the run-wide set. Split out of the collect loop so the
@@ -141,14 +133,10 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<ProfileCo
   // FIRST profile dir carrying a `power_user` section wins: an ST snapshot is one box's preferences, and
   // letting a later dir's `fontScale` overwrite an earlier one would make the outcome depend on readdir order.
   let appearance: Record<string, unknown> = {};
-  // card/avatar filename → tag names, unioned across dirs (a filename can recur across profiles).
-  const tagsByEntityKey = new Map<string, string[]>();
   const orphanBundles: CollectResult["orphanBundles"] = [];
-  // Global regex scripts CONCAT across dirs (the lift content-dedups repeats); charLore bindings union
-  // through the same mergeTags rule (a card filename stem can recur across profiles).
+  // Global regex scripts CONCAT across dirs (the lift content-dedups repeats).
   const globalRegexScripts: RegexScriptCard[] = [];
   let malformedGlobalRegexScripts = 0;
-  const extraBooksByCardStem = new Map<string, string[]>();
   let databankFileCount = 0;
   let galleryImageCount = 0;
   const r: ProfileCollectRecords = {
@@ -193,11 +181,9 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<ProfileCo
     if (Object.keys(appearance).length === 0) {
       appearance = result.appearance;
     }
-    mergeTags(tagsByEntityKey, result.tagsByEntityKey);
     orphanBundles.push(...result.orphanBundles);
     globalRegexScripts.push(...result.globalRegexScripts);
     malformedGlobalRegexScripts += result.malformedGlobalRegexScripts;
-    mergeTags(extraBooksByCardStem, result.extraBooksByCardStem);
     databankFileCount += result.databankFileCount;
     galleryImageCount += result.galleryImageCount;
     mergeRecords(r, result);
@@ -221,11 +207,9 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<ProfileCo
     backgrounds,
     appearance,
     groups,
-    tagsByEntityKey,
     orphanBundles,
     globalRegexScripts,
     malformedGlobalRegexScripts,
-    extraBooksByCardStem,
     databankFileCount,
     galleryImageCount,
     skipped,
@@ -539,11 +523,11 @@ async function attachCollectedWorldLinks(
   const missing: { character: string; book: string }[] = [];
   let attached = 0;
   let anyLinks = false;
-  for (const bundle of collected.bundles) {
+  for (const { bundle, result: profile } of cardsWithProfile(collected.profiles)) {
     if (deps.signal.aborted) {
       break;
     }
-    const extras = collected.extraBooksByCardStem.get(bundle.filename.replace(CARD_PNG_EXT, "")) ?? [];
+    const extras = profile.extraBooksByCardStem.get(bundle.filename.replace(CARD_PNG_EXT, "")) ?? [];
     if (bundle.worldName === null && extras.length === 0) {
       continue;
     }
@@ -697,8 +681,7 @@ async function attachBundleTags(
 async function importCollectedBundles(
   deps: ProfileDirImportDeps,
   service: ReturnType<typeof createImportService>,
-  bundles: readonly CollectedCard[],
-  tagsByEntityKey: ReadonlyMap<string, readonly string[]>,
+  profiles: readonly CollectedProfile[],
 ): Promise<{
   readonly changed: number;
   readonly skippedCards: ImportSkippedCard[];
@@ -726,7 +709,7 @@ async function importCollectedBundles(
   let cardScriptsLifted = 0;
   const skippedCardTags: ImportSkippedCardTag[] = [];
   let cardScriptsReused = 0;
-  for (const bundle of bundles) {
+  for (const { bundle, result: profile } of cardsWithProfile(profiles)) {
     if (deps.signal.aborted) {
       break;
     }
@@ -742,7 +725,7 @@ async function importCollectedBundles(
       cardScriptsLifted += result.scriptsLifted;
       cardScriptsReused += result.scriptsReused;
       characterIdByCard.set(bundle, result.characterId);
-      const tagNames = tagsByEntityKey.get(bundle.filename);
+      const tagNames = profile.tagsByEntityKey.get(bundle.filename);
       if (tagNames !== undefined && tagNames.length > 0) {
         skippedCardTags.push(...(await attachBundleTags(deps, bundle, result.characterId, tagNames)));
       }
@@ -890,7 +873,7 @@ export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<I
   const appearanceKeysApplied = appearanceWave.appearanceKeysApplied;
   changed += backgroundsImported;
 
-  const bundleResult = await importCollectedBundles(deps, service, collected.bundles, collected.tagsByEntityKey);
+  const bundleResult = await importCollectedBundles(deps, service, collected.profiles);
   changed += bundleResult.changed;
 
   // The ST world NAME-LINKS, strictly AFTER both the standalone-world wave (the books the names resolve

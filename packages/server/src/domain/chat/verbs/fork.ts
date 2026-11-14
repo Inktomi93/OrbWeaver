@@ -16,7 +16,8 @@
 //
 // Copied: the chat row's behavior (title/metadata/anchor/variables/user-macro picks), the character roster the forker owns
 // (an owner forking their own chat keeps all), the canon (whole, even a dropped character's prior lines),
-// each copied slot's asset links that its copied bodies still cite, the injections. Reset:
+// each copied slot's asset links that its copied bodies still cite, the injections, the memory strikes whose span lies
+// wholly in the copied canon (`ChatContext.memoryStrikes.forkStrikes`). Reset:
 // `parentChatId`/`forkedAt`/timestamps/`starred`/`archived`; the host becomes the forker. Other human participants are NOT copied (a fresh `chat_participants` insert is invite/host-action
 // only). The compaction checkpoint copies only when covered by the fork point, else reset to null — and under
 // a floor the variable delta LOG collapses the same way, into ONE synthetic baseline batch
@@ -771,6 +772,13 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
     ];
 
     const canonCopy = buildCanonCopy(ctx, { newChatId, slots, variants, links, posture: { stripHidden: !forkerReadsHidden, stripReasoning } });
+    const strikeCopy = await ctx.memoryStrikes.forkStrikes({
+      sourceChatId: chatId,
+      newChatId,
+      slotIdMap: canonCopy.slotIdMap,
+      seatedCharacterIds: new Set(keptCharacterSeats.map((seat) => seat.characterId)),
+      createdAt: now,
+    });
     const forkMetadata = forkMetadataWithoutGame(source.metadata);
     const stmts: BatchStmt[] = [
       batchStmt(
@@ -779,6 +787,8 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
           title: title ?? source.title,
           parentChatId: chatId,
           forkedAt: now,
+          // The copy carries the parent's injections and books, and the parent link can later be cleared.
+          everShared: source.everShared,
           // BORN CLAIMED (R0 §4.2): a fork arrives with the parent's canon already copied into it, so
           // there is no unstarted state for a husk to represent and the reaper must never see it.
           // `startChat` is the ONE mint that produces a husk. The fork's OWN creation stats fire here
@@ -806,6 +816,7 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
       ),
       batchStmt(ctx.db.insert(chatParticipants).values(participantRows)),
       ...canonCopy.stmts,
+      ...strikeCopy,
       ...injections.map((inj) => batchStmt(ctx.db.insert(chatInjections).values({ ...inj, id: ctx.newInjectionId(), chatId: newChatId }))),
     ];
 
