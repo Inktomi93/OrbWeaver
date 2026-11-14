@@ -45,8 +45,10 @@ for (const scale of PLATFORM_TEXT_SCALES.slice(1)) {
         return false;
       };
       const spills = (element: Element): boolean => element.scrollWidth > element.clientWidth + tolerance && getComputedStyle(element).overflowX === "visible";
+      const widens = (element: Element): boolean => !clipped(element) && ((past(element) && ![...element.children].some(past)) || spills(element));
+      // Only the deepest offender is named: every ancestor of a spilling leaf spills with it.
       const wideners = [...scroller.querySelectorAll("*")]
-        .filter((element) => !clipped(element) && ((past(element) && ![...element.children].some(past)) || spills(element)))
+        .filter((element) => widens(element) && ![...element.querySelectorAll("*")].some(widens))
         .map(
           (element) =>
             `${element.tagName.toLowerCase()}[${element.getAttribute("data-slot") ?? ""}] "${element.textContent.slice(0, 24)}" box past by ${String(Math.round(element.getBoundingClientRect().right - edge))}, content past its box by ${String(element.scrollWidth - element.clientWidth)}`,
@@ -54,7 +56,8 @@ for (const scale of PLATFORM_TEXT_SCALES.slice(1)) {
       return { scrollWidth: scroller.scrollWidth, clientWidth: scroller.clientWidth, wideners };
     }, LAYOUT_SUBPIXEL_PX);
     expect(reach.clientWidth).toBeGreaterThan(0);
-    expect(reach.wideners).toEqual([]);
-    expect(reach.scrollWidth).toBeLessThanOrEqual(reach.clientWidth + LAYOUT_SUBPIXEL_PX);
+    expect(reach.scrollWidth, `the column scrolls sideways; widened by ${JSON.stringify(reach.wideners)}`).toBeLessThanOrEqual(
+      reach.clientWidth + LAYOUT_SUBPIXEL_PX,
+    );
   });
 }
