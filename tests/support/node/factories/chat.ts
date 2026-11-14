@@ -96,6 +96,7 @@ export async function seedTranscript(root: ServerProducerRoot, params: SeedTrans
     updatedAt: FROZEN_AT_MS,
     starred: false,
     archived: false,
+    everShared: false,
     compactSummary: null,
     compactedAtSeq: null,
     metadata: params.chat?.metadata ?? null,

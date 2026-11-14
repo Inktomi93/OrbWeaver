@@ -84,6 +84,8 @@ interface ChatRow {
   temporary: boolean;
   parentChatId: ChatId | null;
   forkedAt: number | null;
+  /** A human other than the host has held a seat here or in a room this was copied from (`chats.everShared`). */
+  everShared: boolean;
   anchorPersonaId: PersonaId | null;
   /** The pending host-handoff nominee; null = no nomination in flight. */
   pendingHostUserId: UserId | null;
@@ -109,6 +111,7 @@ const chatRowSelection = {
   temporary: chats.temporary,
   parentChatId: chats.parentChatId,
   forkedAt: chats.forkedAt,
+  everShared: chats.everShared,
   anchorPersonaId: chats.anchorPersonaId,
   pendingHostUserId: chats.pendingHostUserId,
   compactSummary: chats.compactSummary,

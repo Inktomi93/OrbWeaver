@@ -269,6 +269,7 @@ function toChatInput(args: {
     ...(bundle.metadata === null ? {} : { metadata: bundle.metadata }),
     starred: bundle.starred,
     archived: bundle.archived,
+    everShared: bundle.everShared,
     compactSummary: bundle.compactSummary,
     compactedAtSeq: bundle.compactedAtSeq,
     variableValues: bundle.variableValues,

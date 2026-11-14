@@ -419,6 +419,7 @@ export function createExportChatBundle(ctx: ExportContext, exportCharacter: Expo
       updatedAt: chat.updatedAt,
       starred: chat.starred,
       archived: chat.archived,
+      everShared: chat.everShared,
       compactSummary: chat.compactSummary,
       compactedAtSeq: chat.compactedAtSeq,
       // The room blob rides VERBATIM (its own read seam validates it on the way back in).

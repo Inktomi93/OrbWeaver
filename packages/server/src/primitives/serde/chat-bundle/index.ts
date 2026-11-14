@@ -193,6 +193,9 @@ export interface PortableChat {
   readonly updatedAt: number;
   readonly starred: boolean;
   readonly archived: boolean;
+  /** Another human once held a seat in the room or a room it was copied from. It keeps the host's global variables
+   *  closed after a restore (see `chats.everShared`). */
+  readonly everShared: boolean;
   readonly compactSummary: string | null;
   readonly compactedAtSeq: number | null;
   /** The room-behavior blob VERBATIM (group config / room overrides / opening policy / rpg pointer …). Its
@@ -337,6 +340,9 @@ const wireChatSchema = z.object({
   updatedAt: z.int(),
   starred: z.boolean().catch(false),
   archived: z.boolean().catch(false),
+  // Only an explicit false reads unshared. A bundle written before the flag cannot tell a member's line from the
+  // host's, so an absent or malformed value fails closed and keeps the host's global variables shut.
+  everShared: z.boolean().catch(true),
   compactSummary: z.string().nullish().catch(null),
   compactedAtSeq: z.int().nullish().catch(null),
   metadata: z.record(z.string(), z.unknown()).nullish().catch(null),
@@ -560,6 +566,7 @@ const chatBundleSerde = defineJsonObjectSerde<PortableChat, WireChat>({
     updatedAt: chat.updatedAt,
     starred: chat.starred,
     archived: chat.archived,
+    everShared: chat.everShared,
     compactSummary: chat.compactSummary,
     compactedAtSeq: chat.compactedAtSeq,
     metadata: chat.metadata,
@@ -609,6 +616,7 @@ const chatBundleSerde = defineJsonObjectSerde<PortableChat, WireChat>({
       updatedAt: body.updatedAt,
       starred: body.starred,
       archived: body.archived,
+      everShared: body.everShared,
       compactSummary: body.compactSummary ?? null,
       compactedAtSeq: body.compactedAtSeq ?? null,
       metadata: body.metadata ?? null,

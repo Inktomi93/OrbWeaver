@@ -195,6 +195,14 @@ describe("the envelope", () => {
     expect(refusalOf(parseChatBundleFile(ENC.encode("not json at all")))).toBe(NOT_JSON);
   });
 
+  test("only an explicit false reads a room as never shared; an absent or malformed flag reads shared", () => {
+    expect(must(parseChatBundleFile(buildChatBundleFile(chat({ everShared: false })))).everShared).toBe(false);
+    expect(must(parseChatBundleFile(buildChatBundleFile(chat({ everShared: true })))).everShared).toBe(true);
+    const { everShared: _written, ...absent } = wireOf(chat({ everShared: false }));
+    expect(must(parseChatBundleFile(bytesOf(absent))).everShared).toBe(true);
+    expect(must(parseChatBundleFile(bytesOf({ ...wireOf(chat({ everShared: false })), everShared: "no" }))).everShared).toBe(true);
+  });
+
   test("a file from a newer build refuses by name, and the current version parses", () => {
     const wire = wireOf();
     expect(must(parseChatBundleFile(bytesOf(wire))).title).toBe("P8 Chat");

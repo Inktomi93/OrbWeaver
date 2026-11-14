@@ -139,6 +139,26 @@ export function insertMemberAfterInviteClaimStatement(
     .returning();
 }
 
+/** Marks the invite's room shared once `userId` holds a present member seat in it. It runs in the seat's batch after
+ *  the seat, so a refused claim flags nothing; it reads the seat row, not `changes()`, so it may sit after any other
+ *  statement. The flag is never cleared (see `chats.everShared`). */
+export function markChatSharedAfterSeatStatement(db: Db, params: { readonly inviteId: ChatInviteId; readonly userId: UserId }): BatchStmt {
+  const roomId = sql`${chats}.${sql.identifier(chats.id.name)}`;
+  return db
+    .update(chats)
+    .set({ everShared: true })
+    .where(
+      and(
+        sql`${roomId} = (select ${chatInvites.chatId} from ${chatInvites} where ${chatInvites.id} = ${params.inviteId})`,
+        sql`exists (select 1 from ${chatParticipants} where ${chatParticipants.chatId} = ${roomId} and ${and(
+          eq(chatParticipants.userId, params.userId),
+          eq(chatParticipants.role, "member"),
+          isNull(chatParticipants.leftSeq),
+        )})`,
+      ),
+    );
+}
+
 /** Clamp every seat whose join floor sits above its own room's canon head to that head, and return the count.
  *  No message in the room carries a seq above its head, so such a floor is stale: it hides history the member
  *  was admitted to. Idempotent by its predicate; the head is the seat writer's own {@link canonHeadSeq}. */

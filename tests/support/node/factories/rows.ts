@@ -120,6 +120,7 @@ function makeChat(overrides: Partial<ChatRow>, source: IdSource): ChatRow {
     anchorPersonaId: null,
     parentChatId: null,
     forkedAt: null,
+    everShared: false,
     compactSummary: null,
     compactedAtSeq: null,
     metadata: null,

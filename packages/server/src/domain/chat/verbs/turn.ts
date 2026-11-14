@@ -98,8 +98,9 @@ import {
   insertMessageAssetStatements,
   isRetainedParentFenceViolation,
 } from "../persistence/canon-write.ts";
+import { loadGlobalPlaneGate } from "../persistence/global-plane-gate.ts";
 import { commitHostFencedWrite } from "../persistence/host-fenced-write.ts";
-import { loadChatIdentityProducer, loadPersonaOwnerId } from "../persistence/identity.ts";
+import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { claimPendingTurn, insertPendingTurn, loadPendingTurns, loadPendingTurnsForHost, loadPendingTurnsForReclaim } from "../persistence/invites.ts";
 import { loadTailIsUserMessage } from "../persistence/message-window.ts";
 import { isArbiterEligible } from "../persistence/participant.ts";
@@ -868,20 +869,12 @@ async function buildTurnContext(
   };
 }
 
-/** The turn's global plane (D46) is the host's, the human whose preset and library assemble the turn. It stages only
- *  when no text source in the prompt belongs to another account: every macro renders with full power inside the host's
- *  turn and the macro engine records no macro's author, so another account's text could write the host's plane or read
- *  it into the reply. Two sources can: a present member's seat persona and its books, and the room's pin, which holds
- *  after its owner leaves (D315) and rides a fork. Cards, chat books, presets, injections and regex resolve under the
- *  host. Held, reads give "" and writes are dropped, and the commit warns. */
-async function stageTurnGlobalVariables(
-  ctx: ChatContext,
-  args: { readonly runAsUserId: UserId; readonly presentHumanUserIds: readonly UserId[]; readonly anchorPersonaId: PersonaId | null },
-): Promise<TurnGlobalVariables> {
-  const { runAsUserId, presentHumanUserIds, anchorPersonaId } = args;
-  const pinIsHosts = anchorPersonaId === null || (await loadPersonaOwnerId(ctx.db, anchorPersonaId)) === runAsUserId;
-  if (pinIsHosts && presentHumanUserIds.every((userId) => userId === runAsUserId)) {
-    return { mode: "staged", values: await ctx.loadGlobalVariables(runAsUserId), writes: [], heldReads: [] };
+// The host's global plane (D46) loads only in a room no other human has ever held a seat in, here or in a room it was
+// copied from, and only when the room's pin is absent or the host's own: room text has no reliable author.
+async function stageTurnGlobalVariables(ctx: ChatContext, args: { readonly chatId: ChatId; readonly runAsUserId: UserId }): Promise<TurnGlobalVariables> {
+  const gate = await loadGlobalPlaneGate(ctx.db, args.chatId);
+  if (gate !== undefined && !gate.everShared && (gate.pinOwnerId === null || gate.pinOwnerId === args.runAsUserId)) {
+    return { mode: "staged", values: await ctx.loadGlobalVariables(args.runAsUserId), writes: [], heldReads: [] };
   }
   return { mode: "held", values: {}, writes: [], heldReads: [] };
 }
