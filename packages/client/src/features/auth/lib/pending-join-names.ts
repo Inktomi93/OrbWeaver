@@ -1,5 +1,6 @@
-// The accessible names and texts the sign-in page prints around an invite: the pending-join panel, the signed-out signup
-// arm and the unavailable state. A zero-import leaf, so a spec's node side reads them without loading the component graph.
+// The accessible names and texts the sign-in page prints: the single-user arm, and around an invite the pending-join panel,
+// the signed-out signup arm and the unavailable state. A zero-import leaf, so a spec's node side reads them without loading
+// the component graph.
 
 /** The dismiss of every invite arm. */
 export const PENDING_JOIN_NOT_NOW_NAME = "Not now";
@@ -17,6 +18,9 @@ export function signInLabel(signingIn: boolean): string {
 export function continueWithName(providerName: string): string {
   return `Continue with ${providerName}`;
 }
+
+/** The single-user arm's press that leaves the sign-in page for the app. */
+export const BACK_TO_APP_NAME = "Back to the app";
 
 /** The way back to the sign-in card from an invite arm that has no room to show. */
 export const BACK_TO_SIGN_IN_NAME = "Back to sign in";

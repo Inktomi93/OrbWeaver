@@ -17,6 +17,9 @@ export const RPG_CONTEXT_TAB_LABELS = {
 /** The header band's badge when the model can't update trackers. */
 export const RPG_READ_ONLY_LABEL = "Read-only";
 
+/** The character takeover's breadcrumb back to the participant list; its visible text is the shorter "Characters". */
+export const RPG_CHARACTER_BACK_NAME = "Back to the characters";
+
 /** The Game tab's door to the Status sheet's scores. */
 export const RPG_SET_SCORES_NAME = "Set character scores";
 

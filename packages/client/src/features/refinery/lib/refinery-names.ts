@@ -13,6 +13,8 @@ export const REFINERY_START_SESSION_NAME = "Start a new session";
 export const REFINERY_EDIT_SCOPE_NAME = "Edit scope";
 /** What the Hand-edit dialog says when the scope holds no field to edit. */
 export const REFINERY_HAND_EDIT_EMPTY_SCOPE = "Nothing is in scope, so there is nothing to hand-edit. Choose fields under Edit scope, then come back.";
+/** The lane note row's press that ends a walk back to a superseded run. */
+export const REFINERY_BACK_TO_LATEST_NAME = "Back to latest";
 export const REFINERY_COMPARE_NAME = "Compare";
 export const REFINERY_HIDE_COMPARE_NAME = "Hide compare";
 
