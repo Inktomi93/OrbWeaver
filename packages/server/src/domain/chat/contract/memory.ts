@@ -1,7 +1,7 @@
 import type { ChatBusEvent, MemoryBackfillResult, MemoryRecallSlice, MessageKind } from "@orb/contracts/chat";
 import type { MemoryEmbedSpace } from "@orb/contracts/embeddings";
 import type { MemoryRetrievalMode } from "@orb/contracts/search";
-import type { CharacterId, ChatDigestId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatDigestId, ChatId, ConsentingHostId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { RecorderFilter } from "#foundation/observability";
 
@@ -348,8 +348,8 @@ export interface RecallMemoryArgs {
 /** Composition-bound memory input preserves the turn's separate funding and execution identities. */
 export interface BuildTurnMemoryArgs {
   readonly chatId: ChatId;
-  readonly funderUserId: UserId;
-  readonly runAsUserId: UserId;
+  readonly funderUserId: ConsentingHostId;
+  readonly runAsUserId: ConsentingHostId;
   readonly config: MemoryConfig | null | undefined;
   readonly signal: AbortSignal | undefined;
 }

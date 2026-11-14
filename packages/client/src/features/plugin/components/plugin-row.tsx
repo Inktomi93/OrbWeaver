@@ -16,7 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { QueryBoundary, RowActionsMenu, SettingRowGroup, SettingSwitchRow, SettingTrackRow } from "#components";
+import { MutedLine, QueryBoundary, RowActionsMenu, SettingRowGroup, SettingSwitchRow, SettingTrackRow } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { installedPluginControlId } from "#state";
@@ -295,9 +295,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
                   <CollapsiblePanel>
                     <Stack paddingInlineStart="block">
                       {plugin.declaredCapabilities.length === 0 ? (
-                        <Text cap="prose" prose={true} voice="gloss">
-                          Nothing. It can run its own code and reach nothing else.
-                        </Text>
+                        <MutedLine>Nothing. It can run its own code and reach nothing else.</MutedLine>
                       ) : (
                         // `declared` is the FULL current ask (#650 P1-2) — a plugin an owner granted only a paranoid
                         // subset of now shows the ungranted rows too ("Not granted" statements, plugin-grant-list.tsx),

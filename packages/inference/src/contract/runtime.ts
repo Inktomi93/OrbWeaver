@@ -63,57 +63,62 @@ export type ReachabilityProbe = (args: {
   readonly sleepPath: string | undefined;
 }) => Promise<Reachability>;
 
-const endpointModelSchema = z.object({
-  id: z.string(),
-  contextLength: z.number().nullable(),
-  /** The smallest window the server runs a model at whose window it does not state, where the server's own
-   *  defaults bound it. The advertised tier assumes it in place of the generic floor; never a reading. */
-  contextFloor: z.number().int().positive().optional(),
-  /** The model's trained maximum where the server states it; a server that clamps to it runs no larger window. */
-  contextTrained: z.number().int().positive().optional(),
-  kind: modelCatalogEntrySchema.shape.kind,
-  google: modelCatalogEntrySchema.shape.google,
-  maxCompletionTokens: modelCatalogEntrySchema.shape.maxCompletionTokens,
-  /** An embedder's vector width, where the server's native model info states it. */
-  embeddingDims: z.number().int().positive().optional(),
-  /** The longest input, in tokens, the server's embedding route takes for this model, where the server states it or
-   *  a refusal names it. Not `contextLength`: llama.cpp also bounds a pooled embedder by its physical batch, and
-   *  KoboldCpp's window is its text model's. */
-  embedInputTokens: z.number().int().positive().optional(),
-  /** What a chat turn may carry, where the server's native model info states it (D292). Absent ⇒ not stated. */
-  input: z.array(modalitySchema).optional(),
-  /** The server states the model takes `tools[]`; `parallel` only where it states that too. Absent ⇒ not stated. */
-  tools: z.object({ parallel: z.boolean() }).optional(),
-  /** The server states the model thinks before it answers, so its thinking can be switched (Ollama's `thinking`
-   *  capability, which `think` turns off). Absent ⇒ not stated. */
-  thinks: z.literal(true).optional(),
-  /** The server's version is at or past the build that added JSON-schema constrained output. Absent ⇒ not stated. */
-  structured: z.boolean().optional(),
-  /** Which tool choices the SERVER honours: `required`, a named function, `none`, and `parallel_tool_calls`. Each maps
-   *  one-to-one onto the capability's per-mode tool-choice facts. Absent ⇒ not stated. */
-  toolChoice: z.object({ required: z.boolean(), named: z.boolean(), none: z.boolean(), parallel: z.boolean() }).optional(),
-  /** The model's thinking controls as its server describes them (Ollama `/api/show` `thinking`): the boolean and named
-   *  values `think` takes, and the one an omitted `think` runs. Absent ⇒ not stated; `thinks` alone names no level. */
-  thinking: z.object({ values: z.array(z.union([z.boolean(), z.string()])).min(1), default: z.union([z.boolean(), z.string()]) }).optional(),
-  /** Whether the server continues a delivered trailing assistant row as sent today: `deliver` = it continues,
-   *  `none` = it closes the turn and starts a new one. Measured per model where the server can render a prompt. */
-  prefill: z.enum(PREFILL_MODES).optional(),
-  /** The server's sampler defaults for an unset knob, in the server's own key spelling (llama.cpp
-   *  `/props` `default_generation_settings.params`, an Ollama Modelfile's `PARAMETER` lines). Data only. */
-  serverDefaults: z.record(z.string(), z.union([z.number(), z.string(), z.boolean(), z.array(z.string())])).optional(),
-  /** llama.cpp's `chat_template_caps`: what the loaded chat template can render. */
-  templateCaps: z.record(z.string(), z.boolean()).optional(),
-  /** The chat template text the server renders with (KoboldCpp `/props`). */
-  chatTemplate: z.string().optional(),
-  /** The reply length the server uses when a request sets none (KoboldCpp `--defaultgenamt`). */
-  defaultReplyTokens: z.number().int().positive().optional(),
-  /** The server renders chat through the model's jinja template (KoboldCpp `--jinja`) rather than an adapter. */
-  jinja: z.boolean().optional(),
-  /** This model's own probes (kind, measured width, prefill) have run, and the read that states its kind answered. A
-   *  list warmed for another model on the same server carries the server facts only, so the model is probed on its
-   *  first resolve; one whose kind read did not answer is asked again on the next. */
-  probed: z.literal(true).optional(),
-});
+const endpointModelSchema = z
+  .object({
+    id: z.string(),
+    contextLength: z.number().nullable(),
+    /** The smallest window the server runs a model at whose window it does not state, where the server's own
+     *  defaults bound it. The advertised tier assumes it in place of the generic floor; never a reading. */
+    contextFloor: z.number().int().positive().optional(),
+    /** The model's trained maximum where the server states it; a server that clamps to it runs no larger window. */
+    contextTrained: z.number().int().positive().optional(),
+    kind: modelCatalogEntrySchema.shape.kind,
+    google: modelCatalogEntrySchema.shape.google,
+    maxCompletionTokens: modelCatalogEntrySchema.shape.maxCompletionTokens,
+    /** An embedder's vector width, where the server's native model info states it. */
+    embeddingDims: z.number().int().positive().optional(),
+    /** The longest input, in tokens, the server's embedding route takes for this model, where the server states it or
+     *  a refusal names it. Not `contextLength`: llama.cpp also bounds a pooled embedder by its physical batch, and
+     *  KoboldCpp's window is its text model's. */
+    embedInputTokens: z.number().int().positive().optional(),
+    /** What a chat turn may carry, where the server's native model info states it (D292). Absent ⇒ not stated. */
+    input: z.array(modalitySchema).optional(),
+    /** The server states the model takes `tools[]`; `parallel` only where it states that too. Absent ⇒ not stated. */
+    tools: z.object({ parallel: z.boolean() }).strip().optional(),
+    /** The server states the model thinks before it answers, so its thinking can be switched (Ollama's `thinking`
+     *  capability, which `think` turns off). Absent ⇒ not stated. */
+    thinks: z.literal(true).optional(),
+    /** The server's version is at or past the build that added JSON-schema constrained output. Absent ⇒ not stated. */
+    structured: z.boolean().optional(),
+    /** Which tool choices the SERVER honours: `required`, a named function, `none`, and `parallel_tool_calls`. Each maps
+     *  one-to-one onto the capability's per-mode tool-choice facts. Absent ⇒ not stated. */
+    toolChoice: z.object({ required: z.boolean(), named: z.boolean(), none: z.boolean(), parallel: z.boolean() }).strip().optional(),
+    /** The model's thinking controls as its server describes them (Ollama `/api/show` `thinking`): the boolean and named
+     *  values `think` takes, and the one an omitted `think` runs. Absent ⇒ not stated; `thinks` alone names no level. */
+    thinking: z
+      .object({ values: z.array(z.union([z.boolean(), z.string()])).min(1), default: z.union([z.boolean(), z.string()]) })
+      .strip()
+      .optional(),
+    /** Whether the server continues a delivered trailing assistant row as sent today: `deliver` = it continues,
+     *  `none` = it closes the turn and starts a new one. Measured per model where the server can render a prompt. */
+    prefill: z.enum(PREFILL_MODES).optional(),
+    /** The server's sampler defaults for an unset knob, in the server's own key spelling (llama.cpp
+     *  `/props` `default_generation_settings.params`, an Ollama Modelfile's `PARAMETER` lines). Data only. */
+    serverDefaults: z.record(z.string(), z.union([z.number(), z.string(), z.boolean(), z.array(z.string())])).optional(),
+    /** llama.cpp's `chat_template_caps`: what the loaded chat template can render. */
+    templateCaps: z.record(z.string(), z.boolean()).optional(),
+    /** The chat template text the server renders with (KoboldCpp `/props`). */
+    chatTemplate: z.string().optional(),
+    /** The reply length the server uses when a request sets none (KoboldCpp `--defaultgenamt`). */
+    defaultReplyTokens: z.number().int().positive().optional(),
+    /** The server renders chat through the model's jinja template (KoboldCpp `--jinja`) rather than an adapter. */
+    jinja: z.boolean().optional(),
+    /** This model's own probes (kind, measured width, prefill) have run, and the read that states its kind answered. A
+     *  list warmed for another model on the same server carries the server facts only, so the model is probed on its
+     *  first resolve; one whose kind read did not answer is asked again on the next. */
+    probed: z.literal(true).optional(),
+  })
+  .strip();
 export type EndpointModel = z.infer<typeof endpointModelSchema>;
 
 /** The local servers a detecting row can identify, each named by the id of the built-in row that reads it. */
@@ -121,7 +126,7 @@ const DETECTED_SERVERS = ["koboldcpp", "llama-cpp", "ollama", "vllm"] as const;
 
 /** A detecting row's cached server probe: the server it identified as, or `null` for a server that answered
  *  and is none of the known local servers. */
-export const detectedServerSchema = z.object({ server: z.enum(DETECTED_SERVERS).nullable() });
+export const detectedServerSchema = z.object({ server: z.enum(DETECTED_SERVERS).nullable() }).strip();
 export type DetectedServer = z.infer<typeof detectedServerSchema>;
 export interface DetectionProbe {
   readonly server: NonNullable<DetectedServer["server"]>;

@@ -35,7 +35,7 @@
 // check-then-await-then-record would let a burst of 32 all observe the pre-burst count and pass.
 
 import type { PluginBridge, PluginCharacterView, PluginMessageView, PluginSearchHit, PluginWorldBookView, PluginWorldEntryView } from "@orb/contracts/plugin";
-import { PLUGIN_LORE_ENTRIES_PER_BOOK_MAX, PluginInstallerDisabledError } from "@orb/contracts/plugin";
+import { PLUGIN_CASCADE_DEPTH_MAX, PLUGIN_LORE_ENTRIES_PER_BOOK_MAX, PluginInstallerDisabledError, PluginPubsubDepthError } from "@orb/contracts/plugin";
 import { DomainConflictError, DomainForbiddenError } from "@orb/kit/errors";
 import type { AssetId, PluginId, SandboxWireId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -383,8 +383,17 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
     // manifest `slug` (`requirePlugin("pubsub.emit").slug` — a guest supplies only `name` + `data`, so it cannot
     // publish on another plugin's `plugin:<slug>:<name>` channel). It requires an installed plugin like `toast`
     // does: a snippet has no identity AND no `plugin_events` grant, so the capability gate refuses first.
+    // An emit is a new invocation in each subscriber, the emitter's own included. The depth refusal ends a cascade
+    // before it costs a floor slot; the hourly floor, claimed before the emit, bounds the total (plugin-event-bus.ts).
     pubsub: {
-      emit: (name, data) => ops.pubsub.emit({ installerUserId, emitterSlug: requirePlugin("pubsub.emit").slug, name, data }),
+      emit: async (name, data, depth): Promise<void> => {
+        const emitter = requirePlugin("pubsub.emit");
+        if (depth > PLUGIN_CASCADE_DEPTH_MAX) {
+          throw new PluginPubsubDepthError();
+        }
+        belts.pubsubEmit.admit(emitter.id);
+        await ops.pubsub.emit({ installerUserId, emitterSlug: emitter.slug, name, data, depth });
+      },
     },
   };
 }

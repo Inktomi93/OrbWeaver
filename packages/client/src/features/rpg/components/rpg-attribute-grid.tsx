@@ -18,7 +18,7 @@ import type { RpgActorView, RpgStatProfile } from "@orb/contracts/rpg";
 import { readOwnKey } from "@orb/kit/objects";
 import { Grid, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
+import { MutedLine } from "#components";
 import { Kicker } from "./rpg-kicker.tsx";
 import { StatCell } from "./tracker-blocks/index.ts";
 
@@ -37,7 +37,7 @@ export function AttributeGrid({
     <Stack gap="field">
       <Kicker>Attributes</Kicker>
       {profile.attributes.length === 0 ? (
-        <RpgDoorwayLine>No attributes in this game yet. The host adds them in the Game tab's Stat profile.</RpgDoorwayLine>
+        <MutedLine>No attributes in this game yet. The host adds them in the Game tab's Stat profile.</MutedLine>
       ) : (
         <Grid cols="cell" gap="field">
           {profile.attributes.map((def) => (

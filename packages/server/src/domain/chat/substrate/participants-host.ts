@@ -8,7 +8,7 @@
 // is not a DATA PROJECTION of the viewer's own authority (that is `member-visibility.ts::viewerHoldsHost`,
 // which answers "does THIS VIEWER hold host?" — a different question with a different input). This one
 // answers "which seat in this room is the host?", and its consumers want an OWNER for a downstream read:
-// card/preset/connection ownership, the stats delta's owner, the notification recipient. Fourteen call sites
+// card and preset ownership, the stats delta's owner, the notification recipient. Fourteen call sites
 // spelled it inline in two variants before this file existed; the drift that ends here is D19's.
 //
 // THE userId BELT — one answer for the whole class. It STAYS,
@@ -41,10 +41,10 @@ export function hostSeatOf<T extends HostSeat>(participants: readonly T[]): T | 
   return participants.find((seat) => isHostRole(participantRoleValue(seat.role)) && seat.userId !== null);
 }
 
-/** The host's USER id, or `null` for a hostless room. The lookup every ownership read wants (cards/presets/
- *  connections resolve under the host, D18/D19) — a NAMED LENS over {@link hostSeatOf}, not a second
- *  comparison. `null` is the honest hostless answer; each caller decides what that means (a leak-free
- *  NOT_FOUND for a room read, a degrade to the acting caller for a stats delta). */
+/** The host's USER id, or `null` for a hostless room. The lookup every ownership read wants (cards and presets
+ *  resolve under the host, D18/D19; work on the host's account takes {@link hostConsentOf}'s proof instead) — a
+ *  NAMED LENS over {@link hostSeatOf}, not a second comparison. `null` is the honest hostless answer; each caller
+ *  decides what that means (a leak-free NOT_FOUND for a room read, a degrade to the acting caller for a stats delta). */
 export function hostUserIdOf(participants: readonly HostSeat[]): UserId | null {
   return hostSeatOf(participants)?.userId ?? null;
 }

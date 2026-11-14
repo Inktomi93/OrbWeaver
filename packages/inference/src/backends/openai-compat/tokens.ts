@@ -28,9 +28,9 @@ const HEX = 16;
 const BYTE_DIGITS = 2;
 // llama.cpp sends a piece that is not valid UTF-8 as its byte values.
 const llamaPieceSchema = z.union([z.string(), z.array(z.number().int())]);
-const llamaTokensSchema = z.object({ tokens: z.array(z.object({ id: TOKEN_ID, piece: llamaPieceSchema })) });
-const vllmTokensSchema = z.object({ tokens: z.array(TOKEN_ID), token_strs: z.array(z.string()).nullish() });
-const koboldTokensSchema = z.object({ ids: z.array(TOKEN_ID) });
+const llamaTokensSchema = z.object({ tokens: z.array(z.object({ id: TOKEN_ID, piece: llamaPieceSchema }).strip()) }).strip();
+const vllmTokensSchema = z.object({ tokens: z.array(TOKEN_ID), token_strs: z.array(z.string()).nullish() }).strip();
+const koboldTokensSchema = z.object({ ids: z.array(TOKEN_ID) }).strip();
 
 function pieceText(piece: z.infer<typeof llamaPieceSchema>): string {
   return typeof piece === "string" ? piece : piece.map((byte) => `<0x${byte.toString(HEX).padStart(BYTE_DIGITS, "0").toUpperCase()}>`).join("");
@@ -66,7 +66,7 @@ const TOKENIZE_SPECS: Readonly<Record<TokenizeApi, TokenizeSpec>> = {
   },
 };
 
-const heldTokensSchema = z.object({ ids: z.array(TOKEN_ID), pieces: z.array(z.string()).optional() });
+const heldTokensSchema = z.object({ ids: z.array(TOKEN_ID), pieces: z.array(z.string()).optional() }).strip();
 // Persisted as entries and held as a Map: a word is user text, so `constructor` or `__proto__` must never
 // read as an object's inherited member.
 const persistedSchema = z.array(z.tuple([z.string(), heldTokensSchema]));

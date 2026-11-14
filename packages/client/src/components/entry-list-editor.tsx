@@ -11,6 +11,7 @@ import type { Key, ReactElement, ReactNode } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { DIALOG_VERBS } from "#lib";
 import { ConfirmDialog } from "./confirm-dialog.tsx";
+import { MutedLine } from "./muted-line.tsx";
 
 export interface EntryListEditorProps<TItem> {
   /** The group's NAME. Rendered in the `kicker` voice — see the note at the render site. */
@@ -85,9 +86,7 @@ export function EntryListEditor<TItem>({
 
       <Stack gap="field">
         {items.length === 0 ? (
-          <Text ink="muted" voice="gloss">
-            {emptyText}
-          </Text>
+          <MutedLine>{emptyText}</MutedLine>
         ) : (
           items.map((item, index) => (
             <ListRow

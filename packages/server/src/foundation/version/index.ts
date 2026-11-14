@@ -168,7 +168,7 @@ function readReleaseChannel(root: string, version: string | null, commit: string
   return releaseChannelOf(commit, resolveRef(tag, readLooseRef(location, tag), readFirst(location, "packed-refs")));
 }
 
-const packageVersionSchema = z.object({ version: z.string().min(1) });
+const packageVersionSchema = z.object({ version: z.string().min(1) }).strip();
 
 /** The root `package.json`'s `version` field — the release number the owner bumps and tags. */
 function readPackageVersion(root: string): string | null {

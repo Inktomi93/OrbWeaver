@@ -55,6 +55,7 @@ const wireTagSchema = z
     sortOrder: z.int().nullish().catch(null),
     isHiddenOnCard: z.boolean().catch(false),
   })
+  .strip()
   .transform(
     (t): CanonicalTag => ({
       name: t.name,

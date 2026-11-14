@@ -6,7 +6,7 @@ import { SURFACE_PASSES } from "@orb/testkit/iso";
 import type { SurfaceWalkOptions } from "@orb/testkit/node/helpers";
 import { prepareSurfaceAgentReport, readSurfaceRunConfig, SURFACE_BOOT_DIAGNOSTIC_TITLE, SURFACE_NATIVE_TIMEOUT_MS } from "@orb/testkit/node/helpers";
 import { nativeBrowserLaunchOptions } from "@orb/tooling/floor/browser/browser";
-import { budget } from "@orb/tooling/floor/host/load-budget";
+import { budget, expectBudget } from "@orb/tooling/floor/host/load-budget";
 import type { PlaywrightWorkerOptions } from "@playwright/test";
 import { defineConfig, devices } from "@playwright/test";
 
@@ -116,7 +116,7 @@ export default defineConfig<SurfaceWalkOptions>({
   globalTimeout: budget(SURFACE_NATIVE_TIMEOUT_MS),
   captureGitInfo: { commit: false, diff: false },
   timeout: budget(TEST_TIMEOUT_MS),
-  expect: { timeout: budget(EXPECT_TIMEOUT_MS) },
+  expect: expectBudget(EXPECT_TIMEOUT_MS),
   reporter: [
     [
       fileURLToPath(import.meta.resolve("./tests/support/node/surface-index-reporter.ts")),

@@ -140,6 +140,8 @@ const MOUNT_HELPER_FILES = {
   "^tests/client/components/_described-menu-item-labels\\.ts$": "the command labels the described-menu story authors and its spec presses",
   "^tests/client/components/_entry-list-labels\\.ts$": "the add label the entry-list rebase story authors and its spec finds the button by",
   "^tests/client/components/_form-dialog-labels\\.ts$": "the title the form dialog create story authors and its spec finds the dialog by",
+  "^tests/client/components/_notice-labels\\.ts$": "the notice words and control names the notice story authors and its spec locates them by",
+  "^tests/client/components/_muted-line-labels\\.ts$": "the line and action label the muted-line story authors and its spec locates them by",
   "^tests/client/data/_plugin-frame-src-names\\.ts$": "the button name the plugin frame story authors and its revoke spec presses",
   "^tests/client/lib/use-focus-on-mount-names\\.ts$": "the control and surface names the arrival-focus stories author and their spec reads",
   "^tests/client/features/auth/components/pending-join-fixtures\\.ts$": "the pending-join story's parsed fixtures",
@@ -457,6 +459,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/infra/plugin-host/process-protocol.ts":
     "parseBrokerParentMessage, parseMessageLine and serializeMessage: the frame codec the permission-drop suite speaks as the watchdog; PLUGIN_BROKER_SYNC_TIMEOUT_MS: the synchronous seam bound the command bounds suite counts; channelFullBridgeResult and channelFullResponse: the refusal frames the channel suite routes",
   "packages/server/src/infra/plugin-host/sandbox.ts": "Sandbox: the sandbox class its unit suite constructs",
+  "packages/server/src/infra/plugin-host/sync-channel.ts":
+    "createSyncChannel: the Worker's reused call buffers its unit suite drives, whose identity no door shows inside the broker's Worker",
   "packages/server/src/infra/plugin-host/warm-runtime-pool.ts": "WarmRuntimePool: the runtime pool its unit suite constructs with a failing retirement",
   "packages/server/src/infra/plugin-host/watchdog-policy.ts":
     "brokerWatchdogFailure: the watchdog's judgement its unit suite drives with an injected clock, which no door reaches inside the watchdog process",

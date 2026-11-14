@@ -55,9 +55,13 @@ test("a held capability read shows the gate's skeleton, a routing refusal its ba
   await expect(page.locator('[aria-busy="true"]').first()).toBeVisible();
   await expect(page.getByText(PRESET_QUALITY_LABEL, { exact: true }).first()).toBeVisible();
   hold.fail();
-  await expect(page.getByText(REFUSAL, { exact: true })).toBeVisible();
+  // The band is the shared notice: the server's words sit in its text, and its Retry in its actions under them.
+  const band = page.locator('[data-slot="notice"]').filter({ hasText: REFUSAL });
+  await expect(band.getByText(REFUSAL, { exact: true })).toBeVisible();
+  const retry = band.locator('[data-slot="notice-actions"]').getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
+  await expect(retry).toBeVisible();
   phase = "serve";
-  await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
+  await retry.click();
   await expect(page.getByText(REFUSAL, { exact: true })).toHaveCount(0);
   await expect(page.getByRole("textbox", { name: "Temperature value", exact: true })).toBeVisible();
 });

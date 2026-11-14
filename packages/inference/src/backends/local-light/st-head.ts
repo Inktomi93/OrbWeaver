@@ -40,16 +40,19 @@ function headError(message: string): ProviderError {
   return new ProviderError({ kind: "server", retryable: false, message: `local-light reranker head: ${message}` });
 }
 
-const tensorMetadataSchema = z.object({
-  dtype: z.literal("F32"),
-  shape: z.array(z.int().nonnegative()),
-  data_offsets: z.tuple([z.int().nonnegative(), z.int().nonnegative()]),
-});
+const tensorMetadataSchema = z
+  .object({
+    dtype: z.literal("F32"),
+    shape: z.array(z.int().nonnegative()),
+    data_offsets: z.tuple([z.int().nonnegative(), z.int().nonnegative()]),
+  })
+  .strip();
 const safetensorsHeaderSchema = z.record(z.string(), z.unknown());
 const denseConfigSchema = z
   .object({ in_features: z.int().positive(), out_features: z.int().positive(), activation_function: z.string() })
+  .strip()
   .describe("integer in_features and out_features and a string activation_function");
-const poolingConfigSchema = z.object({ pooling_mode: z.string() });
+const poolingConfigSchema = z.object({ pooling_mode: z.string() }).strip();
 
 function parseSafetensors(bytes: Uint8Array): ReadonlyMap<string, Float32Array> {
   if (bytes.byteLength < SAFETENSORS_HEADER_BYTES) {

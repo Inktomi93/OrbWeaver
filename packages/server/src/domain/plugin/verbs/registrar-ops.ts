@@ -1,7 +1,7 @@
 // Each activation keeps its own installer ceiling and disposable registration handles.
 
 import type { InvocationChat, PluginHandlerRef } from "@orb/contracts/plugin";
-import { PLUGIN_READ_CONTENT_MAX_CHARS, pluginToolWireName } from "@orb/contracts/plugin";
+import { PLUGIN_CASCADE_DEPTH_MAX, PLUGIN_READ_CONTENT_MAX_CHARS, pluginToolWireName } from "@orb/contracts/plugin";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { createDetachedSupervision } from "#foundation/observability";
 import type { PluginRegistrarDeps, PluginRegistrarOps } from "../contract/registrar-ops.ts";
@@ -56,6 +56,17 @@ export function createPluginRegistrarOps(deps: PluginRegistrarDeps): PluginRegis
           if (refs === undefined) {
             return;
           }
+          // A fact this installer's own plugin command raised runs its handlers one cascade level deeper than that
+          // command, and past the bound it is not delivered: the bound a pubsub emit meets (plugin-event-bus.ts).
+          const cause = deps.cascadeCause();
+          const cascadeDepth = cause?.installer === scope.installer.userId ? cause.cascadeDepth + 1 : 0;
+          if (cascadeDepth > PLUGIN_CASCADE_DEPTH_MAX) {
+            deps.logger.warn(
+              { pluginSlug: scope.slug, eventType: fact.type, cascadeDepth },
+              "plugin event not delivered: its own plugin command raised it past the cascade depth bound",
+            );
+            return;
+          }
           const argsJson = JSON.stringify(capFactContent(fact, PLUGIN_READ_CONTENT_MAX_CHARS));
           // Delivery rechecks the installer after fan-out admission; a departure or a disable while queued admits no guest.
           superviseDetached(deps.newEventId(), "plugin.event.deliver", { eventType: fact.type, pluginSlug: scope.slug }, async () => {
@@ -75,7 +86,7 @@ export function createPluginRegistrarOps(deps: PluginRegistrarDeps): PluginRegis
             }
             // A rejected handler is already logged with its plugin and cause by the resident `invoke`, so it is
             // not rethrown here (that would log the same failure twice).
-            await Promise.allSettled(refs.map((handler) => invoke(handler, argsJson, eventChat)));
+            await Promise.allSettled(refs.map((handler) => invoke(handler, argsJson, eventChat, cascadeDepth)));
           });
         },
       });

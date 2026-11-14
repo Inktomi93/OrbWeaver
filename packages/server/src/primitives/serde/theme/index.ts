@@ -58,6 +58,7 @@ const wireThemeSchema = z
     override: themeOverrideSchema.catch({}),
     css: z.string().max(THEME_CSS_MAX).nullish().catch(null),
   })
+  .strip()
   .transform(
     (row): CanonicalTheme => ({
       name: row.name,

@@ -248,6 +248,22 @@ export function budget(baseMs: number, read: BoxLoadReader = readBoxLoad, cap = 
 }
 
 /**
+ * A Playwright `expect` block whose `timeout` is {@link budget} of `baseMs`, taken from a fresh box reading at every read.
+ *
+ * @remarks A plain value is read once, when a worker loads the config, and a worker lives for the whole run, so a run
+ * that gets busier keeps its first reading. Playwright keeps the config's own `expect` object and reads its `timeout`
+ * as each test begins (`setExpectConfig` in the worker), so the getter scales every test's assertions from the load
+ * at that test's start.
+ */
+export function expectBudget(baseMs: number, read: BoxLoadReader = readBoxLoad): { readonly timeout: number } {
+  return {
+    get timeout(): number {
+      return budget(baseMs, read);
+    },
+  };
+}
+
+/**
  * A module's ceilings: every base in `bases` through {@link budget}, against one box reading per load epoch.
  *
  * @remarks One record per module, so no ceiling is a hand pair a later edit can leave unscaled. The record is read at
