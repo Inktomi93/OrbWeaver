@@ -1104,6 +1104,15 @@ const PACKAGE_TEST_REACHES = {
   "tests/client/features/preset/lib/template-addresses.test.ts": {
     "packages/client/src/features/preset/lib/template-rows.ts": "templateGroups, templateRowById and templateStoredText: the feature-private template model",
   },
+  "tests/client/features/preset/components/template-drill-in-kind.ct.tsx": {
+    "packages/client/src/features/preset/lib/template-rows.ts": "TEMPLATE_KIND_LABEL: the display word a template's kind chip and its list kicker print",
+  },
+  "tests/client/features/preset/components/preset-advanced-reach.ct.tsx": {
+    "packages/client/src/features/preset/lib/sampling-knob-catalog.ts": "SAMPLING_FLAG_LABELS: the Word bias group's accessible name",
+  },
+  "tests/client/features/preset/components/sampler-order-grip-pairing.ct.tsx": {
+    "packages/client/src/features/preset/lib/sampling-knob-catalog.ts": "SAMPLING_FLAG_LABELS: the sampler order list's accessible name",
+  },
   "tests/client/features/config/lib/theme-css-warnings.test.ts": {
     "packages/client/src/features/config/lib/theme-css-warnings.ts":
       "themeCssHookWarnings: the feature-private stale-hook check over a planted surface and rename table",
