@@ -13,6 +13,7 @@ import { Button } from "@orb/ui/button";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { MutedLine } from "#components";
 import type { ReferenceCount, ReferenceSite } from "#src/features/preset/lib/reference-scan.ts";
 import { scanReferences } from "#src/features/preset/lib/reference-scan.ts";
 import { selectPresetSection } from "#state";
@@ -22,7 +23,7 @@ export function DataReadout({ config }: { readonly config: PromptConfig }): Reac
   return (
     <Section kicker="References: this preset">
       {counts.length === 0 ? (
-        <Text voice="gloss">This preset declares no variables or user macros yet. Add one in the Data view and its references show up here.</Text>
+        <MutedLine>This preset declares no variables or user macros yet. Add one in the Data view and its references show up here.</MutedLine>
       ) : (
         <Stack gap="field">
           {counts.map((entry) => (
@@ -50,7 +51,7 @@ function ReferenceEntry({ entry }: { readonly entry: ReferenceCount }): ReactEle
         )}
       </Row>
       {count === 0 ? (
-        <Text voice="gloss">no references in this preset</Text>
+        <MutedLine>no references in this preset</MutedLine>
       ) : (
         <Row gap="tight">
           {entry.sites.map((site, at) => (

@@ -71,6 +71,21 @@ function fixedGuestMemory(): WebAssembly.Memory {
   }
 }
 
+// A browser may define a network name on a prototype of the worker's global rather than on the global itself (Chromium
+// does for `fetch`, which a delete on the global left in place), so each name is deleted wherever the chain holds it. A name that
+// survives is refused before any guest code runs: a boot failure, never a thread that keeps its network.
+function dropNetwork(): void {
+  for (const name of NETWORK_GLOBALS) {
+    for (let holder: object | null = globalThis; holder !== null; holder = Reflect.getPrototypeOf(holder)) {
+      Reflect.deleteProperty(holder, name);
+    }
+  }
+  const kept = NETWORK_GLOBALS.filter((name) => name in globalThis);
+  if (kept.length > 0) {
+    throw new Error(`plugin ui worker: could not remove the thread's network (${kept.join(", ")})`);
+  }
+}
+
 /** Memoized WASM module load — ONE instantiation per worker, exactly as `module.ts` does per process. */
 function loadModule(): Promise<QuickJSWASMModule> {
   modulePromise ??= newQuickJSWASMModuleFromVariant(newVariant(baseVariant, { wasmLocation: wasmUrl, wasmMemory: fixedGuestMemory() }));
@@ -120,9 +135,7 @@ async function runToSettlement(state: GuestState, cpuMs: number, produce: () => 
 async function boot(message: UiGuestBootMessage): Promise<void> {
   const module = await loadModule();
   // The WASM is loaded; the thread no longer needs a network and must not keep one (file header).
-  for (const name of NETWORK_GLOBALS) {
-    Reflect.deleteProperty(globalThis, name);
-  }
+  dropNetwork();
   const ctx = module.newContext();
   ctx.runtime.setMemoryLimit(UI_GUEST_BUDGETS.memoryLimitBytes);
   // MANDATORY — see the budget constant. Without it deep recursion is a host crash, not a contained RangeError.

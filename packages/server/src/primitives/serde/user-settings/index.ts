@@ -88,7 +88,7 @@ function takeShareSafe(raw: unknown): Partial<PortableUserSettings> {
 const userSettingsSerde = defineJsonObjectSerde<Partial<PortableUserSettings>, { readonly settings: unknown }>({
   schemaKind: USER_SETTINGS_SCHEMA_KIND,
   schemaVersion: USER_SETTINGS_BACKUP_SCHEMA_VERSION,
-  bodySchema: z.object({ settings: z.unknown() }),
+  bodySchema: z.object({ settings: z.unknown() }).strip(),
   toWire: (safe) => {
     const settings: Record<string, unknown> = {};
     for (const ns of SHARE_SAFE_SETTINGS_NAMESPACES) {

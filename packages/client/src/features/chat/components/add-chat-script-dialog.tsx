@@ -24,10 +24,9 @@ import { Code, Icon, Search } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
-import { Text } from "@orb/ui/text";
 import type { ReactElement, RefObject } from "react";
 import { useRef, useState } from "react";
-import { DialogFailure, DismissDialog, QueryBoundary } from "#components";
+import { DialogFailure, DismissDialog, MutedLine, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { DIALOG_VERBS, regexScriptScent, regexScriptTitle, timeLib } from "#lib";
 import { useAttachScriptToChat } from "../hooks/use-chat-regex-mutations.ts";
@@ -140,11 +139,7 @@ function ScriptPicker({ attachedIds, chatId, onClose, ownedRef }: PickerBodyProp
         <Icon ink="muted" icon={Search} size="sm" />
         <Input aria-label="Filter your scripts" onValueChange={setFilter} placeholder="Filter your scripts…" value={filter} />
       </Row>
-      {matches.length === 0 ? (
-        <Text aria-live="polite" role="status" voice="gloss">
-          No scripts match that filter.
-        </Text>
-      ) : null}
+      {matches.length === 0 ? <MutedLine announce={true}>No scripts match that filter.</MutedLine> : null}
       <Stack gap="tight">
         {matches.map((script) => {
           const already = attachedIds.includes(script.id);

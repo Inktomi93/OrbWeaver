@@ -25,7 +25,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { QueryBoundary } from "#components";
+import { MutedLine, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { CORPUS_MODE_LABELS, sectionBackName, testId, useFocusOnMount } from "#lib";
 import { selectCorpusArtifact, selectCorpusCharacter, setActiveSection } from "#state";
@@ -223,7 +223,7 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
 
       <Section heading="Similar characters">
         {dossier.similar.length === 0 ? (
-          <Text voice="gloss">No near neighbours found.</Text>
+          <MutedLine>No near neighbours found.</MutedLine>
         ) : (
           <Stack gap="row">
             {/* THE ORDER IS NOT THE PRINTED NUMBER, AND THE LIST NOW SAYS SO (side-eye corpus re-pass U3:
@@ -304,7 +304,7 @@ function SimilarArtRead({ characterId }: { readonly characterId: CharacterId }):
   const { data: art } = useSuspenseQuery(trpc.search.similarArt.queryOptions({ characterId, topN: SIMILAR_ART_TOP_N }));
 
   if (art.length === 0) {
-    return <Text voice="gloss">No look-alike portraits found.</Text>;
+    return <MutedLine>No look-alike portraits found.</MutedLine>;
   }
   return (
     <Stack gap="row" role="list">

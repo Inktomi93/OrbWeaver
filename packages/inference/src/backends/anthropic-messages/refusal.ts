@@ -14,10 +14,12 @@ import { ANTHROPIC_KEY } from "./model.ts";
 const CONTENT_FILTER = "content-filter";
 const FALLBACK_ITERATION = "fallback_message";
 
-const refusalMetadataSchema = z.object({
-  stopDetails: z.object({ category: z.string().optional(), explanation: z.string().optional() }).optional(),
-  iterations: z.array(z.object({ type: z.string(), model: z.string().optional() })).nullish(),
-});
+const refusalMetadataSchema = z
+  .object({
+    stopDetails: z.object({ category: z.string().optional(), explanation: z.string().optional() }).strip().optional(),
+    iterations: z.array(z.object({ type: z.string(), model: z.string().optional() }).strip()).nullish(),
+  })
+  .strip();
 
 type RefusalEvent = Extract<ChatEvent, { readonly kind: "refusal" }>;
 

@@ -13,7 +13,7 @@ import { z } from "zod";
 import type { ContextRegionView, ResolvedContextTab } from "#lib";
 import { publishContextTabs, setContextTab, useContextTab } from "#state";
 
-const publishedTabsSchema = z.array(z.object({ id: z.string(), label: z.string() }));
+const publishedTabsSchema = z.array(z.object({ id: z.string(), label: z.string() }).strip());
 
 export function useContextTabSelection(tabs: readonly ResolvedContextTab[]): Pick<ContextRegionView, "activeTab" | "selectTab"> {
   const contextTab = useContextTab();

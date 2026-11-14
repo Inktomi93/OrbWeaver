@@ -6,6 +6,7 @@ import { Heading, Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
+import { Notice } from "#components";
 import type { Trpc } from "#data";
 import { createAutosaveEntityForm } from "#forms/editor";
 import { useFocusOnSwap, viewerTimeZone } from "#lib";
@@ -60,10 +61,15 @@ export function RuleEditor({
   };
   if (rule?.actionsCorrupt === true) {
     return (
-      <Card ref={surface} role="region" aria-label={RULE_EDITOR_NAME} tabIndex={-1}>
-        <Text>These stored actions cannot be read. Editing is unavailable; no replacement has been saved.</Text>
-        <Button onClick={onClose}>{RULE_EDITOR_CLOSE_NAME}</Button>
-      </Card>
+      <Notice
+        action={<Button onClick={onClose}>{RULE_EDITOR_CLOSE_NAME}</Button>}
+        aria-label={RULE_EDITOR_NAME}
+        ref={surface}
+        role="region"
+        tabIndex={-1}
+        title="These stored actions cannot be read. Editing is unavailable; no replacement has been saved."
+        tone="warning"
+      />
     );
   }
   if (rule !== null && !observedRow) {
@@ -72,10 +78,16 @@ export function RuleEditor({
   const confirmed = rule ?? (observedRow ? null : acknowledged);
   if (confirmed === null && (needsExistingRow || observedRow)) {
     return (
-      <Card ref={surface} role="region" aria-label={RULE_EDITOR_NAME} tabIndex={-1}>
-        <Text role="alert">This rule is no longer available. Its draft is retained, but saving cannot recreate a deleted rule.</Text>
-        <Button onClick={onClose}>{RULE_EDITOR_CLOSE_NAME}</Button>
-      </Card>
+      <Notice
+        action={<Button onClick={onClose}>{RULE_EDITOR_CLOSE_NAME}</Button>}
+        alert={true}
+        aria-label={RULE_EDITOR_NAME}
+        ref={surface}
+        role="region"
+        tabIndex={-1}
+        title="This rule is no longer available. Its draft is retained, but saving cannot recreate a deleted rule."
+        tone="warning"
+      />
     );
   }
   const serverValues = confirmed === null ? emptyRuleEditor(chatId) : keepRowIdentities(ruleEditorValues(editableRule(confirmed), identity), submitted);

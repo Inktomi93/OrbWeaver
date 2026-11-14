@@ -5,6 +5,7 @@ import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { MutedLine } from "#components";
 import { QueryErrorState, useTRPC } from "#data";
 import { useInboxCollection } from "../hooks/use-inbox.ts";
 import { usePageFocus } from "../hooks/use-page-focus.ts";
@@ -60,9 +61,7 @@ export function DismissedRows(): ReactElement {
       {dismissed.isEmpty ? (
         <Stack align="center" ref={pageFocus.rowRef(0)} tabIndex={-1}>
           {dismissed.error === null ? (
-            <Text voice="gloss" ink="muted" textAlign="center">
-              {NOTHING_DISMISSED_NOTE}
-            </Text>
+            <MutedLine>{NOTHING_DISMISSED_NOTE}</MutedLine>
           ) : (
             <QueryErrorState label="dismissed notifications" onRetry={dismissed.refetch} />
           )}

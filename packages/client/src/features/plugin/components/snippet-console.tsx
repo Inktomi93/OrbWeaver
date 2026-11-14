@@ -31,6 +31,7 @@ import { Textarea } from "@orb/ui/textarea";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { MutedLine } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { useRunSnippet } from "../lib/plugin-mutations.ts";
@@ -118,7 +119,7 @@ function SnippetOutput({ result }: { readonly result: SnippetResult }): ReactEle
 
   return (
     <Stack aria-label="Snippet output" gap="block" role="status">
-      {result.logLines.length === 0 ? <Text voice="gloss">It ran and logged nothing.</Text> : <LogViewer maxHeight="scrollMd" lines={[...result.logLines]} />}
+      {result.logLines.length === 0 ? <MutedLine>It ran and logged nothing.</MutedLine> : <LogViewer maxHeight="scrollMd" lines={[...result.logLines]} />}
       {result.error === undefined ? null : (
         <Text tone="destructive" voice="gloss">
           {result.error}

@@ -29,6 +29,40 @@ export const commentedCodeRule: OrbRule = {
   },
 };
 
+// ESLint's own directive grammar: the label is the first word, and the reason follows a run of two or more dashes
+// with whitespace on both sides. A line comment is a directive only for the two line-scoped labels.
+// Blind spot: a directive that disables every rule, or names this one, also suppresses this rule's report on itself.
+const DISABLE_LABELS = new Set(["eslint-disable", "eslint-disable-line", "eslint-disable-next-line"]);
+const LINE_DISABLE_LABELS = new Set(["eslint-disable-line", "eslint-disable-next-line"]);
+const DIRECTIVE_LABEL = /^\s*(?<label>eslint-[a-z-]+)(?:\s|$)/u;
+const DIRECTIVE_REASON = /\s-{2,}\s(?<reason>[\s\S]*)$/u;
+/** The shortest reason that can name what the suppression hides, matching the `ts-expect-error` floor in `eslint.config.ts`. */
+const MIN_DIRECTIVE_REASON = 10;
+const LETTER = /\p{L}/u;
+
+export const disableDirectiveReasonRule: OrbRule = {
+  meta: { type: "problem", schema: [] },
+  create(context: OrbRuleContext): RuleVisitor {
+    return {
+      Program: () => {
+        for (const comment of context.sourceCode.getAllComments()) {
+          const label = DIRECTIVE_LABEL.exec(comment.value)?.groups?.["label"];
+          if (label === undefined || !(comment.type === AST_TOKEN_TYPES.Block ? DISABLE_LABELS : LINE_DISABLE_LABELS).has(label)) {
+            continue;
+          }
+          const reason = (DIRECTIVE_REASON.exec(comment.value)?.groups?.["reason"] ?? "").replaceAll(/\s+/gu, " ").trim();
+          if (reason.length < MIN_DIRECTIVE_REASON || !LETTER.test(reason)) {
+            context.report({
+              loc: comment.loc,
+              message: `An ${label} directive states why after \` -- \`: the finding it hides and why the code stays as written. Fix the finding instead where you can.`,
+            });
+          }
+        }
+      },
+    };
+  },
+};
+
 const SINGLE_REPLICA_ANNOTATION = "ASSUMES(single-replica)";
 
 const STATE_CONSTRUCTORS = new Set(["Map", "Set", "WeakMap", "WeakSet"]);

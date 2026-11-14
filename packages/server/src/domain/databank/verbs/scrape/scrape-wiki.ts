@@ -31,10 +31,12 @@ function articleTitle(url: URL): string {
   return decodeURIComponent(raw).replace(UNDERSCORE, " ");
 }
 
-const mediaWikiExtractSchema = z.object({ extract: z.string().min(1), title: z.string() });
-const mediaWikiResponseSchema = z.object({
-  query: z.object({ pages: z.union([z.record(z.string(), z.unknown()), z.array(z.unknown())]) }),
-});
+const mediaWikiExtractSchema = z.object({ extract: z.string().min(1), title: z.string() }).strip();
+const mediaWikiResponseSchema = z
+  .object({
+    query: z.object({ pages: z.union([z.record(z.string(), z.unknown()), z.array(z.unknown())]) }).strip(),
+  })
+  .strip();
 
 /** The MediaWiki plain-text extract from a `prop=extracts&explaintext` response. Returns the `{ extract, title }`
  *  of the first (non-missing) page, or `undefined` when the article is missing / the shape is unexpected. */

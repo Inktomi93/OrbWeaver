@@ -26,7 +26,7 @@ import { Separator } from "@orb/ui/separator";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { DestructiveAction, QueryBoundary } from "#components";
+import { DestructiveAction, MutedLine, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { DIALOG_VERBS, notify } from "#lib";
 import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
@@ -188,9 +188,7 @@ function PluginDistributeBody({ anchorId }: { readonly anchorId: string }): Reac
         <Separator />
         <Text voice="label">Published to every account</Text>
         {published.length === 0 ? (
-          <Text cap="prose" prose={true} voice="gloss">
-            Nothing is being given out. Anything you distribute here also lands for people who sign up later.
-          </Text>
+          <MutedLine>Nothing is being given out. Anything you distribute here also lands for people who sign up later.</MutedLine>
         ) : (
           <Stack gap="field">
             {published.map((row) => (

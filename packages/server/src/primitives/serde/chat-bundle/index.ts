@@ -264,139 +264,159 @@ const wireVariantSchema = z
     metadata: z.record(z.string(), z.unknown()).nullish().catch(null),
     usage: generationUsageSchema.optional(),
   })
+  .strip()
   .superRefine((variant, ctx) => {
     if (variant.usage !== undefined && ((variant.tokensIn ?? null) !== variant.usage.tokensIn || (variant.tokensOut ?? null) !== variant.usage.tokensOut)) {
       ctx.addIssue({ code: "custom", path: ["usage"], message: "normalized usage contradicts the legacy token fields" });
     }
   });
 
-const wireMessageSchema = z.object({
-  role: messageRoleSchema,
-  kind: messageKindSchema.catch("standard"),
-  speakerHandle: z.string().nullish().catch(null),
-  personaName: z.string().nullish().catch(null),
-  createdAt: z.int(),
-  selectedIdx: z.int().nonnegative().catch(0),
-  variants: z.array(wireVariantSchema),
-});
+const wireMessageSchema = z
+  .object({
+    role: messageRoleSchema,
+    kind: messageKindSchema.catch("standard"),
+    speakerHandle: z.string().nullish().catch(null),
+    personaName: z.string().nullish().catch(null),
+    createdAt: z.int(),
+    selectedIdx: z.int().nonnegative().catch(0),
+    variants: z.array(wireVariantSchema),
+  })
+  .strip();
 
-const wireInjectionSchema = z.object({
-  position: z.enum(CHAT_INJECTION_POSITIONS),
-  depth: z.int().catch(0),
-  role: messageRoleSchema,
-  content: z.string(),
-  order: z.int().nullish().catch(null),
-  createdAt: z.int(),
-});
+const wireInjectionSchema = z
+  .object({
+    position: z.enum(CHAT_INJECTION_POSITIONS),
+    depth: z.int().catch(0),
+    role: messageRoleSchema,
+    content: z.string(),
+    order: z.int().nullish().catch(null),
+    createdAt: z.int(),
+  })
+  .strip();
 
 // The record's own contract type carries no zod schema (it is produced, never parsed, in live code), so the
 // wire shape is declared HERE — the serde owns its wire shapes (`server/primitives` type-home-exempt, the chat-jsonl
 // precedent) — and `satisfies` pins it to the contract so a field change fails tsc here rather than silently
 // dropping data from a restore.
-const wireRecordedToolCallSchema = z.object({
-  ...rpgRecordedToolCallSchema.shape,
-  issues: z
-    .array(z.string())
-    .catch([])
-    .transform((issues): readonly string[] => issues),
-}) satisfies z.ZodType<RpgRecordedToolCall>;
+const wireRecordedToolCallSchema = z
+  .object({
+    ...rpgRecordedToolCallSchema.shape,
+    issues: z
+      .array(z.string())
+      .catch([])
+      .transform((issues): readonly string[] => issues),
+  })
+  .strip() satisfies z.ZodType<RpgRecordedToolCall>;
 
-const wireRpgSchema = z.object({
-  mode: rpgGameModeSchema,
-  status: rpgGameStatusSchema,
-  sessionNumber: z.int().positive().catch(1),
-  config: rpgGameConfigSchema,
-  createdAt: z.int(),
-  // A foreign handle is opaque carriage until the import verb resolves it against the owner's canonical
-  // library. Keep the wire value unbranded here; the lookup boundary validates the real handle contract.
-  sheets: z.array(z.object({ characterHandle: z.string().min(1).nullish().catch(null), sheet: rpgSheetSchema })),
-  snapshots: z.array(
-    z.object({
-      messageIndex: nullableIndex,
-      variantIdx: nullableIndex,
-      asOfMessageIndex: nullableIndex,
-      bookmark: z.boolean().catch(false),
-      committed: z.boolean().catch(false),
-      createdAt: z.int(),
-      state: rpgSnapshotStateSchema,
-    }),
-  ),
-  journal: z.array(
-    z.object({
-      type: rpgJournalTypeSchema,
-      label: z.string().catch(""),
-      title: z.string(),
-      content: z.string(),
-      messageIndex: nullableIndex,
-      variantIdx: nullableIndex,
-      sourceMessageIndex: nullableIndex,
-      createdAt: z.int(),
-    }),
-  ),
-  turnToolCalls: z.array(
-    z.object({
-      messageIndex: index,
-      variantIdx: index,
-      calls: z.array(wireRecordedToolCallSchema),
-      createdAt: z.int(),
-    }),
-  ),
-  checkpoints: z.array(
-    z.object({
-      snapshotIndex: index,
-      label: z.string(),
-      trigger: rpgCheckpointTriggerSchema,
-      createdAt: z.int(),
-    }),
-  ),
-});
-
-const wireChatSchema = z.object({
-  title: z.string().catch(""),
-  createdAt: z.int(),
-  updatedAt: z.int(),
-  starred: z.boolean().catch(false),
-  archived: z.boolean().catch(false),
-  // Only an explicit false reads unshared. A bundle written before the flag cannot tell a member's line from the
-  // host's, so an absent or malformed value fails closed and keeps the host's global variables shut.
-  everShared: z.boolean().catch(true),
-  compactSummary: z.string().nullish().catch(null),
-  compactedAtSeq: z.int().nullish().catch(null),
-  metadata: z.record(z.string(), z.unknown()).nullish().catch(null),
-  variableValues: z.record(z.string(), z.string()).nullish().catch(null),
-  userMacroValues: userMacroValuesSchema.nullish().catch(null),
-  anchorPersonaName: z.string().nullish().catch(null),
-  characterHandles: z.array(z.string().trim().min(1)).catch([]),
-  // A malformed list degrades to the handle binding an older bundle gets, never a refused chat.
-  seatCards: z
-    .array(z.object({ handle: z.string().trim().min(1), importHash: z.string().min(1), textHash: z.string().min(1), fileHash: z.string().min(1) }))
-    .optional()
-    .catch(undefined),
-  tagNames: z.array(z.string().trim().min(1)).catch([]),
-  injections: z.array(wireInjectionSchema).catch([]),
-  messages: z.array(wireMessageSchema),
-  pendingGenerationObservations: pendingGenerationObservationsSchema.optional(),
-  assetHashes: z.record(z.string(), z.string()).optional().catch(undefined),
-  // Healed per entry: a malformed strike is dropped alone, never its siblings or the chat; its scene comes back into
-  // recall, visibly, in the view. A list that is not a list at all loses only the plane.
-  memoryStrikes: z
-    .array(
+const wireRpgSchema = z
+  .object({
+    mode: rpgGameModeSchema,
+    status: rpgGameStatusSchema,
+    sessionNumber: z.int().positive().catch(1),
+    config: rpgGameConfigSchema,
+    createdAt: z.int(),
+    // A foreign handle is opaque carriage until the import verb resolves it against the owner's canonical
+    // library. Keep the wire value unbranded here; the lookup boundary validates the real handle contract.
+    sheets: z.array(z.object({ characterHandle: z.string().min(1).nullish().catch(null), sheet: rpgSheetSchema }).strip()),
+    snapshots: z.array(
       z
         .object({
-          characterHandle: z.string().trim().min(1).nullable(),
-          tier: index,
-          startMessageIndex: index,
-          endMessageIndex: index,
-          topicAnchor: z.string().nullish().catch(null),
+          messageIndex: nullableIndex,
+          variantIdx: nullableIndex,
+          asOfMessageIndex: nullableIndex,
+          bookmark: z.boolean().catch(false),
+          committed: z.boolean().catch(false),
+          createdAt: z.int(),
+          state: rpgSnapshotStateSchema,
+        })
+        .strip(),
+    ),
+    journal: z.array(
+      z
+        .object({
+          type: rpgJournalTypeSchema,
+          label: z.string().catch(""),
+          title: z.string(),
+          content: z.string(),
+          messageIndex: nullableIndex,
+          variantIdx: nullableIndex,
+          sourceMessageIndex: nullableIndex,
           createdAt: z.int(),
         })
-        .nullable()
-        .catch(null),
-    )
-    .optional()
-    .catch(undefined),
-  rpg: wireRpgSchema.nullish().catch(null),
-});
+        .strip(),
+    ),
+    turnToolCalls: z.array(
+      z
+        .object({
+          messageIndex: index,
+          variantIdx: index,
+          calls: z.array(wireRecordedToolCallSchema),
+          createdAt: z.int(),
+        })
+        .strip(),
+    ),
+    checkpoints: z.array(
+      z
+        .object({
+          snapshotIndex: index,
+          label: z.string(),
+          trigger: rpgCheckpointTriggerSchema,
+          createdAt: z.int(),
+        })
+        .strip(),
+    ),
+  })
+  .strip();
+
+const wireChatSchema = z
+  .object({
+    title: z.string().catch(""),
+    createdAt: z.int(),
+    updatedAt: z.int(),
+    starred: z.boolean().catch(false),
+    archived: z.boolean().catch(false),
+    // Only an explicit false reads unshared. A bundle written before the flag cannot tell a member's line from the
+    // host's, so an absent or malformed value fails closed and keeps the host's global variables shut.
+    everShared: z.boolean().catch(true),
+    compactSummary: z.string().nullish().catch(null),
+    compactedAtSeq: z.int().nullish().catch(null),
+    metadata: z.record(z.string(), z.unknown()).nullish().catch(null),
+    variableValues: z.record(z.string(), z.string()).nullish().catch(null),
+    userMacroValues: userMacroValuesSchema.nullish().catch(null),
+    anchorPersonaName: z.string().nullish().catch(null),
+    characterHandles: z.array(z.string().trim().min(1)).catch([]),
+    // A malformed list degrades to the handle binding an older bundle gets, never a refused chat.
+    seatCards: z
+      .array(z.object({ handle: z.string().trim().min(1), importHash: z.string().min(1), textHash: z.string().min(1), fileHash: z.string().min(1) }).strip())
+      .optional()
+      .catch(undefined),
+    tagNames: z.array(z.string().trim().min(1)).catch([]),
+    injections: z.array(wireInjectionSchema).catch([]),
+    messages: z.array(wireMessageSchema),
+    pendingGenerationObservations: pendingGenerationObservationsSchema.optional(),
+    assetHashes: z.record(z.string(), z.string()).optional().catch(undefined),
+    // Healed per entry: a malformed strike is dropped alone, never its siblings or the chat; its scene comes back into
+    // recall, visibly, in the view. A list that is not a list at all loses only the plane.
+    memoryStrikes: z
+      .array(
+        z
+          .object({
+            characterHandle: z.string().trim().min(1).nullable(),
+            tier: index,
+            startMessageIndex: index,
+            endMessageIndex: index,
+            topicAnchor: z.string().nullish().catch(null),
+            createdAt: z.int(),
+          })
+          .strip()
+          .nullable()
+          .catch(null),
+      )
+      .optional()
+      .catch(undefined),
+    rpg: wireRpgSchema.nullish().catch(null),
+  })
+  .strip();
 
 type WireChat = z.infer<typeof wireChatSchema>;
 

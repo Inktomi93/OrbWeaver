@@ -17,7 +17,7 @@ import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { QueryBoundary, useFirstBootRows } from "#components";
+import { MutedLine, QueryBoundary, useFirstBootRows } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
@@ -60,9 +60,7 @@ function AdminApprovalsBody({ anchorId }: { readonly anchorId: string }): ReactE
         </Text>
 
         {pending.length === 0 ? (
-          <Text voice="gloss" data-testid={testId("adminApprovalsEmpty")}>
-            No accounts awaiting approval.
-          </Text>
+          <MutedLine data-testid={testId("adminApprovalsEmpty")}>No accounts awaiting approval.</MutedLine>
         ) : (
           <Stack gap="field">
             {pending.map((user) => (

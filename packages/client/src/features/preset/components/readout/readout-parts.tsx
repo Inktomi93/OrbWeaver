@@ -13,11 +13,10 @@
 import type { GenerationCapability } from "@orb/contracts/inference";
 import { modelDisplayName } from "@orb/kit/model-name";
 import { Button } from "@orb/ui/button";
-import { Card } from "@orb/ui/card";
-import { Icon, TriangleAlert } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { MutedLine, Notice } from "#components";
 import { SkeletonRows } from "#data";
 import { DIALOG_VERBS } from "#lib";
 import type { EffectiveProfileRow } from "#src/features/preset/lib/effective-knobs.ts";
@@ -115,7 +114,7 @@ export function EffectiveProfile({
   return (
     <Section kicker="Effective generation">
       {rows.length === 0 && contextWindow === undefined ? (
-        <Text voice="gloss">This model resolves no generation knobs. It takes the prompt and nothing else.</Text>
+        <MutedLine>This model resolves no generation knobs. It takes the prompt and nothing else.</MutedLine>
       ) : (
         <Stack gap="tight">
           {/* DISPLAY names, never the schema key (side-eye F-13): the read is keyed by `maxOutputTokens`,
@@ -164,29 +163,17 @@ export function EffectiveProfileFailure({ error, onRetry }: { readonly error: un
   const message = resolveFailureMessage(error);
   return (
     <Section kicker="Effective generation">
-      <Card tone="warning" variant="soft">
-        <Row align="start" gap="field" role="alert">
-          <Icon icon={TriangleAlert} size="sm" tone="warning" />
-          <Stack gap="tight">
-            <Text cap="prose" prose={true} voice="label">
-              {copy.headline}
-            </Text>
-            {message === null ? null : (
-              <Text cap="prose" prose={true} voice="gloss">
-                {message}
-              </Text>
-            )}
-            <Text cap="prose" prose={true} voice="gloss">
-              {copy.guidance}
-            </Text>
-            {/* `self-start` — a `Stack` stretches its children, and a full-width Retry inside a warning band
-            reads as the band's own primary action rather than as the recovery for the line above it. */}
-            <Button self="start" variant="outline" onClick={onRetry} size="sm" type="button">
-              {DIALOG_VERBS.retry}
-            </Button>
-          </Stack>
-        </Row>
-      </Card>
+      <Notice
+        action={
+          <Button variant="outline" onClick={onRetry} size="sm" type="button">
+            {DIALOG_VERBS.retry}
+          </Button>
+        }
+        alert={true}
+        detail={message === null ? [copy.guidance] : [message, copy.guidance]}
+        title={copy.headline}
+        tone="warning"
+      />
     </Section>
   );
 }

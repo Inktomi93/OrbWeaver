@@ -40,6 +40,8 @@ export interface BridgeAuthority {
   /** Rehydration may rediscover registrations, but may not repeat an effect from the original activation. A display
    *  call holds its grants for reads only. */
   readonly phase: "activation" | "rehydration" | "invocation" | "display" | "snippet" | "lifecycle";
+  /** How many pubsub deliveries deep the command runs: 0 unless a delivery started it. */
+  readonly cascadeDepth: number;
 }
 
 const BRIDGE_HOST_FUNCTION = {
@@ -87,19 +89,21 @@ const SUGGESTED_ACT_HOST_FUNCTION = {
 
 // The guest's turn hints. The direct `chat.requestTurn` and its posture-2 ask both parse with it. The steer
 // takes the cap the app's own steer input has, so an ask cannot carry more text than a member could type.
-const turnHintsSchema = z.object({
-  speakerCharacterId: typeIdSchema(ID_PREFIX.character).exactOptional(),
-  guided: z.string().max(GUIDED_STEER_INPUT_MAX).exactOptional(),
-}) satisfies z.ZodType<Parameters<PluginBridge["chat"]["requestTurn"]>[2]>;
+const turnHintsSchema = z
+  .object({
+    speakerCharacterId: typeIdSchema(ID_PREFIX.character).exactOptional(),
+    guided: z.string().max(GUIDED_STEER_INPUT_MAX).exactOptional(),
+  })
+  .strip() satisfies z.ZodType<Parameters<PluginBridge["chat"]["requestTurn"]>[2]>;
 
 // An ask reaches a host's card and later a confirmed write, so each arm holds to the schema its direct op parses with.
 const suggestedActSchema = z.discriminatedUnion("kind", [
   turnHintsSchema.extend({ kind: z.literal("requestTurn"), automationDepth: z.int().nonnegative() }),
-  z.object({ kind: z.literal("worldInfoUpsert"), entry: pluginWorldEntryUpsertSchema }),
-  z.object({ kind: z.literal("generatePicture"), args: generateImageActionArgsSchema }),
+  z.object({ kind: z.literal("worldInfoUpsert"), entry: pluginWorldEntryUpsertSchema }).strip(),
+  z.object({ kind: z.literal("generatePicture"), args: generateImageActionArgsSchema }).strip(),
 ]) satisfies z.ZodType<PluginSuggestedAct>;
 
-const quickReplyChoicesSchema = z.array(z.object({ label: z.string(), sendText: z.string() })) satisfies z.ZodType<
+const quickReplyChoicesSchema = z.array(z.object({ label: z.string(), sendText: z.string() }).strip()) satisfies z.ZodType<
   Parameters<PluginBridge["surfaceQuickReply"]>[1]
 >;
 
@@ -272,7 +276,7 @@ export function createRemoteBridge(call: AsyncCall): PluginBridge {
       getCardData: (characterId, liveness) => call("character.getCardData", [characterId], liveness) as ReturnType<PluginBridge["character"]["getCardData"]>,
       findCardData: (values, liveness) => call("character.findCardData", [values], liveness) as ReturnType<PluginBridge["character"]["findCardData"]>,
     },
-    pubsub: { emit: (name, data, liveness) => call("pubsub.emit", [name, data], liveness) as Promise<void> },
+    pubsub: { emit: (name, data, depth, liveness) => call("pubsub.emit", [name, data, depth], liveness) as Promise<void> },
   };
 }
 
@@ -386,6 +390,13 @@ function authorizeRequestTurn(chat: InvocationChat | null, operation: PluginBrid
   }
 }
 
+function authorizeEmit(authority: BridgeAuthority, operation: PluginBridgeOperation, args: readonly unknown[]): void {
+  exact(args, THREE_ARGUMENTS, operation);
+  if (numberAt(args, ARG_THIRD, operation) !== authority.cascadeDepth + 1) {
+    throw new Error("plugin broker: pubsub.emit carried a stale delivery depth");
+  }
+}
+
 function authorizeSuggestion(chat: InvocationChat | null, args: readonly unknown[]): void {
   if (chat === null) {
     throw new Error("plugin broker: suggest is missing invocation chat authority");
@@ -425,6 +436,9 @@ export function authorizeBridgeCall(authority: BridgeAuthority, operation: Plugi
   }
   if (operation === "suggest") {
     authorizeSuggestion(chat, args);
+  }
+  if (operation === "pubsub.emit") {
+    authorizeEmit(authority, operation, args);
   }
   if (operation === "ui.setState") {
     authorizeUiState(authority, args);
@@ -582,8 +596,8 @@ export async function dispatchBridgeCall(
       exact(args, 1, operation);
       return await bridge.character.findCardData(arrayAt(args, 0, operation).map((_, index, values) => stringAt(values, index, operation)));
     case "pubsub.emit":
-      exact(args, 2, operation);
-      await bridge.pubsub.emit(stringAt(args, 0, operation), recordAt(args, 1, operation));
+      exact(args, THREE_ARGUMENTS, operation);
+      await bridge.pubsub.emit(stringAt(args, 0, operation), recordAt(args, 1, operation), numberAt(args, 2, operation));
       return undefined;
   }
 }

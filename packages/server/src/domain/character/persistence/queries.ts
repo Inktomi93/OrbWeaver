@@ -67,6 +67,7 @@ const refinerySignalsReadParser = z
       return null;
     }),
   })
+  .strip()
   .nullable()
   .catch(null);
 const extensionsParser = jsonObjectSchema.nullable().catch(null);

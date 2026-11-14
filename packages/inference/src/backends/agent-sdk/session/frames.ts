@@ -331,11 +331,13 @@ export function canonHashOf(seed: readonly SeedTurn[]): string {
 // The runtime writes a `cost-state` entry into the transcript after each turn and, on resume, continues the
 // next result's `modelUsage` and `total_cost_usd` from the latest one for that session.
 const COST_STATE_ENTRY = "cost-state";
-const costStateEntrySchema = z.object({
-  type: z.literal(COST_STATE_ENTRY),
-  sessionId: agentSdkSessionIdSchema,
-  modelUsage: z.record(z.string(), z.object({ costUSD: z.number(), webSearchRequests: z.number() })),
-});
+const costStateEntrySchema = z
+  .object({
+    type: z.literal(COST_STATE_ENTRY),
+    sessionId: agentSdkSessionIdSchema,
+    modelUsage: z.record(z.string(), z.object({ costUSD: z.number(), webSearchRequests: z.number() }).strip()),
+  })
+  .strip();
 
 /** No saved spend: a seeded or forked transcript, and every fresh session. */
 export const NO_SAVED_TOTALS: AgentSdkSessionTotals = { costUsd: 0, webSearchRequests: 0 };
