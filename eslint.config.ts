@@ -747,6 +747,16 @@ const ROLE_COMPARISON_SYNTAX = [
   },
 ];
 
+// An optional cancel is one a caller can drop without a word, and a dropped cancel never reaches the provider call or
+// the workload. A signal is required on every member and parameter; a caller with nothing above it creates one and
+// says why. esquery 1.7 never matches a `:has(> …)` child form, so the union arm looks at any depth.
+const ABORT_SIGNAL_TYPE = "TSTypeReference[typeName.name='AbortSignal']";
+const OPTIONAL_SIGNAL_SYNTAX = {
+  selector: `:matches(TSPropertySignature[optional=true], PropertyDefinition[optional=true], Identifier[optional=true]) > TSTypeAnnotation > ${ABORT_SIGNAL_TYPE}, TSUnionType:has(${ABORT_SIGNAL_TYPE}):has(TSUndefinedKeyword)`,
+  message:
+    "Require the AbortSignal: thread the caller's real signal, and where none exists above, create one with a comment that says why (docs/law/Spine-TypeScript-and-Patterns.md).",
+};
+
 const SERVER_BASE_SYNTAX = [
   {
     selector: String.raw`:matches(Literal[value=type(string)][raw=/corsproxy\.io/], TemplateElement[value.raw=/corsproxy\.io/])`,
@@ -754,6 +764,7 @@ const SERVER_BASE_SYNTAX = [
   },
   ...MODULE_LOADER_SYNTAX,
   ...ROLE_COMPARISON_SYNTAX,
+  OPTIONAL_SIGNAL_SYNTAX,
 ];
 // A child process or Worker launched without `env` inherits the whole process environment, so a reserved agent-SDK
 // key or secret the boot scrub missed reaches it (D8's credential firewall). Every launch in server and inference
