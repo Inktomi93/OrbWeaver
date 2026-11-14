@@ -41,7 +41,7 @@ export interface FetchJsonArgs {
   readonly method?: "GET" | "POST" | undefined;
   readonly headers?: Readonly<Record<string, string>> | undefined;
   readonly body?: unknown;
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
   /** The literals to scrub from any error text (the bearer, secret-valued headers, key-in-body values). */
   readonly secrets: ProviderScrubSet;
   /** Names the call in error messages (`openrouter credits`, `endpoint models`). */
@@ -106,7 +106,7 @@ export interface RetryOptions {
   /** Cap on any single backoff sleep (ms). */
   readonly maxMs?: number;
   /** Caller-cancel that interrupts the backoff sleep (so Stop during a rate-limit wait is prompt). */
-  readonly signal?: AbortSignal;
+  readonly signal: AbortSignal;
   /** Injected jitter RNG in `[0, 1)` — deterministic in tests. */
   readonly random: RandomSource;
   /** The request span's event sink (`provider.retry` / `provider.retry.abandoned`); absent ⇒ no-op. */

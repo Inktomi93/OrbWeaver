@@ -14,7 +14,7 @@ export interface AgentSdkLifetime {
 }
 
 export interface AgentSdkExecution extends AgentSdkLifetime {
-  readonly open: (connection: SpawnIdentity, input: Parameters<AgentSdkQuery>[0], signal?: AbortSignal) => AgentSdkQueryLease;
+  readonly open: (connection: SpawnIdentity, input: Parameters<AgentSdkQuery>[0], signal: AbortSignal) => AgentSdkQueryLease;
 }
 
 export interface AgentSdkExecutionDeps {

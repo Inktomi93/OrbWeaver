@@ -43,7 +43,9 @@ export async function resolveTargetGeneration(
  *  write must not leave a reader holding the transient fallback route after rollback. */
 export async function resolveImageTargetGeneration(ctx: EmbeddingsContext, ownerId: UserId): Promise<PinnedImageSpace | null> {
   return await ctx.withStableEmbeddingBinding(ownerId, async () => {
-    const space = await resolveImageSpace(ctx, ownerId);
+    // Runs inside the owner's binding queue, which pins the image target for every reader; no one caller's cancel
+    // may leave it half-moved, and each resolve keeps its own deadline.
+    const space = await resolveImageSpace(ctx, ownerId, new AbortController().signal);
     if (space === null) {
       return null;
     }

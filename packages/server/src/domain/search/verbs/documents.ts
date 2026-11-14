@@ -66,7 +66,7 @@ function restoreReadingOrder(ranked: readonly DocumentCandidate[]): DocumentChun
 }
 
 export function createDocuments(ctx: SearchContext): SearchService["documents"] {
-  return async (params: DocumentSearchParams): Promise<DocumentChunkHit[]> => {
+  return async (params: DocumentSearchParams & { readonly signal: AbortSignal }): Promise<DocumentChunkHit[]> => {
     const queryText = params.queryText;
     if (queryText.trim().length === 0) {
       throw new SearchError(SEARCH_EMPTY_QUERY, "documents requires a queryText to embed + scan");
@@ -94,7 +94,7 @@ export function createDocuments(ctx: SearchContext): SearchService["documents"] 
       const minScore = params.minScore ?? DEFAULT_DOCUMENT_MIN_SCORE;
 
       // 2. embed the query in the chunks' space.
-      const embedded = await space.connection.embed(queryText, { inputType: "query", instruction: SCOPE_INSTRUCTIONS.documents.query });
+      const embedded = await space.connection.embed(queryText, { inputType: "query", instruction: SCOPE_INSTRUCTIONS.documents.query, signal: params.signal });
       const queryVector = embedded.vectors[0];
       if (queryVector === null || queryVector === undefined) {
         throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
@@ -138,7 +138,14 @@ export function createDocuments(ctx: SearchContext): SearchService["documents"] 
 
       // 6. optional cross-encoder rerank (default OFF).
       const reordered =
-        params.rerank === true ? await applyRerank(`${SCOPE_INSTRUCTIONS.documents.rerank}\n${queryText}`, ranked, rc.rerank, ranked.length) : ranked;
+        params.rerank === true
+          ? await applyRerank(
+              `${SCOPE_INSTRUCTIONS.documents.rerank}\n${queryText}`,
+              ranked,
+              (q, docs) => rc.rerank(q, docs, { signal: params.signal }),
+              ranked.length,
+            )
+          : ranked;
 
       // 7. collapse duplicate chunks (after rank, before k-cap) → 8. k-cap → 9. reading-order restore.
       const collapsed = collapseByContentHash(reordered);

@@ -30,7 +30,7 @@ test("history captures preserve the selected stored card after later live edits 
     content: { description: "The original testimony." },
   });
   root.clock.advance(2000);
-  await root.services.character.update({ ...params, input: { description: "The revised testimony." } });
+  await root.services.character.update({ signal: new AbortController().signal, ...params, input: { description: "The revised testimony." } });
   const second = await seedCharacterHistoryRows(root, { ...params, label: "Revised" });
   expect(second.ref.id).not.toBe(first.ref.id);
   expect(second.summaries.map((row) => row.id)).toEqual([second.ref.id, first.ref.id]);

@@ -310,7 +310,18 @@ async function applyRunOnEditRegex(
     return args.content;
   }
   const assembleContext = await ctx.gatherAssembleContext(
-    { chatId, runAsUserId: hostUserId, model, characterIds, personaIds, timeZone: args.timeZone, prng: deps.prng, choicePicks: "stable" },
+    // An edit's re-apply is a write the request commits whole, so only shutdown may end its gather.
+    {
+      chatId,
+      signal: ctx.backgroundSignal,
+      runAsUserId: hostUserId,
+      model,
+      characterIds,
+      personaIds,
+      timeZone: args.timeZone,
+      prng: deps.prng,
+      choicePicks: "stable",
+    },
     foreign,
   );
   return executeRegexScripts({
@@ -459,6 +470,8 @@ async function freezeSelectedVariant(
   const assembleContext = await ctx.gatherAssembleContext(
     {
       chatId: args.chatId,
+      // A selection's bake is a write the request commits whole, so only shutdown may end its gather.
+      signal: ctx.backgroundSignal,
       runAsUserId: hostUserId,
       model,
       characterIds,

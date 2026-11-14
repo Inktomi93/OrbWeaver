@@ -96,11 +96,23 @@ test("room document consent is current at the native scan, not frozen before que
     .toBe(true);
   expect(await root.services.search.spaceStatus({ ownerId: owner.userId })).toMatchObject({ embed: false });
   const search = (): ReturnType<typeof root.services.search.documents> =>
-    root.services.search.documents({ ownerId: owner.userId, scope: { chatId }, queryText: "current document consent", k: 10 });
+    root.services.search.documents({
+      signal: new AbortController().signal,
+      ownerId: owner.userId,
+      scope: { chatId },
+      queryText: "current document consent",
+      k: 10,
+    });
   const positive = await search();
   expect(positive.map((hit) => hit.documentId).toSorted()).toEqual([hostGlobal.document.id, hostAttached.document.id, memberGlobal.document.id].toSorted());
   expect(JSON.stringify(positive)).not.toContain("Unconsented private marker");
-  const personal = await root.services.search.documents({ ownerId: owner.userId, scope: { ownerId: owner.userId }, queryText: "personal bank", k: 10 });
+  const personal = await root.services.search.documents({
+    signal: new AbortController().signal,
+    ownerId: owner.userId,
+    scope: { ownerId: owner.userId },
+    queryText: "personal bank",
+    k: 10,
+  });
   expect(personal.map((hit) => hit.documentId).toSorted()).toEqual([hostGlobal.document.id, hostAttached.document.id].toSorted());
 
   const revocations = [

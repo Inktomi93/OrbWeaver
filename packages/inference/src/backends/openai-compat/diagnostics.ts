@@ -57,7 +57,7 @@ interface ReadArgs {
   readonly connection: Resolved;
   readonly path: string;
   readonly label: string;
-  readonly signal: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 async function authenticatedRead(deps: DiagnosticsDeps, args: ReadArgs): Promise<unknown> {
@@ -70,7 +70,7 @@ async function authenticatedRead(deps: DiagnosticsDeps, args: ReadArgs): Promise
     headers: authHeaders(connection.credential.secret, connection.transport?.headers),
     secrets: resolvedScrubSet(connection),
     label,
-    ...(signal !== undefined ? { signal } : {}),
+    signal,
   });
   return result.json;
 }
@@ -157,7 +157,7 @@ export async function listOpenAiCompatModels(req: ListModelsRequest, deps: Diagn
   try {
     const models: ModelCatalogEntry[] =
       connection.provider.dialect === "openrouter"
-        ? openRouterEntries(await fetchOpenRouterCatalog({ fetch: deps.fetch, baseUrl, ...(req.signal !== undefined ? { signal: req.signal } : {}) }))
+        ? openRouterEntries(await fetchOpenRouterCatalog({ fetch: deps.fetch, baseUrl, signal: req.signal }))
         : (
             await fetchEndpointModels({
               scheduleTimeout: deps.scheduleTimeout,
@@ -168,7 +168,7 @@ export async function listOpenAiCompatModels(req: ListModelsRequest, deps: Diagn
               secrets,
               // The provider row's reader: a catalog target carries the row, not the folded features.
               modelInfoApi: foldFeatures(connection.provider.features).modelInfoApi,
-              ...(req.signal !== undefined ? { signal: req.signal } : {}),
+              signal: req.signal,
             })
           ).map((row) => bareCatalogEntry(row));
     return listingOf(models);

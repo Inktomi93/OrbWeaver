@@ -5,7 +5,7 @@
 import type { UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../contract/context.ts";
 
-export async function digestsDerivable(ctx: Pick<ChatContext, "summarizeAvailability">, funderUserId: UserId): Promise<boolean> {
-  const availability = await ctx.summarizeAvailability(funderUserId);
+export async function digestsDerivable(ctx: Pick<ChatContext, "summarizeAvailability">, funderUserId: UserId, signal: AbortSignal): Promise<boolean> {
+  const availability = await ctx.summarizeAvailability(funderUserId, signal);
   return availability.available || availability.cause !== "no-connection";
 }

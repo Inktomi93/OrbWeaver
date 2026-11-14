@@ -94,6 +94,7 @@ export interface RewriteGreetingParams extends CharacterActorParams {
   readonly transforms?: readonly GreetingTransformId[];
   /** The host's reported zone for the template's time macros; absent ⇒ UTC. */
   readonly timeZone?: IanaTimeZone | undefined;
+  readonly signal: AbortSignal;
 }
 
 export interface GenerateGreetingParams extends CharacterActorParams {
@@ -104,6 +105,7 @@ export interface GenerateGreetingParams extends CharacterActorParams {
   readonly transforms?: readonly GreetingTransformId[];
   /** The host's reported zone for the template's time macros; absent ⇒ UTC. */
   readonly timeZone?: IanaTimeZone | undefined;
+  readonly signal: AbortSignal;
 }
 
 /** The JSON-then-PNG exception of the import identity (import-injected, internal): the owner's character that

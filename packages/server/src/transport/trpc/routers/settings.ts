@@ -22,7 +22,7 @@ import { updateCheckSchema, versionIdentitySchema } from "@orb/kit/version-ident
 import { strictTwin } from "@orb/kit/zod-schema";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { adminProcedure, authedProcedure, t } from "../trpc.ts";
+import { adminProcedure, authedProcedure, procedureSignal, t } from "../trpc.ts";
 
 /** Upper bound on a pasted background URL (well past any real image URL; bounds the wire before safeFetch). */
 const MAX_BACKGROUND_URL_LENGTH = 2048;
@@ -75,7 +75,9 @@ export const settingsRouter = t.router({
   addExternalBackground: authedProcedure
     .output(backgroundLibraryEntrySchema.strict())
     .input(z.strictObject({ url: z.string().trim().min(1).max(MAX_BACKGROUND_URL_LENGTH) }))
-    .mutation(({ ctx, input }) => ctx.services.settings.addExternalBackground({ principal: ctx.auth, url: input.url })),
+    .mutation(({ ctx, input, signal }) =>
+      ctx.services.settings.addExternalBackground({ principal: ctx.auth, url: input.url, signal: procedureSignal(signal) }),
+    ),
 
   // AppSettings (admin-runtime) — admin-gated at the router; the verb re-checks via the injected guard.
   getAppSettings: adminProcedure.output(effectiveAppConfigSchema).query(({ ctx }) => ctx.services.settings.getAppSettings({ principal: ctx.auth })),

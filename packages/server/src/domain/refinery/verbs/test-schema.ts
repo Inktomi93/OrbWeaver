@@ -16,7 +16,7 @@ import { parseSchemaDocument } from "../substrate/schema-library.ts";
 import { buildStageParse } from "../substrate/stage-parse.ts";
 
 export function createTestSchema(ctx: RefineryContext): RefineryService["testSchema"] {
-  return async ({ principal, schema, stage, characterId }) => {
+  return async ({ principal, schema, stage, characterId, signal }) => {
     const ownerId = principal.userId;
     // Ownership belt FIRST (existence-oracle ordering) — then the draft belt, then the drill.
     const card = await ctx.loadOwnedCard({ ownerId, characterId });
@@ -35,9 +35,10 @@ export function createTestSchema(ctx: RefineryContext): RefineryService["testSch
       ctx.roleClientsFor(ownerId),
     ]);
     const posture = stage === "score" ? SIDE_GEN_POSTURES.refine_score : SIDE_GEN_POSTURES.refine_analyze;
-    const sampleOpts: StructuredOptions = {
+    const sampleOpts: StructuredOptions<AbortSignal> = {
       responseFormat: { name: "refinery_schema_preview", schema: projected },
       ...resolveSideGenSampling(posture, presetParams),
+      signal,
     };
     // The drill prompt: the whole card's populated core in scope (a preview wants the full treatment),
     // the draft's own shape spliced, no guidance. An analyze drill has no rewrite to judge — it reads the

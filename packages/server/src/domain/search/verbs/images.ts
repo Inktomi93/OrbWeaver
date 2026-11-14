@@ -39,7 +39,7 @@ export function createImages(ctx: SearchContext): SearchService["images"] {
         throw new SearchError(SEARCH_EMPTY_QUERY, "images requires a query text to embed + scan");
       }
 
-      const queryVector = await embedImageQuery(space, query);
+      const queryVector = await embedImageQuery(space, query, params.signal);
 
       const pool = await nearestImages(ctx.db, {
         ownerId,
@@ -61,7 +61,12 @@ export function createImages(ctx: SearchContext): SearchService["images"] {
 
       const ordered =
         params.rerank === true
-          ? await applyRerank(`${SCOPE_INSTRUCTIONS.images.rerank}\n${query}`, rerankPoolByScores(ranked, RERANK_POOL_FACTOR * topN), rc.rerank, topN)
+          ? await applyRerank(
+              `${SCOPE_INSTRUCTIONS.images.rerank}\n${query}`,
+              rerankPoolByScores(ranked, RERANK_POOL_FACTOR * topN),
+              (q, docs) => rc.rerank(q, docs, { signal: params.signal }),
+              topN,
+            )
           : ranked;
 
       // A HIT IS A PICTURE AND A PLACE. The hash makes the result renderable; the
@@ -93,12 +98,12 @@ export function createImages(ctx: SearchContext): SearchService["images"] {
   };
 }
 
-async function embedImageQuery(space: ActiveQuerySpace, query: string): Promise<Float32Array> {
+async function embedImageQuery(space: ActiveQuerySpace, query: string, signal: AbortSignal): Promise<Float32Array> {
   const instruction = SCOPE_INSTRUCTIONS.images.query;
   const embedded =
     space.via === "embed"
-      ? await space.connection.embed(query, { inputType: "query", instruction })
-      : await space.connection.imageEmbed({ kind: "text", input: query, instruction });
+      ? await space.connection.embed(query, { inputType: "query", instruction, signal })
+      : await space.connection.imageEmbed({ kind: "text", input: query, instruction }, { signal });
   const vector = embedded.vectors[0];
   if (vector === null || vector === undefined) {
     throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");

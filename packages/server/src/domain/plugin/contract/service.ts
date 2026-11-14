@@ -10,7 +10,6 @@ import type { Principal } from "@orb/contracts/identity";
 import type { ProviderDef } from "@orb/contracts/inference";
 import type {
   DistributedPluginView,
-  InvocationChat,
   ListPluginRecipients,
   PluginBridge,
   PluginBundleAssetView,
@@ -19,10 +18,8 @@ import type {
   PluginDisplayTransformView,
   PluginFanoutResult,
   PluginFrameBody,
-  PluginHandlerRef,
   PluginInstance,
   PluginInstanceCreateData,
-  PluginInvokeArgs,
   PluginLogView,
   PluginMacroView,
   PluginSurfaceState,
@@ -40,7 +37,7 @@ import type { AssetId, ChatId, PluginId, UserId } from "@orb/kit/ids";
 import type { Clock, ScheduleOp } from "@orb/kit/time";
 import type { Logger } from "#foundation/observability";
 import type { PluginGitSource, ScopedEgress } from "#infra/network";
-import type { PluginInvokePhase, ProcessPluginHost } from "#infra/plugin-host";
+import type { ProcessPluginHost } from "#infra/plugin-host";
 import type {
   PluginBelts,
   PluginHostOps,
@@ -130,14 +127,7 @@ export interface PluginHostPort {
    *  per-invocation budget. `chat` sets the handler's invocation-chat scope (a resident tool runs in the
    *  chat it was called from — the domain resolves read/host authority before threading it; `null` = no scope).
    *  `phase` `display` is a query's call, whose host calls may only read. */
-  readonly invoke: (
-    instance: PluginInstance,
-    handler: PluginHandlerRef,
-    argsJson: PluginInvokeArgs,
-    chat: InvocationChat | null,
-    signal?: AbortSignal,
-    phase?: PluginInvokePhase,
-  ) => Promise<string>;
+  readonly invoke: ProcessPluginHost["invoke"];
   /** Run an inline snippet: a FRESH transient instance, run once as the caller under the 5 s wall, then
    *  disposed — no residency. The fixed capability profile + the admitted chat scope are the domain's; the port
    *  returns the drained log + a contained `error` (a snippet crash is data, never a resident-crash counter).

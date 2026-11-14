@@ -33,7 +33,12 @@ test("a character whose stored extensions nest deep still opens, saves and copie
   const read = await harness.services.character.get({ principal: owner, characterId: card.id });
   expect(JSON.stringify(read.extensions)).toBe(stored);
 
-  const saved = await harness.services.character.update({ principal: owner, characterId: card.id, input: { name: "Deep vendor, renamed" } });
+  const saved = await harness.services.character.update({
+    signal: new AbortController().signal,
+    principal: owner,
+    characterId: card.id,
+    input: { name: "Deep vendor, renamed" },
+  });
   expect(saved.name).toBe("Deep vendor, renamed");
   expect(JSON.stringify(saved.extensions)).toBe(stored);
 

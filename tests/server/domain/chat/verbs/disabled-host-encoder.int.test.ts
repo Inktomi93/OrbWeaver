@@ -107,7 +107,8 @@ async function disabledHostRoom(): Promise<DisabledHostRoom> {
 test("a member's context-fit read spends nothing on a disabled host's encoder, and reads again once re-enabled", async () => {
   await using room = await disabledHostRoom();
   const { root, member, chatId, embeds } = room;
-  const readFit = (): ReturnType<typeof root.services.chat.previewContextFit> => root.services.chat.previewContextFit({ principal: member, chatId });
+  const readFit = (): ReturnType<typeof root.services.chat.previewContextFit> =>
+    root.services.chat.previewContextFit({ signal: new AbortController().signal, principal: member, chatId });
 
   const beforeRead = embeds.length;
   expect(await readFit()).toMatchObject({ ceilingTokens: expect.any(Number) });

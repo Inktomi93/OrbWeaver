@@ -56,7 +56,7 @@ async function answer(args: DetectArgs & { readonly signal: AbortSignal }, path:
  * matched none is `null`, which is cached like a match.
  */
 export async function detectServer(args: DetectArgs): Promise<DetectedServer> {
-  const deadline = deadlineSignal(undefined, SERVER_READ_TIMEOUT_MS, args.scheduleTimeout);
+  const deadline = deadlineSignal(args.signal, SERVER_READ_TIMEOUT_MS, args.scheduleTimeout);
   try {
     for (const probe of PROBES) {
       if (probe.schema.safeParse(await answer({ ...args, signal: deadline.signal }, probe.path)).success) {

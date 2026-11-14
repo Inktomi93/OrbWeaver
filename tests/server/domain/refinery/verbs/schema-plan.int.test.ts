@@ -24,14 +24,15 @@ test("cached resolution carries the row-derived Principal and only NoConnection 
   const resolve = vi.fn<Parameters<typeof createResolveStructuredBinding>[0]["resolve"]>().mockResolvedValue({ resolved, warnings: [] });
   const principalOf = vi.fn(async () => actor);
   const binding = createResolveStructuredBinding({ resolve, principalOf });
-  expect(await binding(ownerId)).toBe(resolved);
+  const { signal } = new AbortController();
+  expect(await binding(ownerId, signal)).toBe(resolved);
   expect(principalOf).toHaveBeenCalledWith(ownerId);
-  expect(resolve).toHaveBeenLastCalledWith({ task: "structured", principal: actor, cachedFacts: true });
+  expect(resolve).toHaveBeenLastCalledWith({ task: "structured", principal: actor, cachedFacts: true, signal });
   resolve.mockRejectedValueOnce(new NoConnectionError("no binding"));
-  expect(await binding(ownerId)).toBeNull();
+  expect(await binding(ownerId, new AbortController().signal)).toBeNull();
   const failure = new Error("stored resolver failed");
   resolve.mockRejectedValueOnce(failure);
-  await expect(binding(ownerId)).rejects.toBe(failure);
+  await expect(binding(ownerId, new AbortController().signal)).rejects.toBe(failure);
 });
 
 test("unbound and background refusal precede preset reads, while a funded vehicle-less model remains a model refusal", async ({ harness }) => {
@@ -43,13 +44,13 @@ test("unbound and background refusal precede preset reads, while a funded vehicl
   const params = vi.fn<Parameters<typeof createPlanSchema>[0]["resolveUtilityPresetParams"]>().mockResolvedValue(undefined);
   const resolveStructuredBinding = vi.fn<Parameters<typeof createPlanSchema>[0]["resolveStructuredBinding"]>().mockResolvedValue(null);
   const plan = createPlanSchema({ resolveStructuredBinding, resolveUtilityPresetParams: params });
-  expect(await plan(TEST_OWNER_ID, SCHEMA)).toEqual({ outcome: "unbound" });
+  expect(await plan(TEST_OWNER_ID, SCHEMA, new AbortController().signal)).toEqual({ outcome: "unbound" });
   const connection = makeResolved({ task: "structured", allowBackground: false, credential });
   resolveStructuredBinding.mockResolvedValue(connection);
-  expect(await plan(TEST_OWNER_ID, SCHEMA)).toEqual({ outcome: "background-refused", model: connection.model });
+  expect(await plan(TEST_OWNER_ID, SCHEMA, new AbortController().signal)).toEqual({ outcome: "background-refused", model: connection.model });
   expect(params).not.toHaveBeenCalled();
   resolveStructuredBinding.mockResolvedValue(makeResolved({ task: "structured", allowBackground: true, credential }));
-  expect(await plan(TEST_OWNER_ID, SCHEMA)).toEqual({ outcome: "no-structured", model: connection.model });
+  expect(await plan(TEST_OWNER_ID, SCHEMA, new AbortController().signal)).toEqual({ outcome: "no-structured", model: connection.model });
   expect(params).toHaveBeenCalledWith(TEST_OWNER_ID);
   resolveStructuredBinding.mockResolvedValue(
     makeResolved({
@@ -59,5 +60,5 @@ test("unbound and background refusal precede preset reads, while a funded vehicl
       generation: { output: { maxTokens: { min: 1, max: 8192 }, structured: true, modalities: ["text"] } },
     }),
   );
-  expect(await plan(TEST_OWNER_ID, SCHEMA)).toEqual({ outcome: "sends", model: connection.model, carrier: "native" });
+  expect(await plan(TEST_OWNER_ID, SCHEMA, new AbortController().signal)).toEqual({ outcome: "sends", model: connection.model, carrier: "native" });
 });

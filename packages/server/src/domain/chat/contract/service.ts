@@ -51,6 +51,7 @@ import type {
   ApplyProseRewriteParams,
   ArchiveChatParams,
   ChatEventBoundsParams,
+  CheckSendAvailabilityParams,
   ClearReasoningParams,
   CommitMessageParams,
   CompactParams,
@@ -163,7 +164,7 @@ export interface ChatService {
    *  WITHOUT firing a turn or an API call?" Engine-agnostic; a configured hosted connection reads available
    *  (never pre-flighted). Member-gated; the composer disables SEND + the guided fire actions on `!available`. A host
    *  outside the room's consent set reads `host_unavailable`, and its connection is never read. */
-  readonly checkSendAvailability: (params: GetChatParams) => Promise<RoomSendAvailability>;
+  readonly checkSendAvailability: (params: CheckSendAvailabilityParams) => Promise<RoomSendAvailability>;
   /** Current host's persisted chat binding; member-safe and independent of runtime availability. A host outside the
    *  room's consent set reads `unset`, and its binding is never read. */
   readonly getNextTurnConnection: (params: GetChatParams) => Promise<NextTurnConnectionView>;

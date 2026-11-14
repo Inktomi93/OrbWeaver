@@ -38,6 +38,7 @@ export interface ExtractPromptParams {
   readonly subjectCharacterId?: CharacterId | undefined;
   /** The viewer's reported zone for the extraction template's time macros; absent ⇒ UTC. */
   readonly timeZone?: IanaTimeZone | undefined;
+  readonly signal: AbortSignal;
 }
 
 /** The edit source (doc 01 §3.2): an OWNED asset (owner-gated by `readAsset`) or uploaded bytes the transport
@@ -52,6 +53,7 @@ export interface EditImageParams {
   readonly caller: Principal;
   readonly chatId?: ChatId | undefined;
   readonly source: EditImageSource;
+  readonly signal: AbortSignal;
   readonly instruction: string;
   /** Inpaint region — transparent = editable. Dropped-with-warning by a wire without a mask channel (doc 03 §2.3). */
   readonly mask?: { readonly bytes: Uint8Array; readonly mime: string } | undefined;

@@ -49,7 +49,7 @@ async function room(replies: readonly string[] = ["first"]): Promise<SlotRoom> {
   const fault = presetReadFault();
   const db = construction.use(await freshDb(fault.wrap)).db;
   const h = construction.use(await textRoom(replies, { server: { db }, group: { output: "per-speaker", policy: "list", allowSelfResponses: true } }));
-  const bindings = await h.root.services.connection.listBindings({ principal: h.owner });
+  const bindings = await h.root.services.connection.listBindings({ signal: new AbortController().signal, principal: h.owner });
   const connectionId = bindings.find(({ task }) => task === "chat")?.binding?.connectionId;
   if (connectionId === undefined || connectionId === null) {
     throw new Error("the physical room has no chat connection");

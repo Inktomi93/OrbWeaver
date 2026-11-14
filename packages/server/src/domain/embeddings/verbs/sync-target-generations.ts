@@ -82,7 +82,9 @@ export function createPreviewTargetMove(ctx: EmbeddingsContext): PreviewTargetMo
 
 export function createSyncTargetGenerations(ctx: EmbeddingsContext): EmbeddingsService["syncTargetGenerations"] {
   return async (ownerId: UserId): Promise<EmbedMoveRefusal | null> => {
-    const image = await resolveImageSpace(ctx, ownerId).catch((error: unknown) => {
+    // Runs inside the owner's write queue, which must prove every target before it moves any; no request cancel may
+    // stop it half-proved, and each resolve keeps its own deadline.
+    const image = await resolveImageSpace(ctx, ownerId, new AbortController().signal).catch((error: unknown) => {
       if (isUnresolvableBinding(error)) {
         return null;
       }

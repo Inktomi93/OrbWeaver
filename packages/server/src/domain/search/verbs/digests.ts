@@ -73,9 +73,9 @@ const RERANK_ROLE: Task = "rerank";
  *  classification + provenance field forward, so `kind`/`retryable`/`apiErrorStatus` still read true
  *  downstream. A non-provider failure (a db fault, a bug of ours) is NOT ours to re-frame and passes through
  *  untouched. */
-async function embedQuery(rc: Pick<RoleClients, "embed">, text: string, logger: Logger): Promise<EmbedResult> {
+async function embedQuery(rc: Pick<RoleClients<AbortSignal>, "embed">, text: string, logger: Logger, signal: AbortSignal): Promise<EmbedResult> {
   try {
-    return await rc.embed(text, { inputType: "query", instruction: SCOPE_INSTRUCTIONS.digests.query });
+    return await rc.embed(text, { inputType: "query", instruction: SCOPE_INSTRUCTIONS.digests.query, signal });
   } catch (err) {
     if (!(err instanceof ProviderError)) {
       throw err;
@@ -92,8 +92,8 @@ async function embedQuery(rc: Pick<RoleClients, "embed">, text: string, logger: 
  * digest-recall path has a usable already-retrieved vector result to preserve. */
 async function rerankOrKeep<T extends { readonly id: string; readonly sourceText: string | null }>(env: {
   readonly logger: Logger;
-  readonly rc: RoleClients;
-  readonly params: Pick<DigestsParams, "mode" | "rerankTo">;
+  readonly rc: RoleClients<AbortSignal>;
+  readonly params: Pick<DigestsParams, "mode" | "rerankTo" | "signal">;
   readonly text: string;
   readonly retrieved: T[];
   readonly events: DigestSearchEvents | undefined;
@@ -103,7 +103,12 @@ async function rerankOrKeep<T extends { readonly id: string; readonly sourceText
     return retrieved;
   }
   try {
-    return await applyRerank(`${SCOPE_INSTRUCTIONS.digests.rerank}\n${text}`, retrieved, rc.rerank, params.rerankTo);
+    return await applyRerank(
+      `${SCOPE_INSTRUCTIONS.digests.rerank}\n${text}`,
+      retrieved,
+      (q, docs) => rc.rerank(q, docs, { signal: params.signal }),
+      params.rerankTo,
+    );
   } catch (rerankErr) {
     // The CAUSE is logged before the degrade, matching both sibling degrade seams
     // (`compaction_failed` / `memory_build_failed` in chat's engine, which `getLog(env.logger).warn({ err })` first).
@@ -130,7 +135,7 @@ export function createDigests(ctx: SearchContext): SearchService["digests"] {
 
     const rc = await ctx.roleClientsFor(params.ownerId);
     return await withActiveQuerySpace(ctx, params.ownerId, "embed", async (space) => {
-      const embedded = await embedQuery(space.connection, text, ctx.logger);
+      const embedded = await embedQuery(space.connection, text, ctx.logger, params.signal);
       const queryVector = embedded.vectors[0];
       if (queryVector === null || queryVector === undefined) {
         throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");

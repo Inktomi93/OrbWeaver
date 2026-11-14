@@ -50,14 +50,14 @@ test("a distilled setting reaches the browse rows, the facet and the filter, for
   }
   // One scripted reply per pass: the setting each card stores is whatever its own distill call received.
   replies.set(DISTILLATION_REPLY, distillation(LOOM_SETTING));
-  await seedCharacterDistillations(root, { ownerId: root.ownerId, funderUserId: root.ownerId, characterId: loom.id });
+  await seedCharacterDistillations(root, { signal: new AbortController().signal, ownerId: root.ownerId, funderUserId: root.ownerId, characterId: loom.id });
   replies.set(DISTILLATION_REPLY, distillation(CASTLE_SETTING));
-  await seedCharacterDistillations(root, { ownerId: root.ownerId, funderUserId: root.ownerId, characterId: castle.id });
+  await seedCharacterDistillations(root, { signal: new AbortController().signal, ownerId: root.ownerId, funderUserId: root.ownerId, characterId: castle.id });
   // A free-text field can come back empty or as blank space; neither is a setting a reader can filter by.
   replies.set(DISTILLATION_REPLY, distillation(""));
-  await seedCharacterDistillations(root, { ownerId: root.ownerId, funderUserId: root.ownerId, characterId: empty.id });
+  await seedCharacterDistillations(root, { signal: new AbortController().signal, ownerId: root.ownerId, funderUserId: root.ownerId, characterId: empty.id });
   replies.set(DISTILLATION_REPLY, distillation("   "));
-  await seedCharacterDistillations(root, { ownerId: root.ownerId, funderUserId: root.ownerId, characterId: blank.id });
+  await seedCharacterDistillations(root, { signal: new AbortController().signal, ownerId: root.ownerId, funderUserId: root.ownerId, characterId: blank.id });
 
   const { discovery } = root.services;
   const page = await discovery.browseCharacters(root.ownerId, { sort: "name" });

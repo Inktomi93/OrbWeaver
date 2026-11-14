@@ -48,8 +48,8 @@ test("a second user with the same embedding space retrieves none of the owner's 
   expect(stored.segments.length).toBeGreaterThan(0);
   const query = { queryText: "ledger", mode: "mixB", minScore: 0 } as const;
   const sources = async (ownerId: UserId): Promise<CorpusSource[]> => {
-    const corpusHits = await root.services.search.corpus({ ownerId, ...query });
-    const discovered = await root.services.search.discover({ ownerId, queryText: query.queryText, topN: 10 });
+    const corpusHits = await root.services.search.corpus({ signal: new AbortController().signal, ownerId, ...query });
+    const discovered = await root.services.search.discover({ signal: new AbortController().signal, ownerId, queryText: query.queryText, topN: 10 });
     return [
       ...corpusHits.map((hit) => hit.source),
       ...discovered.standaloneSegments.map((hit) => hit.source),

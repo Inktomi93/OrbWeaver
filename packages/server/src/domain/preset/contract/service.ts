@@ -57,7 +57,7 @@ export interface PresetContext {
   readonly emitUserEvent: EmitUserEvent;
   /** The caller's OWN chat-role capability — the SAME read the editor's params panel already consumes, so the
    *  effective projection and the capability card can never disagree about the model. */
-  readonly resolveChatCapability: ResolveChatCapabilityOp;
+  readonly resolveChatCapability: ResolveChatCapabilityOp<AbortSignal>;
   /** The caller's backward bindings for one preset — the CONTEXT panel's "used by" block. */
   readonly resolvePresetUsage: ResolvePresetUsageOp;
 }

@@ -69,15 +69,10 @@ function fileOutcome(entity: PortableEntity, path: string, result: PortableImpor
 }
 
 /** Import every file routed to one entity, isolating per-file failures into outcomes. */
-async function importEntity(
-  entity: PortableEntity,
-  files: readonly StagedFile[],
-  ownerId: UserId,
-  signal: AbortSignal | undefined,
-): Promise<BundleImportFileOutcome[]> {
+async function importEntity(entity: PortableEntity, files: readonly StagedFile[], ownerId: UserId, signal: AbortSignal): Promise<BundleImportFileOutcome[]> {
   const outcomes: BundleImportFileOutcome[] = [];
   for (const [i, staged] of files.entries()) {
-    if (signal?.aborted === true) {
+    if (signal.aborted) {
       // Everything from HERE on is unreached, not skipped-by-routing and not failed. Naming it is what keeps
       // a cancelled bundle from reporting the same shape as a complete one.
       outcomes.push(...notAttemptedFrom(entity, files.slice(i)));
@@ -109,7 +104,7 @@ async function importInDepOrder(
   registry: PortabilityRegistry,
   byDir: ReadonlyMap<string, readonly StagedFile[]>,
   ownerId: UserId,
-  signal: AbortSignal | undefined,
+  signal: AbortSignal,
 ): Promise<BundleImportFileOutcome[]> {
   const byKind = new Map<PortableKind, PortableEntity>();
   for (const entity of registry) {
@@ -122,7 +117,7 @@ async function importInDepOrder(
     if (entity === undefined || files === undefined || files.length === 0) {
       continue;
     }
-    if (signal?.aborted === true) {
+    if (signal.aborted) {
       // A WHOLE wave the abort landed before: every one of its files is named, not dropped.
       outcomes.push(...notAttemptedFrom(entity, files));
       continue;
@@ -209,6 +204,6 @@ export async function runBundleImport(deps: BundleImportDeps): Promise<BundleImp
     registry,
     ownerId,
     staged,
-    ...(signal !== undefined ? { signal } : {}),
+    signal,
   });
 }

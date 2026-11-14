@@ -63,7 +63,7 @@ export function toForcedToolRoundRequest(input: ForcedToolRoundInput): ChatReque
     history: input.history,
     tools: input.tools,
     toolChoice: FORCED_TOOL_CHOICE,
-    ...(input.signal !== undefined ? { signal: input.signal } : {}),
+    signal: input.signal,
   };
 }
 

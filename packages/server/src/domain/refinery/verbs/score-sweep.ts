@@ -115,7 +115,7 @@ export function createCountScoreSweepCalls(
 
 async function runScoreSweep(deps: RefineryWorkloadDeps, opts: ScoreSweepOptions): Promise<RefineryScoreSweepResult> {
   const { ownerId, funderUserId, rescoreAll, report, signal } = opts;
-  signal?.throwIfAborted();
+  signal.throwIfAborted();
   // The FILL arm pushes "already scored" into SQL — a re-run over a scored library must not pay one model
   // call per card it already knows (`rescoreAll` is the explicit refresh opt-in).
   const { targets, inScope } = await deps.listRefineryScoreTargets({ ...opts, unscoredOnly: !rescoreAll });
@@ -143,13 +143,14 @@ async function runScoreSweep(deps: RefineryWorkloadDeps, opts: ScoreSweepOptions
   // The funder's `summarize` binding answers every card — the sweep is one caller's workload, whoever's
   // cards it enumerates (§7.5-2); the model's window sizes the output cap exactly as a session run does.
   const rc = await deps.roleClientsFor(funderUserId);
-  const facts = await summarizerFactsOf(rc, presetParams, { ownerId: funderUserId, resolveStructuredBinding: deps.resolveStructuredBinding });
-  const sampleOpts: StructuredOptions = {
+  const facts = await summarizerFactsOf(rc, presetParams, { ownerId: funderUserId, resolveStructuredBinding: deps.resolveStructuredBinding, signal });
+  const sampleOpts: StructuredOptions<AbortSignal> = {
     responseFormat: REFINERY_RESPONSE_FORMATS.score,
     ...sweepOutputSamplingOf(items, presetParams, facts.contextTokens),
+    signal,
   };
 
-  signal?.throwIfAborted();
+  signal.throwIfAborted();
   report({ message: `scoring ${items.length} card${items.length === 1 ? "" : "s"}`, current: 0, total: items.length });
   // One batched call fills the role's parallel-slot pipeline; `items[i]` pairs 1:1 with `result.items[i]`.
   const replies = await fetchBatchReplies(rc, items, sampleOpts, deps.logger);
@@ -208,7 +209,12 @@ function readyTargetsOf(targets: readonly RefineryScoreTarget[]): { target: Refi
  *  and the bounded, per-card-contained retry path below re-fetches each of those one at a time
  *  (`SWEEP_RETRY_CONCURRENCY`-bounded) — the poison card fails alone (counted `failed`), the rest score.
  *  This is the same isolation the memory backfill's `summarizeBatchIsolated` gives its digest batch. */
-async function fetchBatchReplies(rc: RoleClients, items: readonly SweepItem[], sampleOpts: StructuredOptions, logger: Logger): Promise<{ text: string }[]> {
+async function fetchBatchReplies(
+  rc: RoleClients<AbortSignal>,
+  items: readonly SweepItem[],
+  sampleOpts: StructuredOptions<AbortSignal>,
+  logger: Logger,
+): Promise<{ text: string }[]> {
   const replies: { text: string }[] = [];
   for (let i = 0; i < items.length; i += SWEEP_SUBMISSION_SIZE) {
     const chunk = items.slice(i, i + SWEEP_SUBMISSION_SIZE);
@@ -239,12 +245,12 @@ async function fetchBatchReplies(rc: RoleClients, items: readonly SweepItem[], s
 async function stampParsedScores(
   deps: RefineryWorkloadDeps,
   pass: {
-    readonly rc: RoleClients;
+    readonly rc: RoleClients<AbortSignal>;
     readonly items: readonly SweepItem[];
     readonly replies: readonly { readonly text: string }[];
-    readonly sampleOpts: StructuredOptions;
+    readonly sampleOpts: StructuredOptions<AbortSignal>;
   },
-  progress: { readonly report: ReportProgress; readonly signal: AbortSignal | undefined },
+  progress: { readonly report: ReportProgress; readonly signal: AbortSignal },
   /** The terminal fan's audience, filled in as each wave stamps (the caller owns it — see `announceSweep`). */
   stampedOwners: Set<UserId>,
 ): Promise<{ scored: number; failed: number }> {
@@ -252,7 +258,7 @@ async function stampParsedScores(
   let scored = 0;
   let failed = 0;
   for (let i = 0; i < items.length; i += SWEEP_RETRY_CONCURRENCY) {
-    progress.signal?.throwIfAborted();
+    progress.signal.throwIfAborted();
     const wave = items.slice(i, i + SWEEP_RETRY_CONCURRENCY);
     const outcome = await runWave(deps, { rc, wave, replies: replies.slice(i, i + wave.length), sampleOpts, stampedOwners });
     scored += outcome.scored;
@@ -268,10 +274,10 @@ async function stampParsedScores(
 async function runWave(
   deps: RefineryWorkloadDeps,
   args: {
-    readonly rc: RoleClients;
+    readonly rc: RoleClients<AbortSignal>;
     readonly wave: readonly SweepItem[];
     readonly replies: readonly { readonly text: string }[];
-    readonly sampleOpts: StructuredOptions;
+    readonly sampleOpts: StructuredOptions<AbortSignal>;
     /** The terminal fan's audience — every owner this wave actually stamped (the caller announces). */
     readonly stampedOwners: Set<UserId>;
   },
@@ -294,7 +300,12 @@ async function runWave(
 /** Parse ONE card's score through the structured-turn helper (D79): the batch reply is the first attempt
  *  (already fetched — it cannot throw); a per-card retry re-summarizes that one card with the validation
  *  issues appended. Returns the payload, or `null` when the card FAILED (containment — the header). */
-async function parseOneScore(rc: RoleClients, item: SweepItem, batchText: string, sampleOpts: StructuredOptions): Promise<RefineryScorePayload | null> {
+async function parseOneScore(
+  rc: RoleClients<AbortSignal>,
+  item: SweepItem,
+  batchText: string,
+  sampleOpts: StructuredOptions<AbortSignal>,
+): Promise<RefineryScorePayload | null> {
   const run = (correction?: string): Promise<string> =>
     correction === undefined ? Promise.resolve(batchText) : retryScoreOne(rc, item, correction, sampleOpts);
   // `runWave` counts every `null` payload into `RefineryScoreSweepResult.failed`.
@@ -310,7 +321,7 @@ async function parseOneScore(rc: RoleClients, item: SweepItem, batchText: string
 
 /** Re-summarize ONE card with the zod issues appended — the structured-turn helper's bounded retry. Rides
  *  the SAME resolved posture AND the same assembled prompt the batch call used. */
-async function retryScoreOne(rc: RoleClients, item: SweepItem, correction: string, sampleOpts: StructuredOptions): Promise<string> {
+async function retryScoreOne(rc: RoleClients<AbortSignal>, item: SweepItem, correction: string, sampleOpts: StructuredOptions<AbortSignal>): Promise<string> {
   const res = await rc.structured([{ systemPrompt: item.system, userPrompt: `${item.user}\n\n${correction}` }], sampleOpts);
   return res.items[0]?.text ?? "";
 }

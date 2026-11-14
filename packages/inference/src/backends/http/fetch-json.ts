@@ -88,7 +88,7 @@ export function isRedirect(res: Response): boolean {
 
 /** A thrown `fetch` → the typed error, cancellation bound to THIS request's signal (never the error's text). */
 function transportError(args: FetchJsonArgs, cause: unknown): ProviderError {
-  if (args.signal?.aborted === true) {
+  if (args.signal.aborted) {
     return new ProviderError({ kind: "aborted", retryable: false, message: `${args.label}: request aborted`, cause });
   }
   return new ProviderError({ kind: "server", retryable: true, message: `${args.label}: transport failure`, cause });
@@ -122,7 +122,7 @@ export async function fetchJson(args: FetchJsonArgs): Promise<FetchJsonResult> {
       headers: { ...(args.body !== undefined ? { "content-type": JSON_CONTENT_TYPE } : {}), ...(args.headers ?? {}) },
       ...(args.body !== undefined ? { body: JSON.stringify(args.body) } : {}),
       redirect: "manual",
-      ...(args.signal !== undefined ? { signal: args.signal } : {}),
+      signal: args.signal,
     })
     .catch((cause: unknown) => {
       throw transportError(args, cause);

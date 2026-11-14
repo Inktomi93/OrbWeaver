@@ -83,21 +83,21 @@ test("a sweep captions and embeds each avatar once, resumes at no cost, and forc
   const embeddings = root.app.embeddings;
   expect(room.posts()).toBe(0);
 
-  const quoted = await embeddings.countAssetAnalysisCalls({ ownerId: owner.userId, force: false });
+  const quoted = await embeddings.countAssetAnalysisCalls({ signal: new AbortController().signal, ownerId: owner.userId, force: false });
   expect(quoted).toBe(2);
   expect(await embeddings.embedAssets({ ownerId: null, force: false, signal: signal() })).toEqual({ embedded: 2, skipped: 0 });
   // The quote is what the sweep spent: one caption per avatar.
   expect(room.captions()).toBe(quoted);
   expect(await root.db.select().from(imageAnalyses)).toHaveLength(2);
   expect((await root.db.select().from(imageEmbeddings)).map((row) => row.lens)).toEqual([CAPTIONED_LENS, CAPTIONED_LENS]);
-  expect(await embeddings.countAssetAnalysisCalls({ ownerId: owner.userId, force: false })).toBe(0);
+  expect(await embeddings.countAssetAnalysisCalls({ signal: new AbortController().signal, ownerId: owner.userId, force: false })).toBe(0);
 
   // Resumable: a rerun checks the stored hash before any caption or vector request leaves.
   const spent = room.posts();
   expect(await embeddings.embedAssets({ ownerId: null, force: false, signal: signal() })).toEqual({ embedded: 0, skipped: 2 });
   expect(room.posts()).toBe(spent);
 
-  const forcedQuote = await embeddings.countAssetAnalysisCalls({ ownerId: owner.userId, force: true });
+  const forcedQuote = await embeddings.countAssetAnalysisCalls({ signal: new AbortController().signal, ownerId: owner.userId, force: true });
   expect(forcedQuote).toBe(2);
   expect(await embeddings.embedAssets({ ownerId: null, force: true, signal: signal() })).toEqual({ embedded: 2, skipped: 0 });
   expect(room.captions()).toBe(quoted + forcedQuote);
@@ -154,7 +154,7 @@ test("an avatar already indexed by its own event still promotes its generation i
   }
   const stored = await root.app.assets.store({ principal: owner, ...avatar, kind: "avatar" });
   // The write-time indexer is the event path the catch-up must not repeat.
-  await root.app.embeddings.indexAsset(stored.assetId);
+  await root.app.embeddings.indexAsset(stored.assetId, { signal: new AbortController().signal });
   const indexed = (await root.db.select().from(imageEmbeddings)).length;
   expect(indexed).toBe(1);
   expect(await root.db.select().from(embedSpaceState).where(eq(embedSpaceState.scope, "images"))).toEqual([]);

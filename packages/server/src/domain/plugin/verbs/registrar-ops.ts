@@ -75,7 +75,10 @@ export function createPluginRegistrarOps(deps: PluginRegistrarDeps): PluginRegis
             }
             // A rejected handler is already logged with its plugin and cause by the resident `invoke`, so it is
             // not rethrown here (that would log the same failure twice).
-            await Promise.allSettled(refs.map((handler) => invoke(handler, argsJson, eventChat)));
+            // A bus delivery is detached from the emit that caused it, so nothing above can cancel it; the invocation
+            // budget bounds each handler.
+            const signal = new AbortController().signal;
+            await Promise.allSettled(refs.map((handler) => invoke(handler, argsJson, eventChat, signal)));
           });
         },
       });

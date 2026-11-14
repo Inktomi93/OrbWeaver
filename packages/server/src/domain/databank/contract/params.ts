@@ -177,6 +177,7 @@ export interface DatabankGatherParams {
   readonly hostUserId: UserId;
   readonly queryText: string;
   readonly tokenBudget: number;
+  readonly signal: AbortSignal;
   /** The retrieval params (the host's `UserSettings.databank.retrieval`, threaded via ForeignInputs) the
    *  gather passes to `search.documents`. Absent ⇒ gather omits them and search uses its own defaults, which
    *  ARE the databank defaults (the byte-identity pin: an old caller not supplying these is unchanged). */

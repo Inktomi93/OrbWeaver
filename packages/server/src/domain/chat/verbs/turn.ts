@@ -819,6 +819,9 @@ async function buildTurnContext(
   const assembleContext = await ctx.gatherAssembleContext(
     {
       chatId: args.chatId,
+      // The gather runs before the turn registers the Stop handle that cancels it, so only shutdown can end its
+      // retrieval.
+      signal: ctx.backgroundSignal,
       runAsUserId: args.runAsUserId,
       model: args.model,
       characterIds: args.characterIds,
@@ -1021,8 +1024,8 @@ async function arbitrate(
     readonly recentRows: readonly MessageView[];
     readonly maxSpeakers?: number | undefined;
     /** The turn's abort signal — threaded into the `smart` side-LLM call so a non-responsive arbiter box
-     *  can't hang the turn. Absent on the paths that never reach the side-LLM. */
-    readonly signal?: AbortSignal | undefined;
+     *  can't hang the turn. */
+    readonly signal: AbortSignal;
   },
 ): Promise<ArbitrationOutcome> {
   const forced = args.forcedIds ?? [];
@@ -1102,12 +1105,12 @@ async function smartPick(ctx: ChatContext, deps: TurnDeps, args: SmartPickArgs):
     ...(args.banLast !== undefined ? { banLast: args.banLast } : {}),
     mentionedIds: args.mentionedIds,
     rng: deps.prng,
-    ...(args.signal !== undefined ? { signal: args.signal } : {}),
+    signal: args.signal,
   };
   if (args.group.smartPicker === "reranker") {
     return await rerankPickVia({
       ...shared,
-      reranker: () => ctx.resolveSpeakerReranker(args.funderUserId),
+      reranker: () => ctx.resolveSpeakerReranker(args.funderUserId, args.signal),
       lastLine: transcript.at(-1) ?? null,
     });
   }
@@ -1116,7 +1119,7 @@ async function smartPick(ctx: ChatContext, deps: TurnDeps, args: SmartPickArgs):
   const arbiterSampling = resolveSideGenSampling(SIDE_GEN_POSTURES.arbiter, await ctx.resolveUtilityPresetParams(args.funderUserId));
   return await smartArbitrateVia({
     ...shared,
-    arbiter: () => ctx.resolveSpeakerArbiter(args.funderUserId, args.chatId),
+    arbiter: () => ctx.resolveSpeakerArbiter(args.funderUserId, args.chatId, args.signal),
     transcript,
     room: args.assembled,
     sampling: arbiterSampling,
@@ -2484,12 +2487,9 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
  *  The law's one home is `infra/providers/backends/http/abort-flatten.ts` (sealed to domain — this is the same
  *  fold spelled locally, as `domain/rpg/flush-barrier.ts` does). An ALREADY-aborted source aborts
  *  synchronously, so a call entered post-cancel never reaches the wire. */
-function foldCancellation(controller: AbortController, sources: readonly (AbortSignal | undefined)[]): () => void {
+function foldCancellation(controller: AbortController, sources: readonly AbortSignal[]): () => void {
   const onAbort = (): void => controller.abort();
   const attached = sources.flatMap((source) => {
-    if (source === undefined) {
-      return [];
-    }
     if (source.aborted) {
       controller.abort();
       return [];

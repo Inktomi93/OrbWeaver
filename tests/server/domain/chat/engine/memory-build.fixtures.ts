@@ -52,7 +52,9 @@ export async function room(): Promise<
       transcript: [1, 2, 3].map((index) => ({ role: "assistant" as const, content: `The keeper's historical memory ${index}.` })),
     }),
   );
-  const chatBinding = (await h.root.services.connection.listBindings({ principal: h.owner })).find(({ task }) => task === "chat")?.binding;
+  const chatBinding = (await h.root.services.connection.listBindings({ signal: new AbortController().signal, principal: h.owner })).find(
+    ({ task }) => task === "chat",
+  )?.binding;
   if (chatBinding === undefined || chatBinding === null || chatBinding.connectionId === null) {
     throw new Error("the real memory room has no saved chat binding");
   }

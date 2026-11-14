@@ -29,7 +29,7 @@ const COPY_NAME_SUFFIX = " (refined)";
 const overallScoreCoreSchema = z.object({ overallScore: z.number() });
 
 export function createApplyAsCopy(ctx: RefineryContext): RefineryService["applyAsCopy"] {
-  return async ({ principal, sessionId, accepts, name, rewriteRunId }) => {
+  return async ({ principal, sessionId, accepts, name, rewriteRunId, signal }) => {
     const ownerId = principal.userId;
     // Base = the LIVE card (§17 — the user reviewed diffs against it), same belts + loads as the merge
     // arm (the shared preamble resolver).
@@ -45,7 +45,7 @@ export function createApplyAsCopy(ctx: RefineryContext): RefineryService["applyA
     // whole write belt over the accepted patch + the copy's name.
     const duplicated = await ctx.duplicateCharacter({ principal, characterId: session.characterId });
     const input = updateCharacterSchema.parse({ ...patch, name: copyName });
-    const detail = await ctx.updateCharacter({ principal, characterId: duplicated.id, input });
+    const detail = await ctx.updateCharacter({ principal, characterId: duplicated.id, input, signal });
 
     // Signal stamps CORRELATED to the applied rewrite — never the session's head, which drifts
     // the moment a newer score/analyze run lands after an OLDER named rewrite is applied (the §16.1

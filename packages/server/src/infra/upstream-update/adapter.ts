@@ -78,6 +78,8 @@ export function createUpstreamFetches(deps: UpstreamFetchDeps): UpstreamProbes {
           "user-agent": `${APP_NAME}/${deps.localVersion()} (+${APP_URL})`,
         },
         maxBytes: MAX_BYTES,
+        // Every update check joins one cached probe, so no one caller's cancel may end it; the fetch keeps its deadline.
+        signal: new AbortController().signal,
         deadlineMs: DEADLINE_MS,
         allowedContentTypes: ["application/json"],
       });

@@ -42,7 +42,7 @@ export interface ChatToolExecutionData extends ToolExecutionData {
 export type ToolHandlerResult = { readonly ok: true; readonly value: unknown } | { readonly ok: false; readonly error: string };
 
 /** A compose-time tool's declared data: everything but its handler. Plugin tools arrive as {@link PluginToolSpecData}. */
-export interface ToolDescriptor<A = unknown> {
+interface ToolDescriptor<A = unknown> {
   /** Registry key + the wire `function.name`. */
   readonly name: string;
   /** The model-facing contract: verb-first, states effects + when to call. Projected verbatim. */
@@ -55,9 +55,15 @@ export interface ToolDescriptor<A = unknown> {
 }
 
 /** A descriptor plus a handler that needs only the signal-free execution data. A registrant that never reads the
- *  turn's cancellation (rpg, imagery) types its tools with this; tool-use runs them through its own `ToolDefinition`. */
+ *  turn's cancellation (rpg) types its tools with this; tool-use runs them through its own `ToolDefinition`. */
 export interface ToolHandlerDefinition<A = unknown> extends ToolDescriptor<A> {
   readonly handler: (args: A, exec: ChatToolExecutionData) => Promise<ToolHandlerResult>;
+}
+
+/** A descriptor plus a handler that passes the turn's cancellation on to the work it starts. `Signal` is the
+ *  runtime's abort type, which this isomorphic package cannot name; the server binds `AbortSignal`. */
+export interface SignalledToolHandlerDefinition<A, Signal> extends ToolDescriptor<A> {
+  readonly handler: (args: A, exec: ChatToolExecutionData & { readonly signal: Signal }) => Promise<ToolHandlerResult>;
 }
 
 /** A RUNTIME plugin-tool registration, less the guest `invoke` closure (it takes an `AbortSignal`, so the

@@ -24,7 +24,7 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { reportedTimeZoneSchema } from "@orb/kit/time";
 import { strictTwin } from "@orb/kit/zod-schema";
 import { z } from "zod";
-import { authedProcedure, t } from "../trpc.ts";
+import { authedProcedure, procedureSignal, t } from "../trpc.ts";
 
 /** The greeting studio's picked transform KINDS — DERIVED from the catalog's id tuple, never re-spelled. */
 const greetingTransformIds = z.array(z.enum(GREETING_TRANSFORM_IDS));
@@ -101,11 +101,12 @@ export const characterRouter = t.router({
   update: authedProcedure
     .output(strictTwin(characterDetailSchema))
     .input(strictTwin(z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character), input: updateCharacterSchema })))
-    .mutation(({ ctx, input }) =>
+    .mutation(({ ctx, input, signal }) =>
       ctx.services.character.update({
         principal: ctx.auth,
         characterId: input.characterId,
         input: input.input,
+        signal: procedureSignal(signal),
       }),
     ),
 
@@ -221,7 +222,7 @@ export const characterRouter = t.router({
         timeZone: reportedTimeZoneSchema,
       }),
     )
-    .mutation(({ ctx, input }) =>
+    .mutation(({ ctx, input, signal }) =>
       ctx.services.character.rewriteGreeting({
         principal: ctx.auth,
         characterId: input.characterId,
@@ -229,6 +230,7 @@ export const characterRouter = t.router({
         steer: input.steer,
         ...(input.transforms === undefined ? {} : { transforms: input.transforms }),
         timeZone: input.timeZone,
+        signal: procedureSignal(signal),
       }),
     ),
 
@@ -242,13 +244,14 @@ export const characterRouter = t.router({
         timeZone: reportedTimeZoneSchema,
       }),
     )
-    .mutation(({ ctx, input }) =>
+    .mutation(({ ctx, input, signal }) =>
       ctx.services.character.generateGreeting({
         principal: ctx.auth,
         characterId: input.characterId,
         steer: input.steer,
         ...(input.transforms === undefined ? {} : { transforms: input.transforms }),
         timeZone: input.timeZone,
+        signal: procedureSignal(signal),
       }),
     ),
 });

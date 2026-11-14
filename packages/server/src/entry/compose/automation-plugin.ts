@@ -237,7 +237,9 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     generatePicture: automationRuntime.generatePicture,
     listBackgroundChoices: automationRuntime.listBackgroundChoices,
     setChatBackground: async ({ authorUserId, chatId, background }) => {
-      await chat.setChatBackground({ principal: await resolveOwnerPrincipal(authorUserId), chatId, background });
+      // An automation arm runs off the domain bus with no request, turn or workload above it, so nothing can cancel
+      // the background fetch; the egress deadline bounds it.
+      await chat.setChatBackground({ principal: await resolveOwnerPrincipal(authorUserId), chatId, background, signal: new AbortController().signal });
     },
     isToolDrivableBy: (toolName, authorUserId) => deps.toolUse.isToolDrivableBy(toolName, authorUserId),
     runTool: automationRuntime.runTool,

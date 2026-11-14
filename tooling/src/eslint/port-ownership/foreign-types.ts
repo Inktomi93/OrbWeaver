@@ -21,7 +21,6 @@ export type ForeignTypes = Readonly<Record<ForeignKind, readonly string[]>>;
 // Server types the tool-registry ruling keeps in their domain, by name, with the plan for a consumer that names one.
 const KEPT_SHAPES: ReadonlyMap<string, string> = new Map([
   ["ResolvedToolSet", "ResolvedToolSet stays private to tool-use: the consumer takes it as an opaque type parameter"],
-  ["ToolHandler", "the tool handler signature carries AbortSignal: it stays with the consuming domain's contract/"],
 ]);
 
 /** The `@orb/db` types that carry a database handle or an unexecuted statement across a boundary. */

@@ -678,6 +678,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
           resolve: built.runtime.resolve,
           principals: [principal],
           enabled: env.LOCAL_LIGHT_PREFETCH === "on",
+          signal: bootAbort.signal,
         });
         stopLocalLightPrefetch = built.runtime.localLight.prefetch.start(targets);
       });

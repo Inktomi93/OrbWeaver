@@ -1,7 +1,7 @@
 import type { HistoryFloorSeq, ResolveViewerVisibility } from "@orb/contracts/chat";
 import type { EmbeddingConnectionFacts, EmbeddingTask, ResolveEmbeddingConnectionOp } from "@orb/contracts/embeddings";
-import type { EmbedResult, ImageEmbedResult } from "@orb/contracts/providers";
-import type { ImageEmbedInput, RoleClientsFor } from "@orb/contracts/role-clients";
+import type { ImageEmbedResult } from "@orb/contracts/providers";
+import type { ImageEmbedInput, RoleClients, RoleClientsFor } from "@orb/contracts/role-clients";
 import type {
   CorpusSource,
   DocumentSearchParams,
@@ -60,11 +60,8 @@ export type ResolveActiveDocumentScopeOp = (scope: DocumentSearchParams["scope"]
 /** The resolved encoder a query embeds through: the shared connection facts plus the two call closures search
  *  invokes. The embeddings owner's snapshot satisfies it. */
 export interface QueryEmbedConnection extends EmbeddingConnectionFacts {
-  readonly embed: (
-    input: string | readonly string[],
-    opts?: { inputType?: "query" | "document"; instruction?: string; signal?: AbortSignal | undefined },
-  ) => Promise<EmbedResult>;
-  readonly imageEmbed: (input: ImageEmbedInput) => Promise<ImageEmbedResult>;
+  readonly embed: RoleClients<AbortSignal>["embed"];
+  readonly imageEmbed: (input: ImageEmbedInput, opts: { signal: AbortSignal }) => Promise<ImageEmbedResult>;
 }
 
 export type ResolveQueryConnection = ResolveEmbeddingConnectionOp<QueryEmbedConnection>;
@@ -89,7 +86,7 @@ export interface SearchContext {
   readonly db: ReadOnlyDb;
   /** The per-OWNER role-client bundle (inference program §7.5-2): every retrieval embeds the query in the
    *  OWNER's space (their `embed`/`imageEmbed` binding) and reranks on their `rerank` row. */
-  readonly roleClientsFor: RoleClientsFor;
+  readonly roleClientsFor: RoleClientsFor<AbortSignal>;
   readonly resolveEmbeddingConnection: ResolveQueryConnection;
   /** Consumed only by the lexical fields/suggest engine's per-owner BM25 index cache (TTL freshness). */
   readonly now: Clock;
@@ -106,8 +103,8 @@ export interface SearchService {
   readonly knn: (params: KnnParams) => Promise<SearchHit[]>;
   readonly findCharacters: (params: FindCharactersParams) => Promise<CharacterCardHit[]>;
   /** Returns ranked hits each carrying its BlockKey — the compose root maps these into ChatContext. */
-  readonly digests: SearchDigestHitsOp;
-  readonly corpus: SearchCorpusHitsOp;
+  readonly digests: SearchDigestHitsOp<AbortSignal>;
+  readonly corpus: SearchCorpusHitsOp<AbortSignal>;
   /** Ranks on raw cosine distance — hub_score is deliberately not applied on this cross-modal path. */
   readonly images: (params: ImagesParams) => Promise<ImageSearchHit[]>;
   /** score is a BM25 score (higher = better). */
@@ -117,7 +114,7 @@ export interface SearchService {
   /** The databank RAG lens (DB5): scope-gated cosine retrieval over `document_chunks`, reading-order
    *  restored. Scope resolves through the injected `resolveActiveDocumentIds` — an empty bank short-circuits
    *  with ZERO embed calls. */
-  readonly documents: SearchDocumentsOp;
+  readonly documents: SearchDocumentsOp<AbortSignal>;
   readonly similarCharacters: SimilarCharactersOp;
   readonly similarArt: (params: SimilarArtParams) => Promise<SimilarArtHit[]>;
   /** The unified omnibox dispatch — one query + target + scope → the matching verb's hits, tagged by

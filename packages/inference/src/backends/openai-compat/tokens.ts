@@ -92,7 +92,7 @@ function tokenizeAbort(cause: unknown): ProviderError {
   return new ProviderError({ kind: "aborted", retryable: false, message: "tokenize: request aborted", cause });
 }
 
-async function requestTokens(fetchImpl: typeof fetch, target: TokenTarget, text: string, signal?: AbortSignal): Promise<ReturnType<TokenizeSpec["read"]>> {
+async function requestTokens(fetchImpl: typeof fetch, target: TokenTarget, text: string, signal: AbortSignal): Promise<ReturnType<TokenizeSpec["read"]>> {
   const spec = TOKENIZE_SPECS[target.api];
   const result = await fetchJson({
     fetch: fetchImpl,
@@ -108,7 +108,7 @@ async function requestTokens(fetchImpl: typeof fetch, target: TokenTarget, text:
 }
 
 /** Chat text is private turn data; the persistent logit-bias lexicon must never retain it. */
-export function passageCounterFor(fetchImpl: typeof fetch, connection: Resolved): ((text: string, signal?: AbortSignal) => Promise<number>) | null {
+export function passageCounterFor(fetchImpl: typeof fetch, connection: Resolved): ((text: string, signal: AbortSignal) => Promise<number>) | null {
   const target = tokenTargetOf(connection);
   return target === null ? null : async (text, signal): Promise<number> => (await requestTokens(fetchImpl, target, text, signal)).ids.length;
 }
@@ -128,12 +128,12 @@ export function createTokenLexicon(deps: { readonly fetch: typeof fetch; readonl
     return cached;
   };
 
-  const ask = async (target: TokenTarget, word: string, signal?: AbortSignal): Promise<WordTokens> => {
+  const ask = async (target: TokenTarget, word: string, signal: AbortSignal): Promise<WordTokens> => {
     try {
       const read = await requestTokens(deps.fetch, target, word, signal);
       return { ok: true, word, ids: read.ids, ...(read.pieces !== undefined ? { pieces: read.pieces } : {}) };
     } catch (err) {
-      if (signal?.aborted === true) {
+      if (signal.aborted) {
         throw tokenizeAbort(err);
       }
       return { ok: false, word, reason: errorMessage(err) };
@@ -188,7 +188,7 @@ export async function resolveWordBias(args: {
   readonly connection: Resolved;
   readonly lexicon: TokenLexicon;
   readonly warnings: ResolvedWarning[];
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }): Promise<ResolvedSampling> {
   const { sampling, connection, lexicon, warnings, signal } = args;
   const bias = sampling.logitBias;

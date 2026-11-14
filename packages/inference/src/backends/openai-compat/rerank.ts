@@ -155,7 +155,7 @@ export async function runOpenAiCompatRerank(req: RerankRequest, deps: RerankDeps
     },
     secrets: resolvedScrubSet(connection),
     label,
-    ...(req.signal !== undefined ? { signal: req.signal } : {}),
+    signal: req.signal,
   });
   return toResult(rerankResponseSchema.parse(result.json), docs, req);
 }

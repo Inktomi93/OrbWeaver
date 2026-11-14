@@ -160,7 +160,7 @@ export interface RpgTurnRuntime<Connection, ToolCall, Signal> extends RpgTurnFac
   readonly connection: Connection;
   /** Null means no usable folded channel; an empty array means it ran and recorded no calls. */
   readonly terminalToolCalls: readonly ToolCall[] | null;
-  readonly signal: Signal | undefined;
+  readonly signal: Signal;
 }
 
 /** A game turn's gather contribution plus the TERMINAL tools the contributor mounts on this turn. Chat attaches them

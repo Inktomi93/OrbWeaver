@@ -127,6 +127,7 @@ async function resolveBackgroundOverride(
   ctx: CharacterContext,
   principal: Principal,
   input: UpdateCharacterParams["input"],
+  signal: AbortSignal,
 ): Promise<UpdateCharacterParams["input"]> {
   const bg = input.backgroundOverride;
   if (bg === null || bg === undefined || bg.kind !== "external") {
@@ -136,7 +137,7 @@ async function resolveBackgroundOverride(
   if (url.length === 0) {
     return { ...input, backgroundOverride: { ...bg, kind: "none" } };
   }
-  const result = await ctx.materializeBackground(principal, url);
+  const result = await ctx.materializeBackground(principal, url, signal);
   if (!result.ok) {
     throw new CharacterOperationError(CHARACTER_BACKGROUND_UNAVAILABLE, backgroundMaterializeMessage(result.reason));
   }
@@ -154,7 +155,7 @@ async function resolveBackgroundOverride(
 }
 
 export function createUpdate(ctx: CharacterContext): CharacterService["update"] {
-  return async ({ principal, characterId, input: rawInput, expectedBasis }: UpdateCharacterParams) => {
+  return async ({ principal, characterId, input: rawInput, expectedBasis, signal }) => {
     const ownerId = principal.userId;
     // ORDER IS SECURITY-LOAD-BEARING: AUTHORIZE THE TARGET, THEN FETCH. `resolveBackgroundOverride`
     // drives an outbound fetch + image processing + a CAS/db write for any `kind:"external"` override, all
@@ -169,7 +170,7 @@ export function createUpdate(ctx: CharacterContext): CharacterService["update"] 
     }
     // Materialize AFTER the ownership load but still BEFORE `ensureBackgroundOverrideOwned` — the resolved
     // source is `kind:"asset"` referencing a freshly-stored OWN asset, so that belt passes on it unchanged.
-    const input = await resolveBackgroundOverride(ctx, principal, rawInput);
+    const input = await resolveBackgroundOverride(ctx, principal, rawInput, signal);
     if (input.avatarAssetId !== null && input.avatarAssetId !== undefined) {
       await ensureAvatarAsset(ctx.db, ownerId, input.avatarAssetId);
     }

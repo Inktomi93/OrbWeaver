@@ -237,7 +237,7 @@ export function createActivate(
       try {
         return await ctx.host.invoke(instance, handler, argsJson, chat, signal, phase);
       } catch (err) {
-        if (!isHostAdmissionRefusal(err) && signal?.reason !== DEADLINE_ABORT_REASON) {
+        if (!isHostAdmissionRefusal(err) && signal.reason !== DEADLINE_ABORT_REASON) {
           ctx.host.logFailure(instance, pluginFailureLine(slug, invokeFailureKind(err), errorMessage(err)));
         }
         throw err;

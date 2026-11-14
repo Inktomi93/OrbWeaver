@@ -62,7 +62,8 @@ export function createPluginEventBus(logger: Logger, traces: TraceRing): PluginE
             // A rejection is already logged with its plugin and cause by the resident `invoke`, so it is settled
             // here rather than rethrown into a second "detached operation failed" line.
             superviseDetached(`plugin-pubsub:${sub.emitterSlug}:${sub.name}`, "plugin.pubsub.deliver", { emitterSlug: sub.emitterSlug, name: sub.name }, () =>
-              Promise.allSettled([invoke(sub.handler, payloadJson, null)]),
+              // Detached from the emitter, so nothing above can cancel it; the invocation budget bounds the handler.
+              Promise.allSettled([invoke(sub.handler, payloadJson, null, new AbortController().signal)]),
             );
           },
         };

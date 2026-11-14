@@ -9,7 +9,7 @@ export interface MemoryEmbeddingDeps {
 }
 export interface MemoryEmbeddingOps {
   readonly resolveMemoryEmbedSpace: ResolveMemoryEmbedSpaceOp;
-  readonly embeddingsStore: (params: MemoryDigestInput & { readonly signal?: AbortSignal | undefined }) => Promise<MemoryEmbedSpace>;
-  readonly embeddingsStoreSegments: (params: readonly StoreSegmentParams[], signal?: AbortSignal) => Promise<readonly MemoryEmbedSpace[]>;
+  readonly embeddingsStore: (params: MemoryDigestInput & { readonly signal: AbortSignal }) => Promise<MemoryEmbedSpace>;
+  readonly embeddingsStoreSegments: (params: readonly StoreSegmentParams[], signal: AbortSignal) => Promise<readonly MemoryEmbedSpace[]>;
   readonly embeddingsPruneBlocks: EmbeddingsPruneBlocksOp;
 }

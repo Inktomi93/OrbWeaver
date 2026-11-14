@@ -33,7 +33,7 @@ function presetLeading(content: string, extra: Partial<PromptConfig> = {}): Prom
 }
 
 async function preview(h: ChatRoot): Promise<Preview> {
-  return await h.root.services.chat.previewAssembly({ principal: h.owner, chatId: h.chatId });
+  return await h.root.services.chat.previewAssembly({ signal: new AbortController().signal, principal: h.owner, chatId: h.chatId });
 }
 
 function renderedText({ prompt }: Preview): string {
@@ -62,8 +62,8 @@ async function macroNameOf(h: ChatRoot, pluginId: PluginId): Promise<string> {
 async function everyPreview(h: ChatRoot, member: ChatRoot["owner"]): Promise<void> {
   for (let run = 0; run < PREVIEWS_PER_KIND; run += 1) {
     await preview(h);
-    await h.root.services.chat.previewContextFit({ principal: h.owner, chatId: h.chatId });
-    await h.root.services.chat.previewContextFit({ principal: member, chatId: h.chatId });
+    await h.root.services.chat.previewContextFit({ signal: new AbortController().signal, principal: h.owner, chatId: h.chatId });
+    await h.root.services.chat.previewContextFit({ signal: new AbortController().signal, principal: member, chatId: h.chatId });
   }
 }
 
@@ -95,7 +95,9 @@ test("the macro slice rides the host's preview only: a member is refused the rea
   const member = await invitePerson(h);
 
   expect((await preview(h)).trace.macros?.registered).toBeDefined();
-  await expect(h.root.services.chat.previewAssembly({ principal: member, chatId: h.chatId })).rejects.toMatchObject({ code: CHAT_OP_CODES.notHost });
+  await expect(h.root.services.chat.previewAssembly({ signal: new AbortController().signal, principal: member, chatId: h.chatId })).rejects.toMatchObject({
+    code: CHAT_OP_CODES.notHost,
+  });
 });
 
 test("a preview names a plugin's macros, hyphen alias included, without a value and without running the guest", async () => {
@@ -135,10 +137,10 @@ test("the fit a plugin's macro could change is the fit without the plugin", asyn
     { name: "fit", description: "A long answer.", answer: "A VALUE MUCH LONGER THAN THE RAW CALL ".repeat(30) },
   ]);
   await writeOnCard(h, `Deck: {{${await macroNameOf(h, deck)}}}`);
-  const withPlugin = await h.root.services.chat.previewContextFit({ principal: h.owner, chatId: h.chatId });
+  const withPlugin = await h.root.services.chat.previewContextFit({ signal: new AbortController().signal, principal: h.owner, chatId: h.chatId });
 
   await h.root.services.plugin.setEnabled({ caller: h.owner, pluginId: deck, enabled: false });
-  const withoutPlugin = await h.root.services.chat.previewContextFit({ principal: h.owner, chatId: h.chatId });
+  const withoutPlugin = await h.root.services.chat.previewContextFit({ signal: new AbortController().signal, principal: h.owner, chatId: h.chatId });
 
   expect(withPlugin).toEqual(withoutPlugin);
 });
@@ -170,5 +172,7 @@ test("a macro that never answers holds no preview, the host's or a member's", as
     await Promise.race([read.then(() => true), realDelay(PREVIEW_WINDOW_MS).then(() => false)]);
 
   expect(await settledInWindow(preview(h))).toBe(true);
-  expect(await settledInWindow(h.root.services.chat.previewContextFit({ principal: member, chatId: h.chatId }))).toBe(true);
+  expect(await settledInWindow(h.root.services.chat.previewContextFit({ signal: new AbortController().signal, principal: member, chatId: h.chatId }))).toBe(
+    true,
+  );
 });

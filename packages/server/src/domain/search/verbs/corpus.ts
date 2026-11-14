@@ -33,14 +33,14 @@ function blockSlot(chatId: BlockKey["chatId"], blockIdx: number): string {
 }
 
 export function createCorpus(ctx: SearchContext, coverage: DigestCoverageOp): SearchService["corpus"] {
-  return async (params: CorpusParams): Promise<CorpusHit[]> => {
+  return async (params: CorpusParams & { readonly signal: AbortSignal }): Promise<CorpusHit[]> => {
     const text = params.queryText;
     const rc = await ctx.roleClientsFor(params.ownerId);
     return await withActiveQuerySpace(ctx, params.ownerId, "embed", async (space) => {
       if (text.trim().length === 0) {
         throw new SearchError(SEARCH_EMPTY_QUERY, "corpus requires a queryText to embed + scan");
       }
-      const embedded = await space.connection.embed(text, { inputType: "query" });
+      const embedded = await space.connection.embed(text, { inputType: "query", signal: params.signal });
       const queryVector = embedded.vectors[0];
       if (queryVector === null || queryVector === undefined) {
         throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
@@ -121,7 +121,7 @@ export function createCorpus(ctx: SearchContext, coverage: DigestCoverageOp): Se
       const candidates = [...digestCandidates, ...segmentCandidates];
       const ranked =
         params.mode === "mixC"
-          ? await applyRerank(text, candidates, rc.rerank, candidates.length)
+          ? await applyRerank(text, candidates, (q, docs) => rc.rerank(q, docs, { signal: params.signal }), candidates.length)
           : candidates.toSorted(
               compareCslsBy(
                 (c) => c.distance,

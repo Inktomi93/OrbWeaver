@@ -67,6 +67,7 @@ async function portraitOf(root: ServerTestHarness, pictures: Uint8Array[], subje
   });
   await root.services.connection.setBinding({ principal: owner, task: "generateImage", connectionId: connection.id });
   const picture = await root.services.imagery.generatePicture({
+    signal: new AbortController().signal,
     caller: owner,
     mode: "character",
     prompt: "A wanderer at the ring's edge.",

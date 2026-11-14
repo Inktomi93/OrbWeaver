@@ -101,11 +101,18 @@ async function agentChildEnvs(hostEnv?: Readonly<Record<string, string>>): Promi
   };
   await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY, sdkSpawn: spawn, ...(hostEnv === undefined ? {} : { hostEnv }) });
   const actor = await seedCorpusSdkActor(root);
-  const { resolved } = await root.app.runtime.resolve({ principal: actor.principal, connectionId: actor.connection.id, task: "chat", cachedFacts: true });
+  const { resolved } = await root.app.runtime.resolve({
+    signal: new AbortController().signal,
+    principal: actor.principal,
+    connectionId: actor.connection.id,
+    task: "chat",
+    cachedFacts: true,
+  });
   if (resolved.task !== "chat") {
     throw new Error("the shell-isolation control did not resolve its chat task");
   }
   await root.app.runtime.executor.runChatTurn({
+    signal: new AbortController().signal,
     api: "agent-sdk",
     connection: { ...resolved, task: resolved.task },
     params: {},

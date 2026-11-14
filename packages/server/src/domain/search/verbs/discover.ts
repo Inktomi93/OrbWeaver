@@ -159,10 +159,10 @@ async function groupByCharacter(
 
 export function createDiscover(ctx: SearchContext): SearchService["discover"] {
   return async (params: DiscoverParams): Promise<DiscoverResult> => {
-    const { ownerId, queryText, topN } = params;
+    const { ownerId, queryText, topN, signal } = params;
     const rc = await ctx.roleClientsFor(ownerId);
     return await withActiveQuerySpace(ctx, ownerId, "embed", async (space) => {
-      const queryVector = await embedDiscoverQuery(space.connection.embed, queryText, topN);
+      const queryVector = await embedDiscoverQuery(space.connection.embed, queryText, { topN, signal });
       const model = space.model;
 
       const chatIds = await hostedChatIds(ctx.db, ownerId);
@@ -217,19 +217,23 @@ export function createDiscover(ctx: SearchContext): SearchService["discover"] {
       );
 
       // Rerank segments before grouping so a promoted segment can pull in a low-CSLS character.
-      const ranked = params.rerank === true ? await applyRerank(queryText, sorted, rc.rerank, sorted.length) : sorted;
+      const ranked = params.rerank === true ? await applyRerank(queryText, sorted, (q, docs) => rc.rerank(q, docs, { signal }), sorted.length) : sorted;
 
       return await groupByCharacter(ctx, ownerId, ranked, topN);
     });
   };
 }
 
-async function embedDiscoverQuery(embed: ActiveQuerySpace["connection"]["embed"], queryText: string, topN: number): Promise<Float32Array> {
+async function embedDiscoverQuery(
+  embed: ActiveQuerySpace["connection"]["embed"],
+  queryText: string,
+  { topN, signal }: { readonly topN: number; readonly signal: AbortSignal },
+): Promise<Float32Array> {
   if (queryText.trim().length === 0) {
     throw new SearchError(SEARCH_EMPTY_QUERY, "discover requires a queryText to embed + scan");
   }
   requirePositiveTopN(topN, "discover");
-  const vector = (await embed(queryText, { inputType: "query" })).vectors[0];
+  const vector = (await embed(queryText, { inputType: "query", signal })).vectors[0];
   if (vector === null || vector === undefined) {
     throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
   }

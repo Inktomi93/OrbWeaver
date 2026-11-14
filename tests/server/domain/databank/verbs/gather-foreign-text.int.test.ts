@@ -53,7 +53,7 @@ test("a member's macro document and a macro in its name reach the host's turn an
   const evaluatedForeign = [words(`Member ${keeper} shelf`), words(`Member note: the keeper is ${keeper}.`)];
 
   const { wire } = await sendTurn(h, h.owner, MESSAGE);
-  const { prompt } = await h.root.services.chat.previewAssembly({ principal: h.owner, chatId: h.chatId });
+  const { prompt } = await h.root.services.chat.previewAssembly({ signal: new AbortController().signal, principal: h.owner, chatId: h.chatId });
   const previewed = [prompt.static, prompt.dynamic, ...prompt.afterHistory.map((injection) => injection.content)].join("\n");
   for (const text of [words(wire), words(previewed)]) {
     for (const each of literal) {

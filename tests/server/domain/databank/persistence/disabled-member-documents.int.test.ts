@@ -74,7 +74,15 @@ test("a disabled member's global document leaves the room's panel and retrieval,
     .toBe(true);
   const panel = async (): Promise<string[]> => (await root.services.databank.listActiveForChat({ principal: host, chatId })).map((row) => row.id).toSorted();
   const retrieved = async (): Promise<string[]> =>
-    (await root.services.search.documents({ ownerId: host.userId, scope: { chatId }, queryText: "room document markers", k: SEARCH_K }))
+    (
+      await root.services.search.documents({
+        signal: new AbortController().signal,
+        ownerId: host.userId,
+        scope: { chatId },
+        queryText: "room document markers",
+        k: SEARCH_K,
+      })
+    )
       .map((hit) => hit.documentId)
       .toSorted();
   const setMemberEnabled = (enabled: boolean): Promise<unknown> => root.services.admin.setEnabled({ principal: host, userId: member.userId, enabled });

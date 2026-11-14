@@ -11,6 +11,9 @@ export function createPluginDocumentSearch(documents: SearchService["documents"]
       ownerId: installerUserId,
       queryText,
       ...(limit !== undefined ? { k: limit } : {}),
+      // The plugin bridge does not carry the guest invocation's liveness to this read yet, so nothing above can
+      // cancel it; the embed and rerank calls keep their own deadlines.
+      signal: new AbortController().signal,
     });
     return hits.map((hit) => ({
       documentId: hit.documentId,

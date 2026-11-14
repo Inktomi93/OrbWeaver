@@ -57,6 +57,7 @@ async function digestScan(ctx: SearchContext, args: UnifiedSearchParams, coverag
     const embedded = await space.connection.embed(args.query, {
       inputType: "query",
       instruction: SCOPE_INSTRUCTIONS.digests.query,
+      signal: args.signal,
     });
     const queryVector = embedded.vectors[0];
     if (queryVector === null || queryVector === undefined) {
@@ -95,7 +96,15 @@ async function digestScan(ctx: SearchContext, args: UnifiedSearchParams, coverag
         ),
       );
     // Instruction-aware rerankers key off the scope <Instruct>; text-only families ignore the prefix.
-    const ordered = args.rerank === true ? await applyRerank(`${SCOPE_INSTRUCTIONS.digests.rerank}\n${args.query}`, ranked, rc.rerank, ranked.length) : ranked;
+    const ordered =
+      args.rerank === true
+        ? await applyRerank(
+            `${SCOPE_INSTRUCTIONS.digests.rerank}\n${args.query}`,
+            ranked,
+            (q, docs) => rc.rerank(q, docs, { signal: args.signal }),
+            ranked.length,
+          )
+        : ranked;
     const top = ordered.slice(0, args.topN);
     // The DESTINATION vocabulary (R1a), resolved for the SURVIVORS only — the same rank-then-enrich shape
     // discover uses, so an 80-row pool never pays for 60 display joins it throws away.
@@ -135,7 +144,7 @@ async function digestScan(ctx: SearchContext, args: UnifiedSearchParams, coverag
 
 export function createSearch(ctx: SearchContext, verbs: DelegateVerbs, coverage: DigestCoverageOp): SearchService["search"] {
   const run = async (params: UnifiedSearchParams): Promise<UnifiedSearchRows> => {
-    const { ownerId, query, topN, over, scope, rerank } = params;
+    const { ownerId, query, topN, over, scope, rerank, signal } = params;
     if (query.trim().length === 0) {
       throw new SearchError(SEARCH_EMPTY_QUERY, "search requires a query to embed + scan");
     }
@@ -143,13 +152,13 @@ export function createSearch(ctx: SearchContext, verbs: DelegateVerbs, coverage:
     switch (over) {
       case "entities":
         requireOwnerScope(scope, over);
-        return { over, hits: await verbs.knn({ ownerId, query, topN, rerank }) };
+        return { over, hits: await verbs.knn({ ownerId, query, topN, rerank, signal }) };
       case "characters":
         requireOwnerScope(scope, over);
-        return { over, hits: await verbs.findCharacters({ ownerId, query, topN, rerank }) };
+        return { over, hits: await verbs.findCharacters({ ownerId, query, topN, rerank, signal }) };
       case "discover":
         requireOwnerScope(scope, over);
-        return { over, ...(await verbs.discover({ ownerId, queryText: query, topN, rerank })) };
+        return { over, ...(await verbs.discover({ ownerId, queryText: query, topN, rerank, signal })) };
       case "corpus":
         requireOwnerScope(scope, over);
         return {
@@ -160,6 +169,7 @@ export function createSearch(ctx: SearchContext, verbs: DelegateVerbs, coverage:
               queryText: query,
               mode: memoryMode(rerank),
               minScore: 0,
+              signal,
             })
           ).slice(0, topN),
         };
@@ -170,7 +180,7 @@ export function createSearch(ctx: SearchContext, verbs: DelegateVerbs, coverage:
         }
         return {
           over,
-          hits: await verbs.images({ ownerId, query, topN, lens: params.lens, rerank }),
+          hits: await verbs.images({ ownerId, query, topN, lens: params.lens, rerank, signal }),
         };
       }
       case "documents":
@@ -182,7 +192,7 @@ export function createSearch(ctx: SearchContext, verbs: DelegateVerbs, coverage:
         requireOwnerScope(scope, over);
         return {
           over,
-          hits: await verbs.documents({ scope: { ownerId }, ownerId, queryText: query, k: topN, minScore: 0, rerank }),
+          hits: await verbs.documents({ scope: { ownerId }, ownerId, queryText: query, k: topN, minScore: 0, rerank, signal }),
         };
       case "digests":
         return { over, hits: await digestScan(ctx, params, coverage) };

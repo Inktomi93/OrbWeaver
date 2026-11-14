@@ -430,4 +430,6 @@ export type GeneratePicturePrompt =
   | { readonly mode: "free"; readonly prompt: string }
   | { readonly mode: Exclude<PromptTemplateMode, "free">; readonly prompt?: string | undefined };
 export type GeneratePictureParams = GeneratePictureFields & GeneratePicturePrompt;
-export type GeneratePicture = (params: GeneratePictureParams) => Promise<GeneratedPicture>;
+/** `Signal` cancels the prompt extraction and the provider call; a type parameter because this package cannot name
+ *  `AbortSignal`. */
+export type GeneratePicture<Signal> = (params: GeneratePictureParams & { readonly signal: Signal }) => Promise<GeneratedPicture>;

@@ -83,7 +83,9 @@ async function resolveHostRoundConnection(
   const host = await deps.resolveHostPrincipal(hostUserId);
   let conn: Resolved<"chat">;
   try {
-    conn = await roomWindowed(deps, chatId, (await deps.connection.resolve({ task: "chat", principal: host })).resolved as Resolved<"chat">);
+    // A HOST DOOR has no cancellation to inherit (see `resyncViaStructured`).
+    const signal = new AbortController().signal;
+    conn = await roomWindowed(deps, chatId, (await deps.connection.resolve({ task: "chat", principal: host, signal })).resolved as Resolved<"chat">);
   } catch (err) {
     if (isResolveRefusal(err)) {
       deps.logger.warn({ event: "rpg.populate.unresolvable", chatId }, "rpg populate: the host's chat connection did not resolve — no round");
@@ -140,7 +142,7 @@ export function buildRunPopulateExtraction(input: RpgRoundsAssemblyDeps): RpgCon
       userPrompt: populateUserPrompt(corpus, targetRef, prose),
       schema: constrainPopulateSchema(projectJsonSchema(rpgPopulateSchema), targetRef),
       // A HOST DOOR has no cancellation to inherit — the resync's posture verbatim (see `resyncViaStructured`).
-      signal: undefined,
+      signal: new AbortController().signal,
     };
     let text: string;
     try {

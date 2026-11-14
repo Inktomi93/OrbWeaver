@@ -16,12 +16,14 @@ export interface EstimateModelCallsParams extends Pick<StartWorkloadParams, "inp
   /** Count the run as if its owning domain would admit it. A run `start` would refuse is otherwise counted as 0
    *  calls; a confirm that precedes the switch which would admit it (turning Memory on) asks for the count anyway. */
   readonly assumeAdmitted?: boolean | undefined;
+  readonly signal: AbortSignal;
 }
 
 /** The call estimate for a retry: the row a retry would clone, counted under that row's own scope. */
 export interface EstimateRetryModelCallsParams {
   readonly id: WorkloadId;
   readonly caller: Principal;
+  readonly signal: AbortSignal;
 }
 
 export interface CancelWorkloadParams {

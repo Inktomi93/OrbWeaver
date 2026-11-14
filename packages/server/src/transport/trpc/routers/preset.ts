@@ -20,7 +20,7 @@ import {
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { strictTwin } from "@orb/kit/zod-schema";
 import { z } from "zod";
-import { authedProcedure, t } from "../trpc.ts";
+import { authedProcedure, procedureSignal, t } from "../trpc.ts";
 
 /** Upload bound for one `orb.preset` file. A preset blob is sections + knobs + templates — generous next to
  *  the schema's own per-field caps (100k-char section bodies × 500 sections is the real ceiling), and a bound
@@ -98,8 +98,13 @@ export const presetRouter = t.router({
   resolveEffective: authedProcedure
     .output(effectivePresetSchema)
     .input(resolveEffectivePresetInputSchema)
-    .query(({ ctx, input }) =>
-      ctx.services.preset.resolveEffective({ principal: ctx.auth, id: input.id, ...(input.target !== undefined ? { target: input.target } : {}) }),
+    .query(({ ctx, input, signal }) =>
+      ctx.services.preset.resolveEffective({
+        principal: ctx.auth,
+        id: input.id,
+        signal: procedureSignal(signal),
+        ...(input.target !== undefined ? { target: input.target } : {}),
+      }),
     ),
 
   // The CONTEXT panel's backward bindings — principal-carrying like `resolveEffective`, because its

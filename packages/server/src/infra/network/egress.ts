@@ -1013,8 +1013,8 @@ async function openSafeFetchFor(context: EgressContext, url: string | URL, optio
   const completion = Promise.withResolvers<void>();
   context.pending.add(completion.promise);
   const cancelTimer = context.timers.timeoutUnref(() => deadlineCtrl.abort(), deadlineMs);
-  const signal = AbortSignal.any([lifetimeCtrl.signal, deadlineCtrl.signal, ...(options.signal === undefined ? [] : [options.signal])]);
-  const deadlineHit = (): boolean => deadlineCtrl.signal.aborted && options.signal?.aborted !== true;
+  const signal = AbortSignal.any([lifetimeCtrl.signal, deadlineCtrl.signal, options.signal]);
+  const deadlineHit = (): boolean => deadlineCtrl.signal.aborted && !options.signal.aborted;
 
   let response: Response;
   let agent: Agent | undefined;
@@ -1109,12 +1109,12 @@ function closeAgentFor(context: EgressContext, agent: Agent | undefined): void {
 // block, non-2xx, cap or deadline (`EgressBlockedError`), a network failure (`fetch`'s `TypeError`) or the caller's
 // abort; the caller drops that one image, and generate-core throws GenerationFailedError when none decodes. Any other
 // throw (a closed egress lifetime, a defect) propagates.
-async function fetchImageBytesFor(context: EgressContext, url: string, maxBytes?: number, signal?: AbortSignal): Promise<Uint8Array | null> {
+async function fetchImageBytesFor(context: EgressContext, url: string, signal: AbortSignal, maxBytes?: number): Promise<Uint8Array | null> {
   try {
     const res = await safeFetchFor(context, url, {
       allowedHosts: ANY_HOST,
       ...(maxBytes !== undefined ? { maxBytes } : {}),
-      ...(signal !== undefined ? { signal } : {}),
+      signal,
     });
     if (res.status < OK_STATUS_MIN || res.status >= REDIRECT_STATUS_MIN) {
       res.dispose?.(); // drop the non-2xx body + close the pinned Agent (don't wait for the deadline timer)
@@ -1122,7 +1122,7 @@ async function fetchImageBytesFor(context: EgressContext, url: string, maxBytes?
     }
     return await res.bytes();
   } catch (error) {
-    if (error instanceof EgressBlockedError || error instanceof TypeError || signal?.aborted === true) {
+    if (error instanceof EgressBlockedError || error instanceof TypeError || signal.aborted) {
       return null;
     }
     throw error;
@@ -1136,7 +1136,8 @@ async function fetchImageBytesFor(context: EgressContext, url: string, maxBytes?
 // never branches on the reason — the extraction-error-in-contracts precedent — and asks `isRecordedEgressBlock` only
 // whether to log the cause). The byte cap is bound HERE, not caller-suppliable.
 async function fetchWebDocumentFor(context: EgressContext, url: string): Promise<Uint8Array> {
-  const res = await safeFetchFor(context, url, { allowedHosts: ANY_HOST, method: "GET", maxBytes: DEFAULT_MAX_BYTES });
+  // This door takes no caller cancel yet, so its deadline alone bounds the fetch.
+  const res = await safeFetchFor(context, url, { allowedHosts: ANY_HOST, method: "GET", maxBytes: DEFAULT_MAX_BYTES, signal: new AbortController().signal });
   if (res.status < OK_STATUS_MIN || res.status >= REDIRECT_STATUS_MIN) {
     res.dispose?.(); // drop the non-2xx body + close the pinned Agent before throwing
     throw new Error(`fetchWebDocument: non-2xx response (HTTP ${res.status})`);
@@ -1160,7 +1161,13 @@ const PLUGIN_BUNDLE_FETCH_MAX_BYTES = 1_048_576;
 // precedent — and asks `isRecordedEgressBlock` only whether to log the cause). The byte cap is bound HERE, not
 // caller-suppliable.
 async function fetchPluginBundleFor(context: EgressContext, url: string): Promise<Uint8Array> {
-  const res = await safeFetchFor(context, url, { allowedHosts: ANY_HOST, method: "GET", maxBytes: PLUGIN_BUNDLE_FETCH_MAX_BYTES });
+  // This door takes no caller cancel yet, so its deadline alone bounds the fetch.
+  const res = await safeFetchFor(context, url, {
+    allowedHosts: ANY_HOST,
+    method: "GET",
+    maxBytes: PLUGIN_BUNDLE_FETCH_MAX_BYTES,
+    signal: new AbortController().signal,
+  });
   if (res.status < OK_STATUS_MIN || res.status >= REDIRECT_STATUS_MIN) {
     res.dispose?.(); // drop the non-2xx body + close the pinned Agent before throwing
     throw new Error(`fetchPluginBundle: non-2xx response (HTTP ${res.status})`);
@@ -1185,6 +1192,8 @@ async function fetchPinnedDownloadFor(context: EgressContext, url: string, limit
     method: "GET",
     maxBytes: limits.maxBytes,
     deadlineMs: limits.deadlineMs,
+    // This door takes no caller cancel yet, so the pinned deadline alone bounds the download.
+    signal: new AbortController().signal,
   });
   const { status } = opened.response;
   if (status < OK_STATUS_MIN || status >= REDIRECT_STATUS_MIN) {
@@ -1279,7 +1288,7 @@ function blockEgress(log: Logger, { reason, host, detail, fields = {} }: EgressB
 }
 
 /** Scheme + host-allowlist + IP-literal gate — runs on the start URL and re-runs on every redirect hop. */
-function validateUrl(log: Logger, url: URL, options: SafeFetchOptions, configuredEndpoint = false): void {
+function validateUrl(log: Logger, url: URL, options: Pick<SafeFetchOptions, "allowedHosts">, configuredEndpoint = false): void {
   const host = normalizeHost(url.hostname);
   if (configuredEndpoint) {
     if (url.protocol !== "https:" && url.protocol !== "http:") {
@@ -1604,7 +1613,7 @@ export function createScopedEgress(options: ScopedEgressOptions): ScopedEgress {
     publishPrivateEndpointAllowlist: (entries) => publishPrivateEndpointAllowlistFor(context, entries),
     resolvedEndpointAdmission: (baseUrl) => resolvedEndpointAdmissionFor(context, baseUrl),
     safeFetch: (url, fetchOptions) => safeFetchFor(context, url, fetchOptions),
-    fetchImageBytes: (url, maxBytes, signal) => fetchImageBytesFor(context, url, maxBytes, signal),
+    fetchImageBytes: (url, signal, maxBytes) => fetchImageBytesFor(context, url, signal, maxBytes),
     fetchWebDocument: (url) => fetchWebDocumentFor(context, url),
     fetchPluginBundle: (url) => fetchPluginBundleFor(context, url),
     fetchPinnedDownload: (url, limits) => fetchPinnedDownloadFor(context, url, limits),

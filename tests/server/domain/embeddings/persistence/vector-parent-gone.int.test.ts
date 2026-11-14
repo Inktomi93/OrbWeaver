@@ -109,6 +109,7 @@ function digestOf(args: {
   const text = `[archive — hall]\nBlock ${args.blockIdx}`;
   return {
     lens: "digest",
+    signal: new AbortController().signal,
     ownerId: args.ownerId,
     chatId: args.chatId,
     scopedCharacterId: args.scoped,
@@ -230,11 +231,11 @@ test("a verbatim segment lands nothing once its chat is gone", async () => {
   const rows = async (): Promise<readonly number[]> =>
     (await root.db.select().from(chatSegments).where(eq(chatSegments.chatId, room.chatId))).map(({ blockIdx }) => blockIdx);
 
-  expect((await root.app.embeddings.storeSegments([segment(0)])).map(({ outcome }) => outcome)).toEqual(["written"]);
+  expect((await root.app.embeddings.storeSegments([segment(0)], new AbortController().signal)).map(({ outcome }) => outcome)).toEqual(["written"]);
   expect(await rows()).toEqual([0]);
 
   edge.whileEmbedding(async () => await root.db.delete(chats).where(eq(chats.id, room.chatId)));
-  expect((await root.app.embeddings.storeSegments([segment(1)])).map(({ outcome }) => outcome)).toEqual(["noop"]);
+  expect((await root.app.embeddings.storeSegments([segment(1)], new AbortController().signal)).map(({ outcome }) => outcome)).toEqual(["noop"]);
   expect(await rows()).toEqual([]);
 });
 
@@ -248,6 +249,7 @@ test("a document chunk lands nothing once its document is gone", async () => {
   await root.db.delete(documentChunks).where(eq(documentChunks.documentId, document.id));
   const chunk = (chunkIdx: number): StoreParams => ({
     lens: "chunk",
+    signal: new AbortController().signal,
     ownerId: host.userId,
     content: `A document slice ${chunkIdx}.`,
     model: space,
@@ -291,11 +293,11 @@ test("an image below the floor whose asset is deleted before its skip verdict la
     (await root.db.select({ assetId: imageIndexSkips.assetId }).from(imageIndexSkips)).map(({ assetId }) => assetId);
 
   // Control: with its asset present the indexer records the floor verdict.
-  expect(await root.app.embeddings.indexAsset(kept)).toBeNull();
+  expect(await root.app.embeddings.indexAsset(kept, { signal: new AbortController().signal })).toBeNull();
   expect(await skipped()).toEqual([kept]);
 
   const verdict = held.hold(/insert into "image_index_skips"/u);
-  const indexing = root.app.embeddings.indexAsset(gone);
+  const indexing = root.app.embeddings.indexAsset(gone, { signal: new AbortController().signal });
   await verdict.reached;
   await root.db.delete(assets).where(eq(assets.id, gone));
   verdict.release();

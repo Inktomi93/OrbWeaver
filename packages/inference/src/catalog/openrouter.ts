@@ -163,7 +163,7 @@ const KIND_LISTS: readonly CatalogList[] = [
 interface CatalogFetchArgs {
   readonly fetch: typeof fetch;
   readonly baseUrl: string;
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 async function fetchList(args: CatalogFetchArgs, list: CatalogList): Promise<ModelCatalogEntry[]> {
@@ -172,7 +172,7 @@ async function fetchList(args: CatalogFetchArgs, list: CatalogList): Promise<Mod
     url: `${args.baseUrl.replace(/\/$/u, "")}/models${list.query}`,
     secrets: NO_PROVIDER_SECRETS,
     label: list.label,
-    ...(args.signal !== undefined ? { signal: args.signal } : {}),
+    signal: args.signal,
   });
   const rows = catalogSchema.parse(result.json).data;
   const bases = baseIdsBySlug(rows);

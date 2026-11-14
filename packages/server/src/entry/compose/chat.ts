@@ -132,7 +132,7 @@ export interface ChatComposeInput {
   readonly publishNotification: LiveBuses["notifications"]["publishNotification"];
 
   readonly timers: TimerScheduler;
-  readonly backgroundSignal?: AbortSignal;
+  readonly backgroundSignal: AbortSignal;
   readonly trackBackground: ChatAssemblyContext["trackBackground"];
   readonly recordTurnOutcome?: ChatAssemblyContext["recordTurnOutcome"];
   readonly random: RandomSource;
@@ -211,7 +211,7 @@ export interface ChatComposeInput {
   readonly assets: AssetsService;
   /** Materialize a user-pasted external carried-background URL into an owned CAS asset — the
    *  shared compose-built op the `setChatBackground` verb runs for a `kind:"external"` source. */
-  readonly materializeBackground: MaterializeBackgroundOp;
+  readonly materializeBackground: MaterializeBackgroundOp<AbortSignal>;
   /** §6.7's inline-reply picture store, built at the keystone (it needs the boot-level per-image byte cap) —
    *  the `materializeBackground` precedent one line up. */
   readonly storeInlineReplyImage: ChatAssemblyContext["storeInlineReplyImage"];
@@ -407,7 +407,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     db,
     now,
     timers,
-    ...(input.backgroundSignal === undefined ? {} : { backgroundSignal: input.backgroundSignal }),
+    backgroundSignal: input.backgroundSignal,
     trackBackground: input.trackBackground,
     ...(input.recordTurnOutcome === undefined ? {} : { recordTurnOutcome: input.recordTurnOutcome }),
     can: input.can,

@@ -35,7 +35,13 @@ async function bindChatConnection(harness: ServerTestHarness, caller: Caller, us
     allowBackground: false,
     declared: declaredCapabilitySchema.parse({ kind: "generation", generation: { output: { modalities: ["text"] } } }),
   });
-  await harness.app.runtime.resolve({ task: "chat", connectionId: connection.id, principal: await harness.principalFor(userId), cachedFacts: true });
+  await harness.app.runtime.resolve({
+    signal: new AbortController().signal,
+    task: "chat",
+    connectionId: connection.id,
+    principal: await harness.principalFor(userId),
+    cachedFacts: true,
+  });
   await caller.connection.setBinding({ task: "chat", connectionId: connection.id });
 }
 

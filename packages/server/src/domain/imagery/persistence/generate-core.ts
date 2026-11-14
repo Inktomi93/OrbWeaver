@@ -34,12 +34,12 @@ interface DecodedImage {
 /** Decode one returned image to bytes: inline base64 → decode; provider URL → download via the injected
  *  SSRF-safe `fetchImage` port (the URL is provider-response-controlled, never fetched raw). `null` when
  *  the image carries neither shape or the download fails. */
-async function materialize(ctx: ImageryContext, img: GeneratedImage): Promise<DecodedImage | null> {
+async function materialize(ctx: ImageryContext, img: GeneratedImage, signal: AbortSignal): Promise<DecodedImage | null> {
   if (img.base64 !== undefined && img.base64.length > 0) {
     return { bytes: new Uint8Array(Buffer.from(img.base64, "base64")), mediaType: img.mediaType };
   }
   if (img.url !== undefined && img.url.length > 0) {
-    const bytes = await ctx.fetchImage(img.url);
+    const bytes = await ctx.fetchImage(img.url, signal);
     return bytes === null ? null : { bytes, mediaType: img.mediaType };
   }
   return null;
@@ -109,7 +109,7 @@ export async function runGeneration(ctx: ImageryContext, req: ImageGenerateReque
   // The provider call is the timed sample; materializing a URL download below is not generation time.
   const genTimeMs = ctx.now() - startedAt;
   const model = modelIdSchema.parse(result.model);
-  const decoded = (await Promise.all(result.images.map((img) => materialize(ctx, img)))).filter((d): d is DecodedImage => d !== null);
+  const decoded = (await Promise.all(result.images.map((img) => materialize(ctx, img, req.signal)))).filter((d): d is DecodedImage => d !== null);
   if (decoded.length === 0) {
     throw new GenerationFailedError("imagery: the image provider returned zero decodable images");
   }

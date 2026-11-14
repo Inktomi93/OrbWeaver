@@ -106,11 +106,11 @@ export interface ConnectionService {
   // ── delegations to the runtime (the turn path, the composer's pre-send gate, the pane's readouts)
   /** Trusted server resolution retains its credential; client reads use the credential-free projection. */
   readonly resolve: (params: ResolveTaskParams) => Promise<ResolveOutcome>;
-  readonly availability: TaskAvailabilityOp;
+  readonly availability: TaskAvailabilityOp<AbortSignal>;
   /** The caller's OWN chat connection end-to-end, credential-free (`ResolvedConnectionView`). */
-  readonly resolveChatCapability: (params: ResolveChatCapabilityParams) => Promise<ResolvedConnectionView>;
-  readonly resolveChatCacheContext: ResolveChatCapabilityOp;
-  readonly capabilities: (params: GetConnectionParams) => Promise<ConnectionCapabilityView>;
+  readonly resolveChatCapability: (params: ResolveChatCapabilityParams & { readonly signal: AbortSignal }) => Promise<ResolvedConnectionView>;
+  readonly resolveChatCacheContext: ResolveChatCapabilityOp<AbortSignal>;
+  readonly capabilities: (params: GetConnectionParams & { readonly signal: AbortSignal }) => Promise<ConnectionCapabilityView>;
   /** Each word's tokens on the targeted connection's server, cached per (server, model, word). */
   readonly tokenizeWords: (params: TokenizeWordsParams) => Promise<TokenizeResult>;
 

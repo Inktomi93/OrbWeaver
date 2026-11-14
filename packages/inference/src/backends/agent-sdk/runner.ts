@@ -250,7 +250,7 @@ function turnAbortOf(
   req: AgentSdkChatRequest,
   scheduleIdleTimeout: AgentSdkDeps["scheduleIdleTimeout"],
 ): {
-  readonly signal: AbortSignal | undefined;
+  readonly signal: AbortSignal;
   readonly bound: (stream: AsyncIterable<SDKMessage>) => AsyncIterable<SDKMessage>;
   readonly [Symbol.dispose]: () => void;
 } {
@@ -461,7 +461,7 @@ async function consumeTurnStream(stream: AsyncIterable<SDKMessage>, ctx: TurnStr
   if (streamFailure !== undefined) {
     return finishTurnWithError(acc, streamFailure);
   }
-  if (!acc.sawTerminalFrame && ctx.signal?.aborted === true) {
+  if (!acc.sawTerminalFrame && ctx.signal.aborted) {
     return finishTurnWithError(acc, new ProviderError({ kind: "aborted", retryable: false, message: "agent-sdk: the turn was cancelled", model: ctx.model }));
   }
   if (!acc.sawTerminalFrame) {

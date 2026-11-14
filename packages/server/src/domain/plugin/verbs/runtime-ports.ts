@@ -47,6 +47,9 @@ export function createPluginRuntimeOps(input: DbAssemblyInput<PluginRuntimeDeps>
         ...(p.negative !== undefined ? { negative: p.negative } : {}),
         ...(p.size !== undefined ? { size: p.size } : {}),
         ...(p.subjectCharacterId !== undefined ? { subjectCharacterId: p.subjectCharacterId } : {}),
+        // The plugin bridge does not carry the guest invocation's liveness to this act yet, so nothing above can
+        // cancel it; the image call keeps its own deadline.
+        signal: new AbortController().signal,
       });
       const first = picture.images[0];
       if (first === undefined) {

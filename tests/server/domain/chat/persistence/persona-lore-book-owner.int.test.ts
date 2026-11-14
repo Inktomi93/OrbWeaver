@@ -18,7 +18,7 @@ async function foreignBook(h: ChatRoot, principal: ChatRoot["owner"]): Promise<W
 }
 
 async function previewStatic(h: ChatRoot): Promise<string> {
-  return (await h.root.services.chat.previewAssembly({ principal: h.owner, chatId: h.chatId })).prompt.static;
+  return (await h.root.services.chat.previewAssembly({ signal: new AbortController().signal, principal: h.owner, chatId: h.chatId })).prompt.static;
 }
 
 async function junction(h: ChatRoot, personaId: PersonaId, worldBookId: WorldBookId): Promise<void> {
@@ -51,7 +51,7 @@ test("two seats cannot share an entry: a second seat's row on the first owner's 
   await h.root.services.worldInfo.attachToPersona({ principal: bob, personaId: owning.id, bookId });
   await junction(h, other.id, bookId);
 
-  const { trace } = await h.root.services.chat.previewAssembly({ principal: h.owner, chatId: h.chatId });
+  const { trace } = await h.root.services.chat.previewAssembly({ signal: new AbortController().signal, principal: h.owner, chatId: h.chatId });
   expect(trace.worldInfoActivated.map(({ title }) => title)).toEqual(["Foreign"]);
   const books = await h.root.services.worldInfo.listForChat({ principal: h.owner, chatId: h.chatId, includeInherited: true });
   expect(books.flatMap((book) => (book.inherited?.source === "persona" ? [book.inherited.name] : []))).toEqual(["Owning"]);

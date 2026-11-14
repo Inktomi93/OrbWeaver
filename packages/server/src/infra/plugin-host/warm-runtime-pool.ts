@@ -31,7 +31,7 @@ interface PoolOwners<T extends object, O> {
 }
 
 interface WarmRuntimeAcquireOptions {
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 /** Retryable pressure refusal before a request and its arguments enter the app-process wait queue. */
@@ -86,7 +86,7 @@ export class WarmRuntimePool<T extends object, O> implements AsyncDisposable {
     this.ownerRequestMaximum = pluginOwnerShare(requestMaximum);
   }
 
-  acquire(target: T, options: WarmRuntimeAcquireOptions = {}): Promise<WarmRuntimeLease> {
+  acquire(target: T, options: WarmRuntimeAcquireOptions): Promise<WarmRuntimeLease> {
     if (this.closed) {
       return Promise.reject(new Error("plugin host: runtime pool is closed"));
     }
@@ -94,7 +94,7 @@ export class WarmRuntimePool<T extends object, O> implements AsyncDisposable {
     if (cancelled !== undefined) {
       return Promise.reject(cancelled);
     }
-    if (options.signal?.aborted === true) {
+    if (options.signal.aborted) {
       return Promise.reject(this.abortError());
     }
     if (this.requests.length >= this.requestMaximum) {
@@ -119,7 +119,7 @@ export class WarmRuntimePool<T extends object, O> implements AsyncDisposable {
         reject(this.abortError());
         this.startDrain();
       };
-      const cleanup = (): void => options.signal?.removeEventListener("abort", onAbort);
+      const cleanup = (): void => options.signal.removeEventListener("abort", onAbort);
       request = {
         target,
         resolve: (lease): void => {
@@ -131,7 +131,7 @@ export class WarmRuntimePool<T extends object, O> implements AsyncDisposable {
           reject(error);
         },
       };
-      options.signal?.addEventListener("abort", onAbort, { once: true });
+      options.signal.addEventListener("abort", onAbort, { once: true });
       this.requests.push(request);
       this.startDrain();
     });

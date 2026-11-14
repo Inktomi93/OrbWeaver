@@ -171,7 +171,9 @@ test("a stranger is neither offered the provider nor admitted at any provider do
 
   expect(await offered(root, stranger)).toBe(false);
   await expect(create(stranger)).rejects.toMatchObject({ code: CONNECTION_OP_CODES.providerUnknown });
-  await expect(root.services.connection.draftCatalogModels({ principal: stranger, providerId: PROVIDER_ID, key: "sk-stranger-key" })).rejects.toMatchObject({
+  await expect(
+    root.services.connection.draftCatalogModels({ signal: new AbortController().signal, principal: stranger, providerId: PROVIDER_ID, key: "sk-stranger-key" }),
+  ).rejects.toMatchObject({
     code: CONNECTION_OP_CODES.providerUnknown,
   });
 
@@ -257,7 +259,9 @@ test("an owner's retained connection never follows its provider id to another de
   await enable(root, other, hostedBundle(root, SQUAT_HOST), ["net.fetch"]);
   expect(registry.get(id, other.userId)?.baseUrl).toBe(`https://${SQUAT_HOST}/v1`);
   expect(registry.get(id, victim.userId)).toBeUndefined();
-  await expect(root.services.connection.catalogModels({ principal: victim, connectionId: retained.id })).rejects.toMatchObject({
+  await expect(
+    root.services.connection.catalogModels({ signal: new AbortController().signal, principal: victim, connectionId: retained.id }),
+  ).rejects.toMatchObject({
     code: CONNECTION_OP_CODES.providerUnknown,
   });
 
@@ -339,7 +343,12 @@ test("the installer lists models, saves a connection and generates through its o
   const { root, installer, relayId, sent } = await relayWorld(lifetime);
   expect(await offered(root, installer, relayId)).toBe(true);
 
-  const listing = await root.services.connection.draftCatalogModels({ principal: installer, providerId: relayId, key: "sk-installer-key" });
+  const listing = await root.services.connection.draftCatalogModels({
+    signal: new AbortController().signal,
+    principal: installer,
+    providerId: relayId,
+    key: "sk-installer-key",
+  });
   expect(listing).toMatchObject({ listed: true, models: [{ id: RELAY_MODEL }] });
   expect(sent.map((request) => new URL(request.url).host)).toEqual([RELAY_HOST]);
   expect(sent[0]?.authorization).toBe("Bearer sk-installer-key");
@@ -359,9 +368,11 @@ test("the installer lists models, saves a connection and generates through its o
   await root.services.connection.setBinding({ principal: installer, task: "chat", connectionId: saved.id });
   await root.services.connection.setBinding({ principal: installer, task: "summarize", connectionId: saved.id });
 
-  const { resolved } = await root.services.connection.resolve({ task: "chat", principal: installer });
+  const { resolved } = await root.services.connection.resolve({ task: "chat", principal: installer, signal: new AbortController().signal });
   expect(resolved).toMatchObject({ providerId: relayId, baseUrl: RELAY_BASE_URL, model: RELAY_MODEL });
-  const summary = await (await root.roleClientsFor(installer.userId)).summarize([{ systemPrompt: "be brief", userPrompt: "hello" }]);
+  const summary = await (await root.roleClientsFor(installer.userId)).summarize([{ systemPrompt: "be brief", userPrompt: "hello" }], {
+    signal: new AbortController().signal,
+  });
   expect(summary.items.map((item) => item.text)).toEqual([RELAY_REPLY]);
   expect(sent.some((request) => new URL(request.url).pathname.endsWith("/chat/completions"))).toBe(true);
 });
@@ -378,9 +389,9 @@ test("a stranger refused at every provider door sends nothing to the plugin's ho
     model: "anthropic/claude-sonnet-4",
   });
 
-  await expect(root.services.connection.draftCatalogModels({ principal: stranger, providerId: relayId, key: "sk-stranger-key" })).rejects.toMatchObject(
-    refused,
-  );
+  await expect(
+    root.services.connection.draftCatalogModels({ signal: new AbortController().signal, principal: stranger, providerId: relayId, key: "sk-stranger-key" }),
+  ).rejects.toMatchObject(refused);
   await expect(
     root.services.connection.create({ principal: stranger, providerId: relayId, credentialId: null, baseUrl: null, model: RELAY_MODEL }),
   ).rejects.toMatchObject(refused);
@@ -390,7 +401,12 @@ test("a stranger refused at every provider door sends nothing to the plugin's ho
   expect(sent).toEqual([]);
 
   // Positive control: the same scripted peer does record the installer's call.
-  await root.services.connection.draftCatalogModels({ principal: installer, providerId: relayId, key: "sk-installer-key" });
+  await root.services.connection.draftCatalogModels({
+    signal: new AbortController().signal,
+    principal: installer,
+    providerId: relayId,
+    key: "sk-installer-key",
+  });
   expect(sent).toHaveLength(1);
 });
 
@@ -408,8 +424,12 @@ test("a retained connection stops resolving at every read and at turn time once 
   await root.services.connection.setBinding({ principal: installer, task: "chat", connectionId: retained.id });
   await root.services.connection.setBinding({ principal: installer, task: "summarize", connectionId: retained.id });
   // Positive control: while the install is enabled the same reads succeed.
-  await expect(root.services.connection.capabilities({ principal: installer, connectionId: retained.id })).resolves.toBeDefined();
-  await expect(root.services.connection.resolve({ task: "chat", principal: installer })).resolves.toMatchObject({ resolved: { connectionId: retained.id } });
+  await expect(
+    root.services.connection.capabilities({ signal: new AbortController().signal, principal: installer, connectionId: retained.id }),
+  ).resolves.toBeDefined();
+  await expect(root.services.connection.resolve({ task: "chat", principal: installer, signal: new AbortController().signal })).resolves.toMatchObject({
+    resolved: { connectionId: retained.id },
+  });
 
   const [install] = await root.services.plugin.list({ caller: installer });
   if (install === undefined) {
@@ -418,11 +438,21 @@ test("a retained connection stops resolving at every read and at turn time once 
   await root.services.plugin.uninstall({ caller: installer, pluginId: install.id });
   const spent = sent.length;
 
-  await expect(root.services.connection.capabilities({ principal: installer, connectionId: retained.id })).rejects.toBeInstanceOf(ProviderError);
-  await expect(root.services.connection.resolve({ task: "chat", principal: installer })).rejects.toBeInstanceOf(NoConnectionError);
-  await expect(root.services.connection.resolve({ task: "chat", principal: installer, connectionId: retained.id })).rejects.toBeInstanceOf(NoConnectionError);
-  await expect((await root.roleClientsFor(installer.userId)).summarize([{ systemPrompt: "s", userPrompt: "u" }])).rejects.toBeInstanceOf(ProviderError);
-  await expect(root.services.connection.probe({ principal: installer, connectionId: retained.id })).rejects.toBeInstanceOf(NoConnectionError);
+  await expect(
+    root.services.connection.capabilities({ signal: new AbortController().signal, principal: installer, connectionId: retained.id }),
+  ).rejects.toBeInstanceOf(ProviderError);
+  await expect(root.services.connection.resolve({ task: "chat", principal: installer, signal: new AbortController().signal })).rejects.toBeInstanceOf(
+    NoConnectionError,
+  );
+  await expect(
+    root.services.connection.resolve({ signal: new AbortController().signal, task: "chat", principal: installer, connectionId: retained.id }),
+  ).rejects.toBeInstanceOf(NoConnectionError);
+  await expect(
+    (await root.roleClientsFor(installer.userId)).summarize([{ systemPrompt: "s", userPrompt: "u" }], { signal: new AbortController().signal }),
+  ).rejects.toBeInstanceOf(ProviderError);
+  await expect(
+    root.services.connection.probe({ signal: new AbortController().signal, principal: installer, connectionId: retained.id }),
+  ).rejects.toBeInstanceOf(NoConnectionError);
   expect((await root.services.connection.get({ principal: installer, connectionId: retained.id })).tasks).toEqual([]);
   expect(sent).toHaveLength(spent);
 });

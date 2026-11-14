@@ -41,19 +41,19 @@ const unreachableFetch = (): Promise<Response> => Promise.reject(new Error("a re
 
 test("a network failure, an IP-literal host and a malformed URL each drop the one image", async () => {
   await using egress = egressWith(() => Promise.reject(new TypeError("fetch failed")));
-  await expect(egress.fetchImageBytes(IMAGE_URL)).resolves.toBeNull();
-  await expect(egress.fetchImageBytes(`https://${PRIVATE_ADDRESS}/generated.png`)).resolves.toBeNull();
-  await expect(egress.fetchImageBytes("not a url")).resolves.toBeNull();
+  await expect(egress.fetchImageBytes(IMAGE_URL, new AbortController().signal)).resolves.toBeNull();
+  await expect(egress.fetchImageBytes(`https://${PRIVATE_ADDRESS}/generated.png`, new AbortController().signal)).resolves.toBeNull();
+  await expect(egress.fetchImageBytes("not a url", new AbortController().signal)).resolves.toBeNull();
 });
 
 test("a host that resolves into a private range drops the one image", async () => {
   await using egress = egressWith(unreachableFetch, () => Promise.resolve([PRIVATE_ADDRESS]));
-  await expect(egress.fetchImageBytes(IMAGE_URL)).resolves.toBeNull();
+  await expect(egress.fetchImageBytes(IMAGE_URL, new AbortController().signal)).resolves.toBeNull();
 });
 
 test.for(["ENOTFOUND", "EAI_AGAIN", "EAI_FAIL"])("an image host whose name does not resolve (%s) drops the one image", async (code) => {
   await using egress = egressWith(unreachableFetch, () => Promise.reject(lookupFailure(code)));
-  await expect(egress.fetchImageBytes(IMAGE_URL)).resolves.toBeNull();
+  await expect(egress.fetchImageBytes(IMAGE_URL, new AbortController().signal)).resolves.toBeNull();
 });
 
 test("a web document whose host does not resolve is the typed unresolvable refusal", async () => {
@@ -66,11 +66,11 @@ test("a web document whose host does not resolve is the typed unresolvable refus
 test("a resolver fault that is not a missing name still rejects the image fetch", async () => {
   const broken = Object.assign(new Error("resolver socket refused"), { code: "ECONNREFUSED" });
   await using egress = egressWith(unreachableFetch, () => Promise.reject(broken));
-  await expect(egress.fetchImageBytes(IMAGE_URL)).rejects.toBe(broken);
+  await expect(egress.fetchImageBytes(IMAGE_URL, new AbortController().signal)).rejects.toBe(broken);
 });
 
 test("an image fetch after the egress lifetime closed rejects instead of reading as a dropped image", async () => {
   const egress = egressWith(unreachableFetch);
   await egress[Symbol.asyncDispose]();
-  await expect(egress.fetchImageBytes(IMAGE_URL)).rejects.toThrow("egress lifetime is closed");
+  await expect(egress.fetchImageBytes(IMAGE_URL, new AbortController().signal)).rejects.toThrow("egress lifetime is closed");
 });

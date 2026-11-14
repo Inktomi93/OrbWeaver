@@ -382,7 +382,7 @@ export interface PromptTransformIndexDeps {
   readonly ops: AutomationOps;
   readonly prng: RandomSource;
   readonly now: Clock;
-  readonly register: RegisterPromptTransformOp;
+  readonly register: RegisterPromptTransformOp<AbortSignal>;
   readonly unregister: UnregisterPromptTransformOp;
 }
 

@@ -100,8 +100,8 @@ function abortedError(): ProviderError {
 
 // In-process ONNX work can't be interrupted mid-run, so a request checks at task boundaries and stops WAITING on
 // the model (see `abortableWait`) rather than stopping the model.
-export function throwIfAborted(signal: AbortSignal | undefined): void {
-  if (signal?.aborted === true) {
+export function throwIfAborted(signal: AbortSignal): void {
+  if (signal.aborted) {
     throw abortedError();
   }
 }

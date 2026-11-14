@@ -259,7 +259,7 @@ export async function requestStructuredCalls(
   args: {
     readonly conn: Resolved<"chat">;
     readonly chatId: ChatId;
-    readonly signal: AbortSignal | undefined;
+    readonly signal: AbortSignal;
     readonly userPrompt: string;
     readonly round: StructuredRound;
     readonly events: { readonly failed: string; readonly unparseable: string };
@@ -281,7 +281,7 @@ export async function requestStructuredCalls(
     if (err instanceof GenerationObservationPersistenceError) {
       throw err;
     }
-    if (signal !== undefined && isCancelled(signal)) {
+    if (isCancelled(signal)) {
       logCancelled({ logger: deps.logger, chatId, model: conn.model, api: conn.api, vehicle: STRUCTURED_ROUND_VEHICLE, preflight: false });
       return { kind: "cancelled" };
     }

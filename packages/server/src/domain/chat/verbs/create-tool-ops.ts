@@ -21,7 +21,7 @@ export function buildChatToolOps<TSet>(toolUse: ChatToolAdapter<TSet>, resolveHo
             chatId: frame.chatId,
             membership: frame.membership,
             turnId: frame.turnId,
-            ...(frame.signal !== undefined ? { signal: frame.signal } : {}),
+            signal: frame.signal,
           };
           return (calls) => toolUse.executeToolCalls(set, calls, exec);
         },

@@ -50,7 +50,7 @@ import { pageDirectionShape } from "@orb/contracts/rpc";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { IMAGE_FACET_KEYS } from "#domain/discovery";
-import { authedProcedure, t } from "../trpc.ts";
+import { authedProcedure, procedureSignal, t } from "../trpc.ts";
 
 export const discoveryRouter = t.router({
   // write-half, on-demand: distill ONE owned character into `character_summaries` + staged `pending`
@@ -60,11 +60,12 @@ export const discoveryRouter = t.router({
   suggestCharacterTags: authedProcedure
     .output(distillStatsSchema)
     .input(z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character) }))
-    .mutation(({ ctx, input }) =>
+    .mutation(({ ctx, input, signal }) =>
       ctx.services.discovery.distillCharacters({
         characterId: input.characterId,
         ownerId: ctx.auth.userId,
         funderUserId: ctx.auth.userId,
+        signal: procedureSignal(signal),
       }),
     ),
 
@@ -153,14 +154,14 @@ export const discoveryRouter = t.router({
   compareCharactersDeep: authedProcedure
     .output(characterComparisonDeepSchema.nullable())
     .input(z.strictObject({ idA: typeIdSchema(ID_PREFIX.character), idB: typeIdSchema(ID_PREFIX.character) }))
-    .query(({ ctx, input }) => ctx.services.discovery.compareCharactersDeep(ctx.auth.userId, input.idA, input.idB)),
+    .query(({ ctx, input, signal }) => ctx.services.discovery.compareCharactersDeep(ctx.auth.userId, input.idA, input.idB, procedureSignal(signal))),
 
   // askCard: a grounded Q&A over ONE owned/distilled character's recent PLAYED scenes (CONTENT-only).
   // Owner-belted (a foreign/undistilled character → null). Owner = the resolved principal.
   askCard: authedProcedure
     .output(askCardAnswerSchema.nullable())
     .input(z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character), question: z.string().min(1) }))
-    .query(({ ctx, input }) => ctx.services.discovery.askCard(ctx.auth.userId, input.characterId, input.question)),
+    .query(({ ctx, input, signal }) => ctx.services.discovery.askCard(ctx.auth.userId, input.characterId, input.question, procedureSignal(signal))),
 
   // swipeHotspots: one chat's most-re-rolled assistant slots. Owner-belted via characters.ownerId (a
   // foreign chat → [], proved by the cross-tenant sweep probe). Owner = the resolved principal.

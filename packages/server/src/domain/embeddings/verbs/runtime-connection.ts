@@ -31,19 +31,19 @@ export function createResolveEmbeddingConnection(runtime: EmbeddingRuntime, prin
   const executeEmbed = (
     encoderConnection: Resolved<"embed">,
     input: string | readonly string[],
-    opts?: Parameters<EmbeddingConnectionSnapshot["embed"]>[1],
+    opts: Parameters<EmbeddingConnectionSnapshot["embed"]>[1],
   ): Promise<EmbedResult> => {
     if (encoderConnection.capability.kind !== "embedding") {
       throw new Error("text embed connection has a non-embedding capability");
     }
-    const knobs = runtime.funnel.embed(opts ?? {}, encoderConnection.capability.embedding);
+    const knobs = runtime.funnel.embed(opts, encoderConnection.capability.embedding);
     return runtime.executor.embed({
       connection: encoderConnection,
       input,
       ...(knobs.dimensions === undefined ? {} : { dimensions: knobs.dimensions }),
       ...(knobs.inputType === undefined ? {} : { inputType: knobs.inputType }),
       ...(knobs.instruction === undefined ? {} : { instruction: knobs.instruction }),
-      ...(opts?.signal === undefined ? {} : { signal: opts.signal }),
+      signal: opts.signal,
     });
   };
   // A stated instruction replaces the wire's cookbook default, so the capability gate has to run on this path too.
@@ -76,7 +76,7 @@ export function createResolveEmbeddingConnection(runtime: EmbeddingRuntime, prin
       return runtime.executor.imageEmbed({
         connection: generationConnection,
         input: honouredImageInput(input, generationConnection),
-        ...(opts?.signal === undefined ? {} : { signal: opts.signal }),
+        signal: opts.signal,
       });
     },
   });
@@ -106,6 +106,9 @@ export function createResolveEmbeddingConnection(runtime: EmbeddingRuntime, prin
       outcome = await runtime.resolve({
         task,
         principal,
+        // An encoder snapshot pins a generation every reader of the owner's space shares, so no one caller's cancel
+        // may end its resolve; each resolve keeps its own deadline.
+        signal: new AbortController().signal,
         ...(connectionId === undefined ? {} : { connectionId }),
         ...(opts?.previewConnection === undefined ? {} : { previewConnection: opts.previewConnection }),
       });

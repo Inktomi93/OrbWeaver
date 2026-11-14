@@ -96,7 +96,7 @@ type ActiveEmbedSpace = Pick<MemoryEmbedSpace, "model">;
 export const NO_EMBED_SPACE_MODEL = "";
 
 /** The `store` op databank drives: one document chunk, with the ingest pass's abort. */
-type EmbedDocumentChunkOp = (params: DocumentChunkStoreInput & { readonly signal?: AbortSignal | undefined }) => Promise<StoreResult>;
+type EmbedDocumentChunkOp = (params: DocumentChunkStoreInput & { readonly signal: AbortSignal }) => Promise<StoreResult>;
 
 /** The DI bundle every databank verb + the ingest subsystem close over (assembled at `entry/compose`). */
 export interface DatabankContext {
@@ -205,7 +205,7 @@ export interface DatabankContext {
   /** The `search.documents` lens (DB6) — the ONE retrieval capability databank consumes for the chat GATHER
    *  (cluster boundary: databank never re-implements cosine). Scope resolves inside the lens via the resolver
    *  databank itself injected into search; here databank is the CONSUMER (chat → databank → search). */
-  readonly searchDocuments: SearchDocumentsOp;
+  readonly searchDocuments: SearchDocumentsOp<AbortSignal>;
 }
 
 export type DatabankAssemblyContext = DbAssemblyInput<DatabankContext>;

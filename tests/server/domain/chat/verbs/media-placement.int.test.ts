@@ -131,7 +131,15 @@ async function say(box: Box, chatId: ChatId, post: Post): Promise<MessageId> {
 /** A member's generated-picture post: the picture is the run-as host's, the post is the member's. */
 async function generatedPost(box: Box, chatId: ChatId, as: Principal): Promise<{ readonly messageId: MessageId; readonly assetId: AssetId }> {
   box.images.push(makeAssetBytes(box.root.idSource.typeId(ID_PREFIX.asset)));
-  const post = await box.root.services.chat.generateImage({ principal: as, chatId, mode: "free", prompt: "The ledger at dusk.", n: 1, gallery: false });
+  const post = await box.root.services.chat.generateImage({
+    signal: new AbortController().signal,
+    principal: as,
+    chatId,
+    mode: "free",
+    prompt: "The ledger at dusk.",
+    n: 1,
+    gallery: false,
+  });
   const [assetId] = assetIdsInContent(post.content);
   if (assetId === undefined) {
     throw new Error("the generated post cites no picture");
@@ -327,7 +335,7 @@ test("a member's turn in a room whose host is disabled refuses with the host-una
     continueTurn: () => chat.continueTurn({ principal: player, chatId: room, messageId: reply.id }),
     generate: () => chat.generate({ principal: player, chatId: room }),
     impersonateStream: async () => {
-      for await (const delta of chat.impersonateStream({ principal: player, chatId: room })) {
+      for await (const delta of chat.impersonateStream({ signal: new AbortController().signal, principal: player, chatId: room })) {
         throw new Error(`the refused impersonation streamed ${JSON.stringify(delta)}`);
       }
     },

@@ -473,9 +473,12 @@ export const similarArtInputSchema = similarCharactersInput.extend({
 });
 
 /** Ranked digest hits, each carrying its block key. */
-export type SearchDigestHitsOp = (params: MemoryQueryOptions, events?: DigestSearchEvents | undefined) => Promise<DigestSearchHit[]>;
+export type SearchDigestHitsOp<Signal> = (
+  params: MemoryQueryOptions & { readonly signal: Signal },
+  events?: DigestSearchEvents | undefined,
+) => Promise<DigestSearchHit[]>;
 
-export type SearchCorpusHitsOp = (params: CorpusParams) => Promise<CorpusHit[]>;
+export type SearchCorpusHitsOp<Signal> = (params: CorpusParams & { readonly signal: Signal }) => Promise<CorpusHit[]>;
 
 /** The databank RAG lens. `scope` is the injected-resolver argument shape: a chat turn resolves host-global ∪
  *  chat-attached documents (host-only v1); an ad-hoc personal search is over the owner's whole bank. `k`,
@@ -499,6 +502,6 @@ export interface SimilarCharactersParams {
 }
 
 /** The `search.documents` lens: scope-gated cosine retrieval over `document_chunks`, reading-order restored. */
-export type SearchDocumentsOp = (params: DocumentSearchParams) => Promise<DocumentChunkHit[]>;
+export type SearchDocumentsOp<Signal> = (params: DocumentSearchParams & { readonly signal: Signal }) => Promise<DocumentChunkHit[]>;
 
 export type SimilarCharactersOp = (params: SimilarCharactersParams) => Promise<CharacterCardHit[]>;

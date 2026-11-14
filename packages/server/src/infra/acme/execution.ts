@@ -39,7 +39,7 @@ export function createOwnedAcmeIssuer(
       return (await acmeCrypto.createPrivateEcdsaKey()).toString("utf-8");
     },
     issue(request, signal): Promise<IssueOutcome> {
-      if (closed || options === undefined || signal?.aborted === true) {
+      if (closed || options === undefined || signal.aborted) {
         return Promise.resolve({ ok: false, code: "issuance_failed", detail: "ACME execution is not configured or is closed" });
       }
       const operation = new Promise<IssueOutcome>((resolve) => {
@@ -51,7 +51,7 @@ export function createOwnedAcmeIssuer(
         });
         active.add(worker);
         const abort = (): void => terminate(worker);
-        signal?.addEventListener("abort", abort, { once: true });
+        signal.addEventListener("abort", abort, { once: true });
         // Library diagnostics may contain request/PEM bytes. They are never forwarded to application logs.
         worker.stdout.resume();
         worker.stderr.resume();
@@ -68,9 +68,9 @@ export function createOwnedAcmeIssuer(
           outcome = { ok: false, code: "issuance_failed", detail: "The native ACME order worker failed" };
         });
         worker.once("exit", (code) => {
-          signal?.removeEventListener("abort", abort);
+          signal.removeEventListener("abort", abort);
           active.delete(worker);
-          if (closed || signal?.aborted === true) {
+          if (closed || signal.aborted) {
             resolve({ ok: false, code: "issuance_failed", detail: "The native ACME order was cancelled" });
           } else if (code === 0 && outcome !== undefined) {
             resolve(outcome);

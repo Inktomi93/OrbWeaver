@@ -805,7 +805,7 @@ type MeasurePassage = (text: string) => Promise<number>;
 /** Only the failed endpoint lookup triggers estimate fallback. Conversion and shape errors still surface. */
 class PassageCountUnavailable extends Error {}
 
-function turnPassageCounter(count: PassageCounter, signal: AbortSignal | undefined): MeasurePassage {
+function turnPassageCounter(count: PassageCounter, signal: AbortSignal): MeasurePassage {
   const costs = new Map<string, number>();
   return async (text) => {
     if (text === "") {
@@ -820,7 +820,7 @@ function turnPassageCounter(count: PassageCounter, signal: AbortSignal | undefin
       costs.set(text, tokens);
       return tokens;
     } catch (cause) {
-      signal?.throwIfAborted();
+      signal.throwIfAborted();
       throw new PassageCountUnavailable("The connection could not count prompt passages.", { cause });
     }
   };
@@ -911,7 +911,7 @@ interface ShapeFitArgs {
   readonly shape: (canon: ShapeCanonRows) => ReturnType<typeof shapeTurn>;
   readonly convert: (history: readonly ShapedHistoryRow[]) => Promise<WireRow[]>;
   readonly budget: Parameters<typeof fitHistory>[1];
-  readonly passage: { readonly count: PassageCounter | null; readonly system: readonly string[]; readonly signal?: AbortSignal | undefined };
+  readonly passage: { readonly count: PassageCounter | null; readonly system: readonly string[]; readonly signal: AbortSignal };
 }
 
 type PassageFitNotice = "context_tokenizer_trimmed" | "context_tokenizer_unavailable";

@@ -107,6 +107,8 @@ async function resyncViaToolRound(
         systemPrompt: toolRoundSystem(inputs),
         history: [{ role: "user", content: [{ type: "text", text: userPrompt }] }],
         tools,
+        // A HOST DOOR has no cancellation to inherit (see `resyncViaStructured`).
+        signal: new AbortController().signal,
       }),
     );
     logToolRoundUsage({ logger: deps.logger, chatId, api: conn.api, pass: "resync", result });
@@ -154,7 +156,14 @@ async function resyncViaStructuredRound(
 ): Promise<ResyncRoundResult> {
   const { chatId, conn, round } = args;
   // A HOST DOOR has no cancellation to inherit (see `resyncViaStructured`).
-  const result = await requestStructuredCalls(deps, { conn, chatId, signal: undefined, userPrompt: args.userPrompt, round, events: RESYNC_EVENTS });
+  const result = await requestStructuredCalls(deps, {
+    conn,
+    chatId,
+    signal: new AbortController().signal,
+    userPrompt: args.userPrompt,
+    round,
+    events: RESYNC_EVENTS,
+  });
   if (result.kind !== "calls") {
     return { ok: false, reason: `${RESYNC_FAILED_REASON} ${result.kind === "failed" ? errorMessage(result.err) : ""}`.trimEnd() };
   }
@@ -240,7 +249,9 @@ export function buildRunResyncExtraction(input: RpgRoundsAssemblyDeps): RpgConte
     const host = await deps.resolveHostPrincipal(hostUserId);
     let conn: Resolved<"chat">;
     try {
-      conn = await roomWindowed(deps, chatId, (await deps.connection.resolve({ task: "chat", principal: host })).resolved as Resolved<"chat">);
+      // A HOST DOOR has no cancellation to inherit (see `resyncViaStructured`).
+      const signal = new AbortController().signal;
+      conn = await roomWindowed(deps, chatId, (await deps.connection.resolve({ task: "chat", principal: host, signal })).resolved as Resolved<"chat">);
     } catch (err) {
       if (isResolveRefusal(err)) {
         deps.logger.warn({ event: "rpg.resync.unresolvable", chatId }, "rpg resync: the host's chat connection did not resolve — no rebuild");
@@ -304,9 +315,9 @@ async function resyncViaStructured(
     systemPrompt: extractionSystem(inputs),
     userPrompt,
     schema: constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refs),
-    // A HOST DOOR has no cancellation to inherit: it is verb-initiated, and the tRPC request's signal is not
-    // threaded down to verbs on this tree. Stated, not defaulted — a future arm must answer the question.
-    signal: undefined,
+    // A HOST DOOR has no cancellation to inherit: the rpg host verbs take no request signal yet, so nothing above
+    // can cancel this round; the provider call keeps its own deadline.
+    signal: new AbortController().signal,
   };
   let text: string;
   try {

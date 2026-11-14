@@ -14,7 +14,7 @@ export interface PluginRuntimeDeps {
   readonly db: Db;
   readonly now: Clock;
   readonly requestTurn: RequestTurnOp;
-  readonly imagery: { readonly generatePicture: GeneratePicture };
+  readonly imagery: { readonly generatePicture: GeneratePicture<AbortSignal> };
   readonly databankCreateFromText: CreateDocumentFromText;
   readonly assets: { readonly store: StoreAsset };
   readonly resolveOwnerPrincipal: ResolveHostPrincipalOp;

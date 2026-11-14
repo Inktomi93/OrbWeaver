@@ -336,6 +336,7 @@ export type ResolveBackfillMemoryConfig = (hostUserId: UserId) => Promise<Memory
  *  solo/merged, so the union dedupes to one read). `recent` (oldest→newest) is the mixB/mixC query window. */
 export interface RecallMemoryArgs {
   readonly scope: MemoryScope;
+  readonly signal: AbortSignal;
   readonly groupCharacterId: CharacterId;
   readonly witnessing?: readonly WitnessInterval[] | undefined;
   readonly liveWindowCutoffSeq?: number | undefined;
@@ -351,5 +352,5 @@ export interface BuildTurnMemoryArgs {
   readonly funderUserId: UserId;
   readonly runAsUserId: UserId;
   readonly config: MemoryConfig | null | undefined;
-  readonly signal: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }

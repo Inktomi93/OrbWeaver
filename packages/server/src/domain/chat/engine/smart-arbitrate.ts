@@ -65,7 +65,7 @@ interface SmartArbitrateParams {
   readonly sampling: RolePresetParams;
   /** The TURN's abort signal, threaded into the call so a box that never answers can be cut loose. No deadline
    *  rides alongside it ON PURPOSE: a slow local arbiter can legitimately take tens of seconds. */
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 /** A candidate as the model sees it, under its round `label`. */
@@ -134,7 +134,7 @@ const picked = (speakers: readonly SpeakerRef[]): SmartArbitrationResult => ({ s
  */
 export async function smartArbitrate(params: SmartArbitrateParams): Promise<SmartArbitrationResult> {
   // Read the signal through a CALL: `signal.aborted` flips asynchronously, so a narrowed read would go stale.
-  const cancelled = (): boolean => params.signal?.aborted === true;
+  const cancelled = (): boolean => params.signal.aborted;
   if (cancelled()) {
     return CANCELLED;
   }
@@ -225,7 +225,7 @@ async function askArbiter(
       const result = await arbiter.structured([{ systemPrompt, userPrompt: correction === undefined ? userPrompt : `${userPrompt}\n\n${correction}` }], {
         ...params.sampling,
         responseFormat,
-        ...(params.signal !== undefined ? { signal: params.signal } : {}),
+        signal: params.signal,
       });
       return result.items[0]?.text ?? "";
     },

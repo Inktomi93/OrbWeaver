@@ -67,7 +67,7 @@ export interface AgentSdkBackend extends AgentSdkLifetime {
   /** The daemon catalog under a USER's token — the resolver's `warmAgentSdk` arm (no host credential exists to
    *  run it under, so the scheduled workload dropped this lane; the result is process-wide because the model
    *  list is not per-user). */
-  readonly catalog: (identity: SpawnIdentity) => Promise<AgentSdkModel[]>;
+  readonly catalog: (identity: SpawnIdentity, signal: AbortSignal) => Promise<AgentSdkModel[]>;
 }
 
 // ── The SDK-free tool-server seam (agent mode) ─────────────────────────────────────────────────────────
@@ -145,7 +145,7 @@ export interface AgentSdkDeps {
 /** `consumeTurnStream` parameter shape. */
 export interface TurnStreamContext {
   readonly settleExecution?: AgentSdkQueryLease[typeof Symbol.asyncDispose];
-  readonly signal?: AbortSignal;
+  readonly signal: AbortSignal;
   readonly onObservedResult?: ((result: ChatResult) => Promise<void>) | undefined;
   readonly turnId?: string | undefined;
   readonly model: ModelId;

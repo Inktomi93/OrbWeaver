@@ -114,7 +114,7 @@ async function rerankState(db: Db, harness: Harness, ownerId: UserId): Promise<R
     .select({ connectionId: connectionBindings.connectionId })
     .from(connectionBindings)
     .where(and(eq(connectionBindings.userId, ownerId), eq(connectionBindings.task, "rerank")));
-  const resolved = await (await harness.roleClientsFor(ownerId)).resolved("rerank");
+  const resolved = await (await harness.roleClientsFor(ownerId)).resolved("rerank", new AbortController().signal);
   return {
     rerankRows: rows.filter((row) => row.label !== ENCODER_SEED.label && row.model !== ENCODER_SEED.model),
     slot: rows.find((row) => row.seedSlot === "rerank"),

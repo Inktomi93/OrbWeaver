@@ -18,7 +18,8 @@ export interface ImageryRoomAccess {
   readonly resolveRoomRunAs: ResolveRoomRunAsOp;
 }
 
-export interface VisibleExtractQuietParams extends Pick<ExtractQuietParams, "chatId" | "funderUserId" | "instruction" | "subjectCharacterId" | "timeZone"> {
+export interface VisibleExtractQuietParams
+  extends Pick<ExtractQuietParams, "chatId" | "funderUserId" | "instruction" | "subjectCharacterId" | "timeZone" | "signal"> {
   readonly caller: Principal;
 }
 

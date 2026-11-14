@@ -288,7 +288,7 @@ interface RpgFlushRegistration {
   /** The character turn's `activeTurns` signal, folded in so the MULTI-SPEAKER overlap window is covered too
    *  (speaker 1's round is still inside the shared registration while speaker 2 generates). `undefined` for an
    *  unregistered turn. */
-  readonly turnSignal: AbortSignal | undefined;
+  readonly turnSignal: AbortSignal;
   /** The flush body. Receives the barrier's composed signal; it is the round's ONLY cancellation input. */
   readonly run: (signal: AbortSignal) => Promise<void>;
 }

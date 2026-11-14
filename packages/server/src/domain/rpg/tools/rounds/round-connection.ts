@@ -47,7 +47,9 @@ export async function roomWindowed(deps: RpgRoundsDeps, chatId: ChatId, conn: Re
 export async function resolveFunderChat(deps: RpgRoundsDeps, funderUserId: UserId): Promise<Resolved<"chat"> | null> {
   const funder = await deps.resolveHostPrincipal(funderUserId);
   try {
-    return (await deps.connection.resolve({ task: "chat", principal: funder })).resolved as Resolved<"chat">;
+    // The delivery and fit verdicts read under no request signal yet, so nothing above can cancel this resolve; it
+    // keeps its own deadline.
+    return (await deps.connection.resolve({ task: "chat", principal: funder, signal: new AbortController().signal })).resolved as Resolved<"chat">;
   } catch (err) {
     if (isResolveRefusal(err)) {
       return null;

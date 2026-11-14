@@ -102,10 +102,10 @@ export interface ForgeTurnArgs {
   readonly stage: RefinerySchemaStage;
   readonly userPrompt: string;
   readonly overrides: ProseOverrides;
-  readonly sampleOpts: RolePresetParams;
+  readonly sampleOpts: RolePresetParams & { readonly signal: AbortSignal };
   readonly arm: RefineryForgeArm;
   /** The caller's role-client bundle — every forge call is `structured` on it. */
-  readonly rc: RoleClients;
+  readonly rc: RoleClients<AbortSignal>;
 }
 
 /** What sizing ONE stage call's output cap needs (`substrate/output-budget`). Homed here for the same

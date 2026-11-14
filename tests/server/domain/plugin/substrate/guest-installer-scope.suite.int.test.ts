@@ -209,7 +209,12 @@ test("library ingests land in the installer's own library, stamped with the call
   expect(reused.characterId).toBe(source);
   expect((await o.root.services.character.get({ principal: o.owner, characterId: source })).importedFrom).toBeNull();
   // The source moves on after its export, so the card is an older one and the ingest writes it beside the source.
-  await o.root.services.character.update({ principal: o.owner, characterId: source, input: { description: "A keeper, since edited." } });
+  await o.root.services.character.update({
+    signal: new AbortController().signal,
+    principal: o.owner,
+    characterId: source,
+    input: { description: "A keeper, since edited." },
+  });
 
   const document = z
     .object({ documentId: typeIdSchema(ID_PREFIX.document) })
@@ -233,7 +238,12 @@ test("a non-owner installer's character ingest runs under that installer's own p
   }
   const card = jsonValueSchema.parse(JSON.parse(new TextDecoder().decode(exported.bytes)));
   // The source moves on after its export, so the card is an older one and the ingest writes it beside the source (D290).
-  await o.root.services.character.update({ principal: o.stranger, characterId: source, input: { description: "A keeper, since edited." } });
+  await o.root.services.character.update({
+    signal: new AbortController().signal,
+    principal: o.stranger,
+    characterId: source,
+    input: { description: "A keeper, since edited." },
+  });
   const create = vi.spyOn(o.root.services.character, "create");
   z.object({ characterId: typeIdSchema(ID_PREFIX.character) }).parse(reported(await run("ingestCharacter", { card })));
   expect(create).toHaveBeenCalledTimes(1);
