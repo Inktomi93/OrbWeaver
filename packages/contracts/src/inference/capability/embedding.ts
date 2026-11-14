@@ -22,6 +22,16 @@ export type LocalTextEncoding = z.infer<typeof localTextEncodingSchema>;
 /** Native text attention is bounded independently of the model's accepted input window. */
 export const LOCAL_TEXT_ENCODING = { version: 1, maxTokens: NATIVE_TEXT_WINDOW_TOKENS, pooling: "mean-normalized" } as const satisfies LocalTextEncoding;
 
+/** The window a card's embed text is cut to before any embedder sees it: `buildCardEmbedText` budgets against it. */
+export const CARD_EMBED_WINDOW_TOKENS = 8192;
+
+/**
+ * An embedder whose input window is under this keeps less than half of a long card's embed text, so the card is
+ * indexed from its opening only. Half the card window, so a hosted embedder one token under the card window (8191)
+ * is not flagged.
+ */
+export const SMALL_EMBED_WINDOW_TOKENS = CARD_EMBED_WINDOW_TOKENS / 2;
+
 export const embeddingCapabilitySchema = z
   .object({
     dims: z.int().positive(),

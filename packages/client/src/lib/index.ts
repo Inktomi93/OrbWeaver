@@ -165,6 +165,7 @@ export {
   embedRefusalOf,
   embedRefusalRowText,
   embedRefusalText,
+  embedWindowNotice,
   REBUILD_JOBS_LABEL,
   REBUILD_STATUS_COPY,
   REINDEX_CONFIRM_COPY,
