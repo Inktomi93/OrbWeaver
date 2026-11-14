@@ -64,7 +64,7 @@ export interface QueryEmbedConnection extends EmbeddingConnectionFacts {
   readonly imageEmbed: (input: ImageEmbedInput, opts: { signal: AbortSignal }) => Promise<ImageEmbedResult>;
 }
 
-export type ResolveQueryConnection = ResolveEmbeddingConnectionOp<QueryEmbedConnection>;
+export type ResolveQueryConnection = ResolveEmbeddingConnectionOp<QueryEmbedConnection, AbortSignal>;
 
 /** The active generation a query is served from. `via` carries the joint-space rule's read-side answer
  *  (§10-3, `persistence/space.ts`): `"imageEmbed"` is the ordinary picture arm, `"embed"` the captioned-text
@@ -115,8 +115,8 @@ export interface SearchService {
    *  restored. Scope resolves through the injected `resolveActiveDocumentIds` — an empty bank short-circuits
    *  with ZERO embed calls. */
   readonly documents: SearchDocumentsOp<AbortSignal>;
-  readonly similarCharacters: SimilarCharactersOp;
-  readonly similarArt: (params: SimilarArtParams) => Promise<SimilarArtHit[]>;
+  readonly similarCharacters: SimilarCharactersOp<AbortSignal>;
+  readonly similarArt: (params: SimilarArtParams & { readonly signal: AbortSignal }) => Promise<SimilarArtHit[]>;
   /** The unified omnibox dispatch — one query + target + scope → the matching verb's hits, tagged by
    *  `over`. A dispatcher over the siblings; the only new capability is the by-character cross-chat
    *  digest scan (the chat_digest_speakers OR-branch). */

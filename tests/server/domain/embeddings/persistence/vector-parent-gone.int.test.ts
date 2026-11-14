@@ -244,7 +244,12 @@ test("a document chunk lands nothing once its document is gone", async () => {
   await using root = await createServerHarness(edge.options);
   const host = await bindEmbedder(root);
   const { space } = await embedSpace(root, host.userId);
-  const { document } = await root.services.databank.createFromText({ principal: host, name: "gone document", text: "A document the reader deletes." });
+  const { document } = await root.services.databank.createFromText({
+    signal: new AbortController().signal,
+    principal: host,
+    name: "gone document",
+    text: "A document the reader deletes.",
+  });
   await root.settleBackground();
   await root.db.delete(documentChunks).where(eq(documentChunks.documentId, document.id));
   const chunk = (chunkIdx: number): StoreParams => ({

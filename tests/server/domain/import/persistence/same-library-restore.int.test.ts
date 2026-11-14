@@ -165,7 +165,12 @@ async function livedInLibrary(root: ServerTestHarness, pictures: Uint8Array[]): 
   });
   await root.services.regex.attachToCharacter({ principal: owner, characterId: warden.id, scriptId: script.id });
   await root.services.worldInfo.createBook({ principal: owner, input: { name: "Loose Notes" } });
-  await root.services.databank.createFromText({ principal: owner, name: "Field Notes", text: "The bridge was built in spring." });
+  await root.services.databank.createFromText({
+    signal: new AbortController().signal,
+    principal: owner,
+    name: "Field Notes",
+    text: "The bridge was built in spring.",
+  });
   await root.services.assets.addToGallery({ principal: owner, assetId: art.assetId });
   await generatePicture(root, owner, pictures);
   const { chat } = await root.services.chat.startChat({ principal: owner, characterIds: [warden.id], anchorPersonaId: persona.id, opening: "none" });

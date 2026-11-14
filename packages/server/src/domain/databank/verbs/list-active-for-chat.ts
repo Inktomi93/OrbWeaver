@@ -22,7 +22,7 @@ import { resolveChatDocumentSources, resolveChatHiddenDocumentIds } from "../per
 import { activeSpaceModel } from "../substrate/active-space.ts";
 
 export function createListActiveForChat(ctx: DatabankContext): DatabankService["listActiveForChat"] {
-  return async ({ principal, chatId }: ListActiveForChatParams): Promise<ActiveChatDocumentView[]> => {
+  return async ({ principal, chatId, signal }: ListActiveForChatParams): Promise<ActiveChatDocumentView[]> => {
     await ctx.ensureChatMember(principal, chatId);
     // The SOURCES map, not the flat union: the panel is the one reader that needs to say WHY each document
     // is active (D-2) — the retrieval path takes the id-only twin.
@@ -38,7 +38,7 @@ export function createListActiveForChat(ctx: DatabankContext): DatabankService["
     const visibleIds = isHost ? union : union.filter((id) => !hiddenSet.has(id));
     const [metas, counts] = await Promise.all([
       loadMetaByIds(ctx.db, visibleIds),
-      ctx.countChunks({ documentIds: visibleIds, model: await activeSpaceModel(ctx, principal.userId) }),
+      ctx.countChunks({ documentIds: visibleIds, model: await activeSpaceModel(ctx, principal.userId, signal) }),
     ]);
     // The credit lookup cannot miss — a meta is loaded only for an id the union produced — but the fallback
     // is an empty list rather than a non-null assertion (the row would simply carry no provenance chip).

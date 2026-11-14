@@ -50,7 +50,7 @@ function parseExtract(json: unknown): { readonly text: string; readonly title: s
 }
 
 export function createScrapeWiki(ctx: DatabankContext): DatabankService["scrapeWiki"] {
-  return async ({ principal, url, destination }: ScrapeWikiParams): Promise<UploadResult> => {
+  return async ({ principal, url, destination, signal }: ScrapeWikiParams): Promise<UploadResult> => {
     // `url` is a validated `z.url()` from the tRPC seam (the scrapeWeb precedent trusts it the same way).
     const parsed = new URL(url);
     const title = articleTitle(parsed);
@@ -61,7 +61,7 @@ export function createScrapeWiki(ctx: DatabankContext): DatabankService["scrapeW
 
     let bytes: Uint8Array;
     try {
-      bytes = await ctx.fetchUrl(apiUrl);
+      bytes = await ctx.fetchUrl(apiUrl, signal);
     } catch (err) {
       // The refusal is a client error the transport does not log and carries the cause off the wire, so a broken fetch is recorded here.
       getLog(ctx.logger).warn({ err }, "databank: a wiki scrape fetch failed");
@@ -83,6 +83,7 @@ export function createScrapeWiki(ctx: DatabankContext): DatabankService["scrapeW
 
     return finalizeScrape(ctx, {
       principal,
+      signal,
       destination,
       bytes: new TextEncoder().encode(extract.text),
       origin: "wiki",

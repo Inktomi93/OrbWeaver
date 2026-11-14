@@ -24,7 +24,12 @@ async function bankedRoom(h: ChatRoot, memberDocuments: readonly { readonly name
   const member = await invitePerson(h);
   await seedCorpusConnections(h.root, member);
   for (const document of memberDocuments) {
-    const created = await h.root.services.databank.createFromText({ principal: member, name: document.name, text: document.text });
+    const created = await h.root.services.databank.createFromText({
+      signal: new AbortController().signal,
+      principal: member,
+      name: document.name,
+      text: document.text,
+    });
     await h.root.services.databank.attachGlobal({ principal: member, documentId: created.document.id });
     await ingest(h, created.document.id);
   }

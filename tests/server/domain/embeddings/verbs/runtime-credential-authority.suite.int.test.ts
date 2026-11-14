@@ -39,7 +39,10 @@ test("in-place key replacement before the next pinned call uses the current decr
   const after = "after-replacement-funding-key";
   const key = await ownerCaller.credentials.add({ provider: TEST_PROVIDER_ID, key: before, metadata: { auth: "endpoint" } });
   const connection = await fundingConnection({ ownerCaller, harness, task: "embed", credentialId: key.id });
-  const snapshot = await createResolveEmbeddingConnection(app.runtime, harness.principalFor)(harness.ownerId, "embed", connection.connectionId);
+  const snapshot = await createResolveEmbeddingConnection(app.runtime, harness.principalFor)(harness.ownerId, "embed", {
+    signal: new AbortController().signal,
+    connectionId: connection.connectionId,
+  });
   if (snapshot === null) {
     throw new Error("the saved encoder did not resolve");
   }

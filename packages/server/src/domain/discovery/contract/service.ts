@@ -183,7 +183,7 @@ export interface DiscoveryContext {
   /** The cross-domain `similar` seam — search's `similarCharacters`, narrowed to {@link DossierNeighbor} and
    *  bound at the entry root. discovery's only retrieval dependency (analytics ≠ retrieval); enters here so it
    *  threads into the {@link ViewsDeps} the service builds. */
-  readonly similar: (userId: UserId, characterId: CharacterId, topN: number) => Promise<DossierNeighbor[]>;
+  readonly similar: (userId: UserId, characterId: CharacterId, topN: number, signal: AbortSignal) => Promise<DossierNeighbor[]>;
 }
 
 // ── the verb interface ────────────────────────────────────────────────────────
@@ -295,7 +295,7 @@ export interface DiscoveryService {
   readonly themeDetail: (userId: UserId, clusterIdx: number, level: ThemeLevel) => Promise<ThemeDetail | null>;
   /** One character's composed DOSSIER — distilled headline facets + portrait↔card alignment (in-RAM cosine) +
    *  nearest neighbours (the injected `similar` search seam). `null` when the character isn't owned/distilled. */
-  readonly characterDossier: (userId: UserId, characterId: CharacterId) => Promise<CharacterDossier | null>;
+  readonly characterDossier: (userId: UserId, characterId: CharacterId, signal: AbortSignal) => Promise<CharacterDossier | null>;
 
   // ── cooccurrence (workload compute + owner-scoped reads) ─────────────────────
   /** Recompute every owner's keyword×keyword cooccurrence + per-character keyword profiles — atomic per-owner replace. */

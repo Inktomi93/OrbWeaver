@@ -219,8 +219,10 @@ test("library ingests land in the installer's own library, stamped with the call
   const document = z
     .object({ documentId: typeIdSchema(ID_PREFIX.document) })
     .parse(reported(await run("ingestDocument", { doc: { name: "Ledger", text: "A guest wrote this." } })));
-  expect((await o.root.services.databank.get({ principal: o.owner, id: document.documentId })).name).toBe("Ledger");
-  await expect(o.root.services.databank.get({ principal: o.stranger, id: document.documentId })).rejects.toBeInstanceOf(DomainNotFoundError);
+  expect((await o.root.services.databank.get({ signal: new AbortController().signal, principal: o.owner, id: document.documentId })).name).toBe("Ledger");
+  await expect(o.root.services.databank.get({ signal: new AbortController().signal, principal: o.stranger, id: document.documentId })).rejects.toBeInstanceOf(
+    DomainNotFoundError,
+  );
 
   const character = z.object({ characterId: typeIdSchema(ID_PREFIX.character) }).parse(reported(await run("ingestCharacter", { card })));
   const detail = await o.root.services.character.get({ principal: o.owner, characterId: character.characterId });

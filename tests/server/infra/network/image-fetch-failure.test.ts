@@ -58,7 +58,7 @@ test.for(["ENOTFOUND", "EAI_AGAIN", "EAI_FAIL"])("an image host whose name does 
 
 test("a web document whose host does not resolve is the typed unresolvable refusal", async () => {
   await using egress = egressWith(unreachableFetch, () => Promise.reject(lookupFailure("ENOTFOUND")));
-  const refused = egress.fetchWebDocument(DOCUMENT_URL);
+  const refused = egress.fetchWebDocument(DOCUMENT_URL, new AbortController().signal);
   await expect(refused).rejects.toBeInstanceOf(EgressBlockedError);
   await expect(refused).rejects.toMatchObject({ reason: "unresolvable" });
 });

@@ -1135,9 +1135,8 @@ async function fetchImageBytesFor(context: EgressContext, url: string, signal: A
 // error, so the databank verb can collapse every failure into a leak-free typed ScrapeFailedError (the domain
 // never branches on the reason — the extraction-error-in-contracts precedent — and asks `isRecordedEgressBlock` only
 // whether to log the cause). The byte cap is bound HERE, not caller-suppliable.
-async function fetchWebDocumentFor(context: EgressContext, url: string): Promise<Uint8Array> {
-  // This door takes no caller cancel yet, so its deadline alone bounds the fetch.
-  const res = await safeFetchFor(context, url, { allowedHosts: ANY_HOST, method: "GET", maxBytes: DEFAULT_MAX_BYTES, signal: new AbortController().signal });
+async function fetchWebDocumentFor(context: EgressContext, url: string, signal: AbortSignal): Promise<Uint8Array> {
+  const res = await safeFetchFor(context, url, { allowedHosts: ANY_HOST, method: "GET", maxBytes: DEFAULT_MAX_BYTES, signal });
   if (res.status < OK_STATUS_MIN || res.status >= REDIRECT_STATUS_MIN) {
     res.dispose?.(); // drop the non-2xx body + close the pinned Agent before throwing
     throw new Error(`fetchWebDocument: non-2xx response (HTTP ${res.status})`);
@@ -1614,7 +1613,7 @@ export function createScopedEgress(options: ScopedEgressOptions): ScopedEgress {
     resolvedEndpointAdmission: (baseUrl) => resolvedEndpointAdmissionFor(context, baseUrl),
     safeFetch: (url, fetchOptions) => safeFetchFor(context, url, fetchOptions),
     fetchImageBytes: (url, signal, maxBytes) => fetchImageBytesFor(context, url, signal, maxBytes),
-    fetchWebDocument: (url) => fetchWebDocumentFor(context, url),
+    fetchWebDocument: (url, signal) => fetchWebDocumentFor(context, url, signal),
     fetchPluginBundle: (url) => fetchPluginBundleFor(context, url),
     fetchPinnedDownload: (url, limits) => fetchPinnedDownloadFor(context, url, limits),
     configuredEndpointFetch: (input, init) => configuredEndpointFetchFor(context, input, init),

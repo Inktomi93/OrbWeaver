@@ -134,7 +134,7 @@ export function createDigests(ctx: SearchContext): SearchService["digests"] {
     }
 
     const rc = await ctx.roleClientsFor(params.ownerId);
-    return await withActiveQuerySpace(ctx, params.ownerId, "embed", async (space) => {
+    return await withActiveQuerySpace(ctx, { ownerId: params.ownerId, task: "embed", signal: params.signal }, async (space) => {
       const embedded = await embedQuery(space.connection, text, ctx.logger, params.signal);
       const queryVector = embedded.vectors[0];
       if (queryVector === null || queryVector === undefined) {

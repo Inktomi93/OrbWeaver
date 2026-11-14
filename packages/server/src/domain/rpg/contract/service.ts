@@ -490,6 +490,8 @@ interface RpgResyncInput {
   readonly chatId: ChatId;
   readonly hostUserId: UserId;
   readonly baseState: RpgSnapshotState;
+  /** The host's request: the round resolves the room connection and calls the model under it. */
+  readonly signal: AbortSignal;
 }
 
 /** The `populateFromCharacter` model call (owner ruling — the host BORN-STATE round). Reads ONE
@@ -523,6 +525,8 @@ interface RpgPopulateInput {
   readonly targetRef: string;
   readonly baseState: RpgSnapshotState;
   readonly corpus: RpgCardCorpus;
+  /** The host's request: the round resolves the room connection and calls the model under it. */
+  readonly signal: AbortSignal;
 }
 
 /** What a populate round returns: the SNAPSHOT overlay (inventory/wallet/quests — the same [merge-clear] +

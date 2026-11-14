@@ -99,7 +99,7 @@ export interface PluginBridge {
     readonly generatePicture: (
       chatId: ChatId,
       args: GenerateImageActionArgs,
-      liveness?: PluginInvocationLiveness,
+      liveness: PluginInvocationLiveness,
     ) => Promise<{
       readonly assetId: SandboxWireId<AssetId>;
     }>;
@@ -139,7 +139,7 @@ export interface PluginBridge {
    *  claims a per-plugin hourly slot before the search op. Authority-agnostic like every bridge op — infra
    *  holds no principal. */
   readonly search: {
-    readonly documents: (queryText: string, limit: number | undefined, liveness?: PluginInvocationLiveness) => Promise<readonly PluginSearchHit[]>;
+    readonly documents: (queryText: string, limit: number | undefined, liveness: PluginInvocationLiveness) => Promise<readonly PluginSearchHit[]>;
   };
   /** The plugin-PRIVATE KV (`storage.*`). Distinct from `variables` (the installing USER's namespace,
    *  shared with macros/CEL): `storage` is per plugin × installing owner (the `plugin_kv` plane). The domain
@@ -277,7 +277,7 @@ export interface PluginBridge {
   readonly databank: {
     readonly ingest: (
       doc: { readonly name: string; readonly text: string },
-      liveness?: PluginInvocationLiveness,
+      liveness: PluginInvocationLiveness,
     ) => Promise<{
       readonly documentId: SandboxWireId<DocumentId>;
     }>;

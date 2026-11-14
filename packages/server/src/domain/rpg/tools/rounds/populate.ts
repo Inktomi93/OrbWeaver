@@ -79,12 +79,11 @@ async function resolveHostRoundConnection(
   deps: RpgRoundsDeps,
   chatId: ChatId,
   hostUserId: UserId,
+  signal: AbortSignal,
 ): Promise<{ readonly ok: true; readonly conn: Resolved<"chat"> } | { readonly ok: false; readonly reason: string }> {
   const host = await deps.resolveHostPrincipal(hostUserId);
   let conn: Resolved<"chat">;
   try {
-    // A HOST DOOR has no cancellation to inherit (see `resyncViaStructured`).
-    const signal = new AbortController().signal;
     conn = await roomWindowed(deps, chatId, (await deps.connection.resolve({ task: "chat", principal: host, signal })).resolved as Resolved<"chat">);
   } catch (err) {
     if (isResolveRefusal(err)) {
@@ -121,8 +120,8 @@ function populateRefs(targetRef: string): ExtractionRefs {
  *  opening, and folds the two state planes through the SAME `extractionToStateDelta` path a turn round uses. */
 export function buildRunPopulateExtraction(input: RpgRoundsAssemblyDeps): RpgContext["runPopulateExtraction"] {
   const deps = createRpgRoundsContext(input);
-  return async ({ chatId, hostUserId, targetRef, baseState, corpus }) => {
-    const resolved = await resolveHostRoundConnection(deps, chatId, hostUserId);
+  return async ({ chatId, hostUserId, targetRef, baseState, corpus, signal }) => {
+    const resolved = await resolveHostRoundConnection(deps, chatId, hostUserId, signal);
     if (!resolved.ok) {
       return resolved;
     }
@@ -141,8 +140,7 @@ export function buildRunPopulateExtraction(input: RpgRoundsAssemblyDeps): RpgCon
       systemPrompt: `${resolveProseText("rpg.populate.systemHeader", prose)}\n\n${composePopulateTeaching({ config: game?.config ?? rpgGameConfigSchema.parse({}), refs, prose })}`,
       userPrompt: populateUserPrompt(corpus, targetRef, prose),
       schema: constrainPopulateSchema(projectJsonSchema(rpgPopulateSchema), targetRef),
-      // A HOST DOOR has no cancellation to inherit — the resync's posture verbatim (see `resyncViaStructured`).
-      signal: new AbortController().signal,
+      signal,
     };
     let text: string;
     try {

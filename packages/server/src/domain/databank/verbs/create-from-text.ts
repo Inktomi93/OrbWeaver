@@ -7,7 +7,6 @@
 
 import type { UserId } from "@orb/kit/ids";
 import { sha256Hex } from "#primitives/content-hash";
-import type { CreateFromTextParams } from "../contract/params.ts";
 import type { UploadResult } from "../contract/results.ts";
 import type { DatabankContext, DatabankService } from "../contract/service.ts";
 import { findByImportHash, requireOwnedMeta, toDocumentView } from "../persistence/queries.ts";
@@ -19,7 +18,7 @@ const TEXT_MIME = "text/plain";
 const NO_EXTRACTOR = "none";
 
 export function createCreateFromText(ctx: DatabankContext): DatabankService["createFromText"] {
-  return async ({ principal, name, text, destination }: CreateFromTextParams): Promise<UploadResult> => {
+  return async ({ principal, name, text, destination, signal }: Parameters<DatabankService["createFromText"]>[0]): Promise<UploadResult> => {
     const ownerId: UserId = principal.userId;
     const importHash = sha256Hex(text);
 
@@ -27,7 +26,7 @@ export function createCreateFromText(ctx: DatabankContext): DatabankService["cre
     const existing = await findByImportHash(ctx.db, ownerId, importHash);
     if (existing !== undefined) {
       await attachIngestDestination(ctx, principal, destination, importHash);
-      const counts = await ctx.countChunks({ documentIds: [existing.id], model: await activeSpaceModel(ctx, ownerId) });
+      const counts = await ctx.countChunks({ documentIds: [existing.id], model: await activeSpaceModel(ctx, ownerId, signal) });
       return { document: toDocumentView(existing, counts.get(existing.id) ?? 0), outcome: "duplicate", ingest: "skipped" };
     }
 
@@ -55,7 +54,7 @@ export function createCreateFromText(ctx: DatabankContext): DatabankService["cre
       if (winner === undefined) {
         throw new Error("Atomic ingestion did not produce a document.");
       }
-      const counts = await ctx.countChunks({ documentIds: [winner.id], model: await activeSpaceModel(ctx, ownerId) });
+      const counts = await ctx.countChunks({ documentIds: [winner.id], model: await activeSpaceModel(ctx, ownerId, signal) });
       return { document: toDocumentView(winner, counts.get(winner.id) ?? 0), outcome: "duplicate", ingest: "skipped" };
     }
 

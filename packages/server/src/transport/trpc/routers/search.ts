@@ -43,12 +43,13 @@ export const searchRouter = t.router({
   similarArt: authedProcedure
     .output(z.array(similarArtHitSchema))
     .input(similarArtInputSchema)
-    .query(({ ctx, input }) =>
+    .query(({ ctx, input, signal }) =>
       ctx.services.search.similarArt({
         ownerId: ctx.auth.userId,
         characterId: input.characterId,
         topN: input.topN,
         lens: input.lens,
+        signal: procedureSignal(signal),
       }),
     ),
 

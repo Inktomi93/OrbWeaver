@@ -1263,6 +1263,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // ── automation + plugin (the automation-plugin seam) — built LAST of the domain services (both close over
   // chat/world-info/imagery/notifications + resolveOwnerPrincipal; plugin reuses automation's op objects).
   const automationPlugin = await buildAutomationPlugin({
+    backgroundSignal: background.signal,
     env: deps.env,
     logger: deps.logger,
     traces: deps.rings.traces,

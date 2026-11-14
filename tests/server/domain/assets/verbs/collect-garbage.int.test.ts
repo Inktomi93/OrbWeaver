@@ -95,6 +95,7 @@ async function plantEveryReference(box: GcBox): Promise<Record<string, StoredRef
   await attach(box, room, refs["message_assets.asset_id"]);
 
   await root.services.databank.upload({
+    signal: new AbortController().signal,
     principal,
     bytes: new TextEncoder().encode("The keeper's ledger survives every sweep."),
     mime: "text/plain",

@@ -86,7 +86,7 @@ export interface ConnectionContext {
    *  the write to undo and refuse. */
   readonly syncEmbedTargets: SyncTargetGenerationsOp;
   /** Prove a prospective encoder without changing the stored target. */
-  readonly previewTargetMove: PreviewTargetMoveOp;
+  readonly previewTargetMove: PreviewTargetMoveOp<AbortSignal>;
   /** How many vectors the owner has stored per scope (the embeddings domain's count), for the change preview. */
   readonly countOwnedVectors: (ownerId: UserId) => Promise<Readonly<Record<VectorScope, number>>>;
   /** The per-user freshness plane (`connectionsChanged`) — injected, never a sideways reach at the bus

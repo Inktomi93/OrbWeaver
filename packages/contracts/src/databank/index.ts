@@ -464,7 +464,8 @@ export interface CreateFromTextParams {
   /** origin 'text' (ST Notepad) — no bytes, no extraction; `extractedText` IS the canon. */
   readonly text: string;
 }
-export type CreateDocumentFromText = (params: CreateFromTextParams) => Promise<UploadResult>;
+/** `Signal` is the caller's cancel: the write reads the owner's live embed space, whose resolve can wake their encoder. */
+export type CreateDocumentFromText<Signal> = (params: CreateFromTextParams & { readonly signal: Signal }) => Promise<UploadResult>;
 
 /** Maximum authored document name and name-search length. */
 export const DATABANK_NAME_MAX = 500;

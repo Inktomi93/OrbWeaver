@@ -82,10 +82,10 @@ const GATES: Readonly<Record<keyof RpgService, Gate>> = {
   dismissActor: { gate: "host", call: (g, who) => g.rpg.dismissActor({ principal: who, chatId: g.chatId, targetRef: NPC }) },
   promoteActor: { gate: "host", call: (g, who) => g.rpg.promoteActor({ principal: who, chatId: g.chatId, targetRef: NPC }) },
   revealHidden: { gate: "host", call: (g, who) => g.rpg.revealHidden({ principal: who, chatId: g.chatId }) },
-  resyncFromStory: { gate: "host", call: (g, who) => g.rpg.resyncFromStory({ principal: who, chatId: g.chatId }) },
+  resyncFromStory: { gate: "host", call: (g, who) => g.rpg.resyncFromStory({ signal: new AbortController().signal, principal: who, chatId: g.chatId }) },
   populateFromCharacter: {
     gate: "host",
-    call: (g, who) => g.rpg.populateFromCharacter({ principal: who, chatId: g.chatId, actorRef: NPC }),
+    call: (g, who) => g.rpg.populateFromCharacter({ signal: new AbortController().signal, principal: who, chatId: g.chatId, actorRef: NPC }),
     hostRefusedWith: RPG_OP_CODES.actorHasNoCard,
   },
   getGame: { gate: "member", call: (g, who) => g.rpg.getGame({ principal: who, chatId: g.chatId }) },

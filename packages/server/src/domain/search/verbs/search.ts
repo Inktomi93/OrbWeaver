@@ -53,7 +53,7 @@ function digestScopeFilter(scope: SearchScope): { readonly chatIds?: readonly Ch
 /** Every digest scope requires current host membership before ranking; chat and character filters only narrow that pool. */
 async function digestScan(ctx: SearchContext, args: UnifiedSearchParams, coverage: DigestCoverageOp): Promise<DigestSourceHit[]> {
   const rc = await ctx.roleClientsFor(args.ownerId);
-  return await withActiveQuerySpace(ctx, args.ownerId, "embed", async (space) => {
+  return await withActiveQuerySpace(ctx, { ownerId: args.ownerId, task: "embed", signal: args.signal }, async (space) => {
     const embedded = await space.connection.embed(args.query, {
       inputType: "query",
       instruction: SCOPE_INSTRUCTIONS.digests.query,

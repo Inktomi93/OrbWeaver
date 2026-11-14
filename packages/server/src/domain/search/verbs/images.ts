@@ -32,7 +32,7 @@ export function createImages(ctx: SearchContext): SearchService["images"] {
     // has their pictures in the text space as captions: the query must be embedded as TEXT and the only
     // lens that exists there is `image-captioned`, so the ask is overridden rather than answered with an
     // empty scan of rows that were never written.
-    return await withActiveQuerySpace(ctx, ownerId, "imageEmbed", async (space) => {
+    return await withActiveQuerySpace(ctx, { ownerId, task: "imageEmbed", signal: params.signal }, async (space) => {
       const lens = space.via === "embed" ? CAPTION_LENS : params.lens;
       requirePositiveTopN(topN, "images");
       if (query.trim().length === 0) {

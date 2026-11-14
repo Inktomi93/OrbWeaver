@@ -117,10 +117,11 @@ async function checkTargets(
   ctx: ConnectionContext,
   principal: Principal,
   targets: readonly Target[],
+  signal: AbortSignal,
 ): Promise<{ scopes: VectorScope[]; refusal: EmbedTargetRefusal | null }> {
   const scopes: VectorScope[] = [];
   for (const target of targets) {
-    const proof = await ctx.previewTargetMove({ ownerId: principal.userId, task: target.task, via: target.via, connection: target.row });
+    const proof = await ctx.previewTargetMove({ ownerId: principal.userId, task: target.task, via: target.via, connection: target.row, signal });
     if (proof.kind === "refused") {
       return { scopes, refusal: proof.refusal };
     }
@@ -134,7 +135,7 @@ async function checkTargets(
 export function createPreviewEmbedSpaceChange(ctx: ConnectionContext): ConnectionService["previewEmbedSpaceChange"] {
   return async ({ principal, change, signal }): Promise<EmbedSpaceChangePreview> => {
     const targets = await proposedTargets(ctx, principal, change, signal);
-    const { scopes, refusal } = await checkTargets(ctx, principal, targets);
+    const { scopes, refusal } = await checkTargets(ctx, principal, targets, signal);
     const counts = await ctx.countOwnedVectors(principal.userId);
     const stored = {
       cards: scopes.includes("cards") ? counts.cards : 0,

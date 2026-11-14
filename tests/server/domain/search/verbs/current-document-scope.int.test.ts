@@ -54,10 +54,30 @@ test("room document consent is current at the native scan, not frozen before que
   const chatId = await seedRecallRoom(caller);
   const invite = await root.services.chat.createInvite({ principal: owner, chatId, input: { invitedHandle: member.handle } });
   await root.services.chat.acceptInvite({ principal: member, inviteId: invite.invite.id });
-  const hostGlobal = await root.services.databank.createFromText({ principal: owner, name: "host-global.txt", text: "Host global marker." });
-  const hostAttached = await root.services.databank.createFromText({ principal: owner, name: "host-attached.txt", text: "Host attached marker." });
-  const memberGlobal = await root.services.databank.createFromText({ principal: member, name: "member-global.txt", text: "Cross-owner revoked marker." });
-  const memberPrivate = await root.services.databank.createFromText({ principal: member, name: "member-private.txt", text: "Unconsented private marker." });
+  const hostGlobal = await root.services.databank.createFromText({
+    signal: new AbortController().signal,
+    principal: owner,
+    name: "host-global.txt",
+    text: "Host global marker.",
+  });
+  const hostAttached = await root.services.databank.createFromText({
+    signal: new AbortController().signal,
+    principal: owner,
+    name: "host-attached.txt",
+    text: "Host attached marker.",
+  });
+  const memberGlobal = await root.services.databank.createFromText({
+    signal: new AbortController().signal,
+    principal: member,
+    name: "member-global.txt",
+    text: "Cross-owner revoked marker.",
+  });
+  const memberPrivate = await root.services.databank.createFromText({
+    signal: new AbortController().signal,
+    principal: member,
+    name: "member-private.txt",
+    text: "Unconsented private marker.",
+  });
   await root.services.databank.attachGlobal({ principal: owner, documentId: hostGlobal.document.id });
   await root.services.databank.attachToChat({ principal: owner, chatId, documentId: hostAttached.document.id });
   await root.services.databank.attachGlobal({ principal: member, documentId: memberGlobal.document.id });

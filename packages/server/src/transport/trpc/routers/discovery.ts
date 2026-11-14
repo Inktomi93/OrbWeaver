@@ -258,7 +258,7 @@ export const discoveryRouter = t.router({
   characterDossier: authedProcedure
     .output(characterDossierSchema.nullable())
     .input(z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character) }))
-    .query(({ ctx, input }) => ctx.services.discovery.characterDossier(ctx.auth.userId, input.characterId)),
+    .query(({ ctx, input, signal }) => ctx.services.discovery.characterDossier(ctx.auth.userId, input.characterId, procedureSignal(signal))),
 
   // cooccurrence reads (owner-scoped). The heavy recompute is the `compute-cooccurrence` workload.
   topKeywords: authedProcedure

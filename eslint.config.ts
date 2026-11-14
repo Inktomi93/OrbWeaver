@@ -749,10 +749,28 @@ const ROLE_COMPARISON_SYNTAX = [
 
 // An optional cancel is one a caller can drop without a word, and a dropped cancel never reaches the provider call or
 // the workload. A signal is required on every member and parameter; a caller with nothing above it creates one and
-// says why. esquery 1.7 never matches a `:has(> …)` child form, so the union arm looks at any depth.
-const ABORT_SIGNAL_TYPE = "TSTypeReference[typeName.name='AbortSignal']";
+// says why. The signal is `AbortSignal`, bare or as `globalThis.AbortSignal`, or the `Signal` type parameter the
+// isomorphic packages bind it through. Refused: an optional member or parameter, a union with `undefined` or `null`, a
+// defaulted parameter, a local alias (a field typed by it escapes every other arm), `Partial<>` over a bag that holds
+// a signal, and an optional inline bag that holds one. A bag behind a named type is out of a selector's reach.
+// The union arm reads direct members through the sibling combinator, so a nullable function type whose parameter is a
+// signal is not a finding.
+const ABORT_SIGNAL_NAME = ":matches([typeName.name='AbortSignal'], [typeName.right.name='AbortSignal'])";
+const SIGNAL_TYPE = "TSTypeReference:matches([typeName.name='AbortSignal'], [typeName.right.name='AbortSignal'], [typeName.name='Signal'])";
+const OPTIONAL_SLOT = ":matches(TSPropertySignature[optional=true], PropertyDefinition[optional=true], Identifier[optional=true]) > TSTypeAnnotation";
+const SIGNAL_MEMBER = "TSPropertySignature[key.name='signal']";
+const EMPTY_MEMBER = ":matches(TSUndefinedKeyword, TSNullKeyword)";
 const OPTIONAL_SIGNAL_SYNTAX = {
-  selector: `:matches(TSPropertySignature[optional=true], PropertyDefinition[optional=true], Identifier[optional=true]) > TSTypeAnnotation > ${ABORT_SIGNAL_TYPE}, TSUnionType:has(${ABORT_SIGNAL_TYPE}):has(TSUndefinedKeyword)`,
+  selector: [
+    `${OPTIONAL_SLOT} > ${SIGNAL_TYPE}`,
+    `TSUnionType > ${SIGNAL_TYPE} ~ ${EMPTY_MEMBER}`,
+    `TSUnionType > ${EMPTY_MEMBER} ~ ${SIGNAL_TYPE}`,
+    `AssignmentPattern > Identifier > TSTypeAnnotation > ${SIGNAL_TYPE}`,
+    `TSTypeAliasDeclaration > TSTypeReference.typeAnnotation${ABORT_SIGNAL_NAME}`,
+    `TSTypeReference[typeName.name='Partial'] ${SIGNAL_MEMBER}`,
+    `${OPTIONAL_SLOT} > TSTypeLiteral > ${SIGNAL_MEMBER}`,
+    `${OPTIONAL_SLOT} > TSIntersectionType > TSTypeLiteral > ${SIGNAL_MEMBER}`,
+  ].join(", "),
   message:
     "Require the AbortSignal: thread the caller's real signal, and where none exists above, create one with a comment that says why (docs/law/Spine-TypeScript-and-Patterns.md).",
 };
@@ -2467,12 +2485,13 @@ export default [
   {
     files: rootSources("@kit", "@default-content", "@showcase", "@plugin-toolchain"),
     ignores: KIT_CLOCK_HOME,
-    rules: { "no-restricted-syntax": restrictedSyntax(CLOCK_SYNTAX) },
+    rules: { "no-restricted-syntax": restrictedSyntax(CLOCK_SYNTAX, OPTIONAL_SIGNAL_SYNTAX) },
   },
+  { files: KIT_CLOCK_HOME, rules: { "no-restricted-syntax": restrictedSyntax(OPTIONAL_SIGNAL_SYNTAX) } },
   {
     files: rootSources("@contracts"),
     rules: {
-      "no-restricted-syntax": restrictedSyntax(CLOCK_SYNTAX, {
+      "no-restricted-syntax": restrictedSyntax(CLOCK_SYNTAX, OPTIONAL_SIGNAL_SYNTAX, {
         selector:
           "Property:matches([key.name=/^(url|uri|email|baseUrl|sourceUrl|provenanceUrl)$/], [key.value=/^(url|uri|email|baseUrl|sourceUrl|provenanceUrl)$/]) CallExpression[callee.object.name='z'][callee.property.name='string']",
         message: "Use a Zod format for an address. Use its owning text schema for preserved metadata or diagnostic text.",

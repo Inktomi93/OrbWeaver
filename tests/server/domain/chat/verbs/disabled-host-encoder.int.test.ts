@@ -68,7 +68,12 @@ async function disabledHostRoom(): Promise<DisabledHostRoom> {
   const chatId = await seedRecallRoom(hostCaller);
   const invite = await root.services.chat.createInvite({ principal: host, chatId, input: { invitedHandle: member.handle } });
   await root.services.chat.acceptInvite({ principal: member, inviteId: invite.invite.id });
-  const lore = await root.services.databank.createFromText({ principal: host, name: "room-lore.txt", text: "The ledger room keeps its lamps lit." });
+  const lore = await root.services.databank.createFromText({
+    signal: new AbortController().signal,
+    principal: host,
+    name: "room-lore.txt",
+    text: "The ledger room keeps its lamps lit.",
+  });
   await root.services.databank.attachToChat({ principal: host, chatId, documentId: lore.document.id });
   const ingested = await root.app.databankIngest.ingestDocument({ documentId: lore.document.id, signal: new AbortController().signal });
   expect(ingested.chunksUpserted).toBeGreaterThan(0);

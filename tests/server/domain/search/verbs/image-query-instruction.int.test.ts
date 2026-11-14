@@ -1,6 +1,7 @@
 // A text-to-image query carries the image scope's retrieval instruction to an embedder that honours one, and only the
 // query side moves: stored image vectors keep their document instruction, so the space is unchanged. A cancelled
-// request reaches the provider call it is waiting on: the query embed and the rerank both carry the request's signal.
+// request reaches the step it is waiting on: the encoder resolve, the query embed and the rerank all carry the
+// request's signal.
 // @subject packages/server/src/domain/search/verbs/images.ts
 // @subject packages/server/src/domain/embeddings/verbs/runtime-connection.ts
 // @subject packages/inference/src/backends/openai-compat/image-embed.ts
@@ -20,6 +21,7 @@ import {
   seedCorpusConnections,
 } from "@orb/testkit/node/composed";
 import { z } from "zod";
+import { RESOLUTION_ABORTED_MESSAGE } from "#inference/backends/http/abort-wait.ts";
 import { SCOPE_INSTRUCTIONS } from "#server/domain/search/substrate/instructions.ts";
 
 const QUERY = "a silver-haired archivist";
@@ -36,8 +38,10 @@ interface ImageSearchWire {
   readonly order: readonly string[];
 }
 
-/** The provider call at which the request is cancelled while the provider holds it. */
-type CancelPoint = "query-embed" | "rerank";
+// Where the request is cancelled: before the search starts, so the encoder resolve is its first step, or while the
+// provider holds the query embed or the rerank.
+const CANCEL_POINTS = ["encoder-resolve", "query-embed", "rerank"] as const;
+type CancelPoint = (typeof CANCEL_POINTS)[number];
 
 interface ImageSearchCase {
   readonly instructionAware: boolean;
@@ -131,6 +135,9 @@ async function imageSearch(search: ImageSearchCase): Promise<ImageSearchWire & {
   }
   await root.app.embeddings.embedAssets({ ownerId: principal.userId, force: false, signal: new AbortController().signal });
   await root.settleBackground();
+  if (cancelAt === "encoder-resolve") {
+    request.abort();
+  }
   const searched = root.services.search.images({
     signal: request.signal,
     ownerId: principal.userId,
@@ -181,4 +188,10 @@ test.each<CancelPoint>(["query-embed", "rerank"])("a request cancelled during th
   const { cancelled } = await imageSearch({ instructionAware: false, rerank: true, cancelAt });
   expect(cancelled?.providerSawAbort).toBe(true);
   expect(cancelled?.outcome.status).toBe("rejected");
+});
+
+test("a request cancelled before the search ends it at the encoder resolve", async () => {
+  const { cancelled } = await imageSearch({ instructionAware: false, rerank: true, cancelAt: "encoder-resolve" });
+  // A resolve that ignores the cancel fails later, at the query embed, with that call's own abort.
+  expect(cancelled?.outcome).toMatchObject({ status: "rejected", reason: { message: RESOLUTION_ABORTED_MESSAGE } });
 });

@@ -29,7 +29,7 @@ export function createViews(ctx: DiscoveryContext, deps: ViewsDeps): Pick<Discov
   return {
     home: (userId) => home(ctx.db, userId, deps),
     themeDetail: (userId, clusterIdx, level) => themeDetail(ctx.db, deps, { ownerId: userId, clusterIdx, level }),
-    characterDossier: (userId, characterId) => characterDossier(ctx.db, deps, { ownerId: userId, characterId }),
+    characterDossier: (userId, characterId, signal) => characterDossier(ctx.db, deps, { ownerId: userId, characterId, signal }),
   };
 }
 
@@ -80,13 +80,20 @@ async function themeDetail(db: Db, deps: ViewsDeps, args: { ownerId: UserId; clu
 
 /** null when the character isn't owned/distilled. Composes the distilled headline facets, the in-RAM
  *  portrait↔card cosine (null when there's no paired vector), and the injected `similar` neighbours. */
-async function characterDossier(db: Db, deps: ViewsDeps, args: { ownerId: UserId; characterId: CharacterId }): Promise<CharacterDossier | null> {
-  const { ownerId, characterId } = args;
+async function characterDossier(
+  db: Db,
+  deps: ViewsDeps,
+  args: { ownerId: UserId; characterId: CharacterId; signal: AbortSignal },
+): Promise<CharacterDossier | null> {
+  const { ownerId, characterId, signal } = args;
   const card = await readOwnedCardFacet(db, ownerId, characterId);
   if (card === undefined) {
     return null;
   }
-  const [pairs, similar] = await Promise.all([readOwnedPortraitPairs(db, ownerId, characterId), deps.similar(ownerId, characterId, DOSSIER_SIMILAR_TOP_N)]);
+  const [pairs, similar] = await Promise.all([
+    readOwnedPortraitPairs(db, ownerId, characterId),
+    deps.similar(ownerId, characterId, DOSSIER_SIMILAR_TOP_N, signal),
+  ]);
   const pair = pairs.find((p) => p.characterId === characterId);
   const portrait = pair === undefined ? null : { avatarHash: pair.avatarHash, alignment: cosineSim(pair.cardVec, pair.imageVec) };
   return {

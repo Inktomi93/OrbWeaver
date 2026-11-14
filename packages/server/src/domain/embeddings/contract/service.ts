@@ -73,7 +73,7 @@ export interface PinnedImageSpace {
   readonly generation: PinnedGeneration;
 }
 
-export type ResolveEmbeddingConnection = ResolveEmbeddingConnectionOp<EmbeddingConnectionSnapshot>;
+export type ResolveEmbeddingConnection = ResolveEmbeddingConnectionOp<EmbeddingConnectionSnapshot, AbortSignal>;
 
 /** Re-read a character card's embeddable text by id. `undefined` when deleted between emit and handler. */
 export type LoadCardText = (characterId: CharacterId) => Promise<string | undefined>;
@@ -172,7 +172,7 @@ export interface EmbeddingsService {
    *  is width-probed before any moves, so a refusal leaves both targets and their indexes as they were. */
   readonly syncTargetGenerations: SyncTargetGenerationsOp;
   /** Check a proposed move with the same width probe as binding settlement, without landing it. */
-  readonly previewTargetMove: PreviewTargetMoveOp;
+  readonly previewTargetMove: PreviewTargetMoveOp<AbortSignal>;
   /** Every stored target in scope (one owner, or every owner for `null`) as one comparable value: two equal
    *  snapshots mean no target in scope moved between them. Read-only. */
   readonly targetSnapshot: TargetSnapshotOp;

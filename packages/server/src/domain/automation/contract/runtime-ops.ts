@@ -10,6 +10,9 @@ import type { AssetId, ChatId, MessageId, MessageVariantId, UserId } from "@orb/
 import type { AutomationOps, ListRuleTools } from "./ops.ts";
 
 export interface AutomationRuntimeDeps<TSet> {
+  /** The process background-work lifetime. A rule dispatch runs off the domain bus with no request, turn or workload
+   *  above it, so shutdown is the one cancel its provider calls take. */
+  readonly backgroundSignal: AbortSignal;
   readonly resolveOwnerPrincipal: ResolveHostPrincipalOp;
   readonly requestTurn: RequestTurnOp;
   readonly postNarratorMessage: (

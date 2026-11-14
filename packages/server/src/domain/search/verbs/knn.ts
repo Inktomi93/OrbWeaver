@@ -26,7 +26,7 @@ export function createKnn(ctx: SearchContext): SearchService["knn"] {
     }
     requirePositiveTopN(topN, "knn");
 
-    return await withActiveQuerySpace(ctx, ownerId, "embed", async (space) => {
+    return await withActiveQuerySpace(ctx, { ownerId, task: "embed", signal }, async (space) => {
       const embedded = await space.connection.embed(query, { inputType: "query", signal });
       const queryVector = embedded.vectors[0];
       if (queryVector === null || queryVector === undefined) {

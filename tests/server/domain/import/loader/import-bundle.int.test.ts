@@ -697,7 +697,7 @@ test("databank documents and imagery history restore onto bytes the owner holds 
   pictures.push(makeAssetBytes(source.idSource.typeId(ID_PREFIX.asset)));
   const owner = await source.principalFor(source.ownerId);
   const documentBytes = new TextEncoder().encode(DOCUMENT_TEXT);
-  await source.services.databank.upload({ principal: owner, bytes: documentBytes, mime: TEXT_MIME, name: "Ledger" });
+  await source.services.databank.upload({ signal: new AbortController().signal, principal: owner, bytes: documentBytes, mime: TEXT_MIME, name: "Ledger" });
   const [sourceDocument] = await source.services.assets.listOwned({ principal: owner, kind: "document", limit: 1 });
   const generated = await generateOnePicture(source);
   const image = await source.services.assets.assetCasRefById(generated);

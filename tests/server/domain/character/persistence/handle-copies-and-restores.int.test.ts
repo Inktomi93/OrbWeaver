@@ -84,6 +84,7 @@ async function portraitOf(root: ServerTestHarness, pictures: Uint8Array[], subje
 
 async function uploadDocument(root: ServerTestHarness): Promise<DocumentId> {
   const { document } = await root.services.databank.upload({
+    signal: new AbortController().signal,
     principal: await root.principalFor(root.ownerId),
     bytes: new TextEncoder().encode("The outer rings drift one degree each cycle."),
     mime: TEXT_MIME,
@@ -165,9 +166,13 @@ test("a card stored outside the alphabet keeps its gallery, databank and imagery
   const restored = (await (await target.internalCallerFor(target.ownerId)).character.list({})).items.filter((item) => item.name === NAME);
   const restoredIds = restored.map((item) => item.id);
   const gallery = await target.services.assets.listGallery({ principal, limit: 100 });
-  const documents = (await target.services.databank.list({ principal })).items.filter((item) => item.name === DOCUMENT_NAME);
+  const documents = (await target.services.databank.list({ signal: new AbortController().signal, principal })).items.filter(
+    (item) => item.name === DOCUMENT_NAME,
+  );
   const attached = await Promise.all(
-    documents.map(async (item) => (await target.services.databank.listAttachments({ principal, id: item.id })).characters.map((ref) => ref.id)),
+    documents.map(async (item) =>
+      (await target.services.databank.listAttachments({ signal: new AbortController().signal, principal, id: item.id })).characters.map((ref) => ref.id),
+    ),
   );
   const imagerySubjects = await importedSubjects(target, assetId);
 
@@ -207,7 +212,7 @@ test("a databank or imagery file naming a synthetic group handle attaches nothin
 
   const documentOutcome = await importFile(root, "databank", { ...documentFile, bytes: encode(craftedDocument) });
   const imageryOutcome = await importFile(root, "imagery", { ...imageryFile, bytes: encode(craftedCall) });
-  const attachments = await root.services.databank.listAttachments({ principal: owner, id: documentId });
+  const attachments = await root.services.databank.listAttachments({ signal: new AbortController().signal, principal: owner, id: documentId });
 
   expect({
     documentOk: documentOutcome.ok,
@@ -318,7 +323,9 @@ test("an owner's export names no synthetic group row as a gallery, databank or i
     // Each export source holds the group row, so a missing filter would carry its handle out.
     held: {
       gallery: (await root.services.assets.listGallery({ principal: owner, limit: 100 })).some((item) => item.subjectCharacterId === groupId),
-      databank: (await root.services.databank.listAttachments({ principal: owner, id: documentId })).characters.some((ref) => ref.id === groupId),
+      databank: (await root.services.databank.listAttachments({ signal: new AbortController().signal, principal: owner, id: documentId })).characters.some(
+        (ref) => ref.id === groupId,
+      ),
       imagery: nativeSubjects.map((row) => row.subject),
     },
     // The first-login seed files its own gallery items; only the portrait's item is in question.

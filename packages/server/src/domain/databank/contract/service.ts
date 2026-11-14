@@ -183,7 +183,8 @@ export interface DatabankContext {
    *  branching on why it failed (it asks infra only whether the firewall already recorded the block, so one refusal
    *  leaves one log record). The scraper adds ZERO guard logic of its own. */
   readonly fetchUrl: ScopedEgress["fetchWebDocument"];
-  readonly getActiveEmbedSpace: (ownerId: UserId) => Promise<ActiveEmbedSpace | null>;
+  /** Resolving the live space can wake the owner's encoder, so the read takes the caller's signal. */
+  readonly getActiveEmbedSpace: (ownerId: UserId, signal: AbortSignal) => Promise<ActiveEmbedSpace | null>;
   readonly getDatabankSettings: GetDatabankSettingsOp;
   readonly enqueueIngest: EnqueueIngestOp;
   readonly enqueueReindex: EnqueueReindexOp;
@@ -217,7 +218,7 @@ export interface DatabankService {
    *  extraction fails the upload atomically (nothing persisted — `extractedText` is NOT NULL canon). */
   readonly upload: (params: UploadDocumentParams) => Promise<UploadResult>;
   /** origin 'text' — no bytes, no extraction; straight to canon + enqueue ingest. */
-  readonly createFromText: CreateDocumentFromText;
+  readonly createFromText: CreateDocumentFromText<AbortSignal>;
   /** origin 'web' (DB7): fetch the page over the ANY_HOST safeFetch guard → html extraction → the §2 canon
    *  pipeline. A refused/failed fetch throws a leak-free `ScrapeFailedError` (BAD_REQUEST); never retried. */
   readonly scrapeWeb: (params: ScrapeWebParams) => Promise<UploadResult>;

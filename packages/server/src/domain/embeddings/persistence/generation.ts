@@ -153,13 +153,14 @@ export async function pendingTargetMove(
     readonly task: EmbeddingTask;
     readonly via: EmbeddingTask;
     readonly previewConnection?: UserConnection | undefined;
+    readonly signal: AbortSignal;
   },
 ): Promise<PendingTargetMove> {
-  const { ownerId, task, via, previewConnection } = args;
+  const { ownerId, task, via, previewConnection, signal } = args;
   const connection =
     previewConnection === undefined
-      ? await ctx.resolveEmbeddingConnection(ownerId, via)
-      : await ctx.resolveEmbeddingConnection(ownerId, via, previewConnection.id, { previewConnection });
+      ? await ctx.resolveEmbeddingConnection(ownerId, via, { signal })
+      : await ctx.resolveEmbeddingConnection(ownerId, via, { signal, connectionId: previewConnection.id, previewConnection });
   const candidate = candidateOf(ownerId, task, via, connection);
   return { id: candidate.id, moves: movesTarget(await readTarget(ctx, ownerId, task), candidate.id), connection, dims: candidate.dims };
 }
@@ -176,8 +177,11 @@ interface ResolveAttempt {
 /** What `via` resolves to now. Resolution can span provider/catalog work, so it is read twice and the later answer
  *  wins: an older slow resolver cannot land after a newer binding and reset the target backwards. */
 async function resolveCurrentConnection(ctx: TargetResolveCtx, ownerId: UserId, via: EmbeddingTask): Promise<EmbeddingConnectionSnapshot> {
-  const first = await ctx.resolveEmbeddingConnection(ownerId, via);
-  const current = await ctx.resolveEmbeddingConnection(ownerId, via);
+  // Runs inside the owner's binding queue, which pins the target every writer of the owner's space shares; no one
+  // caller's cancel may leave it half-moved, and each resolve keeps its own deadline.
+  const signal = new AbortController().signal;
+  const first = await ctx.resolveEmbeddingConnection(ownerId, via, { signal });
+  const current = await ctx.resolveEmbeddingConnection(ownerId, via, { signal });
   return first.connectionId === current.connectionId && connectionFingerprint(first) === connectionFingerprint(current) ? first : current;
 }
 

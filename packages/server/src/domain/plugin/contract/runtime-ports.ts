@@ -15,7 +15,7 @@ export interface PluginRuntimeDeps {
   readonly now: Clock;
   readonly requestTurn: RequestTurnOp;
   readonly imagery: { readonly generatePicture: GeneratePicture<AbortSignal> };
-  readonly databankCreateFromText: CreateDocumentFromText;
+  readonly databankCreateFromText: CreateDocumentFromText<AbortSignal>;
   readonly assets: { readonly store: StoreAsset };
   readonly resolveOwnerPrincipal: ResolveHostPrincipalOp;
   readonly readCardData: (target: PluginCardDataTarget) => Promise<PluginCardDataRead>;

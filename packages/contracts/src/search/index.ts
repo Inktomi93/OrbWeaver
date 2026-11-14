@@ -504,4 +504,5 @@ export interface SimilarCharactersParams {
 /** The `search.documents` lens: scope-gated cosine retrieval over `document_chunks`, reading-order restored. */
 export type SearchDocumentsOp<Signal> = (params: DocumentSearchParams & { readonly signal: Signal }) => Promise<DocumentChunkHit[]>;
 
-export type SimilarCharactersOp = (params: SimilarCharactersParams) => Promise<CharacterCardHit[]>;
+/** `Signal` is the caller's cancel: the seed read resolves the owner's encoder, which can wake a sleeping model. */
+export type SimilarCharactersOp<Signal> = (params: SimilarCharactersParams & { readonly signal: Signal }) => Promise<CharacterCardHit[]>;

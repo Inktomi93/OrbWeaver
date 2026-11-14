@@ -162,7 +162,7 @@ export interface PluginHostOps {
    *  searches only its own library (owner-scoped by construction — a guest names only the query + limit). The
    *  limit is clamped to `PLUGIN_SEARCH_RESULTS_MAX` at the membrane. Returns ranked reduced hits (content
    *  host-capped). No principal resolve — the ownerId in the scope IS the owner gate. */
-  readonly search: PluginDocumentReads;
+  readonly search: PluginDocumentReads<AbortSignal>;
   /** The plugin-PRIVATE KV plane (`storage.*`; the `plugin_kv` table) — per plugin × installing
    *  owner. DIVERGES from automation (no automation analog): every op is keyed by BOTH `pluginId` AND `ownerId`
    *  (the denormalized guard column), so plugin A can never read plugin B's keys and no cross-owner read is
@@ -213,7 +213,12 @@ export interface PluginHostOps {
    *  `{assetId}`-bearing imagery front door; `authorUserId` resolves to the installer's Principal at compose
    *  (connection). Cost VISIBILITY rides the stats domain off the imagery write itself. */
   readonly imagery: {
-    readonly generatePicture: (req: { readonly authorUserId: UserId; readonly chatId: ChatId; readonly args: GenerateImageActionArgs }) => Promise<{
+    readonly generatePicture: (req: {
+      readonly authorUserId: UserId;
+      readonly chatId: ChatId;
+      readonly args: GenerateImageActionArgs;
+      readonly signal: AbortSignal;
+    }) => Promise<{
       readonly assetId: SandboxWireId<AssetId>;
     }>;
   };
@@ -300,7 +305,7 @@ export interface PluginHostOps {
    *  + dedups the text and ENQUEUES the ingest workload (the indexer auto-runs). Owner-scoped by construction:
    *  the bridge closes the installer over this, a guest names only the document. Returns the new document id. */
   readonly databank: {
-    readonly ingest: (req: { readonly installerUserId: UserId; readonly name: string; readonly text: string }) => Promise<{
+    readonly ingest: (req: { readonly installerUserId: UserId; readonly name: string; readonly text: string; readonly signal: AbortSignal }) => Promise<{
       readonly documentId: SandboxWireId<DocumentId>;
     }>;
   };

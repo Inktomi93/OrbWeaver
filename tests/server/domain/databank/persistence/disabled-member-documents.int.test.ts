@@ -34,8 +34,18 @@ test("a disabled member's global document leaves the room's panel and retrieval,
   const chatId = await seedRecallRoom(hostCaller);
   const invite = await root.services.chat.createInvite({ principal: host, chatId, input: { invitedHandle: member.handle } });
   await root.services.chat.acceptInvite({ principal: member, inviteId: invite.invite.id });
-  const hostAttached = await root.services.databank.createFromText({ principal: host, name: "host-attached.txt", text: "Host attached marker." });
-  const memberGlobal = await root.services.databank.createFromText({ principal: member, name: "member-global.txt", text: "Member global marker." });
+  const hostAttached = await root.services.databank.createFromText({
+    signal: new AbortController().signal,
+    principal: host,
+    name: "host-attached.txt",
+    text: "Host attached marker.",
+  });
+  const memberGlobal = await root.services.databank.createFromText({
+    signal: new AbortController().signal,
+    principal: member,
+    name: "member-global.txt",
+    text: "Member global marker.",
+  });
   await root.services.databank.attachToChat({ principal: host, chatId, documentId: hostAttached.document.id });
   await root.services.databank.attachGlobal({ principal: member, documentId: memberGlobal.document.id });
   for (const produced of [hostAttached, memberGlobal]) {
@@ -72,7 +82,8 @@ test("a disabled member's global document leaves the room's panel and retrieval,
       return jobs.length === sweeps.length && jobs.every((job) => job.status === "succeeded");
     })
     .toBe(true);
-  const panel = async (): Promise<string[]> => (await root.services.databank.listActiveForChat({ principal: host, chatId })).map((row) => row.id).toSorted();
+  const panel = async (): Promise<string[]> =>
+    (await root.services.databank.listActiveForChat({ signal: new AbortController().signal, principal: host, chatId })).map((row) => row.id).toSorted();
   const retrieved = async (): Promise<string[]> =>
     (
       await root.services.search.documents({

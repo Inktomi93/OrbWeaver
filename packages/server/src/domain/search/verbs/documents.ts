@@ -89,7 +89,7 @@ export function createDocuments(ctx: SearchContext): SearchService["documents"] 
       return [];
     }
     const rc = await ctx.roleClientsFor(params.ownerId);
-    return await withActiveQuerySpace(ctx, params.ownerId, "embed", async (space) => {
+    return await withActiveQuerySpace(ctx, { ownerId: params.ownerId, task: "embed", signal: params.signal }, async (space) => {
       const k = params.k ?? DEFAULT_DOCUMENT_K;
       const minScore = params.minScore ?? DEFAULT_DOCUMENT_MIN_SCORE;
 

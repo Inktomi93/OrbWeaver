@@ -36,7 +36,7 @@ export function createCorpus(ctx: SearchContext, coverage: DigestCoverageOp): Se
   return async (params: CorpusParams & { readonly signal: AbortSignal }): Promise<CorpusHit[]> => {
     const text = params.queryText;
     const rc = await ctx.roleClientsFor(params.ownerId);
-    return await withActiveQuerySpace(ctx, params.ownerId, "embed", async (space) => {
+    return await withActiveQuerySpace(ctx, { ownerId: params.ownerId, task: "embed", signal: params.signal }, async (space) => {
       if (text.trim().length === 0) {
         throw new SearchError(SEARCH_EMPTY_QUERY, "corpus requires a queryText to embed + scan");
       }

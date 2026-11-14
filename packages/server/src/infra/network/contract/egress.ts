@@ -120,7 +120,7 @@ export interface ScopedEgress extends AsyncDisposable {
   readonly resolvedEndpointAdmission: (baseUrl: string) => Promise<(typeof ENDPOINT_ADMISSIONS)[number]>;
   readonly safeFetch: (url: string | URL, options: SafeFetchOptions) => Promise<SafeFetchResult>;
   readonly fetchImageBytes: (url: string, signal: AbortSignal, maxBytes?: number) => Promise<Uint8Array | null>;
-  readonly fetchWebDocument: (url: string) => Promise<Uint8Array>;
+  readonly fetchWebDocument: (url: string, signal: AbortSignal) => Promise<Uint8Array>;
   readonly fetchPluginBundle: (url: string) => Promise<Uint8Array>;
   readonly fetchPinnedDownload: (url: string, limits: PinnedDownloadLimits) => Promise<Response>;
   readonly configuredEndpointFetch: typeof fetch;

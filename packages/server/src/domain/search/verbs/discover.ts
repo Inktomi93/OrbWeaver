@@ -161,7 +161,7 @@ export function createDiscover(ctx: SearchContext): SearchService["discover"] {
   return async (params: DiscoverParams): Promise<DiscoverResult> => {
     const { ownerId, queryText, topN, signal } = params;
     const rc = await ctx.roleClientsFor(ownerId);
-    return await withActiveQuerySpace(ctx, ownerId, "embed", async (space) => {
+    return await withActiveQuerySpace(ctx, { ownerId, task: "embed", signal }, async (space) => {
       const queryVector = await embedDiscoverQuery(space.connection.embed, queryText, { topN, signal });
       const model = space.model;
 

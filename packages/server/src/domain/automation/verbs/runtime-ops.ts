@@ -31,9 +31,7 @@ export function createAutomationRuntimeOps<TSet>(deps: AutomationRuntimeDeps<TSe
         caller,
         actor: { kind: "automation-rule", ruleId },
         ...(chatId === null ? {} : { chatId }),
-        // An automation arm runs off the domain bus with no request, turn or workload above it, so nothing can
-        // cancel it; the image call keeps its own deadline.
-        signal: new AbortController().signal,
+        signal: deps.backgroundSignal,
       });
       if (chatId !== null) {
         await deps.emitPictureWarnings(chatId, picture.warnings);
@@ -99,9 +97,7 @@ export function createAutomationRuntimeOps<TSet>(deps: AutomationRuntimeDeps<TSe
         // ROW READ like every other author→Principal edge in this file; a bare `UserId` carries no authority.
         principal: await resolveOwnerPrincipal(authorUserId),
         chatId,
-        // An automation arm runs off the domain bus with no request, turn or workload above it, so nothing can
-        // cancel it; the tool keeps its own deadline.
-        signal: new AbortController().signal,
+        signal: deps.backgroundSignal,
         // No turn exists — a rule dispatch is not a turn. This is also why first-party tools are not
         // direct-drivable: `executeToolCalls` rejects this `exec` for a first-party set at compile time.
         turnId: null,
@@ -128,9 +124,7 @@ export function createAutomationRuntimeOps<TSet>(deps: AutomationRuntimeDeps<TSe
       const rc = await roleClientsFor(authorUserId);
       const sampling = resolveSideGenSampling(SIDE_GEN_POSTURES[posture], await deps.resolveUtilityPresetParams(authorUserId));
       const inputs = [{ systemPrompt, userPrompt: prompt }];
-      // An automation arm runs off the domain bus with no request, turn or workload above it, so nothing can
-      // cancel it; the provider call keeps its own deadline.
-      const signal = new AbortController().signal;
+      const signal = deps.backgroundSignal;
       const res =
         responseFormat === undefined
           ? await rc.summarize(inputs, { ...sampling, signal })
