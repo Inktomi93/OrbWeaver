@@ -1,0 +1,1 @@
+ALTER TABLE `workloads` ADD `transient` integer DEFAULT false NOT NULL;
