@@ -1,8 +1,8 @@
 // domain/chat/memory/strikes — the memory view's read and the host's strike and restore, run after the verbs' gates
 // (`verbs/memory-strikes.ts`) through `ChatContext.memoryStrikes`.
 //
-// A STRIKE NAMES A SPAN OF THE STORY. Recall leaves out every bucket's summary of a struck span and every longer
-// summary retelling one (`matchStrikes` in `packages/kit/src/recall/index.ts`). So the view shows one struck entry per
+// A STRIKE NAMES A SPAN OF THE STORY. Recall leaves out every bucket's summary of a struck span and every other
+// summary holding a struck turn (`matchStrikes` in `packages/kit/src/recall/index.ts`). So the view shows one struck entry per
 // span (the item the host struck, else the first listed copy, else the shortest summary still retelling it once the
 // scene's own summaries are gone) and marks every other item left out `retellsStruck`; a strike whose stored
 // character is null (the shared bucket, or a character since deleted) is carried by the shared copy. A strike on an
@@ -27,14 +27,18 @@
 // of tier k lands on every complete tier-k position of the fork (tier-0 blocks, and the arcs `tier0RangeOf` builds from
 // them) whose seq span shares a seq with the strike's span; a strike that overlaps no fork position (wholly below the
 // floor, or wholly past the fork point) is not carried. Tiers do not cross: a fork arc holding a re-keyed block is left
-// out by `matchStrikes`'s containment rule. The one position still open at the fork (a partial last block, or an arc
+// out by `matchStrikes`'s overlap rule. The one position still open at the fork (a partial last block, or an arc
 // missing a child) has no end message yet, so the strike lands there on just the struck turns the fork copied into it;
-// the block that later closes around them contains that span and is left out by the same rule. This holds whatever
+// the block that later closes around them holds that span and is left out by the same rule. This holds whatever
 // shortens the copied tail: a fork point, rows hidden from the prompt, or a verbatim window under the block size.
 // The grid uses the forker's memory config, since the forker hosts the fork.
 // When several strikes land on one position, the one whose whole span the fork copied wins, else the oldest: the winner's
 // anchor and hash then still name a scene the fork holds. The content hash carries, so an unmoved scene's summary reads
 // as unchanged since the strike.
+//
+// A GRID THAT MOVES IN PLACE RE-KEYS NOTHING. A block size change or a hide re-slices a room's blocks with no write to
+// its strikes; `matchStrikes` leaves out every summary holding a struck turn, so the strike still holds, and the first
+// listed of the lowest tier carries it in the view.
 //
 // A FORKER NEVER READS AN ANCHOR THAT RETELLS TURNS BELOW THEIR FLOOR. A carried strike whose span the fork did not copy
 // whole keeps no topic anchor: the forker hosts the fork and reads its unmatched list, so the anchor would retell turns

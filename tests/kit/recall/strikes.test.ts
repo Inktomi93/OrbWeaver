@@ -1,6 +1,6 @@
 // A player's strike names a span of the story: it matches every bucket's digest of that span by tier and endpoints,
-// never by grid position alone, and any summary at its tier or above whose span contains the strike's is left out
-// beside it.
+// never by grid position alone, and any summary at its tier or above whose span shares a turn with the strike's is
+// left out beside it.
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { ResolvedStrike, StrikeCandidate } from "@orb/kit/recall";
 import { matchStrikes } from "@orb/kit/recall";
@@ -10,7 +10,7 @@ import { expect, test } from "@orb/testkit/node";
 const ids = createSeededIds();
 const shared = mintTypeId(ID_PREFIX.character, ids.next);
 const scout = mintTypeId(ID_PREFIX.character, ids.next);
-const messages = Array.from({ length: 8 }, () => mintTypeId(ID_PREFIX.message, ids.next));
+const messages = Array.from({ length: 9 }, () => mintTypeId(ID_PREFIX.message, ids.next));
 const FAN_OUT = 2;
 
 function msg(index: number): (typeof messages)[number] {
@@ -107,16 +107,49 @@ test("a re-digested scene with the same endpoints is still struck, and an unreso
   expect(matchStrikes([lost], [strike]).struck.size).toBe(0);
 });
 
-test("a re-sliced block at the struck position is a different item and is not suppressed", () => {
+test("a re-sliced block at the struck position is not struck, but is left out while it holds a struck turn", () => {
   const original = digest(0, 1);
   const strike = strikeOn(original);
-  // An earlier hide moved the grid by one message: block 1 now covers messages 3 and 4.
-  const shifted: StrikeCandidate = { ...original, contentHash: "hash-reslice", span: { startId: msg(3), endId: msg(4) }, seqSpan: { seqStart: 3, seqEnd: 4 } };
-  const match = matchStrikes([shifted], [strike]);
-  expect(match.struck.size).toBe(0);
-  expect(match.coversStruck.size).toBe(0);
+  const resliced = (seqStart: number, seqEnd: number): StrikeCandidate => ({
+    ...original,
+    contentHash: `hash-reslice-${seqStart}`,
+    span: { startId: msg(seqStart), endId: msg(seqEnd) },
+    seqSpan: { seqStart, seqEnd },
+  });
+  // An earlier hide moved the grid by one message: block 1 now covers messages 3 and 4, half the struck scene.
+  const shifted = resliced(3, 4);
+  const shiftedMatch = matchStrikes([shifted], [strike]);
+  expect(shiftedMatch.struck.size).toBe(0);
+  expect([...shiftedMatch.coversStruck]).toEqual([[shifted, strike]]);
+  // Moved clear of the scene, the block at the struck position holds none of it and stays.
+  const clear = matchStrikes([resliced(4, 5)], [strike]);
+  expect(clear.struck.size + clear.coversStruck.size).toBe(0);
   // The positive control: the same row with the original span is struck.
   expect(matchStrikes([original], [strike]).struck.size).toBe(1);
+});
+
+test("after a block size change, every same-tier block holding a struck turn is left out, and its neighbours stay", () => {
+  const strike = strikeOn(digest(0, 1));
+  const block = (size: number, blockIdx: number): StrikeCandidate => {
+    const first = blockIdx * size;
+    const last = first + size - 1;
+    return {
+      tier: 0,
+      blockIdx,
+      scopedCharacterId: shared,
+      contentHash: `hash-size-${size}-${blockIdx}`,
+      span: { startId: msg(first), endId: msg(last) },
+      seqSpan: { seqStart: first, seqEnd: last },
+    };
+  };
+  // Smaller blocks: one message each, two of them inside the struck span.
+  const halves = [2, 3].map((blockIdx) => block(1, blockIdx));
+  const match = matchStrikes([block(1, 1), ...halves, block(1, 4)], [strike]);
+  expect(match.struck.size).toBe(0);
+  expect([...match.coversStruck.keys()]).toEqual(halves);
+  // Larger blocks of three: the struck span straddles two, each also holding an unstruck turn; the third holds none.
+  const thirds = [0, 1, 2].map((blockIdx) => block(3, blockIdx));
+  expect([...matchStrikes(thirds, [strike]).coversStruck.keys()]).toEqual(thirds.slice(0, 2));
 });
 
 test("a strike on part of a block leaves out the same-tier block that closed around it, and only that block", () => {
