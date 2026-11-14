@@ -180,7 +180,11 @@ function MessageHandlingBody({
           <SettingRow settingId="temp-chat-ttl">
             <form.AppField name="tempChatTtlHours">
               {(field): ReactElement => (
-                <field.NumberField label="Delete temp chats after (hours)" max={TEMP_CHAT_TTL_HOURS_MAX} min={TEMP_CHAT_TTL_HOURS_MIN} />
+                <field.NumberField
+                  label={configSettingLabel(CHAT_MESSAGE_HANDLING_SUBCATEGORY, "tempChatTtlHours")}
+                  max={TEMP_CHAT_TTL_HOURS_MAX}
+                  min={TEMP_CHAT_TTL_HOURS_MIN}
+                />
               )}
             </form.AppField>
           </SettingRow>
