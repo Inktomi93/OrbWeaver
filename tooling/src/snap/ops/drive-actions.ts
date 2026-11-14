@@ -17,7 +17,7 @@ import type { ArmActionContext, ArmActionDisposition, ArmTapeContext } from "../
 import type { Args, DriveFailure, EvalOutcome, NavAction, SnapAction, Step } from "../contract/types.ts";
 import { HOVER_REVEAL_MS, SNAP_CEILINGS_MS, STEP_SETTLE_MS } from "../lib/budgets.ts";
 import { CHURN_LINE, isContextChurn } from "../lib/eval-text.ts";
-import { scrubPrivateText } from "../lib/private-values.ts";
+import { scrubPlaywrightText, scrubPrivateText } from "../lib/private-values.ts";
 import { captureEvals } from "./arms/eval.ts";
 import { navDriveFailure, stepDriveFailure, stepLabel } from "./drive-failure-naming.ts";
 
@@ -178,7 +178,7 @@ async function driveStep(page: Page, step: Step, index: number): Promise<DrivenS
     return { failures: 0, fileAction, failure: null };
   } catch (e) {
     // A fill that reaches Playwright and fails quotes its text in the error's call log, inside the part a row keeps.
-    const msg = scrubPrivateText(errorMessage(e));
+    const msg = scrubPlaywrightText(errorMessage(e));
     // Dev-server churn (HMR/restart/5xx) tears down the realm mid-run — say so distinctly and give the
     // step ONE retry after a settle, rather than reporting an environmental blip as an app failure.
     if (isContextChurn(msg)) {
@@ -193,7 +193,7 @@ async function driveStep(page: Page, step: Step, index: number): Promise<DrivenS
         await settle(page, STEP_SETTLE_MS);
         return { failures: 0, fileAction, failure: null };
       } catch (retryErr) {
-        const retryMsg = scrubPrivateText(errorMessage(retryErr));
+        const retryMsg = scrubPlaywrightText(errorMessage(retryErr));
         print(`STEP FAILED (after churn retry)  ${stepLabel(step)}: ${retryMsg}`);
         return { failures: 1, fileAction: null, failure: stepDriveFailure(index, step, scrubPrivateText(`${retryMsg} (after a dev-server churn retry)`)) };
       }
@@ -220,7 +220,7 @@ async function driveNav(page: Page, action: NavAction, index: number): Promise<D
     // used to declare its own copy of the shape and assert it.
     result = navResultShape(await page.evaluate(buildNavScript(action.kind, action.target)), `nav ${action.kind} ${action.target}`);
   } catch (e) {
-    const msg = scrubPrivateText(errorMessage(e));
+    const msg = scrubPlaywrightText(errorMessage(e));
     print(`NAV FAILED  ${action.kind} ${action.target}: ${msg}`);
     return navDriveFailure(index, action, msg);
   }

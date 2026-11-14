@@ -75,6 +75,7 @@ export {
   createPluginRateFloor,
   PLUGIN_ASSET_EGRESS_PER_HOUR,
   PLUGIN_EGRESS_PER_HOUR,
+  PLUGIN_PUBSUB_EMIT_PER_HOUR,
   PLUGIN_QUIET_LLM_PER_HOUR,
   PLUGIN_SEARCH_QUERY_PER_HOUR,
 } from "./substrate/rate-floor.ts";

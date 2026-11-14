@@ -187,10 +187,27 @@ function offer(message: BrokerParentMessage, route: PluginFrameRoute): boolean {
   return sender.offer({ kind: "frame", generation, frame, route });
 }
 
-// A command's answer, on its runtime's share; one that does not fit is answered with the channel-full refusal, which
-// the parent turns into a host-unavailable failure of that command alone.
+// What an ended invocation's answer says when the channel cannot carry the answer itself.
+const ENDED_ANSWER_REFUSED = "plugin host: invocation ended — its answer did not fit the channel";
+
+// The answer that replaces a command's answer the channel refused. An ended invocation strikes whatever refusal it met
+// (D347), so its answer never becomes the channel-full refusal: it stays the ended outcome, in host-fixed text and with
+// its activation log dropped, small enough that every hop carries it as a control frame. Any other answer fails as the
+// channel-full refusal, host-unavailable (D348).
+function answerRefusal(message: Extract<BrokerParentMessage, { readonly kind: "response" }>): Extract<BrokerParentMessage, { readonly kind: "response" }> {
+  if (!message.ok && message.error.name === PLUGIN_INVOCATION_ENDED) {
+    return { kind: "response", id: message.id, ok: false, error: { name: PLUGIN_INVOCATION_ENDED, message: ENDED_ANSWER_REFUSED } };
+  }
+  if (message.ok && activationEnded(message.value)) {
+    return { kind: "response", id: message.id, ok: true, value: { ok: false, error: ENDED_ANSWER_REFUSED, log: [], ended: true } };
+  }
+  return channelFullResponse(message.id);
+}
+
+// A command's answer, on its runtime's share; one that does not fit is answered with its refusal, which the parent turns
+// into a failure of that command alone.
 function answer(share: string, message: Extract<BrokerParentMessage, { readonly kind: "response" }>): void {
-  const refused = channelFullResponse(message.id);
+  const refused = answerRefusal(message);
   if (!offer(message, { share, refusal: { frame: serializeMessage(refused), back: false } })) {
     send(refused);
   }
@@ -537,6 +554,11 @@ function handleWorkerCommandResponse(runtimeId: string, runtime: Runtime, messag
 
 function activationSucceeded(value: unknown): boolean {
   return typeof value === "object" && value !== null && Reflect.get(value, "ok") === true;
+}
+
+// Only the Worker's host code marks an activation outcome ended: main.js ran into its settlement wall or its CPU window.
+function activationEnded(value: unknown): boolean {
+  return typeof value === "object" && value !== null && Reflect.get(value, "ok") === false && Reflect.get(value, "ended") === true;
 }
 
 function handleCommand(message: Extract<ParentBrokerMessage, { readonly kind: "command" }>): void {
