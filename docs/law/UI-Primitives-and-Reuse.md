@@ -156,7 +156,7 @@ matches on what it read. *Mechanically checked.* Two exclusions, both measured, 
 container/landmark roles (their content is their children, not their label) and value-bearing roles
 (`combobox`/`textbox`/`slider`/`spinbutton` — their content is the current VALUE, so naming a `combobox`
 "Bubble" would be the defect). A transient status announced through `aria-describedby` is a DESCRIPTION, not a
-label, and is stripped before the comparison (the Members row's "responding" chip is the founding case).
+label, and is stripped before the comparison (the Members row's "responding" chip is the founding case). The same holds for any text a control's `aria-describedby` points at: a list row's subtitle is its description, never its name, and `packages/ui/src/primitives/list-row/list-row.tsx` owns that split. The accessibility scan judges apart a control that meets this rule when the vendor `label-content-name-mismatch` rule still flags it, because that rule wants every shown word as one run of the name; `tests/support/browser/accessibility-scan.ct.tsx` holds the case.
 
 **N3 — Stable identity FIRST; volatile detail suffixed.** A name may carry live state or a value — and often
 must, because with an `aria-label` the visible content is NOT announced — but the STABLE part leads, after
