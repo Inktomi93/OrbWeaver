@@ -4,10 +4,12 @@
 // which escapes a NUL, so the report itself never depends on the crossing under test. Card data is stored as JSON
 // text, so its round trip also shows that store keeps a NUL; the text stores refuse one instead
 // (`tests/server/domain/plugin/persistence/stored-text-nul.int.test.ts`). A host error reaches the guest with its name
-// and message, and a promise the guest hands the host is refused unread.
+// and message, and a promise the guest hands the host is refused unread. A guest's result settles without the guest's
+// globals, so a guest that keeps every resolve function it reaches and calls each again leaks nothing at teardown.
 // @subject packages/server/src/infra/plugin-host/marshal.ts
 import { spawn } from "node:child_process";
 import { createCharacterSchema } from "@orb/contracts/character";
+import type { PluginStatus } from "@orb/contracts/plugin";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, PluginCapabilityError, pluginManifestSchema } from "@orb/contracts/plugin";
 import { expect, test } from "@orb/testkit/node";
 import type { GuestOps } from "@orb/testkit/node/composed";
@@ -118,6 +120,44 @@ test.for(PROMISES)("$name ends the snippet with its ordinary outcome, and the ne
 
   expect(await caller.plugin.runSnippet({ chatId: room.id, code })).toMatchObject(outcome);
   expect(await caller.plugin.runSnippet({ chatId: room.id, code: passedAs("{}") })).toEqual({ logLines: ["[info] accepted"] });
+});
+
+// A guest that swaps its global `Promise` for one whose `resolve` keeps every function it is handed, and returns a
+// thenable that keeps its own. A host that settled the guest's result through the guest's `Promise` would hand it a
+// host function that copies a handle on every call; called again, each copy leaks, and the runtime's teardown aborts the
+// engine. `again` calls every kept function twice more and answers how many it holds.
+const KEEPERS = {
+  keep: `() => {
+    const Native = Promise;
+    globalThis.kept = [];
+    globalThis.Promise = { resolve: (value) => ({ then: (onFulfilled, onRejected) => {
+      globalThis.kept.push(onFulfilled, onRejected);
+      return Native.prototype.then.call(Native.resolve(value), onFulfilled, onRejected);
+    } }) };
+    return { then: (resolve, reject) => { globalThis.kept.push(resolve, reject); resolve(1); } };
+  }`,
+  again: "() => { for (const kept of globalThis.kept) { kept({ again: true }); kept({ again: true }); } return globalThis.kept.length; }",
+} as const satisfies GuestOps;
+// The functions `keep` holds when its result settles without the guest's globals: the resolvers the engine hands the
+// runner's own `await` of the thenable, which a second call leaves alone.
+const ENGINE_RESOLVERS = 2;
+const DISABLED = "disabled" satisfies PluginStatus;
+
+test("a guest that keeps every resolve function it reaches and calls each again retires its plugin, and the host closes cleanly", {
+  tags: ["slow"],
+}, async () => {
+  // The block's end closes the root, which retires every runtime and the Worker pool; a leaked handle fails that close.
+  {
+    await using root = await createServerHarness({ pluginSpawn: spawn });
+    const owner = await root.principalFor(root.ownerId);
+    const pluginId = await installGuest(root, owner, { slug: "resolver-keeper", capabilities: [] }, KEEPERS);
+    const run = guestRunner({ root, caller: owner, pluginId, chatId: null });
+
+    expect(await run("keep")).toEqual({ ok: true, value: 1 });
+    expect(await run("again")).toEqual({ ok: true, value: ENGINE_RESOLVERS });
+    await root.services.plugin.setEnabled({ caller: owner, pluginId, enabled: false });
+    expect((await root.services.plugin.list({ caller: owner })).find(({ id }) => id === pluginId)?.status).toBe(DISABLED);
+  }
 });
 
 test("a guest's string argument reaches the host whole", { tags: ["slow"] }, async () => {

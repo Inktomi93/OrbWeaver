@@ -124,7 +124,7 @@ import { projectViewReturnForViewer, viewerReadsHidden } from "../substrate/memb
 import { ownedCitedAssetIds } from "../substrate/owned-citations.ts";
 import { classifyParticipant } from "../substrate/participant-actor.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
-import { hostConsentOf, humanSeatPersonasOf, presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
+import { hostConsentOf, humanSeatPersonasOf } from "../substrate/participants-humans.ts";
 import { regexAllowOf, resolveHostTierRegexScripts } from "../substrate/regex-tier.ts";
 import { foldChain } from "../substrate/runtime-variables.ts";
 import {
@@ -435,15 +435,22 @@ async function freezeSelectedVariant(
     readonly timeZone: IanaTimeZone | undefined;
   },
 ): Promise<{ readonly statement: ReturnType<typeof freezeVariantContentStatement>; readonly content: string } | null> {
-  const hostUserId = hostUserIdOf(args.participants);
-  // A user slot has exactly one variant (nothing to select between) and a hostless orphan cannot resolve the
-  // room context the bake reads — both are the no-op arm, not a refusal.
-  if (args.slot.role !== "assistant" || hostUserId === null) {
+  // A user slot has exactly one variant (nothing to select between).
+  if (args.slot.role !== "assistant") {
+    return null;
+  }
+  // The bake gathers the room context on the host's account, so a hostless room, or a disabled host standing as a
+  // departed one, takes the no-op arm, as the runOnEdit re-apply above does. Not a refusal: the selection lands.
+  const consent = await hostConsentOf(ctx, args.participants);
+  if (consent.kind !== "consents") {
     return null;
   }
   if (!(await loadHasUserMessage(ctx.db, args.chatId))) {
     return null;
   }
+  // The consent set is the same enabled-axis narrowing the runOnEdit re-apply reads, so the greeting re-bake
+  // agrees with the live turn and edit paths on who is still a valid foreign-persona consent.
+  const { hostUserId, consentSet: presentHumanUserIdsForBake } = consent;
   const source = args.variant.rawContent ?? args.variant.content;
   const stored = macroFreezeRecordSchema.safeParse(args.variant.macroFreezes);
   const model: TurnMacroContextArgs["model"] = args.variant.model ?? "";
@@ -451,9 +458,6 @@ async function freezeSelectedVariant(
     const actor = classifyParticipant(r);
     return actor?.kind === "character" ? [actor.characterId] : [];
   });
-  // Same enabled-axis narrowing as the runOnEdit re-apply above — the greeting re-bake must agree
-  // with the live turn / edit paths on who's still a valid foreign-persona consent.
-  const presentHumanUserIdsForBake = await presentAndEnabledHumanUserIdsOf(ctx, args.participants);
   const foreign = await deps.resolveForeignInputs({
     chatId: args.chatId,
     runAsUserId: hostUserId,

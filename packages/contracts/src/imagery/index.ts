@@ -1,5 +1,5 @@
 // Strip mode: these schemas also read plugin guest data, model output and stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
-import type { AssetId, CharacterId, ChatId, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ConsentingHostId, ImageryGenerationId, ModelId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { z } from "zod";
@@ -402,7 +402,7 @@ interface GeneratePictureFields {
   readonly caller: Principal;
   /** The room host a room picture runs as (D298), resolved by chat through the turn identity. Absent
    *  outside a room: the caller funds, styles and owns its own picture. */
-  readonly runAsUserId?: UserId | undefined;
+  readonly runAsUserId?: ConsentingHostId | undefined;
   /** The binding actor whose own generateImage binding is folded before the caller's (an automation rule's). */
   readonly actor?: BindingActor | undefined;
   readonly chatId?: ChatId | undefined;

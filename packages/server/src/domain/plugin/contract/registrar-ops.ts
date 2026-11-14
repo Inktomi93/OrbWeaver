@@ -3,6 +3,7 @@ import type { RegisterPromptTransformOp, UnregisterPromptTransformOp } from "@or
 import type { InvocationChat, ResolvePluginChatAuthority } from "@orb/contracts/plugin";
 import type { PluginToolHandle, PluginToolSpecData } from "@orb/contracts/tool-use";
 import type { Logger, TraceRing } from "#foundation/observability";
+import type { PluginCascadeScope } from "#infra/plugin-host";
 import type { PluginHostOps } from "./ops.ts";
 
 /** Insert a plugin-sourced tool at activation. `invoke` runs the guest handler, so it takes the abort signal; the
@@ -25,5 +26,7 @@ export interface PluginRegistrarDeps {
   readonly pluginSubscribers: PluginSubscriberRegistry;
   readonly resolveChatAuthority: ResolvePluginChatAuthority;
   readonly newEventId: () => string;
+  /** The plugin command whose host call raised the fact being delivered, read where the fan-out delivers it. */
+  readonly cascadeCause: PluginCascadeScope["current"];
 }
 export type PluginRegistrarOps = Pick<PluginHostOps["registrar"], "registerTool" | "registerTransform" | "subscribeEvent">;

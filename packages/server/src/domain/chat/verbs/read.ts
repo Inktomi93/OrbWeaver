@@ -78,7 +78,7 @@ import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { generationOf, preservesCacheBlockEnds, resolveCarryReasoning } from "@orb/inference";
 import { projectBodyForPreview } from "@orb/kit/content";
-import type { CharacterId, ChatId, MessageId, ModelId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ConsentingHostId, MessageId, ModelId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry, RowMacroNameContext } from "@orb/kit/macro";
 import { globalMacroRegistry, resolveRowMacros } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
@@ -240,8 +240,10 @@ type ChatRowView = NonNullable<Awaited<ReturnType<typeof loadChatRow>>>;
 /** The resolved preview substrate: the host, the resolved seated characters/personas, the connection `model`, and the
  *  cross-domain assemble inputs. The previews share this resolution. */
 interface PreviewInputs extends RoomInputs {
+  /** The room host the consent read proved; a preview gathers retrieval on its encoder. */
+  readonly hostUserId: ConsentingHostId;
   /** The room host whose connection the preview resolved under (§8.4-3). */
-  readonly funderUserId: UserId;
+  readonly funderUserId: ConsentingHostId;
   readonly passageCounter: ReturnType<ChatContext["passageCounter"]>;
   readonly model: ModelId;
   /** The resolved model capability — the SHAPE-trace peek reads its `turns` cell (roleHandlingFloor /
@@ -447,7 +449,7 @@ async function buildSummaries(ctx: ChatContext, deps: ReadDeps, rows: readonly C
 /** The room host a preview may run as. A member's fit read gathers memory and databank retrieval on the host's encoder
  *  and reads the host's connection, so a disabled host refuses exactly as a departed one does, the rule `loadRoom`
  *  applies to a turn. Run it before any read of the host's connection. */
-async function requireConsentingHost(ctx: ChatContext, chatId: ChatId): Promise<UserId> {
+async function requireConsentingHost(ctx: ChatContext, chatId: ChatId): Promise<ConsentingHostId> {
   const consent = await hostConsentOf(ctx, await loadParticipants(ctx.db, chatId));
   if (consent.kind === "hostless") {
     throw new ChatNotFoundError(chatId);
@@ -484,6 +486,7 @@ async function resolvePreviewInputs(
   const room = await resolveRoomInputs(ctx, deps, chatId, { ...opts, model: connection.model });
   return {
     ...room,
+    hostUserId,
     funderUserId: hostUserId,
     model: connection.model,
     passageCounter: ctx.passageCounter(connection),
@@ -624,9 +627,9 @@ async function previewGatherFields(
   args: {
     readonly chatId: ChatId;
     /** The room's frozen host (D19) — the identity the collection resolves under, exactly as a turn does. */
-    readonly hostUserId: UserId;
+    readonly hostUserId: ConsentingHostId;
     /** The READER — whose chat connection the rpg delivery verdict reads (§8.4-3). */
-    readonly funderUserId: UserId;
+    readonly funderUserId: ConsentingHostId;
     /** PROSE-1 — the previewed preset's teach/heading overrides, threaded for the same reason the whole gather
      *  is: the preview must show the bytes the model actually receives, and a host who re-authored a teach on
      *  this preset would otherwise read the shipped default on their own honesty instrument. */

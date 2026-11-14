@@ -2,13 +2,13 @@ import type { GetCharacterCardOp } from "@orb/contracts/character";
 import type { CallerInChatOp, ResolveRoomRunAsOp, ResolveViewerVisibility } from "@orb/contracts/chat";
 import type { Principal, ResolveHostPrincipalOp } from "@orb/contracts/identity";
 import type { RoleClientsWithSignal } from "@orb/inference";
-import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ConsentingHostId, UserId } from "@orb/kit/ids";
 import type { ExtractQuiet, ExtractQuietDeps, ExtractQuietParams } from "./context.ts";
 
 export interface ImageryRoomAccessDeps {
   readonly resolveViewerVisibility: ResolveViewerVisibility;
   /** The present host when it is also in the room's consent set (present and enabled), else null. */
-  readonly resolveConsentingHostUserId: (chatId: ChatId) => Promise<UserId | null>;
+  readonly resolveConsentingHostUserId: (chatId: ChatId) => Promise<ConsentingHostId | null>;
   readonly isCharacterSeated: (chatId: ChatId, characterId: CharacterId) => Promise<boolean>;
   readonly resolveHostPrincipal: ResolveHostPrincipalOp;
 }

@@ -11,12 +11,13 @@
 
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
-import { ChevronRight, Icon, MessagesSquare, TriangleAlert } from "@orb/ui/icons";
+import { ChevronRight, Icon, MessagesSquare } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { editActionName } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
+import { Notice } from "#components";
 import { useFocusOnSwap } from "#lib";
 import { PRESET_CHAT_HISTORY_LABEL } from "#src/features/preset/lib/preset-names.ts";
 
@@ -34,16 +35,7 @@ export function PivotBand({ duplicate, restoreFocus, onSelect, onDrill }: PivotB
   const chevronRef = useRef<HTMLButtonElement>(null);
   useFocusOnSwap(chevronRef, restoreFocus && !duplicate);
   if (duplicate) {
-    return (
-      <Card tone="warning" variant="soft">
-        <Row align="center" gap="row">
-          <Icon icon={TriangleAlert} size="sm" tone="warning" />
-          <Text grow={true} voice="label">
-            Duplicate chat history: only the first one splits the conversation. Remove this one.
-          </Text>
-        </Row>
-      </Card>
-    );
+    return <Notice title="Duplicate chat history: only the first one splits the conversation. Remove this one." tone="warning" />;
   }
 
   // THE LEGENDS ARE KICKERS, NOT PILLS (side-eye F-18): filled Badges straddled the band's own border and

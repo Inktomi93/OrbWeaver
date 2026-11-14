@@ -2,17 +2,25 @@
 // never the plugin's crash when its guest leaves it uncaught: the Worker records it for its command, and the command, or
 // the rebuild it fails, fails as that refusal, for an async call and a synchronous one alike. A rebuild whose answer a
 // full channel refused fails as that refusal too, though the broker has already ended its runtime. A command the host
-// ended at its settlement wall strikes whatever refusal it met (D347), and no host call after the wall can turn it into
-// a refusal: the port makes none between the wall and the ended throw. Each refusal case's control is a guest's own throw
-// in another command, which still counts. The crash count is read from the plugin's row, which no door shows.
+// ended, at its settlement wall or its CPU window, strikes whatever refusal it met (D347), and no host call after the wall can turn it into
+// a refusal: the port makes none between the wall and the ended throw, and an ended answer a full channel refuses still
+// arrives ended. Each refusal case's control is a guest's own throw in another command, which still counts. The crash
+// count is read from the plugin's row, which no door shows.
 //
 // The edge's `refuseNextSent` stands in for the watchdog's full hop to the broker: it sends one routed app frame's own
 // route refusal in its place, the frame `relayFrame` in `packages/server/src/infra/plugin-host/process-channel.ts`
 // passes on when its target refuses the frame, which for a result is the channel-full result `sendBridgeResult` routes.
+// `refusedInPlaceOf` does the same for a frame the broker routes to the app, its answer's refusal from `answer` in
+// `packages/server/src/infra/plugin-host/broker-entry.ts`: the broker sends that one frame when its own hop is full, and
+// the watchdog passes it on when its hop to the app is. No edge fills the broker's own hop, so that branch is the same
+// frame reached through the watchdog's. Two refusals the broker raises itself are reached with no edge at all: an answer
+// larger than any frame, which `offer` refuses down the same branch as a full hop, and a synchronous call the app never
+// answers, which the broker times out.
 // @subject packages/server/src/infra/plugin-host/worker-runtime.ts
 // @subject packages/server/src/infra/plugin-host/process-runtime.ts
 // @subject packages/server/src/infra/plugin-host/port.ts
 
+import { setTimeout as sleep } from "node:timers/promises";
 import { isDeepStrictEqual } from "node:util";
 import type { Principal } from "@orb/contracts/identity";
 import type { PluginCapability, PluginManifest, PluginStatus } from "@orb/contracts/plugin";
@@ -24,8 +32,13 @@ import { createServerHarness, makePluginBundle, seedInstalledPlugin, seedPluginG
 import { capturePluginRows } from "@orb/testkit/node/rows";
 import { afterAll, beforeAll } from "vitest";
 import { HOST_FN_DEADLINE_MS, PLUGIN_RESIDENT_LIMITS, settlementWallMs } from "#server/infra/plugin-host/budgets.ts";
-import { PLUGIN_CHANNEL_FULL, PLUGIN_HOST_UNAVAILABLE } from "#server/infra/plugin-host/process-protocol.ts";
-import { createPluginProcessEdge, frameField, hasOperation, PLUGIN_PROCESS_OPERATIONS, responseResult } from "../process-runtime.fixtures.ts";
+import {
+  PLUGIN_BROKER_MESSAGE_MAX_BYTES,
+  PLUGIN_BROKER_SYNC_TIMEOUT_MS,
+  PLUGIN_CHANNEL_FULL,
+  PLUGIN_HOST_UNAVAILABLE,
+} from "#server/infra/plugin-host/process-protocol.ts";
+import { createPluginProcessEdge, frameField, hasOperation, PLUGIN_PROCESS_OPERATIONS, refusedInPlaceOf, responseResult } from "../process-runtime.fixtures.ts";
 
 const ENABLED = "enabled" satisfies PluginStatus;
 const RESPONSE = "response";
@@ -35,6 +48,15 @@ const DRAW = "draw";
 const READ_THEN = "read_then";
 const SET_MODE = "set_mode";
 const HANG = "hang";
+const DRAW_THEN = "draw_then";
+const DRAW_ON = "draw_on";
+const SEAM_LOOP = "seam_loop";
+// Far more seam calls than one CPU window holds at a healthy round trip, enough to pass the broker's memory ceiling
+// when every call allocated its own buffers.
+const SEAM_LOOP_CALLS = 20_000;
+// How late the app answers a synchronous draw: past the guest's whole CPU window, which reads real monotonic time.
+const LATE_ANSWER_MS = 2 * PLUGIN_RESIDENT_LIMITS.cpuDeadlineMs;
+const OVERSIZED = "oversized";
 const CRASH = "crash";
 const CRASH_MESSAGE = "the guest's own failure";
 const CALLER_KEY = "k";
@@ -52,13 +74,28 @@ const CALLER_SOURCE = `const h = orb.host(1);
 ${COMMON_COMMANDS}
 h.ui.registerCommand({ name: ${JSON.stringify(READ)}, describe: "Read", onRun: async () => { await h.storage.get(${JSON.stringify(CALLER_KEY)}); } });
 h.ui.registerCommand({ name: ${JSON.stringify(DRAW)}, describe: "Draw", onRun: () => { h.random.next(); } });
+h.ui.registerCommand({ name: ${JSON.stringify(OVERSIZED)}, describe: "Answer past the frame cap", onRun: () => "x".repeat(${String(PLUGIN_BROKER_MESSAGE_MAX_BYTES + 1)}) });
 h.ui.registerCommand({ name: ${JSON.stringify(READ_THEN)}, describe: "Read, then throw or never settle", onRun: async ({ args }) => {
   await h.storage.get(${JSON.stringify(CALLER_KEY)}).catch(() => undefined);
   if (JSON.parse(args).stall === true) { await new Promise(() => {}); }
   throw new Error(${JSON.stringify(CRASH_MESSAGE)});
 } });
 h.ui.registerCommand({ name: ${JSON.stringify(HANG)}, describe: "Never settle, or return", onRun: ({ args }) =>
-  JSON.parse(args).stall === true ? new Promise(() => {}) : undefined });`;
+  JSON.parse(args).stall === true ? new Promise(() => {}) : undefined });
+h.ui.registerCommand({ name: ${JSON.stringify(DRAW_THEN)}, describe: "Draw, then throw or run away", onRun: ({ args }) => {
+  try { h.random.next(); } catch (refused) {}
+  if (JSON.parse(args).loop === true) { for (;;) {} }
+  throw new Error(${JSON.stringify(CRASH_MESSAGE)});
+} });
+h.ui.registerCommand({ name: ${JSON.stringify(SEAM_LOOP)}, describe: "Draw in a loop", onRun: () => {
+  for (let i = 0; i < ${String(SEAM_LOOP_CALLS)}; i += 1) { h.random.next(); }
+} });
+h.ui.registerCommand({ name: ${JSON.stringify(DRAW_ON)}, describe: "Draw, then go on with a host call or run away", onRun: ({ args }) => {
+  let drew = "refused";
+  try { h.random.next(); drew = "drew"; } catch (refused) {}
+  h.log.info(drew);
+  if (JSON.parse(args).loop === true) { for (;;) {} }
+} });`;
 // main.js reads its mode, then its own storage; a refused read it rethrows uncaught, or in the stall mode never settles,
 // so a rebuild whose read is refused fails at once or at its wall. A command sets the mode for the next rebuild.
 const SLEEPER_SOURCE = `const h = orb.host(1);
@@ -194,6 +231,14 @@ async function refuseLaterClockRead(run: () => Promise<unknown>): Promise<unknow
   return await settled;
 }
 
+// Runs `run` and replaces its command's answer with the refusal a full hop sends in its place.
+async function refuseAnswerOf(run: () => Promise<unknown>): Promise<unknown> {
+  using answer = edge.holdNext((value) => frameField(value, "kind") === RESPONSE);
+  const settled = settle(run());
+  answer.release(refusedInPlaceOf(await answer.reached));
+  return await settled;
+}
+
 async function expectOwnThrowCounts(guest: Guest): Promise<void> {
   await expect(guest.run(CRASH)).rejects.toThrow(CRASH_MESSAGE);
   await expect.poll(async () => (await guest.view()).crashes).toBe(1);
@@ -216,6 +261,115 @@ test.for([
     await expectOwnThrowCounts(caller);
   },
 );
+
+// The runaway ends at its CPU window, which the interrupt reads on a real monotonic clock no test clock reaches; the
+// window is one invocation budget, well inside the default case timeout.
+test("a command that met a refused call and then ran past its CPU window strikes, though the same command ending in a throw does not", async () => {
+  await caller.run(NOTE);
+  expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
+
+  // Control: the refused draw excuses the command's own throw after it.
+  const { settled: thrown } = await refuseResultOf(drawn, () => caller.run(DRAW_THEN, JSON.stringify({ loop: false })));
+  await expect(thrown).resolves.toBeInstanceOf(Error);
+  expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
+
+  // The same refusal, then a loop the interrupt stops at the CPU window: a runaway invocation, and the plugin's strike.
+  const { settled: ranAway } = await refuseResultOf(drawn, () => caller.run(DRAW_THEN, JSON.stringify({ loop: true })));
+  await expect(ranAway).resolves.toBeInstanceOf(Error);
+  await expect.poll(async () => (await caller.view()).crashes).toBe(1);
+  expect((await caller.view()).status).toBe(ENABLED);
+});
+
+// The broker refuses an answer larger than any frame may be in `offer`, the same branch its own full hop takes, and
+// sends the channel-full refusal in its place; no edge touches the frame.
+test("an answer the broker refuses for its size fails as that refusal, not the plugin's crash, and its own throw still counts", async () => {
+  await caller.run(NOTE);
+  expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
+
+  const refused = await settle(caller.run(OVERSIZED));
+  expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
+  // The command failed as the channel-full refusal itself, the host-unavailable text the parent passes on unwrapped.
+  expect(refused).toMatchObject({ message: PLUGIN_CHANNEL_FULL });
+
+  await expectOwnThrowCounts(caller);
+});
+
+// The broker answers a synchronous call the app has not answered within its own timeout, a timer in the broker process
+// that no test clock reaches, so the case waits it out: the edge holds the app's copy of the call and never lets it land.
+test("a synchronous call the broker timed out is not the plugin's crash when left uncaught, and its own throw still counts", {
+  tags: ["slow"],
+  timeout: 2 * PLUGIN_BROKER_SYNC_TIMEOUT_MS + CALLER_WALL_STARTS * HOST_FN_DEADLINE_MS,
+}, async () => {
+  await caller.run(NOTE);
+  expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
+
+  {
+    using held = edge.holdNext(drawn);
+    const failed = settle(caller.run(DRAW));
+    await held.reached;
+    expect(await failed).toBeInstanceOf(Error);
+  }
+  expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
+
+  await expectOwnThrowCounts(caller);
+});
+
+// Each seam call is a round trip the app answers, which the guest pays for, so the loop meets its CPU window on the real
+// clock the window reads; the case waits one window. The broker survives it, and serves another plugin and this one after.
+test("a command that loops synchronous seam calls ends at its CPU window and strikes, and the broker serves every plugin after", async () => {
+  await caller.run(NOTE);
+  expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
+
+  expect(await settle(caller.run(SEAM_LOOP))).toBeInstanceOf(Error);
+  await expect.poll(async () => (await caller.view()).crashes).toBe(1);
+
+  expect(await settle(neighbour.run(NOTE))).toBeNull();
+  expect(await settle(caller.run(NOTE))).toBeNull();
+  expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
+});
+
+// The guest blocks in the draw for the whole broker timeout, longer than its CPU window, and then makes another host
+// call. The wait is the host's, so the call is served and the command answers.
+test("a guest that catches a synchronous call the broker timed out and goes on is served, and not struck", {
+  tags: ["slow"],
+  timeout: 2 * PLUGIN_BROKER_SYNC_TIMEOUT_MS + CALLER_WALL_STARTS * HOST_FN_DEADLINE_MS,
+}, async () => {
+  await caller.run(NOTE);
+  expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
+
+  {
+    using held = edge.holdNext(drawn);
+    const answered = settle(caller.run(DRAW_ON, JSON.stringify({ loop: false })));
+    await held.reached;
+    expect(await answered).toBeNull();
+  }
+  expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
+});
+
+// The app answers the draw only after the guest's whole CPU window has passed on the real clock the window reads, so the
+// case waits that long: the wait charges the guest nothing, while a guest that then runs away still meets its window.
+test("a synchronous call answered after the guest's CPU window charges the guest nothing, and a runaway after it still strikes", {
+  tags: ["slow"],
+  timeout: 2 * (LATE_ANSWER_MS + HOST_FN_DEADLINE_MS) + CALLER_WALL_STARTS * HOST_FN_DEADLINE_MS,
+}, async () => {
+  await caller.run(NOTE);
+  expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
+  const answerLate = async (loop: boolean): Promise<unknown> => {
+    using held = edge.holdNext(drawn);
+    const settled = settle(caller.run(DRAW_ON, JSON.stringify({ loop })));
+    await held.reached;
+    await sleep(LATE_ANSWER_MS);
+    held.release();
+    return await settled;
+  };
+
+  expect(await answerLate(false)).toBeNull();
+  expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
+
+  expect(await answerLate(true)).toBeInstanceOf(Error);
+  await expect.poll(async () => (await caller.view()).crashes).toBe(1);
+  expect((await caller.view()).status).toBe(ENABLED);
+});
 
 // The sleeper has never run a command since its install, so it is asleep, unstruck and in the throw mode; each Worker
 // start costs this case its budget, so it starts only the two rebuilds.
@@ -303,6 +457,24 @@ test("an invocation ended at its wall strikes though a host call after the wall 
 
   // The command never settles: the host ends it at its wall, and nothing after the wall turns that into a refusal.
   expect(await refuseLaterClockRead(() => caller.run(HANG, JSON.stringify({ stall: true })))).toBeInstanceOf(Error);
+  await expect.poll(async () => (await caller.view()).crashes).toBe(1);
+  expect((await caller.view()).status).toBe(ENABLED);
+});
+
+// The case's only real wait is the production settlement wall, which no test clock reaches.
+test("an invocation ended at its wall whose answer a full channel refused still strikes; a settled answer the channel refused does not", {
+  tags: ["slow"],
+  timeout: wallCaseTimeoutMs(CALLER_WALL_STARTS),
+}, async () => {
+  await caller.run(NOTE);
+  expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
+
+  // Control: a settled command whose answer the channel refused fails as the refusal, and no strike.
+  expect(await refuseAnswerOf(() => caller.run(HANG, JSON.stringify({ stall: false })))).toBeInstanceOf(Error);
+  expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
+
+  // The command never settles: its ended answer finds the channel full, and the plugin still takes the strike.
+  expect(await refuseAnswerOf(() => caller.run(HANG, JSON.stringify({ stall: true })))).toBeInstanceOf(Error);
   await expect.poll(async () => (await caller.view()).crashes).toBe(1);
   expect((await caller.view()).status).toBe(ENABLED);
 });

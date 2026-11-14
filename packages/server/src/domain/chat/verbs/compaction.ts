@@ -31,12 +31,14 @@ import type { ChatId, UserId } from "@orb/kit/ids";
 import { and, eq, sql } from "drizzle-orm";
 import type { ChatContext, ChatServiceDeps, QuietGenerate } from "../contract/context.ts";
 import type { EngineDeps } from "../contract/engine-context.ts";
-import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
+import { CHAT_OP_CODES, ChatHostWithoutConsentError, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { CompactParams } from "../contract/params.ts";
 import type { CompactResult } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireHost } from "../guard.ts";
+import { loadParticipants } from "../persistence/participants-read.ts";
 import { loadCanonHistoryAfter, loadChatRow } from "../persistence/queries.ts";
+import { hostConsentOf } from "../substrate/participants-humans.ts";
 import { isPromptEligible } from "../substrate/prompt-eligibility.ts";
 
 interface CompactionBundle extends Pick<ChatService, "compact"> {
@@ -240,8 +242,16 @@ function makeRunCompaction(ctx: ChatContext, quietGenerate: QuietGenerate): Engi
 function createCompact(ctx: ChatContext, deps: CompactionDeps, runCompaction: EngineDeps["runCompaction"]): ChatService["compact"] {
   return async ({ principal, chatId, instructions, signal }: CompactParams): Promise<CompactResult> => {
     // The caller IS the host (requireHost passed) → the host funds the marker generation on their OWN connection.
+    // The consent read is what proves that account may fund room work; it refuses as `generateImage` does.
     await requireHost(ctx, principal, chatId);
-    const connection = await deps.resolveConnection({ funderUserId: principal.userId, chatId, signal });
+    const consent = await hostConsentOf(ctx, await loadParticipants(ctx.db, chatId));
+    if (consent.kind === "hostless") {
+      throw new ChatNotFoundError(chatId);
+    }
+    if (consent.kind === "withheld") {
+      throw new ChatHostWithoutConsentError(chatId);
+    }
+    const connection = await deps.resolveConnection({ funderUserId: consent.hostUserId, chatId, signal });
     const result = await runCompaction({ chatId, connection, ownerId: principal.userId, signal, ...(instructions !== undefined ? { instructions } : {}) });
     await deps.emit({ type: "chatUpdated", chatId });
     return result;

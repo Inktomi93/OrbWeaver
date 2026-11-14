@@ -12,7 +12,13 @@ import type { ChatId, RawIdGenerator } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { MS_PER_HOUR, MS_PER_SECOND } from "@orb/kit/time";
-import { PLUGIN_ASSET_EGRESS_PER_HOUR, PLUGIN_EGRESS_PER_HOUR, PLUGIN_QUIET_LLM_PER_HOUR, PLUGIN_SEARCH_QUERY_PER_HOUR } from "@orb/server/domain/plugin";
+import {
+  PLUGIN_ASSET_EGRESS_PER_HOUR,
+  PLUGIN_EGRESS_PER_HOUR,
+  PLUGIN_PUBSUB_EMIT_PER_HOUR,
+  PLUGIN_QUIET_LLM_PER_HOUR,
+  PLUGIN_SEARCH_QUERY_PER_HOUR,
+} from "@orb/server/domain/plugin";
 import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { GuestOps, GuestRun, ServerTestHarness } from "@orb/testkit/node/composed";
@@ -41,6 +47,7 @@ const CALL = {
   fetch: "h.net.fetch(a.url + '?' + i)",
   fetchAsset: "h.net.fetchAsset(a.url)",
   notify: "h.notifications.post(room, 'host', 'Notice ' + i)",
+  emit: "h.pubsub.emit('tick', { i })",
 } as const;
 type Belted = keyof typeof CALL;
 // Each op runs one batch of calls numbered from `offset` and reports how many resolved and the first refused number.
@@ -69,7 +76,15 @@ async function drive(run: GuestRun, kind: Belted, args: Readonly<Record<string, 
   }
   return { resolved, refusedAt };
 }
-const CAPABILITIES = ["chat.read", "llm.quiet", "search.query", "net.fetch", "net.fetch_asset", "notify"] as const satisfies readonly PluginCapability[];
+const CAPABILITIES = [
+  "chat.read",
+  "llm.quiet",
+  "search.query",
+  "net.fetch",
+  "net.fetch_asset",
+  "notify",
+  "plugin_events",
+] as const satisfies readonly PluginCapability[];
 
 interface FloorRoot extends AsyncDisposable {
   readonly root: ServerTestHarness;
@@ -138,6 +153,7 @@ const PAIRINGS: readonly {
   { kind: "search", limit: PLUGIN_SEARCH_QUERY_PER_HOUR, boundary: null },
   { kind: "fetch", limit: PLUGIN_EGRESS_PER_HOUR, boundary: (reached) => reached.startsWith(PAGE_URL) },
   { kind: "fetchAsset", limit: PLUGIN_ASSET_EGRESS_PER_HOUR, boundary: (reached) => reached === IMAGE_URL },
+  { kind: "emit", limit: PLUGIN_PUBSUB_EMIT_PER_HOUR, boundary: null },
 ];
 
 for (const { kind, limit, boundary } of PAIRINGS) {

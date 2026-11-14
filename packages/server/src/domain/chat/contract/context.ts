@@ -68,6 +68,7 @@ import type {
   ChatMemoryStrikeId,
   ChatParticipantId,
   ChatTurnId,
+  ConsentingHostId,
   Handle,
   MessageId,
   MessageReactionId,
@@ -116,7 +117,7 @@ export type LoadParticipantViewsBatchOp = (chatIds: readonly ChatId[]) => Promis
 export type AssembleInvitePreviewOp = (chatId: ChatId) => Promise<InvitePreview>;
 
 /** Resolve the frozen room HOST's `chat` connection for a turn. A chat binds no connection (F20). */
-type ResolveChatConnectionOp = (params: { readonly funderUserId: UserId; readonly signal: AbortSignal }) => Promise<Resolved<"chat">>;
+type ResolveChatConnectionOp = (params: { readonly funderUserId: ConsentingHostId; readonly signal: AbortSignal }) => Promise<Resolved<"chat">>;
 
 /** The live card for a roster member under the host's ownership. Null means gone/mid-delete — the caller
  *  treats null as skip, never an error. */
@@ -500,7 +501,7 @@ export type GeneratePictureOp = (
     readonly caller: Principal;
     /** The room host the picture runs as (D298): its connection, templates, negative base, Utility
      *  funder, asset store and gallery. */
-    readonly runAsUserId: UserId;
+    readonly runAsUserId: ConsentingHostId;
     readonly chatId: ChatId;
 
     readonly n?: number | undefined;
@@ -566,7 +567,7 @@ type GatherDatabankOp = (
   args: {
     readonly chatId: ChatId;
     /** The room HOST — the document space is theirs (host-only v1), so their `embed`/`rerank` bindings serve it. */
-    readonly hostUserId: UserId;
+    readonly hostUserId: ConsentingHostId;
     readonly queryText: string;
     readonly tokenBudget: number;
     readonly signal: AbortSignal;
@@ -733,10 +734,10 @@ export interface ChatContext extends EngineContext, ChatAccountingContext, ChatC
   readonly summarize: SummarizeOp;
   /** The FUNDER's bound rerank role for Smart's default speaker pick, or null when the role is unbound. Resolved
    *  per call through `roleClientsFor(funder)`, so whatever model the user bound is what ranks. */
-  readonly resolveSpeakerReranker: (funderUserId: UserId, signal: AbortSignal) => Promise<SpeakerReranker | null>;
+  readonly resolveSpeakerReranker: (funderUserId: ConsentingHostId, signal: AbortSignal) => Promise<SpeakerReranker | null>;
   /** The FUNDER's Utility role for Smart's opt-in arbiter, or null when it is unbound or its model can serve no
    *  structured-output vehicle. Null is the arbiter's visible degrade, never a free-text call. */
-  readonly resolveSpeakerArbiter: (funderUserId: UserId, chatId: ChatId, signal: AbortSignal) => Promise<SpeakerArbiter | null>;
+  readonly resolveSpeakerArbiter: (funderUserId: ConsentingHostId, chatId: ChatId, signal: AbortSignal) => Promise<SpeakerArbiter | null>;
   /** The FUNDER's summarize model's context window (tokens) — the memory build's token-guard fits each
    *  summarizer call to the actual context. Resolved PER CALL through `roleClientsFor(funder).resolved("summarize")`
    *  (inference program §7.5-1b: `capability.context.window`, no bespoke getter); a funder whose summarize task
@@ -846,15 +847,19 @@ export interface ChatServiceDeps {
   /** The frozen room HOST's chat connection for a turn. The room binds nothing (F20), so `chatId` is provenance
    *  only; `actor` (a rule's requested turn) folds that actor's own binding first. */
   readonly resolveConnection: (args: {
-    readonly funderUserId: UserId;
+    readonly funderUserId: ConsentingHostId;
     readonly chatId: ChatId;
     readonly actor?: BindingActor | undefined;
     readonly signal: AbortSignal;
   }) => Promise<Resolved<"chat">>;
   /** The deterministic pre-send serveability verdict for the room HOST's chat connection — the
    *  honest-refusal gate the composer disables SEND on. Fires no turn or API call. Wired at the composition root. */
-  readonly checkSendAvailability: (args: { readonly funderUserId: UserId; readonly chatId: ChatId; readonly signal: AbortSignal }) => Promise<SendAvailability>;
-  readonly getNextTurnConnection: (args: { readonly funderUserId: UserId }) => Promise<NextTurnConnectionView>;
+  readonly checkSendAvailability: (args: {
+    readonly funderUserId: ConsentingHostId;
+    readonly chatId: ChatId;
+    readonly signal: AbortSignal;
+  }) => Promise<SendAvailability>;
+  readonly getNextTurnConnection: (args: { readonly funderUserId: ConsentingHostId }) => Promise<NextTurnConnectionView>;
   readonly resolveForeignInputs: ResolveForeignInputsOp;
   /** The lock holder tag (this replica/turn id) for stale-takeover + holder-scoped release. */
   readonly holder: string;

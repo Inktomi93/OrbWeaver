@@ -338,9 +338,11 @@ export interface PluginBridge {
    *  NEVER touches a domain/chat bus and the delivered payload is `{name, data}`, never a `TriggerFact` — the
    *  forgery wall. `on` is NOT a bridge op: a subscription is a RESIDENT registration collected at the membrane
    *  and wired through the registrar (the `events.on` pattern), not a runtime call. Authority-agnostic like every
-   *  bridge op — infra holds no pluginId, slug, or Principal. */
+   *  bridge op — infra holds no pluginId, slug, or Principal. `depth` is the depth of the deliveries this emit opens: the
+   *  emitting invocation's own plus one, as `chat.requestTurn`'s `automationDepth` is. The membrane stamps it, the app
+   *  checks it against the command's authority, and the domain refuses one past `PLUGIN_CASCADE_DEPTH_MAX`. */
   readonly pubsub: {
-    readonly emit: (name: string, data: Record<string, unknown>, liveness?: PluginInvocationLiveness) => Promise<void>;
+    readonly emit: (name: string, data: Record<string, unknown>, depth: number, liveness?: PluginInvocationLiveness) => Promise<void>;
   };
 }
 

@@ -3,7 +3,7 @@
 
 import type { ChatInjection, GuidedSteer, MacroFreezeRecord, MacroSlice, TurnGlobalVariables } from "@orb/contracts/chat";
 import type { GenerationType } from "@orb/contracts/preset";
-import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ConsentingHostId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry, RandomSource } from "@orb/kit/macro";
 import type { IanaTimeZone } from "@orb/kit/time";
 import type { ChoicePickMode, TurnMacroContextArgs } from "./assembly-macros.ts";
@@ -26,7 +26,7 @@ export interface GatherAssembleArgs {
   readonly chatId: ChatId;
   /** Ends the recall and databank retrieval this gather runs. */
   readonly signal: AbortSignal;
-  readonly runAsUserId: UserId;
+  readonly runAsUserId: ConsentingHostId;
   readonly model: TurnMacroContextArgs["model"];
   readonly characterIds: readonly CharacterId[];
   /** Present seated agents (D60), soul-resolved by `loadRoom`; threaded straight to the pure build core. */

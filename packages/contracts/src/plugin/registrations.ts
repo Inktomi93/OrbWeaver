@@ -188,6 +188,11 @@ export const PLUGIN_PUBSUB_SUBSCRIPTIONS_MAX = 32;
  *  `ui.setState` 16 KiB posture). It bounds the fan-out cost: one emit is re-delivered to every subscriber, so a
  *  tight per-emit cap is what keeps a fan-out bounded. Over cap is a REFUSAL (a rejected guest promise). */
 export const PLUGIN_PUBSUB_PAYLOAD_MAX_BYTES = 16_384;
+/** The deepest cascade level a plugin's handler may run at. A handler run its installer's own plugin command caused,
+ *  a pubsub delivery that command's emit opened or a trigger fact its host call raised, runs one level deeper than that
+ *  command; every other invocation runs at 0. So an announcement reaches its listeners and one reply from them reaches
+ *  theirs, and a plugin that wakes itself, or two that wake each other, stop there at any rate. */
+export const PLUGIN_CASCADE_DEPTH_MAX = 2;
 
 /** A UI surface the guest registered via `host.ui.register` — collected at activation
  *  (U1, seam 4). Unlike tools/transforms/events, a surface needs NO external registrar: it is READ directly off

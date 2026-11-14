@@ -126,7 +126,8 @@ export interface PluginHostPort {
   /** Invoke a collected guest handler (a tool/transform/event callback) with JSON-encoded args under the
    *  per-invocation budget. `chat` sets the handler's invocation-chat scope (a resident tool runs in the
    *  chat it was called from — the domain resolves read/host authority before threading it; `null` = no scope).
-   *  `phase` `display` is a query's call, whose host calls may only read. */
+   *  `phase` `display` is a query's call, whose host calls may only read. `cascadeDepth` is how many cascade levels
+   *  deep the call runs; only a delivery a plugin's own command caused passes one, and every other call runs at 0. */
   readonly invoke: ProcessPluginHost["invoke"];
   /** Run an inline snippet: a FRESH transient instance, run once as the caller under the 5 s wall, then
    *  disposed — no residency. The fixed capability profile + the admitted chat scope are the domain's; the port

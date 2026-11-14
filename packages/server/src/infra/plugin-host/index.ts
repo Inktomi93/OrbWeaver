@@ -8,6 +8,7 @@
 // `@orb/contracts/plugin`; lifecycle/registry/grants are this module's port/sandbox.
 
 export { PLUGIN_LOG_RING_CHARS, PLUGIN_LOG_RING_LINES } from "./budgets.ts";
-export type { PluginFailureLine, PluginHostSeamDeps, ProcessPluginHost } from "./contract/port.ts";
+export { createPluginCascadeScope } from "./cascade-scope.ts";
+export type { PluginCascadeScope, PluginFailureLine, PluginHostSeamDeps, ProcessPluginHost } from "./contract/port.ts";
 export { createPluginHost } from "./process-runtime.ts";
 export { AMBIENT_STUBS } from "./realm.ts";

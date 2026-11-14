@@ -1,7 +1,7 @@
 // The chat data and injected ops the rpg domain consumes. Runtime types (AbortSignal, resolved connections,
 // tool wires) stay with their owners; each consumer types its op signature over these shapes.
 
-import type { CharacterId, ChatId, ChatTurnId, MessageId, MessageVariantId, PresetId, RpgGameId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatTurnId, ConsentingHostId, MessageId, MessageVariantId, PresetId, RpgGameId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { ChatMembership } from "#identity";
 import type { ProseOverrides } from "#prose-slot";
@@ -81,7 +81,7 @@ export type GetPendingUserText = (chatId: ChatId) => Promise<string | null>;
 export interface GatherTurnContextArgs {
   readonly chatId: ChatId;
   /** The turn's FUNDER, whose chat connection the rpg delivery verdict reads. */
-  readonly funderUserId: UserId;
+  readonly funderUserId: ConsentingHostId;
   readonly pendingUserText: string | undefined;
   readonly respondsToLatestUserTurn: boolean;
   readonly steerIdentity?: { readonly user: string | undefined; readonly char: string } | undefined;

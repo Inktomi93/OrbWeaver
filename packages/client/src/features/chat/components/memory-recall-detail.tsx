@@ -13,7 +13,7 @@ import { Badge } from "@orb/ui/badge";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { QueryBoundary } from "#components";
+import { MutedLine, QueryBoundary } from "#components";
 import { QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
 import { viewerTimeZone } from "#lib";
 
@@ -85,7 +85,7 @@ export function MemoryRecallDetail({ recall }: { readonly recall: MemoryRecallSl
           </Stack>
         )}
         {recall.candidates.length === 0 ? (
-          <Text>No memory blocks were considered.</Text>
+          <MutedLine>No memory blocks were considered.</MutedLine>
         ) : (
           <Stack gap="row" role="list">
             {recall.candidates.map((candidate) => (

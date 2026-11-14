@@ -15,7 +15,9 @@
 //   - an invocation (`runToSettlement`) opens a CPU ACCOUNT holding the per-instance budget. Each span inside it —
 //     the synchronous run, each settlement and pump while the invocation awaits, the read of its result — opens a
 //     window at the account's remainder and charges the account the time it ran. The await between spans charges
-//     nothing, so a guest that waits seconds on a host call and then runs briefly is inside its budget (D346);
+//     nothing, so a guest that waits seconds on a host call and then runs briefly is inside its budget (D346); nor
+//     does a synchronous host call's block on the parent past `PLUGIN_SYNC_WAIT_STALL_MS` (`withoutCpuCharge`), so a
+//     stalled app is never the guest's runaway while each ordinary round trip stays the guest's charge;
 //   - a settlement or pump outside any invocation spends the instance's OUTSIDE account the same way. Only an
 //     invocation's opening refills it, so post-invocation work holds one budget per invocation, not one per span; when
 //     it is spent the pump parks the job queue until the next invocation (`pumpGuestJobs`), and arriving settlements
@@ -47,7 +49,7 @@
 
 import { performance } from "node:perf_hooks";
 import type { QuickJSContext } from "quickjs-emscripten-core";
-import { PLUGIN_INVOCATION_CPU_MS } from "./budgets.ts";
+import { PLUGIN_INVOCATION_CPU_MS, PLUGIN_SYNC_WAIT_STALL_MS } from "./budgets.ts";
 import type { CpuSpanReport } from "./contract/port.ts";
 
 /** The deadline before the first span opens: the realm is being built from host code only, so nothing to bound. */
@@ -70,12 +72,18 @@ interface CpuGuard {
   readonly parked: (() => void)[];
   /** Whether a span is open; a span opened inside one adds nothing. */
   spanOpen: boolean;
+  /** How long the open span has blocked on its parent past the stall threshold in synchronous host calls
+   *  ({@link withoutCpuCharge}), which its close does not charge. */
+  spanWaitedMs: number;
   /** Where each outermost span is reported to the broker, or `null` outside a broker's Worker. */
   readonly report: CpuSpanReport | null;
 }
 
 interface CpuAccount {
   remainingMs: number;
+  /** Set by the interrupt handler alone, when it stopped guest work a span of this account was running: the host's mark
+   *  of a runaway invocation, which no guest error can forge. */
+  interrupted: boolean;
 }
 
 /** Per-context guard state. WEAK by construction: this map must never keep a disposed context alive, and the
@@ -97,9 +105,26 @@ function windowPassed(guard: CpuGuard): boolean {
 }
 
 function createGuard(ctx: QuickJSContext, budgetMs: number, report: CpuSpanReport | null): CpuGuard {
-  const guard: CpuGuard = { budgetMs, deadlineAtMs: BUILDING, account: null, outside: { remainingMs: budgetMs }, parked: [], spanOpen: false, report };
+  const guard: CpuGuard = {
+    budgetMs,
+    deadlineAtMs: BUILDING,
+    account: null,
+    outside: { remainingMs: budgetMs, interrupted: false },
+    parked: [],
+    spanOpen: false,
+    spanWaitedMs: 0,
+    report,
+  };
   GUARDS.set(ctx, guard);
-  ctx.runtime.setInterruptHandler(() => windowPassed(guard));
+  ctx.runtime.setInterruptHandler(() => {
+    const passed = windowPassed(guard);
+    // Guest work an invocation's span was running ran past its window: that invocation is a runaway, and the mark makes
+    // it strike whatever refusal its command also met (D347). Work outside an invocation marks none.
+    if (passed && guard.spanOpen && guard.account !== null) {
+      guard.account.interrupted = true;
+    }
+    return passed;
+  });
   return guard;
 }
 
@@ -129,15 +154,18 @@ export function installCpuGuard(ctx: QuickJSContext, budgetMs: number, report: C
   existing.budgetMs = budgetMs;
 }
 
-/** Open an invocation's CPU account and return its CLOSE, which restores the account it replaced. Opening also
- *  refills the account for guest work outside an invocation. Callers MUST close in a `finally`. */
-export function openCpuInvocation(ctx: QuickJSContext): () => void {
+/** Open an invocation's CPU account and return its CLOSE, which restores the account it replaced and answers whether the
+ *  interrupt stopped guest work this account was paying for. Opening also refills the account for guest work outside an
+ *  invocation. Callers MUST close in a `finally`. */
+export function openCpuInvocation(ctx: QuickJSContext): () => boolean {
   const guard = guardOf(ctx);
   const previous = guard.account;
+  const account: CpuAccount = { remainingMs: guard.budgetMs, interrupted: false };
   guard.outside.remainingMs = guard.budgetMs;
-  guard.account = { remainingMs: guard.budgetMs };
-  return (): void => {
+  guard.account = account;
+  return (): boolean => {
     guard.account = previous;
+    return account.interrupted;
   };
 }
 
@@ -158,15 +186,39 @@ export function openCpuWindow(ctx: QuickJSContext): () => void {
   const account = spending(guard);
   const openedAtMs = performance.now();
   guard.spanOpen = true;
+  guard.spanWaitedMs = 0;
   guard.deadlineAtMs = account.remainingMs > 0 ? openedAtMs + account.remainingMs : CLOSED;
   guard.report?.opened(Math.ceil(account.remainingMs));
   return (): void => {
     const spentMs = performance.now() - openedAtMs;
-    account.remainingMs = Math.max(0, account.remainingMs - spentMs);
+    account.remainingMs = Math.max(0, account.remainingMs - (spentMs - guard.spanWaitedMs));
     guard.deadlineAtMs = CLOSED;
     guard.spanOpen = false;
+    guard.spanWaitedMs = 0;
+    // The broker's bounds read the span's whole length, waits included: they bound how long a Worker is held, and D347
+    // already sizes one synchronous wait into them.
     guard.report?.closed(spentMs);
   };
+}
+
+/** Run `wait` — a synchronous host call that blocks this thread on the parent's answer — charging the open span only
+ *  the first `PLUGIN_SYNC_WAIT_STALL_MS` of the block: past it the window's deadline moves forward by the rest, and the
+ *  span's close leaves the rest out. A slow or wedged parent is the host's cause, never the guest's (D346). The guest
+ *  pays for every ordinary round trip, so a loop of seam calls, which makes the app and broker work, still meets its
+ *  window. How long a span may hold its Worker, waits included, stays the broker's bound (D347). */
+export function withoutCpuCharge<T>(ctx: QuickJSContext, wait: () => T): T {
+  const guard = GUARDS.get(ctx);
+  if (guard === undefined || !guard.spanOpen) {
+    return wait();
+  }
+  const startedAtMs = performance.now();
+  try {
+    return wait();
+  } finally {
+    const stalledMs = Math.max(0, performance.now() - startedAtMs - PLUGIN_SYNC_WAIT_STALL_MS);
+    guard.deadlineAtMs += stalledMs;
+    guard.spanWaitedMs += stalledMs;
+  }
 }
 
 /** Run `settle` — the settlement of a host call's guest promise, which can run a guest `then` getter — inside a span,

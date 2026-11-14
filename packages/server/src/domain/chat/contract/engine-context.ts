@@ -5,7 +5,7 @@ import type { AttachmentQuality } from "@orb/contracts/inference";
 import type { StatementToken } from "@orb/db/wiring";
 import type { ChatToolDefinition, GeneratedImage, InferenceRuntime, Resolved, ToolCallInput } from "@orb/inference";
 import type { ContentImageRef } from "@orb/kit/content";
-import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageAssetId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ChatTurnId, ConsentingHostId, MessageAssetId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
 import type { RegexExecuteOptions } from "@orb/kit/regex";
 import type { TimerScheduler } from "@orb/kit/time";
@@ -54,7 +54,7 @@ export type RunChatTurnOp = (req: TurnRequest) => AsyncIterable<TurnStreamChunk>
 
 /** Execution carries the frozen host and initiator, not a request Principal. */
 export interface ChatToolExecFrame {
-  readonly runAsUserId: UserId;
+  readonly runAsUserId: ConsentingHostId;
   readonly triggeredBy: UserId;
   readonly chatId: ChatId;
   readonly membership: ChatMembership | null;
