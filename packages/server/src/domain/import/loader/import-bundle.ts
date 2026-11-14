@@ -159,16 +159,16 @@ function collectSkips(
   return outcomes;
 }
 
-function tally(outcomes: readonly BundleImportFileOutcome[]): {
-  readonly imported: number;
-  readonly skipped: number;
-  readonly failed: number;
-} {
+function tally(outcomes: readonly BundleImportFileOutcome[]): Omit<BundleImportReport, "outcomes"> {
   let imported = 0;
+  let inLibrary = 0;
   let skipped = 0;
   let failed = 0;
   for (const outcome of outcomes) {
-    if (outcome.ok) {
+    // A descriptor that reports no `created` always writes, so only an explicit false is a held file.
+    if (outcome.ok && outcome.created === false) {
+      inLibrary++;
+    } else if (outcome.ok) {
       imported++;
       // A file nobody routed, and a file the abort never reached, are both SKIPS — neither was attempted, so
       // neither is a failure the operator should chase.
@@ -178,7 +178,7 @@ function tally(outcomes: readonly BundleImportFileOutcome[]): {
       failed++;
     }
   }
-  return { imported, skipped, failed };
+  return { imported, inLibrary, skipped, failed };
 }
 
 /**

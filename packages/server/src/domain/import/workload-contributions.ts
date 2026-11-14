@@ -269,7 +269,8 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
               : await importStagedZip(deps.runBundleImport, { stagedPath, digest, ownerId: targetOwnerId, stagingRoot: ownerRoot, signal });
           // A background bundle/tree import that wrote canon refreshes the owner's character + chat lists
           // (the client's own completion invalidation only fires while the import UI stayed mounted).
-          if (report_.imported > 0) {
+          // A held file still re-runs its planes (D290), so it refreshes like a written one.
+          if (report_.imported + report_.inLibrary > 0) {
             await refreshPlannerAfterImport(deps.refreshPlannerStats, targetOwnerId, report, deps.logger);
             deps.emitLibraryChanged({ ownerId: targetOwnerId });
           }
