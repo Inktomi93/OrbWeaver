@@ -85,6 +85,7 @@ test.describe("a card import's result", () => {
       const report = page.getByTestId(testId("importReport"));
       await expect(report).toBeVisible();
       await expect(result).toBeFocused();
+      await expect(result, "the result is scrolled into the window, not left below the fold").toBeInViewport();
       const toastsSeen = await page.evaluate((key) => {
         const held: unknown = Reflect.get(globalThis, key);
         return typeof held === "object" && held !== null && "seen" in held && typeof held.seen === "number" ? held.seen : -1;

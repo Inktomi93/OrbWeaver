@@ -1,8 +1,10 @@
 // The Characters hero shows one primary control. "New chat" is it at rest; while the greeting studio's preview is open its
 // Accept finishes the step, so "New chat" steps back to the outline. Production entry: the Characters section's editor
-// content (the hero band and its greeting studio) over a real server's rewrite verb.
+// content (the hero band and its greeting studio) over a real server's rewrite verb. While the rewrite runs the studio's solid Rewrite is
+// disabled and still passes the design audit's inactive-control-legibility rule.
 import { createCharacterSchema } from "@orb/contracts/character";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
+import { readSurfaceDesignAudit } from "@orb/testkit/browser/spec";
 import { holdServed, routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import {
@@ -84,6 +86,13 @@ test("the hero's New chat gives up the primary emphasis while a greeting preview
   await hero.getByRole("button", { name: GREETING_STUDIO_NAME, exact: true }).click();
   await hero.getByRole("button", { name: GREETING_REWRITE_NAME, exact: true }).click();
   await generation.requested;
+  // While the rewrite runs both studio buttons are disabled; the solid one must still read as a control.
+  await expect(hero.getByRole("button", { name: GREETING_REWRITE_NAME, exact: true })).toBeDisabled();
+  const { audit } = await readSurfaceDesignAudit(page);
+  expect(
+    audit.findings.filter(({ rule }) => rule === "inactive-control-legibility").map(({ selector, value }) => `${selector} ${value}`),
+    "the design audit finds the disabled Rewrite legible",
+  ).toEqual([]);
   generation.release();
   const preview = hero.locator('[data-slot="greeting-studio-preview"]');
   await expect(preview.getByText(GENERATED_OPENING, { exact: true })).toBeVisible();
