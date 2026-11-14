@@ -3,7 +3,7 @@
 // asymmetry. Mints humans only. Guards: invalid_handle (empty), cannot_grant_owner (never minted here),
 // weak_password, user_exists (both the pre-SELECT and the TOCTOU insert-conflict race translate to the same code).
 //
-// The account and its audit row are ONE batch (`substrate/audited-write.ts`). Before that the audit
+// The account and its audit row are ONE batch (`persistence/audited-write.ts`). Before that the audit
 // was a separate await after the INSERT, which failed both ways: in production the injected `audit` is
 // `logAudit`, which SWALLOWS its failure, so a dead audit channel minted a loginable account and returned
 // 200 with no forensic record at all; and any tail that did reject rejected the endpoint with the account
@@ -24,8 +24,8 @@ import type { CreateUserParams } from "../contract/params.ts";
 import type { AdminContext, AdminService } from "../contract/service.ts";
 import type { AdminUserData } from "../contract/views.ts";
 import { isBootstrapOwnerRoleCode, requireAdmin, requireOwner } from "../guard.ts";
+import { commitAuditedWrite } from "../persistence/audited-write.ts";
 import { loadUser } from "../persistence/queries.ts";
-import { commitAuditedWrite } from "../substrate/audited-write.ts";
 
 const DEFAULT_ROLE = "user";
 const LIMIT_ONE = 1;
