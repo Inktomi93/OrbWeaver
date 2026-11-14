@@ -11,10 +11,10 @@ import { chatDigestSpeakers, chatDigests, chatMemoryStrikes, messages, messageVa
 import type { BatchStmt } from "@orb/db/query";
 import { batchStmt } from "@orb/db/query";
 import type { CharacterId, ChatDigestId, ChatId, ChatMemoryStrikeId, MessageId } from "@orb/kit/ids";
-import type { RecallStrike, ResolvedStrike, StrikeCandidate } from "@orb/kit/recall";
-import { tier0RangeOf } from "@orb/kit/recall";
+import type { RecallStrike, ResolvedStrike, SeqSpan, StrikeCandidate } from "@orb/kit/recall";
+import { resolveStrikeSpan, tier0RangeOf } from "@orb/kit/recall";
 import type { SQL } from "drizzle-orm";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { DigestRow } from "../types.ts";
 import { loadSegmentSpans } from "./queries.ts";
 
@@ -24,8 +24,8 @@ const LIMIT_ONE = 1;
  *  whether the scene changed since, and the strike matches by its endpoints alone. */
 export const IMPORTED_STRIKE_HASH = "";
 
-/** One stored strike, with what the view lists for it. */
-export interface StoredMemoryStrike extends RecallStrike {
+/** One stored strike, with what the view lists for it and the endpoint seqs it stored. */
+export interface StoredMemoryStrike extends RecallStrike, SeqSpan {
   readonly id: ChatMemoryStrikeId;
   readonly topicAnchor: string | null;
 }
@@ -39,6 +39,8 @@ async function loadMemoryStrikes(db: Db, chatId: ChatId): Promise<StoredMemorySt
       tier: chatMemoryStrikes.tier,
       messageStartId: chatMemoryStrikes.messageStartId,
       messageEndId: chatMemoryStrikes.messageEndId,
+      seqStart: chatMemoryStrikes.seqStart,
+      seqEnd: chatMemoryStrikes.seqEnd,
       contentHash: chatMemoryStrikes.contentHash,
       topicAnchor: chatMemoryStrikes.topicAnchor,
     })
@@ -47,8 +49,7 @@ async function loadMemoryStrikes(db: Db, chatId: ChatId): Promise<StoredMemorySt
     .orderBy(asc(chatMemoryStrikes.createdAt), asc(chatMemoryStrikes.id));
 }
 
-/** The room's strikes, oldest first, with each span resolved to the seqs of its endpoint messages, null when one is
- *  gone. */
+/** The room's strikes, oldest first, with each span resolved by {@link resolveStrikeSpan}. */
 export async function loadResolvedStrikes(db: Db, chatId: ChatId): Promise<(StoredMemoryStrike & ResolvedStrike)[]> {
   const strikes = await loadMemoryStrikes(db, chatId);
   const endpointIds = [...new Set(strikes.flatMap((s) => [s.messageStartId, s.messageEndId]))];
@@ -62,11 +63,7 @@ export async function loadResolvedStrikes(db: Db, chatId: ChatId): Promise<(Stor
       seqOf.set(message.id, message.seq);
     }
   }
-  return strikes.map((s) => {
-    const seqStart = seqOf.get(s.messageStartId);
-    const seqEnd = seqOf.get(s.messageEndId);
-    return { ...s, seqSpan: seqStart === undefined || seqEnd === undefined ? null : { seqStart, seqEnd } };
-  });
+  return strikes.map((s) => ({ ...s, seqSpan: resolveStrikeSpan(s, { seqStart: seqOf.get(s.messageStartId), seqEnd: seqOf.get(s.messageEndId) }) }));
 }
 
 /** A stored digest with the parts the memory view lists. */
@@ -196,8 +193,9 @@ export async function loadSpeakersOf(db: Db, digestIds: readonly ChatDigestId[])
   return out;
 }
 
-/** The new strike row; the verb mints the id and stamps the time from its injected clock. */
-export interface MemoryStrikeInsert extends RecallStrike {
+/** The new strike row; the verb mints the id and stamps the time from its injected clock. The seqs are the
+ *  endpoints' seqs when the row is written. */
+export interface MemoryStrikeInsert extends RecallStrike, SeqSpan {
   readonly id: ChatMemoryStrikeId;
   readonly chatId: ChatId;
   readonly topicAnchor: string | null;
@@ -263,5 +261,29 @@ export function restampMemoryStrikesStatement(db: Db, chatId: ChatId, sourceChar
       .update(chatMemoryStrikes)
       .set({ scopedCharacterId: characterId })
       .where(and(eq(chatMemoryStrikes.chatId, chatId), eq(chatMemoryStrikes.scopedCharacterId, sourceCharacterId))),
+  );
+}
+
+// The live seq of the message a strike column names, or the column's own stored seq when that message is gone. Every
+// column is table-qualified: drizzle renders an update's columns bare, and a bare `chat_id` inside the subquery would
+// bind to `messages`.
+function liveSeqOr(idColumn: { readonly name: string }, seqColumn: { readonly name: string }): SQL {
+  const strike = (column: { readonly name: string }): SQL => sql`${chatMemoryStrikes}.${sql.identifier(column.name)}`;
+  const message = (column: { readonly name: string }): SQL => sql`${messages}.${sql.identifier(column.name)}`;
+  return sql`coalesce((select ${message(messages.seq)} from ${messages} where ${message(messages.id)} = ${strike(idColumn)} and ${message(messages.chatId)} = ${strike(chatMemoryStrikes.chatId)}), ${strike(seqColumn)})`;
+}
+
+/** The reorder's re-stamp: each strike's stored seqs follow its live endpoints to their new seqs, in the reorder's own
+ *  batch after the re-sequence, so a later delete of an endpoint falls back to where that endpoint last stood. A gone
+ *  endpoint keeps its stored seq: a reorder permutes only live messages among their own seqs. */
+export function restampStrikeSeqsStatement(db: Db, chatId: ChatId): BatchStmt {
+  return batchStmt(
+    db
+      .update(chatMemoryStrikes)
+      .set({
+        seqStart: liveSeqOr(chatMemoryStrikes.messageStartId, chatMemoryStrikes.seqStart),
+        seqEnd: liveSeqOr(chatMemoryStrikes.messageEndId, chatMemoryStrikes.seqEnd),
+      })
+      .where(eq(chatMemoryStrikes.chatId, chatId)),
   );
 }
