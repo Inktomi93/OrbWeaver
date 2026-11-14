@@ -8,93 +8,117 @@ import { assertInitFrameShape } from "./verify.ts";
 
 const tokenCount = generationUsageSchema.shape.tokensIn.unwrap();
 const cost = generationUsageSchema.shape.costUsd.unwrap();
-const headerSchema = z.object({ type: z.string(), subtype: z.string().optional(), session_id: z.string().optional() });
-const blockHeaderSchema = z.object({ type: z.string() });
-const textBlockSchema = z.object({ text: z.string() });
-const thinkingBlockSchema = z.object({ thinking: z.string() });
-const toolBlockSchema = z.object({ id: z.string(), name: z.string(), input: z.unknown() });
-const assistantSchema = z.object({
-  message: z.object({ stop_reason: z.string().nullish(), content: z.array(z.unknown()) }),
-  error: z.string().optional(),
-  request_id: z.string().optional(),
-});
-const resultSchema = z.object({
-  subtype: z.string(),
-  is_error: z.boolean(),
-  num_turns: generationUsageLegSchema.shape.modelCalls.unwrap(),
-  terminal_reason: z.string().optional(),
-  stop_reason: z.string().nullish(),
-  total_cost_usd: cost,
-  usage: z.object({
-    input_tokens: tokenCount.optional(),
-    output_tokens: tokenCount.optional(),
-    cache_read_input_tokens: tokenCount.optional(),
-    cache_creation_input_tokens: tokenCount.optional(),
-    cache_creation: z.object({ ephemeral_5m_input_tokens: tokenCount, ephemeral_1h_input_tokens: tokenCount }).optional(),
-  }),
-  modelUsage: z.record(
-    z.string(),
-    z.object({
-      inputTokens: tokenCount,
-      outputTokens: tokenCount,
-      costUSD: cost,
-      webSearchRequests: tokenCount,
-      contextWindow: generationUsageLegSchema.shape.contextWindow.unwrap(),
-      maxOutputTokens: generationUsageLegSchema.shape.maxOutputTokens.unwrap(),
-    }),
-  ),
-  permission_denials: z.array(z.object({ tool_name: z.string() })).optional(),
-});
-const successfulResultSchema = z.object({
-  result: z.string(),
-  ttft_ms: generationUsageLegSchema.shape.ttftMs.unwrap().optional(),
-  duration_api_ms: generationUsageLegSchema.shape.durationApiMs.unwrap(),
-  api_error_status: z.number().optional(),
-  warm_spare_claimed: z.boolean().optional(),
-});
-const failedResultSchema = z.object({ errors: z.array(z.string()) });
-const compactBoundarySchema = z.object({
-  compact_metadata: z.object({
-    trigger: compactionTriggerSchema,
-    pre_tokens: tokenCount,
-    post_tokens: tokenCount.optional(),
-    duration_ms: z.number().optional(),
-  }),
-});
-const retrySchema = z.object({
-  error: z.string(),
-  attempt: z.number(),
-  max_retries: z.number(),
-  retry_delay_ms: z.number(),
-  error_status: z.number().nullable(),
-});
-const statusSchema = z.object({
-  status: sdkActivityStatusSchema.nullish(),
-  compact_result: compactResultSchema.optional(),
-  compact_error: z.string().optional(),
-});
-const thinkingTokensSchema = z.object({ estimated_tokens: tokenCount });
-const refusalSchema = z.object({ original_model: z.string(), api_refusal_category: z.string().nullish(), api_refusal_explanation: z.string().nullish() });
-const fallbackSchema = z.object({ fallback_model: z.string() });
-const initModelSchema = z.object({ model: z.string() });
-const rateLimitSchema = z.object({
-  rate_limit_info: z.object({
-    status: rateLimitStatusSchema,
-    rateLimitType: z.string().optional(),
-    resetsAt: z.number().optional(),
-    utilization: z.number().optional(),
-    isUsingOverage: z.boolean().optional(),
-    surpassedThreshold: z.number().optional(),
-    overageStatus: rateLimitStatusSchema.optional(),
-    overageResetsAt: z.number().optional(),
-    overageDisabledReason: z.string().optional(),
-    errorCode: z.string().optional(),
-  }),
-});
-const authStatusSchema = z.object({ isAuthenticating: z.boolean(), error: z.string().optional() });
-const streamEventSchema = z.object({ event: z.object({ type: z.string(), delta: z.unknown().optional() }) });
-const deltaHeaderSchema = z.object({ type: z.string() });
-const messageDeltaSchema = z.object({ stop_reason: z.string().nullish() });
+const headerSchema = z.object({ type: z.string(), subtype: z.string().optional(), session_id: z.string().optional() }).strip();
+const blockHeaderSchema = z.object({ type: z.string() }).strip();
+const textBlockSchema = z.object({ text: z.string() }).strip();
+const thinkingBlockSchema = z.object({ thinking: z.string() }).strip();
+const toolBlockSchema = z.object({ id: z.string(), name: z.string(), input: z.unknown() }).strip();
+const assistantSchema = z
+  .object({
+    message: z.object({ stop_reason: z.string().nullish(), content: z.array(z.unknown()) }).strip(),
+    error: z.string().optional(),
+    request_id: z.string().optional(),
+  })
+  .strip();
+const resultSchema = z
+  .object({
+    subtype: z.string(),
+    is_error: z.boolean(),
+    num_turns: generationUsageLegSchema.shape.modelCalls.unwrap(),
+    terminal_reason: z.string().optional(),
+    stop_reason: z.string().nullish(),
+    total_cost_usd: cost,
+    usage: z
+      .object({
+        input_tokens: tokenCount.optional(),
+        output_tokens: tokenCount.optional(),
+        cache_read_input_tokens: tokenCount.optional(),
+        cache_creation_input_tokens: tokenCount.optional(),
+        cache_creation: z.object({ ephemeral_5m_input_tokens: tokenCount, ephemeral_1h_input_tokens: tokenCount }).strip().optional(),
+      })
+      .strip(),
+    modelUsage: z.record(
+      z.string(),
+      z
+        .object({
+          inputTokens: tokenCount,
+          outputTokens: tokenCount,
+          costUSD: cost,
+          webSearchRequests: tokenCount,
+          contextWindow: generationUsageLegSchema.shape.contextWindow.unwrap(),
+          maxOutputTokens: generationUsageLegSchema.shape.maxOutputTokens.unwrap(),
+        })
+        .strip(),
+    ),
+    permission_denials: z.array(z.object({ tool_name: z.string() }).strip()).optional(),
+  })
+  .strip();
+const successfulResultSchema = z
+  .object({
+    result: z.string(),
+    ttft_ms: generationUsageLegSchema.shape.ttftMs.unwrap().optional(),
+    duration_api_ms: generationUsageLegSchema.shape.durationApiMs.unwrap(),
+    api_error_status: z.number().optional(),
+    warm_spare_claimed: z.boolean().optional(),
+  })
+  .strip();
+const failedResultSchema = z.object({ errors: z.array(z.string()) }).strip();
+const compactBoundarySchema = z
+  .object({
+    compact_metadata: z
+      .object({
+        trigger: compactionTriggerSchema,
+        pre_tokens: tokenCount,
+        post_tokens: tokenCount.optional(),
+        duration_ms: z.number().optional(),
+      })
+      .strip(),
+  })
+  .strip();
+const retrySchema = z
+  .object({
+    error: z.string(),
+    attempt: z.number(),
+    max_retries: z.number(),
+    retry_delay_ms: z.number(),
+    error_status: z.number().nullable(),
+  })
+  .strip();
+const statusSchema = z
+  .object({
+    status: sdkActivityStatusSchema.nullish(),
+    compact_result: compactResultSchema.optional(),
+    compact_error: z.string().optional(),
+  })
+  .strip();
+const thinkingTokensSchema = z.object({ estimated_tokens: tokenCount }).strip();
+const refusalSchema = z
+  .object({ original_model: z.string(), api_refusal_category: z.string().nullish(), api_refusal_explanation: z.string().nullish() })
+  .strip();
+const fallbackSchema = z.object({ fallback_model: z.string() }).strip();
+const initModelSchema = z.object({ model: z.string() }).strip();
+const rateLimitSchema = z
+  .object({
+    rate_limit_info: z
+      .object({
+        status: rateLimitStatusSchema,
+        rateLimitType: z.string().optional(),
+        resetsAt: z.number().optional(),
+        utilization: z.number().optional(),
+        isUsingOverage: z.boolean().optional(),
+        surpassedThreshold: z.number().optional(),
+        overageStatus: rateLimitStatusSchema.optional(),
+        overageResetsAt: z.number().optional(),
+        overageDisabledReason: z.string().optional(),
+        errorCode: z.string().optional(),
+      })
+      .strip(),
+  })
+  .strip();
+const authStatusSchema = z.object({ isAuthenticating: z.boolean(), error: z.string().optional() }).strip();
+const streamEventSchema = z.object({ event: z.object({ type: z.string(), delta: z.unknown().optional() }).strip() }).strip();
+const deltaHeaderSchema = z.object({ type: z.string() }).strip();
+const messageDeltaSchema = z.object({ stop_reason: z.string().nullish() }).strip();
 
 function readAssistant(message: unknown): void {
   const parsed = assistantSchema.parse(message);

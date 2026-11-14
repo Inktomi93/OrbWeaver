@@ -220,7 +220,9 @@ rows(WIRE_OBJECT, CONTRACTS, [
 rows(WIRE_OBJECT, "packages/server/src/transport/trpc/probe.ts", [
   ["the transport tree is judged", `${ZOD}export const s = z.object({ a: z.string() });\n`, 1],
 ]);
-rows(WIRE_OBJECT, SERVER, [["a domain outside contracts and transport is not judged", `${ZOD}export const s = z.object({ a: z.string() });\n`, 0]]);
+rows(WIRE_OBJECT, SERVER, [["a server domain is judged", `${ZOD}export const s = z.object({ a: z.string() });\n`, 1]]);
+rows(WIRE_OBJECT, "packages/inference/src/backends/probe.ts", [["an inference backend is judged", `${ZOD}export const s = z.object({ a: z.string() });\n`, 1]]);
+rows(WIRE_OBJECT, "tooling/src/probe/probe.ts", [["tooling is outside the package trees", `${ZOD}export const s = z.object({ a: z.string() });\n`, 0]]);
 
 const WIRE_IDS = 'import type { AssetId, CharacterId, MessageId, SandboxWireId } from "@orb/kit/ids";\n';
 

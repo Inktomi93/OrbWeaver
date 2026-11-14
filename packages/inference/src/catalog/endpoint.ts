@@ -18,17 +18,15 @@ import { assertNever, ProviderError } from "../contract/errors.ts";
 import type { FetchJsonArgs } from "../contract/http.ts";
 import type { EndpointModel } from "../contract/runtime.ts";
 
-const rowSchema = z
-  .object({
-    id: z.string(),
-    max_model_len: z.number().nullable().optional(),
-    context_length: z.number().nullable().optional(),
-    max_context_length: z.number().nullable().optional(),
-  })
-  .loose();
+const rowSchema = z.looseObject({
+  id: z.string(),
+  max_model_len: z.number().nullable().optional(),
+  context_length: z.number().nullable().optional(),
+  max_context_length: z.number().nullable().optional(),
+});
 type RawRow = z.infer<typeof rowSchema>;
 
-const listSchema = z.object({ data: z.array(rowSchema) }).loose();
+const listSchema = z.looseObject({ data: z.array(rowSchema) });
 
 /** Ollama resolves an untagged name to `:latest`, so `llama3` and `llama3:latest` are one model. A `:` that
  *  precedes a `/` is a registry port, not a tag. */
@@ -165,7 +163,7 @@ function prefillOf(rendered: unknown): EndpointModel["prefill"] {
   return rendered.trimEnd().endsWith(PREFILL_MARK) ? "deliver" : "none";
 }
 
-const embeddingResponseSchema = z.object({ data: z.array(z.object({ embedding: z.array(z.number()) }).loose()).min(1) }).loose();
+const embeddingResponseSchema = z.looseObject({ data: z.array(z.looseObject({ embedding: z.array(z.number()) })).min(1) });
 
 /** An embedder's width, measured: the length of the vector it returns (a server's `n_embd` is the hidden size). */
 async function measuredWidth(args: EndpointFetchArgs, model: string): Promise<number | undefined> {
@@ -224,24 +222,21 @@ function withStated(row: EndpointModel, facts: Partial<EndpointModel>): Endpoint
 
 // ── Ollama ───────────────────────────────────────────────────────────────────────────────────────────
 
-const ollamaPsSchema = z
-  .object({ models: z.array(z.object({ name: z.string(), model: z.string().optional(), context_length: z.number().int().positive().optional() }).loose()) })
-  .loose();
-const ollamaShowSchema = z
-  .object({
-    parameters: z.string().optional(),
-    model_info: z.record(z.string(), z.unknown()).nullable().optional(),
-    /** `completion` · `tools` · `vision` · `embedding` · `insert` · `thinking` and newer members; absent on an older build. */
-    capabilities: z.array(z.string()).optional(),
-    /** What `think` takes for this model and what an omitted one runs (types/model/thinking.go); absent ⇒ unknown. */
-    thinking: z
-      .object({ values: z.array(z.unknown()), default: z.unknown() })
-      .loose()
-      .nullable()
-      .optional(),
-  })
-  .loose();
-const ollamaVersionSchema = z.object({ version: z.string() }).loose();
+const ollamaPsSchema = z.looseObject({
+  models: z.array(z.looseObject({ name: z.string(), model: z.string().optional(), context_length: z.number().int().positive().optional() })),
+});
+const ollamaShowSchema = z.looseObject({
+  parameters: z.string().optional(),
+  model_info: z.record(z.string(), z.unknown()).nullable().optional(),
+  /** `completion` · `tools` · `vision` · `embedding` · `insert` · `thinking` and newer members; absent on an older build. */
+  capabilities: z.array(z.string()).optional(),
+  /** What `think` takes for this model and what an omitted one runs (types/model/thinking.go); absent ⇒ unknown. */
+  thinking: z
+    .looseObject({ values: z.array(z.unknown()), default: z.unknown() })
+    .nullable()
+    .optional(),
+});
+const ollamaVersionSchema = z.looseObject({ version: z.string() });
 
 /** A Modelfile `PARAMETER num_ctx N` line as `ollama show` prints it in `parameters`. */
 const NUM_CTX_RE = /^num_ctx\s+(\d+)\s*$/mu;
@@ -335,7 +330,7 @@ async function ollamaLateFacts(args: EndpointFetchArgs, row: EndpointModel): Pro
  *  field; `/api/chat` neither), so no choice, `none` included, and no parallel switch reaches the model. */
 const OLLAMA_TOOL_CHOICE = { required: false, named: false, none: false, parallel: false } as const;
 
-const ollamaRenderSchema = z.object({ ["_debug_info"]: z.object({ ["rendered_template"]: z.string() }).loose() }).loose();
+const ollamaRenderSchema = z.looseObject({ ["_debug_info"]: z.looseObject({ ["rendered_template"]: z.string() }) });
 
 /** `_debug_render_only` renders the model's template over the messages and generates nothing. Non-streaming:
  *  only that reply carries `_debug_info`. A model in the server's native mode is loaded to render. */
@@ -458,34 +453,26 @@ function thinkingDescriptor(raw: { readonly values: readonly unknown[]; readonly
 
 // ── llama.cpp server ─────────────────────────────────────────────────────────────────────────────────
 
-const llamaCppPropsSchema = z
-  .object({
-    /** `router` on the multi-model router, whose bare `/props` describes no model. */
-    role: z.string().optional(),
-    modalities: z.object({ vision: z.boolean().optional(), video: z.boolean().optional(), audio: z.boolean().optional() }).loose().optional(),
-    /** Per-template booleans (`supports_tools`, `supports_system_role`, …), kept whole. */
-    chat_template_caps: z.record(z.string(), z.boolean()).optional(),
-    default_generation_settings: z
-      .object({ n_ctx: z.number().int().optional(), params: z.record(z.string(), z.unknown()).nullable().optional() })
-      .loose()
-      .optional(),
-    build_info: z.string().optional(),
-  })
-  .loose();
+const llamaCppPropsSchema = z.looseObject({
+  /** `router` on the multi-model router, whose bare `/props` describes no model. */
+  role: z.string().optional(),
+  modalities: z.looseObject({ vision: z.boolean().optional(), video: z.boolean().optional(), audio: z.boolean().optional() }).optional(),
+  /** Per-template booleans (`supports_tools`, `supports_system_role`, …), kept whole. */
+  chat_template_caps: z.record(z.string(), z.boolean()).optional(),
+  default_generation_settings: z
+    .looseObject({ n_ctx: z.number().int().optional(), params: z.record(z.string(), z.unknown()).nullable().optional() })
+    .optional(),
+  build_info: z.string().optional(),
+});
 /** The llama.cpp spellings on a `/v1/models` row: the loaded slot's window and the trained maximum, and in router
  *  mode the per-model modalities (stated without loading the model). `meta.n_embd` is the hidden size, never read
  *  as an embedding width. */
-const llamaCppRowSchema = z
-  .object({
-    meta: z.object({ n_ctx: z.number().int().positive().optional(), n_ctx_train: z.number().int().positive().optional() }).loose().optional(),
-    architecture: z
-      .object({ input_modalities: z.array(z.string()).optional() })
-      .loose()
-      .optional(),
-  })
-  .loose();
-const llamaCppErrorSchema = z.object({ error: z.object({ message: z.string(), type: z.string().optional() }).loose() }).loose();
-const llamaCppTemplateSchema = z.object({ prompt: z.string() }).loose();
+const llamaCppRowSchema = z.looseObject({
+  meta: z.looseObject({ n_ctx: z.number().int().positive().optional(), n_ctx_train: z.number().int().positive().optional() }).optional(),
+  architecture: z.looseObject({ input_modalities: z.array(z.string()).optional() }).optional(),
+});
+const llamaCppErrorSchema = z.looseObject({ error: z.looseObject({ message: z.string(), type: z.string().optional() }) });
+const llamaCppTemplateSchema = z.looseObject({ prompt: z.string() });
 const LLAMA_CPP_ROUTER_ROLE = "router";
 /** `build_info` is `b<number>-<hash>`. */
 const LLAMA_CPP_BUILD_RE = /^b(\d+)/u;
@@ -683,27 +670,23 @@ async function withLlamaCppInfo(args: EndpointFetchArgs, raw: readonly RawRow[],
 
 // ── KoboldCpp ────────────────────────────────────────────────────────────────────────────────────────
 
-const koboldCppVersionSchema = z
-  .object({
-    version: z.string().optional(),
-    vision: z.boolean().optional(),
-    audio: z.boolean().optional(),
-    /** A text model is loaded. */
-    llm: z.boolean().optional(),
-    /** A separate embeddings model is loaded (`--embeddingsmodel`). */
-    embeddings: z.boolean().optional(),
-    /** Chat renders through the model's jinja template (`--jinja`) rather than KoboldCpp's adapter. */
-    jinja: z.boolean().optional(),
-  })
-  .loose();
-const koboldCppPropsSchema = z
-  .object({
-    n_ctx: z.number().int().positive().optional(),
-    default_generation_settings: z.object({ n_ctx: z.number().int().positive().optional() }).loose().optional(),
-    chat_template: z.string().nullable().optional(),
-  })
-  .loose();
-const koboldCppValueSchema = z.object({ value: z.number().int().positive() }).loose();
+const koboldCppVersionSchema = z.looseObject({
+  version: z.string().optional(),
+  vision: z.boolean().optional(),
+  audio: z.boolean().optional(),
+  /** A text model is loaded. */
+  llm: z.boolean().optional(),
+  /** A separate embeddings model is loaded (`--embeddingsmodel`). */
+  embeddings: z.boolean().optional(),
+  /** Chat renders through the model's jinja template (`--jinja`) rather than KoboldCpp's adapter. */
+  jinja: z.boolean().optional(),
+});
+const koboldCppPropsSchema = z.looseObject({
+  n_ctx: z.number().int().positive().optional(),
+  default_generation_settings: z.looseObject({ n_ctx: z.number().int().positive().optional() }).optional(),
+  chat_template: z.string().nullable().optional(),
+});
+const koboldCppValueSchema = z.looseObject({ value: z.number().int().positive() });
 /** The release that added `response_format` with a JSON schema to the OpenAI chat endpoint. */
 const KOBOLDCPP_STRUCTURED_FLOOR = "1.90";
 /** Without `--jinja_tools` the server picks ONE tool itself and grammar-forces it; with it, the choice is ignored
