@@ -22,6 +22,7 @@ import {
   cancelWorkloadResultSchema,
   modelCallEstimateSchema,
   scheduleCadenceSchema,
+  WORKLOAD_KINDS,
   wireStartWorkloadEnvelope,
   workloadListInputSchema,
   workloadModeSchema,
@@ -76,12 +77,17 @@ export const workloadsRouter = t.router({
     .output(modelCallEstimateSchema)
     .input(
       strictTwin(
-        z.strictObject({
-          input: wireStartWorkloadEnvelope,
-          mode: workloadModeSchema.default("singular"),
-          targetOwnerId: brandedId("UserId").optional(),
-          assumeAdmitted: z.boolean().optional(),
-        }),
+        z
+          .strictObject({
+            input: wireStartWorkloadEnvelope,
+            mode: workloadModeSchema.default("singular"),
+            targetOwnerId: brandedId("UserId").optional(),
+            assumeAdmitted: z.boolean().optional(),
+            // The stages a chained confirm runs first; each is a start envelope, counted only, never started.
+            after: z.array(wireStartWorkloadEnvelope).max(WORKLOAD_KINDS.length).optional(),
+          })
+          // A chain is one person's pass over their own library; a bulk sweep is never chained.
+          .refine((value) => value.after === undefined || value.mode === "singular", { path: ["after"], message: "only a singular run is chained" }),
       ),
     )
     .query(({ ctx, input }) => {
@@ -90,6 +96,7 @@ export const workloadsRouter = t.router({
       }
       return ctx.services.workloads.estimateModelCalls({
         input: asStartWorkloadInput(input.input),
+        ...(input.after !== undefined ? { after: input.after.map(asStartWorkloadInput) } : {}),
         caller: ctx.auth,
         mode: input.mode,
         ...(input.assumeAdmitted !== undefined ? { assumeAdmitted: input.assumeAdmitted } : {}),

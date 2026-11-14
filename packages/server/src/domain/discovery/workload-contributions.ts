@@ -19,7 +19,7 @@
 
 import type { AnalyticsResult } from "@orb/contracts/discovery";
 import { computeThemesWorkloadParams, findDuplicatesWorkloadParams } from "@orb/contracts/discovery";
-import type { WorkloadRunContext } from "@orb/contracts/workloads";
+import type { ModelCallCount, WorkloadKind, WorkloadRunContext } from "@orb/contracts/workloads";
 import { emptyWorkloadParams, requireWorkloadFunder } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
 import type { WorkloadContribution } from "#domain/workloads";
@@ -57,6 +57,9 @@ async function announceCorpus(deps: DiscoveryWorkloadDeps, ctx: WorkloadRunConte
   }
 }
 
+/** The run that writes the memory digests a themes pass clusters. */
+const DIGEST_PRODUCER = "memory-backfill" satisfies WorkloadKind;
+
 /** The cluster count a themes pass runs with: the explicit per-run param, then the triggering user's knob, then the
  *  domain floor. One home, so the call estimate clusters exactly as the run will. */
 async function themeK(deps: DiscoveryWorkloadDeps, userId: UserId, param: number | undefined): Promise<number> {
@@ -79,8 +82,15 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
       // Seconds-to-tens-of-seconds k-means over the digests — a bulk pass, not a user-facing wait.
       lane: "sweep",
       resume: "idempotent-restart",
-      modelCalls: async (scope) =>
-        deps.discovery.countThemeNameCalls({ ...scope, k: await themeK(deps, requireWorkloadFunder(scope.funderUserId), scope.params.k) }),
+      modelCalls: async ({ before, ...scope }): Promise<ModelCallCount> => {
+        const k = await themeK(deps, requireWorkloadFunder(scope.funderUserId), scope.params.k);
+        // A backfill that runs first writes digests this pass then clusters, so today's digests undercount it: the
+        // count is the most the pass can name once they land.
+        if (before.some((stage) => stage.kind === DIGEST_PRODUCER && (stage.calls ?? 0) > 0)) {
+          return { calls: await deps.discovery.countThemeNameCeiling({ ...scope, k }), bound: "ceiling" };
+        }
+        return { calls: await deps.discovery.countThemeNameCalls({ ...scope, k }), bound: "exact" };
+      },
       run: async (ctx, params, report, _signal): Promise<AnalyticsResult> => {
         try {
           const k = await themeK(deps, requireWorkloadFunder(ctx.funderUserId), params.k);
@@ -113,9 +123,9 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
     {
       kind: "distill-characters",
       params: emptyWorkloadParams,
-      modelCalls: (scope): Promise<number> => {
+      modelCalls: async ({ before: _chain, ...scope }): Promise<ModelCallCount> => {
         requireWorkloadFunder(scope.funderUserId);
-        return deps.discovery.countDistillCalls(scope);
+        return { calls: await deps.discovery.countDistillCalls(scope), bound: "exact" };
       },
       // One LLM call per character — long by construction.
       lane: "sweep",

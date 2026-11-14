@@ -123,7 +123,7 @@ import {
 } from "#domain/settings";
 import type { CertificateController, RelayController, ShareFacts, ShareGraphOptions } from "#domain/share";
 import { createEnableShareSeating, createShareService } from "#domain/share";
-import { createStatsBatchWiring } from "#domain/stats";
+import { createSpendLedgerBackup, createStatsBatchWiring } from "#domain/stats";
 import type { TagAssemblyContext } from "#domain/tag";
 import { createImportedCardTag, createReadAttachedEntity, createTagService } from "#domain/tag";
 import { createToolUseTeachingContributions } from "#domain/tool-use";
@@ -1337,6 +1337,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       newEntryId: minter(ID_PREFIX.worldEntry, idSource),
     }),
     galleryCtx,
+    spendLedgerPortability: createSpendLedgerBackup(db, idSource),
     imageryPortability: createImageryPortability({
       db,
       newCallId: minter(ID_PREFIX.imageryCall, idSource),

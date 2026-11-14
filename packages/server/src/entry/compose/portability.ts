@@ -25,6 +25,7 @@ import type { PresetAssemblyContext } from "#domain/preset";
 import { createExportPresets, createImportPresets } from "#domain/preset";
 import type { SettingsAssemblyContext } from "#domain/settings";
 import { createAdoptImportedDefaultPersona, createExportTheme, createExportUserSettings, createImportTheme, createImportUserSettings } from "#domain/settings";
+import type { SpendLedgerPortabilityService } from "#domain/stats";
 import type { TagAssemblyContext } from "#domain/tag";
 import { createImportedCardTag, createTagLibraryExport, createTagLibraryImport } from "#domain/tag";
 import type { WorldInfoExportAssemblyContext } from "#domain/world-info";
@@ -42,6 +43,7 @@ export interface PortabilityDeps {
   readonly importStandaloneLorebook: ImportStandaloneLorebook;
   readonly assetsCtx: AssetsAssemblyContext;
   readonly imagery: ImageryPortabilityService;
+  readonly spend: SpendLedgerPortabilityService;
   readonly databankCtx: DatabankPortabilityAssemblyContext;
   readonly persona: Pick<PersonaService, "export" | "import" | "list">;
   readonly exportService: Pick<ExportService, "exportCharacter" | "exportChatBundle" | "listHostChats">;
@@ -159,6 +161,7 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
     { kind: "character", dir: PORTABLE_DIRECTORIES.character, ext: ".png", exportAll: exports.character, importFile: imports.character },
     { kind: "chat", dir: PORTABLE_DIRECTORIES.chat, ext: CHAT_BUNDLE_EXT, exportAll: exports.chat, importFile: imports.chat },
     { kind: "imagery", dir: PORTABLE_DIRECTORIES.imagery, ext: ".json", exportAll: deps.imagery.exportAll, importFile: deps.imagery.importFile },
+    { kind: "spend", dir: PORTABLE_DIRECTORIES.spend, ext: ".json", exportAll: deps.spend.exportAll, importFile: deps.spend.importFile },
   ];
 }
 
@@ -177,6 +180,7 @@ export const PORTABLE_CANON_TABLES = {
   gallery: ["galleryItems"],
   assets: ["assets"],
   imagery: ["imageryGenerations", "imageryImportCalls"],
+  spend: ["spendLedger"],
 } as const satisfies Record<PortableKind, readonly SchemaTableName[]>;
 
 /** Explicit omissions retain their portability reason and end condition. */
@@ -258,10 +262,6 @@ export const NON_PORTABLE_CANON = {
   },
   modelStats: { classification: "DERIVED", why: "same rollup plane as `dailyStats`. Ends never." },
   ownerStats: { classification: "DERIVED", why: "same rollup plane as `dailyStats`. Ends never." },
-  compactionSpend: {
-    classification: "DEFERRED",
-    why: "Compaction spend history does not travel, so restored compaction spend starts at zero. Imagery execution history travels through its own descriptor. Ends when the bundle carries compaction spend history.",
-  },
   embeddingCalls: {
     classification: "DEFERRED",
     why:
@@ -376,6 +376,11 @@ export const LIFECYCLE_DOORS = {
   imagery: {
     singleExport: { ruled: "Execution history travels with its retained output assets through the backup bundle, not a generation request." },
     singleImport: { ruled: "History restores through the same bundle without resolving connections or executing paid calls." },
+    chrome: "backup-pane",
+  },
+  spend: {
+    singleExport: { ruled: "Spend history is owner-wide money already paid; it travels whole with the backup bundle, never per item." },
+    singleImport: { ruled: "A restore adds only the entries this box lacks, through the same bundle." },
     chrome: "backup-pane",
   },
 } as const satisfies Record<PortableKind, LifecycleDoors>;

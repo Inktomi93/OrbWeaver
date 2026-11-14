@@ -93,8 +93,8 @@ export const ID_PREFIX = {
   characterStat: "character_stat",
   dailyStat: "daily_stat",
   modelStat: "model_stat",
-  // One priced compaction pass (`compaction_spend`) — the canon the stats rebuild re-derives that spend from.
-  compactionSpend: "compaction_spend",
+  // One priced model call with no canon row of its own (`spend_ledger`) — the canon the stats rebuild re-derives that spend from.
+  spendLedger: "spend_ledger",
   notification: "notification",
   imageryGeneration: "imagery_generation",
   // One image-provider call: every picture a fanned-out call returns carries the same id (no table of its own).
@@ -251,7 +251,7 @@ export type ThemeClusterId = TypeIdOf<"theme_cluster">;
 export type CharacterStatId = TypeIdOf<"character_stat">;
 export type DailyStatId = TypeIdOf<"daily_stat">;
 export type ModelStatId = TypeIdOf<"model_stat">;
-export type CompactionSpendId = TypeIdOf<"compaction_spend">;
+export type SpendLedgerId = TypeIdOf<"spend_ledger">;
 
 // --- Automation (rules + the fire log) ----------------------------------
 export type AutomationRuleId = TypeIdOf<"automation_rule">;

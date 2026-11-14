@@ -97,6 +97,9 @@ export const imageryGenerations = sqliteTable(
     // no authority; the owning import verb admits the entire asset group in the same batch.
     importHash: nulFreeText("import_hash"),
     importSource: text("import_source", { mode: "json" }).$type<ImageryImportSource>(),
+    // The provider call's measured wall time, shared by every picture of the call like its cost: the stats rebuild
+    // counts one timed sample per call id. NULL on rows written before the time was kept.
+    genTimeMs: integer("gen_time_ms"),
   },
   (t) => [
     // The Phase-7 reuse lookup key (subject + mode + identity); harmless as a plain index in v1.

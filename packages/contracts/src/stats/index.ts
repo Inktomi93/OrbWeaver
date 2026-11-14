@@ -117,6 +117,7 @@ export const SPEND_DELTA_FIELDS = [
   "notionalCostSamples",
   "modelGenerations",
   "modelGenSamples",
+  "modelGenTimeMs",
   "modelCostUsd",
   "lastAt",
   "tokensIn",
@@ -148,14 +149,17 @@ export type SpendDelta = Pick<StatsDelta, "ownerId" | "bucketStart" | "model" | 
   readonly provider: ProviderId | null;
 };
 
-/** One image generation's spend: `count` pictures from one priced provider call, on one model bucket.
- *  @param costUsd - the call's reported cost; null when the provider reports none (generations still count). */
+/** One image generation's spend: `count` pictures from one priced provider call, on one model bucket. The call
+ *  is one timed sample, however many pictures it returned.
+ *  @param costUsd - the call's reported cost; null when the provider reports none (generations still count).
+ *  @param genTimeMs - the call's measured wall time; null on a row recorded before the time was kept. */
 export function imageGenerationSpendDelta(args: {
   readonly ownerId: UserId;
   readonly model: ModelId;
   readonly provider: ProviderId | null;
   readonly costUsd: number | null;
   readonly count: number;
+  readonly genTimeMs: number | null;
   readonly now: number;
 }): SpendDelta {
   return {
@@ -165,15 +169,38 @@ export function imageGenerationSpendDelta(args: {
     model: args.model,
     provider: args.provider,
     modelGenerations: args.count,
-    modelGenSamples: args.count,
     now: args.now,
+    ...(args.genTimeMs !== null ? { modelGenTimeMs: args.genTimeMs, modelGenSamples: 1 } : {}),
     ...(args.costUsd !== null ? { costUsd: args.costUsd, costSamples: 1, modelCostUsd: args.costUsd, modelCostSamples: 1 } : {}),
   };
 }
 
-/** One priced compaction pass: the marker generation's cost on the owner and timeline grains only (no
- *  character, no model rollup, no turn counters), so the quiet operation's spend stays visible on stats. */
-export function compactionSpendDelta(args: { readonly ownerId: UserId; readonly costUsd: number; readonly now: number }): SpendDelta {
+/** What a `spend_ledger` row records: priced model spend that leaves no canon row of its own. A consumer that
+ *  handles each kind maps over this tuple, so a new kind fails `tsc` where it is missing. */
+export const SPEND_LEDGER_KINDS = ["compaction", "image-extraction", "image-caption"] as const;
+export type SpendLedgerKind = (typeof SPEND_LEDGER_KINDS)[number];
+
+/** One ledger entry as its writer states it. `now` is the spend's clock, stamped on the row and the delta alike. */
+export interface LedgerSpend {
+  readonly kind: SpendLedgerKind;
+  readonly ownerId: UserId;
+  readonly costUsd: number;
+  readonly now: number;
+}
+
+/** The spend ledger as one owner's portable file: every entry, without its box-local id or owner. */
+export const portableSpendLedgerSchema = z.strictObject({
+  entries: z.array(z.strictObject({ kind: z.enum(SPEND_LEDGER_KINDS), costUsd: z.number().positive(), createdAt: z.int().nonnegative() })),
+});
+export type PortableSpendLedger = z.infer<typeof portableSpendLedgerSchema>;
+
+/** The injected op that records ledger spend: the `spend_ledger` row and its stats delta, pushed into the caller's
+ *  batch so the two commit together or neither does. Generic over `Batch`/`Db` like {@link ApplyStatsDelta}. */
+export type RecordLedgerSpend<Batch, Db> = (batch: Batch, db: Db, spend: LedgerSpend) => void;
+
+/** One priced ledger entry (a compaction pass, an image prompt's extraction or caption): the cost on the owner and
+ *  timeline grains only (no character, no model rollup, no turn counters), so a quiet call's spend stays visible. */
+export function ledgerSpendDelta(args: Pick<LedgerSpend, "ownerId" | "costUsd" | "now">): SpendDelta {
   return {
     ownerId: args.ownerId,
     characterId: null,
