@@ -18,16 +18,17 @@
 
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
-import type { ChatId } from "@orb/kit/ids";
 import type { ChatContext } from "../contract/context.ts";
+import type { RoomWriteLicence } from "../contract/room-write.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { loadParticipants } from "./participants-read.ts";
 
 /** Append the room host's stats-canon bump to `statements` and commit them in ONE batch, returning the
  *  batch's results so a caller can read its own RETURNING rows (the rpg-pointer guard reads `results[0]` to
  *  tell "the guarded update matched nothing" from "the chat is gone"). Hostless ⇒ the bump is skipped and
- *  the statements still commit (see the file header). */
-export async function commitHostFencedWrite(ctx: ChatContext, chatId: ChatId, statements: BatchStmt[]): Promise<readonly unknown[]> {
+ *  the statements still commit (see the file header). The room is the licence's, so the write follows its claim. */
+export async function commitHostFencedWrite(ctx: ChatContext, licence: RoomWriteLicence, statements: BatchStmt[]): Promise<readonly unknown[]> {
+  const { chatId } = licence;
   const hostUserId = hostUserIdOf(await loadParticipants(ctx.db, chatId));
   if (hostUserId !== null) {
     ctx.bumpStatsCanonVersion(statements, ctx.db, hostUserId);

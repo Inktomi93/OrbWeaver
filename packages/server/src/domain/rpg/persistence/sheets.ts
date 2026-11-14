@@ -9,6 +9,7 @@
 // actor merely LEFT the participants is retained-not-projected — persistence keeps the row; the verb's projection
 // drops it from the view (presence gates the write, the read derives).
 
+import type { RoomClaim } from "@orb/contracts/chat";
 import type { RpgSheet } from "@orb/contracts/rpg";
 import { rpgSheetSchema } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
@@ -60,6 +61,7 @@ export async function findSheet(
  *  composes the MA-4 patch before calling — persistence writes the resolved sheet). `id`/`now` injected. */
 export async function upsertSheet(
   db: Db,
+  _claim: RoomClaim,
   input: {
     readonly id: RpgSheetId;
     readonly gameId: RpgGameId;

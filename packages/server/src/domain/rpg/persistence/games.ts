@@ -5,6 +5,7 @@
 // retired-delivery-mode heal below, scoped to that single field). No `ownerId` (D23) —
 // authority derives through `chatId → chat_participants`, gated at the producer verb (W1b), never here.
 
+import type { RoomClaim } from "@orb/contracts/chat";
 import { RPG_EXTRACTION_MODES, rpgGameConfigSchema } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { rpgGames } from "@orb/db";
@@ -75,6 +76,7 @@ export function setGmPresetStatement(db: Db, id: RpgGameId, presetId: PresetId, 
  *  `updatedAt` is caller-supplied (injected clock, no ambient `Date.now`). */
 export async function updateGame(
   db: Db,
+  _claim: RoomClaim,
   id: RpgGameId,
   patch: Partial<Pick<NewRpgGame, "config" | "gmPresetId" | "status" | "gmUserId" | "sessionNumber" | "updatedAt">>,
 ): Promise<void> {

@@ -21,6 +21,7 @@ import { ownedTableRule } from "./owned-table.ts";
 import { PRINCIPAL_RULES } from "./principal.ts";
 import { queryStateLadderRule } from "./query-state-ladder.ts";
 import { rawIdRule } from "./raw-id.ts";
+import { roomTokenMintRule } from "./room-token-mint.ts";
 import {
   AMBIENT_GLOBAL_RESTRICTIONS,
   IDENTITY_WRITER_RESTRICTIONS,
@@ -271,6 +272,7 @@ export function createOrbPlugin(options: {
       ...Object.fromEntries(OWNED_TABLE_RESTRICTIONS.map((row) => [row.id, ownedTableRule(row)] as const)),
       "destructive-needs-confirm": destructiveNeedsConfirmRule,
       "confirmed-action-mint": confirmedActionMintRule(CONFIRMED_ACTION_MINT_HOMES),
+      "room-token-mint": roomTokenMintRule,
       "surface-consumes-container": surfaceConsumesContainerRule,
       "anchor-provides-container": anchorProvidesContainerRule,
       "no-raw-intrinsic-paint": rawIntrinsicPaintRule(options.shellClasses),

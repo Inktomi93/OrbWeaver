@@ -21,6 +21,7 @@ import type {
   ReadChatUserMacrosOp,
   ResolveRpgCardCorpus,
   ResolveRpgParticipants,
+  RoomAdmission,
   RpgCardCorpus,
   SetRpgPointer,
   ViewerVisibility,
@@ -822,6 +823,8 @@ export type RpgAssemblyContext = DbAssemblyInput<RpgContext>;
 export interface RpgAuthorized {
   readonly game: RpgGameRow;
   readonly role: ParticipantRoleState;
+  /** Chat's proof that the caller holds a present seat in the game's room; the claim spends it. */
+  readonly admission: RoomAdmission;
 }
 
 /** The lock DELTA a hand edit applies (`snapshot-edit.ts`): paths to auto-LOCK (touched fields —

@@ -59,7 +59,7 @@ export function createGenerateImage(ctx: ChatContext, deps: PostNarratorMessageD
   return {
     generateImage: async ({ principal, gallery, ...pictureParams }: GenerateImageParams): Promise<MessageView> => {
       const { chatId, prompt } = pictureParams;
-      await requireParticipant(ctx, principal, chatId);
+      const { admission } = await requireParticipant(ctx, principal, chatId);
       const participants = await loadParticipants(ctx.db, chatId);
       // The picture runs on the host's connections, so a room with no host, or a host outside the consent set
       // (disabled), refuses as a turn does (`loadRoom`): no member spends a gone or disabled host's inference.
@@ -92,12 +92,12 @@ export function createGenerateImage(ctx: ChatContext, deps: PostNarratorMessageD
       // a generation that never produced anything. By this line the picture exists and is durable, so the only
       // way the post fails is a DB fault. The ordering invariant is preserved on the other side: the claim
       // still precedes the canon WRITE (a claim after the write double-counts this row in the replay).
-      await deps.claimChat(chatId);
+      const claim = await deps.claimChat(admission);
 
       // The provider result is already paid-for and durable by here. A concurrent canon writer may have read
       // the same head; on that one expected collision the SHARED retry (`commitCanonAppend`) discards only the
       // attempted allocation, re-reads the head, and mints fresh ids. `generatePicture` is never called again.
-      const view = await commitCanonAppend(ctx.db, chatId, (seq) => {
+      const view = await commitCanonAppend(ctx.db, claim, (seq) => {
         const params = {
           messageId: ctx.newMessageId(),
           variantId: ctx.newMessageVariantId(),

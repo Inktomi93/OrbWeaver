@@ -17,6 +17,7 @@ import type {
   MessageAssetOrigin,
   MessageKind,
   MessageView,
+  RoomClaim,
   TokenProvenance,
   ToolCallRecord,
   TurnInitiator,
@@ -449,10 +450,10 @@ const MAX_CANON_APPEND_ATTEMPTS = 8;
  */
 export async function commitCanonAppend<T>(
   db: Db,
-  chatId: ChatId,
+  claim: RoomClaim,
   build: (seq: number) => { readonly statements: readonly BatchStmt[]; readonly result: T },
 ): Promise<T> {
-  return await retryLostCanonHead(db, chatId, async (seq) => {
+  return await retryLostCanonHead(db, claim, async (seq) => {
     const { statements, result } = build(seq);
     await db.batch(batchMany(statements));
     return result;
@@ -463,9 +464,11 @@ export async function commitCanonAppend<T>(
  * The head-allocation retry itself, for an append whose commit carries more than a plain batch (the retained-canon
  * stats fence). `attempt` is called with the allocated seq and must build its statements and ids afresh; it is
  * re-called only when it fails on a UNIQUE violation the canon head explains (a sibling took this seq). Any other
- * failure, including a UNIQUE violation the head does NOT explain, propagates, so a caller bug stays loud.
+ * failure, including a UNIQUE violation the head does NOT explain, propagates, so a caller bug stays loud. Both append
+ * doors take the room's claim, because an append is canon the claim's stats replay must not already have counted.
  */
-export async function retryLostCanonHead<T>(db: Db, chatId: ChatId, attempt: (seq: number) => Promise<T>): Promise<T> {
+export async function retryLostCanonHead<T>(db: Db, claim: RoomClaim, attempt: (seq: number) => Promise<T>): Promise<T> {
+  const { chatId } = claim;
   for (let tries = 0; tries < MAX_CANON_APPEND_ATTEMPTS; tries += 1) {
     const seq = (await loadMaxMessageSeq(db, chatId)) + 1;
     try {

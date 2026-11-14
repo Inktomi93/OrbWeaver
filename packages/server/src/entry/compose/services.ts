@@ -1038,7 +1038,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     forkGame: (args) => rpgOps().forkGame(args),
     handoffHealStatements: (args) => rpgOps().handoffHealStatements(args),
     handoffWouldCopyGmPreset: (chatId, nomineeUserId) => rpgOps().handoffWouldCopyGmPreset(chatId, nomineeUserId),
-    handoffRekeyActors: (chatId, cardCopies) => rpgOps().handoffRekeyActors(chatId, cardCopies),
+    handoffRekeyActors: (admission, cardCopies) => rpgOps().handoffRekeyActors(admission, cardCopies),
   };
   // The memory-recall flight recorder. Built UNCONDITIONALLY (unlike `rpgTrace`): the slice it retains
   // is produced by every recall anyway (it is the assembly trace's memory row), so the ring's only cost is
