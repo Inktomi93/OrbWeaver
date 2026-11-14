@@ -6,7 +6,7 @@ export type { WorldInfoExportAssemblyContext } from "./contract/export.ts";
 
 export type { WorldInfoService } from "./contract/service.ts";
 export { createCopyCharacterBooks } from "./persistence/duplicate-carry.ts";
-export { createCopyHandoffBooks, createCountHandoffBooks } from "./persistence/handoff-copy-write.ts";
+export { createCopyHandoffBooks, createCountHandoffBooks, createDetachHandoffBooks } from "./persistence/handoff-copy-write.ts";
 export {
   createAttachOwnedBooksByName,
   createBulkImportLorebook,

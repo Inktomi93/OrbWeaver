@@ -8,11 +8,9 @@
 // entries simply never fire. So the books themselves are copied, entries and all, and the copy's junctions
 // point copy→copy.
 //
-// WHY THE CHAT-ATTACHED BOOKS TOO. A chat's attached books are read UNSCOPED at assembly ("room-public prompt
-// content — membership is the caller gate"), so post-handoff the OLD host's books keep firing into the NEW
-// host's prompt while the old host retains edit AND delete (junction CASCADE — silent evaporation). That is
-// the property-posture asymmetry the review named (cards DROP, chat books LICENSE); under an accepted offer
-// the copy severs it, and the room's lore stops being someone else's to revoke.
+// WHY THE CHAT-ATTACHED BOOKS TOO. A book the old host owns stays theirs to edit and delete, so the room keeps
+// it only as a copy under the new host. Without an accepted offer the swap detaches it instead
+// ({@link DetachHandoffBooks}), and the chat pool reads only host-owned chat books (D64).
 //
 // THE RE-POINT IS RETURNED, NOT WRITTEN. Copying a book is orphan-safe and may land early; MOVING the room's
 // attachment is a room-state change and must commit with the role swap, so the `chat_books` statements come
@@ -20,6 +18,12 @@
 
 import type { CopyHandoffBooksArgs } from "@orb/contracts/world-info";
 import type { StatementToken } from "@orb/db/wiring";
+import type { ChatId, UserId } from "@orb/kit/ids";
+
+/** The UNEXECUTED `chat_books` delete the handoff swap commits (D64): every book attached to `chatId` that
+ *  `hostUserId`, the incoming host, does not own leaves the room. It runs after the copy re-point, so the
+ *  copies an accepted offer attached stay. */
+export type DetachHandoffBooks = (args: { readonly chatId: ChatId; readonly hostUserId: UserId }) => StatementToken;
 
 /** Copy the room's lore from `fromOwnerId` into `toOwnerId` and return the UNEXECUTED `chat_books` re-point.
  *

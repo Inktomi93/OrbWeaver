@@ -225,14 +225,26 @@ export async function listChatIdsAttaching(db: Db, scriptId: RegexScriptId): Pro
   return rows.map((r) => r.chatId);
 }
 
-/** Not owner-filtered — a room's attached scripts are room-public prompt content (membership is the caller's
- *  gate). The `listChatBooks` posture, verbatim. */
+/** Every script attached to the room, for the member rack and the attach position. Not owner-filtered
+ *  (membership is the caller's gate); a turn applies only {@link listHostChatScripts}. */
 export async function listChatScripts(db: Db, chatId: ChatId): Promise<ScriptRecord[]> {
   const rows = await db
     .select({ script: regexScripts })
     .from(chatRegexScripts)
     .innerJoin(regexScripts, eq(chatRegexScripts.regexScriptId, regexScripts.id))
     .where(eq(chatRegexScripts.chatId, chatId))
+    .orderBy(asc(chatRegexScripts.position), asc(regexScripts.createdAt));
+  return rows.map((r) => r.script);
+}
+
+/** The room's attached scripts the room's HOST owns — the set a turn applies (D64). A row a former host left on
+ *  the room stays listed by {@link listChatScripts} and transforms nothing here. */
+export async function listHostChatScripts(db: Db, chatId: ChatId, hostUserId: UserId): Promise<ScriptRecord[]> {
+  const rows = await db
+    .select({ script: regexScripts })
+    .from(chatRegexScripts)
+    .innerJoin(regexScripts, eq(chatRegexScripts.regexScriptId, regexScripts.id))
+    .where(and(eq(chatRegexScripts.chatId, chatId), eq(regexScripts.ownerId, hostUserId)))
     .orderBy(asc(chatRegexScripts.position), asc(regexScripts.createdAt));
   return rows.map((r) => r.script);
 }
