@@ -1,16 +1,21 @@
 // The Add connection dialog reads a provider's model list the moment the draft can be listed, with no List models press:
-// a public catalog on pick, a hosted catalog once a key is pasted or a saved key is chosen. An own server still waits
-// for the press, because a half-typed URL is not a draft.
+// a public catalog on pick, a hosted catalog once a key is pasted, the key field is left with a changed key, or a saved
+// key is chosen. A key typed by hand is never read while it is being typed. An own server still waits for the press.
 import type { ProviderDef } from "@orb/contracts/inference";
 import { modelListingSchema, providerDisplayLabel, providerIdSchema } from "@orb/contracts/inference";
 import type { TrpcInput } from "@orb/testkit/ct";
-import { absenceWindow, createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { absenceWindow, createShellAmbientReads, routeTrpc, serveCorpusProcedures, trpcHold } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page, PlaywrightTestArgs } from "@playwright/test";
 import { ADD_CONNECTION_NAME, CONNECTION_PROVIDER_FIELD_NAME } from "#client/features/credentials/lib/connections-copy.ts";
-import { API_KEY_FIELD_NAME, API_KEY_OPTIONAL_FIELD_NAME, LIST_MODELS_NAME } from "#client/features/credentials/lib/credentials-names.ts";
+import {
+  API_KEY_FIELD_NAME,
+  API_KEY_OPTIONAL_FIELD_NAME,
+  LIST_MODELS_NAME,
+  MODEL_SEARCH_PLACEHOLDER,
+} from "#client/features/credentials/lib/credentials-names.ts";
 import type { ConnectionsListStory } from "./_connections-list-stories.tsx";
 
 const STORY = "tests/client/features/credentials/components/_connections-list-stories/ConnectionsListStory";
@@ -19,12 +24,16 @@ const ADD = { name: ADD_CONNECTION_NAME, exact: true } as const;
 const PASTED_KEY = "synthetic-pasted-key";
 const SAVED_KEY_FIELD_NAME = "Saved key";
 const PUBLIC_CATALOG_PROVIDER = providerIdSchema.parse("openrouter");
-// Longer than the settle the dialog waits for after the last keystroke, so a request that was going to fire has.
+// Long enough that a request the dialog was going to send has been sent.
 const SETTLE_WINDOW_MS = 1200;
+// A slow typist: a pause between keystrokes longer than any timer-based read would wait.
+const TYPING_PAUSE_MS = 600;
+const TYPED_KEY = "sk-abcd";
 
 type MountFn = PlaywrightTestArgs["mount"];
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 type DraftRequest = TrpcInput<"connection.draftCatalogModels">;
+type DraftResponder = (input: DraftRequest) => typeof catalog | ReturnType<typeof trpcHold<"connection.draftCatalogModels">>;
 
 const catalog = modelListingSchema.parse({
   listed: true,
@@ -41,6 +50,26 @@ const catalog = modelListingSchema.parse({
   })),
 });
 const LISTED_ROW = /Model alpha/u;
+
+/** A catalog whose one row is named for `owner`, so a test can tell whose list the picker shows. */
+function catalogOf(owner: string): ReturnType<typeof modelListingSchema.parse> {
+  return modelListingSchema.parse({
+    listed: true,
+    models: [
+      {
+        id: `vendor/${owner}`,
+        name: `Model ${owner}`,
+        contextLength: null,
+        promptPrice: null,
+        completionPrice: null,
+        cacheReadPrice: null,
+        cacheWritePrice: null,
+        inputModalities: [],
+        supportedParameters: [],
+      },
+    ],
+  });
+}
 
 interface KeyedRoot extends AsyncDisposable {
   readonly root: Root;
@@ -69,20 +98,28 @@ function providerWhere(providers: readonly ProviderDef[], matches: (provider: Pr
 async function openDialogOn(
   root: Root,
   provider: ProviderDef,
-  harness: { readonly corpus: CorpusPlayback; readonly mount: MountFn; readonly page: Page },
-  requests: DraftRequest[],
+  harness: {
+    readonly corpus: CorpusPlayback;
+    readonly mount: MountFn;
+    readonly page: Page;
+    readonly requests: DraftRequest[];
+    readonly respond?: DraftResponder;
+  },
 ): Promise<Locator> {
-  const { corpus, mount, page } = harness;
+  const { corpus, mount, page, requests } = harness;
+  const respond: DraftResponder =
+    harness.respond ??
+    ((input): typeof catalog => {
+      requests.push(input);
+      return catalog;
+    });
   const caller = await root.internalCallerFor(root.ownerId);
   const providers = (await caller.connection.providersAvailable()).map((entry) => (entry.provider.id === provider.id ? { ...entry, available: true } : entry));
   await routeTrpc(page, {
     ...createShellAmbientReads(corpus, root.ownerId),
     ...serveCorpusProcedures(caller, SERVED),
     "connection.providersAvailable": () => providers,
-    "connection.draftCatalogModels": (input) => {
-      requests.push(input);
-      return catalog;
-    },
+    "connection.draftCatalogModels": (input) => respond(input),
   });
   await mount<typeof ConnectionsListStory>(STORY, {});
   await page.getByRole("button", ADD).click();
@@ -100,7 +137,7 @@ test("a provider whose catalog is public lists on pick with no key and no List m
   const { root, providers } = keyed;
   const requests: DraftRequest[] = [];
   const provider = providerWhere(providers, (candidate) => candidate.id === PUBLIC_CATALOG_PROVIDER, "public-catalog provider");
-  const dialog = await openDialogOn(root, provider, { corpus, mount, page }, requests);
+  const dialog = await openDialogOn(root, provider, { corpus, mount, page, requests });
 
   await expect(dialog.getByRole("option", { name: LISTED_ROW })).toBeVisible();
   expect(requests).toEqual([{ providerId: PUBLIC_CATALOG_PROVIDER }]);
@@ -129,7 +166,7 @@ for (const device of [
         (candidate) => candidate.auth === "apiKey" && candidate.id !== PUBLIC_CATALOG_PROVIDER,
         "hosted provider that lists under a key",
       );
-      const dialog = await openDialogOn(root, provider, { corpus, mount, page }, requests);
+      const dialog = await openDialogOn(root, provider, { corpus, mount, page, requests });
       const key = dialog.getByRole("textbox", { name: API_KEY_FIELD_NAME, exact: true });
 
       await expect(key).toBeVisible();
@@ -142,7 +179,7 @@ for (const device of [
       expect(requests).toEqual([{ providerId: provider.id, key: PASTED_KEY }]);
     });
 
-    test("typing the key is one read of the whole key, not one per keystroke", async ({ corpus, mount, page }) => {
+    test("a key typed slowly is never read while it is typed, then read whole when the field is left", async ({ corpus, mount, page }) => {
       await using keyed = await keyedRoot();
       const { root, providers } = keyed;
       const requests: DraftRequest[] = [];
@@ -151,15 +188,74 @@ for (const device of [
         (candidate) => candidate.auth === "apiKey" && candidate.id !== PUBLIC_CATALOG_PROVIDER,
         "hosted provider that lists under a key",
       );
-      const dialog = await openDialogOn(root, provider, { corpus, mount, page }, requests);
+      const dialog = await openDialogOn(root, provider, { corpus, mount, page, requests });
+      const key = dialog.getByRole("textbox", { name: API_KEY_FIELD_NAME, exact: true });
 
-      await dialog.getByRole("textbox", { name: API_KEY_FIELD_NAME, exact: true }).pressSequentially(PASTED_KEY);
+      await key.pressSequentially(TYPED_KEY, { delay: TYPING_PAUSE_MS });
+      await expect(key).toHaveValue(TYPED_KEY);
+      await expect(key).toBeFocused();
+      expect(requests).toHaveLength(0);
+
+      await key.blur();
       await expect(dialog.getByRole("option", { name: LISTED_ROW })).toBeVisible();
-      await absenceWindow(page, SETTLE_WINDOW_MS);
-      expect(requests).toEqual([{ providerId: provider.id, key: PASTED_KEY }]);
+      expect(requests).toEqual([{ providerId: provider.id, key: TYPED_KEY }]);
     });
   });
 }
+
+test("a list that lands while the key field has the caret does not take it", async ({ corpus, mount, page }) => {
+  await using keyed = await keyedRoot();
+  const { root, providers } = keyed;
+  const requests: DraftRequest[] = [];
+  const provider = providerWhere(
+    providers,
+    (candidate) => candidate.auth === "apiKey" && candidate.id !== PUBLIC_CATALOG_PROVIDER,
+    "hosted provider that lists under a key",
+  );
+  const dialog = await openDialogOn(root, provider, { corpus, mount, page, requests });
+  const key = dialog.getByRole("textbox", { name: API_KEY_FIELD_NAME, exact: true });
+
+  await key.fill(PASTED_KEY);
+  await expect(dialog.getByRole("option", { name: LISTED_ROW })).toBeVisible();
+  await expect(key).toBeFocused();
+  await expect(dialog.getByPlaceholder(MODEL_SEARCH_PLACEHOLDER)).not.toBeFocused();
+});
+
+test("an answer for a key that has since changed never replaces the list for the current key", async ({ corpus, mount, page }) => {
+  await using keyed = await keyedRoot();
+  const { root, providers } = keyed;
+  const requests: DraftRequest[] = [];
+  const provider = providerWhere(
+    providers,
+    (candidate) => candidate.auth === "apiKey" && candidate.id !== PUBLIC_CATALOG_PROVIDER,
+    "hosted provider that lists under a key",
+  );
+  const heldFirst = trpcHold<"connection.draftCatalogModels">();
+  const dialog = await openDialogOn(root, provider, {
+    corpus,
+    mount,
+    page,
+    requests,
+    respond: (input) => {
+      requests.push(input);
+      return requests.length === 1 ? heldFirst : catalogOf("second");
+    },
+  });
+  const key = dialog.getByRole("textbox", { name: API_KEY_FIELD_NAME, exact: true });
+
+  await key.fill("first-key");
+  await heldFirst.requested;
+  await key.fill("the-second-key");
+  await expect(dialog.getByRole("option", { name: /Model second/u })).toBeVisible();
+  heldFirst.release(catalogOf("first"));
+  await absenceWindow(page, SETTLE_WINDOW_MS);
+  expect(requests).toEqual([
+    { providerId: provider.id, key: "first-key" },
+    { providerId: provider.id, key: "the-second-key" },
+  ]);
+  await expect(dialog.getByRole("option", { name: /Model second/u })).toBeVisible();
+  await expect(dialog.getByRole("option", { name: /Model first/u })).toHaveCount(0);
+});
 
 test("choosing a saved key lists under that key with no press", async ({ corpus, mount, page }) => {
   await using keyed = await keyedRoot();
@@ -172,7 +268,7 @@ test("choosing a saved key lists under that key with no press", async ({ corpus,
   );
   const caller = await root.internalCallerFor(root.ownerId);
   const saved = await caller.credentials.add({ provider: provider.id, key: PASTED_KEY, label: "Work key" });
-  const dialog = await openDialogOn(root, provider, { corpus, mount, page }, requests);
+  const dialog = await openDialogOn(root, provider, { corpus, mount, page, requests });
 
   await dialog.getByRole("combobox", { name: SAVED_KEY_FIELD_NAME, exact: true }).click();
   await page.getByRole("option", { name: "Work key" }).click();
@@ -185,7 +281,7 @@ test("an own server still lists on the press, never while its URL is half typed"
   const { root, providers } = keyed;
   const requests: DraftRequest[] = [];
   const provider = providerWhere(providers, (candidate) => candidate.auth === "endpoint", "own-server provider");
-  const dialog = await openDialogOn(root, provider, { corpus, mount, page }, requests);
+  const dialog = await openDialogOn(root, provider, { corpus, mount, page, requests });
 
   await dialog.getByRole("textbox", { name: "Server URL", exact: true }).pressSequentially("http://localhost:11434");
   await dialog.getByRole("textbox", { name: API_KEY_OPTIONAL_FIELD_NAME, exact: true }).fill(PASTED_KEY);

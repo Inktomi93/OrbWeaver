@@ -1,7 +1,7 @@
 // The add dialog's model-list read for a draft that lists under what the user supplies (§7.4): an endpoint's
 // SERVER-SIDE `GET <baseUrl>/v1/models` (a browser cannot reach a user's loopback box), on "List models"; or a
-// hosted provider's list under its key, read by itself once the key is pasted or a saved key is chosen. Both go
-// through `connection.draftCatalogModels`, a POST, under the draft's provider.
+// hosted provider's list under its key, read by itself once the key is committed (pasted, or its field left) or a
+// saved key is chosen. Both go through `connection.draftCatalogModels`, a POST, under the draft's provider.
 // Advisory — it never blocks submit; its answer feeds the model picker, and an empty or failed list is the
 // picker's typed arm with its reason and a retry.
 //
@@ -10,9 +10,10 @@
 // the server needs (a 401 that would read as "the server has no models"). Once the answer lands, the mutation's
 // retained variables (which carry the key) are dropped.
 //
-// A TYPED URL IS NOT A DRAFT YET: an endpoint lists only on the press, because a half-typed address would dial
-// (and be refused) per keystroke. A hosted key is read once it stops changing (`KEY_LIST_SETTLE_MS`), a saved key
-// at once. A dialog holding a key it already minted keeps its listing and reads nothing further.
+// A PARTIAL DRAFT IS NOT READ: an endpoint lists only on the press, because a half-typed address would dial (and
+// be refused) per keystroke, and a hosted key the user is still typing is never sent, because a prefix of a secret
+// is a secret. The caller hands this the key it has committed. A dialog holding a key it already minted keeps its
+// listing and reads nothing further.
 //
 // THE ENDPOINT BUTTON STAYS FOCUSABLE WHILE PENDING (`loading`, which renders `aria-disabled`): a natively disabled
 // button drops focus to the document, and the picker then takes the caret when the list lands.
@@ -26,7 +27,7 @@ import { useEffect, useEffectEvent } from "react";
 import type { Invalidation, Trpc } from "#data";
 import { trpcErrorReason } from "#lib";
 import { useDraftCatalogModels } from "../hooks/use-connections-mutations.ts";
-import { draftKeyOf, KEY_LIST_SETTLE_MS, URL_REFUSAL_CODES } from "../lib/add-connection-form-model.ts";
+import { draftKeyOf, URL_REFUSAL_CODES } from "../lib/add-connection-form-model.ts";
 import { LIST_MODELS_NAME } from "../lib/credentials-names.ts";
 import { failedCatalogSource, modelListSource } from "../lib/model-picker-model.ts";
 import type { ModelPickerProps } from "./model-picker.tsx";
@@ -43,6 +44,7 @@ export interface DraftModelsCheckProps {
   readonly providerId: ProviderDef["id"];
   /** The endpoint's typed server URL; `null` for a hosted provider, which fixes its own. */
   readonly baseUrl: string | null;
+  /** The key to read under: an endpoint's typed bearer, or the hosted key the user committed (`""` while one is being typed). */
   readonly keyValue: string;
   readonly credentialUnavailable?: boolean;
   /** The selected saved key, or the key this dialog minted before a failed connection write. */
@@ -85,16 +87,18 @@ export function DraftModelsCheck({
 
   const forDraft = draftKeyOf({ providerId, baseUrl: baseUrl ?? "", key: keyValue, credentialId: heldCredentialId });
 
-  const runCheck = (): void => {
+  /** Reads the list for the draft `draft` names (`draftKeyOf`): the answer is filed under it. */
+  const runCheck = (draft: string): void => {
     if (!ready) {
       return;
     }
-    onListing({ forDraft, source: { status: "loading" } });
+    const retry = (): void => runCheck(draft);
+    onListing({ forDraft: draft, source: { status: "loading" } });
     void list
       .mutateAsync({ providerId, ...(baseUrl === null ? {} : { baseUrl: baseUrl.trim() }), ...auth })
-      .then((result): void => onListing({ forDraft, source: modelListSource(result, runCheck) }))
+      .then((result): void => onListing({ forDraft: draft, source: modelListSource(result, retry) }))
       .catch((err: unknown): void => {
-        onListing({ forDraft, source: failedCatalogSource(err, runCheck) });
+        onListing({ forDraft: draft, source: failedCatalogSource(err, retry) });
         if (URL_REFUSAL_CODES.has(trpcErrorReason(err))) {
           onUrlRefusal(err);
         }
@@ -109,20 +113,15 @@ export function DraftModelsCheck({
     if (!(hosted && listsOnInput && ready)) {
       return;
     }
-    // A pasted key waits for the typing to stop; a chosen saved key is one deliberate act.
-    const settle = dialAuth(keyValue, heldCredentialId).key === undefined ? 0 : KEY_LIST_SETTLE_MS;
-    const timer = setTimeout(() => {
-      listNow();
-    }, settle);
-    return (): void => clearTimeout(timer);
-  }, [hosted, listsOnInput, ready, keyValue, heldCredentialId]);
+    listNow(forDraft);
+  }, [hosted, listsOnInput, ready, forDraft]);
 
   if (hosted) {
     return null;
   }
   return (
     <Row align="center" gap="field">
-      <Button disabled={!ready} variant="outline" loading={list.isPending} onClick={runCheck} size="sm">
+      <Button disabled={!ready} variant="outline" loading={list.isPending} onClick={(): void => runCheck(forDraft)} size="sm">
         {LIST_MODELS_NAME}
       </Button>
     </Row>

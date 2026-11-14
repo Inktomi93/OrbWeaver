@@ -94,6 +94,18 @@ export function ProviderFields({
   backgroundNote,
 }: ProviderFieldsProps): ReactElement {
   const providerLabel = providerDisplayLabel(provider);
+  const liveKey = form.state.values.key;
+  // The key a hosted list is read under is the one the user committed: a paste (a change of more than a
+  // character at once, which a keystroke never is, and an autofill is) or leaving the field. One being typed is
+  // not read, and a committed key the field no longer holds is not the draft.
+  const [committedKey, setCommittedKey] = useState("");
+  const [seenKey, setSeenKey] = useState(liveKey);
+  if (liveKey !== seenKey) {
+    setSeenKey(liveKey);
+    if (liveKey.length - seenKey.length > 1) {
+      setCommittedKey(liveKey);
+    }
+  }
   if (keyStorageBlocks(provider, keyStorage)) {
     return (
       <EmptyState
@@ -135,7 +147,7 @@ export function ProviderFields({
       ) : null}
       {isClaudeSubscription(provider) ? <ClaudeSubscriptionNotice /> : null}
       {provider.auth === "oauthToken" && held === null ? <SetupTokenCommand /> : null}
-      <KeyField form={form} credentials={credentials} provider={provider} held={held} keyStorage={keyStorage} />
+      <KeyField form={form} credentials={credentials} provider={provider} held={held} keyStorage={keyStorage} onKeyLeft={setCommittedKey} />
       {listsUnderDraft(provider) ? (
         <form.Subscribe
           selector={(state): { readonly baseUrl: string; readonly key: string; readonly credentialId: CredentialView["id"] | null } => ({
@@ -160,7 +172,7 @@ export function ProviderFields({
                   : (held?.credential.id ?? null)
               }
               invalidation={invalidation}
-              keyValue={draft.key}
+              keyValue={needsBaseUrl(provider) || draft.key.trim() === committedKey.trim() ? draft.key : ""}
               listsOnInput={held === null}
               onListing={onListing}
               onUrlRefusal={onUrlRefusal}
@@ -218,12 +230,15 @@ function KeyField({
   provider,
   held,
   keyStorage,
+  onKeyLeft,
 }: {
   readonly form: AddConnectionForm;
   readonly credentials: readonly CredentialView[];
   readonly provider: ProviderDef;
   readonly held: HeldKey | null;
   readonly keyStorage: boolean;
+  /** The key field was left: the key it held then. */
+  readonly onKeyLeft: (key: string) => void;
 }): ReactElement | null {
   const unavailableId = useId();
   const [lastChoice, setLastChoice] = useState<CredentialView | null>(null);
@@ -297,7 +312,7 @@ function KeyField({
       <form.Subscribe selector={(state): CredentialView["id"] | null => state.values.credentialId}>
         {(credentialId): ReactElement | null =>
           credentialId !== null ? null : (
-            <form.AppField name="key">
+            <form.AppField name="key" listeners={{ onBlur: ({ value }): void => onKeyLeft(value) }}>
               {(field): ReactElement => (
                 <field.TextField
                   label={keyLabel(provider)}
