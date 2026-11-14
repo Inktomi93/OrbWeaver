@@ -23,12 +23,11 @@
 //     `"PluginHostDeadlineError"` (and `hostFunction` the call that ran long). The host stops waiting but
 //     does not cancel the work, so treat it as "no answer yet", not a refusal. Three consecutive crashed
 //     invocations auto-disable the plugin.
-//   - A host call the host could not serve rejects with `name` `"PluginHostUnavailable"`, and both kinds are
-//     retryable. With `code` `"channel_full"` (`PluginHostRefusalCode`), a channel inside the host was full and only
-//     this call was refused: retry it soon. With no `code`, the host itself was lost or restarting: retry later.
-//     Left uncaught, a refusal the server itself raised for an async host call is never a strike: the invocation
-//     fails as that refusal. A refusal raised on the way, by the plugin broker or by your plugin's worker, and one
-//     for a synchronous call (the clock, entropy and id seams), can still count as a crash, so catch it.
+//   - A host call the host could not serve fails with `name` `"PluginHostUnavailable"`: an async call rejects, and a
+//     synchronous seam (the clock, entropy, ids) throws. Both kinds are retryable. With `code` `"channel_full"`
+//     (`PluginHostRefusalCode`), a channel inside the host was full and only this call was refused: retry it soon.
+//     With no `code`, the host itself was lost or restarting: retry later. Left uncaught, it is never a strike: the
+//     invocation fails as that refusal.
 //   - A host call that reaches your installer's account rejects with `name` `"PluginInstallerDisabledError"` while
 //     that account is disabled, never a strike, even uncaught.
 //   - Handlers must never throw: wrap, log, return.

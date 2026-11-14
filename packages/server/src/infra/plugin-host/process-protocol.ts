@@ -8,6 +8,7 @@ import {
 } from "@orb/contracts/plugin";
 import type {
   BrokerParentMessage,
+  CommandResponse,
   ParentBrokerMessage,
   PluginBridgeOperation,
   PluginCommandOperation,
@@ -43,12 +44,21 @@ export const PLUGIN_BROKER_BEAT_MAX_BYTES = 8192;
 export const PLUGIN_BROKER_MESSAGE_MAX_BYTES = 10_485_760;
 const PROCESS_ID_MIN_CHARS = 16;
 
-function parseWorkerResponse(value: Readonly<Record<string, unknown>>): WorkerBrokerMessage | null {
+// A command's answer, from the Worker to the broker or from the broker to the parent. Only a host-unavailable refusal
+// may ride as its recorded refusal.
+function parseCommandResponse(value: Readonly<Record<string, unknown>>): CommandResponse | null {
   if (typeof value["id"] !== "string") {
     return null;
   }
   const result = parseRpcResult(value);
-  return result === null ? null : { kind: "response", id: value["id"], ...result };
+  if (result === null) {
+    return null;
+  }
+  if (value["refusal"] === undefined) {
+    return { kind: "response", id: value["id"], ...result };
+  }
+  const refusal = parseRpcError(value["refusal"]);
+  return refusal?.name === PLUGIN_HOST_UNAVAILABLE ? { kind: "response", id: value["id"], refusal, ...result } : null;
 }
 
 function parseWorkerBridge(value: Readonly<Record<string, unknown>>): WorkerBrokerMessage | null {
@@ -110,7 +120,7 @@ export function parseWorkerBrokerMessage(message: unknown): WorkerBrokerMessage 
   if (message["kind"] === "authority-released") {
     return typeof message["authorityId"] === "string" ? { kind: "authority-released", authorityId: message["authorityId"] } : null;
   }
-  return message["kind"] === "response" ? parseWorkerResponse(message) : null;
+  return message["kind"] === "response" ? parseCommandResponse(message) : null;
 }
 
 /** A {@link PLUGIN_HOST_UNAVAILABLE} refusal that says why in its code, which crosses every hop and reaches the guest
@@ -258,14 +268,6 @@ export function parseParentBrokerMessage(message: unknown): ParentBrokerMessage 
   return message["kind"] === "command" ? parseParentCommand(message) : null;
 }
 
-function parseBrokerResponse(value: Readonly<Record<string, unknown>>): BrokerParentMessage | null {
-  if (typeof value["id"] !== "string") {
-    return null;
-  }
-  const result = parseRpcResult(value);
-  return result === null ? null : { kind: "response", id: value["id"], ...result };
-}
-
 function parseRpcResult(value: Readonly<Record<string, unknown>>): RpcResult | null {
   if (value["ok"] === true) {
     return value["error"] === undefined ? { ok: true, value: value["value"] } : null;
@@ -356,7 +358,7 @@ export function parseBrokerParentMessage(message: unknown): BrokerParentMessage 
     return null;
   }
   if (message["kind"] === "response") {
-    return parseBrokerResponse(message);
+    return parseCommandResponse(message);
   }
   if (message["kind"] === "bridge") {
     return parseBrokerBridge(message);
