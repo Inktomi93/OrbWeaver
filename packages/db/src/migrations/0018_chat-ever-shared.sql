@@ -1,0 +1,3 @@
+ALTER TABLE `chats` ADD `ever_shared` integer DEFAULT false NOT NULL;--> statement-breakpoint
+UPDATE `chats` SET `ever_shared` = 1 WHERE EXISTS (SELECT 1 FROM `chat_participants` p WHERE p.`chat_id` = `chats`.`id` AND p.`kind` = 'human' AND p.`role` = 'member');--> statement-breakpoint
+UPDATE `chats` SET `ever_shared` = 1 WHERE `id` IN (WITH RECURSIVE shared(id) AS (SELECT `id` FROM `chats` WHERE `ever_shared` = 1 UNION SELECT c.`id` FROM `chats` c JOIN shared s ON c.`parent_chat_id` = s.id) SELECT id FROM shared);
