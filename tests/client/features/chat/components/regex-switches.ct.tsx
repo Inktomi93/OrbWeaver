@@ -33,7 +33,7 @@ const TAB_PROCEDURES = [
   "worldInfo.listForChat",
   "regex.listForChat",
   "regex.listScripts",
-  "regex.listRoomDisplayScripts",
+  "regex.listDisplayScripts",
   "regex.updateScript",
   "chat.listEffectiveRegex",
   "chat.setRegexAllow",

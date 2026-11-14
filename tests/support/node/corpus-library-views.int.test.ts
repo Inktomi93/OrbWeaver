@@ -431,9 +431,9 @@ test("native library projections retain canonical usage, ordering, intake and re
   expect(() => createCorpusReadResponder("regex.listForChat", root.ownerId, [admittedRegex.reads.before, admittedRegex.reads.after])).toThrow(
     "Conflicting corpus captures",
   );
-  expect(() =>
-    createCorpusReadResponder("regex.listRoomDisplayScripts", root.ownerId, [admittedRegex.reads.displayOff, admittedRegex.reads.displayOn]),
-  ).toThrow("Conflicting corpus captures");
+  expect(() => createCorpusReadResponder("regex.listDisplayScripts", root.ownerId, [admittedRegex.reads.displayOff, admittedRegex.reads.displayOn])).toThrow(
+    "Conflicting corpus captures",
+  );
   const changedWorld = structuredClone(captured);
   Object.assign(changedWorld.worldInfoLibrary.reads.inheritedBooks, { input: world.chatBooks.input });
   expect(() => serializeCorpusWire(hydrateCorpusWire(changedWorld), authentication.secrets)).toThrow("publication recipe");
