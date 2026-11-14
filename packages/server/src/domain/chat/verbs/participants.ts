@@ -96,7 +96,6 @@ import { captureParticipantRow, characterEverSeatedInChat, characterSeatedInAnot
 import { loadHasUserMessage, loadMaxMessageSeq } from "../persistence/queries.ts";
 import { assertSeatableCharacters } from "../persistence/seat-characters.ts";
 import { viewerHoldsHost } from "../substrate/member-visibility.ts";
-import { restampMemoryStrikesVia, soloStrikeCarryStatements } from "../substrate/memory-strikes.ts";
 import { classifyParticipant } from "../substrate/participant-actor.ts";
 import { REMOVED_CHARACTER_LABEL } from "../substrate/participant-name.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
@@ -738,11 +737,10 @@ function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent, claimCh
     }
     // Present-seat floor: return the live seat instead of minting a duplicate row. `loadParticipants` is present-only
     // (`leftSeq IS NULL`), so a previously-left character re-adds a fresh row (era-per-row, F8) as before.
-    const seatedCharacters = (await loadParticipants(ctx.db, chatId)).flatMap((p) => {
+    const existing = (await loadParticipants(ctx.db, chatId)).find((p) => {
       const actor = classifyParticipant(p);
-      return actor?.kind === "character" ? [{ participant: p, characterId: actor.characterId }] : [];
+      return actor?.kind === "character" && actor.characterId === characterId;
     });
-    const existing = seatedCharacters.find((seat) => seat.characterId === characterId)?.participant;
     if (existing !== undefined) {
       return characterParticipantView(existing, card, ctx.resolveAssetHash);
     }
@@ -778,7 +776,6 @@ function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent, claimCh
         }),
       );
     }
-    versionStatements.push(...(await soloStrikeCarryStatements(ctx, { chatId, hostUserId: principal.userId, seated: seatedCharacters })));
     await insertParticipants(
       ctx.db,
       [
@@ -1232,8 +1229,8 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
       ...plan.seats.map(({ participantId, copy }) => repointCharacterSeatStatement(ctx.db, participantId, copy.characterId)),
       ...plan.cardCopies.map((c) => restampChatCharacterStatement(ctx.db, chatId, c.sourceCharacterId, c.characterId)),
       ...digestRestamp,
-      // A scoped strike follows its character's digests to the nominee's copy, or it would name no item after the swap.
-      ...plan.cardCopies.map((c) => restampMemoryStrikesVia(ctx.db, chatId, c.sourceCharacterId, c.characterId)),
+      // A scoped strike follows its character to the nominee's copy, or deleting the old card would cascade it away.
+      ...ctx.memoryStrikes.restampForHandoff(chatId, plan.cardCopies),
       ...plan.bookRepoint,
       ...plan.regexRepoint,
       ...droppedSeatIds.map((id) => markParticipantLeftStatement(ctx.db, id, dropSeq)),

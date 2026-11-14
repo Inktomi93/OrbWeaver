@@ -35,21 +35,25 @@ export const MEMORY_VIEW_OFF_REASONS = ["app-off", "host-off"] as const;
 export type MemoryViewOffReason = (typeof MEMORY_VIEW_OFF_REASONS)[number];
 
 /** What the view can say about the room before it lists anything. `too-short` is a chat with no complete block
- *  outside the protected recent window; `pending` is a chat long enough with no summary stored yet. */
+ *  outside the protected recent window; `pending` is a chat long enough with no summary stored yet;
+ *  `before-your-history` is a room whose every summary covers history the caller's floor keeps from them. */
 export type MemoryViewStatus =
   | { readonly kind: "off"; readonly reason: MemoryViewOffReason }
   | { readonly kind: "too-short" }
   | { readonly kind: "pending" }
+  | { readonly kind: "before-your-history" }
   | { readonly kind: "ready" };
 
-/** The strike on a listed item. `changedSinceStrike` says the scene was summarized again after the strike. */
+/** The strike on a listed item. `changedSinceStrike` says the scene was summarized again after the strike.
+ *  `strikeId` is null for a caller who is not the host: only the host restores, so only the host gets the id. */
 export interface MemoryItemStrikeView {
-  readonly strikeId: ChatMemoryStrikeId;
+  readonly strikeId: ChatMemoryStrikeId | null;
   readonly changedSinceStrike: boolean;
 }
 
-/** One remembered item. `bucket` says whether every speaker recalls it or only the scoped character.
- *  `retellsStruck` marks a longer summary that covers a struck scene: recall leaves it out with that scene. */
+/** One remembered item. `bucket` says whether every speaker recalls it or only the scoped character. A strike names
+ *  a span, so one item of a struck span carries `strike`; `retellsStruck` marks every other item recall leaves out
+ *  with it: another bucket's summary of the same span, or a longer summary that covers it. */
 export interface MemoryItemView {
   readonly key: MemoryItemKey;
   readonly bucket: "shared" | "scoped";
@@ -62,9 +66,9 @@ export interface MemoryItemView {
 }
 
 /** A strike that names no stored item any more, because the messages it covered were hidden, deleted or moved.
- *  It suppresses nothing and stays listed until the host restores it. */
+ *  It suppresses nothing and stays listed until the host restores it; `strikeId` is null as on an item. */
 export interface UnmatchedStrikeView {
-  readonly strikeId: ChatMemoryStrikeId;
+  readonly strikeId: ChatMemoryStrikeId | null;
   readonly tier: number;
   readonly scopedCharacterId: CharacterId | null;
   readonly topicAnchor: string | null;
@@ -91,6 +95,7 @@ export const memoryViewSchema = z.strictObject({
     z.strictObject({ kind: z.literal("off"), reason: z.enum(MEMORY_VIEW_OFF_REASONS) }),
     z.strictObject({ kind: z.literal("too-short") }),
     z.strictObject({ kind: z.literal("pending") }),
+    z.strictObject({ kind: z.literal("before-your-history") }),
     z.strictObject({ kind: z.literal("ready") }),
   ]),
   items: z
@@ -102,7 +107,7 @@ export const memoryViewSchema = z.strictObject({
         text: z.string(),
         keywords: z.array(z.string()).readonly(),
         speakers: z.array(typeIdSchema(ID_PREFIX.character)).readonly(),
-        strike: z.strictObject({ strikeId: strikeIdSchema, changedSinceStrike: z.boolean() }).nullable(),
+        strike: z.strictObject({ strikeId: strikeIdSchema.nullable(), changedSinceStrike: z.boolean() }).nullable(),
         retellsStruck: z.boolean(),
       }),
     )
@@ -110,7 +115,7 @@ export const memoryViewSchema = z.strictObject({
   unmatchedStrikes: z
     .array(
       z.strictObject({
-        strikeId: strikeIdSchema,
+        strikeId: strikeIdSchema.nullable(),
         tier: z.int().min(0),
         scopedCharacterId: typeIdSchema(ID_PREFIX.character).nullable(),
         topicAnchor: z.string().nullable(),
@@ -140,24 +145,28 @@ export type ImportMemoryStrikesOp = (args: {
   readonly strikes: readonly ImportedMemoryStrike[];
 }) => Promise<void>;
 
-/** The view's status from the room's switches, its canon head and what is stored. Uses the build's own
- *  aged-out rule: a block can exist only once `maxSeq - verbatimWindow` reaches `blockSize`. */
+/** Why the room's memory is off, or null when it runs. The app's switch outranks the host's. */
+export function memoryOffReason(room: { readonly appModeOff: boolean; readonly hostEnabled: boolean }): MemoryViewOffReason | null {
+  if (room.appModeOff) {
+    return "app-off";
+  }
+  return room.hostEnabled ? null : "host-off";
+}
+
+/** The status of a room whose memory runs, from its canon head, what is stored and what the caller may see. Uses
+ *  the build's own aged-out rule: a block can exist only once `maxSeq - verbatimWindow` reaches `blockSize`. */
 export function memoryViewStatus(room: {
-  readonly appModeOff: boolean;
-  readonly hostEnabled: boolean;
   readonly maxSeq: number;
   readonly verbatimWindow: number;
   readonly blockSize: number;
   readonly storedItems: number;
-}): MemoryViewStatus {
-  if (room.appModeOff) {
-    return { kind: "off", reason: "app-off" };
-  }
-  if (!room.hostEnabled) {
-    return { kind: "off", reason: "host-off" };
+  readonly listedItems: number;
+}): Exclude<MemoryViewStatus, { readonly kind: "off" }> {
+  if (room.listedItems > 0) {
+    return { kind: "ready" };
   }
   if (room.storedItems > 0) {
-    return { kind: "ready" };
+    return { kind: "before-your-history" };
   }
   return room.maxSeq - room.verbatimWindow < room.blockSize ? { kind: "too-short" } : { kind: "pending" };
 }

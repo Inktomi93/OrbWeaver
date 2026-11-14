@@ -371,17 +371,21 @@ const wireChatSchema = z.object({
   messages: z.array(wireMessageSchema),
   pendingGenerationObservations: pendingGenerationObservationsSchema.optional(),
   assetHashes: z.record(z.string(), z.string()).optional().catch(undefined),
-  // A malformed list loses the strikes, never the chat: the items come back into recall, visibly, in the view.
+  // Healed per entry: a malformed strike is dropped alone, never its siblings or the chat; its scene comes back into
+  // recall, visibly, in the view. A list that is not a list at all loses only the plane.
   memoryStrikes: z
     .array(
-      z.object({
-        characterHandle: z.string().trim().min(1).nullable(),
-        tier: index,
-        startMessageIndex: index,
-        endMessageIndex: index,
-        topicAnchor: z.string().nullish().catch(null),
-        createdAt: z.int(),
-      }),
+      z
+        .object({
+          characterHandle: z.string().trim().min(1).nullable(),
+          tier: index,
+          startMessageIndex: index,
+          endMessageIndex: index,
+          topicAnchor: z.string().nullish().catch(null),
+          createdAt: z.int(),
+        })
+        .nullable()
+        .catch(null),
     )
     .optional()
     .catch(undefined),
@@ -443,7 +447,8 @@ function memoryStrikesFromWire(
   messages: readonly PortableChatMessage[],
 ): { readonly memoryStrikes?: readonly PortableMemoryStrike[] } {
   const kept = (wire ?? []).filter(
-    (s) => s.startMessageIndex <= s.endMessageIndex && messages[s.startMessageIndex] !== undefined && messages[s.endMessageIndex] !== undefined,
+    (s): s is NonNullable<typeof s> =>
+      s !== null && s.startMessageIndex <= s.endMessageIndex && messages[s.startMessageIndex] !== undefined && messages[s.endMessageIndex] !== undefined,
   );
   return kept.length === 0 ? {} : { memoryStrikes: kept.map((s): PortableMemoryStrike => ({ ...s, topicAnchor: s.topicAnchor ?? null })) };
 }

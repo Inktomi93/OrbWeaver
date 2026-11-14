@@ -1,6 +1,8 @@
 // domain/chat/memory/persistence/strikes — the host's strikes on remembered items, and the span resolution that ties
-// a stored digest to the messages it covers. A strike names its item by bucket, tier and the covered span's endpoint
-// message ids (`chat_memory_strikes` in `packages/db/src/schema/chat.ts` holds why); this file reads and writes those
+// a stored digest to the messages it covers. A strike names a span by tier and the covered span's endpoint message
+// ids, in every bucket; its stored bucket only records which item the host struck (`matchStrikes` in
+// `packages/kit/src/recall/index.ts` holds the rule, `chat_memory_strikes` in `packages/db/src/schema/chat.ts` the
+// columns). Strike and restore act on the span, so one span holds one strike in practice; this file reads and writes those
 // rows and resolves a digest's endpoints the way recall's witnessing filter resolves its span: through the block's
 // stored segments, then to the message at each end.
 
@@ -11,8 +13,8 @@ import { batchStmt } from "@orb/db/query";
 import type { CharacterId, ChatDigestId, ChatId, ChatMemoryStrikeId, MessageId } from "@orb/kit/ids";
 import type { RecallStrike, StrikeCandidate } from "@orb/kit/recall";
 import { tier0RangeOf } from "@orb/kit/recall";
-import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
-import type { ChatContext } from "#src/domain/chat/contract/context.ts";
+import type { SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import type { DigestRow } from "../types.ts";
 import { loadSegmentSpans } from "./queries.ts";
 
@@ -186,40 +188,43 @@ export async function insertMemoryStrike(db: Db, row: MemoryStrikeInsert): Promi
   return inserted.length > 0;
 }
 
-/** The strike already standing on an item, matched by its identity columns. */
-export async function findMemoryStrike(db: Db, chatId: ChatId, strike: Omit<RecallStrike, "contentHash">): Promise<StoredMemoryStrike | undefined> {
-  const bucket =
-    strike.scopedCharacterId === null ? isNull(chatMemoryStrikes.scopedCharacterId) : eq(chatMemoryStrikes.scopedCharacterId, strike.scopedCharacterId);
+type StrikeSpan = Pick<RecallStrike, "tier" | "messageStartId" | "messageEndId">;
+
+function sameSpan(chatId: ChatId, span: StrikeSpan): SQL | undefined {
+  return and(
+    eq(chatMemoryStrikes.chatId, chatId),
+    eq(chatMemoryStrikes.tier, span.tier),
+    eq(chatMemoryStrikes.messageStartId, span.messageStartId),
+    eq(chatMemoryStrikes.messageEndId, span.messageEndId),
+  );
+}
+
+/** The strike already standing on a span in this room, whichever bucket's item it was made on. */
+export async function findSpanStrike(db: Db, chatId: ChatId, span: StrikeSpan): Promise<{ readonly id: ChatMemoryStrikeId } | undefined> {
   const rows = await db
-    .select({
-      id: chatMemoryStrikes.id,
-      scopedCharacterId: chatMemoryStrikes.scopedCharacterId,
-      tier: chatMemoryStrikes.tier,
-      messageStartId: chatMemoryStrikes.messageStartId,
-      messageEndId: chatMemoryStrikes.messageEndId,
-      contentHash: chatMemoryStrikes.contentHash,
-      topicAnchor: chatMemoryStrikes.topicAnchor,
-    })
+    .select({ id: chatMemoryStrikes.id })
     .from(chatMemoryStrikes)
-    .where(
-      and(
-        eq(chatMemoryStrikes.chatId, chatId),
-        bucket,
-        eq(chatMemoryStrikes.tier, strike.tier),
-        eq(chatMemoryStrikes.messageStartId, strike.messageStartId),
-        eq(chatMemoryStrikes.messageEndId, strike.messageEndId),
-      ),
-    )
+    .where(sameSpan(chatId, span))
+    .orderBy(asc(chatMemoryStrikes.createdAt), asc(chatMemoryStrikes.id))
     .limit(LIMIT_ONE);
   return rows.at(0);
 }
 
-/** Delete one strike of this room. Returns true when a row moved. */
-export async function deleteMemoryStrike(db: Db, chatId: ChatId, strikeId: ChatMemoryStrikeId): Promise<boolean> {
-  const dropped = await db
-    .delete(chatMemoryStrikes)
+/** Lift the span one strike of this room names: that row and any other row on the same span, so every bucket's
+ *  item of the scene returns. Returns true when a row moved.
+ *
+ *  THE ROOM FILTER ON THE LOOKUP IS THE ONLY GUARD. A member reads strike ids from the view and can call restore
+ *  under a room they host; the verb's host gate passes there, so only `chatId` here keeps another room's strike. */
+export async function deleteSpanStrikes(db: Db, chatId: ChatId, strikeId: ChatMemoryStrikeId): Promise<boolean> {
+  const [named] = await db
+    .select({ tier: chatMemoryStrikes.tier, messageStartId: chatMemoryStrikes.messageStartId, messageEndId: chatMemoryStrikes.messageEndId })
+    .from(chatMemoryStrikes)
     .where(and(eq(chatMemoryStrikes.id, strikeId), eq(chatMemoryStrikes.chatId, chatId)))
-    .returning({ id: chatMemoryStrikes.id });
+    .limit(LIMIT_ONE);
+  if (named === undefined) {
+    return false;
+  }
+  const dropped = await db.delete(chatMemoryStrikes).where(sameSpan(chatId, named)).returning({ id: chatMemoryStrikes.id });
   return dropped.length > 0;
 }
 
@@ -231,29 +236,5 @@ export function restampMemoryStrikesStatement(db: Db, chatId: ChatId, sourceChar
       .update(chatMemoryStrikes)
       .set({ scopedCharacterId: characterId })
       .where(and(eq(chatMemoryStrikes.chatId, chatId), eq(chatMemoryStrikes.scopedCharacterId, sourceCharacterId))),
-  );
-}
-
-/** The room's shared-bucket strikes copied onto one character's scoped bucket, each under a fresh id.
- *
- *  A solo room's shared bucket IS its one character, so a strike stores no character there. Once a second
- *  character is seated, the shared bucket becomes the room's group character, while the first character's
- *  digests stay keyed to it and are read as its own scoped bucket. The copy keeps those digests struck; the
- *  shared-bucket strike stays, for the group bucket's summary of the same span. */
-export async function copySharedStrikesStatements(
-  db: Db,
-  args: { readonly chatId: ChatId; readonly characterId: CharacterId; readonly newMemoryStrikeId: ChatContext["newMemoryStrikeId"] },
-): Promise<BatchStmt[]> {
-  const shared = await db
-    .select()
-    .from(chatMemoryStrikes)
-    .where(and(eq(chatMemoryStrikes.chatId, args.chatId), isNull(chatMemoryStrikes.scopedCharacterId)));
-  return shared.map((row) =>
-    batchStmt(
-      db
-        .insert(chatMemoryStrikes)
-        .values({ ...row, id: args.newMemoryStrikeId(), scopedCharacterId: args.characterId })
-        .onConflictDoNothing(),
-    ),
   );
 }

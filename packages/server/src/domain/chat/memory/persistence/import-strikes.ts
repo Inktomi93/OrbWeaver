@@ -1,11 +1,14 @@
 // domain/chat/memory/persistence/import-strikes — the chat-owned write of a restored room's memory strikes, injected
-// into the chat bundle import (import writes no chat table). The import resolved every id from the room it just
-// wrote, but the op's signature is the promise the next wiring inherits, so it gates its own target: the caller
-// must hold the room's host seat, each endpoint must be a message of that room, and a scoped strike's character
-// must hold a seat in it. A strike failing any of those is dropped, never written at a guess.
+// into the chat bundle import (import writes no chat table).
 //
-// A strike the room already holds stays as it is (`onConflictDoNothing` over both partial unique indexes), so a
-// same-library restore never doubles one.
+// THE HOST-SEAT CHECK IS THE ONLY GUARD ON THE CLAIMED-ROOM PATH. A re-import matches the room the file first
+// created through the importer's claim on its character, not through the host seat, so an ex-host who handed the
+// room off still reaches this op with that room's id. Only `holdsHostSeat` keeps them from writing strikes into the
+// new host's room. The endpoint and seat checks are second checks: the remap resolves both from the target room.
+// A strike failing any check is dropped, never written at a guess.
+//
+// A strike names a span (`matchStrikes` in `packages/kit/src/recall/index.ts`), so a span the room already holds a
+// strike on, in any bucket, gets no second row, and a same-library restore never doubles one.
 //
 // A REPEATED IMPORT RE-ADDS A RESTORED STRIKE, deliberately. Importing the same file again onto a room it already
 // wrote runs every overlay again (the tag overlay's retry semantics: an interrupted import completes on the next
@@ -20,7 +23,7 @@ import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { CharacterId, ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import type { ImportMemoryStrikesContext } from "#src/domain/chat/contract/import.ts";
-import { IMPORTED_STRIKE_HASH } from "./strikes.ts";
+import { IMPORTED_STRIKE_HASH, loadMemoryStrikes } from "./strikes.ts";
 
 const LIMIT_ONE = 1;
 
@@ -67,7 +70,17 @@ export function createImportMemoryStrikes(input: DbAssemblyInput<ImportMemoryStr
     if (strikes.length === 0 || !(await holdsHostSeat(ctx.db, chatId, hostUserId))) {
       return;
     }
-    const rows = (await placeable(ctx.db, chatId, strikes)).map((s) => ({
+    const spanOf = (s: Pick<ImportedMemoryStrike, "tier" | "messageStartId" | "messageEndId">): string => `${s.tier}:${s.messageStartId}:${s.messageEndId}`;
+    const taken = new Set((await loadMemoryStrikes(ctx.db, chatId)).map(spanOf));
+    const fresh = (await placeable(ctx.db, chatId, strikes)).filter((s) => {
+      const span = spanOf(s);
+      if (taken.has(span)) {
+        return false;
+      }
+      taken.add(span);
+      return true;
+    });
+    const rows = fresh.map((s) => ({
       id: ctx.newMemoryStrikeId(),
       chatId,
       scopedCharacterId: s.scopedCharacterId,

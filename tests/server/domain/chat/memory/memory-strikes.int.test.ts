@@ -186,31 +186,13 @@ test("a member with a join floor is not shown a summary straddling the floor, an
   expect(memberView.items.map((item) => item.key.blockIdx)).toEqual([above]);
 });
 
-test("a strike made in a solo room still holds for its character's own memory once a second character is seated", async () => {
-  await using w = await world.build({ mode: "mixB", maxTier: 0 });
-  await w.h.caller.settings.updateAppSettings({ partial: { memoryDefaults: RECALL_KNOBS } });
-  const keeper = present(w.h.characters[0]);
-  await w.h.caller.chat.strikeMemory({ chatId: w.h.chatId, item: sceneOf(await w.h.caller.chat.memoryView({ chatId: w.h.chatId }), "storm").key });
-
-  const scout = await w.h.root.services.character.create({
-    principal: w.h.owner,
-    input: createCharacterSchema.parse({ handle: "scout", name: "Scout", description: "The scout who rides ahead." }),
-  });
-  await w.h.caller.chat.addCharacterToChat({ chatId: w.h.chatId, characterId: scout.id });
-  // Each speaker now recalls its own bucket beside the room's shared one: the first character's digests are its own.
-  await w.h.caller.chat.setGroupConfig({ chatId: w.h.chatId, config: { output: "per-speaker", policy: "list", cardScope: "scoped" } });
-  // A built turn mints the room's group character, so the shared bucket is no longer the first character.
-  const minted = await w.h.root.services.chat.forceCharacterTurn({ principal: w.h.owner, chatId: w.h.chatId, characterId: scout.id, intent: TURN_INTENT });
-  expect(minted.aborted).toBe(false);
-  await w.h.root.settleBackground();
-  expect(
-    (await w.h.caller.chat.memoryView({ chatId: w.h.chatId })).items.some((item) => item.bucket === "shared" && item.key.scopedCharacterId !== keeper.id),
-  ).toBe(true);
-
-  await w.h.root.services.chat.commitMessage({ principal: w.h.owner, chatId: w.h.chatId, content: BOTH });
-  const before = w.h.root.app.recallRecorder.recent({ chatId: w.h.chatId }).at(-1)?.seq ?? 0;
-  const { outcome, bodies } = await wireOf(w.h, () =>
-    w.h.root.services.chat.forceCharacterTurn({ principal: w.h.owner, chatId: w.h.chatId, characterId: keeper.id, intent: TURN_INTENT }),
+/** One forced turn by `characterId` after a user line naming both scenes: the prompt that speaker's reply was
+ *  generated from, and the recall it recorded. */
+async function speakerTurn(h: ChatRoot, characterId: CharacterId): Promise<RecallRun> {
+  await h.root.services.chat.commitMessage({ principal: h.owner, chatId: h.chatId, content: BOTH });
+  const before = h.root.app.recallRecorder.recent({ chatId: h.chatId }).at(-1)?.seq ?? 0;
+  const { outcome, bodies } = await wireOf(h, () =>
+    h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId, intent: TURN_INTENT }),
   );
   expect(outcome.aborted).toBe(false);
   const prompt = present(
@@ -220,16 +202,153 @@ test("a strike made in a solo room still holds for its character's own memory on
       .at(-1),
   );
   const trace = present(
-    w.h.root.app.recallRecorder
-      .recent({ chatId: w.h.chatId })
+    h.root.app.recallRecorder
+      .recent({ chatId: h.chatId })
       .filter((record) => record.seq > before)
       .at(-1),
   ).trace;
-  expect(verdicts(trace, "struck")).toEqual(
-    expect.arrayContaining([expect.objectContaining({ scopedCharacterId: keeper.id, tier: 0, blockIdx: blockOf("storm") })]),
+  return { prompt, trace };
+}
+
+/** Seat a second character in the recall world's solo room and give each speaker its own scoped memory. */
+async function seatScout(h: ChatRoot): Promise<CharacterId> {
+  const scout = await h.root.services.character.create({
+    principal: h.owner,
+    input: createCharacterSchema.parse({ handle: "scout", name: "Scout", description: "The scout who rides ahead." }),
+  });
+  await h.caller.chat.addCharacterToChat({ chatId: h.chatId, characterId: scout.id });
+  await h.caller.chat.setGroupConfig({ chatId: h.chatId, config: { output: "per-speaker", policy: "list", cardScope: "scoped" } });
+  return scout.id;
+}
+
+/** A built turn mints the room's group character, so the shared bucket is no longer the first character. */
+async function mintGroupBucket(h: ChatRoot, speaker: CharacterId, firstCharacter: CharacterId): Promise<void> {
+  const minted = await h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: speaker, intent: TURN_INTENT });
+  expect(minted.aborted).toBe(false);
+  await h.root.settleBackground();
+  expect(
+    (await h.caller.chat.memoryView({ chatId: h.chatId })).items.some((item) => item.bucket === "shared" && item.key.scopedCharacterId !== firstCharacter),
+  ).toBe(true);
+}
+
+test("a strike made in a solo room still holds for its character once a second character is seated", async () => {
+  await using w = await world.build({ mode: "mixB", maxTier: 0 });
+  await w.h.caller.settings.updateAppSettings({ partial: { memoryDefaults: RECALL_KNOBS } });
+  const keeper = present(w.h.characters[0]);
+  await w.h.caller.chat.strikeMemory({ chatId: w.h.chatId, item: sceneOf(await w.h.caller.chat.memoryView({ chatId: w.h.chatId }), "storm").key });
+  const scout = await seatScout(w.h);
+  await mintGroupBucket(w.h, scout, keeper.id);
+
+  const run = await speakerTurn(w.h, keeper.id);
+  expect(run.prompt).not.toContain("arc-storm.");
+  expect(run.prompt).toContain("arc-bath.");
+});
+
+test("a strike made after a second character is seated, before the group memory exists, still holds once it does", async () => {
+  await using w = await world.build({ mode: "mixB", maxTier: 0 });
+  await w.h.caller.settings.updateAppSettings({ partial: { memoryDefaults: RECALL_KNOBS } });
+  const keeper = present(w.h.characters[0]);
+  const scout = await seatScout(w.h);
+  // The shared bucket is still the first character here: the host strikes the first character's own summary.
+  const storm = sceneOf(await w.h.caller.chat.memoryView({ chatId: w.h.chatId }), "storm");
+  expect(storm).toMatchObject({ bucket: "shared", key: { scopedCharacterId: keeper.id } });
+  await w.h.caller.chat.strikeMemory({ chatId: w.h.chatId, item: storm.key });
+  await mintGroupBucket(w.h, scout, keeper.id);
+
+  const run = await speakerTurn(w.h, keeper.id);
+  expect(run.prompt).not.toContain("arc-storm.");
+  expect(run.prompt).toContain("arc-bath.");
+});
+
+test("striking the shared summary leaves the scene out of every speaker's prompt, one entry carries it, and restore brings it back for all", async () => {
+  await using w = await world.build({ mode: "mixB", maxTier: 0, scout: true });
+  await w.h.caller.settings.updateAppSettings({ partial: { memoryDefaults: RECALL_KNOBS } });
+  const speakers = w.h.characters.map((character) => character.id);
+  expect(speakers).toHaveLength(2);
+  const view = await w.h.caller.chat.memoryView({ chatId: w.h.chatId });
+  const copies = (v: MemoryView): readonly MemoryItemView[] => v.items.filter((item) => item.key.tier === 0 && item.key.blockIdx === blockOf("storm"));
+  // The control on the premise: the group and each character hold their own summary of the scene.
+  expect(copies(view).map((item) => item.key.scopedCharacterId)).toEqual(expect.arrayContaining(speakers));
+  const shared = present(copies(view).find((item) => item.bucket === "shared"));
+  const { strikeId } = await w.h.caller.chat.strikeMemory({ chatId: w.h.chatId, item: shared.key });
+
+  for (const speaker of speakers) {
+    const run = await speakerTurn(w.h, speaker);
+    expect(run.prompt).not.toContain("arc-storm.");
+    expect(run.prompt).toContain("arc-bath.");
+  }
+  const listed = copies(await w.h.caller.chat.memoryView({ chatId: w.h.chatId }));
+  expect(listed.filter((item) => item.strike !== null)).toEqual([
+    expect.objectContaining({ bucket: "shared", strike: { strikeId, changedSinceStrike: false } }),
+  ]);
+  expect(listed.filter((item) => item.strike === null).every((item) => item.retellsStruck)).toBe(true);
+  // Striking another copy of the same scene answers the standing strike.
+  const scoped = present(listed.find((item) => item.bucket === "scoped"));
+  await expect(w.h.caller.chat.strikeMemory({ chatId: w.h.chatId, item: scoped.key })).resolves.toEqual({ strikeId });
+
+  await w.h.caller.chat.restoreMemory({ chatId: w.h.chatId, strikeId });
+  for (const speaker of speakers) {
+    expect((await speakerTurn(w.h, speaker)).prompt).toContain("arc-storm.");
+  }
+  expect(copies(await w.h.caller.chat.memoryView({ chatId: w.h.chatId })).every((item) => item.strike === null && !item.retellsStruck)).toBe(true);
+});
+
+test("a struck shared scene also leaves out a speaker's own longer summary covering it", async () => {
+  await using w = await world.build({ mode: "tiered", maxTier: 1, scout: true });
+  const keeper = present(w.h.characters[0]);
+  const view = await w.h.caller.chat.memoryView({ chatId: w.h.chatId });
+  const shared = present(view.items.find((item) => item.bucket === "shared" && item.key.tier === 0 && item.key.blockIdx === blockOf("bath")));
+  // The premise: the keeper keeps its own tier-1 summary over the first two scenes.
+  const ownArc = present(view.items.find((item) => item.key.scopedCharacterId === keeper.id && item.key.tier === 1 && item.key.blockIdx === 0));
+  expect(ownArc.retellsStruck).toBe(false);
+  await w.h.caller.chat.strikeMemory({ chatId: w.h.chatId, item: shared.key });
+
+  const run = await speakerTurn(w.h, keeper.id);
+  expect(run.prompt).not.toContain("arc-bath.");
+  expect(verdicts(run.trace, "covers-struck")).toEqual(
+    expect.arrayContaining([expect.objectContaining({ scopedCharacterId: keeper.id, tier: 1, blockIdx: 0 })]),
   );
-  expect(prompt).not.toContain("arc-storm.");
-  expect(prompt).toContain("arc-bath.");
+  // The control: the keeper's tier-1 summary over the next two scenes does not retell the struck one.
+  expect(verdicts(run.trace, "covers-struck")).not.toEqual(
+    expect.arrayContaining([expect.objectContaining({ scopedCharacterId: keeper.id, tier: 1, blockIdx: 1 })]),
+  );
+});
+
+test("a member who hosts another room cannot restore this room's strike by passing its id under their own room", async () => {
+  await using w = await world.build({ mode: "mixB", maxTier: 0 });
+  const member = await invitePerson(w.h);
+  const { strikeId } = await w.h.caller.chat.strikeMemory({
+    chatId: w.h.chatId,
+    item: sceneOf(await w.h.caller.chat.memoryView({ chatId: w.h.chatId }), "storm").key,
+  });
+  const { chat: own } = await w.h.root.services.chat.startChat({ principal: member, characterIds: [], opening: "none" });
+  await w.h.root.services.chat.restoreMemory({ principal: member, chatId: own.id, strikeId });
+  expect(sceneOf(await w.h.caller.chat.memoryView({ chatId: w.h.chatId }), "storm").strike).toEqual({ strikeId, changedSinceStrike: false });
+  // The control: the same id under this room, by its host, lifts it.
+  await w.h.caller.chat.restoreMemory({ chatId: w.h.chatId, strikeId });
+  expect(sceneOf(await w.h.caller.chat.memoryView({ chatId: w.h.chatId }), "storm").strike).toBeNull();
+});
+
+test("a strike survives a host handoff: the new host sees and restores it, and the old host is refused", async () => {
+  await using w = await world.build({ mode: "mixB", maxTier: 0 });
+  const { strikeId } = await w.h.caller.chat.strikeMemory({
+    chatId: w.h.chatId,
+    item: sceneOf(await w.h.caller.chat.memoryView({ chatId: w.h.chatId }), "storm").key,
+  });
+  const member = await invitePerson(w.h);
+  await w.h.root.services.settings.updateUserSettingsSection({ principal: member, input: { section: "memory", patch: { enabled: true } } });
+  await w.h.root.services.chat.nominateHostHandoff({ principal: w.h.owner, chatId: w.h.chatId, userId: member.userId });
+  await w.h.root.services.chat.acceptHostHandoff({ principal: member, chatId: w.h.chatId });
+
+  expect(sceneOf(await w.h.root.services.chat.memoryView({ principal: member, chatId: w.h.chatId }), "storm").strike).toEqual({
+    strikeId,
+    changedSinceStrike: false,
+  });
+  await expect(w.h.root.services.chat.restoreMemory({ principal: w.h.owner, chatId: w.h.chatId, strikeId })).rejects.toMatchObject({
+    code: CHAT_OP_CODES.notHost,
+  });
+  await w.h.root.services.chat.restoreMemory({ principal: member, chatId: w.h.chatId, strikeId });
+  expect(sceneOf(await w.h.root.services.chat.memoryView({ principal: member, chatId: w.h.chatId }), "storm").strike).toBeNull();
 });
 
 /** A room whose memory never built: `lines` transcript lines, the host's switch on, the app in a retrieval mode. */

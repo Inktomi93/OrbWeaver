@@ -160,8 +160,9 @@ export function formatMemory<K extends BlockKey>(
   return { text: parts.join("\n\n"), rendered };
 }
 
-/** A player's strike as recall matches it. `scopedCharacterId` null names the room's shared bucket, whichever
- *  character holds it this turn. The endpoints are the covered span's first and last message ids. */
+/** A player's strike as recall matches it. The endpoints are the covered span's first and last message ids.
+ *  `scopedCharacterId` records the bucket of the item the host struck (null: the room's shared bucket); it does not
+ *  limit what the strike leaves out. */
 export interface RecallStrike {
   readonly scopedCharacterId: CharacterId | null;
   readonly tier: number;
@@ -178,20 +179,28 @@ export interface StrikeCandidate extends BridgeRow {
 }
 
 /** Which pooled digests a room's strikes leave out: each struck digest with the strike that names it, and each
- *  same-bucket consolidation whose tier-0 range covers a struck digest, because it retells the struck scene. */
+ *  consolidation whose tier-0 range covers a struck digest, because it retells the struck scene. */
 export interface StrikeMatch<R, S> {
   readonly struck: ReadonlyMap<R, S>;
   readonly coversStruck: ReadonlySet<R>;
 }
 
-/** Match strikes to pooled digests. A strike names a digest when bucket and tier agree and either its span
- *  endpoints are the digest's or its stored hash is the digest's current hash. Grid position alone never matches:
- *  a re-sliced block at the same position covers different messages. */
+/**
+ * Match strikes to pooled digests.
+ *
+ * @remarks
+ * A STRIKE NAMES A SPAN OF THE STORY, NOT ONE BUCKET'S COPY OF IT. Every bucket digests the same block grid (a scoped
+ * bucket only skips blocks its character did not witness), so the group summary and each character's own summary of
+ * one scene share tier and endpoints. A strike names every digest, in any bucket, whose tier and span endpoints are
+ * the strike's, or whose current hash is the strike's stored hash (the hash is bound to the struck item's bucket and
+ * position, so it only re-finds that item). Grid position alone never matches: a re-sliced block at the same
+ * position covers different messages. A higher tier in any bucket whose tier-0 range contains a struck digest's
+ * range retells it and leaves with it.
+ */
 export function matchStrikes<R extends StrikeCandidate, S extends RecallStrike>(
   rows: readonly R[],
   strikes: readonly S[],
-  // A room with no shared bucket yet (no character seated) matches no shared-bucket strike.
-  grid: { readonly sharedBucket: CharacterId | null; readonly fanOut: number },
+  grid: { readonly fanOut: number },
 ): StrikeMatch<R, S> {
   const struck = new Map<R, S>();
   if (strikes.length === 0) {
@@ -200,9 +209,8 @@ export function matchStrikes<R extends StrikeCandidate, S extends RecallStrike>(
   for (const row of rows) {
     const strike = strikes.find(
       (s) =>
-        (s.scopedCharacterId ?? grid.sharedBucket) === row.scopedCharacterId &&
-        s.tier === row.tier &&
-        (s.contentHash === row.contentHash || (row.span !== null && row.span.startId === s.messageStartId && row.span.endId === s.messageEndId)),
+        s.contentHash === row.contentHash ||
+        (s.tier === row.tier && row.span !== null && row.span.startId === s.messageStartId && row.span.endId === s.messageEndId),
     );
     if (strike !== undefined) {
       struck.set(row, strike);
@@ -216,7 +224,7 @@ export function matchStrikes<R extends StrikeCandidate, S extends RecallStrike>(
     const range = tier0RangeOf(grid.fanOut, row.tier, row.blockIdx);
     for (const hit of struck.keys()) {
       const inner = tier0RangeOf(grid.fanOut, hit.tier, hit.blockIdx);
-      if (hit.scopedCharacterId === row.scopedCharacterId && row.tier > hit.tier && range.startIdx <= inner.startIdx && inner.endIdx <= range.endIdx) {
+      if (row.tier > hit.tier && range.startIdx <= inner.startIdx && inner.endIdx <= range.endIdx) {
         coversStruck.add(row);
         break;
       }

@@ -62,7 +62,7 @@ export async function recallMemory(ctx: ChatContext, args: RecallMemoryArgs): Pr
     const key = rowKey(scope, d);
     verdicts.set(blockKeyStr(key), { key, verdict: "admitted" });
   }
-  const unstruck = await dropStruck(ctx, { raw, fanOut: cfg.fanOut, sharedBucket: args.groupCharacterId, scope, verdicts });
+  const unstruck = await dropStruck(ctx, { raw, fanOut: cfg.fanOut, scope, verdicts });
   const union = await filterPool(ctx, {
     chatId: scope.chatId,
     union: unstruck,
@@ -197,16 +197,15 @@ function finish(ctx: ChatContext, args: RecallMemoryArgs, env: { readonly text: 
   return { text: env.text, trace: slice };
 }
 
-/** Leave out every digest the host struck, and every same-bucket consolidation that retells one, before any other
- *  stage, so a strike outranks witnessing, the live window and the mode. This is the ONE place a strike reaches the
- *  prompt: both the round recall and the per-speaker re-run come through `recallMemory`. A room with no strike pays
- *  one indexed read and nothing else. */
+/** Leave out every digest of a struck span in every bucket the speaker recalls, and every consolidation that retells
+ *  one ({@link matchStrikes} holds the rule), before any other stage, so a strike outranks witnessing, the live
+ *  window and the mode. This is the ONE place a strike reaches the prompt: both the round recall and the per-speaker
+ *  re-run come through `recallMemory`. A room with no strike pays one indexed read and nothing else. */
 async function dropStruck(
   ctx: ChatContext,
   env: {
     readonly raw: readonly DigestRow[];
     readonly fanOut: number;
-    readonly sharedBucket: CharacterId;
     readonly scope: MemoryScope;
     readonly verdicts: Verdicts;
   },
@@ -216,7 +215,7 @@ async function dropStruck(
     return [...env.raw];
   }
   const resolved = await resolveDigestSpans(ctx.db, env.scope.chatId, env.raw, env.fanOut);
-  const match = matchStrikes(resolved, strikes, { sharedBucket: env.sharedBucket, fanOut: env.fanOut });
+  const match = matchStrikes(resolved, strikes, { fanOut: env.fanOut });
   const mark = (d: DigestRow, verdict: MemoryRecallVerdict): void => {
     const entry = env.verdicts.get(blockKeyStr(rowKey(env.scope, d)));
     if (entry !== undefined) {

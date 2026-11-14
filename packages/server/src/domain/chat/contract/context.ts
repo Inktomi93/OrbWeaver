@@ -16,6 +16,8 @@ import type {
   InvitePreview,
   LiveOnlyChatBusEvent,
   MemoryDigestInput,
+  MemoryItemKey,
+  MemoryView,
   NextTurnConnectionView,
   ParticipantData,
   PlanGameBirthOp,
@@ -571,6 +573,25 @@ export interface ChatContextBoundOps {
   /** The turn's chat-internal gather (`assembly/gather.ts`), bound to this context and the `memory/` reads it
    *  needs, so a verb reaches the subsystem without importing it. */
   readonly gatherAssembleContext: (args: GatherAssembleArgs, foreign: ForeignInputs, out?: SendRegexSink) => Promise<AssembleContext>;
+  /** The room's memory view and its strikes (`memory/strikes.ts`), bound the same way. */
+  readonly memoryStrikes: MemoryStrikeOps;
+}
+
+/** The memory-strike work the verbs run after their gates. */
+export interface MemoryStrikeOps {
+  /** The view as the caller may see it: clamped to their history floor, strike ids only when `isHost`. */
+  readonly view: (args: { readonly chatId: ChatId; readonly floor: HistoryFloorSeq; readonly isHost: boolean }) => Promise<MemoryView>;
+  /** Strike the span the key's item covers, or answer the strike already on it. `inserted` says whether a row
+   *  landed. Throws `memory_item_stale` when the key no longer names what the host read. */
+  readonly strike: (args: {
+    readonly chatId: ChatId;
+    readonly hostUserId: UserId;
+    readonly item: MemoryItemKey;
+  }) => Promise<{ readonly strikeId: ChatMemoryStrikeId; readonly inserted: boolean }>;
+  /** Lift the span the strike names, for every bucket. True when a row moved. */
+  readonly restore: (args: { readonly chatId: ChatId; readonly strikeId: ChatMemoryStrikeId }) => Promise<boolean>;
+  /** The handoff re-key of scoped strikes, in the swap batch beside the digests' re-key. */
+  readonly restampForHandoff: (chatId: ChatId, pairs: readonly HandoffCardPair[]) => BatchStmt[];
 }
 
 /** The DI bundle every chat verb/subsystem closes over. `db` routes queries through `persistence/`; `now` +

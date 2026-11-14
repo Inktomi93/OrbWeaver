@@ -185,6 +185,7 @@ export type {
 export {
   MEMORY_VIEW_OFF_REASONS,
   memoryItemKeySchema,
+  memoryOffReason,
   memoryViewSchema,
   memoryViewStatus,
   restoreMemoryInputSchema,
