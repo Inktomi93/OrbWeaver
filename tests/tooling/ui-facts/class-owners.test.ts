@@ -149,7 +149,8 @@ test("the real layout tables own justify on Row and truncate on Text", async () 
   const ownerOf = classOwners(REPO_ROOT);
   expect(ownerOf("layout", "Row", await recipeClass("layout", "Row", { justify: "end" }), [])).toEqual({ axis: "row.justify", prop: "justify", arm: "end" });
   expect(ownerOf("text", "Text", await recipeClass("text", "Text", { truncate: true }), [])).toEqual({ axis: "text.truncate", prop: "truncate", arm: "true" });
-  expect(ownerOf("layout", "Row", "min-inline-0", [])).toBeNull();
+  expect(ownerOf("layout", "Row", "min-inline-0", [])).toEqual({ axis: "row.minWidth", prop: "minWidth", arm: "shrinks" });
+  expect(ownerOf("layout", "Row", "shrink-0", [])).toBeNull();
 });
 
 test("the real Row owns each class it writes below a container step, on the steps of the container scale", async () => {
@@ -188,7 +189,7 @@ test("a class of a family an axis chooses in is that axis's, with no arm named w
   expect(ownerOf("layout", "Grid", sidebarCap ?? "", [])).toEqual({ axis: "grid.cap", prop: "cap", arm: "sidebar" });
   // A zero step is structure, and a family no axis chooses in is the caller's to write.
   expect(ownerOf("layout", "Row", "pe-0", [])).toBeNull();
-  expect(ownerOf("layout", "Row", "min-inline-0", [])).toBeNull();
+  expect(ownerOf("layout", "Row", "shrink-0", [])).toBeNull();
 });
 
 const CARD_PACKAGE = JSON.stringify({ exports: { "./card": "./src/primitives/card/index.ts" } });

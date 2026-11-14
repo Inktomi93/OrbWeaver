@@ -107,7 +107,7 @@ function SheetFlavor({ actor, onEditFlavor }: { readonly actor: RpgActorView; re
     );
   }
   return (
-    <Row touchFloor="block" className="min-inline-0">
+    <Row touchFloor="block" minWidth="shrinks">
       <TrackerValue
         ariaLabel={`${actor.name} flavor`}
         display={actor.sheet.flavor}
@@ -232,7 +232,7 @@ function IdentityBlock({
       <Avatar size="lg" alt={actor.name} hueSeed={actor.name} {...(actor.avatar === undefined ? {} : { src: blobUrl(actor.avatar) })}>
         {actor.name.slice(0, 1).toUpperCase()}
       </Avatar>
-      <Stack gap="field" className="min-inline-0" grow={true}>
+      <Stack gap="field" minWidth="shrinks" grow={true}>
         <Heading level={3} voice="label" className="min-inline-0" inset="control" wrap="word">
           {actor.name}
         </Heading>
@@ -428,7 +428,7 @@ function SheetTitle({ actor, onEditTitle }: { readonly actor: RpgActorView; read
     );
   }
   return (
-    <Row gap="field" align="center" touchFloor="block" className="min-inline-0">
+    <Row gap="field" align="center" touchFloor="block" minWidth="shrinks">
       <TrackerValue ariaLabel={`${actor.name} title`} display={actor.sheet.className} placeholder="title…" onEdit={onEditTitle} wrap={true} width="auto" />
     </Row>
   );

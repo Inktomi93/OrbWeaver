@@ -85,7 +85,7 @@ function OwnerBudgetBody(): ReactElement {
       <SettingRowGroup>
         <SettingTrackRow>
           <Field label={OWNER_RULE_RATE_FIELD_NAME} orientation="horizontal" description="Across every library-wide rule you have.">
-            <Stack className="min-inline-0" width="controlCol" cap="fit">
+            <Stack minWidth="shrinks" width="controlCol" cap="fit">
               <NumberField
                 min={OWNER_CAP_MIN}
                 max={OWNER_CAP_MAX}

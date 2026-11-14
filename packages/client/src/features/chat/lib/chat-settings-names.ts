@@ -30,11 +30,6 @@ export function overrideStateWord(isSet: boolean): string {
   return isSet ? "overridden" : "inheriting";
 }
 
-/** An override row's disclosure name: its label and its state word. */
-export function overrideRowName(label: string, isSet: boolean): string {
-  return `${label}, ${overrideStateWord(isSet)}`;
-}
-
 /** A customized prose slot's reset trigger and its confirm's commit. */
 export const PROSE_RESET_NAME = "Reset to built-in";
 

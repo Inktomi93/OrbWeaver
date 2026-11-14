@@ -394,6 +394,8 @@ export const TOKENS = {
   "spacing.picker-gap": { cssVar: "--spacing-picker-gap", value: "round(down, min(var(--spacing-row), max(2dvw, 8px)), 1px)" },
   "spacing.title-separator": { cssVar: "--spacing-title-separator", value: "calc(var(--spacing-row) - var(--spacing-field))" },
   "spacing.indent": { cssVar: "--spacing-indent", value: "round(down, min(var(--spacing-block), 4dvw), 1px)" },
+  "spacing.inset-tight": { cssVar: "--spacing-inset-tight", value: "round(down, min(var(--spacing-tight), max(1dvw, 4px)), 1px)" },
+  "spacing.inset-row": { cssVar: "--spacing-inset-row", value: "round(down, min(var(--spacing-row), max(2dvw, 8px)), 1px)" },
   "spacing.inset-block": { cssVar: "--spacing-inset-block", value: "round(down, min(var(--spacing-block), max(4dvw, 12px)), 1px)" },
   "spacing.inset-section": { cssVar: "--spacing-inset-section", value: "round(down, min(var(--spacing-section), max(8dvw, 24px)), 1px)" },
   "dimension.shell-topbar-block": { cssVar: "--dimension-shell-topbar-block", value: "calc(var(--dimension-chrome-row) + clamp(0px, calc((var(--container-cq-16) + var(--dimension-device-pixel) - 100dvw) * 1000), max(var(--dimension-chrome-row) / 2, var(--size-touch-target))))" },

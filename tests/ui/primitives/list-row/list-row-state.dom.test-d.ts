@@ -1,5 +1,5 @@
 // D336: ListRow state is the attribute, never a boolean prop that restates it, and `density` left with its last caller.
-import type { ListRowProps } from "@orb/ui/list-row";
+import type { ListRowExpand, ListRowProps } from "@orb/ui/list-row";
 import { ListRow } from "@orb/ui/list-row";
 import { createElement } from "react";
 import { expectTypeOf, test } from "vitest";
@@ -21,4 +21,16 @@ test("ListRow takes its state as the attributes and refuses the booleans that re
   expectTypeOf<ListRowProps["data-selected"]>().toEqualTypeOf<"" | undefined>();
   expectTypeOf<ListRowProps["data-disabled"]>().toEqualTypeOf<"" | undefined>();
   expectTypeOf<ListRowProps["aria-expanded"]>().toEqualTypeOf<boolean | undefined>();
+});
+
+test("a disclosure row's body is its trigger, never also a button row", () => {
+  const expand = { open: false, onOpenChange: (): void => undefined, panel: null };
+  createElement(ListRow, { title: "x", expand });
+  // @ts-expect-error the trigger owns the press
+  createElement(ListRow, { title: "x", expand, clickable: true });
+  // @ts-expect-error the trigger states its own expanded state
+  createElement(ListRow, { title: "x", expand, "aria-expanded": true });
+  // @ts-expect-error the trigger owns the press
+  createElement(ListRow, { title: "x", expand, onClick: (): void => undefined });
+  expectTypeOf<ListRowProps["expand"]>().toEqualTypeOf<ListRowExpand | undefined>();
 });

@@ -354,7 +354,7 @@ function BudgetBar({
           meaning here: the struck name and the struck, zeroed cost. F-26's ruling holds — the off row stays
           IN the budget list; what it loses is a meter that was saying nothing about it. */}
       {off ? (
-        <Row className="min-inline-0" grow={true} />
+        <Row minWidth="shrinks" grow={true} />
       ) : (
         <TrackBar accent={accent} grow={true} className="min-inline-0" max={max} value={drawnTokens(tokens ?? 0, max)} />
       )}

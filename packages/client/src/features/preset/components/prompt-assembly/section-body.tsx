@@ -170,7 +170,7 @@ function CarrierBody({
       <Card variant="soft">
         <Row align="start" gap="row">
           <Icon icon={Info} size="sm" />
-          <Stack className="min-inline-0" gap="tight">
+          <Stack minWidth="shrinks" gap="tight">
             <Text voice="label">{attribution.sentence}</Text>
             {manage === undefined ? null : (
               <Button self="start" variant="ghost" onClick={(): void => openConfigTo(manage.collection)} size="sm" type="button">

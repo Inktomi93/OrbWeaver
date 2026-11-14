@@ -381,7 +381,7 @@ function StartFromThemeField({ onPick }: { readonly onPick: (theme: Theme) => vo
       <MenuPopup>
         {rows.map((theme) => (
           <MenuItem key={theme.id} onClick={(): void => onPick(theme)}>
-            <Row align="center" gap="field" className="min-inline-0">
+            <Row align="center" gap="field" minWidth="shrinks">
               <ThemeSwatchStrip tokens={theme.override} />
               <Text ink="inherit" as="span" truncate={true}>
                 {theme.name}

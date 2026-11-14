@@ -199,7 +199,7 @@ export function TagFilterChip({
   return (
     // iOS WebKit fires no `contextmenu` on long-press, so touch gets a visible edit button beside the chip.
     // Fine pointers keep right-click and F2 and the rail's resting width.
-    <Row className="min-inline-0" cap="fit" gap="tight">
+    <Row minWidth="shrinks" cap="fit" gap="tight">
       <TagFilterChipButton onCycle={onCycle} presentation={presentation} state={state} tabIndex={tabIndex} tag={tag} />
       <Text as="span" hiddenAt="fine">
         <EditableTagChip iconOnly={true} tag={tag} />
@@ -239,7 +239,7 @@ function TagFilterChipButton({
           }}
           aria-label={characterTagFilterName(tag.name, presentation.announced, presentation.next)}
           cap="fit"
-          className="min-inline-0"
+          minWidth="shrinks"
           data-tag-filter-state={state}
           variant="outline"
           onClick={(): void => onCycle(tag.id)}

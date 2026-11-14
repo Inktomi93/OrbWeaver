@@ -125,7 +125,7 @@ export function PluginSurfaceShell({
           <Row align="center" gap="field">
             <CollapsibleTrigger aria-label={regionName} grow={true} className="min-inline-0" ref={disclosureRef}>
               <Icon icon={Blocks} size="sm" />
-              <Stack className="min-inline-0" textAlign="start" grow={true} gap="tight">
+              <Stack minWidth="shrinks" textAlign="start" grow={true} gap="tight">
                 {/* The name is the attribution wall: it wraps rather than clip behind the panel's controls. */}
                 <Text voice="label" wrap="word">
                   {pluginName}

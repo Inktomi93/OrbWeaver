@@ -183,7 +183,7 @@ function SuggestionCharacter({ suggestion, groupName }: { readonly suggestion: T
     <Row align="center" wrap={true} gap="field">
       {/* `wrap`: a long character name wraps inside its cell instead of pushing the verbs off the pane. */}
       <Button
-        className="min-inline-0"
+        minWidth="shrinks"
         justify="start"
         variant="ghost"
         size="sm"

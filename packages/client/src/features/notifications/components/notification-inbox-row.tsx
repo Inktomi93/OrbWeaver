@@ -225,7 +225,7 @@ export function InboxRow({ item, ref, onAccepted, onRequestHandoff, acceptedHand
             <IndicatorDot tone="primary" variant="solid" aria-hidden={true} />
           </Row>
         ) : null}
-        <Stack gap="tight" className="min-inline-0">
+        <Stack gap="tight" minWidth="shrinks">
           <Text as="span" voice={item.readAt === null || item.actionable ? "label" : "gloss"} prose={true} wrap="anywhere">
             {rowCopy(item.payload, disabledPluginName)}
           </Text>

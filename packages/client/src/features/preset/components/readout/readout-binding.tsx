@@ -37,7 +37,7 @@ export function ReadoutBindingChip({ binding }: { readonly binding: ReadoutBindi
   return (
     <Card tone="info" variant="soft">
       <Row align="center" gap="field" justify="between">
-        <Row align="baseline" className="min-inline-0" gap="field">
+        <Row align="baseline" minWidth="shrinks" gap="field">
           <Text voice="gloss">inspecting against:</Text>
           <Text voice="label" wrap="word">
             {binding.chatTitle}

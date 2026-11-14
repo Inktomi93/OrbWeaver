@@ -49,6 +49,18 @@ type TextProse = HeadingProse | { prose: boolean; as: "span" };
 
 export type TextProps = TextProse & TextOwnProps & ToneInkSelection & TextCue & TextCap & TextPaint;
 
+// A paragraph with no measure runs the whole row, so a `p` takes the prose measure unless the caller bounds it another way: a named cap or
+// width, a run that grows into the rest of a line, a truncated line, or a centre or end alignment, where a capped box would sit off the
+// axis its text is aligned to.
+function paragraphCap(as: TextElement, run: Pick<TextAxes, "cap" | "width" | "grow" | "truncate" | "textAlign">): TextAxes["cap"] {
+  if (run.cap !== undefined || as !== "p") {
+    return run.cap;
+  }
+  const bounded = run.width !== undefined || run.grow !== undefined || (run.truncate !== undefined && run.truncate !== false);
+  const offStart = run.textAlign === "center" || run.textAlign === "end";
+  return bounded || offStart ? undefined : "prose";
+}
+
 /**
  * Token-driven typographic scale over the body intrinsics (p/span/div) — there is no Base UI text primitive.
  *
@@ -136,7 +148,7 @@ export function Text({
           scroll,
           maxHeight,
           passThrough,
-          cap,
+          cap: paragraphCap(as, { cap, width, grow, truncate, textAlign }),
           width,
           textAlign,
           inset,

@@ -269,11 +269,11 @@ function PickerRow({
           fact is now a NAMED badge (below) and the identity cluster goes visibly inert on the one
           combination where the row is claimed and still dead. Only the identity dims — the switch keeps
           full weight, because it is still live and it is the control that got you here. */}
-      <Row align="center" className="min-inline-0" receded={attached && !script.enabled} gap="field">
+      <Row align="center" minWidth="shrinks" receded={attached && !script.enabled} gap="field">
         {reserveGrip ? <Row aria-hidden={true} className="shrink-0" width="control" height="control" /> : null}
         <RankCell position={position} reserve={reserveRank} />
-        <Stack gap="tight" className="min-inline-0">
-          <Row align="center" className="min-inline-0" gap="field">
+        <Stack gap="tight" minWidth="shrinks">
+          <Row align="center" minWidth="shrinks" gap="field">
             <Text truncate={true}>{name}</Text>
             {/* IT NAMES ITS OWN SUBJECT. "off" said which of the row's two switches it meant only to
                 someone who already knew; this says the whole fact — the script is disabled in the LIBRARY,

@@ -56,7 +56,7 @@ export function RuleFireLog({ ruleId, caps }: RuleFireLogProps): ReactElement {
         return (
           <Stack key={fire.id} gap="tight">
             <Row gap="block" align="center" justify="between">
-              <Row className="min-inline-0" gap="block" align="center">
+              <Row minWidth="shrinks" gap="block" align="center">
                 <Badge tone={view.tone} size="sm">
                   {view.label}
                 </Badge>
