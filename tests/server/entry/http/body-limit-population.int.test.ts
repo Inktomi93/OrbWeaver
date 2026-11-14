@@ -1,6 +1,7 @@
 // @subject packages/server/src/entry/http/app.ts
 import type { AuthMode } from "@orb/contracts/identity";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, AUTH_MODES } from "@orb/contracts/identity";
+import { IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
@@ -67,12 +68,16 @@ for (const mode of AUTH_MODES) {
 }
 
 for (const framing of ["declared", "streamed"] as const) {
-  test(`every mounted buffered common intake refuses ${framing} oversized bytes before its tail`, async () => {
-    await using root = await createServerHarness({
-      env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
-      physicalPeer: () => "127.0.0.1",
-    });
-    for (const route of COMMON) {
+  // One case per route: a streamed refusal reads the route's whole cap first, and one case over every route
+  // spent its budget on byte volume alone. The body limit buffers what it reads, so a streamed refusal at the
+  // import-tree cap allocates and copies a gibibyte and measured past half the default budget on two cores.
+  for (const route of COMMON) {
+    const tags = framing === "streamed" && route.bytes > IMPORT_TREE_MAX_TOTAL_BYTES ? (["slow"] as const) : [];
+    test(`the mounted buffered intake ${route.path} refuses ${framing} oversized bytes before its tail`, { tags }, async () => {
+      await using root = await createServerHarness({
+        env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
+        physicalPeer: () => "127.0.0.1",
+      });
       using input = observedBody(framing === "declared" ? 0 : route.bytes);
       const headers = new Headers(CSRF_HEADERS);
       headers.set("content-type", route.path.includes("frame") || route === DEBUG_ROUTE ? "application/json" : "multipart/form-data; boundary=orb-cap");
@@ -87,8 +92,8 @@ for (const framing of ["declared", "streamed"] as const) {
       expect(input.snapshot().bytes, route.path).toBeGreaterThanOrEqual(framing === "declared" ? 0 : minimum);
       expect(input.snapshot().bytes, route.path).toBeLessThanOrEqual(framing === "declared" ? 0 : route.bytes);
       expect(input.snapshot().pulls, route.path).toBe(Math.ceil(input.snapshot().bytes / REQUEST_CHUNK_BYTES));
-    }
-  });
+    });
+  }
 
   test(`local helper-transitive JSON and password routes refuse ${framing} oversized bytes`, async () => {
     await using root = await createServerHarness({ env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } });
