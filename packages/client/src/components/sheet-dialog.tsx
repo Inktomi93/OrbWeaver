@@ -15,6 +15,8 @@ export interface SheetDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (nextOpen: boolean) => void;
   readonly title: ReactNode;
+  /** The title's id, for a body that names itself by the title (a commit modal's form). */
+  readonly titleId?: string;
   /** Themed portal target; Base UI portals the sheet here so it inherits the active theme's tokens. */
   readonly container?: DrawerPopupProps["container"];
   /** Where focus goes on close; `false` leaves it where it is. */
@@ -30,14 +32,14 @@ export interface SheetDialogProps {
  * `interactive-widget=resizes-content` is inert there. A body that pins an input to the sheet's foot reads
  * `var(--drawer-keyboard-inset, 0px)`, always with the `0px` fallback: the provider sets it only while the keyboard is aligned.
  */
-export function SheetDialog({ open, onOpenChange, title, container, finalFocus, modal, children }: SheetDialogProps): ReactElement {
+export function SheetDialog({ open, onOpenChange, title, titleId, container, finalFocus, modal, children }: SheetDialogProps): ReactElement {
   return (
     <Drawer open={open} onOpenChange={onOpenChange} {...(modal === undefined ? {} : { modal })}>
       <DrawerVirtualKeyboardProvider>
         <DrawerPopup {...(container === undefined ? {} : { container })} {...(finalFocus === undefined ? {} : { finalFocus })}>
           {/* sticky so the title and Close stay in view as the popup's own scroll region scrolls. */}
           <DialogHeader sticky={true}>
-            <DrawerTitle>{title}</DrawerTitle>
+            <DrawerTitle {...(titleId === undefined ? {} : { id: titleId })}>{title}</DrawerTitle>
             <DrawerClose
               render={
                 <Button variant="ghost" square={true} aria-label={DIALOG_VERBS.close}>

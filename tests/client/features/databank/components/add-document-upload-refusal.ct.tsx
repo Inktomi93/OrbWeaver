@@ -1,7 +1,7 @@
 // A refused document upload is said in the upload zone's own alert line, in the copy module's sentence for the refusal's code, and
 // the server's wording never reaches the person. Focus returns to the File control so the line is read and in view, one refusal
 // shows at a time (the newest), and the dialog stays usable: the same drop can be retried and the other modes stay open.
-// @subject packages/client/src/features/databank/components/add-document-body.tsx
+// @subject packages/client/src/features/databank/hooks/use-add-document-commit.tsx
 import type { DocumentUploadRefusal } from "@orb/contracts/databank";
 import { EXTRACTION_OP_CODES, ExtractionFailedError, ExtractionTooLargeError } from "@orb/contracts/extraction";
 import { DATABANK_UPLOAD_ROUTE } from "@orb/contracts/uploads";

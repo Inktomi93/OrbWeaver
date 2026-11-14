@@ -1,7 +1,6 @@
-import { imagineModal } from "@orb/client/features/imagery";
 import type { ImagineSeed } from "@orb/client/state";
 import { openImagine } from "@orb/client/state";
-import { CtClientProviders } from "@orb/testkit/browser";
+import { CtClientProviders, CtModalCommit } from "@orb/testkit/browser";
 import type { ReactElement } from "react";
 import { useState } from "react";
 
@@ -10,14 +9,10 @@ function SeededImagine({ seed }: { readonly seed: ImagineSeed }): ReactElement {
     openImagine(seed);
     return true;
   });
-  const { body } = imagineModal;
-  if (typeof body !== "function") {
-    throw new Error("The imagine modal must have a built body");
-  }
-  return body();
+  return <CtModalCommit modalId="imagine" />;
 }
 
-/** The real modal body opened on a slash-command seed. */
+/** The real modal commit opened on a slash-command seed. */
 export function ImagineOptionsStory({ seed }: { readonly seed: ImagineSeed }): ReactElement {
   return (
     <CtClientProviders>

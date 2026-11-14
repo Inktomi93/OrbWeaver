@@ -41,7 +41,9 @@ function copyDefects(list: readonly CopySection[]): string[] {
 
 /** The planned-reason defect of one modal body, if any. */
 function bodyDefect(modal: ModalDefinition): string | undefined {
-  return typeof modal.body === "function" || modal.body.planned.trim().length > 0 ? undefined : `empty planned reason: ${modal.id}`;
+  return typeof modal.body === "function" || "useCommit" in modal.body || modal.body.planned.trim().length > 0
+    ? undefined
+    : `empty planned reason: ${modal.id}`;
 }
 
 /** One finding per modal-registry dishonesty: a repeated id, two mobile-tab doors, an empty planned reason. */

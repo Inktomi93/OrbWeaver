@@ -1,6 +1,7 @@
 // The explicit-commit dialog family: a dialog that commits owns one footer, Cancel and a required submit, so a form with no way
 // out or no commit fails to compile. Cancel abandons pre-submit input, never a submitted write. A dialog with nothing to commit
-// is a `DismissDialog`; `RequiredFormDialog` is the one forced ask, which D330 rules.
+// is a `DismissDialog`; `RequiredFormDialog` is the one forced ask, which D330 rules. A registry modal that commits
+// takes the same form and footer from `ModalHost`, through `CommitForm` and `CommitFooter`.
 
 import { Button } from "@orb/ui/button";
 import type { DialogPopupProps } from "@orb/ui/dialog";
@@ -9,25 +10,12 @@ import { Icon, X } from "@orb/ui/icons";
 import { Corner, DialogBody, Stack } from "@orb/ui/layout";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { useId, useRef, useState } from "react";
+import type { DialogSubmit, NonEmptyLabel } from "#lib";
 import { DIALOG_VERBS, testId } from "#lib";
 import { CommitRow } from "./commit-row.tsx";
-import type { NonEmptyLabel } from "./non-empty-label.ts";
 
 /** A registered test-id key (the registry is the API — never a new literal). */
 type TestKey = Parameters<typeof testId>[0];
-
-interface FormDialogSubmit<L extends string = string> {
-  /** The submit button's label (e.g. "Apply" / "Create" / "Save"). */
-  readonly label: NonEmptyLabel<L>;
-  /** Fires on the button and on Enter; the caller closes the dialog itself. Never fires while `disabled` or `loading`. */
-  readonly onSubmit: () => void;
-  /** Disables the submit button (e.g. an empty required field or a pending mutation). @defaultValue false */
-  readonly disabled?: boolean;
-  /** Shows the submit button's busy state. @defaultValue false */
-  readonly loading?: boolean;
-  /** A registered test-id key for the submit button. */
-  readonly testKey?: TestKey;
-}
 
 export interface FormDialogRootProps {
   readonly open: boolean;
@@ -62,7 +50,7 @@ interface DialogFrameProps {
 }
 
 export interface FormDialogPopupProps<L extends string = string> extends DialogFrameProps {
-  readonly submit: FormDialogSubmit<L>;
+  readonly submit: DialogSubmit<L>;
   /** Controls that act on the form without committing it, led into the footer before Cancel. */
   readonly footerLead?: ReactNode;
 }
@@ -154,7 +142,7 @@ function DialogFrame({
   );
 }
 
-function SubmitButton<L extends string>({ submit, formId }: { readonly submit: FormDialogSubmit<L>; readonly formId: string }): ReactElement {
+function SubmitButton<L extends string>({ submit, formId }: { readonly submit: DialogSubmit<L>; readonly formId: string }): ReactElement {
   return (
     <Button
       {...(submit.testKey === undefined ? {} : { "data-testid": testId(submit.testKey) })}
@@ -175,16 +163,31 @@ export function FormDialogPopup<L extends string>({ submit, footerLead, children
   const titleId = useId();
   return (
     <DialogFrame {...frame} titleId={titleId}>
-      <PromptBody formId={formId} submit={submit} titleId={titleId}>
+      <CommitForm formId={formId} submit={submit} titleId={titleId}>
         {children}
-      </PromptBody>
-      <DialogFooter>
-        {footerLead}
-        <CommitRow surface="dialog">
-          <SubmitButton formId={formId} submit={submit} />
-        </CommitRow>
-      </DialogFooter>
+      </CommitForm>
+      <CommitFooter formId={formId} footerLead={footerLead} submit={submit} />
     </DialogFrame>
+  );
+}
+
+/** A commit dialog's footer: the lead controls, then Cancel and the submit that names the dialog's form. */
+export function CommitFooter<L extends string>({
+  formId,
+  submit,
+  footerLead,
+}: {
+  readonly formId: string;
+  readonly submit: DialogSubmit<L>;
+  readonly footerLead?: ReactNode;
+}): ReactElement {
+  return (
+    <DialogFooter>
+      {footerLead}
+      <CommitRow surface="dialog">
+        <SubmitButton formId={formId} submit={submit} />
+      </CommitRow>
+    </DialogFooter>
   );
 }
 
@@ -228,9 +231,9 @@ export function RequiredFormDialog<L extends string>({ submit, children, ...fram
   return (
     <Dialog open={true}>
       <DialogFrame {...frame} titleId={titleId}>
-        <PromptBody formId={formId} submit={submit} titleId={titleId}>
+        <CommitForm formId={formId} submit={submit} titleId={titleId}>
           {children}
-        </PromptBody>
+        </CommitForm>
         <DialogFooter>
           <SubmitButton formId={formId} submit={submit} />
         </DialogFooter>
@@ -247,14 +250,15 @@ export function RequiredFormDialog<L extends string>({ submit, children, ...fram
  *  names it through the `form` attribute — which still makes it the form's default button for Enter.
  *  `noValidate` because the confirm's own `disabled` is this composite's validity model — a native bubble
  *  would speak a second, uncoordinated one. */
-function PromptBody<L extends string>({
+export function CommitForm<L extends string>({
   formId,
   submit,
   titleId,
   children,
 }: {
   readonly formId: string;
-  readonly submit: FormDialogSubmit<L>;
+  readonly submit: DialogSubmit<L>;
+  /** The dialog title's id, which names the form. */
   readonly titleId: string;
   readonly children: ReactNode;
 }): ReactElement {

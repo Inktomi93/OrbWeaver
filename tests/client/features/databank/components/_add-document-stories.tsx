@@ -1,23 +1,11 @@
-import { DismissDialog } from "@orb/client/components";
-import { useModalRegistry } from "@orb/client/state";
-import { CtClientProviders } from "@orb/testkit/browser";
-import type { ReactElement, ReactNode } from "react";
+import { CtClientProviders, CtModalCommit } from "@orb/testkit/browser";
+import type { ReactElement } from "react";
 
-function AddDocumentModalBody(): ReactNode {
-  const definition = useModalRegistry().get("addDocument");
-  if (typeof definition.body !== "function") {
-    throw new Error("Add document has no modal body");
-  }
-  return definition.body();
-}
-
-/** The registered Add-document modal body inside the dialog frame the shell's ModalHost gives it. */
+/** The registered Add-document commit in the commit dialog that draws its form and footer as the shell's ModalHost does. */
 export function AddDocumentStory(): ReactElement {
   return (
     <CtClientProviders>
-      <DismissDialog closeButton={true} onOpenChange={(): void => undefined} open={true} title="Add a document">
-        <AddDocumentModalBody />
-      </DismissDialog>
+      <CtModalCommit modalId="addDocument" />
     </CtClientProviders>
   );
 }

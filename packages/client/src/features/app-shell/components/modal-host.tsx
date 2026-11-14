@@ -1,13 +1,14 @@
 // ModalHost — the shell's one modal seam. Reads the open modal id from the shell store and renders the
 // registry-owned body inside a single @orb/ui <Dialog>, or — for a `presentation: "drawer"` def — a
-// bottom <Drawer> sheet. A DECLARED-PLANNED modal (`body: { planned }`) renders its title as a
+// bottom <Drawer> sheet. A commit modal (`body: { useCommit }`) gets the commit dialogs' form and footer from
+// the host in both presentations. A DECLARED-PLANNED modal (`body: { planned }`) renders its title as a
 // placeholder. Controlled by the store: closing calls `closeModal`.
 
 import type { DialogPopupProps } from "@orb/ui/dialog";
 import type { ReactElement, ReactNode, RefObject } from "react";
-import { useEffect, useRef, useState } from "react";
-import { FlowDialog, SheetDialog } from "#components";
-import type { ModalDefinition, ModalSlotId } from "#state";
+import { useEffect, useId, useRef, useState } from "react";
+import { CommitFooter, CommitForm, FlowDialog, SheetDialog } from "#components";
+import type { ModalCommit, ModalDefinition, ModalSlotId } from "#state";
 import { useModalRegistry } from "#state";
 import { SectionPlaceholder } from "./section-placeholder.tsx";
 
@@ -43,18 +44,40 @@ function focusBodyInPlace(target: HTMLElement | null): boolean {
   return false;
 }
 
-/** The def's body — a real render, or the DECLARED-PLANNED placeholder (mirror the section content-none). */
-function modalBody(def: ModalDefinition): ReactNode {
-  return typeof def.body === "function" ? def.body() : <SectionPlaceholder title={def.title} description={def.body.planned} weave={true} />;
+/** The def's body — a real render, a commit the host draws the footer for, or the DECLARED-PLANNED placeholder (mirror
+ *  the section content-none). A commit's hook runs in a component keyed by the modal id, so a modal that replaces another
+ *  in the open slot never calls a different hook list in the same component. */
+function modalBody(def: ModalDefinition, titleId: string): ReactNode {
+  if (typeof def.body === "function") {
+    return def.body();
+  }
+  if ("useCommit" in def.body) {
+    return <CommitBody key={def.id} titleId={titleId} useCommit={def.body.useCommit} />;
+  }
+  return <SectionPlaceholder title={def.title} description={def.body.planned} weave={true} />;
+}
+
+function CommitBody({ titleId, useCommit }: { readonly titleId: string; readonly useCommit: () => ModalCommit }): ReactElement {
+  const { content, submit, footerLead } = useCommit();
+  const formId = useId();
+  return (
+    <>
+      <CommitForm formId={formId} submit={submit} titleId={titleId}>
+        {content}
+      </CommitForm>
+      <CommitFooter formId={formId} footerLead={footerLead} submit={submit} />
+    </>
+  );
 }
 
 export function ModalHost({ openModal, container, onClose }: ModalHostProps): ReactElement | null {
   const registry = useModalRegistry();
+  const titleId = useId();
   if (openModal === null) {
     return null;
   }
   const def = registry.get(openModal);
-  const body = modalBody(def);
+  const body = modalBody(def, titleId);
   const onOpenChange = (nextOpen: boolean): void => {
     if (!nextOpen) {
       def.onClose?.();
@@ -63,7 +86,7 @@ export function ModalHost({ openModal, container, onClose }: ModalHostProps): Re
   };
 
   if (def.presentation === "drawer") {
-    return <DrawerModal key={openModal} body={body} container={container} def={def} onOpenChange={onOpenChange} />;
+    return <DrawerModal key={openModal} body={body} container={container} def={def} onOpenChange={onOpenChange} titleId={titleId} />;
   }
 
   // THIS LOOKUP IS NOT AN ESCAPE PATH (owner ruling 2026-09-06, #1789) — same intrinsic-door class as
@@ -71,7 +94,7 @@ export function ModalHost({ openModal, container, onClose }: ModalHostProps): Re
   // reads its own target the only place that target is declared, rather than re-filing it as a
   // parallel id.
   const mobileSheetModalId = registry.list().find((modal) => modal.trigger.placement === "mobile-tab")?.id;
-  return <DialogModal body={body} container={container} def={def} mobileSheetModalId={mobileSheetModalId} onOpenChange={onOpenChange} />;
+  return <DialogModal body={body} container={container} def={def} mobileSheetModalId={mobileSheetModalId} onOpenChange={onOpenChange} titleId={titleId} />;
 }
 
 interface DrawerModalProps {
@@ -79,9 +102,10 @@ interface DrawerModalProps {
   readonly container?: DialogPopupProps["container"];
   readonly def: ModalDefinition;
   readonly onOpenChange: (nextOpen: boolean) => void;
+  readonly titleId: string;
 }
 
-function DrawerModal({ body, container, def, onOpenChange }: DrawerModalProps): ReactElement {
+function DrawerModal({ body, container, def, onOpenChange, titleId }: DrawerModalProps): ReactElement {
   // Base UI asks the old popup for finalFocus after a replacement Dialog has mounted. Only a close
   // initiated by this Drawer should restore its captured trigger; replacing the shared modal slot never
   // sends this Drawer an onOpenChange(false), so its queued cleanup must leave the Dialog's initialFocus.
@@ -95,7 +119,15 @@ function DrawerModal({ body, container, def, onOpenChange }: DrawerModalProps): 
   // A modal body is arbitrary (the settings panes are full of form fields), so the phone's modal presentation is the sheet composite,
   // which carries the keyboard-aware wrap.
   return (
-    <SheetDialog open={true} onOpenChange={onDrawerOpenChange} modal="trap-focus" title={def.title} container={container} finalFocus={resolveDrawerFinalFocus}>
+    <SheetDialog
+      open={true}
+      onOpenChange={onDrawerOpenChange}
+      modal="trap-focus"
+      title={def.title}
+      titleId={titleId}
+      container={container}
+      finalFocus={resolveDrawerFinalFocus}
+    >
       {body}
     </SheetDialog>
   );
@@ -126,12 +158,14 @@ function DialogModal({
   def,
   mobileSheetModalId,
   onOpenChange,
+  titleId,
 }: {
   readonly body: ReactNode;
   readonly container: DialogPopupProps["container"];
   readonly def: ModalDefinition;
   readonly mobileSheetModalId: ModalSlotId | undefined;
   readonly onOpenChange: (nextOpen: boolean) => void;
+  readonly titleId: string;
 }): ReactElement {
   const [focusReturn] = useState(() => {
     const focused = document.activeElement;
@@ -162,6 +196,7 @@ function DialogModal({
       open={true}
       onOpenChange={onOpenChange}
       size={def.size}
+      titleProps={{ id: titleId }}
       popupProps={{ container, finalFocus: resolveFinalFocus, initialFocus: (): boolean => focusBodyInPlace(bodyRef.current) }}
       bodyFocusTarget={true}
       bodyProps={{ ref: bodyRef, tabIndex: -1 }}

@@ -19,8 +19,8 @@ import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
+import type { NonEmptyLabel } from "#lib";
 import { DIALOG_VERBS, notify } from "#lib";
-import type { NonEmptyLabel } from "./non-empty-label.ts";
 
 /** A confirm's close target. A ref lands on that element's first tabbable control. A function runs at close
  *  and returns `false` once it has placed focus itself, which is how a programmatic stop (tabindex -1) with

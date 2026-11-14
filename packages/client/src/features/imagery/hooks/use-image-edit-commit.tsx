@@ -1,30 +1,32 @@
-// The `imageEdit` modal body — img2img over an OWNED asset. The source
-// image, an instruction, and Generate → `imagery.editImage` (which does NOT post to chat — that stays
+// The `imageEdit` modal's COMMIT — img2img over an OWNED asset. The source
+// image, an instruction, and Generate edit (the submit ModalHost draws) → `imagery.editImage` (which does NOT post to chat — that stays
 // `generateImage`). On success the edited image is a fresh owned asset with its own provenance (edited:true),
 // so the modal HANDS OFF to the detail lightbox on that new asset — the loop closes: the host previews the
 // edit, reads its provenance, sets it as the background, or edits again, all through the ONE detail surface.
 // The model's soft `image_edit_dropped` warning (its connection can't img2img, so it re-generated instead) is
 // surfaced, never swallowed; a hard capability refusal throws and rides the mutation's errorToast.
+//
+// THE INSTRUCTION BELONGS TO ONE SUBJECT: a new subject replaces it during render, and an absent subject (the close
+// clears it first) renders the rest line with the submit off.
 
 import type { AssetBlobRef } from "@orb/contracts/assets";
 import { blobUrl } from "@orb/contracts/assets";
 import type { AssetId, ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { ArrowLeft, Icon, WandSparkles } from "@orb/ui/icons";
-import { Row, Section, Stack } from "@orb/ui/layout";
+import { ArrowLeft, Icon } from "@orb/ui/icons";
+import { Section, Stack } from "@orb/ui/layout";
 import { MessageMedia } from "@orb/ui/message-media";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import { useToastManager } from "@orb/ui/toast";
 import { useQueryClient } from "@tanstack/react-query";
-import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { useFocusOnSwap } from "#lib";
-import type { ImageSubject } from "#state";
+import type { ImageSubject, ModalCommit } from "#state";
 import { openImageDetail, useEditSubject } from "#state";
-import { useEditImage } from "../hooks/use-imagery-mutations.ts";
-import { IMAGE_EDIT_EMPTY_TEXT, IMAGE_EDIT_INSTRUCTION_NAME } from "../lib/imagine-names.ts";
+import { IMAGE_EDIT_BACK_NAME, IMAGE_EDIT_EMPTY_TEXT, IMAGE_EDIT_INSTRUCTION_NAME, imageEditGenerateLabel } from "../lib/imagine-names.ts";
+import { useEditImage } from "./use-imagery-mutations.ts";
 
 const INSTRUCTION_ROWS = 2;
 const INSTRUCTION_MAX_ROWS = 6;
@@ -43,34 +45,25 @@ function editedSubject(ref: AssetBlobRef, assetId: AssetId, chatId: ChatId): Ima
   return { assetId, chatId, url: blobUrl(ref.hash), alt: "Edited image", ...(dims === undefined ? {} : { dims }) };
 }
 
-export function ImageEditBody(): ReactElement {
+export function useImageEditCommit(): ModalCommit {
   const subject = useEditSubject();
-  if (subject === undefined) {
-    return (
-      <Stack gap="block" padding="block">
-        <Text voice="gloss">{IMAGE_EDIT_EMPTY_TEXT}</Text>
-      </Stack>
-    );
-  }
-  return <ImageEdit key={subject.assetId} subject={subject} />;
-}
-
-function ImageEdit({ subject }: { readonly subject: ImageSubject }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const queryClient = useQueryClient();
   const toast = useToastManager();
   const editImage = useEditImage({ trpc, invalidation });
-  const [instruction, setInstruction] = useState("");
+  const [draft, setDraft] = useState({ assetId: subject?.assetId, instruction: "" });
+  if (draft.assetId !== subject?.assetId) {
+    setDraft({ assetId: subject?.assetId, instruction: "" });
+  }
   // The person pressed Edit to say what should change, so the instruction is where they land.
   const instructionRef = useRef<HTMLTextAreaElement>(null);
   useFocusOnSwap(instructionRef);
 
-  const trimmed = instruction.trim();
-  const canEdit = trimmed.length > 0 && !editImage.isPending;
+  const trimmed = draft.instruction.trim();
 
   const runEdit = (): void => {
-    if (!canEdit) {
+    if (subject === undefined || trimmed.length === 0) {
       return;
     }
     void editImage
@@ -112,47 +105,55 @@ function ImageEdit({ subject }: { readonly subject: ImageSubject }): ReactElemen
       .catch(() => undefined);
   };
 
-  return (
-    <Stack gap="block" padding="block">
-      <Section kicker="Source">
-        {/* #654: the subject's stored dims reserve the true box, so the source image is already the right
-            shape when the modal opens rather than snapping into place as it decodes. */}
-        <MessageMedia
-          src={{ kind: "asset", url: subject.url }}
-          media="image"
-          alt={subject.alt}
-          {...(subject.dims === undefined ? {} : { dims: subject.dims })}
-          centred={true}
-        />
-      </Section>
-      <Stack gap="field">
-        <Text as="span" voice="label">
-          How should it change?
-        </Text>
-        <Textarea
-          aria-label={IMAGE_EDIT_INSTRUCTION_NAME}
-          maxRows={INSTRUCTION_MAX_ROWS}
-          ref={instructionRef}
-          onValueChange={(value): void => setInstruction(value)}
-          placeholder="e.g. make it night, add falling snow, turn the coat red…"
-          rows={INSTRUCTION_ROWS}
-          value={instruction}
-        />
-      </Stack>
-      {/* BACK is not decoration — `openImageEdit` clears `detailSubject` (imagery-store), so Escape from here
-          dumps the viewer to the room instead of to the image they were looking at. Re-opening the detail on
-          the SAME subject is the return leg (#623 P2: the detail→edit door used to be one-way). Disabled
-          mid-edit: leaving the surface that owns the in-flight result would strand it. */}
-      <Row wrap={true} gap="field" justify="between">
+  return {
+    submit: {
+      label: imageEditGenerateLabel(editImage.isPending),
+      disabled: subject === undefined || trimmed.length === 0,
+      loading: editImage.isPending,
+      onSubmit: runEdit,
+    },
+    // BACK is not decoration — `openImageEdit` clears `detailSubject` (imagery-store), so Escape from here
+    // dumps the viewer to the room instead of to the image they were looking at. Re-opening the detail on
+    // the SAME subject is the return leg. Disabled mid-edit: leaving the surface that owns the in-flight result
+    // would strand it.
+    footerLead:
+      subject === undefined ? undefined : (
         <Button disabled={editImage.isPending} variant="ghost" onClick={(): void => openImageDetail(subject)} type="button">
           <Icon icon={ArrowLeft} size="sm" />
-          Back to the image
+          {IMAGE_EDIT_BACK_NAME}
         </Button>
-        <Button disabled={!canEdit} onClick={runEdit} type="button">
-          <Icon icon={WandSparkles} size="sm" />
-          {editImage.isPending ? "Editing…" : "Generate edit"}
-        </Button>
-      </Row>
-    </Stack>
-  );
+      ),
+    content:
+      subject === undefined ? (
+        <Text voice="gloss">{IMAGE_EDIT_EMPTY_TEXT}</Text>
+      ) : (
+        <>
+          <Section kicker="Source">
+            {/* The subject's stored dims reserve the true box, so the source image is already the right
+                shape when the modal opens rather than snapping into place as it decodes. */}
+            <MessageMedia
+              src={{ kind: "asset", url: subject.url }}
+              media="image"
+              alt={subject.alt}
+              {...(subject.dims === undefined ? {} : { dims: subject.dims })}
+              centred={true}
+            />
+          </Section>
+          <Stack gap="field">
+            <Text as="span" voice="label">
+              How should it change?
+            </Text>
+            <Textarea
+              aria-label={IMAGE_EDIT_INSTRUCTION_NAME}
+              maxRows={INSTRUCTION_MAX_ROWS}
+              ref={instructionRef}
+              onValueChange={(value): void => setDraft((current) => ({ ...current, instruction: value }))}
+              placeholder="e.g. make it night, add falling snow, turn the coat red…"
+              rows={INSTRUCTION_ROWS}
+              value={draft.instruction}
+            />
+          </Stack>
+        </>
+      ),
+  };
 }

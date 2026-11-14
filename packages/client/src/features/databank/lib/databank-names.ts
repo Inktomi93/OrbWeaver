@@ -48,6 +48,12 @@ export const DATABANK_ATTACH_GROUP_NAME = "Use this document in";
 export const DATABANK_LINK_FIELD_NAME = "Link";
 export const DATABANK_FETCH_ADD_NAME = "Fetch and add";
 
+/** The upload mode's submit, which opens the file picker, by whether an upload is running. */
+export const DATABANK_CHOOSE_FILE_NAME = "Choose a file";
+export function databankChooseFileLabel(uploading: boolean): string {
+  return uploading ? "Uploading…" : DATABANK_CHOOSE_FILE_NAME;
+}
+
 /** The link press's name, by whether the fetch is running. */
 export function databankFetchAddLabel(fetching: boolean): string {
   return fetching ? "Fetching…" : DATABANK_FETCH_ADD_NAME;

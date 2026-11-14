@@ -13,12 +13,12 @@
 
 import { Plus } from "@orb/ui/icons";
 import type { ModalDefinition } from "#state";
-import { AddDocumentBody } from "../components/add-document-body.tsx";
+import { useAddDocumentCommit } from "../hooks/use-add-document-commit.tsx";
 import { DATABANK_ADD_DOCUMENT_TITLE } from "./databank-names.ts";
 
 export const addDocumentModal: ModalDefinition = {
   id: "addDocument",
   title: DATABANK_ADD_DOCUMENT_TITLE,
   trigger: { placement: "surface", label: DATABANK_ADD_DOCUMENT_TITLE, icon: Plus },
-  body: (): ReturnType<typeof AddDocumentBody> => <AddDocumentBody />,
+  body: { useCommit: useAddDocumentCommit },
 };

@@ -7,10 +7,9 @@
 // door, and its members are house chrome. The per-command fan is the SUBJECT the intent store carries.
 
 import { Blocks } from "@orb/ui/icons";
-import type { ReactElement } from "react";
 import type { ModalDefinition } from "#state";
 import { clearPluginCommandArgs } from "#state";
-import { PluginCommandArgsBody } from "../components/plugin-command-args-body.tsx";
+import { usePluginCommandArgsCommit } from "../hooks/use-plugin-command-args-commit.tsx";
 import { PLUGIN_COMMAND_ARGS_TITLE } from "./plugin-command-copy.ts";
 
 export const pluginCommandArgsModal: ModalDefinition = {
@@ -19,5 +18,5 @@ export const pluginCommandArgsModal: ModalDefinition = {
   size: "sm",
   trigger: { placement: "surface", label: "Command arguments", icon: Blocks },
   onClose: clearPluginCommandArgs,
-  body: (): ReactElement => <PluginCommandArgsBody />,
+  body: { useCommit: usePluginCommandArgsCommit },
 };
