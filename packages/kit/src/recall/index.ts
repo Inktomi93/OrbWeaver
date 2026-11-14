@@ -172,7 +172,7 @@ export interface RecallStrike {
 }
 
 /** A covered span in message seqs, first and last inclusive. */
-export interface SeqSpan {
+interface SeqSpan {
   readonly seqStart: number;
   readonly seqEnd: number;
 }

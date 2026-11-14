@@ -14,7 +14,7 @@ const CONTENT_HASH_PATTERN = /^[0-9a-f]{64}$/u;
 
 /** One remembered item as the view and the strike verb name it: the digest's grid position, its bucket and the
  *  hash it held when read. */
-export const memoryItemKeySchema = z.strictObject({
+const memoryItemKeySchema = z.strictObject({
   tier: z.int().min(0),
   blockIdx: z.int().min(0),
   scopedCharacterId: typeIdSchema(ID_PREFIX.character),
@@ -31,7 +31,7 @@ export const restoreMemoryInputSchema = z.strictObject({ strikeId: typeIdSchema(
 export type RestoreMemoryInput = z.infer<typeof restoreMemoryInputSchema>;
 
 /** Why a room's memory is off: the app-wide retrieval mode, or the room host's own switch (D293). */
-export const MEMORY_VIEW_OFF_REASONS = ["app-off", "host-off"] as const;
+const MEMORY_VIEW_OFF_REASONS = ["app-off", "host-off"] as const;
 export type MemoryViewOffReason = (typeof MEMORY_VIEW_OFF_REASONS)[number];
 
 /** What the view can say about the room before it lists anything. `too-short` is a chat with no complete block
@@ -44,7 +44,9 @@ export type MemoryViewStatus =
   | { readonly kind: "before-your-history" }
   | { readonly kind: "ready" };
 
-/** The strike on a listed item. `changedSinceStrike` says the scene was summarized again after the strike.
+/** The strike on a listed item. `changedSinceStrike` says the summary shown is not the one the host struck: the
+ *  scene was summarized again, or the entry carrying the strike is another copy (the struck copy's character was
+ *  deleted, or its summary is gone and a longer summary retelling the scene carries it).
  *  `strikeId` is null for a caller who is not the host: only the host restores, so only the host gets the id. */
 export interface MemoryItemStrikeView {
   readonly strikeId: ChatMemoryStrikeId | null;

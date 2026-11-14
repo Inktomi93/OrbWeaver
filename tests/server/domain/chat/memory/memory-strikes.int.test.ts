@@ -195,7 +195,7 @@ test("a longer summary over a struck scene stays out after the scene's own summa
   await redigest(w);
   const after = await w.h.caller.chat.memoryView({ chatId: w.h.chatId });
   // The premise: the scene's own summary is gone and the longer one built from it is still stored.
-  expect(after.items.some((item) => item.key.tier === 0 && item.key.blockIdx === blockOf("storm"))).toBe(false);
+  expect(nonEmpty([...after.items]).some((item) => item.key.tier === 0 && item.key.blockIdx === blockOf("storm"))).toBe(false);
   expect(itemAt(after, 1, arc.key.blockIdx).text).toBe(arc.text);
   const run = await recallTurn(w.h, BOTH);
   expect(run.prompt).not.toContain(STORM_ARC);
@@ -439,9 +439,10 @@ test("a former host deleting the card a strike was made on leaves the strike sta
   const deleted = h.root.app.recallRecorder.recent({ chatId: h.chatId }).at(-1)?.seq ?? 0;
   await riderTurn();
   expect(nonEmpty([...stormVerdicts(h, deleted)]).every((verdict) => verdict === "struck")).toBe(true);
+  // With the struck copy's character gone, the shared copy carries the strike, and says it is not the summary struck.
   const view = await h.root.services.chat.memoryView({ principal: member, chatId: h.chatId });
   expect(view.items.filter((item) => item.strike !== null)).toEqual([
-    expect.objectContaining({ bucket: "shared", strike: { strikeId, changedSinceStrike: false } }),
+    expect.objectContaining({ bucket: "shared", strike: { strikeId, changedSinceStrike: true } }),
   ]);
   expect(view.unmatchedStrikes).toEqual([]);
 });
@@ -462,7 +463,7 @@ test("deleting both characters whose copies of a struck scene the host struck su
   }
   const view = await w.h.caller.chat.memoryView({ chatId: w.h.chatId });
   expect(view.items.filter((item) => item.strike !== null)).toEqual([
-    expect.objectContaining({ bucket: "shared", strike: { strikeId, changedSinceStrike: false } }),
+    expect.objectContaining({ bucket: "shared", strike: { strikeId, changedSinceStrike: true } }),
   ]);
   expect(view.unmatchedStrikes).toEqual([]);
 });

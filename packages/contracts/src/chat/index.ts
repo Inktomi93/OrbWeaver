@@ -175,16 +175,12 @@ export type {
   MemoryItemStrikeView,
   MemoryItemView,
   MemoryView,
-  MemoryViewOffReason,
-  MemoryViewStatus,
   RestoreMemoryInput,
   StrikeMemoryInput,
   StrikeMemoryResult,
   UnmatchedStrikeView,
 } from "./memory-view.ts";
 export {
-  MEMORY_VIEW_OFF_REASONS,
-  memoryItemKeySchema,
   memoryOffReason,
   memoryViewSchema,
   memoryViewStatus,

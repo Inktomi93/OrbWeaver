@@ -1,6 +1,6 @@
-// The memory-strike migration: a deleted room takes its strikes with it, a deleted character takes only the strikes
-// scoped to it (never widening one to the shared bucket), each item holds at most one strike per bucket, and a strike
-// whose endpoint message is gone stays stored so the view can list it.
+// The memory-strike migration: a deleted room takes its strikes with it, a deleted character only nulls the record of
+// which copy was struck (the strike stands), a room holds one strike per span whatever copy it was made on, and a
+// strike whose endpoint message is gone stays stored so the view can list it.
 // @subject packages/db/src/schema/chat.ts
 // @subject packages/db/src/migrations/0016_chat-memory-strikes.sql
 import { assertReferentialIntegrity, characters, chatMemoryStrikes, chats, createDb, messages, runMigrations } from "@orb/db";
@@ -13,16 +13,17 @@ import { ownDb, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
 import { seedCharacterRow, seedChatRow, seedMessageRow, seedUser } from "@orb/testkit/node/rows";
 import { asc, eq } from "drizzle-orm";
 
-test("strikes cascade with their room and their scoped character, hold one row per item, and outlive their endpoint message", async () => {
+test("strikes cascade with their room, outlive their character and their endpoint message, and hold one row per span", async () => {
   using opened = ownDb(await createDb(":memory:"));
   const db = opened.db;
   await runMigrations(db, SHIPPED_MIGRATIONS);
   const ids = createIdSource(createSeededIds().next);
   const owner = await seedUser(db, {}, ids);
-  const [kept, scoped] = [await seedCharacterRow(db, { ownerId: owner.id }, ids), await seedCharacterRow(db, { ownerId: owner.id }, ids)];
+  const [keeper, scout] = [await seedCharacterRow(db, { ownerId: owner.id }, ids), await seedCharacterRow(db, { ownerId: owner.id }, ids)];
   const [room, other] = [await seedChatRow(db, {}, ids), await seedChatRow(db, {}, ids)];
   const start = await seedMessageRow(db, { chatId: room.id, seq: 1 }, ids);
-  const end = await seedMessageRow(db, { chatId: room.id, seq: 2 }, ids);
+  const middle = await seedMessageRow(db, { chatId: room.id, seq: 2 }, ids);
+  const end = await seedMessageRow(db, { chatId: room.id, seq: 3 }, ids);
   const otherStart = await seedMessageRow(db, { chatId: other.id, seq: 1 }, ids);
   const strike = (
     chatId: ChatId,
@@ -40,28 +41,31 @@ test("strikes cascade with their room and their scoped character, hold one row p
     topicAnchor: null,
     createdAt: 1000,
   });
-  const shared = strike(room.id, null, [start.id, end.id]);
-  const keptScoped = strike(room.id, kept.id, [start.id, end.id]);
-  const goneScoped = strike(room.id, scoped.id, [start.id, end.id]);
+  const keeperSpan = strike(room.id, keeper.id, [start.id, middle.id]);
+  const scoutSpan = strike(room.id, scout.id, [middle.id, end.id]);
+  const sharedSpan = strike(room.id, null, [start.id, end.id]);
   const otherRoom = strike(other.id, null, [otherStart.id, otherStart.id]);
-  await db.insert(chatMemoryStrikes).values([shared, keptScoped, goneScoped, otherRoom]);
+  await db.insert(chatMemoryStrikes).values([keeperSpan, scoutSpan, sharedSpan, otherRoom]);
 
-  // One strike per item and bucket: the shared bucket's partial index holds even though its character column is null.
-  for (const twin of [strike(room.id, null, [start.id, end.id]), strike(room.id, kept.id, [start.id, end.id])]) {
+  // One strike per span, whatever copy it was made on: a second strike from the shared copy or another character's
+  // copy is refused, and a strike one tier up on the same messages is a different span.
+  for (const twin of [strike(room.id, null, [start.id, middle.id]), strike(room.id, scout.id, [start.id, middle.id])]) {
     await expect(db.insert(chatMemoryStrikes).values(twin)).rejects.toSatisfy((error) => isConstraintViolation(error)?.kind === "unique");
   }
-  await expect(db.insert(chatMemoryStrikes).values(strike(room.id, null, [start.id, end.id], -1))).rejects.toSatisfy(
+  const upTier = strike(room.id, null, [start.id, middle.id], 1);
+  await db.insert(chatMemoryStrikes).values(upTier);
+  await expect(db.insert(chatMemoryStrikes).values(strike(room.id, null, [end.id, end.id], -1))).rejects.toSatisfy(
     (error) => isConstraintViolation(error)?.kind === "check",
   );
 
-  await db.delete(characters).where(eq(characters.id, scoped.id));
+  // Deleting both characters nulls their records and keeps every strike; nulling never collides with the shared one.
+  await db.delete(characters).where(eq(characters.id, keeper.id));
+  await db.delete(characters).where(eq(characters.id, scout.id));
   await db.delete(messages).where(eq(messages.id, end.id));
-  const afterCharacter = await db
-    .select({ id: chatMemoryStrikes.id, scopedCharacterId: chatMemoryStrikes.scopedCharacterId })
-    .from(chatMemoryStrikes)
-    .orderBy(asc(chatMemoryStrikes.id));
-  expect(afterCharacter).toEqual(
-    [shared, keptScoped, otherRoom].map((row) => ({ id: row.id, scopedCharacterId: row.scopedCharacterId })).sort((a, b) => a.id.localeCompare(b.id)),
+  const rows = (): Promise<{ id: string; scopedCharacterId: CharacterId | null }[]> =>
+    db.select({ id: chatMemoryStrikes.id, scopedCharacterId: chatMemoryStrikes.scopedCharacterId }).from(chatMemoryStrikes).orderBy(asc(chatMemoryStrikes.id));
+  expect(await rows()).toEqual(
+    [keeperSpan, scoutSpan, sharedSpan, otherRoom, upTier].map((row) => ({ id: row.id, scopedCharacterId: null })).sort((a, b) => a.id.localeCompare(b.id)),
   );
 
   await db.delete(chats).where(eq(chats.id, room.id));
