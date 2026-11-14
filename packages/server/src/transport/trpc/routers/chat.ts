@@ -29,6 +29,7 @@ import {
   hostTierRegexAllowSchema,
   listMessagesInputSchema,
   memberCardViewSchema,
+  memoryViewSchema,
   messageVariantSummarySchema,
   messageViewSchema,
   messageWindowSchema,
@@ -39,6 +40,7 @@ import {
   reapResultSchema,
   reattributeScopeSchema,
   regexTierKeySchema,
+  restoreMemoryInputSchema,
   roomOverridesSchema,
   roomSendAvailabilitySchema,
   saveCorrectionInputSchema,
@@ -46,6 +48,8 @@ import {
   sendContentBlocksSchema,
   shapeTraceSchema,
   startChatSchema,
+  strikeMemoryInputSchema,
+  strikeMemoryResultSchema,
   TOOL_CALL_EDIT_ACTIONS,
   toolCallIdSchema,
   turnOutcomeSchema,
@@ -448,6 +452,11 @@ const saveCorrectionSchema = saveCorrectionInputSchema.extend({
 });
 
 const listChatInjectionsSchema = z.strictObject({ chatId: typeIdSchema(ID_PREFIX.chat) });
+
+// The story memory view and the host's strike/restore; authority and the floor clamp live inside the verbs.
+const memoryViewInputSchema = z.strictObject({ chatId: typeIdSchema(ID_PREFIX.chat) });
+const strikeMemorySchema = strikeMemoryInputSchema.extend({ chatId: typeIdSchema(ID_PREFIX.chat) });
+const restoreMemorySchema = restoreMemoryInputSchema.extend({ chatId: typeIdSchema(ID_PREFIX.chat) });
 
 const deleteChatInjectionSchema = z.strictObject({
   chatId: typeIdSchema(ID_PREFIX.chat),
@@ -888,6 +897,18 @@ export const chatRouter = t.router({
     .output(z.void())
     .input(deleteChatInjectionSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.deleteChatInjection({ principal: ctx.auth, ...input })),
+  memoryView: authedProcedure
+    .output(memoryViewSchema)
+    .input(memoryViewInputSchema)
+    .query(({ ctx, input }) => ctx.services.chat.memoryView({ principal: ctx.auth, ...input })),
+  strikeMemory: authedProcedure
+    .output(strikeMemoryResultSchema)
+    .input(strikeMemorySchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.strikeMemory({ principal: ctx.auth, ...input })),
+  restoreMemory: authedProcedure
+    .output(z.void())
+    .input(restoreMemorySchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.restoreMemory({ principal: ctx.auth, ...input })),
   // The group-roster-controls cluster (see the schemas' header note above). Thin pass-throughs.
   addCharacterToChat: authedProcedure
     .output(strictTwin(participantViewSchema))

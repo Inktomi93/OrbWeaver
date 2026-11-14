@@ -73,6 +73,7 @@ import type {
 import type { ParticipantRow } from "../contract/participant-row.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireHandoffAcceptance, requireHandoffNominee, requireHost, requireParticipant } from "../guard.ts";
+import { restampMemoryStrikesStatement } from "../memory/persistence/strikes.ts";
 import { carriedBackgroundAvailable, ownedBackgroundAvailable } from "../persistence/background-write.ts";
 import { isRetainedParentFenceViolation, restampChatCharacterStatement, retainedChatFenceStatement } from "../persistence/canon-write.ts";
 import { chatMetadataSetStatement } from "../persistence/chat-metadata-write.ts";
@@ -1226,6 +1227,8 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
       ...plan.seats.map(({ participantId, copy }) => repointCharacterSeatStatement(ctx.db, participantId, copy.characterId)),
       ...plan.cardCopies.map((c) => restampChatCharacterStatement(ctx.db, chatId, c.sourceCharacterId, c.characterId)),
       ...digestRestamp,
+      // A scoped strike follows its character's digests to the nominee's copy, or it would name no item after the swap.
+      ...plan.cardCopies.map((c) => restampMemoryStrikesStatement(ctx.db, chatId, c.sourceCharacterId, c.characterId)),
       ...plan.bookRepoint,
       ...plan.regexRepoint,
       ...droppedSeatIds.map((id) => markParticipantLeftStatement(ctx.db, id, dropSeq)),

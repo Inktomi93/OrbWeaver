@@ -169,6 +169,8 @@ export type { ChatListCursor } from "./listing.ts";
 export { CHAT_LIST_MAX_LIMIT, HOME_RECENT_CHATS_LIMIT } from "./listing.ts";
 export { memberToolCalls, projectViewForMember } from "./member-projection.ts";
 export type {
+  ImportedMemoryStrike,
+  ImportMemoryStrikesOp,
   MemoryItemKey,
   MemoryItemStrikeView,
   MemoryItemView,
@@ -177,9 +179,18 @@ export type {
   MemoryViewStatus,
   RestoreMemoryInput,
   StrikeMemoryInput,
+  StrikeMemoryResult,
   UnmatchedStrikeView,
 } from "./memory-view.ts";
-export { MEMORY_VIEW_OFF_REASONS, memoryItemKeySchema, memoryViewStatus, restoreMemoryInputSchema, strikeMemoryInputSchema } from "./memory-view.ts";
+export {
+  MEMORY_VIEW_OFF_REASONS,
+  memoryItemKeySchema,
+  memoryViewSchema,
+  memoryViewStatus,
+  restoreMemoryInputSchema,
+  strikeMemoryInputSchema,
+  strikeMemoryResultSchema,
+} from "./memory-view.ts";
 export type { HistoryPage, MessageWindow } from "./message-pages.ts";
 export { historyPageSchema, messageWindowSchema } from "./message-pages.ts";
 // `MacroFreeze` (the single occurrence) is NOT re-exported here — kit owns that shape and consumers import it

@@ -61,6 +61,7 @@ import type {
   ChatId,
   ChatInjectionId,
   ChatInviteId,
+  ChatMemoryStrikeId,
   ChatParticipantId,
   ChatTurnId,
   Handle,
@@ -81,7 +82,7 @@ import type { SpeakerArbiter, SpeakerReranker } from "./arbitration.ts";
 import type { ApplyPromptTransformsOp, DelayOp, EmitDurableChatEventOp, EngineContext, RunChatTurnOp } from "./engine-context.ts";
 import type { ChatBehaviorInputs, ResolveForeignInputsOp } from "./foreign.ts";
 import type { ResolveChatUserMacroDefs } from "./macro-readers.ts";
-import type { MemoryLog, MemoryRecallPhaseEmitter, MemoryRecallSink } from "./memory.ts";
+import type { MemoryConfig, MemoryLog, MemoryRecallPhaseEmitter, MemoryRecallSink, ResolveBackfillMemoryConfig } from "./memory.ts";
 import type { RpgTurnOps } from "./rpg-turn.ts";
 import type { HashTokenOp, SignupInviteCapability, SignupInviteDeps } from "./signup.ts";
 
@@ -572,6 +573,7 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
   readonly newParticipantId: () => ChatParticipantId;
   readonly newMessageReactionId: () => MessageReactionId;
   readonly newInjectionId: () => ChatInjectionId;
+  readonly newMemoryStrikeId: () => ChatMemoryStrikeId;
   readonly newEventId: () => ChatEventId;
   readonly newInviteId: () => ChatInviteId;
   readonly newPendingTurnId: () => PendingTurnId;
@@ -596,6 +598,11 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
   /** The room host's app-tier prose overrides — read by assembly (the anchor identity lead-in), the smart
    *  arbiter, compaction and the memory build. Empty ⇒ the shipped defaults. */
   readonly resolveChatProse: ResolveChatProseOp;
+  /** The room host's memory tuning with their own switch folded in (`mode: "off"` when they turned memory off,
+   *  D293) — the merge the turn and the backfill read, so the memory view reports the switch the turn obeys. */
+  readonly resolveMemoryConfig: ResolveBackfillMemoryConfig;
+  /** The app-wide memory defaults alone, so the memory view can tell the app's switch from the host's own. */
+  readonly readMemoryDefaults: () => MemoryConfig;
   /** B7 — a user's per-user reaction defaults (`UserSettings.chat.{reactionsEnabled,charactersCanReact}`),
    *  the VERB-TIME half of the resolve pair: `toggleReaction`/`listReactions`/`reactAsCharacter` gate on
    *  `resolveReactionsEnabled(room, hostDefault)` and no ForeignInputs exists outside the turn path (the

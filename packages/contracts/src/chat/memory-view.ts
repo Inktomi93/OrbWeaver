@@ -5,7 +5,7 @@
 // The item key carries the digest's content hash as a compare token, so a strike lands only on the item the
 // player read.
 
-import type { CharacterId, ChatMemoryStrikeId, MessageId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatMemoryStrikeId, MessageId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
@@ -48,7 +48,8 @@ export interface MemoryItemStrikeView {
   readonly changedSinceStrike: boolean;
 }
 
-/** One remembered item. `bucket` says whether every speaker recalls it or only the scoped character. */
+/** One remembered item. `bucket` says whether every speaker recalls it or only the scoped character.
+ *  `retellsStruck` marks a longer summary that covers a struck scene: recall leaves it out with that scene. */
 export interface MemoryItemView {
   readonly key: MemoryItemKey;
   readonly bucket: "shared" | "scoped";
@@ -57,6 +58,7 @@ export interface MemoryItemView {
   readonly keywords: readonly string[];
   readonly speakers: readonly CharacterId[];
   readonly strike: MemoryItemStrikeView | null;
+  readonly retellsStruck: boolean;
 }
 
 /** A strike that names no stored item any more, because the messages it covered were hidden, deleted or moved.
@@ -76,6 +78,63 @@ export interface MemoryView {
   readonly unmatchedStrikes: readonly UnmatchedStrikeView[];
   readonly recentWindowStartsAt: MessageId | null;
 }
+
+const strikeIdSchema = typeIdSchema(ID_PREFIX.chatMemoryStrike);
+
+/** The `strikeMemory` procedure's output: the strike now standing on the item, new or already there. */
+export const strikeMemoryResultSchema = z.strictObject({ strikeId: strikeIdSchema });
+export type StrikeMemoryResult = z.infer<typeof strikeMemoryResultSchema>;
+
+/** The `memoryView` procedure's output schema, pinned to {@link MemoryView}. */
+export const memoryViewSchema = z.strictObject({
+  status: z.discriminatedUnion("kind", [
+    z.strictObject({ kind: z.literal("off"), reason: z.enum(MEMORY_VIEW_OFF_REASONS) }),
+    z.strictObject({ kind: z.literal("too-short") }),
+    z.strictObject({ kind: z.literal("pending") }),
+    z.strictObject({ kind: z.literal("ready") }),
+  ]),
+  items: z.array(
+    z.strictObject({
+      key: memoryItemKeySchema,
+      bucket: z.enum(["shared", "scoped"]),
+      topicAnchor: z.string().nullable(),
+      text: z.string(),
+      keywords: z.array(z.string()),
+      speakers: z.array(typeIdSchema(ID_PREFIX.character)),
+      strike: z.strictObject({ strikeId: strikeIdSchema, changedSinceStrike: z.boolean() }).nullable(),
+      retellsStruck: z.boolean(),
+    }),
+  ),
+  unmatchedStrikes: z.array(
+    z.strictObject({
+      strikeId: strikeIdSchema,
+      tier: z.int().min(0),
+      scopedCharacterId: typeIdSchema(ID_PREFIX.character).nullable(),
+      topicAnchor: z.string().nullable(),
+    }),
+  ),
+  recentWindowStartsAt: typeIdSchema(ID_PREFIX.message).nullable(),
+}) satisfies z.ZodType<MemoryView>;
+
+/** One strike a chat bundle carried, re-linked onto this box's ids. A null `scopedCharacterId` is the shared
+ *  bucket. It carries no content hash: the target summarizes the span again, so it matches by its endpoints. */
+export interface ImportedMemoryStrike {
+  readonly scopedCharacterId: CharacterId | null;
+  readonly tier: number;
+  readonly messageStartId: MessageId;
+  readonly messageEndId: MessageId;
+  readonly topicAnchor: string | null;
+  readonly createdAt: number;
+}
+
+/** The chat-owned write of a restored room's strikes. The import already holds the room it wrote, so it takes no
+ *  principal, only the host it seated; a strike the room already holds is kept as it is, so a repeated restore
+ *  never doubles one. */
+export type ImportMemoryStrikesOp = (args: {
+  readonly chatId: ChatId;
+  readonly hostUserId: UserId;
+  readonly strikes: readonly ImportedMemoryStrike[];
+}) => Promise<void>;
 
 /** The view's status from the room's switches, its canon head and what is stored. Uses the build's own
  *  aged-out rule: a block can exist only once `maxSeq - verbatimWindow` reaches `blockSize`. */
