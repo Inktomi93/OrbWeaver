@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-11-14
 priority: P3
 area: chat
+lane: wt/agent-a27cf5f01ee64b523
 ---
 
 # The handoff record and code comment state that the persona pin is never touched

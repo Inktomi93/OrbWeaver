@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-14
 priority: P3
 area: chat
+lane: wt/agent-a1dd08f21fdc50e1d
 ---
 
 # The chat book and regex racks list an attachment the room no longer applies

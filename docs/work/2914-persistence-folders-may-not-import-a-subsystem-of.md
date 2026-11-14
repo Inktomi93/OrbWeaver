@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-11-14
 priority: P3
 area: server
+lane: wt/agent-a253b95f39b2389ae
 ---
 
 # Persistence folders may not import a subsystem of their own domain
