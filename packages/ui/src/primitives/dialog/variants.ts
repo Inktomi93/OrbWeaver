@@ -69,8 +69,14 @@ export const dialogVariants = tv({
     // A header that stays in view while the body scrolls under it (a drawer's title and close), on the card fill so
     // scrolled rows do not show through. A sticky box rests against the scroller's content edge, not its padding edge,
     // so the header grows upward by the drawer's own inset (`p-section`) and rests against the true top: rows never
-    // scroll through the padding above it.
-    stickyHeader: { true: { header: "sticky -inset-bs-section z-(--z-raised) -mbs-section mbe-block bg-card pbs-section" } },
+    // scroll through the padding above it. A window short and narrow in text units (enlarged text on a phone, either way up) gives the
+    // header's insets back: the close control alone is a third of that window, and the pinned title and Close must leave the body room.
+    stickyHeader: {
+      true: {
+        header:
+          "sticky -inset-bs-section z-(--z-raised) -mbs-section mbe-block bg-card pbs-section inline-narrow:glass-short:pbs-0 inline-narrow:glass-short:pbe-0",
+      },
+    },
     // The foot sets at the end of a tall body: only the block-end arm has a caller, so it is the only arm.
     footerPush: { blockEnd: { footer: PUSH.blockEnd } },
     // A title and actions that run out of room take a second line.
