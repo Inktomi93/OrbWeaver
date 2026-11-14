@@ -39,7 +39,7 @@ export function ReadoutBindingChip({ binding }: { readonly binding: ReadoutBindi
       <Row align="center" gap="field" justify="between">
         <Row align="baseline" className="min-inline-0" gap="field">
           <Text voice="gloss">inspecting against:</Text>
-          <Text truncate={true} voice="label">
+          <Text voice="label" wrap="word">
             {binding.chatTitle}
           </Text>
         </Row>

@@ -134,7 +134,7 @@ export function PluginSurfaceShell({
                 {showTitle ? (
                   <>
                     {" "}
-                    <Text truncate={true} voice="gloss">
+                    <Text voice="gloss" wrap="word">
                       {title}
                     </Text>
                   </>
