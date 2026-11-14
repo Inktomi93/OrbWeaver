@@ -11,7 +11,7 @@ plan: authorization-and-visibility
 
 ## What
 
-A strike matches a summary by its exact endpoints or by a summary whose span contains the strike's span. When the room's grid is re-sliced into smaller blocks (the host lowers the memory block size, or a handoff gives the room a host whose block size is smaller), each smaller block covers only part of the struck span. No summary then matches or contains the strike, the strike moves to the unmatched list, and the smaller blocks that retell the struck turns are admitted into the prompt. A review probe in the recall world struck the storm scene at block size 2, set block size 1, rebuilt memory, and the next turn's prompt carried the storm summary with both of its blocks admitted.
+A strike matches a summary by its exact endpoints or by a summary whose span contains the strike's span. When the room's grid is re-sliced into smaller blocks (an admin lowers the app-wide memory block size), each smaller block covers only part of the struck span. No summary then matches or contains the strike, the strike moves to the unmatched list, and the smaller blocks that retell the struck turns are admitted into the prompt. A review probe in the recall world struck the storm scene at block size 2, set block size 1, rebuilt memory, and the next turn's prompt carried the storm summary with both of its blocks admitted.
 
 ## Why
 
