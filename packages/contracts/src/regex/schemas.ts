@@ -31,7 +31,7 @@
 
 import type { CharacterId, ChatId, PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { MESSAGE_KINDS, PARTICIPANT_KINDS } from "@orb/kit/message-author";
+import { MESSAGE_KINDS, PARTICIPANT_KINDS, PARTICIPANT_ROLES } from "@orb/kit/message-author";
 import type { RegexAuthorScope, RegexAuthorSelector, RegexDepth, RegexPass, RegexTarget } from "@orb/kit/regex";
 import {
   EPHEMERAL_REGEX_PASSES,
@@ -79,6 +79,7 @@ const regexDepthSchema = z
 
 const regexAuthorSelectorSchema = z.discriminatedUnion("by", [
   z.strictObject({ by: z.literal("participant"), participant: z.enum(PARTICIPANT_KINDS) }),
+  z.strictObject({ by: z.literal("standing"), standing: z.enum(PARTICIPANT_ROLES) }),
   z.strictObject({ by: z.literal("kind"), kind: z.enum(MESSAGE_KINDS) }),
   z.strictObject({ by: z.literal("character"), characterId: typeIdSchema(ID_PREFIX.character) }),
   z.strictObject({ by: z.literal("persona"), personaId: typeIdSchema(ID_PREFIX.persona) }),
@@ -119,13 +120,18 @@ function runsEphemeral(passes: readonly RegexPass[]): boolean {
   return passes.some((pass) => (EPHEMERAL_REGEX_PASSES as readonly RegexPass[]).includes(pass));
 }
 
-/** The write-time pairing rules: depth and an author scope only beside a display or prompt pass, since no other pass
- *  has a position or a row author to read; and a ceiling no shallower than its floor. */
+/** The write-time pairing rules: the save pass alone or the ephemeral passes, never both (SillyTavern's two switches
+ *  give exactly these four choices); depth and an author scope only beside a display or prompt pass, since no other
+ *  pass has a position or a row author to read; and a ceiling no shallower than its floor. */
 function behaviorCoheres(
   behavior: { readonly passes: readonly RegexPass[]; readonly depth?: RegexDepth | undefined; readonly authors?: RegexAuthorScope | undefined },
   ctx: z.RefinementCtx,
 ): void {
   const ephemeral = runsEphemeral(behavior.passes);
+  // A saved rewrite already changed what display and prompt read, so a script is either saved or ephemeral.
+  if (ephemeral && behavior.passes.includes("save")) {
+    ctx.addIssue({ code: "custom", message: "a script runs when saved or on screen and in the prompt, not both", path: ["passes"] });
+  }
   if (behavior.depth !== undefined && !ephemeral) {
     ctx.addIssue({ code: "custom", message: "depth applies only on the display or prompt pass", path: ["depth"] });
   }
@@ -246,12 +252,89 @@ function isStDialect(obj: Record<string, unknown>): obj is Record<string, unknow
   return Array.isArray(placement) && placement.some((member) => typeof member === "number");
 }
 
+// ── THE PLACEMENT-SET SHAPE, lifted at the file boundaries ─────────────────────────────────────────────────────
+// Before the two axes, a script held one `placement` set in which `DISPLAY` and `PROMPT_HISTORY` stood beside the
+// save-time members, with `markdownOnly`, `promptOnly` and `historyDepth` beside it. A file exported then still
+// imports, and the numbered migration rewrites stored rows by this same mapping
+// (`tests/contracts/regex/legacy-behavior-lift.contract.test.ts` pins each shape). Two readings, in order:
+//   • A `DISPLAY` or `PROMPT_HISTORY` member means the editor here wrote the row, since the old lift never did.
+//     Its members map one by one: a save-time member is the save pass on that target, `WORLD_INFO` is the prompt
+//     pass on world info (where it always ran), `PROMPT_HISTORY` is the prompt pass on user and AI rows with its
+//     depth, and `DISPLAY` is the display pass on every row's text, narrowed to the row's own save targets when it
+//     has some. That last row reads but no longer writes: a script is saved or ephemeral, so a file in that shape is
+//     refused, and a stored one is listed by the migration for its owner to split.
+//   • Otherwise the flags are read at their word, with SillyTavern's meaning: `markdownOnly` is display,
+//     `promptOnly` is prompt, both is both, neither is save. An editor-written save-time script also carries
+//     `promptOnly: true` (the old derive set it whenever `DISPLAY` was absent), so it reads as prompt-only: owner
+//     ruling, accepted because only the owner has installed the app.
+const LEGACY_DISPLAY = "DISPLAY";
+const LEGACY_PROMPT_HISTORY = "PROMPT_HISTORY";
+const LEGACY_SAVE_TARGETS: readonly RegexTarget[] = ["USER_INPUT", "AI_OUTPUT", "REASONING"];
+const LEGACY_DISPLAY_TARGETS: readonly RegexTarget[] = ["USER_INPUT", "AI_OUTPUT", "REASONING"];
+const LEGACY_HISTORY_TARGETS: readonly RegexTarget[] = ["USER_INPUT", "AI_OUTPUT"];
+/** The old depth floor: 0 meant every message, which is -1 now that a continue's reply sits there. */
+const LEGACY_NO_FLOOR = 0;
+
+/** Whether a card-wire or portable script is in the placement-set shape: a `placement` list and no `targets`. */
+function isPlacementSetShape(obj: Record<string, unknown>): obj is Record<string, unknown> & { readonly placement: readonly unknown[] } {
+  return Array.isArray(obj["placement"]) && obj["targets"] === undefined;
+}
+
+function legacyDepth(historyDepth: unknown): RegexDepth | undefined {
+  if (typeof historyDepth !== "object" || historyDepth === null) {
+    return;
+  }
+  const { min, max } = historyDepth as Record<string, unknown>;
+  const floor = typeof min === "number" && min !== LEGACY_NO_FLOOR ? min : REGEX_DEPTH_FLOOR;
+  const ceiling = typeof max === "number" ? max : null;
+  return floor === REGEX_DEPTH_FLOOR && ceiling === null ? undefined : { min: floor, max: ceiling };
+}
+
+/** An editor-written row: its members map one by one (the section header). */
+function legacyNativeAxes(members: readonly string[], historyDepth: unknown): { targets: RegexTarget[]; passes: RegexPass[]; depth?: RegexDepth } {
+  const save = LEGACY_SAVE_TARGETS.filter((target) => members.includes(target));
+  const worldInfo = members.includes("WORLD_INFO");
+  const display = members.includes(LEGACY_DISPLAY);
+  const history = members.includes(LEGACY_PROMPT_HISTORY);
+  const passes = REGEX_PASSES.filter((pass) => ({ save: save.length > 0, display, prompt: history || worldInfo })[pass]);
+  const targets = REGEX_TARGETS.filter(
+    (target) =>
+      save.includes(target) ||
+      (target === "WORLD_INFO" && worldInfo) ||
+      (display && save.length === 0 && LEGACY_DISPLAY_TARGETS.includes(target)) ||
+      (history && LEGACY_HISTORY_TARGETS.includes(target)),
+  );
+  const depth = history ? legacyDepth(historyDepth) : undefined;
+  return { targets, passes, ...(depth === undefined ? {} : { depth }) };
+}
+
+/** Lift one placement-set script onto the two axes. */
+function liftPlacementSetShape(obj: Record<string, unknown>, placement: readonly unknown[]): Record<string, unknown> {
+  const { placement: _placement, markdownOnly, promptOnly, historyDepth, ...rest } = obj;
+  const members = placement.filter((member): member is string => typeof member === "string");
+  const native = members.includes(LEGACY_DISPLAY) || members.includes(LEGACY_PROMPT_HISTORY);
+  const axes = native
+    ? legacyNativeAxes(members, historyDepth)
+    : { targets: REGEX_TARGETS.filter((target) => members.includes(target)), passes: stPasses(markdownOnly === true, promptOnly === true) };
+  return { ...rest, ...axes };
+}
+
+/** Lift a stored or exported behavior in the placement-set shape onto the two axes; any other value passes
+ *  through. The numbered migration's data rewrite follows this mapping. */
+function liftPlacementSetBehavior(raw: unknown): unknown {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    return raw;
+  }
+  const obj = raw as Record<string, unknown>;
+  return isPlacementSetShape(obj) ? liftPlacementSetShape(obj, obj.placement) : obj;
+}
+
 function normalizeCardScriptWire(raw: unknown): unknown {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
     return raw;
   }
   const obj = raw as Record<string, unknown>;
-  return isStDialect(obj) ? liftStScriptWire(obj, obj.placement) : obj;
+  return isStDialect(obj) ? liftStScriptWire(obj, obj.placement) : liftPlacementSetBehavior(obj);
 }
 
 export const regexScriptCardSchema = z.preprocess(
@@ -470,15 +553,18 @@ export const regexScriptUsageSchema = z.strictObject({
 /** The PORTABLE file shape — one script per `regex/*.json` in a backup bundle. `global` is the only
  *  attachment carried: it is a property of the script itself (the `global_regex_scripts` PK-is-the-script
  *  junction), where character/preset/chat attachments point at rows the bundle does not guarantee. */
-export const portableRegexScriptSchema = regexScriptBehaviorFields
-  .extend({
-    name: z.string().max(REGEX_SCRIPT_NAME_MAX),
-    enabled: z.boolean().default(true),
-    global: z.boolean().default(false),
-  })
-  .superRefine(behaviorCoheres);
+export const portableRegexScriptSchema = z.preprocess(
+  liftPlacementSetBehavior,
+  regexScriptBehaviorFields
+    .extend({
+      name: z.string().max(REGEX_SCRIPT_NAME_MAX),
+      enabled: z.boolean().default(true),
+      global: z.boolean().default(false),
+    })
+    .superRefine(behaviorCoheres),
+);
 
-export type PortableRegexScript = z.infer<typeof portableRegexScriptSchema>;
+export type PortableRegexScript = z.output<typeof portableRegexScriptSchema>;
 
 /** `detachFrom{Character,Preset,Chat}` / `detachGlobal` — `false` when the junction row was already absent
  *  (idempotent no-op), `true` when a row was removed. */
