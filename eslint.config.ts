@@ -2531,7 +2531,7 @@ export default [
     rules: { "orb/assumes-single-replica": "error" },
   },
   {
-    files: rootSources("@server"),
+    files: rootSources("@server", "@inference"),
     ignores: MODULE_STATE_OWN_PROCESS,
     plugins: { orb: localPlugin },
     rules: { "orb/no-module-state": "error" },

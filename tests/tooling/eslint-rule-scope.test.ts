@@ -55,6 +55,7 @@ test.for([
   ["orb/sole-env-reader", "packages/server/src/foundation/env/probe.ts", "error"],
   ["orb/no-module-state", "packages/server/src/infra/plugin-host/module.ts", "off"],
   ["orb/no-module-state", "packages/server/src/infra/plugin-host/membrane.ts", "error"],
+  ["orb/no-module-state", "packages/inference/src/backends/local-light/probe.ts", "error"],
   ["orb/plugin-dump-guard", "packages/server/src/infra/plugin-host/membrane.ts", "error"],
   ["orb/plugin-dump-guard", "packages/server/src/infra/plugin-host/module.ts", "off"],
   ["orb/member-card-clamped-clamp", `${SUBSTRATE}/auth/probe.ts`, "off"],
