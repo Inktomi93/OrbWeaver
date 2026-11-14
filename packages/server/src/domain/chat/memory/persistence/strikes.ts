@@ -209,6 +209,11 @@ export async function insertMemoryStrike(db: Db, row: MemoryStrikeInsert): Promi
   return inserted.length > 0;
 }
 
+/** A fork's copy of strikes: one insert for every row, run in the fork's own batch. The caller passes at least one row. */
+export function insertMemoryStrikesStatement(db: Db, rows: readonly MemoryStrikeInsert[]): BatchStmt {
+  return batchStmt(db.insert(chatMemoryStrikes).values([...rows]));
+}
+
 type StrikeSpan = Pick<RecallStrike, "tier" | "messageStartId" | "messageEndId">;
 
 function sameSpan(chatId: ChatId, span: StrikeSpan): SQL | undefined {

@@ -55,10 +55,12 @@ import { ownerChatIds, retainedCharacterSeatPredicate } from "./owner-chat-scope
 
 export type { ReconcileStatsResult } from "@orb/contracts/stats";
 
-// Rows per streaming page. The driver reads a page synchronously, so a page's query and its fold hold the event loop
-// together: the page is small enough that this stays well under half a second on a heavy library, and each scan yields
-// between pages. Paging also bounds peak memory on large corpora.
-const CHUNK = 250;
+/**
+ * Rows per streaming page. The driver reads a page synchronously, so a page's query and its fold hold the event loop
+ * together: the page is small enough that this stays well under half a second on a heavy library, and each scan yields
+ * between pages. Paging also bounds peak memory on large corpora.
+ */
+export const CHUNK = 250;
 // Per-table column counts for the bound-variable chunker — must track the insert shapes below.
 const CHAR_COLS = 30;
 const DAILY_COLS = 22;
@@ -212,6 +214,8 @@ export async function scanMessages(db: Db, rooms: SQL, visit: (row: CanonMessage
     if (rows.length < CHUNK) {
       break;
     }
+    // A local read settles as a microtask, so without this the whole library is one turn of the loop. A write that
+    // lands between pages moves the canon version, and `untilCanonStable` folds the owner again.
     await yieldToLoop();
   }
 }

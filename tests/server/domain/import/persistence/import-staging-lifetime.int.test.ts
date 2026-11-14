@@ -11,7 +11,7 @@ import { importStartedSchema, ST_SETTINGS_FILE, TREE_DRY_RUN_VALUE } from "@orb/
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { workloads } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { WorkloadId } from "@orb/kit/ids";
+import type { UserId, WorkloadId } from "@orb/kit/ids";
 import { STAGED_BUNDLE_PREFIX, STAGED_TREE_PREFIX } from "@orb/server/domain/import";
 import { reclaimLocksOnBoot } from "@orb/server/entry/boot";
 import { ZIP_STAGING_PREFIX } from "@orb/server/infra/storage/zip";
@@ -272,4 +272,51 @@ test("a restart keeps the newest finished dry run readable and cancellable, dele
   await expect(restarted.services.workloads.get({ caller, id: newest })).resolves.toMatchObject({ status: "cancelled" });
   await expect(restarted.services.workloads.cancel({ caller, id: newest })).resolves.toEqual({ status: null });
   await expect(restarted.services.workloads.get({ caller, id: queued })).resolves.toMatchObject({ status: "queued" });
+});
+
+// The newest is each owner's own: another account's later dry run is no reason to delete this account's review row.
+test("a restart keeps each owner's newest finished dry run when another account's finished later", async () => {
+  using held = await freshDb();
+  const personas = { [ST_SETTINGS_FILE]: settings({ "bob.png": "Bob" }) };
+  let lineage: Pick<ServerTestHarness, "ownerId" | "clock" | "ids">;
+  let memberId: UserId;
+  let ownerOlder: WorkloadId;
+  let ownerNewest: WorkloadId;
+  let memberOlder: WorkloadId;
+  let memberNewest: WorkloadId;
+  {
+    await using first = await harness({ db: held.db });
+    const member = await first.actor();
+    memberId = member.id;
+    const ownerCaller = await first.principalFor(first.ownerId);
+    const memberCaller = await first.principalFor(member.id);
+    const memberDryRun = async (): Promise<WorkloadId> => {
+      const { id } = await first.services.workloads.start({
+        input: { kind: "import-st", params: { stagedDir: "import-tree-member", stagedDigest: ANY_DIGEST, dryRun: true } },
+        caller: memberCaller,
+        mode: "singular",
+        ownerId: member.id,
+      });
+      // Cancelled while queued, so it finished without a run, and no run-end sweep took the earlier one.
+      await first.services.workloads.cancel({ caller: memberCaller, id });
+      return id;
+    };
+    ownerOlder = await admit(first, folder(first), [TREE_DRY_RUN_VALUE]);
+    await finish(first, ownerOlder);
+    ownerNewest = await admit(first, personas, [TREE_DRY_RUN_VALUE]);
+    await first.services.workloads.cancel({ caller: ownerCaller, id: ownerNewest });
+    memberOlder = await memberDryRun();
+    memberNewest = await memberDryRun();
+    lineage = { ownerId: first.ownerId, clock: first.clock, ids: first.ids };
+  }
+  await using restarted = await harness({ db: held.db, ...lineage });
+  const ownerCaller = await restarted.principalFor(restarted.ownerId);
+  const memberCaller = await restarted.principalFor(memberId);
+
+  await reboot(restarted);
+
+  await expect(restarted.services.workloads.get({ caller: ownerCaller, id: ownerOlder })).rejects.toThrow(DomainNotFoundError);
+  await expect(restarted.services.workloads.get({ caller: memberCaller, id: memberOlder })).rejects.toThrow(DomainNotFoundError);
+  await expect(restarted.services.workloads.get({ caller: ownerCaller, id: ownerNewest })).resolves.toMatchObject({ status: "cancelled" });
+  await expect(restarted.services.workloads.get({ caller: memberCaller, id: memberNewest })).resolves.toMatchObject({ status: "cancelled" });
 });

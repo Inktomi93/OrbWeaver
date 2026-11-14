@@ -80,6 +80,12 @@ Every schema change ships as a numbered migration. The committed baseline is his
 8. **Concurrent creation: the unique constraint decides the race.** Let a UNIQUE or primary-key constraint decide which writer creates one logical unit of work. Do not pre-check. Do not add a reservation or lease table.
 
    - Commit the whole unit in one `db.batch`, so a losing writer leaves no partial rows.
+   - Commit an imported chat too large for one batch in bounded stages. One batch for a long room holds the server for seconds.
+     - The opening stage writes the room with its `chats.landing_at` marker and its claim, so the claim still decides the race.
+     - The closing stage writes the roster and clears the marker in one batch.
+     - Every reader of a room either needs its roster or filters `landing_at`, so no reader sees a partial room.
+     - A failed stage deletes the landing room. A boot sweep deletes every room a dead process left landing.
+     - Homes: `packages/server/src/domain/chat/persistence/import-write.ts`, `packages/server/src/domain/chat/persistence/import-landing.ts`, `packages/server/src/entry/boot/reclaim-locks.ts`.
    - Classify a failure with `isConstraintViolation` from `@orb/db/query`.
    - Treat a violation as a lost race only when a re-read explains it. For an import, the winner's claim row is now visible (`commitImportCandidate`). For a canon append, the head has reached the attempted seq (`commitCanonAppend`).
    - Rethrow every other failure. This includes a unique violation that the re-read does not explain.
@@ -87,7 +93,7 @@ Every schema change ships as a numbered migration. The committed baseline is his
    - Never re-run work that is already paid for, such as a provider call.
    - Bound any re-allocation loop. Repeated loss means a defect elsewhere, not contention.
 
-   A reservation table is rejected because a crash can leave an ownerless pending claim. Cleaning that up needs leases and reaping that these operations do not otherwise need.
+   A reservation table is rejected because a crash can leave an ownerless pending claim. Cleaning that up needs leases and reaping that these operations do not otherwise need. The staged import accepts one reaping step, the boot sweep: it runs before any worker starts, so it needs no lease.
 
    Homes: `packages/db/src/query/db-errors.ts`, `packages/server/src/domain/chat/persistence/canon-write.ts`, `packages/server/src/domain/chat/persistence/import-write.ts`.
 
