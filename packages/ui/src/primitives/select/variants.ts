@@ -18,10 +18,11 @@ import {
   tv,
 } from "#lib";
 
-// The chrome of a trigger that holds a wrapping value: the field box with no block inset, its padding and the gap to the chevron held by
-// the picker tokens so enlarged text on a phone grows the value and not the chrome. The step is a floor (the `LABEL_BOX` shape): the
-// field's line is taller than the label's, so even the tight inset would lift a one-line value past the step and out of level with its row.
-const WRAPPING_TRIGGER = [FIELD_CONTROL, "gap-(--spacing-picker-gap) px-(--spacing-picker-inset) py-0 block-fit"];
+// The chrome of a trigger that holds a wrapping value: the field box with its inline padding and the gap to the chevron held by the picker tokens,
+// so enlarged text on a phone grows the value and not the chrome. The step is a floor (the `LABEL_BOX` shape) and the block inset is the air the
+// step leaves around one line (the `select-air` tokens): a one-line value lands exactly on the step, and a wrapped value keeps that air against the
+// border instead of touching it.
+const WRAPPING_TRIGGER = [FIELD_CONTROL, "gap-(--spacing-picker-gap) px-(--spacing-picker-inset) block-fit"];
 
 // Trigger in-flow; positioner/popup portaled. --available-height/--anchor-width are Base UI Positioner-provided vars.
 export const selectVariants = tv({
@@ -102,12 +103,13 @@ export const selectVariants = tv({
     // A trigger whose value is the name of the thing the line is about (an rpg subject): the name's semibold weight.
     strong: { true: { trigger: "font-semibold" } },
   },
-  // A form-control trigger's height is the size step's floor, so only a value on more than one line grows it.
+  // A form-control trigger's height is the size step's floor, so only a value on more than one line grows it, and its block inset is the air that
+  // step leaves around a line.
   compoundVariants: [
-    { layout: ["field", "hug"], size: "chip", class: { trigger: CONTROL_MIN_BLOCK.chip } },
-    { layout: ["field", "hug"], size: "sm", class: { trigger: CONTROL_MIN_BLOCK.sm } },
-    { layout: ["field", "hug"], size: "md", class: { trigger: CONTROL_MIN_BLOCK.md } },
-    { layout: ["field", "hug"], size: "lg", class: { trigger: CONTROL_MIN_BLOCK.lg } },
+    { layout: ["field", "hug"], size: "chip", class: { trigger: [CONTROL_MIN_BLOCK.chip, "py-(--spacing-select-air-chip)"] } },
+    { layout: ["field", "hug"], size: "sm", class: { trigger: [CONTROL_MIN_BLOCK.sm, "py-(--spacing-select-air-sm)"] } },
+    { layout: ["field", "hug"], size: "md", class: { trigger: [CONTROL_MIN_BLOCK.md, "py-(--spacing-select-air-md)"] } },
+    { layout: ["field", "hug"], size: "lg", class: { trigger: [CONTROL_MIN_BLOCK.lg, "py-(--spacing-select-air-lg)"] } },
   ],
   defaultVariants: { size: "sm", layout: "field" },
 });
