@@ -67,7 +67,7 @@ function isRelativeStagedPath(path: string): boolean {
 
 // The digest vouches for bytes, not for their shape, and these bytes came back off a disk, so they parse as input.
 const stagedManifestSchema = z.array(
-  z.object({ path: z.string().refine(isRelativeStagedPath), size: z.number().int().nonnegative(), sha256: z.string().refine(isAssetHash) }),
+  z.object({ path: z.string().refine(isRelativeStagedPath), size: z.number().int().nonnegative(), sha256: z.string().refine(isAssetHash) }).strip(),
 );
 
 /** The record of `bytes` as the writer put them at `path`. */

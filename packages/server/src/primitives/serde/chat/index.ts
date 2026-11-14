@@ -205,19 +205,18 @@ function asObj(v: unknown): Record<string, unknown> | null {
 
 // Permissive typed views over ST's external JSON (snake_case by spec). Each field is `unknown` and every
 // consuming helper coerces + guards, so the schemas VALIDATE the object SHAPE (is this a record at all?),
-// not reject fields. `.loose()` keeps unmodelled keys; a non-object fails `safeParse` → null (skip/abort).
+// not reject fields. `z.looseObject` keeps unmodelled keys; a non-object fails `safeParse` → null (skip/abort).
 const rawHeaderSchema = z
-  .object({
+  .looseObject({
     user_name: z.unknown(),
     character_name: z.unknown(),
     create_date: z.unknown(),
     chat_metadata: z.unknown(),
   })
-  .partial()
-  .loose();
+  .partial();
 
 const rawExtraSchema = z
-  .object({
+  .looseObject({
     model: z.unknown(),
     api: z.unknown(),
     token_count: z.unknown(),
@@ -228,17 +227,16 @@ const rawExtraSchema = z
     // business (it falls through to the default, never a fabricated kind).
     type: z.unknown(),
   })
-  .partial()
-  .loose();
+  .partial();
 
-const rawSwipeInfoSchema = z.object({ extra: z.unknown(), gen_started: z.unknown(), gen_finished: z.unknown() }).partial().loose();
+const rawSwipeInfoSchema = z.looseObject({ extra: z.unknown(), gen_started: z.unknown(), gen_finished: z.unknown() }).partial();
 
-// The orb-specific agent-provenance sidecar (D60). Only `name`/`source_kind` are modelled; `.loose()` keeps
+// The orb-specific agent-provenance sidecar (D60). Only `name`/`source_kind` are modelled; `z.looseObject` keeps
 // (but never emits) any foreign residue. A non-object → null (skip), same as every other wire view here.
-const rawAgentAuthorSchema = z.object({ name: z.unknown(), source_kind: z.unknown() }).partial().loose();
+const rawAgentAuthorSchema = z.looseObject({ name: z.unknown(), source_kind: z.unknown() }).partial();
 
 const rawMessageSchema = z
-  .object({
+  .looseObject({
     name: z.unknown(),
     is_user: z.unknown(),
     is_system: z.unknown(),
@@ -253,8 +251,7 @@ const rawMessageSchema = z
     agent_author: z.unknown(),
     original_avatar: z.unknown(),
   })
-  .partial()
-  .loose();
+  .partial();
 type RawMessage = z.infer<typeof rawMessageSchema>;
 
 /** Validate a value's object shape against a lenient schema; null on a non-object. */

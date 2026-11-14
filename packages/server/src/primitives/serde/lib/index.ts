@@ -217,7 +217,7 @@ const COLLECT_ROWS: Record<JsonSerdeRowPolicy, RowCollector> = {
 
 /** The header schema for a file that is exactly `envelope + rows` (no top-level fields of its own). */
 export function noJsonHeader(): z.ZodType<EmptyJsonHeader> {
-  return z.object({});
+  return z.object({}).strip();
 }
 
 /** The empty header value the header-less row families hand `toWire`. */

@@ -1,11 +1,12 @@
 // The ONE home for the (UserIntent × GenerationCapability) → resolved wire knobs policy. Every chat backend
 // calls this once per turn: reasoning gating, the effort clamp, the adaptive/budget guard, sampling
 // capability-gating + the exclusive-pair drop, the output-cap clamp, the dynamic-context channel and the
-// reply-images decision all live here — never re-derived per backend. Pure + clock-free. Its second consumer
+// reply-images decision all live here — never re-derived per backend. Clock-free, and pure but for the fresh turn id. Its second consumer
 // is `preset.resolveEffective` (the editor projects the very same call so the deck shows what the next turn
 // will actually send). A side-generation item is a chat turn with the `side-gen` posture, so it takes this same
 // resolution, mandatory clamp included.
 
+import { randomUUID } from "node:crypto";
 import type { AdjustedKnob } from "@orb/contracts/chat";
 import type {
   EffortLevel,
@@ -49,11 +50,9 @@ function clampRange(value: number, range: Range): number {
   return Math.min(Math.max(value, range.min), range.max);
 }
 
-// Module-level state is fine here — an observability id, not a determinism-sensitive value.
-let turnCounter = 0;
+// A log correlation id only, so a fresh random one per call needs no state shared across roots.
 function mintTurnId(): string {
-  turnCounter += 1;
-  return `turn_${turnCounter}`;
+  return `turn_${randomUUID()}`;
 }
 
 function resolveNumeric(label: AdjustedKnob, value: number | undefined, range: Range | undefined, warnings: ResolvedWarning[]): number | undefined {

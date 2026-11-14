@@ -25,12 +25,10 @@ import { toImageUrl } from "../wire/image-normalize.ts";
 const RERANK_SCAFFOLD_RESERVE_TOKENS = 128;
 const TRAILING_SLASH_RE = /\/$/u;
 
-const rerankResponseSchema = z
-  .object({
-    results: z.array(z.object({ index: z.number(), relevance_score: z.number() }).loose()),
-    usage: z.object({ total_tokens: z.number().optional() }).loose().optional(),
-  })
-  .loose();
+const rerankResponseSchema = z.looseObject({
+  results: z.array(z.looseObject({ index: z.number(), relevance_score: z.number() })),
+  usage: z.looseObject({ total_tokens: z.number().optional() }).optional(),
+});
 type RerankResponse = z.infer<typeof rerankResponseSchema>;
 
 type ContentPart = { readonly type: "text"; readonly text: string } | { readonly type: "image_url"; readonly image_url: { readonly url: string } };

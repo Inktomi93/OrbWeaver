@@ -16,6 +16,7 @@ import { Badge } from "@orb/ui/badge";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { MutedLine } from "#components";
 import { useSuspenseQuery, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
 import { fireDetailLine, fireOutcomeView, triggerLabel } from "../lib/rule-copy.ts";
@@ -44,7 +45,7 @@ export function RoomActivityLog({ chatId }: RoomActivityLogProps): ReactElement 
   if (fires.length === 0) {
     // The tab's opening statement, not a footnote under a datum: `quiet` is the voice for a muted body line
     // (an empty state), `gloss` is the micro step a sentence like this one is not set at.
-    return <Text voice="quiet">Nothing yet: when a rule fires, posts a notice, runs a tool, or you confirm a card, it shows up here.</Text>;
+    return <MutedLine>Nothing yet: when a rule fires, posts a notice, runs a tool, or you confirm a card, it shows up here.</MutedLine>;
   }
 
   return (

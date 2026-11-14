@@ -34,7 +34,7 @@ import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { RowActionsMenu } from "#components";
+import { MutedLine, RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { rowActionsName } from "#lib";
@@ -90,11 +90,11 @@ export function ChatBooksSection({ chatId, isHost }: ChatBooksSectionProps): Rea
       {attached.length === 0 ? (
         // Never render nothing: "no books attached" is the normal starting state, and a blank block reads as
         // a failed load (empty states are load-bearing).
-        <Text voice="gloss">
+        <MutedLine>
           {isHost
             ? "No world books are attached to this chat yet."
             : "No world books are attached to this chat yet. The host attaches the ones this room carries."}
-        </Text>
+        </MutedLine>
       ) : (
         <Stack gap="tight">
           {attached.map((book) => (

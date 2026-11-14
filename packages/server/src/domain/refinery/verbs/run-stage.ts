@@ -68,7 +68,7 @@ import { summarizerFactsOf } from "../substrate/summarizer.ts";
 
 /** The custom-score stamp pluck — the well-known core the save belt guarantees. A drifted row skips the
  *  stamp OBSERVABLY (banned-silent-fork), never fabricates a score. */
-const overallScoreCoreSchema = z.object({ overallScore: z.number() });
+const overallScoreCoreSchema = z.object({ overallScore: z.number() }).strip();
 
 /** The service verb — the engine below with `isRefinement:false` (the engine instance arrives via deps
  *  so `iterate` provably runs the SAME one; wired at `service.ts`). */

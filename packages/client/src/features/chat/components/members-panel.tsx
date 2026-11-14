@@ -70,6 +70,7 @@ import { ScrollArea } from "@orb/ui/scroll-area";
 import { Text } from "@orb/ui/text";
 import type { KeyboardEvent, ReactElement, RefObject } from "react";
 import { useEffect, useId, useRef, useState } from "react";
+import { MutedLine } from "#components";
 import { testId } from "#lib";
 import { CHAT_MEMBERS_ROSTER_NAME } from "../lib/chat-surface-names.ts";
 import type { MemberCharacterRow, MemberPersonRow, MemberRowActions } from "../lib/member-rows.ts";
@@ -384,14 +385,14 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
                   )
                 }
               />
-              {people.length === 0 ? <Text>No one else is here yet. Share an invite.</Text> : people.map(rowProps)}
+              {people.length === 0 ? <MutedLine>No one else is here yet. Share an invite.</MutedLine> : people.map(rowProps)}
             </Stack>
           ) : null}
 
           {showCharacters ? (
             <Stack gap="row" data-slot="members-characters" role="group" aria-labelledby={charactersLabelId}>
               <SectionHeader labelId={charactersLabelId} kicker="Characters" action={props.charactersAction} />
-              {characters.length === 0 ? <Text>No characters in this chat yet. Add one.</Text> : characters.map(rowProps)}
+              {characters.length === 0 ? <MutedLine>No characters in this chat yet. Add one.</MutedLine> : characters.map(rowProps)}
             </Stack>
           ) : null}
         </Stack>

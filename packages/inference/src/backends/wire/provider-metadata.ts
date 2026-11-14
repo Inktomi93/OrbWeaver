@@ -37,24 +37,32 @@ const CLAUDE_SUB = "claude-sub";
 
 /** OpenRouter's bag, narrowed to the two facts no column holds. `nullish` throughout: the SDK omits the whole
  *  `usage` block on an endpoint with accounting off. */
-const openRouterBagSchema = z.object({
-  provider: z.string().nullish(),
-  usage: z.object({ costDetails: z.object({ upstreamInferenceCost: z.number().nullish() }).nullish() }).nullish(),
-});
+const openRouterBagSchema = z
+  .object({
+    provider: z.string().nullish(),
+    usage: z
+      .object({ costDetails: z.object({ upstreamInferenceCost: z.number().nullish() }).strip().nullish() })
+      .strip()
+      .nullish(),
+  })
+  .strip();
 
 /** The `reason` the API gives for a thinking block it dropped because the prefix before it changed. */
 const PREFIX_BINDING_MISMATCH = "prefix_binding_mismatch";
 
 /** Anthropic's bag. `usage` keeps the WIRE's own snake_cased keys (the SDK passes it through raw and loose), which
  *  is why they are spelled here and nowhere else in this package; `inputTransformations` is the SDK's own key. */
-const anthropicBagSchema = z.object({
-  usage: z
-    .object({
-      cache_creation: z.object({ ephemeral_5m_input_tokens: z.number().nullish(), ephemeral_1h_input_tokens: z.number().nullish() }).nullish(),
-    })
-    .nullish(),
-  inputTransformations: z.array(z.object({ type: z.string(), path: z.string(), reason: z.string() })).nullish(),
-});
+const anthropicBagSchema = z
+  .object({
+    usage: z
+      .object({
+        cache_creation: z.object({ ephemeral_5m_input_tokens: z.number().nullish(), ephemeral_1h_input_tokens: z.number().nullish() }).strip().nullish(),
+      })
+      .strip()
+      .nullish(),
+    inputTransformations: z.array(z.object({ type: z.string(), path: z.string(), reason: z.string() }).strip()).nullish(),
+  })
+  .strip();
 
 /** The request paths of the thinking blocks the API dropped for a prefix mismatch (`thinking.block_binding` set
  *  to `drop_block`). `undefined` when the response carried no `input_transformations` list: absence, never a

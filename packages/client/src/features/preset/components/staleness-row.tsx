@@ -5,12 +5,9 @@
 import type { SamplerKnob } from "@orb/contracts/inference";
 import { DEFAULT_SAMPLER_KEYS, SAMPLER_KNOBS } from "@orb/contracts/inference";
 import { Button } from "@orb/ui/button";
-import { Card } from "@orb/ui/card";
-import { Icon, TriangleAlert } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { Notice } from "#components";
 import type { AppFormInstance } from "#forms/editor";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
 import { PRESET_NOT_HONORED_LEAD, PRESET_STALE_CLEAR_NAME, PRESET_STALE_KEEP_NAME } from "../lib/preset-names.ts";
@@ -80,26 +77,19 @@ export function StalenessRow({ form, stale, spelling }: StalenessRowProps): Reac
     }
   };
   return (
-    // The rack's missing-pivot callout idiom, density-conformed: `rounded-base` (the ELEVATED `rounded-card`
-    // step is D6-reserved) and the warning signal carried by the band + the glyph rather than by a `tone`
-    // prop on Text (the four-voice grammar owns type color, §2).
-    <Card tone="warning" variant="soft">
-      <Stack gap="field">
-        <Row align="center" gap="field">
-          <Icon icon={TriangleAlert} size="sm" tone="warning" />
-          <Text className="min-inline-0" wrap="anywhere" voice="label">
-            {PRESET_NOT_HONORED_LEAD} {stale.map((entry) => `${staleWireName(entry.knob, spelling)} ${String(entry.value)}`).join(" · ")}
-          </Text>
-        </Row>
-        <Row wrap={true} gap="field">
+    <Notice
+      action={
+        <>
           <Button variant="ghost" onClick={(): void => setKept(true)} size="sm" type="button">
             {PRESET_STALE_KEEP_NAME}
           </Button>
           <Button variant="outline" onClick={clear} size="sm" type="button">
             {PRESET_STALE_CLEAR_NAME}
           </Button>
-        </Row>
-      </Stack>
-    </Card>
+        </>
+      }
+      title={`${PRESET_NOT_HONORED_LEAD} ${stale.map((entry) => `${staleWireName(entry.knob, spelling)} ${String(entry.value)}`).join(" · ")}`}
+      tone="warning"
+    />
   );
 }

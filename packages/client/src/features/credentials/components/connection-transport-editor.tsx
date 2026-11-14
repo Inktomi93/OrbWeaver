@@ -27,6 +27,7 @@ import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { MutedLine } from "#components";
 import { includeBodyText, parseIncludeBody } from "../lib/connection-editor-model.ts";
 
 /** The `responseMap` paths, in the pane's reading order with their plain-word names. A `Record` over the
@@ -199,7 +200,7 @@ function PreviewResolution({
   const stated = RESPONSE_MAP_ORDER.filter((key) => (map[key] ?? "") !== "");
   return (
     <Stack gap="tight">
-      {stated.length === 0 ? <Text voice="gloss">No paths are set yet, so there is nothing to resolve.</Text> : null}
+      {stated.length === 0 ? <MutedLine>No paths are set yet, so there is nothing to resolve.</MutedLine> : null}
       {stated.map((key) => {
         const resolved = resolveDotPath(parsed.value, map[key] ?? "");
         return (

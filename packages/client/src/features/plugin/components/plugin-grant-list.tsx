@@ -109,6 +109,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId } from "react";
+import { MutedLine } from "#components";
 import { useGatedQuery, useTRPC } from "#data";
 import { CAPABILITY_COPY_ROWS, capabilityCopy, HOSTS_COLLAPSE_AT, hostsDisclosureLabel, NO_IMAGE_MODEL_NOTE, SPEND_ROLE_TASKS } from "../lib/plugin-copy.ts";
 
@@ -316,9 +317,7 @@ export function PluginGrantList({
   return (
     <Stack gap="block">
       {rows.length === 0 ? (
-        <Text cap="prose" prose={true} voice="gloss">
-          This plugin asks for no permissions at all. It can run its own code and nothing else.
-        </Text>
+        <MutedLine>This plugin asks for no permissions at all. It can run its own code and nothing else.</MutedLine>
       ) : (
         // `role="group"` + `aria-label` gives the permission set an announced boundary (side-eye P3): the
         // caller's own heading text ("What it's asking for" / "What Weather Teller is allowed to do") is

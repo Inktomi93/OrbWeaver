@@ -113,9 +113,10 @@ test("cohort-anatomy excludes a cohort of inline prose runs and still judges a b
 });
 
 // A member that STACKS its children holds all of them: an open group is its band plus its body, so its content is the
-// children's extent, not its tallest child. The near-miss in the same run stacks children that match the collapsed
-// members' content inside a taller box, which is the mis-sized member the rule exists for; its out-of-flow marker far
-// below sizes nothing, so it must not stretch the extent into an excuse.
+// children's summed heights, not its tallest child. Two near-misses in the same run stack children that match the
+// collapsed members' content inside a taller box, which is the mis-sized member the rule exists for: one is padded and
+// carries an out-of-flow marker far below that sizes nothing; the other opens a stray top margin between its stacked
+// children, and a gap between children is not content, so neither may stretch into an excuse.
 const STACKED_COHORT_CSS = ".stack > div { display: block; width: 200px } .stack i { display: block; background: #444 }";
 const stackedCohort = (slot: string, outlierStyle: string, outlier: string): string => `<div class="stack">
   <div data-slot="${slot}"><i style="height:32px"></i></div>
@@ -124,7 +125,7 @@ const stackedCohort = (slot: string, outlierStyle: string, outlier: string): str
   <div data-slot="${slot}" style="${outlierStyle}">${outlier}</div>
 </div>`;
 
-test("cohort-anatomy reads a stacking member's content as its children's extent and still reports a padded one", async ({ runSnap, scratch }) => {
+test("cohort-anatomy reads a stacking member's content as its summed child heights and still reports a padded or gapped one", async ({ runSnap, scratch }) => {
   await writeFile(
     join(scratch, "stacked-cohort.html"),
     relationalDocument(`<style>${STACKED_COHORT_CSS}</style>
@@ -133,16 +134,18 @@ ${stackedCohort(
   "padded-group",
   "padding-bottom:32px;position:relative",
   '<i style="height:16px"></i><i style="height:16px"></i><i style="position:absolute;top:200px;width:8px;height:8px"></i>',
-)}`),
+)}
+${stackedCohort("gapped-group", "", '<i style="height:16px"></i><i style="height:16px;margin-top:32px"></i>')}`),
   );
   const res = await runSnap(["--file", join(scratch, "stacked-cohort.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   const report = await readAuditReport(res.stdout);
-  expect(report.populationAccounting?.["cohort-anatomy"]).toMatchObject({ candidates: 2, judged: 2, withheld: {}, excluded: {} });
+  expect(report.populationAccounting?.["cohort-anatomy"]).toMatchObject({ candidates: 3, judged: 3, withheld: {}, excluded: {} });
   expect(
     report.findings.filter(({ rule }) => rule === "cohort-anatomy"),
-    `only the padded member is mis-sized:\n${res.stdout}`,
-  ).toHaveLength(1);
+    `only the padded and the gapped members are mis-sized:\n${res.stdout}`,
+  ).toHaveLength(2);
   expect(res.stdout).toMatch(/FINDING .*cohort-anatomy: .*slot=padded-group/u);
+  expect(res.stdout).toMatch(/FINDING .*cohort-anatomy: .*slot=gapped-group/u);
   expect(res.stdout).not.toMatch(/FINDING .*cohort-anatomy: .*slot=open-group/u);
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
 });

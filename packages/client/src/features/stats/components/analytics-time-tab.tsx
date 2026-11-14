@@ -12,7 +12,7 @@ import { Histogram } from "@orb/ui/histogram";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
+import { MutedLine, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
 import { APPROX_DATES_NOTE } from "../lib/analytics-copy.ts";
@@ -72,7 +72,7 @@ function TimeBody(): ReactElement {
 
       <Section heading="Daily tokens">
         {tokenBuckets.length === 0 ? (
-          <Text voice="gloss">No output token accounting recorded in this period.</Text>
+          <MutedLine>No output token accounting recorded in this period.</MutedLine>
         ) : (
           <Histogram buckets={tokenBuckets} countFormatter={(count): string => formatCount(count, tokensOutProvenance)} label={ANALYTICS_TOKENS_PER_DAY_NAME} />
         )}
