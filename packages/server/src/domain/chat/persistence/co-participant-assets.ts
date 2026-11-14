@@ -66,9 +66,7 @@ async function linksVisibleToCaller(db: Db, callerId: UserId, links: readonly Ro
 }
 
 async function loadVisibleAssetLinks(db: Db, callerId: UserId, assetIds: readonly AssetId[], room: SQL | undefined): Promise<RoomAssetLink[]> {
-  if (assetIds.length === 0) {
-    return [];
-  }
+  // SECURITY: no short cut on an empty list. The blob door's time must not show whether anyone holds the bytes it asked for.
   const callerSeat = alias(chatParticipants, "link_caller_seat");
   const links = await db
     .select({ assetId: messageAssets.assetId, chatId: messages.chatId, seq: messages.seq })

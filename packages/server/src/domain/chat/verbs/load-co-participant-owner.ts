@@ -5,11 +5,11 @@
 // its consent set, so a disabled owner's art stops serving like a departed owner's. The pin's avatar serves while the
 // pin holds (D315).
 //
-// Chat reads only its own tables. Assets names the rows holding `hash`, and character and persona name the avatars of
-// the ids chat's own room read found, so no owner read answers for a card or persona outside the caller's rooms. The
-// match between an avatar and the hash is made here, against the holders. Nothing takes a first row: a hash can sit
-// under several owners (CAS dedup is per owner), and a first row whose owner is out of the consent set must not hide a
-// later one that is in it.
+// Chat reads only its own tables. Character and persona name the avatars of the ids chat's own room read found, and
+// assets names the rows holding `hash` among the owners seated in those rooms and the pins' own avatars, so no owner
+// read answers for a card, persona or account outside the caller's rooms. The match between an avatar and the hash is
+// made here, against the holders. Nothing takes a first row: a hash can sit under several owners (CAS dedup is per
+// owner), and a first row whose owner is out of the consent set must not hide a later one that is in it.
 
 import type { LoadCoParticipantOwnerOp } from "@orb/contracts/assets";
 import type { DbAssemblyInput } from "@orb/db/wiring";
@@ -53,35 +53,16 @@ function presentHumanSeats(seats: readonly CallerRoomSeat[]): ReadonlyMap<ChatId
 export function createLoadCoParticipantOwner(input: DbAssemblyInput<Ctx>): LoadCoParticipantOwnerOp {
   const ctx: Ctx = { ...input, db: databaseForOwner(input.db) };
   return async (callerId, hash) => {
-    const holders = await ctx.loadHashHolders(hash);
-    if (holders.size === 0) {
-      return;
-    }
-    // Every arm needs a room where the caller is present, the link arm included, so no room means no reference.
+    // Every arm needs a room where the caller is present, the link arm included, so no room means no reference. This
+    // answer turns on the caller's own seats, never on the hash.
     const seats = await loadCallerRoomSeats(ctx.db, callerId);
     if (seats.length === 0) {
       return;
     }
     const ownerSeats = presentHumanSeats(seats);
-    // The owner of the asset when it holds `hash` and that owner is present in the room the reference sits in.
-    const candidateIn = (chatId: ChatId, assetId: AssetId | undefined): OwnerCandidate[] => {
-      const ownerId = assetId === undefined ? undefined : holders.get(assetId);
-      const ownerSeat = ownerId === undefined ? undefined : ownerSeats.get(chatId)?.get(ownerId);
-      return ownerId === undefined || ownerSeat === undefined ? [] : [{ chatId, ownerId, ownerSeat }];
-    };
-
     const rostered = seats.flatMap((seat) =>
       seat.kind === "character" && seat.characterId !== null ? [{ chatId: seat.chatId, characterId: seat.characterId }] : [],
     );
-    const characterAvatars = await ctx.loadCharacterAvatars([...new Set(rostered.map((seat) => seat.characterId))]);
-    const rosterOwner = await firstConsentingOwner(
-      ctx,
-      rostered.flatMap((seat) => candidateIn(seat.chatId, characterAvatars.get(seat.characterId))),
-    );
-    if (rosterOwner !== undefined) {
-      return rosterOwner;
-    }
-
     const worn: RoomPersona[] = seats.flatMap((seat) =>
       seat.kind === "human" && seat.activePersonaId !== null ? [{ chatId: seat.chatId, personaId: seat.activePersonaId }] : [],
     );
@@ -89,7 +70,29 @@ export function createLoadCoParticipantOwner(input: DbAssemblyInput<Ctx>): LoadC
     const pins: RoomPersona[] = [
       ...new Map(seats.flatMap((seat) => (seat.anchorPersonaId === null ? [] : [[seat.chatId, seat.anchorPersonaId] as const]))),
     ].map(([chatId, personaId]) => ({ chatId, personaId }));
+    const characterAvatars = await ctx.loadCharacterAvatars([...new Set(rostered.map((seat) => seat.characterId))]);
     const personaAvatars = await ctx.loadPersonaAvatars([...new Set([...worn, ...pins].map((persona) => persona.personaId))]);
+    // Holders only among what these rooms can reach: an owner seated in one, or a pin's own avatar, whose owner may have
+    // left. Every arm below needs one or the other, so the narrowing refuses nothing the arms would serve.
+    const holders = await ctx.loadHashHolders(hash, {
+      ownerIds: [...new Set([...ownerSeats.values()].flatMap((room) => [...room.keys()]))],
+      assetIds: pins.flatMap((pin) => personaAvatars.get(pin.personaId) ?? []),
+    });
+    // SECURITY: no early return on an empty holder set. A faster answer would tell the caller whether anyone they sit with holds these bytes.
+    // The owner of the asset when it holds `hash` and that owner is present in the room the reference sits in.
+    const candidateIn = (chatId: ChatId, assetId: AssetId | undefined): OwnerCandidate[] => {
+      const ownerId = assetId === undefined ? undefined : holders.get(assetId);
+      const ownerSeat = ownerId === undefined ? undefined : ownerSeats.get(chatId)?.get(ownerId);
+      return ownerId === undefined || ownerSeat === undefined ? [] : [{ chatId, ownerId, ownerSeat }];
+    };
+
+    const rosterOwner = await firstConsentingOwner(
+      ctx,
+      rostered.flatMap((seat) => candidateIn(seat.chatId, characterAvatars.get(seat.characterId))),
+    );
+    if (rosterOwner !== undefined) {
+      return rosterOwner;
+    }
     const wornOwner = await firstConsentingOwner(
       ctx,
       worn.flatMap((persona) => candidateIn(persona.chatId, personaAvatars.get(persona.personaId))),

@@ -1,20 +1,25 @@
-// The asset reads behind chat's co-participant art gate: owner and render ref by hash or by id, with no owner term.
-// They exist to RESOLVE the owner the gate then tests against the caller's rooms, so an owner term would be circular
-// (the `loadAssetCasRefById` precedent, D20). Compose wires them only into that gate; no user-facing door calls them.
+// The asset reads behind chat's co-participant art gate: owner and render ref by hash or by id. Neither takes the
+// caller as an owner term: they exist to RESOLVE the owner the gate then tests against the caller's rooms, so that term
+// would be circular (the `loadAssetCasRefById` precedent, D20). Each answers only for what the gate's room read names.
+// Compose wires them only into that gate; no user-facing door calls them.
 
-import type { AssetBlobRefHolder } from "@orb/contracts/assets";
+import type { AssetBlobRefHolder, HashHolderScope } from "@orb/contracts/assets";
 import { assets } from "@orb/db";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetId, UserId } from "@orb/kit/ids";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, or } from "drizzle-orm";
 
-/** Each asset row holding the bytes `hash` names, mapped to its owner. */
-export function createLoadHashHolders(handle: DatabaseHandle): (hash: string) => Promise<ReadonlyMap<AssetId, UserId>> {
+/** Each asset row holding the bytes `hash` names whose owner is one of `among.ownerIds` or whose id is one of
+ *  `among.assetIds`, mapped to its owner. */
+export function createLoadHashHolders(handle: DatabaseHandle): (hash: string, among: HashHolderScope) => Promise<ReadonlyMap<AssetId, UserId>> {
   const db = databaseForOwner(handle);
-  return async (hash) => {
-    const rows = await db.select({ id: assets.id, ownerId: assets.ownerId }).from(assets).where(eq(assets.hash, hash));
-    return new Map(rows.map((row) => [row.id, row.ownerId]));
+  return async (hash, among) => {
+    const rows = await db
+      .select({ id: assets.id, ownerId: assets.ownerId })
+      .from(assets)
+      .where(and(eq(assets.hash, hash), or(inArray(assets.ownerId, [...among.ownerIds]), inArray(assets.id, [...among.assetIds]))));
+    return new Map<AssetId, UserId>(rows.map((row) => [row.id, row.ownerId]));
   };
 }
 
