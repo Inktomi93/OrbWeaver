@@ -78,5 +78,7 @@ for (const scale of ENLARGED_TEXT) {
     for (const each of cards) {
       expect((await each.evaluate(sidewaysReach)).wideners).toEqual([]);
     }
+    // The pane itself, the install arms' Fetch buttons included, does not scroll sideways.
+    expect((await pane.evaluate(sidewaysReach)).wideners).toEqual([]);
   });
 }
