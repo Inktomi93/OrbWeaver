@@ -23,8 +23,8 @@ import type { ScriptRecord } from "../contract/rows.ts";
 
 const LIMIT_ONE = 1;
 
-/** The degrade target for a corrupt behavior blob: parses, runs nothing (no placement ⇒ every leg skips it). */
-const INERT_BEHAVIOR: RegexScriptBehavior = regexScriptBehaviorSchema.parse({ findRegex: "", replaceString: "", placement: [] });
+/** The degrade target for a corrupt behavior blob: parses, runs nothing (no target and no pass ⇒ every pass skips it). */
+const INERT_BEHAVIOR: RegexScriptBehavior = regexScriptBehaviorSchema.parse({ findRegex: "", replaceString: "", targets: [], passes: [] });
 
 const behaviorParser = regexScriptBehaviorSchema.catch(INERT_BEHAVIOR);
 
