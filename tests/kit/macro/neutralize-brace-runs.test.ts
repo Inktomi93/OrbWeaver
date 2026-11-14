@@ -72,6 +72,33 @@ test("a user macro's argument that resolves to another author's brace run splice
   expect(Object.keys(env)).toEqual(["payload"]);
 });
 
+test("a brace a user macro's template writes against its slot cannot pair with the spliced value's edge brace", () => {
+  const what: UserMacroDef["args"][number] = { name: "what", type: "string", optional: false };
+  const def: UserMacroDef = { name: "edge", description: "", args: [what], body: "[{{{what}}}]", inputs: [], strict: false };
+  const registry = createDefaultRegistry();
+  registerUserMacros(registry, [def], { source: SOURCE });
+  // A variable read delivers the value whole; written inline, its `::` would split it into several arguments.
+  const env: Record<string, string> = { value: "{setvar::edge::written}" };
+  const out = processMacros("{{edge::{{getvar::value}}}}", { char: CHAR, user: USER, persona: "P", scenario: "S", env }, registry);
+  expect(out).toContain("setvar::edge::written");
+  expect(env).toEqual({ value: "{setvar::edge::written}" });
+});
+
+test("a brace a guided template writes against its base slot cannot pair with the base text's edge brace", () => {
+  const env: Record<string, string> = {};
+  const out = resolveGuidedInstruction(
+    "{{user}} rewrites: {{{base}}}",
+    "",
+    { char: CHAR, user: USER, persona: "P", scenario: "S", env },
+    {
+      base: "{setvar::edge::written}",
+    },
+  );
+  expect(out.startsWith(`${USER} rewrites:`)).toBe(true);
+  expect(out).toContain("setvar::edge::written");
+  expect(env).toEqual({});
+});
+
 test("a guided greeting's base text keeps its brace runs literal while the template's own macros evaluate", () => {
   const env: Record<string, string> = {};
   const out = resolveGuidedInstruction(

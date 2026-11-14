@@ -13,6 +13,7 @@ import { evalCel, isCelParseError, parseCel } from "#cel";
 import { diceNotationInBounds, parseDiceNotation, rollDiceNotation } from "#dice";
 import { readOwnKey, writeOwnKey } from "#objects";
 import { BUILTIN_MACRO_METADATA } from "./builtin-metadata.ts";
+import { neutralizeMacros } from "./content.ts";
 import { isIfTruthy } from "./metadata.ts";
 import { unitDraw } from "./prng.ts";
 import type { MacroAST, MacroContext, MacroHandler, MacroMetadata, MacroMetadataInput, MacroRegisterOptions, MacroRegistry, VarOp } from "./types.ts";
@@ -545,6 +546,16 @@ function charField(read: (ctx: MacroContext) => string | undefined): MacroHandle
   };
 }
 
+// SECURITY (D353): a stored summary or game-state value is a record of the story, not a template. The model wrote
+// it over room messages (members' included), an import or a fork carried it, or the host hand-edited it, and a
+// row of mixed origin must not gain macro power on an edit. So it is never evaluated, name macros included, and
+// it is neutralized rather than returned raw so a later pass that evaluates its output (a user macro's argument)
+// still finds no opener. Read time is the home, so rows stored before this rule are covered. `{{databank}}`
+// keeps `charField`: D352 decides by document owner inside `gatherRetrieval`.
+function storyField(read: (ctx: MacroContext) => string | undefined): MacroHandler {
+  return (_args: string[], ctx: MacroContext): string => neutralizeMacros(read(ctx) ?? "");
+}
+
 /** The delivered-args → recorded `args` text join. `::` is the canonical arg separator the parser splits on,
  *  so the record round-trips what was written; no args ⇒ the field is omitted entirely. */
 const FREEZE_ARG_SEPARATOR = "::";
@@ -741,12 +752,12 @@ export function createDefaultRegistry(): MacroRegistry {
 
   registry.register(
     "compact_summary",
-    charField((ctx) => ctx.compactSummary),
+    storyField((ctx) => ctx.compactSummary),
     recursiveChat,
   );
   registry.register(
     "memory",
-    charField((ctx) => ctx.memory),
+    storyField((ctx) => ctx.memory),
     recursiveChat,
   );
   // Renders empty until domain/databank.gatherRetrieval stages `ctx.databank`; born now so preset
@@ -772,7 +783,7 @@ export function createDefaultRegistry(): MacroRegistry {
   for (const [name, key] of RPG_DATA_MACROS) {
     registry.register(
       name,
-      charField((ctx) => ctx.rpgMacros?.[key]),
+      storyField((ctx) => ctx.rpgMacros?.[key]),
       volChat,
     );
   }

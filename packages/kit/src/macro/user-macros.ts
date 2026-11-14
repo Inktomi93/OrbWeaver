@@ -26,12 +26,12 @@
 
 import { readOwnKey } from "#objects";
 import { macroAnalysisBinding, macroAnalysisInputBinding, macroTextIsVolatile } from "./cache-safety.ts";
-import { neutralizeMacros } from "./content.ts";
+import { neutralizeSplice } from "./content.ts";
 import { isIfTruthy } from "./metadata.ts";
 import { MACRO_NAME_RE } from "./parser.ts";
 import type { RandomSource } from "./prng.ts";
 import { unitDraw } from "./prng.ts";
-import type { MacroAnalysisOptions, MacroArgDef, MacroContext, MacroHandler, MacroMetadataInput, MacroRegistry, MacroSourceRef } from "./types.ts";
+import type { ArgDelivery, MacroAnalysisOptions, MacroArgDef, MacroContext, MacroHandler, MacroMetadataInput, MacroRegistry, MacroSourceRef } from "./types.ts";
 
 // ── the definition vocabulary ────────────────────────────────────────────────────────────────────
 
@@ -300,14 +300,30 @@ export interface UserMacroRegistration {
 // registry's lookup posture) → the NEUTRALIZED value. Names are MACRO_NAME_RE-shaped ([a-zA-Z][\w-]*),
 // so no regex metachar escaping is needed.
 function splice(template: string, name: string, value: string): string {
-  return template.replace(new RegExp(`\\{\\{\\s*${name}\\s*\\}\\}`, "gi"), neutralizeMacros(value));
+  // A function replacement, so a `$&` or `$$` in the value splices verbatim.
+  const spliced = neutralizeSplice(value);
+  return template.replace(new RegExp(`\\{\\{\\s*${name}\\s*\\}\\}`, "gi"), () => spliced);
 }
 
-// A delivered arg may still carry raw macro bytes (the `?` DELAYED flag hands the handler raw args) —
-// resolve them through ctx.resolve (same budget/PRNG/op-log ⇒ document-order draws survive the
-// deferral) BEFORE the neutralizing splice, so lazy delivery composes instead of degrading.
-function resolveDelivered(value: string, ctx: MacroContext): string {
-  return value.includes("{{") ? ctx.resolve(value) : value;
+// SECURITY (D353): resolve a bound value only when the engine has not: a raw arg (the `?` flag), a padded declared
+// default (the macro author's own text) or the trailing arg of an inline call delivered raw. An arg the
+// engine already resolved is text another macro produced (`{{getvar::x}}` returns whatever was stored in x), so
+// resolving it again would run that text's macros. ctx.resolve keeps the budget, PRNG and op-log, so
+// document-order draws survive the deferral.
+function bindingValue(value: string, ctx: MacroContext, resolvedByEngine: boolean): string {
+  return !resolvedByEngine && value.includes("{{") ? ctx.resolve(value) : value;
+}
+
+// Whether the engine already resolved delivered position `index`: the call's own args unless it delivered them
+// raw, and a block's body always. A missing record means no evaluator ran the call, so nothing is resolved again.
+function engineResolved(delivery: ArgDelivery | undefined, index: number, isBody: boolean): boolean {
+  if (delivery === undefined) {
+    return true;
+  }
+  if (isBody && delivery.block) {
+    return true;
+  }
+  return !delivery.raw && index < delivery.given;
 }
 
 /** The reserved binding name a scoped-block BODY lands under (`{{myMacro}}…{{/myMacro}}` → the body
@@ -344,6 +360,8 @@ function spliceInputs(template: string, context: InputSpliceContext): string {
 function userMacroHandler(def: UserMacroDef, opts: RegisterUserMacrosOptions): MacroHandler {
   const provided = ownEntry(opts.inputBindings, def.name);
   return (args, ctx) => {
+    // Read before any nested resolve below overwrites it.
+    const delivery = ctx.__delivered;
     const body = args[def.args.length];
     const shadowedInputs = new Set(def.args.map((arg) => arg.name.toLowerCase()));
     if (body !== undefined) {
@@ -355,11 +373,11 @@ function userMacroHandler(def: UserMacroDef, opts: RegisterUserMacrosOptions): M
       if (argDef.name.toLowerCase() === USER_MACRO_CONTENT_BINDING && body !== undefined) {
         continue;
       }
-      template = splice(template, argDef.name, resolveDelivered(args[i] ?? "", ctx));
+      template = splice(template, argDef.name, bindingValue(args[i] ?? "", ctx, engineResolved(delivery, i, false)));
     }
     // A scoped-block body arrives as the first arg PAST the declared set → `{{content}}`.
     if (body !== undefined) {
-      template = splice(template, USER_MACRO_CONTENT_BINDING, resolveDelivered(body, ctx));
+      template = splice(template, USER_MACRO_CONTENT_BINDING, bindingValue(body, ctx, engineResolved(delivery, def.args.length, true)));
     }
     return ctx.resolve(template);
   };

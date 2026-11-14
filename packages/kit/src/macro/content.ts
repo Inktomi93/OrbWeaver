@@ -19,6 +19,14 @@ export function neutralizeMacros(s: string): string {
   return s.replace(/\{(?=\{)/g, `{${ZWSP}`).replace(/\}(?=\})/g, `}${ZWSP}`);
 }
 
+/** {@link neutralizeMacros} for a value spliced into a template the engine then evaluates. A template brace
+ *  written against the slot (`{{{name}}}`) would pair with the value's first or last brace, so a value that
+ *  starts with `{` or ends with `}` gets a zero-width space on that edge too. */
+export function neutralizeSplice(s: string): string {
+  const inner = neutralizeMacros(s);
+  return `${inner.startsWith("{") ? ZWSP : ""}${inner}${inner.endsWith("}") ? ZWSP : ""}`;
+}
+
 /** UTF-8 byte length for the macro engine's input and output belts. `null` means the source contains
  *  an unpaired surrogate and therefore has no well-formed UTF-8 encoding. */
 export function utf8ByteLength(source: string): number | null {

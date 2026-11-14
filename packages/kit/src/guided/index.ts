@@ -1,6 +1,6 @@
 import type { DIRECTIVE_FENCE_NAMES } from "#content";
 import type { MacroRegistry, ProcessMacroOptions } from "#macro";
-import { neutralizeMacros, processMacros } from "#macro";
+import { neutralizeMacros, neutralizeSplice, processMacros } from "#macro";
 
 // The `:::choices` fence name the offer-choices template instructs the model to emit — TIED to `#content`'s
 // `DIRECTIVE_FENCE_NAMES` (its one home) via `satisfies`: if that fence is ever renamed or dropped from the
@@ -37,8 +37,8 @@ const DEFAULT_PERSON = "first";
  * `{{base}}` (the greeting studio's rewrite base text — the existing greeting) is an OPTIONAL
  * guided-only pre-substitution mirroring `{{person}}`: it is spliced into the template BEFORE macro
  * processing so the editable template controls placement. The base is OTHER-AUTHOR content (the card
- * creator's greeting), so it is `neutralizeMacros`'d exactly like `userInput` — a `{{…}}` in the stored
- * greeting cannot re-trigger macro evaluation once spliced. Unset ⇒ the token is left intact (a template
+ * creator's greeting), so it passes through `neutralizeSplice` — a `{{…}}` in the stored greeting, or a
+ * brace the template writes against the slot, cannot re-trigger macro evaluation once spliced. Unset ⇒ the token is left intact (a template
  * without a rewrite base — e.g. `greeting_new` — simply never contains it).
  */
 /** A trailing `.` (plus any following whitespace) on a composed piece — stripped so the join doesn't
@@ -137,9 +137,11 @@ export function resolveGuidedInstruction(
   // controls placement while the caller controls the value. Done as string replaces, not macros, so they
   // stay guided-only concerns and never touch the general macro engine/registry. `{{base}}` is
   // NEUTRALIZED first (other-author greeting text — the same injection defense as `{{input}}`) so a
-  // `{{…}}` in the stored greeting cannot re-trigger macro evaluation once it lands in the template.
+  // `{{…}}` in the stored greeting cannot re-trigger macro evaluation once it lands in the template. The
+  // function replacement splices a `$&` in the greeting verbatim.
   const withPerson = promptTemplate.trim().replace(/\{\{\s*person\s*\}\}/gi, opts?.person ?? DEFAULT_PERSON);
-  const template = opts?.base === undefined ? withPerson : withPerson.replace(/\{\{\s*base\s*\}\}/gi, neutralizeMacros(opts.base));
+  const base = opts?.base === undefined ? undefined : neutralizeSplice(opts.base);
+  const template = base === undefined ? withPerson : withPerson.replace(/\{\{\s*base\s*\}\}/gi, () => base);
   if (template.length === 0) {
     return safeInput;
   }
