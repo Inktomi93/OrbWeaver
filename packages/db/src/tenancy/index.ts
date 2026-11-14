@@ -274,6 +274,11 @@ export const TABLE_SCOPING = {
     why: "the import idempotency claim is born with and derives authority through its chat; characterId narrows operation identity rather than creating a second read surface.",
   },
   chatInjections: { sqlName: "chat_injections", scope: "membership", why: "per-chat positional injections — room state, membership-gated." },
+  chatMemoryStrikes: {
+    sqlName: "chat_memory_strikes",
+    scope: "membership",
+    why: "the host's strikes on remembered items — room state the host writes and members read under their history floor.",
+  },
   chatInvites: { sqlName: "chat_invites", scope: "membership", why: "the membership chokepoint — issued by the host, redeemed by token; scope is the chat." },
   chatLocks: {
     sqlName: "chat_locks",
