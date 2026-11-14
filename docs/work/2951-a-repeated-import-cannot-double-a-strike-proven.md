@@ -18,7 +18,7 @@ A doubled strike row needs two restores to lift, and the host sees one entry.
 
 ## Done when
 
-The same-library restore case reads the strike rows through a production read, or the repository case asserts the import's conflict path, and the case fails with the span index removed.
+A case imports one room file twice through the chat import door and the room holds one strike per span after the second import. The case goes red when the import's own check for an existing strike on the span is removed.
 
 ## Evidence
 
