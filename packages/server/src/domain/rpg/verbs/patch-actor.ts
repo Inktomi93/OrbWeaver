@@ -33,11 +33,11 @@ import { applyActorOps, emptyActorEntry } from "../substrate/actor-ops.ts";
 
 export function createPatchActor(ctx: RpgContext): Pick<RpgService, "patchActor"> {
   async function patchActor(params: PatchActorParams): Promise<HandDoorResult> {
-    const { game, role } = await resolveMember(ctx, params.principal, params.chatId);
+    const { game, role, admission } = await resolveMember(ctx, params.principal, params.chatId);
     assertHostRole(ctx.can, params.principal, role, "host authority required to hand-edit an actor");
     const targetKey = actorRefKey(params.targetRef);
 
-    const written = await writeHandState(ctx, game, (head) => {
+    const written = await writeHandState(ctx, { game, admission }, (head) => {
       const index = head.state.actorState.findIndex((a) => actorRefKey(a.actorRef) === targetKey);
       // A target with no row yet is MINTED here, so a first hand edit on a fresh actor is a real write and
       // never a silent no-op. The mint is the empty row (`emptyActorVolatile`) — the ops then write onto it,

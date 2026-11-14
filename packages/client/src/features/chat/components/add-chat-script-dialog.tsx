@@ -18,7 +18,7 @@
 import type { ChatId, RegexScriptId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
-import { DialogClose, DialogFooter } from "@orb/ui/dialog";
+import { DialogClose } from "@orb/ui/dialog";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Code, Icon, Search } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
@@ -26,7 +26,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import type { ReactElement, RefObject } from "react";
 import { useRef, useState } from "react";
-import { DialogFailure, DismissDialog, MutedLine, QueryBoundary } from "#components";
+import { CommitFooter, DialogFailure, DismissDialog, MutedLine, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { DIALOG_VERBS, regexScriptScent, regexScriptTitle, timeLib } from "#lib";
 import { useAttachScriptToChat } from "../hooks/use-chat-regex-mutations.ts";
@@ -171,12 +171,15 @@ function ScriptPicker({ attachedIds, chatId, onClose, ownedRef }: PickerBodyProp
         })}
       </Stack>
       {failure === null ? null : <DialogFailure>{failure}</DialogFailure>}
-      <DialogFooter>
-        <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
-        <Button disabled={picked.length === 0 || attach.isPending} onClick={(): void => void commit().catch(globalThis.reportError)} type="button">
-          {CHAT_ATTACH_SCRIPTS_COMMIT_NAME}
-        </Button>
-      </DialogFooter>
+      <CommitFooter
+        exitHeld={attach.isPending}
+        submit={{
+          label: CHAT_ATTACH_SCRIPTS_COMMIT_NAME,
+          onSubmit: (): void => void commit().catch(globalThis.reportError),
+          disabled: picked.length === 0,
+          loading: attach.isPending,
+        }}
+      />
     </Stack>
   );
 }

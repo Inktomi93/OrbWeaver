@@ -54,7 +54,7 @@ export interface ImageryComposeDeps extends Pick<ImageryRoomAccessDeps, "resolve
 export function buildImagery(deps: ImageryComposeDeps): ImageryService {
   const { db, now, connection, executor, assets, character, roleClientsFor } = deps;
   const fetchImage = deps.fetchImageBytes;
-  const stats = createStatsBatchWiring(deps.idSource);
+  const stats = createStatsBatchWiring(deps.idSource, deps.now);
   const imagery = createImageryService({
     db,
     now,

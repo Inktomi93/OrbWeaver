@@ -17,7 +17,7 @@ import { Text } from "@orb/ui/text";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { MutedLine, QueryBoundary } from "#components";
+import { ContextTabBody, MutedLine, QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { testId } from "#lib";
@@ -61,14 +61,16 @@ const FACET_VIEWS = [
 
 export function CorpusVisualsTab(): ReactElement {
   return (
-    <QueryBoundary
-      resetKeys={[]}
-      fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="the visuals" onRetry={retry} />}
-      reserveKey="corpus.visuals"
-    >
-      <VisualsBody />
-    </QueryBoundary>
+    <ContextTabBody>
+      <QueryBoundary
+        resetKeys={[]}
+        fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="the visuals" onRetry={retry} />}
+        reserveKey="corpus.visuals"
+      >
+        <VisualsBody />
+      </QueryBoundary>
+    </ContextTabBody>
   );
 }
 

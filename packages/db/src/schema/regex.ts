@@ -21,15 +21,14 @@
 //     `position` within its scope; the tier order (global → preset → character → chat) is the resolver's
 //     (`domain/chat/substrate/regex-tier`), and a script attached at two scopes runs once, earliest tier.
 //
-// Timestamps are plain `integer("x_at")` epoch-MS NUMBERS, born at insert via `(unixepoch() * 1000)`.
+// Timestamps are plain `integer("x_at")` epoch-MS NUMBERS; a stamp is `stampColumn`, stated by each insert.
 // Composite-PK junctions use `primaryKey({ columns })`; every FK CASCADEs (delete a script → all four
 // junction rows vanish; delete the scope target → that target's junction rows vanish).
 
 import type { RegexScriptBehavior } from "@orb/contracts/regex";
 import type { CharacterId, ChatId, PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
-import { sql } from "drizzle-orm";
 import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { nulFreeText } from "../custom-types/index.ts";
+import { nulFreeText, stampColumn } from "../custom-types/index.ts";
 import { characters } from "./character.ts";
 import { chats } from "./chat.ts";
 import { presets } from "./preset.ts";
@@ -58,12 +57,12 @@ export const regexScripts = sqliteTable(
     enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
     // The typed behavior blob (see header). NOT NULL — a script with no behavior is not a script.
     behavior: text("behavior", { mode: "json" }).$type<RegexScriptBehavior>().notNull(),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
     // The EDITED stamp (X-16). `Add script` mints every row named "New script", so a library fills with
     // rows the list cannot tell apart; "edited 4m ago" is the discriminator the preset list already has and
     // this one did not. Maintained by every write verb from the injected clock (never a DB trigger) — the
     // `presets.updatedAt` twin.
-    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+    updatedAt: stampColumn("updated_at"),
   },
   (t) => [
     // Owner-scoped list (`fetchOwned`).
@@ -88,7 +87,7 @@ export const globalRegexScripts = sqliteTable(
       .primaryKey()
       .references(() => regexScripts.id, { onDelete: "cascade" }),
     position: integer("position").notNull().default(DEFAULT_POSITION),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   // No secondary index: `regexScriptId` IS the single-column PK — already indexed; a `*_script_idx` would
   // just duplicate it (the `global_books` note).
@@ -108,7 +107,7 @@ export const characterRegexScripts = sqliteTable(
       .notNull()
       .references(() => regexScripts.id, { onDelete: "cascade" }),
     position: integer("position").notNull().default(DEFAULT_POSITION),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     primaryKey({ columns: [t.characterId, t.regexScriptId] }),
@@ -132,7 +131,7 @@ export const presetRegexScripts = sqliteTable(
       .notNull()
       .references(() => regexScripts.id, { onDelete: "cascade" }),
     position: integer("position").notNull().default(DEFAULT_POSITION),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [primaryKey({ columns: [t.presetId, t.regexScriptId] }), index("preset_regex_scripts_script_idx").on(t.regexScriptId)],
 );
@@ -152,7 +151,7 @@ export const chatRegexScripts = sqliteTable(
       .notNull()
       .references(() => regexScripts.id, { onDelete: "cascade" }),
     position: integer("position").notNull().default(DEFAULT_POSITION),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [primaryKey({ columns: [t.chatId, t.regexScriptId] }), index("chat_regex_scripts_script_idx").on(t.regexScriptId)],
 );

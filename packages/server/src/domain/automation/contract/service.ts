@@ -202,7 +202,7 @@ export interface AutomationService {
   readonly dismissSuggestion: (params: DismissSuggestionParams) => Promise<void>;
 
   /** The `automation.stream` subscribe-time visibility gate — resolve the caller's authority tier
-   *  over the chat (`host` receives every bus event; `member` only the room-visible `quickReplySurfaced`), or
+   *  over the chat (`host-only` receives every bus event; `member-visible` only the room-visible `quickReplySurfaced`), or
    *  throw a leak-free AutomationChatNotFound for a non-present member. MEMBER-level (not the host gate):
    *  the transient chips reach every participant, the tier only decides whether the host-only events flow. */
   readonly resolveStreamAuthority: (params: ResolveStreamAuthorityParams) => Promise<StreamAuthority>;

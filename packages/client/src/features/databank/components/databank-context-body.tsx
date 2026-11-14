@@ -55,26 +55,32 @@ export function DatabankContextBody(): ReactElement {
     // welcome, while a 320px CONTEXT rail's no-selection arm is a CAPTION for a panel, not a hero — its
     // title and sentence carry it. The other two keep theirs; the repetition is what goes.
     // action={null}: the NO-SELECTION arm: a `single` context body is mounted unconditionally and must render the section's own context.empty copy itself, while the next step — picking a row — lives in the sibling LIST pane, which is on screen whenever this is (the config-context-body precedent). Ends if the context body stops mounting without a member.
-    return <EmptyState action={null} description={DATABANK_CONTEXT_EMPTY.description} title={DATABANK_CONTEXT_EMPTY.title} />;
+    return (
+      <ContextTabBody>
+        <EmptyState action={null} description={DATABANK_CONTEXT_EMPTY.description} title={DATABANK_CONTEXT_EMPTY.title} />
+      </ContextTabBody>
+    );
   }
   return (
-    // The shell wraps a `tabs` context in a boundary but NOT a `single` body (section-context-host), so this
-    // panel owns the one its suspending reads need.
-    // DELIBERATELY UNRESERVED (#1098) — and the reason is a HAZARD, not a preference. `MeasuredSettle`'s
-    // effect carries NO dependency array (`components/query-boundary.tsx`), so it re-measures the wrapper on
-    // EVERY commit; a commit in which the child is a one-line pending arm is remembered exactly like a
-    // settled one, and the rail thereafter reserves a box that lies about its own content.
-    //
-    // Active-in keeps its own boundary (`databank-active-in.tsx`), so a document switch re-suspends only that
-    // block and a settled commit of this rail is not a settled rail: no instant at which a measurement would
-    // be honest.
-    <QueryBoundary
-      resetKeys={[documentId]}
-      fallback={<SkeletonRows count={3} shape="datum" />}
-      renderError={(error, retry): ReactElement => (isDocumentGone(error) ? <DocumentGone /> : <QueryErrorState label="this document" onRetry={retry} />)}
-    >
-      <ContextBody documentId={documentId} />
-    </QueryBoundary>
+    <ContextTabBody>
+      {/* The shell wraps a `tabs` context in a boundary but NOT a `single` body (section-context-host), so this
+          panel owns the one its suspending reads need, inside its column so the pending, failed and gone arms keep its inset.
+          DELIBERATELY UNRESERVED (#1098) — and the reason is a HAZARD, not a preference. `MeasuredSettle`'s
+          effect carries NO dependency array (`components/query-boundary.tsx`), so it re-measures the wrapper on
+          EVERY commit; a commit in which the child is a one-line pending arm is remembered exactly like a
+          settled one, and the rail thereafter reserves a box that lies about its own content.
+
+          Active-in keeps its own boundary (`databank-active-in.tsx`), so a document switch re-suspends only that
+          block and a settled commit of this rail is not a settled rail: no instant at which a measurement would
+          be honest. */}
+      <QueryBoundary
+        resetKeys={[documentId]}
+        fallback={<SkeletonRows count={3} shape="datum" />}
+        renderError={(error, retry): ReactElement => (isDocumentGone(error) ? <DocumentGone /> : <QueryErrorState label="this document" onRetry={retry} />)}
+      >
+        <ContextBody documentId={documentId} />
+      </QueryBoundary>
+    </ContextTabBody>
   );
 }
 
@@ -126,37 +132,36 @@ function ContextBody({ documentId }: { readonly documentId: DocumentId }): React
   const { data: doc } = useSuspenseQuery(trpc.databank.get.queryOptions({ id: documentId }));
 
   return (
-    // `instrument` with a form island (density §3 blesses exactly this nesting for a context panel).
+    // `instrument` with a form island (density §3 blesses exactly this nesting for a context panel). The surface draws no box, so its
+    // sections are the column's own.
     <Surface tier="instrument">
-      <ContextTabBody>
-        <EverywhereSection documentId={doc.id} name={doc.name} />
-        <ActiveInSection documentId={doc.id} documentName={doc.name} />
-        {/* `kicker`, not `heading` — CD1 (section.tsx's own doc): these three are compact groupings in a
+      <EverywhereSection documentId={doc.id} name={doc.name} />
+      <ActiveInSection documentId={doc.id} documentName={doc.name} />
+      {/* `kicker`, not `heading` — CD1 (section.tsx's own doc): these three are compact groupings in a
             320px context rail, which is the shape the micro-caps + hairline exists for. */}
-        <Section kicker="Retrieval">
-          <Stack gap="row">
-            <Text voice="gloss">How many passages get pulled, and how close a match must be, is tuned once for the whole bank.</Text>
-            {/* A DOOR, NOT A BREADCRUMB (side-eye 2026-08-19 P2). It used to spell the path in prose —
+      <Section kicker="Retrieval">
+        <Stack gap="row">
+          <Text voice="gloss">How many passages get pulled, and how close a match must be, is tuned once for the whole bank.</Text>
+          {/* A DOOR, NOT A BREADCRUMB (side-eye 2026-08-19 P2). It used to spell the path in prose —
                 "Settings → Chat behavior → Databank" — beside an `openConfigTo` seam that lands on that
                 exact subcategory. A path a user has to retrace by hand is a control we declined to render. */}
-            <Button
-              self="start"
-              variant="ghost"
-              // The category + subcategory as LITERALS, the house spelling for a settings deep link
-              // (`openConfigTo("workloads", "jobs")`, `openConfigTo("chat-behavior", "memory")`).
-              // The `DATABANK_SETTINGS_SUBCATEGORY` const that carries the same id lives in `features/chat`
-              // (chat owns the {{databank}} slot's settings section), and a feature never sideways-imports
-              // another feature's lib.
-              onClick={(): void => openConfigTo("chat-behavior", "databank")}
-              size="sm"
-              type="button"
-            >
-              <Icon icon={SlidersHorizontal} size="sm" />
-              Retrieval settings
-            </Button>
-          </Stack>
-        </Section>
-      </ContextTabBody>
+          <Button
+            self="start"
+            variant="ghost"
+            // The category + subcategory as LITERALS, the house spelling for a settings deep link
+            // (`openConfigTo("workloads", "jobs")`, `openConfigTo("chat-behavior", "memory")`).
+            // The `DATABANK_SETTINGS_SUBCATEGORY` const that carries the same id lives in `features/chat`
+            // (chat owns the {{databank}} slot's settings section), and a feature never sideways-imports
+            // another feature's lib.
+            onClick={(): void => openConfigTo("chat-behavior", "databank")}
+            size="sm"
+            type="button"
+          >
+            <Icon icon={SlidersHorizontal} size="sm" />
+            Retrieval settings
+          </Button>
+        </Stack>
+      </Section>
     </Surface>
   );
 }

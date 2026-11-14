@@ -475,6 +475,20 @@ export function userRoleSatisfies(role: UserRole, action: GlobalAction): boolean
   return actions.includes(action);
 }
 
+// The global action a caller needs to grant each role: a regular account is delegated-admin work, an elevated one is
+// the owner's. A mapped record over the closed tuple, so a new role must name its gate here.
+const GRANT_ACTION_OF_ROLE = { owner: "owner", admin: "owner", user: "admin" } as const satisfies Record<UserRole, GlobalAction>;
+
+/** The global action that authorizes granting a user role (invariant 6). */
+export function roleGrantAction(role: UserRole): GlobalAction {
+  return GRANT_ACTION_OF_ROLE[role];
+}
+
+/** Whether a re-derived user role differs from the stored one; a change, not a meaning (invariant 6). */
+export function userRoleChanged(from: UserRole, to: UserRole): boolean {
+  return from !== to;
+}
+
 /** The membership data chat feeds `can()` for a chat-resource decision. `can()` makes the verdict —
  *  chat never compares `role === 'host'` itself. */
 export interface ChatMembership {

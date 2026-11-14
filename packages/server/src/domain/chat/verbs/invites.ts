@@ -156,7 +156,7 @@ function assertSignupMint(ctx: ChatContext, principal: Principal, input: CreateI
  *  never the raw token. A share-link invite has no single recipient to notify — skipped. */
 function createCreateInvite(ctx: ChatContext, claimChat: ClaimChatOp): ChatService["createInvite"] {
   return async ({ principal, chatId, input }: CreateInviteParams) => {
-    await requireHost(ctx, principal, chatId);
+    const { admission } = await requireHost(ctx, principal, chatId);
     const allowSignup = input.allowSignup === true;
     if (allowSignup) {
       assertSignupMint(ctx, principal, input, ctx.now());
@@ -176,11 +176,9 @@ function createCreateInvite(ctx: ChatContext, claimChat: ClaimChatOp): ChatServi
     const inviteId = ctx.newInviteId();
     const maxUses = resolveMaxUses(input.maxUses);
     const expiresAt = resolveExpiresAt(input.expiresAt, at);
-    // Before the invite row: only an invite seats a second human, and a room is claimed before anyone can join it.
-    await claimChat(chatId);
-    await insertInvite(ctx.db, {
+    const claim = await claimChat(admission);
+    await insertInvite(ctx.db, claim, {
       id: inviteId,
-      chatId,
       tokenHash: ctx.hashToken(token),
       maxUses,
       uses: 0,

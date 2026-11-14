@@ -5,10 +5,10 @@
 // book attachment is the Chats lane's concern.
 
 import type { CharacterId, PersonaId, WorldBookId } from "@orb/kit/ids";
-import { Section, Stack } from "@orb/ui/layout";
+import { Section } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
 import type { RelationManagerItem } from "#components";
-import { QueryBoundary, RelationManagerSection } from "#components";
+import { ContextTabBody, QueryBoundary, RelationManagerSection } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQueries, useTRPC } from "#data";
 import {
   useAttachBookToCharacter,
@@ -55,14 +55,14 @@ function RelationBoundary({ heading, noun, children }: { readonly heading: strin
 
 export function CharacterRelationsTab({ characterId }: CharacterRelationsTabProps): ReactElement {
   return (
-    <Stack gap="section">
+    <ContextTabBody>
       <RelationBoundary heading="Linked world books" key={`books-${characterId}`} noun="linked world books">
         <LinkedBooksSection characterId={characterId} />
       </RelationBoundary>
       <RelationBoundary heading="Connected personas" key={`personas-${characterId}`} noun="connected personas">
         <ConnectedPersonasSection characterId={characterId} />
       </RelationBoundary>
-    </Stack>
+    </ContextTabBody>
   );
 }
 

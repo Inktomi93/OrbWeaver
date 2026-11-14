@@ -119,6 +119,7 @@ test("teardown preserves commits that have not reached the main checkout", ({ sc
   runNicedSync("bash", ["-c", `printf '%s' '${hookPayload(worktree)}' | bash '${HOOK}'`]);
   expect(existsSync(worktree)).toBe(false);
   expect(execFixtureGit(planted.repo, ["rev-parse", "--verify", "refs/heads/wt/unmerged"]).trim()).toBe(tip);
+  expect(execFixtureGit(planted.repo, ["log", "-1", "--format=%s", "refs/heads/wt/unmerged"]).trim()).toBe("unmerged work");
 });
 
 test("removal keeps lane and review reports, and never the bulky run output", ({ scratch }) => {

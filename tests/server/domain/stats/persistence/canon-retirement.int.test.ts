@@ -12,7 +12,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import type { ActivityBucket, CharacterStatsView, ModelStatRow, OwnerStatsView } from "@orb/contracts/stats";
 import { RETIRED_CANON_KIND } from "@orb/contracts/stats";
-import { spendLedger } from "@orb/db";
+import { dailyStats, modelStats, spendLedger } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
@@ -199,6 +199,28 @@ test("re-seating a room after its only character is deleted counts its paid turn
     expect(again).toEqual(live);
     gone = heir;
   }
+});
+
+test("re-seating an emptied room stamps the timeline and model rows it recreates with the clock at the seat", async () => {
+  await using h = await textRoom(["The only answer."]);
+  const [only] = h.characters;
+  if (only === undefined) {
+    throw new Error("the room seated no character");
+  }
+  h.root.clock.advance(STEP_MS);
+  expect((await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Speak." })).aborted).toBe(false);
+  await h.root.settleBackground();
+  h.root.clock.advance(STEP_MS);
+  await h.root.services.character.remove({ principal: h.owner, characterId: only.id });
+  const owned = async (): Promise<readonly number[]> => [
+    ...(await h.root.db.select({ at: dailyStats.computedAt }).from(dailyStats).where(eq(dailyStats.ownerId, h.owner.userId))).map((row) => row.at),
+    ...(await h.root.db.select({ at: modelStats.computedAt }).from(modelStats).where(eq(modelStats.ownerId, h.owner.userId))).map((row) => row.at),
+  ];
+  expect(await owned()).toEqual([]);
+
+  await reseat(h, "heir");
+
+  expect(await owned()).toEqual([h.root.clock.now(), h.root.clock.now()]);
 });
 
 // An unpriced turn leaves no retired spend behind, so only the settle after the delete can move last activity back.

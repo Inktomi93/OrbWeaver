@@ -5,18 +5,28 @@
 // happened, the only open question is where it lands; dismissing (Esc/backdrop) takes the primary arm, which
 // is also exactly what the old silent behavior did.
 //
-// Two phases in one DismissDialog (G24 — never a raw Dialog root): the CHOICE, then the new fork's NAME (its
-// Back returns to the choice rather than closing, so a mis-click can't silently retarget the editor). The
-// name field is pre-filled with the suggestion and mounts focused — the rename-dialog prompt shape.
+// Two stages in one DismissDialog (G24 — never a raw Dialog root): the CHOICE, whose two arms are its acts and
+// whose corner close takes the primary arm, then the new fork's NAME, whose commit footer's exit is a Back to
+// the choice rather than a close, so a mis-click can't silently retarget the editor. The name field is
+// pre-filled with the suggestion and takes focus when its stage swaps in, as the arm that opened it does on
+// the way back.
 
 import { Button } from "@orb/ui/button";
-import { DialogFooter } from "@orb/ui/dialog";
 import { Input } from "@orb/ui/input";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useEffect, useRef, useState } from "react";
-import { DismissDialog } from "#components";
+import { useId, useRef, useState } from "react";
+import { CommitFooter, DismissDialog } from "#components";
+import { useFocusOnSwap } from "#lib";
+import {
+  PRESET_FORK_CREATE_NAME,
+  PRESET_FORK_NAME_FIELD_NAME,
+  PRESET_FORK_NAME_TITLE,
+  PRESET_FORK_START_NAME,
+  PRESET_NAME_FIELD_NAME,
+  presetForkKeepEditingName,
+} from "../lib/preset-names.ts";
 
 export interface PresetForkChoiceDialogProps {
   readonly open: boolean;
@@ -32,22 +42,29 @@ export interface PresetForkChoiceDialogProps {
   readonly onNewFork: (name: string) => void;
 }
 
+/** Which stage is on screen, and for the choice whether the reader came back to it from the name stage. */
+const FORK_STAGES = ["choice", "naming", "returned"] as const;
+type ForkStage = (typeof FORK_STAGES)[number];
+
 /** The choice the owner sees before their edit to the built-in default is written. */
 export function PresetForkChoiceDialog({ open, sourceName, forkName, suggestedName, onKeepEditing, onNewFork }: PresetForkChoiceDialogProps): ReactElement {
-  const [naming, setNaming] = useState(false);
+  const [stage, setStage] = useState<ForkStage>("choice");
   const [name, setName] = useState(suggestedName);
   const nameRef = useRef<HTMLInputElement>(null);
-
+  const startRef = useRef<HTMLButtonElement>(null);
+  const formId = useId();
+  const naming = stage === "naming";
   const trimmed = name.trim();
 
-  // Focus the name field when the second phase opens. NOT `autoFocus` (which would need a jsx-a11y
-  // suppression this file has no budget for) and not `useFocusOnMount` (its initial-load guard skips
-  // exactly this case: the button that opened the phase unmounted, so `activeElement` is already <body>).
-  useEffect(() => {
-    if (naming) {
-      nameRef.current?.focus();
+  // Each stage swaps in where the control that opened it was, so its arrival control takes focus.
+  useFocusOnSwap(nameRef, naming);
+  useFocusOnSwap(startRef, stage === "returned");
+
+  const create = (): void => {
+    if (trimmed !== "") {
+      onNewFork(trimmed);
     }
-  }, [naming]);
+  };
 
   return (
     <DismissDialog
@@ -59,7 +76,7 @@ export function PresetForkChoiceDialog({ open, sourceName, forkName, suggestedNa
         }
       }}
       open={open}
-      title={naming ? "Name the new fork" : `Where should this edit to ${sourceName} go?`}
+      title={naming ? PRESET_FORK_NAME_TITLE : `Where should this edit to ${sourceName} go?`}
       description={
         naming
           ? `A new copy of ${sourceName} carries this edit; ${forkName} keeps its own.`
@@ -67,39 +84,36 @@ export function PresetForkChoiceDialog({ open, sourceName, forkName, suggestedNa
       }
     >
       {naming ? (
-        <form
-          aria-label="Name the new fork"
-          onSubmit={(event): void => {
-            event.preventDefault();
-            if (trimmed !== "") {
-              onNewFork(trimmed);
-            }
-          }}
-        >
-          <Stack gap="block">
-            <Input aria-label="New fork name" onValueChange={setName} placeholder="Preset name" ref={nameRef} value={name} />
-            <DialogFooter>
-              <Button variant="ghost" onClick={(): void => setNaming(false)}>
-                Back
-              </Button>
-              <Button disabled={trimmed === ""} type="submit">
-                Create fork
-              </Button>
-            </DialogFooter>
-          </Stack>
-        </form>
+        <>
+          <form
+            aria-label={PRESET_FORK_NAME_TITLE}
+            id={formId}
+            onSubmit={(event): void => {
+              event.preventDefault();
+              create();
+            }}
+          >
+            <Input aria-label={PRESET_FORK_NAME_FIELD_NAME} onValueChange={setName} placeholder={PRESET_NAME_FIELD_NAME} ref={nameRef} value={name} />
+          </form>
+          <CommitFooter
+            exit={{ back: (): void => setStage("returned") }}
+            formId={formId}
+            submit={{ label: PRESET_FORK_CREATE_NAME, onSubmit: create, disabled: trimmed === "" }}
+          />
+        </>
       ) : (
         <Stack gap="block">
           <Stack gap="tight">
-            <Button onClick={onKeepEditing}>{`Keep editing ${forkName}`}</Button>
+            <Button onClick={onKeepEditing}>{presetForkKeepEditingName(forkName)}</Button>
             <Button
+              ref={startRef}
               variant="outline"
               onClick={(): void => {
                 setName(suggestedName);
-                setNaming(true);
+                setStage("naming");
               }}
             >
-              Start a new fork
+              {PRESET_FORK_START_NAME}
             </Button>
           </Stack>
           <Text voice="gloss">{`Either way this edit is saved: "${forkName}" is just the copy it would join.`}</Text>

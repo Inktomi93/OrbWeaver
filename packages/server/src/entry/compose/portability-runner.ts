@@ -178,7 +178,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     operatorImportPort: createOperatorImportPort(deps.stProfileDir ?? DEFAULT_ST_PROFILE_DIR),
     stagedImportPort: async (root, digest) => createStagedImportPort(root, await readStagedManifest(root, digest)),
     listTokenUsageCandidates: createListImportedTokenUsageCandidates(db),
-    compareAndSetTokenUsage: createCompareAndSetImportedTokenUsage(db, createStatsBatchWiring(deps.idSource).bumpStatsCanonVersion),
+    compareAndSetTokenUsage: createCompareAndSetImportedTokenUsage(db, createStatsBatchWiring(deps.idSource, deps.now).bumpStatsCanonVersion),
     ...createImportWorkloadDrivers({
       now,
       quiet: deps.quiet,
