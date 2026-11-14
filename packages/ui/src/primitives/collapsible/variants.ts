@@ -18,8 +18,10 @@ export const collapsibleVariants = tv({
     // the app's `[anim]` flagger convicted this panel OVER BUDGET on every fold). The panel only
     // ever animates `height` (the ratified #953/#1069 lifecycle allowance, guide §4.2 item 3) —
     // naming it keeps the sanctioned motion and drops everything `all` swept in by accident.
+    // The fold hides content on the block axis only: `overflow-y-clip` leaves the inline axis visible (`hidden` would pull it
+    // to a clip too), so the focus ring of a control flush with the panel's inline edge is not cut.
     panel: `
-      overflow-hidden text-body leading-body text-muted-foreground transition-[height] duration-(--motion-layout) ease-out-expo
+      overflow-y-clip text-body leading-body text-muted-foreground transition-[height] duration-(--motion-layout) ease-out-expo
       block-(--collapsible-panel-height)
       data-ending-style:block-0
       data-starting-style:block-0
