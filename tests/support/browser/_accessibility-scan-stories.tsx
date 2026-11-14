@@ -3,7 +3,7 @@ import { PortalContainerContext } from "@orb/ui/lib";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Select } from "@orb/ui/select";
 import type { ReactElement } from "react";
-import { useRef } from "react";
+import { useId, useRef } from "react";
 
 const ITEMS = [
   { value: "ash", label: "Ash" },
@@ -50,14 +50,18 @@ export function MenuOverTargetStory({ withSecondRow = false }: { readonly withSe
   );
 }
 
-/** A control whose name drops the words it shows, so it fails the house Label-in-Name check as well as the vendor rule. */
-export function DroppedWordsStory(): ReactElement {
+/**
+ * A control whose name drops the words it shows, so it fails the house Label-in-Name check as well as the vendor rule.
+ * `described` makes the whole shown text the control's own description: stripping it leaves no label to compare.
+ */
+export function DroppedWordsStory({ described = false }: { readonly described?: boolean }): ReactElement {
+  const descriptionId = useId();
   return (
     <CtIsolation subject="Dropped shown words" isolates="What the label-content-name-mismatch rule reports for a control whose name lacks its shown words">
       <main>
         <h1>Dropped shown words</h1>
-        <button aria-label="Save" type="button">
-          Discard the draft
+        <button aria-label="Save" type="button" {...(described ? { "aria-describedby": descriptionId } : {})}>
+          <span id={descriptionId}>Discard the draft</span>
         </button>
       </main>
     </CtIsolation>

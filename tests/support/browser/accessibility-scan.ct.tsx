@@ -165,11 +165,18 @@ for (const { title, row } of MEMBER_ROWS) {
   });
 }
 
-test("a control whose name drops the words it shows stays a name mismatch", async ({ mount, page }) => {
-  await mount<typeof DroppedWordsStory>(DROPPED_WORDS_STORY, {});
-  await expect(page.getByRole("button", { name: "Save", exact: true })).toBeVisible();
-  expect(await nameRuleFindings(page)).toEqual({ violations: 1, incomplete: 0, raw: 1, reclassified: 0 });
-});
+// A description is not a label, but stripping one cannot leave a control with nothing shown to compare: a control
+// whose whole shown text is its own description has no label in its name.
+for (const { title, described } of [
+  { title: "a control whose name drops the words it shows", described: false },
+  { title: "a control whose whole shown text is its own description", described: true },
+] as const) {
+  test(`${title} stays a name mismatch`, async ({ mount, page }) => {
+    await mount<typeof DroppedWordsStory>(DROPPED_WORDS_STORY, { described });
+    await expect(page.getByRole("button", { name: "Save", exact: true })).toBeVisible();
+    expect(await nameRuleFindings(page)).toEqual({ violations: 1, incomplete: 0, raw: 1, reclassified: 0 });
+  });
+}
 
 test("the walk's axe attachment keeps the covered control a violation and a second record names what was judged apart", async ({ mount, page }, info) => {
   await page.addInitScript({ content: webVitalsInitScript(await webVitalsSource()) });

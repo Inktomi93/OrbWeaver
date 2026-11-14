@@ -249,6 +249,8 @@ const LABEL_IN_NAME_ROLES: ReadonlySet<string> = new Set([
 interface LabelInNameVerdict {
   readonly label: string;
   readonly visible: string;
+  /** How many words the visible label holds once its descriptions are stripped. */
+  readonly shown: number;
   readonly missing: readonly string[];
 }
 
@@ -327,8 +329,9 @@ function judgeLabelInName(
     }
     const visible = visibleLabelOf(node);
     const labelWords = new Set(wordsOf(label));
-    const missing = wordsOf(visible).filter((word) => !labelWords.has(word));
-    return { label, visible, missing: [...new Set(missing)] };
+    const shown = wordsOf(visible);
+    const missing = shown.filter((word) => !labelWords.has(word));
+    return { label, visible, shown: shown.length, missing: [...new Set(missing)] };
   };
 
   const nodes = selectors === null ? [...el.querySelectorAll("[aria-label]")] : selectors.map((selector) => el.ownerDocument.querySelector(selector));
@@ -347,10 +350,19 @@ export async function labelInNameFindings(root: Locator | Page): Promise<readonl
     }));
 }
 
-/** The selectors among `selectors` whose element passes {@link judgeLabelInName}: governed, and every shown word in its name. */
+/**
+ * The selectors among `selectors` whose element passes {@link judgeLabelInName}: governed, a visible label left once its
+ * descriptions are stripped, and every word of it in the name. A control whose whole shown text is its own description has
+ * no label left to agree with its name, so it never passes.
+ */
 export async function labelInNamePasses(page: Page, selectors: readonly string[]): Promise<ReadonlySet<string>> {
   const verdicts = await page.locator("body").evaluate(judgeLabelInName, { roles: [...LABEL_IN_NAME_ROLES], selectors });
-  return new Set(selectors.filter((_selector, at) => verdicts[at]?.missing.length === 0));
+  return new Set(
+    selectors.filter((_selector, at) => {
+      const verdict = verdicts[at];
+      return verdict !== null && verdict !== undefined && verdict.shown > 0 && verdict.missing.length === 0;
+    }),
+  );
 }
 
 /** Runs the tree lens and both DOM lenses over the page and returns every finding. */

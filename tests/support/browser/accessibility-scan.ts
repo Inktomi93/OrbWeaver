@@ -20,7 +20,7 @@ const OPEN_POPUP = [
 const FOCUS_GUARD_REASON = "Base UI focus guard: aria-hidden and tabbable by design, the focus trap's edge sentinel.";
 const POPUP_COVER_REASON = "Covered by the content of an open menu or select popup, which is meant to lie over the page.";
 const LABEL_IN_NAME_REASON =
-  "Meets Label in Name (UI-Primitives-and-Reuse §13.10 N2): every word it shows is in its name once its aria-describedby text is removed; axe also wants the shown words as one run of the name.";
+  "Meets Label in Name (UI-Primitives-and-Reuse §13.10 N2): once its aria-describedby text is removed it still shows a label, and every word of it is in its name; axe also wants the shown words as one run of the name.";
 
 /** One node the scan moved from `violations` to `incomplete`, and why. The vendor result keeps it as a violation. */
 interface AxeReclassification {
