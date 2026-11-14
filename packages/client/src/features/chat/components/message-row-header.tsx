@@ -121,8 +121,9 @@ function renderRowIdentity(args: {
   if (chip === null) {
     return cluster;
   }
+  // No wrap: a chip pushed onto a line of its own separates the face from its name, so the cluster shrinks and the name wraps in its own box.
   return (
-    <Row gap="field" align="center" reverse={mirrored} className="min-inline-0" wrap={true}>
+    <Row gap="field" align="center" reverse={mirrored} className="min-inline-0">
       {chip}
       {cluster}
     </Row>
@@ -230,10 +231,11 @@ export function renderGhostNameRow(args: {
   if (attribution === undefined || attribution.name === null) {
     return null;
   }
+  // The settled row's chip rule holds here too: the live turn must not change anatomy at commit.
   return (
     <NameRowFrame
       identity={
-        <Row gap="field" align="center" className="min-inline-0" wrap={true}>
+        <Row gap="field" align="center" className="min-inline-0">
           {args.chip}
           <Row gap="field" align="baseline" className="min-inline-0" data-slot="message-attribution">
             {renderAttributionName(attribution)}
