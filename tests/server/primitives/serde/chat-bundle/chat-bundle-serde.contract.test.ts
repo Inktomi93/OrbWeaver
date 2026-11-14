@@ -394,3 +394,43 @@ describe("the rpg plane", () => {
     expect(parsed.rpg?.journal[0]).toMatchObject({ title: "room truth", variantIdx: null, sourceMessageIndex: null });
   });
 });
+
+describe("the memory strike plane", () => {
+  type Strike = NonNullable<PortableChat["memoryStrikes"]>[number];
+  const strike = (over: Partial<Strike> = {}): Strike => ({
+    characterHandle: null,
+    tier: 0,
+    startMessageIndex: 0,
+    endMessageIndex: 1,
+    topicAnchor: "The bridge fell",
+    createdAt: AT,
+    ...over,
+  });
+  const struckChat = (strikes: readonly Strike[] | undefined): PortableChat =>
+    chat({ messages: [message(), message(), message()], ...(strikes === undefined ? {} : { memoryStrikes: strikes }) });
+
+  test("strikes round-trip exactly, and an empty list builds the same bytes as no list", () => {
+    const carried = struckChat([strike(), strike({ characterHandle: "hero", tier: 1, startMessageIndex: 0, endMessageIndex: 2, topicAnchor: null })]);
+    const bytes = buildChatBundleFile(carried);
+    expect(must(parseChatBundleFile(bytes))).toEqual(carried);
+    expect(DEC.decode(buildChatBundleFile(must(parseChatBundleFile(bytes))))).toBe(DEC.decode(bytes));
+    expect(DEC.decode(buildChatBundleFile(struckChat([])))).toBe(DEC.decode(buildChatBundleFile(struckChat(undefined))));
+    expect(must(parseChatBundleFile(buildChatBundleFile(struckChat(undefined))))).not.toHaveProperty("memoryStrikes");
+  });
+
+  test("an inverted or past-the-end span is dropped and its valid sibling kept", () => {
+    const wire = wireOf(struckChat([strike()]));
+    const strikes = recordsAt(wire, "memoryStrikes");
+    strikes.push({ ...strikes[0], startMessageIndex: 2, endMessageIndex: 1 }, { ...strikes[0], endMessageIndex: 3 });
+    expect(must(parseChatBundleFile(bytesOf(wire))).memoryStrikes).toEqual([strike()]);
+  });
+
+  test("a malformed strike is dropped alone: its siblings and the chat survive", () => {
+    const wire = wireOf(struckChat([strike()]));
+    const strikes = recordsAt(wire, "memoryStrikes");
+    strikes.push({ ...strikes[0], tier: -1 }, { ...strikes[0], startMessageIndex: 1, endMessageIndex: 2 });
+    const parsed = must(parseChatBundleFile(bytesOf(wire)));
+    expect(parsed.messages).toHaveLength(3);
+    expect(parsed.memoryStrikes).toEqual([strike(), strike({ startMessageIndex: 1, endMessageIndex: 2 })]);
+  });
+});

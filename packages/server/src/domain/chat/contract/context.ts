@@ -16,6 +16,8 @@ import type {
   InvitePreview,
   LiveOnlyChatBusEvent,
   MemoryDigestInput,
+  MemoryItemKey,
+  MemoryView,
   NextTurnConnectionView,
   ParticipantData,
   PlanGameBirthOp,
@@ -62,6 +64,7 @@ import type {
   ChatId,
   ChatInjectionId,
   ChatInviteId,
+  ChatMemoryStrikeId,
   ChatParticipantId,
   ChatTurnId,
   Handle,
@@ -83,7 +86,7 @@ import type { ApplyPromptTransformsOp, DelayOp, EmitDurableChatEventOp, EngineCo
 import type { ChatBehaviorInputs, ForeignInputs, ResolveForeignInputsOp } from "./foreign.ts";
 import type { GatherAssembleArgs, SendRegexSink } from "./gather.ts";
 import type { ResolveChatUserMacroDefs } from "./macro-readers.ts";
-import type { MemoryLog, MemoryRecallPhaseEmitter, MemoryRecallSink } from "./memory.ts";
+import type { MemoryConfig, MemoryLog, MemoryRecallPhaseEmitter, MemoryRecallSink, ResolveBackfillMemoryConfig } from "./memory.ts";
 import type { RpgTurnOps } from "./rpg-turn.ts";
 import type { HashTokenOp, SignupInviteCapability, SignupInviteDeps } from "./signup.ts";
 
@@ -570,6 +573,25 @@ export interface ChatContextBoundOps {
   /** The turn's chat-internal gather (`assembly/gather.ts`), bound to this context and the `memory/` reads it
    *  needs, so a verb reaches the subsystem without importing it. */
   readonly gatherAssembleContext: (args: GatherAssembleArgs, foreign: ForeignInputs, out?: SendRegexSink) => Promise<AssembleContext>;
+  /** The room's memory view and its strikes (`memory/strikes.ts`), bound the same way. */
+  readonly memoryStrikes: MemoryStrikeOps;
+}
+
+/** The memory-strike work the verbs run after their gates. */
+export interface MemoryStrikeOps {
+  /** The view as the caller may see it: clamped to their history floor, strike ids only when `isHost`. */
+  readonly view: (args: { readonly chatId: ChatId; readonly floor: HistoryFloorSeq; readonly isHost: boolean }) => Promise<MemoryView>;
+  /** Strike the span the key's item covers, or answer the strike already on it. `inserted` says whether a row
+   *  landed. Throws `memory_item_stale` when the key no longer names what the host read. */
+  readonly strike: (args: {
+    readonly chatId: ChatId;
+    readonly hostUserId: UserId;
+    readonly item: MemoryItemKey;
+  }) => Promise<{ readonly strikeId: ChatMemoryStrikeId; readonly inserted: boolean }>;
+  /** Lift the span the strike names, for every bucket. True when a row moved. */
+  readonly restore: (args: { readonly chatId: ChatId; readonly strikeId: ChatMemoryStrikeId }) => Promise<boolean>;
+  /** The handoff re-key of scoped strikes, in the swap batch beside the digests' re-key. */
+  readonly restampForHandoff: (chatId: ChatId, pairs: readonly HandoffCardPair[]) => BatchStmt[];
 }
 
 /** The DI bundle every chat verb/subsystem closes over. `db` routes queries through `persistence/`; `now` +
@@ -581,6 +603,7 @@ export interface ChatContext extends EngineContext, ChatAccountingContext, ChatC
   readonly newParticipantId: () => ChatParticipantId;
   readonly newMessageReactionId: () => MessageReactionId;
   readonly newInjectionId: () => ChatInjectionId;
+  readonly newMemoryStrikeId: () => ChatMemoryStrikeId;
   readonly newEventId: () => ChatEventId;
   readonly newInviteId: () => ChatInviteId;
   readonly newPendingTurnId: () => PendingTurnId;
@@ -605,6 +628,11 @@ export interface ChatContext extends EngineContext, ChatAccountingContext, ChatC
   /** The room host's app-tier prose overrides — read by assembly (the anchor identity lead-in), the smart
    *  arbiter, compaction and the memory build. Empty ⇒ the shipped defaults. */
   readonly resolveChatProse: ResolveChatProseOp;
+  /** The room host's memory tuning with their own switch folded in (`mode: "off"` when they turned memory off,
+   *  D293) — the merge the turn and the backfill read, so the memory view reports the switch the turn obeys. */
+  readonly resolveMemoryConfig: ResolveBackfillMemoryConfig;
+  /** The app-wide memory defaults alone, so the memory view can tell the app's switch from the host's own. */
+  readonly readMemoryDefaults: () => MemoryConfig;
   /** B7 — a user's per-user reaction defaults (`UserSettings.chat.{reactionsEnabled,charactersCanReact}`),
    *  the VERB-TIME half of the resolve pair: `toggleReaction`/`listReactions`/`reactAsCharacter` gate on
    *  `resolveReactionsEnabled(room, hostDefault)` and no ForeignInputs exists outside the turn path (the

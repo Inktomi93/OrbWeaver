@@ -19,6 +19,7 @@
 //   • reactions.ts      — the B6 reaction emoji vocabulary + the grouped read projection (MA-2)
 //   • visible-rooms.ts  — the leak-safe reverse-room read every usage roster shares (`VisibleRoomRef` +
 //                         `ResolveVisibleRoomsOp`, D18)
+//   • memory-view.ts    — the story memory view read and the host's strike and restore inputs
 //   • regex-tiers.ts    — the room's REGEX TIER vocabulary: the tier key, the per-chat allow blob,
 //                         the per-seat character slice, and the `chat.listEffectiveRegex` view
 //
@@ -155,7 +156,6 @@ export {
   sendContentBlocksSchema,
   stripSendPlaceholders,
 } from "./content-blocks.ts";
-
 export type { AnchorState, ChatDetail, RedeemInviteResult } from "./detail.ts";
 export { chatDetailSchema, redeemInviteResultSchema, viewerGalleryCharacter } from "./detail.ts";
 export type { BeginGenerationObservationOp, GenerationObservationParent } from "./generation-observation.ts";
@@ -168,6 +168,26 @@ export { chatCensusInputSchema } from "./library.ts";
 export type { ChatListCursor } from "./listing.ts";
 export { CHAT_LIST_MAX_LIMIT, HOME_RECENT_CHATS_LIMIT } from "./listing.ts";
 export { memberToolCalls, projectViewForMember } from "./member-projection.ts";
+export type {
+  ImportedMemoryStrike,
+  ImportMemoryStrikesOp,
+  MemoryItemKey,
+  MemoryItemStrikeView,
+  MemoryItemView,
+  MemoryView,
+  RestoreMemoryInput,
+  StrikeMemoryInput,
+  StrikeMemoryResult,
+  UnmatchedStrikeView,
+} from "./memory-view.ts";
+export {
+  memoryOffReason,
+  memoryViewSchema,
+  memoryViewStatus,
+  restoreMemoryInputSchema,
+  strikeMemoryInputSchema,
+  strikeMemoryResultSchema,
+} from "./memory-view.ts";
 export type { HistoryPage, MessageWindow } from "./message-pages.ts";
 export { historyPageSchema, messageWindowSchema } from "./message-pages.ts";
 // `MacroFreeze` (the single occurrence) is NOT re-exported here — kit owns that shape and consumers import it

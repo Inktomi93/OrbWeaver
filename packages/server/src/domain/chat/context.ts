@@ -1,7 +1,7 @@
 // Chat owns conversion of inert assembly operands into its private query/accounting context.
 //
 // It also binds the subsystem ops a flat verb cannot import (`domain-substrate-mediates-subsystems`): the turn
-// gather in `assembly/` with its `memory/` reads, and the `memory/backfill/` sweeps. Core-0 §4 wires a runtime
+// gather in `assembly/` with its `memory/` reads, the `memory/backfill/` sweeps, and the memory view and strikes. Core-0 §4 wires a runtime
 // op at the composition root; `service.ts` injects `recallMemory` into the engine the same way.
 
 import type { CanonAdmission, CanonRetirement } from "@orb/contracts/stats";
@@ -17,6 +17,7 @@ import { backfillGroupCharacters, backfillMemory } from "./memory/backfill/backf
 import { estimateMemoryBackfillCalls } from "./memory/backfill/estimate.ts";
 import { loadTranscriptNames } from "./memory/persistence/queries.ts";
 import { recallMemory } from "./memory/recall/recall.ts";
+import { buildMemoryView, restampStrikesForHandoff, restoreMemoryStrike, writeMemoryStrike } from "./memory/strikes.ts";
 import { emptyMemoryScopePredicate, loadBackfillChatIds } from "./persistence/backfill-scope.ts";
 
 /**
@@ -51,6 +52,12 @@ export function createChatContext(input: ChatAssemblyContext): ChatContext {
       };
     },
     gatherAssembleContext: (...args) => gatherAssembleContext({ ctx, memoryOps: { recallMemory, loadTranscriptNames } }, ...args),
+    memoryStrikes: {
+      view: (args) => buildMemoryView(ctx, args),
+      strike: (args) => writeMemoryStrike(ctx, args),
+      restore: (args) => restoreMemoryStrike(ctx, args),
+      restampForHandoff: (chatId, pairs) => restampStrikesForHandoff(ctx, chatId, pairs),
+    },
   };
   return ctx;
 }

@@ -60,6 +60,7 @@ export const ID_PREFIX = {
   chatEvent: "chat_event",
   sessionEntry: "session_entry",
   chatInjection: "chat_injection",
+  chatMemoryStrike: "chat_memory_strike",
   chatParticipant: "chat_participant",
   chatInvite: "chat_invite",
   pendingTurn: "pending_turn",
@@ -223,6 +224,8 @@ export type ChatEventId = TypeIdOf<"chat_event">;
  * message slot, so the slot id cannot identify the hidden-span scrubber lifetime. */
 export type SessionEntryId = TypeIdOf<"session_entry">;
 export type ChatInjectionId = TypeIdOf<"chat_injection">;
+/** A player's strike on one remembered item (`chat_memory_strikes`): recall leaves that item out of later prompts. */
+export type ChatMemoryStrikeId = TypeIdOf<"chat_memory_strike">;
 export type ChatParticipantId = TypeIdOf<"chat_participant">;
 export type ChatInviteId = TypeIdOf<"chat_invite">;
 export type PendingTurnId = TypeIdOf<"pending_turn">;

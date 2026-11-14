@@ -172,7 +172,9 @@ export type SaveCorrectionInput = z.infer<typeof saveCorrectionInputSchema>;
 // WHY one pooled memory block did (or did not) reach this turn's `{{memory}}` — the verdict axis of
 //  {@link MemoryRecallCandidate}. Declared ONCE as a tuple and DERIVED (§5.5, no inline union re-spell).
 //  The arms follow the recall pipeline's own order of elimination (`domain/chat/memory/recall/recall.ts`):
-//   • `unwitnessed`    — the speaker was absent for the block's span (a character cannot recall a scene it
+//   • `struck`         — the host struck this item from the room's memory; first, so a strike outranks every stage;
+//   • `covers-struck`  — a consolidation over a struck item, left out because it retells the struck scene;
+//   • `unwitnessed`   — the speaker was absent for the block's span (a character cannot recall a scene it
 //                        wasn't in); dropped before any mode dispatch;
 //   • `live-window`    — the block's scene is still VERBATIM in this turn's history window, so re-injecting
 //                        its digest would say the same thing twice;
@@ -183,7 +185,7 @@ export type SaveCorrectionInput = z.infer<typeof saveCorrectionInputSchema>;
 //                        floor, or the mixC rerank trim). Carries no score by construction: retrieval returns
 //                        its SURVIVORS, so the score of a rejected candidate is not knowable here;
 //   • `admitted`       — it made the block, and carries the `relevance`/`rank` it made it with.
-const MEMORY_RECALL_VERDICTS = ["admitted", "below-floor", "bridge-covered", "mode-excluded", "live-window", "unwitnessed"] as const;
+const MEMORY_RECALL_VERDICTS = ["admitted", "below-floor", "bridge-covered", "mode-excluded", "live-window", "unwitnessed", "struck", "covers-struck"] as const;
 export type MemoryRecallVerdict = (typeof MEMORY_RECALL_VERDICTS)[number];
 
 /** ONE memory block considered for this turn's `{{memory}}` (`MemoryRecallSlice.candidates`) — the block's
@@ -215,8 +217,8 @@ export interface MemoryRecallCandidate {
  *  (including the early returns: a `mode: "off"` / empty-pool turn produces a slice saying exactly that,
  *  because "memory did nothing" is the answer a reader is most often hunting).
  *
- *  `candidates` is deliberately NOT the whole pool: every ADMITTED block is present, plus a bounded head of
- *  the rejected ones (`MEMORY_RECALL_REJECTS_SHOWN`) in pool order — a long chat's pool runs to hundreds of
+ *  `candidates` is deliberately NOT the whole pool: every ADMITTED block and every block a host strike left out
+ *  is present, plus a bounded head of the other rejected ones (`MEMORY_RECALL_REJECTS_SHOWN`) in pool order — a long chat's pool runs to hundreds of
  *  blocks, and this shape rides a per-turn trace + a bounded debug ring. The COUNTS (`poolSize`,
  *  `candidateCount`, `surfaced`) are always exact, so a truncated candidate list can never be mistaken for a
  *  small pool.
