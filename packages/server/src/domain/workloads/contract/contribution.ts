@@ -46,6 +46,12 @@ export interface WorkloadContribution<K extends WorkloadKind = WorkloadKind> {
    */
   readonly laneFor?: (params: WorkloadParamsByKind[K]) => WorkloadLane;
   /**
+   * Whether a row is TRANSIENT: work its owner reads by id while it runs and never lists afterwards, e.g. a dry-run
+   * preview. The enqueue doors stamp the answer; a transient row is left out of every list and deleted once
+   * terminal, when its owner starts the same kind again and at boot. OMIT IT when every row is a run the owner keeps.
+   */
+  readonly transientFor?: (params: WorkloadParamsByKind[K]) => boolean;
+  /**
    * The ADMISSION sub-partition: what this kind's CONCURRENCY UNIT is, derived from the row's own params and
    * stamped into `workloads.admission_key` at the enqueue door. Two active rows of one kind collide only when
    * their keys match, so `index` returns its embed source (text + image reindex at once) and `databank-ingest`

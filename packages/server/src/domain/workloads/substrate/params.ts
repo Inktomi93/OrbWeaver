@@ -135,6 +135,11 @@ export function resolveLane<K extends WorkloadKind>(contributions: WorkloadContr
   return contribution.laneFor?.(params) ?? contribution.lane;
 }
 
+/** Whether a row is stamped transient: the kind's params-dependent answer, else a run its owner keeps. */
+export function resolveTransient<K extends WorkloadKind>(contributions: WorkloadContributions, kind: K, params: WorkloadParamsByKind[K]): boolean {
+  return contributions[kind].transientFor?.(params) ?? false;
+}
+
 /**
  * The ADMISSION PRECONDITION check, shared by both enqueue doors (`start` and `retry` — the only two callers
  * of `insertWorkload`). The queue asks; the OWNING DOMAIN answers (`WorkloadContribution.admit`), because only

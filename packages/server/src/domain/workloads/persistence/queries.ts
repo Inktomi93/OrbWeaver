@@ -13,8 +13,11 @@
 // The READ path is poison-VISIBLE where the dispatch path is poison-refusing: `readRow` surfaces an
 // unparseable-params row as `{params: null, poison: true}` (a visibly-broken, cancel/retry-able row) instead
 // of silently dropping it, while `nextRunnableWorkload` returns only `WorkloadRunnableRow`s. A stored result that no
-// longer parses is left out of the view and logged with its row id, never its content; the row keeps its params.
-// The runner refuses to store such a result, so a row read this way was written by another build.
+// longer parses makes its row poison too, is left out of the view and is logged once with its row id, never its
+// content. The runner refuses to store such a result, so a row read this way was written by another build.
+//
+// A TRANSIENT row (`workloads.transient`, stamped at enqueue from the contribution's `transientFor`) is never listed,
+// only read by id, and is deleted once terminal: by the next start of the same owner and kind, and at boot.
 
 import type {
   CancelWorkloadResult,
@@ -116,7 +119,7 @@ const QUEUE_SCAN_PAGE_SIZE = 10;
 // also the transport `.max()` trust boundary, so the wire refusal and this hard cap never drift.
 
 type WorkloadInsert = Readonly<
-  Pick<WorkloadSelectRow, "id" | "kind" | "mode" | "admissionKey" | "lane" | "params" | "ownerId" | "funderUserId" | "scheduledAt" | "createdAt">
+  Pick<WorkloadSelectRow, "id" | "kind" | "mode" | "admissionKey" | "lane" | "transient" | "params" | "ownerId" | "funderUserId" | "scheduledAt" | "createdAt">
 > & {
   readonly dependsOn: readonly NonNullable<WorkloadSelectRow["dependsOn"]>[number][] | null;
 };
@@ -237,6 +240,7 @@ export async function insertWorkload(db: Db, row: WorkloadInsert): Promise<void>
     mode: row.mode,
     admissionKey: row.admissionKey,
     lane: row.lane,
+    transient: row.transient,
     params: row.params,
     ownerId: row.ownerId,
     funderUserId: row.funderUserId,
@@ -445,7 +449,8 @@ export async function loadRawWorkloadParams(db: Db, id: WorkloadId): Promise<Rec
  *  page: it decides which rows the operator sees at all, differently on each poll. The id tiebreak is the
  *  same one the queue scan below already carries (TypeIDs are uuidv7-backed, so it stays newest-first). */
 export async function listWorkloads(db: Db, reads: WorkloadReads, params: WorkloadListFilter): Promise<WorkloadRowAnyKind[]> {
-  const filters: SQL[] = [];
+  // A transient row is its owner's to `get` by id, never to list; filtered in SQL so the LIMIT counts listed rows.
+  const filters: SQL[] = [eq(workloads.transient, false)];
   if (params.kind !== undefined) {
     filters.push(eq(workloads.kind, params.kind));
   }
@@ -632,6 +637,22 @@ export async function findActiveForBootSweep(db: Db): Promise<ActiveWorkloadRow[
     .from(workloads)
     .where(inArray(workloads.status, [...ACTIVE_WORKLOAD_STATUSES]));
   return rows.map((row) => ({ kind: row.kind, params: JSON.parse(row.params) }));
+}
+
+/** Delete the TERMINAL transient rows, of one owner and kind when `scope` names them, else every one (the boot sweep).
+ *  A transient row still queued or running is never deleted: its run owns it, and it ends through its own verbs.
+ *  Returns how many went. */
+// THE ENGINE PLANE (D20 un-principal) — the scope is the owner a verified `start` resolved, or none at boot. Ends if a door passes a caller-authored owner here.
+export async function deleteTerminalTransientWorkloads(db: Db, scope?: { readonly kind: WorkloadKind; readonly ownerId: UserId | null }): Promise<number> {
+  const filters: SQL[] = [eq(workloads.transient, true), inArray(workloads.status, [...TERMINAL_STATUSES])];
+  if (scope !== undefined) {
+    filters.push(eq(workloads.kind, scope.kind), scope.ownerId === null ? isNull(workloads.ownerId) : eq(workloads.ownerId, scope.ownerId));
+  }
+  const deleted = await db
+    .delete(workloads)
+    .where(and(...filters))
+    .returning({ id: workloads.id });
+  return deleted.length;
 }
 
 /** Put an orphaned RUNNING row BACK IN THE QUEUE — the resumable disposition of the boot reclaim.

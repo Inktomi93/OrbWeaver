@@ -271,13 +271,11 @@ test("a hostile profile directory name is clipped to the preview's text limit", 
   expect(profiles).toContain(BOB);
 });
 
-test("a dry run stored with the older bare-string source reads without its result, keeps its params and leaves the jobs list answering", async () => {
+test("a dry run stored with the older bare-string source reads as unreadable by id, without its result", async () => {
   await using root = await harness();
   const files = inProfile(ALICE, profileFiles(root, ALICE, false));
   const stale = await admit(root, files, [TREE_DRY_RUN_VALUE]);
   await finish(root, stale);
-  const fresh = await admit(root, files, [TREE_DRY_RUN_VALUE]);
-  await finish(root, fresh);
   const [stored] = await root.db.select({ result: workloads.result }).from(workloads).where(eq(workloads.id, stale));
   const older: unknown = JSON.parse(JSON.stringify(present(stored).result), (key, value: unknown) =>
     key === "source" && typeof value === "object" && value !== null && "path" in value ? value.path : value,
@@ -288,14 +286,11 @@ test("a dry run stored with the older bare-string source reads without its resul
     .where(eq(workloads.id, stale));
   const caller = await root.principalFor(root.ownerId);
 
-  const listed = await root.services.workloads.list({ caller, kind: "import-st" });
-
-  const readable = listed.find((row) => row.id === fresh);
-  const unreadable = listed.find((row) => row.id === stale);
-  expect(unreadable).toMatchObject({ poison: false, result: null, params: { dryRun: true } });
-  expect(readable).toMatchObject({ poison: false });
-  expect(present(readable).result).not.toBeNull();
-  await expect(root.services.workloads.get({ caller, id: stale })).resolves.toMatchObject({ poison: false, result: null });
+  await expect(root.services.workloads.get({ caller, id: stale })).resolves.toMatchObject({ status: "succeeded", poison: true, params: null, result: null });
+  // The control: the same run left as it was stored reads its preview.
+  const fresh = await admit(root, files, [TREE_DRY_RUN_VALUE]);
+  await finish(root, fresh);
+  await expect(root.services.workloads.get({ caller, id: fresh })).resolves.toMatchObject({ poison: false, result: { preview: expect.any(Object) } });
 });
 
 test("two paths in one profile that share their first characters past the clip are two entries in the preview, as many as the run writes", async () => {
