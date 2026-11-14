@@ -2,7 +2,7 @@
 kind: plan
 status: active
 updated: 2026-11-12
-rank: 6
+rank: 7
 ---
 
 # An import survives bad input and reports each failure

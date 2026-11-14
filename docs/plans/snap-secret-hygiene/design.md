@@ -2,7 +2,7 @@
 kind: plan
 status: active
 updated: 2026-11-12
-rank: 11
+rank: 12
 ---
 
 # Snap never writes a secret to disk, argv or a trace

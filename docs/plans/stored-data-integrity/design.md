@@ -2,7 +2,7 @@
 kind: plan
 status: active
 updated: 2026-11-12
-rank: 7
+rank: 8
 ---
 
 # Stored data that cannot be read is named, kept and repairable

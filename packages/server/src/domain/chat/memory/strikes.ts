@@ -22,6 +22,11 @@
 // of the same messages stays struck (`chat_memory_strikes` in `packages/db/src/schema/chat.ts`). The one place a
 // strike leaves the prompt is recall (`dropStruck` in `recall/recall.ts`).
 //
+// A MEMBER'S DELETE NEVER LIFTS A STRIKE. Every writer stores the endpoints' seqs beside their ids, and the host's
+// reorder re-stamps them; an endpoint whose message is gone resolves to its stored seq (`resolveStrikeSpan` in
+// `packages/kit/src/recall/index.ts`), so the struck turns that survive stay inside the span. A delete at the tail
+// frees its seq for the next append, which the span then covers too: over-dropping is the safe side.
+//
 // A FORK RE-KEYS EACH STRIKE ONTO EVERY FORK POSITION ITS SPAN OVERLAPS. The fork slices its own grid from its first
 // copied ingestible message, so under a history floor its blocks cut the story at other seqs than the room's. A strike
 // of tier k lands on every complete tier-k position of the fork (tier-0 blocks, and the arcs `tier0RangeOf` builds from
@@ -251,7 +256,7 @@ export async function writeMemoryStrike(
   }
   const cfg = resolveCfg(await ctx.resolveMemoryConfig(hostUserId));
   const [resolved] = await resolveDigestSpans(ctx.db, chatId, [digest], cfg.fanOut);
-  if (resolved === undefined || resolved.span === null) {
+  if (resolved === undefined || resolved.span === null || resolved.seqSpan === null) {
     throw stale(chatId);
   }
   const span = { tier: digest.tier, messageStartId: resolved.span.startId, messageEndId: resolved.span.endId };
@@ -263,6 +268,7 @@ export async function writeMemoryStrike(
   const strikeId = ctx.newMemoryStrikeId();
   const row = {
     ...span,
+    ...resolved.seqSpan,
     scopedCharacterId: digest.scopedCharacterId === sharedBucket ? null : digest.scopedCharacterId,
     id: strikeId,
     chatId,
@@ -341,9 +347,6 @@ function carryStrikes(strikes: readonly Strike[], copiedWhole: (strike: Strike) 
   const carried = new Map<string, CarriedStrike>();
   for (const strike of strikes) {
     const span = strike.seqSpan;
-    if (span === null) {
-      continue;
-    }
     const whole = copiedWhole(strike);
     const grid = tierAt(strike.tier);
     const overlapped = grid.complete.filter((position) => position.first.seq <= span.seqEnd && position.last.seq >= span.seqStart);
@@ -388,6 +391,8 @@ export async function forkMemoryStrikes(ctx: ChatContext, args: Parameters<Memor
     tier,
     messageStartId: position.first.id,
     messageEndId: position.last.id,
+    seqStart: position.first.seq,
+    seqEnd: position.last.seq,
     contentHash: strike.contentHash,
     topicAnchor: whole ? strike.topicAnchor : null,
     createdAt: args.createdAt,
