@@ -10,6 +10,7 @@ import { Input } from "@orb/ui/input";
 import { Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { CONCEAL_SECRET_NAME, REVEAL_SECRET_NAME } from "./secret-field-names.ts";
 import type { BoundFieldShellProps } from "./use-bound-field.ts";
 import { useBoundField } from "./use-bound-field.ts";
 
@@ -55,7 +56,7 @@ export function TextField(props: TextFieldProps): ReactElement {
             type="button"
             variant="ghost"
             glyph="md"
-            aria-label={revealed ? "Hide key" : "Show key"}
+            aria-label={revealed ? CONCEAL_SECRET_NAME : REVEAL_SECRET_NAME}
             aria-pressed={revealed}
             disabled={props.disabled}
             onClick={(): void => setRevealed((current) => !current)}
