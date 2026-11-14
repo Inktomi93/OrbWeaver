@@ -13,13 +13,13 @@ import {
   createChatRoot,
   createCorpusProviderExecution,
 } from "@orb/testkit/node/composed";
+import { ANALYSIS_PROTECT_TAIL } from "#server/domain/automation/contract/analysis.ts";
 import { wireOf, wireText } from "../../chat/scenario-physical.ts";
 
 const KEYWORD = "gate";
 const MODEL_LORE = "{{{setvar::seized::1}}}The gate is warded by {{{char}}} and {{{{{user}}}}}.";
-// Well past the fresh window plus the protect tail, so the pass has a settled span to distill.
-// The automation constants have no package door for tests to import them through.
-const ROWS = 100;
+// Two rows behind the protect tail: the lore route distills only a settled span, and this is its smallest one.
+const ROWS = ANALYSIS_PROTECT_TAIL + 2;
 
 function fold(text: string): string {
   return text.replace(/[^\p{L}\p{N}:]+/gu, " ").trim();

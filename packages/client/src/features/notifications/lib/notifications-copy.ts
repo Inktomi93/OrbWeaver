@@ -76,4 +76,4 @@ export const HANDOFF_ACCEPT_CONFIRM_TITLE = "Accept hosting this chat?";
 
 /** What the confirm says when the nomination copies nothing into the nominee's library. */
 export const HANDOFF_NOTHING_COPIED_DESCRIPTION =
-  "You become the host of this chat. Nothing is copied into your library, and the current host's characters, world books and regex scripts leave the chat with them.";
+  "You become the host of this chat. Nothing is copied into your library, and the current host's characters, world books, regex scripts and documents leave the chat with them.";
