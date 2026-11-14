@@ -26,7 +26,7 @@ import type { ProviderId } from "@orb/contracts/inference";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { nulFreeText } from "../custom-types/index.ts";
+import { nulFreeText, stampColumn } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { users } from "./users.ts";
 
@@ -66,8 +66,8 @@ export const userCredentials = sqliteTable(
     metadata: text("metadata", { mode: "json" }).$type<ProviderMetadata>(),
     // User-facing label (also the seam API tokens reuse).
     label: nulFreeText("label"),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
-    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
+    updatedAt: stampColumn("updated_at"),
   },
   (table) => [
     // Owner-scoped reads (fetchOwned / list).

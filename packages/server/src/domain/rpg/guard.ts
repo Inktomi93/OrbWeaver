@@ -46,7 +46,7 @@ export async function resolveMember(ctx: RpgContext, principal: Principal, chatI
   if (game === undefined) {
     return notFoundGame(chatId);
   }
-  return { game, role: membership.role };
+  return { game, role: membership.role, admission: membership.admission };
 }
 
 /** The kernel verdict as a BOOLEAN — chat's `permits()` twin (`substrate/auth/decide.ts`). The host DECISION

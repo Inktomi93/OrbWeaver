@@ -28,7 +28,7 @@ import type { SeriesColor } from "@orb/ui/series-row";
 import { SeriesRow } from "@orb/ui/series-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
+import { ContextTabBody, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQueries, useTRPC } from "#data";
 import { viewerTimeZone } from "#lib";
 import { limitOutgrownByReply, noRoomLine, roomExplainer } from "../lib/context-room.ts";
@@ -42,13 +42,15 @@ export interface AssemblyPreviewPanelProps {
  *  renders them read-only. */
 export function AssemblyPreviewPanel({ chatId }: AssemblyPreviewPanelProps): ReactElement {
   return (
-    <QueryBoundary
-      resetKeys={[chatId]}
-      fallback={<SkeletonRows count={6} shape="datum" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="the preview" onRetry={retry} />}
-    >
-      <PreviewBody chatId={chatId} />
-    </QueryBoundary>
+    <ContextTabBody kind="blocks">
+      <QueryBoundary
+        resetKeys={[chatId]}
+        fallback={<SkeletonRows count={6} shape="datum" />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="the preview" onRetry={retry} />}
+      >
+        <PreviewBody chatId={chatId} />
+      </QueryBoundary>
+    </ContextTabBody>
   );
 }
 

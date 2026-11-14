@@ -433,7 +433,7 @@ test("overview narrows to the named states and area; with no filter it is the fu
     lines.filter((line) => line.startsWith("  ")).map((line) => line.trim().split(" ")[0]);
   const full = overview(root);
   expect(overview(root, { states: [], area: null })).toEqual(full);
-  expect(ids(full)).toHaveLength(4);
+  expect(full.filter((line) => line.startsWith("  "))).toHaveLength(4);
   const open = overview(root, { states: ["open"], area: null });
   expect(headers(open)).toEqual(["open (1)"]);
   expect(ids(open)).toEqual(["0001"]);

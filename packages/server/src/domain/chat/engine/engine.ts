@@ -111,6 +111,7 @@ import { buildHistoryBudget, fitCeiling, historyTurnTokens } from "../substrate/
 import { isCoveredByCompaction } from "../substrate/compaction-coverage.ts";
 import { continuedSignatureMetadata } from "../substrate/content-signatures.ts";
 import { projectInlineReplyImages } from "../substrate/inline-reply-images.ts";
+import { mintRoomAdmission } from "../substrate/room-tokens.ts";
 import { projectRpgTranscript } from "../substrate/rpg-transcript.ts";
 import { foldChain } from "../substrate/runtime-variables.ts";
 import { appendStatsDeltas, assistantTurnDelta, canonMessageDelta, canonRowOf, swipeVariantDelta } from "../substrate/stats-delta.ts";
@@ -818,6 +819,7 @@ function turnProse(prep: TurnPrep): ProseOverrides {
 function fireRpgTurnCompleted(ctx: EngineContext, view: MessageView, turnId: ChatTurnId, turn: RpgTurnContext): void {
   if (ctx.rpg !== null) {
     const rpg = ctx.rpg;
+    const admission = mintRoomAdmission(view.chatId);
     // Fire-and-forget still (a background flush must NEVER turn a committed reply into an abort), but LOG the
     // failure — a silent `.catch(() => undefined)` made a broken rpg flush/extraction invisible in prod (the
     // diagnosis that surfaced the routing bug). The reply already landed; this only records that the state
@@ -828,7 +830,7 @@ function fireRpgTurnCompleted(ctx: EngineContext, view: MessageView, turnId: Cha
       ctx,
       view.chatId,
       withRequestSpan({ traces: ctx.traces, requestId: rpgRoundRequestId(turnId) }, RPG_ROUND_SPAN, { chatId: view.chatId, messageId: view.id, turnId }, () =>
-        rpg.onTurnCompleted({ chatId: view.chatId, messageId: view.id, variantId: view.selectedVariantId, turnId, turn }),
+        rpg.onTurnCompleted({ chatId: view.chatId, messageId: view.id, variantId: view.selectedVariantId, turnId, turn, admission }),
       ).catch((err: unknown) => getLog(ctx.logger).warn({ err, chatId: view.chatId, turnId }, "rpg: post-turn flush failed (reply already committed)")),
     );
   }

@@ -106,7 +106,7 @@ export async function navigate(page: Page, opts: Args, url: string, failures?: D
   const navTimeout = budgets.nav;
   noteUrlSecrets(url);
   const resp = opts.coldStart
-    ? await awaitDevClientReady(page, url, Date.now() + SNAP_CEILINGS_MS.coldStartReady)
+    ? await awaitDevClientReady(page, url, SNAP_CEILINGS_MS.coldStartReady)
     : await page.goto(url, { waitUntil: "domcontentloaded", timeout: navTimeout });
   let navError: string | null = null;
   if (!resp) {

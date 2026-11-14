@@ -49,7 +49,7 @@ for (const factor of SCALES) {
       const component = await mount<typeof EndRowStory>(`${STORIES}/EndRowStory`, {});
       await setRootFontScale(page, FONT_SCALE_PROPERTY, factor);
       const scroller = component.locator('[data-probe="scroller"]');
-      const control = component.getByRole("button", { name: "Add selected", exact: true });
+      const control = component.getByRole("button", { name: "Carry the picked rows over", exact: true });
       await expect
         .poll(async () => {
           const [within, box] = await Promise.all([scroller.boundingBox(), control.boundingBox()]);

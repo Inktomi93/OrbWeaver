@@ -1,4 +1,4 @@
-import type { HandoffOffer } from "@orb/contracts/chat";
+import type { HandoffOffer, RoomAdmission } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import type { HandoffResumption } from "./context.ts";
 import type { ChatOperationError } from "./errors.ts";
@@ -21,9 +21,10 @@ export interface HandoffBarrier {
   readonly track: (chatId: ChatId, work: Promise<void>) => void;
 }
 
+/** The accept gate's verdict. `admission` is the nominee's membership proof, which the actor re-key's claim spends. */
 export type HandoffAcceptance =
-  | { readonly kind: "resume"; readonly resumption: HandoffResumption }
-  | { readonly kind: "pending"; readonly offer: HandoffOffer };
+  | { readonly kind: "resume"; readonly resumption: HandoffResumption; readonly admission: RoomAdmission }
+  | { readonly kind: "pending"; readonly offer: HandoffOffer; readonly admission: RoomAdmission };
 
 export type AdmittedChatOperations = Pick<
   ChatService,

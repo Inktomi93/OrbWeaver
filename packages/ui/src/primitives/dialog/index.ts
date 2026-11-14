@@ -7,6 +7,7 @@ export {
   DialogHeader,
   DialogPopup,
   DialogTitle,
+  DialogTitleText,
   DialogTrigger,
 } from "./dialog.tsx";
 export { createDialogHandle } from "./handle.ts";
