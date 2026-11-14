@@ -38,6 +38,7 @@ import type {
   SurfaceCodeEditorStory,
   SurfaceDesignStory,
   SurfaceLeavingCoverStory,
+  SurfacePaneInkStory,
   SurfaceTextContainedOverlayStory,
   SurfaceTextDisclosureStory,
   SurfaceTextGeometryStory,
@@ -375,6 +376,28 @@ test("cohort geometry compares the same declared variant rather than every butto
   await attachNativeFile(info, info, "production-cohort-broken", { body: JSON.stringify(broken, null, 2), contentType: "application/json" });
   expect(broken.audit.findings.some(({ rule, selector }) => rule === "cohort-anatomy" && selector.includes("Small control three"))).toBe(true);
 });
+
+const PANE_INK_STORY = "tests/support/browser/surface-design-fixtures/SurfacePaneInkStory";
+
+test("a tall region that ends in its member rows is sized by its data and is no pane-ink finding", async ({ mount, page }, info) => {
+  await mount<typeof SurfacePaneInkStory>(PANE_INK_STORY, { ending: "members" });
+  await expect(page.getByRole("button", { name: "Cinder", exact: true })).toBeVisible();
+  const design = await readSurfaceDesignAudit(page);
+  await attachNativeFile(info, info, "pane-ink-members", { body: JSON.stringify(design.audit, null, 2), contentType: "application/json" });
+  expect(design.audit.populationAccounting["pane-ink"]).toMatchObject({ candidates: 1, judged: 0, excluded: { memberList: 1 } });
+  expect(design.audit.findings.filter(({ rule }) => rule === "pane-ink")).toEqual([]);
+});
+
+for (const ending of ["prose", "bullets"] as const) {
+  test(`a tall region that ends in short ${ending} still does not earn its height`, async ({ mount, page }, info) => {
+    await mount<typeof SurfacePaneInkStory>(PANE_INK_STORY, { ending });
+    await expect(page.getByRole("region", { name: "Planted pane", exact: true })).toBeVisible();
+    const design = await readSurfaceDesignAudit(page);
+    await attachNativeFile(info, info, `pane-ink-${ending}`, { body: JSON.stringify(design.audit, null, 2), contentType: "application/json" });
+    expect(design.audit.populationAccounting["pane-ink"]).toMatchObject({ candidates: 1, judged: 1, excluded: {} });
+    expect(design.audit.findings.filter(({ rule }) => rule === "pane-ink")).toEqual([expect.objectContaining({ selector: expect.any(String) })]);
+  });
+}
 
 // WCAG 1.4.4 text resize: the browser's default font size doubled.
 const ENLARGED_TEXT_SCALE = 2;
