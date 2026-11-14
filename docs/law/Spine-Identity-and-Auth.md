@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-11-12
+updated: 2026-11-14
 ---
 
 # Orbweaver — Spine: Identity, Auth, and Permission
@@ -240,11 +240,26 @@ A role read answers exactly one of three questions, and each has one home:
   as a co-GM who commands the room but must not read deception truth.
 - **"Which seat is the host?"** is a roster lookup (role to identity, D19), homed at
   `hostSeatOf` and `hostUserIdOf` in `packages/server/src/domain/chat/substrate/participants-host.ts`, whose consumers want an owner for a
-  downstream read (card/preset/connection ownership, the stats delta's owner, the notification
+  downstream read (card and preset ownership, the stats delta's owner, the notification
   recipient) and whose `userId` guard is the one answer for that class.
 
 Ask which question a site answers before "fixing" its spelling. The three homes cross-cite each other;
 collapsing any two of them is a defect, not a cleanup.
+
+Work on a room host's account needs the host's consent, not only the host lookup. `hostConsentOf` in
+`packages/server/src/domain/chat/substrate/participants-humans.ts` answers it: the host must be seated, present
+and enabled, so a disabled host stands as a departed one. Its `consents` variant is the one mint of
+`ConsentingHostId` (`packages/kit/src/ids/index.ts`).
+
+- An op that resolves a connection or runs model work on a room host's account takes `ConsentingHostId`,
+  never a plain `UserId`.
+- A user who funds their own work is not host consent and keeps a plain `UserId`. Examples are a workload
+  funder, an automation rule author and a plugin installer.
+- A request principal that acts on its own account proves itself through its `Principal`, not through this brand.
+
+`tsc` refuses a raw `UserId` at those ops, as `tests/server/domain/chat/substrate/participants-humans.test-d.ts`
+shows, and `orb/no-unsafe-cast` refuses a second mint. A type predicate that names the brand is outside both
+checkers and stays a review question.
 
 ## 2d. Who owns what — the map is derived, not written here
 

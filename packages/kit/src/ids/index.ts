@@ -12,6 +12,8 @@ declare const brand: unique symbol;
 /** The SECOND phantom key, carried only by {@link VerifiedUserId} — see its doc for why it cannot reuse
  *  `brand` (two disjoint literals on one key reduce the intersection to `never`). */
 declare const sessionVerified: unique symbol;
+/** The phantom key carried only by {@link ConsentingHostId}, distinct for the same reason as `sessionVerified`. */
+declare const hostConsented: unique symbol;
 
 /** A `string` tagged with a phantom `B` marker (erased at runtime). */
 export type Branded<B extends string> = string & { readonly [brand]: B };
@@ -162,6 +164,18 @@ export type UserId = Branded<"UserId">;
  * browser-storage read stay plain `UserId` on purpose.
  */
 export type VerifiedUserId = UserId & { readonly [sessionVerified]: true };
+/**
+ * A room host's `UserId` that a consent read just proved: the host is seated, present and enabled (D17). Every op
+ * that resolves a connection or runs model work on a room host's account takes this brand, so a caller that
+ * skipped the consent read fails to compile instead of spending a disabled or departed host's account.
+ *
+ * Assignable to `UserId`, never the reverse, and it carries its own phantom key (see {@link VerifiedUserId}).
+ *
+ * ONE MINT: `hostConsentOf` in `packages/server/src/domain/chat/substrate/participants-humans.ts`, a `castId` that
+ * `orb/no-unsafe-cast` refuses in every other file. A user acting on their own account is not host consent and
+ * stays a plain `UserId`.
+ */
+export type ConsentingHostId = UserId & { readonly [hostConsented]: true };
 /** The BFF session ROW id (NOT the opaque cookie token — that's `SessionToken`). */
 export type SessionId = TypeIdOf<"session">;
 export type UserCredentialId = TypeIdOf<"user_credential">;
