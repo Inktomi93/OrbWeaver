@@ -8,7 +8,6 @@ import type { AttachOwnedBooksByName } from "@orb/contracts/world-info";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
 import { SNIFFED_IMAGE_MIMES, sniffMime } from "@orb/kit/image-sniff";
-import { hostTimeZone } from "@orb/kit/time";
 import { inertActivationFields } from "@orb/kit/world-info";
 import type {
   CollectedBackground,
@@ -30,12 +29,6 @@ import { seatsOf } from "../substrate/group.ts";
 import { buildImportPreview, countImportKinds, refusedGroups } from "../substrate/preview.ts";
 import { collectBundlesFromDir } from "./collect.ts";
 import { findOwnership } from "./profile-ownership.ts";
-
-/** The ST wall-clock zone for this run: the caller's pin, else the host's. ONE resolver so the collect pass
- *  and the per-file import verbs can never disagree about which clock a snapshot's dates were written on. */
-function stWallClockZone(deps: ProfileDirImportDeps): string {
-  return deps.stWallClockZone ?? hostTimeZone();
-}
 
 /** Apply the direct-tree byte belts at the read boundary. `stat` rejects before the allocation, while the
  *  post-read check closes a file-growth race. Repeated reads of one path count only its largest observed
@@ -169,7 +162,7 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<ProfileCo
     if (profile === null) {
       continue;
     }
-    const result = await collectBundlesFromDir(fs, profile, [], stWallClockZone(deps));
+    const result = await collectBundlesFromDir(fs, profile, []);
     profiles.push({ name: ent.name, result });
     bundles.push(...result.bundles);
     personas.push(...result.personas);
@@ -762,7 +755,6 @@ function contextFor(deps: ProfileDirImportDeps, store: StoreAvatarAsset): Return
     ...(deps.importCardScripts !== undefined ? { importCardScripts: deps.importCardScripts } : {}),
     profile: {
       now: deps.now,
-      stWallClockZone: stWallClockZone(deps),
       personaByUserName: new Map(),
       bulkImportChats: deps.bulkImportChats,
       bulkImportPersonas: deps.bulkImportPersonas,

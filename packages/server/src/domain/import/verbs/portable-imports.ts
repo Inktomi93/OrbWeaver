@@ -11,7 +11,7 @@ async function ownerImport(deps: OwnerImportDeps, ownerId: UserId): Promise<Impo
     buildImportContext({
       ...deps.contextFor(principal),
       principal,
-      profile: { ...deps.profile, stWallClockZone: deps.wallClockZone(), personaByUserName: new Map() },
+      profile: { ...deps.profile, personaByUserName: new Map() },
     }),
   );
 }

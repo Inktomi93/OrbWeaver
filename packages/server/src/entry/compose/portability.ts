@@ -8,7 +8,6 @@ import type { AttachCardTagByNameOp } from "@orb/contracts/tag";
 import type { ImportStandaloneLorebook, ImportWorldInfoPort } from "@orb/contracts/world-info";
 import type { SchemaTableName } from "@orb/db/wiring";
 import type { Clock } from "@orb/kit/time";
-import { hostTimeZone } from "@orb/kit/time";
 import type { AssetsAssemblyContext } from "#domain/assets";
 import { createExportAssets, createExportGallery, createImportAsset, createImportAvatarStore, createImportGallery } from "#domain/assets";
 import type { ImportCharacterPort } from "#domain/character";
@@ -100,7 +99,6 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
     document: createImportDocument(deps.databankCtx),
     persona: deps.persona,
     resolveOwnerPrincipal: deps.resolveOwnerPrincipal,
-    wallClockZone: hostTimeZone,
     contextFor: (principal) => ({
       principal,
       characterOps: createCharacterImportOps(principal, deps.character),
