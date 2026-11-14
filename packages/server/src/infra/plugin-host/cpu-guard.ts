@@ -76,6 +76,9 @@ interface CpuGuard {
 
 interface CpuAccount {
   remainingMs: number;
+  /** Set by the interrupt handler alone, when it stopped guest work a span of this account was running: the host's mark
+   *  of a runaway invocation, which no guest error can forge. */
+  interrupted: boolean;
 }
 
 /** Per-context guard state. WEAK by construction: this map must never keep a disposed context alive, and the
@@ -97,9 +100,25 @@ function windowPassed(guard: CpuGuard): boolean {
 }
 
 function createGuard(ctx: QuickJSContext, budgetMs: number, report: CpuSpanReport | null): CpuGuard {
-  const guard: CpuGuard = { budgetMs, deadlineAtMs: BUILDING, account: null, outside: { remainingMs: budgetMs }, parked: [], spanOpen: false, report };
+  const guard: CpuGuard = {
+    budgetMs,
+    deadlineAtMs: BUILDING,
+    account: null,
+    outside: { remainingMs: budgetMs, interrupted: false },
+    parked: [],
+    spanOpen: false,
+    report,
+  };
   GUARDS.set(ctx, guard);
-  ctx.runtime.setInterruptHandler(() => windowPassed(guard));
+  ctx.runtime.setInterruptHandler(() => {
+    const passed = windowPassed(guard);
+    // Guest work an invocation's span was running ran past its window: that invocation is a runaway, and the mark makes
+    // it strike whatever refusal its command also met (D347). Work outside an invocation marks none.
+    if (passed && guard.spanOpen && guard.account !== null) {
+      guard.account.interrupted = true;
+    }
+    return passed;
+  });
   return guard;
 }
 
@@ -129,15 +148,18 @@ export function installCpuGuard(ctx: QuickJSContext, budgetMs: number, report: C
   existing.budgetMs = budgetMs;
 }
 
-/** Open an invocation's CPU account and return its CLOSE, which restores the account it replaced. Opening also
- *  refills the account for guest work outside an invocation. Callers MUST close in a `finally`. */
-export function openCpuInvocation(ctx: QuickJSContext): () => void {
+/** Open an invocation's CPU account and return its CLOSE, which restores the account it replaced and answers whether the
+ *  interrupt stopped guest work this account was paying for. Opening also refills the account for guest work outside an
+ *  invocation. Callers MUST close in a `finally`. */
+export function openCpuInvocation(ctx: QuickJSContext): () => boolean {
   const guard = guardOf(ctx);
   const previous = guard.account;
+  const account: CpuAccount = { remainingMs: guard.budgetMs, interrupted: false };
   guard.outside.remainingMs = guard.budgetMs;
-  guard.account = { remainingMs: guard.budgetMs };
-  return (): void => {
+  guard.account = account;
+  return (): boolean => {
     guard.account = previous;
+    return account.interrupted;
   };
 }
 

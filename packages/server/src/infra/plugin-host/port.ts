@@ -57,8 +57,8 @@ import { PLUGIN_INVOCATION_ENDED } from "./process-protocol.ts";
 import type { HostSeams, LogMirror } from "./realm.ts";
 import { Sandbox } from "./sandbox.ts";
 
-// The failure an invocation the host ended at its settlement wall throws. Its name is the host's, never the guest's,
-// so the parent can strike it whatever refusal the command also met (D347).
+// The failure an invocation the host ended, at its settlement wall or its CPU window, throws. Its name is the host's,
+// never the guest's, so the parent can strike it whatever refusal the command also met (D347).
 function invocationEnded(message: string): Error {
   const ended = new Error(message);
   ended.name = PLUGIN_INVOCATION_ENDED;

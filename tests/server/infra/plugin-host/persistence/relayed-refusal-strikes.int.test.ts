@@ -2,7 +2,7 @@
 // never the plugin's crash when its guest leaves it uncaught: the Worker records it for its command, and the command, or
 // the rebuild it fails, fails as that refusal, for an async call and a synchronous one alike. A rebuild whose answer a
 // full channel refused fails as that refusal too, though the broker has already ended its runtime. A command the host
-// ended at its settlement wall strikes whatever refusal it met (D347), and no host call after the wall can turn it into
+// ended, at its settlement wall or its CPU window, strikes whatever refusal it met (D347), and no host call after the wall can turn it into
 // a refusal: the port makes none between the wall and the ended throw, and an ended answer a full channel refuses still
 // arrives ended. Each refusal case's control is a guest's own throw in another command, which still counts. The crash
 // count is read from the plugin's row, which no door shows.
@@ -40,6 +40,7 @@ const DRAW = "draw";
 const READ_THEN = "read_then";
 const SET_MODE = "set_mode";
 const HANG = "hang";
+const DRAW_THEN = "draw_then";
 const CRASH = "crash";
 const CRASH_MESSAGE = "the guest's own failure";
 const CALLER_KEY = "k";
@@ -63,7 +64,12 @@ h.ui.registerCommand({ name: ${JSON.stringify(READ_THEN)}, describe: "Read, then
   throw new Error(${JSON.stringify(CRASH_MESSAGE)});
 } });
 h.ui.registerCommand({ name: ${JSON.stringify(HANG)}, describe: "Never settle, or return", onRun: ({ args }) =>
-  JSON.parse(args).stall === true ? new Promise(() => {}) : undefined });`;
+  JSON.parse(args).stall === true ? new Promise(() => {}) : undefined });
+h.ui.registerCommand({ name: ${JSON.stringify(DRAW_THEN)}, describe: "Draw, then throw or run away", onRun: ({ args }) => {
+  try { h.random.next(); } catch (refused) {}
+  if (JSON.parse(args).loop === true) { for (;;) {} }
+  throw new Error(${JSON.stringify(CRASH_MESSAGE)});
+} });`;
 // main.js reads its mode, then its own storage; a refused read it rethrows uncaught, or in the stall mode never settles,
 // so a rebuild whose read is refused fails at once or at its wall. A command sets the mode for the next rebuild.
 const SLEEPER_SOURCE = `const h = orb.host(1);
@@ -229,6 +235,24 @@ test.for([
     await expectOwnThrowCounts(caller);
   },
 );
+
+// The runaway ends at its CPU window, which the interrupt reads on a real monotonic clock no test clock reaches; the
+// window is one invocation budget, well inside the default case timeout.
+test("a command that met a refused call and then ran past its CPU window strikes, though the same command ending in a throw does not", async () => {
+  await caller.run(NOTE);
+  expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
+
+  // Control: the refused draw excuses the command's own throw after it.
+  const { settled: thrown } = await refuseResultOf(drawn, () => caller.run(DRAW_THEN, JSON.stringify({ loop: false })));
+  await expect(thrown).resolves.toBeInstanceOf(Error);
+  expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
+
+  // The same refusal, then a loop the interrupt stops at the CPU window: a runaway invocation, and the plugin's strike.
+  const { settled: ranAway } = await refuseResultOf(drawn, () => caller.run(DRAW_THEN, JSON.stringify({ loop: true })));
+  await expect(ranAway).resolves.toBeInstanceOf(Error);
+  await expect.poll(async () => (await caller.view()).crashes).toBe(1);
+  expect((await caller.view()).status).toBe(ENABLED);
+});
 
 // The sleeper has never run a command since its install, so it is asleep, unstruck and in the throw mode; each Worker
 // start costs this case its budget, so it starts only the two rebuilds.

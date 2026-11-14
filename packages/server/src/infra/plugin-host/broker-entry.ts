@@ -556,7 +556,7 @@ function activationSucceeded(value: unknown): boolean {
   return typeof value === "object" && value !== null && Reflect.get(value, "ok") === true;
 }
 
-// Only the Worker's host code marks an activation outcome ended: main.js ran into its settlement wall.
+// Only the Worker's host code marks an activation outcome ended: main.js ran into its settlement wall or its CPU window.
 function activationEnded(value: unknown): boolean {
   return typeof value === "object" && value !== null && Reflect.get(value, "ok") === false && Reflect.get(value, "ended") === true;
 }

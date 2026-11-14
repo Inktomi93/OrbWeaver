@@ -111,7 +111,8 @@ function extractGuestLine(dumped: object): number | undefined {
 }
 
 /** The result of one guest invocation — errors-as-data, logs drained, no live handles escape. `ended` marks an
- *  invocation the host ended at its settlement wall; only host code sets it, since a guest names its own errors. */
+ *  invocation the host ended, at its settlement wall or at its CPU window; only host code sets it, since a guest names
+ *  its own errors. */
 export type EvalOutcome =
   | { readonly ok: true; readonly value: string; readonly error?: never; readonly logs: readonly string[] }
   | { readonly ok: false; readonly error: GuestError; readonly value?: never; readonly logs: readonly string[]; readonly ended?: true };
@@ -607,31 +608,42 @@ export class Sandbox implements Disposable {
     // (`cpu-guard.ts`). This opens THIS invocation's CPU account: the synchronous run, every pump inside the
     // invocation and the read of its result each spend it, and the await between them does not.
     const closeInvocation = openCpuInvocation(this.ctx);
+    let outcome: EvalOutcome;
+    let interrupted: boolean;
     try {
-      const started = this.startGuest(produce);
-      if ("outcome" in started) {
-        return started.outcome;
-      }
-      const { handle, native } = started;
-      const settled = await this.raceSettlement(native);
-      if (settled === ENDED) {
-        return this.endInvocation(handle);
-      }
-      // Reading the settled value can run its getters and `toJSON`: guest code, so a span on the same account.
-      const closeSpan = openCpuWindow(this.ctx);
-      try {
-        return this.readSettled(handle, settled);
-      } finally {
-        closeSpan();
-      }
+      outcome = await this.runInvocation(produce);
     } finally {
       // Unguarded on purpose — this touches no runtime, only the guard's own state, so a dead context is harmless.
-      closeInvocation();
+      interrupted = closeInvocation();
       // Settlements held while work outside an invocation had spent its account run after this invocation answers, on
       // the outside account its opening refilled: one macrotask later, so the answer leaves first (D346).
       setImmediate(() => {
         releaseParkedSettlements(this.ctx);
       });
+    }
+    // A failed invocation the interrupt cut ran past its CPU window: the host ended it, so it carries the ended mark and
+    // strikes whatever refusal its command met, as one the settlement wall ends does (D347).
+    return interrupted && !outcome.ok ? { ...outcome, ended: true } : outcome;
+  }
+
+  // One invocation inside its open CPU account: the synchronous run, the race against its settlement wall, and the read
+  // of what it settled to.
+  private async runInvocation(produce: GuestProduce): Promise<EvalOutcome> {
+    const started = this.startGuest(produce);
+    if ("outcome" in started) {
+      return started.outcome;
+    }
+    const { handle, native } = started;
+    const settled = await this.raceSettlement(native);
+    if (settled === ENDED) {
+      return this.endInvocation(handle);
+    }
+    // Reading the settled value can run its getters and `toJSON`: guest code, so a span on the same account.
+    const closeSpan = openCpuWindow(this.ctx);
+    try {
+      return this.readSettled(handle, settled);
+    } finally {
+      closeSpan();
     }
   }
 

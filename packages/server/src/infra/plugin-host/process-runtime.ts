@@ -269,7 +269,7 @@ function isHostRefusal(error: unknown): error is PluginInstallerDisabledError | 
   return error instanceof PluginInstallerDisabledError || error instanceof PluginHostUnavailableError || error instanceof CodedHostUnavailableError;
 }
 
-// An invocation the host ended: at its settlement wall, by its Worker's end, or at the parent's backstop.
+// An invocation the host ended: at its settlement wall, at its CPU window, by its Worker's end, or at the parent's backstop.
 function isInvocationEnded(error: unknown): boolean {
   return error instanceof Error && error.name === PLUGIN_INVOCATION_ENDED;
 }
@@ -1508,8 +1508,8 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       // A command that fails after the host refused one of its calls fails as that refusal, whatever the guest threw, a
       // real failure of its own included. Only host code sets this record, so a guest cannot forge one: the app where it
       // refuses, and the Worker for a refusal raised past the app, which its answer carries. An invocation the host ended
-      // never settled, which no refusal excuses, so it keeps its strike (D347): at its wall, by its Worker's end, or at
-      // the parent's backstop. Only host code names an error ended.
+      // ran away, which no refusal excuses, so it keeps its strike (D347): at its wall, at its CPU window, by its Worker's
+      // end, or at the parent's backstop. Only host code names an error ended.
       throw isInvocationEnded(error) ? error : (binding.hostRefusals.get(authorityId) ?? error);
     } finally {
       const refusal = binding.hostRefusals.get(authorityId);
@@ -1672,7 +1672,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
     if (!outcome.ok) {
       pool.discard(binding);
       // A rebuild the host refused fails as that refusal, which is never the plugin's crash; one whose main.js the host
-      // ended at its wall never settled, and keeps its strike whatever it was refused (D347).
+      // ended, at its wall or its CPU window, keeps its strike whatever it was refused (D347).
       const failed = new Error(`plugin host: sleeping runtime could not be rebuilt: ${outcome.error}`);
       throw outcome.ended === true ? failed : (seen.refusal ?? failed);
     }

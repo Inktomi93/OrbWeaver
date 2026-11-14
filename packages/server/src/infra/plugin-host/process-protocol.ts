@@ -29,7 +29,8 @@ export const PLUGIN_CHANNEL_FULL = "plugin host: a channel between the plugin ho
 /** What a command for a runtime the host already ended or retired is refused with, under {@link PLUGIN_HOST_UNAVAILABLE}:
  *  the host's own lifecycle, not the plugin's doing. */
 export const PLUGIN_STALE_RUNTIME = "plugin host: stale or unknown runtime id";
-/** The error name of an invocation the host ended: at its settlement wall, or by terminating its stuck Worker. */
+/** The error name of an invocation the host ended: at its settlement wall, at its CPU window, or by terminating its
+ *  stuck Worker. */
 export const PLUGIN_INVOCATION_ENDED = "PluginInvocationEnded";
 /** The Int32 slots a Worker shares with its broker to report its guest work: the open span's sequence number (0 while
  *  no span is open), that span's CPU window in ms, and the running total of closed spans in ms, which wraps. */
