@@ -34,10 +34,10 @@ test("a host's membership-class writes reach the shared room channel, not only t
   expect((await otherCaller.chat.getChat({ chatId: room.id })).id).toBe(room.id);
 
   const script = await host.regex.createScript({
-    input: createRegexScriptSchema.parse({ name: "room fan", findRegex: "x", replaceString: "y", placement: [] }),
+    input: createRegexScriptSchema.parse({ name: "room fan", findRegex: "x", replaceString: "y", targets: [], passes: [] }),
   });
   const second = await host.regex.createScript({
-    input: createRegexScriptSchema.parse({ name: "room fan second", findRegex: "a", replaceString: "b", placement: [] }),
+    input: createRegexScriptSchema.parse({ name: "room fan second", findRegex: "a", replaceString: "b", targets: [], passes: [] }),
   });
   const book = await host.worldInfo.createBook({ input: { name: "room fan book" } });
   const document = await host.databank.createFromText({ name: "room fan document", text: "shared with the room" });

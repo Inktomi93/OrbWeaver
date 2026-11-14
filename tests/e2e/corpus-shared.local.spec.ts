@@ -45,10 +45,7 @@ test("a second corpus human opens shared history without gaining host or admin c
     {
       characterNamesById: new Map<CharacterId, RowCharacterName>(),
       personaNamesById: new Map<PersonaId, RowPersonaName>(),
-      displayScripts: [
-        ...(await member.trpc.regex.listRoomDisplayScripts.query({ chatId: room.id })),
-        ...(await member.trpc.regex.listScripts.query(undefined)),
-      ],
+      displayScripts: (await member.trpc.regex.listDisplayScripts.query({ chatId: room.id })).map(({ script }) => script),
     },
     last.characterId,
     last.personaId,

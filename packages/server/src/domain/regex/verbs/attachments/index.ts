@@ -17,5 +17,4 @@ export { createListForCharacter } from "./list-for-character.ts";
 export { createListForChat } from "./list-for-chat.ts";
 export { createListForPreset } from "./list-for-preset.ts";
 export { createListGlobal } from "./list-global.ts";
-export { createListRoomDisplayScripts } from "./list-room-display-scripts.ts";
 export { createListScriptUsage } from "./list-script-usage.ts";

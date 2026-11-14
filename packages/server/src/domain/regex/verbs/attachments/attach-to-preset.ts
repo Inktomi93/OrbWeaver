@@ -18,5 +18,7 @@ export function createAttachToPreset(ctx: RegexContext): RegexService["attachToP
     await ctx.db.insert(presetRegexScripts).values({ presetId, regexScriptId: scriptId, position, createdAt: at }).onConflictDoNothing();
     await ctx.audit({ actorUserId: ownerId, action: "regex.attachToPreset", entityType: "regex_script", entityId: scriptId, metadata: { presetId } }, at);
     ctx.emitUserEvent(ownerId, { type: "regexChanged", scriptId });
+    // The host's tiers draw for the room's members, so the rooms this attachment reaches hear it.
+    await ctx.fanRegexScriptRooms(scriptId);
   };
 }

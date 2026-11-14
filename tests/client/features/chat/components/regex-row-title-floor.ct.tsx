@@ -24,7 +24,7 @@ const TAB_PROCEDURES = [
   "worldInfo.listForChat",
   "regex.listForChat",
   "regex.listScripts",
-  "regex.listRoomDisplayScripts",
+  "regex.listDisplayScripts",
   "chat.listEffectiveRegex",
   "chat.getUserMacroPicks",
   "chat.getVariablePicks",

@@ -12,6 +12,5 @@ export type {
   ImportPresetScripts,
   ImportRegexScript,
   ResolveRegexScriptRoomsOp,
-  ResolveRoomDisplayPolicyOp,
 } from "./owner-ops.ts";
 export * from "./schemas.ts";

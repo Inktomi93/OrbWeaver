@@ -39,7 +39,7 @@ const TAB_PROCEDURES = [
   "databank.listActiveForChat",
   "worldInfo.listForChat",
   "regex.listForChat",
-  "regex.listRoomDisplayScripts",
+  "regex.listDisplayScripts",
   "chat.listEffectiveRegex",
   "chat.getUserMacroPicks",
   "chat.getVariablePicks",

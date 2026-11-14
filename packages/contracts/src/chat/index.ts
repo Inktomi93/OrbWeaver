@@ -363,6 +363,8 @@ export type {
   CharacterRegexSlice,
   EffectiveRegexEntry,
   EffectiveRegexView,
+  RegexDisplayEntry,
+  RegexDisplaySource,
   RegexTierGroupView,
   RegexTierKey,
   RegexTierRowView,
@@ -375,6 +377,9 @@ export {
   isRegexEnabledInChat,
   isRegexTierAllowed,
   parseCharacterRegexTierKey,
+  REGEX_VIEWER_SOURCE,
+  regexDisplayEntrySchema,
+  regexDisplayInputSchema,
   regexTierAllowSchema,
   regexTierKeySchema,
 } from "./regex-tiers.ts";

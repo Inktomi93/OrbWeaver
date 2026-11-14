@@ -20,7 +20,7 @@ import type { UserMacroDef, UserMacroInputValue } from "@orb/kit/macro";
 import { MACRO_ARG_TYPES, MACRO_NAME_RE, USER_MACRO_INPUT_KINDS } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
-import type { RegexPlacement } from "@orb/kit/regex";
+import type { RegexPass, RegexTarget } from "@orb/kit/regex";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { z } from "zod";
 import type { EffortLevel as ModelEffortLevel, SamplerKnob } from "#inference";
@@ -2568,14 +2568,14 @@ export const ASSEMBLE_POST_PROCESS_ORDER = ["collapseNewlines"] as const satisfi
 export type PromptPipelineStep =
   | { readonly kind: "native-reasoning" }
   | { readonly kind: "reasoning-parse" }
-  | { readonly kind: "regex"; readonly placement: RegexPlacement }
+  | { readonly kind: "regex"; readonly pass: RegexPass; readonly targets: readonly RegexTarget[] }
   | { readonly kind: "post-process"; readonly flag: PostProcessFlag };
 
 /** A step's STABLE identity — the key a total label map is keyed by and the token an order pin compares.
  *  Never a rendered string (the copy is the client's), and never an index (the index IS the drift). */
 export function pipelineStepKey(step: PromptPipelineStep): string {
   if (step.kind === "regex") {
-    return `regex:${step.placement}`;
+    return `regex:${step.pass}:${step.targets.join("+")}`;
   }
   if (step.kind === "post-process") {
     return `post-process:${step.flag}`;
@@ -2583,28 +2583,27 @@ export function pipelineStepKey(step: PromptPipelineStep): string {
   return step.kind;
 }
 
-/** THE PROMPT-SIDE LANE. `USER_INPUT` rewrites the draft before it is persisted, `WORLD_INFO` rewrites each
- *  entry as it is rendered, the ASSEMBLE collapse runs on the joined system halves at the end of BUILD, and
- *  only then does `PROMPT_HISTORY` rewrite the assembled transcript on its way to the wire — the one
- *  prompt-side stage whose output never becomes canon. */
+/** THE PROMPT-SIDE LANE. The save pass rewrites the draft before it is persisted, the prompt pass rewrites each
+ *  world-info entry as it is rendered, the ASSEMBLE collapse runs on the joined system halves at the end of BUILD,
+ *  and only then does the prompt pass rewrite the assembled transcript on its way to the wire, the stage whose
+ *  output never becomes canon. */
 export const PROMPT_LANE_STEPS: readonly PromptPipelineStep[] = [
-  { kind: "regex", placement: "USER_INPUT" },
-  { kind: "regex", placement: "WORLD_INFO" },
+  { kind: "regex", pass: "save", targets: ["USER_INPUT"] },
+  { kind: "regex", pass: "prompt", targets: ["WORLD_INFO"] },
   ...ASSEMBLE_POST_PROCESS_ORDER.map((flag): PromptPipelineStep => ({ kind: "post-process", flag })),
-  { kind: "regex", placement: "PROMPT_HISTORY" },
+  { kind: "regex", pass: "prompt", targets: ["USER_INPUT", "AI_OUTPUT", "REASONING"] },
 ];
 
-/** THE REPLY-SIDE LANE, in the order `applyReceiveTransforms` runs it: the inline-reasoning demux, the
- *  `AI_OUTPUT` pass over the content, the post-process block, then the `REASONING` pass over the demuxed
- *  channel — and last, client-side, the `DISPLAY` pass, which changes what you read and never touches the
- *  wire. */
+/** THE REPLY-SIDE LANE, in the order `applyReceiveTransforms` runs it: the inline-reasoning demux, the save
+ *  pass over the content, the post-process block, then the save pass over the demuxed reasoning, and last,
+ *  client-side, the display pass, which changes what you read and never touches the wire. */
 export const REPLY_LANE_STEPS: readonly PromptPipelineStep[] = [
   { kind: "native-reasoning" },
   { kind: "reasoning-parse" },
-  { kind: "regex", placement: "AI_OUTPUT" },
+  { kind: "regex", pass: "save", targets: ["AI_OUTPUT"] },
   ...RECEIVE_POST_PROCESS_ORDER.map((flag): PromptPipelineStep => ({ kind: "post-process", flag })),
-  { kind: "regex", placement: "REASONING" },
-  { kind: "regex", placement: "DISPLAY" },
+  { kind: "regex", pass: "save", targets: ["REASONING"] },
+  { kind: "regex", pass: "display", targets: ["USER_INPUT", "AI_OUTPUT", "REASONING"] },
 ];
 
 /** One PROSE slot whose pre-substitution token IS its payload slot — the `FormatCarrierToken` sibling for the

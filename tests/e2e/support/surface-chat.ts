@@ -2036,14 +2036,13 @@ async function runChatMessageOperations(input: SurfaceFlow): Promise<MessageOper
   return messageOperations;
 }
 
-/** The text the transcript paints for plain authored prose: the production display pipeline over the viewer's own
- *  library scripts. The disposable room broadcasts none, which this asserts rather than composing the two tiers. */
+/** The text the transcript paints for plain authored prose: the production display pipeline over the display set
+ *  the server resolves for this viewer in this room. */
 async function displayedText(flow: Journey, chatId: ChatId, text: string): Promise<string> {
-  expect(await flow.client.regex.listRoomDisplayScripts.query({ chatId })).toEqual([]);
   return renderMessageForDisplay(text, {
     characterNamesById: new Map<CharacterId, RowCharacterName>(),
     personaNamesById: new Map<PersonaId, RowPersonaName>(),
-    displayScripts: await flow.client.regex.listScripts.query(),
+    displayScripts: (await flow.client.regex.listDisplayScripts.query({ chatId })).map(({ script }) => script),
   });
 }
 

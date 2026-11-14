@@ -69,7 +69,7 @@ export const ROOM_PROCEDURES = [
   "chat.previewContextFit",
   "automation.listChatActivity",
   "persona.listConnectedToCharacter",
-  "regex.listRoomDisplayScripts",
+  "regex.listDisplayScripts",
   "plugin.listDisplayTransforms",
 ] as const satisfies readonly TrpcProcedurePath[];
 
