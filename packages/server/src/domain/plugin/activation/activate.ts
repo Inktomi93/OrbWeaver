@@ -16,7 +16,7 @@ import type { ProviderDef } from "@orb/contracts/inference";
 import type { PluginInstance } from "@orb/contracts/plugin";
 import { errorMessage } from "@orb/kit/error-message";
 import { DomainConflictError } from "@orb/kit/errors";
-import type { PluginActivationScope, PluginInvokeHandler, PluginRegistrationHandle } from "../contract/ops.ts";
+import type { PluginActivationScope, PluginCascadeInvoke, PluginInvokeHandler, PluginRegistrationHandle } from "../contract/ops.ts";
 import type {
   ActivateInput,
   ActivateOutcome,
@@ -37,7 +37,12 @@ import { parseInstalledBundle } from "../substrate/manifest.ts";
  *  the per-activation {@link PluginActivationScope} (the manifest slug for namespacing + the installer for the
  *  PL-C ceiling). On the FIRST registrar refusal (a collision is activation-fatal) it unregisters its
  *  OWN partial set before rethrowing, so the throw leaves NO orphan registration (the caller then disposes). */
-function register(ctx: PluginContext, instance: PluginInstance, invoke: PluginInvokeHandler, scope: PluginActivationScope): PluginRegistrationHandle[] {
+function register(
+  ctx: PluginContext,
+  instance: PluginInstance,
+  { invoke, deliver }: { readonly invoke: PluginInvokeHandler; readonly deliver: PluginCascadeInvoke },
+  scope: PluginActivationScope,
+): PluginRegistrationHandle[] {
   const handles: PluginRegistrationHandle[] = [];
   try {
     for (const tool of instance.tools) {
@@ -50,13 +55,13 @@ function register(ctx: PluginContext, instance: PluginInstance, invoke: PluginIn
     // fan-out's declared-match + one visibility read serve every handler); a plugin with no `events.on` registers
     // nothing.
     if (instance.events.length > 0) {
-      handles.push(ctx.ops.registrar.subscribeEvent(instance.events, invoke, scope));
+      handles.push(ctx.ops.registrar.subscribeEvent(instance.events, deliver, scope));
     }
     // U8 §5a — the private plugin-event subscriptions wire onto the INSTALLER-scoped resident bus (the events
     // pattern, one plane over); a plugin with no `pubsub.on` registers nothing, and the deregistration handle
     // drops exactly this plugin's subscriptions on deactivate.
     if (instance.pubsub.length > 0) {
-      handles.push(ctx.ops.registrar.subscribePubsub(instance.pubsub, invoke, scope));
+      handles.push(ctx.ops.registrar.subscribePubsub(instance.pubsub, deliver, scope));
     }
     // Macros aggregate the same way (ONE registry entry per plugin — the per-plugin ceiling and the per-turn
     // read are both per-plugin); a plugin with no `macros.register` registers nothing. DISPLAY transforms have
@@ -232,10 +237,14 @@ export function createActivate(
     // One guest call. A rejection that is not the host's own refusal is logged here, once, and rethrown. A caller
     // that gave up on the call at its deadline already logged the overrun.
     const callGuest = async (
-      ...[handler, argsJson, chat, signal, phase]: [...Parameters<PluginInvokeHandler>, Parameters<PluginHostPort["invoke"]>[5]?]
+      ...[handler, argsJson, chat, signal, phase, cascadeDepth]: [
+        ...Parameters<PluginInvokeHandler>,
+        Parameters<PluginHostPort["invoke"]>[5]?,
+        Parameters<PluginHostPort["invoke"]>[6]?,
+      ]
     ): Promise<string> => {
       try {
-        return await ctx.host.invoke(instance, handler, argsJson, chat, signal, phase);
+        return await ctx.host.invoke(instance, handler, argsJson, chat, signal, phase, cascadeDepth);
       } catch (err) {
         if (!isHostAdmissionRefusal(err) && signal?.reason !== DEADLINE_ABORT_REASON) {
           ctx.host.logFailure(instance, pluginFailureLine(slug, invokeFailureKind(err), errorMessage(err)));
@@ -247,10 +256,10 @@ export function createActivate(
     // `ctx.host.invoke` REJECTING → bump the consecutive-crash counter (auto-disable + owner-notify at the
     // threshold) and RE-THROW so the tool-use registrar catches it as `threw` (errors-as-data to the model); a
     // clean run resets the counter. `chat` is the registrar-resolved invocation scope (read admits, host writes).
-    const invoke: PluginInvokeHandler = (handler, argsJson, chat, signal) =>
+    const invokeAt = (...[handler, argsJson, chat, signal, cascadeDepth]: [...Parameters<PluginInvokeHandler>, number]): Promise<string> =>
       ctx.invocations.run(async () => {
         try {
-          const result = await callGuest(handler, argsJson, chat, signal);
+          const result = await callGuest(handler, argsJson, chat, signal, "invocation", cascadeDepth);
           await crashPolicy.recordCleanRun(input.pluginId);
           return result;
         } catch (err) {
@@ -262,6 +271,10 @@ export function createActivate(
           throw err;
         }
       });
+    const invoke: PluginInvokeHandler = (handler, argsJson, chat, signal) => invokeAt(handler, argsJson, chat, signal, 0);
+    // A delivery, a pubsub event or a trigger fact, runs at the cascade depth its cause carried, so what its own command
+    // causes reaches a handler one level deeper.
+    const deliver: PluginCascadeInvoke = (handler, argsJson, chat, depth) => invokeAt(handler, argsJson, chat, undefined, depth);
     // A query's re-entry: the same call with no crash-policy write, because a query writes nothing. Its clean run
     // must not reset the count a write path built, or a plugin that crashes on every tool call stays enabled. It runs
     // in the display phase, so the guest's own host calls may only read too.
@@ -270,7 +283,7 @@ export function createActivate(
     const scope: PluginActivationScope = { pluginId: input.pluginId, slug, installer: input.caller, matchAutomationEvents };
     let handles: PluginRegistrationHandle[];
     try {
-      handles = register(ctx, instance, invoke, scope);
+      handles = register(ctx, instance, { invoke, deliver }, scope);
     } catch (err) {
       // Discard the partial activation: nothing this run registered survives, and the instance is disposed.
       ctx.host.dispose(instance);

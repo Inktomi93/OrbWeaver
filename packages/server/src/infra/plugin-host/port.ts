@@ -57,8 +57,8 @@ import { PLUGIN_INVOCATION_ENDED } from "./process-protocol.ts";
 import type { HostSeams, LogMirror } from "./realm.ts";
 import { Sandbox } from "./sandbox.ts";
 
-// The failure an invocation the host ended at its settlement wall throws. Its name is the host's, never the guest's,
-// so the parent can strike it whatever refusal the command also met (D347).
+// The failure an invocation the host ended, at its settlement wall or its CPU window, throws. Its name is the host's,
+// never the guest's, so the parent can strike it whatever refusal the command also met (D347).
 function invocationEnded(message: string): Error {
   const ended = new Error(message);
   ended.name = PLUGIN_INVOCATION_ENDED;
@@ -200,9 +200,9 @@ function residentSandboxOptions(
   seams: LocalPluginHostSeams,
   log: Logger,
 ): Parameters<typeof Sandbox.create>[1] {
-  const { mirrorLog, netEgress, spanReport } = seams;
+  const { mirrorLog, netEgress, spanReport, currentCascadeDepth } = seams;
   return {
-    membrane: { grants, bridge: input.bridge, netEgress, log },
+    membrane: { grants, bridge: input.bridge, netEgress, log, currentCascadeDepth },
     ...(input.budgets !== undefined ? { limits: input.budgets } : {}),
     ...(input.label !== undefined || mirrorLog !== undefined ? { logMirror: centralLogMirror(input.label, mirrorLog, log) } : {}),
     ...(spanReport === undefined ? {} : { spanReport }),
@@ -374,7 +374,7 @@ export function createLocalPluginHost(seams: LocalPluginHostSeams): {
         // AFTER the context it accounts for is gone — never while a torn-down-but-not-yet-freed one lingers.
         using sandbox = await Sandbox.create(hostSeams, {
           // A snippet has no manifest, so its profile omits net.fetch; the forwarded egress is never reached.
-          membrane: { grants: new Set(input.grants), bridge: input.bridge, netEgress: seams.netEgress, log },
+          membrane: { grants: new Set(input.grants), bridge: input.bridge, netEgress: seams.netEgress, log, currentCascadeDepth: seams.currentCascadeDepth },
           limits: PLUGIN_SNIPPET_LIMITS,
           ...(seams.spanReport === undefined ? {} : { spanReport: seams.spanReport }),
         });
