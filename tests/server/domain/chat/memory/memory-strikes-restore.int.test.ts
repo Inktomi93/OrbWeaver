@@ -22,10 +22,7 @@ import { failOnExportNote } from "@orb/testkit/node/helpers";
 import { invitePerson } from "../persona-cache-physical.ts";
 import { wireOf } from "../scenario-physical.ts";
 import type { Arc } from "./recall-world.ts";
-import { blockOf, probe, recallTurn, TURN_INTENT, world } from "./recall-world.ts";
-
-const BOTH = `Tell me about the scene. ${probe("bath")} ${probe("storm")}`;
-const RECALL_KNOBS = { minScore: 0.05, queryWindow: 1, keywordMatch: false } as const;
+import { BOTH, blockOf, RECALL_KNOBS, recallTurn, TURN_INTENT, world } from "./recall-world.ts";
 
 function chatArm(h: ChatRoot): NonNullable<ReturnType<ChatRoot["root"]["app"]["portability"]["find"]>> {
   return present(h.root.app.portability.find((entity) => entity.kind === "chat"));
