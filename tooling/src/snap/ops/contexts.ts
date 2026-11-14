@@ -1,7 +1,7 @@
 // --contexts N / --as: N ISOLATED, differently-authenticated browser contexts against the multi-user
 // FIXTURE stack (never the shared single-user dev pair) — host-vs-member truth in one run.
 
-import { artifactKey, routeSlug } from "../../floor/artifacts/artifact-naming.ts";
+import { artifactKey } from "../../floor/artifacts/artifact-naming.ts";
 import { artifactFile } from "../../floor/artifacts/artifact-out.ts";
 import { aggregateScope, evidenceWindowId, factBatchId } from "../../floor/artifacts/artifact-scope.ts";
 import { print } from "../../floor/artifacts/artifacts.ts";
@@ -15,7 +15,7 @@ import type { ArmPairInput, ArmRunContext } from "../contract/arms.ts";
 import type { FixtureTarget } from "../contract/fixture.ts";
 import { snapExitCode, snapExitState } from "../contract/run-facts.ts";
 import type { Args, CaptureOutcome, ReportCtx, ShotPlan } from "../contract/types.ts";
-import { diskSafeUrl } from "../lib/disk-safe-argv.ts";
+import { diskSafeUrl, routeArtifactSlug } from "../lib/disk-safe-argv.ts";
 import { contextOut, shouldProduceShot } from "../lib/out-names.ts";
 import type { SnapRatePosture } from "../lib/rate-posture.ts";
 import { ratePostureResultPairs } from "../lib/rate-posture.ts";
@@ -180,7 +180,7 @@ interface OwnedContextsArgs {
 
 export async function snapContexts(opts: Args, users: readonly FixtureUser[], target: FixtureTarget): Promise<number> {
   const url = buildUrl(opts.base, opts.route);
-  const name = opts.out ?? routeSlug(opts.route);
+  const name = opts.out ?? routeArtifactSlug(opts.route);
   // Same naming contract as `snap()`: a path-shaped --out routes the shot; the kind-dir siblings key off
   // its basename.
   const out = await artifactFile("snaps", name, ".png");

@@ -26,6 +26,7 @@ export {
   PluginCapabilityError,
   PluginHostDeadlineError,
   PluginInstallerDisabledError,
+  PluginPubsubDepthError,
   PluginSuggestedError,
 } from "./errors.ts";
 export type { PluginFrameCall, PluginFrameMintRequest, PluginFrameMintResponse } from "./frame.ts";
@@ -135,6 +136,7 @@ export type {
   PluginTransformRegistration,
 } from "./registrations.ts";
 export {
+  PLUGIN_CASCADE_DEPTH_MAX,
   PLUGIN_PUBSUB_NAME_RE,
   PLUGIN_PUBSUB_PAYLOAD_MAX_BYTES,
   PLUGIN_PUBSUB_SUBSCRIPTIONS_MAX,

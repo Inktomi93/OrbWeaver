@@ -63,6 +63,10 @@ export interface PluginInvocationWork extends AsyncDisposable {
  *  the JSON-safe membrane boundary; the closure also drives the crash counter. */
 export type PluginInvokeHandler = (handler: PluginHandlerRef, argsJson: PluginInvokeArgs, chat: InvocationChat | null, signal?: AbortSignal) => Promise<string>;
 
+/** The invoker a delivery runs through, a pubsub event or a trigger fact: the {@link PluginInvokeHandler} crash policy at
+ *  `depth` cascade levels, so what the handler's own command causes reaches a handler one level deeper. */
+export type PluginCascadeInvoke = (handler: PluginHandlerRef, argsJson: string, chat: InvocationChat | null, depth: number) => Promise<string>;
+
 /** The deregistration handle a registrar returns — `deactivate`/`uninstall` calls `unregister` so no ghost
  *  tools/transforms/subscriptions survive a disabled/removed plugin. Every registrar returns the tool handle's shape. */
 export type PluginRegistrationHandle = Pick<PluginToolHandle, "unregister">;
@@ -387,6 +391,8 @@ export interface PluginHostOps {
       readonly emitterSlug: string;
       readonly name: string;
       readonly data: Record<string, unknown>;
+      /** The depth the deliveries run at, already within `PLUGIN_CASCADE_DEPTH_MAX`. */
+      readonly depth: number;
     }) => Promise<void>;
   };
   /** The disabled-account read the bridge's `admitInstaller` asks per host call: the compose root's one enabled
@@ -416,7 +422,7 @@ export interface PluginHostOps {
      *  subscription) so a single subscriber owns one visibility read + one field-cap per fact. */
     readonly subscribeEvent: (
       subscriptions: readonly PluginEventSubscription[],
-      invoke: PluginInvokeHandler,
+      invoke: PluginCascadeInvoke,
       scope: PluginActivationScope,
     ) => PluginRegistrationHandle;
     /** Wire the plugin's COLLECTED private-event subscriptions onto the INSTALLER-scoped resident plugin-event bus.
@@ -426,7 +432,7 @@ export interface PluginHostOps {
      *  handlers via `invoke`, never onto the automation fan-out. */
     readonly subscribePubsub: (
       subscriptions: readonly PluginPubsubSubscription[],
-      invoke: PluginInvokeHandler,
+      invoke: PluginCascadeInvoke,
       scope: PluginActivationScope,
     ) => PluginRegistrationHandle;
   };
@@ -471,12 +477,19 @@ export interface PluginEventBus {
   readonly register: (req: {
     readonly installer: UserId;
     readonly subscriptions: readonly PluginPubsubSubscription[];
-    readonly invoke: PluginInvokeHandler;
+    readonly invoke: PluginCascadeInvoke;
   }) => PluginRegistrationHandle;
   /** Publish `data` on `plugin:<emitterSlug>:<name>` for `installer` — fan out to every SAME-installer subscriber
-   *  of that EXACT channel, delivering `{name, data}` (never a TriggerFact) through its `invoke`. A cross-installer
-   *  or cross-channel subscriber is never reached (the key is installer + emitterSlug + name). Fire-and-forget. */
-  readonly emit: (req: { readonly installer: UserId; readonly emitterSlug: string; readonly name: string; readonly data: Record<string, unknown> }) => void;
+   *  of that EXACT channel, delivering `{name, data}` (never a TriggerFact) through its `invoke` at `depth`. A
+   *  cross-installer or cross-channel subscriber is never reached (the key is installer + emitterSlug + name).
+   *  Fire-and-forget. */
+  readonly emit: (req: {
+    readonly installer: UserId;
+    readonly emitterSlug: string;
+    readonly name: string;
+    readonly data: Record<string, unknown>;
+    readonly depth: number;
+  }) => void;
 }
 
 /** WHO a bridge is built for. The bridge was keyed by `pluginId` alone until posture 2 needed to render a
@@ -541,6 +554,9 @@ export interface PluginBelts {
   /** The `search.query` hourly query-embedding ceiling, keyed to the installed plugin whose grant may
    *  spend the installer's hosted embedding credential. */
   readonly searchQuery: PluginRateFloor;
+  /** The `pubsub.emit` hourly ceiling: each emit opens an invocation in every subscriber, the emitter's own
+   *  subscriptions included, so it bounds the guest CPU a plugin can buy itself. */
+  readonly pubsubEmit: PluginRateFloor;
   /** One lane per (plugin, book), so the lore entry ceiling's count and write are one step. Process-local, like
    *  every lane: a second app process would still race. */
   readonly loreWrites: SerialLanes;

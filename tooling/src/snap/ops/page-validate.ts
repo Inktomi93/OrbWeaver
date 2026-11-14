@@ -38,6 +38,8 @@ import {
   mapSectionIdSchema,
 } from "../contract/map.ts";
 import type { PerfEvidence } from "../contract/types.ts";
+import { diskSafeUrl } from "../lib/disk-safe-argv.ts";
+import { scrubPrivateText } from "../lib/private-values.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap");
 
@@ -232,13 +234,19 @@ function navCapabilities(value: unknown): MapNavCapabilities {
   return { sections, modalSlots, configGroups, contextTabs, contextTabNames, contextTabsPublished, chatPositions };
 }
 
+// The page's own `location.href`, which keeps any token the route or base carried: masked by pair name, then by value.
+function diskSafePageUrl(value: unknown, label: string): string {
+  return diskSafeUrl(scrubPrivateText(pageString(value, label)));
+}
+
+/** The atlas the map bridge read. Its URLs are the page's address bar, so they are masked here, where they enter. */
 export function mapAtlasEvidence(value: unknown): MapAtlasEvidence {
   const label = "the map application atlas";
   const record = pageObject(value, label);
   const status = enumValue(record["status"], ["available", "unavailable"] as const, `${label} field "status"`);
-  const url = pageString(record["url"], `${label} field "url"`);
+  const url = diskSafePageUrl(record["url"], `${label} field "url"`);
   if (status === "unavailable") {
-    return { status, url, reason: safeString(record["reason"], `${label} field "reason"`) };
+    return { status, url, reason: scrubPrivateText(safeString(record["reason"], `${label} field "reason"`)) };
   }
   const placeRecord = pageObject(record["place"], `${label} field "place"`);
   return {
@@ -246,7 +254,7 @@ export function mapAtlasEvidence(value: unknown): MapAtlasEvidence {
     url,
     capabilities: navCapabilities(record["capabilities"]),
     place: {
-      url: pageString(placeRecord["url"], `${label} place "url"`),
+      url: diskSafePageUrl(placeRecord["url"], `${label} place "url"`),
       section: placeRecord["section"] === null ? null : mapSectionIdSchema.parse(safeString(placeRecord["section"], `${label} place "section"`)),
       chatOpen: pageBoolean(placeRecord["chatOpen"], `${label} place "chatOpen"`),
     },

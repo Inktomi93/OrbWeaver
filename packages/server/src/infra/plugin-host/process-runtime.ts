@@ -210,6 +210,7 @@ interface AuthorityCommand {
   readonly operation: Extract<ParentBrokerMessage, { readonly kind: "command" }>["operation"];
   readonly phase: BridgeAuthority["phase"];
   readonly chat: InvocationChat | null;
+  readonly cascadeDepth: BridgeAuthority["cascadeDepth"];
   readonly value?: unknown;
 }
 
@@ -231,6 +232,7 @@ interface LeasedInvokeInput {
   readonly argsJson: PluginInvokeArgs;
   readonly chat: InvocationChat | null | undefined;
   readonly phase: PluginInvokePhase;
+  readonly cascadeDepth: number;
 }
 
 function releaseBinding(binding: Binding): void {
@@ -269,7 +271,7 @@ function isHostRefusal(error: unknown): error is PluginInstallerDisabledError | 
   return error instanceof PluginInstallerDisabledError || error instanceof PluginHostUnavailableError || error instanceof CodedHostUnavailableError;
 }
 
-// An invocation the host ended: at its settlement wall, by its Worker's end, or at the parent's backstop.
+// An invocation the host ended: at its settlement wall, at its CPU window, by its Worker's end, or at the parent's backstop.
 function isInvocationEnded(error: unknown): boolean {
   return error instanceof Error && error.name === PLUGIN_INVOCATION_ENDED;
 }
@@ -1123,23 +1125,30 @@ class BrokerClient {
       const completion = Promise.withResolvers<void>();
       this.bridgeCalls.set(message.id, { binding, liveness, settled: completion.promise });
       // the failed host operation is sent to the worker through sendBridgeResult(..., error) and its bridgeCalls record is removed. Ends if either action is removed.
-      dispatchBridgeCall(binding, message.operation, message.args, liveness).then(
-        (value) => {
-          this.bridgeCalls.delete(message.id);
-          this.sendBridgeResult(message.runtimeId, message.id, { ok: true, value }, () => recordChannelRefusal(binding, message.authorityId));
-          completion.resolve();
-        },
-        (error) => {
-          this.bridgeCalls.delete(message.id);
-          if (isHostRefusal(error)) {
-            recordHostRefusal(binding, message.authorityId, error instanceof DomainConflictError ? error : new PluginHostUnavailableError(error.message));
-          }
-          this.sendBridgeResult(message.runtimeId, message.id, { ok: false, error: rpcError(this.guestFacingFailure(binding, message.operation, error)) }, () =>
-            recordChannelRefusal(binding, message.authorityId),
-          );
-          completion.resolve();
-        },
-      );
+      // The domain work this call runs carries its command as the cause of what it raises.
+      const { operation, args } = message;
+      binding.seams.cascadeScope
+        .run({ installer: binding.owner, cascadeDepth: authority.cascadeDepth }, () => dispatchBridgeCall(binding, operation, args, liveness))
+        .then(
+          (value) => {
+            this.bridgeCalls.delete(message.id);
+            this.sendBridgeResult(message.runtimeId, message.id, { ok: true, value }, () => recordChannelRefusal(binding, message.authorityId));
+            completion.resolve();
+          },
+          (error) => {
+            this.bridgeCalls.delete(message.id);
+            if (isHostRefusal(error)) {
+              recordHostRefusal(binding, message.authorityId, error instanceof DomainConflictError ? error : new PluginHostUnavailableError(error.message));
+            }
+            this.sendBridgeResult(
+              message.runtimeId,
+              message.id,
+              { ok: false, error: rpcError(this.guestFacingFailure(binding, message.operation, error)) },
+              () => recordChannelRefusal(binding, message.authorityId),
+            );
+            completion.resolve();
+          },
+        );
       return;
     }
     try {
@@ -1481,7 +1490,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
 
   // `seen` receives the host refusal recorded for this command's calls, for a caller whose command can end without a
   // rejection, such as a rebuild whose main.js failed.
-  const commandWithAuthority = async ({ binding, operation, phase, chat, value }: AuthorityCommand, seen?: SeenRefusal): Promise<unknown> => {
+  const commandWithAuthority = async ({ binding, operation, phase, chat, cascadeDepth, value }: AuthorityCommand, seen?: SeenRefusal): Promise<unknown> => {
     const runtimeId = binding.runtimeId;
     if (runtimeId === undefined) {
       throw new Error("plugin host: physical runtime is not active");
@@ -1491,7 +1500,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
     // command returned still issues its own host calls under this id. The Worker reports `authority-released`
     // once the command has completed and every call posted under the id has settled; the tail armed below
     // ends it regardless; retire, crash and disconnect clear the whole map.
-    binding.authorities.set(authorityId, { grants: binding.grants, chat, phase });
+    binding.authorities.set(authorityId, { grants: binding.grants, chat, phase, cascadeDepth });
     binding.hostRefusals.set(authorityId, null);
     try {
       return await broker.command({
@@ -1508,8 +1517,8 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       // A command that fails after the host refused one of its calls fails as that refusal, whatever the guest threw, a
       // real failure of its own included. Only host code sets this record, so a guest cannot forge one: the app where it
       // refuses, and the Worker for a refusal raised past the app, which its answer carries. An invocation the host ended
-      // never settled, which no refusal excuses, so it keeps its strike (D347): at its wall, by its Worker's end, or at
-      // the parent's backstop. Only host code names an error ended.
+      // ran away, which no refusal excuses, so it keeps its strike (D347): at its wall, at its CPU window, by its Worker's
+      // end, or at the parent's backstop. Only host code names an error ended.
       throw isInvocationEnded(error) ? error : (binding.hostRefusals.get(authorityId) ?? error);
     } finally {
       const refusal = binding.hostRefusals.get(authorityId);
@@ -1533,7 +1542,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
     }
     const done = (async (): Promise<void> => {
       try {
-        await commandWithAuthority({ binding, operation: "dispose", phase: "lifecycle", chat: null });
+        await commandWithAuthority({ binding, operation: "dispose", phase: "lifecycle", chat: null, cascadeDepth: 0 });
       } finally {
         bindings.delete(runtimeId);
         if (binding.runtimeId === runtimeId) {
@@ -1584,7 +1593,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
     binding.suppressLogs = phase === "rehydration";
     try {
       return parseCreateOutcome(
-        await commandWithAuthority({ binding, operation: "create", phase, chat: serializable.chat, value: serializable }, seen),
+        await commandWithAuthority({ binding, operation: "create", phase, chat: serializable.chat, cascadeDepth: 0, value: serializable }, seen),
         binding.grants,
       );
     } finally {
@@ -1672,7 +1681,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
     if (!outcome.ok) {
       pool.discard(binding);
       // A rebuild the host refused fails as that refusal, which is never the plugin's crash; one whose main.js the host
-      // ended at its wall never settled, and keeps its strike whatever it was refused (D347).
+      // ended, at its wall or its CPU window, keeps its strike whatever it was refused (D347).
       const failed = new Error(`plugin host: sleeping runtime could not be rebuilt: ${outcome.error}`);
       throw outcome.ended === true ? failed : (seen.refusal ?? failed);
     }
@@ -1700,7 +1709,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
     lease.release();
   };
 
-  const invokeWithLease = async ({ binding, lease, handler, argsJson, chat, phase }: LeasedInvokeInput, generation: number): Promise<string> => {
+  const invokeWithLease = async ({ binding, lease, handler, argsJson, chat, phase, cascadeDepth }: LeasedInvokeInput, generation: number): Promise<string> => {
     let builderId: string | undefined;
     try {
       requireLifecycle(binding, generation);
@@ -1720,7 +1729,8 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
         operation: "invoke",
         phase,
         chat: chat ?? null,
-        value: { handler, argsJson: boundArgs.wireArgs, chat },
+        cascadeDepth,
+        value: { handler, argsJson: boundArgs.wireArgs, chat, cascadeDepth },
       });
       if (typeof result !== "string") {
         throw new Error("plugin broker: malformed invoke response");
@@ -1809,7 +1819,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       }
     },
     invoke: async (...invokeParameters: Parameters<ProcessPluginHost["invoke"]>): Promise<string> => {
-      const [instance, handler, argsJson, chat, signal, phase = "invocation"] = invokeParameters;
+      const [instance, handler, argsJson, chat, signal, phase = "invocation", cascadeDepth = 0] = invokeParameters;
       const binding = instances.get(instance);
       if (binding === undefined || binding.disposed) {
         throw new Error("plugin host: invoke on an unknown/disposed instance");
@@ -1826,7 +1836,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       }
       const generation = binding.lifecycleGeneration;
       const lease = await pool.acquire(binding, { signal });
-      return await invokeWithLease({ binding, lease, handler, argsJson, chat, phase }, generation);
+      return await invokeWithLease({ binding, lease, handler, argsJson, chat, phase, cascadeDepth }, generation);
     },
     runSnippet: async (input): Promise<SnippetResult> => {
       const releaseAdmission = acquireSnippetAdmission();
@@ -1851,6 +1861,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
               operation: "snippet",
               phase: "snippet",
               chat: input.chat,
+              cascadeDepth: 0,
               value: { code: input.code, grants: input.grants, chat: input.chat },
             }),
           );

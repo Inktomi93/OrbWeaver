@@ -85,6 +85,7 @@ import {
   PLUGIN_QUIET_PROMPT_MAX_CHARS,
 } from "./budgets.ts";
 import type { PluginNetEgress } from "./contract/net-egress.ts";
+import type { LocalPluginHostSeams } from "./contract/port.ts";
 import { pumpGuestJobs, settleInCpuWindow } from "./cpu-guard.ts";
 import type { GuestMarshal } from "./marshal.ts";
 import { GuestCallFailure, guestJson } from "./marshal.ts";
@@ -127,6 +128,9 @@ export interface MembraneRuntime {
   readonly grants: ReadonlySet<PluginCapability>;
   readonly bridge: PluginBridge;
   readonly currentChat: () => InvocationChat | null;
+  /** How many cascade levels deep the command whose host call this is runs, read from that command's own authority, so a
+   *  continuation that runs after a later invocation began still answers for its own command. */
+  readonly currentCascadeDepth: LocalPluginHostSeams["currentCascadeDepth"];
   readonly currentToken: () => string | null;
   readonly inFlight: InFlightCounter;
   /** Host-call deferreds still in flight (registered on create, deregistered on settle). The Sandbox drains any
@@ -1827,8 +1831,9 @@ function setPubsub(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
       const raw = args[1];
       const data: Record<string, unknown> = typeof raw === "object" && raw !== null && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
       // The emitter's own slug is stamped DOMAIN-side (the bridge closes it over from the activation manifest),
-      // so a guest supplies ONLY name + data and can never publish on another plugin's `plugin:<slug>:<name>`.
-      await runtime.bridge.pubsub.emit(name, data, invocationLiveness(signal));
+      // so a guest supplies ONLY name + data and can never publish on another plugin's `plugin:<slug>:<name>`. The
+      // deliveries it opens run one deeper than this invocation, which the app checks against the command's authority.
+      await runtime.bridge.pubsub.emit(name, data, runtime.currentCascadeDepth() + 1, invocationLiveness(signal));
       return null;
     },
   });

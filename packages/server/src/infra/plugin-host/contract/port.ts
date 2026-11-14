@@ -23,6 +23,21 @@ import type { PluginNetEgress } from "./net-egress.ts";
 /** The authority a resident call runs under: a write path's `invocation`, or a query's read-only `display`. */
 export type PluginInvokePhase = "invocation" | "display";
 
+/** A plugin command whose host call is running: whose installer, and how many cascade levels deep the command runs. */
+export interface PluginCascadeCause {
+  readonly installer: UserId;
+  readonly cascadeDepth: number;
+}
+
+/** The cause of the host work a plugin's host call starts, held across every await that work makes, so a domain event
+ *  it raises reaches a plugin handler as one level deeper than the command that raised it, whichever plane delivers it. */
+export interface PluginCascadeScope {
+  /** Run `work` as caused by `cause`. */
+  readonly run: <T>(cause: PluginCascadeCause, work: () => Promise<T>) => Promise<T>;
+  /** The cause of the work running now, or `undefined` when no plugin host call started it. */
+  readonly current: () => PluginCascadeCause | undefined;
+}
+
 /** The determinism seams every instance's realm binds. */
 export interface PluginHostSeamDeps {
   /** The broker's launch configuration from the root's env record, passed to the watchdog and broker by argv. */
@@ -44,12 +59,17 @@ export interface PluginHostSeamDeps {
   /** The host stopped restarting its broker after repeated losses (D347): for each owner of a resident plugin or of a
    *  runtime lost with a broker, why, naming only that owner's plugins that were running at each loss. */
   readonly onHalted: (records: ReadonlyMap<UserId, string>) => void;
+  /** Where each plugin host call runs its domain work, so what that work raises carries the command's depth. */
+  readonly cascadeScope: Pick<PluginCascadeScope, "run">;
 }
 
 /** A Worker-local runtime schedules nothing, fetches nothing and launches no broker itself (so it takes no `spawn`): the app process owns the
  *  timers, the broker connect clock, the broker launch config and the scoped egress, and the Worker forwards every
  *  guest fetch to it through `netEgress`. */
-export type LocalPluginHostSeams = Omit<PluginHostSeamDeps, "timers" | "monotonicNow" | "safeFetch" | "env" | "log" | "traces" | "spawn" | "onHalted"> & {
+export type LocalPluginHostSeams = Omit<
+  PluginHostSeamDeps,
+  "timers" | "monotonicNow" | "safeFetch" | "env" | "log" | "traces" | "spawn" | "onHalted" | "cascadeScope"
+> & {
   /** The broker Worker's forwarding egress: the app performs every plugin fetch against its own copy of the
    *  instance's `netHosts`. */
   readonly netEgress: PluginNetEgress;
@@ -57,6 +77,8 @@ export type LocalPluginHostSeams = Omit<PluginHostSeamDeps, "timers" | "monotoni
   readonly logLevel: Env["LOG_LEVEL"];
   /** Where this Worker reports each span of guest work to its broker (D347); absent outside a broker's Worker. */
   readonly spanReport?: CpuSpanReport;
+  /** How many cascade levels deep the command whose host call is running runs, read from that command's authority. */
+  readonly currentCascadeDepth: () => number;
 };
 
 /** Where a thread reports each outermost span of guest work, for a watcher the span cannot block: one native call or one
@@ -84,7 +106,8 @@ export interface CreateLogicalInstanceInputIn extends CreateInstanceInputIn {
 export interface ProcessPluginHost extends AsyncDisposable {
   readonly createInstance: (input: CreateLogicalInstanceInputIn) => Promise<CreateInstanceOutcomeOut>;
   /** `phase` `display` runs a query's call: its bridge admits reads only, and it leaves an owed strike for the next
-   *  write-path call to pay. */
+   *  write-path call to pay. `cascadeDepth` is how many cascade levels deep the call runs; only a delivery a plugin's
+   *  own command caused passes one, and every other call runs at 0. */
   readonly invoke: (
     instance: PluginInstance,
     handler: PluginHandlerRef,
@@ -92,6 +115,7 @@ export interface ProcessPluginHost extends AsyncDisposable {
     chat?: InvocationChat | null,
     signal?: AbortSignal,
     phase?: PluginInvokePhase,
+    cascadeDepth?: number,
   ) => Promise<string>;
   readonly runSnippet: (input: {
     readonly code: string;
@@ -116,5 +140,5 @@ export interface PluginFailureLine {
 
 export type CreateInstanceOutcomeOut =
   | { readonly ok: true; readonly instance: PluginInstance }
-  /** `ended`: the host ended main.js at its settlement wall, which a recorded refusal never excuses (D347). */
+  /** `ended`: the host ended main.js at its settlement wall or its CPU window, which a recorded refusal never excuses (D347). */
   | { readonly ok: false; readonly error: string; readonly log: readonly PluginLogView[]; readonly ended?: true };
