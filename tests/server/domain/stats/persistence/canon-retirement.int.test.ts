@@ -16,7 +16,7 @@ import { spendLedger } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
-import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL, exportLibrary, restoreBundle, SIGNED_IN_ROUTE } from "@orb/testkit/node/composed";
+import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL, exportLibrary, restoreBundleTally, SIGNED_IN_ROUTE } from "@orb/testkit/node/composed";
 import { and, eq } from "drizzle-orm";
 import { textRoom } from "../../chat/scenario-physical.ts";
 
@@ -75,9 +75,9 @@ interface TwoRooms {
 }
 
 /** A room for the default character and a second room for a second character, one priced turn in each. */
-async function twoPaidRooms(options: Parameters<typeof textRoom>[1] = {}): Promise<TwoRooms> {
+async function twoPaidRooms(options: Parameters<typeof textRoom>[1] = {}, laterReplies: readonly string[] = []): Promise<TwoRooms> {
   await using construction = new AsyncDisposableStack();
-  const h = construction.use(await textRoom(["The leaving answer.", "The staying answer."], options));
+  const h = construction.use(await textRoom(["The leaving answer.", "The staying answer.", ...laterReplies], options));
   await bindPricedConnection(h);
   const rooms = await seatAndSpeak(h, "leaving-first");
   construction.move();
@@ -222,7 +222,9 @@ for (const leave of ["character delete", "room delete"] as const) {
 }
 
 test("restoring a library onto itself after a room delete adds no retired spend and shows the same totals", async () => {
-  const { h, staying } = await twoPaidRooms({ server: { physicalPeer: () => LOOPBACK, env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" } } });
+  const { h, staying } = await twoPaidRooms({ server: { physicalPeer: () => LOOPBACK, env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" } } }, [
+    "The later answer.",
+  ]);
   await using _room = h;
   expect((await h.root.http.request(SIGNED_IN_ROUTE, { headers: { [CSRF_HEADER]: "1" } })).status).toBe(HTTP_OK);
   h.root.clock.advance(STEP_MS);
@@ -236,12 +238,22 @@ test("restoring a library onto itself after a room delete adds no retired spend 
     )
       .map((row) => row.id)
       .toSorted();
+  expect(await retired()).toHaveLength(1);
+  const bundle = await exportLibrary(h.root);
+
+  // The library moves on after the export (D290: an unchanged file lands nothing): a later paid room is deleted, so
+  // the ledger holds a retired row the bundle lacks and the bundle's ledger file is read against it.
+  const later = (await h.caller.chat.startChat({ characterIds: [staying.id], opening: "none" })).chat.id;
+  h.root.clock.advance(STEP_MS);
+  expect((await h.root.services.chat.send({ principal: h.owner, chatId: later, content: "Speak." })).aborted).toBe(false);
+  await h.root.settleBackground();
+  h.root.clock.advance(STEP_MS);
+  await h.root.services.chat.delete({ principal: h.owner, chatId: later });
   const held = await retired();
-  expect(held).toHaveLength(1);
+  expect(held).toHaveLength(2);
   const before = await shown(h, [staying]);
 
-  const bundle = await exportLibrary(h.root);
-  expect(await restoreBundle(h.root, bundle)).toMatchObject({ status: "succeeded", failed: 0 });
+  expect(await restoreBundleTally(h.root, bundle)).toMatchObject({ status: "succeeded", failed: 0 });
 
   expect(await retired()).toEqual(held);
   const [live, rebuilt] = await liveThenRebuiltTwice(h, [staying]);
