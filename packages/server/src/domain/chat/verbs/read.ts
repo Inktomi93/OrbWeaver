@@ -116,11 +116,11 @@ import type { HistoryBudgetInput, HistoryMacroNames } from "../contract/results.
 import type { ChatService } from "../contract/service.ts";
 import type { ChatBusReplayEvent, ChatDetailData, ChatEventAttach, ChatLineageData, ChatListPageData, ChatSummaryData } from "../contract/views.ts";
 import { gateLineagePerAncestor, requireHost, requireParticipant } from "../guard.ts";
+import { resolveAnchor } from "../persistence/anchor.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { loadInlineReplyAssetIds } from "../persistence/message-asset-links.ts";
 import { loadMessagePositions, positionCanonPage } from "../persistence/message-positions.ts";
 import { loadPageCursors } from "../persistence/page-cursors.ts";
-import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants, loadPresentVisibilityRows } from "../persistence/participants-read.ts";
 import type { ChatEventLogRow } from "../persistence/queries.ts";
 import {
@@ -142,7 +142,6 @@ import {
   loadViewerLastTurnAt,
   loadViewerLastTurns,
 } from "../persistence/queries.ts";
-import { assemblyTimeZone, gatherAssembleContext } from "../substrate/assemble-gather.ts";
 import type { fitHistory } from "../substrate/assembly-access.ts";
 import {
   buildAssemblyBudget,
@@ -162,18 +161,19 @@ import {
   toShapeCanon,
   voiceContextForSpeaker,
 } from "../substrate/assembly-access.ts";
+import { assemblyTimeZone } from "../substrate/assembly-time-zone.ts";
 import { clampMemberCard, isBelowHistoryFloor, resolveCardVisibility, resolveHistoryFloorSeq } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { isCoveredByCompaction } from "../substrate/compaction-coverage.ts";
 import { cueReplayFor } from "../substrate/cue-replay.ts";
 import { scrubChatEventReplayForMember, stripMemberCardForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
+import { classifyParticipant } from "../substrate/participant-actor.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import {
   hostConsentOf,
   humanSeatPersonasOf,
   lorePersonaIdsOf,
   presentAndEnabledHumanUserIdsOf,
-  resolveAnchor,
   seatsMultipleHumans,
 } from "../substrate/participants-humans.ts";
 import { regexAllowOf, resolveRegexTiers } from "../substrate/regex-tier.ts";
@@ -702,7 +702,7 @@ async function buildPreviewContext(
     /** The viewer's zone, for a preview that hands rendered text back (it must read the clock the turn will). */
     readonly timeZone?: IanaTimeZone | undefined;
   },
-): Promise<{ assembleContext: Awaited<ReturnType<typeof gatherAssembleContext>>; cardKeepLastX: number | undefined }> {
+): Promise<{ assembleContext: Awaited<ReturnType<ChatContext["gatherAssembleContext"]>>; cardKeepLastX: number | undefined }> {
   const participants = await opts.deps.loadParticipantViews(chatId);
   // The host `steeringNote`'s identity binding, resolved CHAT-SIDE exactly as the turn path does: `{{user}}` =
   // the active persona; `{{char}}` = the Ruling-B joined present characters (a preview has no triggering speaker).
@@ -722,8 +722,7 @@ async function buildPreviewContext(
     // that resolved a different posture would be an honesty instrument telling a different story.
     knobs: resolveTeachingKnobs(inputs.metadata, inputs.foreign.chatBehavior ?? DEFAULT_CHAT_BEHAVIOR),
   });
-  const gathered = await gatherAssembleContext(
-    ctx,
+  const gathered = await ctx.gatherAssembleContext(
     {
       chatId,
       runAsUserId: inputs.hostUserId,
@@ -1239,7 +1238,7 @@ async function shapeNextTurn(
   args: {
     readonly chatId: ChatId;
     readonly inputs: PreviewInputs;
-    readonly assembleContext: Awaited<ReturnType<typeof gatherAssembleContext>>;
+    readonly assembleContext: Awaited<ReturnType<ChatContext["gatherAssembleContext"]>>;
     readonly assembled: AssembledPrompt;
   },
 ): Promise<{
@@ -1315,7 +1314,7 @@ async function shapeNextTurn(
  *  ASYNC because the conversion resolves user-attachment media (`resolveImageUrl`) — the same per-row cost
  *  the turn pays, and zero I/O on a history with no attachment. */
 async function fitShapedHistory(args: {
-  readonly assembleContext: Awaited<ReturnType<typeof gatherAssembleContext>>;
+  readonly assembleContext: Awaited<ReturnType<ChatContext["gatherAssembleContext"]>>;
   readonly assembled: AssembledPrompt;
   readonly capability: GenerationCapability | undefined;
   /** The stored rows and the turn's SHAPE over them ({@link shapeNextTurn}). */

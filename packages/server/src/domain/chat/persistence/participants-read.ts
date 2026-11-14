@@ -1,7 +1,7 @@
 // domain/chat/persistence/participants-read — the participants READ + the initial-membership row BUILDER
 // (un-exiled from neo's `_shared/group-character-rows`). The `-read` half of the name is load-bearing: the
-// WRITE half of `chat_participants` is the sibling `participant.ts` (the kind-shape parser + the
-// membership-lifecycle writes), and the two are split by verb.
+// WRITE half of `chat_participants` is the sibling `participant.ts` (the membership-lifecycle writes),
+// and the two are split by verb.
 // QUERIES ONLY: `loadParticipants`
 // reads the present (or full) `chat_participants` set; `buildInitialParticipantRows` is a PURE row builder (no I/O —
 // the verb writes them via `participant.insertParticipants`). Name/handle/avatar resolution is the VERB's (no

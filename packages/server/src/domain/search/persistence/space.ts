@@ -1,0 +1,114 @@
+// Active embedding generation selection. Reads always query through the connection that produced the
+// last jointly-complete corpus; missing or drifted provenance takes the named reindex refusal.
+
+import type { EmbeddingTask } from "@orb/contracts/embeddings";
+import { embedDtypeOf, embedSpaceOf, servesImageVectors } from "@orb/contracts/inference";
+import type { UserConnectionId, UserId } from "@orb/kit/ids";
+import { generationIdOf, isUnresolvableBinding, vectorSpaceFingerprint } from "#primitives/embedding-generation";
+import { SEARCH_NO_SPACE, SEARCH_SPACE_REINDEXING, SearchError } from "../contract/errors.ts";
+import type { ActiveQuerySpace, QueryEmbedConnection, SearchContext } from "../contract/service.ts";
+import { readActiveGeneration, readGeneration } from "./active-space.ts";
+
+type SpaceContext = Pick<SearchContext, "db" | "resolveEmbeddingConnection">;
+
+async function resolveConnection(
+  ctx: SpaceContext,
+  ownerId: UserId,
+  task: EmbeddingTask,
+  connectionId?: UserConnectionId,
+): Promise<QueryEmbedConnection | null> {
+  // Only a binding that cannot resolve is an answer about the space; the public require*Space boundary turns the null into a named SearchError. Any other failure of the lookup surfaces as itself.
+  try {
+    return await ctx.resolveEmbeddingConnection(ownerId, task, connectionId);
+  } catch (error) {
+    if (!isUnresolvableBinding(error)) {
+      throw error;
+    }
+    return null;
+  }
+}
+
+/** Run a complete query against one active generation. A promotion may delete the selected rows between
+ * remote query embedding and the SQL scan, so a changed generation discards the result and retries once. */
+export async function withActiveQuerySpace<T>(
+  ctx: SpaceContext,
+  ownerId: UserId,
+  task: EmbeddingTask,
+  query: (space: ActiveQuerySpace) => Promise<T>,
+): Promise<T> {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const space = task === "imageEmbed" ? await requireImageQuerySpace(ctx, ownerId) : await requireQuerySpace(ctx, ownerId, task);
+    const result = await query(space);
+    if (space.generationId === undefined) {
+      return result;
+    }
+    const after = await readActiveGeneration(ctx.db, ownerId, task);
+    if (after?.id === space.generationId) {
+      return result;
+    }
+  }
+  throw new SearchError(SEARCH_SPACE_REINDEXING, "your embedding index changed twice during this search — retry after re-indexing settles");
+}
+
+async function requireQuerySpace(ctx: SpaceContext, ownerId: UserId, task: EmbeddingTask): Promise<ActiveQuerySpace> {
+  const read = await readGeneration(ctx.db, ownerId, task);
+  if (read.status === "moving") {
+    throw new SearchError(SEARCH_SPACE_REINDEXING, "your embedding index is being rebuilt — retry after re-indexing settles");
+  }
+  if (read.status === "unrecorded") {
+    const connection = await resolveConnection(ctx, ownerId, task);
+    if (connection === null) {
+      throw new SearchError(SEARCH_NO_SPACE, `no ${task} connection is bound for this user — bind one in Connections`);
+    }
+    return {
+      fingerprint: vectorSpaceFingerprint(connection),
+      model: embedSpaceOf(connection.model, embedDtypeOf(connection.capability)),
+      via: task,
+      connection,
+    };
+  }
+  const active = read.generation;
+  if (active.connectionId === null) {
+    throw new SearchError(SEARCH_SPACE_REINDEXING, "the connection for your indexed library no longer exists — re-indexing is required");
+  }
+  const connection = await resolveConnection(ctx, ownerId, active.via, active.connectionId);
+  if (connection === null || generationIdOf({ ownerId, task, via: active.via, connection, space: active.space }) !== active.id) {
+    throw new SearchError(SEARCH_SPACE_REINDEXING, "the connection for your indexed library changed — re-indexing is required");
+  }
+  return { generationId: active.id, fingerprint: active.fingerprint, model: active.space, via: active.via, connection };
+}
+
+/** THE JOINT-SPACE RULE's read-side answer (§10-3): WHERE an owner's pictures are, and HOW a query reaches
+ *  them. `via: "imageEmbed"` is the ordinary arm — the query is embedded by the image embedder and both
+ *  lenses are scannable. `via: "embed"` is the captioned-text fallback: the owner has no image-capable
+ *  embedder, so their pictures live in the TEXT space as captions and only `image-captioned` exists there;
+ *  the query must be embedded as text or it lands in a different geometry. `model` is the space tag
+ *  `nearest.ts` filters on in both arms. */
+async function requireImageQuerySpace(ctx: SpaceContext, ownerId: UserId): Promise<ActiveQuerySpace> {
+  const read = await readGeneration(ctx.db, ownerId, "imageEmbed");
+  if (read.status === "ready") {
+    return await requireQuerySpace(ctx, ownerId, "imageEmbed");
+  }
+  if (read.status === "moving") {
+    throw new SearchError(SEARCH_SPACE_REINDEXING, "your image embedding index is being rebuilt — retry after re-indexing settles");
+  }
+  const image = await resolveConnection(ctx, ownerId, "imageEmbed");
+  if (image !== null && servesImageVectors(image.capability)) {
+    return {
+      fingerprint: vectorSpaceFingerprint(image),
+      model: embedSpaceOf(image.model, embedDtypeOf(image.capability)),
+      via: "imageEmbed",
+      connection: image,
+    };
+  }
+  const embed = await resolveConnection(ctx, ownerId, "embed");
+  if (embed === null) {
+    throw new SearchError(SEARCH_NO_SPACE, "no imageEmbed or embed connection is bound for this user — bind one in Connections");
+  }
+  return {
+    fingerprint: vectorSpaceFingerprint(embed),
+    model: embedSpaceOf(embed.model, embedDtypeOf(embed.capability)),
+    via: "embed",
+    connection: embed,
+  };
+}

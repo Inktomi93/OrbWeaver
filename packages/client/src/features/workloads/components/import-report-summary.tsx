@@ -1,5 +1,5 @@
 // import-report-summary — the leaf that renders a completed import's normalized `ImportSummary`: a tally
-// line (imported · skipped · failed) then a per-file list (glyph + path + detail), so a bundle restore
+// line (imported · already in your library · skipped · failed) then a per-file list (glyph + path + detail), so a bundle restore
 // shows exactly what landed, deduped, was skipped (unknown kind), or failed. Pure presentation over the
 // hook's summary — no reads, no state.
 //

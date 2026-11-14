@@ -2,7 +2,7 @@
 // measured to fail: a row claims only what it shows and keeps its trigger on screen; a surface opened from the More menu
 // returns focus to the trigger; arrival focus skips an action that moved into the menu; a pane whose first read cannot proceed
 // offline paints its own copy; hidden entries leave no box and no gap.
-import { enlargeUntilVisible, resolvedLength, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
+import { enlargeUntilVisible, READ_RETRIES_MS, resolvedLength, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName, createShellAmbientReads, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
@@ -29,8 +29,6 @@ const NARROWEST_PHONE = { width: 320, height: 640 } as const;
 const DESKTOP = { width: 1440, height: 900 } as const;
 // Sub-pixel layout rounding.
 const SUBPIXEL = 1;
-// The client retries a failed read twice on its backoff before the pane can say so.
-const READ_RETRIES_MS = 10_000;
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 

@@ -3,6 +3,7 @@ import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import { summarizeCardImport } from "#client/features/workloads/lib/portability-model.ts";
 import { cardImportFailedDetail } from "#client/lib/card-import-copy.ts";
+import { IN_LIBRARY_DETAIL } from "#client/lib/in-library-copy.ts";
 
 const [, INVALID] = CARD_REFUSAL_CODES;
 
@@ -20,7 +21,8 @@ test("card summaries retain success notes, omit empty or legacy notes, and keep 
   const summary = summarizeCardImport(result);
   expect(summary).toEqual({
     imported: 2,
-    skipped: 2,
+    inLibrary: 2,
+    skipped: 0,
     merged: 0,
     failed: 1,
     notes: [],
@@ -28,8 +30,8 @@ test("card summaries retain success notes, omit empty or legacy notes, and keep 
     outcomes: [
       { path: "created.png", ok: true, detail: "Character card", notes: ["Regex kept"] },
       { path: "Unnamed card", ok: true, detail: "Character card" },
-      { path: "duplicate.png", ok: true, detail: "Already imported", notes: ["Book kept"] },
-      { path: "empty.png", ok: true, detail: "Already imported" },
+      { path: "duplicate.png", ok: true, detail: IN_LIBRARY_DETAIL, notes: ["Book kept"] },
+      { path: "empty.png", ok: true, detail: IN_LIBRARY_DETAIL },
       { path: "broken.png", ok: false, detail: cardImportFailedDetail(INVALID) },
     ],
   });

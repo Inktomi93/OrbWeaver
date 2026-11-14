@@ -149,6 +149,8 @@ async function importAndReact(root: ServerTestHarness, foreignUserId: ServerTest
   if (file === null || descriptor === undefined) {
     throw new Error("native lifecycle export returned no chat bundle");
   }
+  // The source room moves on after its export, so the file is an older room and lands beside it (D290).
+  await root.services.chat.commitMessage({ principal, chatId, content: "A line after the export.", timeZone: UTC_TIME_ZONE });
   const imported = await seedImportedChatRows(root, [root.ownerId, file]);
   const repeated = await seedImportedChatRows(root, [root.ownerId, file]);
   const beforeForeign = {

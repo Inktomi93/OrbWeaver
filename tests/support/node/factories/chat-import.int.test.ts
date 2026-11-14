@@ -6,6 +6,7 @@ import { chatInjectionInputSchema } from "@orb/contracts/chat";
 import { chatImportClaims, chats, messages } from "@orb/db";
 import { contentSpanRaw } from "@orb/kit/content";
 import { ID_PREFIX } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { eq } from "drizzle-orm";
 import { nonEmpty } from "../../iso/non-empty.ts";
 import { seedCorpusConnections, seedRecallRoom } from "../corpus-actors.ts";
@@ -45,6 +46,8 @@ test("native chat import captures returned claims, injections and owned attachme
   if (file === null || descriptor === undefined) {
     throw new Error("the real native chat export/import graph produced no file or descriptor");
   }
+  // The source room moves on after its export, so the file is an older room and lands beside it (D290).
+  await caller.chat.commitMessage({ chatId, timeZone: UTC_TIME_ZONE, content: "A line after the export." });
   const imported = await seedImportedChatRows(root, [root.ownerId, file]);
   expect(imported.outcome).toMatchObject({ ok: true, created: true });
   expect(imported.claims).toHaveLength(1);

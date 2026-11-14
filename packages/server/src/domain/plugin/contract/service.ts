@@ -306,8 +306,8 @@ export interface PluginContext {
    *  wall), a redirect budget, and a byte cap that bounds the download BEFORE `parseBundle` ever sees it. NEVER a
    *  bare `fetch`. It THROWS on any refusal/non-2xx/network error (the domain never branches on why —
    *  the `fetchWebDocument`→`ScrapeFailedError` precedent — and asks infra only whether the firewall already recorded
-   *  the block); the URL verbs collapse every throw to a single
-   *  leak-free {@link PluginBundleFetchError}, so no SSRF oracle crosses the boundary. */
+   *  the block). `domain/plugin/context.ts` replaces this op with its guarded form when it builds
+   *  the context, so every URL verb sees each throw collapsed to a single leak-free {@link PluginBundleFetchError}. */
   readonly fetchBundle: ScopedEgress["fetchPluginBundle"];
   /** Git I/O stays in outer tiers; the domain retains lifecycle and install policy. */
   readonly gitSource: Readonly<Pick<PluginGitSource, "clone" | "head">>;

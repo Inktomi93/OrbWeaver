@@ -180,7 +180,7 @@ export function InboxRow({ item, ref, onAccepted, onRequestHandoff, acceptedHand
   // door rather than a second spelling of the Extensions pane's deep link.
   //
   // It deliberately does NOT dismiss the row: the ask stands until it is ANSWERED, and the producer
-  // retracts it the moment the last plugin is settled (`domain/plugin/substrate/consent-prompt.ts`). A
+  // retracts it the moment the last plugin is settled (`domain/plugin/consent/consent-prompt.ts`). A
   // reader who wants it gone anyway has the Dismiss beside it — that is the "deny is recoverable" arm:
   // the plugins stay installed and ungranted, and this screen is still one click away.
   const reviewConsent = (): void => {

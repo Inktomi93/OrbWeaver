@@ -26,8 +26,8 @@ import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { ChatAssemblyContext } from "../contract/wiring.ts";
 import { carriedBackgroundAvailable } from "../persistence/background-write.ts";
 import { chatMetadataDropStatement, chatMetadataSetStatement } from "../persistence/chat-metadata-write.ts";
+import { commitHostFencedWrite } from "../persistence/host-fenced-write.ts";
 import { loadChatRow } from "../persistence/queries.ts";
-import { commitHostFencedWrite } from "../substrate/host-fenced-write.ts";
 
 /** The metadata a DETACH leaves behind — the `rpg` sub-blob stripped so the chat reads byte-identically to a
  *  never-a-game chat (the takeover gate reads PRESENCE, never `rpg === null`). Used only to compute the
