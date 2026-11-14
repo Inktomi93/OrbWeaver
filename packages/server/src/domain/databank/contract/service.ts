@@ -13,7 +13,7 @@
 // `search()` are both BUILT (databank graduated D91).
 
 import type { LoadAssetBytes, StoredAsset } from "@orb/contracts/assets";
-import type { RequireHostOp, RequireParticipantOp, ResolveVisibleRoomsOp } from "@orb/contracts/chat";
+import type { RequireHostOp, RequireParticipantOp, ResolveChatHostOp, ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type {
   ActiveChatDocumentView,
   BankHealthView,
@@ -85,10 +85,6 @@ type EnqueueIngestOp = (args: { documentId: DocumentId; ownerId: UserId }) => Pr
 
 /** Enqueue a `databank-reindex` workload (the panel/verb-driven derived-layer maintenance). */
 type EnqueueReindexOp = (args: { ownerId: UserId; scope: ReindexScope; mode: ReindexMode }) => Promise<{ readonly workloadId: WorkloadId }>;
-
-/** The chat's PRESENT host (chat's own read), or `null` for a hostless room. Databank reads neither the roster
- *  nor `chats`, so the panel's host/member branch asks chat. */
-type ResolveChatHostOp = (chatId: ChatId) => Promise<UserId | null>;
 
 /** The active embed space tag the chunk-store arm tags rows with — PER OWNER (the owner's `embed` binding
  *  defines it and its width, inference program §7.5/§10), read per call. `null` = no binding: nothing to embed

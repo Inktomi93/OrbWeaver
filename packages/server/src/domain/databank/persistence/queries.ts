@@ -259,6 +259,19 @@ export async function loadMetaByIds(db: Db, ids: readonly DocumentId[]): Promise
   return ids.map((id) => rows.find((r) => r.id === id)).filter((r): r is DocumentMetaRow => r !== undefined);
 }
 
+/** The ids in `ids` that `ownerId` owns. A missing row is simply absent, so a caller testing authorship treats it as
+ *  another account's. */
+export async function filterOwnedDocumentIds(db: Db, ownerId: UserId, ids: readonly DocumentId[]): Promise<DocumentId[]> {
+  if (ids.length === 0) {
+    return [];
+  }
+  const rows = await db
+    .select({ id: documents.id })
+    .from(documents)
+    .where(and(eq(documents.ownerId, ownerId), inArray(documents.id, [...ids])));
+  return rows.map((r) => r.id);
+}
+
 /** The caller's GLOBAL document ids — the library row's `Everywhere` state, as
  *  ONE read instead of a `listAttachments` per row. Owner-scoped on the junction's own `ownerId` column (the
  *  scope subject, D23), so a document another user made global is unreachable here. */
