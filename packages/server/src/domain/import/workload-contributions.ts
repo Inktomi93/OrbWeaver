@@ -174,7 +174,7 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
       lane: "sweep",
       // A dry run is the preview a person watches (it writes nothing), so it never waits behind a sweep (D209).
       laneFor: (params) => (params.dryRun === true ? "interactive" : "sweep"),
-      // A preview is read by id while the review is open and is no run to keep: the next dry run and boot delete it.
+      // A preview is read by id while the review is open and is no run to keep: the end of the next dry run, or a boot, deletes it.
       transientFor: (params) => params.dryRun === true,
       // Every per-entity write is dedupe-gated, so a retry re-runs the whole loop safely.
       resume: "idempotent-restart",

@@ -17,7 +17,7 @@
 // content. The runner refuses to store such a result, so a row read this way was written by another build.
 //
 // A TRANSIENT row (`workloads.transient`, stamped at enqueue from the contribution's `transientFor`) is never listed,
-// only read by id, and is deleted once terminal: by the next start of the same owner and kind, and at boot.
+// only read by id, and is deleted once terminal: when the owner's next row of the kind ends, and at boot.
 
 import type {
   CancelWorkloadResult,
@@ -34,7 +34,7 @@ import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import { and, asc, desc, eq, getTableColumns, gt, gte, inArray, isNotNull, isNull, lt, lte, notExists, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, gt, gte, inArray, isNotNull, isNull, lt, lte, ne, notExists, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 import type { Logger } from "#foundation/observability";
@@ -639,14 +639,21 @@ export async function findActiveForBootSweep(db: Db): Promise<ActiveWorkloadRow[
   return rows.map((row) => ({ kind: row.kind, params: JSON.parse(row.params) }));
 }
 
-/** Delete the TERMINAL transient rows, of one owner and kind when `scope` names them, else every one (the boot sweep).
- *  A transient row still queued or running is never deleted: its run owns it, and it ends through its own verbs.
- *  Returns how many went. */
-// THE ENGINE PLANE (D20 un-principal) — the scope is the owner a verified `start` resolved, or none at boot. Ends if a door passes a caller-authored owner here.
-export async function deleteTerminalTransientWorkloads(db: Db, scope?: { readonly kind: WorkloadKind; readonly ownerId: UserId | null }): Promise<number> {
+/** Delete the TERMINAL transient rows: when `scope` names them, one owner's of one kind other than the row that just
+ *  ended, else every one (the boot sweep). A transient row still queued or running is never deleted: its run owns it,
+ *  and it ends through its own verbs. Returns how many went. */
+// THE ENGINE PLANE (D20 un-principal) — the scope is the owner of a row the runner itself claimed, or none at boot. Ends if a door passes a caller-authored owner here.
+export async function deleteTerminalTransientWorkloads(
+  db: Db,
+  scope?: { readonly kind: WorkloadKind; readonly ownerId: UserId | null; readonly exceptId: WorkloadId },
+): Promise<number> {
   const filters: SQL[] = [eq(workloads.transient, true), inArray(workloads.status, [...TERMINAL_STATUSES])];
   if (scope !== undefined) {
-    filters.push(eq(workloads.kind, scope.kind), scope.ownerId === null ? isNull(workloads.ownerId) : eq(workloads.ownerId, scope.ownerId));
+    filters.push(
+      eq(workloads.kind, scope.kind),
+      scope.ownerId === null ? isNull(workloads.ownerId) : eq(workloads.ownerId, scope.ownerId),
+      ne(workloads.id, scope.exceptId),
+    );
   }
   const deleted = await db
     .delete(workloads)

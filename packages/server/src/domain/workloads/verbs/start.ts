@@ -9,7 +9,7 @@ import type { StartWorkloadParams, WorkloadKind, WorkloadRef } from "@orb/contra
 import { DomainConflictError, DomainNotFoundError } from "@orb/kit/errors";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
 import { isActiveKindUniqueViolation, isWorkloadForeignKeyViolation } from "../persistence/constraints.ts";
-import { deleteTerminalTransientWorkloads, findActiveAdmittedWorkloadId, findUnavailableWorkloadDependency, insertWorkload } from "../persistence/queries.ts";
+import { findActiveAdmittedWorkloadId, findUnavailableWorkloadDependency, insertWorkload } from "../persistence/queries.ts";
 import { resolveRunOwner } from "../substrate/authorize.ts";
 import {
   activeConflictMessage,
@@ -107,11 +107,6 @@ export function createStart(ctx: WorkloadServiceContext): Pick<WorkloadService, 
     // row's enumeration scope) and BEFORE a row exists: work that structurally cannot produce anything
     // is refused at the door, never enqueued to land as a vacuous success.
     await assertAdmissible(contributions, input.kind, input.params, ownerId);
-    const transient = resolveTransient(contributions, input.kind, input.params);
-    if (transient) {
-      // The owner's last finished transient run of this kind stays readable by id until this one starts.
-      await deleteTerminalTransientWorkloads(ctx.db, { kind: input.kind, ownerId });
-    }
     const now = ctx.now();
     const admitted = await admit(
       ctx,
@@ -123,7 +118,7 @@ export function createStart(ctx: WorkloadServiceContext): Pick<WorkloadService, 
         admissionKey: resolveAdmissionKey(contributions, input.kind, input.params),
         // The execution lane is the OWNING domain's declaration, stamped here so it survives a restart.
         lane: resolveLane(contributions, input.kind, input.params),
-        transient,
+        transient: resolveTransient(contributions, input.kind, input.params),
         params: input.params,
         ownerId,
         funderUserId,

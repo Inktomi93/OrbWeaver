@@ -48,7 +48,7 @@ export interface WorkloadContribution<K extends WorkloadKind = WorkloadKind> {
   /**
    * Whether a row is TRANSIENT: work its owner reads by id while it runs and never lists afterwards, e.g. a dry-run
    * preview. The enqueue doors stamp the answer; a transient row is left out of every list and deleted once
-   * terminal, when its owner starts the same kind again and at boot. OMIT IT when every row is a run the owner keeps.
+   * terminal, when its owner's next row of the kind ends and at boot. OMIT IT when every row is a run the owner keeps.
    */
   readonly transientFor?: (params: WorkloadParamsByKind[K]) => boolean;
   /**

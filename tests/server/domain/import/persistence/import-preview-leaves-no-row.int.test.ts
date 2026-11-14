@@ -1,7 +1,7 @@
 // A dry run made for the preview is a transient row: its owner reads it by id while the review is open, no list ever
-// shows it, and it is deleted once it has finished, when the owner starts the next dry run or the box boots. A dry
-// run that has not finished is never deleted; it ends through its own verbs.
-// @subject packages/server/src/domain/workloads/verbs/start.ts
+// shows it, and once it has finished it is deleted when the owner's next dry run ends or the box boots. A dry run that
+// has not finished is never deleted; it ends through its own verbs.
+// @subject packages/server/src/domain/workloads/engine/runner.ts
 // @subject packages/server/src/domain/workloads/persistence/queries.ts
 // @subject packages/server/src/domain/workloads/engine/boot-reclaim.ts
 // @subject packages/server/src/domain/import/workload-contributions.ts
@@ -108,6 +108,23 @@ test("a dry run not yet finished is never deleted: the next one is refused while
   const next = await dryRunId(root, PERSONA_FILES);
 
   await expect(root.services.workloads.get({ caller, id: waiting })).rejects.toThrow(DomainNotFoundError);
+  await expect(root.services.workloads.get({ caller, id: next })).resolves.toMatchObject({ status: "succeeded" });
+});
+
+test("a finished dry run stays readable and cancellable while the next one has no result, and goes when that one ends", async () => {
+  await using root = await harness();
+  const caller = await root.principalFor(root.ownerId);
+  const earlier = await dryRunId(root, folder(root));
+
+  // The reader changed an answer before the client read the earlier run: the client cancels it and starts the next.
+  const next = await admit(root, PERSONA_FILES, [TREE_DRY_RUN_VALUE], { [NAME_KEY]: "keep-both" });
+
+  await expect(root.services.workloads.cancel({ caller, id: earlier })).resolves.toEqual({ status: null });
+  await expect(root.services.workloads.get({ caller, id: earlier })).resolves.toMatchObject({ status: "succeeded", result: { preview: expect.any(Object) } });
+
+  await finish(root, next);
+
+  await expect(root.services.workloads.get({ caller, id: earlier })).rejects.toThrow(DomainNotFoundError);
   await expect(root.services.workloads.get({ caller, id: next })).resolves.toMatchObject({ status: "succeeded" });
 });
 
