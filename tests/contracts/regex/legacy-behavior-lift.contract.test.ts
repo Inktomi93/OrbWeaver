@@ -3,7 +3,7 @@
 // beside the save-time members, with `markdownOnly`, `promptOnly` and `historyDepth`) imports onto the two axes by the
 // mapping the numbered migration also applies to stored rows: an editor-written row maps member by member, any other
 // row reads its flags with SillyTavern's meaning.
-import { portableRegexScriptSchema } from "@orb/contracts/regex";
+import { portableRegexScriptSchema, regexScriptBehaviorWriteSchema } from "@orb/contracts/regex";
 import type { RegexDepth, RegexPass, RegexTarget } from "@orb/kit/regex";
 import { expect, test } from "@orb/testkit/node";
 
@@ -65,18 +65,50 @@ const CASES: readonly { readonly shape: string; readonly old: Readonly<Record<st
     axes: { targets: ["USER_INPUT", "AI_OUTPUT", "WORLD_INFO"], passes: ["prompt"], depth: { min: 2, max: null } },
   },
   {
+    shape: "a save member beside a display member keeps only the save pass on it",
+    old: { placement: ["AI_OUTPUT", "DISPLAY"], markdownOnly: false, promptOnly: false },
+    axes: { targets: ["AI_OUTPUT"], passes: ["save"] },
+  },
+  {
+    shape: "a save member beside a history member keeps only the save pass on it, without the depth",
+    old: { placement: ["AI_OUTPUT", "PROMPT_HISTORY"], markdownOnly: false, promptOnly: true, historyDepth: { min: 2, max: 4 } },
+    axes: { targets: ["AI_OUTPUT"], passes: ["save"] },
+  },
+  {
+    shape: "a save member beside world info and a display member keeps only the save pass on it",
+    old: { placement: ["AI_OUTPUT", "WORLD_INFO", "DISPLAY"], markdownOnly: false, promptOnly: false },
+    axes: { targets: ["AI_OUTPUT"], passes: ["save"] },
+  },
+  {
+    shape: "display and history keep user and AI rows on both passes, since the history pass never read reasoning",
+    old: { placement: ["DISPLAY", "PROMPT_HISTORY"], markdownOnly: false, promptOnly: false, historyDepth: { min: 0, max: null } },
+    axes: { targets: ["USER_INPUT", "AI_OUTPUT"], passes: ["display", "prompt"] },
+  },
+  {
+    shape: "display beside world info keeps the prompt pass on world info, since display reads no world info",
+    old: { placement: ["DISPLAY", "WORLD_INFO"], markdownOnly: false, promptOnly: false },
+    axes: { targets: ["WORLD_INFO"], passes: ["prompt"] },
+  },
+  {
+    shape: "display, history and world info keep user and AI rows and world info on both passes",
+    old: { placement: ["DISPLAY", "PROMPT_HISTORY", "WORLD_INFO"], markdownOnly: false, promptOnly: false, historyDepth: { min: 1, max: 5 } },
+    axes: { targets: ["USER_INPUT", "AI_OUTPUT", "WORLD_INFO"], passes: ["display", "prompt"], depth: { min: 1, max: 5 } },
+  },
+  {
+    shape: "a neither-flag row keeps world info among its targets on the save pass, which reads none",
+    old: { placement: ["AI_OUTPUT", "WORLD_INFO"], markdownOnly: false, promptOnly: false },
+    axes: { targets: ["AI_OUTPUT", "WORLD_INFO"], passes: ["save"] },
+  },
+  {
     shape: "a two-axis behavior passes through unchanged",
     old: { targets: ["REASONING"], passes: ["save"] },
     axes: { targets: ["REASONING"], passes: ["save"] },
   },
 ];
 
+// `axesOf` parses through the portable file schema, whose pairing rules are the write schema's, so every case is
+// also a result a write accepts.
 test.each(CASES)("$shape", ({ old, axes }) => {
   expect(axesOf(old)).toEqual(axes);
-});
-
-test("a display member beside a save member lifts to the save and display pass, which a file may not write", () => {
-  const parsed = portableRegexScriptSchema.safeParse({ name: "old", findRegex: "a", replaceString: "b", placement: ["AI_OUTPUT", "DISPLAY"] });
-
-  expect(parsed.error?.issues.map(({ path }) => path)).toEqual([["passes"]]);
+  expect(regexScriptBehaviorWriteSchema.safeParse({ findRegex: "a", replaceString: "b", ...axes }).success).toBe(true);
 });
