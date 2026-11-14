@@ -32,7 +32,7 @@ import type { MessageRole } from "@orb/kit/message-role";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { epochToMs, isoToMs, msToWallClock, wallClockToMs } from "@orb/kit/time";
 import { z } from "zod";
-import { sha256Hex } from "#primitives/content-hash";
+import { sha256HexOfParts } from "#primitives/content-hash";
 
 // ── the canonical shape (NAME-level; the serde owns its wire shape, server/primitives type-home-exempt) ──────────
 
@@ -1062,24 +1062,34 @@ export function buildChatTxt(chat: ParsedChat): string {
 // the same lines under another character are another. Rows imported before this identity carry the
 // whole-file hash; the chat write op tries that second (`fileHash`).
 
-/** sha-256 hex over the transcript's normalized content — the per-chat import identity (`chats.importHash`). */
-export function chatContentHash(parsed: ParsedChat): string {
-  return sha256Hex(
-    new TextEncoder().encode(
-      stableStringify({
-        characterName: parsed.characterName,
-        userName: parsed.userName,
-        createDate: parsed.createDate,
-        messages: parsed.messages.map((m) => ({
-          role: m.role,
-          kind: m.kind,
-          speakerName: m.speakerName,
-          content: m.content,
-          sendDate: m.sendDate,
-          activeVariantIdx: m.activeVariantIdx,
-          variants: m.variants.map((v) => v.content),
-        })),
-      }),
-    ),
-  );
+// The identity is the bytes of `stableStringify({ characterName, userName, createDate, messages })`, written out
+// in its sorted key order one message at a time, so a long transcript hashes in slices. A changed byte here
+// re-identifies every imported chat and a re-import duplicates it (D290).
+async function* chatIdentityParts(parsed: ParsedChat): AsyncGenerator<string> {
+  yield `{"characterName":${stableStringify(parsed.characterName)},"createDate":${stableStringify(parsed.createDate)},"messages":[`;
+  let sliceChars = 0;
+  for (const [index, m] of parsed.messages.entries()) {
+    const part = stableStringify({
+      role: m.role,
+      kind: m.kind,
+      speakerName: m.speakerName,
+      content: m.content,
+      sendDate: m.sendDate,
+      activeVariantIdx: m.activeVariantIdx,
+      variants: m.variants.map((v) => v.content),
+    });
+    sliceChars += part.length;
+    if (sliceChars >= PARSE_SLICE_CHARS) {
+      sliceChars = 0;
+      await yieldToEventLoop();
+    }
+    yield index === 0 ? part : `,${part}`;
+  }
+  yield `],"userName":${stableStringify(parsed.userName)}}`;
+}
+
+/** sha-256 hex over the transcript's normalized content — the per-chat import identity (`chats.importHash`).
+ *  Async because it yields to the event loop between slices of messages. */
+export async function chatContentHash(parsed: ParsedChat): Promise<string> {
+  return await sha256HexOfParts(chatIdentityParts(parsed));
 }

@@ -13,7 +13,7 @@
 
 import type { BootDatabaseHandle } from "@orb/db/wiring";
 import type { Clock } from "@orb/kit/time";
-import { reclaimChatLocksOnBoot } from "#domain/chat";
+import { reclaimChatLocksOnBoot, sweepLandingChatsOnBoot } from "#domain/chat";
 import type { WorkloadContributions, WorkloadProgressBus } from "#domain/workloads";
 import { reclaimInFlightOnBoot } from "#domain/workloads";
 import type { Logger } from "#foundation/observability";
@@ -31,10 +31,13 @@ export interface ReclaimLocksDeps {
   readonly holder: string;
 }
 
-/** Dispose of orphaned in-flight workloads (finish a raised cancel, re-queue the resumable, reap the rest) + reclaim this replica's
- *  orphaned chat turn-locks. Returns the TOTAL number of rows/locks moved; the per-disposition breakdown is
- *  in the log line, because "N reclaimed" is what made a lost multi-hour backfill read as boot noise. */
+/** Delete the imported rooms a dead import left landing, dispose of orphaned in-flight workloads (finish a raised
+ *  cancel, re-queue the resumable, reap the rest) + reclaim this replica's orphaned chat turn-locks. Returns the
+ *  TOTAL number of rooms/rows/locks moved; the per-disposition breakdown is in the log line, because "N
+ *  reclaimed" is what made a lost multi-hour backfill read as boot noise. */
 export async function reclaimLocksOnBoot(deps: ReclaimLocksDeps): Promise<number> {
+  // First, so a re-queued import finds no claim held by a room that will never land.
+  const landingChats = await sweepLandingChatsOnBoot(deps.db);
   const workloads = await reclaimInFlightOnBoot({
     logger: deps.logger,
     db: deps.db,
@@ -44,8 +47,8 @@ export async function reclaimLocksOnBoot(deps: ReclaimLocksDeps): Promise<number
   });
   const chatLocks = await reclaimChatLocksOnBoot(deps.db, deps.holder);
   getLog(deps.logger).info(
-    { requeued: workloads.requeued, reaped: workloads.reaped, cancelled: workloads.cancelled, chatLocks },
-    "boot/reclaim-locks: finished raised workload cancels, re-queued resumable in-flight workloads, reaped the rest, reclaimed chat turn-locks",
+    { landingChats, requeued: workloads.requeued, reaped: workloads.reaped, cancelled: workloads.cancelled, chatLocks },
+    "boot/reclaim-locks: deleted rooms left landing, finished raised workload cancels, re-queued resumable in-flight workloads, reaped the rest, reclaimed chat turn-locks",
   );
-  return workloads.requeued + workloads.reaped + workloads.cancelled + chatLocks;
+  return landingChats + workloads.requeued + workloads.reaped + workloads.cancelled + chatLocks;
 }

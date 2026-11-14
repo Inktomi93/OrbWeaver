@@ -3,8 +3,11 @@
 // founding roster and resolves branch parents.
 //
 // LOAD-BEARING: `updatedAt` is the ST max(send_dates) carried in from import (not `now`); `importHash` is the
-// per-chat provenance while `chat_import_claims` is the scoped atomic dedup oracle. Each chat + claim commits
-// as ONE db.batch — db.transaction() is BANNED (the :memory: trap) — so a kill mid-import leaves zero rows.
+// per-chat provenance while `chat_import_claims` is the scoped atomic dedup oracle. db.transaction() is BANNED, and
+// one batch for a long room held the server for seconds, so a room lands in stages: the room marked landing with
+// its claim, the messages a stage at a time, then the roster with the cleared marker. Readers reach a room only
+// through its roster, so a reader sees all of a room or none of it. A failed import, and the boot sweep after a
+// kill, delete a room still marked landing (`import-landing.ts`).
 
 import type {
   BulkImportChatInput,
@@ -39,13 +42,14 @@ import { batchHandle, databaseForOwner } from "@orb/db/wiring-owner";
 import { assetIdsInContent } from "@orb/kit/content";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, ChatId, MessageId, MessageVariantId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
-import { and, eq, gte, inArray, isNull, lt, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import { yieldToLoop } from "#primitives/abort";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { ChatImportAssemblyContext, ChatImportContext } from "../contract/import.ts";
 import { parseChatMetadata } from "../contract/metadata.ts";
 import { importedObservationRows } from "../substrate/import-observations.ts";
 import { carriesAssetBackground, guardedChatId } from "./background-write.ts";
+import { deleteLandingChat, LANDING_STAGE_MESSAGES } from "./import-landing.ts";
 import { assertSeatableCharacters } from "./seat-characters.ts";
 
 // Budget a scope bind alongside each varying value, so the statement's fixed scope always fits too.
@@ -112,6 +116,8 @@ function assertSeatedKnobs(ci: BulkImportChatInput, primary: CharacterId): void 
 interface ExistingImport {
   readonly chatId: ChatId;
   readonly anchorPersonaId: PersonaId | null;
+  /** Another run is still landing this room in stages (`chats.landing_at` set). */
+  readonly landing: boolean;
 }
 
 /** Pre-fetch the exact scoped import claims. Keyed by hash → the room it is, because the dedup branch no
@@ -124,12 +130,12 @@ async function loadExistingImports(db: Db, characterId: CharacterId, hashes: rea
   for (const chunk of chunkRows([...uniqueHashes], SCOPED_FILTER_BIND_BUDGET)) {
     // each chunk reserves the character-scope bind under the driver cap. Ends if the driver lifts its bind cap.
     const rows = await db
-      .select({ id: chats.id, importHash: chatImportClaims.importHash, anchorPersonaId: chats.anchorPersonaId })
+      .select({ id: chats.id, importHash: chatImportClaims.importHash, anchorPersonaId: chats.anchorPersonaId, landingAt: chats.landingAt })
       .from(chatImportClaims)
       .innerJoin(chats, eq(chats.id, chatImportClaims.chatId))
       .where(and(eq(chatImportClaims.characterId, characterId), inArray(chatImportClaims.importHash, chunk)));
     for (const r of rows) {
-      seen[r.importHash] ??= { chatId: r.id, anchorPersonaId: r.anchorPersonaId };
+      seen[r.importHash] ??= { chatId: r.id, anchorPersonaId: r.anchorPersonaId, landing: r.landingAt !== null };
     }
   }
   return seen;
@@ -381,7 +387,7 @@ function importedUsageColumns(
   };
 }
 
-/** One imported message as rows, not statements: {@link buildChatStatements} writes a chat's rows in multi-row
+/** One imported message as rows, not statements: {@link landMessages} writes a chat's rows in multi-row
  *  inserts, because a statement per row made a long chat tens of thousands of statements and the build of that
  *  batch held the event loop for seconds. */
 interface MessageRows {
@@ -459,9 +465,6 @@ function messageRows(args: MessageRowsArgs): MessageRows {
   };
 }
 
-// How many messages rows are built between two turns of the loop.
-const BUILD_SLICE_MESSAGES = 1000;
-
 /** Point each message at its selected variant. The pairs reach SQLite as one JSON text, so the statement binds one
  *  value however many messages it names. */
 function selectVariantStmts(db: Db, selections: readonly { readonly messageId: MessageId; readonly variantId: MessageVariantId }[]): BatchStmt[] {
@@ -485,8 +488,8 @@ function collectInto(pool: BatchStmt[], stmts: readonly BatchStmt[]): number {
   return stmts.length > 0 ? 1 : 0;
 }
 
-/** Commit one chat's statements as ONE atomic `db.batch`. The batch runs synchronously in the driver, so it starts
- *  on a fresh turn of the loop: the time it holds the server is its own and not added to the work before it. */
+/** Commit one atomic `db.batch`. The batch runs synchronously in the driver, so it starts on a fresh turn of the
+ *  loop: the time it holds the server is its own and not added to the work before it. */
 async function commitChatBatch(db: Db, stmts: readonly BatchStmt[]): Promise<unknown> {
   await yieldToLoop();
   return await db.batch(batchMany(stmts));
@@ -559,10 +562,9 @@ function injectionStmts(ctx: ChatImportContext, chatId: ChatId, ci: BulkImportCh
   );
 }
 
-/** The chat row + founding roster inserts for one imported chat. Per-chat prose rides in as `chat_injections`
- *  rows — the ONE per-chat prose door (the retired `roomOverrides.authorsNote` twin
- *  landed as the SAME at-depth splice). */
-function chatHeaderStmts({ ctx, chatId, ci, ownerId, characterId }: OneChatArgs): BatchStmt[] {
+/** The first landing stage: the room, marked landing, and its import claim. The claim's composite PK is the
+ *  concurrent arbiter, so a loser fails on this stage and leaves neither a claim nor any portion of its room. */
+function openingStmts({ ctx, chatId, ci, characterId }: OneChatArgs): BatchStmt[] {
   const { db } = ctx;
   const metadata = ci.metadata === undefined ? null : parseChatMetadata(ci.metadata);
   return [
@@ -577,6 +579,8 @@ function chatHeaderStmts({ ctx, chatId, ci, ownerId, characterId }: OneChatArgs)
         // state for a husk to represent and the reaper must never see it. `startChat` is the ONE mint
         // that produces a husk.
         startedAt: ctx.now(),
+        // Cleared by the closing stage; until then only the landing cleanup and the boot sweep may delete the room.
+        landingAt: ctx.now(),
         // Absent ⇒ NULL, byte-identically the ST import. A supplied blob goes through the column's OWN
         // parser (the same fault-isolated read seam every consumer uses) so a caller can never land a
         // sub-blob shape the readers would heal away — one validation home, no second spelling here.
@@ -596,8 +600,6 @@ function chatHeaderStmts({ ctx, chatId, ci, ownerId, characterId }: OneChatArgs)
         updatedAt: ci.updatedAt,
       }),
     ),
-    // THE claim: the composite PK is the concurrent arbiter, and this statement's place in the room batch
-    // means a loser leaves neither a claim nor any portion of its candidate room.
     batchStmt(
       db.insert(chatImportClaims).values({
         chatId,
@@ -606,6 +608,20 @@ function chatHeaderStmts({ ctx, chatId, ci, ownerId, characterId }: OneChatArgs)
         createdAt: ctx.now(),
       }),
     ),
+  ];
+}
+
+function pendingObservationStmts(ctx: ChatImportContext, ownerId: UserId, ci: BulkImportChatInput, identity: ImportedChatIdentity): BatchStmt[] {
+  return importedObservationRows(ctx.newChatTurnId, ownerId, ci, identity).map((row) => batchStmt(ctx.db.insert(chatGenerationObservations).values(row)));
+}
+
+/** The last landing stage: the founding roster, the per-chat prose (`chat_injections`, the ONE per-chat prose
+ *  door), the pending observations and the cleared landing marker, in one batch. Every reader reaches a room
+ *  through its roster, so no reader sees the room before this batch, and every reader that does sees all of it. */
+function closingStmts(args: OneChatArgs, identity: ImportedChatIdentity): BatchStmt[] {
+  const { ctx, chatId, ci, ownerId, characterId } = args;
+  const { db } = ctx;
+  return [
     ...injectionStmts(ctx, chatId, ci),
     ...rosterRows({
       ctx,
@@ -616,11 +632,14 @@ function chatHeaderStmts({ ctx, chatId, ci, ownerId, characterId }: OneChatArgs)
       seatKnobs: ci.seatKnobs,
       now: ci.createdAt,
     }).map((r) => batchStmt(db.insert(chatParticipants).values(r))),
+    ...pendingObservationStmts(ctx, ownerId, ci, identity),
+    batchStmt(
+      db
+        .update(chats)
+        .set({ landingAt: null })
+        .where(and(eq(chats.id, chatId), isNotNull(chats.landingAt))),
+    ),
   ];
-}
-
-function pendingObservationStmts(ctx: ChatImportContext, ownerId: UserId, ci: BulkImportChatInput, identity: ImportedChatIdentity): BatchStmt[] {
-  return importedObservationRows(ctx.newChatTurnId, ownerId, ci, identity).map((row) => batchStmt(ctx.db.insert(chatGenerationObservations).values(row)));
 }
 
 /** The seq the import writes for `ci.messages[index]`: the current origin, so a carried `compactedAtSeq`, which
@@ -629,24 +648,18 @@ function importedSeq(index: number): number {
   return index + IMPORT_SEQ_ORIGINS.current;
 }
 
-/** All statements for ONE imported chat (header + roster + message slots/variants) + the identity of what it
- *  writes. `identity` is INDEX-ALIGNED to `ci.messages` — the R6 remap (`ImportedChatIdentity`); the tallies
- *  the caller reports are derived from it rather than counted separately, so the count and the remap cannot
- *  disagree about what landed. */
-async function buildChatStatements(args: OneChatArgs): Promise<{
-  readonly stmts: BatchStmt[];
-  readonly identity: ImportedChatIdentity;
-}> {
+/** Commit ONE imported chat's message slots and variants, {@link LANDING_STAGE_MESSAGES} messages a batch, and
+ *  return the identity of what landed. `identity` is INDEX-ALIGNED to `ci.messages` — the R6 remap
+ *  (`ImportedChatIdentity`); the tallies the caller reports are derived from it rather than counted separately,
+ *  so the count and the remap cannot disagree about what landed. */
+async function landMessages(args: OneChatArgs): Promise<ImportedChatIdentity> {
   const { ctx, chatId, ci, ownerId, characterId, existingAssetIds, narratorCharacterId } = args;
   const { db } = ctx;
   const messageIds: MessageId[] = [];
   const variantIds: (readonly MessageVariantId[])[] = [];
-  const messageStmts: BatchStmt[] = [];
-  const variantStmts: BatchStmt[] = [];
-  const assetStmts: BatchStmt[] = [];
-  const selections: { readonly messageId: MessageId; readonly variantId: MessageVariantId }[] = [];
-  for (let start = 0; start < ci.messages.length; start += BUILD_SLICE_MESSAGES) {
-    const rows = ci.messages.slice(start, start + BUILD_SLICE_MESSAGES).map((m, offset) => {
+  for (let start = 0; start < ci.messages.length; start += LANDING_STAGE_MESSAGES) {
+    const selections: { readonly messageId: MessageId; readonly variantId: MessageVariantId }[] = [];
+    const rows = ci.messages.slice(start, start + LANDING_STAGE_MESSAGES).map((m, offset) => {
       const messageId = ctx.newMessageId();
       const built = messageRows({
         ctx,
@@ -666,41 +679,28 @@ async function buildChatStatements(args: OneChatArgs): Promise<{
       }
       return built;
     });
-    messageStmts.push(
+    // The stage's messages, then their variants, then the pointers: a variant names its message and a pointer
+    // names its variant.
+    await commitChatBatch(db, [
       ...insertRowsAsJson(
         db,
         messages,
         rows.map((row) => row.message),
       ),
-    );
-    variantStmts.push(
       ...insertRowsAsJson(
         db,
         messageVariants,
         rows.flatMap((row) => row.variants),
       ),
-    );
-    assetStmts.push(
+      ...selectVariantStmts(db, selections),
       ...insertRowsAsJson(
         db,
         messageAssets,
         rows.flatMap((row) => row.assets),
       ),
-    );
-    // Building a long chat's rows is synchronous work; the rest of the server runs between slices.
-    await yieldToLoop();
+    ]);
   }
-  const identity = { chatId, messageIds, variantIds };
-  // Every message, then every variant, then the pointers: a variant names its message and a pointer names its variant.
-  const stmts = [
-    ...chatHeaderStmts(args),
-    ...messageStmts,
-    ...variantStmts,
-    ...selectVariantStmts(db, selections),
-    ...assetStmts,
-    ...pendingObservationStmts(ctx, ownerId, ci, identity),
-  ];
-  return { stmts, identity };
+  return { chatId, messageIds, variantIds };
 }
 
 /** EVERY character id a run could seat or attribute: the primary, each chat's extra roster, and each slot's
@@ -730,7 +730,16 @@ function everyReferencedCharacter(primary: CharacterId, input: readonly BulkImpo
 
 async function filterImportedAssetIds(ctx: ChatImportContext, ownerId: UserId, ci: BulkImportChatInput): Promise<AssetId[]> {
   // call-local dedup of the complete chat's inline references. Ends if it outlives the call.
-  const requested = new Set(ci.messages.flatMap(assetRefsInMessage));
+  const requested = new Set<AssetId>();
+  for (let start = 0; start < ci.messages.length; start += LANDING_STAGE_MESSAGES) {
+    for (const message of ci.messages.slice(start, start + LANDING_STAGE_MESSAGES)) {
+      for (const assetId of assetRefsInMessage(message)) {
+        requested.add(assetId);
+      }
+    }
+    // Reading every message's content for refs costs time per message, as the write does.
+    await yieldToLoop();
+  }
   const existing: AssetId[] = [];
   for (const ids of chunkRows([...requested], SCOPED_FILTER_BIND_BUDGET)) {
     existing.push(...(await ctx.filterExistingAssetIds(ownerId, ids)));
@@ -738,17 +747,17 @@ async function filterImportedAssetIds(ctx: ChatImportContext, ownerId: UserId, c
   return existing;
 }
 
-/** Resolve one chat's two async preconditions and build its statement plan. Both preconditions run in ONE
- *  `Promise.all`: the bounded asset-existence read, and — only for a chat carrying a narrator slot — the
- *  find-or-mint of the room's synthetic identity, the same op and the same idempotency a live narrator round
- *  uses. A chat with no narrator slot never touches the synthetic namespace at all. */
-async function planOneChat(args: Omit<OneChatArgs, "existingAssetIds" | "narratorCharacterId">): ReturnType<typeof buildChatStatements> {
+/** Resolve one chat's two async preconditions. Both run in ONE `Promise.all`: the bounded asset-existence read,
+ *  and — only for a chat carrying a narrator slot — the find-or-mint of the room's synthetic identity, the same op
+ *  and the same idempotency a live narrator round uses. A chat with no narrator slot never touches the synthetic
+ *  namespace at all. */
+async function planOneChat(args: Omit<OneChatArgs, "existingAssetIds" | "narratorCharacterId">): Promise<OneChatArgs> {
   const { ctx, ci, ownerId, chatId } = args;
   const [existingAssetIds, narratorCharacterId] = await Promise.all([
     filterImportedAssetIds(ctx, ownerId, ci),
     hasNarratorSlot(ci) ? ctx.mintSyntheticGroupCharacter({ ownerId, chatId }).then((ref) => ref.characterId) : Promise.resolve(null),
   ]);
-  return await buildChatStatements({ ...args, existingAssetIds, narratorCharacterId });
+  return { ...args, existingAssetIds, narratorCharacterId };
 }
 
 /** The run's whole-input gates, BEFORE any write: EVERY id this run could seat, attribute or CONFIGURE — the
@@ -826,15 +835,21 @@ async function recordSkippedImport(args: {
   readonly ci: BulkImportChatInput;
 }): Promise<void> {
   const { ctx, state, existing, ownerId, ci } = args;
+  if (existing.landing) {
+    // Another run is still landing this room, so its slots cannot be paired yet and its roster is not there to heal.
+    state.remaps.push({ kind: "unproven-origin", chatId: existing.chatId });
+    state.chatsSkipped += 1;
+    return;
+  }
   const origin = await importSeqOrigin(ctx.db, existing.chatId, ci.messages.length);
   state.remaps.push(await loadImportedRemap(ctx.db, existing.chatId, ci, origin));
   state.chatsSkipped += 1;
   state.chatsPersonaHealed += collectInto(state.healStmts, healPersonaAttribution(ctx, { existing, origin, ownerId, ci }));
 }
 
-/** Commit one fresh candidate, returning the exact winning claim when another invocation won the race.
- * Constraint errors elsewhere in the large room batch remain loud: only a now-visible scoped claim
- * classifies the failure as the expected concurrent loser. */
+/** Commit one fresh candidate's opening stage, returning the exact winning claim when another invocation won the
+ * race. Other constraint errors remain loud: only a now-visible scoped claim classifies the failure as the
+ * expected concurrent loser. */
 async function commitImportCandidate(args: {
   readonly db: Db;
   readonly stmts: readonly BatchStmt[];
@@ -883,15 +898,27 @@ async function importOneChat(args: {
   const chatId = ctx.newChatId();
   // A second byte-identical file later in THIS run skips too — and it has nothing to heal, since the row
   // it would heal is the one this very run writes WITH whatever persona the mapper resolved.
-  state.existing[ci.importHash] = { chatId, anchorPersonaId: ci.anchorPersonaId };
-  const { stmts, identity } = await planOneChat({ ctx, chatId, ci, ownerId, characterId });
-  ctx.bumpStatsCanonVersion(stmts, ctx.db, ownerId);
+  state.existing[ci.importHash] = { chatId, anchorPersonaId: ci.anchorPersonaId, landing: false };
+  const plan = await planOneChat({ ctx, chatId, ci, ownerId, characterId });
   const metadata = ci.metadata === undefined ? null : parseChatMetadata(ci.metadata);
-  const claimed = await commitImportCandidate({ db: ctx.db, stmts, characterId, importHash: ci.importHash, metadata });
+  const claimed = await commitImportCandidate({ db: ctx.db, stmts: openingStmts(plan), characterId, importHash: ci.importHash, metadata });
   if (claimed !== null) {
     state.existing[ci.importHash] = claimed;
     await recordSkippedImport({ ctx, state, existing: claimed, ownerId, ci });
     return;
+  }
+  // One atomic batch for a long room held the server for seconds, so the room lands in stages and readers wait for
+  // the closing stage's roster. A failure after the opening stage removes what landed.
+  let identity: ImportedChatIdentity;
+  try {
+    identity = await landMessages(plan);
+    const closing = closingStmts(plan, identity);
+    // Once per room, in the stage that makes it visible: a rebuild scanning meanwhile folds the owner again once.
+    ctx.bumpStatsCanonVersion(closing, ctx.db, ownerId);
+    await commitChatBatch(ctx.db, closing);
+  } catch (err) {
+    await deleteLandingChat(ctx.db, chatId);
+    throw err;
   }
 
   if (ci.parentRef !== null) {
@@ -928,7 +955,7 @@ export function createFindImportedChatHashes(assembly: Pick<ChatImportAssemblyCo
 }
 
 /** Dup-skips by the scoped atomic import claim (healing the skipped room's persona attribution — see
- *  {@link healPersonaAttribution}), commits each fresh chat as ONE `db.batch`, then resolves branch parents. */
+ *  {@link healPersonaAttribution}), lands each fresh chat in stages, then resolves branch parents. */
 export function createBulkImportChats(assembly: ChatImportAssemblyContext): BulkImportChatsOp {
   const ctx: ChatImportContext = {
     ...assembly,

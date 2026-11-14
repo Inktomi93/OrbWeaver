@@ -1,6 +1,7 @@
 import type { BootDatabaseHandle, DatabaseHandle } from "@orb/db/wiring";
 import { bootDatabaseForOwner, databaseForOwner } from "@orb/db/wiring-owner";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import { sweepLandingChats as sweepLanding } from "./import-landing.ts";
 import { hasRedeemableInvite as readRedeemableInvite } from "./invites.ts";
 import { reclaimChatLocksOnBoot as reclaimLocks } from "./lock.ts";
 import { migratePluginToolWireNames as migrateToolCallNames } from "./migrate-plugin-tool-wire-names.ts";
@@ -58,6 +59,11 @@ export async function hasRedeemableInvite(db: BootDatabaseHandle, now: number): 
 /** Boot's lock reclaim stays scoped to this replica's holder tag by the lock writer. */
 export async function reclaimChatLocksOnBoot(db: BootDatabaseHandle, holder: string): ReturnType<typeof reclaimLocks> {
   return await reclaimLocks(bootDatabaseForOwner(db), holder);
+}
+
+/** Boot's removal of the imported rooms a dead process left landing, keyed on the landing marker alone. */
+export async function sweepLandingChatsOnBoot(db: BootDatabaseHandle): ReturnType<typeof sweepLanding> {
+  return await sweepLanding(bootDatabaseForOwner(db));
 }
 
 /** Boot's handoff-offer key rewrite keeps the offer writer's own idempotent predicate. */

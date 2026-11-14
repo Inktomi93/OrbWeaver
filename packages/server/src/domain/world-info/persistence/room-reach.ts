@@ -23,7 +23,8 @@ async function resolveWorldInfoRooms(db: Db, bookId: WorldBookId): Promise<ChatI
       .select({ chatId: chats.id })
       .from(personaBooks)
       .innerJoin(chats, eq(chats.anchorPersonaId, personaBooks.personaId))
-      .where(eq(personaBooks.worldBookId, bookId)),
+      // The anchor arm has no seat gate, so it alone could reach an imported room that has not landed.
+      .where(and(eq(personaBooks.worldBookId, bookId), isNull(chats.landingAt))),
     // The global arm resolves the book's OWNER first (the tenant scope the pool applies), then that owner's
     // hosted rooms. `inArray` over the one-row owner select keeps it a single round trip.
     db
