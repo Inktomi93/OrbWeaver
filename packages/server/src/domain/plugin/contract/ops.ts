@@ -63,6 +63,10 @@ export interface PluginInvocationWork extends AsyncDisposable {
  *  the JSON-safe membrane boundary; the closure also drives the crash counter. */
 export type PluginInvokeHandler = (handler: PluginHandlerRef, argsJson: PluginInvokeArgs, chat: InvocationChat | null, signal?: AbortSignal) => Promise<string>;
 
+/** The invoker a pubsub delivery runs through: the {@link PluginInvokeHandler} crash policy, with no chat scope, at
+ *  `depth` deliveries deep, so the subscriber's own emits open deliveries one deeper. */
+export type PluginPubsubInvoke = (handler: PluginHandlerRef, payloadJson: string, depth: number) => Promise<string>;
+
 /** The deregistration handle a registrar returns — `deactivate`/`uninstall` calls `unregister` so no ghost
  *  tools/transforms/subscriptions survive a disabled/removed plugin. Every registrar returns the tool handle's shape. */
 export type PluginRegistrationHandle = Pick<PluginToolHandle, "unregister">;
@@ -387,6 +391,8 @@ export interface PluginHostOps {
       readonly emitterSlug: string;
       readonly name: string;
       readonly data: Record<string, unknown>;
+      /** The depth the deliveries run at, already within `PLUGIN_PUBSUB_DELIVERY_DEPTH_MAX`. */
+      readonly depth: number;
     }) => Promise<void>;
   };
   /** The disabled-account read the bridge's `admitInstaller` asks per host call: the compose root's one enabled
@@ -426,7 +432,7 @@ export interface PluginHostOps {
      *  handlers via `invoke`, never onto the automation fan-out. */
     readonly subscribePubsub: (
       subscriptions: readonly PluginPubsubSubscription[],
-      invoke: PluginInvokeHandler,
+      invoke: PluginPubsubInvoke,
       scope: PluginActivationScope,
     ) => PluginRegistrationHandle;
   };
@@ -471,12 +477,19 @@ export interface PluginEventBus {
   readonly register: (req: {
     readonly installer: UserId;
     readonly subscriptions: readonly PluginPubsubSubscription[];
-    readonly invoke: PluginInvokeHandler;
+    readonly invoke: PluginPubsubInvoke;
   }) => PluginRegistrationHandle;
   /** Publish `data` on `plugin:<emitterSlug>:<name>` for `installer` — fan out to every SAME-installer subscriber
-   *  of that EXACT channel, delivering `{name, data}` (never a TriggerFact) through its `invoke`. A cross-installer
-   *  or cross-channel subscriber is never reached (the key is installer + emitterSlug + name). Fire-and-forget. */
-  readonly emit: (req: { readonly installer: UserId; readonly emitterSlug: string; readonly name: string; readonly data: Record<string, unknown> }) => void;
+   *  of that EXACT channel, delivering `{name, data}` (never a TriggerFact) through its `invoke` at `depth`. A
+   *  cross-installer or cross-channel subscriber is never reached (the key is installer + emitterSlug + name).
+   *  Fire-and-forget. */
+  readonly emit: (req: {
+    readonly installer: UserId;
+    readonly emitterSlug: string;
+    readonly name: string;
+    readonly data: Record<string, unknown>;
+    readonly depth: number;
+  }) => void;
 }
 
 /** WHO a bridge is built for. The bridge was keyed by `pluginId` alone until posture 2 needed to render a

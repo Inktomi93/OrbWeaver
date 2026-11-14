@@ -12,6 +12,7 @@ import { createRemoteBridge, createRemoteNetEgress } from "./bridge-rpc.ts";
 import { PLUGIN_AUTHORITY_TAIL_MS } from "./budgets.ts";
 import type { CpuSpanReport, CreateInstanceInputIn, LocalPluginHostSeams } from "./contract/port.ts";
 import type { BrokerWorkerMessage, PluginBridgeOperation, PluginSyncOperation, RpcError, WorkerBrokerMessage } from "./contract/process-protocol.ts";
+import type { LocalInvocationScope } from "./port.ts";
 import { createLocalPluginHost } from "./port.ts";
 import {
   decodeProcessValue,
@@ -38,7 +39,8 @@ interface WorkerIdentity {
 interface InvokeCommandValue {
   readonly handler: PluginHandlerRef;
   readonly argsJson: string | { readonly builderId: string };
-  readonly chat?: Parameters<ReturnType<typeof createLocalPluginHost>["invoke"]>[3];
+  readonly chat?: LocalInvocationScope["chat"];
+  readonly pubsubDepth: LocalInvocationScope["pubsubDepth"];
 }
 
 interface SnippetCommandValue {
@@ -290,7 +292,7 @@ async function run(message: Extract<BrokerWorkerMessage, { readonly kind: "comma
     const argsSource = input.argsJson;
     const argsJson: PluginInvokeArgs =
       typeof argsSource === "string" ? argsSource : (chatHandle): string => syncStringSchema.parse(callSync("invokeArgs", [argsSource.builderId, chatHandle]));
-    return await host.invoke(instance, input.handler, argsJson, input.chat);
+    return await host.invoke(instance, input.handler, argsJson, { chat: input.chat ?? null, pubsubDepth: input.pubsubDepth });
   }
   if (message.operation === "snippet") {
     const input = message.value as SnippetCommandValue;

@@ -10,6 +10,7 @@
 
 import { DomainConflictError, DomainForbiddenError, DomainUnavailableError } from "@orb/kit/errors";
 import type { PluginCapability } from "./manifest.ts";
+import { PLUGIN_PUBSUB_DELIVERY_DEPTH_MAX } from "./registrations.ts";
 
 /** Thrown UNIFORMLY by every capability-gated host function when its capability is not in `grants`
  *  — so a guest can feature-detect by try/catch or by reading `host.grants`. */
@@ -65,6 +66,15 @@ export class PluginInstallerDisabledError extends DomainConflictError {
   constructor() {
     super("plugin host: this plugin's installer is disabled");
     this.name = "PluginInstallerDisabledError";
+  }
+}
+
+/** A `pubsub.emit` from a delivery already at {@link PLUGIN_PUBSUB_DELIVERY_DEPTH_MAX}. The cascade is the plugin's
+ *  own, so an uncaught one counts as its strike. A guest matches `e.name === "PluginPubsubDepthError"`. */
+export class PluginPubsubDepthError extends DomainForbiddenError {
+  constructor() {
+    super(`plugin host: pubsub.emit refused — a delivery opens at most ${String(PLUGIN_PUBSUB_DELIVERY_DEPTH_MAX)} deliveries deep`);
+    this.name = "PluginPubsubDepthError";
   }
 }
 

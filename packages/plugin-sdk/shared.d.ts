@@ -925,7 +925,9 @@ interface PluginHostV1 {
    *  domain event, never automation, never another user. capability: plugin_events */
   readonly pubsub: {
     /** Publish on YOUR channel (slug host-stamped). Emitting to nobody is free. Payload ≤ 16 KiB. 360 emits per hour
-     *  per plugin; past that the emit rejects until the hour turns, whether anyone listens or not. */
+     *  per plugin; past that the emit rejects until the hour turns, whether anyone listens or not. A handler may
+     *  answer an announcement with one of its own, but an emit from inside that answer's own delivery rejects with
+     *  `PluginPubsubDepthError`, so plugins cannot wake each other, or themselves, in a loop. */
     emit: (name: string, data: Record<string, unknown>) => Promise<void>;
     /** Listen to one of the installer's plugins by slug. A slug not installed simply never fires. The
      *  handler runs with NO chat scope — put everything it needs in the payload. */

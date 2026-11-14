@@ -254,12 +254,17 @@ function drawResult(session: OracleSession, taken: readonly string[], narration:
 //      you cannot publish on another plugin's channel.
 //   3. A subscriber's handler runs with NO chat scope, so put everything it needs IN the payload (that is
 //      why `card` rides here rather than "go read my storage").
-// Guarded per-call: `plugin_events` may be unticked, and a decoration must never crash a draw.
+// Guarded per-call: `plugin_events` may be unticked, and a decoration must never crash a draw. The host refuses an
+// emit past its hourly ceiling or its delivery depth by throwing, after the cards are already claimed.
 async function announceDraw(cards: readonly string[], dealt: number, commitment: string): Promise<void> {
   if (!host.grants.includes("plugin_events")) {
     return;
   }
-  await host.pubsub.emit("draw", { cards, dealt, commitment, deckSize: DECK.length });
+  try {
+    await host.pubsub.emit("draw", { cards, dealt, commitment, deckSize: DECK.length });
+  } catch (err) {
+    host.log.info(`draw not announced: ${String(err)}`);
+  }
 }
 
 // ── the deck page's published state ────────────────────────────────────────────────────────────────────────

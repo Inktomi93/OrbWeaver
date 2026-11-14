@@ -188,6 +188,10 @@ export const PLUGIN_PUBSUB_SUBSCRIPTIONS_MAX = 32;
  *  `ui.setState` 16 KiB posture). It bounds the fan-out cost: one emit is re-delivered to every subscriber, so a
  *  tight per-emit cap is what keeps a fan-out bounded. Over cap is a REFUSAL (a rejected guest promise). */
 export const PLUGIN_PUBSUB_PAYLOAD_MAX_BYTES = 16_384;
+/** The deepest pubsub delivery an emit may open. An invocation no delivery started runs at depth 0, and a delivery runs
+ *  one deeper than the invocation whose emit opened it. So an announcement reaches its listeners and one reply from
+ *  them reaches theirs, and a plugin that wakes itself, or two that wake each other, stop there at any rate. */
+export const PLUGIN_PUBSUB_DELIVERY_DEPTH_MAX = 2;
 
 /** A UI surface the guest registered via `host.ui.register` — collected at activation
  *  (U1, seam 4). Unlike tools/transforms/events, a surface needs NO external registrar: it is READ directly off

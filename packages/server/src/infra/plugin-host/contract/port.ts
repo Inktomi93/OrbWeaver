@@ -84,7 +84,8 @@ export interface CreateLogicalInstanceInputIn extends CreateInstanceInputIn {
 export interface ProcessPluginHost extends AsyncDisposable {
   readonly createInstance: (input: CreateLogicalInstanceInputIn) => Promise<CreateInstanceOutcomeOut>;
   /** `phase` `display` runs a query's call: its bridge admits reads only, and it leaves an owed strike for the next
-   *  write-path call to pay. */
+   *  write-path call to pay. `pubsubDepth` is how many pubsub deliveries deep the call runs; only a delivery passes
+   *  one, and every other call runs at 0. */
   readonly invoke: (
     instance: PluginInstance,
     handler: PluginHandlerRef,
@@ -92,6 +93,7 @@ export interface ProcessPluginHost extends AsyncDisposable {
     chat?: InvocationChat | null,
     signal?: AbortSignal,
     phase?: PluginInvokePhase,
+    pubsubDepth?: number,
   ) => Promise<string>;
   readonly runSnippet: (input: {
     readonly code: string;
