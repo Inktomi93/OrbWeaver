@@ -1,6 +1,16 @@
 import { CARD_CORNERS, PASS_THROUGH, PLACED, tv, WIDTH } from "#lib";
 import type { Tone } from "#tokens";
 
+// THE PLACEHOLDER'S ONE RECIPE, for the avatar's fallback and for the art panes that stand in for a missing picture
+// (`monogramVariants`). The box is a size container, so the initials follow the box they stand in (`text.art-initial`,
+// a share of its shorter axis) from a chip to a card portrait. The initials are a pseudo-element painted from `data-initials`,
+// never a text node: axe's label-in-name rule reads visible text without honouring aria-hidden. The `depth` pigment under
+// them moves away from the ink and dissolves toward the edge, so the box's own fill is what meets its border.
+const MONOGRAM = `
+  @container-size flex items-center justify-center orb-avatar-depth font-sans font-semibold text-primary-foreground uppercase
+  before:content-[attr(data-initials)] before:text-art-initial before:leading-none
+`;
+
 // Avatar sizes ride display tokens, decoupled from control-height/touch-target tokens — an avatar that
 // IS a button composes inside `Button` and inherits its own hit area.
 export const avatarVariants = tv({
@@ -15,10 +25,7 @@ export const avatarVariants = tv({
     // per seed, which is a relative-color expression rather than a class — `avatar.tsx` sets it as the one
     // inline `backgroundColor` (see `hue.ts` for why a token/utility cannot carry it). The INK stays the
     // theme's own `primary-foreground`, so the pairing the palette already AA-sweeps is the one in use.
-    fallback: `
-      flex items-center justify-center bg-primary text-label leading-label font-medium text-primary-foreground uppercase block-full inline-full
-      before:content-[attr(data-initials)]
-    `,
+    fallback: `${PLACED.fill} ${MONOGRAM}`,
   },
   variants: {
     size: {
@@ -77,6 +84,14 @@ export const avatarVariants = tv({
     shape: "round",
     aspect: "square",
     ring: "none",
+  },
+});
+
+/** The initials of an art pane with no picture, over the pane's own fill. `pane` fills the box; `bandHead` is the solid head of a feathered band. */
+export const monogramVariants = tv({
+  base: MONOGRAM,
+  variants: {
+    seat: { pane: PLACED.fill, bandHead: `${PLACED.topBand} block-3/5` },
   },
 });
 

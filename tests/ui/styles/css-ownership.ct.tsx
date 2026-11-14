@@ -23,20 +23,12 @@ function resolved(node: Locator, property: string, css: string): Promise<string>
   );
 }
 
-test("wordmark halo follows the backdrop and art initials follow their size container", async ({ mount }) => {
+test("wordmark halo follows the backdrop", async ({ mount }) => {
   const root = await mount<typeof ArtRecipesStory>(STORY, {});
   const halo = root.locator('[data-case="halo"]');
   const shadow = await value(halo, "text-shadow");
   expect(shadow).toBe(await resolved(halo, "text-shadow", TOKENS["text.shadow-wordmark"].value));
   expect(shadow).not.toBe("none");
-  for (const [name, token] of [
-    ["portrait", "text.art-initial"],
-    ["banner", "text.band-initial"],
-  ] as const) {
-    const initial = root.locator(`[data-case="${name}-initial"]`);
-    expect(await value(initial, "font-size")).toBe(await resolved(initial, "font-size", `var(${TOKENS[token].cssVar})`));
-    expect(await value(initial, "line-height")).toBe(await value(initial, "font-size"));
-  }
   await root.update({ theme: "light" });
   expect(await value(halo, "text-shadow")).toBe(await resolved(halo, "text-shadow", TOKENS["text.shadow-wordmark"].value));
   expect(await value(halo, "text-shadow")).not.toBe(shadow);

@@ -4,7 +4,7 @@ import type { ReactElement, ReactNode } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { variantAttrs } from "#lib";
 import { AVATAR_PIGMENT, avatarFallbackHue, avatarFallbackHueColor } from "./hue.ts";
-import { AVATAR_EDGE_TONE, avatarVariants } from "./variants.ts";
+import { AVATAR_EDGE_TONE, avatarVariants, monogramVariants } from "./variants.ts";
 
 export interface AvatarProps extends Omit<BaseRootProps, "className">, VariantProps<typeof avatarVariants> {
   className?: string;
@@ -93,4 +93,10 @@ export function Avatar(props: AvatarProps): ReactElement {
       </BaseAvatar.Fallback>
     </BaseAvatar.Root>
   );
+}
+
+/** The Avatar fallback's initials and depth for an art pane that paints its own fill (a message's art tile or band), so the
+ *  placeholder is one recipe at every size. Decorative: hidden from the tree. */
+export function AvatarMonogram({ seat, children }: Pick<VariantProps<typeof monogramVariants>, "seat"> & { children: string }): ReactElement {
+  return <div aria-hidden={true} className={monogramVariants({ seat })} data-initials={children} data-pigment={AVATAR_PIGMENT} data-slot="avatar-monogram" />;
 }

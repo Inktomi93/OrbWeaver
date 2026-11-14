@@ -240,7 +240,6 @@
   --immersive-document-last-row-min-height: 4.375rem;
   --immersive-ripple-portrait-width-phone: 6.25rem;
   --immersive-initial-cqmin: 50;
-  --immersive-band-initial-cqmin: 70;
   --reading-bubble-share: 80%;
   --reading-tide-share: 70%;
   --reading-tide-share-phone: 90%;
@@ -420,7 +419,6 @@
   --reading-bubble-share-cap: min(var(--reading-bubble-share), var(--reading-bubble-cap));
   --reading-tide-share-cap: min(var(--reading-tide-share), var(--reading-bubble-cap));
   --text-art-initial: calc(var(--immersive-initial-cqmin) * 1cqmin);
-  --text-band-initial: calc(var(--immersive-band-initial-cqmin) * 1cqmin);
 }
 
 @theme reference {
@@ -903,6 +901,7 @@
     --pigment-avatar-3: oklch(from color-mix(in oklab, var(--color-primary) 93%, oklch(from var(--color-primary-foreground) clamp(0, calc((0.5 - l) * 1000), 1) 0 0) 7%) l calc(c * 0.95) h);
     --pigment-avatar-4: oklch(from color-mix(in oklab, var(--color-primary) 96.5%, oklch(from var(--color-primary-foreground) clamp(0, calc((0.5 - l) * 1000), 1) 0 0) 3.5%) l calc(c * 0.62) h);
     --pigment-avatar-5: oklch(from color-mix(in oklab, var(--color-primary) 100%, oklch(from var(--color-primary-foreground) clamp(0, calc((0.5 - l) * 1000), 1) 0 0) 0%) l calc(c * 1) h);
+    --pigment-avatar-depth: oklch(from color-mix(in oklab, var(--color-primary) 72%, oklch(from var(--color-primary-foreground) clamp(0, calc((0.5 - l) * 1000), 1) 0 0) 28%) l calc(c * 1.1) h);
   }
 
   [data-pigment="swatch-ladder"] {

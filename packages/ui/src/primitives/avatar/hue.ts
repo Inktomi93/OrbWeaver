@@ -40,6 +40,10 @@ const HASH_MOD = 2_147_483_647;
 // away from the ink can only raise the pair's contrast, so every bucket keeps at least the primary↔ink contrast the
 // ThemeScope clamp already sweeps. DIFFERENTIATION ALSO RIDES CHROMA (0.5× … 1.1×), alternating rich/washed down the
 // ramp so two neighbouring buckets never differ on one axis alone. Bucket 5 is the primary itself.
+//
+// THE `depth` STEP is the same move taken further (28% toward the extreme away from the ink). The fallback paints it as a
+// radial gradient that dissolves to nothing at the box's edge, so a card-size placeholder reads as a lit surface under its
+// initials and not as a flat swatch, while the edge keeps the bucket's own fill.
 
 /** The pigment scope a consumer of {@link avatarFallbackHueColor} stamps as `data-pigment`. */
 export const AVATAR_PIGMENT = "avatar" satisfies PigmentScope;
