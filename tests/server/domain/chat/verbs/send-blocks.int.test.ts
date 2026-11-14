@@ -192,6 +192,8 @@ test("a blocks body rides every later turn through swipe, edit, fork, duplicate 
   if (file === null || descriptor === undefined) {
     throw new Error("the production graph produced no chat bundle or descriptor");
   }
+  // The source room moves on after its export, so the file is an older room and lands beside it (D290).
+  await box.caller.chat.commitMessage({ chatId: box.chatId, timeZone: UTC_TIME_ZONE, content: "A line after the export." });
   const imported = await descriptor.importFile(box.root.ownerId, file);
   const importedId = imported.memoryChatIds?.[0];
   if (importedId === undefined) {
