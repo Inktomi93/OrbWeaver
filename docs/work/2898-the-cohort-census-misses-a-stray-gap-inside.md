@@ -1,5 +1,5 @@
 ---
-kind: decision
+kind: tooling
 status: open
 updated: 2026-11-14
 priority: P3
@@ -11,7 +11,7 @@ plan: checked-law
 
 ## What
 
-The row cohort census in `tooling/src/ui-audit/ops/walker/census-cohort.ts` measures a member whose children stack by its content extent, which item 2325 ruled so an open group is not reported. A member whose second stacked child carries a stray top margin is no longer reported either; a review probe showed main reported it and the merged tree does not.
+Ruled: the census measures summed child heights on the stacking axis. The row cohort census in `tooling/src/ui-audit/ops/walker/census-cohort.ts` measures a member whose children stack by its content extent, so an open group is not reported; a member whose second stacked child carries a stray top margin is no longer reported either. Summing child heights keeps the open group excused and reports the stray gap.
 
 ## Why
 
@@ -19,7 +19,7 @@ The ruling traded one false finding for one blind spot, and nobody chose the bli
 
 ## Done when
 
-The owner rules whether the census measures summed child heights on the stacking axis, which keeps the open group excused and reports the gap, and a fixture covers the ruled form.
+A fixture with a stray top margin inside a stacked member is reported, the open-group fixture stays excused, and the census runs clean on the product or each new finding is fixed at its site.
 
 ## Evidence
 
