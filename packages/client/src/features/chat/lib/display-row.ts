@@ -24,9 +24,9 @@ const REASONING_TARGET = "REASONING" satisfies DisplayRowCall["target"];
 const SYSTEM_ROLE = "system" satisfies MessageView["role"];
 type DepthItem = { readonly kind: "message"; readonly view: Pick<MessageView, "id" | "role" | "excludedFromPrompt"> } | { readonly kind: "ghost" };
 
-/** Each row's display depth, the settled rows by id and the live ghost apart. */
+/** Each row's display depth, the settled rows by id and the live ghost apart. A row the count skips has no entry. */
 export interface DisplayDepths {
-  readonly rows: ReadonlyMap<MessageId, number | undefined>;
+  readonly rows: ReadonlyMap<MessageId, number>;
   readonly ghost: number | undefined;
 }
 
@@ -52,7 +52,7 @@ export function ghostStamps(kind: MessageKind, characterId: CharacterId | null):
 /** Each row's display depth over the merged item list, newest last; see the file header for what the count admits. */
 export function displayDepthsOf(items: readonly DepthItem[], edges: Pick<TranscriptEdges, "later" | "settling">): DisplayDepths {
   const reachesTail = !(edges.later || edges.settling);
-  const rows = new Map<MessageId, number | undefined>();
+  const rows = new Map<MessageId, number>();
   let ghost: number | undefined;
   let next = 0;
   for (let index = items.length - 1; index >= 0; index -= 1) {
@@ -68,7 +68,6 @@ export function displayDepthsOf(items: readonly DepthItem[], edges: Pick<Transcr
       continue;
     }
     if (!counted || item.view.role === SYSTEM_ROLE || item.view.excludedFromPrompt) {
-      rows.set(item.view.id, undefined);
       continue;
     }
     rows.set(item.view.id, next);
@@ -79,7 +78,7 @@ export function displayDepthsOf(items: readonly DepthItem[], edges: Pick<Transcr
 
 /** The room's present human seats and the authority each holds, as an author scope reads a row's standing. A seat
  *  that has left, and a seat with no user, holds no standing. */
-export function roomStandingOf(participants: readonly ParticipantView[]): RoomStanding {
+export function roomStandingOf(participants: readonly Pick<ParticipantView, "userId" | "leftSeq" | "role">[]): RoomStanding {
   return {
     seatedRoles: Object.fromEntries(participants.flatMap((seat) => (seat.userId === null || seat.leftSeq !== null ? [] : [[seat.userId, seat.role] as const]))),
   };
