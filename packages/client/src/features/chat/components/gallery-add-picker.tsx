@@ -16,7 +16,7 @@ import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { PickerDialog } from "#components";
+import { DialogFailure, PickerDialog } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { DIALOG_VERBS } from "#lib";
@@ -198,11 +198,7 @@ function OwnedAssetPicker({ characterId, failure, isOwned, onConfirm, onUploadIn
         failed={candidates.error !== null && candidates.items.length > 0}
         onLoadMore={focus.loadMore}
       />
-      {failure === null ? null : (
-        <Text tone="destructive" role="alert" voice="label">
-          {failure}
-        </Text>
-      )}
+      {failure === null ? null : <DialogFailure>{failure}</DialogFailure>}
       {/* The count never breaks inside itself; at a phone's width the buttons wrap below it instead. */}
       <DialogFooter>
         <Text voice="gloss" push="inlineStart" whitespace="nowrap">

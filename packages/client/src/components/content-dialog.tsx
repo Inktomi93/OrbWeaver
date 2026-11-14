@@ -4,9 +4,9 @@ import { Icon, X } from "@orb/ui/icons";
 import type { StackProps } from "@orb/ui/layout";
 import { DialogBody, Row } from "@orb/ui/layout";
 import type { ComponentProps, ReactElement, ReactNode, Ref } from "react";
+import type { NonEmptyLabel } from "#lib";
 import { DIALOG_VERBS } from "#lib";
 import { CommitRow } from "./commit-row.tsx";
-import type { NonEmptyLabel } from "./non-empty-label.ts";
 
 type DialogPopupProps = ComponentProps<typeof DialogPopup>;
 // The popup's look rides on named props of the composite, so the variant census reads the DialogPopup they land on.

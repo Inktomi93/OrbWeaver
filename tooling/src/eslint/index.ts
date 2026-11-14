@@ -7,6 +7,7 @@ import { confirmedActionMintRule } from "./confirmed-action-mint.ts";
 import type { CustomPropertyUses } from "./css/custom-properties.ts";
 import { derivedPortMemberRule } from "./derived-port.ts";
 import { destructiveNeedsConfirmRule } from "./destructive-confirm.ts";
+import { dialogFailureViaOwnerRule } from "./dialog-failure.ts";
 import { enforcementClaimRule } from "./enforcement-claim.ts";
 import { assumesSingleReplicaRule, commentedCodeRule, sideGenSamplingRule, wireJsonRule } from "./general.ts";
 import { DB_SCHEMA_RESTRICTIONS, SERVER_HARD_RESTRICTIONS, TYPE_SHAPE_RESTRICTIONS } from "./general-policy.ts";
@@ -305,6 +306,7 @@ export function createOrbPlugin(options: {
       "no-direct-row-reads": directRowReadRule,
       "no-context-returntype": contextReturnTypeRule,
       "prefer-to-sorted": preferToSortedRule,
+      "dialog-failure-via-owner": dialogFailureViaOwnerRule,
       "no-raw-id": rawIdRule,
       "closed-vocabulary": closedVocabularyRule,
       "no-query-state-ladder": queryStateLadderRule,

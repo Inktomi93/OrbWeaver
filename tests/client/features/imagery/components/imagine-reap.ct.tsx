@@ -1,6 +1,6 @@
 // The Imagine panel's picture can be a new room's first act: the server claims the room only after the picture is
 // made, so leaving the room during the call must not reap it, while leaving an untouched new room still does.
-// @subject packages/client/src/features/imagery/components/imagine-body.tsx
+// @subject packages/client/src/features/imagery/hooks/use-imagine-commit.tsx
 // @subject packages/client/src/state/active-chat-store.ts
 
 import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";

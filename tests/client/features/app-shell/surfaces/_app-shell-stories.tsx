@@ -6,7 +6,7 @@ import { notify } from "@orb/client/lib";
 import type { ModalSlotId } from "@orb/client/state";
 import { dockListPanel, openModal, openNewChatPicker, selectCharacter, selectChatFromList } from "@orb/client/state";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { CtClientProviders } from "@orb/testkit/browser";
+import { CtClientProviders, CtModalAsDrawer } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
@@ -134,6 +134,18 @@ export function AppShellModalStory({ modalId }: { readonly modalId: ModalSlotId 
     <CtClientProviders>
       <OpenModalOnMount modalId={modalId} />
       <AppShell />
+    </CtClientProviders>
+  );
+}
+
+/** The production shell with one registered modal opened in the phone drawer, the host's other presentation. */
+export function AppShellModalAsDrawerStory({ modalId }: { readonly modalId: ModalSlotId }): ReactElement {
+  return (
+    <CtClientProviders>
+      <OpenModalOnMount modalId={modalId} />
+      <CtModalAsDrawer modalId={modalId}>
+        <AppShell />
+      </CtModalAsDrawer>
     </CtClientProviders>
   );
 }

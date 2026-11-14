@@ -288,7 +288,7 @@ export {
 } from "./message-selection-store.ts";
 export { MessageToolsRendererRegistryContext } from "./message-tools-renderer-registry-context.ts";
 export { MessageToolsRendererRegistryProvider } from "./message-tools-renderer-registry-provider.tsx";
-export type { ModalDefinition } from "./modal-registry.ts";
+export type { ModalCommit, ModalDefinition } from "./modal-registry.ts";
 export { useModalRegistry } from "./modal-registry-context.ts";
 export { ModalRegistryProvider } from "./modal-registry-provider.tsx";
 export type { ModalSlotId } from "./modal-slot-ids.ts";

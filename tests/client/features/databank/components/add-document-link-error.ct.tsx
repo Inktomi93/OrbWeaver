@@ -1,8 +1,9 @@
-// @subject packages/client/src/features/databank/components/add-document-body.tsx
-import { watchToastMounts } from "@orb/testkit/browser/spec";
+// @subject packages/client/src/features/databank/hooks/use-add-document-commit.tsx
+import { fontSizeAgainstStep, watchToastMounts } from "@orb/testkit/browser/spec";
 import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import {
   DATABANK_FETCH_ADD_NAME,
   DATABANK_FROM_LINK_NAME,
@@ -27,6 +28,10 @@ test("a failed link fetch is said by the form's own line, and no toast repeats i
 
   const failure = page.getByRole("alert").filter({ hasText: "Couldn't fetch that link. Check the address, then try again." });
   await expect(failure).toBeVisible();
+  // The failure line reads at the body step, the dialog description's own.
+  const lineSize = await fontSizeAgainstStep(failure, TOKENS["text.body"].cssVar);
+  expect(lineSize.step).toBeGreaterThan(0);
+  expect(lineSize.own).toBe(lineSize.step);
   // The line is announced, and the Link field points at it and reads as invalid.
   const link = page.getByRole("textbox", { name: DATABANK_LINK_FIELD_NAME, exact: true });
   await expect(link).toHaveAttribute("aria-invalid", "true");

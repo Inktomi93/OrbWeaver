@@ -46,6 +46,24 @@ export function namedGroupRoom<const TRow extends { readonly title: string | nul
 
 export const SHELL_STORIES = "tests/client/features/app-shell/surfaces/_app-shell-stories";
 
+/** Past Home: the Chats section, the reads the Add document and imagine modal bodies make, and the shell's theme reads. */
+export const MODAL_SHELL_READS = [
+  "sessions.me",
+  "chat.listChats",
+  "chat.countChats",
+  "chat.getChat",
+  "character.list",
+  "rosterPreset.list",
+  "databank.listGlobal",
+  "worldInfo.listBooks",
+  "settings.getUserSettings",
+  "settings.listThemes",
+  "settings.getTheme",
+  "notifications.markAllRead",
+  "plugin.list",
+  "plugin.listSurfaces",
+] as const satisfies readonly ServedPath[];
+
 /** The ⌘K chip's accessible name leads with the word and carries the platform shortcut after it. */
 export const JUMP_CHIP = new RegExp(`^${RegExp.escape(COMMAND_CHIP_NAME_LEAD)} \\(`, "u");
 

@@ -22,6 +22,12 @@ export const IMAGINE_PROMPT_NAME = "Image prompt";
 /** The image edit dialog's instruction field. */
 export const IMAGE_EDIT_INSTRUCTION_NAME = "Edit instruction";
 
+/** The image edit dialog's submit, by whether the edit is running. */
+const IMAGE_EDIT_GENERATE_NAME = "Generate edit";
+export function imageEditGenerateLabel(editing: boolean): string {
+  return editing ? "Editing…" : IMAGE_EDIT_GENERATE_NAME;
+}
+
 /** What each imagery dialog says when it was opened with nothing to work on. */
 export const IMAGINE_EMPTY_TEXT = "Nothing to imagine.";
 export const IMAGE_DETAIL_EMPTY_TEXT = "No image selected.";

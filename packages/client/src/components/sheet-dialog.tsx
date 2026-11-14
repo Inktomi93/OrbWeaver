@@ -5,6 +5,7 @@ import { Button } from "@orb/ui/button";
 import { DialogHeader } from "@orb/ui/dialog";
 import { Drawer, DrawerClose, DrawerPopup, DrawerTitle, DrawerVirtualKeyboardProvider } from "@orb/ui/drawer";
 import { Icon, X } from "@orb/ui/icons";
+import { Row } from "@orb/ui/layout";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { DIALOG_VERBS } from "#lib";
 
@@ -15,6 +16,8 @@ export interface SheetDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (nextOpen: boolean) => void;
   readonly title: ReactNode;
+  /** The title's id, for a body that names itself by the title (a commit modal's form). */
+  readonly titleId?: string;
   /** Themed portal target; Base UI portals the sheet here so it inherits the active theme's tokens. */
   readonly container?: DrawerPopupProps["container"];
   /** Where focus goes on close; `false` leaves it where it is. */
@@ -30,14 +33,17 @@ export interface SheetDialogProps {
  * `interactive-widget=resizes-content` is inert there. A body that pins an input to the sheet's foot reads
  * `var(--drawer-keyboard-inset, 0px)`, always with the `0px` fallback: the provider sets it only while the keyboard is aligned.
  */
-export function SheetDialog({ open, onOpenChange, title, container, finalFocus, modal, children }: SheetDialogProps): ReactElement {
+export function SheetDialog({ open, onOpenChange, title, titleId, container, finalFocus, modal, children }: SheetDialogProps): ReactElement {
   return (
     <Drawer open={open} onOpenChange={onOpenChange} {...(modal === undefined ? {} : { modal })}>
       <DrawerVirtualKeyboardProvider>
         <DrawerPopup {...(container === undefined ? {} : { container })} {...(finalFocus === undefined ? {} : { finalFocus })}>
-          {/* sticky so the title and Close stay in view as the popup's own scroll region scrolls. */}
-          <DialogHeader sticky={true}>
-            <DrawerTitle>{title}</DrawerTitle>
+          {/* Sticky so the title and Close stay in view as the sheet scrolls, except where the short-box law scrolls them away. Beside
+              Close the title wraps by its words and keeps Close on its line until a word cannot fit, as a dialog's does. */}
+          <DialogHeader sticky={true} wrap={true}>
+            <Row align="center" grow={true} minWidth="word">
+              <DrawerTitle {...(titleId === undefined ? {} : { id: titleId })}>{title}</DrawerTitle>
+            </Row>
             <DrawerClose
               render={
                 <Button variant="ghost" square={true} aria-label={DIALOG_VERBS.close}>

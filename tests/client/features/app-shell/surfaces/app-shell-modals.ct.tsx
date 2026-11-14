@@ -296,23 +296,24 @@ test.describe("on the corpus owner's own settings", () => {
           .last()
           .evaluate((button, cancel) => {
             const strip = button.parentElement;
-            // The arm's own region carries the floor; a submit arm wraps it in a form, so it is found by its slot, not by its place.
-            const region = button.closest('[role="dialog"]')?.querySelector('[data-slot="add-document-arm"]');
-            const footer = region?.querySelector('[data-slot="dialog-footer"]');
+            // The arm's own region carries the floor, and the host's one footer follows it.
+            const popup = button.closest('[role="dialog"]');
+            const region = popup?.querySelector('[data-slot="add-document-arm"]');
+            const footer = popup?.querySelector('[data-slot="dialog-footer"]');
             const regionBox = region?.getBoundingClientRect();
             const floor = region === null || region === undefined ? 0 : Number.parseFloat(getComputedStyle(region).minHeight);
             return {
               strip: strip?.getBoundingClientRect().y ?? Number.NaN,
-              footerGap: (regionBox?.bottom ?? Number.NaN) - (footer?.getBoundingClientRect().bottom ?? Number.NaN),
+              footerGap: (footer?.getBoundingClientRect().top ?? Number.NaN) - (regionBox?.bottom ?? Number.NaN),
               regionShort: floor - (regionBox?.height ?? Number.NaN),
-              cancels: [...(region?.querySelectorAll("button") ?? [])].filter((candidate) => candidate.textContent === cancel).length,
+              cancels: [...(footer?.querySelectorAll("button") ?? [])].filter((candidate) => candidate.textContent === cancel).length,
             };
           }, DIALOG_VERBS.cancel),
       );
     }
     const ys = arms.map((arm) => arm.strip);
     expect(Math.max(...ys) - Math.min(...ys)).toBeLessThanOrEqual(1);
-    // Every arm hangs its footer at the same distance from the reserved floor, so a short arm leaves no void under Cancel.
+    // Every arm ends at its reserved floor and the footer follows at the same distance, so Cancel holds one y across modes.
     const gaps = arms.map((arm) => arm.footerGap);
     expect(Math.max(...gaps) - Math.min(...gaps)).toBeLessThanOrEqual(1);
     expect(arms.map((arm) => ({ floorKept: arm.regionShort <= 1, cancels: arm.cancels }))).toStrictEqual(arms.map(() => ({ floorKept: true, cancels: 1 })));

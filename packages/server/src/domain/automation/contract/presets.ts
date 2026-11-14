@@ -311,7 +311,7 @@ const SCENE_BACKGROUND_COOLDOWN_SECONDS = 300;
 const ILLUSTRATE_MODES = ["scenario", "background"] as const satisfies readonly PromptTemplateMode[];
 
 /** Host labels for the illustration modes — the same words the `/imagine` surface uses for the same wire
- *  values (`features/imagery/components/imagine-body.tsx`'s `MODE_LABELS`), so one concept has one name
+ *  values (`IMAGE_MODE_LABELS` in `packages/client/src/lib/image-size-copy.ts`), so one concept has one name
  *  across the app. */
 const ILLUSTRATE_MODE_LABELS = {
   scenario: "Scene",

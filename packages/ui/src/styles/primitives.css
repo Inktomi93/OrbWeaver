@@ -16,6 +16,11 @@
 @custom-variant dialog-tiny (@container dialog (height <= 14rem));
 @custom-variant dialog-roomy (@container dialog (height > 26rem) and (width > 12rem));
 
+/* A phone sheet reads the same short-box law from its own viewport, the room above the tab bar: the same cq-24 and cq-14 height steps,
+ * named for the sheet because the dialog arms above also retune a popup's own insets, which a sheet does not have. */
+@custom-variant sheet-short (@container sheet (height <= 24rem));
+@custom-variant sheet-tiny (@container sheet (height <= 14rem));
+
 /* A stacked dialog whose height cannot hold a picker's pinned row with two actions over one whole row of its list; there the row stops
  * pinning (`PINNED.dialogFooter`), so nothing it seats covers the list. Every term is a rem size, so each case is one height step at any
  * text scale: the popup's two field insets (a stacked popup's at any width), the header (Close, its inset and the row gap), the search
@@ -203,6 +208,11 @@
   /* `fixed inset-0` gives the dialog viewport a definite height, so size containment changes nothing about its layout. */
   [data-slot="dialog-viewport"] {
     container: dialog / size;
+  }
+
+  /* The drawer viewport is `fixed inset-0` too, less the tab bar's inset, so its size containment changes nothing either. */
+  [data-slot="drawer-viewport"] {
+    container: sheet / size;
   }
 
   /* The ceiling rides a custom property, never an inline max-height. Declared in layer ui, it loses to any unlayered

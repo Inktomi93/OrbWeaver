@@ -4,7 +4,8 @@
 
 import type { DialogPopupProps } from "@orb/ui/dialog";
 import type { LucideIcon } from "@orb/ui/icons";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
+import type { DialogSubmit } from "#lib";
 import type { ModalSlotId } from "./modal-slot-ids.ts";
 import type { MobileCuration } from "./section-registry.ts";
 
@@ -37,8 +38,19 @@ interface ModalTrigger {
   readonly mobile?: MobileCuration;
 }
 
-/** A modal as ONE definition. `body` is a real feature-owned render, or the DECLARED-PLANNED arm
- *  (`{ planned: "<reason>" }`) — mirror SectionDefinition O1; a placeholder body is unspellable. */
+/** What a committing modal's body hook returns. The host draws the footer from it, so a body that commits cannot
+ *  leave out its submit or draw a footer of its own. */
+export interface ModalCommit {
+  /** The body, which the host wraps in the dialog's form so Enter submits it. */
+  readonly content: ReactNode;
+  readonly submit: DialogSubmit;
+  /** Controls that act on the body without committing it, led into the footer before Cancel. */
+  readonly footerLead?: ReactNode;
+}
+
+/** A modal as ONE definition. `body` is a real feature-owned render, a commit (`{ useCommit }`, a hook the host calls in
+ *  a component keyed by the modal id, whose submit the host draws as Cancel and the submit), or the DECLARED-PLANNED
+ *  arm (`{ planned: "<reason>" }`) — mirror SectionDefinition O1; a placeholder body is unspellable. */
 export type ModalDefinition = {
   readonly id: ModalSlotId;
   /** The dialog heading (a noun, e.g. "Theme") — distinct from `trigger.label` (the affordance's
@@ -48,7 +60,7 @@ export type ModalDefinition = {
   /** Feature-owned cleanup that must run when shell chrome dismisses the modal. Component unmount
    *  cleanup is not equivalent: React Strict Mode probes it while the modal is still logically open. */
   readonly onClose?: () => void;
-  readonly body: (() => ReactElement) | { readonly planned: string };
+  readonly body: (() => ReactElement) | { readonly useCommit: () => ModalCommit } | { readonly planned: string };
 } & (
   | {
       /** The width of a centered dialog. */

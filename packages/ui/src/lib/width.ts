@@ -82,8 +82,9 @@ export const MIN_HEIGHT = {
   // In a roomy dialog a picker's footer is never shorter than one row, with a Clear search or without, so the list above it gives up one footer
   // however the footer reads. A shorter dialog gives its rows the room a short footer leaves.
   holdsPickerFooter: "dialog-roomy:min-block-(--height-picker-footer)",
-  // A truncating box has no automatic minimum, so a scrolling column squeezes its line to nothing; this holds the line.
-  holdsLineOnLandscape: "dialog-short:glass-short:min-block-min",
+  // A truncating box has no automatic minimum, so a scrolling column squeezes its line to nothing; this holds the line. A short phone sheet's
+  // title truncates by the same law (ui-platform-rulings §8.1), so it holds its line there too.
+  holdsLineOnLandscape: "dialog-short:glass-short:min-block-min sheet-short:glass-short:min-block-min",
   viewport: "min-block-dvh",
   full: "min-block-full",
   control: "min-block-(--size-control-sm)",
@@ -113,6 +114,7 @@ export const MIN_WIDTH = {
   popupFloor: "min-inline-(--width-popup-floor)",
   composerField: "min-inline-(--dimension-composer-field-min)",
   title: "min-inline-(--width-title-floor)",
-  // The longest word: a flex line breaks before the box would split one. A landscape phone's dialog header holds one line, so there the box truncates.
-  word: "min-inline-min dialog-short:glass-short:min-inline-0",
+  // The longest word: a flex line breaks before the box would split one. A landscape phone's dialog header, and a short phone sheet's, holds one
+  // line, so there the box truncates.
+  word: "min-inline-min dialog-short:glass-short:min-inline-0 sheet-short:glass-short:min-inline-0",
 } as const;

@@ -3,10 +3,9 @@
 // never a chrome affordance. onClose drops the edit subject.
 
 import { WandSparkles } from "@orb/ui/icons";
-import type { ReactElement } from "react";
 import type { ModalDefinition } from "#state";
 import { clearEditSubject } from "#state";
-import { ImageEditBody } from "../components/image-edit-body.tsx";
+import { useImageEditCommit } from "../hooks/use-image-edit-commit.tsx";
 import { IMAGE_EDIT_NAME } from "./imagine-names.ts";
 
 export const imageEditModal: ModalDefinition = {
@@ -15,5 +14,5 @@ export const imageEditModal: ModalDefinition = {
   size: "lg",
   trigger: { placement: "surface", label: IMAGE_EDIT_NAME, icon: WandSparkles },
   onClose: clearEditSubject,
-  body: (): ReactElement => <ImageEditBody />,
+  body: { useCommit: useImageEditCommit },
 };

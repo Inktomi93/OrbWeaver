@@ -1,8 +1,11 @@
 // A refused schedule create is said once, in the dialog that stays open.
+
 import { testId } from "@orb/client/lib";
+import { fontSizeAgainstStep } from "@orb/testkit/browser/spec";
 import { ALERTS_REGION_NAME, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import { WORKLOAD_KIND_LABELS } from "#client/features/workloads/lib/workloads-model.ts";
 import { SCHEDULE_CREATE_FAILED, SCHEDULE_CREATE_NAME, WORKLOAD_JOB_FIELD_NAME } from "#client/features/workloads/lib/workloads-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
@@ -32,6 +35,10 @@ test("a refused schedule create is said in the open dialog, and the submit adds 
   await dialog.getByRole("button", { name: SCHEDULE_CREATE_NAME, exact: true }).click();
   await expect(dialog.getByText(SCHEDULE_CREATE_FAILED, { exact: true })).toBeVisible();
   await expect(dialog.getByRole("button", { name: SCHEDULE_CREATE_NAME, exact: true })).toBeEnabled();
+  // The failure line reads at the body step, the dialog description's own.
+  const lineSize = await fontSizeAgainstStep(dialog.getByText(SCHEDULE_CREATE_FAILED, { exact: true }), TOKENS["text.body"].cssVar);
+  expect(lineSize.step).toBeGreaterThan(0);
+  expect(lineSize.own).toBe(lineSize.step);
   // The mutation's toast is the only other message: the submit's rethrow adds none.
   await expect(page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true }).getByRole("alert")).toHaveCount(1);
 });

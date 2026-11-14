@@ -15,11 +15,10 @@ import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import { Stack } from "@orb/ui/layout";
 import type { SelectOption } from "@orb/ui/select";
-import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { z } from "zod";
-import { FormDialogPopup, FormDialogRoot, ModelRunConfirmDialog, useModelRunConfirm } from "#components";
+import { DialogFailure, FormDialogPopup, FormDialogRoot, ModelRunConfirmDialog, useModelRunConfirm } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { timeLib } from "#lib";
@@ -217,11 +216,7 @@ function RunWorkloadFormBody({
           ) : null
         }
       </form.Subscribe>
-      {start.error === null ? null : (
-        <Text role="alert" tone="destructive" voice="label">
-          Couldn't start the workload. A run of that kind may already be active.
-        </Text>
-      )}
+      {start.error === null ? null : <DialogFailure>Couldn't start the workload. A run of that kind may already be active.</DialogFailure>}
       <ModelRunConfirmDialog {...paidRun.dialog} nested={true} />
     </FormDialogPopup>
   );

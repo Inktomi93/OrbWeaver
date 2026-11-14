@@ -32,10 +32,9 @@ import { FileText, Icon, Search } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
-import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { DismissDialog, QueryBoundary } from "#components";
+import { DialogFailure, DismissDialog, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { CLEAR_SEARCH_NAME, DIALOG_VERBS, NO_MATCHES_TITLE, SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
 import { useAttachDocumentToChat } from "../hooks/use-chat-document-mutations.ts";
@@ -211,11 +210,7 @@ function PickerCandidates({
           title={document.name}
         />
       ))}
-      {failure === null ? null : (
-        <Text tone="destructive" role="alert" voice="label">
-          {failure}
-        </Text>
-      )}
+      {failure === null ? null : <DialogFailure>{failure}</DialogFailure>}
     </Stack>
   );
 }

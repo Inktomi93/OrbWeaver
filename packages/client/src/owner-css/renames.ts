@@ -59,6 +59,8 @@ export const OWNER_CSS_RENAMES: readonly OwnerCssRename[] = [
   { kind: "slot", name: "table-select-header", to: null },
   // The shared error block replaced it on every read, so a one-to-one rename would restyle every failed read.
   { kind: "slot", name: "provenance-error", to: null, see: "query-error" },
+  // Every dialog's failure line is one shared owner now, so a one-to-one rename would restyle every dialog's failure.
+  { kind: "slot", name: "confirm-dialog-failure", to: null, see: "dialog-failure" },
   { kind: "token", name: "--breakpoint-shell-short", to: null },
   { kind: "token", name: "--stroke-width-icon-hairline", to: null },
   { kind: "token", name: "--height-picker-art-square", to: null },

@@ -9,10 +9,9 @@ import { externalIdSchema } from "@orb/contracts/identity";
 import type { UserId } from "@orb/kit/ids";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
-import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { FormDialogPopup, FormDialogRoot } from "#components";
+import { DialogFailure, FormDialogPopup, FormDialogRoot } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { notify, testId } from "#lib";
 import { useLinkSsoIdentity } from "../hooks/use-admin-mutations.ts";
@@ -66,9 +65,7 @@ function LinkSsoBody({ handle, userId, onDone }: { readonly handle: string; read
         <Input autoComplete="off" onValueChange={(value): void => setSubject(value)} value={subject} data-testid={testId("adminLinkSsoSubject")} />
       </Field>
       {link.error !== null ? (
-        <Text role="alert" tone="destructive" voice="label">
-          Couldn't link that identity. The subject may already be linked to another account, or this row is already bound.
-        </Text>
+        <DialogFailure>Couldn't link that identity. The subject may already be linked to another account, or this row is already bound.</DialogFailure>
       ) : null}
     </FormDialogPopup>
   );

@@ -64,7 +64,7 @@ function ImageDetail({ subject }: { readonly subject: ImageSubject }): ReactElem
         // THE SUCCESS TOAST BELONGS TO THE SETTLED WRITE (#623 P1). It used to fire on the line after a
         // fire-and-forget `.mutate(...)`, so a REFUSED write (the host-only gate, the asset-ownership gate)
         // painted the mutation's `errorToast` AND "Set as chat background" together and the viewer could not
-        // tell which was true. Awaiting `mutateAsync` is the sibling shape `image-edit-body.tsx` already uses.
+        // tell which was true. Awaiting `mutateAsync` is the sibling shape `../hooks/use-image-edit-commit.tsx` already uses.
         // The rejection stops HERE deliberately, and that is not an error swallowed: `useSetChatBackground`
         // carries `errorToast: "Couldn't set the chat background."`, which IS the handling — re-throwing would
         // reach the outer `.catch` below and re-open the double toast from the other side. Awaited (not

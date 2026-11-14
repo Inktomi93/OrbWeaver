@@ -1,4 +1,4 @@
-// @subject packages/client/src/features/imagery/components/image-edit-body.tsx
+// @subject packages/client/src/features/imagery/hooks/use-image-edit-commit.tsx
 // The image edit dialog's Back control returns to the detail dialog on the same image.
 
 import type { ImageSubject } from "@orb/client/state";

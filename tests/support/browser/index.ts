@@ -13,6 +13,7 @@ export {
 } from "./ct-door.ts";
 export { CtIsolation } from "./ct-isolated-subject.tsx";
 export { isolationRegistry } from "./ct-isolation.ts";
+export { CtModalAsDrawer, CtModalCommit } from "./ct-modals.tsx";
 export { CtNoticeControl } from "./ct-notice-control.tsx";
 export { CtProviders } from "./ct-providers.tsx";
 export { SettingsCompositionStory } from "./ct-settings-composition-stories.tsx";

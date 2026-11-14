@@ -7,9 +7,8 @@
 // attempt's values.
 
 import { handleSchema, MIN_PASSWORD_LENGTH } from "@orb/contracts/identity";
-import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { FormDialogPopup, FormDialogRoot } from "#components";
+import { DialogFailure, FormDialogPopup, FormDialogRoot } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { ACCOUNT_HANDLE_FIELD_NAME, ACCOUNT_PASSWORD_FIELD_NAME } from "#lib";
 import { useCreateUser } from "../hooks/use-admin-mutations.ts";
@@ -85,11 +84,7 @@ function CreateUserFormBody({ viewerIsOwner, onDone }: { readonly viewerIsOwner:
           {(field): ReactElement => <field.SelectField label="Role" description="Admins manage users, jobs, and system settings." items={ROLE_ITEMS} />}
         </form.AppField>
       ) : null}
-      {createUser.error === null ? null : (
-        <Text role="alert" tone="destructive" voice="label">
-          Couldn't create the user. That handle may already be taken.
-        </Text>
-      )}
+      {createUser.error === null ? null : <DialogFailure>Couldn't create the user. That handle may already be taken.</DialogFailure>}
     </FormDialogPopup>
   );
 }
