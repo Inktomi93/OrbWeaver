@@ -19,11 +19,13 @@ const PROVIDER = "custom-openai";
 const TEXT_200 = 2;
 // Letters and digits only, so the only break a browser can take inside it is one at a slash; each segment fits a line.
 const SLASHED_MODEL = "vendorlab/familytuned/instruct2025";
-// Prefixes of one phrase, a character longer each. The dot lands at the head of a line only when the words before it
-// fill the line to within the width of " ·", so a run of lengths reaches that window at any width the list has.
-const PHRASE = "lorem ipsum dolor sit amet consectetur adipiscing elit";
-const FIRST_PREFIX = 8;
-const LAST_PREFIX = 30;
+// The dot lands at the head of a line only when the words before it fill the line to within the width of " ·", a window
+// a few pixels wide. Text scale moves every label's width continuously against the list's fixed line width, so a fine
+// sweep of it reaches that window.
+const LABEL = "lorem ipsum dolor sit amet consectetur";
+const SCALE_FROM = 1.5;
+const SCALE_TO = 2.5;
+const SCALE_STEP = 0.005;
 const SEPARATOR_DOT = CONNECTION_LABEL_SEPARATOR.trim();
 
 type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
@@ -158,28 +160,31 @@ test("a model id in a connection's label splits at a slash in the picker and its
 test("a wrapped connection label never starts a line on its separator", async ({ corpus, mount, page }) => {
   await using root = await createCorpusHarness();
   const caller = await root.internalCallerFor(root.ownerId);
-  const labels = new Set<string>();
-  for (let length = FIRST_PREFIX; length <= LAST_PREFIX; length += 1) {
-    labels.add(PHRASE.slice(0, length).trim());
-  }
-  const added: AddedConnection[] = [];
-  for (const label of labels) {
-    added.push(await addConnection(caller, CORPUS_TEXT_MODEL, label));
-  }
+  const added = await addConnection(caller, CORPUS_TEXT_MODEL, LABEL);
   await serveRoles(page, corpus, root, caller);
   await mount<typeof ModelRolesStory>(STORY, {});
-  await setRootFontScale(page, channelName("fontScale"), TEXT_200);
+  await setRootFontScale(page, channelName("fontScale"), SCALE_FROM);
   const role = chatRole();
   const picker = page
     .getByRole("group", { name: role.heading, exact: true })
     .getByRole("combobox", { name: connectionRolePickerName(role.label), exact: true });
   await expect(picker).toBeVisible();
   await picker.click();
-  for (const connection of added) {
-    await expect(page.getByRole("option", { name: `${connection.label}${CONNECTION_LABEL_SEPARATOR}${CORPUS_TEXT_MODEL}`, exact: true })).toHaveCount(1);
+  const option = page.getByRole("option", { name: `${added.label}${CONNECTION_LABEL_SEPARATOR}${CORPUS_TEXT_MODEL}`, exact: true });
+  await expect(option).toHaveCount(1);
+  const label = option.locator('[data-slot="select-item-label"]');
+  const wrapped: number[][] = [];
+  for (let scale = SCALE_FROM; scale <= SCALE_TO; scale += SCALE_STEP) {
+    await setRootFontScale(page, channelName("fontScale"), scale);
+    const [lines] = await paintedLines(label);
+    if (lines === undefined) {
+      throw new Error("The option painted no text");
+    }
+    if (lines.length > 1) {
+      wrapped.push([scale, lines.filter(startsOnSeparator).length]);
+    }
   }
-  const listed = await paintedLines(page.locator('[data-slot="select-item-label"]'));
-  // The control: the list wraps labels, so the check below judges real line heads.
-  expect(listed.filter((lines) => lines.length > 1).length).toBeGreaterThan(0);
-  expect(listed.flat().filter(startsOnSeparator)).toEqual([]);
+  // The control: the sweep wrapped the label, so the check below judges real line heads.
+  expect(wrapped.length).toBeGreaterThan(0);
+  expect(wrapped.filter(([, atHead]) => atHead !== 0)).toEqual([]);
 });
