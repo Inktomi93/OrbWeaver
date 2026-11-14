@@ -332,7 +332,7 @@ function HandoffConfirm({
       body={
         <SettingCheckboxRow
           label="Also give copies of your characters, world books, regex scripts & GM voice used in this room"
-          description="They get their own point-in-time copies when they accept, and their invitation lists exactly what that is. You keep yours, and editing or deleting them later won't change this room."
+          description="They get their own point-in-time copies when they accept, and their invitation lists exactly what that is. You keep yours, and editing or deleting them later won't change this room. Without copies, your characters, world books and regex scripts leave this room when they accept."
           checked={copyCharacters}
           onChange={setCopyCharacters}
         />

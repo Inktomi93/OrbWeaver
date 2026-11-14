@@ -186,6 +186,8 @@ const BUS_FILTERS: BusFilterMap = {
     // character is its own tier group) and the write (`chat.setRegexAllow` emits this catch-all, which is
     // why its mutation is `busDriven`). Host-gated ⇒ free for a member.
     trpc.chat.listEffectiveRegex.queryFilter({ chatId: e.chatId }),
+    // A handoff detaches the scripts the new host does not own (D64) and announces only this event.
+    trpc.regex.listForChat.queryFilter({ chatId: e.chatId }),
     trpc.rpg.getGame.queryFilter({ chatId: e.chatId }), // both judge the HOST's connection; a handoff emits only this
     trpc.rpg.getTrackerView.queryFilter({ chatId: e.chatId }),
   ],

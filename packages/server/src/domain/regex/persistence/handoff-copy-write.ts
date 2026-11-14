@@ -6,9 +6,8 @@
 // dedup rule in `../substrate/dedup.ts`, never a second spelling of it.
 //
 // EVERY SOURCE READ CARRIES `fromOwnerId` IN ITS WHERE. A chat junction row is not a license: the departing
-// host may have a PRIOR host's script attached to this room (the chat tier is read unscoped), and that is
-// not theirs to give away. Those rows are skipped silently and stay attached — the incoming host's remedy
-// for them is `detachFromChat`, which gates on the ROOM, not on the script's owner.
+// host may have a PRIOR host's script attached to this room, and that is not theirs to give away. The copy
+// skips it; the swap's {@link createDetachHandoffRegexScripts} takes it off the room.
 //
 // THE BODY THAT CROSSES THE OWNER BOUNDARY IS THE PARSED ONE, never the stored bytes: the copy is built from
 // `toRow` (the read seam's validating parse), so an unvalidated blob can never be laundered into another
@@ -23,9 +22,9 @@ import { batchMany, batchStmt } from "@orb/db/query";
 import type { DatabaseHandle, DbAssemblyInput, StatementToken } from "@orb/db/wiring";
 import { databaseForOwner, statementToken } from "@orb/db/wiring-owner";
 import type { ChatId, RegexScriptId, UserId } from "@orb/kit/ids";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, notInArray } from "drizzle-orm";
 import type { SplitScript } from "../contract/dedup.ts";
-import type { CopyHandoffRegexScripts } from "../contract/handoff-copy.ts";
+import type { CopyHandoffRegexScripts, DetachHandoffRegexScripts } from "../contract/handoff-copy.ts";
 import type { RegexPortabilityContext } from "../contract/portability.ts";
 import type { ScriptRecord } from "../contract/rows.ts";
 import { findDuplicate } from "../substrate/dedup.ts";
@@ -146,6 +145,23 @@ export function createCopyHandoffRegexScripts(input: DbAssemblyInput<RegexPortab
     }
     return repoint.map(statementToken);
   };
+}
+
+/** The handoff's D64 detach, built here because `chat_regex_scripts` is regex's table. One statement with its
+ *  owner test inside it, so it judges the junction as the swap batch finds it, after any copy re-point. */
+export function createDetachHandoffRegexScripts(handle: DatabaseHandle): DetachHandoffRegexScripts {
+  const db = databaseForOwner(handle);
+  return ({ chatId, hostUserId }): StatementToken =>
+    statementToken(
+      db
+        .delete(chatRegexScripts)
+        .where(
+          and(
+            eq(chatRegexScripts.chatId, chatId),
+            notInArray(chatRegexScripts.regexScriptId, db.select({ id: regexScripts.id }).from(regexScripts).where(eq(regexScripts.ownerId, hostUserId))),
+          ),
+        ),
+    );
 }
 
 /** THE DISCLOSURE — how many script rows an accepted offer would land in the nominee's library,
