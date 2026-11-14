@@ -1,7 +1,7 @@
 import { CtIsolation } from "@orb/testkit/browser";
 import { Accordion, AccordionHeader, AccordionItem, AccordionPanel, AccordionTrigger } from "@orb/ui/accordion";
 import { Button } from "@orb/ui/button";
-import { Stack } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
@@ -61,6 +61,28 @@ export function ToggleGroupFillStory(): ReactElement {
           <Toggle value="one">{LONG_WORD}</Toggle>
           <Toggle value="two">{LONG_WORD}</Toggle>
         </ToggleGroup>
+      </Stack>
+    </CtIsolation>
+  );
+}
+
+const LONG_LINE = "A line of running copy far longer than the phone column, with spaces in it, that a span is asked to cut with an ellipsis. ".repeat(3);
+
+/** A truncating span inside a paragraph (an inline context), and the same span as a flex item (a blockified one). */
+export function TruncatingSpansStory(): ReactElement {
+  return (
+    <CtIsolation subject="Text" isolates="A truncating span's clip in a block parent and in a flex parent, without a feature around it">
+      <Stack data-probe="column" gap="row">
+        <Text as="p" data-probe="inline-host">
+          <Text as="span" data-probe="inline-span" truncate={true}>
+            {LONG_LINE}
+          </Text>
+        </Text>
+        <Row data-probe="flex-host">
+          <Text as="span" data-probe="flex-span" truncate={true}>
+            {LONG_LINE}
+          </Text>
+        </Row>
       </Stack>
     </CtIsolation>
   );

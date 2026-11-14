@@ -213,6 +213,16 @@ export const textVariants = tv({
       fill: "flex-1 truncate",
       false: "",
     },
+    // A truncating `span` outside a flex or grid parent is an inline box, and `overflow` does nothing to one: the run would paint on past its
+    // line with no ellipsis. `Text` sets this axis itself for that pair, never a caller: the span becomes a box no wider than its parent that
+    // sits on the line's bottom edge. A flex or grid item is already a box its parent sizes, and a `Contents` wrapper hands its children to
+    // that parent, so neither takes the arm: a `display` written on an item changes the width its flex row gives it.
+    clipsInline: {
+      true: `
+        [:not(.flex,.inline-flex,.grid,.inline-grid,.contents)>&]:inline-block [:not(.flex,.inline-flex,.grid,.inline-grid,.contents)>&]:align-bottom
+        [:not(.flex,.inline-flex,.grid,.inline-grid,.contents)>&]:max-inline-full
+      `,
+    },
     // A run in a flex row that takes the room that is left (`grow`) from a starting width (`floor`). The `min-inline-0` that lets it
     // shrink below its content stays the caller's.
     grow: GROW,

@@ -23,7 +23,8 @@ const HEADING_SIZE_BY_LEVEL = {
 } as const;
 
 // The colour pair leaves the recipe's independent axes for `ToneInkSelection`, which makes them exclusive (D336).
-type TextAxes = Omit<VariantProps<typeof textVariants>, "tone" | "ink">;
+// `clipsInline` is `Text`'s own resolution of `as="span"` with `truncate`, never a caller's choice.
+type TextAxes = Omit<VariantProps<typeof textVariants>, "tone" | "ink" | "clipsInline">;
 
 // `hoverCue` and the line cap leave the recipe's independent axes for `TextCue` and `TextCap`, because one arm erases another axis.
 // `prose` leaves for `TextProse`, which pairs it with the measure.
@@ -129,6 +130,7 @@ export function Text({
           lines,
           strike,
           truncate,
+          clipsInline: as === "span" && truncate === true ? true : undefined,
           grow,
           floor,
           push,
