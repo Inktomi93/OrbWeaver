@@ -23,7 +23,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { DismissDialog, MutedLine } from "#components";
+import { DismissDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { ChatContextTabId } from "#lib";
 import { DIALOG_VERBS, useOpenRequests } from "#lib";
@@ -202,7 +202,7 @@ function RecallSummary({ recall }: { readonly recall: RecallState | null }): Rea
     return <Text voice="gloss">Recalling memories… (embedding the query and scanning digests before the reply streams).</Text>;
   }
   if (recall.count === 0) {
-    return <MutedLine>Recall ran, but no stored memories were surfaced this turn.</MutedLine>;
+    return <Text voice="gloss">Recall ran, but no stored memories were surfaced this turn.</Text>;
   }
   return <Text voice="gloss">{`Retrieved ${recall.count} ${recall.count === 1 ? "memory" : "memories"} for this turn.`}</Text>;
 }
