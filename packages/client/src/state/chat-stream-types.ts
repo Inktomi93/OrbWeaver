@@ -1,4 +1,4 @@
-import type { ChatDeltaEvent, MemoryRecallPhase, TurnAbortReason, TurnIntent } from "@orb/contracts/chat";
+import type { ChatDeltaEvent, MemoryRecallPhase, ProviderWaitPhase, TurnAbortReason, TurnIntent } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, ChatTurnId, MessageId } from "@orb/kit/ids";
 
 /** The per-chat turn slot — one phase at a time, fields per phase (never optional-field soup). A live slot belongs
@@ -12,6 +12,8 @@ export type TurnSlot =
       readonly speakerCharacterId: CharacterId | null;
       readonly targetMessageId: MessageId | null;
       readonly committedMessageId: MessageId | null;
+      /** The server said the dispatched request has answered nothing for a while (`providerWait`). */
+      readonly providerWaiting: boolean;
     }
   | {
       readonly phase: "streaming";
@@ -63,5 +65,6 @@ export interface ChatStreamApi {
   readonly recoverAfterStopFailure: (chatId: ChatId, previousPhase: "pending" | "streaming") => void;
   readonly markCommitted: (chatId: ChatId, messageId: MessageId, turnId: ChatTurnId | undefined) => void;
   readonly setRecallPhase: (chatId: ChatId, phase: MemoryRecallPhase, count: number | null) => void;
+  readonly setProviderWait: (chatId: ChatId, turnId: ChatTurnId, phase: ProviderWaitPhase) => void;
   readonly resetRecall: (chatId: ChatId) => void;
 }

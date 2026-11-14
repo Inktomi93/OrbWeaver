@@ -47,9 +47,10 @@ import { renderMessageForDisplay } from "#lib";
 import { useArtViewer } from "../hooks/art-viewer-context.tsx";
 import { useArtControl } from "../hooks/use-art-control.ts";
 import { useEnterMotion } from "../hooks/use-enter-motion.ts";
-import { useGhostReasoning, useGhostText, useGhostThinking } from "../hooks/use-ghost-stream.ts";
+import { useGhostProviderWaiting, useGhostReasoning, useGhostText, useGhostThinking } from "../hooks/use-ghost-stream.ts";
 import type { RowAttribution } from "../lib/attribution.ts";
 import { avatarTreatmentFor } from "../lib/avatar-treatment.ts";
+import { CHAT_PROVIDER_WAITING_NOTE } from "../lib/chat-surface-names.ts";
 import { messageBoxFacts } from "../lib/message-box-facts.ts";
 import type { RowSkin } from "../lib/message-row-variants.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
@@ -130,14 +131,17 @@ function GhostBubbleBody({
   streaming,
   colorQuotes,
   cardTier,
+  providerWaiting,
 }: {
   readonly held: string;
   readonly streaming: boolean;
   readonly colorQuotes: boolean;
   readonly cardTier: CardTrust;
+  readonly providerWaiting: boolean;
 }): ReactElement {
   if (held.length === 0) {
-    return <TypingDots label="Generating a reply…" />;
+    // The wait note rides the dots' own reserved line, so it appears and leaves without moving the row.
+    return <TypingDots label="Generating a reply…" note={providerWaiting ? CHAT_PROVIDER_WAITING_NOTE : undefined} />;
   }
   // §4.5: split the accumulating text on completed `:::card` opens — text streams as markdown, a card whose
   // body is still arriving shows the chip, and a card whose fence CLOSED renders for real. The common
@@ -164,6 +168,7 @@ function GhostBubbleContent(props: {
   readonly streaming: boolean;
   readonly colorQuotedSpeech: boolean;
   readonly cardTier: CardTrust;
+  readonly providerWaiting: boolean;
 }): ReactElement {
   return (
     <>
@@ -177,7 +182,13 @@ function GhostBubbleContent(props: {
           autoCollapse={props.reasoningAutoCollapse}
         />
       ) : null}
-      <GhostBubbleBody held={props.held} streaming={props.streaming} colorQuotes={props.colorQuotedSpeech} cardTier={props.cardTier} />
+      <GhostBubbleBody
+        held={props.held}
+        streaming={props.streaming}
+        colorQuotes={props.colorQuotedSpeech}
+        cardTier={props.cardTier}
+        providerWaiting={props.providerWaiting}
+      />
     </>
   );
 }
@@ -272,6 +283,7 @@ export function GhostMessageRow({
   const rawReasoning = holdTornMacro(useGhostReasoning(chatId));
   const reasoning = renderMessageForDisplay(rawReasoning, renderContext, speakerCharacterId, null);
   const thinking = useGhostThinking(chatId);
+  const providerWaiting = useGhostProviderWaiting(chatId);
   const paced = useSmoothText(renderMessageForDisplay(text, renderContext, speakerCharacterId, null), {
     enabled: streaming && smoothStream,
     cps: smoothStreamCps,
@@ -356,6 +368,7 @@ export function GhostMessageRow({
         streaming={streaming}
         colorQuotedSpeech={colorQuotedSpeech}
         cardTier={cardTier}
+        providerWaiting={providerWaiting}
       />
     ),
     footer: null,

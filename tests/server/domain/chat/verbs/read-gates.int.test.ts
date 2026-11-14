@@ -89,6 +89,7 @@ const READ_GATES = {
   duplicateMessage: "elsewhere",
   forkChat: "elsewhere",
   setChatInjection: "elsewhere",
+  saveCorrection: "elsewhere",
   listChatInjections: "elsewhere",
   deleteChatInjection: "elsewhere",
   setVariables: "elsewhere",

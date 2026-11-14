@@ -154,6 +154,21 @@ export const chatInjectionInputSchema = z.strictObject({
 });
 export type ChatInjectionInput = z.infer<typeof chatInjectionInputSchema>;
 
+/** Where a new chat injection lands when its author picks no placement: in chat history at the tail, in the
+ *  system voice. One home, because two writers place one: the injections list's Add and a saved correction. */
+export const NEW_CHAT_INJECTION_PLACEMENT = {
+  position: "in_chat",
+  depth: 0,
+  role: "system",
+} as const satisfies Pick<ChatInjectionInput, "position" | "depth" | "role">;
+
+/** The `saveCorrection` wire INPUT: the player's correction, kept as a chat injection in their own words. The text
+ *  is trimmed, and a blank one is refused, because an empty injection reaches no prompt. */
+export const saveCorrectionInputSchema = z.strictObject({
+  content: chatInjectionInputSchema.shape.content.trim().min(1),
+});
+export type SaveCorrectionInput = z.infer<typeof saveCorrectionInputSchema>;
+
 // WHY one pooled memory block did (or did not) reach this turn's `{{memory}}` — the verdict axis of
 //  {@link MemoryRecallCandidate}. Declared ONCE as a tuple and DERIVED (§5.5, no inline union re-spell).
 //  The arms follow the recall pipeline's own order of elimination (`domain/chat/memory/recall/recall.ts`):

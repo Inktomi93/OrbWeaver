@@ -30,6 +30,12 @@ export function useGhostReasoning(chatId: ChatId | null): string {
   return slot.phase === "streaming" || slot.phase === "stopping" ? slot.reasoning : "";
 }
 
+/** True while the live turn is still pending and the server said its provider has answered nothing for a while. */
+export function useGhostProviderWaiting(chatId: ChatId | null): boolean {
+  const slot = useTurnSlot(chatId);
+  return slot.phase === "pending" && slot.providerWaiting;
+}
+
 /** True while the live turn has NO answer token yet — the TTFT "thinking" window `<ReasoningBlock>`
  *  force-opens for (`reasoning-block.tsx`). `pending` (no token of any kind has arrived) counts as
  *  thinking; once `streaming`/`stopping` carries reasoning but the answer `text` is still empty, it's

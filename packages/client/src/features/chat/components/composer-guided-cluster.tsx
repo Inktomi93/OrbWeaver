@@ -131,6 +131,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
   const rewrite = useRewriteModal(trimmed, guided.fireRewrite, onChange);
   const characters = useRoomCharacters(chatId);
   const game = useGameSteer(chatId);
+  const viewerHosts = useViewerHostsRoom(chatId);
 
   const canTargetTail = guided.tailAssistantMessageId !== null;
   // The honest-refusal gate (#54) folds into `idle`: an unserveable connection idles EVERY fire action (they
@@ -297,6 +298,8 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
         </Row>
       </Row>
       <RewriteDialog
+        chatId={chatId}
+        canKeep={viewerHosts}
         open={rewrite.isOpen}
         onOpenChange={rewrite.setOpen}
         instruction={rewrite.instruction}
@@ -343,4 +346,11 @@ function useGameSteer(chatId: ChatId): { readonly isGame: boolean; readonly plot
   const isGame = isRpgEngaged(chatQuery.data?.rpg ?? null);
   const gameQuery = useGatedQuery(isGame ? chatId : null, (id) => trpc.rpg.getGame.queryOptions({ chatId: id }));
   return { isGame, plotAvailable: isGame && gameQuery.data?.publicConfig.plotProgression === true };
+}
+
+/** Whether the viewer hosts the room, off the same warm room read: the injections surface's host gate, which
+ *  keeping a Rewrite correction follows. */
+function useViewerHostsRoom(chatId: ChatId): boolean {
+  const trpc = useTRPC();
+  return useQuery(roomRosterOptions(trpc, { chatId })).data?.viewerIsHost === true;
 }

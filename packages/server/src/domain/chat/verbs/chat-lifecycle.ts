@@ -3,7 +3,7 @@
 // and the `chat_injections` CRUD. Most emit the `chatUpdated` catch-all; the three removing verbs fan
 // `chatDeleted` on the LIVE-ONLY lane.
 //
-// Authority: title/star/archive/delete + injection write/delete → host; variables + injection list →
+// Authority: title/star/archive/delete + injection write/delete + a saved correction → host; variables + injection list →
 // member; `reapTemporaryChats` is per-user maintenance (non-chat-scoped); `reapHusk` is host-only.
 //
 // ⚠ DELETE-FIRST IS THE LAW HERE. Emitting `chatDeleted` BEFORE the delete would open a FALSE-EMIT window:
@@ -33,6 +33,7 @@
 // caller hosts. Bulk delete rides the same FK cascade as `delete`.
 
 import type { ChatInjectionView, ClaimChatOp, LiveOnlyChatBusEvent, UserMacroPicksView, VariablePicksView } from "@orb/contracts/chat";
+import { NEW_CHAT_INJECTION_PLACEMENT } from "@orb/contracts/chat";
 import type { UserMacroSpec, UserMacroValues } from "@orb/contracts/preset";
 import { userMacroValuesSchema } from "@orb/contracts/preset";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
@@ -60,6 +61,7 @@ import type {
   ListChatInjectionsParams,
   ReapHuskParams,
   ReapTemporaryChatsParams,
+  SaveCorrectionParams,
   SetChatAnchorPersonaParams,
   SetChatInjectionParams,
   SetUserMacroValuesParams,
@@ -76,6 +78,7 @@ import {
   generationObservationRemovalStatements,
   loadGenerationObservationsForRemoval,
 } from "../persistence/generation-observation.ts";
+import { findKeptInjection, insertChatInjectionIfAbsent } from "../persistence/injection-write.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import { loadChatInjections, loadRuntimeVariables, loadStoredUserMacroValues, loadStoredVariables } from "../persistence/queries.ts";
@@ -119,6 +122,7 @@ type ChatLifecycleVerbs = Pick<
   | "setVariables"
   | "setUserMacroValues"
   | "setChatInjection"
+  | "saveCorrection"
   | "listChatInjections"
   | "deleteChatInjection"
 >;
@@ -628,6 +632,30 @@ function createSetChatInjection(ctx: ChatContext, emit: EmitDurableChatEventOp, 
   };
 }
 
+/** `saveCorrection` — host-only, the injections surface's own gate. Keeps the player's correction as an ordinary
+ *  chat injection at the Add placement (D116: per-chat prose has one door), so it reaches every later turn in their
+ *  words and leaves through the injections list. The same text again is the kept row at that placement: no second
+ *  insert, no `chatUpdated`, because nothing moved. */
+function createSaveCorrection(ctx: ChatContext, emit: EmitDurableChatEventOp, claimChat: ClaimChatOp): ChatService["saveCorrection"] {
+  return async ({ principal, chatId, content }: SaveCorrectionParams): Promise<ChatInjectionView> => {
+    await requireHost(ctx, principal, chatId);
+    await claimChat(chatId);
+    const key = { chatId, ...NEW_CHAT_INJECTION_PLACEMENT, content };
+    const inserted = await insertChatInjectionIfAbsent(ctx.db, { ...key, id: ctx.newInjectionId(), createdAt: ctx.now() });
+    if (inserted !== undefined) {
+      await emit({ type: "chatUpdated", chatId });
+      return toInjectionView(inserted);
+    }
+    const kept = await findKeptInjection(ctx.db, key);
+    // The guard refused only because the kept row exists; a concurrent delete between the two statements is the
+    // one way it is gone, and that save then reads as a vanished target.
+    if (kept === undefined) {
+      throw new ChatNotFoundError(chatId);
+    }
+    return toInjectionView(kept);
+  };
+}
+
 /** `listChatInjections` — member. The persisted positional injections, splice-ordered. */
 function createListChatInjections(ctx: ChatContext): ChatService["listChatInjections"] {
   return async ({ principal, chatId }: ListChatInjectionsParams): Promise<ChatInjectionView[]> => {
@@ -677,6 +705,7 @@ export function createChatLifecycle(ctx: ChatContext, deps: ChatLifecycleDeps): 
     getVariablePicks: createGetVariablePicks(ctx),
     getRuntimeVariables: createGetRuntimeVariables(ctx),
     setChatInjection: createSetChatInjection(ctx, emit, claimChat),
+    saveCorrection: createSaveCorrection(ctx, emit, claimChat),
     listChatInjections: createListChatInjections(ctx),
     deleteChatInjection: createDeleteChatInjection(ctx, emit, claimChat),
   };

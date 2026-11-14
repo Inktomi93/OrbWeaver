@@ -14,6 +14,7 @@ import type {
   RedeemInviteInput,
   RegexTierKey,
   RoomOverrides,
+  SaveCorrectionInput,
   SendContentBlock,
   ToolCallEditAction,
   ToolCallId,
@@ -361,6 +362,9 @@ export interface ForkChatParams extends ChatScopedParams {
 /** `setChatInjection` — upserts a persisted positional injection. The resolved actor/chat scope wraps the
  *  wire input fields; `id` set means update, absent means create. */
 export interface SetChatInjectionParams extends ChatScopedParams, Readonly<ChatInjectionInput> {}
+
+/** `saveCorrection` — keeps a player's correction as a chat injection in their own words, once per text. */
+export interface SaveCorrectionParams extends ChatScopedParams, Readonly<SaveCorrectionInput> {}
 
 export type ListChatInjectionsParams = ChatScopedParams;
 

@@ -195,7 +195,7 @@ export const chatStream: ChatStreamApi = {
     pendingTokensByChat.delete(chatId);
     scheduledChats.delete(chatId);
     perfMark(turnStartMark(chatId));
-    setSlot(chatId, { phase: "pending", committedMessageId: null, ...turn }, "turn/begin");
+    setSlot(chatId, { phase: "pending", committedMessageId: null, providerWaiting: false, ...turn }, "turn/begin");
   },
   closeDeadTurn: (chatId, openTurnIds) => {
     const slot = slotOf(chatId);
@@ -298,6 +298,7 @@ export const chatStream: ChatStreamApi = {
         speakerCharacterId: slot.speakerCharacterId,
         targetMessageId: slot.targetMessageId,
         committedMessageId: slot.committedMessageId,
+        providerWaiting: false,
       },
       "turn/stop-failed",
     );
@@ -316,6 +317,17 @@ export const chatStream: ChatStreamApi = {
       return; // idempotent — a replayed commit must not re-render every ghost subscriber.
     }
     setSlot(chatId, { ...slot, committedMessageId: messageId }, "turn/committed");
+  },
+  setProviderWait: (chatId, turnId, phase) => {
+    const slot = slotOf(chatId);
+    // Only the turn's own PENDING slot carries the wait: once a token streams, the reply itself is the progress.
+    if (slot.phase !== "pending" || slot.turnId !== turnId) {
+      return;
+    }
+    const providerWaiting = phase === "waiting";
+    if (slot.providerWaiting !== providerWaiting) {
+      setSlot(chatId, { ...slot, providerWaiting }, "turn/provider-wait");
+    }
   },
   setRecallPhase: (chatId, phase, count) => {
     // `recalling` is a stable frozen ref (one reference across the whole window → no churn); `recalled` carries

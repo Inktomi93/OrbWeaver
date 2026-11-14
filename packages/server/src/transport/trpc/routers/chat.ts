@@ -41,6 +41,7 @@ import {
   regexTierKeySchema,
   roomOverridesSchema,
   roomSendAvailabilitySchema,
+  saveCorrectionInputSchema,
   seatKnobsSchema,
   sendContentBlocksSchema,
   shapeTraceSchema,
@@ -438,6 +439,11 @@ const previewContextFitSchema = z.strictObject({
 // `setChatInjection` upserts (id present ⇒ update, absent ⇒ create); the contracts schema owns the
 // authored fields (position/depth/role/content/order + the optional id), the router adds the chatId.
 const setChatInjectionSchema = chatInjectionInputSchema.extend({
+  chatId: typeIdSchema(ID_PREFIX.chat),
+});
+
+// `saveCorrection` keeps a Rewrite correction as a chat injection; the contracts schema owns the trimmed text.
+const saveCorrectionSchema = saveCorrectionInputSchema.extend({
   chatId: typeIdSchema(ID_PREFIX.chat),
 });
 
@@ -870,6 +876,10 @@ export const chatRouter = t.router({
     .output(chatInjectionViewSchema)
     .input(setChatInjectionSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.setChatInjection({ principal: ctx.auth, ...input })),
+  saveCorrection: authedProcedure
+    .output(chatInjectionViewSchema)
+    .input(saveCorrectionSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.saveCorrection({ principal: ctx.auth, ...input })),
   listChatInjections: authedProcedure
     .output(z.array(chatInjectionViewSchema))
     .input(listChatInjectionsSchema)

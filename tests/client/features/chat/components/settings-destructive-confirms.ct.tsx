@@ -1,10 +1,7 @@
 // An autosaved press has no way back, so the This-chat tab asks before authored text leaves, over the real composed server.
-import type { ChatId } from "@orb/kit/ids";
 import { accessibilityScan } from "@orb/testkit/browser/spec";
-import { routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import type { Page } from "@playwright/test";
 import {
   CHAT_ADD_INJECTION_NAME,
   CHAT_INJECTIONS_SECTION_LABEL,
@@ -16,6 +13,7 @@ import {
 import { OVERRIDE_CLEAR_VERB } from "#client/features/chat/lib/chat-surface-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ChatContextTabStory } from "./_chat-forks-stories.tsx";
+import { hostedRoom } from "./hosted-room.fixtures.ts";
 
 const TAB_STORY = "tests/client/features/chat/components/_chat-forks-stories/ChatContextTabStory";
 const PROCEDURES = [
@@ -35,24 +33,9 @@ const PROCEDURES = [
   "chat.getVariablePicks",
 ] as const;
 
-type Harness = Awaited<ReturnType<typeof createCorpusHarness>>;
-type Caller = Awaited<ReturnType<Harness["internalCallerFor"]>>;
-
-async function hostedRoom(root: Harness, page: Page): Promise<{ readonly chatId: ChatId; readonly host: Caller }> {
-  const host = await root.internalCallerFor(root.ownerId);
-  for (const room of (await host.chat.listChats({ limit: 100 })).items) {
-    if ((await host.chat.getChat({ chatId: room.id })).viewerIsHost) {
-      await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
-      await routeTrpc(page, serveCorpusProcedures(host, PROCEDURES));
-      return { chatId: room.id, host };
-    }
-  }
-  throw new Error("The corpus has no room the owner hosts");
-}
-
 test("Remove injection asks first: Cancel keeps the row, and the verb deletes it", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
-  const { chatId, host } = await hostedRoom(root, page);
+  const { chatId, host } = await hostedRoom(root, page, PROCEDURES);
   const before = (await host.chat.listChatInjections({ chatId })).length;
   await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
   await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(CHAT_INJECTIONS_SECTION_LABEL)}`, "u") }).click();
@@ -76,7 +59,7 @@ test("Remove injection asks first: Cancel keeps the row, and the verb deletes it
 
 test("an override row's name contains its label and its state word", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
-  const { chatId } = await hostedRoom(root, page);
+  const { chatId } = await hostedRoom(root, page, PROCEDURES);
   await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
   const row = page.getByRole("button", { name: overrideRowName(CHAT_OVERRIDE_SCENARIO_LABEL, false), exact: true });
   await expect(row).toBeVisible();
@@ -87,7 +70,7 @@ test("an override row's name contains its label and its state word", async ({ mo
 
 test("a set override asks before Clear wipes it, and focus lands on the emptied field", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
-  const { chatId } = await hostedRoom(root, page);
+  const { chatId } = await hostedRoom(root, page, PROCEDURES);
   await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
   await page.getByRole("button", { name: overrideRowName(CHAT_OVERRIDE_SCENARIO_LABEL, false), exact: true }).click();
   const scenario = page.getByRole("textbox", { name: CHAT_OVERRIDE_SCENARIO_LABEL, exact: true });

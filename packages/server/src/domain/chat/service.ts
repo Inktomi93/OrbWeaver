@@ -114,6 +114,7 @@ export function createChatService(
     },
     {
       emit: deps.emit,
+      emitProviderWait: deps.emitLive,
       holder: deps.holder,
       lockTtlMs: deps.lockTtlMs,
       generateMemory: (args) => buildTurnMemory(ctx, args),

@@ -16,19 +16,33 @@
 // instruction or the toggle selection (the source's sacred input-recovery posture, D57 — client state):
 // the dialog only reads+writes callbacks; closing it preserves everything until an explicit Apply
 // (fire + reset) or the user re-seeds.
+//
+// KEEP FOR EVERY TURN saves the typed correction as an ordinary chat injection (`chat.saveCorrection`, D116: per-chat
+// prose has one door), so a model that keeps forgetting a fact is told it on every later turn in the player's words,
+// and the player removes it from the injections list like any other. Host-only, the injections surface's own gate, so
+// a member's dialog omits it. It sits in the body, not the footer: the footer's one action is the rewrite itself.
 
 import type { RewriteToggleId } from "@orb/contracts/preset";
 import { REWRITE_TOGGLES } from "@orb/contracts/preset";
+import type { ChatId } from "@orb/kit/ids";
+import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
-import { Stack } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { Switch } from "@orb/ui/switch";
+import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement } from "react";
+import { useId, useState } from "react";
 import { FormDialog } from "#components";
-import { CHAT_CORRECTION_INSTRUCTION_NAME } from "../lib/chat-surface-names.ts";
+import { useInvalidation, useTRPC } from "#data";
+import { useSaveCorrection } from "../hooks/use-context-panel-mutations.ts";
+import { CHAT_CORRECTION_INSTRUCTION_NAME, CHAT_CORRECTION_SAVED_NOTE, CHAT_SAVE_CORRECTION_NAME } from "../lib/chat-surface-names.ts";
 import { COMPOSER_REWRITE_SUBMIT_NAME } from "../lib/composer-menu-names.ts";
 
 export interface RewriteDialogProps {
+  readonly chatId: ChatId;
+  /** The viewer hosts the room, so the correction may join its injections. */
+  readonly canKeep: boolean;
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   /** The correction instruction (pre-seeded from the composer draft on open; owned by the wand). */
@@ -41,8 +55,50 @@ export interface RewriteDialogProps {
   readonly onApply: () => void;
 }
 
-/** The guided-Rewrite modal: instruction box + the toggle catalog + Cancel/Rewrite. */
-export function RewriteDialog({ open, onOpenChange, instruction, onInstructionChange, selected, onToggle, onApply }: RewriteDialogProps): ReactElement {
+/** Keep the typed correction as a chat injection. The kept text is remembered so the same words cannot be pressed
+ *  in twice and the line says where they went; editing the instruction offers the control again. */
+function KeepCorrection({ chatId, instruction }: { readonly chatId: ChatId; readonly instruction: string }): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const save = useSaveCorrection({ trpc, invalidation });
+  const [kept, setKept] = useState<string | null>(null);
+  const noteId = useId();
+  const correction = instruction.trim();
+  const isKept = kept !== null && kept === correction;
+  return (
+    <Row align="center" gap="field" wrap={true}>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={correction.length === 0 || isKept || save.isPending}
+        aria-describedby={isKept ? noteId : undefined}
+        onClick={(): void => {
+          save.mutate({ chatId, content: correction }, { onSuccess: (): void => setKept(correction) });
+        }}
+      >
+        {CHAT_SAVE_CORRECTION_NAME}
+      </Button>
+      {isKept ? (
+        <Text id={noteId} role="status" voice="gloss">
+          {CHAT_CORRECTION_SAVED_NOTE}
+        </Text>
+      ) : null}
+    </Row>
+  );
+}
+
+/** The guided-Rewrite modal: instruction box + keep-for-every-turn + the toggle catalog + Cancel/Rewrite. */
+export function RewriteDialog({
+  chatId,
+  canKeep,
+  open,
+  onOpenChange,
+  instruction,
+  onInstructionChange,
+  selected,
+  onToggle,
+  onApply,
+}: RewriteDialogProps): ReactElement {
   // Apply is a no-op unless there's SOMETHING to steer with — an instruction or at least one toggle
   // (an empty steer would be an unguided reroll, which the guided-swipe item already covers).
   const canApply = instruction.trim().length > 0 || selected.size > 0;
@@ -69,6 +125,7 @@ export function RewriteDialog({ open, onOpenChange, instruction, onInstructionCh
             placeholder="Describe what should change…"
           />
         </Field>
+        {canKeep ? <KeepCorrection chatId={chatId} instruction={instruction} /> : null}
         <Stack gap="field">
           {REWRITE_TOGGLES.map((toggle) => (
             <Field key={toggle.id} label={toggle.label} orientation="horizontal">

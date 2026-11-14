@@ -111,6 +111,7 @@ import { projectRpgTranscript } from "../substrate/rpg-transcript.ts";
 import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables.ts";
 import { appendStatsDeltas, assistantTurnDelta, canonMessageDelta, canonRowOf, swipeVariantDelta } from "../substrate/stats-delta.ts";
 import { runTurnPipeline } from "./pipeline.ts";
+import { watchProviderWait } from "./provider-wait.ts";
 import { resolveTurnNarrative } from "./recover-narrative.ts";
 import { abortedOutcome, committedOutcome } from "./result.ts";
 
@@ -1747,7 +1748,9 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
       onObservedResult: observations.onObservedResult,
       passageCounter: ctx.passageCounter,
       onFitNotice: (code): Promise<void> => emitBackground(deps, { type: "warning", chatId: prep.chatId, code }),
-      runChatTurn: ctx.runChatTurn,
+      runChatTurn: watchProviderWait(ctx.runChatTurn, ctx.timers.timeout, (phase): void =>
+        deps.emitProviderWait({ type: "providerWait", chatId: prep.chatId, turnId: announcedTurnId, phase }),
+      ),
       attachmentQuality: prep.attachmentQuality,
       now: ctx.now,
       random: ctx.prng,
