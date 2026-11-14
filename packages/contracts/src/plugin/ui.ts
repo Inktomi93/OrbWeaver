@@ -19,9 +19,14 @@
 // that is deliberately NOT a compile-tier or parse-tier refusal: the anchor is not known until mount, so the
 // arbitration is the renderer's (`resolvePluginPrimaryButton`) and an over-claiming spec is DEMOTED, never
 // rejected. See that tuple's own note for why the S1 one-primary law survives its input changing.
-// STILL DEFERRED, each with its first consumer and its own phase (never a guess): the `$chatVar` binding (waits
-// on the chat-vars read proc) and the `when` CEL visibility predicate (priced with the node that first needs
-// it). Adding those is a priced phase, not a widening of this file.
+// VISIBILITY IS A BOUND BOOLEAN, NOT A PREDICATE. Every node may carry `when` ({@link PluginNodeVisibility}), typed as
+// the {@link PluginBoundBoolean} that `disabled` and `loading` already use: the guest computes its own state and
+// publishes the verdict, so the renderer evaluates nothing a plugin wrote. A later computed form extends the same
+// field. Only a published `false` hides a bound node; a missing path shows it, so a binding typo never strands a
+// control. The spec ROOT takes no `when`: a surface a plugin wants gone is one it publishes nothing for, and a
+// hidden root would leave an attributed shell with nothing in it at every mount site.
+// STILL DEFERRED, with its first consumer and its own phase (never a guess): the `$chatVar` binding (waits on the
+// chat-vars read proc). Adding it is a priced phase, not a widening of this file.
 
 import type { AssetId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -424,7 +429,7 @@ const STATE_PATH_MAX = 128;
  *  identifier grammar (the surface-id spirit), so a value key is an ident and never arbitrary text. */
 const IDENT_RE = /^[a-z][a-z0-9_]{0,63}$/;
 
-// ── State binding (the U0 binding; `$chatVar`/`when` are DEFERRED — see the header) ──────────────────────────
+// ── State binding (the U0 binding; `$chatVar` is DEFERRED — see the header) ──────────────────────────────────
 
 /** A late-bound value: `{ $state: "path.in.state" }` is resolved by the renderer against the surface's
  *  published state (`host.ui.setState`). A missing path renders the node's fallback or nothing. */
@@ -438,6 +443,13 @@ export type PluginBoundNumber = number | PluginStateBinding;
 /** A boolean value that MAY be a state binding — minted for `grid.loading`, the first slot whose
  *  whole point is that it FLIPS between two publishes. */
 export type PluginBoundBoolean = boolean | PluginStateBinding;
+
+/** The field every node carries whatever its kind: whether it renders at all. Absent ⇒ shown. A hidden node
+ *  renders nothing, takes no layout slot and holds no focus; see {@link resolvePluginNodeShown} for how a
+ *  binding resolves. */
+interface PluginNodeVisibility {
+  readonly when?: PluginBoundBoolean | undefined;
+}
 
 // ── The node union (declared explicitly, then the schema is PINNED to it — an unannotated recursive
 //    `z.lazy` cannot infer through its own initializer under TS7022/TS7024, so the type leads and the exact
@@ -757,9 +769,10 @@ export type PluginGridNode = PluginOneSource<
     readonly tileAction?: string | undefined;
     /** The tile cover's reserved ratio — one decision for the whole grid, so tiles cannot shear. @defaultValue "portrait" */
     readonly aspect?: PluginImageAspect | undefined;
-    /** What the grid says when it has no tiles — the three-states law reaching INTO the vocabulary. Absent ⇒ the
-     *  host's own neutral line; a plugin that names one gets a teaching empty for free. */
-    readonly empty?: string | undefined;
+    /** What the grid says when it has no tiles — the three-states law reaching INTO the vocabulary. Absent, or a
+     *  binding that resolves to no text, ⇒ the host's own neutral line. Bindable because the honest empty line
+     *  depends on what happened: "nothing searched yet" and "nothing matched" are different verdicts. */
+    readonly empty?: PluginBoundString | undefined;
     /** THE LOADING THIRD of the three-states law, previously unreachable: `MediaTileGridSkeleton` has
      *  been on the shelf since U5 and nothing could spell it, so a browse grid mid-fetch sat on stale tiles or
      *  on its `empty` line — the state that is neither. Bound (or declared) TRUE ⇒ the grid renders the
@@ -859,30 +872,36 @@ export interface PluginSearchBarNode {
 
 /** One node in a plugin surface spec — the closed discriminated union rendered by the ONE first-party
  *  renderer. Recursive through the three container kinds (`stack`/`row`/`section`) and, since U5, through
- *  `masterDetail`'s stage bodies and `searchBar`'s filter tail. */
-export type PluginSurfaceNode =
-  | PluginStackNode
-  | PluginRowNode
-  | PluginSectionNode
-  | PluginTextNode
-  | PluginBadgeNode
-  | PluginMeterNode
-  | PluginKeyValueNode
-  | PluginListNode
-  | PluginImageNode
-  | PluginMarkdownNode
-  | PluginTextFieldNode
-  | PluginNumberFieldNode
-  | PluginToggleNode
-  | PluginSelectNode
-  | PluginSliderNode
-  | PluginButtonNode
-  | PluginConfirmButtonNode
-  | PluginGridNode
-  | PluginMasterDetailNode
-  | PluginSearchBarNode
-  | PluginIconNode
-  | PluginTabsNode;
+ *  `masterDetail`'s stage bodies and `searchBar`'s filter tail. {@link PluginNodeVisibility} rides every member,
+ *  so a kind added to the union carries `when` without restating it. */
+export type PluginSurfaceNode = PluginNodeVisibility &
+  (
+    | PluginStackNode
+    | PluginRowNode
+    | PluginSectionNode
+    | PluginTextNode
+    | PluginBadgeNode
+    | PluginMeterNode
+    | PluginKeyValueNode
+    | PluginListNode
+    | PluginImageNode
+    | PluginMarkdownNode
+    | PluginTextFieldNode
+    | PluginNumberFieldNode
+    | PluginToggleNode
+    | PluginSelectNode
+    | PluginSliderNode
+    | PluginButtonNode
+    | PluginConfirmButtonNode
+    | PluginGridNode
+    | PluginMasterDetailNode
+    | PluginSearchBarNode
+    | PluginIconNode
+    | PluginTabsNode
+  );
+
+/** A whole surface's tree: a node whose ROOT takes no `when` (the header states why). */
+export type PluginSurfaceSpec = PluginSurfaceNode & { readonly when?: undefined };
 
 // Strip mode: also reads plugin guest data; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 // ── The zod gate (host-side at registration + client-side before mount) ──────────────────────────────────────
@@ -921,6 +940,9 @@ const boundString = (max: number): z.ZodType<PluginBoundString> => z.union([byte
 const finiteNumber = z.number().refine((n) => Number.isFinite(n), { error: "must be a finite number" });
 const boundNumber: z.ZodType<PluginBoundNumber> = z.union([finiteNumber, stateBindingSchema]);
 const boundBoolean: z.ZodType<PluginBoundBoolean> = z.union([z.boolean(), stateBindingSchema]);
+// The {@link PluginNodeVisibility} fields, spread into every node arm rather than intersected onto the union: an
+// intersection's two halves each judge the whole input, so the strict wire twin would refuse every arm's keys.
+const pluginNodeBaseShape = { when: boundBoolean.optional() } satisfies Record<keyof PluginNodeVisibility, z.ZodType>;
 const identSchema = z.string().regex(IDENT_RE);
 const labelSchema = z.string().min(1).max(LABEL_MAX);
 const gapSchema = z.enum(PLUGIN_GAP_TOKENS);
@@ -943,14 +965,23 @@ function readonlyArrayOutput<Item>(schema: z.ZodType<Item[]>): z.ZodType<readonl
 //  schema's output has not narrowed or grown away from the declared union.
 const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =>
   z.discriminatedUnion("kind", [
-    z.object({ kind: z.literal("stack"), gap: gapSchema.optional(), children: readonlyArrayOutput(z.array(pluginSurfaceNodeSchema)) }).strip(),
-    z.object({ kind: z.literal("row"), gap: gapSchema.optional(), children: readonlyArrayOutput(z.array(pluginSurfaceNodeSchema)) }).strip(),
-    z.object({ kind: z.literal("section"), kicker: labelSchema, children: readonlyArrayOutput(z.array(pluginSurfaceNodeSchema)) }).strip(),
-    z.object({ kind: z.literal("text"), value: boundString(PLUGIN_TEXT_MAX_BYTES), voice: z.enum(PLUGIN_TEXT_VOICES).optional() }).strip(),
-    z.object({ kind: z.literal("badge"), text: boundString(LABEL_MAX), intent: z.enum(PLUGIN_BADGE_INTENTS).optional() }).strip(),
-    z.object({ kind: z.literal("meter"), value: boundNumber, max: finiteNumber.optional(), label: labelSchema.optional() }).strip(),
+    z
+      .object({ ...pluginNodeBaseShape, kind: z.literal("stack"), gap: gapSchema.optional(), children: readonlyArrayOutput(z.array(pluginSurfaceNodeSchema)) })
+      .strip(),
+    z
+      .object({ ...pluginNodeBaseShape, kind: z.literal("row"), gap: gapSchema.optional(), children: readonlyArrayOutput(z.array(pluginSurfaceNodeSchema)) })
+      .strip(),
+    z
+      .object({ ...pluginNodeBaseShape, kind: z.literal("section"), kicker: labelSchema, children: readonlyArrayOutput(z.array(pluginSurfaceNodeSchema)) })
+      .strip(),
+    z
+      .object({ ...pluginNodeBaseShape, kind: z.literal("text"), value: boundString(PLUGIN_TEXT_MAX_BYTES), voice: z.enum(PLUGIN_TEXT_VOICES).optional() })
+      .strip(),
+    z.object({ ...pluginNodeBaseShape, kind: z.literal("badge"), text: boundString(LABEL_MAX), intent: z.enum(PLUGIN_BADGE_INTENTS).optional() }).strip(),
+    z.object({ ...pluginNodeBaseShape, kind: z.literal("meter"), value: boundNumber, max: finiteNumber.optional(), label: labelSchema.optional() }).strip(),
     z
       .object({
+        ...pluginNodeBaseShape,
         kind: z.literal("keyValue"),
         rows: readonlyArrayOutput(z.array(z.object({ key: labelSchema, value: boundString(LABEL_MAX) }).strip()).max(PLUGIN_ROWS_MAX)).optional(),
         rowsFrom: stateBindingSchema.optional(),
@@ -959,9 +990,10 @@ const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =>
       .refine((node): node is typeof node & PluginKeyValueNode => sourceCount(node, PLUGIN_SOURCE_KEYS.keyValue) === 1, {
         error: PLUGIN_SOURCE_ERRORS.keyValue,
       }),
-    z.object({ kind: z.literal("list"), items: readonlyArrayOutput(z.array(boundString(LABEL_MAX)).max(PLUGIN_ROWS_MAX)) }).strip(),
+    z.object({ ...pluginNodeBaseShape, kind: z.literal("list"), items: readonlyArrayOutput(z.array(boundString(LABEL_MAX)).max(PLUGIN_ROWS_MAX)) }).strip(),
     z
       .object({
+        ...pluginNodeBaseShape,
         kind: z.literal("image"),
         assetId: typeIdSchema(ID_PREFIX.asset).optional(),
         assetFrom: stateBindingSchema.optional(),
@@ -971,9 +1003,10 @@ const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =>
       })
       .strip()
       .refine((node): node is typeof node & PluginImageNode => sourceCount(node, PLUGIN_SOURCE_KEYS.image) === 1, { error: PLUGIN_SOURCE_ERRORS.image }),
-    z.object({ kind: z.literal("markdown"), value: boundString(PLUGIN_TEXT_MAX_BYTES) }).strip(),
+    z.object({ ...pluginNodeBaseShape, kind: z.literal("markdown"), value: boundString(PLUGIN_TEXT_MAX_BYTES) }).strip(),
     z
       .object({
+        ...pluginNodeBaseShape,
         kind: z.literal("textField"),
         name: identSchema,
         label: labelSchema,
@@ -983,6 +1016,7 @@ const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =>
       .strip(),
     z
       .object({
+        ...pluginNodeBaseShape,
         kind: z.literal("numberField"),
         name: identSchema,
         label: labelSchema,
@@ -992,9 +1026,19 @@ const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =>
         step: finiteNumber.optional(),
       })
       .strip(),
-    z.object({ kind: z.literal("toggle"), name: identSchema, label: labelSchema, value: z.boolean().optional(), actionId: identSchema.optional() }).strip(),
     z
       .object({
+        ...pluginNodeBaseShape,
+        kind: z.literal("toggle"),
+        name: identSchema,
+        label: labelSchema,
+        value: z.boolean().optional(),
+        actionId: identSchema.optional(),
+      })
+      .strip(),
+    z
+      .object({
+        ...pluginNodeBaseShape,
         kind: z.literal("select"),
         name: identSchema,
         label: labelSchema,
@@ -1008,6 +1052,7 @@ const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =>
       .refine((node): node is typeof node & PluginSelectNode => sourceCount(node, PLUGIN_SOURCE_KEYS.select) === 1, { error: PLUGIN_SOURCE_ERRORS.select }),
     z
       .object({
+        ...pluginNodeBaseShape,
         kind: z.literal("slider"),
         name: identSchema,
         label: labelSchema,
@@ -1019,6 +1064,7 @@ const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =>
       .strip(),
     z
       .object({
+        ...pluginNodeBaseShape,
         kind: z.literal("button"),
         actionId: identSchema,
         label: labelSchema,
@@ -1028,6 +1074,7 @@ const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =>
       .strip(),
     z
       .object({
+        ...pluginNodeBaseShape,
         kind: z.literal("confirmButton"),
         actionId: identSchema,
         label: labelSchema,
@@ -1039,6 +1086,7 @@ const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =>
     //    genre's signal lives, so an absent `assetId` is a shape-matched placeholder, not a row.
     z
       .object({
+        ...pluginNodeBaseShape,
         kind: z.literal("grid"),
         tiles: readonlyArrayOutput(
           z
@@ -1063,7 +1111,7 @@ const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =>
         tilesFrom: stateBindingSchema.optional(),
         tileAction: identSchema.optional(),
         aspect: z.enum(PLUGIN_IMAGE_ASPECTS).optional(),
-        empty: z.string().max(LABEL_MAX).optional(),
+        empty: boundString(LABEL_MAX).optional(),
         loading: boundBoolean.optional(),
       })
       .strip()
@@ -1076,11 +1124,12 @@ const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =>
     // The glyph leaf. `name` is the closed curated tuple, so an off-tuple glyph is a REGISTRATION
     // refusal rather than a runtime miss, and the client's total Record cannot be reached with a name it has
     // no component for.
-    z.object({ kind: z.literal("icon"), name: z.enum(PLUGIN_ICON_NAMES), label: z.string().max(LABEL_MAX).optional() }).strip(),
+    z.object({ ...pluginNodeBaseShape, kind: z.literal("icon"), name: z.enum(PLUGIN_ICON_NAMES), label: z.string().max(LABEL_MAX).optional() }).strip(),
     // The one-of-N strip. The `select`'s grammar, with its own (much smaller) option cap: every
     // option paints at once, so the bound is a LAYOUT bound, not just a DoS one.
     z
       .object({
+        ...pluginNodeBaseShape,
         kind: z.literal("tabs"),
         name: identSchema,
         label: labelSchema,
@@ -1095,6 +1144,7 @@ const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =>
       .refine((node): node is typeof node & PluginTabsNode => sourceCount(node, PLUGIN_SOURCE_KEYS.tabs) === 1, { error: PLUGIN_SOURCE_ERRORS.tabs }),
     z
       .object({
+        ...pluginNodeBaseShape,
         kind: z.literal("masterDetail"),
         stages: readonlyArrayOutput(
           z
@@ -1128,6 +1178,7 @@ const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =>
       .strip(),
     z
       .object({
+        ...pluginNodeBaseShape,
         kind: z.literal("searchBar"),
         name: identSchema,
         label: labelSchema,
@@ -1222,24 +1273,29 @@ function countSearchBars(node: PluginSurfaceNode): number {
 /** The SPEC schema: a node tree plus the whole-tree global bounds (node count, nesting depth, serialized
  *  size). This is the schema a registration/mount validates against — the per-node schema alone bounds each
  *  node but never the aggregate, which is exactly the DoS surface the caps close. */
-export const pluginSurfaceSpecSchema: z.ZodType<PluginSurfaceNode> = pluginSurfaceNodeSchema.superRefine((spec, ctx) => {
-  const { nodes, maxDepth } = surfaceStats(spec, 1);
-  if (nodes > PLUGIN_SPEC_MAX_NODES) {
-    ctx.addIssue({ code: "custom", message: `surface spec exceeds ${PLUGIN_SPEC_MAX_NODES} nodes` });
-  }
-  if (maxDepth > PLUGIN_SPEC_MAX_DEPTH) {
-    ctx.addIssue({ code: "custom", message: `surface spec exceeds nesting depth ${PLUGIN_SPEC_MAX_DEPTH}` });
-  }
-  if (utf8ByteLength(JSON.stringify(spec)) > PLUGIN_SPEC_MAX_BYTES) {
-    ctx.addIssue({ code: "custom", message: `surface spec exceeds ${PLUGIN_SPEC_MAX_BYTES} bytes` });
-  }
-  // ONE prominent query per surface (U5, §4.5b failure 3). This is a STRUCTURAL enforcement of a hierarchy
-  // claim, not tidiness: the whole point of the `searchBar` slot is that the query outranks the filters, and
-  // two of them on one page is a flat control stack wearing the slot's name.
-  if (countSearchBars(spec) > 1) {
-    ctx.addIssue({ code: "custom", message: "a surface spec may declare at most one searchBar" });
-  }
-});
+export const pluginSurfaceSpecSchema: z.ZodType<PluginSurfaceSpec> = pluginSurfaceNodeSchema
+  .refine((spec): spec is PluginSurfaceSpec => spec.when === undefined, {
+    error: "a surface's root node takes no `when`; withhold the surface by publishing nothing for it",
+    path: ["when"],
+  })
+  .superRefine((spec, ctx) => {
+    const { nodes, maxDepth } = surfaceStats(spec, 1);
+    if (nodes > PLUGIN_SPEC_MAX_NODES) {
+      ctx.addIssue({ code: "custom", message: `surface spec exceeds ${PLUGIN_SPEC_MAX_NODES} nodes` });
+    }
+    if (maxDepth > PLUGIN_SPEC_MAX_DEPTH) {
+      ctx.addIssue({ code: "custom", message: `surface spec exceeds nesting depth ${PLUGIN_SPEC_MAX_DEPTH}` });
+    }
+    if (utf8ByteLength(JSON.stringify(spec)) > PLUGIN_SPEC_MAX_BYTES) {
+      ctx.addIssue({ code: "custom", message: `surface spec exceeds ${PLUGIN_SPEC_MAX_BYTES} bytes` });
+    }
+    // ONE prominent query per surface (U5, §4.5b failure 3). This is a STRUCTURAL enforcement of a hierarchy
+    // claim, not tidiness: the whole point of the `searchBar` slot is that the query outranks the filters, and
+    // two of them on one page is a flat control stack wearing the slot's name.
+    if (countSearchBars(spec) > 1) {
+      ctx.addIssue({ code: "custom", message: "a surface spec may declare at most one searchBar" });
+    }
+  });
 
 // Strip mode: also reads plugin guest data.
 // ── BOUND-TILE resolution (ARM C — the `tilesFrom` arm's trust gate) ───────────────────────────────────────────
@@ -1340,6 +1396,17 @@ export function resolvePluginBoundBoolean(state: Record<string, unknown>, value:
     return value;
   }
   return readBindingPath(state, value) === true;
+}
+
+/** Does `node` render? Absent `when` ⇒ yes; a literal decides; a binding hides ONLY on a published `false`. The
+ *  miss posture is the opposite arm from {@link resolvePluginBoundBoolean}'s on purpose: a missing path or a
+ *  non-boolean SHOWS the node, because a binding typo that silently removed a control would strand the person,
+ *  while one that leaves it visible is a defect the author sees. Pure + isomorphic, like every resolver here. */
+export function resolvePluginNodeShown(state: Record<string, unknown>, node: PluginSurfaceNode): boolean {
+  if (node.when === undefined || typeof node.when === "boolean") {
+    return node.when ?? true;
+  }
+  return readBindingPath(state, node.when) !== false;
 }
 
 // Strip mode: also reads plugin guest data.
@@ -1859,10 +1926,14 @@ export interface PluginPrimaryArbitration {
  *  cannot be decided at parse; and a spec that DOES over-claim must still render — demotion is a legible
  *  outcome, a refused registration is a dead surface. First-in-document-order wins because that is the order a
  *  person reads the surface in, and it makes the outcome deterministic rather than dependent on which subtree
- *  React commits first. */
-export function resolvePluginPrimaryButton(spec: PluginSurfaceNode, anchor: PluginSurfaceAnchor): PluginPrimaryArbitration {
+ *  React commits first. It takes the binding root because a hidden node ({@link resolvePluginNodeShown}) is not
+ *  in the document a person reads: a hidden primary claiming the slot would demote the one they can see. */
+export function resolvePluginPrimaryButton(spec: PluginSurfaceNode, anchor: PluginSurfaceAnchor, state: Record<string, unknown>): PluginPrimaryArbitration {
   const claimants: PluginButtonNode[] = [];
   const walk = (node: PluginSurfaceNode): void => {
+    if (!resolvePluginNodeShown(state, node)) {
+      return;
+    }
     if (node.kind === "button" && node.variant === "primary") {
       claimants.push(node);
     }

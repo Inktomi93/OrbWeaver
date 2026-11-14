@@ -25,7 +25,7 @@ import { MessageMedia } from "@orb/ui/message-media";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { gridLoading, gridTiles, heroCoverKey, resolveString, tileCoverKey } from "../lib/plugin-surface-bindings.ts";
+import { gridEmptyText, gridLoading, gridTiles, heroCoverKey, resolveString, tileCoverKey } from "../lib/plugin-surface-bindings.ts";
 import { PLUGIN_SEARCH_SUBMIT_NAME } from "../lib/plugin-surface-names.ts";
 
 const UNANSWERED_COPY = {
@@ -102,7 +102,7 @@ export function SurfaceGrid({
     // empty is load-bearing — it is the whole pre-search page — and the section's own empties one file over
     // already speak this pattern. The plugin's `empty` line stays the copy; only its frame is promoted.
     // action={null}: the plugin GRID's empty state (card-atlas-hub-polish, stickler 2026-08-29 F4): the renderer STRUCTURALLY cannot mint an action here, because a CTA would need a plugin actionId and inventing one the plugin never declared is the impersonation wall the closed vocabulary exists to hold. The copy is the plugin's own teaching line, and its next step is the searchBar the SAME surface renders above it. Ends the day the vocabulary grows a plugin-authored empty-action arm (e.g. grid.emptyAction).
-    return <EmptyState action={null} icon={<Icon icon={Images} size="lg" />} measure="default" title={node.empty ?? "Nothing here yet."} titleAs="p" />;
+    return <EmptyState action={null} icon={<Icon icon={Images} size="lg" />} measure="default" title={gridEmptyText(node, state)} titleAs="p" />;
   }
   const items = tiles.map((tile) => {
     // Declared id OR bundle path (#820) — `tileCoverKey` picks whichever arm the tile carries, and the url map
