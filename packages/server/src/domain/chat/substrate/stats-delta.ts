@@ -664,7 +664,12 @@ function canonModelSlice(
  * rebuild's `foldSwipe`/`foldSwipeChar`: swipes credit the re-roll counters + scalar tokens but not the
  * daily token slice, and their model bucket carries no cost/cache.
  */
-function legacySwipeVariantDelta(params: { readonly ownerId: UserId; readonly row: SwipeRowInput; readonly sign: 1 | -1; readonly now: number }): StatsDelta {
+function legacySwipeVariantDelta(params: {
+  readonly ownerId: UserId;
+  readonly row: SwipeRowInput;
+  readonly sign: 1 | -1;
+  readonly now: number;
+}): CanonContributionBody {
   const { row, sign } = params;
   const gen = genDurationMs(row.genStartedAt, row.genFinishedAt);
   const reasoningMs = reasoningMsOf(row.metadata) * sign;
@@ -773,26 +778,17 @@ export function canonMessageDelta(params: CanonMessageParams): readonly StatsDel
   return params.sign < 0 ? canonMessageRetraction(params) : canonMessageAddition(params);
 }
 
-/** Non-selected legs carry token samples, never selected cost/cache or daily-token contributions. */
+/** Non-selected legs carry token samples, never selected cost/cache or daily-token contributions. A `-1` is a
+ *  retraction and carries no activity or context candidate, as in {@link canonMessageDelta}. */
 export function swipeVariantDelta(params: Parameters<typeof legacySwipeVariantDelta>[0]): readonly StatsDelta[] {
   const legs = params.row.metadata?.usageLegs;
   if (legs === undefined || legs.length === 0) {
     return [legacySwipeVariantDelta(params)];
   }
   const row = { ...params.row, tokensIn: null, tokensOut: null, tokenProvenance: "unrecorded" as const };
-  return [
-    legacySwipeVariantDelta({ ...params, row }),
-    ...legs.map((leg) =>
-      variantUsageLegDelta({
-        ownerId: params.ownerId,
-        characterId: params.row.characterId,
-        leg,
-        selected: false,
-        sign: params.sign,
-        now: params.now,
-      }),
-    ),
-  ];
+  const legOf = (leg: GenerationUsageLeg): StatsDelta =>
+    variantUsageLegDelta({ ownerId: params.ownerId, characterId: params.row.characterId, leg, selected: false, sign: params.sign, now: params.now });
+  return [legacySwipeVariantDelta({ ...params, row }), ...legs.map((leg) => (params.sign < 0 ? withoutActivity(legOf(leg)) : legOf(leg)))];
 }
 
 /**
