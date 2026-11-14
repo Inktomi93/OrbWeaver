@@ -230,10 +230,9 @@ export const regexScriptCardSchema = z.preprocess(
 
 export type RegexScriptCard = z.output<typeof regexScriptCardSchema>;
 
-/** The guard an imported script broke: a stored-length cap, or the find pattern's stacked-quantifier check. `max` is
- *  the largest value the guard admits. */
+/** The stored-length cap an imported script broke. `max` is the largest value the cap admits. */
 export interface RegexScriptLimitBreak {
-  readonly limit: "find-length" | "replace-length" | "stacked-quantifiers";
+  readonly limit: "find-length" | "replace-length";
   readonly max: number;
   readonly actual: number;
 }
@@ -275,6 +274,12 @@ export interface ImportGlobalScriptsArgs {
   readonly scripts: readonly RegexScriptCard[];
 }
 
+/** A script an import left out, by its file's name, and why. */
+export interface RegexScriptRefusal {
+  readonly name: string;
+  readonly reason: string;
+}
+
 /** What a regex lift did - the counts the import report surfaces. */
 export interface ImportCardScriptsResult {
   /** Fresh library rows minted from the by-value payload. */
@@ -282,6 +287,9 @@ export interface ImportCardScriptsResult {
   /** Candidates that matched an existing owned row (carried reference OR content-equal) and were attached
    *  rather than cloned. */
   readonly reused: number;
+  /** Candidates refused at the write door (their find pattern costs too much to compile), neither stored nor
+   *  attached. */
+  readonly refused: readonly RegexScriptRefusal[];
 }
 
 /** The card RE-EMBED: the character's attached library rows projected back onto the ST card-wire shape, in junction

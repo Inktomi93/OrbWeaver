@@ -1785,7 +1785,7 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
       attachmentQuality: prep.attachmentQuality,
       now: ctx.now,
       random: ctx.prng,
-      applyRegexReplace: ctx.applyRegexReplace,
+      openRegexPass: ctx.openRegexPass,
       resolveImageUrl: (ref): Promise<ResolvedMediaRef | null> =>
         ctx.resolveImageUrl({ chatId: prep.chatId, ref, quality: prep.attachmentQuality, signal: prep.signal }),
       loadContentSignatures: (): Promise<ReadonlyMap<MessageId, ContentSignatures>> => loadCanonContentSignatures(ctx.db, prep.chatId),
@@ -2134,7 +2134,7 @@ async function generateTextUnpersisted(ctx: EngineContext, prep: TurnPrep, onTex
       attachmentQuality: prep.attachmentQuality,
       now: ctx.now,
       random: ctx.prng,
-      applyRegexReplace: ctx.applyRegexReplace,
+      openRegexPass: ctx.openRegexPass,
       resolveImageUrl: (ref) => ctx.resolveImageUrl({ chatId: prep.chatId, ref, quality: prep.attachmentQuality, signal: prep.signal }),
       loadContentSignatures: (): Promise<ReadonlyMap<MessageId, ContentSignatures>> => loadCanonContentSignatures(ctx.db, prep.chatId),
       // §8.8: the `conversation` carry source, LAZY — the pipeline calls it only on that rung.

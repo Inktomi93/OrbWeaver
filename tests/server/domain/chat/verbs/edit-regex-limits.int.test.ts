@@ -71,14 +71,17 @@ test("a script at each new cap stores, and one past either cap is refused at the
   const base = { name: "limits", placement: [...PLACEMENT], ...deriveRegexTierFlags(PLACEMENT) };
 
   await expect(caller.regex.createScript({ input: { ...base, ...at } })).resolves.toMatchObject({ findRegex: at.findRegex });
-  await expect(caller.regex.createScript({ input: { ...base, ...at, findRegex: paddedPattern("lamp", MAX_FIND_REGEX_LENGTH + 1) } })).rejects.toThrow();
-  await expect(caller.regex.createScript({ input: { ...base, ...at, replaceString: "L".repeat(MAX_REPLACE_LENGTH + 1) } })).rejects.toThrow();
+  // The schema's own length refusal, named by its zod issue code.
+  await expect(caller.regex.createScript({ input: { ...base, ...at, findRegex: paddedPattern("lamp", MAX_FIND_REGEX_LENGTH + 1) } })).rejects.toThrow(
+    /too_big/,
+  );
+  await expect(caller.regex.createScript({ input: { ...base, ...at, replaceString: "L".repeat(MAX_REPLACE_LENGTH + 1) } })).rejects.toThrow(/too_big/);
 });
 
 test("a catastrophic find pattern at the full find cap is stopped on the edit re-apply and leaves the text as written", async () => {
   await using root = await createServerHarness();
   const host = await root.principalFor(root.ownerId);
-  // One stacked quantifier passes the pre-compile count, so the server's per-call timeout is the guard that fires.
+  // No shape is refused before compile, so the server's per-call timeout is the guard that fires.
   const runaway = paddedPattern("(a+)+$", MAX_FIND_REGEX_LENGTH);
   const text = `${"a".repeat(40)}!`;
   const warnSpy = vi.spyOn(root.logger, "warn").mockImplementation(() => undefined);

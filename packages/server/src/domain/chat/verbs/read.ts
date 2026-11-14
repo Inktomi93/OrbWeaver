@@ -1218,7 +1218,7 @@ function previewPromptHistoryEnv(ctx: ChatContext, assembleContext: AssembleCont
   return {
     scripts,
     macroCtx: buildTurnMacroContext({ assembleCtx: assembleContext, model: inputs.model, chatId: inputs.chatId, random: PREVIEW_RANDOM }),
-    applyReplace: ctx.applyRegexReplace,
+    openRegexPass: ctx.openRegexPass,
     onScriptFailure: (err, script) =>
       getLog(ctx.logger).warn(
         { err, placement: "PROMPT_HISTORY", findRegex: script.findRegex },

@@ -109,7 +109,7 @@ import { createCopyHandoffBooks, createCountHandoffBooks, createDetachHandoffBoo
 import type { AuditWiring, Logger, TraceRing } from "#foundation/observability";
 import { recordMemoryLog } from "#foundation/observability";
 import { waitForTimer } from "#infra/timers";
-import { createRegexApplyReplace, createRegexTest } from "#primitives/regex";
+import { createRegexTest, openRegexPass, REGEX_TEXT_PASS_BUDGET_MS, regexHistoryPassBudgetMs } from "#primitives/regex";
 import { captureUserRole } from "#primitives/role-data";
 import type { LiveBuses } from "#transport/trpc";
 import { mintPrincipal } from "../auth/principal-mint.ts";
@@ -430,7 +430,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // Fans chatsChanged to every present human member's channel; the engine passes a bare chatId
     // (principal-blind) — this composition-root helper enumerates membership.
     emitChatChanged: createEmitChatChanged({ db, logger: input.logger }, input.publishChatChanged),
-    applyRegexReplace: createRegexApplyReplace(),
+    openRegexPass: (rows) => openRegexPass(rows === undefined ? REGEX_TEXT_PASS_BUDGET_MS : regexHistoryPassBudgetMs(rows)),
     prng: input.random,
     testRegexKey: createRegexTest(),
     // D121-E: the four-scope junction dereference (global/preset/cast/room). Chat owns the UNION

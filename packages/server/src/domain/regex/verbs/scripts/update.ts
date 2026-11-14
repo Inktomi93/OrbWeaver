@@ -10,6 +10,7 @@ import type { UpdateScriptParams } from "#src/domain/regex/contract/params.ts";
 import type { RegexContext, RegexService } from "#src/domain/regex/contract/service.ts";
 import { requireOwnedScript } from "#src/domain/regex/persistence/ownership.ts";
 import { toRow } from "#src/domain/regex/persistence/queries.ts";
+import { requireFindAdmitted } from "#src/domain/regex/substrate/find-door.ts";
 
 export function createUpdate(ctx: RegexContext): RegexService["updateScript"] {
   return async ({ principal, scriptId, input }: UpdateScriptParams) => {
@@ -29,6 +30,9 @@ export function createUpdate(ctx: RegexContext): RegexService["updateScript"] {
     }
     const behavior = regexScriptBehaviorSchema.parse(merged);
     const name = patchName ?? record.name;
+    if (behavior.findRegex !== currentBehavior.findRegex || behavior.substituteRegex !== currentBehavior.substituteRegex) {
+      await requireFindAdmitted(ctx.probeFindCompiles, { name, ...behavior });
+    }
     const enabled = patchEnabled ?? record.enabled;
     const at = ctx.now();
 

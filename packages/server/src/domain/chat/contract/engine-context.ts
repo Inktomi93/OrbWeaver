@@ -7,7 +7,7 @@ import type { ChatToolDefinition, GeneratedImage, InferenceRuntime, Resolved, To
 import type { ContentImageRef } from "@orb/kit/content";
 import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageAssetId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
-import type { RegexExecuteOptions } from "@orb/kit/regex";
+import type { ExecuteRegexScriptsArgs } from "@orb/kit/regex";
 import type { TimerScheduler } from "@orb/kit/time";
 import type { Logger, TraceRing, WireOutcome } from "#foundation/observability";
 import type { ChatAccountingContext } from "./accounting-context.ts";
@@ -15,8 +15,15 @@ import type { BuildTurnMemoryArgs, MemoryRecallResult, RecallMemoryArgs, Witness
 import type { CompactResult, ResolvedMediaRef, TurnRequest, TurnStreamChunk } from "./results.ts";
 import type { RpgTurnOps } from "./rpg-turn.ts";
 
-/** The Node regex watchdog owns execution time outside the pure regex library. */
-export type ApplyRegexReplaceOp = NonNullable<RegexExecuteOptions["applyReplace"]>;
+/** One leg pass of the watchdog: it applies scripts the way the kit executor does, each text in one watchdog entry,
+ *  every entry drawing on the pass's one time budget (D53). */
+export interface RegexPassOp {
+  readonly execute: (args: ExecuteRegexScriptsArgs) => string;
+}
+
+/** Open one leg pass. Open a pass per leg run, never per turn. `rows` is the history leg's row count, which the
+ *  budget grows with; a single-text leg passes none. */
+export type OpenRegexPassOp = (rows?: number) => RegexPassOp;
 
 /** The turn-bound image resolver: room and quality are already closed over. */
 export type ResolveTurnImageUrlOp = (ref: ContentImageRef) => Promise<ResolvedMediaRef | null>;
@@ -121,7 +128,7 @@ export interface EngineContext
   readonly newMessageAssetId: () => MessageAssetId;
   readonly newChatTurnId: () => ChatTurnId;
   readonly emitChatChanged: EmitChatChanged;
-  readonly applyRegexReplace: ApplyRegexReplaceOp;
+  readonly openRegexPass: OpenRegexPassOp;
   /** The service PRNG the turn-stage macro context draws `{{random}}`/`{{roll}}`/`{{pick}}` from. */
   readonly prng: RandomSource;
   readonly passageCounter: InferenceRuntime["catalogs"]["passageCounter"];
