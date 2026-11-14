@@ -78,7 +78,7 @@ import {
   generationObservationRemovalStatements,
   loadGenerationObservationsForRemoval,
 } from "../persistence/generation-observation.ts";
-import { findChatInjectionByContent, insertChatInjectionIfAbsent } from "../persistence/injection-write.ts";
+import { findKeptInjection, insertChatInjectionIfAbsent } from "../persistence/injection-write.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import { loadChatInjections, loadRuntimeVariables, loadStoredUserMacroValues, loadStoredVariables } from "../persistence/queries.ts";
@@ -634,26 +634,21 @@ function createSetChatInjection(ctx: ChatContext, emit: EmitDurableChatEventOp, 
 
 /** `saveCorrection` — host-only, the injections surface's own gate. Keeps the player's correction as an ordinary
  *  chat injection at the Add placement (D116: per-chat prose has one door), so it reaches every later turn in their
- *  words and leaves through the injections list. The same text again is the kept row: no second insert, no
- *  `chatUpdated`, because nothing moved. */
+ *  words and leaves through the injections list. The same text again is the kept row at that placement: no second
+ *  insert, no `chatUpdated`, because nothing moved. */
 function createSaveCorrection(ctx: ChatContext, emit: EmitDurableChatEventOp, claimChat: ClaimChatOp): ChatService["saveCorrection"] {
   return async ({ principal, chatId, content }: SaveCorrectionParams): Promise<ChatInjectionView> => {
     await requireHost(ctx, principal, chatId);
     await claimChat(chatId);
-    const inserted = await insertChatInjectionIfAbsent(ctx.db, {
-      id: ctx.newInjectionId(),
-      chatId,
-      ...NEW_CHAT_INJECTION_PLACEMENT,
-      content,
-      createdAt: ctx.now(),
-    });
+    const key = { chatId, ...NEW_CHAT_INJECTION_PLACEMENT, content };
+    const inserted = await insertChatInjectionIfAbsent(ctx.db, { ...key, id: ctx.newInjectionId(), createdAt: ctx.now() });
     if (inserted !== undefined) {
       await emit({ type: "chatUpdated", chatId });
       return toInjectionView(inserted);
     }
-    const kept = await findChatInjectionByContent(ctx.db, chatId, content);
-    // The guard refused only because a row with this text exists; a concurrent delete between the two
-    // statements is the one way it is gone, and that save then reads as a vanished target.
+    const kept = await findKeptInjection(ctx.db, key);
+    // The guard refused only because the kept row exists; a concurrent delete between the two statements is the
+    // one way it is gone, and that save then reads as a vanished target.
     if (kept === undefined) {
       throw new ChatNotFoundError(chatId);
     }
