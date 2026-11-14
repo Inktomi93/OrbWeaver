@@ -24,7 +24,7 @@ import {
   isClaudeSubscription,
   KEY_STORAGE_OFF_COPY,
   keyStorageBlocks,
-  listsOnDemand,
+  listsUnderDraft,
   modelIdExample,
   namesLoopback,
   needsBaseUrl,
@@ -136,7 +136,7 @@ export function ProviderFields({
       {isClaudeSubscription(provider) ? <ClaudeSubscriptionNotice /> : null}
       {provider.auth === "oauthToken" && held === null ? <SetupTokenCommand /> : null}
       <KeyField form={form} credentials={credentials} provider={provider} held={held} keyStorage={keyStorage} />
-      {listsOnDemand(provider) ? (
+      {listsUnderDraft(provider) ? (
         <form.Subscribe
           selector={(state): { readonly baseUrl: string; readonly key: string; readonly credentialId: CredentialView["id"] | null } => ({
             baseUrl: state.values.baseUrl,
@@ -161,6 +161,7 @@ export function ProviderFields({
               }
               invalidation={invalidation}
               keyValue={draft.key}
+              listsOnInput={held === null}
               onListing={onListing}
               onUrlRefusal={onUrlRefusal}
               trpc={trpc}

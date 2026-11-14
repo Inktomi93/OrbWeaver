@@ -111,17 +111,31 @@ export const KEY_STORAGE_OFF_COPY = {
   keylessNote: "Key storage is off on this server, so this connection can't carry an API key. A local server that needs no key works.",
 } as const;
 
-/** Whether the dialog lists this draft's models on "List models": an endpoint under its URL, and a hosted
- *  provider under the API key pasted for it. A subscription token lists only once it is saved. */
-export function listsOnDemand(provider: ProviderDef): boolean {
-  return needsBaseUrl(provider) || provider.auth === "apiKey";
+/** Whether the provider's list is read the moment it is picked, because the read needs nothing from the user: a
+ *  built-in catalog is closed, and the OpenRouter dialect's catalog is public (the dial ignores the key,
+ *  `packages/inference/src/catalog/listing.ts`). Such a list never depends on a key, so a pasted key is not a
+ *  second read. */
+export function listsOnPick(provider: ProviderDef): boolean {
+  return provider.catalog === "builtin" || provider.dialect === "openrouter";
 }
 
-/** Why the dialog offers a typed model id before any list is read, per auth kind. A keyless draft lists as
- *  soon as its provider is picked, so its reason is only the list's own. */
+/** Whether the dialog lists this draft's models under what the user supplies: an endpoint under its URL, on
+ *  "List models", and a hosted provider under its API key, as soon as the key is pasted or a saved one is
+ *  chosen. A subscription token lists only once it is saved. */
+export function listsUnderDraft(provider: ProviderDef): boolean {
+  return needsBaseUrl(provider) || (provider.auth === "apiKey" && !listsOnPick(provider));
+}
+
+/** How long a pasted key must stop changing before the dialog lists under it: a typed key is one read of the
+ *  whole key, not one per character. A pasted key waits the same beat, which is the cost of not telling a
+ *  paste from fast typing. */
+export const KEY_LIST_SETTLE_MS = 400;
+
+/** Why the dialog offers a typed model id before any list is read, per auth kind. A draft that lists on pick
+ *  has its list the moment it is picked, so its reason is only the list's own. */
 const DRAFT_MODEL_REASONS: Record<ProviderAuth, (provider: ProviderDef) => string> = {
   endpoint: () => "Type the model id your server serves, or list them from the URL above.",
-  apiKey: (provider) => `Paste your key and list the models it can use, or type the id as ${providerDisplayLabel(provider)} spells it.`,
+  apiKey: (provider) => `Paste your key to list the models it can use, or type the id as ${providerDisplayLabel(provider)} spells it.`,
   oauthToken: (provider) => `Type the model id as ${providerDisplayLabel(provider)} spells it.`,
   none: (provider) => `Pick one of the models ${providerDisplayLabel(provider)} runs.`,
 };
@@ -222,22 +236,22 @@ export function submitFailureSentence(args: { readonly heldKeyLabel: string | nu
   return `${key}, but the connection wasn't created: ${reason}. Adding again reuses the saved key. If you cancel, the key stays in Saved keys.`;
 }
 
-/** Whether the dialog itself reads this provider's list: an endpoint or a keyed hosted draft on "List models",
- *  and a built-in provider, whose catalog is closed, as soon as it is picked. */
+/** Whether the dialog itself reads this provider's list: under the draft's URL or key, or on pick. */
 export function listsInDialog(provider: ProviderDef): boolean {
-  return listsOnDemand(provider) || provider.catalog === "builtin";
+  return listsUnderDraft(provider) || listsOnPick(provider);
 }
 
 /** The draft a list answer is about: the provider, plus the URL where the draft names one and the key where the
- *  list is read under it. A built-in list depends on the provider alone. */
+ *  list is read under it. A list read on pick depends on the provider alone. */
 export function listingKeyFor(
   provider: ProviderDef,
   values: Pick<AddConnectionFormValues, "baseUrl" | "key"> & { readonly credentialId?: UserCredentialId | null },
 ): string {
+  const onPick = listsOnPick(provider);
   return draftKeyOf({
     providerId: provider.id,
     baseUrl: needsBaseUrl(provider) ? values.baseUrl : "",
-    key: provider.catalog === "builtin" ? "" : values.key,
-    credentialId: provider.catalog === "builtin" ? null : (values.credentialId ?? null),
+    key: onPick ? "" : values.key,
+    credentialId: onPick ? null : (values.credentialId ?? null),
   });
 }

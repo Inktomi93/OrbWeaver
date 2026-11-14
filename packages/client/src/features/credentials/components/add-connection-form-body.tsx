@@ -1,4 +1,4 @@
-// Button-gated connection authoring; selected saved keys stay metadata-only and catalog answers name their exact draft.
+// Connection authoring; selected saved keys stay metadata-only and catalog answers name their exact draft.
 
 import type { CredentialView } from "@orb/contracts/credentials";
 import type { ModelCheck, ProviderDef } from "@orb/contracts/inference";
@@ -26,6 +26,7 @@ import {
   keyStorageBlocks,
   listingKeyFor,
   listsInDialog,
+  listsOnPick,
   needsBaseUrl,
   SAVED_KEY_UNAVAILABLE,
   sameFormValues,
@@ -127,22 +128,16 @@ export function AddConnectionFormBody({
     if (listsInDialog(provider) && listing !== null && listing.forDraft === listingKeyFor(provider, values)) {
       return listing.source;
     }
-    return {
-      status: "unlisted",
-      reason:
-        values.credentialId !== null && provider.auth === "apiKey"
-          ? "List the models this saved key can use, or type the model id."
-          : draftModelReason(provider),
-    };
+    return { status: "unlisted", reason: draftModelReason(provider) };
   };
 
-  /** A built-in provider's list, read keyless the moment it is picked. A late answer never replaces the listing
-   *  of a draft picked after it. */
-  const listBuiltin = (provider: ProviderDef): void => {
+  /** A provider whose list needs nothing from the user (`listsOnPick`), read the moment it is picked. A late answer
+   *  never replaces the listing of a draft picked after it. */
+  const listOnPick = (provider: ProviderDef): void => {
     const forDraft = listingKeyFor(provider, { baseUrl: "", key: "", credentialId: null });
     const answer = (source: ModelCatalogSource): void =>
       setListing((current) => (current === null || current.forDraft === forDraft ? { forDraft, source } : current));
-    const retry = (): void => listBuiltin(provider);
+    const retry = (): void => listOnPick(provider);
     setListing({ forDraft, source: { status: "loading" } });
     void draftModels
       .mutateAsync({ providerId: provider.id })
@@ -257,8 +252,8 @@ export function AddConnectionFormBody({
                 form.resetField("model");
                 form.resetField("api");
                 setListing(null);
-                if (provider?.catalog === "builtin") {
-                  listBuiltin(provider);
+                if (provider !== undefined && listsOnPick(provider)) {
+                  listOnPick(provider);
                 }
               },
             }}

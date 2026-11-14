@@ -8,7 +8,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import { ADD_CONNECTION_NAME, CONNECTION_PROVIDER_FIELD_NAME } from "#client/features/credentials/lib/connections-copy.ts";
-import { API_KEY_FIELD_NAME, FIRST_MODEL_FINISH_NAME, LIST_MODELS_NAME } from "#client/features/credentials/lib/credentials-names.ts";
+import { API_KEY_FIELD_NAME, FIRST_MODEL_FINISH_NAME } from "#client/features/credentials/lib/credentials-names.ts";
 import type { ConnectionsListStory } from "./_connections-list-stories.tsx";
 
 const STORY = "tests/client/features/credentials/components/_connections-list-stories/ConnectionsListStory";
@@ -79,7 +79,6 @@ async function openSetupStep(page: Page): Promise<Locator> {
   }
   await page.getByRole("option", { name: provider.label }).first().click();
   await dialog.getByRole("textbox", { name: API_KEY_FIELD_NAME, exact: true }).fill("synthetic-first-model-key");
-  await dialog.getByRole("button", { name: LIST_MODELS_NAME, exact: true }).click();
   await dialog.getByRole("option", { name: new RegExp(MODEL, "u") }).click();
   await dialog.getByRole("button", ADD).click();
   await expect(dialog.locator('[data-slot="first-model-setup"]')).toBeVisible();
