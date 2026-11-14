@@ -150,6 +150,8 @@ export interface RegexScriptInput {
   // still `satisfies` this under `exactOptionalPropertyTypes`.
   /** Macro-substitution mode for the FIND pattern (default-equivalent: `none`). */
   readonly substituteRegex?: SubstituteFindRegex | undefined;
+  /** Whether the script also runs when a stored row is edited (a save call with `edit`). */
+  readonly runOnEdit?: boolean | undefined;
   /** Substrings stripped from each spliced capture before it is inserted (macros run on each). */
   readonly trimStrings?: readonly string[] | undefined;
   /** The positions an ephemeral pass applies to ({@link RegexDepth}). Absent is every position; a save call
@@ -366,7 +368,8 @@ function makeReplacer(script: RegexScriptInput, ctx: ProcessMacroOptions): Regex
  *  on a display or prompt call over a row's text, so no call site can forget them and run an author-scoped script
  *  on every row. `depth` is the row's position, or undefined for a row the count skips. */
 export type RegexPassCall =
-  | { readonly pass: "save"; readonly target: RegexTarget }
+  /** `edit` is true when the save is an edit of a stored row, where only a `runOnEdit` script runs. */
+  | { readonly pass: "save"; readonly target: RegexTarget; readonly edit: boolean }
   | { readonly pass: EphemeralRegexPass; readonly target: RegexRowTarget; readonly row: RegexRowStamps; readonly depth: number | undefined }
   | { readonly pass: "prompt"; readonly target: "WORLD_INFO"; readonly depth: number | undefined };
 
@@ -381,19 +384,42 @@ export interface ExecuteRegexScriptsArgs extends RegexExecuteOptions {
   readonly ctx: ProcessMacroOptions;
 }
 
-/** Every reason a script sits out a call, in gate order: switched off, not on this pass, not on this target, out of
- *  depth, not by this author. */
-function skipsScript(script: RegexScriptInput, call: RegexPassCall): boolean {
-  if (!(script.enabled && script.passes.includes(call.pass) && script.targets.includes(call.target))) {
-    return true;
+/** Every reason a script sits out a call, in the executor's gate order. */
+export const REGEX_SKIP_REASONS = ["disabled", "not-on-this-pass", "not-on-this-target", "not-on-edit", "out-of-depth", "not-this-author"] as const;
+export type RegexSkipReason = (typeof REGEX_SKIP_REASONS)[number];
+
+/** Why a script sits out a call, or null when it runs: the executor's own gate, so a panel that explains a run reads
+ *  the same decision. SillyTavern's gate checks the edit switch, then depth, then the placement; the order here only
+ *  changes which reason is named, never whether the script runs. */
+export function regexSkipReason(script: RegexScriptInput, call: RegexPassCall): RegexSkipReason | null {
+  if (!script.enabled) {
+    return "disabled";
+  }
+  if (!script.passes.includes(call.pass)) {
+    return "not-on-this-pass";
+  }
+  if (!script.targets.includes(call.target)) {
+    return "not-on-this-target";
   }
   if (call.pass === "save") {
-    return false;
+    return call.edit && script.runOnEdit !== true ? "not-on-edit" : null;
   }
   if (!withinDepth(script.depth, call.depth)) {
-    return true;
+    return "out-of-depth";
   }
-  return "row" in call && !authorScopeAdmits(script.authors, call.row);
+  return "row" in call && !authorScopeAdmits(script.authors, call.row) ? "not-this-author" : null;
+}
+
+const PASS_TARGETS: { readonly [P in RegexPass]: readonly RegexTarget[] } = {
+  save: ["USER_INPUT", "AI_OUTPUT", "REASONING"],
+  display: ["USER_INPUT", "AI_OUTPUT", "REASONING"],
+  prompt: ["USER_INPUT", "AI_OUTPUT", "WORLD_INFO", "REASONING"],
+};
+
+/** Whether any call runs this target on this pass. World info is read only as the prompt is built, so it has no save
+ *  or display call; every other pair has one. An editor greys out a pair this refuses. */
+export function regexPassReadsTarget(pass: RegexPass, target: RegexTarget): boolean {
+  return PASS_TARGETS[pass].includes(target);
 }
 
 /**
@@ -409,7 +435,7 @@ export function executeRegexScripts(args: ExecuteRegexScriptsArgs): string {
   let result = args.text;
 
   for (const script of scripts) {
-    if (skipsScript(script, call)) {
+    if (regexSkipReason(script, call) !== null) {
       continue;
     }
 
