@@ -14,14 +14,6 @@ export function ArtRecipesStory({ image = false, theme = "mocha" }: { readonly i
           Wordmark
         </Text>
         <Swatch indeterminate={true} fill="primaryFaint" className="inline-full" data-case="hairline" />
-        <Stack container="size" style={{ inlineSize: 240, blockSize: 160 }}>
-          <Text voice="monogram" artScale="portrait" solidLine={true} data-case="portrait-initial">
-            P
-          </Text>
-          <Text voice="monogram" artScale="banner" solidLine={true} data-case="banner-initial">
-            B
-          </Text>
-        </Stack>
         <Card artDecoration="portraitStart" data-case="portrait-start">
           Start
         </Card>

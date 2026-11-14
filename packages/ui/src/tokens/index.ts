@@ -229,7 +229,6 @@ export const TOKENS = {
   "immersive.document-last-row-min-height": { cssVar: "--immersive-document-last-row-min-height", value: "4.375rem" },
   "immersive.ripple-portrait-width-phone": { cssVar: "--immersive-ripple-portrait-width-phone", value: "6.25rem" },
   "immersive.initial-cqmin": { cssVar: "--immersive-initial-cqmin", value: "50" },
-  "immersive.band-initial-cqmin": { cssVar: "--immersive-band-initial-cqmin", value: "70" },
   "reading.bubble-share": { cssVar: "--reading-bubble-share", value: "80%" },
   "reading.tide-share": { cssVar: "--reading-tide-share", value: "70%" },
   "reading.tide-share-phone": { cssVar: "--reading-tide-share-phone", value: "90%" },
@@ -445,7 +444,6 @@ export const TOKENS = {
   "reading.bubble-share-cap": { cssVar: "--reading-bubble-share-cap", value: "min(var(--reading-bubble-share), var(--reading-bubble-cap))" },
   "reading.tide-share-cap": { cssVar: "--reading-tide-share-cap", value: "min(var(--reading-tide-share), var(--reading-bubble-cap))" },
   "text.art-initial": { cssVar: "--text-art-initial", value: "calc(var(--immersive-initial-cqmin) * 1cqmin)" },
-  "text.band-initial": { cssVar: "--text-band-initial", value: "calc(var(--immersive-band-initial-cqmin) * 1cqmin)" },
 } as const;
 
 export type TokenPath = keyof typeof TOKENS;
@@ -698,7 +696,7 @@ export const PIGMENTS = {
   "web-weave": { "silk-bright": "--pigment-web-weave-silk-bright", "dew": "--pigment-web-weave-dew", "spider-body": "--pigment-web-weave-spider-body", "glow": "--pigment-web-weave-glow" },
   "gradient-ring": { "head": "--pigment-gradient-ring-head" },
   "accent-aura": { "empty-state": "--pigment-accent-aura-empty-state", "media-spotlight": "--pigment-accent-aura-media-spotlight", "media-hover-ring": "--pigment-accent-aura-media-hover-ring" },
-  "avatar": { "1": "--pigment-avatar-1", "2": "--pigment-avatar-2", "3": "--pigment-avatar-3", "4": "--pigment-avatar-4", "5": "--pigment-avatar-5" },
+  "avatar": { "1": "--pigment-avatar-1", "2": "--pigment-avatar-2", "3": "--pigment-avatar-3", "4": "--pigment-avatar-4", "5": "--pigment-avatar-5", "depth": "--pigment-avatar-depth" },
   "swatch-ladder": { "step-1": "--pigment-swatch-ladder-step-1", "step-2": "--pigment-swatch-ladder-step-2", "step-3": "--pigment-swatch-ladder-step-3" },
   "waystone": { "flash": "--pigment-waystone-flash" },
 } as const;

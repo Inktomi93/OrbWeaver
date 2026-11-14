@@ -15,7 +15,7 @@ import { messageNumberLabel } from "../lib/message-readout.ts";
 import type { RowSkin } from "../lib/message-row-variants.ts";
 import { avatarSrcProp } from "../lib/message-row-variants.ts";
 import type { ArtView } from "./art-slot.tsx";
-import { ChipAvatar, FallbackLetter, PortraitAvatar } from "./art-slot.tsx";
+import { ChipAvatar, PortraitAvatar } from "./art-slot.tsx";
 import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
 import { MessageNumber } from "./message-metadata-row.tsx";
 
@@ -166,7 +166,7 @@ function stickyPortrait(args: Parameters<typeof renderRowAvatar>[0], target: Vie
       urlAt={portraitSource(args.attribution.avatarHash)}
       view={target === null ? null : artViewOf(target, args.artControl)}
     >
-      <FallbackLetter initials={initialsFor(args.attribution.name ?? "")} placed="fill" />
+      {initialsFor(args.attribution.name ?? "")}
     </PortraitAvatar>
   );
 }

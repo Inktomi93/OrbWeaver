@@ -54,7 +54,7 @@ async function expectFailedArt(page: Page, style: "echo" | "whisper"): Promise<v
     const row = page.locator(`[data-slot="message-row"][data-message-id="${messageIds[role]}"]`);
     await row.scrollIntoViewIfNeeded();
     const art = row.locator(style === "echo" ? '[data-slot="message-echo-art"]' : '[data-slot="message-band"]');
-    await expect(art.locator('[data-voice="monogram"]')).toBeVisible();
+    await expect(art.locator('[data-slot="avatar-monogram"]')).toBeVisible();
     await expect(row.getByRole("button", { name: IMAGE_ACTION })).toHaveCount(0);
     await expect(row.locator('[data-slot="message-bubble"]')).toBeVisible();
   }

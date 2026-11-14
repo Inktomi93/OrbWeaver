@@ -150,6 +150,13 @@
   background-image: var(--art-feather), var(--art-image);
 }
 
+/* The depth under a fallback avatar's initials: the generated `avatar` pigment's `depth` step at the centre, dissolving to nothing at
+ * the box's edges, so the box's own fill is what meets its edge and the initials sit on the step furthest from their ink. The host
+ * stamps `data-pigment` where the pigment resolves. */
+@utility orb-avatar-depth {
+  background-image: radial-gradient(closest-side, var(--pigment-avatar-depth), transparent);
+}
+
 /* A long, fully mounted list row (`commandVariants.item`) skips layout and paint off-screen but stays in the DOM, the
  * accessibility tree and find-in-page, which cmdk's keyboard model needs; the intrinsic size is the first-paint estimate
  * and the browser remembers each row's real height. */

@@ -3,13 +3,12 @@
 // is no image or the image fails to load.
 
 import type { AvatarProps } from "@orb/ui/avatar";
-import { AVATAR_PIGMENT, Avatar } from "@orb/ui/avatar";
+import { AVATAR_PIGMENT, Avatar, AvatarMonogram } from "@orb/ui/avatar";
 import { Stack } from "@orb/ui/layout";
 import { declaresOverlay } from "@orb/ui/lib";
 import type { PictureButtonProps, PictureReach } from "@orb/ui/picture-button";
 import { PictureButton } from "@orb/ui/picture-button";
-import { Text } from "@orb/ui/text";
-import type { ComponentProps, CSSProperties, MouseEvent, ReactElement } from "react";
+import type { CSSProperties, MouseEvent, ReactElement } from "react";
 import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from "react";
 import type { BubbleDecoration } from "../lib/art-decorations.ts";
 import { isFailedArt, rememberFailedArt, subscribeFailedArt } from "../lib/failed-art.ts";
@@ -108,28 +107,6 @@ function ArtViewButton({ view, corner }: { readonly view: ArtView; readonly corn
   );
 }
 
-// The initial in the avatar fallback's own ink, the primary's paired ink on the primary-derived art fill, sized by its slot (a size container, so the letter scales with the
-// art instead of staying a chip-sized glyph). The art is decorative, so it is hidden from the tree.
-export function FallbackLetter({
-  initials,
-  placed,
-  height,
-  scale = "portrait",
-}: {
-  readonly initials: string;
-  readonly placed: "fill" | "topBand";
-  readonly height?: "bandHead";
-  readonly scale?: ComponentProps<typeof Text>["artScale"];
-}): ReactElement {
-  return (
-    <Stack align="center" aria-hidden="true" container="size" height={height} justify="center" placed={placed}>
-      <Text as="div" artScale={scale} tone="primary" ink="toneForeground" voice="monogram" solidLine={true}>
-        {initials}
-      </Text>
-    </Stack>
-  );
-}
-
 /** Whisper's band: the hue fill with the initial in its solid top, or the banner image over it, under the feather.
  *  An image that fails to load is treated exactly like no image: the plain feather, the initial, and no tap target. */
 export function WhisperBand({
@@ -167,7 +144,7 @@ export function WhisperBand({
       ref={attach}
       style={style}
     >
-      {band.image === undefined || failed ? <FallbackLetter height="bandHead" placed="topBand" initials={band.fallback} scale="banner" /> : null}
+      {band.image === undefined || failed ? <AvatarMonogram seat="bandHead">{band.fallback}</AvatarMonogram> : null}
       {tappable ? <ArtViewButton view={view} /> : null}
     </Stack>
   );
@@ -210,7 +187,7 @@ export function EchoArtTile({
         placed="fill"
         style={paintStyle}
       >
-        {art.image === undefined || failed ? <FallbackLetter initials={art.fallback} placed="fill" /> : null}
+        {art.image === undefined || failed ? <AvatarMonogram seat="pane">{art.fallback}</AvatarMonogram> : null}
       </Stack>
       {tappable ? <ArtViewButton view={view} corner={corner} /> : null}
     </Stack>

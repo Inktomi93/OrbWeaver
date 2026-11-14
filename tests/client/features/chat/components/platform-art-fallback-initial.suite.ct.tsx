@@ -16,7 +16,8 @@ import { createReadingRoom, openReadingStyle, READING_ROLES, roomStoryProps, TAI
 
 const ROOM_STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
 const ROW = '[data-slot="message-row"]';
-const LETTER = '[data-slot="text"][data-voice="monogram"]';
+// An art pane's monogram, or the sticky portrait's avatar fallback: the two places a style draws the initials as art.
+const LETTER = '[data-slot="avatar-monogram"], [data-slot="avatar-fallback"]';
 const SLOT_RATIO = { min: 0.4, max: 0.8 } as const;
 const PHONE = { width: 390, height: 844 } as const;
 const DESKTOP = { width: 1440, height: 900 } as const;
@@ -56,18 +57,14 @@ test.afterAll(async () => {
   await root[Symbol.asyncDispose]();
 });
 
-/** Each letter's font size over the shorter side of the size container that holds it. */
+/** Each letter's font size over the shorter side of the size container that draws it. */
 async function letterRatios(page: Page, role: (typeof READING_ROLES)[number]): Promise<readonly number[]> {
-  const letters = page.locator(`${ROW}[data-role="${role}"] ${LETTER}`);
+  const letters = page.locator(`${ROW}[data-role="${role}"]`).locator(LETTER);
   await expect(letters.first()).toBeVisible();
   return letters.evaluateAll((nodes) =>
     nodes.map((node) => {
-      const slot = node.parentElement;
-      if (slot === null) {
-        throw new Error("A fallback letter has no slot");
-      }
-      const box = slot.getBoundingClientRect();
-      return Number.parseFloat(getComputedStyle(node).fontSize) / Math.min(box.width, box.height);
+      const box = node.getBoundingClientRect();
+      return Number.parseFloat(getComputedStyle(node, "::before").fontSize) / Math.min(box.width, box.height);
     }),
   );
 }
@@ -106,7 +103,7 @@ async function selectPrimary(primary: string, chatStyle: ThemeChatStyle): Promis
 async function letterContrasts(page: Page): Promise<readonly { readonly label: string; readonly ratio: number }[]> {
   const measured: { readonly label: string; readonly ratio: number }[] = [];
   for (const role of READING_ROLES) {
-    const letters = page.locator(`${ROW}[data-role="${role}"] ${LETTER}`);
+    const letters = page.locator(`${ROW}[data-role="${role}"]`).locator(LETTER);
     await expect(letters.first()).toBeVisible();
     const pairs = await letters.evaluateAll((nodes) => {
       const canvas = document.createElement("canvas");
@@ -125,7 +122,7 @@ async function letterContrasts(page: Page): Promise<readonly { readonly label: s
         return { r, g, b };
       };
       return nodes.map((node) => {
-        let slot: Element | null = node.parentElement;
+        let slot: Element | null = node;
         while (slot !== null && getComputedStyle(slot).backgroundColor === "rgba(0, 0, 0, 0)") {
           slot = slot.parentElement;
         }

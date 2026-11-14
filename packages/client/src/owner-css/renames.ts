@@ -65,6 +65,9 @@ export const OWNER_CSS_RENAMES: readonly OwnerCssRename[] = [
   // A container query cannot read a variable, so the step was only ever a value; its one query now reads `--container-cq-7`.
   { kind: "token", name: "--container-cq-6", to: null, see: "--container-cq-7" },
   { kind: "token", name: "--border-width-accent", to: "--border-width-rule" },
+  // One share sizes a fallback's initials at every box now, so the banner's own 70% has no one-to-one successor.
+  { kind: "token", name: "--immersive-band-initial-cqmin", to: null, see: "--immersive-initial-cqmin" },
+  { kind: "token", name: "--text-band-initial", to: null, see: "--text-art-initial" },
   // Tailwind read both once, at build time, so an override never moved a border; the weight they pointed at is the knob.
   { kind: "token", name: "--default-border-width", to: "--border-width-default" },
   { kind: "token", name: "--default-ring-width", to: "--border-width-default" },
