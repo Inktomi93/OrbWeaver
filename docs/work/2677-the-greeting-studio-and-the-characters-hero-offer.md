@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-12
+updated: 2026-11-14
 priority: P3
 area: client
 plan: cross-surface-consistency
@@ -11,15 +11,15 @@ plan: cross-surface-consistency
 
 ## What
 
-The density audit's second-primary check fails on Characters content with "2 primary controls: New chat | Accept" at greeting-preview-before-discard and greeting-preview-before-accept: the hero's New chat and the studio's Accept both read primary while a greeting preview is open.
+While a greeting preview is open, the hero's New chat renders as an outline button and the studio's Accept stays primary. The preview's open state lifts to `CharacterHeroBand`, which already mounts the preview.
 
 ## Why
 
-One screen should have one primary action; two compete for the focus a user needs to finish the greeting.
+The finishing act of the open step owns the emphasis, as the Refinery apply outcome does, and one region shows one primary control.
 
 ## Done when
 
-While a greeting preview is open, one control is primary, shown by a component test on the production Characters surface that counts primary controls and is red today; or the audit's reading of the hero is answered with a cited reason.
+a component test on the production Characters surface counts one primary control with a preview open and the hero's New chat primary with it closed, red before and green after.
 
 ## Evidence
 

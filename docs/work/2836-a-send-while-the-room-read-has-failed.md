@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-13
+updated: 2026-11-14
 priority: P3
 area: client
 plan: cross-surface-consistency
@@ -11,15 +11,15 @@ plan: cross-surface-consistency
 
 ## What
 
-When the room read has failed the room draws its composer over the failure plate. A send reaches the server, but the message stays hidden behind the plate until Retry.
+While the room read is failed, the composer refuses Send and the guided fire actions, and shows the reason at the composer: the room did not load, and Retry on the plate loads it. Add the cause to the send gate's refusal vocabulary (`sendRefusalKey` in `packages/client/src/features/chat/lib/next-turn-line.ts`) so the next-turn line and the Send button read one reason.
 
 ## Why
 
-The sender sees nothing happen and may send again.
+A send in this state reaches the server but its message stays hidden under the plate, so the sender sees nothing happen and sends again.
 
 ## Done when
 
-A send in the failed state either shows its result or is refused with a reason at the composer, with a component test for the chosen behaviour.
+a component test on the production room in the failed state shows Send disabled with the visible reason and no request sent. After Retry succeeds, Send is enabled. No toast shows beside the plate.
 
 ## Evidence
 

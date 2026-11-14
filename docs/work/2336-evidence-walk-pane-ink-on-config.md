@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-12
+updated: 2026-11-14
 priority: P3
 area: client
 plan: cross-surface-consistency
@@ -11,15 +11,15 @@ plan: cross-surface-consistency
 
 ## What
 
-The design audit rule pane-ink fails in the desktop-1440-all-panes-evidence walk on Config. Examples: Config: checkpoint config/personas-Your personas-landing at \[data-slot=config-content]. Runs: surface-2sWzKu under ~/.local/state/orbweaver/surface-walk; each case's error-context.md lists every subject.
+The pane-ink census excludes a region whose lowest ink is a list or listbox of member rows, because the shell gives the region its height and the list's end is the data's end. A region that ends in prose or a glance still counts.
 
 ## Why
 
-The design audit flags this as a break in the shared design system on a production surface.
+A LIST pane and a library landing cannot earn height without inventing content, and the shell owns their height.
 
 ## Done when
 
-The pane-ink finding is fixed at the shared owner on these surfaces, shown by a component test that mounts each named production surface and runs this rule through the testkit's design audit, red today and green after, with no whole walk needed, or each remaining subject is answered with a cited reason. A false positive goes to the audit engine with a fixture instead.
+`tests/support/browser/surface-measurement.ct.tsx` has a short member list in a tall region (no finding) and short prose in a tall region (finding), red before and green after for the list case. A design audit of the Refinery Sessions pane and of the Config Personas and World Info landings reports no pane-ink finding. Any Config landing still reported is filed as its own item for a designed landing state.
 
 ## Evidence
 

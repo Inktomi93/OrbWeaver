@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-12
+updated: 2026-11-14
 priority: P3
 area: client
 plan: cross-surface-consistency
@@ -11,15 +11,15 @@ plan: cross-surface-consistency
 
 ## What
 
-The design audit rule cohort-anatomy fails in the desktop-1440-all-panes-evidence walk on the rails and Characters, Chat, Config. Examples: the rails and Characters: checkpoint commands-converted-persona-destination at \[data-slot=config-list] > div.flex:nth-of-type(2) > div.flex:nth-of-type(1) > div.flex\[data-slot=config-group]:nth-of-type(7); Chat: checkpoint composer-chat_00000000000000000000000420-empty-menu-0 at \[data-slot=menu-popup] > div\[data-slot=menu-group]:nth-of-type(3); Config: checkpoint config/personas-Your personas-landing at \[data-slot=config-list] > div.flex:nth-of-type(2) > div.flex:nth-of-type(1) > div.flex\[data-slot=config-group]:nth-of-type(7). Runs: surface-Nn5cKU, surface-q297LL, surface-2sWzKu under ~/.local/state/orbweaver/surface-walk; each case's error-context.md lists every subject.
+The cohort census measures a member's content as its tallest child. A member that stacks its children (a config group with an open body, a menu group) holds more content than its tallest child, so the census reports a content-sized cohort as mis-sized. Measure content as the extent of the children (first child's top to last child's bottom) on the axis the member stacks.
 
 ## Why
 
-The design audit flags this as a break in the shared design system on a production surface.
+The rule's own premise excludes a row sized by what it holds. The Config list and the composer menu are both content-sized and are reported anyway.
 
 ## Done when
 
-The cohort-anatomy finding is fixed at the shared owner on these surfaces, shown by a component test that mounts each named production surface and runs this rule through the testkit's design audit, red today and green after, with no whole walk needed, or each remaining subject is answered with a cited reason. A false positive goes to the audit engine with a fixture instead.
+`tests/tooling/ui-audit/ops/walker/census-cohort.int.test.ts` has a stacked-children fixture that is red on the current census and green after. The existing mis-sized control in `tests/support/browser/surface-measurement.ct.tsx` stays red. A design audit of the Config list and of the composer menu reports no cohort-anatomy finding.
 
 ## Evidence
 

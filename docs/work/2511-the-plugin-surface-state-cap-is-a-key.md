@@ -1,7 +1,7 @@
 ---
 kind: decision
 status: open
-updated: 2026-11-11
+updated: 2026-11-14
 priority: P3
 area: plugins
 ---
@@ -10,15 +10,15 @@ area: plugins
 
 ## What
 
-packages/server/src/domain/plugin/substrate/surface-state.ts caps a plugin's surface state by a count of keys. Its comment recorded a parked revision: a per-plugin byte budget, or least-recently-used eviction over rooms, in place of the key count. The comment cited a board row that is not in docs/work, so the proposal had no home once the comment sweep removed the cite.
+Record a decision that a plugin's surface state is capped by key count, with the reason in the file header and the trigger for a revision: a real plugin reaching the cap. Cite the decision in `surface-state.ts` and drop the dead board cite from the comment and the log line. Add a case at the bound.
 
 ## Why
 
-A key count bounds neither memory nor the number of rooms a plugin can hold state for. The proposal was parked, not rejected, and a parked design with no record is lost.
+The parked proposal has no record once the dead cite goes, and the cap has no test.
 
 ## Done when
 
-A recorded decision keeps the key count with its reason, or the cap is rebuilt as the chosen alternative with a test at the bound. The comment cites the decision.
+an ADR states the key-count cap and its revision trigger, `surface-state.ts` cites it, and a server case shows a new key past the cap refused with the plugin and room in the log while an existing key's overwrite proceeds.
 
 ## Evidence
 

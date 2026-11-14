@@ -1,7 +1,7 @@
 ---
 kind: decision
 status: open
-updated: 2026-11-13
+updated: 2026-11-14
 priority: P3
 area: client
 plan: cross-surface-consistency
@@ -11,15 +11,15 @@ plan: cross-surface-consistency
 
 ## What
 
-The UI census kept-site list held an entry that keeps the config list surface's focus on the active group's band. No law section or decision record authorizes it, so the entry was removed and the census now reports the site.
+Add a focus keptSite for `packages/client/src/features/config/surfaces/config-list-surface.tsx` (value `useFocusOnMount`) in `tooling/src/ui-facts/cohorts.ts`. Its reason: the Settings band carries no primary action, so the shared list arrival falls back to a root with no visible focus, and UI-Architecture-and-Layout §4.3 rule 6 requires visible focus on arrival.
 
 ## Why
 
-A kept site needs a cited ruling; without one the census cannot tell a deliberate exception from drift.
+A kept site needs a cited ruling. This one has a law clause and a structural reason the census can read.
 
 ## Done when
 
-A decision record or a law section rules the focus behavior and the kept-site entry cites it, or the site is changed to follow the shared focus rule.
+the UI census reports no focus finding for the config list, `tests/tooling/ui-facts/ui-facts.test.ts` passes, and `tests/client/features/config/surfaces/config-list-arrival.ct.tsx` still lands focus on the active group's band.
 
 ## Evidence
 

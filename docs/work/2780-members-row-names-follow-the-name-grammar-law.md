@@ -1,7 +1,7 @@
 ---
 kind: decision
 status: open
-updated: 2026-11-13
+updated: 2026-11-14
 priority: P3
 area: client
 plan: cross-surface-consistency
@@ -11,15 +11,15 @@ plan: cross-surface-consistency
 
 ## What
 
-The native axe rule `label-content-name-mismatch` fires on any Members row that prints a state word, because axe wants the shown words as one contiguous run of the accessible name. `docs/law/UI-Primitives-and-Reuse.md` §13.10 says the opposite: every word on screen appears in the name, and a transient status is a description. The row meets the law in every state; `tests/client/features/chat/components/member-row-name.ct.tsx` holds it. Clearing axe means reordering the row-name grammar or moving the marks out of the button.
+The accessibility scan moves a `label-content-name-mismatch` node to judged-apart when the node passes the house Label-in-Name check: every word it shows is in its name, after the text its `aria-describedby` points at is removed. Its reason cites UI-Primitives-and-Reuse §13.10 N2.
 
 ## Why
 
-The surface walk reports the row on every run until the finding is excused by a cited ruling or cleared.
+Axe's rule is stricter than N2 and flags the Members row in every state that prints a state word, so the walk reports a row that meets the law.
 
 ## Done when
 
-A ruling is recorded, and the walk either excuses the Members row by citing it or the row is changed and the walk is clean.
+`tests/support/browser/accessibility-scan.ct.tsx` has a case for a Members row in a state-word state (judged apart) and a control whose shown words are missing from its name (still a violation), and a walk of the room lists no Members row finding.
 
 ## Evidence
 

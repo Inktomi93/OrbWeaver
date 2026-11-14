@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-06
+updated: 2026-11-14
 priority: P3
 area: onboarding
 ---
@@ -10,15 +10,15 @@ area: onboarding
 
 ## What
 
-Bundle: schedules do not confirm a per-run call count; a Retry estimate counts the caller scope, not the row owner; the understanding-pass themes count is understated before backfill; the image-analysis count ignores the vision short-circuit and re-uploaded bytes; the memory estimate runs high (no witness narrowing or hash drift); next-turn-line spells model-roles and chat-model literals instead of MODEL_ROLES_ADDRESS; ADR 0036 Consequences should record the off default and the turn-on confirm; a first-model-setup failure shows inline and in the setBinding toast; app strings still carry em dashes (connection reachability, add-connection form, the interactive cards hint, the assumed source line).
+When the memory chain will add digests before the understanding pass, the estimate counts the themes stage at its ceiling: one naming call per cluster, at most the per-level cap. The confirm says the count is an upper bound when any stage is counted at its ceiling.
 
 ## Why
 
-Found by lane D and the wiki sweep outside their done criteria.
+The confirm states a paid run's size before it starts, and an undercount states the wrong size.
 
 ## Done when
 
-Each point fixed with a test where behavior changes, or ruled.
+a server case through the estimate verb shows the ceiling count before backfill and the exact count after it, and a CT on the confirm shows the upper-bound sentence only for a bounded estimate.
 
 ## Evidence
 

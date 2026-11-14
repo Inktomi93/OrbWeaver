@@ -1,7 +1,7 @@
 ---
 kind: decision
 status: open
-updated: 2026-11-08
+updated: 2026-11-14
 priority: P3
 area: chat
 ---
@@ -10,15 +10,15 @@ area: chat
 
 ## What
 
-When the provider cold-starts its model, as llama-swap does after its TTL, a turn shows only its pending ghost for up to three idle windows of 180 s plus backoff before it aborts with a retryable error.
+While a turn waits for its first token past a short delay, the pending row says it is waiting for the provider to start. The idle window stays as it is; no shorter first-byte bound is added. The state comes from a structured turn event, never from parsed text.
 
 ## Why
 
-The reader cannot tell a slow cold boot from a dead turn and has nothing to act on but Stop.
+Owner ruling. A large local model can take minutes to load, and a silent pending row reads as a hang. A shorter bound would end real cold starts.
 
 ## Done when
 
-A ruling decides whether the turn surfaces a waiting-on-provider state or a shorter first-byte bound, and the chosen behaviour has a case through the turn engine.
+A component test on the production room holds the first token past the delay and shows the waiting line, then shows it replaced when the first token arrives. A server case shows a slow first token inside the idle window is not ended early.
 
 ## Evidence
 

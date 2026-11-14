@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-10-05
+updated: 2026-11-14
 priority: P2
 area: stats
 ---
@@ -10,15 +10,15 @@ area: stats
 
 ## What
 
-From the 0486 lane: (1) deleting a generated image cascades away its imagery_generations row but the live rollup never subtracts the spend, so a later Recompute lowers spend; decide whether image spend is history (its own ledger like compaction) or current canon (deletion subtracts live). (2) Landed in part: imagery execution history travels through the `imagery` descriptor and rebuilds grouped image spend. Compaction spend still does not travel; carry its history in the bundle. (3) Compaction and other chat metadata writes bump chats.updatedAt, which moves the rebuild character lastActivityAt with no live delta; decide whether those count as character activity. (4) The image delta adds modelGenSamples without genTimeMs and cost without costSamples, skewing averages.
+Generated-image spend is history: it is kept in its own ledger, as compaction spend is, so deleting a picture never lowers shown spend, and a stats rebuild gives the same total as the live path. Only turns count as character activity: the rebuild reads message times for last activity and ignores other writes to a chat. Compaction spend travels in the bundle. An image delta adds its generation time and cost samples with its counts.
 
 ## Why
 
-Live and rebuilt stats must agree, and spend is money users track.
+Owner ruling: spend is money already paid, so a delete does not refund it on screen. Today a rebuild after a delete lowers the total, and a chat-metadata write moves a character's last activity.
 
 ## Done when
 
-Each point ruled and fixed with a drift-gate test.
+A server case through the composed root generates a picture, deletes it and rebuilds, and the shown spend is unchanged and equal on the live and rebuilt paths. A case shows a chat-metadata write leaves last activity unmoved on both paths. A bundle round trip keeps compaction spend. Image averages equal a rebuild's.
 
 ## Evidence
 

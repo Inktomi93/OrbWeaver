@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-13
+updated: 2026-11-14
 priority: P3
 area: client
 plan: cross-surface-consistency
@@ -11,15 +11,15 @@ plan: cross-surface-consistency
 
 ## What
 
-In the chat Context pane, two list rows with the same entry title produce the same itemSwitchName, so two switches for different entries share one accessible name; the name carries no book qualifier.
+The regex script switch names its subject the way the row's menu does. `regexScriptEverywhereSwitchName` takes the row subject from `rowActionSubject(name, qualifier)` in `regex-tier-row.tsx`. The On screen roster computes its own qualifiers with `rowQualifiers` and passes them the same way.
 
 ## Why
 
-A screen reader user cannot tell which entry a switch toggles.
+Two same-titled scripts in one list give two switches one accessible name, so a screen reader user cannot tell which script a switch toggles.
 
 ## Done when
 
-The duplicate-action-door finding is gone from the Chat evidence case of a design-audit run. Already merged: `itemSwitchName` takes the owning list, the regex tier rows and the on-screen roster pass it, and `tests/client/features/chat/components/regex-switches.ct.tsx` covers it. Two same-titled scripts inside one tier still share a switch name; that case is ruled out of this item or given a stable qualifier.
+`tests/client/features/chat/components/regex-switches.ct.tsx` has a case with two same-titled scripts in one tier and in the On screen roster, red before and green after, and each switch name equals its row menu's subject.
 
 ## Evidence
 

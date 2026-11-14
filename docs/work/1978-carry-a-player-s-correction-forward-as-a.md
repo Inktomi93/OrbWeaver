@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-07
+updated: 2026-11-14
 priority: P2
 area: chat
 ---
@@ -10,7 +10,7 @@ area: chat
 
 ## What
 
-Let a player save a correction (for example 'I still have the brass key') that every later turn of the chat receives, in the player's own words, until the player removes it. The correction instruction in `packages/client/src/features/chat/components/rewrite-dialog.tsx` applies to one reply only.
+The Rewrite dialog can save its correction as a chat injection, so every later turn of the chat receives it in the player's words. The saved correction shows and is removed in the chat's injections list. The memory view lists saved corrections when item 1977 builds it.
 
 ## Why
 
@@ -18,7 +18,7 @@ A model that keeps forgetting one fact needs the same correction on every rewrit
 
 ## Done when
 
-A saved correction appears in the turn prompt of later turns and in the memory view, can be removed, and a test pins add, carry-forward and remove.
+a server case through the composed root saves a correction from the rewrite path, the next turn's prompt carries it, and removing the injection drops it from the turn after. A CT on the Rewrite dialog shows the save control and the saved injection in the injections list.
 
 ## Evidence
 
