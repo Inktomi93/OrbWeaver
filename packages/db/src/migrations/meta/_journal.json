@@ -120,6 +120,13 @@
       "when": 1794643055817,
       "tag": "0016_chat-memory-strikes",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1794643289822,
+      "tag": "0017_chat-landing-marker",
+      "breakpoints": true
     }
   ]
 }
