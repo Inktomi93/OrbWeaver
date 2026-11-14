@@ -13,7 +13,9 @@ import { createCorpusSdkExecution } from "./corpus-sdk-wire.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness, SECRET_BOX_TEST_KEY } from "./server.ts";
 
-test("native resumed transcript identities replay without dropping distinct child turns", async () => {
+// The first two cases start one real Node child per SDK turn, six and ten in sequence, and each cold start is
+// about four tenths of a second on two cores; the third starts one.
+test("native resumed transcript identities replay without dropping distinct child turns", { tags: "slow" }, async () => {
   const replay = async (): Promise<ReturnType<typeof createCorpusSdkExecution>["receipts"]> => {
     const wire = createCorpusSdkExecution({ prompts: [CORPUS_SDK_QUERY, CORPUS_SDK_REUSE, CORPUS_SDK_REUSE] });
     await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY, sdkSpawn: wire.spawn });
@@ -69,7 +71,7 @@ test("native resumed transcript identities replay without dropping distinct chil
   expect(await replay()).toEqual(await replay());
 });
 
-test("native SDK canon lineage persists, resumes, branches and returns without foreign ownership or empty-seed fabrication", async () => {
+test("native SDK canon lineage persists, resumes, branches and returns without foreign ownership or empty-seed fabrication", { tags: "slow" }, async () => {
   const wire = createCorpusSdkExecution();
   await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY, sdkSpawn: wire.spawn });
   const result = await seedCorpusSdkSessions(root, wire);

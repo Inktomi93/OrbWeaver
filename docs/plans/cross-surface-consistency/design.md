@@ -2,7 +2,7 @@
 kind: plan
 status: active
 updated: 2026-11-06
-rank: 8
+rank: 9
 ---
 
 # Cross-surface visual consistency
@@ -84,7 +84,7 @@ The owner of a surface's own empty state is `EmptyState` with an action. The emp
 
 #### Card sites
 
-`Card` is for islands, heroes, editor regions and plates. A row uses `ListRow`, a callout uses one notice composite, and settings rows use `SettingRowGroup`. The two placeholders that also use `Card` (`rpg-map-tab.tsx`, `composer-drop-target.tsx`) are decided under Empty states.
+`Card` is for islands, heroes, editor regions and plates. A row uses `ListRow`, a callout uses one notice composite, and settings rows use `SettingRowGroup`. The placeholder that also uses `Card` (`composer-drop-target.tsx`) is decided under Empty states.
 
 | Group | Decision | Reason | Item |
 | - | - | - | - |

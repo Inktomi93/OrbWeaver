@@ -1,10 +1,10 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-11
+updated: 2026-11-14
 priority: P3
 area: tooling
-plan: checked-law
+plan: typed-enforcers
 ---
 
 # The dialog lint refuses a hand-built footer or exit in a feature

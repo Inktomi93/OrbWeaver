@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: chat
-plan: checked-law
+plan: typed-enforcers
 ---
 
 # Chat persistence and assembly still read the characters, personas and assets tables

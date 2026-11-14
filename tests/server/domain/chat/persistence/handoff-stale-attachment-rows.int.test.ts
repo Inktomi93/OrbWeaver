@@ -1,19 +1,32 @@
-// A chat_books and a chat_regex_scripts row owned by a former host, as a handoff that did not detach them left
-// them, must apply nothing and be listed nowhere: the world-info pool and the regex resolver read a chat attachment
-// only when the room's host owns it, and the member racks list through the same owner check (D64). The rows are
-// planted directly because no current write path leaves one behind.
+// A chat_books, chat_regex_scripts or chat_documents row owned by a former host, as a handoff that did not detach
+// them left them, must apply nothing and be listed nowhere: the world-info pool, the regex resolver and the databank
+// chat scope read a chat attachment only when the room's host owns it, and the member racks and the document panel
+// list through the same owner check (D64). The rows are planted directly because no current write path leaves one
+// behind.
 // @subject packages/server/src/domain/chat/assembly/world-info/pool.ts
 // @subject packages/server/src/domain/regex/persistence/resolve-sources.ts
 // @subject packages/server/src/domain/world-info/verbs/attachments/list-for-chat.ts
 // @subject packages/server/src/domain/regex/verbs/attachments/list-for-chat.ts
+// @subject packages/server/src/domain/databank/persistence/scope.ts
 
-import { chatBooks, chatRegexScripts } from "@orb/db";
+import { chatBooks, chatDocuments, chatRegexScripts } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
+import type { ChatRoot } from "@orb/testkit/node/composed";
 import { CHAT_OP_CODES, ChatNotFoundError } from "#server/domain/chat/contract/errors.ts";
 import type { RoomAttachments, SentTurn } from "../handoff-attachments-physical.ts";
-import { attachRoomAttachments, editAttachments, handOff, roomRack, seatOwnCard, sendTurn } from "../handoff-attachments-physical.ts";
+import {
+  attachRoomAttachments,
+  attachRoomDocument,
+  documentRoom,
+  editAttachments,
+  embedDocuments,
+  handOff,
+  roomDocuments,
+  roomRack,
+  seatOwnCard,
+  sendTurn,
+} from "../handoff-attachments-physical.ts";
 import { invitePerson } from "../persona-cache-physical.ts";
-import { textRoom } from "../scenario-physical.ts";
 
 const FORMER = { lore: "Stale room lore ALPHA.", find: "hello", replace: "HELLO-STALE" } as const;
 const NEW_HOST = { lore: "Current host lore BETA.", find: "there", replace: "THERE-HOST" } as const;
@@ -23,7 +36,7 @@ const MESSAGE = "hello there";
 // The new host's own script attaches first, so the stale row's position follows it.
 const STALE_POSITION = 1;
 
-type Room = Awaited<ReturnType<typeof textRoom>>;
+type Room = ChatRoot;
 
 /** Put back the former host's junction rows a handoff without the detach left in place. A source that still
  *  leaves them keeps its own rows, so the plant is a no-op there. */
@@ -46,7 +59,7 @@ function expectOnlyHostAttachments(turn: SentTurn): void {
 }
 
 test("a former host's book and script left attached are listed by neither rack and apply nothing to the new host's turn, however the former host edits them", async () => {
-  await using h = await textRoom(["First reply.", "Second reply."]);
+  await using h = await documentRoom(["First reply.", "Second reply."]);
   const formerHost = h.owner;
   const stale = await attachRoomAttachments(h, formerHost, FORMER);
   const newHost = await invitePerson(h);
@@ -69,4 +82,37 @@ test("a former host's book and script left attached are listed by neither rack a
     ChatNotFoundError,
   );
   expectOnlyHostAttachments(await sendTurn(h, newHost, MESSAGE));
+});
+
+const STALE_DOCUMENT = { name: "Stale shelf ALPHADOC", text: "The stale document ALPHATEXT." } as const;
+const HOST_DOCUMENT = { name: "Host shelf BETADOC", text: "The current host's document BETATEXT." } as const;
+const STALE_RENAMES = ["Stale renamed while seated OMEGADOC", "Stale renamed after leaving SIGMADOC"] as const;
+
+function expectOnlyHostDocument(turn: SentTurn): void {
+  expect(turn.wire).toContain(HOST_DOCUMENT.text);
+  for (const text of [STALE_DOCUMENT.name, STALE_DOCUMENT.text, ...STALE_RENAMES]) {
+    expect(turn.wire).not.toContain(text);
+  }
+}
+
+test("a former host's document left attached reaches neither the new host's panel nor their turn, however the former host renames it", async () => {
+  await using h = await documentRoom(["First reply.", "Second reply."]);
+  const formerHost = h.owner;
+  const stale = await attachRoomDocument(h, formerHost, STALE_DOCUMENT);
+  const newHost = await invitePerson(h);
+  await handOff(h, newHost, false);
+  await seatOwnCard(h, newHost);
+  const own = await attachRoomDocument(h, newHost, HOST_DOCUMENT);
+  await h.root.db.insert(chatDocuments).values({ chatId: h.chatId, documentId: stale }).onConflictDoNothing();
+  await embedDocuments(h, newHost, [formerHost, newHost]);
+
+  await h.root.services.databank.rename({ principal: formerHost, id: stale, name: STALE_RENAMES[0] });
+  expectOnlyHostDocument(await sendTurn(h, newHost, MESSAGE));
+  expect(await roomDocuments(h, newHost)).toEqual([own]);
+
+  await h.root.services.chat.selfLeave({ principal: formerHost, chatId: h.chatId });
+  await h.root.services.databank.rename({ principal: formerHost, id: stale, name: STALE_RENAMES[1] });
+  await expect(h.root.services.databank.attachToChat({ principal: formerHost, chatId: h.chatId, documentId: stale })).rejects.toBeInstanceOf(ChatNotFoundError);
+  expectOnlyHostDocument(await sendTurn(h, newHost, MESSAGE));
+  expect(await roomDocuments(h, newHost)).toEqual([own]);
 });
