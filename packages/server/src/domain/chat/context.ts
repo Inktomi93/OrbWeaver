@@ -16,6 +16,7 @@ import type { ChatAssemblyContext } from "./contract/wiring.ts";
 import { backfillGroupCharacters, backfillMemory } from "./memory/backfill/backfill.ts";
 import { estimateMemoryBackfillCalls } from "./memory/backfill/estimate.ts";
 import { loadTranscriptNames } from "./memory/persistence/queries.ts";
+import { restampStrikeSeqsStatement } from "./memory/persistence/strikes.ts";
 import { recallMemory } from "./memory/recall/recall.ts";
 import { buildMemoryView, forkMemoryStrikes, restampStrikesForHandoff, restoreMemoryStrike, writeMemoryStrike } from "./memory/strikes.ts";
 import { emptyMemoryScopePredicate, loadBackfillChatIds } from "./persistence/backfill-scope.ts";
@@ -57,6 +58,7 @@ export function createChatContext(input: ChatAssemblyContext): ChatContext {
       strike: (args) => writeMemoryStrike(ctx, args),
       restore: (args) => restoreMemoryStrike(ctx, args),
       restampForHandoff: (chatId, pairs) => restampStrikesForHandoff(ctx, chatId, pairs),
+      restampSeqsAfterReorder: (chatId) => restampStrikeSeqsStatement(ctx.db, chatId),
       forkStrikes: (args) => forkMemoryStrikes(ctx, args),
     },
   };
