@@ -643,11 +643,10 @@ export interface VariantWireView {
 /** The immutable per-turn context (RESOLVE + GATHER produce it; BUILD + SHAPE take it + a speaker). Most
  *  fields are optional so hand-built / preview / solo contexts degrade to byte-identical output (the §10.4
  *  degenerate-case doctrine: solo is the trivial roster, never an `if(isGroup)` branch). */
-/** How a turn's global plane stands. `staged`: the host is the room's only present human, so the host's plane
- *  reads and the turn's writes commit with its reply. `held`: another human is present, and the macro engine
- *  records no macro's author, so a member's text could write or read the host's plane: reads give "" and writes
- *  are dropped, and the turn warns when either was asked for. */
-export type TurnGlobalVariablesMode = "staged" | "held";
+// How a turn's global plane stands. `staged`: no other human ever held a seat in the room, so the host's plane reads
+// and the turn's writes commit with its reply. `held`: room text has no reliable author, so reads give "" and writes
+// are dropped, and the turn warns when either was asked for.
+type TurnGlobalVariablesMode = "staged" | "held";
 
 /** One turn's global plane: the read cache, the `{{setglobalvar}}` writes the commit drains, and the keys a
  *  held plane refused to read. The arrays are the turn's own sinks, cleared after each commit. */

@@ -180,8 +180,8 @@ const PLAIN_CHAT_WARNING_CODES = [
   // without it a captioned-but-pictureless reply reads as the model babbling about an image nobody sent.
   // COUNT-FREE like every other plain code — one notice per turn, not one per lost picture.
   "reply_image_failed",
-  // The turn's text read or set a global variable in a room where another human is present, so the reads gave
-  // nothing and the writes were dropped (`TurnGlobalVariablesMode` `held`). The reply is unaffected.
+  // The turn's text read or set a global variable in a room another human has held a seat in, so the reads gave
+  // nothing and the writes were dropped (the plane is `held`). The reply is unaffected.
   "global_variables_held",
   // A `{{setglobalvar}}` write this reply made was refused by a cap (key or value size, a NUL, the per-turn
   // key count or the owner's key total) and not stored; the reply and the other writes committed.

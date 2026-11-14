@@ -125,9 +125,7 @@ export async function redeemInviteAtomic(
     now: params.now,
   });
   const shared = markChatSharedAfterSeatStatement(db, { inviteId: candidate.id, userId: params.userId });
-  const results = await db.batch(batchMany([claimedStatement, seatedStatement, shared]));
-  const claimed = results[0] as { id: ChatInviteId; chatId: ChatId }[];
-  const seated = results[1] as (typeof chatParticipants.$inferSelect)[];
+  const [claimed, seated] = await db.batch([claimedStatement, seatedStatement, shared]);
   const invite = claimed.at(0);
   const participant = seated.at(0);
   if (invite === undefined || participant === undefined) {
@@ -183,9 +181,7 @@ export async function acceptInviteByIdAtomic(
     now: params.now,
   });
   const shared = markChatSharedAfterSeatStatement(db, { inviteId: candidate.id, userId: params.userId });
-  const results = await db.batch(batchMany([claimedStatement, seatedStatement, shared]));
-  const claimed = results[0] as { id: ChatInviteId; chatId: ChatId }[];
-  const seated = results[1] as (typeof chatParticipants.$inferSelect)[];
+  const [claimed, seated] = await db.batch([claimedStatement, seatedStatement, shared]);
   const invite = claimed.at(0);
   const participant = seated.at(0);
   if (invite === undefined || participant === undefined) {

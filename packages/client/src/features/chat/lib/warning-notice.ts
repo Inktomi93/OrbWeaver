@@ -138,7 +138,7 @@ function plainNotice(code: PlainChatWarningCode): NotifyNotice {
     // Says where globals do work, so the reader knows the card is not broken.
     case "global_variables_held":
       return {
-        description: "This reply's prompt reads or sets global variables, which only run when you're the only person in the room.",
+        description: "This reply's prompt reads or sets global variables, which only run in a room no one else has ever joined.",
         title: "Global variables were skipped in this shared room",
       };
     case "global_variable_dropped":
