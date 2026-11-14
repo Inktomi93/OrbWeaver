@@ -627,7 +627,7 @@ export type ApplyProseRewrite = (req: {
   readonly content: string;
 }) => Promise<void>;
 
-/** What the analysis CONFIRM executor (`persistence/analysis-confirm.ts`) needs — a subset of the verb's ctx
+/** What the analysis CONFIRM executor (`engine/analysis-confirm.ts`) needs — a subset of the verb's ctx
  *  (db + the injected ops + the claim-time clock value + C3's confirm-only rewrite op). Homed here beside the
  *  payload union it executes: the deps name `AutomationOps`, and a home in `contract/analysis.ts` would make
  *  `analysis ⇄ ops` a cycle. */

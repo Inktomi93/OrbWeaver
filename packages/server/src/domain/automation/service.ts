@@ -5,6 +5,7 @@ import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { createSerialLanes } from "@orb/kit/serial-lanes";
 import type { AutomationContext, AutomationService, AutomationServiceDeps } from "./contract/service.ts";
+import { runAnalysisConfirm } from "./engine/analysis-confirm.ts";
 import { createArmExecutors } from "./engine/arm-executors.ts";
 import { createHandleEvent } from "./engine/handle-event.ts";
 import { createConfirmSuggestion } from "./verbs/confirm-suggestion.ts";
@@ -47,6 +48,7 @@ export function createAutomationService(input: DbAssemblyInput<AutomationService
       newSuggestionId: deps.newSuggestionId,
       logger: deps.logger,
     }),
+    runAnalysisConfirm,
   };
   // Built ONCE and injected into BOTH mints: a preset's rule set is validated and shaped by the SAME planner
   // a hand-authored rule goes through (one validation, one row shape), and the dependency stays visible at

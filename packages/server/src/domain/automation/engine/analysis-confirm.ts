@@ -1,7 +1,7 @@
-// domain/automation/persistence/analysis-confirm — the CONFIRM executor for the `{via:"analysis"}` payload
+// domain/automation/engine/analysis-confirm — the CONFIRM executor for the `{via:"analysis"}` payload
 // arm (S5's confirm-routed outputs). The confirm VERB is its one caller, and a verb may not import a named
-// subsystem (`domain-substrate-mediates-subsystems`), so it lives beside the rule-state queries it writes; the
-// engine half it reaches is the ONE lore belt (`engine/lore-write.ts` — the same attach gate + per-rule
+// subsystem (`domain-substrate-mediates-subsystems`), so `service.ts` binds it onto the context as
+// `runAnalysisConfirm`; the engine half it reaches is the ONE lore belt (`engine/lore-write.ts` — the same attach gate + per-rule
 // cap the `insert_world_info_entry` arm rides, re-checked at confirm time because consent may have moved
 // since the card was raised).
 //
@@ -16,8 +16,8 @@ import { automationRuleClockZone } from "@orb/contracts/automation";
 import type { AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import type { AnalysisConfirmAct } from "../contract/analysis.ts";
 import type { AnalysisConfirmDeps, PendingSuggestion, RuleRow } from "../contract/ops.ts";
-import { applyRuleLoreWrite } from "../engine/lore-write.ts";
-import { advanceSettledWatermark, selectRuleState, upsertRuleState } from "./rule-state.ts";
+import { advanceSettledWatermark, selectRuleState, upsertRuleState } from "../persistence/rule-state.ts";
+import { applyRuleLoreWrite } from "./lore-write.ts";
 
 /** Execute one CONFIRMED analysis act. Throws on refusal — the confirm verb maps it to `action_error`
  *  (errors-as-data at the verb, matching the stashed-arm path). */
