@@ -712,40 +712,12 @@ const MODULE_LOADER_SYNTAX = [
   },
 ];
 
-// What a privilege role means is encoded once, in `@orb/contracts/identity` (`isHostRole`, `userRoleSatisfies`), the
-// file every reader shares, `can()` included (Spine-Identity-and-Auth.md invariant 6). These selectors refuse, in the
-// server and the client, a role literal (`host`, `member`, `owner`, `admin`) tested against an operand named for a role:
-// a `role`, `globalRole` or `viewerRole` field (optional chains too), a variable such as `derivedRole`, or a decoded
-// `participantRoleValue(...)`. The forms: an equality on either side, a `switch` case, an array literal's `includes` and an
-// `in` over an object literal. A message role (`user`, `assistant`) is not a privilege role and is not seen.
-const ROLE_LITERAL = "/^(host|member|owner|admin)$/";
-const ROLE_OPERAND = (side: string): string =>
-  [
-    `[${side}.property.name=/[rR]ole$/]`,
-    `[${side}.expression.property.name=/[rR]ole$/]`,
-    `[${side}.name=/[rR]ole$/]`,
-    `[${side}.callee.name=/[rR]oleValue$/]`,
-  ].join(", ");
-const ROLE_COMPARISON_MESSAGE =
-  "Test a privilege role through isHostRole or userRoleSatisfies from @orb/contracts/identity, the one encoding can() decides with (Spine-Identity-and-Auth.md invariant 6).";
-const ROLE_COMPARISON_SYNTAX = [
-  {
-    selector: `BinaryExpression[operator=/^[!=]==$/]:matches(${ROLE_OPERAND("left")}, ${ROLE_OPERAND("right")}):matches([left.value=${ROLE_LITERAL}], [right.value=${ROLE_LITERAL}])`,
-    message: ROLE_COMPARISON_MESSAGE,
-  },
-  {
-    selector: `SwitchStatement:matches(${ROLE_OPERAND("discriminant")}) > SwitchCase[test.value=${ROLE_LITERAL}]`,
-    message: ROLE_COMPARISON_MESSAGE,
-  },
-  {
-    selector: `CallExpression[callee.property.name='includes'][callee.object.type='ArrayExpression']:matches(${ROLE_OPERAND("arguments.0")}):matches([callee.object.elements.0.value=${ROLE_LITERAL}], [callee.object.elements.1.value=${ROLE_LITERAL}], [callee.object.elements.2.value=${ROLE_LITERAL}])`,
-    message: ROLE_COMPARISON_MESSAGE,
-  },
-  {
-    selector: `BinaryExpression[operator='in'][right.type='ObjectExpression']:matches(${ROLE_OPERAND("left")}):matches([right.properties.0.key.name=${ROLE_LITERAL}], [right.properties.0.key.value=${ROLE_LITERAL}])`,
-    message: ROLE_COMPARISON_MESSAGE,
-  },
-];
+// What a role means is encoded once, in the identity contracts (Spine-Identity-and-Auth.md invariant 6); every other
+// package source asks them through `orb/no-role-comparison`.
+const ROLE_MEANING_HOME = homes("packages/contracts/src/identity/index.ts");
+// The account role chip: its label, its tone and whether it shows beside the handle. That is a view field, the data
+// projection class of D121 clause (A)(2), and a client display read is never an authorization (D121 clause A).
+const ROLE_DISPLAY_HOME = homes("packages/client/src/components/user-role-status.ts");
 
 const SERVER_BASE_SYNTAX = [
   {
@@ -753,7 +725,6 @@ const SERVER_BASE_SYNTAX = [
     message: "D61 B5a: the rejected third-party CORS proxy cannot be spelled in server or inference literals; use the guarded network owner directly.",
   },
   ...MODULE_LOADER_SYNTAX,
-  ...ROLE_COMPARISON_SYNTAX,
 ];
 // A child process or Worker launched without `env` inherits the whole process environment, so a reserved agent-SDK
 // key or secret the boot scrub missed reaches it (D8's credential firewall). Every launch in server and inference
@@ -887,7 +858,7 @@ const TRACK_STAMP_SYNTAX = {
 // Flat config replaces rule options, so each authored override carries the invariant.
 const restrictedSyntax = (...restrictions: object[]): Linter.RuleEntry => ["error", INVISIBLE_CONTROL_SYNTAX, ...restrictions];
 
-const CLIENT_SYNTAX = [CLIENT_QUERY_KEY_SYNTAX, CLIENT_FORM_NAME_SYNTAX, EMPTY_ARIA_NAME_SYNTAX, RAW_FONT_SIZE_SYNTAX, CLOCK_SYNTAX, ...ROLE_COMPARISON_SYNTAX];
+const CLIENT_SYNTAX = [CLIENT_QUERY_KEY_SYNTAX, CLIENT_FORM_NAME_SYNTAX, EMPTY_ARIA_NAME_SYNTAX, RAW_FONT_SIZE_SYNTAX, CLOCK_SYNTAX];
 
 function rootSources(...refs: string[]): string[] {
   return refs.map((ref) => {
@@ -2334,6 +2305,11 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     {
       files: ["packages/*/src/**/*.{ts,tsx}", SHOWCASE_AUTHOR_SOURCES],
       rules: { "orb/closed-vocabulary": "error" },
+    },
+    {
+      files: ["packages/*/src/**/*.{ts,tsx}"],
+      ignores: [...ROLE_MEANING_HOME, ...ROLE_DISPLAY_HOME],
+      rules: { "orb/no-role-comparison": "error" },
     },
     {
       files: AUTHORED_SRC,

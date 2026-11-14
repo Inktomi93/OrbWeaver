@@ -10,7 +10,7 @@
 // already created. A privileged mint that cannot be recorded must not happen.
 
 import type { Principal, UserRole } from "@orb/contracts/identity";
-import { handleSchema, MIN_PASSWORD_LENGTH } from "@orb/contracts/identity";
+import { handleSchema, MIN_PASSWORD_LENGTH, roleGrantAction } from "@orb/contracts/identity";
 
 import { users } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/query";
@@ -23,22 +23,17 @@ import { ADMIN_OP_CODES } from "../contract/errors.ts";
 import type { CreateUserParams } from "../contract/params.ts";
 import type { AdminContext, AdminService } from "../contract/service.ts";
 import type { AdminUserData } from "../contract/views.ts";
-import { isBootstrapOwnerRoleCode, requireAdmin, requireOwner } from "../guard.ts";
+import { can, isBootstrapOwnerRoleCode } from "../guard.ts";
 import { commitAuditedWrite } from "../persistence/audited-write.ts";
 import { loadUser } from "../persistence/queries.ts";
 
 const DEFAULT_ROLE = "user";
 const LIMIT_ONE = 1;
 
-/** The authority required to mint the requested role. Minting a regular `user` is delegated-admin work.
- *  Minting anything elevated is owner-only — the same gate `setRole` uses. Fail-closed by default: any
- *  non-`user` role routes to `requireOwner`. */
+/** The authority required to mint the requested role: the identity contracts name the global action that grants
+ *  it, so a regular `user` is delegated-admin work and anything elevated is owner-only, the gate `setRole` uses. */
 function requireMintAuthority(principal: Principal, role: UserRole): void {
-  if (role === DEFAULT_ROLE) {
-    requireAdmin(principal);
-    return;
-  }
-  requireOwner(principal);
+  can(principal, roleGrantAction(role), { kind: "global" });
 }
 
 /** Validate the create params into a clean `handle`, throwing the typed reason on each failure. The

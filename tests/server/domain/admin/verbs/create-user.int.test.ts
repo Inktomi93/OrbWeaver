@@ -1,8 +1,10 @@
 // @subject packages/server/src/domain/admin/verbs/create-user.ts
 // @subject packages/server/src/transport/trpc/role-output.ts
 
-import { DomainForbiddenError } from "@orb/kit/errors";
-import type { Handle } from "@orb/kit/ids";
+import type { UserRole } from "@orb/contracts/identity";
+import { USER_ROLES } from "@orb/contracts/identity";
+import { DomainForbiddenError, DomainOperationError } from "@orb/kit/errors";
+import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect } from "@orb/testkit/node";
 import { ADMIN_OP_CODES } from "#server/domain/admin/contract/errors.ts";
@@ -87,6 +89,43 @@ test("a handle that only contains the seed key is minted", async ({ root }) => {
   const admin = await delegate(root);
   expect(await admin.caller.admin.createUser({ handle: castId<Handle>("owners"), password: PASSWORD })).toMatchObject({ handle: "owners" });
 });
+
+// Who may mint each role, total over both axes by type: the mint gate's decision table.
+const MINTERS = ["owner", "delegated admin", "plain user"] as const;
+type Minter = (typeof MINTERS)[number];
+type MintOutcome = "minted" | "forbidden" | "cannot grant owner";
+const MINT_TABLE = {
+  owner: { owner: "cannot grant owner", admin: "minted", user: "minted" },
+  "delegated admin": { owner: "forbidden", admin: "forbidden", user: "minted" },
+  "plain user": { owner: "forbidden", admin: "forbidden", user: "forbidden" },
+} as const satisfies Record<Minter, Record<UserRole, MintOutcome>>;
+
+test.for(MINTERS.flatMap((minter) => USER_ROLES.map((role) => [minter, role, MINT_TABLE[minter][role]] as const)))(
+  "%s minting a %s account: %s",
+  async ([minter, role, outcome], { root }) => {
+    const byMinter: Record<Minter, () => Promise<UserId>> = {
+      owner: async () => root.ownerId,
+      "delegated admin": async () => (await root.actor({ role: "admin" })).id,
+      "plain user": async () => (await root.actor()).id,
+    };
+    const principal = await root.principalFor(await byMinter[minter]());
+    const observed = await root.services.admin.createUser({ principal, handle: NEW_HANDLE, password: PASSWORD, role }).then(
+      (): MintOutcome => "minted",
+      (error: unknown): MintOutcome => {
+        if (error instanceof DomainForbiddenError) {
+          return "forbidden";
+        }
+        if (error instanceof DomainOperationError && error.code === ADMIN_OP_CODES.cannotGrantOwner) {
+          return "cannot grant owner";
+        }
+        throw error;
+      },
+    );
+    expect(observed).toBe(outcome);
+    const handles = (await root.services.admin.listUsers({ principal: await root.principalFor(root.ownerId) })).map(({ handle }) => handle);
+    expect(handles.includes(NEW_HANDLE)).toBe(outcome === "minted");
+  },
+);
 
 test("a plain user is denied", async ({ root }) => {
   const user = await root.actor();
