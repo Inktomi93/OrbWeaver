@@ -42,7 +42,13 @@ import { ConfirmDialog, FormDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { DIALOG_VERBS, testId } from "#lib";
 import { useCreateRefinerySchema, useGenerateRefinerySchema, useRefineRefinerySchema, useUpdateRefinerySchema } from "../hooks/use-refinery-schemas.ts";
-import { REFINERY_SCHEMA_DESCRIBE_NAME, REFINERY_SCHEMA_JSON_NAME, REFINERY_SCHEMA_NAME_FIELD_NAME } from "../lib/refinery-names.ts";
+import {
+  REFINERY_FORGE_ARM_NAME,
+  REFINERY_REFINE_DRAFT_NAME,
+  REFINERY_SCHEMA_DESCRIBE_NAME,
+  REFINERY_SCHEMA_JSON_NAME,
+  REFINERY_SCHEMA_NAME_FIELD_NAME,
+} from "../lib/refinery-names.ts";
 import { buildRenderPlan } from "../lib/render-plan.ts";
 import { hasSchemaDraftIssue, schemaDraftIssuesOf } from "../lib/schema-draft.ts";
 import { RefusalNote } from "./refusal-note.tsx";
@@ -71,9 +77,6 @@ const FORGE_ARM_LABELS: Record<RefineryForgeArm, string> = {
   "two-stage": "Shape first, then styling",
 };
 const FORGE_ARM_ITEMS: SelectItems = REFINERY_FORGE_ARMS.map((value) => ({ value, label: FORGE_ARM_LABELS[value] }));
-/** The arm picker's ONE label string — rendered visibly by `Field` AND as the control's `aria-label`
- *  (see the call site's note: two spellings would be a WCAG 2.5.3 mismatch waiting to happen). */
-const FORGE_ARM_QUESTION = "How to build it";
 
 function dialogTitleOf(editing: SchemaEditorDialogProps["editing"], stage: RefinerySchemaStage): string {
   return editing === null ? `New ${STAGE_WORD[stage]} schema` : `Edit "${editing.name}"`;
@@ -203,13 +206,13 @@ function GenerateRow({
           what this control is and told a sighted user nothing — three sentence-shaped options with no
           question above them. The Field label IS the question. `max-w-cq-24` caps the P1-3 squeeze at the
           source: an unbounded Select sized itself to its longest option label. */}
-      <Field grow={true} cap="paneSm" className="min-inline-0" label={FORGE_ARM_QUESTION}>
+      <Field grow={true} cap="paneSm" className="min-inline-0" floor="field" label={REFINERY_FORGE_ARM_NAME}>
         <Select
           // The `aria-label` is the SAME STRING as the visible label, from one constant. It is kept
           // because `Field` associates through Base UI context at runtime, which the static a11y lint
           // cannot follow — and because a divergent aria-label would break WCAG 2.5.3 (the accessible
           // name must contain the visible one). One constant makes divergence impossible.
-          aria-label={FORGE_ARM_QUESTION}
+          aria-label={REFINERY_FORGE_ARM_NAME}
           items={FORGE_ARM_ITEMS}
           onValueChange={(value): void => {
             const next = REFINERY_FORGE_ARMS.find((a) => a === value);
@@ -261,7 +264,7 @@ function RefineRow({
 }): ReactElement {
   return (
     <>
-      <Field grow={true} className="min-inline-0" label="Refine the draft">
+      <Field grow={true} className="min-inline-0" floor="field" label={REFINERY_REFINE_DRAFT_NAME}>
         <Textarea defaultValue="" placeholder='e.g. "add a per-issue severity enum"' ref={instructionRef} rows={1} maxRows={6} />
       </Field>
       <Button
@@ -372,11 +375,11 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
             wrapped one character per line, driving the dialog's scrollHeight to 1989px against a 734px
             viewport. Splitting them AND capping the Select is the fix: the two rows are also two
             different verbs (author a draft / iterate on the draft), so the split is honest, not cosmetic. */}
-        <Row align="center" gap="field">
+        <Row align="center" gap="field" wrap={true}>
           <GenerateRow arm={arm} busy={busy} description={description} generate={generate} onArmChange={setArm} onLand={landDraft} stage={stage} />
         </Row>
         {schema !== null ? (
-          <Row align="end" gap="field">
+          <Row align="end" gap="field" wrap={true}>
             <RefineRow arm={arm} busy={busy} instructionRef={instructionRef} onLand={landDraft} refine={refine} schema={schema} stage={stage} />
           </Row>
         ) : null}
