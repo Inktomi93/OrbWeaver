@@ -101,7 +101,7 @@ export {
 export { ARRIVAL, COLOR_MOTION, OPEN_TURN, PULSE } from "./state-motion.ts";
 export { TEXT_ALIGN } from "./text-align.ts";
 export { INKS, TONE_ARMS, TONE_TEXT, type ToneInkSelection } from "./tone-ink.ts";
-export { TONE_OUTLINE, TONE_SOFT, TONE_TINT_HOVER, TONE_TINT_PRESS } from "./tone-skin.ts";
+export { TONE_OUTLINE, TONE_SOFT, TONE_TINT, TONE_TINT_HOVER, TONE_TINT_PRESS } from "./tone-skin.ts";
 export { TOUCH_FLOOR_AT_COARSE } from "./touch-floor.ts";
 export { usePinnedBarCap } from "./use-pinned-bar-cap.ts";
 export { usePrefersLightColorScheme } from "./use-prefers-light-color-scheme.ts";
