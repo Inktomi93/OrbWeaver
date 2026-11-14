@@ -724,6 +724,26 @@ const SERVER_TEST_REACHES = {
     "domain/stats": "reconcileOwnersMissingTimeline: a cross-owner boot verb",
     "domain/workloads": "reclaimInFlightOnBoot: a cross-owner boot verb",
   },
+  // A reader that skips a room an import is still landing is proven against a room of several landing stages, sized by
+  // the chat import's own stage bound.
+  "tests/server/entry/boot/persistence/import-landing-sweep.int.test.ts": {
+    "domain/chat": "LANDING_STAGE_ROWS: the rows one landing stage commits and one cleanup chunk deletes",
+  },
+  "tests/server/foundation/observability/debug/persistence/import-landing-list.int.test.ts": {
+    "domain/chat": "LANDING_STAGE_ROWS: the rows one landing stage commits",
+  },
+  "tests/server/domain/world-info/persistence/import-landing-reach.int.test.ts": {
+    "domain/chat": "LANDING_STAGE_ROWS: the rows one landing stage commits",
+  },
+  "tests/server/domain/stats/persistence/import-landing-reads.int.test.ts": {
+    "domain/chat": "LANDING_STAGE_ROWS: the rows one landing stage commits",
+  },
+  "tests/server/domain/discovery/persistence/import-landing-reads.int.test.ts": {
+    "domain/chat": "LANDING_STAGE_ROWS: the rows one landing stage commits",
+  },
+  "tests/server/domain/import/persistence/import-stats-equal-rebuild.int.test.ts": {
+    "domain/chat": "LANDING_STAGE_ROWS: the rows one landing stage commits",
+  },
   "tests/server/domain/sessions/persistence/users.int.test.ts": {
     "domain/admin": "ADMIN_OP_CODES: the refusals of the admin SSO link claim, which binds a sessions-owned row",
   },

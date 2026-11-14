@@ -8,7 +8,7 @@
 // its claim, the messages a stage at a time, then the roster with the cleared marker. A reader that needs the roster
 // sees all of a room or none of it; a read that enumerates rooms without it (by anchor persona, by character, by
 // owner) filters `landing_at`. A failed import, and the boot sweep after a kill, delete a room still marked landing
-// (`import-landing.ts`). Rule: Tier-1-DB §8.
+// (`import-landing.ts`). Rule: concurrent creation in `docs/law/Tier-1-DB.md`.
 
 import type {
   BulkImportChatInput,

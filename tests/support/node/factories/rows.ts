@@ -216,7 +216,6 @@ export { seedAssetRows } from "./rows/asset.ts";
 export { seedAutomationRuleRows, seedAutomationTestFiresRows } from "./rows/automation.ts";
 export type { SeededCharacterRows } from "./rows/character.ts";
 export { seedCharacterRows } from "./rows/character.ts";
-export type { DuringChatLanding } from "./rows/chat.ts";
 export { duringChatLanding, seedChatInviteRows, seedChatRows, seedInvitedChatParticipantRows, seedTranscriptRows } from "./rows/chat.ts";
 export { seedCharacterDistillationsRows } from "./rows/discovery.ts";
 export { captureTurnRows, seedMessageRows } from "./rows/message.ts";
