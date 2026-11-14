@@ -21,6 +21,7 @@ import { ownedTableRule } from "./owned-table.ts";
 import { PRINCIPAL_RULES } from "./principal.ts";
 import { queryStateLadderRule } from "./query-state-ladder.ts";
 import { rawIdRule } from "./raw-id.ts";
+import { roleComparisonRule } from "./role-comparison.ts";
 import { roomTokenMintRule } from "./room-token-mint.ts";
 import {
   AMBIENT_GLOBAL_RESTRICTIONS,
@@ -311,6 +312,7 @@ export function createOrbPlugin(options: {
       "dialog-failure-via-owner": dialogFailureViaOwnerRule,
       "no-raw-id": rawIdRule,
       "closed-vocabulary": closedVocabularyRule,
+      "no-role-comparison": roleComparisonRule,
       "no-query-state-ladder": queryStateLadderRule,
       "no-optional-alternatives": optionalAlternativesRule,
       "wire-json-parsed-at-consumer": wireJsonRule,
