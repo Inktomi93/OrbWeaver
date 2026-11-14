@@ -10,8 +10,8 @@ import type { BatchStmt } from "@orb/db/query";
 import { batchStmt } from "@orb/db/query";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { and, eq, not, sql } from "drizzle-orm";
-import { characterHoldsRetainedSeat } from "../persistence/owner-chat-scope.ts";
 import { bumpStatsCanonVersion } from "./apply-delta.ts";
+import { characterHoldsRetainedSeat } from "./owner-chat-scope.ts";
 
 /** Lower the count when the character about to be deleted holds a seat. Must precede the delete: the cascade removes
  *  the seats the guard reads. */

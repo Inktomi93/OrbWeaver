@@ -10,7 +10,7 @@ import type { BatchStmt } from "@orb/db/query";
 import { batchStmt } from "@orb/db/query";
 import type { IdSource } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { applyStatsDelta } from "./apply-delta.ts";
+import { applyStatsDelta } from "../persistence/apply-delta.ts";
 
 export function recordLedgerSpend(batch: BatchStmt[], db: Db, spend: LedgerSpend, idSource: IdSource): void {
   batch.push(

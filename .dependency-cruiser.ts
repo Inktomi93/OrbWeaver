@@ -163,6 +163,8 @@ const NODE_BUILTINS = `^(?:node:)?(?:${builtinModules.map((name) => RegExp.escap
 const CLIENT_CSS_ENTRY = `${CLIENT}styles/index\\.ts$`;
 const CLIENT_SHELL_CSS = `${CLIENT}features/app-shell/surfaces/shell\\.css$`;
 const FIXED_SLOTS = "(contract|verbs|persistence|substrate)";
+// The fixed slots a subsystem import may start from: every fixed slot but persistence/, which holds queries only.
+const MEDIATING_SLOTS = "(contract|verbs|substrate)";
 function moduleShapes(pkg: keyof typeof GROUPING_DIRS): { own: string[]; internal: string[] } {
   const root = `packages/${pkg}/src/`;
   const grouping: readonly string[] = GROUPING_DIRS[pkg];
@@ -2039,10 +2041,11 @@ const DOMAIN_AUTHORITY = [
   },
   {
     name: "domain-no-cross-subsystem",
+    comment: "A named subsystem reaches another only through substrate/. persistence/ is database access (Core-0 §4), so it reaches no subsystem at all.",
     severity: "error",
     from: {
       path: `${SRV}domain/([^/]+)/([^/]+)/`,
-      pathNot: [`${SRV}domain/[^/]+/${FIXED_SLOTS}/`],
+      pathNot: [`${SRV}domain/[^/]+/${MEDIATING_SLOTS}/`],
     },
     to: {
       path: `${SRV}domain/([^/]+)/([^/]+)/`,
