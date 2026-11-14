@@ -1,4 +1,5 @@
 // Finite owner library projections preserve native scopes and named stages; private rows and files never enter.
+import { regexDisplayEntrySchema } from "@orb/contracts/chat";
 import { regexScriptUsageSchema, regexScriptViewSchema } from "@orb/contracts/regex";
 import {
   bookAttachmentTargetsSchema,
@@ -60,8 +61,8 @@ export const regexLibrarySchema = z.strictObject({
   reads: z.strictObject({
     before: regexScriptViewSchema.array(),
     after: regexScriptViewSchema.array(),
-    displayOff: regexScriptViewSchema.array(),
-    displayOn: regexScriptViewSchema.array(),
+    displayOff: regexDisplayEntrySchema.array(),
+    displayOn: regexDisplayEntrySchema.array(),
     list: regexScriptViewSchema.array(),
     usage: regexScriptUsageSchema,
     global: regexScriptViewSchema.array(),

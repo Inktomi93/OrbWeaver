@@ -90,7 +90,7 @@ test("native library projections retain canonical usage, ordering, intake and re
     expect(capture.output.map((script) => script.id)).toContain(regex.first.id);
   }
   expect(regex.displayOff.output).toEqual([]);
-  expect(regex.displayOn.output.map((script) => script.id)).toEqual(expect.arrayContaining([regex.first.id, regex.second.id]));
+  expect(regex.displayOn.output.map(({ script }) => script.id)).toEqual(expect.arrayContaining([regex.first.id, regex.second.id]));
   expect(regex.imported.output).toEqual({ created: true });
   expect(regex.repeated.output).toEqual({ created: false });
   expect(regex.bulk.output).toEqual({ affected: 1 });
