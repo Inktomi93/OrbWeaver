@@ -8,7 +8,7 @@ import type { CharacterHandle, ChatId, Handle, IdSource, MessageVariantId, UserC
 import { castId, createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { cardTokenSize } from "@orb/server/domain/character";
 import { cardContentHash } from "@orb/server/primitives/serde/card";
-import { and, eq } from "drizzle-orm";
+import { and, eq, getTableColumns, getTableName, sql } from "drizzle-orm";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";
 import { createSeededIds } from "../../iso/ids.ts";
 
@@ -106,12 +106,8 @@ export async function seedCharacterRow(
   return row;
 }
 
-// `landing_at` stays at its column default unless overridden: a migration case seeds rooms into a database one
-// migration behind, where the newest column does not exist yet.
-type SeededChatRow = Omit<ChatRow, "landingAt"> & Partial<Pick<ChatRow, "landingAt">>;
-
 // D18 makes a membership-free room row legal at the schema; the caller inserts any seats it needs.
-function makeChat(overrides: Partial<ChatRow>, source: IdSource): SeededChatRow {
+function makeChat(overrides: Partial<ChatRow>, source: IdSource): ChatRow {
   return {
     id: source.typeId(ID_PREFIX.chat),
     title: null,
@@ -133,16 +129,32 @@ function makeChat(overrides: Partial<ChatRow>, source: IdSource): SeededChatRow 
     standaloneVariableDeltas: null,
     importedFrom: null,
     importHash: null,
+    landingAt: null,
     createdAt: FROZEN_AT_MS,
     updatedAt: FROZEN_AT_MS,
     ...overrides,
   };
 }
 
-/** A bare room row, born started at the frozen clock; the caller inserts the seats its case needs. */
-export async function seedChatRow(db: Db, overrides: Partial<ChatRow> = {}, source: IdSource = ids): Promise<SeededChatRow> {
+/** A bare room row, born started at the frozen clock; the caller inserts the seats its case needs. It writes only
+ *  the columns the database has, so a migration case can seed a room into a chain cut before a later column. */
+export async function seedChatRow(db: Db, overrides: Partial<ChatRow> = {}, source: IdSource = ids): Promise<ChatRow> {
   const row = makeChat(overrides, source);
-  await db.insert(chats).values(row);
+  const present = new Set((await db.all<{ name: string }>(sql`SELECT name FROM pragma_table_info(${getTableName(chats)})`)).map((column) => column.name));
+  const columns = new Map(Object.entries(getTableColumns(chats)));
+  const written = Object.entries(row).flatMap(([key, value]) => {
+    const column = columns.get(key);
+    return column !== undefined && present.has(column.name) ? [{ name: column.name, value: value === null ? null : column.mapToDriverValue(value) }] : [];
+  });
+  await db.run(
+    sql`INSERT INTO ${chats} (${sql.join(
+      written.map(({ name }) => sql.identifier(name)),
+      sql`, `,
+    )}) VALUES (${sql.join(
+      written.map(({ value }) => sql`${value}`),
+      sql`, `,
+    )})`,
+  );
   return row;
 }
 
