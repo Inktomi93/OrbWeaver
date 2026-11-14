@@ -1291,6 +1291,8 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
   {
     files: ["packages/server/src/**/*.ts", "packages/db/src/**/*.ts"],
     plugins: { drizzle },
+    // The plugin matches a receiver by its last member name, so `db` also covers `ctx.db`, `deps.db` and `this.db`;
+    // every database handle in these trees is named `db`, and an empty list would flag every Map and Set `delete`.
     rules: {
       "drizzle/enforce-delete-with-where": ["error", { drizzleObjectName: ["db"] }],
       "drizzle/enforce-update-with-where": ["error", { drizzleObjectName: ["db"] }],

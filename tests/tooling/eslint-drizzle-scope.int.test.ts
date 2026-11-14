@@ -6,6 +6,7 @@ import { ESLint, Linter } from "eslint";
 import { resolvedConfig } from "./_eslint-config.ts";
 
 const DELETE_RULE = "drizzle/enforce-delete-with-where";
+const UPDATE_RULE = "drizzle/enforce-update-with-where";
 const BULK_SUBJECTS = [
   ["packages/server/src/domain/discovery/duplicates/generate.ts", 2],
   ["packages/server/src/domain/discovery/themes/generate.ts", 1],
@@ -59,4 +60,26 @@ test("native bulk delete permissions admit only their statements and preserve sc
     expect(unscoped !== source, path).toBe(replacesThemeScope);
     expect(verify(unscoped).map(({ ruleId }) => ruleId)).toEqual(replacesThemeScope ? [DELETE_RULE] : []);
   }
+});
+
+// The plugin matches a receiver by its last member name, so `db` covers every handle spelling the server writes
+// through (`db`, `ctx.db`, `deps.db`, `this.db`), while a collection's own `delete` stays out.
+test("the where-rules reach every database handle spelling and leave collections alone", async ({ repoRoot }) => {
+  const path = "packages/server/src/domain/probe/persistence/probe.ts";
+  const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: repoRoot });
+  const native: Linter.Config = await resolvedConfig(eslint, path);
+  const rules = Object.fromEntries([DELETE_RULE, UPDATE_RULE].map((rule) => [rule, native.rules?.[rule] ?? "off"]));
+  const config: Linter.Config = {
+    files: [path],
+    languageOptions: { ...native.languageOptions, parserOptions: { ...native.languageOptions?.parserOptions, project: false, projectService: false } },
+    ...(native.plugins === undefined ? {} : { plugins: native.plugins }),
+    rules,
+  };
+  const ruleIdsOf = (input: string): readonly (string | null)[] =>
+    new Linter({ cwd: repoRoot }).verify(input, [config], { filename: path }).map(({ ruleId }) => ruleId);
+  for (const handle of ["db", "ctx.db", "deps.db", "this.db"]) {
+    expect(ruleIdsOf(`${handle}.delete(t);\n${handle}.update(t).set({ a: 1 });\n`), handle).toEqual([DELETE_RULE, UPDATE_RULE]);
+    expect(ruleIdsOf(`${handle}.delete(t).where(w);\n${handle}.update(t).set({ a: 1 }).where(w);\n`), handle).toEqual([]);
+  }
+  expect(ruleIdsOf("pending.delete(key);\nhash.update(part);\n")).toEqual([]);
 });
