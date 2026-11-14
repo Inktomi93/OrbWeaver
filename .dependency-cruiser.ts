@@ -609,6 +609,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/refinery/lib/refinery-section-label.ts": "REFINERY_LIST_TITLE: the name the Refinery list pane's focus target announces",
   "packages/client/src/features/refinery/lib/refinery-names.ts":
     "REFINERY_VERSIONS_NAME, refineryCompareToggleName and REFINERY_VERSION_LOADING_TEXT: the context pane's version history names",
+  "packages/client/src/features/refinery/lib/schema-draft.ts":
+    "refusalSentenceOf: the sentence a JSON bound refusal code reads as, which the schema editor and its refusal note both print",
   "packages/client/src/features/refinery/lib/verdict.ts": "verdictWordOf: the display word the analyze verdict banner paints",
   "packages/client/src/features/refinery/lib/render-plan.ts":
     "scopeChipLabelOf: the pure rule, over contracts' renderHintOf, that names the field the scope dialog's checkbox prints",

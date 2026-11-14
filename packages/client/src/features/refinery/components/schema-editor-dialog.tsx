@@ -15,8 +15,9 @@
 // `requestClose`, which asks only when the panes actually differ from the row being edited. One predicate,
 // one door: a guard reachable from one exit and missing from another is the same defect with a witness.
 //
-// THE RAW DOOR IS THREE-TIER (2026-08-09): a belt REFUSAL (`RefusalNote`, verbatim, blocks the save), a
-// PREFLIGHT ADVISORY (`PreflightNote` — valid, saves, but here is what a hosted wire will do to it), and
+// THE RAW DOOR IS THREE-TIER: a belt REFUSAL (named at its field before the press by `schemaDraftIssuesOf`, which runs
+// the contracts belt the server runs; Save stays off while one stands, and `RefusalNote` states a refusal the server
+// still answers, such as a taken name), a PREFLIGHT ADVISORY (`PreflightNote` — valid, saves, but here is what a hosted wire will do to it), and
 // the accounting stats. The advisory tier derives every wire claim from the structured layer's own check
 // (`checkWireSchema` over the hosted intersection), so it re-implements no vendor law.
 //
@@ -41,8 +42,9 @@ import { ConfirmDialog, FormDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { DIALOG_VERBS, testId } from "#lib";
 import { useCreateRefinerySchema, useGenerateRefinerySchema, useRefineRefinerySchema, useUpdateRefinerySchema } from "../hooks/use-refinery-schemas.ts";
-import { REFINERY_SCHEMA_DESCRIBE_NAME, REFINERY_SCHEMA_JSON_NAME } from "../lib/refinery-names.ts";
+import { REFINERY_SCHEMA_DESCRIBE_NAME, REFINERY_SCHEMA_JSON_NAME, REFINERY_SCHEMA_NAME_FIELD_NAME } from "../lib/refinery-names.ts";
 import { buildRenderPlan } from "../lib/render-plan.ts";
+import { hasSchemaDraftIssue, schemaDraftIssuesOf } from "../lib/schema-draft.ts";
 import { RefusalNote } from "./refusal-note.tsx";
 import { RenderHintPicker } from "./render-hint-picker.tsx";
 import { DeleteSchemaAction } from "./schema-delete-action.tsx";
@@ -142,7 +144,7 @@ type ForgeResult =
 
 interface DraftSetters {
   readonly nameRef: RefObject<HTMLInputElement | null>;
-  readonly setNameFilled: (filled: boolean) => void;
+  readonly setNameText: (name: string) => void;
   readonly setSchemaText: (text: string) => void;
   readonly setForgeNote: (note: string | null) => void;
 }
@@ -153,11 +155,11 @@ interface DraftSetters {
  *  with the reason stated, instead of a flattened approximation of the author's idea. A failure renders the
  *  raw reply for hand-fixing (show-the-partial — never a toast that eats the draft). Runs at EVENT time only
  *  (mutation onSuccess), so the ref read is legal. */
-function applyForgeResult(result: ForgeResult, { nameRef, setNameFilled, setSchemaText, setForgeNote }: DraftSetters): void {
+function applyForgeResult(result: ForgeResult, { nameRef, setNameText, setSchemaText, setForgeNote }: DraftSetters): void {
   if (result.kind === "draft") {
     if (nameRef.current !== null && nameRef.current.value.trim().length === 0) {
       nameRef.current.value = result.name;
-      setNameFilled(true);
+      setNameText(result.name.trim());
     }
     setSchemaText(JSON.stringify(result.schema, null, 2));
     setForgeNote(result.dropped.length === 0 ? null : `Some rows didn't fit and were left out: ${result.dropped.join(" · ")}`);
@@ -283,7 +285,7 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
   const nameRef = useRef<HTMLInputElement>(null);
   const instructionRef = useRef<HTMLTextAreaElement>(null);
   const schemaTextRef = useRef<HTMLTextAreaElement>(null);
-  const [nameFilled, setNameFilled] = useState(editing !== null && editing.name.length > 0);
+  const [nameText, setNameText] = useState(editing === null ? "" : editing.name.trim());
   const [description, setDescription] = useState(editing === null ? "" : editing.description);
   const [schemaText, setSchemaText] = useState(editing === null ? "" : JSON.stringify(editing.schema, null, 2));
   const [forgeNote, setForgeNote] = useState<string | null>(null);
@@ -307,9 +309,10 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
   // A function declaration, not a render-time factory call: the ref is only READ inside the event-time
   // body (the react-hooks refs-during-render ban).
   function landDraft(result: ForgeResult): void {
-    applyForgeResult(result, { nameRef, setNameFilled, setSchemaText, setForgeNote });
+    applyForgeResult(result, { nameRef, setNameText, setSchemaText, setForgeNote });
   }
   const busy = generate.isPending || refine.isPending;
+  const issues = schemaDraftIssuesOf({ name: nameText, description, stage, schema });
 
   // THE DIRTY PREDICATE, read at EVENT time only (the name pane is uncontrolled, so a ref read during
   // render is banned). Compared against the ROW being edited, never against emptiness: an editor opened
@@ -340,7 +343,7 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
       size="lg"
       submit={{
         label: DIALOG_VERBS.save,
-        disabled: busy || schema === null || !nameFilled,
+        disabled: busy || schema === null || nameText.length === 0 || hasSchemaDraftIssue(issues),
         onSubmit: (): void => {
           if (schema !== null) {
             saveDraft(nameRef.current?.value.trim() ?? "", schema, { editing, description, stage, create, update, onSaved, onOpenChange });
@@ -355,7 +358,7 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
           cannot invent a shape this app can't render. Or write the schema yourself in the JSON pane below, which takes the full vocabulary: unions, mixed
           lists, deeper nesting. If a description needs something the designer can't express, it says so and hands you a starting point instead of guessing.
         </Text>
-        <Field label={REFINERY_SCHEMA_DESCRIBE_NAME}>
+        <Field error={issues.description} label={REFINERY_SCHEMA_DESCRIBE_NAME}>
           <Textarea
             onChange={(e): void => setDescription(e.target.value)}
             placeholder='e.g. "rating 1-10, a mood enum, list of issues, one-paragraph summary"'
@@ -382,7 +385,7 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
             {forgeNote}
           </Text>
         ) : null}
-        <Field label={REFINERY_SCHEMA_JSON_NAME}>
+        <Field error={issues.schema} label={REFINERY_SCHEMA_JSON_NAME}>
           <Textarea onChange={(e): void => setSchemaText(e.target.value)} ref={schemaTextRef} rows={8} value={schemaText} />
         </Field>
         {/* THE RENDER-HINT ROLE PICKER (#73) — split out (`render-hint-picker.tsx`, component size): a typed source for the `x-orb-ui` role string, so an
@@ -398,12 +401,8 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
         ) : (
           <Text voice="gloss">{previewEmptyTextOf(schemaText)}</Text>
         )}
-        <Field label="Name">
-          <Input
-            defaultValue={editing === null ? "" : editing.name}
-            onInput={(e): void => setNameFilled(e.currentTarget.value.trim().length > 0)}
-            ref={nameRef}
-          />
+        <Field error={issues.name} label={REFINERY_SCHEMA_NAME_FIELD_NAME}>
+          <Input defaultValue={editing === null ? "" : editing.name} onInput={(e): void => setNameText(e.currentTarget.value.trim())} ref={nameRef} />
         </Field>
         {/* The guard. `forceRender` because it nests inside an open Dialog, which Base UI would otherwise
             let suppress this backdrop (the ConfirmDialog prop exists for exactly this). Both arms are named

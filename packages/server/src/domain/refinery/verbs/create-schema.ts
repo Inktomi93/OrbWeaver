@@ -3,15 +3,14 @@
 // core) — refuses typed with construct + path BEFORE anything persists; a stored schema is therefore
 // LIFTABLE BY INVARIANT. S5 name hygiene via the shared substrate.
 
-import { refinerySchemaDocumentSchema } from "@orb/contracts/refinery";
 import type { RefineryContext, RefineryService } from "../contract/service.ts";
 import { insertOwnedSchemaIfNameFree, schemaSummaryOf } from "../persistence/queries.ts";
-import { schemaNameTakenError } from "../substrate/schema-library.ts";
+import { parseSchemaDocument, schemaNameTakenError } from "../substrate/schema-library.ts";
 
 export function createCreateSchema(ctx: RefineryContext): RefineryService["createSchema"] {
   return async ({ principal, name, description, stage, schema }) => {
     const ownerId = principal.userId;
-    const doc = refinerySchemaDocumentSchema.parse({ name, description, stage, schema });
+    const doc = parseSchemaDocument({ name, description, stage, schema });
     const at = ctx.now();
     const row = {
       id: ctx.newRefinerySchemaId(),
