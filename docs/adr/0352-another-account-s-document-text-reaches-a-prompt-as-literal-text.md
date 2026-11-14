@@ -12,11 +12,11 @@ The `{{databank}}` slot is macro-evaluated: the `databank` macro re-evaluates an
 
 ## Decision
 
-A document whose owner is not the host the turn runs under reaches the `{{databank}}` slot as literal text. Its name and its chunks pass through `neutralizeMacros`, the function the plugin lore path uses, so a macro or a nested slot reference in them is never evaluated. Authorship is `documents.ownerId`. A document whose row is missing counts as another account's. The host's own documents keep their macros.
+A document whose owner is not the host the turn runs under reaches the `{{databank}}` slot as literal text. Its name and its chunks pass through `neutralizeMacros` in `packages/kit/src/macro/content.ts`, the function the plugin lore path uses. It puts a zero-width space after every brace that a brace of the same kind follows, so no run of braces of any length survives as a macro opener. A macro or a nested slot reference in the text is therefore never evaluated. Authorship is `documents.ownerId`. A document whose row is missing counts as another account's. The host's own documents keep their macros.
 
 The constraint is one home. `gatherRetrieval` is the only producer of the slot text, and it applies the test before it fits and renders the chunks. The turn and the assembly preview both read the slot through it, so they show the same text. No other reader may turn document names or chunks into prompt text without passing through it.
 
-Homes: `createGatherRetrieval` in `packages/server/src/domain/databank/verbs/gather-retrieval.ts` · `filterOwnedDocumentIds` in `packages/server/src/domain/databank/persistence/queries.ts` · `neutralizeMacros` in `packages/kit/src/macro/content.ts`. Cases: `tests/server/domain/databank/verbs/gather-foreign-text.int.test.ts`.
+Homes: `createGatherRetrieval` in `packages/server/src/domain/databank/verbs/gather-retrieval.ts` · `filterOwnedDocumentIds` in `packages/server/src/domain/databank/persistence/queries.ts` · `neutralizeMacros` in `packages/kit/src/macro/content.ts`. Cases: `tests/server/domain/databank/verbs/gather-foreign-text.int.test.ts` · `tests/kit/macro/neutralize-brace-runs.test.ts`.
 
 ## Consequences
 

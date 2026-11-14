@@ -151,7 +151,8 @@ test("a host who leaves after nominating takes their room book, script and docum
   await using h = await documentRoom(["Only reply."]);
   const formerHost = h.owner;
   await attachRoomAttachments(h, formerHost, FORMER);
-  await attachRoomDocument(h, formerHost, FORMER_DOCUMENT);
+  const leftDocument = await attachRoomDocument(h, formerHost, FORMER_DOCUMENT);
+  expect(await attachedRooms(h, formerHost, leftDocument)).toEqual([h.chatId]);
   const newHost = await invitePerson(h);
   await nominate(h, newHost, true);
   await h.root.services.chat.selfLeave({ principal: formerHost, chatId: h.chatId });
@@ -166,4 +167,10 @@ test("a host who leaves after nominating takes their room book, script and docum
   expect(await roomRack(h, newHost)).toEqual({ books: [own.bookId], scripts: [own.scriptId] });
   expect(await roomDocuments(h, newHost)).toEqual([ownDocument]);
   expectOnlyNewHostAttachments(await sendTurn(h, newHost, MESSAGE));
+
+  // A library names a room only while its reader sits in it, so the former host rejoins to read the junction:
+  // the accept detached the document even though its owner had already left.
+  const invitation = await h.root.services.chat.createInvite({ principal: newHost, chatId: h.chatId, input: { invitedHandle: formerHost.handle } });
+  await h.root.services.chat.acceptInvite({ principal: formerHost, inviteId: invitation.invite.id });
+  expect(await attachedRooms(h, formerHost, leftDocument)).toEqual([]);
 });
