@@ -1,0 +1,7 @@
+{
+  "name": "@x/p",
+  "imports": {
+    "#*": "./src/*/index.ts",
+    "#src/*": "./src/*"
+  }
+}

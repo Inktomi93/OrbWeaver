@@ -1,0 +1,6 @@
+{
+  "name": "root",
+  "imports": {
+    "#p/*": "./packages/p/src/*"
+  }
+}
