@@ -7,7 +7,7 @@
 //     updateScript, removeScript, duplicateScript, attachGlobal, detachGlobal, listGlobal,
 //     attachToCharacter, detachFromCharacter, listForCharacter, attachToPreset, detachFromPreset,
 //     listForPreset, applyScopeOrder. A foreign id collapses to `RegexNotFoundError` — never an oracle.
-//   • PROBED, SILENTLY (the REGX2 bulk arm + the export door): bulkSetEnabled, bulkSetGlobal, bulkSetPlacement,
+//   • PROBED, SILENTLY (the REGX2 bulk arm + the export door): bulkSetEnabled, bulkSetGlobal, bulkSetAxes,
 //     bulkRemove put `ownerId` in the WHERE / gate every id through `loadOwnedScriptsByIds`, and a foreign id
 //     is DROPPED rather than thrown on — the answer is the `affected` count, which is the same number for
 //     "you don't own it" and "it's already gone", so the list can never be probed for membership.
@@ -29,14 +29,15 @@
 import { regexDisplayEntrySchema, regexDisplayInputSchema } from "@orb/contracts/chat";
 import { portableTextFileSchema } from "@orb/contracts/portability";
 import {
+  bulkAxesResultSchema,
   bulkResultSchema,
   createRegexScriptSchema,
   detachResultSchema,
   importScriptFileResultSchema,
   regexAttachScopeSchema,
+  regexAxesWriteSchema,
   regexCharacterInputSchema,
   regexChatInputSchema,
-  regexPlacementListSchema,
   regexPresetInputSchema,
   regexScriptIdInputSchema,
   regexScriptUsageSchema,
@@ -96,13 +97,14 @@ export const regexRouter = t.router({
     .input(z.strictObject({ scriptIds: scriptIdsInput, global: z.boolean() }))
     .mutation(({ ctx, input }) => ctx.services.regex.bulkSetScriptsGlobal({ principal: ctx.auth, scriptIds: input.scriptIds, global: input.global })),
 
-  // REPLACE the placement set across the selection — the flags + depth scope are RE-DERIVED server-side from
-  // `placement` (`@orb/kit/regex`), so the wire carries no flags. `regexPlacementListSchema` is the STRICT
-  // enum-array (a garbage member is rejected, not salvaged — the card-boundary heal is the import lift's).
-  bulkSetPlacement: authedProcedure
-    .output(bulkResultSchema)
-    .input(z.strictObject({ scriptIds: scriptIdsInput, placement: regexPlacementListSchema }))
-    .mutation(({ ctx, input }) => ctx.services.regex.bulkSetScriptsPlacement({ principal: ctx.auth, scriptIds: input.scriptIds, placement: input.placement })),
+  // REPLACE both axes across the selection, paired as a write pairs them: `save` beside an ephemeral pass is
+  // refused here, before any row is read. A garbage member is rejected, not salvaged.
+  bulkSetAxes: authedProcedure
+    .output(bulkAxesResultSchema)
+    .input(regexAxesWriteSchema.safeExtend({ scriptIds: scriptIdsInput }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.regex.bulkSetScriptsAxes({ principal: ctx.auth, scriptIds: input.scriptIds, targets: input.targets, passes: input.passes }),
+    ),
 
   bulkRemove: authedProcedure
     .output(bulkResultSchema)

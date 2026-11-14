@@ -596,6 +596,20 @@ export const detachResultSchema = z.strictObject({ detached: z.boolean() }) sati
 export const reorderResultSchema = z.strictObject({ reordered: z.number() }) satisfies z.ZodType<ReorderResult>;
 export const bulkResultSchema = z.strictObject({ affected: z.number() }) satisfies z.ZodType<BulkResult>;
 
+/** Both axes a bulk gesture sets on every listed script, paired as a write pairs them. */
+export const regexAxesWriteSchema = z.strictObject({ targets: regexTargetListSchema, passes: regexPassListSchema }).superRefine(behaviorCoheres);
+
+/** The bulk axes verb's answer: the changed count, and the scripts a move to the save pass cleared a depth or
+ *  an author scope from, so the gesture can name them. */
+export interface BulkAxesResult extends BulkResult {
+  readonly cleared: readonly RegexScriptId[];
+}
+
+export const bulkAxesResultSchema = z.strictObject({
+  affected: z.number(),
+  cleared: z.array(typeIdSchema(ID_PREFIX.regexScript)).readonly(),
+}) satisfies z.ZodType<BulkAxesResult>;
+
 export const importScriptFileResultSchema = z.strictObject({ created: z.boolean() });
 export type ImportScriptFileResult = z.output<typeof importScriptFileResultSchema>;
 
