@@ -69,7 +69,7 @@ import { createPluginWorldInfoReads } from "#domain/world-info";
 import type { ScopedEgress } from "#infra/network";
 import { createNetworkPluginGitSource } from "#infra/network";
 import type { PluginHostSeamDeps } from "#infra/plugin-host";
-import { createPluginHost } from "#infra/plugin-host";
+import { createPluginCascadeScope, createPluginHost } from "#infra/plugin-host";
 import type { LiveBuses } from "#transport/trpc";
 import { createAutomationOps } from "./automation-watcher.ts";
 import type { ChatComposeResult } from "./chat.ts";
@@ -287,8 +287,11 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
   });
   await automationEnabled.reload();
   await automationTransforms.reload();
+  // The plugin host opens it around each host call and the plugin domain reads it where a trigger reaches a handler.
+  const pluginCascade = createPluginCascadeScope();
   const pluginHost: PluginHostPort = hostResources.use(
     createPluginHost({
+      cascadeScope: pluginCascade,
       ...deps.pluginExecution,
       env: deps.env,
       timers: deps.timers,
@@ -331,6 +334,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     pluginSubscribers,
     resolveChatAuthority,
     newEventId: () => `plugin-event:${newOpaqueId()}`,
+    cascadeCause: pluginCascade.current,
   });
   const pluginHostOps: PluginHostOps = {
     chat: {

@@ -80,6 +80,7 @@ export interface SandboxMembrane {
   readonly netEgress: PluginNetEgress;
   /** The Worker root's logger a detached host-call failure reports through. */
   readonly log: MembraneRuntime["log"];
+  readonly currentCascadeDepth: MembraneRuntime["currentCascadeDepth"];
 }
 
 /** A guest error projected to plain data (never a live handle across the boundary). `line` is the guest
@@ -192,8 +193,6 @@ function upsertSurface(surfaces: PluginSurfaceRegistration[], registration: Plug
 interface ResidentState {
   chat: InvocationChat | null;
   token: string | null;
-  /** How many pubsub deliveries deep the current invocation runs; its emits open deliveries one deeper. */
-  pubsubDepth: number;
   /** Concurrent STARTED-AND-UNSETTLED host-fn impls for this INSTANCE (never reset between invocations — host
    *  work outlives its invocation, so an invocation-scoped count is not a count of work). See `InFlightCounter`. */
   readonly inFlight: InFlightCounter;
@@ -260,7 +259,6 @@ export class Sandbox implements Disposable {
     const state: ResidentState = {
       chat: null,
       token: null,
-      pubsubDepth: 0,
       inFlight: { count: 0, controllers: new Set(), settlements: new Set() },
       tools: [],
       transforms: [],
@@ -284,7 +282,7 @@ export class Sandbox implements Disposable {
             log: opts.membrane.log,
             marshal,
             currentChat: (): InvocationChat | null => state.chat,
-            currentPubsubDepth: (): number => state.pubsubDepth,
+            currentCascadeDepth: opts.membrane.currentCascadeDepth,
             currentToken: (): string | null => state.token,
             inFlight: state.inFlight,
             pending: state.pending,
@@ -433,18 +431,17 @@ export class Sandbox implements Disposable {
     return this.state.macros;
   }
 
-  /** Admit an invocation chat (mints a fresh opaque handle token) or clear the scope (`null`), and set how many pubsub
-   *  deliveries deep the invocation runs. Called before each resident handler invoke + once for a snippet run; the
-   *  DOMAIN pre-gated the chat's read authority and set `canWrite` from the host-authority check.
+  /** Admit an invocation chat (mints a fresh opaque handle token) or clear the scope (`null`). Called before
+   *  each resident handler invoke + once for a snippet run; the DOMAIN pre-gated the chat's read authority and
+   *  set `canWrite` from the host-authority check.
    *
    *  RETURNS the minted token (`null` for a cleared scope) so the caller can put it in the invocation's ARGUMENT
    *  object — the row-777 `onAction({…, chat})` shape. It is handed to exactly one place, `port.invoke`'s
    *  args-builder application, which drops it into a string that goes straight into the guest; it is never
    *  returned to a domain, never logged, and never stored. That is the same containment the token already had:
    *  only the guest and the membrane's `resolveChat` compare it. */
-  setInvocationScope(chat: InvocationChat | null, pubsubDepth: number): string | null {
+  setInvocationChat(chat: InvocationChat | null): string | null {
     this.state.chat = chat;
-    this.state.pubsubDepth = pubsubDepth;
     // The opaque handle token is a SECURITY token — minted from a dedicated CSPRNG (node:crypto randomUUID),
     // NOT the guest id seam (`seams.mintId` backs the guest-callable `orb.host(1).ids.mint()`). A security token
     // and an injectable/guest-facing id source have OPPOSITE requirements: a future seeded/deterministic `mintId`
@@ -702,7 +699,7 @@ export class Sandbox implements Disposable {
 
   /** Invoke a resident guest handler (a collected tool/transform/event callback) with JSON-encoded args, under
    *  the invocation budget. The handler's string return IS the tool result; a throw/deadline is contained
-   *  as `ok:false`. The caller sets the invocation chat first (`setInvocationScope`). The `argsJson` is bounded by
+   *  as `ok:false`. The caller sets the invocation chat first (`setInvocationChat`). The `argsJson` is bounded by
    *  `PLUGIN_INVOKE_ARGS_MAX_BYTES` at THIS guest-inbound seam — a TF-1 event fact has no content cap, so an
    *  oversized delivery fails CONTAINED before it ever reaches the guest heap (the domain field-caps the fact
    *  content separately; this is the coarse whole-payload DoS backstop). */

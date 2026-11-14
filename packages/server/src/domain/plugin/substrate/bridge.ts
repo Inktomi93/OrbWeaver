@@ -35,12 +35,7 @@
 // check-then-await-then-record would let a burst of 32 all observe the pre-burst count and pass.
 
 import type { PluginBridge, PluginCharacterView, PluginMessageView, PluginSearchHit, PluginWorldBookView, PluginWorldEntryView } from "@orb/contracts/plugin";
-import {
-  PLUGIN_LORE_ENTRIES_PER_BOOK_MAX,
-  PLUGIN_PUBSUB_DELIVERY_DEPTH_MAX,
-  PluginInstallerDisabledError,
-  PluginPubsubDepthError,
-} from "@orb/contracts/plugin";
+import { PLUGIN_CASCADE_DEPTH_MAX, PLUGIN_LORE_ENTRIES_PER_BOOK_MAX, PluginInstallerDisabledError, PluginPubsubDepthError } from "@orb/contracts/plugin";
 import { DomainConflictError, DomainForbiddenError } from "@orb/kit/errors";
 import type { AssetId, PluginId, SandboxWireId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -393,7 +388,7 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
     pubsub: {
       emit: async (name, data, depth): Promise<void> => {
         const emitter = requirePlugin("pubsub.emit");
-        if (depth > PLUGIN_PUBSUB_DELIVERY_DEPTH_MAX) {
+        if (depth > PLUGIN_CASCADE_DEPTH_MAX) {
           throw new PluginPubsubDepthError();
         }
         belts.pubsubEmit.admit(emitter.id);

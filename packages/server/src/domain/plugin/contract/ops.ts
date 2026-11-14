@@ -63,9 +63,9 @@ export interface PluginInvocationWork extends AsyncDisposable {
  *  the JSON-safe membrane boundary; the closure also drives the crash counter. */
 export type PluginInvokeHandler = (handler: PluginHandlerRef, argsJson: PluginInvokeArgs, chat: InvocationChat | null, signal?: AbortSignal) => Promise<string>;
 
-/** The invoker a pubsub delivery runs through: the {@link PluginInvokeHandler} crash policy, with no chat scope, at
- *  `depth` deliveries deep, so the subscriber's own emits open deliveries one deeper. */
-export type PluginPubsubInvoke = (handler: PluginHandlerRef, payloadJson: string, depth: number) => Promise<string>;
+/** The invoker a delivery runs through, a pubsub event or a trigger fact: the {@link PluginInvokeHandler} crash policy at
+ *  `depth` cascade levels, so what the handler's own command causes reaches a handler one level deeper. */
+export type PluginCascadeInvoke = (handler: PluginHandlerRef, argsJson: string, chat: InvocationChat | null, depth: number) => Promise<string>;
 
 /** The deregistration handle a registrar returns — `deactivate`/`uninstall` calls `unregister` so no ghost
  *  tools/transforms/subscriptions survive a disabled/removed plugin. Every registrar returns the tool handle's shape. */
@@ -391,7 +391,7 @@ export interface PluginHostOps {
       readonly emitterSlug: string;
       readonly name: string;
       readonly data: Record<string, unknown>;
-      /** The depth the deliveries run at, already within `PLUGIN_PUBSUB_DELIVERY_DEPTH_MAX`. */
+      /** The depth the deliveries run at, already within `PLUGIN_CASCADE_DEPTH_MAX`. */
       readonly depth: number;
     }) => Promise<void>;
   };
@@ -422,7 +422,7 @@ export interface PluginHostOps {
      *  subscription) so a single subscriber owns one visibility read + one field-cap per fact. */
     readonly subscribeEvent: (
       subscriptions: readonly PluginEventSubscription[],
-      invoke: PluginInvokeHandler,
+      invoke: PluginCascadeInvoke,
       scope: PluginActivationScope,
     ) => PluginRegistrationHandle;
     /** Wire the plugin's COLLECTED private-event subscriptions onto the INSTALLER-scoped resident plugin-event bus.
@@ -432,7 +432,7 @@ export interface PluginHostOps {
      *  handlers via `invoke`, never onto the automation fan-out. */
     readonly subscribePubsub: (
       subscriptions: readonly PluginPubsubSubscription[],
-      invoke: PluginPubsubInvoke,
+      invoke: PluginCascadeInvoke,
       scope: PluginActivationScope,
     ) => PluginRegistrationHandle;
   };
@@ -477,7 +477,7 @@ export interface PluginEventBus {
   readonly register: (req: {
     readonly installer: UserId;
     readonly subscriptions: readonly PluginPubsubSubscription[];
-    readonly invoke: PluginPubsubInvoke;
+    readonly invoke: PluginCascadeInvoke;
   }) => PluginRegistrationHandle;
   /** Publish `data` on `plugin:<emitterSlug>:<name>` for `installer` — fan out to every SAME-installer subscriber
    *  of that EXACT channel, delivering `{name, data}` (never a TriggerFact) through its `invoke` at `depth`. A

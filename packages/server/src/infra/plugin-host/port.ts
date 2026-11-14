@@ -78,7 +78,7 @@ function toLog(lines: readonly string[], at: number): PluginLogView[] {
 // PER-INSTANCE invoke SERIALIZATION (the untrusted-guest concurrency belt — closes a real race, not a phantom).
 // One resident sandbox is a SINGLE shared QuickJSContext per plugin instance: the invocation-chat scope, the
 // guest heap, and the host-call in-flight counter are ALL shared per instance. `invoke` mutates the shared
-// scope (`setInvocationScope`) and then AWAITS into the guest — so two concurrent `invoke`s on the SAME resident
+// scope (`setInvocationChat`) and then AWAITS into the guest — so two concurrent `invoke`s on the SAME resident
 // interleave: A sets chatA and awaits, B then sets chatB while A's guest is mid-flight, and when A resumes and
 // reads `chat.current()` (via the membrane's `resolveChat`) it sees chatB — corrupting BOTH `chatId` AND
 // `automationDepth`. A clobbered `automationDepth` breaks the loop-prevention belt: a `chat.requestTurn` from an
@@ -97,7 +97,7 @@ function toLog(lines: readonly string[], at: number): PluginLogView[] {
 // holds is the Sandbox's INVOCATION SETTLEMENT deadline (`cpuDeadlineMs + settleGraceMs`), which ends a hung
 // invocation as `ok:false` → this `run` rejects → the `.finally` arms below advance the tail and decrement.
 //
-// The queue is a per-instance tail-promise chain: each invoke's `setInvocationScope`→`invokeHandler` pair runs
+// The queue is a per-instance tail-promise chain: each invoke's `setInvocationChat`→`invokeHandler` pair runs
 // to completion (fulfilment OR rejection OR deadline) before the next invoke on the SAME instance begins, so the
 // shared scope is never mutated under a mid-flight guest. The chain advances in a `.finally` on both settle
 // arms, so a rejected/deadlined invoke cannot wedge the tail (each item is bounded by `invokeHandler`'s
@@ -200,26 +200,20 @@ function residentSandboxOptions(
   seams: LocalPluginHostSeams,
   log: Logger,
 ): Parameters<typeof Sandbox.create>[1] {
-  const { mirrorLog, netEgress, spanReport } = seams;
+  const { mirrorLog, netEgress, spanReport, currentCascadeDepth } = seams;
   return {
-    membrane: { grants, bridge: input.bridge, netEgress, log },
+    membrane: { grants, bridge: input.bridge, netEgress, log, currentCascadeDepth },
     ...(input.budgets !== undefined ? { limits: input.budgets } : {}),
     ...(input.label !== undefined || mirrorLog !== undefined ? { logMirror: centralLogMirror(input.label, mirrorLog, log) } : {}),
     ...(spanReport === undefined ? {} : { spanReport }),
   };
 }
 
-/** One resident invocation's scope: the admitted chat, and how many pubsub deliveries deep it runs. */
-export interface LocalInvocationScope {
-  readonly chat: InvocationChat | null;
-  readonly pubsubDepth: number;
-}
-
 /** Build one Worker-local runtime. One `QuickJSWASMModule` is loaded lazily by `Sandbox.create`; the broker
  *  assigns one guest to this Worker so terminating it reclaims the module's linear-memory high-water mark. */
 export function createLocalPluginHost(seams: LocalPluginHostSeams): {
   readonly createInstance: (input: CreateInstanceInputIn) => Promise<CreateInstanceOutcomeOut>;
-  readonly invoke: (instance: PluginInstance, handler: PluginHandlerRef, argsJson: PluginInvokeArgs, scope: LocalInvocationScope) => Promise<string>;
+  readonly invoke: (instance: PluginInstance, handler: PluginHandlerRef, argsJson: PluginInvokeArgs, chat?: InvocationChat | null) => Promise<string>;
   readonly runSnippet: (input: {
     readonly code: string;
     readonly grants: readonly PluginCapability[];
@@ -254,7 +248,7 @@ export function createLocalPluginHost(seams: LocalPluginHostSeams): {
         sandbox = await Sandbox.create(hostSeams, residentSandboxOptions(input, grants, seams, log));
         // The activation run's chat scope (the membrane resolves `current()` against it); `null` for an installed
         // plugin's registration-only `main.js`.
-        sandbox.setInvocationScope(input.chat, 0);
+        sandbox.setInvocationChat(input.chat);
         const at = seams.nowEpochMs();
         const outcome = await sandbox.evalGuest(input.mainJs);
         if (!outcome.ok) {
@@ -291,7 +285,7 @@ export function createLocalPluginHost(seams: LocalPluginHostSeams): {
       }
     },
 
-    invoke: async (instance, handler, argsJson, { chat, pubsubDepth }): Promise<string> => {
+    invoke: async (instance, handler, argsJson, chat): Promise<string> => {
       const resident = runtimes.get(instance);
       if (resident === undefined) {
         throw new Error("plugin host: invoke on an unknown/disposed instance");
@@ -303,7 +297,7 @@ export function createLocalPluginHost(seams: LocalPluginHostSeams): {
         throw new Error(`plugin host: invoke queue full (>${EVENT_QUEUE_DEPTH} pending) — invocation refused`);
       }
       resident.queueDepth += 1;
-      // Chain this invoke's scope-set→run pair AFTER the previous invoke settles, so `setInvocationScope` never
+      // Chain this invoke's scope-set→run pair AFTER the previous invoke settles, so `setInvocationChat` never
       // mutates the shared scope while a prior guest is mid-flight. `.then` runs the pair whether the prior invoke
       // FULFILLED or REJECTED (the tail catches its own rejection below, so a prior failure never poisons the
       // chain). The result promise this call returns is the run's own settle, NOT the shared tail.
@@ -321,7 +315,7 @@ export function createLocalPluginHost(seams: LocalPluginHostSeams): {
         // invocation ends can be refused, and that refusal would replace an ended outcome and its strike (D347).
         const at = seams.nowEpochMs();
         retainLog(resident, resident.sandbox.drainLog(), at);
-        const chatHandle = resident.sandbox.setInvocationScope(chat, pubsubDepth);
+        const chatHandle = resident.sandbox.setInvocationChat(chat ?? null);
         const outcome = await resident.sandbox.invokeHandler(handler, typeof argsJson === "string" ? argsJson : argsJson(chatHandle));
         // RETAIN this invocation's drained lines (both arms — a crashing handler's last words are the ones an
         // operator most wants).
@@ -374,17 +368,17 @@ export function createLocalPluginHost(seams: LocalPluginHostSeams): {
         await getPluginQuickJS();
         // SCOPE-OWNED (`using`): a snippet sandbox is never resident, so its teardown IS "end of this block" —
         // the Sandbox's `[Symbol.dispose]` is the `finally` that used to be here. It also now covers the
-        // previously UNCOVERED window between create and the `try` (`setInvocationScope` throwing leaked the
+        // previously UNCOVERED window between create and the `try` (`setInvocationChat` throwing leaked the
         // whole context). The admission release sits in the `finally` of the ENCLOSING try on purpose: a
         // `using` disposes at the end of ITS block, which is this `try`, so the lease is returned strictly
         // AFTER the context it accounts for is gone — never while a torn-down-but-not-yet-freed one lingers.
         using sandbox = await Sandbox.create(hostSeams, {
           // A snippet has no manifest, so its profile omits net.fetch; the forwarded egress is never reached.
-          membrane: { grants: new Set(input.grants), bridge: input.bridge, netEgress: seams.netEgress, log },
+          membrane: { grants: new Set(input.grants), bridge: input.bridge, netEgress: seams.netEgress, log, currentCascadeDepth: seams.currentCascadeDepth },
           limits: PLUGIN_SNIPPET_LIMITS,
           ...(seams.spanReport === undefined ? {} : { spanReport: seams.spanReport }),
         });
-        sandbox.setInvocationScope(input.chat, 0);
+        sandbox.setInvocationChat(input.chat);
         const outcome = await sandbox.evalGuest(input.code);
         if (outcome.ok) {
           return { logLines: outcome.logs };

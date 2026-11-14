@@ -41,7 +41,7 @@ export interface BridgeAuthority {
    *  call holds its grants for reads only. */
   readonly phase: "activation" | "rehydration" | "invocation" | "display" | "snippet" | "lifecycle";
   /** How many pubsub deliveries deep the command runs: 0 unless a delivery started it. */
-  readonly pubsubDepth: number;
+  readonly cascadeDepth: number;
 }
 
 const BRIDGE_HOST_FUNCTION = {
@@ -390,7 +390,7 @@ function authorizeRequestTurn(chat: InvocationChat | null, operation: PluginBrid
 
 function authorizeEmit(authority: BridgeAuthority, operation: PluginBridgeOperation, args: readonly unknown[]): void {
   exact(args, THREE_ARGUMENTS, operation);
-  if (numberAt(args, ARG_THIRD, operation) !== authority.pubsubDepth + 1) {
+  if (numberAt(args, ARG_THIRD, operation) !== authority.cascadeDepth + 1) {
     throw new Error("plugin broker: pubsub.emit carried a stale delivery depth");
   }
 }

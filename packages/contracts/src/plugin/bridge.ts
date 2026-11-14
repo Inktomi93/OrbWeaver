@@ -340,7 +340,7 @@ export interface PluginBridge {
    *  and wired through the registrar (the `events.on` pattern), not a runtime call. Authority-agnostic like every
    *  bridge op — infra holds no pluginId, slug, or Principal. `depth` is the depth of the deliveries this emit opens: the
    *  emitting invocation's own plus one, as `chat.requestTurn`'s `automationDepth` is. The membrane stamps it, the app
-   *  checks it against the command's authority, and the domain refuses one past `PLUGIN_PUBSUB_DELIVERY_DEPTH_MAX`. */
+   *  checks it against the command's authority, and the domain refuses one past `PLUGIN_CASCADE_DEPTH_MAX`. */
   readonly pubsub: {
     readonly emit: (name: string, data: Record<string, unknown>, depth: number, liveness?: PluginInvocationLiveness) => Promise<void>;
   };

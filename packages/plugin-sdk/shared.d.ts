@@ -916,8 +916,10 @@ interface PluginHostV1 {
 
   readonly events: {
     /** Subscribe to the closed trigger taxonomy. Delivery is pre-filtered to what the INSTALLER may see, and
-     *  to human-caused (depth-0) facts unless the manifest opts into `matchAutomationEvents`.
-     *  capability: events.subscribe */
+     *  to human-caused (depth-0) facts unless the manifest opts into `matchAutomationEvents`. A fact your own
+     *  plugins raised (a character one ingested, an entry one wrote) runs its handler one step deeper than the run
+     *  that raised it, as a pubsub delivery does. A chain of such handlers stops after two steps: the next fact is
+     *  not delivered. capability: events.subscribe */
     on: (type: ChatTriggerType | DomainTriggerType, handler: (fact: PluginTriggerFact) => void | Promise<void>) => void;
   };
 
@@ -927,7 +929,8 @@ interface PluginHostV1 {
     /** Publish on YOUR channel (slug host-stamped). Emitting to nobody is free. Payload ≤ 16 KiB. 360 emits per hour
      *  per plugin; past that the emit rejects until the hour turns, whether anyone listens or not. A handler may
      *  answer an announcement with one of its own, but an emit from inside that answer's own delivery rejects with
-     *  `PluginPubsubDepthError`, so plugins cannot wake each other, or themselves, in a loop. */
+     *  `PluginPubsubDepthError`, so plugins cannot wake each other, or themselves, in a loop. The same chain counts a
+     *  trigger fact your plugins raised (see `events.on`), so a loop through either plane stops at the same depth. */
     emit: (name: string, data: Record<string, unknown>) => Promise<void>;
     /** Listen to one of the installer's plugins by slug. A slug not installed simply never fires. The
      *  handler runs with NO chat scope — put everything it needs in the payload. */

@@ -16,7 +16,7 @@ import type { ProviderDef } from "@orb/contracts/inference";
 import type { PluginInstance } from "@orb/contracts/plugin";
 import { errorMessage } from "@orb/kit/error-message";
 import { DomainConflictError } from "@orb/kit/errors";
-import type { PluginActivationScope, PluginInvokeHandler, PluginPubsubInvoke, PluginRegistrationHandle } from "../contract/ops.ts";
+import type { PluginActivationScope, PluginCascadeInvoke, PluginInvokeHandler, PluginRegistrationHandle } from "../contract/ops.ts";
 import type {
   ActivateInput,
   ActivateOutcome,
@@ -40,7 +40,7 @@ import { parseInstalledBundle } from "../substrate/manifest.ts";
 function register(
   ctx: PluginContext,
   instance: PluginInstance,
-  { invoke, deliver }: { readonly invoke: PluginInvokeHandler; readonly deliver: PluginPubsubInvoke },
+  { invoke, deliver }: { readonly invoke: PluginInvokeHandler; readonly deliver: PluginCascadeInvoke },
   scope: PluginActivationScope,
 ): PluginRegistrationHandle[] {
   const handles: PluginRegistrationHandle[] = [];
@@ -55,7 +55,7 @@ function register(
     // fan-out's declared-match + one visibility read serve every handler); a plugin with no `events.on` registers
     // nothing.
     if (instance.events.length > 0) {
-      handles.push(ctx.ops.registrar.subscribeEvent(instance.events, invoke, scope));
+      handles.push(ctx.ops.registrar.subscribeEvent(instance.events, deliver, scope));
     }
     // U8 §5a — the private plugin-event subscriptions wire onto the INSTALLER-scoped resident bus (the events
     // pattern, one plane over); a plugin with no `pubsub.on` registers nothing, and the deregistration handle
@@ -237,14 +237,14 @@ export function createActivate(
     // One guest call. A rejection that is not the host's own refusal is logged here, once, and rethrown. A caller
     // that gave up on the call at its deadline already logged the overrun.
     const callGuest = async (
-      ...[handler, argsJson, chat, signal, phase, pubsubDepth]: [
+      ...[handler, argsJson, chat, signal, phase, cascadeDepth]: [
         ...Parameters<PluginInvokeHandler>,
         Parameters<PluginHostPort["invoke"]>[5]?,
         Parameters<PluginHostPort["invoke"]>[6]?,
       ]
     ): Promise<string> => {
       try {
-        return await ctx.host.invoke(instance, handler, argsJson, chat, signal, phase, pubsubDepth);
+        return await ctx.host.invoke(instance, handler, argsJson, chat, signal, phase, cascadeDepth);
       } catch (err) {
         if (!isHostAdmissionRefusal(err) && signal?.reason !== DEADLINE_ABORT_REASON) {
           ctx.host.logFailure(instance, pluginFailureLine(slug, invokeFailureKind(err), errorMessage(err)));
@@ -256,10 +256,10 @@ export function createActivate(
     // `ctx.host.invoke` REJECTING → bump the consecutive-crash counter (auto-disable + owner-notify at the
     // threshold) and RE-THROW so the tool-use registrar catches it as `threw` (errors-as-data to the model); a
     // clean run resets the counter. `chat` is the registrar-resolved invocation scope (read admits, host writes).
-    const invokeAt = (...[handler, argsJson, chat, signal, pubsubDepth]: [...Parameters<PluginInvokeHandler>, number]): Promise<string> =>
+    const invokeAt = (...[handler, argsJson, chat, signal, cascadeDepth]: [...Parameters<PluginInvokeHandler>, number]): Promise<string> =>
       ctx.invocations.run(async () => {
         try {
-          const result = await callGuest(handler, argsJson, chat, signal, "invocation", pubsubDepth);
+          const result = await callGuest(handler, argsJson, chat, signal, "invocation", cascadeDepth);
           await crashPolicy.recordCleanRun(input.pluginId);
           return result;
         } catch (err) {
@@ -272,8 +272,9 @@ export function createActivate(
         }
       });
     const invoke: PluginInvokeHandler = (handler, argsJson, chat, signal) => invokeAt(handler, argsJson, chat, signal, 0);
-    // A delivery runs with no chat scope, at the depth its emit stamped, so its own emits open deliveries one deeper.
-    const deliver: PluginPubsubInvoke = (handler, payloadJson, depth) => invokeAt(handler, payloadJson, null, undefined, depth);
+    // A delivery, a pubsub event or a trigger fact, runs at the cascade depth its cause carried, so what its own command
+    // causes reaches a handler one level deeper.
+    const deliver: PluginCascadeInvoke = (handler, argsJson, chat, depth) => invokeAt(handler, argsJson, chat, undefined, depth);
     // A query's re-entry: the same call with no crash-policy write, because a query writes nothing. Its clean run
     // must not reset the count a write path built, or a plugin that crashes on every tool call stays enabled. It runs
     // in the display phase, so the guest's own host calls may only read too.

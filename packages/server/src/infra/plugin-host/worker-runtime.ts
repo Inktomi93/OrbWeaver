@@ -12,7 +12,6 @@ import { createRemoteBridge, createRemoteNetEgress } from "./bridge-rpc.ts";
 import { PLUGIN_AUTHORITY_TAIL_MS } from "./budgets.ts";
 import type { CpuSpanReport, CreateInstanceInputIn, LocalPluginHostSeams } from "./contract/port.ts";
 import type { BrokerWorkerMessage, PluginBridgeOperation, PluginSyncOperation, RpcError, WorkerBrokerMessage } from "./contract/process-protocol.ts";
-import type { LocalInvocationScope } from "./port.ts";
 import { createLocalPluginHost } from "./port.ts";
 import {
   decodeProcessValue,
@@ -38,8 +37,9 @@ interface WorkerIdentity {
 interface InvokeCommandValue {
   readonly handler: PluginHandlerRef;
   readonly argsJson: string | { readonly builderId: string };
-  readonly chat?: LocalInvocationScope["chat"];
-  readonly pubsubDepth: LocalInvocationScope["pubsubDepth"];
+  readonly chat?: Parameters<ReturnType<typeof createLocalPluginHost>["invoke"]>[3];
+  /** How many cascade levels deep the invocation runs; every other command runs at 0. */
+  readonly cascadeDepth: number;
 }
 
 interface SnippetCommandValue {
@@ -118,6 +118,8 @@ interface AuthorityLease {
   tail: ReturnType<typeof setTimeout> | undefined;
   /** The first host refusal one of the command's own calls met while the command ran; its answer carries it. */
   refusal: RpcError | undefined;
+  /** How many cascade levels deep the command runs, which every call posted under its authority answers for. */
+  cascadeDepth: number;
 }
 const authorityLeases = new Map<string, AuthorityLease>();
 
@@ -126,7 +128,13 @@ function post(message: WorkerBrokerMessage): void {
 }
 
 function openLease(authorityId: string): AuthorityLease {
-  const lease = authorityLeases.getOrInsertComputed(authorityId, () => ({ pendingCalls: 0, commandDone: false, tail: undefined, refusal: undefined }));
+  const lease = authorityLeases.getOrInsertComputed(authorityId, () => ({
+    pendingCalls: 0,
+    commandDone: false,
+    tail: undefined,
+    refusal: undefined,
+    cascadeDepth: 0,
+  }));
   return lease;
 }
 
@@ -260,6 +268,13 @@ const host = createLocalPluginHost({
   netEgress: createRemoteNetEgress(callAsync),
   logLevel: identity.logLevel,
   spanReport,
+  currentCascadeDepth: () => {
+    const lease = authorityLeases.get(commandAuthority.getStore() ?? "");
+    if (lease === undefined) {
+      throw new Error("plugin broker worker: a host call escaped its command authority");
+    }
+    return lease.cascadeDepth;
+  },
 });
 
 let instance: PluginInstance | undefined;
@@ -284,7 +299,7 @@ async function run(message: Extract<BrokerWorkerMessage, { readonly kind: "comma
     const argsSource = input.argsJson;
     const argsJson: PluginInvokeArgs =
       typeof argsSource === "string" ? argsSource : (chatHandle): string => syncStringSchema.parse(callSync("invokeArgs", [argsSource.builderId, chatHandle]));
-    return await host.invoke(instance, input.handler, argsJson, { chat: input.chat ?? null, pubsubDepth: input.pubsubDepth });
+    return await host.invoke(instance, input.handler, argsJson, input.chat);
   }
   if (message.operation === "snippet") {
     const input = message.value as SnippetCommandValue;
@@ -318,7 +333,7 @@ port.on("message", (message: BrokerWorkerMessage) => {
     }
     return;
   }
-  openLease(message.authorityId);
+  openLease(message.authorityId).cascadeDepth = message.operation === "invoke" ? (message.value as InvokeCommandValue).cascadeDepth : 0;
   // a command rejection is posted to the broker as a response with the same command id and rpcError(error), which the parent rejects through handleResponse. Ends if the error response stops carrying the rejection.
   void commandAuthority
     .run(message.authorityId, () => run(message))

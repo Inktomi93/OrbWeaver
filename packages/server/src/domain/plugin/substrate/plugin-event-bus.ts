@@ -23,13 +23,16 @@
 // handler cannot block the emitter or a sibling.
 //
 // TWO BOUNDS ON SELF-BOUGHT WORK, ruled together. Each delivery opens a new invocation with a fresh CPU account, the
-// emitter's own subscriptions included, so an emit buys guest CPU. A delivery runs one level deeper than the
-// invocation whose emit opened it (any invocation no delivery started is depth 0), and the bridge refuses an emit
-// whose deliveries would pass `PLUGIN_PUBSUB_DELIVERY_DEPTH_MAX` with `PluginPubsubDepthError`: so a plugin that wakes
+// emitter's own subscriptions included, so an emit buys guest CPU. One depth bounds every plane a plugin can wake
+// itself through: a handler run its installer's own plugin command caused runs one cascade level deeper than that
+// command, and any other invocation is depth 0. On this plane the bridge refuses an emit whose deliveries would pass
+// `PLUGIN_CASCADE_DEPTH_MAX` with `PluginPubsubDepthError`; on the trigger plane a fact such a command raised (a
+// character it ingested, an entry it wrote) is not delivered past it
+// (`packages/server/src/domain/plugin/verbs/registrar-ops.ts`). So a plugin that wakes
 // itself, or siblings that wake each other, stop after two hops at any rate, while an announcement and one reply to it
-// still deliver. The depth is held by the command authority in the app, which checks the depth the membrane stamps,
-// as `chat.requestTurn`'s automation depth is. The total stays bounded by `PLUGIN_PUBSUB_EMIT_PER_HOUR`, the emitter's
-// hourly floor (`rate-floor.ts`), which no chain of human-started invocations escapes.
+// still deliver. The depth is held by the command authority in the app, which checks the depth the membrane stamps
+// as `chat.requestTurn`'s automation depth is, and carries it into the domain work the call runs (`cascade-scope.ts`).
+// The pubsub total stays bounded by `PLUGIN_PUBSUB_EMIT_PER_HOUR`, the emitter's hourly floor (`rate-floor.ts`).
 
 import { PLUGIN_PUBSUB_PAYLOAD_MAX_BYTES } from "@orb/contracts/plugin";
 import { DomainConflictError } from "@orb/kit/errors";
@@ -71,7 +74,7 @@ export function createPluginEventBus(logger: Logger, traces: TraceRing): PluginE
             // A rejection is already logged with its plugin and cause by the resident `invoke`, so it is settled
             // here rather than rethrown into a second "detached operation failed" line.
             superviseDetached(`plugin-pubsub:${sub.emitterSlug}:${sub.name}`, "plugin.pubsub.deliver", { emitterSlug: sub.emitterSlug, name: sub.name }, () =>
-              Promise.allSettled([invoke(sub.handler, payloadJson, depth)]),
+              Promise.allSettled([invoke(sub.handler, payloadJson, null, depth)]),
             );
           },
         };
