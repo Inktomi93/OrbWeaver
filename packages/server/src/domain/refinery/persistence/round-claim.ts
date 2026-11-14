@@ -1,4 +1,4 @@
-// domain/refinery/substrate/round-claim — the LEASED in-flight claim on a refinery session (the
+// domain/refinery/persistence/round-claim — the LEASED in-flight claim on a refinery session (the
 // serializing half of the round guard). `iterate` takes it BEFORE it pays for a single model call and clears
 // it on both the commit and the failure arm; a second round that cannot take it is refused typed and free.
 //

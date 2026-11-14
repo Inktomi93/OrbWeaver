@@ -21,8 +21,9 @@ import { refinerySessions } from "@orb/db";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import type { RefineryContext, RefineryService } from "../contract/service.ts";
+import { resolveApplyBasis } from "../persistence/apply-basis.ts";
 import { latestRunRowAtOrBefore } from "../persistence/queries.ts";
-import { buildPatch, resolveApplyBasis } from "../substrate/accept-belts.ts";
+import { buildPatch } from "../substrate/accept-belts.ts";
 
 const COPY_NAME_SUFFIX = " (refined)";
 const overallScoreCoreSchema = z.object({ overallScore: z.number() });

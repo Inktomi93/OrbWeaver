@@ -1,6 +1,5 @@
-// domain/assets/substrate/purge-asset — the ONE drop-row-BEFORE-blob deletion primitive, shared by BOTH GC
-// paths (`collectGarbage` + `reapIfOrphan`) so the critical ordering has exactly one home (substrate = the
-// sanctioned intra-domain shared slot). THE INVARIANT (data-integrity load-bearing):
+// domain/assets/persistence/purge-asset — the ONE drop-row-BEFORE-blob deletion primitive, shared by BOTH GC
+// paths (`collectGarbage` + `reapIfOrphan`) so the critical ordering has exactly one home. THE INVARIANT (data-integrity load-bearing):
 //   1. delete the `assets` row FIRST only if the relation-bound liveness predicate still wins,
 //   2. re-resolve `(owner, hash)` and stop if any row indexes these bytes now,
 //   3. then `cas.remove` the blob,
@@ -14,8 +13,8 @@
 import type { Db } from "@orb/db";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import type { Cas, VariantCache } from "#infra/storage";
-import { deleteAssetRowIfUnreferenced } from "../persistence/asset-refs.ts";
-import { assetIdForHash } from "../persistence/queries.ts";
+import { deleteAssetRowIfUnreferenced } from "./asset-refs.ts";
+import { assetIdForHash } from "./queries.ts";
 
 export async function purgeAsset(args: {
   readonly db: Db;

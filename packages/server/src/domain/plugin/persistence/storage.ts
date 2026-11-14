@@ -1,4 +1,4 @@
-// domain/plugin/substrate/storage — the `storage.kv` host op: the plugin-PRIVATE KV wrapping
+// domain/plugin/persistence/storage — the `storage.kv` host op: the plugin-PRIVATE KV wrapping
 // `persistence/plugin-kv` with the host-side caps. Every op is keyed by BOTH pluginId AND
 // ownerId (the persistence guard filter), so plugin A can never read plugin B's keys and no cross-owner read is
 // possible. Both writers (`set`, `compareAndSet`) are the one place a server guest's write and the UI relay's write
@@ -22,7 +22,7 @@ import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { PluginId, UserId } from "@orb/kit/ids";
 import { PluginKvCapError, PluginUiHostCallRefusedError } from "../contract/errors.ts";
 import type { PluginHostOps } from "../contract/ops.ts";
-import { compareAndSetKv, deleteKv, getKv, listKv, upsertKvUnderCap } from "../persistence/plugin-kv.ts";
+import { compareAndSetKv, deleteKv, getKv, listKv, upsertKvUnderCap } from "./plugin-kv.ts";
 
 /** Refuse a write whose key or any value is past its size cap or holds a NUL, with the relay's own invalid-arguments
  *  refusal, so a server guest and a plugin UI get one answer for one mistake. A `null` value is a compare-and-set's
