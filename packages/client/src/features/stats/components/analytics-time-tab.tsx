@@ -12,7 +12,7 @@ import { Histogram } from "@orb/ui/histogram";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { MutedLine, QueryBoundary } from "#components";
+import { ContextTabBody, MutedLine, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
 import { APPROX_DATES_NOTE } from "../lib/analytics-copy.ts";
@@ -35,16 +35,18 @@ import { RhythmFigures } from "./rhythm-figures.tsx";
 export function AnalyticsTimeTab(): ReactElement {
   return (
     // ContextBracket owns the stable viewport; the reservation measures content without trapping scroll chaining.
-    <Stack className="relative" minHeight="shrinks" data-testid={testId("analyticsTimeTab")}>
-      <QueryBoundary
-        resetKeys={[]}
-        fallback={<SkeletonRows count={3} shape="datum" />}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="activity" onRetry={retry} />}
-        reserveKey="analytics.time"
-      >
-        <TimeBody />
-      </QueryBoundary>
-    </Stack>
+    <ContextTabBody>
+      <Stack className="relative" minHeight="shrinks" data-testid={testId("analyticsTimeTab")}>
+        <QueryBoundary
+          resetKeys={[]}
+          fallback={<SkeletonRows count={3} shape="datum" />}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="activity" onRetry={retry} />}
+          reserveKey="analytics.time"
+        >
+          <TimeBody />
+        </QueryBoundary>
+      </Stack>
+    </ContextTabBody>
   );
 }
 

@@ -17,7 +17,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary } from "#components";
+import { ContextTabBody, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { trpcErrorReason } from "#lib";
 import { useRestoreMemory, useSetMemoryEnabled, useStartMemoryBackfill, useStrikeMemory } from "../hooks/use-memory-mutations.ts";
@@ -87,7 +87,7 @@ function positionOf(key: MemoryItemKey): string {
 
 export function MemoryViewTab(props: MemoryViewTabProps): ReactElement {
   return (
-    <Stack gap="section">
+    <ContextTabBody>
       <QueryBoundary
         resetKeys={[props.chatId]}
         fallback={<SkeletonRows count={3} shape="line" />}
@@ -100,7 +100,7 @@ export function MemoryViewTab(props: MemoryViewTabProps): ReactElement {
           <RecallHostDetail chatId={props.chatId} />
         </DisclosureSection>
       ) : null}
-    </Stack>
+    </ContextTabBody>
   );
 }
 

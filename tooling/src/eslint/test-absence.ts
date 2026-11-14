@@ -230,9 +230,31 @@ function runsInCase(context: OrbRuleContext, call: TSESTree.CallExpression, body
     );
 }
 
+// A literal subject holds no value the case computed, so every matcher on it passes or fails the same whatever the
+// product does. A snapshot matcher is the exception: it runs the registered serializer, which is then the subject.
+const SNAPSHOT_MATCHER = /Snapshot$/u;
+
+function isLiteralSubject(subject: TSESTree.CallExpressionArgument | undefined): boolean {
+  switch (subject?.type) {
+    case AST_NODE_TYPES.Literal:
+      return true;
+    case AST_NODE_TYPES.TemplateLiteral:
+      return subject.expressions.length === 0;
+    case AST_NODE_TYPES.Identifier:
+      return subject.name === "undefined";
+    case AST_NODE_TYPES.UnaryExpression:
+      return subject.argument.type === AST_NODE_TYPES.Literal;
+    default:
+      return false;
+  }
+}
+
+const EVIDENCE = ["absence", "literal", "observation"] as const;
+type Evidence = (typeof EVIDENCE)[number];
+
 // What one call inside a case proves: an absence, an observation (an assertion of presence or of a value, or a helper
-// that asserts), or nothing. A call in a closure the case never runs proves nothing.
-function evidenceOf(context: OrbRuleContext, call: TSESTree.CallExpression, body: TSESTree.BlockStatement): "absence" | "observation" | undefined {
+// that asserts), an assertion on a literal, or nothing. A call in a closure the case never runs proves nothing.
+function evidenceOf(context: OrbRuleContext, call: TSESTree.CallExpression, body: TSESTree.BlockStatement): Evidence | undefined {
   const assertion = assertionOf(call);
   const asserts = assertion !== undefined || ASSERTION_PREFIX.test(calledName(call) ?? "");
   if (!(asserts && runsInCase(context, call, body))) {
@@ -241,32 +263,65 @@ function evidenceOf(context: OrbRuleContext, call: TSESTree.CallExpression, body
   if (assertion === undefined) {
     return "observation";
   }
+  if (isLiteralSubject(assertion.subject) && !SNAPSHOT_MATCHER.test(assertion.matcher)) {
+    return "literal";
+  }
   return provesAbsence(assertion) ? "absence" : "observation";
 }
 
-function absenceOption(options: readonly unknown[]): boolean {
+function flagOption(options: readonly unknown[], flag: "absence" | "literal", fallback: boolean): boolean {
   const [option] = options;
-  return !(typeof option === "object" && option !== null && "absence" in option && option.absence === false);
+  if (typeof option !== "object" || option === null || !(flag in option)) {
+    return fallback;
+  }
+  return Reflect.get(option, flag) === true;
 }
 
-/** Check ambiguous compound assertions and absence-only cases. `absence: false` disables the case-level absence check. */
+const LITERAL_MESSAGE =
+  "Every value this case asserts on is a literal, so it passes whatever the product does. Assert a value the case computed through the production entry.";
+
+interface CaseTally {
+  readonly body: TSESTree.BlockStatement;
+  readonly counts: Record<Evidence, number>;
+}
+
+// The literal check outranks the absence check: a case that holds both has observed nothing at all.
+function caseMessage(tally: CaseTally, judgesAbsence: boolean, judgesLiteral: boolean): string | undefined {
+  const { absence, literal, observation } = tally.counts;
+  if (observation > 0) {
+    return undefined;
+  }
+  if (judgesLiteral && literal > 0) {
+    return LITERAL_MESSAGE;
+  }
+  // With the literal check off, a literal subject keeps counting as an observation.
+  const observed = judgesLiteral ? 0 : literal;
+  return judgesAbsence && absence > 0 && observed === 0 ? MESSAGE : undefined;
+}
+
+/** Check ambiguous compound assertions and the case-level evidence. `absence: false` disables the absence-only check;
+ *  `literal: true` refuses a case whose only assertions are on literal subjects, and stops a literal counting as an observation. */
 export const ctNegativeOnlyCaseRule: OrbRule = {
-  meta: { type: "problem", schema: [{ type: "object", properties: { absence: { type: "boolean" } }, additionalProperties: false }] },
+  meta: {
+    type: "problem",
+    schema: [{ type: "object", properties: { absence: { type: "boolean" }, literal: { type: "boolean" } }, additionalProperties: false }],
+  },
   create(context: OrbRuleContext): RuleVisitor {
-    const judgesAbsence = absenceOption(context.options);
-    const cases: { readonly body: TSESTree.BlockStatement; absences: number; observations: number }[] = [];
+    const judgesAbsence = flagOption(context.options, "absence", true);
+    const judgesLiteral = flagOption(context.options, "literal", false);
+    const cases: CaseTally[] = [];
     return {
       "CallExpression[callee]"(call: TSESTree.CallExpression): void {
         const message = assertionMessage(assertionOf(call));
         if (message !== undefined) {
           context.report({ node: call, message });
         }
-        if (!judgesAbsence) {
+        if (!(judgesAbsence || judgesLiteral)) {
           return;
         }
         const body = caseBody(call);
         if (body !== undefined) {
-          cases.push({ body, absences: 0, observations: 0 });
+          cases.push({ body, counts: { absence: 0, literal: 0, observation: 0 } });
           return;
         }
         const current = cases.at(-1);
@@ -274,18 +329,17 @@ export const ctNegativeOnlyCaseRule: OrbRule = {
           return;
         }
         const evidence = evidenceOf(context, call, current.body);
-        if (evidence === "absence") {
-          current.absences += 1;
-        } else if (evidence === "observation") {
-          current.observations += 1;
+        if (evidence !== undefined) {
+          current.counts[evidence] += 1;
         }
       },
       "CallExpression:exit"(call: TSESTree.CallExpression): void {
         const current = cases.at(-1);
         if (current !== undefined && caseBody(call) === current.body) {
           cases.pop();
-          if (current.absences > 0 && current.observations === 0) {
-            context.report({ node: call, message: MESSAGE });
+          const message = caseMessage(current, judgesAbsence, judgesLiteral);
+          if (message !== undefined) {
+            context.report({ node: call, message });
           }
         }
       },

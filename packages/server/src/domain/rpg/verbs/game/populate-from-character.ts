@@ -39,6 +39,7 @@
 // already wrote both fields) · `{ok:false,reason}` (the round could not run, or the F1 boundary refused the
 // state half). The client reads it through the `refusal` seam and toasts; `populated:false` is an INFO line.
 
+import type { RoomClaim } from "@orb/contracts/chat";
 import type { PopulateResult, RpgSheet, RpgSnapshotState } from "@orb/contracts/rpg";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, RpgGameId } from "@orb/kit/ids";
@@ -82,7 +83,7 @@ function characterIdOf(params: PopulateFromCharacterParams): CharacterId {
 export function createPopulateFromCharacter(ctx: RpgContext): Pick<RpgService, "populateFromCharacter"> {
   async function populateFromCharacter(params: PopulateFromCharacterParams): Promise<PopulateResult> {
     // HOST GATE at the model-call boundary — a member can never reach the host-principal model call.
-    const { game } = await resolveHost(ctx, params.principal, params.chatId);
+    const { game, admission } = await resolveHost(ctx, params.principal, params.chatId);
     const characterId = characterIdOf(params);
     // The caller IS the host (resolveHost enforced it), so the host principal funding the model call is the
     // caller's own userId — NEVER a params-supplied id (no foreign-principal injection).
@@ -94,7 +95,7 @@ export function createPopulateFromCharacter(ctx: RpgContext): Pick<RpgService, "
     if (corpus === null) {
       throw new DomainOperationError(RPG_OP_CODES.cardUnreadable, "this character's card could not be read for the game's host");
     }
-    await ctx.claimChat(params.chatId);
+    const claim = await ctx.claimChat(admission);
 
     // The resolution-ladder head the round's inventory/quest writes apply onto (the same base a state round reads).
     const baseRow = await resolveSnapshotForTurn(ctx.db, { id: game.id, chatId: game.chatId });
@@ -109,8 +110,8 @@ export function createPopulateFromCharacter(ctx: RpgContext): Pick<RpgService, "
       return round;
     }
 
-    const sheetFilled = await writeSheetHalf(ctx, { gameId: game.id, chatId: game.chatId, characterId, sheet: round.delta.sheet });
-    const state = await writeStateHalf(ctx, { gameId: game.id, chatId: game.chatId, baseState, statePatch: round.delta.statePatch });
+    const sheetFilled = await writeSheetHalf(ctx, { claim, gameId: game.id, chatId: game.chatId, characterId, sheet: round.delta.sheet });
+    const state = await writeStateHalf(ctx, { claim, gameId: game.id, chatId: game.chatId, baseState, statePatch: round.delta.statePatch });
     if (!state.ok) {
       // The F1 backstop refused the state half. Reported as a REFUSAL even when the sheet half already landed:
       // the host asked for one fill and part of it was thrown away, and "success" would hide exactly that.
@@ -128,7 +129,13 @@ export function createPopulateFromCharacter(ctx: RpgContext): Pick<RpgService, "
  *  whether a row was actually WRITTEN — half of the verb's `populated` verdict. */
 async function writeSheetHalf(
   ctx: RpgContext,
-  args: { readonly gameId: RpgGameId; readonly chatId: ChatId; readonly characterId: CharacterId; readonly sheet: RpgPopulateDelta["sheet"] },
+  args: {
+    readonly claim: RoomClaim;
+    readonly gameId: RpgGameId;
+    readonly chatId: ChatId;
+    readonly characterId: CharacterId;
+    readonly sheet: RpgPopulateDelta["sheet"];
+  },
 ): Promise<boolean> {
   if (args.sheet.className === undefined && args.sheet.level === undefined) {
     return false; // the card established no identity — no row, no emit
@@ -138,7 +145,7 @@ async function writeSheetHalf(
   if (next === null) {
     return false; // both fields were already the host's — the fill rule kept them (never a clobber)
   }
-  const row = await upsertSheet(ctx.db, {
+  const row = await upsertSheet(ctx.db, args.claim, {
     id: ctx.ids.sheet(),
     gameId: args.gameId,
     characterId: args.characterId,
@@ -156,7 +163,13 @@ async function writeSheetHalf(
  *  reason (the resync's posture — a write the backstop threw away is never reported as a fill). */
 async function writeStateHalf(
   ctx: RpgContext,
-  args: { readonly gameId: RpgGameId; readonly chatId: ChatId; readonly baseState: RpgSnapshotState; readonly statePatch: Record<string, unknown> },
+  args: {
+    readonly claim: RoomClaim;
+    readonly gameId: RpgGameId;
+    readonly chatId: ChatId;
+    readonly baseState: RpgSnapshotState;
+    readonly statePatch: Record<string, unknown>;
+  },
 ): Promise<{ readonly ok: true; readonly wrote: boolean } | { readonly ok: false; readonly reason: string }> {
   if (Object.keys(args.statePatch).length === 0) {
     return { ok: true, wrote: false }; // nothing established (a model no-op) — no row, no write
@@ -164,7 +177,7 @@ async function writeStateHalf(
   // Merge onto the base — locks HONORED (a populate fills the model plane, never a hand-pin).
   const nextState = applyLockedPatch(args.baseState, args.statePatch, args.baseState.fieldLocks);
   const snapshotId = ctx.ids.snapshot();
-  const written = await writeResyncedSnapshot(ctx.db, nextState, { id: snapshotId, gameId: args.gameId, chatId: args.chatId, now: ctx.now() });
+  const written = await writeResyncedSnapshot(ctx.db, args.claim, nextState, { id: snapshotId, gameId: args.gameId, chatId: args.chatId, now: ctx.now() });
   if (!written.ok) {
     // The F1 backstop refused a contract-invalid state — drop the state half and SURFACE it (never a silent
     // vanish; the same observability contract the flush's and the resync's drop honor). A hand write has no

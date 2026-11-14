@@ -39,7 +39,7 @@
 // witnessing-char; NO `''` sentinel, NO NULL). The `(chatId, scopedCharacterId, tier, blockIdx)`
 // idempotent-upsert UNIQUE keys off the real id; SQLite UNIQUE never sees a NULL here.
 //
-// Timestamps are plain `integer("x_at")` epoch-MS NUMBERS, born at insert via `(unixepoch() * 1000)`.
+// Timestamps are plain `integer("x_at")` epoch-MS NUMBERS; a stamp is `stampColumn`, stated by each insert.
 // `embedding` is the native `vector32` F32_BLOB column (../custom-types). `chat_digest_speakers` is an
 // identity-keyed join (composite PK — there is no TypeID brand for it).
 
@@ -66,7 +66,7 @@ import type {
 import type { UnreadableJsonText } from "@orb/kit/json";
 import { sql } from "drizzle-orm";
 import { check, index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { nulFreeText, storedJsonText, vector32 } from "../custom-types/index.ts";
+import { nulFreeText, stampColumn, storedJsonText, vector32 } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { assets } from "./assets.ts";
 import { characters } from "./character.ts";
@@ -156,7 +156,7 @@ export const embedGenerations = sqliteTable(
     connectionRef: nulFreeText("connection_ref").$type<UserConnectionId>().notNull(),
     fingerprint: nulFreeText("fingerprint").notNull(),
     space: nulFreeText("space").notNull(),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     index("embed_generations_owner_task_idx").on(t.ownerId, t.task),
@@ -219,7 +219,7 @@ export const characterEmbeddings = sqliteTable(
       .notNull()
       .references(() => embedGenerations.id, { onDelete: "cascade" }),
     dim: integer("dim").notNull(),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     // One row per character per embedding space — the hash-gated upsert's ON CONFLICT target.
@@ -264,7 +264,7 @@ export const imageEmbeddings = sqliteTable(
       .notNull()
       .references(() => embedGenerations.id, { onDelete: "cascade" }),
     dim: integer("dim").notNull(),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     // Both lenses coexist idempotently per (asset, model): the upsert key. A re-embed of the same lens
@@ -289,7 +289,7 @@ export const imageAnalyses = sqliteTable("image_analyses", {
   // A vector pins this accepted Utility result; a newer result refuses an older encoder completion.
   revision: integer("revision").notNull().default(1),
   captionMeta: storedJsonText("caption_meta").$type<ImageCaptionMeta | UnreadableJsonText>().notNull(),
-  createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+  createdAt: stampColumn("created_at"),
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -346,7 +346,7 @@ export const chatDigests = sqliteTable(
       .notNull()
       .references(() => embedGenerations.id, { onDelete: "cascade" }),
     dim: integer("dim").notNull(),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     // The idempotent-upsert key — the scope bucket PLUS `model`: every one of the 5 vector
@@ -417,7 +417,7 @@ export const chatSegments = sqliteTable(
       .notNull()
       .references(() => embedGenerations.id, { onDelete: "cascade" }),
     dim: integer("dim").notNull(),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     // One verbatim segment per (chat, block, CHUNK, model) — the idempotent-upsert key. `chunk_idx` is in
@@ -501,7 +501,7 @@ export const documentChunks = sqliteTable(
       .notNull()
       .references(() => embedGenerations.id, { onDelete: "cascade" }),
     dim: integer("dim").notNull(),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     // The idempotent upsert key: one chunk per (document, chunkIdx, model).
@@ -550,7 +550,7 @@ export const imageIndexSkips = sqliteTable(
     // skip whose dimensions were unparseable would carry nulls (the current floor never records that case).
     width: integer("width"),
     height: integer("height"),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   () => [
     // SQL-side enum enforcement derived from the tuple (mirrors the drizzle `{ enum }` type-side).
@@ -606,7 +606,7 @@ export const embedSpaceState = sqliteTable(
     candidateEpoch: integer("candidate_epoch"),
     // Diagnostic provenance for when the last accepted sweep receipt or promotion completed;
     // correctness reads the generation and epoch instead. Ends if the row stops recording last completion.
-    completedAt: integer("completed_at").notNull().default(sql`(unixepoch() * 1000)`),
+    completedAt: stampColumn("completed_at"),
   },
   (t) => [
     // One row per owner per scope — the mark verb's ON CONFLICT target (a completion OVERWRITES, it never

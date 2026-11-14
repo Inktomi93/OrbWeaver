@@ -159,16 +159,18 @@ function RunRow({
 export function RunsTab({ runs, viewedRunId, onView, armedRewriteId, onArmRewrite, onGoToScore }: RunsTabProps): ReactElement {
   if (runs.length === 0) {
     return (
-      <EmptyState
-        action={
-          // The ledger recovers the owning run control even when the workbench has scrolled past it.
-          <Button variant="ghost" ink="muted" onClick={onGoToScore} size="sm">
-            {REFINERY_GO_TO_SCORE_NAME}
-          </Button>
-        }
-        description="Every stage you run is recorded here. What it cost, which model ran it, and the verdict it produced."
-        title={REFINERY_NO_RUNS_TITLE}
-      />
+      <ContextTabBody kind="rows">
+        <EmptyState
+          action={
+            // The ledger recovers the owning run control even when the workbench has scrolled past it.
+            <Button variant="ghost" ink="muted" onClick={onGoToScore} size="sm">
+              {REFINERY_GO_TO_SCORE_NAME}
+            </Button>
+          }
+          description="Every stage you run is recorded here. What it cost, which model ran it, and the verdict it produced."
+          title={REFINERY_NO_RUNS_TITLE}
+        />
+      </ContextTabBody>
     );
   }
   // Two runs of one stage can share a round (a second rewrite before iterating); the ledger's own order, oldest first, tells them apart.
@@ -335,13 +337,16 @@ const SNAPSHOT_PENDING_ROWS = 3;
 
 export function VersionsTab({ state, liveDescription }: { state: RefineryContextState; liveDescription: string }): ReactElement {
   return (
-    <QueryBoundary
-      resetKeys={[state.characterId]}
-      fallback={<SkeletonRows count={SNAPSHOT_PENDING_ROWS} shape="line" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label={REFINERY_READ_LABELS.versions} onRetry={retry} />}
-    >
-      <LoadedVersions state={state} liveDescription={liveDescription} />
-    </QueryBoundary>
+    // The column holds the boundary, so the pending and failed arms stand where the versions do.
+    <ContextTabBody data-testid={testId("refineryVersionsTab")} kind="rows">
+      <QueryBoundary
+        resetKeys={[state.characterId]}
+        fallback={<SkeletonRows count={SNAPSHOT_PENDING_ROWS} shape="line" />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label={REFINERY_READ_LABELS.versions} onRetry={retry} />}
+      >
+        <LoadedVersions state={state} liveDescription={liveDescription} />
+      </QueryBoundary>
+    </ContextTabBody>
   );
 }
 
@@ -371,7 +376,7 @@ function LoadedVersions({ state, liveDescription }: { state: RefineryContextStat
   // and a later snapshot never renames an earlier one.
   const qualifiers = groupOrdinalQualifiers(rows.map(versionLabelOf).toReversed()).toReversed();
   return (
-    <ContextTabBody data-testid={testId("refineryVersionsTab")} kind="rows">
+    <>
       {/* NOT "the LIVE card" (caps mid-sentence is "the one place the app raises its voice at the reader"). The contrast is real and survives in
           words — the live card against the session's pinned original — and the sentence carries it. */}
       <Text voice="gloss">Restoring changes the live card only. The session still compares against its own pinned original.</Text>
@@ -428,7 +433,7 @@ function LoadedVersions({ state, liveDescription }: { state: RefineryContextStat
           </Card>
         );
       })}
-    </ContextTabBody>
+    </>
   );
 }
 

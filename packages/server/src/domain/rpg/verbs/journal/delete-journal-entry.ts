@@ -9,9 +9,9 @@ import { deleteJournalEntry as deleteJournalEntryRow } from "#src/domain/rpg/per
 
 export function createDeleteJournalEntry(ctx: RpgContext): Pick<RpgService, "deleteJournalEntry"> {
   async function deleteJournalEntry(params: DeleteJournalEntryParams): Promise<void> {
-    const { game } = await resolveHost(ctx, params.principal, params.chatId);
-    await ctx.claimChat(params.chatId);
-    if (!(await deleteJournalEntryRow(ctx.db, game.id, params.entryId))) {
+    const { game, admission } = await resolveHost(ctx, params.principal, params.chatId);
+    const claim = await ctx.claimChat(admission);
+    if (!(await deleteJournalEntryRow(ctx.db, claim, game.id, params.entryId))) {
       throw new DomainNotFoundError("journal", params.entryId);
     }
     // The paged Journal refetches (§4.9).

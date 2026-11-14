@@ -39,7 +39,7 @@ export function createCreateGame(ctx: RpgContext): Pick<RpgService, "createGame"
     if (await findGameByChat(ctx.db, params.chatId)) {
       throw new DomainOperationError(RPG_OP_CODES.alreadyAGame, "this chat is already a game");
     }
-    await ctx.claimChat(params.chatId);
+    await ctx.claimChat(membership.admission);
 
     // The birth mechanics (row + pointer mirror + bus emit, no born snapshot) live in the ONE shared
     // mint (`game-mint.ts`) — the chat-ops draft-time `startGame` door births through the same code.

@@ -51,7 +51,7 @@ import type { AutomationFireId, AutomationRuleCreationId, AutomationRuleId, Chat
 import type { IanaTimeZone } from "@orb/kit/time";
 import { sql } from "drizzle-orm";
 import { check, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { nulFreeText } from "../custom-types/index.ts";
+import { nulFreeText, stampColumn } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { chats } from "./chat.ts";
 import { users } from "./users.ts";
@@ -135,8 +135,8 @@ export const automationRules = sqliteTable(
     // The last skip reason (host debug surface).
     lastError: nulFreeText("last_error"),
     lastFiredAt: integer("last_fired_at"),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
-    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
+    updatedAt: stampColumn("updated_at"),
   },
   (t) => [
     // The dispatch hot path: enabled rules of a chat for one trigger.
@@ -184,7 +184,7 @@ export const automationOwnerBudgets = sqliteTable(
       .primaryKey()
       .references(() => users.id, { onDelete: "cascade" }),
     maxFiresPerHour: integer("max_fires_per_hour").notNull().default(AUTOMATION_OWNER_BUDGET_DEFAULTS.maxFiresPerHour),
-    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+    updatedAt: stampColumn("updated_at"),
   },
   // The owner-wide budget is a magnitude like the per-rule one above.
   () => [check("automation_owner_budgets_budget_check", sql.raw("max_fires_per_hour >= 0"))],
@@ -217,7 +217,7 @@ export const automationFires = sqliteTable(
     detail: text("detail", { mode: "json" }).$type<NonNullable<FireView["detail"]>>(),
     // 0 = human-initiated; the cascade-depth ledger.
     automationDepth: integer("automation_depth").notNull().default(0),
-    firedAt: integer("fired_at").notNull().default(sql`(unixepoch() * 1000)`),
+    firedAt: stampColumn("fired_at"),
   },
   (t) => [
     // The per-hour budget COUNT + the host's per-rule fire history, one indexed read.
@@ -271,7 +271,7 @@ export const automationRuleState = sqliteTable(
     // law 6; it never passes renderArmTemplate/processMacros). "" = no standing guidance (the common case).
     // Sliced to ANALYSIS_GUIDANCE_MAX at the write boundary; the CHECK below mirrors the same const.
     guidance: nulFreeText("guidance").notNull().default(""),
-    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+    updatedAt: stampColumn("updated_at"),
   },
   () => [check("automation_rule_state_guidance_check", sql.raw(`length(guidance) <= ${ANALYSIS_GUIDANCE_MAX}`))],
 );
@@ -291,7 +291,7 @@ export const globalVariables = sqliteTable(
       .references(() => users.id, { onDelete: "cascade" }),
     key: nulFreeText("key").notNull(),
     value: nulFreeText("value").notNull(),
-    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+    updatedAt: stampColumn("updated_at"),
   },
   (t) => [
     // The natural key IS the identity — no TypeID, no surrogate.

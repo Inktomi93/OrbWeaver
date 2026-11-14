@@ -11,7 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary } from "#components";
+import { ContextTabBody, QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import type { CorpusDestination } from "#lib";
@@ -58,13 +58,15 @@ const K_ITEMS: SelectItems = [
 
 export function CorpusArchetypesTab(): ReactElement {
   return (
-    <QueryBoundary
-      resetKeys={[]}
-      fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label={CORPUS_READ_LABELS.archetypes} onRetry={retry} />}
-    >
-      <ArchetypesBody />
-    </QueryBoundary>
+    <ContextTabBody>
+      <QueryBoundary
+        resetKeys={[]}
+        fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label={CORPUS_READ_LABELS.archetypes} onRetry={retry} />}
+      >
+        <ArchetypesBody />
+      </QueryBoundary>
+    </ContextTabBody>
   );
 }
 

@@ -476,6 +476,8 @@ export type {
   ResolveReasoningHostOnlyOp,
   ResolveRpgCardCorpus,
   ResolveRpgParticipants,
+  RoomAdmission,
+  RoomClaim,
   RpgCardCorpus,
   RpgGatherWithTools,
   RpgTurnAbortedOp,

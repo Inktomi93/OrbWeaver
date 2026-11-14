@@ -7,7 +7,7 @@
 //
 // No JSON columns here (title/content/type are plain text) — no parse-on-read belt needed.
 
-import type { HistoryFloorSeq } from "@orb/contracts/chat";
+import type { HistoryFloorSeq, RoomClaim } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { messages, messageVariants, rpgJournal } from "@orb/db";
 import type { RpgGameId, RpgJournalId } from "@orb/kit/ids";
@@ -17,7 +17,7 @@ import type { NewRpgJournal, RpgJournalRow } from "../contract/service.ts";
 
 /** Insert a journal entry (hand entry: `variantId` NULL; model entry: the committed variant). `id`/`now`
  *  injected. Returns the row. */
-export async function insertJournalEntry(db: Db, values: NewRpgJournal): Promise<RpgJournalRow> {
+export async function insertJournalEntry(db: Db, _claim: RoomClaim, values: NewRpgJournal): Promise<RpgJournalRow> {
   const rows = await db.insert(rpgJournal).values(values).returning();
   const row = rows[0];
   if (!row) {
@@ -82,7 +82,13 @@ export async function listActiveJournal(
 /** Patch an entry's mutable text columns (the host edit/recovery path — reaches model entries too). SCOPED to
  *  `gameId` — an entry id from another game matches zero rows (the cross-tenant IDOR belt); returns whether a
  *  row was touched so the verb can surface a leak-free not-found. */
-export async function updateJournalEntry(db: Db, gameId: RpgGameId, id: RpgJournalId, patch: EditJournalEntryParams["patch"]): Promise<boolean> {
+export async function updateJournalEntry(
+  db: Db,
+  _claim: RoomClaim,
+  entry: { readonly gameId: RpgGameId; readonly id: RpgJournalId },
+  patch: EditJournalEntryParams["patch"],
+): Promise<boolean> {
+  const { gameId, id } = entry;
   const rows = await db
     .update(rpgJournal)
     .set({
@@ -98,7 +104,7 @@ export async function updateJournalEntry(db: Db, gameId: RpgGameId, id: RpgJourn
 /** Delete a journal entry (host — the lineage-projection-safe recovery path). SCOPED to `gameId` — a foreign
  *  game's entry id matches zero rows. Returns whether a row was deleted (the verb throws a leak-free not-found
  *  on a no-match). */
-export async function deleteJournalEntry(db: Db, gameId: RpgGameId, id: RpgJournalId): Promise<boolean> {
+export async function deleteJournalEntry(db: Db, _claim: RoomClaim, gameId: RpgGameId, id: RpgJournalId): Promise<boolean> {
   const rows = await db
     .delete(rpgJournal)
     .where(and(eq(rpgJournal.id, id), eq(rpgJournal.gameId, gameId)))

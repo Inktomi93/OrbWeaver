@@ -32,7 +32,7 @@
 // `reapTemporaryChats` sweeps the caller's expired temporary chats AND expired husks, scoped to chats the
 // caller hosts. Bulk delete rides the same FK cascade as `delete`.
 
-import type { ChatInjectionView, ClaimChatOp, LiveOnlyChatBusEvent, UserMacroPicksView, VariablePicksView } from "@orb/contracts/chat";
+import type { ChatInjectionView, ClaimChatOp, LiveOnlyChatBusEvent, RoomClaim, UserMacroPicksView, VariablePicksView } from "@orb/contracts/chat";
 import { NEW_CHAT_INJECTION_PLACEMENT } from "@orb/contracts/chat";
 import type { UserMacroSpec, UserMacroValues } from "@orb/contracts/preset";
 import { userMacroValuesSchema } from "@orb/contracts/preset";
@@ -131,8 +131,8 @@ type ChatLifecycleVerbs = Pick<
 /** Commit a rebuild-consumed chat-row mutation with the current host owner's retry token. The trio itself
  *  lives in `persistence/host-fenced-write` (four verbs had spelled it out); this stays as the
  *  single-statement shape this file's callers pass. */
-async function commitFencedChatWrite(ctx: ChatContext, chatId: ChatId, statement: BatchStmt): Promise<void> {
-  await commitHostFencedWrite(ctx, chatId, [statement]);
+async function commitFencedChatWrite(ctx: ChatContext, claim: RoomClaim, statement: BatchStmt): Promise<void> {
+  await commitHostFencedWrite(ctx, claim, [statement]);
 }
 
 /** Map a persisted `chat_injections` row → the `ChatInjectionView` wire shape (`order` omitted when null). */
@@ -158,11 +158,11 @@ async function hostRowUpdate(
     readonly patch: Partial<typeof chats.$inferInsert>;
   },
 ): Promise<void> {
-  await requireHost(ctx, args.principal, args.chatId);
-  await claimChat(args.chatId);
+  const { admission } = await requireHost(ctx, args.principal, args.chatId);
+  const claim = await claimChat(admission);
   await commitFencedChatWrite(
     ctx,
-    args.chatId,
+    claim,
     ctx.db
       .update(chats)
       .set({ ...args.patch, updatedAt: ctx.now() })
@@ -200,7 +200,7 @@ function createArchive(ctx: ChatContext, emit: EmitDurableChatEventOp, claimChat
  *  `ctx.verifyPersonaOwned` against each present-and-enabled human's `userId`. */
 function createSetChatAnchorPersona(ctx: ChatContext, emit: EmitDurableChatEventOp, claimChat: ClaimChatOp): ChatService["setChatAnchorPersona"] {
   return async ({ principal, chatId, personaId }: SetChatAnchorPersonaParams): Promise<void> => {
-    await requireHost(ctx, principal, chatId);
+    const { admission } = await requireHost(ctx, principal, chatId);
     if (personaId !== null) {
       const participants = await loadParticipants(ctx.db, chatId);
       // The SAME consent set the resolver gates seat personas on: a new pin must be a present, enabled player's.
@@ -208,8 +208,8 @@ function createSetChatAnchorPersona(ctx: ChatContext, emit: EmitDurableChatEvent
         throw new ChatOperationError(CHAT_OP_CODES.notPersonaOwner, `chat ${chatId}: the anchor persona must be owned by a present, enabled human participant`);
       }
     }
-    await claimChat(chatId);
-    await commitFencedChatWrite(ctx, chatId, ctx.db.update(chats).set({ anchorPersonaId: personaId, updatedAt: ctx.now() }).where(eq(chats.id, chatId)));
+    const claim = await claimChat(admission);
+    await commitFencedChatWrite(ctx, claim, ctx.db.update(chats).set({ anchorPersonaId: personaId, updatedAt: ctx.now() }).where(eq(chats.id, chatId)));
     await emit({ type: "chatUpdated", chatId });
   };
 }
@@ -482,9 +482,9 @@ function createReapTemporaryChats(ctx: ChatContext, deps: Pick<ChatLifecycleDeps
 /** `setVariables` — member. Flush the `{{var}}`→value map to `chats.variableValues`. Emits `chatUpdated`. */
 function createSetVariables(ctx: ChatContext, emit: EmitDurableChatEventOp, claimChat: ClaimChatOp): ChatService["setVariables"] {
   return async ({ principal, chatId, values }: SetVariablesParams): Promise<void> => {
-    await requireParticipant(ctx, principal, chatId);
-    await claimChat(chatId);
-    await commitFencedChatWrite(ctx, chatId, ctx.db.update(chats).set({ variableValues: values, updatedAt: ctx.now() }).where(eq(chats.id, chatId)));
+    const { admission } = await requireParticipant(ctx, principal, chatId);
+    const claim = await claimChat(admission);
+    await commitFencedChatWrite(ctx, claim, ctx.db.update(chats).set({ variableValues: values, updatedAt: ctx.now() }).where(eq(chats.id, chatId)));
     await emit({ type: "chatUpdated", chatId });
   };
 }
@@ -503,11 +503,11 @@ function createSetVariables(ctx: ChatContext, emit: EmitDurableChatEventOp, clai
  *  their option was renamed away. */
 function createSetUserMacroValues(ctx: ChatContext, emit: EmitDurableChatEventOp, claimChat: ClaimChatOp): ChatService["setUserMacroValues"] {
   return async ({ principal, chatId, values }: SetUserMacroValuesParams): Promise<void> => {
-    await requireParticipant(ctx, principal, chatId);
+    const { admission } = await requireParticipant(ctx, principal, chatId);
     const parsed = userMacroValuesSchema.parse(values);
     await assertDeclaredPicks(ctx, chatId, parsed);
-    await claimChat(chatId);
-    await commitFencedChatWrite(ctx, chatId, ctx.db.update(chats).set({ userMacroValues: parsed, updatedAt: ctx.now() }).where(eq(chats.id, chatId)));
+    const claim = await claimChat(admission);
+    await commitFencedChatWrite(ctx, claim, ctx.db.update(chats).set({ userMacroValues: parsed, updatedAt: ctx.now() }).where(eq(chats.id, chatId)));
     await emit({ type: "chatUpdated", chatId });
   };
 }
@@ -622,8 +622,8 @@ function createGetRuntimeVariables(ctx: ChatContext): ChatService["getRuntimeVar
  *  id is a leak-free NOT_FOUND); absent ⇒ insert a fresh row. Emits `chatUpdated`; returns the resolved view. */
 function createSetChatInjection(ctx: ChatContext, emit: EmitDurableChatEventOp, claimChat: ClaimChatOp): ChatService["setChatInjection"] {
   return async ({ principal, chatId, id, position, depth, role, content, order }: SetChatInjectionParams): Promise<ChatInjectionView> => {
-    await requireHost(ctx, principal, chatId);
-    await claimChat(chatId);
+    const { admission } = await requireHost(ctx, principal, chatId);
+    await claimChat(admission);
     const at = ctx.now();
     let injectionId = id;
     if (id !== undefined) {
@@ -669,8 +669,8 @@ function createSetChatInjection(ctx: ChatContext, emit: EmitDurableChatEventOp, 
  *  insert, no `chatUpdated`, because nothing moved. */
 function createSaveCorrection(ctx: ChatContext, emit: EmitDurableChatEventOp, claimChat: ClaimChatOp): ChatService["saveCorrection"] {
   return async ({ principal, chatId, content }: SaveCorrectionParams): Promise<ChatInjectionView> => {
-    await requireHost(ctx, principal, chatId);
-    await claimChat(chatId);
+    const { admission } = await requireHost(ctx, principal, chatId);
+    await claimChat(admission);
     const key = { chatId, ...NEW_CHAT_INJECTION_PLACEMENT, content };
     const inserted = await insertChatInjectionIfAbsent(ctx.db, { ...key, id: ctx.newInjectionId(), createdAt: ctx.now() });
     if (inserted !== undefined) {
@@ -707,8 +707,8 @@ function createListChatInjections(ctx: ChatContext): ChatService["listChatInject
  *  watching the room. `RETURNING` is the transition test, the same shape the claim stamp uses. */
 function createDeleteChatInjection(ctx: ChatContext, emit: EmitDurableChatEventOp, claimChat: ClaimChatOp): ChatService["deleteChatInjection"] {
   return async ({ principal, chatId, injectionId }: DeleteChatInjectionParams): Promise<void> => {
-    await requireHost(ctx, principal, chatId);
-    await claimChat(chatId);
+    const { admission } = await requireHost(ctx, principal, chatId);
+    await claimChat(admission);
     const dropped = await ctx.db
       .delete(chatInjections)
       .where(and(eq(chatInjections.id, injectionId), eq(chatInjections.chatId, chatId)))

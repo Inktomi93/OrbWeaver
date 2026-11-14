@@ -2,6 +2,7 @@ import type { ReconcileStatsResult } from "@orb/contracts/stats";
 import type { BootDatabaseHandle, DatabaseHandle } from "@orb/db/wiring";
 import { batchForOwner, bootDatabaseForOwner, databaseForOwner } from "@orb/db/wiring-owner";
 import type { IdSource } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { ReconcileOpts } from "../contract/rebuild-from-canon.ts";
 import type { StatsBatchWiring } from "../contract/wiring.ts";
 import { applyCharacterStatsDelta, applyStatsDelta, bumpStatsCanonVersion } from "../persistence/apply-delta.ts";
@@ -12,9 +13,9 @@ import { createPrepareCanonAdmission, createPrepareCanonRetirement } from "../pe
 import { recordLedgerSpend } from "./ledger-spend.ts";
 
 /** Append through the operation's exact DB and mutable batch, never a captured root connection. */
-export function createStatsBatchWiring(idSource: IdSource): StatsBatchWiring {
+export function createStatsBatchWiring(idSource: IdSource, now: Clock): StatsBatchWiring {
   const prepareCanonRetirement = createPrepareCanonRetirement(idSource);
-  const prepareCanonAdmission = createPrepareCanonAdmission(idSource);
+  const prepareCanonAdmission = createPrepareCanonAdmission(idSource, now);
   return {
     applyStatsDelta: (batch, db, delta) => applyStatsDelta(batchForOwner(batch), databaseForOwner(db), delta, idSource),
     applyCharacterStatsDelta: (batch, db, delta) => applyCharacterStatsDelta(batchForOwner(batch), databaseForOwner(db), delta, idSource),

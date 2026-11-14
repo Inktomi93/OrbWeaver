@@ -70,7 +70,7 @@ import { ScrollArea } from "@orb/ui/scroll-area";
 import { Text } from "@orb/ui/text";
 import type { KeyboardEvent, ReactElement, RefObject } from "react";
 import { useEffect, useId, useRef, useState } from "react";
-import { MutedLine } from "#components";
+import { ContextTabBody, MutedLine } from "#components";
 import { testId } from "#lib";
 import { CHAT_MEMBERS_ROSTER_NAME } from "../lib/chat-surface-names.ts";
 import type { MemberCharacterRow, MemberPersonRow, MemberRowActions } from "../lib/member-rows.ts";
@@ -352,7 +352,7 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
   const showCharacters = characters.length > 0 || props.charactersAction !== undefined;
 
   return (
-    <Stack gap="row" minHeight="shrinks" height="fill" data-testid={testId("membersPanel")}>
+    <ContextTabBody kind="fill" data-testid={testId("membersPanel")}>
       {/* A members list scrolls vertically only, so the content wraps at the viewport width and a long member
           name truncates instead of busting the panel width. */}
       <ScrollArea grow={true} className="min-block-0" contentFull={true} wrapContent={true}>
@@ -397,6 +397,6 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
           ) : null}
         </Stack>
       </ScrollArea>
-    </Stack>
+    </ContextTabBody>
   );
 }

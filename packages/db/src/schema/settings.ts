@@ -26,9 +26,8 @@ import { USER_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
 import type { ThemeOverride } from "@orb/contracts/theme";
 import type { ThemeId, UserId } from "@orb/kit/ids";
 import type { JsonValue, UnreadableJsonText } from "@orb/kit/json";
-import { sql } from "drizzle-orm";
 import { index, integer, primaryKey, sqliteTable, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { nulFreeText, storedJsonText } from "../custom-types/index.ts";
+import { nulFreeText, stampColumn, storedJsonText } from "../custom-types/index.ts";
 import { users } from "./users.ts";
 
 export const settings = sqliteTable("settings", {
@@ -37,7 +36,7 @@ export const settings = sqliteTable("settings", {
   // The stored JSON value. Generic `JsonValue` (the AppSettings override blob, the OR catalog snapshot,
   // …); parsed into its specific shape at the read seam by whichever tenant owns the row.
   value: storedJsonText("value").$type<JsonValue | UnreadableJsonText>().notNull(),
-  updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+  updatedAt: stampColumn("updated_at"),
 });
 
 export const userSettings = sqliteTable("user_settings", {
@@ -52,7 +51,7 @@ export const userSettings = sqliteTable("user_settings", {
   // The UserSettings blob. Parsed (with this row's `schema_version` as `storedVersion`) at the read seam
   // via `parseUserSettings`; a never-touched account reads defaults from `{}` with NO row written.
   config: storedJsonText("config").$type<UserSettings | UnreadableJsonText>().notNull(),
-  updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+  updatedAt: stampColumn("updated_at"),
 });
 
 // `user_seed_ledger` (D263) — one row per seed-manifest item an account has been given. The seeder skips a
@@ -87,8 +86,8 @@ export const themes = sqliteTable(
     // Optional self-authored custom CSS (§12.1 Tier-B / global-owner tier — validated at the write
     // boundary via `@orb/kit/css-validate`). NULL on seeds.
     css: nulFreeText("css"),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
-    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
+    updatedAt: stampColumn("updated_at"),
   },
   (table) => [
     index("themes_owner_idx").on(table.ownerId),
