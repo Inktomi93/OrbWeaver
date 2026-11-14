@@ -58,7 +58,7 @@ export async function commitRetainedCanonStats(
   const { chatId } = claim;
   const prepared = await prepareRetainedCanonStats(ctx, chatId, mutation.deltas, mutation);
   const selection = sql`select ${chats.id} from ${chats} where ${and(eq(chats.id, chatId), prepared.predicate, mutation.admission)}`;
-  statements.unshift(retainedChatFenceStatement(ctx.db, selection));
+  statements.unshift(retainedChatFenceStatement(ctx.db, selection, ctx.now()));
   appendStatsDeltas(ctx, statements, prepared.deltas);
   if (mutation.deltas.length === 0) {
     for (const ownerId of prepared.ownerIds) {

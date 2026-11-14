@@ -41,7 +41,7 @@ import type { CharacterId, CharacterStatId, DailyStatId, ModelId, ModelStatId, S
 import { MODEL_PROVIDER_UNKNOWN } from "@orb/kit/stats-tally";
 import { sql } from "drizzle-orm";
 import { check, index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { nulFreeText } from "../custom-types/index.ts";
+import { nulFreeText, stampColumn } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 
 import { characters } from "./character.ts";
@@ -50,10 +50,6 @@ import { users } from "./users.ts";
 // The `(unknown)` provider sentinel — see header. Mirrors `@orb/kit/stats-tally.modelKey`'s null-coalesce
 // and the read-side model/latency keys; all three MUST stay aligned.
 const PROVIDER_FALLBACK = MODEL_PROVIDER_UNKNOWN;
-
-// Born-at-insert epoch-ms clock for `computedAt` (the live delta always supplies `delta.now`; this default
-// only covers a bare insert). SQL `unixepoch()`, never a JS clock (the determinism gate).
-const NOW_MS = sql`(unixepoch() * 1000)`;
 
 // ── NO NON-NEGATIVE COUNTER CHECK HERE, AND THE PREMISE THAT ASKED FOR ONE IS REFUTED ──
 //
@@ -139,7 +135,7 @@ export const ownerStats = sqliteTable("owner_stats", {
   firstChatAt: integer("first_chat_at"),
   lastActivityAt: integer("last_activity_at"),
   // MAX-merged freshness stamp (epoch-ms).
-  computedAt: integer("computed_at").notNull().default(NOW_MS),
+  computedAt: stampColumn("computed_at"),
 });
 
 // character_stats — per-character totals, ONE row per character (grouped on `characters.id`
@@ -183,7 +179,7 @@ export const characterStats = sqliteTable(
     // Extrema (epoch-ms numbers) — MIN/MAX-merged.
     firstChatAt: integer("first_chat_at"),
     lastActivityAt: integer("last_activity_at"),
-    computedAt: integer("computed_at").notNull().default(NOW_MS),
+    computedAt: stampColumn("computed_at"),
   },
   (table) => [
     // One rollup row per character — the live-delta UPSERT conflict target.
@@ -227,7 +223,7 @@ export const dailyStats = sqliteTable(
     genTimeMs: integer("gen_time_ms").notNull().default(0),
     // Set by the canon rebuild; the live upsert never touches it, so a bucket flagged migration-approximate stays flagged.
     messageDatesApprox: integer("message_dates_approx", { mode: "boolean" }).notNull().default(false),
-    computedAt: integer("computed_at").notNull().default(NOW_MS),
+    computedAt: stampColumn("computed_at"),
   },
   (table) => [
     // owner × bucket — the live-delta UPSERT conflict target.
@@ -268,7 +264,7 @@ export const modelStats = sqliteTable(
     // Cache economics — owner + MODEL grain.
     cacheReadTokens: integer("cache_read_tokens").notNull().default(0),
     cacheWriteTokens: integer("cache_write_tokens").notNull().default(0),
-    computedAt: integer("computed_at").notNull().default(NOW_MS),
+    computedAt: stampColumn("computed_at"),
   },
   (table) => [
     // owner × model × provider — the live-delta UPSERT conflict target; relies on `provider` NOT NULL.

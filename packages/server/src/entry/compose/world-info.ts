@@ -119,7 +119,7 @@ export function buildWorldInfo(deps: WorldInfoComposeDeps): WorldInfoComposeResu
 
   const bulkImportChats = createBulkImportChats({
     db,
-    bumpStatsCanonVersion: createStatsBatchWiring(deps.idSource).bumpStatsCanonVersion,
+    bumpStatsCanonVersion: createStatsBatchWiring(deps.idSource, deps.now).bumpStatsCanonVersion,
     now,
     newChatId: minter(ID_PREFIX.chat, deps.idSource),
     newChatTurnId: minter(ID_PREFIX.chatTurn, deps.idSource),

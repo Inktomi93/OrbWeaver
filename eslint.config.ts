@@ -694,6 +694,17 @@ const PLAIN_TEXT_COLUMN_SYNTAX = [
   },
 ];
 
+// A row stamp comes from the injected clock: `stampColumn` (`packages/db/src/custom-types/index.ts`) makes the insert
+// state it. A wall-clock SQL expression in a schema file, inline or hoisted into a const, would stamp a row by SQLite time.
+const WALL_CLOCK_SQL = String.raw`/unixepoch|current_timestamp|current_time|current_date|datetime\(\s*'now'/i`;
+const STAMP_DEFAULT_SYNTAX = [
+  {
+    selector: `TemplateElement[value.raw=${WALL_CLOCK_SQL}], Literal[value=${WALL_CLOCK_SQL}]`,
+    message:
+      'A row stamp is stampColumn from "../custom-types/index.ts", which each insert states from the injected clock; a schema file spells no wall-clock SQL.',
+  },
+];
+
 // dependency-cruiser sees only literal import edges, so a computed specifier or a host loader reaches any db door
 // unseen (D335). `node:module` itself is a dependency-cruiser rule; these are the loaders no import names.
 const MODULE_LOADER_SYNTAX = [
@@ -2433,7 +2444,10 @@ export default [
   { files: SERVER_CLOCK_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SOURCE_SYNTAX, SERVER_STREAM_SYNTAX) } },
   { files: STREAM_ROUTER_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SOURCE_SYNTAX, CLOCK_SYNTAX) } },
   { files: rootSources("@db"), rules: { "no-restricted-syntax": restrictedSyntax(...MODULE_LOADER_SYNTAX, CLOCK_SYNTAX) } },
-  { files: DB_SCHEMA_SOURCES, rules: { "no-restricted-syntax": restrictedSyntax(...MODULE_LOADER_SYNTAX, CLOCK_SYNTAX, ...PLAIN_TEXT_COLUMN_SYNTAX) } },
+  {
+    files: DB_SCHEMA_SOURCES,
+    rules: { "no-restricted-syntax": restrictedSyntax(...MODULE_LOADER_SYNTAX, CLOCK_SYNTAX, ...PLAIN_TEXT_COLUMN_SYNTAX, ...STAMP_DEFAULT_SYNTAX) },
+  },
   {
     files: rootSources("@kit", "@default-content", "@showcase", "@plugin-toolchain"),
     ignores: KIT_CLOCK_HOME,

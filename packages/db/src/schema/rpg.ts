@@ -55,7 +55,7 @@ import type {
 import type { UnreadableJsonText } from "@orb/kit/json";
 import { sql } from "drizzle-orm";
 import { check, foreignKey, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { nulFreeText, storedJsonText } from "../custom-types/index.ts";
+import { nulFreeText, stampColumn, storedJsonText } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { characters } from "./character.ts";
 import { chats, messages, messageVariants } from "./chat.ts";
@@ -98,8 +98,8 @@ export const rpgGames = sqliteTable(
       .references(() => presets.id, { onDelete: "set null" }),
     // The full config blob (statProfile + lite dials). Typed JSON, parse-on-read at the `@orb/db/query` seam.
     config: text("config", { mode: "json" }).$type<RpgGameConfig>().notNull(),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
-    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
+    updatedAt: stampColumn("updated_at"),
   },
   (t) => [
     uniqueIndex("rpg_games_chat_unique").on(t.chatId),
@@ -203,7 +203,7 @@ export const rpgSnapshots = sqliteTable(
     fieldLocks: text("field_locks", { mode: "json" }).$type<RpgFieldLocks>(),
     // Born 0 at flush; the next user send's `onUserCommit` locks it to 1 (the commit lifecycle).
     committed: integer("committed").notNull().default(0),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
     // The row's kind (the header). No default: every writer names it, and the arm CHECK ties it to the keys.
     // `rpg_checkpoints` keys its foreign key on (id, kind), so a checkpoint can pin only a bookmark.
     kind: text("kind", { enum: RPG_SNAPSHOT_KINDS }).notNull(),
@@ -260,8 +260,8 @@ export const rpgSheets = sqliteTable(
       .$type<UserId>()
       .references(() => users.id, { onDelete: "cascade" }),
     sheet: storedJsonText("sheet").$type<RpgSheet | UnreadableJsonText>().notNull(),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
-    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
+    updatedAt: stampColumn("updated_at"),
   },
   (t) => [
     uniqueIndex("rpg_sheets_game_character_unique").on(t.gameId, t.characterId),
@@ -312,7 +312,7 @@ export const rpgJournal = sqliteTable(
     sourceMessageId: nulFreeText("source_message_id")
       .$type<MessageId>()
       .references(() => messages.id, { onDelete: "set null" }),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     index("rpg_journal_game_variant_idx").on(t.gameId, t.variantId),
@@ -381,7 +381,7 @@ export const rpgTurnToolCalls = sqliteTable(
     // record: a provider throw otherwise leaves nothing but a transient warn line, and the person whose
     // state update went missing would have no way to learn it happened.
     failure: nulFreeText("failure"),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     // One record per variant — the swipe-rewind key.
@@ -423,7 +423,7 @@ export const rpgCheckpoints = sqliteTable(
     snapshotKind: text("snapshot_kind", { enum: RPG_CHECKPOINT_SNAPSHOT_KINDS }).notNull().default(RPG_SNAPSHOT_KIND.bookmark),
     label: nulFreeText("label").notNull(),
     trigger: text("trigger", { enum: RPG_CHECKPOINT_TRIGGERS }).notNull(),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     index("rpg_checkpoints_game_idx").on(t.gameId),

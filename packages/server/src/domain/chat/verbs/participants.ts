@@ -1175,7 +1175,9 @@ async function prepareHandoffRebase(
   if (snapshot === null) {
     return null;
   }
-  const statements = [retainedChatFenceStatement(ctx.db, sql`select ${chats.id} from ${chats} where ${and(eq(chats.id, chatId), snapshot.predicate)}`)];
+  const statements = [
+    retainedChatFenceStatement(ctx.db, sql`select ${chats.id} from ${chats} where ${and(eq(chats.id, chatId), snapshot.predicate)}`, ctx.now()),
+  ];
   appendRetainedChatRebaseDeltas(ctx, statements, snapshot, rekeys);
   return {
     statements,

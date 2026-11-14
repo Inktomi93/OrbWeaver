@@ -55,7 +55,7 @@ import {
 import type { UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { nulFreeText } from "../custom-types/index.ts";
+import { nulFreeText, stampColumn } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { users } from "./users.ts";
 
@@ -139,14 +139,14 @@ export const workloads = sqliteTable(
     error: nulFreeText("error"),
     // Dispatch DUE-instant + order key: the queue is (status='queued', lane, scheduledAt <= now) ordered
     // earliest-first, so a future-dated value is the "Run at" deferral (the row is invisible to dispatch
-    // until its instant), not merely a sort hint. Defaults to now = run as soon as the lane is free.
-    scheduledAt: integer("scheduled_at").notNull().default(sql`(unixepoch() * 1000)`),
+    // until its instant), not merely a sort hint. The enqueue verb states it from the injected clock; now runs as soon as the lane is free.
+    scheduledAt: stampColumn("scheduled_at"),
     // Enqueue time — the stable creation timestamp `list` orders newest-first + filters `since` on
     // (scheduledAt may be future-dated, so it can't double as the audit clock).
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
     // The heartbeat: bumped on every in-flight lease tick; the reaper's stale-threshold key (a dead
     // worker stops bumping → the row is reaped to worker_died, freeing the kind's active slot).
-    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+    updatedAt: stampColumn("updated_at"),
     // The BOOT-RESPAWN counter: how many times the single-replica boot reclaim has re-queued this
     // row after a process respawn WITHOUT the run reporting progress since. A resumable kind
     // (`WorkloadContribution.resume !== "none"`) survives a respawn by going back to `queued` instead of
@@ -233,8 +233,8 @@ export const workloadSchedules = sqliteTable(
     lastRunAt: integer("last_run_at"),
     // Whether the tick considers this schedule (a paused schedule stays but never enqueues). Defaults on.
     enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
-    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
+    updatedAt: stampColumn("updated_at"),
   },
   (table) => [
     // The owner CASCADE parent + the per-owner schedule list: SQLite auto-indexes no child FK, so a user
