@@ -10,7 +10,7 @@ import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmP
 import type { DiskSafeText } from "../../contract/disk-safe-argv.ts";
 import type { Args } from "../../contract/types.ts";
 import { SNAP_CEILINGS_MS } from "../../lib/budgets.ts";
-import { scrubPrivateText } from "../../lib/private-values.ts";
+import { scrubPlaywrightText, scrubPrivateText } from "../../lib/private-values.ts";
 import { consumeOptionalSelector } from "../flags-support.ts";
 import { writeArmEvidenceFile } from "./evidence-file.ts";
 
@@ -32,7 +32,7 @@ async function captureAria(page: Page, opts: Args): Promise<AriaOutcome> {
     // A password field paints dots, but its accessibility tree holds the value in plain text.
     return { text: scrubPrivateText(await root.ariaSnapshot(ariaOpts)), error: null };
   } catch (e) {
-    return { text: null, error: scrubPrivateText(`ARIA capture failed for "${opts.ariaSelector}": ${errorMessage(e)}`) };
+    return { text: null, error: scrubPlaywrightText(`ARIA capture failed for "${opts.ariaSelector}": ${errorMessage(e)}`) };
   }
 }
 

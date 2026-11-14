@@ -45,8 +45,21 @@ export function thrownOutcome(e: unknown): { readonly code: ExitCode; readonly l
   return e instanceof UsageError ? { code: EXIT.misuse, line: `ARG ERROR    ${e.message}` } : { code: EXIT.toolError, line: crashLine("thrown", e) };
 }
 
-function crashExit(label: string, e: unknown): never {
-  process.stderr.write(`${crashLine(label, e)}\n`);
+/** How {@link runTool} ends a run on any path it does not hand back to the tool. */
+export interface RunToolOptions {
+  /**
+   * Applied to every line the runner writes for a throw, the uncaught and unhandled-rejection handlers included.
+   *
+   * @remarks A tool that holds private values passes its value scrub here: a throw outside its own awaited path, such
+   * as a browser event that rejects late, reaches only these handlers. A tool without one prints the raw stack.
+   */
+  readonly scrubCrashText?: (text: string) => string;
+}
+
+const keepCrashText = (text: string): string => text;
+
+function crashExit(label: string, e: unknown, scrub: (text: string) => string = keepCrashText): never {
+  process.stderr.write(`${scrub(crashLine(label, e))}\n`);
   escalate(EXIT.toolError);
   // Behavior 2's crash arm: a stranded event loop (a live browser, an open server) must not hang the
   // caller forever — exit with the escalated code, stderr already written synchronously.
@@ -65,9 +78,10 @@ export function prepareToolHeap(): void {
 /** Run a tool's main with the exit contract enforced on every path. `main` returns its ExitCode (or any
  *  number it computed against EXIT); throwing UsageError is the misuse door; any other throw is a tool
  *  error — never a verdict. */
-export async function runTool(main: () => Promise<number> | number): Promise<void> {
-  process.on("uncaughtException", (e) => crashExit("uncaught", e));
-  process.on("unhandledRejection", (e) => crashExit("unhandled rejection", e));
+export async function runTool(main: () => Promise<number> | number, options: RunToolOptions = {}): Promise<void> {
+  const scrub = options.scrubCrashText ?? keepCrashText;
+  process.on("uncaughtException", (e) => crashExit("uncaught", e, scrub));
+  process.on("unhandledRejection", (e) => crashExit("unhandled rejection", e, scrub));
   // the UsageError branch writes "ARG ERROR" to stderr and sets exit 3 through escalate(EXIT.misuse); every other throw goes to crashExit, typed never. Ends if either branch stops writing stderr or setting the exit code.
   try {
     prepareToolHeap();
@@ -86,10 +100,10 @@ export async function runTool(main: () => Promise<number> | number): Promise<voi
   } catch (e) {
     if (e instanceof UsageError) {
       const thrown = thrownOutcome(e);
-      process.stderr.write(`${thrown.line}\n`);
+      process.stderr.write(`${scrub(thrown.line)}\n`);
       escalate(thrown.code);
       return;
     }
-    crashExit("thrown", e);
+    crashExit("thrown", e, scrub);
   }
 }
