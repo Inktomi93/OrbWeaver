@@ -132,17 +132,16 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
       <Stack gap="block">
         {/* THE HEADER is a distinct block — identity left, lifecycle controls right — closed by a hairline
             (the Section-divider grammar), so the acts (toggle/update/remove) read as chrome OF the plugin
-            rather than floating in its prose. Two reflow arms, both container-queried against the pane
-            (the surface's own <Container>):
-              · the name row is `flex-wrap`, so a LONG status badge ("Off — asked for more than you
-                allowed") wraps onto its own line instead of overflowing the min-w-0 column and painting
-                UNDER the shrink-0 controls cluster — the exact ~390px collision side-eye 2026-08-29 P2-1
-                photographed (Badge is whitespace-nowrap by design; the row must be the thing that bends);
-              · the cluster holds only the overflow menu, so it stays beside the name at every width; a
-                cluster dropped to its own line sat a whole text block away from the name it acts on. */}
+            rather than floating in its prose. Two reflow arms:
+              · the name row is `flex-wrap` and the badge takes `whitespace="normal"`, so a LONG status badge
+                ("Off: asked for more than you allowed") wraps at its words on its own line instead of
+                painting UNDER the controls cluster;
+              · the identity column holds at least its longest word, so at enlarged text on a phone, where the
+                cluster's touch box would squeeze the column below a word, the cluster drops to its own line
+                instead of the name and badge breaking inside their words. */}
         <Stack paddingBlockEnd="block" divider="bottom" gap="tight">
-          <Row align="start" gap="block" justify="between">
-            <Stack className="min-inline-0" grow={true} gap="tight">
+          <Row align="start" gap="block" justify="between" wrap={true}>
+            <Stack minWidth="word" grow={true} gap="tight">
               <Row align="center" wrap={true} gap="field">
                 <Text voice="promoted">{plugin.name}</Text>
                 {status.tone === "success" ? null : (

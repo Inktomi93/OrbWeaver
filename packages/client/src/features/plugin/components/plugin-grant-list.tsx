@@ -205,7 +205,7 @@ function GrantRow({ capability, checked, isNew, roleUnset }: GrantRowProps): Rea
     // affordance the disabled-checkbox finding (#650 P1-3) is about, one property down.
     <Stack gap="tight">
       <Row align="center" wrap={true} gap="field">
-        <Text id={nameId} voice="label">
+        <Text id={nameId} voice="label" wrap="anywhere">
           {copy.label}
         </Text>
         {/* An UNGRANTED row's state, as a word beside the name it refuses — adjacent, where the far-docked
@@ -300,7 +300,9 @@ export function PluginGrantList({
     <Stack gap="tight" role="list">
       {netHosts.map((host) => (
         <Row key={host} align="center" gap="field" role="listitem">
-          <Text voice="datumMono">{host}</Text>
+          <Text voice="datumMono" wrap="anywhere">
+            {host}
+          </Text>
           {addedHostSet.has(host) ? (
             <Badge whitespace="normal" cap="fit" tone="info" size="sm">
               New

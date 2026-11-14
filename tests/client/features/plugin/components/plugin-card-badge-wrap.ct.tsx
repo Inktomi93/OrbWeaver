@@ -13,6 +13,7 @@ const STORY = "tests/client/features/plugin/components/_consent-layout-stories/P
 const PANE_WIDTH = 390;
 const PANE = '[data-slot="config-content"]';
 const BADGE = '[data-slot="badge"]';
+const PLUGIN_CARD_NAME = /plugin$/u;
 const ENLARGED_TEXT = [
   { name: "200% text", factor: 2 },
   { name: "300% text", factor: 3 },
@@ -67,7 +68,15 @@ for (const scale of ENLARGED_TEXT) {
     expect(badges.length).toBeGreaterThan(1);
     const pane = page.locator(PANE);
     await expect.poll(async () => (await actionGroupGeometry(pane, badges)).inlineOverflow).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
-    expect((await card.evaluate(sidewaysReach)).wideners).toEqual([]);
-    expect((await pane.evaluate(sidewaysReach)).scrolls).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
+    // A status badge wrapped at its words keeps at least a third of the card's width; squeezed to one glyph per line it is a sliver.
+    const statusBox = await status.boundingBox();
+    const cardBox = await card.boundingBox();
+    expect(statusBox?.width).toBeGreaterThanOrEqual((cardBox?.width ?? Number.POSITIVE_INFINITY) / 3);
+    // Every plugin card in the list, the seeded ones with their long permission names and hosts included, stays inside the pane.
+    const cards = await page.getByRole("group", { name: PLUGIN_CARD_NAME }).all();
+    expect(cards.length).toBeGreaterThan(1);
+    for (const each of cards) {
+      expect((await each.evaluate(sidewaysReach)).wideners).toEqual([]);
+    }
   });
 }
