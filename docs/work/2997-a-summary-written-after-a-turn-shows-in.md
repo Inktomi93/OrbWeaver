@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: chat
+plan: cross-surface-consistency
 ---
 
 # A summary written after a turn shows in the open Memory tab without a reopen

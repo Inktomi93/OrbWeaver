@@ -1,5 +1,5 @@
 // @instrument-proof: the shipped rpg-game tape seeds through the production __orb bridge, opens the
-// returned chat, walks the live/phase-locked/host-gated context tabs, and retains map/state/pixel evidence.
+// returned chat, walks the live and host-gated context tabs, and retains map/state/pixel evidence.
 // @instrument-absence-proof: seed rejection, openChat refusal, and an omitted host-only tab stay explicit
 // instead of producing a clean-looking game walkthrough.
 
@@ -18,7 +18,7 @@ import { listeningAddress } from "../../_server-address.ts";
 const TIMEOUT_MS = scaledBudget(120_000);
 vi.setConfig({ testTimeout: TIMEOUT_MS, hookTimeout: TIMEOUT_MS });
 
-const CHECKPOINTS = ["seed-status", "inventory", "scene", "quests", "journal", "phase-locked-map", "host-game"] as const;
+const CHECKPOINTS = ["seed-status", "inventory", "scene", "quests", "journal", "host-game"] as const;
 
 interface FixtureMode {
   readonly seedFailure?: boolean;
@@ -51,14 +51,14 @@ function fixtureHtml(mode: FixtureMode): string {
     </aside>
   </div><script>
     const config = ${config};
-    const liveTabs = ["rpg.status","rpg.inventory","rpg.scene","rpg.quests","rpg.journal","rpg.map"];
+    const liveTabs = ["rpg.status","rpg.inventory","rpg.scene","rpg.quests","rpg.journal"];
     const allTabs = config.gameLocked ? liveTabs : [...liveTabs, "rpg.game"];
-    const labels = {"rpg.status":"Status","rpg.inventory":"Inventory","rpg.scene":"Scene","rpg.quests":"Quests","rpg.journal":"Journal","rpg.map":"Map","rpg.game":"Game"};
+    const labels = {"rpg.status":"Status","rpg.inventory":"Inventory","rpg.scene":"Scene","rpg.quests":"Quests","rpg.journal":"Journal","rpg.game":"Game"};
     let activeChat = null;
     const render = (id) => {
       const body = document.querySelector("#rpg-body");
       body.dataset.slot = id.replace(".", "-") + "-tab";
-      body.textContent = labels[id] + (id === "rpg.map" ? " — Maps are planned" : "");
+      body.textContent = labels[id];
     };
     globalThis.__orb = {
       resetEvidence(){},
@@ -162,14 +162,9 @@ test("the shipped tape seeds, opens, walks, maps, screenshots, and reads the sam
     expect(data.scenario.checkpoints.map((checkpoint) => checkpoint.name)).toEqual(CHECKPOINTS);
     expect(nonEmpty(data.scenario.checkpoints).every((checkpoint) => checkpoint.screenshot !== null)).toBe(true);
     expect(evalPayloads(data)).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ chatId: "chat_rpg_fixture" }),
-        { tab: "rpg.map", status: "opened", lock: "Maps are planned" },
-        { tab: "rpg.game", status: "opened" },
-      ]),
+      expect.arrayContaining([expect.objectContaining({ chatId: "chat_rpg_fixture" }), { tab: "rpg.game", status: "opened" }]),
     );
     expect(data.captures[5]?.mapShell).toMatchObject({ status: "available" });
-    expect(data.captures[5]?.assertions).toEqual(expect.arrayContaining([expect.objectContaining({ line: expect.stringContaining('rpg-map-tab"]: PASS') })]));
   });
 });
 

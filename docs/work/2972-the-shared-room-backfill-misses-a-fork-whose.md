@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: chat
+plan: authorization-and-visibility
 ---
 
 # The shared-room backfill misses a fork whose shared parent was deleted before the migration

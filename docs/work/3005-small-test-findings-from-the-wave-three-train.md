@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: tests
+plan: test-foundation
 ---
 
 # Small test findings from the wave three train review

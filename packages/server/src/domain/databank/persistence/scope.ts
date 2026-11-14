@@ -6,7 +6,8 @@
 // D85 (the host-only → membership widening): every PRESENT HUMAN member (kind='human', leftSeq null — the host
 // is one of them; a member who LEFT is dropped, and so is a disabled account, owner-ruled to stand as a departed
 // one) credits their GLOBAL documents to the shared room, unioned with
-// the chat's directly-attached documents AND the docs attached to the chat's PRESENT ROSTER characters (DB8).
+// the chat's directly-attached documents the present host owns (D64) AND the docs attached to the chat's PRESENT
+// ROSTER characters (DB8).
 // This mirrors the D16 corpus membership union: widening credits only ATTACHED documents (a global_documents /
 // chat_documents / character_documents junction row) — a member's PRIVATE (unattached/unconsented) documents
 // NEVER leak, because they have no junction row to union. On top of the union sits the HOST's optional
@@ -21,7 +22,7 @@
 
 import type { DocumentDestination, DocumentScopeSource } from "@orb/contracts/databank";
 import type { Principal, ResolveUserEnabled } from "@orb/contracts/identity";
-import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
+import { isHostRole, PARTICIPANT_ROLES } from "@orb/contracts/identity";
 import type { ResolveActiveDocumentIdsOp } from "@orb/contracts/search";
 import type { Db } from "@orb/db";
 import { characterDocuments, characters, chatDocuments, chatParticipants, chats, documents, globalDocuments } from "@orb/db";
@@ -32,6 +33,7 @@ import { DomainForbiddenError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
 import type { SQL, SQLWrapper } from "drizzle-orm";
 import { and, eq, inArray, isNull, notInArray, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 import { captureParticipantRole } from "#primitives/role-data";
 import type { DatabankContext } from "../contract/service.ts";
@@ -229,8 +231,20 @@ function characterScopeDocuments(db: Db, chatId: ChatId): DocumentScopeQuery {
     .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "character"), isNull(chatParticipants.leftSeq)));
 }
 
+// The roles that hold room authority, read from the one host predicate rather than spelled here.
+const HOST_ROLES = PARTICIPANT_ROLES.filter(isHostRole);
+// Aliased so the owner join never resolves against an outer `documents` the scan reads this predicate inside.
+const chatDocumentOwner = alias(documents, "chat_document_owner");
+
+// D64: a chat-attached document credits the room only while the room's present host owns it, so a document a
+// former host left attached, and can still rename, reaches neither the panel nor the prompt.
 function chatScopeDocuments(db: Db, chatId: ChatId): DocumentScopeQuery {
-  return db.select({ documentId: chatDocuments.documentId }).from(chatDocuments).where(eq(chatDocuments.chatId, chatId));
+  return db
+    .select({ documentId: chatDocuments.documentId })
+    .from(chatDocuments)
+    .innerJoin(chatDocumentOwner, eq(chatDocumentOwner.id, chatDocuments.documentId))
+    .innerJoin(chatParticipants, and(eq(chatParticipants.chatId, chatDocuments.chatId), eq(chatParticipants.userId, chatDocumentOwner.ownerId)))
+    .where(and(eq(chatDocuments.chatId, chatId), presentHumanSeat(chatId), inArray(chatParticipants.role, HOST_ROLES)));
 }
 
 /** The host's per-document visibility override for a chat (D85). Reads `chats.metadata.databankVisibility` and

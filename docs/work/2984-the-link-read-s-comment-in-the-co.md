@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: chat
+plan: checked-law
 ---
 
 # The link read's comment in the co-participant asset persistence claims the blob door's time shows nothing

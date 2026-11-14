@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: client
+plan: cross-surface-consistency
 ---
 
 # Design-audit evidence cases for the config list and character editor need a live run

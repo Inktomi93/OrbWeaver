@@ -7,7 +7,7 @@
 // The error taxonomy is load-bearing: `UnsupportedDocTypeError` = the caller sent a type the system
 // does not do (thrown BEFORE any parse; never retried, never wrapped); `ExtractionFailedError` =
 // a supported format's loader threw (corrupt/encrypted/invalid file) — retryable only in the sense that a
-// FUTURE `EXTRACTOR_VERSION` may succeed; `ExtractionTooLargeError` = an archive (docx, epub) would unpack past
+// FUTURE version of that format's extractor may succeed; `ExtractionTooLargeError` = an archive (docx, epub) would unpack past
 // a loader's size budget, so the file is intact but too large to read. All three are `DomainOperationError`s with
 // their own code ({@link EXTRACTION_OP_CODES}), so the transport's one classifier answers each as a client error that carries
 // that code, on every door that reaches the op. Empty text is NOT an error (a scanned image-only PDF extracts to
@@ -74,8 +74,12 @@ export function docFormatForMime(mime: string): DocFormat | undefined {
   return MIME_TO_FORMAT[mime.split(";", 1)[0]?.trim().toLowerCase() ?? ""];
 }
 
+/** The current extractor version of each format. Total over {@link DocFormat}, so a format without a version is a
+ *  `tsc` error. */
+export type ExtractorVersions = { readonly [F in DocFormat]: string };
+
 interface ExtractionMetaFields {
-  /** EXTRACTOR_VERSION at run time — stamped onto `documents.extractorVersion` (the re-extract predicate). */
+  /** The extracted format's current version at run time — stamped onto `documents.extractorVersion` (the re-extract predicate). */
   readonly extractorVersion: string;
   /** `text.length` (convenience; saves a re-measure at every consumer). */
   readonly charCount: number;
@@ -136,7 +140,7 @@ export class ExtractionTooLargeError extends DomainOperationError {
 }
 
 /** A supported format's loader threw (corrupt/encrypted/invalid file, or a loader bug). Carries the format +
- *  the underlying cause. An immediate retry is pointless; a future extractor version may succeed. The message
+ *  the underlying cause. An immediate retry is pointless; a future version of the format's extractor may succeed. The message
  *  names only the format: the cause is the loader's own text and stays on the server. */
 export class ExtractionFailedError extends DomainOperationError {
   readonly format: DocFormat;

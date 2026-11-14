@@ -1,9 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-11-12
+updated: 2026-11-14
 priority: P3
 area: docs
+plan: checked-law
 ---
 
 # Three owner rulings cited only in comments get decision records

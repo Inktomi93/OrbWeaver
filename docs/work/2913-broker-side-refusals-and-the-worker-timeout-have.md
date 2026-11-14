@@ -5,6 +5,7 @@ updated: 2026-11-14
 priority: P3
 area: server
 lane: wt/agent-a45fd91007dd324f7
+plan: test-foundation
 ---
 
 # Broker-side refusals and the Worker timeout have a strike case

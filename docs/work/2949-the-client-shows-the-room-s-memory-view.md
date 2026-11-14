@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P2
 area: chat
+plan: cross-surface-consistency
 ---
 
 # The client shows the room's memory view with strike and restore

@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P2
 area: kit
+plan: authorization-and-visibility
 ---
 
 # A user macro does not evaluate an argument a second time

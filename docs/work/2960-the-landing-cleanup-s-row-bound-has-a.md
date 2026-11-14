@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: chat
+plan: test-foundation
 ---
 
 # The landing cleanup's row bound has a failing case when removed
