@@ -25,9 +25,9 @@ for (const scale of [PLATFORM_TEXT_SCALES[1], PLATFORM_TEXT_SCALES[2]]) {
     await routeTrpc(page, serveCorpusProcedures(caller, [...SECTION_PROCEDURES, "regex.listScripts", "regex.listGlobal", "regex.updateScript"]));
     await mount<typeof RegexMemberSaveStory>(STORY, { scriptId: script.id });
     // Positive control: the stage is drawn with its marker, so the bound below is measured on the band that overflowed.
-    const stage = page.locator(STAGE).first();
+    // Only the subject's own stage carries the marker; the always-on stages above it do not.
+    const stage = page.locator(STAGE).filter({ has: page.locator('[data-slot="badge"]') });
     await expect(stage).toBeAttached();
-    await expect(stage.locator('[data-slot="badge"]')).toBeAttached();
     const reach = await page.locator(CONTENT).evaluate((column) => ({ visible: column.clientWidth, content: column.scrollWidth }));
     expect(reach.visible).toBeGreaterThan(0);
     expect(reach.content).toBeLessThanOrEqual(reach.visible + LAYOUT_SUBPIXEL_PX);
