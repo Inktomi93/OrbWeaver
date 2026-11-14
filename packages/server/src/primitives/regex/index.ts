@@ -30,15 +30,17 @@ export { FIND_COMPILE_LIMIT_MS, probeFindCompiles } from "./compile-probe.ts";
 const REGEX_ROW_DEADLINE_MS = 100;
 
 /** The thread CPU a pass over one text may spend. The real HUD preset's server-side scripts spend 6-8 ms on a
- *  40,000-character reply, measured on a host loaded past its core count. */
+ *  40,000-character reply, and a set of their shape at most 11 ms on its first run in the process, measured on a host
+ *  loaded past its core count. */
 export const REGEX_TEXT_PASS_BUDGET_MS = 250;
 
 // The history pass budget: the larger of a floor and ten times the honest per-row cost. The real preset's 21
-// server-side scripts spend 0.086 ms a row when only the AI rows they target reach them, and 0.18 ms a row when every
-// row does, measured as above; the allowance is ten times the second, and the history-budget case in
-// `tests/server/domain/chat/regex-watchdog.suite.int.test.ts` fails if a synthetic set of that shape costs more.
+// server-side scripts spend 0.18 ms a row when every row reaches them; a set of their shape, with every block they strip
+// in every row, spends 0.05-0.35 ms a row on its first run, measured as above. The allowance is ten times the worst of
+// those. Both budgets are derived again in `tests/server/domain/chat/regex-real-shape.suite.int.test.ts`, which fails if
+// a set of the real shape costs more than a tenth of either on its first run.
 const HISTORY_PASS_FLOOR_MS = 500;
-const HISTORY_ROW_ALLOWANCE_MS = 2;
+const HISTORY_ROW_ALLOWANCE_MS = 4;
 
 /** The thread CPU a history pass over `rows` rows may spend. A function of the row count, so a flat cap or a
  *  per-row allowance is one change here. */
@@ -87,8 +89,14 @@ interface EntryState {
 function runScripts(state: EntryState): void {
   for (; state.next < state.end; state.next += 1) {
     // One script per executor call: its own gate, macros and trim strings run as on any leg, and the assignment
-    // lands only when the script finished, so a stopped one leaves the text as it was.
-    state.text = executeRegexScripts({ ...state.args, text: state.text, scripts: state.args.scripts.slice(state.next, state.next + 1) });
+    // lands only when the script finished, so a stopped one leaves the text as it was. The output bound is the text's
+    // as it entered the pass, so the scripts cannot raise it one call at a time.
+    state.text = executeRegexScripts({
+      ...state.args,
+      text: state.text,
+      scripts: state.args.scripts.slice(state.next, state.next + 1),
+      passInputLength: state.args.text.length,
+    });
   }
 }
 

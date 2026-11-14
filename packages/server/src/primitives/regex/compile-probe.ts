@@ -36,7 +36,8 @@ function verdictOf(cpuMs: number): FindCompileVerdict {
     : { ok: false, reason: `its find pattern costs ${Math.round(cpuMs)} ms to compile and first run, over the ${FIND_COMPILE_LIMIT_MS} ms limit` };
 }
 
-/** Measure each pattern's compile off the event loop. Resolves one verdict per pattern, in order; never rejects. */
+/** Measure each pattern's compile off the event loop. Resolves one verdict per pattern, in order. Throws only when the
+ *  worker cannot be constructed, which refuses the write. */
 export function probeFindCompiles(patterns: readonly FindCompileProbe[]): Promise<FindCompileVerdict[]> {
   if (patterns.length === 0) {
     return Promise.resolve([]);

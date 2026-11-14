@@ -17,17 +17,15 @@ import { vi } from "vitest";
 const PRIOR_FIND_CAP = 2048;
 const PRIOR_REPLACE_CAP = 10_000;
 const PLACEMENT = ["AI_OUTPUT"] as const;
-// Empty groups of two and three characters: they match the empty string anywhere and add no quantifier, so any
-// padding length of two or more can be built from them.
-const EMPTY_PAIR = "()";
-const EMPTY_ALTERNATION = "(|)";
+// One optional character class pads the pattern: it matches the empty string and compiles in microseconds at any
+// length, so these cases test the length caps, not the compile door.
+const CLASS_OPEN = "[";
+const CLASS_CLOSE = "]?";
 
-/** A find pattern of exactly `length` characters that matches `head`, padded in front with empty groups. */
+/** A find pattern of exactly `length` characters that matches `head`, padded in front with one optional class. */
 function paddedPattern(head: string, length: number): string {
-  const room = length - head.length;
-  const odd = room % EMPTY_PAIR.length === 1;
-  const pairs = (room - (odd ? EMPTY_ALTERNATION.length : 0)) / EMPTY_PAIR.length;
-  return `${odd ? EMPTY_ALTERNATION : ""}${EMPTY_PAIR.repeat(pairs)}${head}`;
+  const room = length - head.length - CLASS_OPEN.length - CLASS_CLOSE.length;
+  return `${CLASS_OPEN}${"z".repeat(room)}${CLASS_CLOSE}${head}`;
 }
 
 async function editedWith(

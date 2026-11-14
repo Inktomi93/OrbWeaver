@@ -10,13 +10,12 @@
 // @subject packages/server/src/domain/chat/engine/pipeline.ts
 // @subject packages/server/src/domain/chat/verbs/read.ts
 
-import process from "node:process";
 import type { Principal } from "@orb/contracts/identity";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG, THINK_PREFIX_DEFAULT, THINK_SUFFIX_DEFAULT } from "@orb/contracts/preset";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
-import type { RegexPlacement, RegexScriptInput } from "@orb/kit/regex";
+import type { RegexPlacement } from "@orb/kit/regex";
 import { deriveRegexHistoryDepth, deriveRegexTierFlags } from "@orb/kit/regex";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { appendedBy } from "@orb/testkit/iso";
@@ -32,7 +31,7 @@ import {
 } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
 import { z } from "zod";
-import { openRegexPass, REGEX_PASS_BUDGET_SPENT, regexHistoryPassBudgetMs } from "#server/primitives/regex/index.ts";
+import { REGEX_PASS_BUDGET_SPENT } from "#server/primitives/regex/index.ts";
 
 // Exponential on a near miss: unwatched, this subject takes seconds per call, far past the row deadline, and a longer
 // run of `a` takes longer than any test budget.
@@ -213,40 +212,4 @@ test("PROMPT_HISTORY: a library of runaways over many rows stops at the history 
   expect(stops).toHaveLength(RUNAWAY_LIBRARY + 1);
   expect(stops).toContain(WATCHDOG_TIMEOUT);
   expect(stops).toContain(REGEX_PASS_BUDGET_SPENT);
-});
-
-// A synthetic script set shaped like the history leg of the real HUD preset: 21 prompt-side scripts, find patterns of
-// 21-167 characters that strip a tagged block, each run on every row of a long chat. Never the file itself.
-function promptSideSet(): RegexScriptInput[] {
-  return Array.from({ length: 21 }, (_, k) => ({
-    enabled: true,
-    placement: ["PROMPT_HISTORY"],
-    findRegex: `/<save${String(k)}>[\\s\\S]*?<\\/save${String(k)}>${"(?:\\s*\\n)?".repeat(k % 8)}/g`,
-    replaceString: "",
-  }));
-}
-
-const PROSE = "The rain had not stopped since morning. She pulled her coat tighter and walked past the closed stalls. ";
-const ROWS = 500;
-
-test("the history budget carries ten times what the prompt-side set costs per row, in thread CPU", () => {
-  const scripts = promptSideSet();
-  const rows = Array.from({ length: ROWS }, (_, r) => `${PROSE.repeat(20)}<save${String(r % 21)}>panel ${String(r)}</save${String(r % 21)}>\n`);
-  const pass = openRegexPass(Number.POSITIVE_INFINITY);
-  const ctx = { char: "Aria", user: "Bob", persona: "", scenario: "", env: {} };
-  // Thread CPU, not wall time: a loaded host stretches wall time but not the work this thread did, so the measure
-  // holds on a busy runner. A second pass reads warm, which is what a long chat's every turn but the first pays.
-  for (let warm = 0; warm < 2; warm += 1) {
-    for (const text of rows) {
-      pass.execute({ text, scripts, placement: "PROMPT_HISTORY", depth: 0, ctx });
-    }
-  }
-  const before = process.threadCpuUsage();
-  const changed = rows.filter((text) => pass.execute({ text, scripts, placement: "PROMPT_HISTORY", depth: 0, ctx }) !== text);
-  const used = process.threadCpuUsage(before);
-  const perRowMs = (used.user + used.system) / 1000 / ROWS;
-
-  expect(changed).toHaveLength(ROWS);
-  const allowancePerRow = regexHistoryPassBudgetMs(ROWS * 1000) / (ROWS * 1000);
-  expect(allowancePerRow).toBeGreaterThanOrEqual(10 * perRowMs);
 });
