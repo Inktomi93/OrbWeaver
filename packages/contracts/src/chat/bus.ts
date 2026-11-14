@@ -309,6 +309,10 @@ export const TURN_HOST_UNAVAILABLE_OP_CODE = "host_unavailable" as const;
  *  renders it beside that control instead of letting it read as a server fault. */
 export const USER_MACRO_UNKNOWN_PICK_OP_CODE = "unknown_macro_pick" as const;
 
+/** The `DomainOperationError.code` a host-only chat verb refuses a member with; the server's `CHAT_OP_CODES.notHost`
+ *  derives this literal. A surface that offered a host control to a viewer who is no longer host keys on it. */
+export const CHAT_NOT_HOST_OP_CODE = "not_host" as const;
+
 // ── Turn origin — who/what started a turn + its cascade depth ──
 // TURN-PATH STATE, never a bus-event field: the D19/D50 allowlist forbids attribution on the public bus, so
 // this rides the committed reply SLOT (`messages.initiator`/`.automationDepth`) and is read back by the ONE

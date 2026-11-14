@@ -314,7 +314,7 @@ export interface CommittedChatContext {
 }
 
 // Deep links and tab definitions derive their identifiers from the same vocabulary.
-const CHAT_CONTEXT_TAB_IDS = ["members", "settings", "preview", "plugins"] as const;
+const CHAT_CONTEXT_TAB_IDS = ["members", "settings", "memory", "preview", "plugins"] as const;
 export type ChatContextTabId = (typeof CHAT_CONTEXT_TAB_IDS)[number];
 /** The host and contributor share the label for the typed plugin-panel destination. */
 export const CHAT_PLUGINS_TAB_LABEL = "Plugins";

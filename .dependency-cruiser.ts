@@ -568,6 +568,8 @@ const TEST_CONSTANT_HOMES = {
     "CHAT_ATTACH_BOOK_NAME and its siblings: the This-chat tab's attach doors, pickers, empty states and refusals",
   "packages/client/src/features/chat/lib/chat-settings-names.ts":
     "CHAT_ADD_INJECTION_NAME and its siblings: the This-chat tab's injection, override, prose and group form names",
+  "packages/client/src/features/chat/lib/memory-view-copy.ts":
+    "memoryStrikeName and its siblings: the Memory tab's control names, who-remembers lines and status subjects",
   "packages/client/src/features/chat/lib/members-names.ts":
     "CHAT_INVITE_PEOPLE_NAME and its siblings: the Members panel, row menu, card viewer and join dialog names",
   "packages/client/src/features/chat/lib/command-palette-names.ts": "COMMAND_MODAL_TITLE and COMMAND_PALETTE_NAME: the command modal's title and input",
@@ -1081,6 +1083,10 @@ const PACKAGE_TEST_REACHES = {
   },
   "tests/client/features/chat/components/saved-replies-retry.ct.tsx": {
     "packages/client/src/features/chat/lib/message-action-names.ts": "MESSAGE_ACTIONS_MENU_NAME: the row menu trigger that opens the saved-replies door",
+  },
+  "tests/client/features/chat/components/_memory-view-stories.tsx": {
+    "packages/client/src/features/chat/components/memory-view-tab.tsx":
+      "MemoryViewTab: the Memory tab body, which only the chats section renders and no door forwards",
   },
   "tests/client/features/chat/components/_chat-forks-stories.tsx": {
     "packages/client/src/features/chat/components/settings-context-tab.tsx":

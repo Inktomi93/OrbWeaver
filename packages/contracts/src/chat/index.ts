@@ -128,6 +128,7 @@ export type {
 export {
   AUTOMATION_DEPTH_HARD_CAP,
   CHAT_BUS_EVENT_TYPES,
+  CHAT_NOT_HOST_OP_CODE,
   DEADLINE_ABORT_REASON,
   fansWhenDropped,
   HIDDEN_TAG_BROKEN_CODE,
@@ -181,6 +182,7 @@ export type {
   UnmatchedStrikeView,
 } from "./memory-view.ts";
 export {
+  MEMORY_ITEM_STALE_OP_CODE,
   memoryOffReason,
   memoryViewSchema,
   memoryViewStatus,
