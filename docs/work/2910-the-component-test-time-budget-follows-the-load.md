@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: tests
+plan: test-foundation
 ---
 
 # The component test time budget follows the load during a run

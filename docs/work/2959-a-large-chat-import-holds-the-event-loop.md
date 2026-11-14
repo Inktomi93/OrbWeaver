@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: import
+plan: import-robustness
 ---
 
 # A large chat import holds the event loop once before its first stage

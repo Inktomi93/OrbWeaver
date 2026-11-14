@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: character
+plan: cross-surface-consistency
 ---
 
 # Bulk tag and bulk archive clear the selection for cards whose write failed

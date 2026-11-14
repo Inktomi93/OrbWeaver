@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: import
+plan: import-robustness
 ---
 
 # The SillyTavern folder run reports files the library already held as held, not skipped

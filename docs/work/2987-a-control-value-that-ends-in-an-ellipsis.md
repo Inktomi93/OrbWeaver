@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: client
+plan: cross-surface-consistency
 ---
 
 # A control value that ends in an ellipsis in the character picker, regex script picker and tag chip

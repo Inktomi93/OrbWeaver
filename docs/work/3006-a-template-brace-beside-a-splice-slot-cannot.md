@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: kit
+plan: authorization-and-visibility
 ---
 
 # A template brace beside a splice slot cannot make live the spliced value

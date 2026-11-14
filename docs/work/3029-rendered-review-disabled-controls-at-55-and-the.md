@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: ui
+plan: cross-surface-consistency
 ---
 
 # Rendered review: disabled controls at 55% and the darker light-theme primary and intent colours

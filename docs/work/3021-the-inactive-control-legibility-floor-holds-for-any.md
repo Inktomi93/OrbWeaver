@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P2
 area: ui
+plan: cross-surface-consistency
 ---
 
 # The inactive-control legibility floor holds for any theme, not only the seeds

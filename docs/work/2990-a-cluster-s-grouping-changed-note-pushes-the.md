@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: client
+plan: cross-surface-consistency
 ---
 
 # A cluster's grouping-changed note pushes the member list down when it lands

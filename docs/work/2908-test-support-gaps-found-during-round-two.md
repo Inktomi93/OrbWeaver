@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: tests
+plan: test-foundation
 ---
 
 # Test support gaps found during round two

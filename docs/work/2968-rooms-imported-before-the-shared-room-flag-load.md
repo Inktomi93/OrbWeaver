@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: chat
+plan: authorization-and-visibility
 ---
 
 # Rooms imported before the shared-room flag load the host's global variables

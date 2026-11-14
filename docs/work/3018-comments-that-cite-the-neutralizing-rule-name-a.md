@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: server
+plan: checked-law
 ---
 
 # Comments that cite the neutralizing rule name a law that exists

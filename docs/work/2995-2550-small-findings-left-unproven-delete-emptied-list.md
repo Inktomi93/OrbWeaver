@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: client
+plan: cross-surface-consistency
 ---
 
 # 2550 small findings left unproven: delete-emptied list focus ring, landscape New chat picker, largest-text dialog headers, default focus rings, refusal text under file input

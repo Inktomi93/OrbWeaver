@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: stats
+plan: stats-and-spend
 ---
 
 # The stats rebuild reads ledger and image spend in one unpaged query

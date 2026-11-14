@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: testing
+plan: test-foundation
 ---
 
 # Tooling test leftovers from the whole-suite runs

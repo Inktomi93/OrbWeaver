@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P2
 area: chat
+plan: authorization-and-visibility
 ---
 
 # A smaller block size returns a struck scene to the prompt

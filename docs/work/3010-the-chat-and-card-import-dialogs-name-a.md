@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: import
+plan: import-robustness
 ---
 
 # The chat and card import dialogs name a held file by its room title or card name

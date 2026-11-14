@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: world-info
+plan: authorization-and-visibility
 ---
 
 # Decide one home for the chat book host predicate

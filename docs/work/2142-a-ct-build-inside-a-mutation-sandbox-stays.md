@@ -1,9 +1,10 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-08
+updated: 2026-11-14
 priority: P3
 area: tooling
+plan: test-foundation
 ---
 
 # A CT build inside a mutation sandbox stays out of the real checkout

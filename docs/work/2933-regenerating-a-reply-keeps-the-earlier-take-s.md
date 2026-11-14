@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P2
 area: stats
+plan: stats-and-spend
 ---
 
 # Regenerating a reply keeps the earlier take's paid cost

@@ -1,9 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-11-12
+updated: 2026-11-14
 priority: P3
 area: testing
+plan: test-foundation
 ---
 
 # Rules that comments once said a test held have no test

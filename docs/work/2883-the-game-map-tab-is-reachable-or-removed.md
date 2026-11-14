@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: rpg
+plan: cross-surface-consistency
 ---
 
 # The game Map tab is reachable or removed

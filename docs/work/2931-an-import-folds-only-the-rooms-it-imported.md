@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: stats
+plan: import-robustness
 ---
 
 # An import folds only the rooms it imported through the rebuild's own fold

@@ -1,9 +1,10 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-08
+updated: 2026-11-14
 priority: P3
 area: testing
+plan: test-foundation
 ---
 
 # Live e2e warms its llama-swap model before the first turn

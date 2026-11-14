@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: client
+plan: cross-surface-consistency
 ---
 
 # Give the injection badge, the About update verdict and the account Disabled badge a names-module home

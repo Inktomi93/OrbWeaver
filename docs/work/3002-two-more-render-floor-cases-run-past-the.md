@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: chat
+plan: test-foundation
 ---
 
 # Two more render-floor cases run past the slow threshold untagged

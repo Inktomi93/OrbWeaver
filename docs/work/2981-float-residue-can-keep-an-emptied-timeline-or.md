@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: stats
+plan: stats-and-spend
 ---
 
 # Float residue can keep an emptied timeline or model row alive after a delete

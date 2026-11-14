@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P3
 area: stats
+plan: stats-and-spend
 ---
 
 # The unpaged stats rebuild scans hold the event loop on a heavy library

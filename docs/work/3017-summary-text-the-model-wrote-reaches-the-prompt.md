@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P2
 area: chat
+plan: authorization-and-visibility
 ---
 
 # Summary text the model wrote reaches the prompt as literal text
