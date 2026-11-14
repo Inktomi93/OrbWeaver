@@ -1,6 +1,7 @@
 // The one projection from raw process arguments to what a file may hold. Selectors, routes and flag names stay, so a
 // report still reads what the run did; the value an operator typed does not. The session socket and the parser keep
 // the raw argv: those are the operation, and neither reaches a file.
+import { routeSlug } from "../../floor/artifacts/artifact-naming.ts";
 import { splitFirstEq, splitPageSuffix, splitSelectorEq } from "../../floor/instrument/argv.ts";
 import type { DiskSafeArgv, DiskSafeOp, DiskSafeUrl, PrivateText } from "../contract/disk-safe-argv.ts";
 import { PRIVATE_MASK } from "../contract/disk-safe-argv.ts";
@@ -78,6 +79,11 @@ export function diskSafeUrl(raw: string): DiskSafeUrl {
   const lead = strippedLeadLength(raw);
   // The query is masked even where the parser reads `raw` only against a base: navigation resolves it, token and all.
   return `${raw.slice(0, lead)}${maskQueryAndFragment(maskUserinfo(raw.slice(lead)))}` as DiskSafeUrl;
+}
+
+/** The default artifact base for a route, built from the masked route: it becomes a file name, a batch id and a printed line. */
+export function routeArtifactSlug(route: string): string {
+  return routeSlug(diskSafeUrl(route));
 }
 
 // What the parser skips between a scheme and its authority, and what ends the authority, per scheme kind.
@@ -169,10 +175,14 @@ const PRIVATE_VALUE_FLAGS: ReadonlyMap<string, ValueMask> = new Map([
   ["--local-storage", maskTail(splitFirstEq)],
 ]);
 
-/** A spelled `--flag=value` is an unknown flag the parser refuses, but a refused run still writes its index. */
-function maskInlineValue(token: string): string {
+/**
+ * A spelled `--flag=value` is an unknown flag the parser refuses, but a refused run still writes its index. Every other
+ * argument takes the URL mask: the route positional navigates with its query, token and all, and this projection has
+ * no arity table to tell the route from another flag's value. An argument with no sensitive pair is kept as written.
+ */
+function maskArgument(token: string): string {
   const flag = [...PRIVATE_VALUE_FLAGS.keys()].find((name) => token.startsWith(`${name}=`));
-  return flag === undefined ? token : `${flag}=${PRIVATE_MASK}`;
+  return flag === undefined ? diskSafeUrl(token) : `${flag}=${PRIVATE_MASK}`;
 }
 
 /** Mask every private value in `argv`. Idempotent, so a stored argv can be read back through it. */
@@ -180,7 +190,7 @@ export function diskSafeArgv(argv: readonly string[]): DiskSafeArgv {
   const projected: string[] = [];
   let mask: ValueMask | undefined;
   for (const token of argv) {
-    projected.push(mask === undefined ? maskInlineValue(token) : mask(token));
+    projected.push(mask === undefined ? maskArgument(token) : mask(token));
     mask = mask === undefined ? PRIVATE_VALUE_FLAGS.get(splitPageSuffix(token).flag) : undefined;
   }
   return projected as unknown as DiskSafeArgv;

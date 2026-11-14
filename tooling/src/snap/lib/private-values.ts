@@ -19,6 +19,7 @@ const SUBSTRING_MIN_CHARS = { secret: 4, urlWord: 16 } as const;
 
 /** What kind of private value a {@link privateText} holds, which sets how short it may be and still be scrubbed inside text. */
 export type PrivateValueKind = keyof typeof SUBSTRING_MIN_CHARS;
+const TRUNCATION_MARK = "…";
 const JSON_LINE_ENTRY = /\.(?:trace|network)$/u;
 const PIXEL_ENTRY = /\.(?:jpe?g|png|webp)$/u;
 const TRACE_SCRATCH_PREFIX = "orb-snap-trace-";
@@ -86,6 +87,39 @@ export function privateText(value: string, kind: PrivateValueKind = "secret"): P
   return new PrivateValue(value, kind);
 }
 
+// The longest prefix of a noted spelling that `head` ends with, or 0 below the shortest length scrubbed inside text.
+function cutPrefixLength(head: string): number {
+  let longest = 0;
+  for (const spelling of substrings) {
+    for (let length = Math.min(spelling.length, head.length); length > Math.max(longest, SUBSTRING_MIN_CHARS.secret - 1); length -= 1) {
+      if (head.endsWith(spelling.slice(0, length))) {
+        longest = length;
+        break;
+      }
+    }
+  }
+  return longest;
+}
+
+// Playwright cuts an element preview's text and attributes, a pending navigation's URL and a quoted argument to a cap
+// and ends the cut with an ellipsis (`trimStringWithEllipsis` in playwright-core). A value cut there survives only as
+// its own prefix, which no whole-value replacement finds, so the prefix right before each ellipsis is masked too.
+function scrubCutPrefixes(text: string): string {
+  if (!text.includes(TRUNCATION_MARK)) {
+    return text;
+  }
+  const parts = text.split(TRUNCATION_MARK);
+  return parts
+    .map((part, index) => {
+      if (index === parts.length - 1) {
+        return part;
+      }
+      const cut = cutPrefixLength(part);
+      return cut === 0 ? part : `${part.slice(0, part.length - cut)}${PRIVATE_MASK}`;
+    })
+    .join(TRUNCATION_MARK);
+}
+
 /** Replace every revealed private value in text read back from a page. The only mint of {@link DiskSafeText}. */
 export function scrubPrivateText(text: string): DiskSafeText {
   if (wholeStrings.has(text)) {
@@ -95,7 +129,7 @@ export function scrubPrivateText(text: string): DiskSafeText {
   for (const spelling of substrings) {
     scrubbed = scrubbed.replaceAll(spelling, PRIVATE_MASK);
   }
-  return scrubbed as DiskSafeText;
+  return scrubCutPrefixes(scrubbed) as DiskSafeText;
 }
 
 /**

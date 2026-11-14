@@ -88,6 +88,7 @@ export {
 } from "./lib/lighthouse-report.ts";
 export { variantOut } from "./lib/out-names.ts";
 export { overflowAssertionLine } from "./lib/overflow-line.ts";
+export { scrubPrivateText } from "./lib/private-values.ts";
 export {
   filterRequests,
   matchesRequestFilter,

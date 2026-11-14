@@ -113,6 +113,27 @@ test.each([
   expect(scrubPrivateText("typed hunter2 here")).toBe(`typed ${PRIVATE_MASK} here`);
 });
 
+// Playwright cuts an element preview's text and a pending navigation's URL to a cap and ends the cut with an ellipsis
+// (`trimStringWithEllipsis` in playwright-core), so a long value survives only as its prefix in the action log.
+const CUT_TOKEN = "plant-trace-token-0d4be29c71aa";
+test.for([
+  ["an element preview", `  locator resolved to <div>Signed in with ${CUT_TOKEN.slice(0, 15)}…</div>`],
+  ["a pending navigation", `  waiting for "http://h.test/cb?lang=en&token=${CUT_TOKEN.slice(0, 9)}…" navigation to finish...`],
+] as const)("a value Playwright cut at %s is scrubbed from the trace by its prefix", async ([_name, message], { scratch }) => {
+  using _values = revealed();
+  noteUrlSecrets(`http://h.test/cb?lang=en&token=${CUT_TOKEN}`);
+  const line = { type: "log", callId: "call@7", time: 12.5, message };
+  // The positive control: a cut word that is no value's prefix keeps its text.
+  const kept = { type: "log", callId: "call@8", time: 13.5, message: "  locator resolved to <div>Signed in with an ordinary wor…</div>" };
+  const entries = await scrubbed(scratch, { "trace.trace": strToU8(`${JSON.stringify(line)}\n${JSON.stringify(kept)}\n`) });
+  const [cut, plain] = Buffer.from(entries["trace.trace"] ?? [])
+    .toString("utf8")
+    .split("\n");
+  expect(cut).toContain(`${PRIVATE_MASK}…`);
+  expect(cut).not.toContain(CUT_TOKEN.slice(0, 4));
+  expect(plain).toBe(JSON.stringify(kept));
+});
+
 test("a trace that cannot be scrubbed is not kept, and its failure quotes none of it", async ({ scratch }) => {
   using _values = revealed(LONG);
   const path = join(scratch, "trace.zip");
