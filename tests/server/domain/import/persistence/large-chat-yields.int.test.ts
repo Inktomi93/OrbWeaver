@@ -61,9 +61,9 @@ for (const [shape, { fileBytes, fields }] of Object.entries(SHAPES)) {
     // A chain of immediates stands for the rest of the server: each one runs only when the import hands the loop back.
     let landed = 0;
     let mostInOneTurn = 0;
-    let watching = true;
+    const watch = { on: true };
     const watcher = (async (): Promise<void> => {
-      while (watching) {
+      while (watch.on) {
         await new Promise((resolve) => setImmediate(resolve));
         const now = await landedRows(root);
         mostInOneTurn = Math.max(mostInOneTurn, now - landed);
@@ -71,7 +71,7 @@ for (const [shape, { fileBytes, fields }] of Object.entries(SHAPES)) {
       }
     })();
     const outcome = await descriptor.importFile(root.ownerId, { filename: `${HANDLE}/${HANDLE} - 2025-07-19@12h00m00s.jsonl`, bytes });
-    watching = false;
+    watch.on = false;
     await watcher;
     const total = await landedRows(root);
     mostInOneTurn = Math.max(mostInOneTurn, total - landed);
