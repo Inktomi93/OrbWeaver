@@ -74,7 +74,11 @@ test("restored into a library that never held the room, the strike lands on the 
 
   await using target = await world.build({ mode: "mixB", maxTier: 0 });
   await target.h.caller.settings.updateAppSettings({ partial: { memoryDefaults: RECALL_KNOBS } });
+  // The target's own room is the same transcript under the same frozen clock, so a strikeless file would match it
+  // as an unchanged room. Deleting it leaves a library that holds the character but never the room.
+  await target.h.root.services.chat.delete({ principal: target.h.owner, chatId: target.h.chatId });
   const before = await roomIds(target.h);
+  expect(before).toEqual([]);
   await expect(chatArm(target.h).importFile(target.h.root.ownerId, present(file))).resolves.toMatchObject({ ok: true, created: true });
   const restoredId = present((await roomIds(target.h)).find((id) => !before.includes(id)));
   const restored: ChatRoot = { ...target.h, chatId: restoredId };
