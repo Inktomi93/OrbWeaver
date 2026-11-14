@@ -11,7 +11,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { DetailHeader, QueryBoundary, returnFocusToRow, TAG_READ_LABEL } from "#components";
+import { ContextTabBody, DetailHeader, QueryBoundary, returnFocusToRow, TAG_READ_LABEL } from "#components";
 import { QueryErrorState, useTRPC } from "#data";
 import type { DrillBack } from "#lib";
 import { CORPUS_MODE_LABELS, DIALOG_VERBS, sectionBackName, tagUsageLabel, USAGE_KIND_TITLES } from "#lib";
@@ -110,7 +110,7 @@ const SOURCE_LABELS: Readonly<Record<TagSource, string>> = {
 /** The Labels CONTEXT tab body. */
 export function LabelsContextTab(): ReactElement {
   const tagId = useSelectedLabelId();
-  return tagId === null ? <LabelsMeaning /> : <TagReach tagId={tagId} />;
+  return <ContextTabBody kind="blocks">{tagId === null ? <LabelsMeaning /> : <TagReach tagId={tagId} />}</ContextTabBody>;
 }
 
 function LabelsMeaning(): ReactElement {

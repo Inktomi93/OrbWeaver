@@ -14,6 +14,7 @@ import {
   listSlotSurfaces,
   mounted,
   SLOT_HOPS,
+  visit,
 } from "../eslint/index.ts";
 import type { Cell, Cohort, Member } from "../floor/verdict/cohort-compare.ts";
 import { NOT_APPLICABLE } from "../floor/verdict/cohort-compare.ts";
@@ -389,10 +390,11 @@ function headerMembers(facts: FileFacts): readonly Member[] {
 
 const MUTATION_FACTORIES = new Set(["createEntityMutation", "useMutation"]);
 
-function contextTab(facts: FileFacts, byPath: ReadonlyMap<string, FileFacts>): Member {
+/** The columns a CONTEXT body's own component answers: its tabs, where its mutations live, its confirm, its arrival hook and its empty state. */
+function contextTabCells(facts: FileFacts, byPath: ReadonlyMap<string, FileFacts>): Record<string, Cell> {
   const tabs = [...facts.tags].filter((tag) => /^Tabs?[A-Z]?/u.test(tag) && facts.elems.some((elem) => elem.tag === tag && elem.kind === "ui")).sort();
   const mutations = [...facts.calls].filter((call) => MUTATION_FACTORIES.has(call));
-  return member(facts, "file", {
+  return {
     tabs: cell(tabs.length === 0 ? "none" : tabs.join("+"), firstLine(facts, ...tabs)),
     inlineMutations: cell(mutations.length === 0 ? "none" : "defined in the component file", 1),
     confirm: cell(
@@ -400,6 +402,111 @@ function contextTab(facts: FileFacts, byPath: ReadonlyMap<string, FileFacts>): M
       firstLine(facts, "ConfirmDialog", "DestructiveAction"),
     ),
     ...focusAndEmpty(facts, byPath),
+  };
+}
+
+// ── CONTEXT tab bodies ───────────────────────────────────────────────────────────────────────────
+
+const CONTEXT_TAB_BODY = "ContextTabBody";
+const CONTEXT_MINT = "defineContextTabs";
+const TAB_DEF_TYPE = /\bContextTabDef\b/u;
+// A section's `single` context and a collection's `body` context each register one body, under `body` and `render`.
+const BODY_CONTEXTS: ReadonlyMap<string, string> = new Map([
+  ["single", "body"],
+  ["body", "render"],
+]);
+const HAND_BUILT_ROOT = "hand-built";
+
+/** One body a CONTEXT registration declares: the expression that draws it and the name the census lists it by. */
+interface ContextBody {
+  readonly label: string;
+  readonly line: number;
+  readonly draw: ts.Expression;
+}
+
+function propertyOf(object: ts.ObjectLiteralExpression, name: string): ts.Expression | undefined {
+  for (const property of object.properties) {
+    if (ts.isPropertyAssignment(property) && property.name.getText() === name) {
+      return property.initializer;
+    }
+  }
+  return undefined;
+}
+
+const literalOf = (expression: ts.Expression | undefined): string | undefined =>
+  expression !== undefined && ts.isStringLiteralLike(expression) ? expression.text : undefined;
+
+// The type a declaration or a function's return is annotated with, when it carries one.
+const declaredType = (node: ts.Node): ts.TypeNode | undefined =>
+  ts.isVariableDeclaration(node) || ts.isFunctionDeclaration(node) || ts.isArrowFunction(node) || ts.isFunctionExpression(node) ? node.type : undefined;
+
+/** The object is a tab: it sits in the mint's call or under a declaration typed as a tab definition. */
+function isTabDefinition(object: ts.ObjectLiteralExpression): boolean {
+  for (let node: ts.Node = object.parent; !ts.isSourceFile(node); node = node.parent) {
+    if (ts.isCallExpression(node) && node.expression.getText() === CONTEXT_MINT) {
+      return true;
+    }
+    const type = declaredType(node);
+    if (type !== undefined && TAB_DEF_TYPE.test(type.getText())) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Every body a file registers: a tab's `body`, a `single` context's `body` and a collection's `body` context's `render`. */
+function contextBodiesIn(sf: ts.SourceFile): readonly ContextBody[] {
+  const found: ContextBody[] = [];
+  const line = (node: ts.Node): number => sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
+  visit(sf, (node) => {
+    if (!ts.isObjectLiteralExpression(node)) {
+      return;
+    }
+    const body = propertyOf(node, "body");
+    const id = literalOf(propertyOf(node, "id"));
+    if (body !== undefined && id !== undefined && isTabDefinition(node)) {
+      found.push({ label: id, line: line(node), draw: body });
+      return;
+    }
+    const kind = literalOf(propertyOf(node, "kind"));
+    const slot = kind === undefined ? undefined : BODY_CONTEXTS.get(kind);
+    const draw = slot === undefined ? undefined : propertyOf(node, slot);
+    if (kind !== undefined && draw !== undefined && ts.isPropertyAssignment(node.parent) && node.parent.name.getText() === "context") {
+      found.push({ label: `${kind} context`, line: line(node), draw });
+    }
+  });
+  return found;
+}
+
+/** The elements a body draws: its own, and those of a same-file factory it calls, as the rpg tabs' shared wrapper is. */
+function bodyElems(facts: FileFacts, draw: ts.Expression): readonly Elem[] {
+  const sf = facts.source.sf;
+  const within = (node: ts.Node): readonly Elem[] => facts.elems.filter((elem) => elem.opening.pos >= node.pos && elem.opening.end <= node.end);
+  const factories = new Set<string>();
+  visit(draw, (node) => {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
+      factories.add(node.expression.text);
+    }
+  });
+  const declared: ts.Node[] = [];
+  if (sf !== null && factories.size > 0) {
+    visit(sf, (node) => {
+      if ((ts.isVariableDeclaration(node) || ts.isFunctionDeclaration(node)) && node.name !== undefined && factories.has(node.name.getText())) {
+        declared.push(node);
+      }
+    });
+  }
+  return [...within(draw), ...declared.flatMap(within)];
+}
+
+function contextBodyMember(facts: FileFacts, body: ContextBody, byPath: ReadonlyMap<string, FileFacts>): Member {
+  const tree = { facts, elems: bodyElems(facts, body.draw) };
+  const owner = renderedTag(tree, CONTEXT_TAB_BODY, byPath, 0);
+  // The columns the body's own component answers are read on the first component the registration mounts.
+  const drawn = mounted(facts, tree.elems, byPath)[0]?.facts ?? facts;
+  return member(facts, body.label, {
+    root: cell(owner === null ? HAND_BUILT_ROOT : `${CONTEXT_TAB_BODY} ${attrString(owner.attrs.get("kind")) ?? "sections"}`, body.line),
+    ...contextTabCells(drawn, byPath),
   });
 }
 
@@ -448,7 +555,6 @@ export function buildCohorts(all: readonly FileFacts[]): readonly Cohort[] {
   const feature = client.filter(inFeature);
   const slotted = listSlotSurfaces(all);
   const lists = feature.filter((facts) => slotted.has(facts.source.path));
-  const context = feature.filter((facts) => /(?:^|\/)(?:[a-z-]*context-tabs|[a-z-]*-context-body)\.tsx$/u.test(facts.source.path));
   // Editor pages: the template's users, a hand-spelled column, and the CONTENT surfaces that edit one subject. A field
   // editor component named for what it edits is no page.
   const editors = client.filter(
@@ -549,9 +655,10 @@ export function buildCohorts(all: readonly FileFacts[]): readonly Cohort[] {
     },
     {
       name: "context-tab",
-      what: "context tab bodies: Tabs shape, mutation home, confirm, focus hook, empty state",
-      columns: ["tabs", "inlineMutations", "confirm", "focus", "empty"],
-      defects: { inlineMutations: ["defined in the component file"] },
+      what: "every body a CONTEXT registration declares: its root, Tabs shape, mutation home, confirm, focus hook, empty state",
+      columns: ["root", "tabs", "inlineMutations", "confirm", "focus", "empty"],
+      // Every registered body draws the one CONTEXT column at its root (UI-Density-Law.md §3.1).
+      defects: { root: [HAND_BUILT_ROOT], inlineMutations: ["defined in the component file"] },
       kept: {
         confirm: {
           [CONFIRM_DIALOG]:
@@ -559,7 +666,9 @@ export function buildCohorts(all: readonly FileFacts[]): readonly Cohort[] {
         },
         empty: { [EMPTY_IN_CHILD]: "the empty state is designed in the component the tab body mounts (client-architecture-state-and-gates.md §11)" },
       },
-      members: context.map((facts) => contextTab(facts, byPath)),
+      members: client.flatMap((facts) =>
+        facts.source.sf === null ? [] : contextBodiesIn(facts.source.sf).map((body) => contextBodyMember(facts, body, byPath)),
+      ),
     },
     {
       name: "editor",

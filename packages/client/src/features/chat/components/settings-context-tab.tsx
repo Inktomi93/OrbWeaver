@@ -49,7 +49,7 @@ import { InlineToken } from "@orb/ui/inline-token";
 import { Contents, Stack } from "@orb/ui/layout";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { QueryBoundary } from "#components";
+import { ContextTabBody, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import type { ChatSettingsSectionContribution, ChatSettingsSectionState, ContributorRegistry } from "#lib";
 import { CHAT_CONTEXT_SECTION_IDS } from "../lib/chat-context-section-ids.ts";
@@ -234,7 +234,7 @@ export interface CommittedSettingsTabProps {
  *  moved from tab-level to section-level). */
 export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background, showGroup, sections }: CommittedSettingsTabProps): ReactElement {
   return (
-    <Stack gap="section">
+    <ContextTabBody>
       <DisclosureSection
         defaultOpen={OPEN_BY_DEFAULT}
         kicker={<HeadingWithCount count={countSetOverrides(roomOverrides)} label="Field overrides" unit=" set" />}
@@ -335,7 +335,7 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
           promise — and the three §8.1 permission-OMITs inside it keep their individual gates (Group behavior
           also needs a group chat). A member's tab simply ends after Forks. */}
       {isHost ? <HostControls chatId={chatId} background={background} showGroup={showGroup} sections={sections} /> : null}
-    </Stack>
+    </ContextTabBody>
   );
 }
 

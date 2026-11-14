@@ -20,7 +20,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { StatFigure } from "@orb/ui/stat-figure";
 import { shownValue, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
+import { ContextTabBody, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { testId } from "#lib";
 import { useSelectedAnalyticsCharacterId } from "#state";
@@ -50,16 +50,18 @@ import { LibraryScopeNotice } from "./library-scope-notice.tsx";
 export function AnalyticsModelsTab(): ReactElement {
   return (
     // ContextBracket owns the stable viewport; the reservation measures content without trapping scroll chaining.
-    <Stack className="relative" minHeight="shrinks" data-testid={testId("analyticsModelsTab")}>
-      <QueryBoundary
-        resetKeys={[]}
-        fallback={<SkeletonRows count={3} shape="datum" />}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="model stats" onRetry={retry} />}
-        reserveKey="analytics.models"
-      >
-        <ModelsBody />
-      </QueryBoundary>
-    </Stack>
+    <ContextTabBody>
+      <Stack className="relative" minHeight="shrinks" data-testid={testId("analyticsModelsTab")}>
+        <QueryBoundary
+          resetKeys={[]}
+          fallback={<SkeletonRows count={3} shape="datum" />}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="model stats" onRetry={retry} />}
+          reserveKey="analytics.models"
+        >
+          <ModelsBody />
+        </QueryBoundary>
+      </Stack>
+    </ContextTabBody>
   );
 }
 

@@ -42,7 +42,7 @@ import { Separator } from "@orb/ui/separator";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId } from "react";
-import { QueryBoundary } from "#components";
+import { ContextTabBody, QueryBoundary } from "#components";
 import { QueryErrorState, useSuspenseQueries, useTRPC } from "#data";
 import { deriveChatTitle, timeLib } from "#lib";
 import { CHARACTER_NEVER_SPOKE_TEXT } from "../lib/character-names.ts";
@@ -92,7 +92,7 @@ function OverviewBody({ characterId }: CharacterOverviewCardProps): ReactElement
   const tagNames = data.tags.filter((tag) => !tag.isHiddenOnCard).map((tag) => tag.name);
 
   return (
-    <Stack gap="section" scroll="y" data-slot="character-overview">
+    <ContextTabBody data-slot="character-overview">
       {/* THE INSTRUCTION LEADS THE PANE (side-eye 2026-09-02 nit 27, #1139). This line explains what the pane
           DOES — pick a field over there, read it here — and it sat BELOW Origin, Activity and Tags, i.e.
           after everything it introduces, where a reader who needed it had already scrolled past the answer.
@@ -147,7 +147,7 @@ function OverviewBody({ characterId }: CharacterOverviewCardProps): ReactElement
           <OverviewRow label="Applied" value={String(tagNames.length)} gloss={nameGloss(tagNames)} mono={true} />
         </Stack>
       )}
-    </Stack>
+    </ContextTabBody>
   );
 }
 

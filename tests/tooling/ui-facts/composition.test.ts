@@ -876,3 +876,40 @@ test("every modal popover is a census site with its trigger; an unfenced popover
   const section = lines.slice(lines.indexOf("### Modal popovers"));
   expect(section.filter((line) => line.startsWith(`| ${path}:`))).toHaveLength(5);
 });
+
+test("every body a CONTEXT registration declares is a member with the root it draws, and a hand-built root is a defect", ({ scratch }) => {
+  const root = plantDir(scratch, "context-bodies");
+  const section = `${FEATURE}/lib/probe-section.tsx`;
+  plant(root, {
+    "components/rows-tab.tsx": 'import { ContextTabBody } from "#components";\nexport const RowsTab = () => <ContextTabBody kind="rows">a</ContextTabBody>;',
+    "components/bare-tab.tsx": 'import { Stack } from "@orb/ui/layout";\nexport const BareTab = () => <Stack>b</Stack>;',
+    "components/single-body.tsx": 'import { ContextTabBody } from "#components";\nexport const SingleBody = () => <ContextTabBody>c</ContextTabBody>;',
+    "lib/probe-section.tsx": [
+      'import { BareTab } from "../components/bare-tab.tsx";',
+      'import { RowsTab } from "../components/rows-tab.tsx";',
+      'import { SingleBody } from "../components/single-body.tsx";',
+      "export const tabs = {",
+      "  context: defineContextTabs<ProbeState>({",
+      "    tabs: [",
+      '      { id: "rows", label: "Rows", body: () => <RowsTab /> },',
+      '      { id: "bare", label: "Bare", body: () => <BareTab /> },',
+      "    ],",
+      "  }),",
+      "};",
+      'export const contributed: ContextTabDef<ProbeState> = { id: "contributed", label: "More", body: () => <BareTab /> };',
+      'export const single = { context: { kind: "single", body: () => <SingleBody />, header: () => null } };',
+      "// A modal's body carries an id too, but no CONTEXT registration declares it.",
+      'export const modal = { id: "modal", body: () => <BareTab /> };',
+    ].join("\n"),
+  });
+  const facts = analyse(root, [], null);
+  const members = facts.cohorts.find((entry) => entry.name === "context-tab")?.members ?? [];
+  expect(members.map((member) => [member.label, member.cells["root"]?.value, member.cells["root"]?.line])).toEqual([
+    ["rows", "ContextTabBody rows", 7],
+    ["bare", "hand-built", 8],
+    ["contributed", "hand-built", 12],
+    ["single context", "ContextTabBody sections", 13],
+  ]);
+  const defects = facts.comparisons.find((entry) => entry.cohort === "context-tab" && entry.column === "root")?.defects ?? [];
+  expect(defects.map((defect) => defect.at)).toEqual([`${section}:8`, `${section}:12`]);
+});

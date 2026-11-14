@@ -125,6 +125,8 @@ A surface has exactly ONE tier. A `form` island inside an `instrument` surface i
 | library grid cards | form | `p-block` | `gap-block` | `p-block` | `gap-field` | `rounded-card` | yes — a grid cell IS an interactive island |
 | toolbars / chrome rows / strips | instrument | `px-block` | `gap-row` | — | `gap-field` | `rounded-control` (cells) | no |
 
+Every body a CONTEXT tab registers draws `ContextTabBody` (`packages/client/src/components/context-tab-body.tsx`) at its root, in all three of its states. Its `kind` names the body's rhythm. The `context-tab` cohort of `pnpm ui-facts` lists each registered body with the kind it draws, and a hand-built root is its defect.
+
 ### 3.2 The chrome diet — three rules
 
 - **CD1 — border + radius + background is reserved for INTERACTIVE ISLANDS and ELEVATED surfaces.** A read-only grouping gets a `kicker` (caps label + hairline rule) and nothing else. If you cannot click it, drag it or select it, and it does not float above the page, it is not a box.
