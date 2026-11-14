@@ -62,7 +62,12 @@ const ENDED = Symbol("plugin-invocation-ended");
 
 /** The contained outcome every call into an instance whose realm was torn down by an ENDED invocation gets. */
 function endedInstanceOutcome(): EvalOutcome {
-  return { ok: false, error: { name: PLUGIN_INVOCATION_ENDED, message: "plugin host: this instance was torn down by an ENDED invocation" }, logs: [] };
+  return {
+    ok: false,
+    error: { name: PLUGIN_INVOCATION_ENDED, message: "plugin host: this instance was torn down by an ENDED invocation" },
+    logs: [],
+    ended: true,
+  };
 }
 
 /** The membrane wiring an instance boots with: the granted capability set + the authority-agnostic op bridge
@@ -105,10 +110,11 @@ function extractGuestLine(dumped: object): number | undefined {
   return Number.isFinite(line) ? line : undefined;
 }
 
-/** The result of one guest invocation — errors-as-data, logs drained, no live handles escape. */
+/** The result of one guest invocation — errors-as-data, logs drained, no live handles escape. `ended` marks an
+ *  invocation the host ended at its settlement wall; only host code sets it, since a guest names its own errors. */
 export type EvalOutcome =
   | { readonly ok: true; readonly value: string; readonly error?: never; readonly logs: readonly string[] }
-  | { readonly ok: false; readonly error: GuestError; readonly value?: never; readonly logs: readonly string[] };
+  | { readonly ok: false; readonly error: GuestError; readonly value?: never; readonly logs: readonly string[]; readonly ended?: true };
 
 /** What a guest error or result reads as when the realm cannot serialize it (a string too large to escape). */
 const UNREADABLE_GUEST_VALUE = "plugin host: the guest's value is too large to read";
@@ -497,6 +503,7 @@ export class Sandbox implements Disposable {
       ok: false,
       error: { name: PLUGIN_INVOCATION_ENDED, message: `plugin host: invocation ended — it did not settle within its ${wallMs}ms wall` },
       logs,
+      ended: true,
     };
   }
 

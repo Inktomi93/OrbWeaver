@@ -11,13 +11,14 @@ import { z } from "zod";
 import { createRemoteBridge, createRemoteNetEgress } from "./bridge-rpc.ts";
 import { PLUGIN_AUTHORITY_TAIL_MS } from "./budgets.ts";
 import type { CpuSpanReport, CreateInstanceInputIn, LocalPluginHostSeams } from "./contract/port.ts";
-import type { BrokerWorkerMessage, PluginBridgeOperation, PluginSyncOperation, WorkerBrokerMessage } from "./contract/process-protocol.ts";
+import type { BrokerWorkerMessage, PluginBridgeOperation, PluginSyncOperation, RpcError, WorkerBrokerMessage } from "./contract/process-protocol.ts";
 import { createLocalPluginHost } from "./port.ts";
 import {
   decodeProcessValue,
   fromRpcError,
   PLUGIN_BROKER_SYNC_RESULT_BYTES,
   PLUGIN_BROKER_SYNC_TIMEOUT_MS,
+  PLUGIN_HOST_UNAVAILABLE,
   parseRpcError,
   rpcError,
   SPAN_CLOSED_TOTAL_SLOT,
@@ -114,6 +115,8 @@ interface AuthorityLease {
   pendingCalls: number;
   commandDone: boolean;
   tail: ReturnType<typeof setTimeout> | undefined;
+  /** The first host refusal one of the command's own calls met while the command ran; its answer carries it. */
+  refusal: RpcError | undefined;
 }
 const authorityLeases = new Map<string, AuthorityLease>();
 
@@ -122,8 +125,19 @@ function post(message: WorkerBrokerMessage): void {
 }
 
 function openLease(authorityId: string): AuthorityLease {
-  const lease = authorityLeases.getOrInsertComputed(authorityId, () => ({ pendingCalls: 0, commandDone: false, tail: undefined }));
+  const lease = authorityLeases.getOrInsertComputed(authorityId, () => ({ pendingCalls: 0, commandDone: false, tail: undefined, refusal: undefined }));
   return lease;
+}
+
+// A refusal the app raises it records itself; one raised past it, by a full channel the broker or the watchdog relays,
+// or by a timeout, only this Worker sees. Either way it reaches here only as a broker frame or this Worker's own timeout,
+// so only host code writes the record and guest code cannot forge one. A call that settles after its command answered
+// records nothing, so a refusal never excuses another command.
+function recordRefusal(authorityId: string, error: RpcError | undefined): void {
+  const lease = authorityLeases.get(authorityId);
+  if (error?.name === PLUGIN_HOST_UNAVAILABLE && lease !== undefined && !lease.commandDone && lease.refusal === undefined) {
+    lease.refusal = error;
+  }
 }
 
 function releaseAuthority(authorityId: string): void {
@@ -161,8 +175,8 @@ function settleBridgeCall(id: string): PendingBridgeCall | undefined {
 }
 
 function completeCommand(authorityId: string, response: Extract<WorkerBrokerMessage, { readonly kind: "response" }>): void {
-  post(response);
   const lease = openLease(authorityId);
+  post(lease.refusal === undefined ? response : { ...response, refusal: lease.refusal });
   lease.commandDone = true;
   if (lease.pendingCalls === 0) {
     releaseAuthority(authorityId);
@@ -225,7 +239,9 @@ function callSync(operation: PluginSyncOperation, args: readonly unknown[]): unk
   post({ kind: "sync-bridge", authorityId, operation, args, control: controlBuffer, result: resultBuffer });
   const wait = Atomics.wait(control, 0, 0, PLUGIN_BROKER_SYNC_TIMEOUT_MS);
   if (wait === "timed-out") {
-    throw new Error(`plugin broker: synchronous ${operation} timed out`);
+    const timedOut: RpcError = { name: PLUGIN_HOST_UNAVAILABLE, message: `plugin broker: synchronous ${operation} timed out` };
+    recordRefusal(authorityId, timedOut);
+    throw fromRpcError(timedOut, timedOut.message);
   }
   const length = Atomics.load(control, 1);
   if (length <= 0 || length > resultBuffer.byteLength) {
@@ -234,7 +250,9 @@ function callSync(operation: PluginSyncOperation, args: readonly unknown[]): unk
   const text = new TextDecoder().decode(new Uint8Array(resultBuffer, 0, length));
   const response = syncReplySchema.parse(decodeProcessValue(JSON.parse(text)));
   if (!response.ok) {
-    throw fromRpcError(parseRpcError(response.error), `plugin broker: synchronous ${operation} failed`);
+    const error = parseRpcError(response.error);
+    recordRefusal(authorityId, error);
+    throw fromRpcError(error, `plugin broker: synchronous ${operation} failed`);
   }
   return response.value;
 }
@@ -294,6 +312,7 @@ port.on("message", (message: BrokerWorkerMessage) => {
     if (message.ok) {
       request.resolve(message.value);
     } else {
+      recordRefusal(request.authorityId, message.error);
       request.reject(fromRpcError(message.error, "plugin bridge call failed"));
     }
     return;
