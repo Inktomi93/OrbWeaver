@@ -4,6 +4,9 @@
 /** The window event that lets the planted dialog's held close finish and unmount its layers. */
 export const LEAVING_RELEASE_EVENT = "orb-ct-release-leaving-cover";
 
+/** The name of the control the planted dialog covers, which the story renders and its specs locate. */
+export const LEAVING_COVER_CONTROL_NAME = "Restore version";
+
 /** The planted alert dialog's backdrop, in any phase. */
 export const PLANTED_BACKDROP = '[data-slot="alert-dialog-backdrop"]';
 
