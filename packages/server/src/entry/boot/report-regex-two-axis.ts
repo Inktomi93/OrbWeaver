@@ -13,7 +13,7 @@ import { inArray } from "drizzle-orm";
 import type { Logger } from "#foundation/observability";
 
 /** The longest script name a boot line carries. */
-export const LOGGED_SCRIPT_NAME_MAX = 120;
+const LOGGED_SCRIPT_NAME_MAX = 120;
 
 const LEGACY_DISPLAY = "DISPLAY";
 const LEGACY_PROMPT_HISTORY = "PROMPT_HISTORY";
