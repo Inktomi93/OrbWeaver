@@ -1,10 +1,10 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-12
+updated: 2026-11-14
 priority: P3
 area: security
-plan: checked-law
+plan: typed-enforcers
 ---
 
 # Lint rules keep raw engine string calls and argument coercion inside the plugin marshal
