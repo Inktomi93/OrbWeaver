@@ -26,10 +26,10 @@ function timeoutOf({ description, persistent }: NotifyNotice): number | undefine
   return description === undefined ? undefined : DESCRIBED_NOTICE_TIMEOUT_MS;
 }
 
-/** Builds the toast-backed `Notify`. `type` is what the toast seal tints and glyphs; `priority: "high"`
- *  is reserved for `error` (Base UI promotes it to `role="alertdialog"`). */
+/** Builds the toast-backed `Notify`. `type` is what the toast seal tints, glyphs and announces. It never sends Base UI's `priority`, which
+ *  would add a second, hidden alert node beside the notice's own. */
 export function createToastNotify(toastManager: ToastManager): Notify {
-  function add(notice: NotifyInput, type: "success" | "warning" | "error" | undefined, priority: "high" | undefined): void {
+  function add(notice: NotifyInput, type: "success" | "warning" | "error" | undefined): void {
     const resolved = toNotice(notice);
     const { title, description, action } = resolved;
     // The user has acted on the notice, so the action dismisses it — after the handler runs, once, here for every caller.
@@ -45,7 +45,6 @@ export function createToastNotify(toastManager: ToastManager): Notify {
               },
             },
       description,
-      priority,
       timeout: timeoutOf(resolved),
       title,
       type,
@@ -54,16 +53,16 @@ export function createToastNotify(toastManager: ToastManager): Notify {
 
   return {
     error: (notice): void => {
-      add(notice, "error", "high");
+      add(notice, "error");
     },
     info: (notice): void => {
-      add(notice, undefined, undefined);
+      add(notice, undefined);
     },
     success: (notice): void => {
-      add(notice, "success", undefined);
+      add(notice, "success");
     },
     warn: (notice): void => {
-      add(notice, "warning", undefined);
+      add(notice, "warning");
     },
   };
 }
