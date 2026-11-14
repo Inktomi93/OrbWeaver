@@ -8,6 +8,8 @@ export const PRESET_SECTION_ACTIONS_NAME = "Section actions";
 export const PRESET_EDITOR_NAME = "Preset editor";
 export const PRESET_NAME_FIELD_NAME = "Preset name";
 export const PRESET_RENAME_NAME = "Rename preset";
+/** The Params deck's disclosure over the less-used knobs. */
+export const PRESET_ADVANCED_NAME = "Advanced";
 export const PRESET_SECTIONS_NAME = "Preset sections";
 export const PRESET_IMPORT_TITLE = "Import a preset";
 
