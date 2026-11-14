@@ -6,11 +6,12 @@ import { linter, lintGutter, setDiagnostics } from "@codemirror/lint";
 import { EditorState } from "@codemirror/state";
 import { basicSetup, EditorView, minimalSetup } from "codemirror";
 import type { ReactElement } from "react";
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useLayoutEffect, useRef } from "react";
 import { cn, FOCUS_RING_HAS } from "#lib";
 import { cssVar } from "#tokens";
 import type { CodeEditorSeverity } from "./code-editor-names.ts";
 import { diagnosticAnnouncement } from "./code-editor-names.ts";
+import { CODE_EDITOR_FRAME } from "./fallback.tsx";
 
 // The one CodeMirror↔design-token mapping site. Every color/typography value is a var(--…)
 // reference, so ThemeScope swaps restyle the editor for free. The lint module's default theme
@@ -234,8 +235,9 @@ export function CodeEditor({
 
   // (Re)creates the view when non-controlled config changes — a fresh view is simpler than a
   // Compartment reconfigure, and these props change rarely. Diagnostic content is dispatched into
-  // the live view below without ever hitting this effect.
-  useEffect(() => {
+  // the live view below without ever hitting this effect. A layout effect, so the first paint holds
+  // the editor and not an empty frame that grows when the view lands.
+  useLayoutEffect(() => {
     const host = hostRef.current;
     if (host === null) {
       return;
@@ -312,10 +314,7 @@ export function CodeEditor({
           amber ring. `FOCUS_RING_HAS` (not `focus-within:`) is the exact TextField treatment: it paints
           only when a descendant matches `:focus-visible`, which is what a text input's own
           `focus-visible:` ring does. `overflow-hidden` clips descendants, never this box's own ring. */}
-      <div
-        ref={hostRef}
-        className={cn("overflow-hidden rounded-control border border-border font-mono text-code-field leading-code-field", FOCUS_RING_HAS, className)}
-      />
+      <div ref={hostRef} className={cn(CODE_EDITOR_FRAME, FOCUS_RING_HAS, className)} />
       {hasDiagnostics ? (
         <div id={describedById} aria-live="polite" className="sr-only">
           {diagnostics.map((diagnostic, index) => {
