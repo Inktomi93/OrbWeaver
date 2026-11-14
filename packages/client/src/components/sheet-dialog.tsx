@@ -5,6 +5,7 @@ import { Button } from "@orb/ui/button";
 import { DialogHeader } from "@orb/ui/dialog";
 import { Drawer, DrawerClose, DrawerPopup, DrawerTitle, DrawerVirtualKeyboardProvider } from "@orb/ui/drawer";
 import { Icon, X } from "@orb/ui/icons";
+import { Row } from "@orb/ui/layout";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { DIALOG_VERBS } from "#lib";
 
@@ -37,9 +38,12 @@ export function SheetDialog({ open, onOpenChange, title, titleId, container, fin
     <Drawer open={open} onOpenChange={onOpenChange} {...(modal === undefined ? {} : { modal })}>
       <DrawerVirtualKeyboardProvider>
         <DrawerPopup {...(container === undefined ? {} : { container })} {...(finalFocus === undefined ? {} : { finalFocus })}>
-          {/* sticky so the title and Close stay in view as the popup's own scroll region scrolls. */}
-          <DialogHeader sticky={true}>
-            <DrawerTitle {...(titleId === undefined ? {} : { id: titleId })}>{title}</DrawerTitle>
+          {/* Sticky so the title and Close stay in view as the sheet scrolls, except where the short-box law scrolls them away. Beside
+              Close the title wraps by its words and keeps Close on its line until a word cannot fit, as a dialog's does. */}
+          <DialogHeader sticky={true} wrap={true}>
+            <Row align="center" grow={true} minWidth="word">
+              <DrawerTitle {...(titleId === undefined ? {} : { id: titleId })}>{title}</DrawerTitle>
+            </Row>
             <DrawerClose
               render={
                 <Button variant="ghost" square={true} aria-label={DIALOG_VERBS.close}>

@@ -38,7 +38,8 @@ export const dialogVariants = tv({
     // which rests against the true edge and keeps the body from scrolling through the padding above it. The header holds one line, so
     // its title gives way before Close takes a second line of a screen with no room for it. A tiny one (enlarged text on a landscape
     // phone) spends none of its height on insets: its title row, field and rows are all it has. A phone-width screen (a width in the glass, so a
-    // landscape phone is never one) scrolls its header away: at enlarged text it is taller than the room a control below it needs.
+    // landscape phone is never one) scrolls its header away: at enlarged text it is taller than the room a control below it needs. A short phone
+    // sheet's header holds its one line by the same law.
     header: `
       flex shrink-0 items-center justify-between gap-row border-be border-border pbe-field
       dialog-short:glass-short:flex-nowrap dialog-short:glass-short:bg-popover dialog-short:glass-short:pbs-row
@@ -46,6 +47,7 @@ export const dialogVariants = tv({
       dialog-short:glass-short:not-inline-narrow:z-(--z-raised) dialog-short:glass-short:not-inline-narrow:-mx-row
       dialog-short:glass-short:not-inline-narrow:px-row
       dialog-tiny:glass-short:pbs-0 dialog-tiny:glass-short:pbe-0
+      sheet-short:glass-short:flex-nowrap
     `,
     // A landscape phone's dialog title truncates to one line; its full text stays the dialog's accessible name.
     title: `${TITLE_STEP} dialog-short:glass-short:truncate ${MIN_HEIGHT.holdsLineOnLandscape}`,

@@ -105,6 +105,10 @@ for (const { name, viewport } of PHONE_WINDOWS) {
         const closeBox = await header.getByRole("button").boundingBox();
         expect(closeBox?.height ?? 0).toBeGreaterThan(0);
         expect(closeBox?.y ?? Number.NEGATIVE_INFINITY).toBeGreaterThanOrEqual(headerBox?.y ?? 0);
+        // A long title wraps or gives Close its own line; it never pushes Close past the window's edge, and Close keeps its square target.
+        expect(closeBox?.x ?? Number.NEGATIVE_INFINITY).toBeGreaterThanOrEqual(0);
+        expect((closeBox?.x ?? 0) + (closeBox?.width ?? Number.POSITIVE_INFINITY)).toBeLessThanOrEqual(viewport.width);
+        expect(closeBox?.width).toBe(closeBox?.height);
       });
     }
 
@@ -173,11 +177,15 @@ test.describe("a landscape phone at the default text", () => {
 test.describe("a portrait phone at the default text", () => {
   test.use({ viewport: PHONE_WINDOWS[1].viewport, isMobile: true, hasTouch: true });
 
-  test("the You sheet keeps its pinned header and its inset above the close control", async ({ corpus, mount, page }) => {
+  test("the You sheet keeps its pinned header, its inset above the close control, and its whole title beside Close", async ({ corpus, mount, page }) => {
     await openYouSheet(page, corpus, () => mount<typeof AppShellStory>(`${SHELL_STORIES}/AppShellStory`, {}));
     const header = page.locator(PRESENTATIONS.drawer.popup).locator(HEADER);
+    const title = header.getByRole("heading", { name: YOU_TAB_LABEL, exact: true });
     await expect(header).toHaveCSS("position", "sticky");
-    const [headerBox, closeBox] = await Promise.all([header.boundingBox(), header.getByRole("button").boundingBox()]);
+    await expect(title).not.toHaveCSS("text-overflow", "ellipsis");
+    const [headerBox, closeBox, titleBox] = await Promise.all([header.boundingBox(), header.getByRole("button").boundingBox(), title.boundingBox()]);
     expect((closeBox?.y ?? 0) - (headerBox?.y ?? 0)).toBeGreaterThan(0);
+    // One line: Close sits beside the title, not under it.
+    expect(closeBox?.y ?? Number.POSITIVE_INFINITY).toBeLessThan((titleBox?.y ?? 0) + (titleBox?.height ?? 0));
   });
 });

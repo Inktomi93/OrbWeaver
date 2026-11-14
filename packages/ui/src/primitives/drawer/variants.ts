@@ -1,4 +1,4 @@
-import { POPUP_DESCRIPTION, SCRIM_BASE, TITLE_STEP, tv } from "#lib";
+import { MIN_HEIGHT, POPUP_DESCRIPTION, SCRIM_BASE, TITLE_STEP, tv } from "#lib";
 
 // The panel is a bottom sheet; its live swipe transform is wired to Base UI's --drawer-* vars
 // (transition suspended while data-swiping so the gesture tracks 1:1). The backdrops compose
@@ -27,7 +27,8 @@ export const drawerVariants = tv({
     swipeArea: "fixed inset-x-0 inset-be-0 z-(--z-overlay) touch-none block-row",
     indent: "transition-transform duration-(--motion-layout) ease-out-expo data-active:scale-95",
     indentBackground: `pointer-events-none opacity-0 ${SCRIM_BASE} transition-opacity duration-(--motion-layout) ease-out-expo data-active:opacity-100`,
-    title: TITLE_STEP,
+    // A short sheet's title truncates to one line beside Close (ui-platform-rulings §8.1); its full text stays the sheet's accessible name.
+    title: `${TITLE_STEP} sheet-short:glass-short:truncate ${MIN_HEIGHT.holdsLineOnLandscape}`,
     description: POPUP_DESCRIPTION,
   },
 });
