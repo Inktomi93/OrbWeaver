@@ -127,7 +127,7 @@ test("a strike outlives its scene being summarized again, and a key read before 
   expect(run.prompt).not.toContain("arc-storm.");
   expect(run.prompt).toContain("arc-bath.");
 
-  await expect(w.h.caller.chat.strikeMemory({ chatId: w.h.chatId, item: sceneOf(read, "bath").key })).rejects.toMatchObject({
+  await expect(w.h.root.services.chat.strikeMemory({ principal: w.h.owner, chatId: w.h.chatId, item: sceneOf(read, "bath").key })).rejects.toMatchObject({
     code: CHAT_OP_CODES.memoryItemStale,
   });
   expect(sceneOf(await w.h.caller.chat.memoryView({ chatId: w.h.chatId }), "bath").strike).toBeNull();
@@ -168,7 +168,7 @@ test("a member with a join floor is not shown a summary straddling the floor, an
   const joinedAt = (await readRoomCanon(w.h.root, w.h.owner, w.h.chatId)).length;
   expect(joinedAt % BLOCK_SIZE).toBe(0);
   const member = await invitePerson(w.h);
-  await w.h.caller.invites.setMemberHistoryVisibility({ chatId: w.h.chatId, userId: member.userId, visibility: "from-join" });
+  await w.h.root.services.chat.setMemberHistoryVisibility({ principal: w.h.owner, chatId: w.h.chatId, userId: member.userId, visibility: "from-join" });
   // One exchange after the join fills the next block wholly above the floor.
   await recallTurn(w.h, BOTH);
   await w.h.root.settleBackground();
