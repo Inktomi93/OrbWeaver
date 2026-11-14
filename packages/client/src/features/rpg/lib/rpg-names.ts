@@ -47,8 +47,22 @@ export const RPG_JOURNAL_SCOPE_LABELS = { all: "All", marks: "Marks", cards: "Ca
 /** The Journal composer's add action. */
 export const RPG_JOURNAL_ADD_ENTRY_NAME = "Add entry";
 
-/** The lead of the empty chronicle's line; the rest says who writes the first page. */
-export const RPG_JOURNAL_EMPTY_LEAD = "Nothing chronicled yet:";
+/** The empty chronicle's title, and its line on who writes the first page: the host may start it, a member waits for the story. */
+export const RPG_JOURNAL_EMPTY_TITLE = "Nothing chronicled yet";
+export const RPG_JOURNAL_EMPTY_DESCRIPTION = {
+  host: "The story writes it, or you can start the first page below.",
+  member: "The story writes the first page.",
+} as const;
+
+/** The host's New quest control. */
+export const RPG_NEW_QUEST_NAME = "New quest";
+
+/** The empty quest list's title, and its line on who starts the first quest. */
+export const RPG_QUESTS_EMPTY_TITLE = "No quests yet";
+export const RPG_QUESTS_EMPTY_DESCRIPTION = {
+  host: "Start one below.",
+  member: "The story starts them.",
+} as const;
 
 /** The empty card archive, in the Journal Cards scope and in the Scene tab. */
 export const RPG_JOURNAL_NO_CARDS_LINE = "No cards yet: the story crafts them.";

@@ -572,6 +572,9 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/world-info/lib/world-info-names.ts": "WORLD_INFO_NEW_BOOK_NAME and its siblings: the books library and entry editor names",
   "packages/client/src/features/regex/lib/regex-names.ts": "REGEX_FIND_PATTERN_NAME and its siblings: the regex editor, tester and pipeline names",
   "packages/client/src/features/databank/lib/databank-names.ts": "DATABANK_SEARCH_NAME and its siblings: the library, Home tile, add dialog and landing names",
+  "packages/client/src/features/databank/lib/databank-copy.ts": "DATABANK_INGEST_GLOSS: the gloss the Home Documents tile teaches an empty bank with",
+  "packages/client/src/features/databank/lib/databank-section-label.ts":
+    "DATABANK_SECTION_LABEL: the section's label, which the Home tile's open-section door names",
   "packages/client/src/features/discovery/lib/corpus-search-targets.ts":
     "CORPUS_SEARCH_TARGETS: the closed set of Corpus search targets, one suite case per kind and label",
   "packages/client/src/features/databank/lib/databank-upload-copy.ts":

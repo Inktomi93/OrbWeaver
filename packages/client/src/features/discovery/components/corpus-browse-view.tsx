@@ -27,6 +27,7 @@
 
 import type { BrowseSort } from "@orb/contracts/discovery";
 import { Button } from "@orb/ui/button";
+import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Library } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
@@ -39,11 +40,13 @@ import { useId, useState } from "react";
 import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { createCollectionSurface, QueryErrorState, SkeletonRows, useSuspenseQueries, useTRPC } from "#data";
-import { ESTIMATED_ROW_PX, groupOrdinalQualifiers, testId } from "#lib";
+import { ESTIMATED_ROW_PX, groupOrdinalQualifiers, NO_MATCHES_TITLE, testId } from "#lib";
 import { selectCorpusArtifact } from "#state";
 import { characterFacetLine } from "../lib/character-facet.ts";
 import {
+  CORPUS_CLEAR_FILTERS_NAME,
   CORPUS_DISTILLED_CATALOG_NAME,
+  CORPUS_FILTERED_MISS_TEXT,
   CORPUS_NOT_DISTILLED_TEXT,
   CORPUS_PARAM_NAMES,
   CORPUS_READ_LABELS,
@@ -118,6 +121,13 @@ function CorpusBrowseBody(): ReactElement {
   const [tag, setTag] = useState(ANY_VALUE);
   const [sort, setSort] = useState(ANY_VALUE);
   const noChoiceNoteId = useId();
+  // The four facets narrow the catalog; the sort only orders it, so it stays through a clear.
+  const clearFilters = (): void => {
+    setGenre(ANY_VALUE);
+    setTone(ANY_VALUE);
+    setSetting(ANY_VALUE);
+    setTag(ANY_VALUE);
+  };
   const collection = useCorpusBrowseCollection({ trpc }, { genre, tone, setting, tag, sort });
   const [{ data: facets }, { data: catalog }] = useSuspenseQueries({
     queries: [trpc.discovery.characterFacets.queryOptions(), trpc.discovery.catalog.queryOptions()],
@@ -156,6 +166,7 @@ function CorpusBrowseBody(): ReactElement {
       ) : null}
       <BrowseRows
         collection={collection}
+        onClearFilters={clearFilters}
         // An UNDISTILLED library and an over-narrow filter both produce zero rows and used to read the same
         // ("No characters match — distill your library, or loosen the filters"), which asks a first-run user
         // to loosen filters they never set (side-eye 2026-08-08 P1-2). `catalog.totalDistilled` is the
@@ -169,9 +180,11 @@ function CorpusBrowseBody(): ReactElement {
 function BrowseRows({
   collection,
   distilled,
+  onClearFilters,
 }: {
   readonly collection: ReturnType<typeof useCorpusBrowseCollection>;
   readonly distilled: boolean;
+  readonly onClearFilters: () => void;
 }): ReactElement {
   if (collection.isPending) {
     return <SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />;
@@ -181,10 +194,16 @@ function BrowseRows({
   }
   if (collection.items.length === 0) {
     return distilled ? (
-      <Stack align="center" padding="block" gap="field">
-        <Icon icon={Library} size="lg" />
-        <Text>No characters match: loosen the filters.</Text>
-      </Stack>
+      <EmptyState
+        action={
+          <Button variant="outline" size="sm" onClick={onClearFilters}>
+            {CORPUS_CLEAR_FILTERS_NAME}
+          </Button>
+        }
+        description={CORPUS_FILTERED_MISS_TEXT}
+        icon={<Icon icon={Library} size="lg" />}
+        title={NO_MATCHES_TITLE}
+      />
     ) : (
       // The overview owns the run control; this door reaches it when the finder is the phone screen.
       <Stack gap="field" align="center">

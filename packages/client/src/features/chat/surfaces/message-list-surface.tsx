@@ -17,6 +17,7 @@ import { buildIdentityAvatarMaps, buildIdentityNameContext, identityKey } from "
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
 import { CurrentStack } from "@orb/ui/current";
+import { EmptyState } from "@orb/ui/empty-state";
 import { Stack } from "@orb/ui/layout";
 import type { MessageListHandle } from "@orb/ui/message-list";
 import { MESSAGE_LIST_LEADING_SLOT, MessageList } from "@orb/ui/message-list";
@@ -47,7 +48,7 @@ import { useMessageAppearance } from "../hooks/use-message-appearance.ts";
 import type { ChatRowProjection } from "../hooks/use-message-items.ts";
 import { lastUserRowIndex, messageItemKey, useMessageItems, useNewArrivalKeys } from "../hooks/use-message-items.ts";
 import { resolveRowAttribution } from "../lib/attribution.ts";
-import { CHAT_TRANSCRIPT_NAME } from "../lib/chat-surface-names.ts";
+import { CHAT_EMPTY_THREAD_TITLE, CHAT_TRANSCRIPT_NAME } from "../lib/chat-surface-names.ts";
 import { Track } from "../lib/chat-track.tsx";
 import { resolveContextBoundaryMessageId } from "../lib/context-boundary.ts";
 import { contextFitLabel } from "../lib/context-room.ts";
@@ -483,11 +484,6 @@ function PrintCoverage({ edges }: { readonly edges: TranscriptEdges }): ReactEle
 
 /** The empty-transcript state — a room whose opening policy seeded nothing, before its first turn. */
 function EmptyThread(): ReactElement {
-  return (
-    <Stack align="center" justify="center" padding="section" height="fill">
-      {/* An empty state stays READABLE PROSE — the prose default, not a muted gloss (density S3 ruling):
-          the one line standing in for a whole transcript is the last thing that should recede. */}
-      <Text>No messages yet.</Text>
-    </Stack>
-  );
+  // No action: the composer under the transcript is the next step.
+  return <EmptyState action={null} push="blockCentre" title={CHAT_EMPTY_THREAD_TITLE} />;
 }

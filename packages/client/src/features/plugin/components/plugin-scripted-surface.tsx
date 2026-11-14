@@ -22,6 +22,7 @@
 import type { PluginCapability, PluginSurfaceAnchor, PluginSurfaceNode } from "@orb/contracts/plugin";
 import type { ChatId, PluginId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
+import { EmptyState } from "@orb/ui/empty-state";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -29,6 +30,7 @@ import { useEffect, useRef, useState } from "react";
 import { fetchPluginUiSource, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { usePluginHostCall } from "../hooks/use-plugin-host-call.ts";
 import { useReportUiCrash } from "../lib/plugin-mutations.ts";
+import { PLUGIN_SURFACE_EMPTY_TITLE, PLUGIN_SURFACE_RELOAD_NAME } from "../lib/plugin-surface-names.ts";
 import type { PluginUiGuest } from "../lib/ui-guest/plugin-ui-guest-host.ts";
 import { PluginSurfaceRenderer } from "./plugin-surface-renderer.tsx";
 
@@ -191,14 +193,14 @@ export function PluginScriptedSurface({
   }
   if (renderedState.kind === "ready-empty") {
     return (
-      <Stack gap="field">
-        <Text cap="prose" prose={true} voice="gloss">
-          This plugin has no content to show here yet.
-        </Text>
-        <Button variant="ghost" onClick={(): void => setAttempt((current) => current + 1)} size="sm">
-          Reload
-        </Button>
-      </Stack>
+      <EmptyState
+        action={
+          <Button variant="outline" onClick={(): void => setAttempt((current) => current + 1)} size="sm">
+            {PLUGIN_SURFACE_RELOAD_NAME}
+          </Button>
+        }
+        title={PLUGIN_SURFACE_EMPTY_TITLE}
+      />
     );
   }
   const content = (

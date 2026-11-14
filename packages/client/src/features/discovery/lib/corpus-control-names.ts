@@ -50,6 +50,12 @@ export const CORPUS_GEM_TILES_NAME = "Invested but quiet characters";
 /** The Explore overview's list of model routes, each row a door to that route's artifact. */
 export const CORPUS_MODEL_ROUTES_NAME = "Model routes";
 
+/** The browse view's way out of a facet combination that matches no character. */
+export const CORPUS_CLEAR_FILTERS_NAME = "Clear filters";
+
+/** What the browse view says when its facets, not an empty library, emptied the catalog. */
+export const CORPUS_FILTERED_MISS_TEXT = "No character in your catalog matches the current filters.";
+
 /** The door to the overview where a library is sorted, on every pane that waits on it. */
 export const CORPUS_SORTING_DOOR_NAME = "Go to sorting";
 

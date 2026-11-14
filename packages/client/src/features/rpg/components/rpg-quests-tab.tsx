@@ -22,8 +22,9 @@
 import type { RpgQuestView } from "@orb/contracts/rpg";
 import { Card } from "@orb/ui/card";
 import { Checkbox } from "@orb/ui/checkbox";
+import { EmptyState } from "@orb/ui/empty-state";
 import { GlyphButton } from "@orb/ui/glyph-button";
-import { Icon, Plus, Trash, X } from "@orb/ui/icons";
+import { Flag, Icon, Plus, Trash, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { SegmentedClock } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
@@ -34,6 +35,7 @@ import { deleteConfirmTitle } from "#lib";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useDeleteQuest, useEditQuestObjective, useEditSnapshot, useUpsertQuest } from "../hooks/use-rpg-mutations.ts";
 import { buildPlotEdit } from "../lib/plot-edit.ts";
+import { RPG_NEW_QUEST_NAME, RPG_QUESTS_EMPTY_DESCRIPTION, RPG_QUESTS_EMPTY_TITLE } from "../lib/rpg-names.ts";
 import { RpgActRail } from "./rpg-act-rail.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
 import type { AddRowAction } from "./tracker-blocks/index.ts";
@@ -236,7 +238,9 @@ export interface RpgQuestsTabProps {
 /** The host "New quest" affordance (no dead ends): the shared `AddRow` firing
  *  `upsertQuest` with NO `questId` (⇒ create). Tier-2 refusal + Enter-to-commit come with the primitive. */
 function NewQuest({ onCreate }: { readonly onCreate: AddRowAction["onAdd"] }): ReactElement {
-  return <AddRow ariaLabel="New quest name" placeholder="Start a quest…" actions={[{ key: "quest", label: "New quest", icon: Plus, onAdd: onCreate }]} />;
+  return (
+    <AddRow ariaLabel="New quest name" placeholder="Start a quest…" actions={[{ key: "quest", label: RPG_NEW_QUEST_NAME, icon: Plus, onAdd: onCreate }]} />
+  );
 }
 
 /** Build the quest hand-edit callbacks (host) — name/description via a keep-on-omit upsert; objectives as
@@ -298,8 +302,12 @@ export function RpgQuestsTab({ state }: RpgQuestsTabProps): ReactElement {
     return (
       <Stack gap="section" data-slot="rpg-quests-tab">
         {rail}
-        <Text>No quests yet: {canEditShared ? "start one below." : "the story starts them."}</Text>
-        {canEditShared ? <NewQuest onCreate={onCreate} /> : null}
+        <EmptyState
+          action={canEditShared ? <NewQuest onCreate={onCreate} /> : null}
+          description={canEditShared ? RPG_QUESTS_EMPTY_DESCRIPTION.host : RPG_QUESTS_EMPTY_DESCRIPTION.member}
+          icon={<Icon icon={Flag} size="lg" />}
+          title={RPG_QUESTS_EMPTY_TITLE}
+        />
       </Stack>
     );
   }

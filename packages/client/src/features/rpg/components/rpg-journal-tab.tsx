@@ -31,7 +31,8 @@ import { RPG_JOURNAL_TYPES } from "@orb/contracts/rpg";
 import type { ChatId, RpgJournalId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
-import { Icon, Pin } from "@orb/ui/icons";
+import { EmptyState } from "@orb/ui/empty-state";
+import { BookOpen, Icon, Pin } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
@@ -52,7 +53,8 @@ import { CHECKPOINT_TRIGGER_LABELS, JOURNAL_TYPE_LABELS } from "../lib/journal-l
 import {
   RPG_CARD_ARCHIVE_READ_LABEL,
   RPG_JOURNAL_ADD_ENTRY_NAME,
-  RPG_JOURNAL_EMPTY_LEAD,
+  RPG_JOURNAL_EMPTY_DESCRIPTION,
+  RPG_JOURNAL_EMPTY_TITLE,
   RPG_JOURNAL_NO_CARDS_LINE,
   RPG_JOURNAL_SCOPE_LABELS,
 } from "../lib/rpg-names.ts";
@@ -145,14 +147,14 @@ function JournalEntries({ state, cards }: { readonly state: RpgPanelState; reado
     : undefined;
 
   if (entries.length === 0 && cards.length === 0) {
-    // No dead end: the empty chronicle still offers the host the first page.
+    // No dead end: the empty chronicle still offers the host the first page. A member has no verb that writes one.
     return (
-      <Stack gap="section">
-        <Text>
-          {RPG_JOURNAL_EMPTY_LEAD} {state.isHost ? "the story writes it, or you can start the first page below." : "the story writes the first page."}
-        </Text>
-        {composer}
-      </Stack>
+      <EmptyState
+        action={composer}
+        description={state.isHost ? RPG_JOURNAL_EMPTY_DESCRIPTION.host : RPG_JOURNAL_EMPTY_DESCRIPTION.member}
+        icon={<Icon icon={BookOpen} size="lg" />}
+        title={RPG_JOURNAL_EMPTY_TITLE}
+      />
     );
   }
 
