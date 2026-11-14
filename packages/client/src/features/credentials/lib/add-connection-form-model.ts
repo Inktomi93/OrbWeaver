@@ -120,16 +120,12 @@ export function listsOnPick(provider: ProviderDef): boolean {
 }
 
 /** Whether the dialog lists this draft's models under what the user supplies: an endpoint under its URL, on
- *  "List models", and a hosted provider under its API key, as soon as the key is pasted or a saved one is
- *  chosen. A subscription token lists only once it is saved. */
+ *  "List models", and a hosted provider under its API key, when the key is pasted, when the key field is left
+ *  with a changed key, or when a saved key is chosen. A key typed by hand is never read while it is typed: a
+ *  partial key is a secret sent to the vendor. A subscription token lists only once it is saved. */
 export function listsUnderDraft(provider: ProviderDef): boolean {
   return needsBaseUrl(provider) || (provider.auth === "apiKey" && !listsOnPick(provider));
 }
-
-/** How long a pasted key must stop changing before the dialog lists under it: a typed key is one read of the
- *  whole key, not one per character. A pasted key waits the same beat, which is the cost of not telling a
- *  paste from fast typing. */
-export const KEY_LIST_SETTLE_MS = 400;
 
 /** Why the dialog offers a typed model id before any list is read, per auth kind. A draft that lists on pick
  *  has its list the moment it is picked, so its reason is only the list's own. */

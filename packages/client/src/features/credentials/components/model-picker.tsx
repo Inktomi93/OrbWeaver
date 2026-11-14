@@ -116,9 +116,10 @@ export function ModelPicker(props: ModelPickerProps): ReactElement {
 }
 
 /** The search box takes the caret the moment there is a list to search — after "List models" answers, and when a
- *  saved row's catalog lands — so focus never falls back to the document. */
+ *  saved row's catalog lands — so focus never falls back to the document. A text field being typed in (the key
+ *  field, when a list lands after a paste) keeps it. */
 function useSearchCaret(searchRef: RefObject<HTMLInputElement | null>, listReady: boolean, wanted: boolean): void {
-  useFocusOnSwap(searchRef, listReady && wanted);
+  useFocusOnSwap(searchRef, listReady && wanted, true);
 }
 
 /** The searchable list. `models: null` is the loading arm: the same frame with skeleton rows in it, so the

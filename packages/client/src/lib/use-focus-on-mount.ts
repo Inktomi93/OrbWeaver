@@ -189,11 +189,19 @@ function useArrivalFocus(ref: RefObject<FocusTarget | null>, { enabled, repeatOn
  *  field or an open overlay, and it needs no recorded press, so it also lands when the control that held focus went
  *  away through something other than a click or Enter. The caller opts in per site because that guard is what
  *  protects the rail's tab order on a cold load; a surface using THIS hook must only mount as the direct result
- *  of a user activation. */
-export function useFocusOnSwap(ref: RefObject<FocusTarget | null>, enabled = true): void {
+ *  of a user activation.
+ *
+ *  `yieldToTextField` stands it down for a text field outside the target that holds focus: a surface that lands
+ *  after a read, while the reader is typing elsewhere, must not turn their next keystrokes into its own input. */
+export function useFocusOnSwap(ref: RefObject<FocusTarget | null>, enabled = true, yieldToTextField = false): void {
   useEffect(() => {
-    if (enabled) {
-      ref.current?.focus();
+    if (!enabled) {
+      return;
     }
-  }, [ref, enabled]);
+    const active = browserDocument?.activeElement ?? null;
+    if (yieldToTextField && active?.matches(TEXT_ENTRY) === true && !isInside(ref.current, active)) {
+      return;
+    }
+    ref.current?.focus();
+  }, [ref, enabled, yieldToTextField]);
 }
