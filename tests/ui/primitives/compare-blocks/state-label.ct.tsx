@@ -1,6 +1,7 @@
 // @subject packages/ui/src/primitives/compare-blocks/compare-blocks.tsx
 // A compare block's state chip wraps its words inside the block at a phone's enlarged text, so the results pane around it does not scroll
-// sideways and the chip stays whole inside its block.
+// sideways and the chip stays whole inside its block. In a 390px pane the unwrapped chip overflows only at 300%; 200% is the guard that the
+// chip fits before the largest step.
 import { LAYOUT_SUBPIXEL_PX as SUBPIXEL, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName } from "@orb/testkit/ct";
 import { expect, test } from "@playwright/test";
