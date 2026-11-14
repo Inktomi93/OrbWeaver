@@ -71,7 +71,6 @@ export const DISTINCT_LOOKALIKES = [
       "packages/client/src/features/refinery/components/manual-rewrite-dialog.tsx#onOpenChange",
       "packages/client/src/features/refinery/components/original-card-dialog.tsx#onOpenChange",
       "packages/client/src/features/refinery/components/schema-editor-dialog.tsx#onOpenChange",
-      "packages/client/src/features/refinery/components/schema-editor-dialog.tsx#setNameFilled",
       "packages/client/src/features/refinery/components/scope-editor-dialog.tsx#onOpenChange",
       "packages/client/src/features/refinery/surfaces/refinery-content-surface.tsx#setOpen",
       "packages/client/src/features/regex/components/regex-bulk-placement-dialog.tsx#onOpenChange",
