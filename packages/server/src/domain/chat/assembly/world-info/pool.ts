@@ -19,23 +19,11 @@
 //     shared room they legitimately belong to members other than the host; belting this arm to the host would silently
 //     delete a member's own lore from the prompt. `attachToPersona` gates the persona and the book under
 //     one caller, so "the book belongs to the persona's owner" is the writers' invariant made physics.
-//   • chat     → `chatId` only, ON PURPOSE — but NOT for the reason this bullet used to give. It said a
-//     chat book is "the ROOM's (any member may attach their own)", and that is not what the writers do:
-//     `worldInfo.attachToChat` awaits `requireChatHost(principal, chatId)` AND
-//     `loadOwnedBook(db, principal.userId, bookId)` in the same call, so a chat book is HOST-attached and
-//     HOST-owned. Room-wide prompt content is a one-shot jailbreak surface (write = host, the chat-injection
-//     precedent); the host may only share a book they own. The invariant is therefore STRONGER than an owner
-//     predicate would state, not weaker than it.
-//     It survives the one event that could break it: host HANDOFF
-//     (`world-info/persistence/handoff-copy-write.ts:95-96`) DELETES the outgoing host's chat attachment and
-//     inserts a COPY minted under the incoming host — or converges onto a same-named book the recipient
-//     already has on the room — in the SAME batch as the role swap. So "attached ⇒ owned by whoever is the
-//     room's host" holds before and after, with no window between.
-//     Writer census: `insert(chatBooks)` has exactly TWO sites, both named above
-//     (`verbs/attachments/attach-to-chat.ts:25`, `persistence/handoff-copy-write.ts:96`); the only other
-//     mutation is `verbs/attachments/detach-from-chat.ts:19`. An owner predicate here would be redundant
-//     rather than wrong — it is left off because the junction rows are already the belt, and any future
-//     attempt to add one owes this handoff case first.
+//   • chat     → `target.ownerId` (the room HOST), D64. `worldInfo.attachToChat` admits only the host and only
+//     a book they own, and a handoff detaches every chat book the new host does not own in the swap batch
+//     (`world-info/persistence/handoff-copy-write.ts`, `createDetachHandoffBooks`). The owner predicate is the
+//     control that holds without either writer: a chat book a former host still owns, and can still edit,
+//     never reaches the room's prompt, including a row an older handoff left behind.
 //   • global   → `target.ownerId`, unchanged (FLAG[global-scope] above).
 
 import type { AssembleWorldEntry, AssembleWorldEntryAttachment } from "@orb/contracts/chat";
@@ -147,11 +135,13 @@ async function loadWorldInfoSources(
   const personaIds = [...target.personaIds];
 
   const [chatRows, characterRows, globalRows, personaRows] = await Promise.all([
+    // chat → scoped to the HOST owner (see FLAG[attachment-scope]): a row a former host left on the room applies nothing.
     db
       .select(entryColumns)
       .from(chatBooks)
       .innerJoin(worldEntries, eq(chatBooks.worldBookId, worldEntries.worldBookId))
-      .where(and(eq(chatBooks.chatId, target.chatId), eq(worldEntries.enabled, true))),
+      .innerJoin(worldBooks, eq(worldBooks.id, chatBooks.worldBookId))
+      .where(and(eq(chatBooks.chatId, target.chatId), eq(worldBooks.ownerId, target.ownerId), eq(worldEntries.enabled, true))),
     // character → scoped to the HOST owner, the same `world_books.ownerId` join `loadCharacterCardLore`
     // below already applies to this very junction (see FLAG[attachment-scope]).
     // `characterIds` are the room roster's own present character seats, resolved by the assembly caller after the room authority gate, and the read is pinned to the host's books by `eq(worldBooks.ownerId, target.ownerId)`. Ends if a caller-supplied character id reaches the pool.

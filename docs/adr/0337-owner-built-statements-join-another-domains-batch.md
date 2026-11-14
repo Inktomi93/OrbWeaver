@@ -23,6 +23,7 @@ A database handle crosses a domain boundary only as an owner-built statement, gu
 | `emptyMemoryScope` | chat (a `SQL` guard) | embeddings' space promotion and retire | The guard evaluates inside the batch, so no chat gains memory between the check and the delete |
 | `planGameBirth` | rpg | chat's creation batch | [D264](0264-roster-preset-carries-a-game-template.md): a failed birth leaves no room |
 | `handoffHealStatements`, `restampHandoffDigests`, `copyHandoffBooks`, `copyHandoffRegexScripts` | rpg, embeddings, world-info, regex | chat's handoff swap | [D131](0131-a-host-handoff-carries-an-opt-in-class.md) (D): the room moves in one atomic batch |
+| `detachHandoffBooks`, `detachHandoffRegexScripts` | world-info, regex | chat's handoff swap | [D64](0064-handoff-and-fork-drop-prior-host-characters.md): the chat attachments the new host does not own leave with the role swap, after the copy re-points |
 | `rpgRestoreStatement` | rpg | chat's restore | The game state restores with the message it belongs to |
 | `NotificationsEmitOp` coStatements and `claimStatement` | chat | notifications' emit | A notification and the chat write it announces commit together, so no notice points at an unsaved row and none is lost |
 
@@ -30,7 +31,7 @@ The signup statements stay under D259. A new joint batch needs a new row here be
 
 ## Consequences
 
-Each listed op keeps its handle and its composed wiring; only its type home moves to contracts or the consumer's `contract/`. The census reaches zero unruled handle targets. A reviewer reads one table to know which cross-domain writes are atomic by design.
+A stats rebuild, and a batch that retires or admits canon, opens with a guard that rewrites the owner's canon-version row with the version it read, so an owner with no stats write gains a row at version 0. Every reader takes a missing row as version 0 and the next write moves either to 1, so the two states are the same. Each listed op keeps its handle and its composed wiring; only its type home moves to contracts or the consumer's `contract/`. The census reaches zero unruled handle targets. A reviewer reads one table to know which cross-domain writes are atomic by design.
 
 ## Alternatives rejected
 

@@ -6,7 +6,7 @@ import { eq, inArray } from "drizzle-orm";
 import type { ServerProducerRoot } from "../../server.ts";
 import type { CapturedStatsPopulations, Reconcile, SeededStats } from "../stats.ts";
 
-/** Reconciliation does not create a canon fence for an owner with no live stats mutation. */
+/** Reconciles one owner and captures the rows it left, the owner's canon version included. */
 export async function seedStatsRows(root: ServerProducerRoot, ownerId: Parameters<Reconcile>[0]): Promise<SeededStats> {
   const db = root.db;
   const reconcile = root.services.stats.reconcile;

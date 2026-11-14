@@ -73,7 +73,7 @@ export { makeAssetBytes, seedAsset } from "./factories/asset.ts";
 export { seedAutomationRule, seedAutomationTestFires } from "./factories/automation.ts";
 export { seedCharacter } from "./factories/character.ts";
 export type { TranscriptLine } from "./factories/chat.ts";
-export { seedChat, seedChatInvite, seedInvitedChatParticipant, seedTranscript } from "./factories/chat.ts";
+export { seedChat, seedChatInvite, seedInvitedChatParticipant, seedTranscript, transcriptFile } from "./factories/chat.ts";
 export { makeResolvedSecret } from "./factories/credentials.ts";
 export type { OwnerRowDamage } from "./factories/damaged-owner.ts";
 export { damageOwnerRow } from "./factories/damaged-owner.ts";

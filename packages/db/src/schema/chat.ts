@@ -209,12 +209,20 @@ export const chats = sqliteTable(
     // SHA-256 of the import bytes — the idempotent re-import key (a re-import of identical bytes is a
     // no-op). Mirrors `characters.importHash`. Nullable (null for a born-here chat).
     importHash: nulFreeText("import_hash"),
+    // THE LANDING MARKER. Non-null = an import is still committing this room in stages (epoch-ms the first stage
+    // landed); NULL = landed. Readers hide a landing room because its roster is written in the stage that clears
+    // this column, so no membership gate admits it. The failed-import cleanup and the boot sweep delete ONLY a room
+    // with this column set (`packages/server/src/domain/chat/persistence/import-landing.ts`), never one by the
+    // absence of its roster.
+    landingAt: integer("landing_at"),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
     // The lineage walk (membership-gated per ancestor — D18); also speeds the fork-children listing.
     index("chats_parent_idx").on(t.parentChatId),
+    // The boot sweep's lookup; partial, so a landed room costs the index nothing.
+    index("chats_landing_idx").on(t.landingAt).where(sql`${t.landingAt} IS NOT NULL`),
     // SQLite auto-indexes NOTHING for a child FK: every `DELETE FROM personas/users` must scan this table to
     // apply the SET NULL unless the referencing column LEADS an index (FK-index test).
     index("chats_anchor_persona_idx").on(t.anchorPersonaId),

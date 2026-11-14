@@ -13,13 +13,14 @@ import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
 import { seedStatsRows } from "./rows/stats.ts";
 
-test("computed-empty reconciliation does not invent a live canon fence or activity rows", async () => {
+test("computed-empty reconciliation leaves the canon version where it read it and invents no activity rows", async () => {
   await using root = await createServerHarness();
   const actor = await root.actor();
   expect(await root.services.stats.overview(actor.id)).toBeNull();
   const capture = await seedStatsRows(root, actor.id);
   expect(capture.owner).toMatchObject({ ownerId: actor.id, characters: 0, chats: 0, userTurns: 0 });
-  expect(capture.canonVersion).toBeUndefined();
+  // The rebuild's guard rewrites the version it read, so an owner with no stats write keeps version 0 (D337).
+  expect(capture.canonVersion).toEqual({ ownerId: actor.id, version: 0 });
   expect(capture.characters).toEqual([]);
   expect(capture.daily).toEqual([]);
   expect(capture.models).toEqual([]);

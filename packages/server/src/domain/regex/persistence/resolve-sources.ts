@@ -16,7 +16,7 @@ import type { CharacterId, UserId } from "@orb/kit/ids";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import type { RegexResolveContext } from "../contract/resolve.ts";
 import type { ScriptRecord } from "../contract/rows.ts";
-import { listChatScripts, listGlobalScripts, listPresetScripts, toRow } from "./queries.ts";
+import { listGlobalScripts, listHostChatScripts, listPresetScripts, toRow } from "./queries.ts";
 
 /** Every seated character's attached rows, PER SEAT, in ROSTER order (see the header). */
 async function characterSlices(ctx: RegexResolveContext, ownerId: UserId, characterIds: readonly CharacterId[]): Promise<CharacterRegexSlice[]> {
@@ -46,7 +46,7 @@ export function createResolveRegexSources(input: DbAssemblyInput<RegexResolveCon
       listGlobalScripts(ctx.db, ownerId),
       presetId === null ? Promise.resolve<ScriptRecord[]>([]) : listPresetScripts(ctx.db, ownerId, presetId),
       characterSlices(ctx, ownerId, characterIds),
-      listChatScripts(ctx.db, chatId),
+      listHostChatScripts(ctx.db, chatId, ownerId),
     ]);
     return {
       hostGlobal: hostGlobal.map(toRow),
