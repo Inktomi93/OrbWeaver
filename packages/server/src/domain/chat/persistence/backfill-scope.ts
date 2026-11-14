@@ -42,6 +42,10 @@ export async function loadBackfillChatIds(db: Db, ownerId?: UserId | null, impor
             .where(between(chatImportClaims.createdAt, importWindow.from, importWindow.to)),
         );
   const scope = ownerId === undefined || ownerId === null ? undefined : inArray(chats.id, hostedChatIds(ownerId));
-  const rows = await db.select({ id: chats.id }).from(chats).where(and(scope, narrowed));
+  // An every-owner sweep enumerates room rows, not seats, so it skips a room an import is still landing.
+  const rows = await db
+    .select({ id: chats.id })
+    .from(chats)
+    .where(and(scope, narrowed, isNull(chats.landingAt)));
   return rows.map(({ id }) => id);
 }
