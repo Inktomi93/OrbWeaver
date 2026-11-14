@@ -1,5 +1,6 @@
-// Who wrote a chat row and what sort of row it is: the participant-kind tuple (who drives a seat), the message-kind
-// tuple (a row's declared purpose) and the one mapping from a row's attribution stamps to the kind that wrote it.
+// Who wrote a chat row and what sort of row it is: the participant-kind tuple (who drives a seat), the participant
+// role tuple (a seated human's room authority), the message-kind tuple (a row's declared purpose), and the mappings
+// from a row's attribution stamps to the kind and the standing that wrote it.
 //
 // The tuples live in kit because the regex executor scopes a script by them and kit cannot import contracts; the zod
 // wire schemas and the per-kind policy stay in `@orb/contracts/chat`, which imports these tuples down. Pure.
@@ -9,6 +10,10 @@ import type { CharacterId, UserId } from "#ids";
 /** Who drives a seat. `human` is user-backed; `character` is AI-driven. */
 export const PARTICIPANT_KINDS = ["human", "character"] as const;
 export type ParticipantKind = (typeof PARTICIPANT_KINDS)[number];
+
+/** A seated human's room authority: the host, or a member. */
+export const PARTICIPANT_ROLES = ["host", "member"] as const;
+export type ParticipantRole = (typeof PARTICIPANT_ROLES)[number];
 
 /** What a canon row is, declared at mint. Kind never decides the row's role. */
 export const MESSAGE_KINDS = ["standard", "narrator", "comment"] as const;
@@ -30,4 +35,17 @@ export function participantOf(row: RowAttribution): ParticipantKind | null {
     return "human";
   }
   return row.characterId === null ? null : "character";
+}
+
+/** The room's present human seats and the authority each holds, read when a pass runs. */
+export interface RoomStanding {
+  readonly seatedRoles: ReadonlyMap<UserId, ParticipantRole>;
+}
+
+/**
+ * The room standing of a row's author, against the room as it is now: a host handoff makes the former host's rows a
+ * member's. Null for a row no seated human wrote: a character's row, and a row by a human who has left the room.
+ */
+export function standingOf(row: Pick<RowAttribution, "authorUserId">, room: RoomStanding): ParticipantRole | null {
+  return row.authorUserId === null ? null : (room.seatedRoles.get(row.authorUserId) ?? null);
 }

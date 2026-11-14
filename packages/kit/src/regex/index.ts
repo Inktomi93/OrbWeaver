@@ -1,8 +1,8 @@
 import type { CharacterId, PersonaId, UserId } from "#ids";
 import type { ProcessMacroOptions } from "#macro";
 import { processMacros } from "#macro";
-import type { MessageKind, ParticipantKind } from "#message-author";
-import { participantOf } from "#message-author";
+import type { MessageKind, ParticipantKind, ParticipantRole, RoomStanding } from "#message-author";
+import { participantOf, standingOf } from "#message-author";
 import type { MessageRole } from "#message-role";
 
 // Pure regex-script executor, usable from both client and server. The server wraps it in its own onScriptFailure
@@ -55,17 +55,25 @@ export interface RegexDepth {
   readonly max: number | null;
 }
 
-/** One member of an author scope, over a row's existing stamps: the participant kind that wrote it, the row's
- *  message kind, or one character, persona or user by id. */
+/** One member of an author scope, over a row's existing stamps: the participant kind that wrote it, its author's
+ *  room standing now (host or member), the row's message kind, or one character, persona or user by id. */
 export type RegexAuthorSelector =
   | { readonly by: "participant"; readonly participant: ParticipantKind }
+  | { readonly by: "standing"; readonly standing: ParticipantRole }
   | { readonly by: "kind"; readonly kind: MessageKind }
   | { readonly by: "character"; readonly characterId: CharacterId }
   | { readonly by: "persona"; readonly personaId: PersonaId }
   | { readonly by: "user"; readonly userId: UserId };
 
 /** The members of {@link RegexAuthorSelector}, one per `by`. */
-export const REGEX_AUTHOR_SELECTOR_KINDS = ["participant", "kind", "character", "persona", "user"] as const satisfies readonly RegexAuthorSelector["by"][];
+export const REGEX_AUTHOR_SELECTOR_KINDS = [
+  "participant",
+  "standing",
+  "kind",
+  "character",
+  "persona",
+  "user",
+] as const satisfies readonly RegexAuthorSelector["by"][];
 
 /** Which authors' rows an ephemeral pass applies to, beyond what the target already says. An empty `include` admits
  *  every author; `exclude` then removes its members. */
@@ -88,10 +96,12 @@ export function messageTargetOf(row: Pick<RegexRowStamps, "role">): Exclude<Rege
   return row.role === "user" ? "USER_INPUT" : "AI_OUTPUT";
 }
 
-function selectorMatches(selector: RegexAuthorSelector, row: RegexRowStamps): boolean {
+function selectorMatches(selector: RegexAuthorSelector, row: RegexRowStamps, room: RoomStanding): boolean {
   switch (selector.by) {
     case "participant":
       return participantOf(row) === selector.participant;
+    case "standing":
+      return standingOf(row, room) === selector.standing;
     case "kind":
       return row.kind === selector.kind;
     case "character":
@@ -109,14 +119,14 @@ function assertNeverSelector(selector: never): never {
   throw new Error(`unhandled regex author selector ${JSON.stringify(selector)}`);
 }
 
-/** Whether a script's author scope admits a row. An absent scope admits every author: that is its only reading, and
- *  every stored native script has none. */
-export function authorScopeAdmits(scope: RegexAuthorScope | undefined, row: RegexRowStamps): boolean {
+/** Whether a script's author scope admits a row, read against the room as it is now. An absent scope admits every
+ *  author: that is its only reading, and every stored native script has none. */
+export function authorScopeAdmits(scope: RegexAuthorScope | undefined, row: RegexRowStamps, room: RoomStanding): boolean {
   if (scope === undefined) {
     return true;
   }
-  const included = scope.include.length === 0 || scope.include.some((selector) => selectorMatches(selector, row));
-  return included && !scope.exclude.some((selector) => selectorMatches(selector, row));
+  const included = scope.include.length === 0 || scope.include.some((selector) => selectorMatches(selector, row, room));
+  return included && !scope.exclude.some((selector) => selectorMatches(selector, row, room));
 }
 
 /** Whether (and how) macros run on the FIND pattern before it is compiled: `none` = verbatim; `raw` =
@@ -370,7 +380,14 @@ function makeReplacer(script: RegexScriptInput, ctx: ProcessMacroOptions): Regex
 export type RegexPassCall =
   /** `edit` is true when the save is an edit of a stored row, where only a `runOnEdit` script runs. */
   | { readonly pass: "save"; readonly target: RegexTarget; readonly edit: boolean }
-  | { readonly pass: EphemeralRegexPass; readonly target: RegexRowTarget; readonly row: RegexRowStamps; readonly depth: number | undefined }
+  | {
+      readonly pass: EphemeralRegexPass;
+      readonly target: RegexRowTarget;
+      readonly row: RegexRowStamps;
+      /** The room's present seats, which a standing selector reads. */
+      readonly room: RoomStanding;
+      readonly depth: number | undefined;
+    }
   | { readonly pass: "prompt"; readonly target: "WORLD_INFO"; readonly depth: number | undefined };
 
 /** Arguments to {@link executeRegexScripts}. A single object (rather than positional args) keeps the
@@ -407,7 +424,7 @@ export function regexSkipReason(script: RegexScriptInput, call: RegexPassCall): 
   if (!withinDepth(script.depth, call.depth)) {
     return "out-of-depth";
   }
-  return "row" in call && !authorScopeAdmits(script.authors, call.row) ? "not-this-author" : null;
+  return "row" in call && !authorScopeAdmits(script.authors, call.row, call.room) ? "not-this-author" : null;
 }
 
 const PASS_TARGETS: { readonly [P in RegexPass]: readonly RegexTarget[] } = {

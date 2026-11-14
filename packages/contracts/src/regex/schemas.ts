@@ -31,7 +31,7 @@
 
 import type { CharacterId, ChatId, PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { MESSAGE_KINDS, PARTICIPANT_KINDS } from "@orb/kit/message-author";
+import { MESSAGE_KINDS, PARTICIPANT_KINDS, PARTICIPANT_ROLES } from "@orb/kit/message-author";
 import type { RegexAuthorScope, RegexAuthorSelector, RegexDepth, RegexPass, RegexTarget } from "@orb/kit/regex";
 import {
   EPHEMERAL_REGEX_PASSES,
@@ -79,6 +79,7 @@ const regexDepthSchema = z
 
 const regexAuthorSelectorSchema = z.discriminatedUnion("by", [
   z.strictObject({ by: z.literal("participant"), participant: z.enum(PARTICIPANT_KINDS) }),
+  z.strictObject({ by: z.literal("standing"), standing: z.enum(PARTICIPANT_ROLES) }),
   z.strictObject({ by: z.literal("kind"), kind: z.enum(MESSAGE_KINDS) }),
   z.strictObject({ by: z.literal("character"), characterId: typeIdSchema(ID_PREFIX.character) }),
   z.strictObject({ by: z.literal("persona"), personaId: typeIdSchema(ID_PREFIX.persona) }),
