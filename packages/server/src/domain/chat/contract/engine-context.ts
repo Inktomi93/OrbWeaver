@@ -1,5 +1,4 @@
 // The engine's actual capabilities: frozen turn inputs and execution, never request authorization.
-import type { GlobalVariableDropReason } from "@orb/contracts/automation";
 import type { DurableChatBusEvent, PromptTransformPoint, PromptTransformResult, ProviderWaitBusEvent, ToolCallRecord } from "@orb/contracts/chat";
 import type { ChatMembership } from "@orb/contracts/identity";
 import type { AttachmentQuality } from "@orb/contracts/inference";
@@ -98,13 +97,13 @@ export type ResolveImageUrlOp = (params: {
 type StoreInlineReplyImageOp = (ownerId: UserId, image: GeneratedImage) => Promise<{ readonly assetId: AssetId } | null>;
 
 /** D337 — automation's upserts for one turn's global writes, unexecuted, for the reply's commit batch; the writes the
- *  caps refuse come back as `dropped` instead. Last write per key wins. */
+ *  caps refuse are only counted, for the warning. Last write per key wins. */
 export type GlobalVariableWriteStatementsOp = (
   ownerId: UserId,
   writes: readonly { readonly key: string; readonly value: string }[],
 ) => Promise<{
   readonly statements: readonly StatementToken[];
-  readonly dropped: readonly { readonly key: string; readonly reason: GlobalVariableDropReason }[];
+  readonly droppedCount: number;
 }>;
 
 export interface EngineContext extends Pick<ChatAccountingContext, "db" | "now" | "applyStatsDelta" | "resolveRetainedChatAccountingScope"> {

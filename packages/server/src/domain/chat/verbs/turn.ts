@@ -98,7 +98,7 @@ import {
   insertMessageAssetStatements,
   isRetainedParentFenceViolation,
 } from "../persistence/canon-write.ts";
-import { loadChatIdentityProducer } from "../persistence/identity.ts";
+import { loadChatIdentityProducer, loadPersonaOwnerId } from "../persistence/identity.ts";
 import { claimPendingTurn, insertPendingTurn, loadPendingTurns, loadPendingTurnsForHost, loadPendingTurnsForReclaim } from "../persistence/invites.ts";
 import { loadTailIsUserMessage } from "../persistence/message-window.ts";
 import { classifyParticipant, isArbiterEligible } from "../persistence/participant.ts";
@@ -815,7 +815,7 @@ async function buildTurnContext(
   // The gather sink: the caller's SEND sink when present (so `sendUserText` still surfaces), else a private
   // one — either way `gatherMemory` stages `memoryRecall` here for the engine's per-speaker witnessed re-run.
   const sink: SendRegexSink = out ?? {};
-  const globalVariables = await stageTurnGlobalVariables(ctx, args.runAsUserId, args.presentHumanUserIds);
+  const globalVariables = await stageTurnGlobalVariables(ctx, args);
   const assembleContext = await gatherAssembleContext(
     ctx,
     {
@@ -870,11 +870,18 @@ async function buildTurnContext(
 }
 
 /** The turn's global plane (D46) is the host's, the human whose preset and library assemble the turn. It stages only
- *  while the host is the room's only present human: a member's persona text renders with full macro power inside
- *  the host's turn and the macro engine records no macro's author, so with anyone else present a member could write
- *  the host's plane or read it into the reply. Held, reads give "" and writes are dropped, and the commit warns. */
-async function stageTurnGlobalVariables(ctx: ChatContext, runAsUserId: UserId, presentHumanUserIds: readonly UserId[]): Promise<TurnGlobalVariables> {
-  if (presentHumanUserIds.every((userId) => userId === runAsUserId)) {
+ *  when no text source in the prompt belongs to another account: every macro renders with full power inside the host's
+ *  turn and the macro engine records no macro's author, so another account's text could write the host's plane or read
+ *  it into the reply. Two sources can: a present member's seat persona and its books, and the room's pin, which holds
+ *  after its owner leaves (D315) and rides a fork. Cards, chat books, presets, injections and regex resolve under the
+ *  host. Held, reads give "" and writes are dropped, and the commit warns. */
+async function stageTurnGlobalVariables(
+  ctx: ChatContext,
+  args: { readonly runAsUserId: UserId; readonly presentHumanUserIds: readonly UserId[]; readonly anchorPersonaId: PersonaId | null },
+): Promise<TurnGlobalVariables> {
+  const { runAsUserId, presentHumanUserIds, anchorPersonaId } = args;
+  const pinIsHosts = anchorPersonaId === null || (await loadPersonaOwnerId(ctx.db, anchorPersonaId)) === runAsUserId;
+  if (pinIsHosts && presentHumanUserIds.every((userId) => userId === runAsUserId)) {
     return { mode: "staged", values: await ctx.loadGlobalVariables(runAsUserId), writes: [], heldReads: [] };
   }
   return { mode: "held", values: {}, writes: [], heldReads: [] };

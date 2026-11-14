@@ -673,7 +673,7 @@ async function commitGeneration(args: {
     if (globals?.mode === "staged" && globals.writes.length > 0) {
       const planned = await ctx.globalVariableWriteStatements(prep.runAsUserId, globals.writes);
       statements.push(...planned.statements.map(statementForOwner));
-      droppedGlobalWrites = planned.dropped.length;
+      droppedGlobalWrites = planned.droppedCount;
     }
 
     // THE WRITE FENCE — the LAST thing before the batch, and re-run on the seq-retry. Everything

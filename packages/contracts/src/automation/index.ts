@@ -174,10 +174,6 @@ export const GLOBAL_VARIABLE_VALUE_MAX_BYTES = 65_536; // 64 KiB
 export const GLOBAL_VARIABLE_TURN_WRITES_MAX = 16;
 /** A chat turn's `{{setglobalvar}}` creates no new key once its owner holds this many; it may still update a held key. */
 export const GLOBAL_VARIABLE_MACRO_KEYS_MAX = 256;
-/** Why a chat turn's `{{setglobalvar}}` write was not stored: a key or value the plane refuses, a key past
- *  {@link GLOBAL_VARIABLE_TURN_WRITES_MAX}, or a new key past {@link GLOBAL_VARIABLE_MACRO_KEYS_MAX}. */
-export const GLOBAL_VARIABLE_DROP_REASONS = ["invalid", "turn_cap", "owner_cap"] as const;
-export type GlobalVariableDropReason = (typeof GLOBAL_VARIABLE_DROP_REASONS)[number];
 /** The owner's per-user global plane as one chat turn's macro read cache; automation owns the table. */
 export type LoadGlobalVariablesOp = (ownerId: UserId) => Promise<Record<string, string>>;
 
