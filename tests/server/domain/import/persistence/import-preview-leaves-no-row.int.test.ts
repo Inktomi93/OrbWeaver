@@ -1,20 +1,17 @@
 // A dry run made for the preview is a transient row: its owner reads it by id while the review is open, no list ever
-// shows it, and once it has finished it is deleted when the owner's next dry run ends or the box boots. A dry run that
-// has not finished is never deleted; it ends through its own verbs.
+// shows it, and once it has finished it is deleted when the owner's next dry run ends (the boot sweep is in
+// `import-staging-lifetime.int.test.ts`). A dry run that has not finished is never deleted; it ends through its own verbs.
 // @subject packages/server/src/domain/workloads/engine/runner.ts
 // @subject packages/server/src/domain/workloads/persistence/queries.ts
-// @subject packages/server/src/domain/workloads/engine/boot-reclaim.ts
 // @subject packages/server/src/domain/import/workload-contributions.ts
 
 import type { PersonaCollisionChoices } from "@orb/contracts/import";
 import { ST_SETTINGS_FILE, TREE_DRY_RUN_VALUE } from "@orb/contracts/import";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { WorkloadId } from "@orb/kit/ids";
-import { reclaimLocksOnBoot } from "@orb/server/entry/boot";
 import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { bootGrantFor } from "@orb/testkit/node/helpers";
 import { sql } from "drizzle-orm";
 import type { Files } from "./_st-tree-door.ts";
 import { admit, cardPng, finish, finishRun, harness, post, settings } from "./_st-tree-door.ts";
@@ -53,17 +50,6 @@ async function listedIds(root: ServerTestHarness): Promise<ReadonlySet<WorkloadI
     (await root.internalCallerFor(root.ownerId)).workloads.list(),
   ]);
   return new Set(reads.flat().map((row) => row.id));
-}
-
-async function reboot(root: ServerTestHarness): Promise<void> {
-  await reclaimLocksOnBoot({
-    logger: root.logger,
-    db: bootGrantFor(root.db),
-    contributions: root.app.workloadContributions,
-    now: root.clock.now,
-    holder: "import-preview-leaves-no-row",
-    emitWorkloadEvent: root.app.workloadEvents.emitWorkloadEvent,
-  });
 }
 
 test("a review's dry runs across several answer changes leave only the last one's row, which its id reads and no list shows", async () => {
@@ -126,16 +112,4 @@ test("a finished dry run stays readable and cancellable while the next one has n
 
   await expect(root.services.workloads.get({ caller, id: earlier })).rejects.toThrow(DomainNotFoundError);
   await expect(root.services.workloads.get({ caller, id: next })).resolves.toMatchObject({ status: "succeeded" });
-});
-
-test("a boot deletes a finished dry run and keeps a queued one", async () => {
-  await using root = await harness();
-  const caller = await root.principalFor(root.ownerId);
-  const finished = await dryRunId(root, folder(root));
-  const queued = await admit(root, PERSONA_FILES, [TREE_DRY_RUN_VALUE]);
-
-  await reboot(root);
-
-  await expect(root.services.workloads.get({ caller, id: finished })).rejects.toThrow(DomainNotFoundError);
-  await expect(root.services.workloads.get({ caller, id: queued })).resolves.toMatchObject({ status: "queued" });
 });

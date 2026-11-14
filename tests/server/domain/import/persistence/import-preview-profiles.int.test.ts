@@ -365,7 +365,7 @@ test("a group whose member card only another profile keeps is refused, and a gro
   expect(shown.skipped.items.filter(({ source }) => source.path === "groups/crew.json").map(({ source }) => source.profile)).toEqual([BOB]);
   const seated = await seatedByRoom(root);
   expect([...seated.values()]).toEqual([["lone card"]]);
-  expect([...seated.keys()].every((title) => title.startsWith(`${ALICE} crew`))).toBe(true);
+  expect(nonEmpty([...seated.keys()]).every((title) => title.startsWith(`${ALICE} crew`))).toBe(true);
 });
 
 test("two profile directories whose names share their first characters stay two profiles in the preview", async () => {

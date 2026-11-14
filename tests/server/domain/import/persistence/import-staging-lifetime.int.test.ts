@@ -1,5 +1,6 @@
 // How long a staged upload lives: a row owns it from the 202, every way out of the queue frees it, and a boot frees
-// what a dead process left while leaving a queued run's tree and everything it did not stage alone.
+// what a dead process left while leaving a queued run's tree and everything it did not stage alone. A boot also
+// deletes a finished preview dry run's row, which is transient, and keeps a queued one.
 // @subject packages/server/src/domain/import/workload-contributions.ts
 // @subject packages/server/src/domain/workloads/verbs/cancel.ts
 // @subject packages/server/src/domain/workloads/engine/boot-reclaim.ts
@@ -238,4 +239,18 @@ test("a boot follows no link under the staging root", async () => {
 test("a boot on a box that never staged anything passes", async () => {
   await using root = await harness();
   await expect(reboot(root)).resolves.toBeUndefined();
+});
+
+// A preview's dry run is a transient row: once it has finished, a boot deletes it; one that has not finished stays.
+test("a boot deletes a finished dry run and keeps a queued one", async () => {
+  await using root = await harness();
+  const caller = await root.principalFor(root.ownerId);
+  const finished = await admit(root, folder(root), [TREE_DRY_RUN_VALUE]);
+  await finish(root, finished);
+  const queued = await admit(root, { [ST_SETTINGS_FILE]: settings({ "bob.png": "Bob" }) }, [TREE_DRY_RUN_VALUE]);
+
+  await reboot(root);
+
+  await expect(root.services.workloads.get({ caller, id: finished })).rejects.toThrow(DomainNotFoundError);
+  await expect(root.services.workloads.get({ caller, id: queued })).resolves.toMatchObject({ status: "queued" });
 });

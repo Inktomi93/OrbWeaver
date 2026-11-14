@@ -124,8 +124,9 @@ test("an owned art-less card takes the art of the first same-text PNG only, so t
   await importThroughDialog(root, "aria.json", cardJson("Aria"));
   const files = {
     [ST_SETTINGS_FILE]: settings({}),
-    "characters/Aria.png": cardPng(root, "Aria"),
-    "characters/Aria other.png": cardPngUnderOtherArt(root, "Aria"),
+    // The collector reads a folder's cards in name order, so `first.png` is the one the owned row takes art from.
+    "characters/first.png": cardPng(root, "Aria"),
+    "characters/second.png": cardPngUnderOtherArt(root, "Aria"),
   };
   const ariaCount = async (): Promise<number> =>
     (await (await root.internalCallerFor(root.ownerId)).character.list({})).items.filter((item) => item.name === "Aria").length;
@@ -133,8 +134,8 @@ test("an owned art-less card takes the art of the first same-text PNG only, so t
   const preview = await dryRun(root, files);
 
   expect(preview.kinds.characters.items.map((item) => ({ source: item.source.path, inLibrary: item.inLibrary }))).toEqual([
-    { source: "Aria.png", inLibrary: true },
-    { source: "Aria other.png", inLibrary: undefined },
+    { source: "first.png", inLibrary: true },
+    { source: "second.png", inLibrary: undefined },
   ]);
   expect(preview.kinds.characters.counts).toMatchObject({ inLibrary: 1, writes: 1 });
 

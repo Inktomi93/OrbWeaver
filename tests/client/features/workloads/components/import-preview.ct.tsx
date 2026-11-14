@@ -17,8 +17,12 @@ import { createPersonaSchema } from "@orb/contracts/persona";
 import { exportCharacterPath, PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { StreamFrame } from "@orb/contracts/stream";
-import { actionGroupGeometry, resolvedLength } from "@orb/testkit/browser/spec";
-import { routeAuthConfig, routeOrbSocket, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import type { WorkloadRowAnyKind } from "@orb/contracts/workloads";
+import { DomainNotFoundError } from "@orb/kit/errors";
+import type { WorkloadId } from "@orb/kit/ids";
+import { actionGroupGeometry, resolvedLength, watchToastMounts } from "@orb/testkit/browser/spec";
+import type { ServedHold } from "@orb/testkit/ct";
+import { holdServed, routeAuthConfig, routeOrbSocket, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS, nonEmpty, present } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -27,6 +31,7 @@ import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page, Request } from "@playwright/test";
 import {
   COLLISION_KEEP_BOTH_TITLE,
+  COLLISION_MERGE_TITLE,
   IMPORT_FOLDER_NAME,
   IMPORT_LEFT_ON_DISK_PHRASE,
   IMPORT_PREVIEW_FAILURE,
@@ -103,6 +108,37 @@ async function stageFolder(root: ServerTestHarness, folder: string): Promise<voi
   );
 }
 
+const HTTP_ACCEPTED = 202;
+
+// A dry run is never listed (it is a transient row), so the run ids are taken off the tree route's own answers.
+const ADMITTED = new WeakMap<ServerTestHarness, WorkloadId[]>();
+
+function admittedOf(root: ServerTestHarness): WorkloadId[] {
+  const ids = ADMITTED.get(root) ?? [];
+  ADMITTED.set(root, ids);
+  return ids;
+}
+
+/** The dry runs the page started that the server still holds, newest first; a finished one goes when the next one ends. */
+async function dryRuns(root: ServerTestHarness): Promise<readonly WorkloadRowAnyKind[]> {
+  const caller = await root.principalFor(root.ownerId);
+  const rows = await Promise.all(
+    admittedOf(root).map((id) =>
+      root.services.workloads.get({ caller, id }).catch((error: unknown) => {
+        if (error instanceof DomainNotFoundError) {
+          return null;
+        }
+        throw error;
+      }),
+    ),
+  );
+  return rows.filter((row) => row !== null).toReversed();
+}
+
+async function dryRunPreviews(root: ServerTestHarness): Promise<readonly ImportPreview[]> {
+  return (await dryRuns(root)).flatMap((run) => asImportPreview(run.result) ?? []);
+}
+
 // WebKit applies CORS after URL rewriting; the adapter preserves native multipart bytes across the gallery/root origins.
 async function routeNativeImport(page: Page, root: ServerTestHarness, baseURL: string | undefined, refuseUploads = 0): Promise<AsyncDisposable> {
   let refused = 0;
@@ -126,6 +162,9 @@ async function routeNativeImport(page: Page, root: ServerTestHarness, baseURL: s
         return new Response('{"error":"the import queue failed"}', { status: 500, statusText: "Internal Server Error", headers: cors });
       }
       const response = await root.http.request(request);
+      if (request.method === "POST" && new URL(request.url).pathname === PORTABILITY_ROUTES.importTree && response.status === HTTP_ACCEPTED) {
+        admittedOf(root).push(importStartedSchema.parse(await response.clone().json()).workloadId);
+      }
       const headers = new Headers(response.headers);
       for (const [name, value] of Object.entries(cors)) {
         headers.set(name, value);
@@ -141,13 +180,12 @@ async function routeNativeImport(page: Page, root: ServerTestHarness, baseURL: s
 
 /** Every connection ends in EOF, so the page's room re-derives the run through `workloads.get` (the tracker's gap
  *  heal): the stub serves whole bodies, so a live terminal frame cannot follow the attach. Each connection runs
- *  whatever dry run has been admitted since the last one. */
-function dryRunSocket(root: ServerTestHarness): Parameters<typeof routeOrbSocket>[1] {
+ *  whatever dry run has been admitted since the last one, while `running()` holds. */
+function dryRunSocket(root: ServerTestHarness, running: () => boolean = () => true): Parameters<typeof routeOrbSocket>[1] {
   return {
     dropConnectionCount: Number.MAX_SAFE_INTEGER,
     frames: async (signal): Promise<readonly StreamFrame[]> => {
-      const caller = await root.internalCallerFor(root.ownerId);
-      for (const row of await caller.workloads.list({ kind: "import-st" })) {
+      for (const row of running() ? await dryRuns(root) : []) {
         if (row.status === "queued") {
           await root.runAdmittedWorkload?.(row.id, signal);
         }
@@ -197,7 +235,7 @@ for (const { name, width, appearance } of WIDTHS) {
 
     // The summary's lines, read against the dry run's own result: one count line per populated kind, the skip total
     // after them, the colliding persona's note, and every skip reason.
-    const [preview] = nonEmpty((await caller.workloads.list({ kind: "import-st" })).flatMap((run) => asImportPreview(run.result) ?? []));
+    const [preview] = nonEmpty(await dryRunPreviews(root));
     const populated = IMPORT_PREVIEW_KINDS.filter((kind) => preview.kinds[kind].total > 0);
     expect(preview.skipped.total).toBeGreaterThan(0);
     expectNoteItemsStaged(preview);
@@ -239,13 +277,13 @@ test("cancelling while the folder is being read stops the dry run", async ({ mou
   const chooserPromise = page.waitForEvent("filechooser");
   await page.getByRole("button", { name: IMPORT_FOLDER_NAME, exact: true }).click();
   await (await chooserPromise).setFiles(folder);
-  await expect.poll(async () => (await caller.workloads.list({ kind: "import-st" })).map((row) => row.status)).toEqual(["queued"]);
+  await expect.poll(async () => (await dryRuns(root)).map((row) => row.status)).toEqual(["queued"]);
 
   const preflight = page.getByRole("group", { name: /^Import \d+ files? from the folder you picked\?$/u });
   await preflight.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
 
   await expect(preflight).toHaveCount(0);
-  await expect.poll(async () => (await caller.workloads.list({ kind: "import-st" })).map((row) => row.status)).toEqual(["cancelled"]);
+  await expect.poll(async () => (await dryRuns(root)).map((row) => row.status)).toEqual(["cancelled"]);
 });
 
 const PREFLIGHT = /^Import \d+ files? from the folder you picked\?$/u;
@@ -509,7 +547,7 @@ test("a folder's persona the library already holds is counted as already there, 
   await expect(report).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
 
   // The control: the wire carries the ownership the line reads, for a kind that is not a character.
-  const [preview] = nonEmpty((await caller.workloads.list({ kind: "import-st" })).flatMap((run) => asImportPreview(run.result) ?? []));
+  const [preview] = nonEmpty(await dryRunPreviews(root));
   expect(preview.kinds.personas.items.filter((item) => item.inLibrary === true)).toHaveLength(1);
   expectNoteItemsStaged(preview);
   const lines = (await report.locator(":scope > *").allTextContents()).filter((text) => /^\d/u.test(text));
@@ -584,14 +622,14 @@ test("the folder's skip reasons and left-out files read at least as large as the
   await writeFile(join(folder, ST_SECRETS_FILE), "{}");
   await root.settleBackground();
   await using _native = await routeNativeImport(page, root, baseURL);
-  const caller = await openImport(page, root);
+  await openImport(page, root);
   await mount<typeof ImportPreviewStory>(STORY, { width: WIDTHS[0].width, appearance: WIDTHS[0].appearance });
 
   await pickFolder(page, folder);
   const preflight = page.getByRole("group", { name: PREFLIGHT });
   const report = preflight.getByRole("group", { name: IMPORT_PREVIEW_REPORT_NAME, exact: true });
   await expect(report).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
-  const [preview] = nonEmpty((await caller.workloads.list({ kind: "import-st" })).flatMap((run) => asImportPreview(run.result) ?? []));
+  const [preview] = nonEmpty(await dryRunPreviews(root));
   const [skip] = nonEmpty(preview.skipped.items);
 
   const fontSize = (text: Locator): Promise<number> => text.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
@@ -650,7 +688,7 @@ test("a folder of two profiles lists both cards under their own profile, and a r
   await stageProfiles(root, folder, "own");
   await root.settleBackground();
   await using _native = await routeNativeImport(page, root, baseURL);
-  const caller = await openImport(page, root);
+  await openImport(page, root);
   await mount<typeof ImportPreviewStory>(STORY, { width: WIDTHS[0].width, appearance: WIDTHS[0].appearance });
 
   await pickFolder(page, folder);
@@ -659,7 +697,7 @@ test("a folder of two profiles lists both cards under their own profile, and a r
   await report.getByRole("button", { name: IMPORT_PREVIEW_SHOW_NAMES }).click();
 
   // The control: the server's own preview holds both cards, each under a profile, and the unreadable one under bob only.
-  const [preview] = nonEmpty((await caller.workloads.list({ kind: "import-st" })).flatMap((run) => asImportPreview(run.result) ?? []));
+  const [preview] = nonEmpty(await dryRunPreviews(root));
   expect(preview.kinds.characters.items.map(({ source }) => source.profile).toSorted((a, b) => a.localeCompare(b))).toEqual([ALICE, BOB]);
   expect(preview.skipped.items.filter(({ source }) => source.path === "broken.png").map(({ source }) => source.profile)).toEqual([BOB]);
 
@@ -678,14 +716,14 @@ test("a folder of two profiles that hold the same card says the second one adds 
   await stageProfiles(root, folder, "same");
   await root.settleBackground();
   await using _native = await routeNativeImport(page, root, baseURL);
-  const caller = await openImport(page, root);
+  await openImport(page, root);
   await mount<typeof ImportPreviewStory>(STORY, { width: WIDTHS[0].width, appearance: WIDTHS[0].appearance });
 
   await pickFolder(page, folder);
   const report = page.getByRole("group", { name: PREFLIGHT }).getByRole("group", { name: IMPORT_PREVIEW_REPORT_NAME, exact: true });
   await expect(report).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
 
-  const [preview] = nonEmpty((await caller.workloads.list({ kind: "import-st" })).flatMap((run) => asImportPreview(run.result) ?? []));
+  const [preview] = nonEmpty(await dryRunPreviews(root));
   // The control: the server's preview lists the card under both profiles and marks the second as the first's repeat.
   const verdicts = preview.kinds.characters.items.map(({ source, repeat }) => [source.profile, repeat === true] as const);
   expect(verdicts.toSorted(([a], [b]) => a.localeCompare(b))).toEqual([
@@ -698,3 +736,96 @@ test("a folder of two profiles that hold the same card says the second one adds 
   const repeats = verdicts.filter(([, repeat]) => repeat).length;
   await expect(report).toContainText(`${counted(preview.kinds.characters.total, KIND_NOUNS.characters)}, ${String(repeats)} `);
 });
+
+interface Gate {
+  open: boolean;
+  heldRun: WorkloadId | null;
+  readonly read: ServedHold;
+  readonly cancel: ServedHold;
+}
+
+/** The page's side of a pick whose dry runs run only while `gate.open`, and whose read and cancel of `gate.heldRun`
+ *  wait for the test: the server can finish a dry run the page has not yet read, and the page's cancel of it can land
+ *  after the next dry run has started. */
+async function openGatedImport(page: Page, root: ServerTestHarness, gate: Gate): Promise<Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>> {
+  const caller = await root.internalCallerFor(root.ownerId);
+  const auth = await root.http.request("/api/auth/config");
+  await routeAuthConfig(page, await auth.text());
+  await routeTrpc(page, {
+    ...serveCorpusProcedures(caller, ["settings.getUserSettings", "sessions.me", "workloads.list"]),
+    ...serveCorpusProcedures(caller, ["workloads.get"], (input) => (input.id === gate.heldRun ? gate.read : undefined)),
+    ...serveCorpusProcedures(caller, ["workloads.cancel"], (input) => (input.id === gate.heldRun ? gate.cancel : undefined)),
+    "stream.attach": ({ ref }) => (ref.channel === "user" || ref.channel === "workloads" ? null : trpcError({ code: "NOT_FOUND" })),
+    "stream.detach": ({ ref }) => (ref.channel === "user" || ref.channel === "workloads" ? null : trpcError({ code: "NOT_FOUND" })),
+  });
+  await routeOrbSocket(
+    page,
+    dryRunSocket(root, () => gate.open),
+  );
+  return caller;
+}
+
+/** The persona dry run the page last started, once the server holds it queued. */
+async function queuedRejudge(root: ServerTestHarness, before: number): Promise<WorkloadId> {
+  await expect.poll(() => admittedOf(root).length).toBeGreaterThan(before);
+  const id = present(admittedOf(root).at(-1));
+  const caller = await root.principalFor(root.ownerId);
+  await expect.poll(async () => (await root.services.workloads.get({ caller, id })).status).toBe("queued");
+  return id;
+}
+
+for (const moment of ["while it runs", "right after it succeeds"] as const) {
+  test(`an answer changed again ${moment} shows the preview under the last answer, with no toast and no job left in the list`, async ({
+    mount,
+    page,
+    baseURL,
+  }, testInfo) => {
+    await using root = await createServerHarness(ROOT_OPTIONS);
+    const folder = testInfo.outputPath("profile");
+    await stageFolder(root, folder);
+    await root.settleBackground();
+    await using _native = await routeNativeImport(page, root, baseURL);
+    const gate: Gate = { open: true, heldRun: null, read: holdServed(), cancel: holdServed() };
+    const caller = await openGatedImport(page, root, gate);
+    const toastMounts = await watchToastMounts(page);
+    await mount<typeof ImportPreviewStory>(STORY, { width: WIDTHS[0].width, appearance: WIDTHS[0].appearance });
+
+    await pickFolder(page, folder);
+    const preflight = page.getByRole("group", { name: PREFLIGHT });
+    const report = preflight.getByRole("group", { name: IMPORT_PREVIEW_REPORT_NAME, exact: true });
+    await expect(report).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
+    const personaLine = report.getByText(counted(2, KIND_NOUNS.personas), { exact: false });
+    const read = async (): Promise<readonly number[]> => numbersIn((await personaLine.textContent()) ?? "").slice(0, 2);
+    const merged = await read();
+
+    gate.open = false;
+    const before = admittedOf(root).length;
+    await preflight.getByRole("radio", { name: COLLISION_KEEP_BOTH_TITLE, exact: false }).click();
+    const superseded = await queuedRejudge(root, before);
+    const afterSuccess = moment === "right after it succeeds";
+    if (afterSuccess) {
+      // The server finishes the run, and the page's read of it waits: the reader answers again before it lands.
+      gate.heldRun = superseded;
+      await root.runAdmittedWorkload?.(superseded, AbortSignal.timeout(WORKLOAD_DEADLINE_MS));
+    }
+    await preflight.getByRole("radio", { name: COLLISION_MERGE_TITLE, exact: false }).click();
+    // The slot may still be held by the run just cancelled, so the new upload can be refused and retried first.
+    await expect.poll(() => admittedOf(root).length, { timeout: WORKLOAD_DEADLINE_MS }).toBeGreaterThan(before + 1);
+    if (afterSuccess) {
+      // The finished run's cancel reaches the server only now, after the next run has started; the page has its
+      // answer, and so any toast it raises, before the report below can show.
+      await gate.cancel.requested;
+      const answered = page.waitForResponse((response) => response.url().includes("workloads.cancel"));
+      gate.cancel.release();
+      await answered;
+    }
+    gate.open = true;
+
+    await expect(report).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
+    expect(await read()).toEqual(merged);
+    gate.read.release();
+    expect(await toastMounts()).toBe(0);
+    await expect(preflight.getByRole("status")).toHaveCount(0);
+    expect(await caller.workloads.list({ kind: "import-st" })).toEqual([]);
+  });
+}
