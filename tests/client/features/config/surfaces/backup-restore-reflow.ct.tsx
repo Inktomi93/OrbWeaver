@@ -44,7 +44,10 @@ for (const scale of PLATFORM_TEXT_SCALES.slice(1)) {
         }
         return false;
       };
-      const spills = (element: Element): boolean => element.scrollWidth > element.clientWidth + tolerance && getComputedStyle(element).overflowX === "visible";
+      const spills = (element: Element): boolean =>
+        getComputedStyle(element).overflowX === "visible" &&
+        element.scrollWidth > element.clientWidth + tolerance &&
+        element.getBoundingClientRect().right + (element.scrollWidth - element.clientWidth) > edge + tolerance;
       const widens = (element: Element): boolean => !clipped(element) && ((past(element) && ![...element.children].some(past)) || spills(element));
       // Only the deepest offender is named: every ancestor of a spilling leaf spills with it.
       const wideners = [...scroller.querySelectorAll("*")]
