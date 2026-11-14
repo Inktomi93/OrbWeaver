@@ -7,7 +7,6 @@ import { spawn } from "node:child_process";
 import { PLUGIN_LORE_ENTRIES_PER_BOOK_MAX, PluginSuggestedError } from "@orb/contracts/plugin";
 import type { WorldBookId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
-import { neutralizeMacros } from "@orb/kit/macro";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot, GuestRun } from "@orb/testkit/node/composed";
 import {
@@ -22,6 +21,7 @@ import {
 } from "@orb/testkit/node/composed";
 import { z } from "zod";
 import { bridgeRequest, createPluginProcessEdge, hasOperation } from "../../../infra/plugin-host/process-runtime.fixtures.ts";
+import { wireOf, wireText } from "../../chat/scenario-physical.ts";
 
 const LORE_OPS = {
   lore: "(h, room, a) => h.worldInfo.upsertEntry(room, a.entry)",
@@ -31,6 +31,8 @@ const LORE_OPS = {
 } as const;
 const VARIABLE = "tension";
 const LIVE_TEMPLATE = `{{setvar::${VARIABLE}::99}}The tension rises.`;
+// A run of three braces: the neutralizer must leave no opener inside it.
+const RUN_TEMPLATE = `{{{setvar::${VARIABLE}::77}}}The tension {{{char}}} holds.`;
 const ASK_WAIT_MS = 20_000;
 const WRITTEN = "written";
 // Each burst stays under the membrane's concurrent host-call cap, and two of them overrun the room left in the book.
@@ -81,6 +83,11 @@ function burstOutcomes(burst: unknown): readonly string[] {
   return z.object({ ok: z.literal(true), value: z.array(z.string()) }).parse(burst).value;
 }
 
+/** The text's words, with braces and invisible separators folded to single spaces: an evaluated macro loses its name. */
+function words(text: string): string {
+  return text.replace(/[^\p{L}\p{N}:]+/gu, " ").trim();
+}
+
 async function runtimeVariables(h: ChatRoot): Promise<Record<string, string>> {
   return await h.root.services.chat.getRuntimeVariables({ principal: h.owner, chatId: h.chatId });
 }
@@ -94,14 +101,17 @@ test("a guest lore write is stored macro-inert, so the turn that renders it chan
     input: { title: "control", keys: ["mood"], content: "{{setvar::control::1}}The room is calm." },
   });
   const run = await room.guest("lore-writer");
-  expect(neutralizeMacros(LIVE_TEMPLATE)).not.toBe(LIVE_TEMPLATE);
 
   expect(await run("lore", { entry: entryOf(room.attached, "mood", LIVE_TEMPLATE) })).toEqual({ ok: true, value: null });
-  await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "The mood shifts." });
+  expect(await run("lore", { entry: entryOf(room.attached, "mood-run", RUN_TEMPLATE) })).toEqual({ ok: true, value: null });
+  const { newest } = await wireOf(h, () => h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "The mood shifts." }));
   await h.root.settleBackground();
 
   expect(await runtimeVariables(h)).toEqual({ control: "1" });
-  expect((await entriesOf(h, room.attached)).map(({ content }) => content)).toContain(neutralizeMacros(LIVE_TEMPLATE));
+  const wire = words(wireText(newest));
+  expect(wire).toContain("The room is calm");
+  expect(wire).toContain(words(LIVE_TEMPLATE));
+  expect(wire).toContain(words(RUN_TEMPLATE));
 });
 
 test("a guest lore write reaches only a book attached to the invoking room", { tags: ["slow"] }, async () => {
