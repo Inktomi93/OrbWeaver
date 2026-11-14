@@ -19,7 +19,7 @@
 // therefore joins `characters` on `toOwnerId` and a foreign or absent id is dropped BEFORE any mint — the
 // local belt an injected op's signature owes its next call site, exactly as the `duplicate-carry` twin
 // and the six handoff seams took it. The one production caller derives the ids under `toOwnerId`
-// (`chat/substrate/handoff-copy.ts` mints them via `copyHandoffCards`), so this closes a latent class, not
+// (`chat/verbs/participants.ts` mints them via `copyHandoffCards`), so this closes a latent class, not
 // a live bug. The ROOM half needs no destination gate: `chat_books` is keyed by the room and stays
 // chat-id-only ON PURPOSE (the room-public chat-book posture — a per-arm owner authority).
 

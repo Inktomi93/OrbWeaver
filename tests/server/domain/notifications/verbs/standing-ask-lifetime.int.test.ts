@@ -1,6 +1,6 @@
 // @subject packages/server/src/domain/notifications/verbs/standing.ts
 // @subject packages/server/src/domain/notifications/persistence/queries.ts
-// @subject packages/server/src/domain/plugin/substrate/consent-prompt.ts
+// @subject packages/server/src/domain/plugin/consent/consent-prompt.ts
 // @subject tests/support/node/factories/plugin.ts
 // The ZIP timezone case spawns two real Node processes, one per TZ, each loading the composed testkit door; that wall time is intrinsic: slow tag.
 

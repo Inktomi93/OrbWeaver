@@ -11,7 +11,7 @@
 // THE SPACE THIS FILE ANSWERS WITH IS ALWAYS THE LIVE ONE, and that is the write side's correct answer:
 // a new vector can only be produced by the embedder the binding resolves to right now. The LAST COMPLETE
 // space (§10-5, `embed_space_state`) is the READ side's question and is folded in `domain/search`
-// (`substrate/space.ts`) — embeddings is that table's WRITER (each sweep's terminal records its scope's
+// (`persistence/space.ts`) — embeddings is that table's WRITER (each sweep's terminal records its scope's
 // completion), search is its reader, and the fold itself lives once in `@orb/contracts/embeddings`.
 //
 // `null` from {@link requireTaskModel} means the owner has no binding for the task (`no-connection`): a

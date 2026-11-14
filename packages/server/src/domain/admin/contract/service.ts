@@ -120,7 +120,7 @@ export interface AdminContext {
    * (the session revoke) rejected the endpoint with the privileged write already committed.
    *
    * ORDER IS THE CONTRACT (`changes()` is connection-local): never hand-assemble the batch — build it with
-   * `substrate/audited-write.ts::commitAuditedWrite`, which is the only site that orders the pair.
+   * `persistence/audited-write.ts::commitAuditedWrite`, which is the only site that orders the pair.
    */
   readonly auditStatementAfterWrite: (entry: AuditEntry, at: number) => BatchStmt;
   /**

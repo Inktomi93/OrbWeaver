@@ -27,7 +27,7 @@ paths:
 ## automation (`domain/automation/**`)
 
 - Rule dispatch runs in mint position order over one shared CEL env
-  (`packages/server/src/domain/automation/substrate/cel-env.ts`); a preset that stamps then reads a var mints a private key.
+  (`packages/server/src/domain/automation/engine/cel-env.ts`); a preset that stamps then reads a var mints a private key.
 - `update-rule`'s PUT clears `rule_preset` provenance on purpose; a new per-rule
   preference gets its own verb, never the PUT.
 

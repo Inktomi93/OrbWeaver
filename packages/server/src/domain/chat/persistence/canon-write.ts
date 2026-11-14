@@ -418,7 +418,7 @@ export function appendVariantStatements(
 }
 
 // How many head allocations one append may lose before it refuses. Not a contention budget — see
-//  {@link commitCanonAppend}'s "IT IS BOUNDED" note; the sibling CAS loop in `substrate/variable-ops.ts`
+//  {@link commitCanonAppend}'s "IT IS BOUNDED" note; the sibling CAS loop in `verbs/apply-standalone-variable-ops.ts`
 //  carries the same number for the same reason.
 const MAX_CANON_APPEND_ATTEMPTS = 8;
 
@@ -445,7 +445,7 @@ const MAX_CANON_APPEND_ATTEMPTS = 8;
  * MAX_CANON_APPEND_ATTEMPTS} times in a row is a defect somewhere else — a caller re-aiming at a fixed seq,
  * a head advancing faster than any writer can land — and an unbounded retry answers that by spinning until
  * the process dies rather than saying so. Same posture, same shape as the standalone variable plane's CAS
- * loop (`substrate/variable-ops.ts`), so the two cannot drift into disagreeing about it.
+ * loop (`verbs/apply-standalone-variable-ops.ts`), so the two cannot drift into disagreeing about it.
  */
 export async function commitCanonAppend<T>(
   db: Db,

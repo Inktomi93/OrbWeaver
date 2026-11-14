@@ -1,6 +1,6 @@
 // A disabled host's chat rule spends nothing on a room event: the dispatch refuses it like a host who left, and
 // the rule fires again once the account is re-enabled.
-// @subject packages/server/src/domain/automation/substrate/authority.ts
+// @subject packages/server/src/domain/automation/persistence/authority.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import { modelIdSchema } from "@orb/contracts/inference";

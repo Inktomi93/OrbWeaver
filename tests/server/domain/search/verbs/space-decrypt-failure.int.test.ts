@@ -1,6 +1,6 @@
 // An encoder whose stored key no longer decrypts is a configuration fault, not an unbound index: the search surfaces the
 // credentials error to the caller and the credential seam logs it once for the request.
-// @subject packages/server/src/domain/search/substrate/space.ts
+// @subject packages/server/src/domain/search/persistence/space.ts
 // @subject packages/server/src/domain/credentials/substrate/decrypt.ts
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { expect, test } from "@orb/testkit/node";

@@ -19,7 +19,7 @@ import { PluginBundlePreviewStaleError, PluginNoSourceUrlError, PluginNotFoundEr
 import type { UpgradeFromStoredUrlParams } from "../contract/params.ts";
 import type { PluginContext, PluginService } from "../contract/service.ts";
 import { getById } from "../persistence/plugins.ts";
-import { fetchBundleThroughGuard, hashPluginBundle } from "../substrate/manifest.ts";
+import { hashPluginBundle } from "../substrate/manifest.ts";
 
 export function createUpgradeFromStoredUrl(ctx: PluginContext, deps: { readonly upgrade: PluginService["upgrade"] }): PluginService["upgradeFromStoredUrl"] {
   return async ({ caller, pluginId, expectedBundleHash }: UpgradeFromStoredUrlParams) => {
@@ -30,7 +30,7 @@ export function createUpgradeFromStoredUrl(ctx: PluginContext, deps: { readonly 
     if (existing.sourceUrl === null) {
       throw new PluginNoSourceUrlError(pluginId);
     }
-    const bundle = await fetchBundleThroughGuard(ctx.fetchBundle, existing.sourceUrl, ctx.logger);
+    const bundle = await ctx.fetchBundle(existing.sourceUrl);
     if (hashPluginBundle(bundle) !== expectedBundleHash) {
       throw new PluginBundlePreviewStaleError();
     }

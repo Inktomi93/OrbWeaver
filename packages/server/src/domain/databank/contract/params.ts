@@ -50,7 +50,7 @@ export interface ScrapeWikiParams extends DocumentIngestionParams {
  *  and the shared tail resolves `title ?? fallback`. Either way the name is capped + never empty. */
 export type ScrapeName = { readonly literal: string } | { readonly titleFallback: string };
 
-/** The write inputs a scraper hands the shared §2 canon tail (`substrate/scrape-canon`): who, the fetched bytes,
+/** The write inputs a scraper hands the shared §2 canon tail (`persistence/scrape-canon`): who, the fetched bytes,
  *  and the canon stamps that vary by source (origin/mime/name/sourceUrl/auditAction). Not a wire boundary (a
  *  domain-internal handoff, no zod) — the three scraper verbs build it, one substrate fn consumes it. */
 export interface ScrapeWrite extends DocumentIngestionParams {

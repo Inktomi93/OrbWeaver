@@ -1,6 +1,6 @@
 // A search whose active generation's connection is deleted between the generation read and the connection resolve answers the
 // re-indexing refusal, and the retrieval degrade turns that refusal into the ruled empty result plus one index-unavailable report.
-// @subject packages/server/src/domain/search/substrate/space.ts
+// @subject packages/server/src/domain/search/persistence/space.ts
 // @subject packages/server/src/domain/search/substrate/retrieval-degrade.ts
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";

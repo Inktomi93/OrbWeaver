@@ -9,9 +9,9 @@ import type { ChatIdentity, HistoryFloorSeq, ParticipantData } from "@orb/contra
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES, NO_HISTORY_FLOOR } from "@orb/contracts/chat";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { ChatDetailData } from "../contract/views.ts";
+import type { ResolvedAnchor } from "../persistence/anchor.ts";
 import type { loadChatRow } from "../persistence/queries.ts";
 import { viewerHoldsHost } from "./member-visibility.ts";
-import type { ResolvedAnchor } from "./participants-humans.ts";
 import { viewerGalleryCharacterIdOf } from "./viewer-gallery.ts";
 
 /** The projected `chats` row (metadata already parsed): persistence's `ChatRow`, which both `loadChatRow` and

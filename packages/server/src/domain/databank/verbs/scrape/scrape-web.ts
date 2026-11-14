@@ -1,5 +1,5 @@
 // verb: scrapeWeb — fetch a web page over the self-enforcing safeFetch egress guard, then the SAME §2 canon tail
-// as upload (`substrate/scrape-canon`: importHash → CAS → documents row → enqueue ingest).
+// as upload (`persistence/scrape-canon`: importHash → CAS → documents row → enqueue ingest).
 // databank adds ZERO SSRF guard logic: `ctx.fetchUrl` is the compose-bound ANY_HOST safeFetch port — https-only,
 // private-range denial, per-hop re-validation all ride the injected op. A refused OR failed fetch (the op throws)
 // collapses to ONE leak-free `ScrapeFailedError` (BAD_REQUEST) — the reason + any resolved private address stay
@@ -15,7 +15,7 @@ import { ScrapeFailedError } from "#src/domain/databank/contract/errors.ts";
 import type { ScrapeWebParams } from "#src/domain/databank/contract/params.ts";
 import type { UploadResult } from "#src/domain/databank/contract/results.ts";
 import type { DatabankContext, DatabankService } from "#src/domain/databank/contract/service.ts";
-import { finalizeScrape } from "#src/domain/databank/substrate/scrape-canon.ts";
+import { finalizeScrape } from "#src/domain/databank/persistence/scrape-canon.ts";
 
 const HTML_MIME = "text/html";
 /** The stored-XSS guard refuses `text/html` as a STORED asset (stored-XSS). The fetched page is UTF-8 text, so the blob is

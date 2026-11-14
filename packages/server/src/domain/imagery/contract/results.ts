@@ -16,7 +16,7 @@ export interface ReuseRow {
 }
 
 /** The provenance fields the caller stamps on every row of one generation (one `imagery_generations` row per
- *  stored image), consumed by the shared generation tail (`substrate/generate-core`). `generatePicture` fills
+ *  stored image), consumed by the shared generation tail (`persistence/generate-core`). `generatePicture` fills
  *  subject/identityHash on the portrait path; `editImage` sets `mode:"free"`, `edited:true`, nulls both. */
 export interface GenerationProvenanceInput {
   /** Owns the stored bytes and the spend: the run-as principal (the room host in a room, D298). */

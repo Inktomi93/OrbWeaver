@@ -1894,6 +1894,17 @@ const DOMAIN_AUTHORITY = [
     },
   },
   {
+    name: "domain-substrate-no-io",
+    comment:
+      "substrate/ holds pure feature-local helpers with zero I/O (Core-0-Architecture-and-Structure.md §4): row access lives in persistence/, a database handle comes from @orb/db only through persistence/ or a root composition file, and infra/ is reached through injected ops. A type from anywhere stays legal.",
+    severity: "error",
+    from: { path: `${SRV}domain/.+/substrate/` },
+    to: {
+      path: [DB, `${SRV}domain/.+/persistence/`, `${SRV}infra/`],
+      dependencyTypesNot: ["type-only"],
+    },
+  },
+  {
     name: "domain-substrate-mediates-subsystems",
     comment: "Root composition surfaces may assemble subsystems; verbs receive them through substrate injection.",
     severity: "error",
