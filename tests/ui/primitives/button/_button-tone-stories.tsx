@@ -1,5 +1,6 @@
 import { everyMember } from "@orb/kit/guards";
-import { CtIsolation } from "@orb/testkit/browser";
+import type { SeedScopeProps } from "@orb/testkit/browser";
+import { CtIsolation, SeedScope } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { TOKENS, TONES } from "@orb/ui/tokens";
@@ -43,19 +44,21 @@ export function HostInkStory(): ReactElement {
 /** The fill styles a Button draws; a style the primitive gains and this list lacks fails to compile. */
 const DISABLED_INK_VARIANTS = everyMember<NonNullable<ComponentProps<typeof Button>["variant"]>>()(["solid", "outline", "ghost", "link"]);
 
-/** Every fill style in every tone, disabled, on the page ground. */
-export function DisabledInkStory(): ReactElement {
+/** Every fill style in every tone, disabled, on the page ground of the seed palette (Hearth when absent). */
+export function DisabledInkStory(props: SeedScopeProps): ReactElement {
   return (
-    <CtIsolation subject="Button disabled ink" isolates="Each fill style's disabled text against the page ground, in every tone">
-      {TONES.map((tone) => (
-        <div key={tone} style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-          {DISABLED_INK_VARIANTS.map((variant) => (
-            <Button key={variant} disabled={true} tone={tone} variant={variant}>
-              {`${tone} ${variant}`}
-            </Button>
-          ))}
-        </div>
-      ))}
+    <CtIsolation subject="Button disabled ink" isolates="Each fill style's disabled text against the page ground, in every tone and seed">
+      <SeedScope {...props}>
+        {TONES.map((tone) => (
+          <div key={tone} style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+            {DISABLED_INK_VARIANTS.map((variant) => (
+              <Button key={variant} data-case={variant} disabled={true} tone={tone} variant={variant}>
+                {`${tone} ${variant}`}
+              </Button>
+            ))}
+          </div>
+        ))}
+      </SeedScope>
     </CtIsolation>
   );
 }
