@@ -5,7 +5,7 @@
 // The chat scope is membership-scoped (D18 — no chats.ownerId); its guards (requireChatHost/Member) and
 // emit (emitWiEvent) arrive as injected ops from chat's own guards/bus, wired at the composition root.
 
-import type { RequireHostOp, RequireParticipantOp } from "@orb/contracts/chat";
+import type { RequireHostOp, RequireParticipantOp, ResolveChatHostOp } from "@orb/contracts/chat";
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { PortableFile } from "@orb/contracts/portability";
@@ -70,6 +70,8 @@ export interface WorldInfoContext {
   readonly audit: AuditWiring["log"];
   readonly requireChatHost: RequireHostOp;
   readonly requireChatMember: RequireParticipantOp;
+  /** The room's present host: the owner a chat-attached book must have for the room to apply it (D64). */
+  readonly resolveChatHost: ResolveChatHostOp;
   readonly readInheritedChatBooks: (principal: Principal, chatId: ChatId) => Promise<ChatBookView[]>;
   readonly emitWiEvent: (event: WiBusEvent) => Promise<void>;
   /** Live-freshness emit; distinct from emitWiEvent (the per-open-chat bus for attachment changes). */
@@ -143,7 +145,7 @@ export interface WorldInfoService {
   /** Host authority — room-wide prompt content is a one-shot jailbreak surface. */
   readonly attachToChat: (params: AttachToChatParams) => Promise<void>;
   readonly detachFromChat: (params: DetachFromChatParams) => Promise<DetachResult>;
-  /** Room-public, not owner-filtered — the room's pool is what every member's turns assemble against. */
+  /** Member-read: the room's pool is what every member's turns assemble against. Lists only the present host's own books, the set a turn applies (D64). */
   readonly listForChat: (params: ListForChatParams) => Promise<ChatBookView[]>;
 
   /** The SHARED machine-writer bulk upsert (D59). Upserts entries by (bookId,
