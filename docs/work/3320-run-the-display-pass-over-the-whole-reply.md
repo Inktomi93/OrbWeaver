@@ -19,7 +19,7 @@ A display script whose match spans a blank line, as a status panel's does, never
 
 ## Done when
 
-In the trains layout, a display script that matches across a blank line draws, and a CT on the trains row shows the drawn panel. A style element holding a blank line stays in one bubble and none of its text prints as prose.
+In the trains layout, a display script that matches across a blank line draws, and a CT on the trains row shows the drawn panel. A style element holding a blank line stays in one bubble and none of its text prints as prose. A Markdown code block holding blank lines stays in one bubble.
 
 ## Evidence
 
