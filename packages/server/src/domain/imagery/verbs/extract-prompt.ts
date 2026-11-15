@@ -35,6 +35,7 @@ async function extractText(
     readonly mode: ExtractionMode;
     readonly subjectCharacterId: CharacterId | undefined;
     readonly timeZone: IanaTimeZone | undefined;
+    readonly signal: AbortSignal;
   },
 ): Promise<{ readonly prompt: string; readonly costUsd: number | null }> {
   const chatId = args.chatId;
@@ -47,6 +48,7 @@ async function extractText(
     funderUserId: args.runAs.userId,
     chatId,
     instruction,
+    signal: args.signal,
     ...(args.subjectCharacterId !== undefined ? { subjectCharacterId: args.subjectCharacterId } : {}),
     ...(args.timeZone !== undefined ? { timeZone: args.timeZone } : {}),
   });
@@ -63,7 +65,7 @@ async function extractText(
 export function createResolvePrompt(ctx: ImageryContext, deps: { readonly captionAvatar: CaptionAvatar }): ResolvePrompt {
   return async (args) => {
     if (isMultimodalMode(args.mode)) {
-      const captioned = await deps.captionAvatar({ runAs: args.runAs, mode: args.mode, subjectCharacterId: args.subjectCharacterId });
+      const captioned = await deps.captionAvatar({ runAs: args.runAs, mode: args.mode, subjectCharacterId: args.subjectCharacterId, signal: args.signal });
       if (captioned !== null) {
         return { prompt: captioned.prompt, source: "captioned", costUsd: captioned.costUsd };
       }
@@ -74,6 +76,7 @@ export function createResolvePrompt(ctx: ImageryContext, deps: { readonly captio
         mode: extractionFallbackFor(args.mode),
         subjectCharacterId: args.subjectCharacterId,
         timeZone: args.timeZone,
+        signal: args.signal,
       });
       return { prompt: fell.prompt, source: "extracted", costUsd: fell.costUsd };
     }
@@ -84,6 +87,7 @@ export function createResolvePrompt(ctx: ImageryContext, deps: { readonly captio
       mode: args.mode,
       subjectCharacterId: args.subjectCharacterId,
       timeZone: args.timeZone,
+      signal: args.signal,
     });
     return { prompt: extracted.prompt, source: "extracted", costUsd: extracted.costUsd };
   };
@@ -98,6 +102,7 @@ export function createExtractPrompt(ctx: ImageryContext, deps: { readonly resolv
       mode: p.mode,
       subjectCharacterId: p.subjectCharacterId,
       timeZone: p.timeZone,
+      signal: p.signal,
     });
     return { prompt: resolved.prompt, mode: p.mode, source: resolved.source, costUsd: resolved.costUsd };
   };

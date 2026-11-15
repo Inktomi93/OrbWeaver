@@ -14,6 +14,7 @@ import type { RegexContext, RegexService } from "#src/domain/regex/contract/serv
 import { requireOwnedScript } from "#src/domain/regex/persistence/ownership.ts";
 import { toRow } from "#src/domain/regex/persistence/queries.ts";
 import { settleEphemeralScope } from "#src/domain/regex/substrate/ephemeral-scope.ts";
+import { requireFindAdmitted } from "#src/domain/regex/substrate/find-door.ts";
 
 /** The code a patch carries when the merged script breaks a pairing rule (a save pass beside an ephemeral one, a
  *  ceiling shallower than its floor). */
@@ -43,6 +44,9 @@ export function createUpdate(ctx: RegexContext): RegexService["updateScript"] {
     }
     const behavior = settled.data;
     const name = patchName ?? record.name;
+    if (behavior.findRegex !== currentBehavior.findRegex || behavior.substituteRegex !== currentBehavior.substituteRegex) {
+      await requireFindAdmitted(ctx.probeFindCompiles, { name, ...behavior });
+    }
     const enabled = patchEnabled ?? record.enabled;
     const at = ctx.now();
 

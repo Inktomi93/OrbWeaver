@@ -97,6 +97,7 @@ import type { ForeignInputs, HumanSeatPersona, ResolveForeignInputsOp } from "..
 import { DEFAULT_CHAT_BEHAVIOR } from "../contract/foreign.ts";
 import type {
   ChatEventBoundsParams,
+  CheckSendAvailabilityParams,
   CountChatsParams,
   GetChatLineageParams,
   GetChatParams,
@@ -480,9 +481,14 @@ async function requireConsentingHost(ctx: ChatContext, chatId: ChatId): Promise<
  *  `previewActionTemplates` — answers about the preset the TURN
  *  assembles on a game chat — the same preset-redirect hop as the turn, so a preview never renders a preset
  *  the turn wouldn't. */
-async function resolvePreviewInputs(ctx: ChatContext, deps: ReadDeps, chatId: ChatId, opts: PreviewInputsOpts): Promise<PreviewInputs> {
+async function resolvePreviewInputs(
+  ctx: ChatContext,
+  deps: ReadDeps,
+  chatId: ChatId,
+  opts: PreviewInputsOpts & { readonly signal: AbortSignal },
+): Promise<PreviewInputs> {
   const hostUserId = await requireConsentingHost(ctx, chatId);
-  const connection = await deps.resolveConnection({ funderUserId: hostUserId, chatId });
+  const connection = await deps.resolveConnection({ funderUserId: hostUserId, chatId, signal: opts.signal });
   const room = await resolveRoomInputs(ctx, deps, chatId, { ...opts, model: connection.model });
   return {
     ...room,
@@ -710,6 +716,7 @@ async function buildPreviewContext(
     readonly guided?: GuidedSteer | undefined;
     /** The viewer's zone, for a preview that hands rendered text back (it must read the clock the turn will). */
     readonly timeZone?: IanaTimeZone | undefined;
+    readonly signal: AbortSignal;
   },
 ): Promise<{ assembleContext: Awaited<ReturnType<ChatContext["gatherAssembleContext"]>>; cardKeepLastX: number | undefined }> {
   const participants = await opts.deps.loadParticipantViews(chatId);
@@ -734,6 +741,7 @@ async function buildPreviewContext(
   const gathered = await ctx.gatherAssembleContext(
     {
       chatId,
+      signal: opts.signal,
       runAsUserId: inputs.hostUserId,
       model: inputs.model,
       characterIds: inputs.characterIds,
@@ -876,7 +884,7 @@ const HOST_UNAVAILABLE: RoomSendAvailability = { available: false, cause: TURN_H
  *  room is a leak-free NOT_FOUND, as its send is. A host outside the consent set reads `host_unavailable`, the
  *  reason a member's refused send names, and its connection is never resolved or probed. Fires no turn/API call. */
 function createCheckSendAvailability(ctx: ChatContext, deps: ReadDeps): ChatService["checkSendAvailability"] {
-  return async ({ principal, chatId }: GetChatParams): Promise<RoomSendAvailability> => {
+  return async ({ principal, chatId, signal }: CheckSendAvailabilityParams): Promise<RoomSendAvailability> => {
     await requireParticipant(ctx, principal, chatId);
     const consent = await hostConsentOf(ctx, await loadParticipants(ctx.db, chatId));
     if (consent.kind === "hostless") {
@@ -885,7 +893,7 @@ function createCheckSendAvailability(ctx: ChatContext, deps: ReadDeps): ChatServ
     if (consent.kind === "withheld") {
       return HOST_UNAVAILABLE;
     }
-    return deps.checkSendAvailability({ funderUserId: consent.hostUserId, chatId });
+    return deps.checkSendAvailability({ funderUserId: consent.hostUserId, chatId, signal });
   };
 }
 
@@ -1274,7 +1282,7 @@ function previewPromptHistoryEnv(ctx: ChatContext, assembleContext: AssembleCont
   return {
     scripts,
     macroCtx: buildTurnMacroContext({ assembleCtx: assembleContext, model: inputs.model, chatId: inputs.chatId, random: PREVIEW_RANDOM }),
-    applyReplace: ctx.applyRegexReplace,
+    openRegexPass: ctx.openRegexPass,
     onScriptFailure: (err, script) =>
       getLog(ctx.logger).warn(
         { err, pass: "prompt", findRegex: script.findRegex },
@@ -1389,6 +1397,7 @@ async function fitShapedHistory(args: {
     readonly canon: readonly MessageView[];
   };
   readonly ctx: ChatContext;
+  readonly signal: AbortSignal;
 }): Promise<{ shaped: ReturnType<typeof shapeTurn>; fitted: ReturnType<typeof fitHistory>; budget: ReturnType<typeof buildHistoryBudget> }> {
   const params = args.assembleContext.promptConfig.params;
   const systemTokens = estimateTokens([args.assembled.static, args.assembled.dynamic].join("\n\n"));
@@ -1404,7 +1413,7 @@ async function fitShapedHistory(args: {
     carryToolReasoning: args.capability !== undefined && resolveCarryReasoning(params, args.capability, []) === "conversation",
     visionOk: args.capability !== undefined && acceptsImageInput(args.capability),
     videoOk: args.capability !== undefined && acceptsVideoInput(args.capability),
-    resolveImageUrl: (ref) => args.ctx.resolveImageUrl({ chatId: args.convert.chatId, ref, quality: args.convert.quality }),
+    resolveImageUrl: (ref) => args.ctx.resolveImageUrl({ chatId: args.convert.chatId, ref, quality: args.convert.quality, signal: args.signal }),
     cardKeepLastX: args.convert.cardKeepLastX,
     canon: args.convert.canon,
     // §8.8: the preview prices the SAME rows the next turn sends, so it resolves the carry rung the way
@@ -1422,7 +1431,7 @@ async function fitShapedHistory(args: {
     loadInlineReplyAssetIds: () => loadInlineReplyAssetIds(args.ctx.db, args.convert.chatId),
   };
   const { shaped, fitted, fitBudget } = await shapeConvertFit({
-    passage: { count: args.next.passageCounter, system: [args.assembled.static, args.assembled.dynamic] },
+    passage: { count: args.next.passageCounter, system: [args.assembled.static, args.assembled.dynamic], signal: args.signal },
     canon: args.next.rows,
     shape: args.next.shape,
     convert: (rows) => buildWireHistory(convertEnv, rows),
@@ -1480,16 +1489,17 @@ function historyBudgetRow(fitted: ReturnType<typeof fitHistory>): HistoryBudgetI
  *  `previewActionTemplates` rides, with the same safety (compose resolves it owned-or-system UNDER THE HOST and
  *  degrades to the host's own default on a stale/unowned id). Absent ⇒ byte-identical to every prior preview. */
 function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["previewAssembly"] {
-  return async ({ principal, chatId, speakerCharacterId, guided, presetOverride, timeZone }: PreviewAssemblyParams): Promise<AssemblyPreview> => {
+  return async ({ principal, chatId, speakerCharacterId, guided, presetOverride, timeZone, signal }: PreviewAssemblyParams): Promise<AssemblyPreview> => {
     const membership = await requireHost(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
       anchorPersonaId: membership.chat.anchorPersonaId,
+      signal,
       speakerCharacterId,
       ...(presetOverride === undefined ? {} : { presetOverride }),
     });
     const macros = buildPreviewMacros(ctx, inputs);
     const registry = macros?.registry ?? null;
-    const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, macros, guided, timeZone });
+    const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, macros, guided, timeZone, signal });
     const { prompt, slices } = buildPromptWithSlices(inputs.foreign.promptConfig, assembleContext, previewRender(registry));
     const { canon, ...next } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled: prompt });
     const { fitted, budget: fitBudget } = await fitShapedHistory({
@@ -1499,6 +1509,7 @@ function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["p
       next,
       convert: { chatId, cardKeepLastX, canon, quality: inputs.foreign.chatBehavior?.attachmentQuality },
       ctx,
+      signal,
     });
     const budget = buildAssemblyBudget({
       slices,
@@ -1527,15 +1538,16 @@ function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["p
  *  squashed run overruns the window traces the survivors the turn shapes, then projects the stage snapshots + the
  *  resolved breakpoint offset onto the content-free `ShapeTrace` — no content bytes by construction, nothing persists (the `previewAssembly` dry-run frame). */
 function createGetShapeTrace(ctx: ChatContext, deps: ReadDeps): ChatService["getShapeTrace"] {
-  return async ({ principal, chatId, speakerCharacterId }: GetShapeTraceParams): Promise<ShapeTrace> => {
+  return async ({ principal, chatId, speakerCharacterId, signal }: GetShapeTraceParams): Promise<ShapeTrace> => {
     const membership = await requireHost(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
       anchorPersonaId: membership.chat.anchorPersonaId,
+      signal,
       speakerCharacterId,
     });
     const macros = buildPreviewMacros(ctx, inputs);
     const registry = macros?.registry ?? null;
-    const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, macros });
+    const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, macros, signal });
     const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext, previewRender(registry));
     // SHAPE the next-turn peek — the trace describes how the CURRENT canon shapes for the next turn.
     const { canon, ...next } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled });
@@ -1546,6 +1558,7 @@ function createGetShapeTrace(ctx: ChatContext, deps: ReadDeps): ChatService["get
       next,
       convert: { chatId, cardKeepLastX, canon, quality: inputs.foreign.chatBehavior?.attachmentQuality },
       ctx,
+      signal,
     });
     return buildShapeTrace(shaped.stages, shaped.cacheBreakpointFromEnd, shaped.breakpointDecision);
   };
@@ -1632,22 +1645,23 @@ const NO_CONNECTION = "no-connection" satisfies UnavailableCause;
 const CONTEXT_FIT_UNBOUND: ContextFitUnbound = { unbound: true };
 
 function createPreviewContextFit(ctx: ChatContext, deps: ReadDeps): ChatService["previewContextFit"] {
-  return async ({ principal, chatId, speakerCharacterId }: PreviewContextFitParams): Promise<ContextFitAnswer> => {
+  return async ({ principal, chatId, speakerCharacterId, signal }: PreviewContextFitParams): Promise<ContextFitAnswer> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     // Consent first: a disabled host's connection is neither probed nor reflected back as "unbound".
     const hostUserId = await requireConsentingHost(ctx, chatId);
     // The same verdict the composer's send gate reads, so the fit and the send button agree on "unbound".
-    const availability = await deps.checkSendAvailability({ funderUserId: hostUserId, chatId });
+    const availability = await deps.checkSendAvailability({ funderUserId: hostUserId, chatId, signal });
     if (!availability.available && availability.cause === NO_CONNECTION) {
       return CONTEXT_FIT_UNBOUND;
     }
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
       anchorPersonaId: membership.chat.anchorPersonaId,
+      signal,
       speakerCharacterId,
     });
     const macros = buildPreviewMacros(ctx, inputs);
     const registry = macros?.registry ?? null;
-    const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, macros });
+    const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, macros, signal });
     const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext, previewRender(registry));
     const { canon, ...next } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled });
     // SHAPE → CONVERT → FIT — the same sequence, in the same order, over the same rows the engine's turn pipeline
@@ -1659,6 +1673,7 @@ function createPreviewContextFit(ctx: ChatContext, deps: ReadDeps): ChatService[
       next,
       convert: { chatId, cardKeepLastX, canon, quality: inputs.foreign.chatBehavior?.attachmentQuality },
       ctx,
+      signal,
     });
     const chatRow = await loadChatRow(ctx.db, chatId);
     // D16: the checkpoint summary distills canon from seq 1, so a clamped caller never receives it — the
@@ -1715,15 +1730,16 @@ function actionTemplateText(config: PromptConfig, id: TemplateDefId): string {
  *  the whole registry makes the readout's row selection a pure client pick — one query per (chat, preset),
  *  one freshness row, no per-row round trip. Nothing persists (the `previewAssembly` dry-run frame). */
 function createPreviewActionTemplates(ctx: ChatContext, deps: ReadDeps): ChatService["previewActionTemplates"] {
-  return async ({ principal, chatId, presetId, timeZone }: PreviewActionTemplatesParams): Promise<ActionTemplatesPreview> => {
+  return async ({ principal, chatId, presetId, timeZone, signal }: PreviewActionTemplatesParams): Promise<ActionTemplatesPreview> => {
     const membership = await requireHost(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
       anchorPersonaId: membership.chat.anchorPersonaId,
+      signal,
       presetOverride: presetId,
     });
     const macros = buildPreviewMacros(ctx, inputs);
     const registry = macros?.registry ?? null;
-    const { assembleContext } = await buildPreviewContext(ctx, inputs, chatId, { deps, macros, timeZone });
+    const { assembleContext } = await buildPreviewContext(ctx, inputs, chatId, { deps, macros, timeZone, signal });
     const config = inputs.foreign.promptConfig;
     return {
       // The bindings this render actually USED — read off the same resolved ctx, so the readout's gloss can

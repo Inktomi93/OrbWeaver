@@ -41,7 +41,7 @@ export function createAutomationBus(): AutomationBus {
   }
 
   /** The `automation` room's live tail for a chat, torn down on `signal` abort. The room source filters the
-   *  host-only events per subscriber (the `member` tier sees only `quickReplySurfaced`). */
+   *  host-only events per subscriber (the `member-visible` tier sees only `quickReplySurfaced`). */
   function subscribe(chatId: ChatId, signal: AbortSignal): AsyncIterable<AutomationBusEvent> {
     return bus.subscribe(chatId, signal);
   }

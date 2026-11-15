@@ -16,9 +16,9 @@ export function createPluginRuntimeOps(input: DbAssemblyInput<PluginRuntimeDeps>
   const deps: PluginRuntimeDeps = { ...input, db: databaseForOwner(input.db) };
   const { db, now, imagery, assets, resolveOwnerPrincipal } = deps;
   return {
-    ingestDatabank: async ({ installerUserId, name, text }): ReturnType<PluginRuntimeOps["ingestDatabank"]> => {
+    ingestDatabank: async ({ installerUserId, name, text, signal }): ReturnType<PluginRuntimeOps["ingestDatabank"]> => {
       const principal = await resolveOwnerPrincipal(installerUserId);
-      const { document } = await deps.databankCreateFromText({ principal, name, text });
+      const { document } = await deps.databankCreateFromText({ principal, name, text, signal });
       return { documentId: document.id };
     },
     requestTurn: async ({ triggeredBy, chatId, automationDepth, speakerCharacterId, guided }): ReturnType<PluginRuntimeOps["requestTurn"]> => {
@@ -33,7 +33,7 @@ export function createPluginRuntimeOps(input: DbAssemblyInput<PluginRuntimeDeps>
         ...(guided !== undefined ? { guided: { action: "response", input: guided } } : {}),
       });
     },
-    generatePicture: async ({ authorUserId, chatId, args }): ReturnType<PluginRuntimeOps["generatePicture"]> => {
+    generatePicture: async ({ authorUserId, chatId, args, signal }): ReturnType<PluginRuntimeOps["generatePicture"]> => {
       const p = generateImageActionArgsSchema.parse(args);
       const caller = await resolveOwnerPrincipal(authorUserId);
       const picture = await imagery.generatePicture({
@@ -47,6 +47,7 @@ export function createPluginRuntimeOps(input: DbAssemblyInput<PluginRuntimeDeps>
         ...(p.negative !== undefined ? { negative: p.negative } : {}),
         ...(p.size !== undefined ? { size: p.size } : {}),
         ...(p.subjectCharacterId !== undefined ? { subjectCharacterId: p.subjectCharacterId } : {}),
+        signal,
       });
       const first = picture.images[0];
       if (first === undefined) {

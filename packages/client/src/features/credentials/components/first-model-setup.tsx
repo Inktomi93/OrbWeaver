@@ -6,7 +6,6 @@
 import type { RoutableTask } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { Button } from "@orb/ui/button";
-import { DialogFooter } from "@orb/ui/dialog";
 import { Row, Stack } from "@orb/ui/layout";
 import { RadioGroup, RadioGroupItem } from "@orb/ui/radio-group";
 import { Select } from "@orb/ui/select";
@@ -14,13 +13,13 @@ import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useEffect, useId, useState } from "react";
-import { useSetBinding, useUpdateConnection } from "#components";
+import { CommitFooter, useSetBinding, useUpdateConnection } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { useSuspenseQuery } from "#data";
 import { ALLOW_BACKGROUND_SETTING, CHAT_ROLE_DOOR, connectionSummary, MEMORY_COST_SENTENCE, notify } from "#lib";
 import { openConfigTo } from "#state";
 import { CLAUDE_SUBSCRIPTION_NOTICE, isClaudeSubscription } from "../lib/add-connection-form-model.ts";
-import { FIRST_MODEL_FINISH_NAME } from "../lib/credentials-names.ts";
+import { FIRST_MODEL_ADD_UTILITY_CHOICE, FIRST_MODEL_ADD_UTILITY_NAME, FIRST_MODEL_FINISH_NAME } from "../lib/credentials-names.ts";
 
 type ConnectionListItem = inferOutput<Trpc["connection"]["list"]>[number];
 
@@ -206,7 +205,7 @@ export function FirstModelSetup({
       >
         {canUseSame ? <RadioGroupItem value="same">{`Use the same one, ${name}`}</RadioGroupItem> : null}
         {others.length === 0 ? null : <RadioGroupItem value="existing">Use another connection</RadioGroupItem>}
-        <RadioGroupItem value="add">Add a different model for it</RadioGroupItem>
+        <RadioGroupItem value="add">{FIRST_MODEL_ADD_UTILITY_CHOICE}</RadioGroupItem>
         <RadioGroupItem value="later">Not now</RadioGroupItem>
       </RadioGroup>
       {choice === "existing" ? (
@@ -230,22 +229,21 @@ export function FirstModelSetup({
           {`That didn't go through: ${failure}`}
         </Text>
       )}
-      <DialogFooter>
-        {choice === "add" ? (
-          <Button disabled={chatState.pending || chatState.failure !== null} onClick={onAddUtility}>
-            Add a model
-          </Button>
-        ) : (
-          <Button
-            // A picked connection the list read has not caught up with yet would bind Chat alone; wait for it.
-            disabled={chatState.pending || chatState.failure !== null || (choice === "existing" && utilityRow() === undefined)}
-            loading={saving}
-            onClick={finish}
-          >
-            {FIRST_MODEL_FINISH_NAME}
-          </Button>
-        )}
-      </DialogFooter>
+      {/* Closing the step applies nothing, so the frame's corner close is its way out and the footer holds the one act the choice makes. */}
+      <CommitFooter
+        exit="corner"
+        submit={
+          choice === "add"
+            ? { label: FIRST_MODEL_ADD_UTILITY_NAME, onSubmit: onAddUtility, disabled: chatState.pending || chatState.failure !== null }
+            : {
+                label: FIRST_MODEL_FINISH_NAME,
+                onSubmit: finish,
+                // A picked connection the list read has not caught up with yet would bind Chat alone; wait for it.
+                disabled: chatState.pending || chatState.failure !== null || (choice === "existing" && utilityRow() === undefined),
+                loading: saving,
+              }
+        }
+      />
     </Stack>
   );
 }

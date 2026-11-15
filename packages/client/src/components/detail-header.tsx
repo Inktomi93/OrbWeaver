@@ -120,7 +120,7 @@ export function DetailHeader({ title, step = "title", back, kicker, meta, action
         align="center"
         cap={step === "masthead" ? undefined : "fit"}
         wrap={true}
-        className={step === "masthead" ? undefined : "min-inline-0"}
+        minWidth={step === "masthead" ? undefined : "shrinks"}
         data-slot={drilled ? "config-member-verbs" : undefined}
         grow={step === "masthead"}
         gap="field"
@@ -130,11 +130,11 @@ export function DetailHeader({ title, step = "title", back, kicker, meta, action
       </Row>
     );
   return (
-    <Row align="center" className="min-inline-0" data-slot={drilled ? "config-drill-header" : undefined} wrap={true} gap="field" justify="between">
+    <Row align="center" minWidth="shrinks" data-slot={drilled ? "config-drill-header" : undefined} wrap={true} gap="field" justify="between">
       {back === undefined ? null : <DrillBackButton back={back} defer={deferToShell} />}
-      <Stack className="min-inline-0" floor="title" grow={true} gap="tight">
+      <Stack minWidth="shrinks" floor="title" grow={true} gap="tight">
         {kicker === undefined ? null : <Text voice="kicker">{kicker}</Text>}
-        <Row align="baseline" className="min-inline-0" wrap={true} gap="row">
+        <Row align="baseline" minWidth="shrinks" wrap={true} gap="row">
           {title === undefined ? null : <DetailName defer={deferToShell} step={step} title={title} />}
           {meta}
           {step === "masthead" ? verbs : null}

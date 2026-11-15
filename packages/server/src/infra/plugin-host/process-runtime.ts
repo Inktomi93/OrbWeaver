@@ -1789,7 +1789,8 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
         ...(input.label === undefined ? {} : { label: input.label }),
       });
       logicalBindings.add(binding);
-      const lease = await pool.acquire(binding).catch((error: unknown) => {
+      // An activation runs inside its plugin's lifecycle lane, which stops it by disposing the binding, not by a cancel.
+      const lease = await pool.acquire(binding, { signal: new AbortController().signal }).catch((error: unknown) => {
         binding.disposed = true;
         logicalBindings.delete(binding);
         releaseOwnedBinding(binding);
@@ -1844,7 +1845,8 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
         throw new DomainConflictError(`the plugin host is running its maximum of ${PLUGIN_SNIPPET_RUNTIME_MAX} snippets — wait a moment and run it again`);
       }
       const binding = newBinding({ owner: input.owner, bridge: input.bridge, grants: input.grants, releaseAdmission });
-      const lease = await pool.acquire(binding).catch((error: unknown) => {
+      // A snippet has no caller cancel; its own wall clock bounds the run.
+      const lease = await pool.acquire(binding, { signal: new AbortController().signal }).catch((error: unknown) => {
         releaseBinding(binding);
         releaseOwnedBinding(binding);
         throw error;

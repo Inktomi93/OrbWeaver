@@ -23,7 +23,7 @@ test("an actual stored narrator and Smart combination heals to Natural without c
     .set({ metadata: sql`json_set(${chats.metadata}, '$.group.policy', 'smart', '$.group.smartPicker', 'utility')` })
     .where(eq(chats.id, h.chatId));
   const params = { principal: h.owner, chatId: h.chatId };
-  const bindings = await h.root.services.connection.listBindings({ principal: h.owner });
+  const bindings = await h.root.services.connection.listBindings({ signal: new AbortController().signal, principal: h.owner });
   const connectionId = bindings.find(({ task }) => task === "chat")?.binding?.connectionId;
   if (connectionId === undefined || connectionId === null) {
     throw new Error("the actual narrator room has no saved chat connection");
@@ -31,7 +31,10 @@ test("an actual stored narrator and Smart combination heals to Natural without c
   await h.root.services.connection.update({ principal: h.owner, connectionId, patch: { promptCache: { ...SHIPPED_PROMPT_CACHE, enabled: false } } });
   expect((await h.root.services.connection.get({ principal: h.owner, connectionId })).promptCache?.enabled).toBe(false);
   expect(await h.root.services.chat.getGroupConfigForChat(params)).toMatchObject({ output: "narrator", policy: "natural" });
-  expect((await h.root.services.connection.listBindings({ principal: h.owner })).find(({ task }) => task === "summarize")?.binding).toMatchObject({
+  expect(
+    (await h.root.services.connection.listBindings({ signal: new AbortController().signal, principal: h.owner })).find(({ task }) => task === "summarize")
+      ?.binding,
+  ).toMatchObject({
     connectionId,
   });
   const events: ChatBusEvent[] = [];

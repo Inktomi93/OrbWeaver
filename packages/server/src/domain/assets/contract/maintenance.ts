@@ -36,7 +36,7 @@ export interface BackfillParams {
   /** Report what WOULD link without storing bytes or writing the `avatarAssetId` UPDATE. */
   readonly dryRun?: boolean;
   /** Stop before the next store wave; already-started stores finish with their avatar links. */
-  readonly signal?: AbortSignal;
+  readonly signal: AbortSignal;
 }
 
 /** `backfillAvatars` outcome: cards scanned and avatars actually (re)linked; integrity mismatches are neither stored nor linked. */
@@ -52,7 +52,7 @@ export interface BackfillResult {
  *  (workload cancel / SIGTERM). */
 export interface GcOptions {
   readonly dryRun?: boolean;
-  readonly signal?: AbortSignal;
+  readonly signal: AbortSignal;
 }
 
 /** `collectGarbage` outcome: blobs walked vs blobs reclaimed (or would-be, under `dryRun`). */
@@ -65,7 +65,7 @@ export interface GcResult {
 
 /** `fsck` options — `signal` aborts the read-only whole-store scan. */
 export interface FsckOptions {
-  readonly signal?: AbortSignal;
+  readonly signal: AbortSignal;
 }
 
 /** `fsck` report — the three integrity faults + the populations they were derived from. `danglingRows` (row,
@@ -85,7 +85,7 @@ export interface FsckResult {
 /** `rebuildFromTree` options — `signal` aborts the walk-and-hash disaster-recovery pass. */
 export interface RebuildOptions {
   readonly kind: AssetKind;
-  readonly signal?: AbortSignal;
+  readonly signal: AbortSignal;
   /** Called after each owner folder is walked or skipped, so a long walk can report where it is. */
   readonly onOwner?: (progress: RebuildProgress) => void;
 }

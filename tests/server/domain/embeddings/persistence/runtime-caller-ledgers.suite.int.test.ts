@@ -31,7 +31,7 @@ test("the composed imagery orchestrator stores real image provenance and strikes
   await ownerCaller.connection.setBinding({ task: "generateImage", connectionId: connection.connectionId });
   fundingProvider.image(makeAssetBytes(harness.idSource.typeId(ID_PREFIX.asset)));
   const caller = await harness.principalFor(harness.ownerId);
-  const input = { caller, mode: "free" as const, prompt: "The funded orbital ledger." };
+  const input = { signal: new AbortController().signal, caller, mode: "free" as const, prompt: "The funded orbital ledger." };
   const picture = await app.services.imagery.generatePicture(input);
   expect(picture.images).toHaveLength(1);
   const image = picture.images[0];

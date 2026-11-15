@@ -29,7 +29,7 @@ test("cancelling one connection waiter leaves the shared catalog and another cal
     () => "resolved",
     (error: unknown) => error,
   );
-  const second = root.services.connection.resolve({ principal, task: "chat", connectionId: row.id });
+  const second = root.services.connection.resolve({ signal: new AbortController().signal, principal, task: "chat", connectionId: row.id });
   await started.promise;
   try {
     cancelled.abort();

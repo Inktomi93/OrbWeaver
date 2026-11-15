@@ -17,7 +17,9 @@ test.each([
   const principal = await root.principalFor(root.ownerId);
   const before = await root.db.select().from(workloads);
   const storedAssets = await root.db.select().from(assets);
-  await expect(root.services.databank.scrapeWiki({ principal, url: ARTICLE })).rejects.toMatchObject({ code: "scrape_failed" });
+  await expect(root.services.databank.scrapeWiki({ signal: new AbortController().signal, principal, url: ARTICLE })).rejects.toMatchObject({
+    code: "scrape_failed",
+  });
   expect(requests).toHaveLength(1);
   expect(await root.db.select().from(documents)).toEqual([]);
   expect(await root.db.select().from(workloads)).toEqual(before);

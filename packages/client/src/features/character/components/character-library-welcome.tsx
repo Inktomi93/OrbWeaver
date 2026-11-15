@@ -375,7 +375,7 @@ function LandingFrame({
             own precedent for the same shape — a row that packs by FIT rather than by breakpoint arithmetic.
             Container-queried, so it answers to the PANE (a three-pane desktop is as narrow as a phone). */}
       <Row align="start" gap="section" justify="between" stackBelow="cq-28">
-        <Stack className="min-inline-0" grow={true} gap="tight">
+        <Stack minWidth="shrinks" grow={true} gap="tight">
           <Heading level={2} voice="promoted">
             {title}
           </Heading>

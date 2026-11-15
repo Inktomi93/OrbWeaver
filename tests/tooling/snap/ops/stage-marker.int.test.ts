@@ -234,12 +234,11 @@ test("a later heartbeat that cannot take the table lock is skipped without waiti
   mkdirSync(lockDir);
   writeFileSync(join(lockDir, "pid"), `${process.pid}\n`);
   try {
-    // Beats keep firing against the held lock; a waiting beat would block this timer for its whole budget.
-    // the subject is elapsed real time — a beat that waits blocks the event loop.
-    const started = Date.now();
+    // Beats keep firing against the held lock; a waiting beat would block this timer for its whole budget, so the
+    // sleep's measured duration is the evidence.
+    const started = performance.now();
     await sleep(200);
-    // the same elapsed-time measurement's end.
-    expect(Date.now() - started).toBeLessThan(2000);
+    expect(performance.now() - started).toBeLessThan(2000);
     expect(readBands(home)[0]?.holders).toEqual([expect.objectContaining({ pid: process.pid })]);
   } finally {
     releaseLockDir(lockDir);

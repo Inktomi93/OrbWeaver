@@ -33,7 +33,7 @@ export function ConnectionEditorHeader({ label, onDone }: { readonly label: stri
   useFocusOnSwap(backRef);
   return (
     <Row align="center" wrap={true} data-slot="connection-editor-header" gap="field">
-      <Row align="center" className="min-inline-0" floor="title" grow={true} gap="field">
+      <Row align="center" minWidth="shrinks" floor="title" grow={true} gap="field">
         <Button aria-label={sectionBackName(CONNECTIONS_GROUP_LABEL)} className="shrink-0" variant="ghost" onClick={onDone} ref={backRef} size="sm">
           <Icon icon={ArrowLeft} size="sm" />
         </Button>

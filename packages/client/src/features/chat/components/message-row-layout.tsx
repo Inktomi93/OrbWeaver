@@ -44,7 +44,7 @@ export function MessageRowRoot({
   );
 }
 
-// `min-inline-0` and `cap="fit"`: a wide child (a code line) may not widen the row past its track. The body spans the
+// `minWidth="shrinks"` and `cap="fit"`: a wide child (a code line) may not widen the row past its track. The body spans the
 // track at every placement: a body that hugged its content made a bubble's phone cap a share of the bubble itself, and
 // sat a centred skin's short rows in narrow, sliding columns. At a phone width only the gap tightens; the chip keeps the
 // reader's own size and is never hidden (owner ruling, as Moonlit Echoes keeps its 40px avatar on a phone).
@@ -65,7 +65,7 @@ export function MessageRowBody({ skin, gutterChip, ...props }: RowBoxProps & { r
       width="full"
       data-slot="message-row-body"
       tracks={skin.columnPlacement === "gutterCentred" ? "gutterCentred" : undefined}
-      className="min-inline-0"
+      minWidth="shrinks"
     />
   );
 }
@@ -74,11 +74,7 @@ export function MessageRowBody({ skin, gutterChip, ...props }: RowBoxProps & { r
 // is too narrow for it. It is placed in the centred rail explicitly at every width, because a row with no chip (system,
 // avatars off, document) would otherwise auto-place into the content-sized gutter track. From the `cq-56` step up its
 // width is `--centred-column-width`, spelled in client globals.css beside the code-row rule it must outrank.
-const CENTRED_COLUMN = "col-start-2 min-inline-0";
-const ANCHORED_COLUMN = "min-inline-0";
-// A train's column hugs its widest pill, so the speaker row above it and the pager under it share the train's edges;
-// the skin's `columnMeasure` caps it. A mirrored train packs to the trailing edge, beside its own chip.
-const TRAIN_COLUMN = "min-inline-0";
+const CENTRED_COLUMN = "col-start-2";
 
 /** The content column for this skin's placement. A MIRRORED row packs its content to the column's trailing edge, so a
  *  phone-capped bubble sits flush against its chip and the cap's gap falls on the far side. */
@@ -94,15 +90,16 @@ export function MessageContentColumn({ skin, mirrored, ...props }: RowBoxProps &
         columnMeasure={skin.columnMeasure}
         align={align}
         className={CENTRED_COLUMN}
+        minWidth="shrinks"
         grow={true}
       />
     );
   }
   if (skin.bubbleLayout !== "trains") {
-    return (
-      <Stack {...props} gap="row" data-slot="message-content-column" columnMeasure={skin.columnMeasure} align={align} className={ANCHORED_COLUMN} grow={true} />
-    );
+    return <Stack {...props} gap="row" data-slot="message-content-column" columnMeasure={skin.columnMeasure} align={align} minWidth="shrinks" grow={true} />;
   }
+  // A train's column hugs its widest pill, so the speaker row above it and the pager under it share the train's edges;
+  // the skin's `columnMeasure` caps it. A mirrored train packs to the trailing edge, beside its own chip.
   return (
     <Stack
       {...props}
@@ -112,7 +109,7 @@ export function MessageContentColumn({ skin, mirrored, ...props }: RowBoxProps &
       align={align}
       cap="fit"
       push={mirrored ? "inlineEnd" : undefined}
-      className={TRAIN_COLUMN}
+      minWidth="shrinks"
     />
   );
 }

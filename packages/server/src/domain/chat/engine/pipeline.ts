@@ -51,7 +51,6 @@ import type { MacroRegistry, RandomSource, RowCharacterName, RowPersonaName } fr
 import { globalMacroRegistry } from "@orb/kit/macro";
 import { NO_SEATS } from "@orb/kit/message-author";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
-import { executeRegexScripts } from "@orb/kit/regex";
 import { cleanPerSpeakerReply } from "@orb/kit/speaker-label";
 import type { Clock } from "@orb/kit/time";
 import { estimateTokens } from "@orb/kit/tokens";
@@ -61,12 +60,12 @@ import { applyReceivePostProcess } from "#primitives/post-process";
 import { parseReasoningTags } from "#primitives/reasoning";
 import type {
   ApplyPromptTransformsOp,
-  ApplyRegexReplaceOp,
   BoundToolExecution,
   ChatToolExecFrame,
   ChatToolOps,
   EngineContext,
   LoadInlineReplyAssetIdsOp,
+  OpenRegexPassOp,
   ReserveReceiptEventsOp,
   ResolveTurnImageUrlOp,
   RunChatTurnOp,
@@ -122,7 +121,7 @@ interface RunTurnPipelineArgs {
   readonly now: Clock;
   /** The turn PRNG (`ChatContext.prng`) the turn-stage macro context draws from. */
   readonly random: RandomSource;
-  readonly applyRegexReplace: ApplyRegexReplaceOp;
+  readonly openRegexPass: OpenRegexPassOp;
   /** Resolves a parsed message-image ref → a model-fetchable URL + its media kind, or null to drop it. */
   readonly resolveImageUrl: ResolveTurnImageUrlOp;
   readonly loadContentSignatures?: () => Promise<ReadonlyMap<MessageId, ContentSignatures>>;
@@ -163,7 +162,7 @@ interface RunTurnPipelineArgs {
   readonly shape?: TurnSpeakerShape | undefined;
   /** Fans one streamed delta out. Fire-and-forget — not on the durable-await path. */
   readonly onDelta: (delta: ChatDeltaEvent) => void;
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
   /** Null means tool-use unwired (the byte-identical no-op). */
   readonly tools: ChatToolOps | null;
   /** Empty means no tools ride. */
@@ -472,7 +471,7 @@ function promptHistoryEnv(ctx: AssembleContext, args: RunTurnPipelineArgs): Prom
       onWarn: (msg, warnErr) => getLog(args.logger).warn({ err: warnErr, macroWarn: msg }, "chat: macro budget/eval trip (D53)"),
       registry: args.macroRegistry,
     }),
-    applyReplace: args.applyRegexReplace,
+    openRegexPass: args.openRegexPass,
     onScriptFailure: (scriptErr, script) =>
       getLog(args.logger).warn(
         { err: scriptErr, pass: "prompt", findRegex: script.findRegex },
@@ -528,12 +527,11 @@ function applyReceiveTransforms(
         })
       : null;
   if (macroCtx !== null) {
-    content = executeRegexScripts({
+    content = args.openRegexPass().execute({
       text: content,
       scripts,
       call: { pass: "save", target: "AI_OUTPUT", edit: false },
       ctx: macroCtx,
-      applyReplace: args.applyRegexReplace,
       onScriptFailure: (scriptErr, script) =>
         getLog(args.logger).warn({ err: scriptErr, target: "AI_OUTPUT", findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)"),
     });
@@ -543,12 +541,11 @@ function applyReceiveTransforms(
   content = cleanPerSpeakerContent(content, args);
 
   if (macroCtx !== null && reasoning !== null) {
-    reasoning = executeRegexScripts({
+    reasoning = args.openRegexPass().execute({
       text: reasoning,
       scripts,
       call: { pass: "save", target: "REASONING", edit: false },
       ctx: macroCtx,
-      applyReplace: args.applyRegexReplace,
       onScriptFailure: (scriptErr, script) =>
         getLog(args.logger).warn({ err: scriptErr, target: "REASONING", findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)"),
     });

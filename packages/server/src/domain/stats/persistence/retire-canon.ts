@@ -17,6 +17,7 @@ import { isConstraintViolation } from "@orb/db/query";
 import type { CharacterId, ChatId, IdSource, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { MODEL_PROVIDER_UNKNOWN, statsBucketStart } from "@orb/kit/stats-tally";
+import type { Clock } from "@orb/kit/time";
 import type { SQL } from "drizzle-orm";
 import { and, eq, sql } from "drizzle-orm";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
@@ -286,12 +287,19 @@ function admittedValues<K extends string>(acc: { readonly [P in K]: number }, gr
   return values;
 }
 
+/** The ids and the clock reading the rows an admission recreates are minted from. */
+interface AdmissionMint {
+  readonly idSource: IdSource;
+  readonly at: number;
+}
+
 // The inverse of `appendRetirement` for one room coming back into scope. Spend is not added: the retirement kept it
 // on the live rollups, and one retired ledger row per paid sample leaves instead, so canon carries it again. A room no
 // owned seat holds voices no living owned character (a deleted voice reads as none), so the character grain is
 // untouched; the new seat's own delta counts its character. The timeline and model rows a retirement emptied were
 // deleted, so they are upserted here.
-function appendAdmission(batch: BatchStmt[], db: Db, plan: OwnerRetirement, idSource: IdSource): void {
+function appendAdmission(batch: BatchStmt[], db: Db, plan: OwnerRetirement, mint: AdmissionMint): void {
+  const { idSource, at } = mint;
   const { ownerId, accums } = plan;
   const forks = plan.rooms.filter((room) => room.forked).length;
   batch.push(
@@ -317,6 +325,7 @@ function appendAdmission(batch: BatchStmt[], db: Db, plan: OwnerRetirement, idSo
           bucketStart,
           ...(bucket === undefined ? {} : admittedValues(bucket, BUCKET_GRAIN)),
           chatsCreated,
+          computedAt: at,
         })
         .onConflictDoUpdate({
           target: [dailyStats.ownerId, dailyStats.bucketStart],
@@ -339,6 +348,7 @@ function appendAdmission(batch: BatchStmt[], db: Db, plan: OwnerRetirement, idSo
             model: entry.model,
             provider: entry.provider ?? MODEL_PROVIDER_UNKNOWN,
             ...admittedValues(entry.acc, MODEL_GRAIN),
+            computedAt: at,
           })
           .onConflictDoUpdate({ target: [modelStats.ownerId, modelStats.model, modelStats.provider], set }),
       );
@@ -377,7 +387,7 @@ const NO_ADMISSION: CanonAdmission<BatchStmt[], Db> = {
 };
 
 /** Stats-built: the caller has already authorized the seat this plan surrounds. */
-export function createPrepareCanonAdmission(idSource: IdSource): PrepareCanonAdmission<BatchStmt[], Db> {
+export function createPrepareCanonAdmission(idSource: IdSource, now: Clock): PrepareCanonAdmission<BatchStmt[], Db> {
   return async (db: Db, { ownerId, chatId }): Promise<CanonAdmission<BatchStmt[], Db>> => {
     const [outOfScope] = await db.all<{ id: ChatId }>(sql`
       SELECT ch.id AS id FROM chats ch WHERE ch.id = ${chatId} AND ch.started_at IS NOT NULL
@@ -390,7 +400,7 @@ export function createPrepareCanonAdmission(idSource: IdSource): PrepareCanonAdm
     return {
       beforeSeat: (batch, batchDb): void => {
         batch.push(canonUnchangedStatement(batchDb, ownerId, plan.snapshot));
-        appendAdmission(batch, batchDb, plan, idSource);
+        appendAdmission(batch, batchDb, plan, { idSource, at: now() });
       },
       afterSeat: (batch, batchDb): void => settleRetainedChatRebase(batch, batchDb, { ownerIds: [ownerId], characterIds: [] }),
       refused: (error): Promise<boolean> => anyMoved(db, [plan], error),

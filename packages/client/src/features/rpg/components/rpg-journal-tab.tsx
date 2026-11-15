@@ -30,13 +30,12 @@ import type { RpgJournalType } from "@orb/contracts/rpg";
 import { RPG_JOURNAL_TYPES } from "@orb/contracts/rpg";
 import type { ChatId, RpgJournalId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { Card } from "@orb/ui/card";
 import { EmptyState } from "@orb/ui/empty-state";
 import { BookOpen, Icon, Pin } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
+import { Stack } from "@orb/ui/layout";
+import { ListRow } from "@orb/ui/list-row";
 import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
-import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
 import { useQuery } from "@tanstack/react-query";
@@ -247,6 +246,12 @@ function CardArchive({
   );
 }
 
+/** A mark's scent: when it was made, then how, when it was not made by hand. */
+function markSubtitle(createdAt: number, trigger: string | null): string {
+  const date = timeLib.formatDate(createdAt);
+  return trigger === null ? date : `${date} · ${trigger}`;
+}
+
 function JournalMarks({ state }: { readonly state: RpgPanelState }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -272,25 +277,13 @@ function JournalMarks({ state }: { readonly state: RpgPanelState }): ReactElemen
       ) : (
         <Stack gap="field">
           {sorted.map((mark) => (
-            <Card key={mark.id}>
-              <Row key={mark.id} gap="block" align="center" data-slot="rpg-mark-row">
-                <Icon icon={Pin} size="xs" ink="muted" />
-                <Stack gap="field" className="min-inline-0" grow={true}>
-                  <Text as="span" voice="label" truncate={true}>
-                    {mark.label}
-                  </Text>
-                  <Row gap="field" align="baseline">
-                    <Text as="span" voice="gloss">
-                      {timeLib.formatDate(mark.createdAt)}
-                    </Text>
-                    {CHECKPOINT_TRIGGER_LABELS[mark.trigger] === null ? null : (
-                      <Text as="span" voice="gloss" data-slot="rpg-mark-trigger">
-                        {CHECKPOINT_TRIGGER_LABELS[mark.trigger]}
-                      </Text>
-                    )}
-                  </Row>
-                </Stack>
-                {state.isHost ? (
+            <ListRow
+              key={mark.id}
+              leading={<Icon icon={Pin} size="xs" ink="muted" />}
+              title={mark.label}
+              subtitle={markSubtitle(mark.createdAt, CHECKPOINT_TRIGGER_LABELS[mark.trigger])}
+              actions={
+                state.isHost ? (
                   <DestructiveAction
                     confirm={{
                       title: `Restore "${mark.label}"?`,
@@ -308,9 +301,9 @@ function JournalMarks({ state }: { readonly state: RpgPanelState }): ReactElemen
                       </Button>
                     }
                   />
-                ) : null}
-              </Row>
-            </Card>
+                ) : undefined
+              }
+            />
           ))}
         </Stack>
       )}

@@ -41,9 +41,16 @@ test("an Ollama row's test request takes the native route its chat turn takes, w
   });
 
   await root.app.runtime.executor
-    .runChatTurn({ api: "chat-completions", connection, params: { temperature: 0.8 }, systemPrompt: { static: "", dynamic: "" }, history: HELLO })
+    .runChatTurn({
+      signal: new AbortController().signal,
+      api: "chat-completions",
+      connection,
+      params: { temperature: 0.8 },
+      systemPrompt: { static: "", dynamic: "" },
+      history: HELLO,
+    })
     .catch(() => undefined);
-  const inspection = await root.app.runtime.diagnostics.inspect({ connection });
+  const inspection = await root.app.runtime.diagnostics.inspect({ signal: new AbortController().signal, connection });
 
   const [chat, inspected] = recorded;
   expect(chat?.url).toBe("http://127.0.0.1:11434/api/chat");
@@ -69,13 +76,14 @@ test("a Custom row's test request takes /chat/completions with the row's own bod
   });
 
   await root.app.runtime.executor.runChatTurn({
+    signal: new AbortController().signal,
     api: "chat-completions",
     connection,
     params: { maxOutputTokens: 64 },
     systemPrompt: { static: "", dynamic: "" },
     history: HELLO,
   });
-  const inspection = await root.app.runtime.diagnostics.inspect({ connection });
+  const inspection = await root.app.runtime.diagnostics.inspect({ signal: new AbortController().signal, connection });
 
   const [chat, inspected] = recorded;
   expect(chat?.url).toMatch(/\/v1\/chat\/completions$/u);
@@ -93,7 +101,7 @@ test("a 2xx reply the chat path cannot read is not ok, shows the reply and says 
   await using root = await createRuntimeRoot({ providerFetch: unreadable });
   const connection = await wireConnection(root, { task: "chat", providerId: "custom-openai", model: "m", capability: generationCapability() });
 
-  const inspection = await root.app.runtime.diagnostics.inspect({ connection });
+  const inspection = await root.app.runtime.diagnostics.inspect({ signal: new AbortController().signal, connection });
 
   expect(inspection.ok).toBe(false);
   expect(inspection.response).toMatchObject({ status: 200, bodyPreview: "not json at all" });

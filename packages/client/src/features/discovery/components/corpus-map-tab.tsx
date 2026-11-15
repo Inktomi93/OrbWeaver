@@ -10,7 +10,7 @@ import { Stack } from "@orb/ui/layout";
 import { Scatter } from "@orb/ui/scatter";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
+import { ContextTabBody, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { selectCorpusCharacter } from "#state";
 import { toGenreSeries } from "../lib/corpus-charts.ts";
@@ -21,15 +21,17 @@ const SKELETON_ROW_COUNT = 3;
 
 export function CorpusMapTab(): ReactElement {
   return (
-    <QueryBoundary
-      resetKeys={[]}
-      fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
-      fill={true}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="the map" onRetry={retry} />}
-      reserveKey="corpus.map"
-    >
-      <MapBody />
-    </QueryBoundary>
+    <ContextTabBody kind="fill">
+      <QueryBoundary
+        resetKeys={[]}
+        fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
+        fill={true}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="the map" onRetry={retry} />}
+        reserveKey="corpus.map"
+      >
+        <MapBody />
+      </QueryBoundary>
+    </ContextTabBody>
   );
 }
 

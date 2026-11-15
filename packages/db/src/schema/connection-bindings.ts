@@ -17,7 +17,7 @@ import { BINDING_ACTOR_KINDS, CATALOG_STRATEGIES, DIALECTS, PLUGIN_PROVIDER_ID_P
 import type { AutomationRuleId, ConnectionBindingId, PluginId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, foreignKey, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { nulFreeText } from "../custom-types/index.ts";
+import { nulFreeText, stampColumn } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { automationRules } from "./automation.ts";
 import { userConnections } from "./connection.ts";
@@ -117,7 +117,7 @@ export const providerRows = sqliteTable(
     originUserId: nulFreeText("origin_user_id")
       .$type<UserId>()
       .references(() => users.id, { onDelete: "set null" }),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     primaryKey({ columns: [t.id, t.definitionHash] }),
@@ -163,7 +163,7 @@ export const pluginProviderClaims = sqliteTable(
     pluginId: nulFreeText("plugin_id")
       .$type<PluginId>()
       .references(() => plugins.id, { onDelete: "set null" }),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     primaryKey({ columns: [t.ownerId, t.providerId] }),

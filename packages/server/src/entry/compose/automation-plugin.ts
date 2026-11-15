@@ -90,6 +90,9 @@ export interface AutomationPluginComposeDeps {
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
   readonly publishNotification: LiveBuses["notifications"]["publishNotification"];
   readonly publishAutomationEvent: LiveBuses["automation"]["publishAutomationEvent"];
+  /** Ends at shutdown. Rule dispatch runs off the domain bus under the background-work supervisor, so this is the
+   *  cancel its arms' provider calls and fetches take. */
+  readonly backgroundSignal: AbortSignal;
 
   readonly egress: Pick<ScopedEgress, "safeFetch" | "fetchPluginBundle">;
   readonly scheduleTimeout: ScheduleOp;
@@ -198,6 +201,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
   const automationNotify = deps.publishAutomationEvent;
   const emitNotification = createRecordAndPublishNotification((params) => notifications.record(params), deps.publishNotification);
   const automationRuntime = createAutomationRuntimeOps<DrivableToolSet>({
+    backgroundSignal: deps.backgroundSignal,
     resolveOwnerPrincipal,
     requestTurn: (params) => chatCompose.requestTurn(params),
     postNarratorMessage: (chatId, content, media, options) => chatCompose.rpgChatOps.postNarratorMessage(chatId, content, media, options),
@@ -238,7 +242,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     generatePicture: automationRuntime.generatePicture,
     listBackgroundChoices: automationRuntime.listBackgroundChoices,
     setChatBackground: async ({ authorUserId, chatId, background }) => {
-      await chat.setChatBackground({ principal: await resolveOwnerPrincipal(authorUserId), chatId, background });
+      await chat.setChatBackground({ principal: await resolveOwnerPrincipal(authorUserId), chatId, background, signal: deps.backgroundSignal });
     },
     isToolDrivableBy: (toolName, authorUserId) => deps.toolUse.isToolDrivableBy(toolName, authorUserId),
     runTool: automationRuntime.runTool,

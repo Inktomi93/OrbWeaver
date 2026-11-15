@@ -18,17 +18,15 @@ const PRIOR_FIND_CAP = 2048;
 const PRIOR_REPLACE_CAP = 10_000;
 // The save pass over replies, which an edit re-applies.
 const AXES = { targets: ["AI_OUTPUT"], passes: ["save"] } as const;
-// Empty groups of two and three characters: they match the empty string anywhere and add no quantifier, so any
-// padding length of two or more can be built from them.
-const EMPTY_PAIR = "()";
-const EMPTY_ALTERNATION = "(|)";
+// One optional character class pads the pattern: it matches the empty string and compiles in microseconds at any
+// length, so these cases test the length caps, not the compile door.
+const CLASS_OPEN = "[";
+const CLASS_CLOSE = "]?";
 
-/** A find pattern of exactly `length` characters that matches `head`, padded in front with empty groups. */
+/** A find pattern of exactly `length` characters that matches `head`, padded in front with one optional class. */
 function paddedPattern(head: string, length: number): string {
-  const room = length - head.length;
-  const odd = room % EMPTY_PAIR.length === 1;
-  const pairs = (room - (odd ? EMPTY_ALTERNATION.length : 0)) / EMPTY_PAIR.length;
-  return `${odd ? EMPTY_ALTERNATION : ""}${EMPTY_PAIR.repeat(pairs)}${head}`;
+  const room = length - head.length - CLASS_OPEN.length - CLASS_CLOSE.length;
+  return `${CLASS_OPEN}${"z".repeat(room)}${CLASS_CLOSE}${head}`;
 }
 
 async function editedWith(
@@ -72,14 +70,17 @@ test("a script at each new cap stores, and one past either cap is refused at the
   const base = { name: "limits", targets: [...AXES.targets], passes: [...AXES.passes] };
 
   await expect(caller.regex.createScript({ input: { ...base, ...at } })).resolves.toMatchObject({ findRegex: at.findRegex });
-  await expect(caller.regex.createScript({ input: { ...base, ...at, findRegex: paddedPattern("lamp", MAX_FIND_REGEX_LENGTH + 1) } })).rejects.toThrow();
-  await expect(caller.regex.createScript({ input: { ...base, ...at, replaceString: "L".repeat(MAX_REPLACE_LENGTH + 1) } })).rejects.toThrow();
+  // The schema's own length refusal, named by its zod issue code.
+  await expect(caller.regex.createScript({ input: { ...base, ...at, findRegex: paddedPattern("lamp", MAX_FIND_REGEX_LENGTH + 1) } })).rejects.toThrow(
+    /too_big/,
+  );
+  await expect(caller.regex.createScript({ input: { ...base, ...at, replaceString: "L".repeat(MAX_REPLACE_LENGTH + 1) } })).rejects.toThrow(/too_big/);
 });
 
 test("a catastrophic find pattern at the full find cap is stopped on the edit re-apply and leaves the text as written", async () => {
   await using root = await createServerHarness();
   const host = await root.principalFor(root.ownerId);
-  // One stacked quantifier passes the pre-compile count, so the server's per-call timeout is the guard that fires.
+  // No shape is refused before compile, so the server's per-call timeout is the guard that fires.
   const runaway = paddedPattern("(a+)+$", MAX_FIND_REGEX_LENGTH);
   const text = `${"a".repeat(40)}!`;
   const warnSpy = vi.spyOn(root.logger, "warn").mockImplementation(() => undefined);

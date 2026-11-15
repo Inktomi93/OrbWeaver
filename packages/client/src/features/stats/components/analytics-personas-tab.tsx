@@ -13,7 +13,7 @@ import { Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { shownValue, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { MutedLine, QueryBoundary } from "#components";
+import { ContextTabBody, MutedLine, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
 import { useSelectedAnalyticsCharacterId } from "#state";
@@ -24,16 +24,18 @@ export function AnalyticsPersonasTab(): ReactElement {
   const drilled = useSelectedAnalyticsCharacterId();
   return (
     // ContextBracket owns the stable viewport; the reservation measures content without trapping scroll chaining.
-    <Stack className="relative" minHeight="shrinks" data-testid={testId("analyticsPersonasTab")}>
-      <QueryBoundary
-        resetKeys={[drilled]}
-        fallback={<SkeletonRows count={3} shape="datum" />}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="persona usage" onRetry={retry} />}
-        reserveKey="analytics.personas"
-      >
-        <PersonasBody />
-      </QueryBoundary>
-    </Stack>
+    <ContextTabBody>
+      <Stack className="relative" minHeight="shrinks" data-testid={testId("analyticsPersonasTab")}>
+        <QueryBoundary
+          resetKeys={[drilled]}
+          fallback={<SkeletonRows count={3} shape="datum" />}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="persona usage" onRetry={retry} />}
+          reserveKey="analytics.personas"
+        >
+          <PersonasBody />
+        </QueryBoundary>
+      </Stack>
+    </ContextTabBody>
   );
 }
 

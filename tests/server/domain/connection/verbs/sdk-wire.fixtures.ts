@@ -25,7 +25,13 @@ export async function savedConnection(root: Awaited<ReturnType<typeof createServ
     allowBackground: true,
     declared: declaredCapabilitySchema.parse({ kind: "generation", generation: { input: ["text", "image"] } }),
   });
-  const { resolved } = await root.app.runtime.resolve({ task: "chat", connectionId: connection.id, principal, cachedFacts: true });
+  const { resolved } = await root.app.runtime.resolve({
+    signal: new AbortController().signal,
+    task: "chat",
+    connectionId: connection.id,
+    principal,
+    cachedFacts: true,
+  });
   await root.settleBackground();
   return { ...resolved, task: "chat" };
 }

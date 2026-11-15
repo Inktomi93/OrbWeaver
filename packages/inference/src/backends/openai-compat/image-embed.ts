@@ -91,7 +91,7 @@ async function embedOne(args: PostArgs): Promise<EmbeddingsResponse> {
       body,
       secrets: resolvedScrubSet(connection),
       label,
-      ...(req.signal !== undefined ? { signal: req.signal } : {}),
+      signal: req.signal,
     }).then((result) => embeddingsResponseSchema.parse(result.json));
   const base = { model: connection.model, add_generation_prompt: true, messages };
   try {

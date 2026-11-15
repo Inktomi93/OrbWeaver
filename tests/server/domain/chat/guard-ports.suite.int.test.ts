@@ -50,7 +50,12 @@ test("composed host and member ports preserve room authority and leak-free refus
     input: createRegexScriptSchema.parse({ name: "Guard script", findRegex: "needle", replaceString: "replacement", targets: [], passes: [] }),
   });
   const book = await root.services.worldInfo.createBook({ principal: host, input: createBookSchema.parse({ name: "Guard book" }) });
-  const { document } = await root.services.databank.createFromText({ principal: host, name: "Guard document", text: "Room-visible guard witness." });
+  const { document } = await root.services.databank.createFromText({
+    signal: new AbortController().signal,
+    principal: host,
+    name: "Guard document",
+    text: "Room-visible guard witness.",
+  });
   for (const attach of [
     (): Promise<void> => root.services.regex.attachToChat({ principal: host, chatId: chat.id, scriptId: script.id }),
     (): Promise<void> => root.services.worldInfo.attachToChat({ principal: host, chatId: chat.id, bookId: book.id }),
@@ -65,7 +70,7 @@ test("composed host and member ports preserve room authority and leak-free refus
   }> => ({
     scripts: await root.services.regex.listForChat({ principal: host, chatId: chat.id }),
     books: await root.services.worldInfo.listForChat({ principal: host, chatId: chat.id }),
-    documents: await root.services.databank.listActiveForChat({ principal: host, chatId: chat.id }),
+    documents: await root.services.databank.listActiveForChat({ signal: new AbortController().signal, principal: host, chatId: chat.id }),
   });
   const before = await readRoom();
   expect(before.scripts.map(({ id }) => id)).toEqual([script.id]);
@@ -73,7 +78,9 @@ test("composed host and member ports preserve room authority and leak-free refus
   expect(before.documents.map(({ id }) => id)).toEqual([document.id]);
   expect(await root.services.regex.listForChat({ principal: member, chatId: chat.id })).toEqual(before.scripts);
   expect(await root.services.worldInfo.listForChat({ principal: member, chatId: chat.id })).toEqual(before.books);
-  expect((await root.services.databank.listActiveForChat({ principal: member, chatId: chat.id })).map(({ id }) => id)).toEqual([document.id]);
+  expect(
+    (await root.services.databank.listActiveForChat({ signal: new AbortController().signal, principal: member, chatId: chat.id })).map(({ id }) => id),
+  ).toEqual([document.id]);
 
   const missing = root.idSource.typeId(ID_PREFIX.chat);
   // Detach does not require ownership of the library row, so each refusal reaches the room-host gate.
@@ -112,7 +119,8 @@ test("composed host and member ports preserve room authority and leak-free refus
     for (const read of [
       (): ReturnType<typeof root.services.regex.listForChat> => root.services.regex.listForChat({ principal, chatId }),
       (): ReturnType<typeof root.services.worldInfo.listForChat> => root.services.worldInfo.listForChat({ principal, chatId }),
-      (): ReturnType<typeof root.services.databank.listActiveForChat> => root.services.databank.listActiveForChat({ principal, chatId }),
+      (): ReturnType<typeof root.services.databank.listActiveForChat> =>
+        root.services.databank.listActiveForChat({ signal: new AbortController().signal, principal, chatId }),
     ]) {
       await expect(read()).rejects.toThrow(DomainNotFoundError);
     }

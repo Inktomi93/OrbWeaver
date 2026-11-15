@@ -1,15 +1,15 @@
 // The PACK's ROW/CELL family — the two lenses over one item list, apart from the tab (the tab
 // keeps the composition, these keep the anatomy). The GRID cell is the compact multi-column
-// lens; the LIST row is the same item read in full AND, for a host, the editor: name, quantity,
-// location and description are click-to-edit in place, with a confirmed drop. `PackEdit` is the one callback
+// lens; the LIST row is the same item read in full, and for a host it opens into the item's editor: name,
+// quantity, location and description are click-to-edit, with a confirmed drop. `PackEdit` is the one callback
 // set both lenses take (absent = the read-only member arm - PERMISSION-omit, never a disabled twin) — and
 // `PackEdit` plus the per-datum field components it drives live one file over in `rpg-pack-fields.tsx`
 // : this module owns the two ANATOMIES, that one owns what a single datum
 // looks like under each permission arm.
 //
 // THE TILE IS THE ITEM'S OWN CARD (an owner call) — glyph · name (wrapped, a model writes it) · ×N · where
-// it's kept — so no datum is an unlabelled corner digit or a hover-only name, and for a host it is the trigger for `PackTileEditor`: the SAME click-to-edit field set the list row composes, in a
-// popover, through the SAME `PackEdit` write path (one authoring vocabulary, one lock stamp, two lenses).
+// it's kept — so no datum is an unlabelled corner digit or a hover-only name, and for a host it is the trigger for `PackTileEditor`, the editor the list row opens
+// into, in a popover, through the SAME `PackEdit` write path (one authoring vocabulary, one lock stamp, two lenses).
 //
 // RENDER THEM (an owner ruling): `description` + `location` are model-written on every item (the extraction
 // guidance asks for both by name) and both READ as text in BOTH lenses — a hover string is not a reader
@@ -24,9 +24,11 @@ import { Icon, Trash } from "@orb/ui/icons";
 import { InlineAction } from "@orb/ui/inline-action";
 import { Corner, Grid, Row, Stack } from "@orb/ui/layout";
 import { editActionName } from "@orb/ui/lib";
+import { ListRow } from "@orb/ui/list-row";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import { DestructiveAction, Tip } from "#components";
 import { ITEM_ICON_CHOICES, resolveItemIcon } from "../lib/glyphs.ts";
 import type { PackEdit } from "./rpg-pack-fields.tsx";
@@ -104,8 +106,8 @@ function PackCellInk({ item, pinned = false }: { readonly item: RpgInventoryItem
         </Corner>
       ) : null}
       <Icon icon={resolveItemIcon(item.icon, item.name, item.type)} size="sm" ink="muted" className="shrink-0" />
-      <Stack gap="field" className="min-inline-0" grow={true}>
-        <Row gap="field" align="baseline" className="min-inline-0">
+      <Stack gap="field" minWidth="shrinks" grow={true}>
+        <Row gap="field" align="baseline" minWidth="shrinks">
           {/* The NAME is the datum and a model writes it: it WRAPS inside the tile rather than
               truncating away — the tile grows a line, the pack keeps its rhythm (the grid row stretches). */}
           {/* `label` — the tile's NAME, the same voice the LIST row's `ItemName` speaks; a tile whose name
@@ -203,7 +205,7 @@ function PackCell({ item, edit }: { readonly item: RpgInventoryItem; readonly ed
 function PackTileEditor({ item, edit }: { readonly item: RpgInventoryItem; readonly edit: PackEdit }): ReactElement {
   return (
     <Stack gap="row" width="controlCol" data-slot="rpg-pack-tile-editor">
-      <Row gap="field" align="center" className="min-inline-0">
+      <Row gap="field" align="center" minWidth="shrinks">
         <ItemGlyph item={item} onPickIcon={(icon: string): void => edit.onPickIcon(item.id, icon)} />
         <ItemName item={item} edit={edit} />
         <ItemQuantity item={item} edit={edit} />
@@ -231,43 +233,50 @@ function PackTileEditor({ item, edit }: { readonly item: RpgInventoryItem; reado
   );
 }
 
-/** One LIST row — glyph · name · ×qty · the hand pin · location · description. For a host this row IS
- *  the editor: every datum is click-to-edit in place and the row carries a confirmed delete. */
-function PackListRow({ item, edit }: { readonly item: RpgInventoryItem; readonly edit?: PackEdit }): ReactElement {
+/** The LIST row's tells on its title line: ×N (a stack of one renders nothing) and, for a host, the hand pin. */
+function packRowMarkers({ item, pinned }: { readonly item: RpgInventoryItem; readonly pinned: boolean }): ReactElement | undefined {
+  if (item.quantity <= 1 && !pinned) {
+    return undefined;
+  }
   return (
-    <Card>
-      <Row gap="field" align="center" data-slot="rpg-pack-row">
-        <ItemGlyph item={item} {...(edit === undefined ? {} : { onPickIcon: (icon: string): void => edit.onPickIcon(item.id, icon) })} />
-        <Stack gap="field" className="min-inline-0" grow={true}>
-          <Row gap="field" align="baseline" className="min-inline-0">
-            <ItemName item={item} {...(edit === undefined ? {} : { edit })} />
-            <ItemQuantity item={item} {...(edit === undefined ? {} : { edit })} />
-            {/* The LIST lens is the EDIT lens, and it is not a Button itself — so here the pin IS the Release,
-              one tap, exactly as every other pinned datum in the panel offers it. */}
-            {edit === undefined ? null : <ItemLockPin item={item} edit={edit} />}
-          </Row>
-          {/* WHERE it is kept — stored by the schema and asked of the model in the extraction guidance. */}
-          <ItemProseLine item={item} value={item.location} field="location" placeholder="where it's kept…" {...(edit === undefined ? {} : { edit })} />
-          <ItemProseLine item={item} value={item.description} field="description" placeholder="what it is…" {...(edit === undefined ? {} : { edit })} />
-        </Stack>
-        {edit === undefined ? null : (
-          <DestructiveAction
-            confirm={{
-              title: `Drop "${item.name}"?`,
-              description: "The item leaves the pack for good. The chronicle keeps whatever already happened in the story.",
-              confirmLabel: "Drop",
-            }}
-            onConfirm={(): void => edit.onRemoveItem(item.id)}
-            trigger={
-              <GlyphButton aria-label={`Drop item: ${item.name}`} variant="ghost" glyph="sm">
-                <Icon icon={Trash} size="xs" />
-              </GlyphButton>
-            }
-          />
-        )}
-      </Row>
-    </Card>
+    <>
+      {item.quantity > 1 ? (
+        <Text as="span" ink="muted" voice="datum">
+          ×{item.quantity}
+        </Text>
+      ) : null}
+      {pinned ? (
+        <Text as="span" voice="gloss">
+          Pinned
+        </Text>
+      ) : null}
+    </>
   );
+}
+
+/** One LIST row — glyph · name · ×qty · the hand pin · location · description, the item read in full. For a host it opens
+ *  into the item's editor, the SAME `PackTileEditor` the grid tile's popover holds, so both lenses author through one editor. */
+function PackListRow({ item, edit }: { readonly item: RpgInventoryItem; readonly edit?: PackEdit }): ReactElement {
+  const [open, setOpen] = useState(false);
+  const pinned = edit !== undefined && edit.itemLocks(item.id).length > 0;
+  const row = {
+    leading: <Icon icon={resolveItemIcon(item.icon, item.name, item.type)} size="md" ink="muted" />,
+    title: item.name,
+    markers: packRowMarkers({ item, pinned }),
+    subtitle: item.location === "" ? undefined : item.location,
+    subtitleWrap: true,
+    detail:
+      item.description === "" ? undefined : (
+        <Text as="span" voice="gloss" wrap="word">
+          {item.description}
+        </Text>
+      ),
+  } as const;
+  // PERMISSION-omit: a member's row is the same row with nothing to open, never a disabled disclosure.
+  if (edit === undefined) {
+    return <ListRow {...row} />;
+  }
+  return <ListRow {...row} expand={{ open, onOpenChange: setOpen, panel: <PackTileEditor item={item} edit={edit} /> }} />;
 }
 
 /** The pack body — the OSRS grid or the list view (the host's EDIT lens).

@@ -20,9 +20,8 @@
 // transaction `consume` never reads it.
 
 import type { ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
-import { sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { nulFreeText } from "../custom-types/index.ts";
+import { nulFreeText, stampColumn } from "../custom-types/index.ts";
 import { users } from "./users.ts";
 
 export const sessions = sqliteTable(
@@ -41,7 +40,7 @@ export const sessions = sqliteTable(
     expiresAt: integer("expires_at").notNull(),
     // Last activity instant (epoch-ms number); born = mint time (a fresh session was just seen), then
     // bumped on the throttled activity slide alongside expiresAt.
-    lastSeenAt: integer("last_seen_at").notNull().default(sql`(unixepoch() * 1000)`),
+    lastSeenAt: stampColumn("last_seen_at"),
     // Set by logout / admin-kick; null = live. Revoke is one atomic `UPDATE … WHERE revoked_at IS NULL`.
     revokedAt: integer("revoked_at"),
     // The User-Agent captured at mint; null when the mint carried no UA header.
@@ -68,8 +67,8 @@ export const sessions = sqliteTable(
     oidcIdTokenTag: nulFreeText("oidc_id_token_tag"),
     // Reserved for the future API-token surface (same table, same revoke/list machinery).
     label: nulFreeText("label"),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
-    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
+    updatedAt: stampColumn("updated_at"),
   },
   (table) => [
     // Validate looks up by token hash — it MUST be unique (one session per minted token).
@@ -92,7 +91,7 @@ export const oidcTransactions = sqliteTable(
     redirectUri: nulFreeText("redirect_uri"),
     // D259 — the peppered hash of a signup invite the visitor arrived with; the raw token is never stored.
     inviteTokenHash: nulFreeText("invite_token_hash"),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
     // Short-lived; the store GC sweeps expired transactions.
     expiresAt: integer("expires_at").notNull(),
   },

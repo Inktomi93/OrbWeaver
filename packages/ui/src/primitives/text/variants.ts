@@ -218,8 +218,7 @@ export const textVariants = tv({
       inline: "inline-block truncate align-bottom max-inline-full",
       false: "",
     },
-    // A run in a flex row that takes the room that is left (`grow`) from a starting width (`floor`). The `min-inline-0` that lets it
-    // shrink below its content stays the caller's.
+    // A run in a flex row that takes the room that is left (`grow`) from a starting width (`floor`).
     grow: GROW,
     floor: FLOOR,
     push: PUSH,

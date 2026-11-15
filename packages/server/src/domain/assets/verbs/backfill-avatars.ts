@@ -58,7 +58,7 @@ async function storeWave(ctx: AssetsContext, ownerId: UserId, cards: readonly Ba
 
 export function createBackfillAvatars(ctx: AssetsContext): AssetsService["backfillAvatars"] {
   return async ({ ownerId, cards, dryRun = false, signal }) => {
-    if (signal !== undefined && isAborted(signal)) {
+    if (isAborted(signal)) {
       return { scanned: 0, linked: 0 };
     }
     if (dryRun) {
@@ -71,7 +71,7 @@ export function createBackfillAvatars(ctx: AssetsContext): AssetsService["backfi
     const links: CharacterAvatarLink[] = [];
     let scanned = 0;
     for (let i = 0; i < cards.length; i += CONCURRENCY) {
-      if (signal !== undefined && isAborted(signal)) {
+      if (isAborted(signal)) {
         break;
       }
       const wave = cards.slice(i, i + CONCURRENCY);

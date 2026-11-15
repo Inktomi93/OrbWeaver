@@ -35,6 +35,7 @@
 // CANCELLED ROUND IS BYTE-IDENTICAL TO A NON-WRITING TURN — it refuses to write and discards its staging, and
 // it never rolls back a write that already landed. `flushTurn` below states the reasoning.
 
+import type { RoomAdmission } from "@orb/contracts/chat";
 import { coEmitsProseWithTools } from "@orb/contracts/inference";
 import type { RpgExtractionMode, RpgFlushOutcome, RpgFoldFallbackReason, RpgRecordedToolCall } from "@orb/contracts/rpg";
 import { markLockSuppressions, recordToolCalls, rpgJournalTypeSchema } from "@orb/contracts/rpg";
@@ -60,6 +61,8 @@ interface CompletedTurn {
    *  `flush-barrier.ts` explains why the character turn's own signal cannot serve). Threaded onto every arm that
    *  can SPEND, and re-read at the write boundary below. */
   readonly signal: AbortSignal;
+  /** Chat's admission of the turn's room, which a fold into a shadowing hand row spends on its claim. */
+  readonly admission: RoomAdmission;
 }
 
 /** Stage a state DELTA (from the dedicated post-commit tool round, or from the folded turn's own calls) into
@@ -294,7 +297,7 @@ async function foldIntoShadowingHandRow(
     // This turn's slot vanished (a racing delete) — there is no position to fold at.
     return { headId: written.snapshotId, suppressed: [] };
   }
-  const outcome = await foldTurnWriteIntoHandHead(ctx, game, written, seq);
+  const outcome = await foldTurnWriteIntoHandHead(ctx, { game, admission: turn.admission }, written, seq);
   if (outcome.kind === "refused" || outcome.kind === "shadowed") {
     // BOTH losing arms are LOUD. The `shadowed` arm is the one the verifier caught staying silent: the turn's
     // writes were erased and nothing in the trail said so, which is the exact blind spot `onFlushDropped`

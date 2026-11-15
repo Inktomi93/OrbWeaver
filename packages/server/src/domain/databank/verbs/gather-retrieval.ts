@@ -54,6 +54,7 @@ export function createGatherRetrieval(ctx: DatabankContext): DatabankService["ga
       scope: { chatId: params.chatId },
       ownerId: params.hostUserId,
       queryText: params.queryText,
+      signal: params.signal,
       ...(params.k !== undefined ? { k: params.k } : {}),
       ...(params.minScore !== undefined ? { minScore: params.minScore } : {}),
       ...(params.rerank !== undefined ? { rerank: params.rerank } : {}),

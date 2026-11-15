@@ -117,7 +117,7 @@ export type LoadParticipantViewsBatchOp = (chatIds: readonly ChatId[]) => Promis
 export type AssembleInvitePreviewOp = (chatId: ChatId) => Promise<InvitePreview>;
 
 /** Resolve the frozen room HOST's `chat` connection for a turn. A chat binds no connection (F20). */
-type ResolveChatConnectionOp = (params: { readonly funderUserId: ConsentingHostId; readonly signal?: AbortSignal | undefined }) => Promise<Resolved<"chat">>;
+type ResolveChatConnectionOp = (params: { readonly funderUserId: ConsentingHostId; readonly signal: AbortSignal }) => Promise<Resolved<"chat">>;
 
 /** The live card for a roster member under the host's ownership. Null means gone/mid-delete — the caller
  *  treats null as skip, never an error. */
@@ -198,6 +198,7 @@ export interface ExtractQuietParams {
   /** The initiating viewer's zone, which the template's `{{date}}`/`{{time}}`/`{{weekday}}` read. Absent ⇒ UTC
    *  (a caller with no viewer: automation, a plugin, a model tool call). */
   readonly timeZone?: IanaTimeZone | undefined;
+  readonly signal: AbortSignal;
 }
 export interface ExtractQuietResult {
   readonly text: string;
@@ -235,7 +236,7 @@ export interface QuietGenerateParams {
   readonly userText: string;
   /** Optional generation tuning (temperature / maxOutputTokens); absent ⇒ the op's bounded defaults. */
   readonly intent?: UserIntent | undefined;
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 /** The reduced result — not exported (nothing imports it directly; `QuietGenerate` is its only consumer). */
 interface QuietGenerateResult {
@@ -336,7 +337,7 @@ type ListPluginMacrosOp = (authorUserId: UserId) => readonly PluginMacroNames[];
 export interface PromptTransformRegistry {
   readonly apply: ApplyPromptTransformsOp;
   /** Register a transform (idempotent by `id` — a re-register replaces the prior, e.g. an automation rule edit). */
-  readonly register: RegisterPromptTransformOp;
+  readonly register: RegisterPromptTransformOp<AbortSignal>;
   /** Deregister by id (an automation rule disable / a plugin teardown). A no-op for an unknown id. */
   readonly unregister: UnregisterPromptTransformOp;
 }
@@ -510,6 +511,7 @@ export type GeneratePictureOp = (
     readonly gallery?: { readonly subjectCharacterId: CharacterId } | undefined;
     /** The viewer's zone an extraction template's time macros read; absent ⇒ UTC. */
     readonly timeZone?: IanaTimeZone | undefined;
+    readonly signal: AbortSignal;
   },
 ) => Promise<{
   readonly images: readonly { readonly assetId: AssetId }[];
@@ -525,21 +527,24 @@ type VerifyPersonaOwnedOp = (params: { readonly ownerId: UserId; readonly person
 
 /** memory's digest vector write — the one write path. Cancellation belongs to the runtime operation, not the shared
  *  memory payload, and `AbortSignal` is not declared in the contracts program. */
-export type EmbeddingsStoreOp = (params: MemoryDigestInput & { readonly signal?: AbortSignal | undefined }) => Promise<MemoryEmbedSpace>;
+export type EmbeddingsStoreOp = (params: MemoryDigestInput & { readonly signal: AbortSignal }) => Promise<MemoryEmbedSpace>;
 
 /** memory's verbatim-segment write — a BATCH, and the one place the segment phase's embed flood lives (owner batching ruling: derived-data sweeps batch BY PHASE, never per-item interleaved). The corpus sweep
  * collects every chat's pending chunks, hands them over in ONE call, and the embeddings side submits them to
  * the engine as a single flood with no client-side throttle; the live post-turn build calls the same op with
  * one chat's chunks. Nothing here decides concurrency — that is the provider surface's. The signature stays here
  * because `AbortSignal` is not declared in the contracts program. */
-export type EmbeddingsStoreSegmentsOp = (params: readonly StoreSegmentParams[], signal?: AbortSignal) => Promise<readonly MemoryEmbedSpace[]>;
+export type EmbeddingsStoreSegmentsOp = (params: readonly StoreSegmentParams[], signal: AbortSignal) => Promise<readonly MemoryEmbedSpace[]>;
 
 /** memory's chat-scoped recall. Returns the ranked blocks WITH their retrieval numbers; memory resolves the
  *  identities back to digest text and reports the numbers in its recall trace (a bare key list left
  *  "why did THIS block surface" unanswerable at the only seam that knows). */
 /** `ownerId` is OMITTED on purpose: `MemoryScope` carries no owner (D20), so the compose binding resolves the
  *  chat HOST — whose `embed`/`rerank` bindings define the digest space — from the chat FK before calling search. */
-type SearchDigestsOp = (query: Omit<MemoryQueryOptions, "ownerId">, events?: TurnRetrievalEvents | undefined) => Promise<readonly ScoredBlock[]>;
+type SearchDigestsOp = (
+  query: Omit<MemoryQueryOptions, "ownerId"> & { readonly signal: AbortSignal },
+  events?: TurnRetrievalEvents | undefined,
+) => Promise<readonly ScoredBlock[]>;
 
 /** The per-call degrade observations BOTH in-turn retrieval ops report back — the neutral, chat-side half of
  *  the seam (search owns its own `DigestSearchEvents`; neither side imports the other's vocabulary).
@@ -565,6 +570,7 @@ type GatherDatabankOp = (
     readonly hostUserId: ConsentingHostId;
     readonly queryText: string;
     readonly tokenBudget: number;
+    readonly signal: AbortSignal;
     readonly k?: number | undefined;
     readonly minScore?: number | undefined;
     readonly rerank?: boolean | undefined;
@@ -724,25 +730,25 @@ export interface ChatContext extends EngineContext, ChatAccountingContext, ChatC
   /** Materialize a user-pasted external background URL into an owned CAS asset — the
    *  `setChatBackground` verb runs it for a `kind:"external"` source so a persisted carried background is
    *  always same-origin-paintable (an external URL is CSP-blocked). Compose-built from infra + assets.store. */
-  readonly materializeBackground: MaterializeBackgroundOp;
+  readonly materializeBackground: MaterializeBackgroundOp<AbortSignal>;
   readonly summarize: SummarizeOp;
   /** The FUNDER's bound rerank role for Smart's default speaker pick, or null when the role is unbound. Resolved
    *  per call through `roleClientsFor(funder)`, so whatever model the user bound is what ranks. */
-  readonly resolveSpeakerReranker: (funderUserId: ConsentingHostId) => Promise<SpeakerReranker | null>;
+  readonly resolveSpeakerReranker: (funderUserId: ConsentingHostId, signal: AbortSignal) => Promise<SpeakerReranker | null>;
   /** The FUNDER's Utility role for Smart's opt-in arbiter, or null when it is unbound or its model can serve no
    *  structured-output vehicle. Null is the arbiter's visible degrade, never a free-text call. */
-  readonly resolveSpeakerArbiter: (funderUserId: ConsentingHostId, chatId: ChatId) => Promise<SpeakerArbiter | null>;
+  readonly resolveSpeakerArbiter: (funderUserId: ConsentingHostId, chatId: ChatId, signal: AbortSignal) => Promise<SpeakerArbiter | null>;
   /** The FUNDER's summarize model's context window (tokens) — the memory build's token-guard fits each
    *  summarizer call to the actual context. Resolved PER CALL through `roleClientsFor(funder).resolved("summarize")`
    *  (inference program §7.5-1b: `capability.context.window`, no bespoke getter); a funder whose summarize task
    *  cannot run gets the named availability refusal thrown. */
-  readonly summarizerContextTokens: (funderUserId: UserId) => Promise<number>;
+  readonly summarizerContextTokens: (funderUserId: UserId, signal: AbortSignal) => Promise<number>;
   /** Can the FUNDER's summarize task run, and if not, why. The memory backfill reads it once per sweep: with no
    *  summarize connection bound (`no-connection`) digests are not derivable, the same as Memory off. */
-  readonly summarizeAvailability: (funderUserId: UserId) => Promise<SendAvailability>;
+  readonly summarizeAvailability: (funderUserId: UserId, signal: AbortSignal) => Promise<SendAvailability>;
   /** The FUNDER's EMBED model's window (tokens) — the segment build's window guard. A verbatim block that
    *  cannot fit is SKIPPED AND RECORDED, never truncated. Same per-call resolution as above. */
-  readonly embedContextTokens: (funderUserId: UserId) => Promise<number>;
+  readonly embedContextTokens: (funderUserId: UserId, signal: AbortSignal) => Promise<number>;
   /** The FUNDER's Utility-role preset params (D304), `undefined` under task defaults. The arbiter and the memory
    *  build fold them over their task posture; read per call, so a changed choice reaches the next summarize. */
   readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;
@@ -844,10 +850,15 @@ export interface ChatServiceDeps {
     readonly funderUserId: ConsentingHostId;
     readonly chatId: ChatId;
     readonly actor?: BindingActor | undefined;
+    readonly signal: AbortSignal;
   }) => Promise<Resolved<"chat">>;
   /** The deterministic pre-send serveability verdict for the room HOST's chat connection — the
    *  honest-refusal gate the composer disables SEND on. Fires no turn or API call. Wired at the composition root. */
-  readonly checkSendAvailability: (args: { readonly funderUserId: ConsentingHostId; readonly chatId: ChatId }) => Promise<SendAvailability>;
+  readonly checkSendAvailability: (args: {
+    readonly funderUserId: ConsentingHostId;
+    readonly chatId: ChatId;
+    readonly signal: AbortSignal;
+  }) => Promise<SendAvailability>;
   readonly getNextTurnConnection: (args: { readonly funderUserId: ConsentingHostId }) => Promise<NextTurnConnectionView>;
   readonly resolveForeignInputs: ResolveForeignInputsOp;
   /** The lock holder tag (this replica/turn id) for stale-takeover + holder-scoped release. */

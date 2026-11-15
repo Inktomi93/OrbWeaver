@@ -13,7 +13,7 @@ import type { AssetId, CharacterId, ChatId, UserId } from "@orb/kit/ids";
  *  waiting on the model when it fires, so an aborted pass settles while a model is still loading. An embed cut
  *  off this way rejects before the row write, so it leaves no partial row. */
 interface EmbedAbortParams {
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 /** Embed a character card's text. Unique key: `(characterId, model)`. */

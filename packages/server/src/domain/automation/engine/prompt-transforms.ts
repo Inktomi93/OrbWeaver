@@ -53,7 +53,7 @@ async function buildTransformEnv(deps: PromptTransformIndexDeps, chatId: ChatId,
  *  render template, and the arm index that disambiguates its id. */
 interface TransformArmSpec {
   readonly chatId: ChatId;
-  readonly target: PromptTransform["point"];
+  readonly target: PromptTransform<AbortSignal>["point"];
   readonly template: string;
   readonly armIndex: number;
 }
@@ -79,7 +79,7 @@ const TRANSFORM_ERROR_LEDGER_MAX = 20;
  *  (`consecutive_errors`/`last_error`, both already on `RuleView`) — the surface a host already reads to
  *  answer "why isn't my rule doing anything". It does NOT auto-disable: that is dispatch's call about acts
  *  with side effects, and a transform's failure is inert by construction. */
-function buildRuleTransform(deps: PromptTransformIndexDeps, rule: RuleRow, spec: TransformArmSpec): PromptTransform {
+function buildRuleTransform(deps: PromptTransformIndexDeps, rule: RuleRow, spec: TransformArmSpec): PromptTransform<AbortSignal> {
   // Per-registration, process-local: the ledger tick stops climbing at the bound above. Reset by a
   // re-register (a rule edit re-mints the closure), which is also when the stored counter is reset.
   let recordedErrors = 0;
@@ -129,7 +129,7 @@ function buildRuleTransform(deps: PromptTransformIndexDeps, rule: RuleRow, spec:
  *  arm. A rule that carries NO `transform_draft` arm (a normal turnStarted watcher rule) contributes none; a
  *  corrupt actions blob (disabled at dispatch) parses to none here. `validate` guarantees a rule with any
  *  `transform_draft` arm is turnStarted + all-transform, so this only ever fires for genuine transform rules. */
-function ruleTransforms(deps: PromptTransformIndexDeps, rule: RuleRow): PromptTransform[] {
+function ruleTransforms(deps: PromptTransformIndexDeps, rule: RuleRow): PromptTransform<AbortSignal>[] {
   if (rule.chatId === null) {
     // A `transform_draft` rule is CHAT-REQUIRED (`AUTOMATION_ARM_SCOPE`), so the mint refuses one on the
     // owner-global lane and a chat-less row here can only be a rule whose arms are something else. The
@@ -159,7 +159,7 @@ export function createPromptTransformIndex(input: DbAssemblyInput<PromptTransfor
 
   const reconcile = async (): Promise<void> => {
     const rules = await loadEnabledTurnStartedRules(deps.db);
-    const desired = new Map<string, PromptTransform>();
+    const desired = new Map<string, PromptTransform<AbortSignal>>();
     for (const rule of rules) {
       for (const transform of ruleTransforms(deps, rule)) {
         desired.set(transform.id, transform);

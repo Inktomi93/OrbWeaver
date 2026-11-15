@@ -109,7 +109,7 @@ import { createCopyHandoffBooks, createCountHandoffBooks, createDetachHandoffBoo
 import type { AuditWiring, Logger, TraceRing } from "#foundation/observability";
 import { recordMemoryLog } from "#foundation/observability";
 import { waitForTimer } from "#infra/timers";
-import { createRegexApplyReplace, createRegexTest } from "#primitives/regex";
+import { createRegexTest, openRegexPass, REGEX_TEXT_PASS_BUDGET_MS, regexHistoryPassBudgetMs } from "#primitives/regex";
 import { captureUserRole } from "#primitives/role-data";
 import type { LiveBuses } from "#transport/trpc";
 import { mintPrincipal } from "../auth/principal-mint.ts";
@@ -132,7 +132,7 @@ export interface ChatComposeInput {
   readonly publishNotification: LiveBuses["notifications"]["publishNotification"];
 
   readonly timers: TimerScheduler;
-  readonly backgroundSignal?: AbortSignal;
+  readonly backgroundSignal: AbortSignal;
   readonly trackBackground: ChatAssemblyContext["trackBackground"];
   readonly recordTurnOutcome?: ChatAssemblyContext["recordTurnOutcome"];
   readonly random: RandomSource;
@@ -211,7 +211,7 @@ export interface ChatComposeInput {
   readonly assets: AssetsService;
   /** Materialize a user-pasted external carried-background URL into an owned CAS asset — the
    *  shared compose-built op the `setChatBackground` verb runs for a `kind:"external"` source. */
-  readonly materializeBackground: MaterializeBackgroundOp;
+  readonly materializeBackground: MaterializeBackgroundOp<AbortSignal>;
   /** §6.7's inline-reply picture store, built at the keystone (it needs the boot-level per-image byte cap) —
    *  the `materializeBackground` precedent one line up. */
   readonly storeInlineReplyImage: ChatAssemblyContext["storeInlineReplyImage"];
@@ -323,7 +323,7 @@ export interface ChatComposeResult extends AsyncDisposable {
  */
 export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   const { db, now, emitChatEvent, timers } = input;
-  const stats = createStatsBatchWiring(input.idSource);
+  const stats = createStatsBatchWiring(input.idSource, input.now);
   const auditStatements = input.auditStatements;
 
   const lifetime = new AsyncDisposableStack();
@@ -407,7 +407,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     db,
     now,
     timers,
-    ...(input.backgroundSignal === undefined ? {} : { backgroundSignal: input.backgroundSignal }),
+    backgroundSignal: input.backgroundSignal,
     trackBackground: input.trackBackground,
     ...(input.recordTurnOutcome === undefined ? {} : { recordTurnOutcome: input.recordTurnOutcome }),
     can: input.can,
@@ -430,7 +430,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // Fans chatsChanged to every present human member's channel; the engine passes a bare chatId
     // (principal-blind) — this composition-root helper enumerates membership.
     emitChatChanged: createEmitChatChanged({ db, logger: input.logger }, input.publishChatChanged),
-    applyRegexReplace: createRegexApplyReplace(),
+    openRegexPass: (rows) => openRegexPass(rows === undefined ? REGEX_TEXT_PASS_BUDGET_MS : regexHistoryPassBudgetMs(rows)),
     prng: input.random,
     testRegexKey: createRegexTest(),
     // D121-E: the four-scope junction dereference (global/preset/cast/room). Chat owns the UNION

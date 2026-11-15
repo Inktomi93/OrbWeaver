@@ -39,8 +39,10 @@ test("same-ID native connection probes have independent cooldowns and checkedAt 
     });
   const firstConnection = await connection(first, firstKey);
   const secondConnection = await connection(second, secondKey);
-  const probeFirst = (): Promise<CredentialHealth> => first.services.connection.probe({ principal: firstKey.principal, connectionId: firstConnection.id });
-  const probeSecond = (): Promise<CredentialHealth> => second.services.connection.probe({ principal: secondKey.principal, connectionId: secondConnection.id });
+  const probeFirst = (): Promise<CredentialHealth> =>
+    first.services.connection.probe({ signal: new AbortController().signal, principal: firstKey.principal, connectionId: firstConnection.id });
+  const probeSecond = (): Promise<CredentialHealth> =>
+    second.services.connection.probe({ signal: new AbortController().signal, principal: secondKey.principal, connectionId: secondConnection.id });
   expect(await probeFirst()).toEqual({ status: "ok", checkedAt: first.clock.now() });
   second.clock.advance(1);
   expect(await probeSecond()).toEqual({ status: "ok", checkedAt: second.clock.now() });

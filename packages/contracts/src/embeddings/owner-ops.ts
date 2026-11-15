@@ -131,25 +131,28 @@ export type CountDocumentChunksByOwnerOp = (params: OwnerChunkCountsParams) => P
 /** Bring the owner's stored targets in line with what their vector bindings resolve to now. */
 export type SyncTargetGenerationsOp = (ownerId: UserId) => Promise<EmbedMoveRefusal | null>;
 
-/** Prove the prospective move without publishing a target or writing the proposed connection. */
-export type PreviewTargetMoveOp = (
-  args: PreviewTargetMoveArgs,
+/** Prove the prospective move without publishing a target or writing the proposed connection. The proof resolves the
+ *  proposed encoder, so it takes the caller's `Signal`. */
+export type PreviewTargetMoveOp<Signal> = (
+  args: PreviewTargetMoveArgs & { readonly signal: Signal },
 ) => Promise<{ readonly kind: "move" | "skip" | "unresolved" } | { readonly kind: "refused"; readonly refusal: EmbedTargetRefusal }>;
 
-interface ResolveEmbeddingConnectionOpts {
+// `signal` is the caller's cancel: the resolve can wake a sleeping encoder, so it waits under the caller's signal.
+interface ResolveEmbeddingCall<Signal> {
+  readonly signal: Signal;
+  readonly connectionId?: UserConnectionId | undefined;
   readonly previewConnection?: UserConnection | undefined;
 }
 
+// The binding form, and a named connection with its preview: neither can answer `null`.
+type NeverNullCall = { readonly connectionId?: undefined } | { readonly connectionId: UserConnectionId; readonly previewConnection: UserConnection };
+
 /** Resolve the owner's encoder for `task` into a connection snapshot. Only an explicit `connectionId` that no longer
  *  resolves answers `null`; the binding form and a previewed connection throw instead, so their snapshot is never
- *  `null`. The snapshot's call closures take an AbortSignal, so each domain types its own connection. */
-export interface ResolveEmbeddingConnectionOp<TConnection> {
-  (ownerId: UserId, task: EmbeddingTask, connectionId?: undefined, opts?: ResolveEmbeddingConnectionOpts): Promise<TConnection>;
-  (
-    ownerId: UserId,
-    task: EmbeddingTask,
-    connectionId: UserConnectionId,
-    opts: ResolveEmbeddingConnectionOpts & { readonly previewConnection: UserConnection },
-  ): Promise<TConnection>;
-  (ownerId: UserId, task: EmbeddingTask, connectionId: UserConnectionId | undefined, opts?: ResolveEmbeddingConnectionOpts): Promise<TConnection | null>;
+ *  `null`. The snapshot's call closures take an AbortSignal, so each domain types its own connection.
+ *
+ *  `Signal` is a type parameter because this isomorphic package cannot name `AbortSignal`, and it has no default. */
+export interface ResolveEmbeddingConnectionOp<TConnection, Signal> {
+  (ownerId: UserId, task: EmbeddingTask, call: ResolveEmbeddingCall<Signal> & NeverNullCall): Promise<TConnection>;
+  (ownerId: UserId, task: EmbeddingTask, call: ResolveEmbeddingCall<Signal>): Promise<TConnection | null>;
 }

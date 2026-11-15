@@ -166,9 +166,9 @@ function HumanChips({ humans }: { readonly humans: readonly ParticipantView[] })
   const visible = humans.slice(0, HUMAN_CHIP_CAP);
   const overflow = humans.length - visible.length;
   return (
-    <Row gap="row" align="center" aria-label="People" className="min-inline-0" data-slot="character-bar-humans" role="group">
+    <Row gap="row" align="center" aria-label="People" minWidth="shrinks" data-slot="character-bar-humans" role="group">
       {visible.map((member) => (
-        <Row key={member.id} gap="row" align="center" className="min-inline-0" data-slot="human-chip">
+        <Row key={member.id} gap="row" align="center" minWidth="shrinks" data-slot="human-chip">
           <Avatar size="sm" fallbackDelay={0} hueSeed={member.id} {...(member.avatarHash === null ? {} : { src: blobUrl(member.avatarHash) })}>
             {initialsFor(member.displayName)}
           </Avatar>

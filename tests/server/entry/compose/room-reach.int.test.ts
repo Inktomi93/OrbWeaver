@@ -192,13 +192,17 @@ test("a failed document reach is logged without rejecting or rolling back its al
     }),
   );
   const callerPrincipal = await harness.principalFor(harness.ownerId);
-  expect((await services.databank.rename({ principal: callerPrincipal, id: document.document.id, name: "positive" })).name).toBe("positive");
+  expect(
+    (await services.databank.rename({ signal: new AbortController().signal, principal: callerPrincipal, id: document.document.id, name: "positive" })).name,
+  ).toBe("positive");
   expect(frames).toEqual([{ seq: null, event: { type: "roomEntityChanged", chatId: room.id, entity: "databank" } }]);
   frames.length = 0;
   using warn = vi.spyOn(harness.logger, "warn");
   await using withheld = await withheldTable(db, chatDocuments);
   try {
-    expect((await services.databank.rename({ principal: callerPrincipal, id: document.document.id, name: "committed" })).name).toBe("committed");
+    expect(
+      (await services.databank.rename({ signal: new AbortController().signal, principal: callerPrincipal, id: document.document.id, name: "committed" })).name,
+    ).toBe("committed");
     expect(warn).toHaveBeenCalledWith(
       expect.objectContaining({
         err: expect.objectContaining({ cause: expect.objectContaining({ code: "SQLITE_ERROR" }) }),

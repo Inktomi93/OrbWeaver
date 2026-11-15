@@ -193,7 +193,7 @@ async function runImagesApi(req: ImageGenerateRequest, deps: ImagesDeps, call: M
     files: files.length > 0 ? files : undefined,
     mask,
     providerOptions: {},
-    ...(req.signal !== undefined ? { abortSignal: req.signal } : {}),
+    abortSignal: req.signal,
   });
   const images: GeneratedImage[] = result.images.map((image) => ({
     url: undefined,
@@ -238,7 +238,7 @@ async function runChatModalities(req: ImageGenerateRequest, deps: ImagesDeps, ca
         ],
       },
     ],
-    ...(req.signal !== undefined ? { abortSignal: req.signal } : {}),
+    abortSignal: req.signal,
   });
   const images = result.content.flatMap((part) => (part.type === "file" ? (generatedImageOf(part) ?? []) : []));
   if (images.length === 0) {

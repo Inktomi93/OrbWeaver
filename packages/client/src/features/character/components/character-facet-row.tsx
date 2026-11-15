@@ -64,7 +64,7 @@ export function CharacterFacetRow({ facet, selected, filled, preview, fillSummar
       selection="rail"
       size="sm"
       wrap={true}
-      className="min-inline-0"
+      minWidth="shrinks"
       justify="start"
       width="full"
       onClick={(): void => onSelect(facet.id)}

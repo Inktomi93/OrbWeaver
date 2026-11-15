@@ -49,8 +49,10 @@ export const dialogVariants = tv({
       dialog-tiny:glass-short:pbs-0 dialog-tiny:glass-short:pbe-0
       sheet-short:glass-short:flex-nowrap
     `,
-    // A landscape phone's dialog title truncates to one line; its full text stays the dialog's accessible name.
-    title: `${TITLE_STEP} dialog-short:glass-short:truncate ${MIN_HEIGHT.holdsLineOnLandscape}`,
+    // A landscape phone's dialog title holds one line and its words truncate to it; its full text stays the dialog's accessible name. The
+    // words are their own box, so a reader can tell they are cut and a reveal can make them the control that opens them whole.
+    title: `${TITLE_STEP} dialog-short:glass-short:flex dialog-short:glass-short:min-inline-0 ${MIN_HEIGHT.holdsLineOnLandscape}`,
+    titleText: `${TITLE_STEP} min-inline-0 dialog-short:glass-short:truncate`,
     description: POPUP_DESCRIPTION,
     // The action row: the LAST child of a DialogBody, never of the popup itself. The popup's padding
     // surrounds that region, so `sticky bottom-0` lands the buttons exactly one popup inset above the popup edge.
@@ -69,9 +71,9 @@ export const dialogVariants = tv({
     clearsClose: { true: { title: "pe-(--size-control-md) wrap-break-word @max-cq-20:pe-0 @max-cq-20:pbs-(--size-control-md)" }, false: {} },
     // A heading that takes programmatic arrival focus and no key: a ring would read as a field to type in.
     focusTarget: { true: { title: "outline-none" }, false: {} },
-    // A title that must hold one line beside the dialog's actions. `truncate` clips its overflow, which drops the title's
-    // minimum block size to zero, so a body taller than the dialog would squeeze the title below its own line.
-    truncate: { true: { title: "truncate min-block-min" }, false: {} },
+    // A title that must hold one line beside the dialog's actions. Its words clip their overflow, which drops their minimum
+    // block size to zero, so the title floors its block size at its line or a body taller than the dialog would squeeze it away.
+    truncate: { true: { title: "flex min-block-min min-inline-0", titleText: "truncate" }, false: {} },
     // A header that stays in view while the body scrolls under it (a drawer's title and close), on the card fill so
     // scrolled rows do not show through. A sticky box rests against the scroller's content edge, not its padding edge,
     // so the header grows upward by the drawer's own inset (`p-section`) and rests against the true top: rows never

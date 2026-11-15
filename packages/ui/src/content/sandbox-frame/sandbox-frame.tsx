@@ -1,4 +1,13 @@
-import { CARD_FRAME_SANDBOX, clampCardFrameFontFamily, clampCardFrameStyleTokens, clampCardFrameThemeTokens, foldCardFrameHeight } from "@orb/kit/card-frame";
+import type { CardFrameHeightCap } from "@orb/kit/card-frame";
+import {
+  CARD_FRAME_SANDBOX,
+  clampCardFrameFontFamily,
+  clampCardFrameStyleTokens,
+  clampCardFrameThemeTokens,
+  foldCardFrameHeight,
+  readCardFrameLink,
+  readCardFrameMissing,
+} from "@orb/kit/card-frame";
 import type { CSSProperties, ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { cssVar } from "#tokens";
@@ -8,7 +17,19 @@ import { buildSrcDoc } from "./srcdoc.ts";
 // announces as an unnamed frame. The single production caller (`ImmersiveCard`) always passes the card's
 // own title (falling back to its own untitled label), so this constant is the LIBRARY floor for a caller
 // that hands us an empty string, not a second naming policy.
+// A card frame is grouped content on its own surface; a reply frame is the bubble's own prose and paints none.
+const FRAME_SURFACE: Record<CardFrameHeightCap, string> = { card: "rounded-base border border-border bg-card inline-full", reply: "inline-full" };
+
 const UNNAMED_FRAME_TITLE = "Embedded card";
+
+// Whether a vetted framed link points off the app's own origin. An address the URL parser refuses leaves nothing.
+function leavesApp(link: string): boolean {
+  try {
+    return new URL(link).origin !== location.origin;
+  } catch {
+    return false;
+  }
+}
 
 interface SandboxFramePropsBase {
   /** The untrusted HTML — handed to a sandboxed realm, NEVER sanitized into the main DOM. */
@@ -53,6 +74,20 @@ interface SandboxFramePropsBase {
    * `@orb/contracts`). One home for the identity rule; the meaning stays with the consumer.
    */
   readonly onHostMessage?: (data: unknown, reply: (message: unknown) => void) => void;
+  /** What the frame holds: one card (the default), drawn on its own bordered surface under the card height cap, or
+   *  one whole reply, which sits on its bubble's surface and grows to its content instead of scrolling inside itself
+   *  (`@orb/kit/card-frame`). */
+  readonly holds?: CardFrameHeightCap;
+  /**
+   * A link clicked inside the frame, as an absolute http, https or mailto address off the app's own origin. Called
+   * only when the sender is this frame's own window ({@link readCardFrameLink} vets the address), the page holds a
+   * live user activation AND this iframe holds focus, so a scripted frame cannot raise it without a click in it.
+   * The caller still owes its own confirm before opening. Absent ⇒ a framed link does nothing, as before.
+   */
+  readonly onLink?: (url: string) => void;
+  /** The frame's document is the server's miss notice: its handle is unknown, expired or evicted. Sender-checked
+   *  like every frame message; the caller may mint again. */
+  readonly onMissing?: () => void;
 }
 
 export type SandboxFrameProps = SandboxFramePropsBase &
@@ -106,6 +141,9 @@ export function SandboxFrame({
   fill = false,
   className,
   onHostMessage,
+  holds = "card",
+  onLink,
+  onMissing,
 }: SandboxFrameProps): ReactElement {
   const frameRef = useRef<HTMLIFrameElement>(null);
   // The measurement is stored WITH the delivery it belongs to, so a re-mint (new `src`) is answered during
@@ -132,9 +170,26 @@ export function SandboxFrame({
         return;
       }
       setMeasured((current) => {
-        const px = foldCardFrameHeight(current?.delivery === deliveryKey ? current.px : undefined, event.data);
+        const px = foldCardFrameHeight(current?.delivery === deliveryKey ? current.px : undefined, event.data, holds);
         return px === undefined ? current : { delivery: deliveryKey, px };
       });
+      const link = readCardFrameLink(event.data);
+      // A link counts only from a click IN THIS FRAME: the click activated the page (activation reaches every
+      // ancestor of the frame it lands in) and focused this iframe. Activation alone is page-wide and lasts seconds,
+      // so a scripted frame could ride a click anywhere else in the app. No activation API ⇒ no link. A link to the
+      // app's own origin never leaves a frame: the frame resolves `href`, so `/settings` arrives as this origin.
+      if (
+        link !== undefined &&
+        "userActivation" in navigator &&
+        navigator.userActivation.isActive &&
+        document.activeElement === frameRef.current &&
+        leavesApp(link)
+      ) {
+        onLink?.(link);
+      }
+      if (readCardFrameMissing(event.data)) {
+        onMissing?.();
+      }
       // The sender is proven to be THIS frame's window (`frameWindow` is non-null here — the guard above
       // returned otherwise); the consumer decides what the message means. `reply` targets that same window
       // (`"*"` because an opaque-origin document has no origin to name — the message still reaches exactly the
@@ -145,7 +200,7 @@ export function SandboxFrame({
     return (): void => {
       window.removeEventListener("message", onMessage);
     };
-  }, [fill, deliveryKey, onHostMessage]);
+  }, [fill, deliveryKey, onHostMessage, holds, onLink, onMissing]);
 
   // NO FOCUS ON MOUNT. A framed document that focuses itself while it loads (an autofocused game board) would
   // pull the page's keyboard focus into a third party's document every time the frame mounts — a room opening
@@ -210,6 +265,8 @@ export function SandboxFrame({
             themeTokens: clampCardFrameThemeTokens(themeTokens),
             styleTokens: clampCardFrameStyleTokens(styleTokens),
             fontFamily: clampCardFrameFontFamily(fontFamily),
+            // A whole reply frames only on the routed delivery; the floor serves cards, which bring their own look.
+            rootAttributes: undefined,
             allowExternalMedia,
           }),
         }
@@ -228,7 +285,7 @@ export function SandboxFrame({
       title={title === "" ? UNNAMED_FRAME_TITLE : title}
       loading="lazy"
       referrerPolicy="no-referrer"
-      className={className ?? "rounded-base border border-border bg-card inline-full"}
+      className={className ?? FRAME_SURFACE[holds]}
       style={style}
       data-slot="sandbox-frame"
       // Which delivery won — the ONLY externally observable tell that a card got its own policy instead of

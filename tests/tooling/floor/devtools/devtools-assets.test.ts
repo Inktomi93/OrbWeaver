@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
-import { cp, mkdir, mkdtemp, readFile, rm, symlink, unlink, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, realpath, rm, symlink, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -231,7 +231,8 @@ test("a verified canonical closure remains served after its root alias disappear
   const alias = join(aliasRoot, "closure");
   await symlink(root, alias, "dir");
   const assets = verifyDevToolsAssets(alias);
-  expect(assets.root).toBe(canonicalAssets.root);
+  expect(assets.root).toBe(await realpath(root));
+  expect(canonicalAssets.root).toBe(await realpath(root));
   expect(assets.manifest).toEqual(canonicalAssets.manifest);
   await unlink(alias);
   const server = await startDevToolsAssetServer(assets);

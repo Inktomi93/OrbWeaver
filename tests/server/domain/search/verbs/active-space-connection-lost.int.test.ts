@@ -56,7 +56,14 @@ async function readyGeneration(held: HeldDb, root: ServerTestHarness): Promise<R
     await admitted(root, job.id);
   }
   await root.settleBackground();
-  const query = { ownerId: principal.userId, query: "orbital ledger", over: "entities", scope: { kind: "owner" }, topN: 5 } as const;
+  const query = {
+    signal: new AbortController().signal,
+    ownerId: principal.userId,
+    query: "orbital ledger",
+    over: "entities",
+    scope: { kind: "owner" },
+    topN: 5,
+  } as const;
   expect((await root.services.search.search(query)).hits).not.toEqual([]);
   // The generation row still names the connection when the search reads it; the race lands before the resolve reads the row.
   const gate = held.hold(/from "user_connections" where "user_connections"\."id" = \? limit/u);

@@ -14,7 +14,6 @@
 import type { HostTierRegexAllow } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
-import { executeRegexScripts } from "@orb/kit/regex";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../contract/context.ts";
 import type { ResolveForeignInputsOp } from "../contract/foreign.ts";
@@ -75,6 +74,8 @@ export function createSaveGreetingTexts(
     const assembleContext = await ctx.gatherAssembleContext(
       {
         chatId: room.chatId,
+        // A greeting is a write the request commits whole, so only shutdown may end its gather.
+        signal: ctx.backgroundSignal,
         runAsUserId: hostUserId,
         model: "",
         characterIds,
@@ -88,12 +89,12 @@ export function createSaveGreetingTexts(
     const macroCtx = buildTurnMacroContext({ assembleCtx: assembleContext, model: "", chatId: room.chatId, random: deps.prng });
     return greetings.map((greeting) => ({
       ...greeting,
-      text: executeRegexScripts({
+      // One pass per greeting: each is its own single text, as an edit's re-apply is.
+      text: ctx.openRegexPass().execute({
         text: greeting.text,
         scripts,
         call: { pass: "save", target: "AI_OUTPUT", edit: false },
         ctx: { ...macroCtx, char: greeting.characterName },
-        applyReplace: ctx.applyRegexReplace,
         onScriptFailure: (err, script) =>
           getLog(ctx.logger).warn(
             { err, target: "AI_OUTPUT", findRegex: script.findRegex },

@@ -211,12 +211,12 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                     measured). The shelf paid for it: its face grid dropped from three fixed cells to two and
                     the page grew 1374px against 1177px. The declared ratio only means anything on tracks that
                     are allowed to shrink below their content. */}
-                  <Stack className="min-inline-0" gap="section" ref={hearthRef}>
+                  <Stack minWidth="shrinks" gap="section" ref={hearthRef}>
                     {hearth.map((tile) => (
                       <HomeTile gridRef={gridRef} column="hearth" key={tile.id} tile={tile} />
                     ))}
                   </Stack>
-                  <Stack className="group/shelf min-inline-0 has-data-home-held:invisible" data-home-shelf={true} gap="section" ref={shelfRef}>
+                  <Stack className="group/shelf has-data-home-held:invisible" minWidth="shrinks" data-home-shelf={true} gap="section" ref={shelfRef}>
                     {shelfLead.map((tile) => (
                       <HomeTile gridRef={gridRef} column="shelf" key={tile.id} tile={tile} />
                     ))}
@@ -233,17 +233,14 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                       last tile pairs beside the tile before it instead, and stacked, both span the foot. */}
                     <Grid className="grid-flow-row-dense" align="start" cols="pairWide" data-home-shelf-foot={true} gap="gutter" ref={footRef}>
                       {shelfFootSide.map((tile) => (
-                        <Stack className="col-span-full min-inline-0 group-data-[foot=paired]/shelf:col-auto" key={tile.id}>
+                        <Stack className="col-span-full group-data-[foot=paired]/shelf:col-auto" minWidth="shrinks" key={tile.id}>
                           <HomeTile gridRef={gridRef} column="shelf" tile={tile} />
                         </Stack>
                       ))}
                       {shelfFoot.map((tile) => (
                         <Stack
-                          className={
-                            hasFold
-                              ? "min-inline-0 group-data-[foot=paired]/shelf:row-span-2"
-                              : "col-span-full min-inline-0 group-data-[foot=paired]/shelf:col-auto"
-                          }
+                          className={hasFold ? "group-data-[foot=paired]/shelf:row-span-2" : "col-span-full group-data-[foot=paired]/shelf:col-auto"}
+                          minWidth="shrinks"
                           key={tile.id}
                         >
                           <HomeTile gridRef={gridRef} column="shelf" tile={tile} />

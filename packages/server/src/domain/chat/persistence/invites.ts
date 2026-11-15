@@ -7,6 +7,7 @@
 // stamps `joinSeq` from a scalar subquery over `messages`, so a message committed while the redeem is in
 // flight can never land ABOVE the floor the seat records. Both redeem doors below share that builder.
 
+import type { RoomClaim } from "@orb/contracts/chat";
 import type { AuthMode } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { chatInvites, chatParticipants, pendingTurns } from "@orb/db";
@@ -72,9 +73,10 @@ export async function countPresentMembers(db: Db, chatId: ChatId): Promise<numbe
   return rows.at(0)?.n ?? 0;
 }
 
-/** Insert a host-minted invite (the token already CSPRNG-minted + hashed by the verb). */
-export async function insertInvite(db: Db, row: typeof chatInvites.$inferInsert): Promise<void> {
-  await db.insert(chatInvites).values(row);
+/** Insert a host-minted invite (the token already CSPRNG-minted + hashed by the verb) into the claimed room: only an
+ *  invite seats a second human, and a room is claimed before anyone can join it. */
+export async function insertInvite(db: Db, claim: RoomClaim, row: Omit<typeof chatInvites.$inferInsert, "chatId">): Promise<void> {
+  await db.insert(chatInvites).values({ ...row, chatId: claim.chatId });
 }
 
 /** The atomic redeem — the one human participant-insert chokepoint. A single conditional UPDATE …

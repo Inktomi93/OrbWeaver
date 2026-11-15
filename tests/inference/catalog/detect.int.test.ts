@@ -33,7 +33,7 @@ async function detectSnapshotAfterResolve(modelsReply: () => Response): Promise<
     model: "owned-model",
     declared: { kind: "generation", generation: makeGenerationCapability() },
   });
-  await root.services.connection.resolve({ principal, task: "chat", connectionId: row.id }).catch(() => undefined);
+  await root.services.connection.resolve({ signal: new AbortController().signal, principal, task: "chat", connectionId: row.id }).catch(() => undefined);
   return (await root.services.settings.getGlobalSetting(DETECT_SNAPSHOT_KEY))?.value ?? null;
 }
 

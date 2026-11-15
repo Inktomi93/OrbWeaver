@@ -1,4 +1,4 @@
-import type { HandoffCardPair, HandoffHealArgs } from "@orb/contracts/chat";
+import type { HandoffCardPair, HandoffHealArgs, RoomAdmission } from "@orb/contracts/chat";
 // domain/rpg/chat-ops/handoff-heal — `ChatRpgOps.handoffHealStatements` + `handoffRekeyActors`, the rpg side
 // of `chat.acceptHostHandoff`.
 //
@@ -97,11 +97,11 @@ export async function handoffWouldCopyGmPreset(ctx: RpgContext, chatId: ChatId, 
  *  destination key is already occupied. Neither is an error here — the room has already changed hands, and
  *  raising would turn a completed transfer into a failed call. A no-game chat / an empty pair list writes
  *  nothing at all. */
-export async function handoffRekeyActors(ctx: RpgContext, chatId: ChatId, pairs: readonly HandoffCardPair[]): Promise<void> {
+export async function handoffRekeyActors(ctx: RpgContext, admission: RoomAdmission, pairs: readonly HandoffCardPair[]): Promise<void> {
   if (pairs.length === 0) {
     return;
   }
-  const game = await findGameByChat(ctx.db, chatId);
+  const game = await findGameByChat(ctx.db, admission.chatId);
   if (game === undefined) {
     return;
   }
@@ -110,7 +110,7 @@ export async function handoffRekeyActors(ctx: RpgContext, chatId: ChatId, pairs:
   // and a committed head CLONES FORWARD as a fresh hand row, so N writes would mint N snapshot rows for what
   // is one event. The fold threads each result into the next actor's head, exactly as the sequential
   // loop did, and accumulates the lock delta across the whole set.
-  await writeHandState(ctx, game, (head) => foldRekeys(head, pairs));
+  await writeHandState(ctx, { game, admission }, (head) => foldRekeys(head, pairs));
 }
 
 /** Apply every pair's re-key in order against a threaded head, accumulating the lock delta. A pair the head

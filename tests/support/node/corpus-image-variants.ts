@@ -224,9 +224,9 @@ export async function seedCorpusImageVariants(root: ServerTestHarness, wire: Cor
     for (const bytes of [square, sliver]) {
       const stored = await root.app.assets.store({ principal, bytes, mime: "image/png", kind: "avatar", enforceMagic: true });
       await root.settleBackground();
-      const first = await seedIndexedAssetRows(root, [stored.assetId, { force: true }]);
-      const repeated = await seedIndexedAssetRows(root, [stored.assetId, { force: false }]);
-      const forced = await seedIndexedAssetRows(root, [stored.assetId, { force: true }]);
+      const first = await seedIndexedAssetRows(root, [stored.assetId, { signal: new AbortController().signal, force: true }]);
+      const repeated = await seedIndexedAssetRows(root, [stored.assetId, { signal: new AbortController().signal, force: false }]);
+      const forced = await seedIndexedAssetRows(root, [stored.assetId, { signal: new AbortController().signal, force: true }]);
       const asset = await root.db.select().from(assets).where(eq(assets.id, stored.assetId)).get();
       if (asset === undefined) {
         throw new Error("real image admission left no owned asset row");
@@ -238,7 +238,12 @@ export async function seedCorpusImageVariants(root: ServerTestHarness, wire: Cor
     if (avatar === undefined) {
       throw new Error("real short-edge admission lost its avatar");
     }
-    await root.services.character.update({ principal, characterId: character.id, input: { avatarAssetId: avatar.asset.id } });
+    await root.services.character.update({
+      signal: new AbortController().signal,
+      principal,
+      characterId: character.id,
+      input: { avatarAssetId: avatar.asset.id },
+    });
     await caller.connection.setBinding({ task: "summarize", connectionId: text.id });
     await caller.connection.setBinding({ task: "generateImage", connectionId: image.id });
     const extractedInput = { chatId: room.chat.id, mode: "scenario", timeZone: UTC_TIME_ZONE } satisfies TrpcInput<"imagery.extractPrompt">;
@@ -257,12 +262,14 @@ export async function seedCorpusImageVariants(root: ServerTestHarness, wire: Cor
       output: await output(await request(memberAuth, "imagery.extractPrompt", captionInput, true), extractedPromptSchema),
     };
     const free = await seedImageryGenerationsRows(root, {
+      signal: new AbortController().signal,
       caller: principal,
       mode: "free",
       prompt: `  ${CORPUS_VARIANT_FREE_PROMPT}  `,
       n: 1,
     });
     const captioned = await seedImageryGenerationsRows(root, {
+      signal: new AbortController().signal,
       caller: principal,
       mode: "character_multimodal",
       subjectCharacterId: character.id,
@@ -270,6 +277,7 @@ export async function seedCorpusImageVariants(root: ServerTestHarness, wire: Cor
       n: 1,
     });
     const warning = await seedImageryGenerationsRows(root, {
+      signal: new AbortController().signal,
       caller: principal,
       mode: "character",
       subjectCharacterId: character.id,

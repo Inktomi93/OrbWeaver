@@ -92,7 +92,7 @@ export function createQuietGenerate(deps: QuietGenerateDeps): QuietGenerate {
       intent: quietIntent(params.intent, chatParams),
       kind: "generate",
       cacheBreakpointFromEnd: null,
-      ...(params.signal !== undefined ? { signal: params.signal } : {}),
+      signal: params.signal,
     });
 
     let text = "";

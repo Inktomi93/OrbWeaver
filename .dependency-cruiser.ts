@@ -296,6 +296,15 @@ const LAYER_DIRECTION = [
   }),
 );
 
+// The markdown render that keeps raw HTML unsanitized feeds only a frame document (D294); any other importer could
+// put its output in the main document.
+const UI_FRAME_MARKDOWN_FRAME_ONLY: IForbiddenRuleType = {
+  name: "ui-frame-markdown-frame-only",
+  severity: "error",
+  from: { pathNot: ["^packages/ui/src/markdown/frame/", "^packages/client/src/features/chat/components/reply-frame\\.tsx$"] },
+  to: { path: "^packages/ui/src/markdown/frame/" },
+};
+
 const UI_SATELLITE_OWNERS = [
   { name: "charts", libraries: "echarts|echarts-for-react", owners: ["charts/"] },
   { name: "virtual", libraries: "@tanstack/react-virtual|@tanstack/virtual-core", owners: ["primitives/(virtual-list|message-list|media-grid)/"] },
@@ -401,6 +410,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/domain/automation/contract/analysis.ts":
     "ANALYSIS_PROTECT_TAIL: the newest rows a durable-write analysis route stays behind, which the lore route suite sizes its smallest settled span by",
   "packages/server/src/domain/admin/contract/errors.ts": "ADMIN_OP_CODES: the refusal codes admin and sessions suites assert",
+  "packages/inference/src/backends/http/abort-wait.ts":
+    "RESOLUTION_ABORTED_MESSAGE: the refusal a cancelled connection resolve throws, which tells it from a later call's abort",
   "packages/server/src/domain/credentials/contract/errors.ts": "CREDENTIALS_OP_CODES: the refusal codes credentials suites assert",
   "packages/server/src/domain/settings/contract/errors.ts": "SETTINGS_OP_CODES: the refusal codes settings suites assert",
   "packages/server/src/domain/settings/contract/keys.ts":
@@ -628,6 +639,7 @@ const TEST_CONSTANT_HOMES = {
     "AVATAR_UPLOAD_FAILED and its siblings: the lines the shared avatar upload control prints for a failed upload and a refused write",
   "packages/client/src/lib/turn-refusal-copy.ts":
     "TURN_ROOM_CLOSING_COPY and its siblings: the toast a refused turn raises for each room state, which the send refusal case reads",
+  "packages/client/src/features/chat/lib/reply-frame-names.ts": "REPLY_LINK_CONFIRM_LABEL: the confirm a link clicked inside a framed reply opens",
   "packages/client/src/features/chat/lib/send-failure-copy.ts": "SEND_FAILED_TITLE: the toast a failed send raises for a reason the turn copy does not name",
   "packages/client/src/lib/card-import-copy.ts":
     "CARD_IMPORT_REFUSED_ONE and its siblings: the refusal sentence the character import dialog and the backup import both say for a picture that is not a card",
@@ -2256,6 +2268,7 @@ const config = {
     ...LAYER_DIRECTION,
     ...CLIENT_BOUNDARIES,
     ...UI_SATELLITE_OWNERS,
+    UI_FRAME_MARKDOWN_FRAME_ONLY,
     ...SERVER_AUTHORITY,
     ...DOMAIN_AUTHORITY,
     ...EXECUTOR_BOUNDARIES,

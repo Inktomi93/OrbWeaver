@@ -105,6 +105,9 @@ export type ListForksParams = ChatScopedParams;
 export type GetChatLineageParams = ChatScopedParams;
 
 export type GetChatParams = ChatScopedParams;
+export interface CheckSendAvailabilityParams extends ChatScopedParams {
+  readonly signal: AbortSignal;
+}
 
 /** `getMemberCard` — read ONE roster character's card, field-clamped to the room's `memberCardVisibility`
  *  (D22). The `characterId` MUST be a present character seat of THIS chat; a not-in-roster / foreign id is a
@@ -115,6 +118,7 @@ export interface GetMemberCardParams extends ChatScopedParams, ViewerClockParams
 
 /** `previewAssembly` — the BUILD product for a hypothetical turn (host/admin trace). */
 export interface PreviewAssemblyParams extends ChatScopedParams, ViewerClockParams {
+  readonly signal: AbortSignal;
   readonly speakerCharacterId?: CharacterId | null | undefined;
   readonly guided?: GuidedSteer | undefined;
   /** D121-G / §7.1 — assemble this room as if THIS preset were active, for the preset editor's BOUND Prompt
@@ -132,6 +136,7 @@ export interface PreviewAssemblyParams extends ChatScopedParams, ViewerClockPara
  *  owned-or-system UNDER THE HOST and degrades to the host's own default on a stale/unowned id — so a preset
  *  the caller does not own can never be read through a chat. */
 export interface PreviewActionTemplatesParams extends ChatScopedParams, ViewerClockParams {
+  readonly signal: AbortSignal;
   readonly presetId: PresetId;
 }
 
@@ -145,6 +150,7 @@ export interface GetVariantWireParams extends ChatScopedParams {
 /** `getShapeTrace` — the content-free SHAPE trace for the next-turn shaping of the current canon (host/admin
  *  inspector). `speakerCharacterId` picks the primary speaker the peek shapes for (as `previewAssembly`). */
 export interface GetShapeTraceParams extends ChatScopedParams {
+  readonly signal: AbortSignal;
   readonly speakerCharacterId?: CharacterId | null | undefined;
 }
 
@@ -152,6 +158,7 @@ export interface GetShapeTraceParams extends ChatScopedParams {
  *  capability (the transcript divider's live source). `speakerCharacterId` picks the primary speaker
  *  the fit shapes for (as `getShapeTrace`), so the preview matches the boundary the next real turn stamps. */
 export interface PreviewContextFitParams extends ChatScopedParams {
+  readonly signal: AbortSignal;
   readonly speakerCharacterId?: CharacterId | null | undefined;
 }
 
@@ -225,7 +232,7 @@ export interface ImpersonateStreamParams extends ChatScopedParams, ViewerClockPa
   readonly guided?: GuidedSteer | undefined;
   /** The subscription's abort signal (transport-supplied) — cancels the in-flight generation when the client
    *  tears down the stream (unmount / user cancel). Absent in a non-streaming caller (a test driving it directly). */
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 /** `generate` — a lock-free auxiliary generation (runs concurrent with a locked send). */
@@ -262,6 +269,7 @@ export interface ForceCharacterTurnParams extends ChatScopedParams, ViewerClockP
 
 /** `compact` — the manual compaction lever; produces the portable checkpoint. */
 export interface CompactParams extends ChatScopedParams {
+  readonly signal: AbortSignal;
   readonly instructions?: string | undefined;
 }
 
@@ -270,6 +278,7 @@ export type AbortParams = ChatScopedParams;
 
 /** `generateImage` — generates n image(s), then persists one message whose body carries n asset: refs. */
 interface GenerateImageFields extends ChatScopedParams, ViewerClockParams {
+  readonly signal: AbortSignal;
   readonly n?: number | undefined;
   /** The semantic size preset — forwarded to `imagery.generatePicture`; when absent
    *  the leaf uses `defaultSizeFor(mode)`. The I5 mode picker surfaces it. */
@@ -535,6 +544,8 @@ export interface SetChatDocumentVisibilityParams extends ChatScopedParams {
  *  true-solo room. */
 export interface SetChatBackgroundParams extends ChatScopedParams {
   readonly background: ThemeBackground;
+  /** Cancels the fetch an external source runs. */
+  readonly signal: AbortSignal;
 }
 
 /** `setHostDisplayScripts` — host-only write of the D121-E display-tier room OPTION

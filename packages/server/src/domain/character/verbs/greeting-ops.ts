@@ -21,11 +21,11 @@ export function createGreetingTemplate(deps: GreetingTemplateDeps): CharacterCon
 }
 
 export function createGreetingCompletion(deps: GreetingCompletionDeps): CharacterContext["generateGreetingText"] {
-  return async ({ caller, prompt }) => {
+  return async ({ caller, prompt, signal }) => {
     const presetParams = await deps.resolveUtilityPresetParams(caller.userId);
     const posture = resolveSideGenSampling(SIDE_GEN_POSTURES.greeting_studio, presetParams);
     const rc = await deps.roleClientsFor(caller.userId);
-    const res = await rc.summarize([{ systemPrompt: prompt, userPrompt: "" }], posture);
+    const res = await rc.summarize([{ systemPrompt: prompt, userPrompt: "" }], { ...posture, signal });
     const item = res.items[0];
     return { text: (item?.text ?? "").trim() };
   };

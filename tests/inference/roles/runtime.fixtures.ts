@@ -129,7 +129,7 @@ export async function runtimeConnection<T extends Task>(
   const principal = await root.principalFor(owner);
   const credential = key === undefined ? null : await root.services.credentials.add({ principal, provider: fields.providerId, key });
   const row = await root.services.connection.create({ ...connection, principal, credentialId: credential?.id ?? null });
-  const { resolved } = await root.app.runtime.resolve({ principal, task, connectionId: row.id, cachedFacts: true });
+  const { resolved } = await root.app.runtime.resolve({ signal: new AbortController().signal, principal, task, connectionId: row.id, cachedFacts: true });
   return { ...resolved, task };
 }
 

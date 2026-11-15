@@ -248,6 +248,8 @@ test.for([
     expect(recordToolCalls(decoded?.calls ?? [])).toEqual(recordToolCalls(expectedCalls));
     expect(recordToolCalls(decoded?.calls ?? []).map((call) => call.verdict)).toEqual(["applied"]);
     expect(toolCallsToExtraction(decoded?.calls ?? [])).toEqual(toolCallsToExtraction(expectedCalls));
+    // The control: the stated calls extract to something, so the equality above cannot hold for an extractor that drops every call.
+    expect(toolCallsToExtraction(expectedCalls)).not.toEqual(toolCallsToExtraction([]));
   }
   const quiet = schema.parse({ changes: [{ plane: RPG_NO_CHANGES_TOOL }] });
   expect(patchChangesToToolCalls(quiet, tools)).toEqual({

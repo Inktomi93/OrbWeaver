@@ -13,8 +13,8 @@ function isImageryWarningCode(code: string): code is ImageryWarning["code"] {
 
 export function createImageProviderOps(deps: ImageProviderDeps): ImageProviderOps {
   return {
-    resolveGenerateImage: async (runAs, actor): ReturnType<ImageProviderOps["resolveGenerateImage"]> => {
-      const { resolved } = await deps.resolve({ task: "generateImage", principal: runAs, ...(actor !== undefined ? { actor } : {}) });
+    resolveGenerateImage: async (runAs, signal, actor): ReturnType<ImageProviderOps["resolveGenerateImage"]> => {
+      const { resolved } = await deps.resolve({ task: "generateImage", principal: runAs, signal, ...(actor !== undefined ? { actor } : {}) });
       return { connection: resolved as Resolved<"generateImage">, capability: generationOf(resolved) };
     },
     generateImage: async (req): ReturnType<ImageProviderOps["generateImage"]> => {

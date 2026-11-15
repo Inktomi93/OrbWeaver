@@ -10,6 +10,9 @@ import type { AssetId, ChatId, MessageId, MessageVariantId, UserId } from "@orb/
 import type { AutomationOps, ListRuleTools } from "./ops.ts";
 
 export interface AutomationRuntimeDeps<TSet> {
+  /** The process background-work lifetime. A rule dispatch runs off the domain bus with no request, turn or workload
+   *  above it, so shutdown is the one cancel its provider calls take. */
+  readonly backgroundSignal: AbortSignal;
   readonly resolveOwnerPrincipal: ResolveHostPrincipalOp;
   readonly requestTurn: RequestTurnOp;
   readonly postNarratorMessage: (
@@ -18,7 +21,7 @@ export interface AutomationRuntimeDeps<TSet> {
     media?: readonly AssetId[],
     options?: { readonly initiator: TurnInitiator; readonly automationDepth: number } | undefined,
   ) => Promise<{ readonly messageId: MessageId; readonly variantId: MessageVariantId }>;
-  readonly imagery: { readonly generatePicture: GeneratePicture };
+  readonly imagery: { readonly generatePicture: GeneratePicture<AbortSignal> };
   /** Raise a picture's dropped-knob warnings in its room, the notices the explicit generate verb raises. */
   readonly emitPictureWarnings: (chatId: ChatId, warnings: readonly { readonly code: string }[]) => Promise<void>;
   readonly settings: { readonly getUserSettings: GetUserSettingsOp };
@@ -30,7 +33,7 @@ export interface AutomationRuntimeDeps<TSet> {
     readonly executeToolCalls: (
       set: TSet,
       calls: readonly ToolCallInput[],
-      exec: { readonly principal: Principal; readonly chatId: ChatId | null; readonly turnId: null; readonly membership: null },
+      exec: { readonly principal: Principal; readonly chatId: ChatId | null; readonly turnId: null; readonly membership: null; readonly signal: AbortSignal },
     ) => Promise<readonly ToolCallRecord[]>;
   };
   readonly roleClientsFor: (funderUserId: UserId, actor?: BindingActor) => Promise<RoleClientsWithSignal>;

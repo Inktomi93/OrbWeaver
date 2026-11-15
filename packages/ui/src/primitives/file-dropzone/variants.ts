@@ -1,4 +1,4 @@
-import { CAPTION, COLOR_MOTION, DISABLED_STATE, FIELD_ROW, FOCUS_RING_HAS, HIDDEN_AT, tv } from "#lib";
+import { CAP, CAPTION, COLOR_MOTION, DISABLED_STATE, FIELD_ROW, FOCUS_RING_HAS, HIDDEN_AT, tv } from "#lib";
 
 // The dropzone skin. The native `<input type="file">` is the topmost element (absolutely
 // positioned, opacity-0, covering the full box) so every click/keyboard/drop interaction lands on
@@ -27,7 +27,8 @@ export const fileDropzoneVariants = tv({
     input: "absolute inset-0 cursor-pointer opacity-0 block-full inline-full disabled:cursor-not-allowed aria-busy:cursor-wait",
     content: "pointer-events-none flex flex-col items-center gap-field",
     icon: "text-muted-foreground",
-    instructions: "text-body leading-body text-foreground",
+    // The instructions are a paragraph, so they keep the prose measure on a wide drop target.
+    instructions: `text-body leading-body text-foreground ${CAP.prose}`,
     hint: CAPTION,
     // `max-w-full` + `wrap-anywhere`: a refusal names the file, and a camera-roll name has no break opportunity. `relative` stacks the
     // line above the covering input, so its text takes the press and can be selected.

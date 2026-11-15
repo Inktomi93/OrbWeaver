@@ -108,8 +108,8 @@ const DISTILL_RETRY_CONCURRENCY = 8;
 /** The ONE resolution every call of a pass shares: the sampling posture + the resolved system prose. Carried
  *  as a unit so the bounded per-card RETRY provably runs the same pass the batch call did. */
 interface DistillPass {
-  readonly rc: RoleClients;
-  readonly sampleOpts: StructuredOptions;
+  readonly rc: RoleClients<AbortSignal>;
+  readonly sampleOpts: StructuredOptions<AbortSignal>;
   readonly system: string;
 }
 
@@ -130,7 +130,7 @@ async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: Dist
   const { signal } = opts;
   // The on-demand arm: this pass is ONE named card the caller is waiting on, so a failure is theirs to see.
   const onDemand = opts.characterId !== undefined;
-  signal?.throwIfAborted();
+  signal.throwIfAborted();
   // `opts` IS the narrow: `DistillCharactersOptions` intersects `DistillTargetNarrow`, so the
   // `characterId`↔`ownerId` pairing is already carried by the type and the old key-by-key rebuild — which
   // could drop the owner while keeping the id — has nothing left to get wrong.
@@ -167,19 +167,20 @@ async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: Dist
   // `responseFormat` is orthogonal to sampling and always rides.
   const presetParams = opts.ownerId !== null ? await deps.resolveUtilityPresetParams(opts.ownerId) : undefined;
   const rc = await deps.roleClientsFor(opts.funderUserId);
-  const resolved = await rc.resolved("structured");
+  const resolved = await rc.resolved("structured", signal);
   if (resolved === null) {
     throw new DiscoveryNotConfiguredError();
   }
-  const sampleOpts: StructuredOptions = {
+  const sampleOpts: StructuredOptions<AbortSignal> = {
     responseFormat: DISTILL_RESPONSE_FORMAT,
     ...resolveSideGenSampling(SIDE_GEN_POSTURES.distill, presetParams),
+    signal,
   };
   // The system prompt is a PROSE-1 slot on the SAME owner rung as the sampling above: an owner-narrowed run
   // reads that host's override, the mixed-owner library batch reads `{}` ⇒ the shipped prompt.
   const distillSystem = resolveProseText("discovery.distill.system", opts.ownerId !== null ? await deps.resolveUserProse(opts.ownerId) : {});
 
-  signal?.throwIfAborted();
+  signal.throwIfAborted();
   // One batched call fills the role's parallel-slot pipeline; `ready[i]` pairs 1:1 with `result.items[i]`.
   const result = await rc.structured(
     ready.map((t) => ({
@@ -204,7 +205,7 @@ async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: Dist
   if (onDemand && writes.failed > 0) {
     throw new DistillFailedError("The summarizer returned nothing usable for that card. Try again.");
   }
-  signal?.throwIfAborted();
+  signal.throwIfAborted();
   await commitSummaries(db, writes.stmts);
   // Stage AFTER summaries commit — a failed tag attach must not roll back the facets.
   await stageSuggestions(deps, writes.stagedLabels, signal);
@@ -228,10 +229,10 @@ async function buildDistillWrites(
   items: readonly { readonly text: string }[],
   meta: {
     readonly db: Db;
-    readonly rc: RoleClients;
+    readonly rc: RoleClients<AbortSignal>;
     readonly model: string;
     readonly now: number;
-    readonly sampleOpts: StructuredOptions;
+    readonly sampleOpts: StructuredOptions<AbortSignal>;
     readonly system: string;
     readonly onProgress?: DistillCharactersOptions["onProgress"];
   },
@@ -322,9 +323,9 @@ async function commitSummaries(db: Db, stmts: readonly BatchStmt[]): Promise<voi
 
 /** Stage each distilled label as a `source:'auto', status:'pending'` suggestion through the injected tag seam;
  *  the seam is idempotent and never downgrades an accepted tag. */
-async function stageSuggestions(deps: DistillCharactersDeps, stagedLabels: readonly StagedLabel[], signal: AbortSignal | undefined): Promise<void> {
+async function stageSuggestions(deps: DistillCharactersDeps, stagedLabels: readonly StagedLabel[], signal: AbortSignal): Promise<void> {
   for (const label of stagedLabels) {
-    signal?.throwIfAborted();
+    signal.throwIfAborted();
     await deps.attachCardTagByName({
       ownerId: label.ownerId,
       characterId: label.characterId,

@@ -60,7 +60,7 @@ test("public downloads sniff real bytes and store for the caller; a configured p
   });
   const backgroundBytes = makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset));
   payload = backgroundBytes;
-  const background = await root.services.settings.addExternalBackground({ principal: owner, url: PUBLIC_URL });
+  const background = await root.services.settings.addExternalBackground({ signal: new AbortController().signal, principal: owner, url: PUBLIC_URL });
   const backgroundRead = await root.services.assets.readOwnedAssetBytes(owner, background.assetId);
   expect(backgroundRead.mime).toBe(MIME);
   expect(Buffer.from(backgroundRead.bytes).equals(Buffer.from(backgroundBytes))).toBe(true);
@@ -69,7 +69,9 @@ test("public downloads sniff real bytes and store for the caller; a configured p
   ]);
   await expect(root.services.assets.readOwnedAssetBytes(await root.principalFor(root.ownerId), background.assetId)).rejects.toThrow(DomainNotFoundError);
   const before = await root.db.select().from(assets).orderBy(assets.id);
-  await expect(root.services.settings.addExternalBackground({ principal: owner, url: PRIVATE_URL })).rejects.toMatchObject({
+  await expect(
+    root.services.settings.addExternalBackground({ signal: new AbortController().signal, principal: owner, url: PRIVATE_URL }),
+  ).rejects.toMatchObject({
     code: CHAT_OP_CODES.backgroundUnavailable,
     message: backgroundMaterializeMessage("unreachable"),
   });
@@ -91,7 +93,7 @@ test("live download caps and raster dimensions refuse without changing the actua
   payload = new Uint8Array(PAYLOAD_SIZE);
   payload.set(raster);
   await root.services.settings.updateAppSettings({ principal, partial: { maxImageBytes: HIGH_CAP } });
-  const background = await root.services.settings.addExternalBackground({ principal, url: PUBLIC_URL });
+  const background = await root.services.settings.addExternalBackground({ signal: new AbortController().signal, principal, url: PUBLIC_URL });
   const stored = await root.services.assets.readOwnedAssetBytes(principal, background.assetId);
   expect(stored.mime).toBe(MIME);
   expect(Buffer.from(stored.bytes).equals(Buffer.from(payload))).toBe(true);
@@ -106,7 +108,7 @@ test("live download caps and raster dimensions refuse without changing the actua
     ["over the pixel cap", overPixels(raster)],
   ] as const) {
     payload = bytes;
-    outcomes[name] = await root.services.settings.addExternalBackground({ principal, url: PUBLIC_URL }).then(
+    outcomes[name] = await root.services.settings.addExternalBackground({ signal: new AbortController().signal, principal, url: PUBLIC_URL }).then(
       () => "stored",
       (err: unknown) => (err instanceof Error ? err.message : String(err)),
     );
@@ -190,12 +192,12 @@ test("failed downloads cancel unread bodies and conceal physical errors without 
   });
   const principal = await root.principalFor(root.ownerId);
   raster = makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset));
-  const background = await root.services.settings.addExternalBackground({ principal, url: PUBLIC_URL });
+  const background = await root.services.settings.addExternalBackground({ signal: new AbortController().signal, principal, url: PUBLIC_URL });
   expect((await root.services.assets.readOwnedAssetBytes(principal, background.assetId)).mime).toBe(MIME);
   const before = await root.db.select().from(assets).orderBy(assets.id);
   for (const failure of ["non-success", "throw"]) {
     mode = failure;
-    await expect(root.services.settings.addExternalBackground({ principal, url: PUBLIC_URL })).rejects.toMatchObject({
+    await expect(root.services.settings.addExternalBackground({ signal: new AbortController().signal, principal, url: PUBLIC_URL })).rejects.toMatchObject({
       code: CHAT_OP_CODES.backgroundUnavailable,
       message: backgroundMaterializeMessage("unreachable"),
     });

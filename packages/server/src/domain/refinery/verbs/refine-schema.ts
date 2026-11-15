@@ -11,9 +11,9 @@ import type { RefineryContext, RefineryService } from "../contract/service.ts";
 import { resolveForgeCall, runForgeTurn } from "../substrate/schema-forge.ts";
 
 export function createRefineSchema(ctx: RefineryContext): RefineryService["refineSchema"] {
-  return async ({ principal, schema, instruction, stage, arm }) => {
+  return async ({ principal, schema, instruction, stage, arm, signal }) => {
     const ask = refineryGuidanceSchema.parse(instruction);
-    const call = await resolveForgeCall(ctx, principal.userId);
+    const call = await resolveForgeCall(ctx, principal.userId, signal);
     const userPrompt = `The schema as it stands today:\n${JSON.stringify(schema)}\n\nChange to make: ${ask}\n\nRe-describe the COMPLETE schema after that change — every field, not just the changed one.`;
     return runForgeTurn({
       stage,

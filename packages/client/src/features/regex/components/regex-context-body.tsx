@@ -52,12 +52,14 @@ export function RegexContextBody({ memberId }: { readonly memberId: string }): R
   if (script === undefined) {
     // action={null}: the regex CONTEXT pane's GONE arm — the script was deleted while its context was open. The next step is picking another row in the sibling roster, which is on screen; the member-editor twin, same species. Ends if the context pane can be shown without its sibling roster.
     return (
-      <EmptyState
-        action={null}
-        description="This script was deleted. Pick another from the list."
-        icon={<Icon icon={Code} size="lg" />}
-        title="Script not found"
-      />
+      <ContextTabBody>
+        <EmptyState
+          action={null}
+          description="This script was deleted. Pick another from the list."
+          icon={<Icon icon={Code} size="lg" />}
+          title="Script not found"
+        />
+      </ContextTabBody>
     );
   }
   return <RegexScopePanel globals={globals} isGlobal={globals.some((row) => row.id === script.id)} script={script} />;
@@ -182,7 +184,7 @@ function AttachmentList({
           {rows.map((row) => (
             // `min-w-0` + `truncate`: this pane is the config rail's 320px context column, and a long
             // preset name must clip inside it rather than push the list past its own edge.
-            <Row align="center" className="min-inline-0" gap="field" key={row.id}>
+            <Row align="center" minWidth="shrinks" gap="field" key={row.id}>
               <Icon icon={glyph} size="xs" />
               <Text as="span" truncate={true}>
                 {row.name}
@@ -228,7 +230,7 @@ function RoomList({ rooms }: { readonly rooms: readonly VisibleRoomRef[] }): Rea
             return (
               // The stamp is `shrink-0` and the title takes the squeeze — this pane is the config rail's
               // 320px context column, so the datum that must never wrap is the short one.
-              <Row align="center" className="min-inline-0" gap="field" key={room.id}>
+              <Row align="center" minWidth="shrinks" gap="field" key={room.id}>
                 <Icon icon={MessagesSquare} size="xs" />
                 <Text as="span" truncate={true}>
                   {title}
@@ -263,7 +265,7 @@ function GlobalOrderRow({
 }): ReactElement {
   return (
     <Row align="center" gap="field" justify="between">
-      <Row align="center" className="min-inline-0" gap="field">
+      <Row align="center" minWidth="shrinks" gap="field">
         <Text as="span" voice="datum">
           {position}
         </Text>

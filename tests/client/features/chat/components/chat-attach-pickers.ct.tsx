@@ -151,10 +151,40 @@ test("a script attach in flight keeps the picker open, so its failure is said in
   await dialog.getByRole("checkbox", { name: chatAttachItemName(script.name), exact: true }).click();
   await dialog.getByRole("button", { name: CHAT_ATTACH_SCRIPTS_COMMIT_NAME, exact: true }).click();
   await hold.requested;
-  await dialog.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
+  // The footer's exit shows that the write holds the dialog, and the keyboard's way out is held with it.
+  const cancel = dialog.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true });
+  await expect(cancel).toBeDisabled();
+  await page.keyboard.press("Escape");
   // Let a dialog that does close finish its exit transition before asserting that this one stayed.
   await absenceWindow(page, DIALOG_EXIT_WINDOW_MS);
   await expect(dialog).toBeVisible();
   hold.fail();
   await expect(dialog.getByText(CHAT_ATTACH_SCRIPTS_FAILURE, { exact: true })).toBeVisible();
+  // The failure leaves the pick and the exit open for a retry or a Cancel.
+  await expect(dialog.getByRole("checkbox", { name: chatAttachItemName(script.name), exact: true })).toBeChecked();
+  await expect(cancel).toBeEnabled();
+});
+
+test("the script picker's commit attaches every ticked script in the order ticked and closes", async ({ mount, page, corpusMedia }) => {
+  await using root = await createCorpusHarness();
+  const { chatId, host } = await hostRoom(root);
+  const make = (name: string): ReturnType<Caller["regex"]["createScript"]> =>
+    host.regex.createScript({ input: createRegexScriptSchema.parse({ name, findRegex: "x", replaceString: "y", placement: [] }) });
+  const second = await make("Second ticked");
+  const first = await make("First ticked");
+  await openTab(root, page, host, serveCorpusProcedures(host, ["regex.listScripts", "regex.attachToChat"]));
+  await corpusMedia();
+  await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
+
+  await page.getByRole("button", { name: /^Regex/u }).click();
+  await page.getByRole("button", { name: CHAT_ATTACH_SCRIPT_NAME, exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  const commit = dialog.getByRole("button", { name: CHAT_ATTACH_SCRIPTS_COMMIT_NAME, exact: true });
+  await expect(commit).toBeDisabled();
+  await dialog.getByRole("checkbox", { name: chatAttachItemName(first.name), exact: true }).click();
+  await dialog.getByRole("checkbox", { name: chatAttachItemName(second.name), exact: true }).click();
+  await commit.click();
+  await expect(dialog).toHaveCount(0);
+  const attached = (await host.regex.listForChat({ chatId })).map((script) => script.id);
+  expect(attached.filter((id) => id === first.id || id === second.id)).toEqual([first.id, second.id]);
 });

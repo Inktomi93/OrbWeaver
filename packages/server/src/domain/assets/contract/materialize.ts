@@ -20,4 +20,4 @@ export interface InlineReplyImageDeps {
   readonly fetchImpl: SafeFetch;
 }
 
-export type StoreInlineReplyImage = (ownerId: UserId, image: GeneratedImage) => Promise<Pick<StoredAsset, "assetId"> | null>;
+export type StoreInlineReplyImage = (ownerId: UserId, image: GeneratedImage, signal: AbortSignal) => Promise<Pick<StoredAsset, "assetId"> | null>;

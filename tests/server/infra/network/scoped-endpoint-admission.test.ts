@@ -61,7 +61,7 @@ test("configured and arbitrary URL execution still reject DNS failure before the
     },
   });
   await expect(egress.configuredEndpointFetch("https://unresolved.example/v1")).rejects.toBe(failure);
-  await expect(egress.safeFetch("https://unresolved.example/asset", { allowedHosts: ANY_HOST })).rejects.toBe(failure);
+  await expect(egress.safeFetch("https://unresolved.example/asset", { signal: new AbortController().signal, allowedHosts: ANY_HOST })).rejects.toBe(failure);
   expect(rawCalls).toBe(0);
 });
 

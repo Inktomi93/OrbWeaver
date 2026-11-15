@@ -100,6 +100,7 @@ export interface WorkloadContribution<K extends WorkloadKind = WorkloadKind> {
       readonly funderUserId: UserId | null;
       readonly params: WorkloadParamsByKind[K];
       readonly before: readonly PriorStageCount[];
+      readonly signal: AbortSignal;
     },
   ) => Promise<ModelCallCount>;
   readonly resume: WorkloadResumePolicy;

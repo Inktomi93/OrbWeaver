@@ -48,9 +48,9 @@ export async function seedCorpusRefinery(root: ServerTestHarness): Promise<Seede
   });
   const session = await seedRefinerySessionRows(root, { principal, characterId: character.id, name: "Orbital ledger refinement" });
   const preflight = await caller.refinery.preflight({ sessionId: session.id });
-  const score = await seedRefineryRunRows(root, { principal, sessionId: session.id, stage: "score" });
-  const rewrite = await seedRefineryRunRows(root, { principal, sessionId: session.id, stage: "rewrite" });
-  const analyze = await seedRefineryRunRows(root, { principal, sessionId: session.id, stage: "analyze" });
+  const score = await seedRefineryRunRows(root, { signal: new AbortController().signal, principal, sessionId: session.id, stage: "score" });
+  const rewrite = await seedRefineryRunRows(root, { signal: new AbortController().signal, principal, sessionId: session.id, stage: "rewrite" });
+  const analyze = await seedRefineryRunRows(root, { signal: new AbortController().signal, principal, sessionId: session.id, stage: "analyze" });
   const review = await caller.refinery.decideRewrite({ sessionId: session.id, rewriteRunId: rewrite.id, decisions: [true] });
   const iteration = await caller.refinery.iterate({ sessionId: session.id, guidance: "Keep the keeper curious." });
   const manual = await seedManualRefineryRunRows(root, {
@@ -93,9 +93,9 @@ export async function seedCorpusRefinery(root: ServerTestHarness): Promise<Seede
   });
   const schemaPlan = await caller.refinery.schemaPlan({ stage: "score", schema: schema.schema });
   const drill = await caller.refinery.testSchema({ stage: "score", schema: schema.schema, characterId: copy.character.id });
-  const customFirst = await seedRefineryRunRows(root, { principal, sessionId: customSession.id, stage: "score" });
+  const customFirst = await seedRefineryRunRows(root, { signal: new AbortController().signal, principal, sessionId: customSession.id, stage: "score" });
   const revisedSchema = await caller.refinery.updateSchema({ schemaId: schema.id, patch: { name: CORPUS_REFINERY_SCHEMA_REVISION } });
-  const customSecond = await seedRefineryRunRows(root, { principal, sessionId: customSession.id, stage: "score" });
+  const customSecond = await seedRefineryRunRows(root, { signal: new AbortController().signal, principal, sessionId: customSession.id, stage: "score" });
   const sessions = await caller.refinery.listSessions();
   const runs = await caller.refinery.listRuns({ sessionId: session.id });
   const customRuns = await caller.refinery.listRuns({ sessionId: customSession.id });

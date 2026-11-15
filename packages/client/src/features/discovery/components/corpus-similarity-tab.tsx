@@ -15,7 +15,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import type { ReactElement } from "react";
 import { useDeferredValue, useState } from "react";
-import { MutedLine, QueryBoundary } from "#components";
+import { ContextTabBody, MutedLine, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { CORPUS_NO_SIMILARITY_EDGES_TEXT, CORPUS_PARAM_NAMES, CORPUS_READ_LABELS } from "../lib/corpus-control-names.ts";
 import { ParamSelect } from "./corpus-controls.tsx";
@@ -55,14 +55,16 @@ const MAX_NODES_ITEMS: SelectItems = [
 
 export function CorpusSimilarityTab(): ReactElement {
   return (
-    <QueryBoundary
-      resetKeys={[]}
-      fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="similarity" onRetry={retry} />}
-      reserveKey="corpus.similarity"
-    >
-      <SimilarityBody />
-    </QueryBoundary>
+    <ContextTabBody>
+      <QueryBoundary
+        resetKeys={[]}
+        fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="similarity" onRetry={retry} />}
+        reserveKey="corpus.similarity"
+      >
+        <SimilarityBody />
+      </QueryBoundary>
+    </ContextTabBody>
   );
 }
 

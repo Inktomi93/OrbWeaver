@@ -78,6 +78,7 @@ async function gatherDatabank(
     readonly foreign: ForeignInputs;
     /** The turn's degrade episode, shared with the MEMORY arm. */
     readonly warningEpisode: TurnRetrievalWarningEpisode;
+    readonly signal: AbortSignal;
   },
 ): Promise<string | undefined> {
   if (ctx.gatherDatabank === undefined) {
@@ -94,6 +95,7 @@ async function gatherDatabank(
       hostUserId: args.hostUserId,
       queryText,
       tokenBudget: args.foreign.databankSlotTokenBudget ?? DATABANK_SLOT_TOKEN_BUDGET,
+      signal: args.signal,
       ...(retrieval !== undefined
         ? ({ k: retrieval.k, minScore: retrieval.minScore, rerank: retrieval.rerank } satisfies Pick<GatherDatabankParams, "k" | "minScore" | "rerank">)
         : {}),
@@ -207,6 +209,7 @@ async function gatherMemory(
     /** The turn's degrade episode, constructed by {@link gatherAssembleContext} and shared with the DATABANK
      *  arm — one unqueryable vector space losing both retrieval slots owes the user ONE notice. */
     readonly warningEpisode: TurnRetrievalWarningEpisode;
+    readonly signal: AbortSignal;
   },
   out?: SendRegexSink,
 ): Promise<{ readonly text: string; readonly trace: MemoryRecallSlice | null }> {
@@ -240,6 +243,7 @@ async function gatherMemory(
       isGroup: args.characterIds.length > 1,
     },
     groupCharacterId: sharedCharId,
+    signal: args.signal,
     // The recall live-window cutoff = the PREVIOUS turn's canon fit boundary (the newest assistant row's
     // stored `contextBoundaryMessageId` → its seq). Recall can't see THIS turn's fit (it runs pre-fit), so
     // the last turn's authoritative boundary is the honest live-window edge — digests whose scene is still
@@ -354,6 +358,7 @@ export async function gatherAssembleContext(
         names: await loadRecallNames(ctx, memoryOps, recallRecent),
         liveWindowCutoffSeq: resolveLiveWindowCutoffSeq(canon),
         warningEpisode,
+        signal: args.signal,
       },
       out,
     ),
@@ -364,6 +369,7 @@ export async function gatherAssembleContext(
       eligibleContent: eligible.map((m) => m.content),
       foreign,
       warningEpisode,
+      signal: args.signal,
     }),
   ]);
 

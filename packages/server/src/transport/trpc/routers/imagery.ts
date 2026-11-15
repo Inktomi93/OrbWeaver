@@ -14,7 +14,7 @@ import { extractedPromptSchema, generatedPictureSchema, generationProvenanceSche
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { reportedTimeZoneSchema } from "@orb/kit/time";
 import { z } from "zod";
-import { authedProcedure, t } from "../trpc.ts";
+import { authedProcedure, procedureSignal, t } from "../trpc.ts";
 
 // The edit instruction cap mirrors the generation prompt cap (the verbatim edit
 // instruction rides the same 2000-char ceiling as a resolved prompt).
@@ -41,9 +41,10 @@ export const imageryRouter = t.router({
         chatId: typeIdSchema(ID_PREFIX.chat).optional(),
       }),
     )
-    .mutation(({ ctx, input }) =>
+    .mutation(({ ctx, input, signal }) =>
       ctx.services.imagery.editImage({
         caller: ctx.auth,
+        signal: procedureSignal(signal),
         source: { assetId: input.sourceAssetId },
         instruction: input.instruction,
         ...(input.n === undefined ? {} : { n: input.n }),
@@ -63,9 +64,10 @@ export const imageryRouter = t.router({
         timeZone: reportedTimeZoneSchema,
       }),
     )
-    .mutation(({ ctx, input }) =>
+    .mutation(({ ctx, input, signal }) =>
       ctx.services.imagery.extractPrompt({
         caller: ctx.auth,
+        signal: procedureSignal(signal),
         chatId: input.chatId,
         mode: input.mode,
         ...(input.subjectCharacterId === undefined ? {} : { subjectCharacterId: input.subjectCharacterId }),

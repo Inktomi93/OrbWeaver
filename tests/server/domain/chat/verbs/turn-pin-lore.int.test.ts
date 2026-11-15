@@ -80,7 +80,7 @@ async function newestWire(h: ChatRoot, act: () => Promise<unknown>): Promise<str
 }
 
 async function previewOf(h: ChatRoot, chatId = h.chatId): Promise<{ readonly text: string; readonly activated: readonly string[] }> {
-  const { prompt, trace } = await h.root.services.chat.previewAssembly({ principal: h.owner, chatId });
+  const { prompt, trace } = await h.root.services.chat.previewAssembly({ signal: new AbortController().signal, principal: h.owner, chatId });
   return { text: `${prompt.static}\n${prompt.dynamic}`, activated: trace.worldInfoActivated.map(({ title }) => title) };
 }
 
@@ -121,7 +121,9 @@ test("a pin whose owner left keeps its book for the host and a member, and a mem
   expect(await inheritedPersonaBooks(h)).toEqual(["Ledgerkeeper"]);
 
   expect(await inheritedPersonaBooks(h, carol)).toEqual([]);
-  await expect(h.root.services.chat.previewAssembly({ principal: carol, chatId: h.chatId })).rejects.toMatchObject({ code: CHAT_OP_CODES.notHost });
+  await expect(h.root.services.chat.previewAssembly({ signal: new AbortController().signal, principal: carol, chatId: h.chatId })).rejects.toMatchObject({
+    code: CHAT_OP_CODES.notHost,
+  });
 });
 
 test("a pin whose owner is disabled keeps its book, while a disabled seat's unpinned book drops", async () => {
@@ -244,7 +246,7 @@ test("a held pin keeps the card identity while the voice and people rows leave w
   const card = await h.root.services.chat.getMemberCard({ principal: h.owner, chatId: h.chatId, characterId, timeZone: UTC_TIME_ZONE });
   expect(card.description).toBe("Ledgerkeeper is my brother");
 
-  const { budget } = await h.root.services.chat.previewAssembly({ principal: h.owner, chatId: h.chatId });
+  const { budget } = await h.root.services.chat.previewAssembly({ signal: new AbortController().signal, principal: h.owner, chatId: h.chatId });
   const rows = budget.sections.find((section) => section.sectionId === "persona")?.rows.map((row) => row.label) ?? [];
   expect(rows[0]).toContain("Host voice");
   expect(rows.filter((label) => label.includes("Ledgerkeeper"))).toEqual([]);
@@ -359,7 +361,7 @@ test("generate, continue and impersonate carry the held pin's book", async () =>
   expect(await newestWire(h, () => h.root.services.chat.continueTurn({ principal: h.owner, chatId: h.chatId, messageId: tail.id }))).toContain(PINNED_RENDERED);
 
   const impersonate = async (): Promise<void> => {
-    for await (const _delta of h.root.services.chat.impersonateStream({ principal: h.owner, chatId: h.chatId })) {
+    for await (const _delta of h.root.services.chat.impersonateStream({ signal: new AbortController().signal, principal: h.owner, chatId: h.chatId })) {
       // The stream only runs while it is drained.
     }
   };
@@ -401,7 +403,7 @@ test("a pin book joins the ordinary budget walk: a lower entry drops and the tra
   expect((await previewOf(h)).text).toContain("LOWER-CHAT-ENTRY");
 
   await pinLore(h, h.owner, pinned.id, { content: "HIGHER-PIN-ENTRY ".repeat(20), priority: 100 });
-  const { prompt, trace } = await h.root.services.chat.previewAssembly({ principal: h.owner, chatId: h.chatId });
+  const { prompt, trace } = await h.root.services.chat.previewAssembly({ signal: new AbortController().signal, principal: h.owner, chatId: h.chatId });
   expect(prompt.static).toContain("HIGHER-PIN-ENTRY");
   expect(prompt.static).not.toContain("LOWER-CHAT-ENTRY");
   expect(trace.worldInfoDropped).toEqual([{ id: dropped.id, reason: "budget" }]);

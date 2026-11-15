@@ -32,6 +32,7 @@ export interface UpdateUserSettingsSectionParams extends UserSettingsActorParams
  *  the URL is fetched+magic-verified+stored server-side, so it can never persist a paintable external URL. */
 export interface AddExternalBackgroundParams extends UserSettingsActorParams {
   readonly url: string;
+  readonly signal: AbortSignal;
 }
 
 interface AppSettingsActorParams {

@@ -41,7 +41,7 @@ function connectionAttrs(connection: Resolved): SpanAttrs {
 }
 
 /** Resolve a task's impl and RUN it inside a `provider.<task>` span with the caller's signal flattened. */
-export function runTask<Req extends { readonly signal?: AbortSignal | undefined; readonly connection: Resolved }, Res>(args: {
+export function runTask<Req extends { readonly signal: AbortSignal; readonly connection: Resolved }, Res>(args: {
   readonly span: SpanFn;
   readonly registry: BackendRegistry;
   readonly task: string;
@@ -51,11 +51,7 @@ export function runTask<Req extends { readonly signal?: AbortSignal | undefined;
   const backend = requireBackend(args.registry, args.req.connection.wire, args.task);
   const run = requireMethod(backend, args.pick(backend), args.task);
   const attrs: SpanAttrs = { "provider.task": args.task, ...connectionAttrs(args.req.connection) };
-  const external = args.req.signal;
-  if (external === undefined) {
-    return args.span(`provider.${args.task}`, () => run(args.req), attrs);
-  }
-  const flat = flattenAbortSignal(external);
+  const flat = flattenAbortSignal(args.req.signal);
   const req = { ...args.req, signal: flat.signal };
   return args.span(`provider.${args.task}`, () => run(req), attrs).finally(flat.dispose);
 }

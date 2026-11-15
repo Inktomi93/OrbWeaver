@@ -79,8 +79,8 @@ function resyncStatePatch(baseState: RpgSnapshotState, statePatch: Record<string
 export function createResyncFromStory(ctx: RpgContext): Pick<RpgService, "resyncFromStory"> {
   async function resyncFromStory(params: ResyncFromStoryParams): Promise<ResyncResult> {
     // HOST GATE at the model-call boundary — a member can never reach the host-principal model call.
-    const { game } = await resolveHost(ctx, params.principal, params.chatId);
-    await ctx.claimChat(params.chatId);
+    const { game, admission } = await resolveHost(ctx, params.principal, params.chatId);
+    const claim = await ctx.claimChat(admission);
     // The caller IS the host (resolveHost enforced it), so the host principal funding the model call is the
     // caller's own userId — NEVER a params-supplied id (no foreign-principal injection).
     const hostUserId = params.principal.userId;
@@ -93,7 +93,7 @@ export function createResyncFromStory(ctx: RpgContext): Pick<RpgService, "resync
     // the deep window. The op is ERRORS-AS-DATA — a round that could not RUN (unresolvable connection / no
     // structured writer / a failed model call) comes back `{ok:false, reason}` and is handed STRAIGHT to the
     // host. It used to come back as an empty delta, indistinguishable from a story with nothing to re-derive.
-    const round = await ctx.runResyncExtraction({ chatId: game.chatId, hostUserId, baseState });
+    const round = await ctx.runResyncExtraction({ chatId: game.chatId, hostUserId, baseState, signal: params.signal });
     if (!round.ok) {
       return round;
     }
@@ -112,7 +112,7 @@ export function createResyncFromStory(ctx: RpgContext): Pick<RpgService, "resync
     // Write the reconciled state BORN COMMITTED as a HAND ROW (D124) — no message, no variant, ordered by the
     // chat's tail slot.
     const snapshotId = ctx.ids.snapshot();
-    const written = await writeResyncedSnapshot(ctx.db, nextState, { id: snapshotId, gameId: game.id, chatId: game.chatId, now: ctx.now() });
+    const written = await writeResyncedSnapshot(ctx.db, claim, nextState, { id: snapshotId, gameId: game.id, chatId: game.chatId, now: ctx.now() });
     if (!written.ok) {
       // The F1 backstop refused a contract-invalid rebuild — drop the whole resync (no journal, no emits), and
       // SURFACE it (never a silent vanish — the same observability contract the flush's drop honors). A hand

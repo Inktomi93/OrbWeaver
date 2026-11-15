@@ -30,6 +30,10 @@ import type { ScriptRecord } from "../contract/rows.ts";
 import { findDuplicate } from "../substrate/dedup.ts";
 import { listOwnedScripts, toRow } from "./queries.ts";
 
+// A handoff copies rows another owner already stored, through the write door or before it existed; it stores no new
+// pattern, so it measures none.
+type HandoffCopyContext = Omit<RegexPortabilityContext, "probeFindCompiles">;
+
 /** One chat-tier attachment the departing host owns: the script record plus the junction slot it holds. */
 interface OwnedChatAttachment {
   readonly script: ScriptRecord;
@@ -111,8 +115,8 @@ async function resolveHandoffScriptCopyPlan(db: Db, fromOwnerId: UserId, toOwner
   return { attachments, mints };
 }
 
-export function createCopyHandoffRegexScripts(input: DbAssemblyInput<RegexPortabilityContext>): CopyHandoffRegexScripts {
-  const ctx: RegexPortabilityContext = { ...input, db: databaseForOwner(input.db) };
+export function createCopyHandoffRegexScripts(input: DbAssemblyInput<HandoffCopyContext>): CopyHandoffRegexScripts {
+  const ctx: HandoffCopyContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ fromOwnerId, toOwnerId, chatId }): Promise<readonly StatementToken[]> => {
     const { db } = ctx;
     const plan = await resolveHandoffScriptCopyPlan(db, fromOwnerId, toOwnerId, chatId);

@@ -17,17 +17,12 @@ import { loadOwnerAssetRows } from "../persistence/maintenance.ts";
 import { storeBlob } from "../persistence/queries.ts";
 
 /** Re-index one owner's orphan blobs; returns the blobs walked and the rows newly created. */
-async function rebuildOwner(
-  ctx: AssetsContext,
-  ownerId: UserId,
-  kind: AssetKind,
-  signal: AbortSignal | undefined,
-): Promise<{ scanned: number; rebuilt: number }> {
+async function rebuildOwner(ctx: AssetsContext, ownerId: UserId, kind: AssetKind, signal: AbortSignal): Promise<{ scanned: number; rebuilt: number }> {
   let scanned = 0;
   let rebuilt = 0;
   const rowHashes = new Set((await loadOwnerAssetRows(ctx.db, ownerId)).map((r) => r.hash));
   for await (const hash of ctx.cas.listHashes(ownerId)) {
-    signal?.throwIfAborted();
+    signal.throwIfAborted();
     scanned += 1;
     if (rowHashes.has(hash)) {
       continue;

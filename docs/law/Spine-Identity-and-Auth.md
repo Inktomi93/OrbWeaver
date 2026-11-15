@@ -50,12 +50,13 @@ Code comments cite the numbered invariants below as "invariant N":
    `can(principal, action, {kind:'chat', roster})`. The meaning of a role, the `owner ⊇ admin` ladder and the `host`
    bit, lives in `packages/contracts/src/identity/index.ts` as `userRoleSatisfies` and `isHostRole`: pure predicates over
    the closed role tuples that `can()`, the projection and roster homes below and client display labels all read. A
-   client display read is never an authorization (D121). In the server and the client, the `no-restricted-syntax`
-   role selectors in `eslint.config.ts` refuse a role literal (`host`, `member`, `owner`, `admin`) tested against an
-   operand named for a role (a `role`, `globalRole` or `viewerRole` field, a `*Role` variable, a decoded
-   `participantRoleValue(...)`) in an equality, a `switch` case, an array literal's `includes` or an `in` over an
-   object literal; `tests/tooling/eslint-role-comparison.test.ts` plants each form. A comparison under another name
-   is outside the selectors and stays a review question. `roster` in this doc names the code-level
+   client display read is never an authorization (D121). Outside that file and the account role chip
+   (`packages/client/src/components/user-role-status.ts`), `orb/no-role-comparison` refuses in every package source
+   an equality, a `switch` discriminant or case label, a membership read (`includes`, `indexOf`, `has`, `get`), a
+   keyed lookup and an `in` test whose operand the checker types as a `UserRole` or `ParticipantRole`, whatever the
+   field, variable or constant is named, including an alias, a branded, optional or nullable form and the union
+   inferred from the role schema; `tests/tooling/eslint-role-comparison.test.ts` plants each shape. A role widened to
+   `string` is no longer a role to the checker; keep role values typed. `roster` in this doc names the code-level
    `chat_participants` membership (`packages/server/src/domain/chat/verbs/participants.ts`, `packages/server/src/domain/chat/substrate/participants-host.ts`,
    `participants-humans.ts`). It is not the user-facing Roster, which names the saved
    seats-knobs-rules template (`domain/roster-preset`). The room's seated characters are Characters.

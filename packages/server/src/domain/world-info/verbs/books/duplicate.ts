@@ -32,6 +32,7 @@ export function createDuplicateBook(ctx: WorldInfoContext): WorldInfoService["du
         name: newName,
         description: source.description,
         createdAt: at,
+        updatedAt: at,
       }),
       // `updatedAt` is stamped, never spread: the copy is a NEW row, so the source's edit stamp is not its
       // history. Carrying it made a freshly duplicated entry claim it was last edited before the book that

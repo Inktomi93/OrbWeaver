@@ -5,6 +5,7 @@
 export const DIALOG_VERBS = {
   accept: "Accept",
   apply: "Apply",
+  back: "Back",
   cancel: "Cancel",
   close: "Close",
   create: "Create",

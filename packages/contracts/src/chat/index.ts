@@ -145,7 +145,14 @@ export {
   USER_MACRO_UNKNOWN_PICK_OP_CODE,
 } from "./bus.ts";
 export type { CardFrameMintRequest, CardFrameMintResponse } from "./card-frame.ts";
-export { CARD_FRAME_MINT_BODY_MAX_BYTES, CARD_FRAME_ROUTE, cardFrameMintRequestSchema, cardFrameMintResponseSchema, cardFrameUrl } from "./card-frame.ts";
+export {
+  CARD_FRAME_MINT_BODY_MAX_BYTES,
+  CARD_FRAME_MINTS_IN_FLIGHT,
+  CARD_FRAME_ROUTE,
+  cardFrameMintRequestSchema,
+  cardFrameMintResponseSchema,
+  cardFrameUrl,
+} from "./card-frame.ts";
 export type { CardTrust, ContentSpansToBlocksOptions, MessageContentBlock, SendContentBlock } from "./content-blocks.ts";
 export {
   composeSendBody,
@@ -481,6 +488,8 @@ export type {
   ResolveReasoningHostOnlyOp,
   ResolveRpgCardCorpus,
   ResolveRpgParticipants,
+  RoomAdmission,
+  RoomClaim,
   RpgCardCorpus,
   RpgGatherWithTools,
   RpgTurnAbortedOp,

@@ -20,14 +20,14 @@
 //
 // FIRST-PARTY (`builtin`) TOOLS ARE NOT DIRECT-DRIVABLE, and that is a deliberate v1 narrowing rather than an
 // oversight — the two receipts, so the next reader does not "fix" it:
-//   • the rpg state tools are TURN-SCOPED registrants: `ToolHandler` types their `exec` with a non-null
+//   • the rpg state tools are TURN-SCOPED registrants: `ToolDefinition`'s handler types their `exec` with a non-null
 //     `chatId` and `turnId`, so only `resolveDrivableTools`, which keeps to this predicate, stands between them
 //     and an off-turn call that could not satisfy that type.
 //   • imagery's builtin is the `generate_image` ACTION ARM's own act; admitting it would be two homes for one
 //     concept, which the constitution merges rather than duplicates.
 // Builtins reach a turn through their OWN domain's teaching contribution, which is the seam that owns them.
 // THE SANCTIONED WIDENING DOOR IS THIS FILE: the day a first-party tool is genuinely drivable off-turn, it is
-// one predicate here (plus the capability ceiling it already declares) and a `ToolHandler` that takes the
+// one predicate here (plus the capability ceiling it already declares) and a handler that takes the
 // nullable context, not a new arm and not a new registry.
 
 import type { UserId } from "@orb/kit/ids";

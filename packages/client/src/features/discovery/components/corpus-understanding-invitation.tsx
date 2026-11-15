@@ -85,7 +85,7 @@ export function CorpusUnderstandingInvitation(): ReactElement {
             a paragraph capped at its measure beside a button that never shrinks is how a 360px pane ends up
             rendering four words a line. */}
         <Row align="start" gap="block" justify="between" stackBelow="cq-32">
-          <Stack className="min-inline-0" gap="row">
+          <Stack minWidth="shrinks" gap="row">
             <Heading id={titleId} level={2} voice="focal">
               {pass.running ? "Reading your library back to you." : "Read your library back to you."}
             </Heading>

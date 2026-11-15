@@ -4,16 +4,15 @@ import type { CredentialView } from "@orb/contracts/credentials";
 import type { ModelCheck, ProviderDef } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
-import { Button } from "@orb/ui/button";
-import { DialogClose, DialogFooter } from "@orb/ui/dialog";
 import { Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { CommitFooter } from "#components";
 import type { Invalidation, Trpc } from "#data";
-import { DIALOG_VERBS, trpcErrorReason } from "#lib";
+import { trpcErrorReason } from "#lib";
 import { pushRecentModel } from "#state";
 import { useAddConnectionForm } from "../hooks/use-add-connection-form.ts";
 import { useAddCredentialOwned, useCreateConnection, useDraftCatalogModels } from "../hooks/use-connections-mutations.ts";
@@ -225,15 +224,20 @@ export function AddConnectionFormBody({
   };
 
   const { form } = useAddConnectionForm({ entityId: "add-connection", serverValues: undefined, save });
+  const formId = useId();
+  const submitDraft = (): void => {
+    form.handleSubmit().catch((err: unknown) => setSubmitFailure({ error: err, values: form.state.values }));
+  };
 
   return (
     <form.AppForm>
       <form
         aria-label="Add a connection"
+        id={formId}
         onSubmit={(event): void => {
           event.preventDefault();
           event.stopPropagation();
-          form.handleSubmit().catch((err: unknown) => setSubmitFailure({ error: err, values: form.state.values }));
+          submitDraft();
         }}
       >
         <Stack gap="block">
@@ -305,27 +309,21 @@ export function AddConnectionFormBody({
               )
             }
           </form.Subscribe>
-
-          <form.Subscribe selector={(state): string => state.values.providerId}>
-            {(providerId): ReactElement | null => {
-              const provider = providerOf(providerId);
-              // A blocked pick's notice carries its own Close; this footer would only repeat it.
-              return provider !== undefined && keyStorageBlocks(provider, keyStorage) ? null : (
-                <DialogFooter>
-                  {onCancel === undefined ? (
-                    <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
-                  ) : (
-                    <Button variant="ghost" onClick={onCancel} type="button">
-                      Back
-                    </Button>
-                  )}
-                  <form.SubmitButton disabled={providerId === ""}>{CONNECTION_FORM_COPY.submit}</form.SubmitButton>
-                </DialogFooter>
-              );
-            }}
-          </form.Subscribe>
         </Stack>
       </form>
+      <form.Subscribe selector={(state): readonly [string, boolean, boolean] => [state.values.providerId, state.canSubmit, state.isSubmitting] as const}>
+        {([providerId, canSubmit, isSubmitting]): ReactElement | null => {
+          const provider = providerOf(providerId);
+          // A blocked pick's notice carries its own Close; this footer would only repeat it.
+          return provider !== undefined && keyStorageBlocks(provider, keyStorage) ? null : (
+            <CommitFooter
+              exit={onCancel === undefined ? "cancel" : { back: onCancel }}
+              formId={formId}
+              submit={{ label: CONNECTION_FORM_COPY.submit, onSubmit: submitDraft, disabled: providerId === "" || !canSubmit, loading: isSubmitting }}
+            />
+          );
+        }}
+      </form.Subscribe>
     </form.AppForm>
   );
 }

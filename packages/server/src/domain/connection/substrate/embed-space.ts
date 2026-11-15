@@ -28,9 +28,12 @@ export const VECTOR_TASKS: readonly RoutableTask[] = ["embed", "imageEmbed"];
 
 /** Resolve every vector task's space tag for `principal` RIGHT NOW — the snapshot the write verbs take
  *  before and after their write. The shape is {@link EmbedSpaces} (contract/results.ts). */
+/** Runs inside the owner's write queue, which must judge a write's before and after spaces to land or undo it, so
+ *  no request cancel may stop it half-judged; each resolve keeps its own deadline. */
 export async function vectorSpacesOf(ctx: SpaceResolveCtx, principal: Principal): Promise<EmbedSpaces> {
+  const signal = new AbortController().signal;
   const entries = await Promise.all(
-    VECTOR_TASKS.map(async (task): Promise<readonly [RoutableTask, EmbedSpace | null]> => [task, await vectorSpaceOf(ctx, principal, task)]),
+    VECTOR_TASKS.map(async (task): Promise<readonly [RoutableTask, EmbedSpace | null]> => [task, await vectorSpaceOf(ctx, principal, task, signal)]),
   );
   return Object.fromEntries(entries);
 }
@@ -43,7 +46,12 @@ export async function vectorResolutionOf(
   ctx: SpaceResolveCtx,
   principal: Principal,
   task: RoutableTask,
-  through: { readonly connectionId?: UserConnectionId | undefined; readonly cachedFacts?: boolean; readonly previewConnection?: UserConnection } = {},
+  through: {
+    readonly connectionId?: UserConnectionId | undefined;
+    readonly cachedFacts?: boolean;
+    readonly previewConnection?: UserConnection;
+    readonly signal: AbortSignal;
+  },
 ): Promise<{ readonly space: EmbedSpace; readonly servesImages: boolean } | null> {
   const { connectionId, cachedFacts = false } = through;
   // A binding that cannot resolve is the "no space" answer this comparison needs; any other failure fails the write.
@@ -51,6 +59,7 @@ export async function vectorResolutionOf(
     const { resolved } = await ctx.runtime.resolve({
       task,
       principal,
+      signal: through.signal,
       ...(connectionId === undefined ? {} : { connectionId }),
       ...(cachedFacts ? { cachedFacts } : {}),
       ...(through.previewConnection === undefined ? {} : { previewConnection: through.previewConnection }),
@@ -74,8 +83,8 @@ export async function vectorResolutionOf(
 }
 
 /** One vector task's space — {@link vectorResolutionOf} without the pixel question. */
-async function vectorSpaceOf(ctx: SpaceResolveCtx, principal: Principal, task: RoutableTask): Promise<EmbedSpace | null> {
-  return (await vectorResolutionOf(ctx, principal, task))?.space ?? null;
+async function vectorSpaceOf(ctx: SpaceResolveCtx, principal: Principal, task: RoutableTask, signal: AbortSignal): Promise<EmbedSpace | null> {
+  return (await vectorResolutionOf(ctx, principal, task, { signal }))?.space ?? null;
 }
 
 /** Did one task's space move? Encoder identity or width — the trigger's whole condition, in one place. */

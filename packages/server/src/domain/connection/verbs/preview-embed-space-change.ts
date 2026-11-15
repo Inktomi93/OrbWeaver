@@ -77,7 +77,7 @@ async function rowAfter(
   return id === edited?.id ? edited : await requireOwnedRow(ctx, principal, id);
 }
 
-async function proposedTargets(ctx: ConnectionContext, principal: Principal, change: EmbedSpaceChange): Promise<Target[]> {
+async function proposedTargets(ctx: ConnectionContext, principal: Principal, change: EmbedSpaceChange, signal: AbortSignal): Promise<Target[]> {
   const { edited, rebind } =
     change.kind === "update"
       ? { edited: await proposedRow(ctx, principal, change), rebind: new Map<VectorTask, UserConnectionId | null>() }
@@ -101,7 +101,7 @@ async function proposedTargets(ctx: ConnectionContext, principal: Principal, cha
     targets.push({ task: "embed", via: "embed", row: text, inPlace: textNow });
   }
   if (image !== null) {
-    const pixels = await vectorResolutionOf(ctx, principal, "imageEmbed", { connectionId: image.id, previewConnection: image, cachedFacts: true });
+    const pixels = await vectorResolutionOf(ctx, principal, "imageEmbed", { connectionId: image.id, previewConnection: image, cachedFacts: true, signal });
     if (pixels?.servesImages === true || (pixels === null && imageChanged)) {
       targets.push({ task: "imageEmbed", via: "imageEmbed", row: image, inPlace: imageNow });
       return targets;
@@ -117,10 +117,11 @@ async function checkTargets(
   ctx: ConnectionContext,
   principal: Principal,
   targets: readonly Target[],
+  signal: AbortSignal,
 ): Promise<{ scopes: VectorScope[]; refusal: EmbedTargetRefusal | null }> {
   const scopes: VectorScope[] = [];
   for (const target of targets) {
-    const proof = await ctx.previewTargetMove({ ownerId: principal.userId, task: target.task, via: target.via, connection: target.row });
+    const proof = await ctx.previewTargetMove({ ownerId: principal.userId, task: target.task, via: target.via, connection: target.row, signal });
     if (proof.kind === "refused") {
       return { scopes, refusal: proof.refusal };
     }
@@ -132,9 +133,9 @@ async function checkTargets(
 }
 
 export function createPreviewEmbedSpaceChange(ctx: ConnectionContext): ConnectionService["previewEmbedSpaceChange"] {
-  return async ({ principal, change }): Promise<EmbedSpaceChangePreview> => {
-    const targets = await proposedTargets(ctx, principal, change);
-    const { scopes, refusal } = await checkTargets(ctx, principal, targets);
+  return async ({ principal, change, signal }): Promise<EmbedSpaceChangePreview> => {
+    const targets = await proposedTargets(ctx, principal, change, signal);
+    const { scopes, refusal } = await checkTargets(ctx, principal, targets, signal);
     const counts = await ctx.countOwnedVectors(principal.userId);
     const stored = {
       cards: scopes.includes("cards") ? counts.cards : 0,

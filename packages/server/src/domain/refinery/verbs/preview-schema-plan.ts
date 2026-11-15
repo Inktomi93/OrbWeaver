@@ -7,11 +7,11 @@ import { liftJsonSchema, projectJsonSchema } from "@orb/kit/json-schema";
 import type { RefineryContext, RefineryService } from "../contract/service.ts";
 
 export function createPreviewSchemaPlan(ctx: RefineryContext): RefineryService["previewSchemaPlan"] {
-  return async ({ principal, schema, stage }) => {
+  return async ({ principal, schema, stage, signal }) => {
     const doc = refinerySchemaDocumentSchema.safeParse({ name: "draft_preview", description: "", stage, schema });
     if (!doc.success) {
       return null;
     }
-    return await ctx.planSchema(principal.userId, projectJsonSchema(liftJsonSchema(doc.data.schema)));
+    return await ctx.planSchema(principal.userId, projectJsonSchema(liftJsonSchema(doc.data.schema)), signal);
   };
 }

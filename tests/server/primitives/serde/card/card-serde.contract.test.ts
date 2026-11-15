@@ -429,6 +429,8 @@ describe("cardContentHash identifies what the card says, not who it is attribute
     for (const provenance of [{ creator: "someone" }, { creatorNotes: "notes" }, { cardVersion: "9.9" }, { extensions: { x: 1 } }, { starred: true }]) {
       expect(cardContentHash({ ...base, ...provenance })).toBe(hash);
     }
+    // The control: what the card says does move the hash, so the sameness above is a verdict.
+    expect(cardContentHash({ ...base, description: "A settled innkeeper." })).not.toBe(hash);
   });
 
   test("a change to what the card says changes the hash", () => {
@@ -516,6 +518,8 @@ describe("cardImportHash is the import identity", () => {
 
   test("a script's id is provenance: the same script under another id is the same character", ({ ids }) => {
     expect(cardImportHash(identity({ card: scripted("st-client-id") }))).toBe(cardImportHash(identity({ card: scripted(ids.typeId(ID_PREFIX.regexScript)) })));
+    // The control: the script itself is identity, so the sameness above is not a hash that ignores the card.
+    expect(cardImportHash(identity({ card: scripted("st-client-id") }))).not.toBe(cardImportHash(identity()));
   });
 });
 
