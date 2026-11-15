@@ -53,6 +53,11 @@ pre-push:
     github-sync-check:
       priority: 1
       run: bash scripts/github-sync.sh --check
+    # The release refuses a showcase bundle that changed since the last tag without a newer manifest version. Checking
+    # here refuses the push that carries it, before CI runs on a commit the release cannot take.
+    showcase-versions:
+      priority: 1
+      run: pnpm --filter @orb/showcase-plugins check:versions
     biome:
       priority: 2
       run: pnpm lint
