@@ -193,3 +193,32 @@ test.each([
   liftRawTextBodies(body, "\u{E000}");
   expect(performance.now() - started).toBeLessThan(BUDGET_MS);
 });
+
+// Past the container depth bound the reader cannot place a line's indent, so it reads no line there as code and a
+// panel stays an element.
+test.each([31, 34])("a panel indented under a list nested %i deep is lifted and stripped", (depth) => {
+  const list = Array.from({ length: depth }, (_, level) => `${"  ".repeat(level)}- item`).join("\n");
+  const body = `${list}\n\n${"  ".repeat(depth)}<div><style>${PANEL_BODY}</style></div>`;
+  expect(liftRawTextBodies(body, "\u{E000}").bodies).toEqual([PANEL_BODY]);
+  expect(stripStyleElements(body)).not.toContain(PANEL_BODY);
+});
+
+// Block shapes where the renderer builds the panel and a coarser read would take it for code. Each was checked against
+// the frame's own render.
+const LINE_CSS = ".hud{FLATCSS:1}";
+const LINE_STYLE = `<style>${LINE_CSS}</style>`;
+
+test.each([
+  ["a rule that opens like a list item, then an HTML block", `-     ---\n   <div>\n-\t\`\`\`html\n\t<div>${LINE_STYLE}</div>`],
+  ["a heading after an item, which no paragraph runs into", `1. x \`y\` z\n# t \`u\n  Say <div>${LINE_STYLE}</div>\na \`b`],
+  ["a lone tag that opens an HTML block inside the item it would leave", `10) ===\n   </pre>\n><!--\n  Intro ${LINE_STYLE}\n      -->`],
+  ["indented code in a quote that closes a list", `1. text\n>     x\n<b>\n   ~~~\n> ${LINE_STYLE}`],
+  ["indented code in a quote that ends a paragraph", `She\n>     x\n<b>\n   ~~~\n> ${LINE_STYLE}`],
+  ["ticks on an HTML block's line, which open no code span", `<div class="hud">Press \`${LINE_STYLE}\` here</div>`],
+  ["an item numbered past 1 after indented code, which is text", `    x\n10) \`\`\`\n    Intro ${LINE_STYLE}`],
+  ["an empty item that a line closes, after which code may start", `> - \n    ===\n   ===\n        Intro ${LINE_STYLE}`],
+  ["an empty item after a paragraph, in a quote the same line opens", `She\n> - \n    Intro ${LINE_STYLE}`],
+])("a panel after %s is lifted and stripped", (_name, body) => {
+  expect(liftRawTextBodies(body, "\u{E000}").bodies).toEqual([LINE_CSS]);
+  expect(stripStyleElements(body)).not.toContain(LINE_CSS);
+});

@@ -192,3 +192,11 @@ test("lenient cards: a run that fails the element majority is read once, not onc
     tokenizeContent("<div>\nprose\nprose\nprose\nprose\n<div>\n<p>a</p>\n<p>b</p>", { lenientHtml: true, committed: true }).map((span) => span.kind),
   ).toEqual(["text", "card"]);
 });
+
+// Each piece is appended one by one: spreading a list this long into one call's arguments overflows the stack.
+test.each([
+  ["dice stamps in one text", "a [dice: 1d6 → 4] ".repeat(150_000), "dice"],
+  ["images in one text", "a ![](u.png) ".repeat(150_000), "image"],
+])("a reply holding %s is read whole", (_name, body, kind) => {
+  expect(tokenizeContent(body, { committed: true }).filter((span) => span.kind === kind)).toHaveLength(150_000);
+});

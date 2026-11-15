@@ -17,10 +17,11 @@ export type FrameReplySegment =
   | { readonly kind: "markdown"; readonly markdown: string; readonly tokens: ThemeScopeTokens | undefined }
   | { readonly kind: "card"; readonly html: string };
 
-/** The stylesheets of a reply's other frame runs: those before this run, and those after it. */
+/** The stylesheets a frame run carries: every carried sheet of the reply, one array all its runs share, less this run's
+ *  own, which sit at `own`. The run carries those before `own.start` above its body and those from `own.end` below. */
 export interface ReplyRunStyles {
-  readonly before: readonly FrameStyleSheet[];
-  readonly after: readonly FrameStyleSheet[];
+  readonly sheets: readonly FrameStyleSheet[];
+  readonly own: { readonly start: number; readonly end: number };
 }
 
 const CHARS_PER_MIB = 1_048_576;
@@ -28,6 +29,9 @@ const REPLY_CARRY_BUDGET_MIB = 4;
 /** The stylesheet text all of one reply's runs may carry between them: a bound against abuse, set well above what a
  *  heavy styling preset's panels carry across many splits. */
 export const REPLY_CARRY_BUDGET_CHARS = REPLY_CARRY_BUDGET_MIB * CHARS_PER_MIB;
+/** The stylesheet copies all of one reply's runs may carry between them. Each is an element in another run's document,
+ *  and text alone cannot bound them: an empty sheet carries none. A heavy styling preset carries a few dozen. */
+export const REPLY_CARRY_BUDGET_SHEETS = 1024;
 
 /** What a styled reply renders: its frame runs and native blocks, or the plain path whole, with the reason. */
 export type ReplyLayout = { readonly kind: "framed"; readonly parts: readonly ReplyPart[] } | { readonly kind: "plain"; readonly reason: PlainReplyReason };
@@ -111,53 +115,79 @@ function sheetIdentity(sheet: FrameStyleSheet): string {
   return JSON.stringify([sheet.media ?? null, sheet.css]);
 }
 
-function carriedChars(styles: ReplyRunStyles): number {
-  return [...styles.before, ...styles.after].reduce((sum, sheet) => sum + sheet.css.length + (sheet.media?.length ?? 0), 0);
+function sheetChars(sheet: FrameStyleSheet): number {
+  return sheet.css.length + (sheet.media?.length ?? 0);
 }
 
-// Each frame run is its own document, so a stylesheet one run holds would not reach a panel in another. Every run
-// carries the reply's other runs' stylesheets around its own body, in reading order, so the cascade is the one a
-// single frame would have. A native block is not a run: a marked card's CSS stays in its own frame, and the reply's
-// stylesheets never reach it.
+// The sheets each part carries to the other runs, in reading order. Each frame run is its own document, so a
+// stylesheet one run holds would not reach a panel in another; every run carries the reply's other runs' sheets around
+// its own body, so the cascade is the one a single frame would have. A native block is not a run: a marked card's CSS
+// stays in its own frame, and the reply's stylesheets never reach it.
 //
 // ONLY THE LAST COPY OF A REPEATED SHEET IS CARRIED (same text, same media): an identical later copy wins every tie
 // the earlier one would have won, so dropping the earlier one leaves the cascade as it was. A sheet that names a
-// layer is the exception and is carried at every copy.
-function withReplyStyles(parts: readonly UnstyledPart[]): readonly ReplyPart[] {
+// layer is the exception and is carried at every copy. A TITLED SHEET IS CARRIED ONLY UNDER THE REPLY'S FIRST TITLE:
+// in one document that title names the preferred set, which applies, and a sheet under any other title is an
+// alternate the document leaves off.
+function carriedSheets(parts: readonly UnstyledPart[]): readonly (readonly FrameStyleSheet[])[] {
   const sheets = parts.map((part) => (part.kind === "frame" ? runSheets(part.segments) : []));
+  const all = sheets.flat();
+  const preferredTitle = all.find((sheet) => sheet.title !== undefined)?.title;
   const lastCopy = new Map<string, FrameStyleSheet>();
-  for (const sheet of sheets.flat()) {
+  for (const sheet of all) {
     lastCopy.set(sheetIdentity(sheet), sheet);
   }
-  const carried = sheets.map((list) => list.filter((sheet) => LAYER_RULE_RE.test(sheet.css) || lastCopy.get(sheetIdentity(sheet)) === sheet));
-  return parts.map((part, index) =>
-    part.kind === "frame" ? { ...part, styles: { before: carried.slice(0, index).flat(), after: carried.slice(index + 1).flat() } } : part,
+  return sheets.map((list) =>
+    list.filter(
+      (sheet) =>
+        (sheet.title === undefined || sheet.title === preferredTitle) && (LAYER_RULE_RE.test(sheet.css) || lastCopy.get(sheetIdentity(sheet)) === sheet),
+    ),
   );
 }
 
 /** The reply's parts: neighbouring frame runs merge, so a reply with nothing native is exactly one frame. Its runs
- *  together carry at most {@link REPLY_CARRY_BUDGET_CHARS} of one another's stylesheets; past that the reply takes the
- *  plain path whole, never half its runs styled. `cardTrust` is the row's resolved card tier, which a native card
- *  renders at. */
+ *  together carry at most {@link REPLY_CARRY_BUDGET_CHARS} of one another's stylesheet text and
+ *  {@link REPLY_CARRY_BUDGET_SHEETS} copies of them; past either the reply takes the plain path whole, never half its
+ *  runs styled. `cardTrust` is the row's resolved card tier, which a native card renders at. */
 export function replyLayout(spans: readonly ReplySpan[], options: { readonly lenientHtml: boolean; readonly cardTrust: CardTrust }): ReplyLayout {
-  const parts = replyParts(spans, options);
-  const carried = parts.reduce((sum, part) => sum + (part.kind === "frame" ? carriedChars(part.styles) : 0), 0);
-  return carried > REPLY_CARRY_BUDGET_CHARS ? { kind: "plain", reason: PLAIN_REPLY_REASON.carriedStylesOverBudget } : { kind: "framed", parts };
+  const parts = unstyledParts(spans, options);
+  const carried = carriedSheets(parts);
+  const sheets = carried.flat();
+  // Each run carries every carried sheet but its own, so the reply carries each sheet once per run less one.
+  const others = Math.max(0, parts.filter((part) => part.kind === "frame").length - 1);
+  const chars = sheets.reduce((sum, sheet) => sum + sheetChars(sheet), 0);
+  if (others * chars > REPLY_CARRY_BUDGET_CHARS || others * sheets.length > REPLY_CARRY_BUDGET_SHEETS) {
+    return { kind: "plain", reason: PLAIN_REPLY_REASON.carriedStylesOverBudget };
+  }
+  let start = 0;
+  return {
+    kind: "framed",
+    parts: parts.map((part, index) => {
+      const own = { start, end: start + (carried[index]?.length ?? 0) };
+      start = own.end;
+      return part.kind === "frame" ? { ...part, styles: { sheets, own } } : part;
+    }),
+  };
 }
 
-function replyParts(spans: readonly ReplySpan[], options: { readonly lenientHtml: boolean; readonly cardTrust: CardTrust }): readonly ReplyPart[] {
+function unstyledParts(spans: readonly ReplySpan[], options: { readonly lenientHtml: boolean; readonly cardTrust: CardTrust }): readonly UnstyledPart[] {
   const parts: UnstyledPart[] = [];
+  // The open run's segments, appended in place: neighbouring frame parts merge without copying the run each time.
+  let run: FrameReplySegment[] | undefined;
   for (const span of spans) {
     for (const block of toContentBlocks(span.text, { cardTrust: options.cardTrust, lenientHtml: options.lenientHtml, keepUnknownDirectives: true })) {
       for (const part of blockParts(block, span.tokens)) {
-        const previous = parts.at(-1);
-        if (part.kind === "frame" && previous?.kind === "frame") {
-          parts[parts.length - 1] = { kind: "frame", segments: [...previous.segments, ...part.segments] };
-        } else {
+        if (part.kind === "native") {
           parts.push(part);
+          run = undefined;
+        } else if (run === undefined) {
+          run = [...part.segments];
+          parts.push({ kind: "frame", segments: run });
+        } else {
+          run.push(...part.segments);
         }
       }
     }
   }
-  return withReplyStyles(parts);
+  return parts;
 }

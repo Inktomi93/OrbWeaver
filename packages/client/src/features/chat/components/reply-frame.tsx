@@ -75,6 +75,8 @@ function bodySegment(segment: FrameReplySegment, index: number, colorQuotes: boo
 
 // The reply's other runs' stylesheets, each a bare style element: one applies wherever it sits and needs no box, so
 // nothing the reply's CSS does to a box can show it. Only the text and `media` are carried (`frameStyleElements`).
+// THE TEXT CAN HOLD NO CLOSE HTML READS: the reader ends a body at the first `</style` HTML would end it at, so a
+// carried copy can never end its element early and let what follows run in another run's document.
 function runStyles(sheets: readonly FrameStyleSheet[], side: string): readonly ReactElement[] {
   return sheets.map((sheet, index) => (
     // biome-ignore lint/security/noDangerouslySetInnerHtml: the same reply's own stylesheet text, for the sandboxed frame document only; this tree is rendered to a string, never mounted.
@@ -87,9 +89,9 @@ function runStyles(sheets: readonly FrameStyleSheet[], side: string): readonly R
 function replyBody(segments: readonly FrameReplySegment[], styles: ReplyRunStyles, colorQuotes: boolean): ReactElement {
   return (
     <div data-slot={BUBBLE_SLOT} data-frame-reply="">
-      {runStyles(styles.before, "before")}
+      {runStyles(styles.sheets.slice(0, styles.own.start), "before")}
       <Stack gap="row">{segments.map((segment, index) => bodySegment(segment, index, colorQuotes))}</Stack>
-      {runStyles(styles.after, "after")}
+      {runStyles(styles.sheets.slice(styles.own.end), "after")}
     </div>
   );
 }
