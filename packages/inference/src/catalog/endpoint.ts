@@ -218,12 +218,16 @@ const NANOGPT_DETAILED_PATH = "/models?detailed=true";
 const TEXT_OUTPUT = "text";
 
 /** The embedding list's fields this reader keeps (docs.nano-gpt.com Embedding Models): `dimensions` is the default
- *  width the route returns when a request names none, `max_tokens` the longest input. */
+ *  width the route returns when a request names none, `max_tokens` the longest input, and `supports_dimensions`
+ *  whether a request may name a smaller width. `max_inputs`, the most inputs one request takes, is on the live list
+ *  though the page omits it. */
 const nanoGptEmbedderSchema = z.looseObject({
   id: z.string().min(1),
   name: STATED_TEXT,
   dimensions: STATED_LIMIT,
   max_tokens: STATED_LIMIT,
+  max_inputs: STATED_LIMIT,
+  supports_dimensions: STATED_FLAG,
   pricing: z.looseObject({ per_million_tokens: STATED_PRICE }).optional().catch(undefined),
 });
 
@@ -255,6 +259,8 @@ async function fetchNanoGptModels(args: EndpointFetchArgs): Promise<EndpointMode
           name: row.name,
           embeddingDims: row.dimensions ?? undefined,
           embedInputTokens: row.max_tokens ?? undefined,
+          embedMaxInputs: row.max_inputs ?? undefined,
+          embedTruncatable: row.supports_dimensions,
           listedPrice: listedPriceOf(row.pricing?.per_million_tokens, undefined),
           probed: true,
         },

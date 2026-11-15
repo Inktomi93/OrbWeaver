@@ -38,6 +38,8 @@ export const embeddingCapabilitySchema = z
     /** Matryoshka: the model honours `dimensions` truncation. */
     mrl: z.boolean(),
     maxInputTokens: z.int().positive(),
+    /** The most inputs one embeddings request may carry for this model; absent, the wire's own bound applies. */
+    maxBatchInputs: z.int().positive().optional(),
     /** `text`, and `image` for a joint-space encoder (jina-clip-v2, a VL embedder on vLLM). */
     input: z.array(modalitySchema),
     output: z.tuple([z.literal("vector")]),

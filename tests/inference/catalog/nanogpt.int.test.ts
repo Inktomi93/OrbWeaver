@@ -275,6 +275,8 @@ test("a price the user declares on the connection wins over the list's price", a
 const EMBED_MODEL = "vendor/stated-embedder";
 const EMBED_DIMS = 8;
 const EMBED_INPUT_TOKENS = 8191;
+const BATCHED_MODEL = "vendor/batched-embedder";
+const BATCHED_MAX_INPUTS = 2;
 const RERANK_MODEL = "vendor/stated-reranker";
 const RERANK_PAIR_TOKENS = 32_768;
 const API_ROOT = "https://api.nano-gpt.com/api/v1";
@@ -293,6 +295,15 @@ const EMBEDDING_LIST = {
       ["supports_dimensions"]: false,
       ["max_tokens"]: EMBED_INPUT_TOKENS,
       pricing: { ["per_million_tokens"]: 0.02, currency: "USD" },
+    },
+    // The live list's Cohere shape: a per-request input cap, and a width a request may shorten.
+    {
+      id: BATCHED_MODEL,
+      object: "model",
+      dimensions: EMBED_DIMS,
+      ["supports_dimensions"]: true,
+      ["max_tokens"]: EMBED_INPUT_TOKENS,
+      ["max_inputs"]: BATCHED_MAX_INPUTS,
     },
   ],
 };
@@ -331,9 +342,10 @@ function nanoGptRoutes(seen: Seen[], posted: Posted[], embeddingList: () => Resp
       });
     }
     const vector = Array.from({ length: EMBED_DIMS }, (_value, i) => (i + 1) / EMBED_DIMS);
+    const inputs = z.union([z.string(), z.array(z.string())]).parse(body["input"]);
     return Response.json({
       object: "list",
-      data: [{ object: "embedding", index: 0, embedding: vector }],
+      data: (typeof inputs === "string" ? [inputs] : inputs).map((_text, index) => ({ object: "embedding", index, embedding: vector })),
       model: EMBED_MODEL,
       usage: { ["prompt_tokens"]: 2, ["total_tokens"]: 2 },
     });
@@ -393,6 +405,28 @@ test("an embed connection on a listed embedder embeds through the row's embeddin
   const result = await root.app.runtime.executor.embed({ signal: new AbortController().signal, connection: { ...resolved, task: "embed" }, input: "a memory" });
   expect(result.vectors[0]?.length).toBe(EMBED_DIMS);
   expect(posted).toMatchObject([{ url: `${API_ROOT}/embeddings`, body: { model: EMBED_MODEL } }]);
+});
+
+const MEMORIES = ["one", "two", "three", "four", "five"];
+
+function postedCounts(posted: readonly Posted[]): number[] {
+  return posted.map(({ body }) => (Array.isArray(body["input"]) ? body["input"].length : 1));
+}
+
+test("an embedder whose list caps the inputs per request is sent batches no larger than the cap", async () => {
+  const posted: Posted[] = [];
+  await using root = await createRuntimeRoot({ providerFetch: nanoGptRoutes([], posted) });
+  const resolved = await resolvedOn(root, BATCHED_MODEL, "embed");
+  expect(resolved.capability).toMatchObject({ kind: "embedding", embedding: { maxBatchInputs: BATCHED_MAX_INPUTS, mrl: true } });
+  const result = await root.app.runtime.executor.embed({ signal: new AbortController().signal, connection: { ...resolved, task: "embed" }, input: MEMORIES });
+  expect(result.vectors.map((vector) => vector?.length)).toEqual(MEMORIES.map(() => EMBED_DIMS));
+  expect(postedCounts(posted)).toEqual([2, 2, 1]);
+  // Positive control: an embedder the list states no cap for takes the same inputs in one request.
+  posted.length = 0;
+  const uncapped = await resolvedOn(root, EMBED_MODEL, "embed");
+  expect(uncapped.capability).toMatchObject({ kind: "embedding", embedding: { mrl: false } });
+  await root.app.runtime.executor.embed({ signal: new AbortController().signal, connection: { ...uncapped, task: "embed" }, input: MEMORIES });
+  expect(postedCounts(posted)).toEqual([MEMORIES.length]);
 });
 
 test("a rerank connection on a listed reranker posts only the fields the rerank route takes, at the stated pair window", async () => {

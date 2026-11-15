@@ -46,8 +46,14 @@ function samplingDefaultsOf(serverDefaults: EndpointModel["serverDefaults"], fea
 
 /** An embedder's input limit is its embedding route's own, never the generation window; a server's floor for a
  *  window it does not state bounds that route too, and stays assumed. */
-function advertisedEmbedding(entry: Pick<EndpointModel, "contextFloor" | "embeddingDims" | "embedInputTokens">): Partial<EmbeddingCapability> {
-  const dims = entry.embeddingDims === undefined ? {} : { dims: entry.embeddingDims };
+function advertisedEmbedding(
+  entry: Pick<EndpointModel, "contextFloor" | "embeddingDims" | "embedInputTokens" | "embedMaxInputs" | "embedTruncatable">,
+): Partial<EmbeddingCapability> {
+  const dims = {
+    ...(entry.embeddingDims === undefined ? {} : { dims: entry.embeddingDims }),
+    ...(entry.embedMaxInputs === undefined ? {} : { maxBatchInputs: entry.embedMaxInputs }),
+    ...(entry.embedTruncatable === undefined ? {} : { mrl: entry.embedTruncatable }),
+  };
   if (entry.embedInputTokens !== undefined) {
     return { ...dims, maxInputTokens: entry.embedInputTokens };
   }
@@ -89,6 +95,8 @@ export function advertisedFromOpenAiCompat(
     | "maxCompletionTokens"
     | "embeddingDims"
     | "embedInputTokens"
+    | "embedMaxInputs"
+    | "embedTruncatable"
     | "rerankInputTokens"
     | "input"
     | "tools"
