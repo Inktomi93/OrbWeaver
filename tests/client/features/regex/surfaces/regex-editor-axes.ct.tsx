@@ -94,3 +94,32 @@ test("picking the host in the only-from list stores a standing selector on the s
     .poll(async () => (await caller.regex.listScripts()).find((row) => row.id === script.id)?.authors)
     .toEqual({ include: [{ by: "standing", standing: "host" }], exclude: [] });
 });
+
+test("moving a scoped display script to when saved stores it with no depth and no author scope", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const script = await caller.regex.createScript({
+    input: {
+      name: "Recent host lines",
+      findRegex: "x",
+      replaceString: "y",
+      targets: ["USER_INPUT"],
+      passes: ["display"],
+      depth: { min: 0, max: 2 },
+      authors: { include: [{ by: "standing", standing: "host" }], exclude: [] },
+    },
+  });
+  await routeTrpc(page, serveCorpusProcedures(caller, PROCEDURES));
+  await mount<typeof RegexMemberSaveStory>(STORY, { scriptId: script.id });
+  const stored = async (): Promise<Awaited<ReturnType<typeof caller.regex.listScripts>>[number] | undefined> =>
+    (await caller.regex.listScripts()).find((row) => row.id === script.id);
+  // The positive control: the scope the move must drop is stored before it.
+  expect(await stored()).toMatchObject({ depth: { min: 0, max: 2 }, authors: { include: [{ by: "standing", standing: "host" }], exclude: [] } });
+
+  await page.getByRole("combobox", { name: REGEX_WHEN_FIELD_NAME, exact: true }).click();
+  await page.getByRole("option", { name: REGEX_WHEN_CHOICE_NAMES.save, exact: true }).click();
+
+  await expect.poll(async () => (await stored())?.passes).toEqual(["save"]);
+  const moved = await stored();
+  expect([moved?.depth, moved?.authors]).toEqual([undefined, undefined]);
+});

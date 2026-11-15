@@ -140,3 +140,11 @@ export const MESSAGE_KIND_POLICY: Readonly<Record<MessageKind, MessageKindPolicy
 /** The kinds a memory build ingests — DERIVED from {@link MESSAGE_KIND_POLICY}, never re-spelled, so the
  *  policy row is the only place the answer lives (the memory canon load reads this). */
 export const MEMORY_INGEST_KINDS: readonly MessageKind[] = MESSAGE_KINDS.filter((k) => MESSAGE_KIND_POLICY[k].memory === "ingest");
+
+// Whether each prompt arm puts a row in the prompt. A mapped record over the arms, so a new arm fails tsc here until it
+// says; `system-channel` is delivered like `conversation`, so it is a different label, not a drop.
+const PROMPT_ARM_ENTERS = { conversation: true, "system-channel": true, never: false } as const satisfies Record<MessageKindPolicy["prompt"], boolean>;
+
+/** The kinds a prompt carries, derived from {@link MESSAGE_KIND_POLICY}: the prompt build drops every other kind, and
+ *  the transcript's display depth counts only these, so a depth-scoped script counts the rows the model sees. */
+export const PROMPT_KINDS: readonly MessageKind[] = MESSAGE_KINDS.filter((k) => PROMPT_ARM_ENTERS[MESSAGE_KIND_POLICY[k].prompt]);

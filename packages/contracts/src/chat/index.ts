@@ -317,7 +317,7 @@ export type {
   UnregisterPromptTransformOp,
   ViewerVisibility,
 } from "./owner-ops.ts";
-export type { MessageKind, MessageKindPolicy, ParticipantKind, SpeakerRef } from "./participants.ts";
+export type { MessageKind, ParticipantKind, SpeakerRef } from "./participants.ts";
 // B7 — the narrator-voice predicate, promoted from the client (the server's segment-anchor validation and
 // the client picker must gate the plain-label span grammar identically).
 export {
@@ -331,6 +331,7 @@ export {
   messageKindSchema,
   messageRoleSchema,
   PARTICIPANT_KINDS,
+  PROMPT_KINDS,
   participantKindSchema,
   speakerKey,
 } from "./participants.ts";

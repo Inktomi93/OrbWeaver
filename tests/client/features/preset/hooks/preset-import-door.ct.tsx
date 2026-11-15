@@ -22,6 +22,7 @@ import {
   PRESET_IMPORT_NOT_IN_USE,
   PRESET_IMPORT_TITLE,
   PRESET_USE_THIS_NAME,
+  presetImportAddedSections,
   presetImportCarried,
   presetImportLead,
   presetImportScripts,
@@ -99,6 +100,7 @@ function presetFile(unmapped: readonly string[]): string {
   });
 }
 
+// What the file itself holds; the import adds prompts of its own on top, all switched on, which `addedNames` reads.
 const PRESET_COUNTS = { prompts: 4, enabled: 2, samplers: 2, limits: 2, scripts: 2 } as const;
 const ONE_UNMAPPED = ["wi_format"] as const;
 const MANY_UNMAPPED = [
@@ -125,6 +127,15 @@ const MANY_UNMAPPED = [
 ] as const;
 
 type Harness = Awaited<ReturnType<typeof createCorpusHarness>>;
+
+/** The prompts the import adds to `text` for orbweaver's own slots, from the server's preview before anything is imported. */
+async function addedNames(root: Harness, text: string): Promise<readonly string[]> {
+  const preview = await (await root.internalCallerFor(root.ownerId)).preset.previewFile({ fileText: text, fileName: FILE_NAME });
+  if (!preview.ok) {
+    throw new Error("the preview refused the file");
+  }
+  return preview.addedSections;
+}
 
 async function serve(page: Page, root: Harness): Promise<void> {
   await routeTrpc(page, serveCorpusProcedures(await root.internalCallerFor(root.ownerId), READS));
@@ -166,9 +177,15 @@ test("the preview counts the prompts and those enabled, says samplers and limits
   await page.setViewportSize({ width: 1280, height: 900 });
   await serve(page, root);
   await mount<typeof PresetImportDoorStory>(STORY, {});
+  const added = await addedNames(root, presetFile(ONE_UNMAPPED));
   await pickFile(page, welcomeDoor(page), presetFile(ONE_UNMAPPED));
   const dialog = page.getByRole("dialog", { name: PRESET_IMPORT_TITLE, exact: true });
-  await expect(dialog.getByText(presetImportLead(true, PRESET_NAME, PRESET_COUNTS.prompts, PRESET_COUNTS.enabled), { exact: true })).toBeVisible();
+  // The positive control for the counts: the import adds prompts of its own, and they are in the totals and named on a line.
+  expect(added.length).toBeGreaterThan(0);
+  await expect(dialog.getByText(presetImportAddedSections(added), { exact: true })).toBeVisible();
+  await expect(
+    dialog.getByText(presetImportLead(true, PRESET_NAME, PRESET_COUNTS.prompts + added.length, PRESET_COUNTS.enabled + added.length), { exact: true }),
+  ).toBeVisible();
   await expect(dialog.getByText(presetImportCarried(PRESET_COUNTS.samplers, PRESET_COUNTS.limits), { exact: true })).toBeVisible();
   await expect(dialog.getByText(presetImportScriptsComing(PRESET_COUNTS.scripts), { exact: true })).toBeVisible();
   await expect(dialog.getByText(PRESET_IMPORT_DROPPED_HEADING, { exact: true })).toBeVisible();
@@ -187,15 +204,16 @@ test("a landed preset says it is not in use and Use this preset activates it", a
   await serve(page, root);
   await mount<typeof PresetImportDoorStory>(STORY, {});
 
+  const added = await addedNames(root, presetFile(ONE_UNMAPPED));
   await pickFile(page, welcomeDoor(page), presetFile(ONE_UNMAPPED));
   await page.getByRole("dialog", { name: PRESET_IMPORT_TITLE, exact: true }).getByRole("button", { name: PRESET_IMPORT_NAME, exact: true }).click();
   const landed = (await caller.preset.list()).find(({ name }) => name === PRESET_NAME);
   if (landed === undefined) {
     throw new Error("the import landed no preset");
   }
-  // The scripts line rides the title: both scripts are attached and new to the library.
+  // The scripts and added-prompts lines ride the title: both scripts are attached and new to the library.
   const notInUse = noticeToast(page, {
-    title: `${PRESET_IMPORT_LANDED} ${presetImportScripts(PRESET_COUNTS.scripts, PRESET_COUNTS.scripts)}`,
+    title: `${PRESET_IMPORT_LANDED} ${presetImportScripts(PRESET_COUNTS.scripts, PRESET_COUNTS.scripts)} ${presetImportAddedSections(added)}`,
     description: PRESET_IMPORT_NOT_IN_USE,
   });
   await expect(notInUse).toBeVisible();
@@ -235,10 +253,13 @@ test("at 200% text the preview's sentences stay whole and the long list of left-
   await serve(page, root);
   await mount<typeof PresetImportDoorStory>(STORY, {});
   await setRootFontScale(page, FONT_SCALE_PROPERTY, 2);
+  const added = await addedNames(root, presetFile(MANY_UNMAPPED));
   // At 200% the welcome sits below the first screen, so the file arrives through the band's door.
   await pickFile(page, bandDoor(page), presetFile(MANY_UNMAPPED));
   const dialog = page.getByRole("dialog", { name: PRESET_IMPORT_TITLE, exact: true });
-  const lead = dialog.getByText(presetImportLead(true, PRESET_NAME, PRESET_COUNTS.prompts, PRESET_COUNTS.enabled), { exact: true });
+  const lead = dialog.getByText(presetImportLead(true, PRESET_NAME, PRESET_COUNTS.prompts + added.length, PRESET_COUNTS.enabled + added.length), {
+    exact: true,
+  });
   await lead.scrollIntoViewIfNeeded();
   await expect(lead).toBeInViewport({ ratio: 1 });
   const left = dialog.getByRole("region", { name: PRESET_IMPORT_DROPPED_REGION_NAME, exact: true });

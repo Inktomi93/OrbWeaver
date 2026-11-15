@@ -31,6 +31,8 @@ export interface ParsedStPreset {
   /** The preset's own regex scripts, lifted onto the library and attached to the preset AFTER its row exists.
    *  Not part of the preset file: scripts are owner-library rows, never embedded config (D121-E). */
   readonly regexScripts: readonly RegexScriptCard[];
+  /** The names of the sections added for orb's own slots, which the file has no prompt for. */
+  readonly addedSections: readonly string[];
 }
 
 /** Why a SillyTavern preset did not map: `recognised: false` when the object is not a chat-completion preset at
@@ -108,6 +110,7 @@ export function parseStPresetJson(raw: unknown, options: { readonly name: string
       file: buildPresetFile(options.name, outcome.result.config),
       unmapped: [...outcome.result.dropped, ...dropped],
       regexScripts,
+      addedSections: outcome.result.addedSections,
     },
   };
 }

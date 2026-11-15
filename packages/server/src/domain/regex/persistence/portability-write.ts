@@ -18,6 +18,7 @@ import type {
   ImportGlobalScripts,
   ImportPresetScripts,
   ImportRegexScript,
+  PlanPresetScripts,
   PortableRegexScript,
   RegexScriptRefusal,
   RegexScriptRow,
@@ -33,10 +34,10 @@ import { slugifyHandle } from "@orb/kit/slug";
 import { and, asc, eq } from "drizzle-orm";
 import { portableParseError } from "#primitives/serde/lib";
 import { buildRegexScriptFile, parseRegexScriptFile, REGEX_SCRIPT_SCHEMA_KIND } from "#primitives/serde/regex";
-import type { CardLiftPlan } from "../contract/dedup.ts";
+import type { CardLiftPlan, SplitScript } from "../contract/dedup.ts";
 import { REGEX_FIND_TOO_COSTLY } from "../contract/errors.ts";
 import type { RegexPortabilityContext } from "../contract/portability.ts";
-import { findDuplicate, planCardLift, splitScript } from "../substrate/dedup.ts";
+import { findDuplicate, planCardLift, planUploadLift, splitScript } from "../substrate/dedup.ts";
 import { ensureCharacterOwned, ensurePresetOwned } from "./ownership.ts";
 import { listOwnedScripts, loadOwnedScript, loadOwnedScriptsByIds, toRow } from "./queries.ts";
 
@@ -62,6 +63,12 @@ async function admitPlan(ctx: RegexPortabilityContext, plan: CardLiftPlan): Prom
     plan: { ...plan, inserts: plan.inserts.filter((row) => !refusedIds.has(row.id)), attachIds: plan.attachIds.filter((id) => !refusedIds.has(id)) },
     refused,
   };
+}
+
+// Every room an attached script reaches hears of it, so an open room draws an imported script without a reload. A
+// re-import attaches what it already held and fans again, which only refetches.
+async function fanAttached(ctx: RegexPortabilityContext, scriptIds: readonly RegexScriptId[]): Promise<void> {
+  await Promise.all(scriptIds.map((scriptId) => ctx.fanRegexScriptRooms(scriptId)));
 }
 
 /**
@@ -104,6 +111,7 @@ export function createImportCardScripts(input: DbAssemblyInput<RegexPortabilityC
     if (stmts.length > 0) {
       await ctx.db.batch(batchMany(stmts));
     }
+    await fanAttached(ctx, plan.attachIds);
     return { created: plan.inserts.length, reused: plan.reused, refused };
   };
 }
@@ -135,7 +143,27 @@ export function createImportPresetScripts(input: DbAssemblyInput<RegexPortabilit
     if (stmts.length > 0) {
       await ctx.db.batch(batchMany(stmts));
     }
+    await fanAttached(ctx, plan.attachIds);
     return { created: plan.inserts.length, reused: plan.reused, refused };
+  };
+}
+
+/** The preset lifts' dry run: the library read {@link createImportPresetScripts} plans against, the write door's
+ *  compile check it admits a new row through, and the run's own order, so an equal script of an earlier preset reads
+ *  as minted by the upload. Every script is measured, so a refusal is known whichever entry would mint it. */
+export function createPlanPresetScripts(input: DbAssemblyInput<Pick<RegexPortabilityContext, "db" | "probeFindCompiles">>): PlanPresetScripts {
+  const ctx: Pick<RegexPortabilityContext, "db" | "probeFindCompiles"> = { ...input, db: databaseForOwner(input.db) };
+  return async ({ ownerId, presets }) => {
+    const verdicts = await ctx.probeFindCompiles(presets.flat().map(({ findRegex, substituteRegex }) => ({ findRegex, substituteRegex })));
+    let at = 0;
+    const refusals = presets.map((scripts) =>
+      scripts.map(() => {
+        const verdict = verdicts[at];
+        at += 1;
+        return verdict === undefined || verdict.ok ? null : verdict.reason;
+      }),
+    );
+    return planUploadLift((await listOwnedScripts(ctx.db, ownerId)).map(toRow), presets, refusals);
   };
 }
 
@@ -160,6 +188,7 @@ export function createImportGlobalScripts(input: DbAssemblyInput<RegexPortabilit
     if (stmts.length > 0) {
       await ctx.db.batch(batchMany(stmts));
     }
+    await fanAttached(ctx, plan.attachIds);
     return { created: plan.inserts.length, reused: plan.reused, refused };
   };
 }
@@ -239,6 +268,14 @@ export function createExportRegexScript(input: DbAssemblyInput<Pick<RegexPortabi
   };
 }
 
+// The write door for one file's new row: a refused find pattern ends the import by name, before anything is written.
+async function requireImportAdmitted(ctx: RegexPortabilityContext, candidate: SplitScript): Promise<void> {
+  const [verdict] = await ctx.probeFindCompiles([{ findRegex: candidate.behavior.findRegex, substituteRegex: candidate.behavior.substituteRegex }]);
+  if (verdict !== undefined && !verdict.ok) {
+    throw new DomainOperationError(REGEX_FIND_TOO_COSTLY, `script ${JSON.stringify(candidate.name)} not imported: ${verdict.reason}`);
+  }
+}
+
 /** The backup-bundle IMPORT half — one file, dedup-gated by the shared rule. Re-importing the same bundle
  *  twice writes nothing the second time; a file whose script is already in the library only (re)asserts its
  *  GLOBAL attachment. */
@@ -255,10 +292,7 @@ export function createImportRegexScript(input: DbAssemblyInput<RegexPortabilityC
     const match = findDuplicate(existing.map(toRow), candidate);
     const at = ctx.now();
     if (match === null) {
-      const [verdict] = await ctx.probeFindCompiles([{ findRegex: candidate.behavior.findRegex, substituteRegex: candidate.behavior.substituteRegex }]);
-      if (verdict !== undefined && !verdict.ok) {
-        throw new DomainOperationError(REGEX_FIND_TOO_COSTLY, `script ${JSON.stringify(candidate.name)} not imported: ${verdict.reason}`);
-      }
+      await requireImportAdmitted(ctx, candidate);
     }
     const id = match ?? ctx.newScriptId();
     const stmts: BatchStmt[] =
@@ -274,6 +308,9 @@ export function createImportRegexScript(input: DbAssemblyInput<RegexPortabilityC
     }
     if (stmts.length > 0) {
       await ctx.db.batch(batchMany(stmts));
+    }
+    if (payload.global) {
+      await ctx.fanRegexScriptRooms(id);
     }
     return { created: match === null };
   };

@@ -4,14 +4,23 @@
 
 import type { ImportWindow } from "@orb/contracts/chat";
 import { importWindowSchema, mergeImportWindows } from "@orb/contracts/chat";
-import type { CardImportResult, ImportPreview, ImportPreviewKind, ImportPreviewList } from "@orb/contracts/import";
+import type { CardImportResult, ImportPreview, ImportPreviewItem, ImportPreviewKind, ImportPreviewList } from "@orb/contracts/import";
 import { IMPORT_PREVIEW_KINDS, importPreviewSchema } from "@orb/contracts/import";
 import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABILITY_ROUTES, PORTABLE_KINDS, WHOLE_LIBRARY_ONLY_KINDS } from "@orb/contracts/portability";
 import type { TreeImportPlan } from "#data";
 import { skippedByReason } from "#data";
 import { cardImportFailedDetail, cardImportRefusalLine, IN_LIBRARY_DETAIL, inLibraryClause } from "#lib";
-import { IMPORT_LEFT_ON_DISK_PHRASE, importPreviewUncomparedNote, importSummaryImported } from "./import-library-names.ts";
+import {
+  IMPORT_LEFT_ON_DISK_PHRASE,
+  IMPORT_PREVIEW_SCRIPT_VERDICTS,
+  importPreviewPresetLeftOutLine,
+  importPreviewPresetScriptsLine,
+  importPreviewScriptEntry,
+  importPreviewScriptRefused,
+  importPreviewUncomparedNote,
+  importSummaryImported,
+} from "./import-library-names.ts";
 
 /** One normalized per-file outcome for the report summary. `held` marks a file the library already held: it reused its row
  *  and wrote none. `notes` mirrors the server's per-card
@@ -278,6 +287,36 @@ export function previewKindLine(kind: ImportPreviewKind, list: ImportPreviewList
     ...(uncompared === 0 ? [] : [importPreviewUncomparedNote(uncompared)]),
   ];
   return [counted(list.total, KIND_NOUNS[kind]), ...notes].join(", ");
+}
+
+type PreviewScript = NonNullable<ImportPreviewItem["regexScripts"]>[number];
+
+function scriptVerdict(script: PreviewScript): string {
+  if (script.refused !== undefined) {
+    return importPreviewScriptRefused(script.refused);
+  }
+  if (script.inLibrary === true) {
+    return IMPORT_PREVIEW_SCRIPT_VERDICTS.inLibrary;
+  }
+  return script.repeat === true ? IMPORT_PREVIEW_SCRIPT_VERDICTS.repeat : IMPORT_PREVIEW_SCRIPT_VERDICTS.added;
+}
+
+/** A preset entry's detail lines in the names panel: its own regex scripts with what the run does with each, then the
+ *  fields the run leaves out. Empty for any other entry, and for a preset with neither. */
+export function previewPresetDetailLines(item: ImportPreviewItem): readonly string[] {
+  const scripts = item.regexScripts ?? [];
+  const leftOut = item.leftOut ?? [];
+  return [
+    ...(scripts.length === 0
+      ? []
+      : [
+          importPreviewPresetScriptsLine(
+            item.name,
+            scripts.map((script) => importPreviewScriptEntry(script.name, scriptVerdict(script))),
+          ),
+        ]),
+    ...(leftOut.length === 0 ? [] : [importPreviewPresetLeftOutLine(item.name, leftOut)]),
+  ];
 }
 
 /** The preview with its persona counts taken from `judged`, a dry run of the persona files alone under the owner's newer

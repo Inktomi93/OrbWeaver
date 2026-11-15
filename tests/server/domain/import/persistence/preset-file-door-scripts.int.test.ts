@@ -46,14 +46,17 @@ test("a SillyTavern preset through the Presets page door brings its regex script
   const scriptsBefore = (await caller.regex.listScripts()).length;
 
   const preview = await caller.preset.previewFile(file);
-  expect(preview).toMatchObject({ ok: true, format: "sillyTavern", name: PRESET_NAME, inLibrary: false, sectionCount: 1, regexScripts: 2 });
+  // The file's one prompt, plus a section for each slot of orbweaver's own it has no prompt for.
+  expect(preview).toMatchObject({ ok: true, format: "sillyTavern", name: PRESET_NAME, inLibrary: false, sectionCount: 5, regexScripts: 2 });
+  const addedSections = preview.ok ? preview.addedSections : [];
+  expect(addedSections).toHaveLength(4);
   const leftOut = preview.ok ? preview.leftOut.map(({ field }) => field) : [];
   // The unrecognised knob is the positive control: the report reads top-level fields, and `name` is not among them.
   expect(leftOut).toEqual(["mystery_knob", "extensions.regex_scripts[2]"]);
   expect((await caller.regex.listScripts()).length).toBe(scriptsBefore);
 
   const imported = await caller.preset.importFile(file);
-  expect(imported).toMatchObject({ ok: true, created: true, name: PRESET_NAME, regexScripts: { created: 2, reused: 0 } });
+  expect(imported).toMatchObject({ ok: true, created: true, name: PRESET_NAME, regexScripts: { created: 2, reused: 0 }, addedSections });
   if (!imported.ok || imported.presetId === undefined) {
     throw new Error("the import landed no preset");
   }
@@ -67,8 +70,11 @@ test("a SillyTavern preset through the Presets page door brings its regex script
   expect(await attachedScripts()).toEqual(attached);
   expect((await caller.regex.listScripts()).length).toBe(scriptsBefore + 2);
 
-  expect(await caller.preset.previewFile(file)).toMatchObject({ ok: true, inLibrary: true, regexScripts: 2 });
-  expect(await caller.preset.importFile(file)).toMatchObject({ ok: true, created: false, presetId, regexScripts: { created: 0, reused: 2 } });
+  // The added sections are fixed per slot, so the same file equals the preset it made, and the run adds no section.
+  expect(await caller.preset.previewFile(file)).toMatchObject({ ok: true, inLibrary: true, regexScripts: 2, addedSections: [] });
+  const again = await caller.preset.importFile(file);
+  expect(again).toMatchObject({ ok: true, created: false, presetId, regexScripts: { created: 0, reused: 2 } });
+  expect(again.ok && again.addedSections).toBeUndefined();
 
   // The folder door reads the same file under its own qualified name and finds an equal preset.
   const presetsBefore = await caller.preset.list();

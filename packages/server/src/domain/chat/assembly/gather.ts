@@ -18,6 +18,7 @@
 import type { AssembleContext, ChatInjection, MacroSlice, MemoryRecallSlice, MessageView } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, ConsentingHostId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry } from "@orb/kit/macro";
+import { roomStandingOf } from "@orb/kit/message-author";
 import { LIVE_WINDOW_FULL_HISTORY_CUTOFF } from "@orb/kit/recall";
 import { humanizeDuration } from "@orb/kit/time";
 import type { ChatContext } from "../contract/context.ts";
@@ -29,7 +30,7 @@ import type { recallMemory } from "../memory/recall/recall.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import { loadCanonHistory, loadChatInjections, loadChatRow, loadStoredVariables, loadVariableDeltas } from "../persistence/queries.ts";
 import { assemblyTimeZone } from "../substrate/assembly-time-zone.ts";
-import { roomStandingOf } from "../substrate/participants-host.ts";
+import { standingSeatsOf } from "../substrate/participants-host.ts";
 import { regexAllowOf, resolveHostTierRegexScripts } from "../substrate/regex-tier.ts";
 import { foldChain } from "../substrate/runtime-variables.ts";
 import { createTurnRetrievalWarningEpisode } from "../substrate/turn-retrieval-warning.ts";
@@ -438,7 +439,7 @@ export async function gatherAssembleContext(
       ...(args.globalVariables !== undefined ? { globalVariables: args.globalVariables } : {}),
       injectionTokenBudget: foreign.injectionTokenBudget,
       hostTierRegexScripts,
-      hostTierRegexRoom: roomStandingOf(seats),
+      hostTierRegexRoom: roomStandingOf(standingSeatsOf(seats)),
       model,
       generationType: args.generationType ?? "normal",
       nowMs: ctx.now(),

@@ -5,8 +5,8 @@ import type { MessageKind, ParticipantKind, ParticipantRole, RoomStanding } from
 import { participantOf, standingOf } from "#message-author";
 import type { MessageRole } from "#message-role";
 
-// Pure regex-script executor, usable from both client and server. The server wraps it in its own onScriptFailure
-// and runs it inside a node:vm watchdog with a deadline and a pass budget (node:vm cannot live here; kit is browser-safe).
+// Pure regex-script executor, usable from both client and server. The server runs it inside its own node:vm
+// watchdog with a deadline and a pass budget (node:vm cannot live here; kit is browser-safe).
 // The executor reads a kit-local structural `RegexScriptInput` rather than the persisted `@orb/contracts` schema,
 // since kit must not import contracts; `RegexScriptRow satisfies RegexScriptInput` keeps them aligned.
 //
@@ -43,7 +43,7 @@ export type RegexPass = (typeof REGEX_PASSES)[number];
 
 /** The passes that change a copy and never a row. Depth and an author scope are legal only beside one of them. */
 export const EPHEMERAL_REGEX_PASSES = ["display", "prompt"] as const satisfies readonly RegexPass[];
-export type EphemeralRegexPass = (typeof EPHEMERAL_REGEX_PASSES)[number];
+type EphemeralRegexPass = (typeof EPHEMERAL_REGEX_PASSES)[number];
 
 /** The shallowest depth a bound may name: the reply a continue extends. */
 export const REGEX_DEPTH_FLOOR = -1;
@@ -67,16 +67,6 @@ export type RegexAuthorSelector =
   | { readonly by: "character"; readonly characterId: CharacterId }
   | { readonly by: "persona"; readonly personaId: PersonaId }
   | { readonly by: "user"; readonly userId: UserId };
-
-/** The members of {@link RegexAuthorSelector}, one per `by`. */
-export const REGEX_AUTHOR_SELECTOR_KINDS = [
-  "participant",
-  "standing",
-  "kind",
-  "character",
-  "persona",
-  "user",
-] as const satisfies readonly RegexAuthorSelector["by"][];
 
 /** Which authors' rows an ephemeral pass applies to, beyond what the target already says. An empty `include` admits
  *  every author; `exclude` then removes its members. */
@@ -124,7 +114,7 @@ function assertNeverSelector(selector: never): never {
 
 /** Whether a script's author scope admits a row, read against the room as it is now. An absent scope admits every
  *  author: that is its only reading, and every stored native script has none. */
-export function authorScopeAdmits(scope: RegexAuthorScope | undefined, row: RegexRowStamps, room: RoomStanding): boolean {
+function authorScopeAdmits(scope: RegexAuthorScope | undefined, row: RegexRowStamps, room: RoomStanding): boolean {
   if (scope === undefined) {
     return true;
   }
@@ -462,7 +452,7 @@ export interface ExecuteRegexScriptsArgs extends RegexExecuteOptions {
 }
 
 /** Every reason a script sits out a call, in the executor's gate order. */
-export const REGEX_SKIP_REASONS = ["disabled", "not-on-this-pass", "not-on-this-target", "not-on-edit", "out-of-depth", "not-this-author"] as const;
+const REGEX_SKIP_REASONS = ["disabled", "not-on-this-pass", "not-on-this-target", "not-on-edit", "out-of-depth", "not-this-author"] as const;
 export type RegexSkipReason = (typeof REGEX_SKIP_REASONS)[number];
 
 /** Why a script sits out a call, or null when it runs: the executor's own gate, so a panel that explains a run reads

@@ -8,7 +8,9 @@
 // a stored selector that arrived in a file. "The host" and "Other players" name room standing, read as the room is
 // now by the kit's `standingOf`.
 
-import type { MessageKind, ParticipantKind, ParticipantRole } from "@orb/kit/message-author";
+import type { ParticipantRole } from "@orb/contracts/identity";
+import { isHostRole } from "@orb/contracts/identity";
+import type { MessageKind, ParticipantKind } from "@orb/kit/message-author";
 import type { RegexAuthorScope, RegexAuthorSelector } from "@orb/kit/regex";
 import { REGEX_STANDING_HOST_NAME, REGEX_STANDING_MEMBER_NAME } from "./regex-names.ts";
 
@@ -17,10 +19,10 @@ export const REGEX_PARTICIPANT_LABELS: Record<ParticipantKind, string> = {
   character: "Characters",
 };
 
-export const REGEX_STANDING_LABELS: Record<ParticipantRole, string> = {
-  host: REGEX_STANDING_HOST_NAME,
-  member: REGEX_STANDING_MEMBER_NAME,
-};
+/** A standing selector's name: the host, or every other seated player. */
+export function regexStandingLabel(standing: ParticipantRole): string {
+  return isHostRole(standing) ? REGEX_STANDING_HOST_NAME : REGEX_STANDING_MEMBER_NAME;
+}
 
 /** How a standing selector reads, said once under the lists. */
 export const REGEX_STANDING_NOTE =

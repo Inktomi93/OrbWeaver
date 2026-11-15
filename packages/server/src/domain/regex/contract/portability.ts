@@ -28,4 +28,7 @@ export interface RegexPortabilityContext {
   readonly now: Clock;
   readonly newScriptId: () => RegexScriptId;
   readonly probeFindCompiles: ProbeFindCompilesOp;
+  /** Tells every room a script reaches that its tiers changed; a lift calls it for each script it attached, so an
+   *  open room draws an imported panel without a reload. Never rejects. */
+  readonly fanRegexScriptRooms: (scriptId: RegexScriptId) => Promise<void>;
 }

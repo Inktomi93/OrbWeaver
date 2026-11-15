@@ -8,13 +8,15 @@
 // @subject packages/server/src/primitives/serde/preset/index.ts
 
 import { readFile } from "node:fs/promises";
+import type { ImportPreviewItem } from "@orb/contracts/import";
 import { ST_SETTINGS_FILE } from "@orb/contracts/import";
 import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
+import { MAX_FIND_REGEX_LENGTH } from "@orb/kit/regex";
 import { expect, test } from "@orb/testkit/node";
 import { makeAssetBytes } from "@orb/testkit/node/composed";
-import { admit, finishRun, harness, importThroughDialog, settings } from "./_st-tree-door.ts";
+import { admit, dryRun, finishRun, harness, importThroughDialog, settings } from "./_st-tree-door.ts";
 
 const ST_AI_OUTPUT = 2;
 
@@ -39,17 +41,20 @@ const PANEL = {
   replaceString: "<b>kettle</b>",
   markdownOnly: true,
 };
+const BELL = { ...ST_SCRIPT, id: "c0ffee00-0000-4000-8000-000000000033", scriptName: "Bell", findRegex: "bell", replaceString: "chime" };
 const SCRIPTS = [SAVED, PANEL, "not a script"];
 const LANDED = [
   { name: "Saved whistle", targets: ["AI_OUTPUT"], passes: ["save"] },
   { name: "Panel kettle", targets: ["AI_OUTPUT"], passes: ["display"] },
 ];
 
-const PRESET_FILE = JSON.stringify({
-  prompts: [{ identifier: "main", name: "Main", content: "You narrate.", role: "system" }],
-  ["prompt_order"]: [{ ["character_id"]: 100_001, order: [{ identifier: "main", enabled: true }] }],
-  extensions: { ["regex_scripts"]: SCRIPTS },
-});
+const presetFile = (scripts: readonly unknown[], text = "You narrate."): string =>
+  JSON.stringify({
+    prompts: [{ identifier: "main", name: "Main", content: text, role: "system" }],
+    ["prompt_order"]: [{ ["character_id"]: 100_001, order: [{ identifier: "main", enabled: true }] }],
+    extensions: { ["regex_scripts"]: scripts },
+  });
+const PRESET_FILE = presetFile(SCRIPTS);
 
 function cardFile(name: string): string {
   return JSON.stringify({
@@ -101,6 +106,90 @@ test("the SillyTavern folder lands a preset's and a card's scripts on their pass
   await finishRun(root, await admit(root, files));
   expect(await caller.regex.listScripts()).toEqual(library);
   expect(axesOf(await caller.regex.listForPreset({ presetId: preset.id }))).toEqual(LANDED);
+});
+
+test("the SillyTavern folder's dry run names each preset script the run adds or reuses and each field it leaves out", async () => {
+  await using root = await harness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const files = {
+    [ST_SETTINGS_FILE]: settings({}),
+    "OpenAI Settings/Amber.json": PRESET_FILE,
+    "OpenAI Settings/Birch.json": presetFile([SAVED, BELL], "You keep the bells."),
+  };
+  // The owner already holds the panel script, so the first preset reuses it from the library.
+  await caller.regex.importScriptFile({ fileText: JSON.stringify(PANEL) });
+  const presetsOf = async (): Promise<readonly ImportPreviewItem[]> => (await dryRun(root, files)).kinds.presets.items;
+  const scriptsOf = (items: readonly ImportPreviewItem[], name: string): unknown => items.find((item) => item.name === name)?.regexScripts;
+
+  const before = await presetsOf();
+  expect(scriptsOf(before, "Amber (OpenAI)")).toEqual([{ name: "Saved whistle" }, { name: "Panel kettle", inLibrary: true }]);
+  expect(scriptsOf(before, "Birch (OpenAI)")).toEqual([{ name: "Saved whistle", repeat: true }, { name: "Bell" }]);
+  expect(before.find((item) => item.name === "Amber (OpenAI)")?.leftOut?.map(({ field }) => field)).toEqual(["extensions.regex_scripts[2]"]);
+  expect(before.find((item) => item.name === "Birch (OpenAI)")?.leftOut).toBeUndefined();
+  expect(await caller.regex.listScripts()).toHaveLength(1);
+  // The folder names the sections it adds for orbweaver's own slots exactly as the Presets page does for the same file.
+  const single = await caller.preset.previewFile({ fileText: PRESET_FILE, fileName: "Amber.json" });
+  const added = single.ok ? single.addedSections : [];
+  expect(added).toHaveLength(4);
+  expect(before.find((item) => item.name === "Amber (OpenAI)")?.addedSections).toEqual(added);
+
+  const result = await finishRun(root, await admit(root, files));
+  if (result.reportPath === undefined) {
+    throw new Error("the folder run wrote no report");
+  }
+  // The run adds exactly the two scripts the dry run said it adds, and leaves out the field it named.
+  expect((await caller.regex.listScripts()).map(({ name }) => name).toSorted()).toEqual(["Bell", "Panel kettle", "Saved whistle"]);
+  expect(unmappedFieldsOf(await readFile(result.reportPath, "utf8"), "Amber (OpenAI)")).toEqual(["extensions.regex_scripts[2]"]);
+
+  const after = await presetsOf();
+  const landed = (await caller.preset.list()).find(({ name }) => name === "Amber (OpenAI)");
+  if (landed === undefined) {
+    throw new Error("the folder run landed no Amber preset");
+  }
+  const sections = (await caller.preset.get({ id: landed.id })).config.sections.map(({ name }) => name);
+  expect(sections).toEqual(expect.arrayContaining([...added]));
+  // A second run reuses the preset it made, so it adds no section.
+  expect(after.find((item) => item.name === "Amber (OpenAI)")).toMatchObject({ inLibrary: true });
+  expect(after.find((item) => item.name === "Amber (OpenAI)")?.addedSections).toBeUndefined();
+  expect(scriptsOf(after, "Amber (OpenAI)")).toEqual([
+    { name: "Saved whistle", inLibrary: true },
+    { name: "Panel kettle", inLibrary: true },
+  ]);
+  expect(scriptsOf(after, "Birch (OpenAI)")).toEqual([
+    { name: "Saved whistle", inLibrary: true },
+    { name: "Bell", inLibrary: true },
+  ]);
+});
+
+test("a preset script the write door refuses is named refused by the folder's dry run, the Presets preview and the run, and lands nowhere", {
+  tags: ["slow"],
+}, async () => {
+  await using root = await harness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const unit = "(a|b)";
+  // Capture groups of alternation up to the stored length cap: storable by length, refused by the compile door.
+  const heavy = {
+    ...SAVED,
+    id: "c0ffee00-0000-4000-8000-000000000034",
+    scriptName: "Heavy",
+    findRegex: unit.repeat(Math.floor(MAX_FIND_REGEX_LENGTH / unit.length)),
+  };
+  const file = presetFile([SAVED, heavy]);
+  const files = { [ST_SETTINGS_FILE]: settings({}), "OpenAI Settings/Heavy.json": file };
+  const refused = { name: "Heavy", refused: expect.stringMatching(/ms to compile/u) };
+
+  expect((await dryRun(root, files)).kinds.presets.items[0]?.regexScripts).toEqual([{ name: "Saved whistle" }, refused]);
+  expect(await caller.preset.previewFile({ fileText: file, fileName: "Heavy.json" })).toMatchObject({
+    regexScripts: 1,
+    refusedScripts: [{ name: "Heavy", reason: refused.refused }],
+  });
+
+  const result = await finishRun(root, await admit(root, files));
+  if (result.reportPath === undefined) {
+    throw new Error("the folder run wrote no report");
+  }
+  expect(unmappedFieldsOf(await readFile(result.reportPath, "utf8"), "Heavy (OpenAI)")).toEqual(["extensions.regex_scripts"]);
+  expect((await caller.regex.listScripts()).map(({ name }) => name)).toEqual(["Saved whistle"]);
 });
 
 test("the Characters dialog lands a card's scripts on their passes and reuses them on a second import", async () => {

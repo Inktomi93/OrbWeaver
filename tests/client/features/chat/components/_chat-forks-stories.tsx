@@ -2,7 +2,7 @@ import { useChatBusDeps } from "@orb/client/data";
 import { MessageListSurface } from "@orb/client/features/chat";
 import { selectChat, setOpenOverlayPanel, useActiveChatId, useOpenOverlayPanel } from "@orb/client/state";
 import type { ChatId } from "@orb/kit/ids";
-import { CtClientProviders, chatSurfaceContributors, toolRenderers } from "@orb/testkit/browser";
+import { CtClientProviders, CtUserBus, chatSurfaceContributors, toolRenderers } from "@orb/testkit/browser";
 import { Container, Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -64,6 +64,17 @@ export function TranscriptBesideTabStory({ chatId, isHost }: { readonly chatId: 
   return (
     <CtClientProviders>
       <TranscriptBesideTab chatId={chatId} isHost={isHost} />
+    </CtClientProviders>
+  );
+}
+
+/** The same pair with the user bus the app root wires, so a library edit the server announces reaches both. */
+export function TranscriptBesideTabBusStory({ chatId, isHost }: { readonly chatId: ChatId; readonly isHost: boolean }): ReactElement {
+  return (
+    <CtClientProviders>
+      <CtUserBus>
+        <TranscriptBesideTab chatId={chatId} isHost={isHost} />
+      </CtUserBus>
     </CtClientProviders>
   );
 }

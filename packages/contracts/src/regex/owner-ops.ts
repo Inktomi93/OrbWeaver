@@ -1,8 +1,16 @@
 // Shared owner data and injected operations; implementations and authority resolution stay in server domains.
 
 import type { CharacterId, ChatId, RegexScriptId, UserId } from "@orb/kit/ids";
+import type { ImportReuse } from "#import";
 import type { PortableFile } from "#portability";
-import type { ExportedCardScripts, ImportCardScriptsArgs, ImportCardScriptsResult, ImportGlobalScriptsArgs, ImportPresetScriptsArgs } from "./schemas.ts";
+import type {
+  ExportedCardScripts,
+  ImportCardScriptsArgs,
+  ImportCardScriptsResult,
+  ImportGlobalScriptsArgs,
+  ImportPresetScriptsArgs,
+  RegexScriptCard,
+} from "./schemas.ts";
 
 /** The rooms each script reaches, keyed by script id. */
 export type ResolveRegexScriptRoomsOp = (scriptIds: readonly RegexScriptId[]) => Promise<Map<RegexScriptId, ChatId[]>>;
@@ -14,6 +22,18 @@ export type CaptureRegexRoomReachOp = (scriptIds: readonly RegexScriptId[]) => P
 export type ImportCardScripts = (args: ImportCardScriptsArgs) => Promise<ImportCardScriptsResult>;
 
 export type ImportPresetScripts = (args: ImportPresetScriptsArgs) => Promise<ImportCardScriptsResult>;
+
+/** What a dry run answers for one script a lift carries: `reuse` says why the lift mints no row for it (an owned row
+ *  holds it, or an earlier script of the same run mints it) and is `null` when it mints one; `refused` is the write
+ *  door's reason when it would mint one and the door refuses it. */
+export type ScriptPlan = { readonly reuse: ImportReuse | null } | { readonly refused: string };
+
+/** The preset lifts of a folder run, dry: per preset in run order, per script, what {@link ImportPresetScripts} does
+ *  with it. Read-only. */
+export type PlanPresetScripts = (args: {
+  readonly ownerId: UserId;
+  readonly presets: readonly (readonly RegexScriptCard[])[];
+}) => Promise<readonly (readonly ScriptPlan[])[]>;
 
 export type ImportGlobalScripts = (args: ImportGlobalScriptsArgs) => Promise<ImportCardScriptsResult>;
 

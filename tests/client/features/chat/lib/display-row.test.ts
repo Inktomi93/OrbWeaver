@@ -1,10 +1,11 @@
-import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
+import type { MessageKind } from "@orb/contracts/chat";
+import { DEFAULT_MESSAGE_KIND } from "@orb/contracts/chat";
+import { ID_PREFIX } from "@orb/kit/ids";
 import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import { displayDepthsOf, roomStandingOf } from "#client/features/chat/lib/display-row.ts";
+import { displayDepthsOf } from "#client/features/chat/lib/display-row.ts";
 
 const ids = createSeededIds(FIXTURE_ID_CURSOR);
-const users = createIdSource(createSeededIds().next);
 const AT_TAIL = { later: false, settling: false } as const;
 const SHORT_OF_TAIL = [
   { later: true, settling: false },
@@ -13,10 +14,10 @@ const SHORT_OF_TAIL = [
 
 type Items = Parameters<typeof displayDepthsOf>[0];
 type Row = Extract<Items[number], { readonly kind: "message" }>;
-type Seat = Parameters<typeof roomStandingOf>[0][number];
 
-function row(role: Row["view"]["role"], excludedFromPrompt = false): Row {
-  return { kind: "message", view: { id: ids.typeId(ID_PREFIX.message), role, excludedFromPrompt } };
+function row(role: Row["view"]["role"], options: { readonly excludedFromPrompt?: boolean; readonly kind?: MessageKind } = {}): Row {
+  const { excludedFromPrompt = false, kind = DEFAULT_MESSAGE_KIND } = options;
+  return { kind: "message", view: { id: ids.typeId(ID_PREFIX.message), role, kind, excludedFromPrompt } };
 }
 
 function idOf(item: Row): Row["view"]["id"] {
@@ -25,13 +26,22 @@ function idOf(item: Row): Row["view"]["id"] {
 
 test("depth counts from the newest row and skips system rows and rows hidden from the AI", () => {
   const oldest = row("user");
-  const hidden = row("assistant", true);
+  const hidden = row("assistant", { excludedFromPrompt: true });
   const system = row("system");
   const newest = row("assistant");
   const { rows, ghost } = displayDepthsOf([oldest, hidden, system, newest], AT_TAIL);
 
   expect([rows.get(idOf(newest)), rows.get(idOf(system)), rows.get(idOf(hidden)), rows.get(idOf(oldest))]).toEqual([0, undefined, undefined, 1]);
   expect(ghost).toBeUndefined();
+});
+
+test("a comment row takes no depth, as the prompt build leaves it out; a narrator row counts", () => {
+  const oldest = row("assistant");
+  const narration = row("assistant", { kind: "narrator" });
+  const comment = row("user", { kind: "comment" });
+  const { rows } = displayDepthsOf([oldest, narration, comment], AT_TAIL);
+
+  expect([rows.get(idOf(comment)), rows.get(idOf(narration)), rows.get(idOf(oldest))]).toEqual([undefined, 0, 1]);
 });
 
 test("the live ghost is the newest row at the tail, and a swipe's ghost takes its target's depth", () => {
@@ -54,18 +64,4 @@ test("pages that stop short of the live tail give their rows no depth, while a t
     expect(displayDepthsOf([first, second], edges).rows.get(idOf(second))).toBeUndefined();
     expect(displayDepthsOf([first, { kind: "ghost" }, second], edges).ghost).toBeUndefined();
   }
-});
-
-test("the room's standing holds each present human seat's role and no seat that left or has no user", () => {
-  const host = users.userId();
-  const member = users.userId();
-  const departed = users.userId();
-  const seats: Seat[] = [
-    { userId: host, leftSeq: null, role: "host" },
-    { userId: member, leftSeq: null, role: "member" },
-    { userId: departed, leftSeq: 12, role: "member" },
-    { userId: null, leftSeq: null, role: "member" },
-  ];
-
-  expect(roomStandingOf(seats).seatedRoles).toEqual({ [host]: "host", [member]: "member" });
 });

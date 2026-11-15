@@ -46,6 +46,21 @@ export interface RoomStanding {
 /** A room standing with no seat, for a build that knows none. */
 export const NO_SEATS: RoomStanding = { seatedRoles: {} };
 
+/** The seat columns {@link roomStandingOf} reads; `leftSeq` is set once the seat has left the room. */
+export interface StandingSeat {
+  readonly userId: UserId | null;
+  readonly role: ParticipantRole;
+  readonly leftSeq: number | null;
+}
+
+/** The room's standing from its seats. Only a present human seat holds standing: a seat that has left holds none, as
+ *  {@link standingOf} reads the room as it is now, and a seat with no user is no human's. */
+export function roomStandingOf(seats: readonly StandingSeat[]): RoomStanding {
+  return {
+    seatedRoles: Object.fromEntries(seats.flatMap((seat) => (seat.userId === null || seat.leftSeq !== null ? [] : [[seat.userId, seat.role] as const]))),
+  };
+}
+
 /**
  * The room standing of a row's author, against the room as it is now: a host handoff makes the former host's rows a
  * member's. Null for a row no seated human wrote: a character's row, and a row by a human who has left the room.

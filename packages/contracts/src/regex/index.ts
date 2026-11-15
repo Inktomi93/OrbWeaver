@@ -11,6 +11,8 @@ export type {
   ImportGlobalScripts,
   ImportPresetScripts,
   ImportRegexScript,
+  PlanPresetScripts,
   ResolveRegexScriptRoomsOp,
+  ScriptPlan,
 } from "./owner-ops.ts";
 export * from "./schemas.ts";

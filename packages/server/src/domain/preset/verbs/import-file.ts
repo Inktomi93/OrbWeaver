@@ -12,7 +12,7 @@ import { clipImportText } from "@orb/contracts/import";
 import { SAMPLER_KNOBS } from "@orb/contracts/inference";
 import type { ImportPresets, PresetFilePreview, PresetImportOutcome, PromptConfig } from "@orb/contracts/preset";
 import { PRESET_SCHEMA_KIND, parsePresetFile } from "@orb/contracts/preset";
-import type { ImportPresetScripts, RegexScriptCard } from "@orb/contracts/regex";
+import type { ImportPresetScripts, PlanPresetScripts, RegexScriptCard, RegexScriptRefusal } from "@orb/contracts/regex";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import { isPlainObject } from "@orb/kit/guards";
 import { parseJsonText } from "@orb/kit/json";
@@ -76,6 +76,7 @@ type PresetFileRead =
       readonly name: string;
       readonly leftOut: Extract<PresetFilePreview, { ok: true }>["leftOut"];
       readonly regexScripts: readonly RegexScriptCard[];
+      readonly addedSections: readonly string[];
     } & ReturnType<typeof configCounts>)
   | { readonly ok: false; readonly error: string };
 
@@ -104,13 +105,13 @@ function readPresetFile({ fileText, fileName }: Pick<ImportPresetFileParams, "fi
       return orb;
     }
     const bytes = new TextEncoder().encode(fileText);
-    return { ok: true, format: "orbweaver", bytes, name: orb.name, ...configCounts(orb.config), leftOut: [], regexScripts: [] };
+    return { ok: true, format: "orbweaver", bytes, name: orb.name, ...configCounts(orb.config), leftOut: [], regexScripts: [], addedSections: [] };
   }
   const st = parseStPresetJson(raw, { name: stemOf(fileName) });
   if (!st.ok) {
     return { ok: false, error: stRefusal(st.recognised, st.reason) };
   }
-  const { name, file, unmapped, regexScripts } = st.parsed;
+  const { name, file, unmapped, regexScripts, addedSections } = st.parsed;
   return {
     ok: true,
     format: "sillyTavern",
@@ -119,7 +120,13 @@ function readPresetFile({ fileText, fileName }: Pick<ImportPresetFileParams, "fi
     ...configCounts(file.config),
     leftOut: unmapped.map(plainLeftOut),
     regexScripts,
+    addedSections,
   };
+}
+
+// A refusal crosses the wire with the file's name and the door's reason, both clipped as an import shows them.
+function clippedRefusal(name: string, reason: string): RegexScriptRefusal {
+  return { name: clipImportText(name), reason: clipImportText(reason) };
 }
 
 /** Both ops are INJECTED (verb-to-verb value imports are the banned edge — `domain-no-cross-verb`): service.ts
@@ -127,6 +134,7 @@ function readPresetFile({ fileText, fileName }: Pick<ImportPresetFileParams, "fi
 export function createImportFile(deps: {
   readonly importPresets: ImportPresets;
   readonly importPresetScripts: ImportPresetScripts;
+  readonly planPresetScripts: PlanPresetScripts;
   readonly emitUserEvent: EmitUserEvent;
 }): Pick<PresetService, "importFile" | "previewFile"> {
   async function previewFile(params: ImportPresetFileParams): Promise<PresetFilePreview> {
@@ -135,6 +143,8 @@ export function createImportFile(deps: {
       return read;
     }
     const answer = soleResult(await deps.importPresets({ ownerId: params.userId, files: [read.bytes], dryRun: true, signal: NEVER_ABORTED }));
+    const [plan = []] = await deps.planPresetScripts({ ownerId: params.userId, presets: [read.regexScripts] });
+    const refusedScripts = plan.flatMap((verdict, i) => ("refused" in verdict ? [clippedRefusal(read.regexScripts[i]?.name ?? "", verdict.refused)] : []));
     return {
       ok: true,
       format: read.format,
@@ -145,7 +155,10 @@ export function createImportFile(deps: {
       samplerCount: read.samplerCount,
       limitCount: read.limitCount,
       leftOut: read.leftOut,
-      regexScripts: read.regexScripts.length,
+      regexScripts: read.regexScripts.length - refusedScripts.length,
+      refusedScripts,
+      // A reused preset already holds the sections, so the run adds none.
+      addedSections: answer.reuse === "library" ? [] : read.addedSections,
     };
   }
 
@@ -154,7 +167,8 @@ export function createImportFile(deps: {
     if (!read.ok) {
       return read;
     }
-    const outcome = soleResult(await deps.importPresets({ ownerId: params.userId, files: [read.bytes], dryRun: false, signal: NEVER_ABORTED }));
+    const landed = soleResult(await deps.importPresets({ ownerId: params.userId, files: [read.bytes], dryRun: false, signal: NEVER_ABORTED }));
+    const outcome = landed.ok && landed.created === true && read.addedSections.length > 0 ? { ...landed, addedSections: read.addedSections } : landed;
     // A reused equal preset takes the scripts too: the lift reuses equal script rows and its attach is idempotent,
     // so a second import of one file writes nothing.
     if (!outcome.ok || outcome.presetId === undefined || read.regexScripts.length === 0) {
@@ -163,7 +177,7 @@ export function createImportFile(deps: {
     const regexScripts = await deps.importPresetScripts({ ownerId: params.userId, presetId: outcome.presetId, scripts: read.regexScripts });
     // The lift writes the regex library and the preset's attachments without an event of its own.
     deps.emitUserEvent(params.userId, { type: "regexChanged" });
-    return { ...outcome, regexScripts };
+    return { ...outcome, regexScripts: { ...regexScripts, refused: regexScripts.refused.map(({ name, reason }) => clippedRefusal(name, reason)) } };
   }
 
   return { importFile, previewFile };

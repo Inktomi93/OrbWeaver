@@ -21,7 +21,7 @@ import { presetBytes } from "../substrate/landing-bytes.ts";
  *  can tell "this landed whole" apart from "this was never looked at". */
 function noteFor(
   p: CollectedPreset,
-  landed: { readonly name: string; readonly renamedFrom: string | null },
+  landed: { readonly name: string; readonly renamedFrom: string | null; readonly created: boolean },
   scripts: ImportCardScriptsResult,
 ): ImportPresetNote {
   return {
@@ -38,6 +38,8 @@ function noteFor(
     ],
     scriptsLifted: scripts.created,
     scriptsReused: scripts.reused,
+    // A reused preset already holds the sections, so the run added none.
+    addedSections: landed.created ? p.parsed.addedSections : [],
   };
 }
 
@@ -123,7 +125,7 @@ export function createImportPresets(ctx: ImportContext): Pick<ImportService, "im
         presetsCreated += 1;
       }
       const scripts = await liftPresetScripts({ ctx, p, presetId: outcome.presetId, skippedPresets });
-      notes.push(noteFor(p, { name: outcome.name ?? p.parsed.name, renamedFrom: outcome.renamedFrom ?? null }, scripts));
+      notes.push(noteFor(p, { name: outcome.name ?? p.parsed.name, renamedFrom: outcome.renamedFrom ?? null, created: outcome.created === true }, scripts));
     }
     return { presetsImported, presetsCreated, skippedPresets, notes };
   }

@@ -25,7 +25,7 @@
 import type { ParticipantRoleState } from "@orb/contracts/identity";
 import { isHostRole } from "@orb/contracts/identity";
 import type { UserId } from "@orb/kit/ids";
-import type { RoomStanding } from "@orb/kit/message-author";
+import type { StandingSeat } from "@orb/kit/message-author";
 import { participantRoleValue } from "#primitives/role-data/decode";
 
 /** The two columns a host lookup reads — structural, so both the captured participant row
@@ -50,12 +50,8 @@ export function hostUserIdOf(participants: readonly HostSeat[]): UserId | null {
   return hostSeatOf(participants)?.userId ?? null;
 }
 
-/** The room's present human seats with the authority each holds, as a regex author scope reads a row's standing.
- *  `participants` are the present seats (`loadParticipants`); a seat with no user is no human's. */
-export function roomStandingOf(participants: readonly HostSeat[]): RoomStanding {
-  return {
-    seatedRoles: Object.fromEntries(
-      participants.flatMap((seat) => (seat.userId === null ? [] : [[seat.userId, isHostRole(participantRoleValue(seat.role)) ? "host" : "member"] as const])),
-    ),
-  };
+/** The loaded seats as `roomStandingOf` (`@orb/kit/message-author`) reads them, each role decoded here, where the
+ *  role registry may be read. */
+export function standingSeatsOf(participants: readonly (HostSeat & { readonly leftSeq: number | null })[]): StandingSeat[] {
+  return participants.map((seat) => ({ userId: seat.userId, role: participantRoleValue(seat.role), leftSeq: seat.leftSeq }));
 }

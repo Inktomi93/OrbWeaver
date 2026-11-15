@@ -49,6 +49,8 @@ export interface MessageRenderContext {
   /** The viewer's display scripts in run order, already narrowed to enabled scripts whose passes include the
    *  display pass. The row identity rides along so a script the deadline stops can be named and kept stopped. */
   readonly displayScripts?: readonly RegexScriptRow[];
+  /** The room's display scripts have not arrived yet, so a settled row holds rather than draw its raw text. */
+  readonly displayScriptsLoading?: true;
   /** The room's present human seats, which a display script scoped by its author's standing reads. */
   readonly room: RoomStanding;
   /** Frozen clock for \{\{time\}\}/\{\{date\}\}; omit = live clock inside kit. */

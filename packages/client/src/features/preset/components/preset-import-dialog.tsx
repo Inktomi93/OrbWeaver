@@ -27,6 +27,7 @@ import {
   presetImportCarried,
   presetImportLead,
   presetImportScriptsComing,
+  presetImportScriptsRefused,
 } from "../lib/preset-names.ts";
 
 /** The file the import sends, as the user picked it. */
@@ -161,7 +162,7 @@ export function PresetImportDialog({ open, onOpenChange, onPreview, onImport, bu
 
 /** The pre-commit summary: the server's preview of what the import does. */
 function ImportSummary({ preview }: { readonly preview: ReadyPreview }): ReactElement {
-  const { format, name, inLibrary, sectionCount, enabledCount, samplerCount, limitCount, regexScripts, addedSections = [] } = preview;
+  const { format, name, inLibrary, sectionCount, enabledCount, samplerCount, limitCount, regexScripts, refusedScripts, addedSections } = preview;
   return (
     <Section kicker="Ready to import">
       <Text cap="prose" prose={true} voice="label">
@@ -171,6 +172,7 @@ function ImportSummary({ preview }: { readonly preview: ReadyPreview }): ReactEl
       {inLibrary ? <MutedLine>{PRESET_IMPORT_ALREADY_HELD}</MutedLine> : null}
       {addedSections.length === 0 ? null : <MutedLine>{presetImportAddedSections(addedSections)}</MutedLine>}
       {regexScripts === 0 ? null : <MutedLine>{presetImportScriptsComing(regexScripts)}</MutedLine>}
+      {refusedScripts.length === 0 ? null : <MutedLine>{presetImportScriptsRefused(refusedScripts.length)}</MutedLine>}
       {format === "orbweaver" ? null : <LeftOut leftOut={preview.leftOut} />}
     </Section>
   );

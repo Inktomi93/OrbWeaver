@@ -20,6 +20,14 @@ const ST_SCRIPT = {
   maxDepth: null,
 };
 
+/** The prompts the file itself authors, in order, and whether it switches each on. */
+const AUTHORED_SECTIONS = [
+  { id: "main", enabled: true },
+  { id: "lore", enabled: true },
+  { id: "tone", enabled: false },
+  { id: "extra", enabled: false },
+];
+
 // SillyTavern wire text is snake_case by spec, so the preset is raw JSON: four prompts with two switched on, two
 // samplers, both limits, two regex scripts and two settings this app has no equivalent for.
 const PRESET_FILE = JSON.stringify({
@@ -61,31 +69,35 @@ test("the preview counts what the import lands: prompts and those on, samplers, 
   const file = { fileText: PRESET_FILE, fileName: FILE_NAME };
 
   const preview = await caller.preset.previewFile(file);
+  if (!preview.ok) {
+    throw new Error("the preview refused the file");
+  }
+  // The import adds prompts of its own to a SillyTavern preset and switches them on, so they count with the file's.
+  const added = preview.addedSections.length;
+  expect(added).toBeGreaterThan(0);
   expect(preview).toMatchObject({
-    ok: true,
     format: "sillyTavern",
     name: PRESET_NAME,
-    sectionCount: 4,
-    enabledCount: 2,
+    sectionCount: AUTHORED_SECTIONS.length + added,
+    enabledCount: AUTHORED_SECTIONS.filter(({ enabled }) => enabled).length + added,
     samplerCount: 2,
     limitCount: 2,
     regexScripts: 2,
   });
   // `name` is used (the preset takes the file's name), so it is not listed; the two with no equivalent are.
-  expect(preview.ok ? preview.leftOut.map(({ field }) => field) : []).toEqual(["group_nudge_prompt", "wi_format"]);
+  expect(preview.leftOut.map(({ field }) => field)).toEqual(["group_nudge_prompt", "wi_format"]);
 
   const imported = await caller.preset.importFile(file);
   if (!imported.ok || imported.presetId === undefined) {
     throw new Error("the import landed no preset");
   }
-  expect(imported).toMatchObject({ created: true, name: PRESET_NAME, regexScripts: { created: 2, reused: 0 } });
+  expect(imported).toMatchObject({ created: true, name: PRESET_NAME, regexScripts: { created: 2, reused: 0 }, addedSections: preview.addedSections });
   const landed = await caller.preset.get({ id: imported.presetId });
-  expect(landed.config.sections.map(({ id, enabled }) => ({ id, enabled }))).toEqual([
-    { id: "main", enabled: true },
-    { id: "lore", enabled: true },
-    { id: "tone", enabled: false },
-    { id: "extra", enabled: false },
-  ]);
+  const addedLanded = landed.config.sections.filter(({ name }) => preview.addedSections.includes(name));
+  expect(addedLanded.map(({ enabled }) => enabled)).toEqual(preview.addedSections.map(() => true));
+  expect(landed.config.sections.filter(({ name }) => !preview.addedSections.includes(name)).map(({ id, enabled }) => ({ id, enabled }))).toEqual(
+    AUTHORED_SECTIONS,
+  );
   expect(landed.config.params).toMatchObject({ temperature: 0.7, topP: 0.9, maxContextTokens: 32_000, maxOutputTokens: 800 });
 });
 
@@ -103,11 +115,12 @@ test("an orbweaver export previews the same counts it lands with", async () => {
   expect(preview).toMatchObject({
     ok: true,
     format: "orbweaver",
-    sectionCount: 4,
-    enabledCount: 2,
+    sectionCount: landed.config.sections.length,
+    enabledCount: landed.config.sections.filter(({ enabled }) => enabled).length,
     samplerCount: 2,
     limitCount: 2,
     leftOut: [],
     regexScripts: 0,
+    addedSections: [],
   });
 });

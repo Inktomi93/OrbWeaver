@@ -52,6 +52,8 @@ export interface DisplayPassRequest {
 /** A script the display pass stopped this session. */
 export interface StoppedDisplayScript {
   readonly id: RegexScriptRow["id"];
+  /** The pattern it was stopped on: an edit that changes the pattern runs the script again. */
+  readonly findRegex: string;
   readonly name: string;
   readonly reason: DisplayStopReason;
 }
@@ -102,20 +104,21 @@ export const stoppedDisplayScripts = {
   },
 };
 
-function stopKey(script: RegexScriptRow): string {
+/** What a stop is keyed by: the script and the pattern it was stopped on. */
+export function displayScriptStopKey(script: Pick<RegexScriptRow, "id" | "findRegex">): string {
   return `${script.id}\u0000${script.findRegex}`;
 }
 
 function stopScripts(scripts: readonly RegexScriptRow[], reason: DisplayStopReason): void {
-  const fresh = scripts.filter((script) => !stoppedKeys.has(stopKey(script)));
+  const fresh = scripts.filter((script) => !stoppedKeys.has(displayScriptStopKey(script)));
   const latest = fresh.at(-1);
   if (latest === undefined) {
     return;
   }
   for (const script of fresh) {
-    stoppedKeys.add(stopKey(script));
+    stoppedKeys.add(displayScriptStopKey(script));
   }
-  stopped = [...stopped, ...fresh.map((script) => ({ id: script.id, name: script.name, reason }))];
+  stopped = [...stopped, ...fresh.map((script) => ({ id: script.id, findRegex: script.findRegex, name: script.name, reason }))];
   for (const listener of stoppedListeners) {
     listener();
   }
@@ -247,7 +250,7 @@ function pump(): void {
     if (job === undefined) {
       return;
     }
-    const scripts = job.pass.scripts.filter((script) => !stoppedKeys.has(stopKey(script)));
+    const scripts = job.pass.scripts.filter((script) => !stoppedKeys.has(displayScriptStopKey(script)));
     const now = performance.now();
     job.firstRunAt ??= now;
     const budgetMs = DISPLAY_ROW_BUDGET_MS - (now - job.firstRunAt);

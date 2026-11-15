@@ -21,7 +21,7 @@ import type {
 } from "@orb/contracts/import";
 import { clipImportText, IMPORT_PREVIEW_LIST_MAX, IMPORT_PREVIEW_TEXT_MAX, importPreviewListOf } from "@orb/contracts/import";
 import { sha256Hex } from "#primitives/content-hash";
-import type { CollectedChat, CollectedGroup, CollectResult } from "../contract/collection.ts";
+import type { CollectedChat, CollectedGroup, CollectedPreset, CollectResult } from "../contract/collection.ts";
 import type { ImportOwnership, ProfileCollected } from "../contract/profile-directory.ts";
 import type { GroupRefusal } from "./group.ts";
 import { partitionGroups } from "./group.ts";
@@ -153,6 +153,36 @@ function listed<Entry>(entry: Entry, judged: ReadonlyMap<Entry, ImportAnswer>, b
   return answer === undefined || answer.reuse === null ? keyed : { ...keyed, ...REUSE_FLAGS[answer.reuse] };
 }
 
+/** A preset's item with what its run does with its own scripts and the fields it leaves behind, each clipped and
+ *  capped as a list is. */
+function presetItem(profile: LabeledProfile, preset: CollectedPreset, owned: ImportOwnership): ImportPreviewItem {
+  const base = listed(preset, owned.presets, item(profile, preset.sourceFile, preset.parsed.name));
+  const plan = owned.presetScripts.get(preset) ?? [];
+  const regexScripts = preset.parsed.regexScripts.slice(0, Math.min(plan.length, IMPORT_PREVIEW_LIST_MAX)).map((script, i) => {
+    const named = { name: clipImportText(script.name) };
+    const verdict = plan[i];
+    if (verdict === undefined) {
+      return named;
+    }
+    if ("refused" in verdict) {
+      return { ...named, refused: clipImportText(verdict.refused) };
+    }
+    return verdict.reuse === null ? named : { ...named, ...REUSE_FLAGS[verdict.reuse] };
+  });
+  const leftOut = preset.parsed.unmapped
+    .slice(0, IMPORT_PREVIEW_LIST_MAX)
+    .map(({ field, reason }) => ({ field: clipImportText(field), reason: clipImportText(reason) }));
+  // Only a preset the run creates gains the sections; a reused one holds them already.
+  const lands = owned.presets.get(preset)?.reuse === null;
+  const addedSections = lands ? preset.parsed.addedSections.map(clipImportText) : [];
+  return {
+    ...base,
+    ...(regexScripts.length > 0 ? { regexScripts } : {}),
+    ...(leftOut.length > 0 ? { leftOut } : {}),
+    ...(addedSections.length > 0 ? { addedSections } : {}),
+  };
+}
+
 /** The items one profile directory holds. `importable` holds the groups the run seats, each against its own profile. */
 function profileKindItems(
   profile: LabeledProfile,
@@ -173,7 +203,7 @@ function profileKindItems(
       return listed(persona, owned.personas, owned.personasWithoutArt.has(persona) ? { ...base, withoutArt: true as const } : base);
     }),
     worlds: result.worlds.map((world) => listed(world, owned.worlds, item(profile, world.sourceFile, world.book.name))),
-    presets: result.presets.map((preset) => listed(preset, owned.presets, item(profile, preset.sourceFile, preset.parsed.name))),
+    presets: result.presets.map((preset) => presetItem(profile, preset, owned)),
     themes: result.themes.map((theme) => listed(theme, owned.themes, item(profile, theme.sourceFile, theme.parsed.name))),
     backgrounds: result.backgrounds.map((background) => listed(background, owned.backgrounds, item(profile, background.filename, background.name))),
     groups: groups.map((group) => listed(group, owned.groups, item(profile, group.sourceFile, group.parsed.name))),
@@ -206,6 +236,7 @@ const NOTHING_OWNED: ImportOwnership = {
   personas: new Map(),
   worlds: new Map(),
   presets: new Map(),
+  presetScripts: new Map(),
   themes: new Map(),
   backgrounds: new Map(),
   groups: new Map(),

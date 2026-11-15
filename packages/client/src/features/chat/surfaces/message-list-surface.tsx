@@ -16,6 +16,7 @@ import type { ChatIdentity, MessageKind } from "@orb/contracts/chat";
 import { buildIdentityAvatarMaps, buildIdentityNameContext, identityKey } from "@orb/contracts/chat";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
+import { roomStandingOf } from "@orb/kit/message-author";
 import { CurrentStack } from "@orb/ui/current";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Stack } from "@orb/ui/layout";
@@ -52,7 +53,7 @@ import { CHAT_EMPTY_THREAD_TITLE, CHAT_TRANSCRIPT_NAME } from "../lib/chat-surfa
 import { Track } from "../lib/chat-track.tsx";
 import { resolveContextBoundaryMessageId } from "../lib/context-boundary.ts";
 import { contextFitLabel } from "../lib/context-room.ts";
-import { displayDepthsOf, roomStandingOf } from "../lib/display-row.ts";
+import { displayDepthsOf } from "../lib/display-row.ts";
 import { isGreetingWindowOpen, resolveGreetingBinding } from "../lib/greeting-window.ts";
 import { liveCardRowIds } from "../lib/live-card-rows.ts";
 import { resolveMessageRenderContext } from "../lib/message-render-context.ts";

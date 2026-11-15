@@ -893,6 +893,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // model) — the SAME verb the client's params panel already reads, so the two can't disagree.
     resolveChatCapability: (args) => connection.resolveChatCacheContext(args),
     importPresetScripts: regexCompose.importPresetScripts,
+    planPresetScripts: regexCompose.planPresetScripts,
     getContributions: getWorkloadContributions,
     isBoxOwner,
     isAccountEnabled: createResolveUserEnabled(sessions),
@@ -1379,6 +1380,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     importWorldInfo,
     importCardScripts: regexCompose.importCardScripts,
     importPresetScripts: regexCompose.importPresetScripts,
+    planPresetScripts: regexCompose.planPresetScripts,
     importGlobalScripts: regexCompose.importGlobalScripts,
     exportRegexScripts: regexCompose.exportRegexScripts,
     importRegexScript: regexCompose.importRegexScript,

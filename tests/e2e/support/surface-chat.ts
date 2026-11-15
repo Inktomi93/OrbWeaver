@@ -9,6 +9,7 @@ import { pluginChildNodes } from "@orb/contracts/plugin";
 import { streamAttachInputSchema } from "@orb/contracts/stream";
 import type { AssetId, CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
+import { roomStandingOf } from "@orb/kit/message-author";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
 import { controlledPanel, settledBox, usesProgrammaticScroll } from "@orb/testkit/browser/spec";
@@ -54,7 +55,7 @@ import {
   WIRE_STATIC_PREFIX_HEADING,
 } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMPOSER_CLEAR_INPUT_NAME, COMPOSER_CORRECTIONS_NAME, COMPOSER_IMAGINE_NAME } from "#client/features/chat/lib/composer-menu-names.ts";
-import { bodyDisplayRow, displayDepthsOf, roomStandingOf } from "#client/features/chat/lib/display-row.ts";
+import { bodyDisplayRow, displayDepthsOf } from "#client/features/chat/lib/display-row.ts";
 import {
   MESSAGE_ACTIONS_MENU_NAME,
   MESSAGE_COPY_NAME,
