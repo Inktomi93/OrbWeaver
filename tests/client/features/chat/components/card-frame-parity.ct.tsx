@@ -184,7 +184,7 @@ test("a link a card's script posts with no click raises nothing, and the reader'
   await expect(page.getByRole("alertdialog")).not.toContainText(SCRIPTED_URL);
 });
 
-test("a card's javascript: and custom-scheme links keep their default and raise nothing", async ({ corpus, mount, page }) => {
+test("a card's javascript: link keeps its default, and its custom-scheme link raises nothing and leaves the card drawn", async ({ corpus, mount, page }) => {
   const room = await openCardRoom(SCHEME_CARD);
   await using root = room.root;
   await using _routes = await serveRoom(page, root, corpus);
@@ -194,8 +194,8 @@ test("a card's javascript: and custom-scheme links keep their default and raise 
   // Chromium does not follow a `javascript:` link in the card frame, with or without the frame script's hand-off.
   await card.locator("#script-link").click();
   await card.locator("#custom-link").click();
-  // The custom-scheme link's default took the frame off the card's document, after both clicks landed.
-  await expect(card.locator("#tide-line")).toHaveCount(0);
+  // The frame script swallowed the custom-scheme link, so the card's document is still the one drawn.
+  await expect(card.locator("#tide-line")).toHaveText("High water at dusk.");
   await expect(page.getByRole("alertdialog")).toHaveCount(0);
   expect(external).toEqual({ requested: [], popups: [] });
 });
@@ -223,8 +223,8 @@ test("a card link that targets a new window or opens one itself raises the confi
     await expect(confirm).toHaveCount(0);
   }
   await card.locator("#data-link").click();
-  // The link's default took the frame off the card's document; nothing reached the host.
-  await expect(card.locator("#tide-line")).toHaveCount(0);
+  // The frame script swallowed the `data:` link: the card stays drawn and nothing reached the host.
+  await expect(card.locator("#tide-line")).toHaveText("High water at dusk.");
   await expect(confirm).toHaveCount(0);
   expect(external.popups).toEqual([]);
 });

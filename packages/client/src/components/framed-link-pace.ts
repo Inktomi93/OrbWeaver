@@ -1,8 +1,8 @@
 // How fast a routed frame's links may raise the link confirm after the reader cancels it (D354).
 //
 // The host cannot tell a reader's click from a script in the frame: both arrive as the same message from the frame's
-// window, while the page holds a live activation and the frame holds focus. After a Cancel the focus gate keeps focus
-// out of the frame (`@orb/ui/sandbox-frame`), so its script must wait for the reader to click into it again; once they
+// window, while the page holds a live activation and the focus gate has admitted the frame. After a Cancel the gate
+// keeps focus out of the frame (`@orb/ui/sandbox-frame`), so its script must wait for the reader to click into it again; once they
 // do, the script can post on that click. So the pace is the bound, not a mute: the first Cancels cost nothing, and each
 // Cancel after them makes the frame's next link wait twice as long, up to a ceiling. The newest link that arrives inside
 // the wait raises its confirm when the wait ends. An Open, or a remount, starts the count again.
