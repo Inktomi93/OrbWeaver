@@ -42,6 +42,7 @@ import {
   REGEX_DEPTH_MAX,
   REGEX_PASSES,
   REGEX_TARGETS,
+  regexBehaviorReachesText,
   SubstituteFindRegex,
 } from "@orb/kit/regex";
 import { z } from "zod";
@@ -205,14 +206,23 @@ const ST_REGEX_TARGET_BY_NUMBER: Readonly<Record<number, RegexTarget>> = {
   6: "REASONING",
 };
 
-/** SillyTavern's retired display placement. Its loader drops it from a list that holds another member, or reads it
- *  alone as every placement, and sets both of its display and prompt switches either way; the lift does the same, so
- *  it is never a lost placement. */
+/** SillyTavern's retired display placement. Its loader rewrites it on the global list only: dropped from a list that
+ *  holds another member, or read alone as every placement, with both display and prompt switches set either way. A
+ *  preset's or a card's script is never rewritten, and no call passes 0, so there it is a placement with no target. */
 const ST_RETIRED_DISPLAY_PLACEMENT = 0;
+
+/** Which SillyTavern list a script was read from: the global list (`extension_settings.regex`), or a scoped one (a
+ *  preset's, a card's, or a single exported script). Only the global list's loader rewrites
+ *  {@link ST_RETIRED_DISPLAY_PLACEMENT}. */
+export type StScriptList = "global" | "scoped";
+
+function readsRetiredDisplay(list: StScriptList, member: unknown): boolean {
+  return list === "global" && member === ST_RETIRED_DISPLAY_PLACEMENT;
+}
 
 /** The numbered SillyTavern placements a card-wire script holds that have no target here, in its own order; empty
  *  for a script in this app's own spelling. Every import door names them. */
-export function stPlacementsWithoutTarget(candidate: unknown): readonly number[] {
+export function stPlacementsWithoutTarget(candidate: unknown, list: StScriptList): readonly number[] {
   if (typeof candidate !== "object" || candidate === null || Array.isArray(candidate)) {
     return [];
   }
@@ -221,7 +231,7 @@ export function stPlacementsWithoutTarget(candidate: unknown): readonly number[]
     return [];
   }
   return obj.placement.filter(
-    (member): member is number => typeof member === "number" && member !== ST_RETIRED_DISPLAY_PLACEMENT && ST_REGEX_TARGET_BY_NUMBER[member] === undefined,
+    (member): member is number => typeof member === "number" && !readsRetiredDisplay(list, member) && ST_REGEX_TARGET_BY_NUMBER[member] === undefined,
   );
 }
 
@@ -276,13 +286,13 @@ function stDepth(minDepth: unknown, maxDepth: unknown): RegexDepth | undefined {
  *  are SillyTavern's spellings too, and each wins over this app's own beside it, so a file exported here and edited
  *  there comes back as edited. Depth and an author scope ride only beside an ephemeral pass, since SillyTavern's save
  *  calls pass neither; the author scope is this app's alone and is carried through. */
-function liftStScriptWire(obj: Record<string, unknown>, placement: readonly unknown[]): Record<string, unknown> {
+function liftStScriptWire(obj: Record<string, unknown>, placement: readonly unknown[], list: StScriptList): Record<string, unknown> {
   const { placement: _placement, markdownOnly, promptOnly, minDepth, maxDepth, scriptName, targets: _t, passes: _p, depth: _d, authors, ...rest } = obj;
-  const retired = placement.includes(ST_RETIRED_DISPLAY_PLACEMENT);
+  const retired = placement.some((member) => readsRetiredDisplay(list, member));
   const passes = retired ? stPasses(true, true) : stPasses(markdownOnly === true, promptOnly === true);
   const ephemeral = runsEphemeral(passes);
   const depth = ephemeral ? stDepth(minDepth, maxDepth) : undefined;
-  const members = placement.filter((member) => member !== ST_RETIRED_DISPLAY_PLACEMENT);
+  const members = placement.filter((member) => !readsRetiredDisplay(list, member));
   const targets =
     retired && members.length === 0
       ? [...REGEX_TARGETS]
@@ -291,9 +301,9 @@ function liftStScriptWire(obj: Record<string, unknown>, placement: readonly unkn
     ...rest,
     name: typeof scriptName === "string" ? scriptName : rest["name"],
     ...(typeof rest["disabled"] === "boolean" ? { enabled: !rest["disabled"] } : {}),
-    // A script with no target here, or whose pattern does not compile, runs nowhere: it is kept, so the owner can fix
-    // it, but switched off, so the library never shows an enabled script that does nothing.
-    ...(targets.length === 0 || !stScriptPatternCompiles(obj) ? { enabled: false } : {}),
+    // A script whose passes read none of its targets, or whose pattern does not compile, runs nowhere: it is kept, so
+    // the owner can fix it, but switched off, so the library never shows an enabled script that does nothing.
+    ...(regexBehaviorReachesText({ targets, passes }) && stScriptPatternCompiles(obj) ? {} : { enabled: false }),
     targets,
     passes,
     ...(depth === undefined ? {} : { depth }),
@@ -394,21 +404,24 @@ function liftPlacementSetBehavior(raw: unknown): unknown {
   return isPlacementSetShape(obj) ? liftPlacementSetShape(obj, obj.placement) : obj;
 }
 
-function normalizeCardScriptWire(raw: unknown): unknown {
+function normalizeCardScriptWire(raw: unknown, list: StScriptList): unknown {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
     return raw;
   }
   const obj = raw as Record<string, unknown>;
-  return isStDialect(obj) ? liftStScriptWire(obj, obj.placement) : liftPlacementSetBehavior(obj);
+  return isStDialect(obj) ? liftStScriptWire(obj, obj.placement, list) : liftPlacementSetBehavior(obj);
 }
 
-export const regexScriptCardSchema = z.preprocess(
-  normalizeCardScriptWire,
-  regexScriptCardFieldsSchema.superRefine(behaviorCoheres).transform(({ enabled, disabled, ...rest }) => ({
-    ...rest,
-    enabled: enabled ?? disabled !== true,
-  })),
-);
+const liftedCardScriptSchema = regexScriptCardFieldsSchema.superRefine(behaviorCoheres).transform(({ enabled, disabled, ...rest }) => ({
+  ...rest,
+  enabled: enabled ?? disabled !== true,
+}));
+
+/** A card-wire script from a scoped list: a card's, a preset's, a single exported script, or this app's own file. */
+export const regexScriptCardSchema = z.preprocess((raw) => normalizeCardScriptWire(raw, "scoped"), liftedCardScriptSchema);
+
+/** A card-wire script from SillyTavern's global list, read the way its loader rewrites that list. */
+export const stGlobalRegexScriptCardSchema = z.preprocess((raw) => normalizeCardScriptWire(raw, "global"), liftedCardScriptSchema);
 
 export type RegexScriptCard = z.output<typeof regexScriptCardSchema>;
 
@@ -676,7 +689,7 @@ export const regexScriptUsageSchema = z.strictObject({
  *  attachment carried: it is a property of the script itself (the `global_regex_scripts` PK-is-the-script
  *  junction), where character/preset/chat attachments point at rows the bundle does not guarantee. */
 export const portableRegexScriptSchema = z.preprocess(
-  normalizeCardScriptWire,
+  (raw) => normalizeCardScriptWire(raw, "scoped"),
   regexScriptBehaviorFields
     .extend({
       name: z.string().max(REGEX_SCRIPT_NAME_MAX),
