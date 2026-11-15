@@ -121,14 +121,22 @@ function statedLimits(
   return { window: stated, output: cap !== undefined && stated !== null && cap > stated ? undefined : cap };
 }
 
+// A listed price is the provider's data. Far above any hosted price (the dearest listed today is $120 per million
+// output tokens), a figure past this is a list error, and an estimate from it would print a nonsense cost.
+const MAX_LISTED_USD_PER_TOKEN = 0.01;
+
+function plausiblePerToken(usd: number): number | undefined {
+  return Number.isFinite(usd) && usd <= MAX_LISTED_USD_PER_TOKEN ? usd : undefined;
+}
+
 function perToken(perMillion: number | null | undefined): number | undefined {
-  return perMillion === null || perMillion === undefined ? undefined : perMillion / PER_MILLION;
+  return perMillion === null || perMillion === undefined ? undefined : plausiblePerToken(perMillion / PER_MILLION);
 }
 
 const PER_THOUSAND = 1000;
 
 function perTokenOfThousand(perThousand: number | null | undefined): number | undefined {
-  return perThousand === null || perThousand === undefined ? undefined : perThousand / PER_THOUSAND;
+  return perThousand === null || perThousand === undefined ? undefined : plausiblePerToken(perThousand / PER_THOUSAND);
 }
 
 function listedPriceOf(

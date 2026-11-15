@@ -193,12 +193,12 @@ const TOKENS_OUT = 7;
 const TOKENS_CACHED = 20;
 const TOKENS_PER_MILLION = 1_000_000;
 
-// The list on its read, a one-word stream with usage on the chat route.
-function nanoGptListAndChat(): typeof fetch {
+// The chat list on its read (the side lists answer empty), a one-word stream with usage on the chat route.
+function nanoGptListAndChat(listBody: () => Response = () => Response.json(DETAILED_LIST)): typeof fetch {
   return (input, init) => {
     const request = new Request(input, init);
     if (request.method === "GET") {
-      return Promise.resolve(Response.json(DETAILED_LIST));
+      return Promise.resolve(new URL(request.url).pathname.endsWith("/models") ? listBody() : Response.json({ object: "list", data: [] }));
     }
     const usage = {
       ["prompt_tokens"]: TOKENS_IN,
@@ -272,6 +272,40 @@ test("a price the user declares on the connection wins over the list's price", a
   expect(listed.costUsd).not.toBeCloseTo(declared.costUsd ?? 0, 12);
 });
 
+// A listed price is the provider's data: one the reader cannot take as a plausible price states none, so the turn
+// carries no estimate rather than a nonsense one. JSON's `1e400` parses to Infinity.
+const UNRECORDED = { costUsd: null, costProvenance: "unrecorded" } as const;
+// A free prompt is still priced: the cached tokens at the cache price and the reply at the completion price.
+const FREE_PROMPT_USD = (TOKENS_CACHED * CACHE_READ_PER_MILLION + TOKENS_OUT * COMPLETION_PER_MILLION) / TOKENS_PER_MILLION;
+const LISTED_PRICES = [
+  { name: "zero", prompt: "0", usage: { costUsd: FREE_PROMPT_USD, costProvenance: "estimated" } },
+  { name: "negative", prompt: "-1", usage: UNRECORDED },
+  { name: "null", prompt: "null", usage: UNRECORDED },
+  { name: "huge", prompt: "1e300", usage: UNRECORDED },
+  { name: "non-finite", prompt: "1e400", usage: UNRECORDED },
+] as const;
+
+function pricedList(prompt: string): () => Response {
+  return () =>
+    new Response(
+      `{"object":"list","data":[{"id":"${STATED_MODEL}","pricing":{"prompt":${prompt},"completion":${String(COMPLETION_PER_MILLION)},"cacheReadInputPer1kTokens":${String(CACHE_READ_PER_THOUSAND)}}}]}`,
+      { headers: { "content-type": "application/json" } },
+    );
+}
+
+test.for(LISTED_PRICES)("a $name listed prompt price gives an estimate only when it is a plausible price", async ({ prompt, usage }) => {
+  await using root = await createRuntimeRoot({ providerFetch: nanoGptListAndChat(pricedList(prompt)) });
+  const recorded = await turnUsage(root, STATED_MODEL);
+  expect(recorded).toEqual({ costProvenance: usage.costProvenance, costUsd: usage.costUsd === null ? null : expect.closeTo(usage.costUsd, 12) });
+});
+
+test("a declared price whose arithmetic overflows records no cost rather than an infinite one", async () => {
+  await using root = await createRuntimeRoot({ providerFetch: nanoGptListAndChat() });
+  const pricing = { inputPerMTok: Number.MAX_VALUE, outputPerMTok: Number.MAX_VALUE, cacheReadPerMTok: Number.MAX_VALUE };
+  const usage = await turnUsage(root, STATED_MODEL, declaredCapabilitySchema.parse({ features: { pricing } }));
+  expect(usage).toEqual({ costUsd: null, costProvenance: "unrecorded" });
+});
+
 const EMBED_MODEL = "vendor/stated-embedder";
 const EMBED_DIMS = 8;
 const EMBED_INPUT_TOKENS = 8191;
@@ -318,7 +352,14 @@ interface Posted {
 }
 
 // Each list on its own path, and the embeddings and rerank routes as the docs answer them.
-function nanoGptRoutes(seen: Seen[], posted: Posted[], embeddingList: () => Response = () => Response.json(EMBEDDING_LIST)): typeof fetch {
+interface SideLists {
+  readonly embedding?: () => Response;
+  readonly rerank?: () => Response;
+}
+
+function nanoGptRoutes(seen: Seen[], posted: Posted[], side: SideLists = {}): typeof fetch {
+  const embeddingList = side.embedding ?? ((): Response => Response.json(EMBEDDING_LIST));
+  const rerankList = side.rerank ?? ((): Response => Response.json(RERANK_LIST));
   return async (input, init) => {
     const request = new Request(input, init);
     seen.push({ url: request.url, authorization: request.headers.get("authorization") });
@@ -327,7 +368,7 @@ function nanoGptRoutes(seen: Seen[], posted: Posted[], embeddingList: () => Resp
       if (pathname.endsWith("/embedding-models")) {
         return embeddingList();
       }
-      return Response.json(pathname.endsWith("/rerank-models") ? RERANK_LIST : DETAILED_LIST);
+      return pathname.endsWith("/rerank-models") ? rerankList() : Response.json(DETAILED_LIST);
     }
     const body = z.record(z.string(), z.unknown()).parse(await request.json());
     posted.push({ url: request.url, body });
@@ -369,10 +410,18 @@ test("a NanoGPT key lists its embedding and rerank models as those kinds beside 
 });
 
 test("an embedding list the service fails to answer drops its embedders and leaves the chat list standing", async () => {
-  await using root = await createRuntimeRoot({ providerFetch: nanoGptRoutes([], [], () => new Response("upstream down", { status: 503 })) });
+  await using root = await createRuntimeRoot({ providerFetch: nanoGptRoutes([], [], { embedding: () => new Response("upstream down", { status: 503 }) }) });
   const listing = await draftListing(root);
   expect(listedEntry(listing, EMBED_MODEL)).toBeUndefined();
   expect(listedEntry(listing, RERANK_MODEL)?.kind).toBe("rerank");
+  expect(listedEntry(listing, STATED_MODEL)).toMatchObject({ contextLength: STATED_WINDOW });
+});
+
+test("a rerank list the service fails to answer drops its rerankers and leaves the other lists standing", async () => {
+  await using root = await createRuntimeRoot({ providerFetch: nanoGptRoutes([], [], { rerank: () => new Response("upstream down", { status: 503 }) }) });
+  const listing = await draftListing(root);
+  expect(listedEntry(listing, RERANK_MODEL)).toBeUndefined();
+  expect(listedEntry(listing, EMBED_MODEL)?.kind).toBe("embedding");
   expect(listedEntry(listing, STATED_MODEL)).toMatchObject({ contextLength: STATED_WINDOW });
 });
 
