@@ -217,11 +217,25 @@ export interface BulkImportChatInput {
  *  ids are not preserved across a box; this is the remap that turns those positions back into ids, so the
  *  caller can re-link the chat-anchored planes it owns (the rpg campaign) without the chat write op ever
  *  learning what an rpg game is. Alignment IS the contract: `messageIds[i]` is the row written for
- *  `messages[i]`, and `variantIds[i][j]` for `messages[i].variants[j]`. */
+ *  `messages[i]`, and `variantIds[i][j]` for `messages[i].variants[j]`. A `null` is a row the write refused
+ *  ({@link BulkImportRefusedRow}); a message whose every variant was refused has no slot. */
 export interface ImportedChatIdentity {
   readonly chatId: ChatId;
-  readonly messageIds: readonly MessageId[];
-  readonly variantIds: readonly (readonly MessageVariantId[])[];
+  readonly messageIds: readonly (MessageId | null)[];
+  readonly variantIds: readonly (readonly (MessageVariantId | null)[])[];
+}
+
+/** One imported variant the write refused because its text is longer than `MESSAGE_TEXT_MAX_CHARS`. The rest of
+ *  its chat still lands; a refused selected variant hands the selection to the message's first written one. */
+export interface BulkImportRefusedRow {
+  /** The chat's `importedFrom` source name. */
+  readonly chat: string;
+  /** The message's 0-based position in the input transcript. */
+  readonly messageIndex: number;
+  /** The variant's `idx` within its message. */
+  readonly variantIdx: number;
+  readonly field: "content" | "reasoning";
+  readonly chars: number;
 }
 
 /** R6 — one input's re-link remap, the {@link ImportedChatIdentity} alignment over the room as it stands now.
@@ -263,6 +277,8 @@ export interface BulkImportChatsResult {
    *  are still NULL** — never overwriting a choice the owner made after the import. Counted per CHAT, and
    *  zero on a run that healed nothing (including every fresh import). */
   readonly chatsPersonaHealed: number;
+  /** The variants this run refused as over-long, in input order. Empty when every row landed. */
+  readonly refusedRows: readonly BulkImportRefusedRow[];
 }
 
 /** The chat-owned bulk-import write op. Throws `DomainNotFoundError` when the target character is not the owner's. */

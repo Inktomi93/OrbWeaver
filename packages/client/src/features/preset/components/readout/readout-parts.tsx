@@ -18,12 +18,14 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { MutedLine, Notice } from "#components";
 import { SkeletonRows } from "#data";
-import { DIALOG_VERBS } from "#lib";
+import { CONNECTIONS_LIST_ADDRESS, DIALOG_VERBS } from "#lib";
 import type { EffectiveProfileRow } from "#src/features/preset/lib/effective-knobs.ts";
 import { honoredKnobLabels, knobLabel, MIROSTAT_SKIPPED_GLOSS, provenanceSuffix, resolvedForLabel } from "#src/features/preset/lib/effective-knobs.ts";
 import { formatCount } from "#src/features/preset/lib/format-count.ts";
+import { PRESET_ESTIMATED_LIMIT_SUFFIX, PRESET_OPEN_CONNECTIONS_NAME, PRESET_READOUT_OUTPUT_CAP_LABEL } from "#src/features/preset/lib/preset-names.ts";
 import { PARAMS_VIEW_LABEL } from "#src/features/preset/lib/preset-nav.ts";
-import { resolveFailureCopy, resolveFailureMessage } from "#src/features/preset/lib/resolve-failure.ts";
+import { failureCause, resolveFailureCopy, resolveFailureMessage } from "#src/features/preset/lib/resolve-failure.ts";
+import { openConfigTo } from "#state";
 
 /** ONE number format across the whole readout, so two producers never print `1,500` beside `8192`. EVERY
  *  integer groups (`2048` → `2,048`). A fraction prints as authored (a temperature is not a magnitude you
@@ -78,12 +80,12 @@ function readingSuffix(
 /** The resolved generation profile — the funnel's OWN output (§4.3), never a client re-derivation.
  *
  *  PENDING IS NOT AN EMPTY STATE (the rule `CapabilityGate` follows). `preset.resolveEffective` returns a REQUIRED `EffectivePreset` and resolves against whatever chat
- *  model the caller has, THROWING when routing is broken — so an absent profile is a read that has not
- *  LANDED or one that FAILED, and there is no settled "you have no chat model" arm for this component to
- *  render. A "Connect a chat model" line on every absent read would flash at users who have one connected,
- *  and on a routing failure it would name the wrong cause. The two REACHABLE arms are the caller's boundary
- *  states: {@link EffectiveProfilePending}, a shape-matched skeleton that asserts nothing, and
- *  {@link EffectiveProfileFailure}, the server's own message when the read has failed.
+ *  model the caller has, THROWING when routing is broken or no model is set — so an absent profile is a read
+ *  that has not LANDED or one that FAILED. A "Connect a chat model" line on every absent read would flash at
+ *  users who have one connected, and on a routing failure it would name the wrong cause. The REACHABLE arms are
+ *  the caller's boundary states: {@link EffectiveProfilePending}, a shape-matched skeleton that asserts nothing,
+ *  and {@link EffectiveProfileFailure}, which says a missing chat model plainly when the server's coded refusal
+ *  names one, and otherwise shows the server's own message.
  *
  *  WHICH CAUSE THAT FAILURE NAMES IS DERIVED, NOT ASSERTED. An unconditional "this is a routing problem"
  *  over a RAW TRANSPORT STRING would tell a preset deleted in another tab (`NOT_FOUND`), a 500 and a dropped
@@ -161,6 +163,23 @@ export function EffectiveProfilePending(): ReactElement {
 export function EffectiveProfileFailure({ error, onRetry }: { readonly error: unknown; readonly onRetry: () => void }): ReactElement {
   const copy = resolveFailureCopy(error);
   const message = resolveFailureMessage(error);
+  // No model for chat is a state, not a failure: it is said plainly, with the door to Connections instead of a Retry.
+  if (failureCause(error) === "no-model") {
+    return (
+      <Section kicker="Effective generation">
+        <Notice
+          action={
+            <Button variant="outline" onClick={(): void => openConfigTo(CONNECTIONS_LIST_ADDRESS.group, CONNECTIONS_LIST_ADDRESS.sub)} size="sm" type="button">
+              {PRESET_OPEN_CONNECTIONS_NAME}
+            </Button>
+          }
+          detail={[copy.guidance]}
+          title={copy.headline}
+          tone="neutral"
+        />
+      </Section>
+    );
+  }
   return (
     <Section kicker="Effective generation">
       <Notice
@@ -183,7 +202,7 @@ function contextWindowSuffix(context: GenerationCapability["context"]): string |
   if (context.settable !== undefined) {
     return `default · up to ${formatKnobValue(context.settable.max)}`;
   }
-  return context.windowEstimated === true ? "estimated" : null;
+  return context.windowEstimated === true ? PRESET_ESTIMATED_LIMIT_SUFFIX : null;
 }
 
 /** Describes the selected readout connection, not which controls its independent Chat editor shows.
@@ -208,7 +227,11 @@ export function CapabilityCard({
             identifier to Connections, which is its home. */}
         {model === undefined || modelName === undefined ? null : <DatumRow label="Model" value={modelName} />}
         <DatumRow label="Context window" suffix={contextWindowSuffix(capability.context)} value={formatKnobValue(capability.context.window)} />
-        <DatumRow label="Output cap" value={formatKnobValue(capability.output.maxTokens.max)} />
+        <DatumRow
+          label={PRESET_READOUT_OUTPUT_CAP_LABEL}
+          suffix={capability.output.maxTokensEstimated === true ? PRESET_ESTIMATED_LIMIT_SUFFIX : null}
+          value={formatKnobValue(capability.output.maxTokens.max)}
+        />
       </Stack>
       <Text voice="gloss">{honored.length === 0 ? "This connection honors no sampling knobs." : `honors ${honored.join(" · ")}`}</Text>
     </Section>

@@ -212,6 +212,7 @@ test("a saved first connection hands focus to the Add connection button that rep
       "credentials.list",
       "credentials.storageStatus",
       "connection.draftCatalogModels",
+      "connection.capabilities",
     ]),
     "connection.list": (input) => {
       if (!created) {

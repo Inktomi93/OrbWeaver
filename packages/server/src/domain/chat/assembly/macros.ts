@@ -9,8 +9,8 @@ import type { GuidedActionKind, GuidedImpersonatePerson } from "@orb/contracts/p
 import { DEFAULT_GUIDED_ACTIONS } from "@orb/contracts/preset";
 import { resolveGuidedInstruction } from "@orb/kit/guided";
 import type { ChatId } from "@orb/kit/ids";
-import type { MacroContext, MacroFreeze, MacroRegistry, ProcessMacroOptions, RandomSource, RowMacroStamps } from "@orb/kit/macro";
-import { createMacroContext, createVolatileOnlyRegistry, globalMacroRegistry, processMacros, resolveRowMacros } from "@orb/kit/macro";
+import type { MacroContext, MacroFreeze, MacroRegistry, MacroRenderOutcome, ProcessMacroOptions, RandomSource, RowMacroStamps } from "@orb/kit/macro";
+import { createMacroContext, createVolatileOnlyRegistry, globalMacroRegistry, processMacros, processMacrosOutcome, resolveRowMacros } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import type { FreezeVolatileMacrosArgs, RenderMacrosOptions, TurnMacroContextArgs } from "../contract/assembly-macros.ts";
 import type { HistoryMacroNames } from "../contract/results.ts";
@@ -157,11 +157,15 @@ export function renderMacros(text: string, ctx: AssembleContext, persona: Assemb
  * `message_variants.raw_content`, that record is what makes the row re-derivable: replaying it reproduces
  * these exact bytes, and re-running with fresh draws is a deliberate re-roll instead of data loss. Omitting
  * the sink is byte-identical (the record is pure provenance; `content` is unaffected either way).
+ *
+ * Every caller stores the result, so it gets the outcome, not bare text: a `degraded` freeze (the engine's byte
+ * budget cut it short) is empty or partial text, and storing it would replace what was written. The send refuses;
+ * a greeting bake keeps the body it had.
  */
-export function freezeVolatileMacros(text: string, ctx: AssembleContext, args: FreezeVolatileMacrosArgs): string {
+export function freezeVolatileMacros(text: string, ctx: AssembleContext, args: FreezeVolatileMacrosArgs): MacroRenderOutcome {
   // The per-turn FREEZE registry (WAVE MU — volatile-only + user macros) when supplied; absent ⇒ the
   // process `VOLATILE_ONLY_REGISTRY` (byte-identical — user-macro tokens pass through verbatim).
-  return processMacros(
+  return processMacrosOutcome(
     text,
     macroOptionsFor(ctx, ctx.activePersona, { random: args.random, freezes: args.freezes, frozenMacros: args.frozenMacros }),
     args.registry ?? VOLATILE_ONLY_REGISTRY,

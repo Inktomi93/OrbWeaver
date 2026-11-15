@@ -119,6 +119,7 @@ import { runTurnPipeline } from "./pipeline.ts";
 import { watchProviderWait } from "./provider-wait.ts";
 import { resolveTurnNarrative } from "./recover-narrative.ts";
 import { abortedOutcome, committedOutcome } from "./result.ts";
+import { createStreamCap } from "./stream-cap.ts";
 
 interface OwnedEngineDeps extends EngineDeps {
   readonly compactionInFlight: Set<ChatId>;
@@ -1749,6 +1750,7 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
   // tail outside the try so BOTH success and failure terminals must drain it; otherwise a partial stream that
   // throws can publish turnAborted before its already-observed delta reaches the durable bus.
   let deltaTail: Promise<void> = Promise.resolve();
+  const streamCap = createStreamCap(prep.signal, persist, target);
   try {
     // PRE-TURN managed-compaction arm (the wedge-state fix): a chat whose context ALREADY overflows the window
     // makes the model fail, and the post-turn arm never runs on a failed turn — so compact BEFORE dispatch when
@@ -1816,7 +1818,7 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
       groupNudge: prep.groupNudge,
       // Set by the group round driver; absent falls back to the single-speaker pinned/merged default.
       shape: prep.shape,
-      signal: prep.signal,
+      signal: streamCap.signal,
       tools: ctx.tools,
       attachedToolNames: prep.attachedToolNames ?? [],
       // R1 — the FOLDED state extraction: the gather's terminal tools ride the persisting turn ONLY (a
@@ -1835,9 +1837,9 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
         turnId,
         signal: prep.signal,
       },
-      onDelta: (delta): void => {
+      onDelta: streamCap.guard((delta) => {
         deltaTail = deltaTail.then(() => deps.emit({ type: "delta", chatId: prep.chatId, turnId: announcedTurnId, slotSeq, delta }));
-      },
+      }),
     } satisfies Parameters<typeof runTurnPipeline>[0];
     const firstPass = await runTurnPipeline(pipelineArgs);
     captureTurnOutcome(ctx, prep, firstPass);
@@ -2002,11 +2004,13 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
     //       Promise.race with `ChatOperationError(aborted)` and that rejection wins (settles first), so callers
     //       still see a hard throw. This branch only settles the abandoned body cleanly (no unhandled reject).
     //   • "error" (provider/DB fault — signal NOT aborted) → THROW: a real failure must stay a failure.
-    const reason = abortReasonFor(err, prep.signal);
+    // A stream stopped at the text cap surfaces its named refusal, not the provider's abort error.
+    const failure = streamCap.failure(err);
+    const reason = abortReasonFor(failure, prep.signal);
     // The FAULT row in the wire-outcome ring. FIRST in the catch, before the bus emit and the rpg flush:
     // those are awaited/injected and can themselves fail, and the row explaining WHY the turn died must not
     // be hostage to them. Itself throw-safe (see `captureTurnFault`).
-    captureTurnFault(ctx, prep, err, reason);
+    captureTurnFault(ctx, prep, failure, reason);
     // Carry the aborting turn's OWN cascade depth: an aborted turn commits no reply
     // slot, so the automation fact-resolver cannot read this back through `getTurnOrigin` — it must ride the
     // event. A depth ≥ 1 abort (this turn was itself automation-initiated) makes the `turnAborted` fact depth
@@ -2016,7 +2020,7 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
     // into the next turn on this chat (D58 hardening a).
     fireRpgTurnAborted(ctx, prep.chatId, turnId, reason);
     if (reason === "error") {
-      throw err;
+      throw failure;
     }
     return abortedOutcome(reason);
   }

@@ -15,6 +15,7 @@ import { ADD_DIALOG_COPY } from "../lib/add-connection-form-model.ts";
 import { providerPickerItems } from "../lib/connections-model.ts";
 import type { AddConnectionFormBodyProps } from "./add-connection-form-body.tsx";
 import { AddConnectionFormBody } from "./add-connection-form-body.tsx";
+import { ConnectionLimitsStep } from "./connection-limits-step.tsx";
 import { FirstModelSetup } from "./first-model-setup.tsx";
 
 export interface AddConnectionDialogProps {
@@ -28,11 +29,14 @@ export interface AddConnectionDialogProps {
 
 type ConnectionView = inferOutput<Trpc["connection"]["create"]>;
 
-/** What the dialog is doing: adding a connection, the first-model step, or adding the Utility model that step asked for. */
-type AddStep =
-  | { readonly kind: "add" }
+/** A step that follows a save: the first-model step, or the Utility add it asked for. */
+type FollowStep =
   | { readonly kind: "setup"; readonly chat: ConnectionView; readonly picked: ConnectionView["id"] | null; readonly chatBinding: Promise<string | null> }
   | { readonly kind: "add-utility"; readonly chat: ConnectionView; readonly chatBinding: Promise<string | null> };
+
+/** What the dialog is doing: adding a connection, asking for the real limits of one just saved (then going on to `next`,
+ *  or closing when it is `null`), or one of the steps that follow a save. */
+type AddStep = { readonly kind: "add" } | { readonly kind: "limits"; readonly created: ConnectionView; readonly next: FollowStep | null } | FollowStep;
 
 const ADD_STEP: AddStep = { kind: "add" };
 
@@ -53,18 +57,27 @@ export function AddConnectionDialog({ open, onOpenChange, trpc, invalidation, re
     }
     onOpenChange(next);
   };
-  const onSaved = (created: ConnectionView, firstChatModel: boolean): void => {
+  const followOrClose = (next: FollowStep | null): void => {
+    if (next === null) {
+      changeOpen(false);
+    } else {
+      setStep(next);
+    }
+  };
+  const followStep = (created: ConnectionView, firstChatModel: boolean): FollowStep | null => {
     if (step.kind === "add-utility") {
-      setStep({ kind: "setup", chat: step.chat, picked: created.id, chatBinding: step.chatBinding });
-      return;
+      return { kind: "setup", chat: step.chat, picked: created.id, chatBinding: step.chatBinding };
     }
     if (firstChatModel) {
       // Start before mounting setup: closing it never cancels the saved connection's Chat assignment.
-      const chatBinding = bindChat(created);
-      setStep({ kind: "setup", chat: created, picked: null, chatBinding });
-      return;
+      return { kind: "setup", chat: created, picked: null, chatBinding: bindChat(created) };
     }
-    changeOpen(false);
+    return null;
+  };
+  // Every save moves to the limits step at once; the step reads the row's held limits itself and goes straight on when
+  // nothing is a guess. Nothing here awaits that read, so a late answer can never land a step on a closed dialog.
+  const onSaved = (created: ConnectionView, firstChatModel: boolean): void => {
+    setStep({ kind: "limits", created, next: followStep(created, firstChatModel) });
   };
   return (
     <DismissDialog
@@ -83,6 +96,16 @@ export function AddConnectionDialog({ open, onOpenChange, trpc, invalidation, re
     >
       {/* DELIBERATELY UNRESERVED (#1098): a dialog body sizes itself around its content. */}
       <QueryBoundary resetKeys={[step.kind]} fallback={<WebSpinner label="Checking key storage…" />}>
+        {step.kind === "limits" ? (
+          <ConnectionLimitsStep
+            connectionId={step.created.id}
+            providerId={step.created.providerId}
+            declared={step.created.declared}
+            invalidation={invalidation}
+            onDone={(): void => followOrClose(step.next)}
+            trpc={trpc}
+          />
+        ) : null}
         {step.kind === "setup" ? (
           <FirstModelSetup
             chat={step.chat}
@@ -99,7 +122,8 @@ export function AddConnectionDialog({ open, onOpenChange, trpc, invalidation, re
             picked={step.picked}
             trpc={trpc}
           />
-        ) : (
+        ) : null}
+        {step.kind === "add" || step.kind === "add-utility" ? (
           <AddConnectionGate
             invalidation={invalidation}
             key={step.kind}
@@ -110,7 +134,7 @@ export function AddConnectionDialog({ open, onOpenChange, trpc, invalidation, re
             purpose={step.kind === "add-utility" ? "utility" : "connection"}
             trpc={trpc}
           />
-        )}
+        ) : null}
       </QueryBoundary>
     </DismissDialog>
   );

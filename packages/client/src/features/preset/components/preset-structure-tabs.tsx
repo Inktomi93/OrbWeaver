@@ -66,12 +66,14 @@ interface PresetStructureTabsProps {
   readonly onRevealSection?: (() => void) | undefined;
   /** The chat-role model's capability (the Collapsing floor line) — Delivery tab only, may be unset. */
   readonly capability?: GenerationCapability | undefined;
+  /** The chat connection reuses a cached prompt prefix on this preset's turns — Prompt tab only; unset reads as no. */
+  readonly promptCaching?: boolean | undefined;
 }
 
 /** Render one structural tab's fields (direct-bound to the nested `PromptConfig`). */
-export function PresetStructureTabs({ form, tab, presetId, onRevealSection, capability }: PresetStructureTabsProps): ReactElement {
+export function PresetStructureTabs({ form, tab, presetId, onRevealSection, capability, promptCaching }: PresetStructureTabsProps): ReactElement {
   if (tab === "prompt") {
-    return <PromptTab form={form} onRevealSection={onRevealSection} presetId={presetId} />;
+    return <PromptTab form={form} onRevealSection={onRevealSection} presetId={presetId} promptCaching={promptCaching === true} />;
   }
   if (tab === "delivery") {
     return <DeliveryTab capability={capability} form={form} />;
@@ -137,10 +139,12 @@ function PromptTab({
   form,
   presetId,
   onRevealSection,
+  promptCaching,
 }: {
   readonly form: AppForm;
   readonly presetId: PresetId;
   readonly onRevealSection?: (() => void) | undefined;
+  readonly promptCaching: boolean;
 }): ReactElement {
   // WHICH body the center paints. A STORE axis, not local state, so the built-in's fork-retarget remount
   // cannot eject the author from an open editor (see the file header). Read SCOPED to this preset, so a
@@ -203,6 +207,7 @@ function PromptTab({
                 onAddChatHistory={onAddChatHistory}
                 onDrillSection={onDrillSection}
                 onSelectSection={onSelectSection}
+                promptCaching={promptCaching}
                 restoreFocusSectionId={restoreFocusSectionId}
                 selectedSectionId={selectedSectionId}
               />

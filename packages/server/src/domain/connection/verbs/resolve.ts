@@ -5,8 +5,8 @@
 
 import type { CapabilityTarget, ResolveChatCapabilityParams, ResolvedConnectionView, TokenizeResult } from "@orb/contracts/inference";
 import type { ResolveOutcome } from "@orb/inference";
-import { cachePolicyContextOf, resolveCachePolicy, responseReplaySupportedFor } from "@orb/inference";
-import { ConnectionNotFoundError } from "../contract/errors.ts";
+import { cachePolicyContextOf, NoConnectionError, resolveCachePolicy, responseReplaySupportedFor } from "@orb/inference";
+import { ConnectionNotFoundError, RoleModelUnsetError } from "../contract/errors.ts";
 import type { TokenizeWordsParams } from "../contract/params.ts";
 import type { ConnectionCapabilityView } from "../contract/results.ts";
 import type { ConnectionContext, ConnectionService } from "../contract/service.ts";
@@ -32,7 +32,16 @@ async function resolveChatTarget(
 ): Promise<ResolveOutcome["resolved"]> {
   const target = params.target ?? CHAT_ROLE;
   if (target.kind === "role") {
-    return (await ctx.runtime.resolve({ task: target.task, principal: params.principal, signal: params.signal })).resolved;
+    try {
+      return (await ctx.runtime.resolve({ task: target.task, principal: params.principal, signal: params.signal })).resolved;
+    } catch (error) {
+      // A role read names no row, so its only no-row outcomes are an unbound role or a binding to a row that is gone; both
+      // mean the role has no model, which the client says in its own words.
+      if (error instanceof NoConnectionError) {
+        throw new RoleModelUnsetError(target.task, { cause: error });
+      }
+      throw error;
+    }
   }
   if ((await fetchOwnedConnection(ctx.db, params.principal.userId, target.connectionId)) === null) {
     throw new ConnectionNotFoundError(target.connectionId);
@@ -72,7 +81,12 @@ export function createCapabilities(ctx: ConnectionContext): ConnectionService["c
     if ((await fetchOwnedConnection(ctx.db, params.principal.userId, params.connectionId)) === null) {
       throw new ConnectionNotFoundError(params.connectionId);
     }
-    const read = await ctx.runtime.capabilities.for({ connectionId: params.connectionId, principal: params.principal, signal: params.signal });
+    const read = await ctx.runtime.capabilities.for({
+      connectionId: params.connectionId,
+      principal: params.principal,
+      signal: params.signal,
+      cachedFacts: params.cachedFacts,
+    });
     const cache = resolveCachePolicy({
       context: read.cacheContext,
       ...(read.capability.kind === "generation" ? { generation: read.capability.generation } : {}),

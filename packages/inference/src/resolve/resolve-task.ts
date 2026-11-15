@@ -390,15 +390,20 @@ function kindFactsHeld(ctx: ResolverContext, registered: ProviderDef, behaved: P
   return entry === undefined || reader === undefined || entry.probed === true || entry.kind !== undefined;
 }
 
-/** The kind a row's model is, as the resolver will read it: the catalog warmed first, then the declaration, the catalog
- *  and the curated rows. `undefined` when no evidence states one; the row's provider not being registered for its
- *  owner reads the same. */
-export async function discoveredKind(ctx: ResolverContext, connection: UserConnection): Promise<ModelKind | undefined> {
+/** The kind a row's model is, as the resolver will read it: the catalog warmed first (or, under `cachedFacts`, only the
+ *  facts already held, with no dial), then the declaration, the catalog and the curated rows. `undefined` when no
+ *  evidence states one; the row's provider not being registered for its owner reads the same. */
+export async function discoveredKind(
+  ctx: ResolverContext,
+  connection: UserConnection,
+  options: { readonly cachedFacts?: boolean | undefined } = {},
+): Promise<ModelKind | undefined> {
   const provider = ctx.registry.get(connection.providerId, connection.ownerId);
   if (provider === undefined) {
     return;
   }
-  return statedKind(ctx, { provider: await warmedOrCached(ctx, provider, connection), connection });
+  const behaved = options.cachedFacts === true ? await heldFacts(ctx, provider, connection) : await warmedOrCached(ctx, provider, connection);
+  return statedKind(ctx, { provider: behaved, connection });
 }
 
 // A kind read gathers evidence and never refuses: a revoked key or a server that does not answer leaves the facts the

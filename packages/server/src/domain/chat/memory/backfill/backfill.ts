@@ -23,7 +23,7 @@
 import type { BackfillPassResult, ImportWindow } from "@orb/contracts/chat";
 import type { MemoryEmbedSpace } from "@orb/contracts/embeddings";
 import type { SummarizeInput } from "@orb/contracts/role-clients";
-import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ConsentingHostId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import { isAborted } from "#primitives/abort";
 import { GenerationSupersededError } from "#primitives/embedding-generation";
@@ -66,7 +66,7 @@ async function loadCharacterIdsAndHost(
   chatId: ChatId,
 ): Promise<{
   characterIds: CharacterId[];
-  hostUserId: UserId | null;
+  hostUserId: ConsentingHostId | null;
 }> {
   const participants = await loadParticipants(ctx.db, chatId);
   const characterIds = participants.flatMap((r) => {
@@ -162,7 +162,6 @@ async function planOneChat(ctx: ChatContext, deps: PlanDeps, chatId: ChatId, swe
   // asks for: batch by phase, never one awaited embed per block interleaved with db reads.
   const segments = await collectSegments(ctx, {
     chatId,
-    funderUserId: hostUserId,
     embedOwnerId: hostUserId,
     config,
     signal: deps.signal,

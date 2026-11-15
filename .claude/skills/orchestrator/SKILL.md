@@ -315,6 +315,11 @@ Diagnose an instrument failure far enough to identify its effect on the requeste
 - Assign a blocking native-tool repair explicitly before dispatching work that depends on it.
 - Commit requested implementation after its applicable checks and review. Do not add review rounds after completion.
 - File a review finding outside the item's done criteria as a new item, then land the item. Otherwise review rounds never end.
+- After a review, send each P1 finding back to the same lane as one leg. Send a P2 back only when it breaks the item's done line.
+- Board every other review finding in the same turn. Do not review the fix leg again unless it changes security or stored data.
+- Board a lane's draft items when you read its hand-back, in the same turn. Never leave them in a worktree report.
+- A finding below P2 gets no verify loop. Board it as the lane wrote it, after a duplicate check against the board.
+- Verify a P1 or P2 finding against the code once before you board it.
 
 ## Session start
 

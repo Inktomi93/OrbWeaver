@@ -198,6 +198,7 @@ export type ProfileWaveOutcomes = Pick<
   | "seatedDisabledMembers"
   | "unresolvedPinnedPersonas"
   | "chatsPersonaHealed"
+  | "skippedChatRows"
   | "personasMergedKeys"
   | "memoryChatIds"
   | "globalRegexScriptsLifted"

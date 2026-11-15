@@ -223,6 +223,7 @@ export const OWNER_CSS_SLOTS = [
   "connection-inspection-verdict",
   "connection-inspector",
   "connection-kind-verdict",
+  "connection-limits-step",
   "connection-prompt-cache",
   "connection-purpose-notes",
   "connection-reachability",

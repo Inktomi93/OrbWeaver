@@ -12,7 +12,7 @@
 // `@orb/contracts/preset`.
 
 import type { GenerationCapability } from "@orb/contracts/inference";
-import type { ResponseCacheSettings } from "@orb/contracts/preset";
+import type { EffectiveProvenance, ResponseCacheSettings } from "@orb/contracts/preset";
 import { modelDisplayName } from "@orb/kit/model-name";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
@@ -138,8 +138,12 @@ export function knobGhost(effective: EffectiveKnobRow | undefined, quality: stri
   if (effective === undefined || typeof effective.value !== "number") {
     return null;
   }
-  return { value: effective.value, gloss: ghostGloss(effective.provenance, quality), modelDecides: effective.provenance !== SENT_WINDOW_PROVENANCE };
+  return { value: effective.value, gloss: ghostGloss(effective.provenance, quality), modelDecides: !REQUEST_SENT_PROVENANCES.has(effective.provenance) };
 }
+
+/** The rungs whose value the request itself sends, so the model does not pick it: the sent window, and the floor a
+ *  blank Max output materializes into the turn. */
+const REQUEST_SENT_PROVENANCES: ReadonlySet<string> = new Set([SENT_WINDOW_PROVENANCE, "floor" satisfies EffectiveProvenance]);
 
 /** The provenance line, keyed by the server's rung vocabulary. An unknown rung reads as no gloss rather
  *  than a fabricated one (the read is the authority on its own labels). */

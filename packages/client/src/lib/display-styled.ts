@@ -1,6 +1,6 @@
 // Whether the display regex pass drew markup on a row: true when a display script whose own template carries
 // an HTML tag replaced at least one match. A styled row on the sandboxed tier renders its whole reply in one
-// card frame (D294); markup the MODEL wrote never sets this, because only a script's template is read.
+// card frame (D354); markup the MODEL wrote never sets this, because only a script's template is read.
 //
 // The pass runs one script per executor call so every replacement is attributed to the script that made it.
 // That is the executor's own loop (each script is skipped, applied or failed in order, on the previous
