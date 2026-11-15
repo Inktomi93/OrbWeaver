@@ -190,7 +190,7 @@ export const ROOM_ENTITY_FILTERS: { readonly [K in RoomEntityKind]: (chatId: Cha
   // The inherited room rack follows eligible scope changes as well as the assembly previews.
   "world-info": (_chatId, trpc) => [trpc.worldInfo.listForChat.pathFilter(), trpc.chat.previewContextFit.pathFilter(), ...promptPreviewReads(trpc)],
   // #1733/#1742 — the room's regex. FOUR reads and no more: the member-readable room rack
-  // (`regex.listForChat`, room-public), the room's display set (member-readable, `displayScriptsRead`), the
+  // (`regex.listForChat`: the host's whole room tier, a member only the shared enabled display rows), the room's display set (member-readable, `displayScriptsRead`), the
   // HOST's effective read (the section's whole body, host-gated), and the assembly-derived family every tier
   // change moves (the host-tier union feeds the prompt pass, which runs inside the preview build). No `regex.listScripts`/`listGlobal` row: those are
   // OWNER-scoped, so a member holds no cache entry for them and the owner's own devices already ride the
@@ -225,7 +225,8 @@ const ROOM_ENTITY_HEAL_FILTERS: { readonly [K in RoomEntityKind]: (chatId: ChatI
   persona: (_chatId, trpc) => [trpc.worldInfo.listForChat.pathFilter()],
   // The inherited rack may have missed a source-scope fan while this room was dark.
   "world-info": (_chatId, trpc) => [trpc.worldInfo.listForChat.pathFilter()],
-  // #1733 — the room's regex rack (`regex.listForChat`) and its display set, both member-readable. NOT
+  // #1733 — the room's regex rack (`regex.listForChat`, a member's half following the room's display sharing) and
+  // its display set, both member-readable. NOT
   // `chat.listEffectiveRegex`: that read is HOST-GATED, and the host is the writer, so their every device
   // already rides the owner-plane `regexChanged`. NOT `regex.listScripts`/`listGlobal`: owner-scoped.
   regex: (chatId, trpc) => [trpc.regex.listForChat.queryFilter({ chatId }), ...displayScriptsRead(trpc, chatId)],

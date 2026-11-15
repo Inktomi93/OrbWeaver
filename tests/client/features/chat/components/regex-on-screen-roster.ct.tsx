@@ -139,6 +139,8 @@ test("a member whose host switched sharing off sees only their own Everywhere sc
   expect(served.some((entry) => entry.script.id === own.id && entry.from === REGEX_VIEWER_SOURCE)).toBe(true);
   await expect.poll(() => rosterTitles(page)).toEqual(served.map((entry) => entry.script.name));
   expect(await rosterTitles(page)).not.toContain(hostTint.name);
+  // The member's room rack follows the same switch: it holds no room tier at all.
+  await expect(page.locator('[data-slot="regex-tier"]')).toHaveCount(0);
 });
 
 test("a member whose host never touched sharing sees the room's scripts first, and only their own row carries a switch", async ({
@@ -163,6 +165,10 @@ test("a member whose host never touched sharing sees the room's scripts first, a
   await expect.poll(() => rosterTitles(page)).toEqual(titles);
   await expect(rosterRow(page, own.name).getByRole("switch")).toHaveCount(1);
   await expect(rosterRow(page, hostTint.name).getByRole("switch")).toHaveCount(0);
+  // The member's room rack lists the shared script in the room's tier, with no control on it.
+  const rack = page.locator('[data-slot="regex-tier"][data-tier="chat"]');
+  await expect(rack.getByText(hostTint.name, { exact: true })).toBeVisible();
+  await expect(rack.getByRole("switch")).toHaveCount(0);
 });
 
 test("the host's sharing switch reads on in a room that never touched it, and switching it off takes the room's scripts off a member's screen", async ({

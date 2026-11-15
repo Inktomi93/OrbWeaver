@@ -27,9 +27,11 @@
 // appearance name).
 //
 // MEMBER VIEW (D19). The union resolves under the host's frozen `runAsUserId`, so the effective read is
-// host-gated and a member reads the room's own tier through `regex.listForChat` (member-gated, room-public).
-// A member gets the rows and NO controls — the §8.1 permission-OMIT at row level, the Lorebooks rack's
-// shape — plus one line saying whose regex this is. Nothing about the host's library leaks.
+// host-gated and a member reads the room's own tier through `regex.listForChat` (member-gated). That read follows the
+// room's display sharing: the enabled display scripts the host shares, and nothing while sharing is off; the host's
+// prompt scripts never reach it. A member gets those rows and NO controls — the §8.1 permission-OMIT at row level,
+// the Lorebooks rack's shape — plus one line saying which case this room is in. Nothing else of the host's library
+// leaks.
 
 import type { RegexTierGroupView, RegexTierKey } from "@orb/contracts/chat";
 import { REGEX_VIEWER_SOURCE } from "@orb/contracts/chat";
@@ -100,13 +102,13 @@ function HostRegexHeading({ chatId }: { readonly chatId: ChatId }): ReactNode {
   return <RegexKicker chip={data === undefined ? null : hostChip(data.enabled, data.effective.length)} />;
 }
 
-/** A member's chip counts only the rows that could run — the room's own tier, enabled. It cannot say `off`:
- *  the master is the host's flag and is not on the member's read, so the honest member chip is a count of
- *  what this room carries (see the member line in the body, which says whose regex this is). */
+/** A member's chip counts the room's display scripts the host shares with them, which is all the member's read
+ *  carries: enabled display rows, and none while sharing is off. It cannot say `off`: the master is the host's flag
+ *  and is not on the member's read (see the member line in the body, which says which case this room is in). */
 function MemberRegexHeading({ chatId }: { readonly chatId: ChatId }): ReactNode {
   const trpc = useTRPC();
   const { data } = useQuery(trpc.regex.listForChat.queryOptions({ chatId }));
-  return <RegexKicker chip={countChip((data ?? []).filter((script) => script.enabled).length)} />;
+  return <RegexKicker chip={countChip(data?.length ?? 0)} />;
 }
 
 /** A zero count spends no chip (the `HeadingWithCount` rule — a "0" chip is noise). */
@@ -182,26 +184,40 @@ function MemberRegexBody({ chatId }: { readonly chatId: ChatId }): ReactElement 
   const switchedOff = globals
     .filter((script) => !script.enabled && script.passes.includes(REGEX_DISPLAY_PASS))
     .map((script): RegexRosterOffEntry => ({ script, from: REGEX_VIEWER_SOURCE, off: "script" }));
+  const { data: chat } = useSuspenseQuery(roomRosterOptions(trpc, { chatId }));
   const tier = memberChatTier(scripts);
   return (
     <Stack data-slot="regex-section" gap="block">
-      <Text voice="gloss">The host’s regex applies to this room. Only the host can change it.</Text>
-      <RegexTierGroup
-        chatId={chatId}
-        // NULL, not 0: a member's read carries no run order at all (every `runsAt` is null for the reason
-        // `memberChatTier` states), so there is no set for a rank to be a position in — and a `0` would be
-        // a count claiming the room runs nothing.
-        effectiveCount={null}
-        isHost={false}
-        labels={new Map<RegexTierKey, string>()}
-        ownedScriptIds={new Set<RegexScriptId>()}
-        rows={tier.rows}
-        tier={tier}
-        tiers={[tier]}
-      />
+      <Text voice="gloss">{memberRackGloss(chat.hostDisplayScripts, scripts.length)}</Text>
+      {scripts.length === 0 ? null : (
+        <RegexTierGroup
+          chatId={chatId}
+          // NULL, not 0: a member's read carries no run order at all (every `runsAt` is null for the reason
+          // `memberChatTier` states), so there is no set for a rank to be a position in — and a `0` would be
+          // a count claiming the room runs nothing.
+          effectiveCount={null}
+          isHost={false}
+          labels={new Map<RegexTierKey, string>()}
+          ownedScriptIds={new Set<RegexScriptId>()}
+          rows={tier.rows}
+          tier={tier}
+          tiers={[tier]}
+        />
+      )}
       <RegexOnScreenGroup chatId={chatId} isHost={false} labels={new Map<RegexTierKey, string>()} switchedOff={switchedOff} />
     </Stack>
   );
+}
+
+/** What a member's rack holds: the host's shared display scripts, nothing yet attached, or nothing because sharing
+ *  is off. */
+function memberRackGloss(shared: boolean, count: number): string {
+  if (!shared) {
+    return "The host switched off sharing this room's display scripts, so none are listed here. Only the host can change that.";
+  }
+  return count === 0
+    ? "The host shares this room's display scripts with you, and none are attached yet. Only the host can change them."
+    : "The host's display scripts for this room, shared with you. Only the host can change them.";
 }
 
 /** The member's room tier as the ONE group shape the tier renderer takes — so a member's rows are the same
