@@ -9,7 +9,15 @@ import type { RecordedRequest } from "@orb/testkit/node/helpers";
 import { settledProviderError } from "../conformance/runtime.fixtures.ts";
 import type { SseEvent } from "../conformance/transport.fixtures.ts";
 import { eventResponse, scriptedResponses } from "../conformance/transport.fixtures.ts";
-import { createRuntimeRoot, ESCAPED_HAZARD_WORDS, generationCapability, observeRuntimeTimers, RUNTIME_KEY, wireConnection } from "./runtime.fixtures.ts";
+import {
+  createRuntimeRoot,
+  ESCAPED_HAZARD_WORDS,
+  generationCapability,
+  NANOGPT_FORBIDDEN_BODIES,
+  observeRuntimeTimers,
+  RUNTIME_KEY,
+  wireConnection,
+} from "./runtime.fixtures.ts";
 
 const HOSTED_ROWS = ["nanogpt", "literouter"] as const;
 type HostedRow = (typeof HOSTED_ROWS)[number];
@@ -335,12 +343,12 @@ const STRIKES: readonly {
     kind: "auth_failed",
     struck: true,
   },
-  // A 403 whose structured code names the key judges it; LiteRouter's words alone never do.
+  // A 403 whose structured code names the key judges it; words alone never do. The key check reads the same bodies.
   {
     name: "a NanoGPT 403 whose code names a wrong key",
     providerId: "nanogpt",
     status: 403,
-    body: { error: { message: "Invalid session", type: "invalid_api_key", code: "invalid_api_key", status: 403 } },
+    body: NANOGPT_FORBIDDEN_BODIES.wrongKey,
     kind: "auth_failed",
     struck: true,
   },
@@ -348,7 +356,7 @@ const STRIKES: readonly {
     name: "a NanoGPT 403 whose code names a missing key",
     providerId: "nanogpt",
     status: 403,
-    body: { error: { message: "Invalid Authentication", type: "invalid_request_error", code: "missing_api_key", status: 403 } },
+    body: NANOGPT_FORBIDDEN_BODIES.missingKey,
     kind: "auth_failed",
     struck: true,
   },
@@ -356,7 +364,15 @@ const STRIKES: readonly {
     name: "a NanoGPT 403 for a model the account cannot use",
     providerId: "nanogpt",
     status: 403,
-    body: { error: { message: "Model vendor/chat-model is not supported", type: "invalid_request_error", code: "model_not_supported" } },
+    body: NANOGPT_FORBIDDEN_BODIES.unsupportedModel,
+    kind: "invalid",
+    struck: false,
+  },
+  {
+    name: "a NanoGPT 403 whose words name the key",
+    providerId: "nanogpt",
+    status: 403,
+    body: NANOGPT_FORBIDDEN_BODIES.keyWordsOnly,
     kind: "invalid",
     struck: false,
   },
