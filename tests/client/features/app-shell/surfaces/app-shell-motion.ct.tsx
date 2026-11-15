@@ -437,30 +437,40 @@ test.describe("the list door on Chats", () => {
     await mount<typeof AppShellStory>(STORY, {});
     await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
     await waitForShellIdle(page);
-    await page.getByRole("button", { name: "Hide list panel", exact: true }).click();
-    await page.waitForFunction(() => (document.querySelector(".shell-main")?.getAnimations().length ?? 0) > 0);
-    const motion = await page.evaluate(() => {
+    // The readout is taken by a listener armed before the press, at the push's own start event: a poll after the press
+    // misses a push that has already ended on a slow runner.
+    await page.evaluate(() => {
       const main = document.querySelector(".shell-main");
       const pane = document.querySelector('.shell-panel[data-panel-side="list"]');
       const grid = document.querySelector(".shell-grid");
       if (main === null || pane === null || grid === null) {
         throw new Error("The shell is not mounted");
       }
-      const pushStyle = getComputedStyle(main);
-      const paneStyle = getComputedStyle(pane);
-      // A timing function holds commas of its own, so the transition lists split only on top-level commas.
-      const arms = (list: string): string[] =>
-        list
-          .replace(/(?<!\()\([^)]*\)/gu, (group) => group.replaceAll(",", "\u{e000}"))
-          .split(",")
-          .map((part) => part.trim().replaceAll("\u{e000}", ","));
-      const arm = arms(paneStyle.transitionProperty).indexOf("transform");
-      return {
-        push: { duration: pushStyle.animationDuration, easing: pushStyle.animationTimingFunction },
-        pane: { duration: arms(paneStyle.transitionDuration)[arm] ?? "absent", easing: arms(paneStyle.transitionTimingFunction)[arm] ?? "absent" },
-        gridTransition: getComputedStyle(grid).transitionProperty,
-      };
+      main.addEventListener(
+        "animationstart",
+        () => {
+          const pushStyle = getComputedStyle(main);
+          const paneStyle = getComputedStyle(pane);
+          // A timing function holds commas of its own, so the transition lists split only on top-level commas.
+          const arms = (list: string): string[] =>
+            list
+              .replace(/(?<!\()\([^)]*\)/gu, (group) => group.replaceAll(",", "\u{e000}"))
+              .split(",")
+              .map((part) => part.trim().replaceAll("\u{e000}", ","));
+          const arm = arms(paneStyle.transitionProperty).indexOf("transform");
+          Reflect.set(globalThis, "__listDoorMotion", {
+            push: { duration: pushStyle.animationDuration, easing: pushStyle.animationTimingFunction },
+            pane: { duration: arms(paneStyle.transitionDuration)[arm] ?? "absent", easing: arms(paneStyle.transitionTimingFunction)[arm] ?? "absent" },
+            gridTransition: getComputedStyle(grid).transitionProperty,
+          });
+        },
+        { once: true },
+      );
     });
+    await page.getByRole("button", { name: "Hide list panel", exact: true }).click();
+    const readout = await page.waitForFunction((): unknown => Reflect.get(globalThis, "__listDoorMotion"));
+    const timing = z.object({ duration: z.string(), easing: z.string() });
+    const motion = z.object({ push: timing, pane: timing, gridTransition: z.string() }).parse(await readout.jsonValue());
     expect(motion.push.duration).not.toBe("0s");
     expect(motion.push).toStrictEqual(motion.pane);
     expect(motion.gridTransition).not.toContain("grid-template-columns");

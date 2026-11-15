@@ -363,7 +363,7 @@ export { THEME_RADIUS_LABELS } from "./theme-radius-labels.ts";
 export { timeLib, viewerTimeZone } from "./time.ts";
 export { createToastNotify } from "./toast-notify.ts";
 export { formatTrpcOp } from "./trpc-devlog.ts";
-export { trpcErrorCode, trpcErrorReason } from "./trpc-error-reason.ts";
+export { trpcErrorCode, trpcErrorMessage, trpcErrorReason } from "./trpc-error-reason.ts";
 export { isSilencedTurnAbort, turnAbortNotice, turnMutationToast } from "./turn-abort-notice.ts";
 export { oversizeUploadMessage } from "./upload-cap-check.ts";
 export { withoutUrlSearchParam } from "./url-search.ts";
