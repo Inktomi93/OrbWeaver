@@ -64,18 +64,20 @@ const MESSAGE_ROW = '[data-slot="message-row"]';
 const MESSAGE_BODY = `${MESSAGE_ROW} [data-slot="message-row-body"]`;
 const BUBBLE = `${MESSAGE_ROW} [data-slot="message-bubble"]`;
 const CONTENT_COLUMN = `${MESSAGE_ROW} [data-slot="message-content-column"]`;
-// R2 is explicitly one ordinary short message, not a sticky attribution band; every selector is scoped
+// R2 is explicitly one ordinary short message, not a pinned attribution band; every selector is scoped
 // through the same relational row so census, pixels, merge and cascade cannot judge different siblings.
-const SHORT_ROW = `${MESSAGE_ROW}:has([data-slot="message-name-row"]:not([data-sticky]) [data-slot="message-attribution"]):has([data-slot="message-metadata-timestamp"])`;
+// `data-sticky` marks every settled row's header (it can pin at any height), so the at-rest header is the
+// one without `data-pinned`.
+const SHORT_ROW = `${MESSAGE_ROW}:has([data-slot="message-name-row"]:not([data-pinned]) [data-slot="message-attribution"]):has([data-slot="message-metadata-timestamp"])`;
 const SHORT_BUBBLE = `${SHORT_ROW} [data-slot="message-bubble"]`;
-const SHORT_NAME_ROW = `${SHORT_ROW} [data-slot="message-name-row"]:not([data-sticky])`;
+const SHORT_NAME_ROW = `${SHORT_ROW} [data-slot="message-name-row"]:not([data-pinned])`;
 const SHORT_ATTRIBUTION = `${SHORT_NAME_ROW} [data-slot="message-attribution"]`;
 const SHORT_TIMESTAMP = `${SHORT_NAME_ROW} [data-slot="message-metadata-timestamp"]`;
 const SHORT_CONTENT_COLUMN = `${SHORT_ROW} [data-slot="message-content-column"]`;
 // R5 takes the same relational posture around the one ordinary row whose action cluster it reveals.
-const ACTION_ROW = `${MESSAGE_ROW}:has([data-slot="message-name-row"]:not([data-sticky]) [data-slot="message-actions-row"])`;
+const ACTION_ROW = `${MESSAGE_ROW}:has([data-slot="message-name-row"]:not([data-pinned]) [data-slot="message-actions-row"])`;
 const ACTION_BUBBLE = `${ACTION_ROW} [data-slot="message-bubble"]`;
-const ACTION_NAME_ROW = `${ACTION_ROW} [data-slot="message-name-row"]:not([data-sticky])`;
+const ACTION_NAME_ROW = `${ACTION_ROW} [data-slot="message-name-row"]:not([data-pinned])`;
 const ACTIONS_SLOT = `${ACTION_NAME_ROW} [data-slot="message-actions-slot"]`;
 const ACTIONS_ROW = `${ACTIONS_SLOT} [data-slot="message-actions-row"]`;
 const ACTION_BUTTONS = `${ACTIONS_ROW} button:not([disabled])`;
