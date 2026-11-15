@@ -359,6 +359,70 @@ test("a panel whose stylesheet holds blank lines draws whole in its frame: every
   expect(sourceIn(shown)).toEqual([]);
 });
 
+const CARD = '[data-slot="immersive-card"]';
+const CARD_COLOR = "rgb(42, 157, 143)";
+// A card written as a card beside the banner panel. Its body sits under the banner's own class, so the reply's
+// stylesheet would color it if it reached the card's frame; its own CSS names the reply panel's element, so it would
+// color that if it reached the reply's frame.
+const MARKED_CARD_BODY = [
+  '<scene_header location="Camelot · Great Hall" />',
+  "",
+  ':::card title="Ledger"',
+  '<div class="w6p-banner"><strong id="w6p-card-strong">Ledger entry</strong></div><style>#w6p-location{color:#2A9D8F !important}</style>',
+  ":::",
+  "",
+  'Guinevere sets down her goblet. "You are late, Arthur."',
+].join("\n");
+
+test("a marked card in a styled reply keeps its chrome in its own frame, and neither frame's stylesheet reaches the other", async ({ corpus, mount, page }) => {
+  const room = await openStyledRoom(MARKED_CARD_BODY);
+  await using root = room.root;
+  await using _routes = await serveRoom(page, root, corpus);
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  const card = page.locator(CARD);
+  await expect(card.locator('[data-slot="immersive-card-header"]')).toBeVisible();
+  await expect(card.locator('[data-slot="immersive-card-collapse"]')).toBeVisible();
+  const cardStrong = card.locator(SANDBOX).contentFrame().locator("#w6p-card-strong");
+  await expect(cardStrong).toHaveText("Ledger entry");
+  // The script's panel draws in the reply's frames, with no card chrome around it.
+  await expect(page.locator(`${REPLY_FRAME} ${CARD}`)).toHaveCount(0);
+  const location = page.locator(REPLY_FRAME).first().locator(SANDBOX).contentFrame().locator("#w6p-location");
+  await expect(location).toHaveText("Camelot · Great Hall");
+  // Positive control: the panel's own stylesheet applies in the reply frame.
+  expect(await location.evaluate((node) => getComputedStyle(node).color)).toBe(BANNER_COLOR);
+  expect(await cardStrong.evaluate((node) => getComputedStyle(node).color)).not.toBe(BANNER_COLOR);
+  // The prose after the card is a second reply run; the card's CSS reaches neither run.
+  await expect(page.locator(REPLY_FRAME)).toHaveCount(2);
+  for (const run of await page.locator(REPLY_FRAME).all()) {
+    const colors = await run
+      .locator(SANDBOX)
+      .contentFrame()
+      .locator("#w6p-location")
+      .evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).color));
+    expect(colors).not.toContain(CARD_COLOR);
+  }
+});
+
+// A second panel with no stylesheet of its own, under the banner's class: only the banner's rule colors it.
+const LATER_FIND = String.raw`/<scene_later \/>/g`;
+const LATER_TEMPLATE = '<div class="w6p-banner"><strong id="w6p-later">The gate opens</strong></div>';
+const SPLIT_BODY = ['<scene_header location="Camelot · Great Hall" />', "", ":::choices", "1. Follow her", ":::", "", "<scene_later />"].join("\n");
+
+test("a stylesheet before a choices split still styles the script's panel after it", async ({ corpus, mount, page }) => {
+  const room = await openStyledRoom(SPLIT_BODY);
+  await using root = room.root;
+  await addDisplayScript(await root.internalCallerFor(root.ownerId), "Later panel", LATER_FIND, LATER_TEMPLATE);
+  await using _routes = await serveRoom(page, root, corpus);
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  await expect(page.locator(REPLY_FRAME)).toHaveCount(2);
+  const later = page.locator(REPLY_FRAME).nth(1).locator(SANDBOX).contentFrame().locator("#w6p-later");
+  await expect(later).toHaveText("The gate opens");
+  expect(await later.evaluate((node) => getComputedStyle(node).color)).toBe(BANNER_COLOR);
+  // Positive control: the run that holds the stylesheet styles its own panel.
+  const location = page.locator(REPLY_FRAME).first().locator(SANDBOX).contentFrame().locator("#w6p-location");
+  expect(await location.evaluate((node) => getComputedStyle(node).color)).toBe(BANNER_COLOR);
+});
+
 test("on a row whose character renders plain text the same reply draws through the inert path with no style", async ({ corpus, mount, page }) => {
   const room = await openStyledRoom(STYLED_BODY);
   await using root = room.root;

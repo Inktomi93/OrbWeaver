@@ -96,7 +96,7 @@ test("the elements are read from their opener to just past their close", () => {
   const [style, script] = rawTextElements(text);
   expect(style === undefined ? "" : text.slice(style.start, style.end)).toMatch(/^<style>:host[\s\S]*<\/style>$/u);
   expect(style === undefined ? "" : text.slice(style.bodyStart, style.bodyEnd)).not.toContain("<");
-  expect(script).toEqual({ start: text.length - 9, bodyStart: text.length - 1, bodyEnd: text.length, end: text.length, closed: false });
+  expect(script).toEqual({ name: "script", start: text.length - 9, bodyStart: text.length - 1, bodyEnd: text.length, end: text.length, closed: false });
 });
 
 test("the frame's lift takes out each closed element's text, keeps its tags, and leaves a fenced sample and an unclosed element alone", () => {

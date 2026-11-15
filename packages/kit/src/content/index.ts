@@ -1674,6 +1674,7 @@ const VOID_TAG_NAMES: ReadonlySet<string> = new Set([
 /** One `<style>` or `<script>` element: offsets of its `<`, its text, and just past its close's `>`. An element whose
  *  close has not arrived runs to the end of the text. */
 export interface RawTextElement {
+  readonly name: RawTextName;
   readonly start: number;
   readonly bodyStart: number;
   readonly bodyEnd: number;
@@ -1693,6 +1694,15 @@ function isRawTextName(name: string): name is RawTextName {
 /** Every `<style>` and `<script>` element in `content`, in order, as HTML reads them (see {@link readMarkup}). */
 export function rawTextElements(content: string): readonly RawTextElement[] {
   return readMarkup(content).rawText;
+}
+
+/** Each closed `<style>` element outside a code fence, whole and in order: the stylesheets a frame document drawn from
+ *  `content` holds, which every other frame of the same reply carries too. */
+export function frameStyleElements(content: string): readonly string[] {
+  const fenced = codeFenceCursor(content);
+  return rawTextElements(content).flatMap((element) =>
+    element.name === "style" && element.closed && !fenced(element.start) ? [content.slice(element.start, element.end)] : [],
+  );
 }
 
 /** `content` with the text of each closed `<style>` and `<script>` element outside a code fence replaced by `mark`, its
@@ -1903,7 +1913,7 @@ function readMarkupToken(
 // The raw-text element `name` whose opener's `<` is at `lt`. An opener whose `>` has not arrived, or a close that has
 // not, runs it to the end of the text, which conceals rather than releases.
 function rawTextElementAt(content: string, lt: number, name: RawTextName): RawTextElement {
-  const toEnd = (bodyStart: number): RawTextElement => ({ start: lt, bodyStart, bodyEnd: content.length, end: content.length, closed: false });
+  const toEnd = (bodyStart: number): RawTextElement => ({ name, start: lt, bodyStart, bodyEnd: content.length, end: content.length, closed: false });
   const open = tagEndFrom(content, lt, false);
   if (open === -1) {
     return toEnd(content.length);
@@ -1912,7 +1922,7 @@ function rawTextElementAt(content: string, lt: number, name: RawTextName): RawTe
   close.lastIndex = open + 1;
   const found = close.exec(content);
   const gt = found === null ? -1 : content.indexOf(">", found.index);
-  return found === null || gt === -1 ? toEnd(open + 1) : { start: lt, bodyStart: open + 1, bodyEnd: found.index, end: gt + 1, closed: true };
+  return found === null || gt === -1 ? toEnd(open + 1) : { name, start: lt, bodyStart: open + 1, bodyEnd: found.index, end: gt + 1, closed: true };
 }
 
 // One complete tag into the open-element stacks: an opener is pushed, a close pops its name's innermost opener.

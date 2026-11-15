@@ -1,10 +1,11 @@
 // A styled reply split into the runs one card frame draws and the blocks that stay native (D354). A frame
 // document is static markup, so anything that needs the app stays outside it and splits the run: a media block
 // (an owned image is session-gated and cannot load inside an opaque-origin frame), a `:::choices` set (its
-// buttons send the next turn) and a paragraph carrying a dice stamp (its chip is a live control).
+// buttons send the next turn), a paragraph carrying a dice stamp (its chip is a live control) and a marked card (its
+// chrome is the app's).
 
-import type { MessageContentBlock } from "@orb/contracts/chat";
-import { rawTextElements, tokenizeContent } from "@orb/kit/content";
+import type { CardTrust, MessageContentBlock } from "@orb/contracts/chat";
+import { frameStyleElements, rawTextElements, tokenizeContent } from "@orb/kit/content";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { toContentBlocks } from "./content-blocks.ts";
 
@@ -13,10 +14,29 @@ export type FrameReplySegment =
   | { readonly kind: "markdown"; readonly markdown: string; readonly tokens: ThemeScopeTokens | undefined }
   | { readonly kind: "card"; readonly html: string };
 
+/** The stylesheets of a reply's other frame runs: those before this run, and those after it. */
+export interface ReplyRunStyles {
+  readonly before: string;
+  readonly after: string;
+}
+
+interface NativePart {
+  readonly kind: "native";
+  readonly block: MessageContentBlock;
+  readonly tokens: ThemeScopeTokens | undefined;
+}
+
+interface UnstyledRun {
+  readonly kind: "frame";
+  readonly segments: readonly FrameReplySegment[];
+}
+
+type UnstyledPart = UnstyledRun | NativePart;
+
 /** One part of a framed reply, in reading order. */
-export type ReplyPart =
-  | { readonly kind: "frame"; readonly segments: readonly FrameReplySegment[] }
-  | { readonly kind: "native"; readonly block: MessageContentBlock; readonly tokens: ThemeScopeTokens | undefined };
+export type ReplyPart = (UnstyledRun & { readonly styles: ReplyRunStyles }) | NativePart;
+
+const MARKED_CARD_ORIGIN = "fence" satisfies Extract<MessageContentBlock, { kind: "html-card" }>["origin"];
 
 /** One speaker's text and the tint it reads in (undefined outside a narrator room's attributed span). */
 export interface ReplySpan {
@@ -53,24 +73,26 @@ function paragraphs(markdown: string): readonly string[] {
 }
 
 /** Split one markdown block at its paragraphs only when one of them carries a dice stamp. */
-function markdownParts(markdown: string, tokens: ThemeScopeTokens | undefined): readonly ReplyPart[] {
+function markdownParts(markdown: string, tokens: ThemeScopeTokens | undefined): readonly UnstyledPart[] {
   if (!carriesDice(markdown)) {
     return [{ kind: "frame", segments: [{ kind: "markdown", markdown, tokens }] }];
   }
   return paragraphs(markdown).map(
-    (paragraph): ReplyPart =>
+    (paragraph): UnstyledPart =>
       carriesDice(paragraph)
         ? { kind: "native", block: { kind: "markdown", md: paragraph }, tokens }
         : { kind: "frame", segments: [{ kind: "markdown", markdown: paragraph, tokens }] },
   );
 }
 
-function blockParts(block: MessageContentBlock, tokens: ThemeScopeTokens | undefined): readonly ReplyPart[] {
+// A card written as a card (`:::card`) keeps its own chrome and frame wherever it sits, so it stays native. A lenient
+// card is markup the reply itself holds, script-written or not, and draws in the reply's frame with no chrome.
+function blockParts(block: MessageContentBlock, tokens: ThemeScopeTokens | undefined): readonly UnstyledPart[] {
   switch (block.kind) {
     case "markdown":
       return markdownParts(block.md, tokens);
     case "html-card":
-      return [{ kind: "frame", segments: [{ kind: "card", html: block.html }] }];
+      return block.origin === MARKED_CARD_ORIGIN ? [{ kind: "native", block, tokens }] : [{ kind: "frame", segments: [{ kind: "card", html: block.html }] }];
     case "media":
     case "choices":
       return [{ kind: "native", block, tokens }];
@@ -83,11 +105,27 @@ function assertNever(value: never): never {
   throw new Error(`reply parts: unhandled block ${JSON.stringify(value)}`);
 }
 
-/** The reply's parts: neighbouring frame runs merge, so a reply with nothing native is exactly one frame. */
-export function replyParts(spans: readonly ReplySpan[], options: { readonly lenientHtml: boolean }): readonly ReplyPart[] {
-  const parts: ReplyPart[] = [];
+function runStyles(segments: readonly FrameReplySegment[]): string {
+  return segments.flatMap((segment) => frameStyleElements(segment.kind === "markdown" ? segment.markdown : segment.html)).join("");
+}
+
+// Each frame run is its own document, so a stylesheet one run holds would not reach a panel in another. Every run
+// carries the reply's other runs' stylesheets around its own body, in reading order, so the cascade is the one a
+// single frame would have. A native block is not a run: a marked card's CSS stays in its own frame, and the reply's
+// stylesheets never reach it.
+function withReplyStyles(parts: readonly UnstyledPart[]): readonly ReplyPart[] {
+  const styles = parts.map((part) => (part.kind === "frame" ? runStyles(part.segments) : ""));
+  return parts.map((part, index) =>
+    part.kind === "frame" ? { ...part, styles: { before: styles.slice(0, index).join(""), after: styles.slice(index + 1).join("") } } : part,
+  );
+}
+
+/** The reply's parts: neighbouring frame runs merge, so a reply with nothing native is exactly one frame. `cardTrust` is
+ *  the row's resolved card tier, which a native card renders at. */
+export function replyParts(spans: readonly ReplySpan[], options: { readonly lenientHtml: boolean; readonly cardTrust: CardTrust }): readonly ReplyPart[] {
+  const parts: UnstyledPart[] = [];
   for (const span of spans) {
-    for (const block of toContentBlocks(span.text, { cardTrust: "tierB", lenientHtml: options.lenientHtml, keepUnknownDirectives: true })) {
+    for (const block of toContentBlocks(span.text, { cardTrust: options.cardTrust, lenientHtml: options.lenientHtml, keepUnknownDirectives: true })) {
       for (const part of blockParts(block, span.tokens)) {
         const previous = parts.at(-1);
         if (part.kind === "frame" && previous?.kind === "frame") {
@@ -98,5 +136,5 @@ export function replyParts(spans: readonly ReplySpan[], options: { readonly leni
       }
     }
   }
-  return parts;
+  return withReplyStyles(parts);
 }

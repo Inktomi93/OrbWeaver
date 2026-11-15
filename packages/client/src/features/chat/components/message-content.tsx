@@ -177,7 +177,7 @@ function FramedReply({
   readonly cardOrigin: CardOrigin | undefined;
   readonly speakerName: string | undefined;
 }): ReactElement {
-  const parts = replyParts(spans, { lenientHtml: render.lenientCards });
+  const parts = replyParts(spans, { lenientHtml: render.lenientCards, cardTrust: render.cardTier });
   return (
     <Stack gap="row" data-slot="message-content-framed" ref={observeBody}>
       {parts.map((part, index) => {
@@ -189,6 +189,7 @@ function FramedReply({
           <ReplyFrame
             key={key}
             segments={part.segments}
+            styles={part.styles}
             colorQuotes={render.colorQuotes}
             cardOrigin={cardOrigin}
             speakerName={speakerName}
