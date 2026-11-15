@@ -1,6 +1,6 @@
 // Shared owner data and injected operations; implementations and authority resolution stay in server domains.
 
-import type { AssetId, CharacterId, ChatId, DocumentId, EmbedGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ConsentingHostId, DocumentId, EmbedGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { EmbedTargetRefusal, UserConnection } from "../inference/connection.ts";
 import type { WorkloadRunScope } from "../workloads/execution.ts";
 import type { EmbeddingTask } from "./accounting.ts";
@@ -80,8 +80,9 @@ interface PruneStaleDigestsParams {
 
 export type PruneMemoryBlocksParams = PruneDigestBlocksParams | PruneSegmentBlocksParams | PruneStaleDigestsParams;
 
-/** Resolve the host's current concrete embed space for memory planning. */
-export type ResolveMemoryEmbedSpaceOp = (hostUserId: UserId) => Promise<MemoryEmbedSpace>;
+/** Resolve the host's current concrete embed space for memory planning.
+ *  @remarks The resolve can width-probe the host's encoder and move its target, so it takes the consent proof. */
+export type ResolveMemoryEmbedSpaceOp = (hostUserId: ConsentingHostId) => Promise<MemoryEmbedSpace>;
 
 /** Reclaim the memory vector rows whose blocks stopped existing or were proven stale. */
 export type EmbeddingsPruneBlocksOp = (params: PruneMemoryBlocksParams) => Promise<void>;

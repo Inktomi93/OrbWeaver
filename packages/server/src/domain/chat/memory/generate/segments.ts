@@ -22,7 +22,7 @@
 
 import type { StoreSegmentParams } from "@orb/contracts/chat";
 import type { MemoryEmbedSpace } from "@orb/contracts/embeddings";
-import type { ChatId, UserId } from "@orb/kit/ids";
+import type { ChatId, ConsentingHostId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import { GenerationSupersededError } from "#primitives/embedding-generation";
 import type { ChatContext } from "#src/domain/chat/contract/context.ts";
@@ -36,11 +36,10 @@ import { blockHash, sliceBlocks } from "./substrate/transcript.ts";
  *  structural literal). Segments are chat-wide, so this takes a bare `chatId` (no scope bucket). */
 interface GenerateSegmentsArgs {
   readonly chatId: ChatId;
-  /** Fallback vector owner when no explicit owner or pinned embedding space is supplied. */
-  readonly funderUserId: UserId;
   readonly config?: MemoryConfig | null | undefined;
   readonly signal: AbortSignal;
-  readonly embedOwnerId?: UserId | undefined;
+  /** The room host whose encoder embeds the segments and whose space holds them. */
+  readonly embedOwnerId: ConsentingHostId;
 }
 
 /** One chat's collected segment work: the chunk writes that survived the hash gate, plus the counts the pass
@@ -77,7 +76,7 @@ export async function collectSegments(ctx: ChatContext, args: GenerateSegmentsAr
   if (cutoff < cfg.blockSize) {
     return empty;
   }
-  const embedSpace = await ctx.resolveMemoryEmbedSpace(args.embedOwnerId ?? args.funderUserId);
+  const embedSpace = await ctx.resolveMemoryEmbedSpace(args.embedOwnerId);
 
   const canon = await loadCanonThroughSeq(ctx.db, args.chatId, cutoff);
   const macroNames = await loadTranscriptNames(ctx.db, canon);
