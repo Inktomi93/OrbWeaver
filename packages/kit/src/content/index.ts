@@ -705,26 +705,48 @@ function tryLenientMarkupFence(content: string, lines: readonly Line[], i: numbe
   return { pieces: [{ kind: "span", span }, ...tailPiece(content, lines, closeIdx, false)], next: closeIdx + 1 };
 }
 
-/** §4.8 naked-HTML arm: a contiguous ≥N-line element-majority run opening with a block-level tag. */
-function tryLenientBlock(content: string, lines: readonly Line[], i: number): BlockResult | null {
+// A lenient run from line `i`: the index past its last line (a blank or code-fence line ends it, unless it is a
+// raw-text element's text), and the lines the majority counts, which leave that text out.
+function lenientRun(
+  lines: readonly Line[],
+  i: number,
+  covering: (offset: number) => RawTextElement | undefined,
+): { readonly next: number; readonly counted: readonly string[] } {
+  const counted: string[] = [];
+  let j = i;
+  for (let line = lines[j]; line !== undefined; line = lines[j]) {
+    const t = matchText(line);
+    if (covering(line.start) === undefined) {
+      if (t.trim().length === 0 || t.startsWith(CODE_FENCE_MARK)) {
+        break;
+      }
+      counted.push(line.text);
+    }
+    j += 1;
+  }
+  return { next: j, counted };
+}
+
+/** §4.8 naked-HTML arm: a contiguous ≥N-line element-majority run opening with a block-level tag. A `<style>` or
+ *  `<script>` element is one unit of the run: a blank line inside one does not end it, and its own lines are not
+ *  counted toward the majority. */
+function tryLenientBlock(env: ScanEnv, i: number): BlockResult | null {
+  const { content, lines } = env;
   const first = lines[i];
   if (first === undefined || !LENIENT_BLOCK_OPEN_RE.test(matchText(first))) {
     return null;
   }
-  let j = i;
-  while (j < lines.length) {
-    const line = lines[j];
-    const t = line === undefined ? "" : matchText(line);
-    if (t.trim().length === 0 || t.startsWith(CODE_FENCE_MARK)) {
-      break;
-    }
-    j += 1;
-  }
-  const runLines = sliceTexts(lines, i, j);
-  const last = lines[j - 1];
-  if (last === undefined || !isElementMajorityHtml(runLines, LENIENT_HTML_MIN_LINES)) {
+  const covering = rawTextCursor(env.rawText, firstRawTextEndingAfter(env.rawText, first.start));
+  // A tag line inside a stylesheet or script is its text, not a block.
+  if (covering(first.start) !== undefined) {
     return null;
   }
+  const { next: j, counted } = lenientRun(lines, i, covering);
+  const last = lines[j - 1];
+  if (last === undefined || !isElementMajorityHtml(counted, LENIENT_HTML_MIN_LINES)) {
+    return null;
+  }
+  const runLines = sliceTexts(lines, i, j);
   const body = runLines.join("\n");
   const raw = content.slice(first.start, last.end);
   const span: ContentSpan = { kind: "card", title: deriveCardTitle(body), body, origin: "lenient", raw };
@@ -744,6 +766,24 @@ interface ScanEnv {
   readonly lenient: boolean;
   /** Final-body semantics: a registered fence with no close consumes to EOF (`TokenizeContentOptions`). */
   readonly committed: boolean;
+  /** The body's `<style>` and `<script>` elements; read only when the lenient arm is on, the one step that needs them. */
+  readonly rawText: readonly RawTextElement[];
+}
+
+// The index of the first element in `rawText` that ends after `offset`. Elements are in order, so a binary search: a
+// lenient run per block line must not rescan every element before it.
+function firstRawTextEndingAfter(rawText: readonly RawTextElement[], offset: number): number {
+  let low = 0;
+  let high = rawText.length;
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+    if ((rawText[middle]?.end ?? Number.POSITIVE_INFINITY) > offset) {
+      high = middle;
+    } else {
+      low = middle + 1;
+    }
+  }
+  return low;
 }
 
 /** A code-fence delimiter line: toggle the fence state (its own line stays literal); the lenient html arm may
@@ -773,7 +813,7 @@ function stepLine(env: ScanEnv, i: number, inCode: boolean): StepState {
     return { ...fence, inCode };
   }
   if (env.lenient) {
-    const block = tryLenientBlock(env.content, env.lines, i);
+    const block = tryLenientBlock(env, i);
     if (block !== null) {
       return { ...block, inCode };
     }
@@ -1021,7 +1061,14 @@ function expandPieces(content: string, pieces: readonly Piece[]): Expanded[] {
  * DEGRADES, never throws, on all persisted content (D51).
  */
 export function tokenizeContent(content: string, options?: TokenizeContentOptions): ContentSpan[] {
-  const env: ScanEnv = { content, lines: splitLines(content), lenient: options?.lenientHtml === true, committed: options?.committed === true };
+  const lenient = options?.lenientHtml === true;
+  const env: ScanEnv = {
+    content,
+    lines: splitLines(content),
+    lenient,
+    committed: options?.committed === true,
+    rawText: lenient ? rawTextElements(content) : [],
+  };
   const expanded = expandPieces(content, structuralPass(env));
   const spans: ContentSpan[] = [];
   let pending = "";
@@ -1580,6 +1627,11 @@ export function scanGhostContent(content: string): GhostContentSegment[] {
 // not arrived is held to the end of the text. A block whose opening line closes or opens no element (a close tag, a
 // self-closing or void tag, an element closed on its own line) ends at the next blank line, as CommonMark's does.
 //
+// A `<style>` or `<script>` element is ONE UNIT wherever it opens on a line ({@link rawTextElements}): HTML reads its
+// text raw to its close, so no blank line, tag or comment inside it ends a block or opens one. A block ends past the
+// close of every such element it opens, and the lines of one opened inside a paragraph stay that paragraph, which the
+// strip below then removes whole. Every splitter here reads them from the one reader, `readMarkup`.
+//
 // Inline markup in a paragraph streams as the paragraph through the inert allowlist, which drops its attributes and
 // keeps its text; an inline `<style>` or `<script>` element is removed with its content first, because the allowlist
 // would keep that content as prose. A tag still arriving on the last line is held as forming markup, so a half-written
@@ -1619,21 +1671,87 @@ const VOID_TAG_NAMES: ReadonlySet<string> = new Set([
   "track",
   "wbr",
 ]);
-const STYLE_ELEMENT_RE = /<(style|script)\b(?:[^>]*>[\s\S]*?(?:<\/\1\s*>|$)|[^>]*$)/gi;
+/** One `<style>` or `<script>` element: offsets of its `<`, its text, and just past its close's `>`. An element whose
+ *  close has not arrived runs to the end of the text. */
+export interface RawTextElement {
+  readonly start: number;
+  readonly bodyStart: number;
+  readonly bodyEnd: number;
+  readonly end: number;
+  readonly closed: boolean;
+}
+
+// The elements whose text HTML reads raw to their close, each with that close as HTML's tokenizer ends raw text: the
+// name in any case, then a space, `/`, `>` or the end.
+const RAW_TEXT_CLOSE_RES = { script: /<\/script(?=[\s/>]|$)/gi, style: /<\/style(?=[\s/>]|$)/gi } as const;
+type RawTextName = keyof typeof RAW_TEXT_CLOSE_RES;
+
+function isRawTextName(name: string): name is RawTextName {
+  return Object.hasOwn(RAW_TEXT_CLOSE_RES, name);
+}
+
+/** Every `<style>` and `<script>` element in `content`, in order, as HTML reads them (see {@link readMarkup}). */
+export function rawTextElements(content: string): readonly RawTextElement[] {
+  return readMarkup(content).rawText;
+}
+
+/** `content` with the text of each closed `<style>` and `<script>` element outside a code fence replaced by `mark`, its
+ *  index and `mark` again, and those texts in order. The tags stay, so a parser reads the same elements: the frame's
+ *  Markdown lift, which a blank line inside an element must not cut. `mark` must be a character `content` lacks. */
+export function liftRawTextBodies(content: string, mark: string): { readonly text: string; readonly bodies: readonly string[] } {
+  const bodies: string[] = [];
+  let text = "";
+  let from = 0;
+  const fenced = codeFenceCursor(content);
+  for (const element of rawTextElements(content)) {
+    if (!element.closed || element.bodyEnd === element.bodyStart || fenced(element.start)) {
+      continue;
+    }
+    text += `${content.slice(from, element.bodyStart)}${mark}${String(bodies.length)}${mark}`;
+    bodies.push(content.slice(element.bodyStart, element.bodyEnd));
+    from = element.bodyEnd;
+  }
+  return { text: text + content.slice(from), bodies };
+}
+
+// Whether an offset, asked in rising order, sits on a line inside a code fence or on a fence line itself, read as this
+// file's line grammar reads fences.
+function codeFenceCursor(content: string): (offset: number) => boolean {
+  const lines = splitLines(content);
+  let next = 0;
+  let inCode = false;
+  let fenced = false;
+  return (offset) => {
+    for (let line = lines[next]; line !== undefined && line.start <= offset; line = lines[next]) {
+      const fence = matchText(line).startsWith(CODE_FENCE_MARK);
+      fenced = fence || inCode;
+      inCode = fence ? !inCode : inCode;
+      next += 1;
+    }
+    return fenced;
+  };
+}
 
 /** Removes every `<style>` and `<script>` element with its content; an element whose close has not arrived is removed
  *  to the end. The inert allowlist drops both tags but keeps their content as prose. */
 export function stripStyleElements(text: string): string {
-  return text.replace(STYLE_ELEMENT_RE, "");
+  let kept = "";
+  let from = 0;
+  for (const element of rawTextElements(text)) {
+    kept += text.slice(from, element.start);
+    from = element.end;
+  }
+  return kept + text.slice(from);
 }
 
-// Where the tag that opens at `lt` ends: the first `>` after it on its line, outside a quoted attribute value, or -1
-// when it has not arrived. One pass, so a long line costs its length.
-function tagEndFrom(text: string, lt: number): number {
+// Where the tag that opens at `lt` ends: the first `>` after it, outside a quoted attribute value, or -1 when it has not
+// arrived. The line grammar reads a tag on its own line only; a raw-text opener is read across lines, as HTML reads it.
+// One pass, so a long line costs its length.
+function tagEndFrom(text: string, lt: number, onItsLine = true): number {
   let quote = "";
   for (let index = lt + 1; index < text.length; index += 1) {
     const char = text.charAt(index);
-    if (char === "\n") {
+    if (char === "\n" && onItsLine) {
       return -1;
     }
     if (quote !== "") {
@@ -1707,35 +1825,94 @@ function elementOpenedBy(opener: string): { readonly lt: number; readonly name: 
   return end === -1 || opener.charAt(end - 1) === "/" ? undefined : { lt, name };
 }
 
-// An element tag: `/` for a close, then the name a close repeats, the part before any `:` (`<copper:bite>`, `</copper>`).
-const ELEMENT_TAG_SOURCE = String.raw`<(\/?)([A-Za-z][\w.-]*)(?::[\w:.-]*)?(?=[\s/>])`;
+// A comment open, or an element tag: `/` for a close, then the name a close repeats, the part before any `:`
+// (`<copper:bite>`, `</copper>`).
+const MARKUP_TOKEN_SOURCE = String.raw`<!--|<(\/?)([A-Za-z][\w.-]*)(?::[\w:.-]*)?(?=[\s/>]|$)`;
 
-// For each element opener's `<`, the offset just past the `>` of its close; an opener whose close has not arrived has no
-// entry. Elements of the same name nest. ONE PASS, so the scan costs the text's length: after a tag the read resumes past
-// its `>` (a quoted `</x>` inside an attribute value closes nothing), and after a `<` whose `>` never arrives on its line
-// it resumes at the next line, as `stripTags` does.
-function elementCloses(content: string): ReadonlyMap<number, number> {
+interface MarkupRead {
+  /** For each element opener's `<`, the offset just past the `>` of its close; an opener whose close has not arrived
+   *  has no entry. */
+  readonly closes: ReadonlyMap<number, number>;
+  readonly rawText: readonly RawTextElement[];
+}
+
+// The ONE reader of where an element ends, for every splitter in this file and the frame's Markdown lift. Elements of
+// the same name nest. A `<style>` or `<script>` element is read to its close as HTML reads it, wherever it opens, so no
+// tag, comment or blank line inside it counts; a comment is skipped to its `-->`. ONE PASS, so the scan costs the text's
+// length: after a tag the read resumes past its `>` (a quoted `</x>` inside an attribute value closes nothing), after a
+// `<` whose `>` never arrives on its line it resumes at the next line, as `stripTags` does, and a raw-text element whose
+// close never arrives ends the read, because everything after it is its text.
+function readMarkup(content: string): MarkupRead {
   const closes = new Map<number, number>();
+  const rawText: RawTextElement[] = [];
   const openers = new Map<string, number[]>();
-  const tags = new RegExp(ELEMENT_TAG_SOURCE, "g");
+  const commentClose = { next: -1 };
+  const tags = new RegExp(MARKUP_TOKEN_SOURCE, "g");
   for (let tag = tags.exec(content); tag !== null; tag = tags.exec(content)) {
-    const end = tagEndFrom(content, tag.index);
-    if (end === -1) {
-      const newline = content.indexOf("\n", tag.index);
-      if (newline === -1) {
-        break;
-      }
-      tags.lastIndex = newline;
-      continue;
+    const resume = readMarkupToken(content, tag, { closes, rawText, openers, commentClose });
+    if (resume === -1) {
+      break;
     }
-    tags.lastIndex = end + 1;
-    pairElementTag(
-      { closing: tag[1] === "/", name: (tag[2] ?? "").toLowerCase(), lt: tag.index, selfClosing: content.charAt(end - 1) === "/", end },
-      openers,
-      closes,
-    );
+    tags.lastIndex = resume;
   }
-  return closes;
+  return { closes, rawText };
+}
+
+// One token of `readMarkup` into its tables: where the read resumes, or -1 when the rest of the text is this token's.
+function readMarkupToken(
+  content: string,
+  tag: RegExpExecArray,
+  into: {
+    readonly closes: Map<number, number>;
+    readonly rawText: RawTextElement[];
+    readonly openers: Map<string, number[]>;
+    /** The offset of the next `-->` found so far; -1 before any search, infinity when none is left. */
+    readonly commentClose: { next: number };
+  },
+): number {
+  const name = tag[2]?.toLowerCase();
+  if (name === undefined) {
+    // A comment that never closes is read past, not to the end: Markdown prints an unclosed inline `<!--` as text,
+    // so a style element after it is still one to strip.
+    // The next close is remembered, so many unclosed opens search the text once, not once each.
+    const after = tag.index + COMMENT_BLOCK_OPEN.length;
+    if (into.commentClose.next < after) {
+      const close = content.indexOf(COMMENT_BLOCK_CLOSE, after);
+      into.commentClose.next = close === -1 ? Number.POSITIVE_INFINITY : close;
+    }
+    return into.commentClose.next === Number.POSITIVE_INFINITY ? after : into.commentClose.next + COMMENT_BLOCK_CLOSE.length;
+  }
+  const closing = tag[1] === "/";
+  if (!closing && isRawTextName(name)) {
+    const element = rawTextElementAt(content, tag.index, name);
+    into.rawText.push(element);
+    if (!element.closed) {
+      return -1;
+    }
+    into.closes.set(element.start, element.end);
+    return element.end;
+  }
+  const end = tagEndFrom(content, tag.index);
+  if (end === -1) {
+    return content.indexOf("\n", tag.index);
+  }
+  pairElementTag({ closing, name, lt: tag.index, selfClosing: content.charAt(end - 1) === "/", end }, into.openers, into.closes);
+  return end + 1;
+}
+
+// The raw-text element `name` whose opener's `<` is at `lt`. An opener whose `>` has not arrived, or a close that has
+// not, runs it to the end of the text, which conceals rather than releases.
+function rawTextElementAt(content: string, lt: number, name: RawTextName): RawTextElement {
+  const toEnd = (bodyStart: number): RawTextElement => ({ start: lt, bodyStart, bodyEnd: content.length, end: content.length, closed: false });
+  const open = tagEndFrom(content, lt, false);
+  if (open === -1) {
+    return toEnd(content.length);
+  }
+  const close = RAW_TEXT_CLOSE_RES[name];
+  close.lastIndex = open + 1;
+  const found = close.exec(content);
+  const gt = found === null ? -1 : content.indexOf(">", found.index);
+  return found === null || gt === -1 ? toEnd(open + 1) : { start: lt, bodyStart: open + 1, bodyEnd: found.index, end: gt + 1, closed: true };
 }
 
 // One complete tag into the open-element stacks: an opener is pushed, a close pops its name's innermost opener.
@@ -1785,7 +1962,9 @@ function markupBlockEnd(lines: readonly Line[], i: number, closes: ReadonlyMap<n
     return lines.length;
   }
   const opener = matchText(line);
-  const element = RAW_TEXT_BLOCK_RE.test(opener) ? undefined : elementOpenedBy(opener);
+  // `pre` and `textarea` end by their close line; a style or script element ends where `readMarkup` read its close.
+  const lineClosed = RAW_TEXT_BLOCK_RE.exec(opener)?.[1]?.toLowerCase();
+  const element = lineClosed !== undefined && !isRawTextName(lineClosed) ? undefined : elementOpenedBy(opener);
   const close = element === undefined ? line.end : (closes.get(line.start + element.lt) ?? -1);
   if (close === -1) {
     return lines.length;
@@ -1834,12 +2013,36 @@ function opensMarkupBlock(content: string, line: Line, inParagraph: boolean): bo
   return !inParagraph && isLoneTagLine(text);
 }
 
+// The raw-text elements of a text from index `from`, asked in order of rising offsets: which one covers an offset, past
+// its opener.
+function rawTextCursor(rawText: readonly RawTextElement[], from = 0): (offset: number) => RawTextElement | undefined {
+  let next = from;
+  return (offset) => {
+    while (next < rawText.length && (rawText[next]?.end ?? offset) <= offset) {
+      next += 1;
+    }
+    const element = rawText[next];
+    return element !== undefined && element.start < offset ? element : undefined;
+  };
+}
+
+// The line index a block ending before line `end` really ends at: past the close of every raw-text element it cuts.
+function pastRawText(lines: readonly Line[], end: number, covering: (offset: number) => RawTextElement | undefined): number {
+  let next = end;
+  for (let cut = covering(lines[next]?.start ?? Number.POSITIVE_INFINITY); cut !== undefined; cut = covering(lines[next]?.start ?? Number.POSITIVE_INFINITY)) {
+    next = lineAfter(lines, next - 1, cut.end);
+  }
+  return next;
+}
+
 /** Split a styled reply's text into prose and held HTML blocks (see the section note). Code fence regions stay text.
  *  Each prose segment has its `<style>` and `<script>` elements removed, and a prose segment that is only whitespace is
- *  dropped, so two held blocks read as one. */
+ *  dropped, so two held blocks read as one. A `<style>` or `<script>` element is one unit wherever it opens: the lines
+ *  inside one that opened in prose stay that prose, and a block that one opens in ends past its close. */
 export function scanStyledHold(content: string): StyledHoldSegment[] {
   const lines = splitLines(content);
-  const closes = elementCloses(content);
+  const { closes, rawText } = readMarkup(content);
+  const covering = rawTextCursor(rawText);
   const segments: StyledHoldSegment[] = [];
   let pendingStart = 0;
   const flushText = (endExclusive: number): void => {
@@ -1853,6 +2056,12 @@ export function scanStyledHold(content: string): StyledHoldSegment[] {
   let i = 0;
   while (i < lines.length) {
     const line = lines[i] ?? { start: content.length, end: content.length, text: "" };
+    const inside = covering(line.start);
+    if (inside !== undefined) {
+      i = lineAfter(lines, i - 1, inside.end);
+      inParagraph = true;
+      continue;
+    }
     const text = matchText(line);
     const fence = text.startsWith(CODE_FENCE_MARK);
     inCode = fence ? !inCode : inCode;
@@ -1865,7 +2074,7 @@ export function scanStyledHold(content: string): StyledHoldSegment[] {
     if (segments.at(-1)?.kind !== "forming-markup") {
       segments.push({ kind: "forming-markup" });
     }
-    i = markupBlockEnd(lines, i, closes);
+    i = pastRawText(lines, markupBlockEnd(lines, i, closes), covering);
     pendingStart = lines[i]?.start ?? content.length;
     inParagraph = false;
   }

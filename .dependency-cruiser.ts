@@ -1110,6 +1110,9 @@ const PACKAGE_TEST_REACHES = {
   "tests/client/features/chat/lib/display-row.test.ts": {
     "packages/client/src/features/chat/lib/display-row.ts": "displayDepthsOf and roomStandingOf: the depth and seat inputs every row's display call reads",
   },
+  "tests/client/features/chat/lib/reply-parts.test.ts": {
+    "packages/client/src/features/chat/lib/reply-parts.ts": "replyParts: the feature-private split of a styled reply into frame runs and native blocks",
+  },
   "tests/client/features/chat/components/platform-pinned-band-height.suite.ct.tsx": {
     "packages/client/src/features/chat/lib/message-row-variants.ts": "MESSAGE_ROW_SKINS: the styles whose pinned band height the suite holds",
   },

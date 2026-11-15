@@ -4,7 +4,7 @@
 // buttons send the next turn) and a paragraph carrying a dice stamp (its chip is a live control).
 
 import type { MessageContentBlock } from "@orb/contracts/chat";
-import { tokenizeContent } from "@orb/kit/content";
+import { rawTextElements, tokenizeContent } from "@orb/kit/content";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { toContentBlocks } from "./content-blocks.ts";
 
@@ -25,10 +25,31 @@ export interface ReplySpan {
 }
 
 // A blank line ends a markdown paragraph, so splitting there never cuts one in two.
-const PARAGRAPH_BREAK = /\n[ \t]*\n/u;
+const PARAGRAPH_BREAK_SOURCE = String.raw`\n[ \t]*\n`;
 
 function carriesDice(markdown: string): boolean {
   return tokenizeContent(markdown, { committed: true }).some((span) => span.kind === "dice");
+}
+
+// The paragraphs of `markdown`. A blank line inside a `<style>` or `<script>` element is its text, not a paragraph
+// break: splitting there would put the rest of a stylesheet in a run of its own, as prose.
+function paragraphs(markdown: string): readonly string[] {
+  const elements = rawTextElements(markdown);
+  const parts: string[] = [];
+  let from = 0;
+  let element = 0;
+  for (const found of markdown.matchAll(new RegExp(PARAGRAPH_BREAK_SOURCE, "gu"))) {
+    while ((elements[element]?.end ?? Number.POSITIVE_INFINITY) <= found.index) {
+      element += 1;
+    }
+    if ((elements[element]?.start ?? Number.POSITIVE_INFINITY) < found.index) {
+      continue;
+    }
+    parts.push(markdown.slice(from, found.index));
+    from = found.index + found[0].length;
+  }
+  parts.push(markdown.slice(from));
+  return parts;
 }
 
 /** Split one markdown block at its paragraphs only when one of them carries a dice stamp. */
@@ -36,14 +57,12 @@ function markdownParts(markdown: string, tokens: ThemeScopeTokens | undefined): 
   if (!carriesDice(markdown)) {
     return [{ kind: "frame", segments: [{ kind: "markdown", markdown, tokens }] }];
   }
-  return markdown
-    .split(PARAGRAPH_BREAK)
-    .map(
-      (paragraph): ReplyPart =>
-        carriesDice(paragraph)
-          ? { kind: "native", block: { kind: "markdown", md: paragraph }, tokens }
-          : { kind: "frame", segments: [{ kind: "markdown", markdown: paragraph, tokens }] },
-    );
+  return paragraphs(markdown).map(
+    (paragraph): ReplyPart =>
+      carriesDice(paragraph)
+        ? { kind: "native", block: { kind: "markdown", md: paragraph }, tokens }
+        : { kind: "frame", segments: [{ kind: "markdown", markdown: paragraph, tokens }] },
+  );
 }
 
 function blockParts(block: MessageContentBlock, tokens: ThemeScopeTokens | undefined): readonly ReplyPart[] {

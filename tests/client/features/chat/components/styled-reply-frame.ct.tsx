@@ -318,6 +318,47 @@ test("a display script's banner draws in one routed frame with its own style, wh
   await expect(frame).toHaveAttribute("title", /\S/u);
 });
 
+// A tracker panel whose stylesheet opens after the panel's own tag and holds two blank lines and a comment: the
+// Markdown parse ends that HTML block at the first blank line. Its last rule, after the second blank line, colors the
+// summary.
+const TRACKER_TEMPLATE = [
+  '<div class="w6p-hud"><style>.w6p-hud{display:block} .w6p-hud *{margin:0}',
+  "",
+  ".w6p-hud details{padding:4px} .w6p-hud b{font-weight:600}",
+  "",
+  "/* Order check: keep the rows in place. */ .w6p-hud summary{color:#F4A261} .w6p-hud i *{padding:0}",
+  '</style><details class="w6p-hud-bar"><summary id="w6p-hud-summary">Tracker</summary><div>Row one</div></details></div>',
+].join("\n");
+const TRACKER_FIND = String.raw`/<scene_hud \/>/g`;
+const TRACKER_BODY = '<scene_hud />\n\nGuinevere sets down her goblet. "You are late, Arthur."';
+
+test("a panel whose stylesheet holds blank lines draws whole in its frame: every rule applies and none prints", async ({ corpus, mount, page }) => {
+  const room = await openStyledRoom(TRACKER_BODY);
+  await using root = room.root;
+  await addDisplayScript(await root.internalCallerFor(root.ownerId), "Tracker panel", TRACKER_FIND, TRACKER_TEMPLATE);
+  await using _routes = await serveRoom(page, root, corpus);
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  await expect(page.locator(`${REPLY_FRAME}[data-delivery="routed"] ${SANDBOX}`)).toHaveAttribute("data-delivery", "routed");
+  const frame = page.frameLocator(`${REPLY_FRAME} ${SANDBOX}`);
+  const summary = frame.locator("#w6p-hud-summary");
+  await expect(summary).toBeVisible();
+  // The rule after the stylesheet's second blank line reached the panel.
+  expect(await summary.evaluate((node) => getComputedStyle(node).color)).toBe(BANNER_COLOR);
+  // Positive control: the model's prose after the panel draws in the same frame.
+  await expect(frame.getByText("You are late, Arthur.", { exact: false })).toBeVisible();
+  // The text the reader sees: every text node in the frame's reply except a stylesheet's or script's own.
+  const shown = await frame.locator(BUBBLE).evaluate((node) => {
+    const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+    let text = "";
+    for (let current = walker.nextNode(); current !== null; current = walker.nextNode()) {
+      text += current.parentElement?.closest("style, script") === null ? (current.textContent ?? "") : "";
+    }
+    return text;
+  });
+  expect(shown).toContain("You are late, Arthur.");
+  expect(sourceIn(shown)).toEqual([]);
+});
+
 test("on a row whose character renders plain text the same reply draws through the inert path with no style", async ({ corpus, mount, page }) => {
   const room = await openStyledRoom(STYLED_BODY);
   await using root = room.root;
