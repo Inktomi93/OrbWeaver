@@ -24,6 +24,7 @@
 // A HANDLE THAT IS GONE (expired, or evicted under store pressure) loads the server's miss notice, which says so.
 // The frame then mints again once; a second miss renders the inert fallback, never the notice in place of the reply.
 
+import type { FrameStyleSheet } from "@orb/kit/content";
 import { FrameMarkdown, useFrameDocument } from "@orb/ui/frame-markdown";
 import { Stack } from "@orb/ui/layout";
 import { FILLS_MEASURE } from "@orb/ui/lib";
@@ -35,11 +36,13 @@ import { ConfirmDialog } from "#components";
 import { useCardFrameMint } from "#data";
 import { REPLY_FRAME_UNNAMED_TITLE, REPLY_LINK_CONFIRM_DESCRIPTION, REPLY_LINK_CONFIRM_LABEL, REPLY_LINK_CONFIRM_TITLE } from "../lib/reply-frame-names.ts";
 import { replyLinkWaitMs } from "../lib/reply-link-pace.ts";
-import type { FrameReplySegment } from "../lib/reply-parts.ts";
+import type { FrameReplySegment, ReplyRunStyles } from "../lib/reply-parts.ts";
 import type { CardOrigin } from "./card-block.tsx";
 
 export interface ReplyFrameProps {
   readonly segments: readonly FrameReplySegment[];
+  /** The stylesheets of the reply's other frame runs, which this run's document carries too. */
+  readonly styles: ReplyRunStyles;
   readonly colorQuotes: boolean;
   /** The room and speaker the reply was written in: the mint's policy selector. Absent ⇒ no frame, the fallback. */
   readonly cardOrigin: CardOrigin | undefined;
@@ -70,11 +73,23 @@ function bodySegment(segment: FrameReplySegment, index: number, colorQuotes: boo
   );
 }
 
-// The frame document's body: the bubble slot the transcript's reading typography keys on, then each run in order.
-function replyBody(segments: readonly FrameReplySegment[], colorQuotes: boolean): ReactElement {
+// The reply's other runs' stylesheets, each a bare style element: one applies wherever it sits and needs no box, so
+// nothing the reply's CSS does to a box can show it. Only the text and `media` are carried (`frameStyleElements`).
+function runStyles(sheets: readonly FrameStyleSheet[], side: string): readonly ReactElement[] {
+  return sheets.map((sheet, index) => (
+    // biome-ignore lint/security/noDangerouslySetInnerHtml: the same reply's own stylesheet text, for the sandboxed frame document only; this tree is rendered to a string, never mounted.
+    <style key={`${side}-${String(index)}`} media={sheet.media} dangerouslySetInnerHTML={{ __html: sheet.css }} />
+  ));
+}
+
+// The frame document's body: the bubble slot the transcript's reading typography keys on, then each run in order,
+// between the stylesheets of the reply's runs before and after this one.
+function replyBody(segments: readonly FrameReplySegment[], styles: ReplyRunStyles, colorQuotes: boolean): ReactElement {
   return (
     <div data-slot={BUBBLE_SLOT} data-frame-reply="">
+      {runStyles(styles.before, "before")}
       <Stack gap="row">{segments.map((segment, index) => bodySegment(segment, index, colorQuotes))}</Stack>
+      {runStyles(styles.after, "after")}
     </div>
   );
 }
@@ -96,13 +111,13 @@ function deliveryOf(input: {
   return !input.framedable || input.documentFailed || input.mintRefused || input.lost ? "fallback" : "held";
 }
 
-export function ReplyFrame({ segments, colorQuotes, cardOrigin, speakerName, held, fallback }: ReplyFrameProps): ReactElement {
+export function ReplyFrame({ segments, styles, colorQuotes, cardOrigin, speakerName, held, fallback }: ReplyFrameProps): ReactElement {
   const host = useRef<HTMLDivElement>(null);
   const sandbox = useSandboxTheme();
   // The sandbox theme is in the key, so a theme flip, a custom theme or a text scale reads the page's look again.
   const framed = useFrameDocument(
-    JSON.stringify([segments, colorQuotes, sandbox]),
-    () => replyBody(segments, colorQuotes),
+    JSON.stringify([segments, styles, colorQuotes, sandbox]),
+    () => replyBody(segments, styles, colorQuotes),
     (html) => (host.current === null ? undefined : { html, look: resolveFrameReplyLook(host.current, html) }),
   );
   const built = framed.state === "ready" ? framed.value : undefined;

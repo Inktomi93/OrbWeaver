@@ -10,6 +10,8 @@
 //
 // A hostile frame is played by evaluating in the frame's own document: `parent.postMessage` from there is exactly
 // what a reply's own script could send.
+
+import { PLAIN_REPLY_REASON } from "@orb/client/lib";
 import { CARD_FRAME_ROUTE, rendersTrustedHtml } from "@orb/contracts/chat";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
@@ -24,6 +26,7 @@ import { SCROLL_END_THRESHOLD_PX } from "@orb/ui/message-list";
 import type { FrameLocator, Locator, Page } from "@playwright/test";
 import { REPLY_LINK_CONFIRM_LABEL } from "#client/features/chat/lib/reply-frame-names.ts";
 import { REPLY_LINK_FIRST_WAIT_MS, REPLY_LINK_FREE_CANCELS } from "#client/features/chat/lib/reply-link-pace.ts";
+import { REPLY_CARRY_BUDGET_CHARS } from "#client/features/chat/lib/reply-parts.ts";
 import type { RoutedCardTextScaleStory, RoutedReplyBesideFieldStory } from "./_routed-card-text-scale-stories.tsx";
 import type { StyledReplyStreamStory } from "./_styled-reply-stream-stories.tsx";
 
@@ -316,6 +319,155 @@ test("a display script's banner draws in one routed frame with its own style, wh
   expect(await mainDocumentStyles(page)).not.toContain("w6p-banner");
   await expect(page.locator(".w6p-banner")).toHaveCount(0);
   await expect(frame).toHaveAttribute("title", /\S/u);
+});
+
+// A tracker panel whose stylesheet opens after the panel's own tag and holds two blank lines and a comment: the
+// Markdown parse ends that HTML block at the first blank line. Its last rule, after the second blank line, colors the
+// summary.
+const TRACKER_TEMPLATE = [
+  '<div class="w6p-hud"><style>.w6p-hud{display:block} .w6p-hud *{margin:0}',
+  "",
+  ".w6p-hud details{padding:4px} .w6p-hud b{font-weight:600}",
+  "",
+  "/* Order check: keep the rows in place. */ .w6p-hud summary{color:#F4A261} .w6p-hud i *{padding:0}",
+  '</style><details class="w6p-hud-bar"><summary id="w6p-hud-summary">Tracker</summary><div>Row one</div></details></div>',
+].join("\n");
+const TRACKER_FIND = String.raw`/<scene_hud \/>/g`;
+const TRACKER_BODY = '<scene_hud />\n\nGuinevere sets down her goblet. "You are late, Arthur."';
+
+test("a panel whose stylesheet holds blank lines draws whole in its frame: every rule applies and none prints", async ({ corpus, mount, page }) => {
+  const room = await openStyledRoom(TRACKER_BODY);
+  await using root = room.root;
+  await addDisplayScript(await root.internalCallerFor(root.ownerId), "Tracker panel", TRACKER_FIND, TRACKER_TEMPLATE);
+  await using _routes = await serveRoom(page, root, corpus);
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  await expect(page.locator(`${REPLY_FRAME}[data-delivery="routed"] ${SANDBOX}`)).toHaveAttribute("data-delivery", "routed");
+  const frame = page.frameLocator(`${REPLY_FRAME} ${SANDBOX}`);
+  const summary = frame.locator("#w6p-hud-summary");
+  await expect(summary).toBeVisible();
+  // The rule after the stylesheet's second blank line reached the panel.
+  expect(await summary.evaluate((node) => getComputedStyle(node).color)).toBe(BANNER_COLOR);
+  // Positive control: the model's prose after the panel draws in the same frame.
+  await expect(frame.getByText("You are late, Arthur.", { exact: false })).toBeVisible();
+  // The text the reader sees: every text node in the frame's reply except a stylesheet's or script's own.
+  const shown = await frame.locator(BUBBLE).evaluate((node) => {
+    const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+    let text = "";
+    for (let current = walker.nextNode(); current !== null; current = walker.nextNode()) {
+      text += current.parentElement?.closest("style, script") === null ? (current.textContent ?? "") : "";
+    }
+    return text;
+  });
+  expect(shown).toContain("You are late, Arthur.");
+  expect(sourceIn(shown)).toEqual([]);
+});
+
+const CARD = '[data-slot="immersive-card"]';
+const CARD_COLOR = "rgb(42, 157, 143)";
+// A card written as a card beside the banner panel. Its body sits under the banner's own class, so the reply's
+// stylesheet would color it if it reached the card's frame; its own CSS names the reply panel's element, so it would
+// color that if it reached the reply's frame.
+const MARKED_CARD_BODY = [
+  '<scene_header location="Camelot · Great Hall" />',
+  "",
+  ':::card title="Ledger"',
+  '<div class="w6p-banner"><strong id="w6p-card-strong">Ledger entry</strong></div><style>#w6p-location{color:#2A9D8F !important}</style>',
+  ":::",
+  "",
+  'Guinevere sets down her goblet. "You are late, Arthur."',
+].join("\n");
+
+test("a marked card in a styled reply keeps its chrome in its own frame, and neither frame's stylesheet reaches the other", async ({ corpus, mount, page }) => {
+  const room = await openStyledRoom(MARKED_CARD_BODY);
+  await using root = room.root;
+  await using _routes = await serveRoom(page, root, corpus);
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  const card = page.locator(CARD);
+  await expect(card.locator('[data-slot="immersive-card-header"]')).toBeVisible();
+  await expect(card.locator('[data-slot="immersive-card-collapse"]')).toBeVisible();
+  const cardStrong = card.locator(SANDBOX).contentFrame().locator("#w6p-card-strong");
+  await expect(cardStrong).toHaveText("Ledger entry");
+  // The script's panel draws in the reply's frames, with no card chrome around it.
+  await expect(page.locator(`${REPLY_FRAME} ${CARD}`)).toHaveCount(0);
+  const location = page.locator(REPLY_FRAME).first().locator(SANDBOX).contentFrame().locator("#w6p-location");
+  await expect(location).toHaveText("Camelot · Great Hall");
+  // Positive control: the panel's own stylesheet applies in the reply frame.
+  expect(await location.evaluate((node) => getComputedStyle(node).color)).toBe(BANNER_COLOR);
+  expect(await cardStrong.evaluate((node) => getComputedStyle(node).color)).not.toBe(BANNER_COLOR);
+  // The prose after the card is a second reply run; the card's CSS reaches neither run.
+  await expect(page.locator(REPLY_FRAME)).toHaveCount(2);
+  for (const run of await page.locator(REPLY_FRAME).all()) {
+    const colors = await run
+      .locator(SANDBOX)
+      .contentFrame()
+      .locator("#w6p-location")
+      .evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).color));
+    expect(colors).not.toContain(CARD_COLOR);
+  }
+});
+
+// A second panel with no stylesheet of its own, under the banner's class: only the banner's rule colors it.
+const LATER_FIND = String.raw`/<scene_later \/>/g`;
+const LATER_TEMPLATE = '<div class="w6p-banner"><strong id="w6p-later">The gate opens</strong></div>';
+const SPLIT_BODY = ['<scene_header location="Camelot · Great Hall" />', "", ":::choices", "1. Follow her", ":::", "", "<scene_later />"].join("\n");
+
+test("a stylesheet before a choices split still styles the script's panel after it", async ({ corpus, mount, page }) => {
+  const room = await openStyledRoom(SPLIT_BODY);
+  await using root = room.root;
+  await addDisplayScript(await root.internalCallerFor(root.ownerId), "Later panel", LATER_FIND, LATER_TEMPLATE);
+  await using _routes = await serveRoom(page, root, corpus);
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  await expect(page.locator(REPLY_FRAME)).toHaveCount(2);
+  const later = page.locator(REPLY_FRAME).nth(1).locator(SANDBOX).contentFrame().locator("#w6p-later");
+  await expect(later).toHaveText("The gate opens");
+  expect(await later.evaluate((node) => getComputedStyle(node).color)).toBe(BANNER_COLOR);
+  // Positive control: the run that holds the stylesheet styles its own panel.
+  const location = page.locator(REPLY_FRAME).first().locator(SANDBOX).contentFrame().locator("#w6p-location");
+  expect(await location.evaluate((node) => getComputedStyle(node).color)).toBe(BANNER_COLOR);
+});
+
+// The same panel twice across two splits: every run is styled, and each carries the repeated sheet once.
+const REPEATED_BODY = [
+  '<scene_header location="Camelot · Great Hall" />',
+  "",
+  ":::choices",
+  "1. Follow her",
+  ":::",
+  "",
+  '<scene_header location="The Gate" />',
+].join("\n");
+
+test("a panel repeated across splits styles every run", async ({ corpus, mount, page }) => {
+  const room = await openStyledRoom(REPEATED_BODY);
+  await using root = room.root;
+  await using _routes = await serveRoom(page, root, corpus);
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  await expect(page.locator(REPLY_FRAME)).toHaveCount(2);
+  for (const run of [0, 1]) {
+    const location = page.locator(REPLY_FRAME).nth(run).locator(SANDBOX).contentFrame().locator("#w6p-location");
+    expect(await location.evaluate((node) => getComputedStyle(node).color)).toBe(BANNER_COLOR);
+  }
+});
+
+// A stylesheet the reply's runs would carry past the budget: a fourteenth of it, carried by each of sixteen other runs.
+const HEAVY_CSS = `.w6p-heavy{content:"${"x".repeat(Math.ceil(REPLY_CARRY_BUDGET_CHARS / 14))}"}`;
+const OVER_BUDGET_BODY = [
+  '<scene_header location="Camelot · Great Hall" />',
+  `<style>${HEAVY_CSS}</style>`,
+  ...Array.from({ length: 16 }, (_, index) => `She rolls. [dice: d20 → ${String(index + 1)}]\n\nThe hall waits.`),
+].join("\n\n");
+
+test("a styled reply whose runs would carry too much CSS renders plain whole, with its reason, and frames nothing", async ({ corpus, mount, page }) => {
+  const room = await openStyledRoom(OVER_BUDGET_BODY);
+  await using root = room.root;
+  await using _routes = await serveRoom(page, root, corpus);
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  const row = page.locator(`[data-slot="message-row"][data-message-id="${room.messageId}"] ${BUBBLE}`);
+  await expect(row.locator(`[data-plain-reason="${PLAIN_REPLY_REASON.carriedStylesOverBudget}"]`)).toHaveCount(1);
+  // Positive control: the script ran on this row, so the plain path is the budget's doing.
+  await expect(row.getByText("Camelot · Great Hall", { exact: true })).toBeVisible();
+  await expect(page.locator(REPLY_FRAME)).toHaveCount(0);
+  expect(((await row.textContent()) ?? "").includes("w6p-heavy")).toBe(false);
 });
 
 test("on a row whose character renders plain text the same reply draws through the inert path with no style", async ({ corpus, mount, page }) => {
@@ -896,6 +1048,27 @@ test("a block a display script deletes and a details panel with a style block ne
   await expect(page.locator(ghost)).toContainText("She waits for an answer.");
   const { hits } = await sourceSeen(page);
   expect(hits).toEqual([]);
+});
+
+// A coding answer's HTML sample, streamed in a styled room: a code block and a code span the renderer shows as written.
+const SAMPLE_CHUNKS = ["Here is the page:\n\n```html\n<style>h1 {", " color: teal; }\n\n</style>\n<h1>Hi</h1>\n```", "\n\nUse `<b>` for bold."] as const;
+
+test("a code sample streams as written in a styled room, its tags and stylesheet kept", async ({ corpus, mount, page }) => {
+  const room = await openStyledRoom(STYLED_BODY);
+  await using root = room.root;
+  await using _routes = await serveRoom(page, root, corpus);
+  await mount<typeof StyledReplyStreamStory>(STREAM_STORY, {
+    chatId: room.chatId,
+    speakerCharacterId: room.characterId,
+    chunks: SAMPLE_CHUNKS,
+    chunkLabel: CHUNK_LABEL,
+  });
+  await streamEachChunk(page, SAMPLE_CHUNKS);
+  const body = page.locator('[data-slot="ghost-message-row"] [data-slot="ghost-stream-body"]');
+  await expect(body.locator("pre")).toContainText("<style>h1 { color: teal; }");
+  await expect(body.locator("pre")).toContainText("<h1>Hi</h1>");
+  await expect(body.locator("code").last()).toHaveText("<b>");
+  await expect(body.locator(FORMING_CHIP)).toHaveCount(0);
 });
 
 test("a framed reply's height follows its content down from a taller held state, and back down when a drawer closes", async ({ corpus, mount, page }) => {

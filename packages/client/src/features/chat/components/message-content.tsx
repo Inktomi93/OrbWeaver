@@ -19,8 +19,8 @@ import type { DisplayRowCall, MessageRenderContext, RowRenderPolicy } from "#lib
 import { useDisplayText } from "../hooks/use-display-text.ts";
 import { toContentBlocks } from "../lib/content-blocks.ts";
 import { REPLY_PANEL_FORMING_TITLE } from "../lib/reply-frame-names.ts";
-import type { FrameReplySegment, ReplySpan } from "../lib/reply-parts.ts";
-import { replyParts } from "../lib/reply-parts.ts";
+import type { FrameReplySegment, ReplyPart } from "../lib/reply-parts.ts";
+import { replyLayout } from "../lib/reply-parts.ts";
 import { colorForCharacter } from "../lib/speaker-color.ts";
 import type { CardOrigin } from "./card-block.tsx";
 import { CardBlock } from "./card-block.tsx";
@@ -165,19 +165,18 @@ function renderRunHeld(segments: readonly FrameReplySegment[], rowRender: RowRen
 
 /** A styled reply: its frame runs in routed card frames, and the blocks a frame cannot hold kept native between them. */
 function FramedReply({
-  spans,
+  parts,
   render,
   cardOrigin,
   speakerName,
   observeBody,
 }: {
   readonly observeBody: RefCallback<HTMLElement> | undefined;
-  readonly spans: readonly ReplySpan[];
+  readonly parts: readonly ReplyPart[];
   readonly render: RowRenderPolicy;
   readonly cardOrigin: CardOrigin | undefined;
   readonly speakerName: string | undefined;
 }): ReactElement {
-  const parts = replyParts(spans, { lenientHtml: render.lenientCards });
   return (
     <Stack gap="row" data-slot="message-content-framed" ref={observeBody}>
       {parts.map((part, index) => {
@@ -189,6 +188,7 @@ function FramedReply({
           <ReplyFrame
             key={key}
             segments={part.segments}
+            styles={part.styles}
             colorQuotes={render.colorQuotes}
             cardOrigin={cardOrigin}
             speakerName={speakerName}
@@ -251,27 +251,54 @@ export function MessageContent({
   // draws in a card frame. A plugin that rewrote the text has changed what the scripts produced, so the row keeps
   // today's path; markup the model wrote alone never styles a row. A row still waiting on its scripts is never
   // framed: it stays on the held inert path below until its answer lands.
-  if (render.cardTier === "tierB" && styled && !pending && resolvedContent === displayed) {
+  const layout =
+    render.cardTier === "tierB" && styled && !pending && resolvedContent === displayed
+      ? replyLayout(
+          spans.map((span) => ({
+            text: span.text,
+            tokens: span.speaker === null ? undefined : (speakerThemes?.get(span.speaker) ?? colorForCharacter(span.speaker)),
+          })),
+          { lenientHtml: render.lenientCards, cardTrust: render.cardTier },
+        )
+      : undefined;
+  if (layout?.kind === "framed") {
     // The frame's accessible name is the row's own speaker: its character, or the persona that wrote it.
     const { characterId, personaId } = display.row;
     const characterName = characterId === null ? undefined : renderContext?.characterNamesById.get(characterId)?.name;
     const personaName = personaId === null ? undefined : renderContext?.personaNamesById.get(personaId)?.name;
-    return (
-      <FramedReply
-        observeBody={observeBody}
-        spans={spans.map((span) => ({
-          text: span.text,
-          tokens: span.speaker === null ? undefined : (speakerThemes?.get(span.speaker) ?? colorForCharacter(span.speaker)),
-        }))}
-        render={render}
-        cardOrigin={cardOrigin}
-        speakerName={characterName ?? personaName}
-      />
-    );
+    return <FramedReply observeBody={observeBody} parts={layout.parts} render={render} cardOrigin={cardOrigin} speakerName={characterName ?? personaName} />;
   }
+  const inert = renderInert({ spans, styled, pending, render, speakerThemes, cardOrigin, observeBody });
+  // A reply too heavy to frame renders plain whole, and says why for the notice that names it.
+  return layout === undefined ? (
+    inert
+  ) : (
+    <Stack gap="block" data-slot="message-content-plain" data-plain-reason={layout.reason}>
+      {inert}
+    </Stack>
+  );
+}
 
-  // A styled row the frame does not draw (a Tier A row, or a plugin rewrote its text) renders through the inert
-  // allowlist, with the template's `<style>` and `<script>` elements removed, so their content never prints as prose.
+// A styled row the frame does not draw (a Tier A row, a plugin rewrote its text, or its runs would carry too much CSS)
+// renders through the inert allowlist, with the template's `<style>` and `<script>` elements removed, so their content
+// never prints as prose.
+function renderInert({
+  spans,
+  styled,
+  pending,
+  render,
+  speakerThemes,
+  cardOrigin,
+  observeBody,
+}: {
+  readonly spans: ReturnType<typeof parseSpeakerSpans>;
+  readonly styled: boolean;
+  readonly pending: boolean;
+  readonly render: RowRenderPolicy;
+  readonly speakerThemes: ReadonlyMap<string, ThemeScopeTokens> | undefined;
+  readonly cardOrigin: CardOrigin | undefined;
+  readonly observeBody: RefCallback<HTMLElement> | undefined;
+}): ReactElement {
   const segmentRender: RowRenderPolicy = styled ? { ...render, trust: "untrusted" } : render;
   const segmentText = (text: string): string => (styled ? stripStyleElements(text) : text);
   const [onlySpan] = spans;

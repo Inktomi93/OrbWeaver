@@ -6,6 +6,9 @@
 // (`frame-document.ts`) provides, and policy `ui-frame-markdown-frame-only` admits
 // one importer of its door, `packages/client/src/features/chat/components/reply-frame.tsx`.
 //
+// A `<style>` or `<script>` body is lifted out for the parse and put back after `raw` (`raw-text-lift.ts`), so a blank
+// line inside one never turns its tail into prose.
+//
 // Links render as plain anchors (Streamdown's link-safety button would be a dead control inside a frame); the
 // frame's pinned script hands a click to the host, which opens it only through its own confirm.
 
@@ -18,6 +21,7 @@ import { markdownRootClass, sealComponents } from "../seal.ts";
 import { MARKDOWN_SHIKI_PLUGIN } from "../shiki-plugin.ts";
 import { FRAME_ELEMENT_COMPONENTS } from "./frame-components.tsx";
 import { FrameDocumentContext } from "./frame-document-context.ts";
+import { liftRawText } from "./raw-text-lift.ts";
 
 // `raw` alone: the sanitize and harden passes are what keep markup inert in the main document, and the frame
 // replaces both.
@@ -30,19 +34,20 @@ export function FrameMarkdown({ children, colorQuotes }: { readonly children: st
   if (!use(FrameDocumentContext)) {
     throw new Error("FrameMarkdown renders only inside a frame document; its raw HTML is not sanitized.");
   }
+  const lifted = liftRawText(children);
   return (
     <Streamdown
       mode="static"
       dir="auto"
       parseIncompleteMarkdown={false}
       remarkPlugins={MARKDOWN_REMARK_PLUGINS}
-      rehypePlugins={FRAME_REHYPE_PLUGINS}
+      rehypePlugins={[...FRAME_REHYPE_PLUGINS, ...lifted.rehypePlugins]}
       plugins={FRAME_PLUGINS}
       components={{ ...sealComponents(false, colorQuotes), ...FRAME_ELEMENT_COMPONENTS }}
       linkSafety={NO_LINK_SAFETY}
       className={markdownRootClass()}
     >
-      {children}
+      {lifted.text}
     </Streamdown>
   );
 }
