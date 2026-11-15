@@ -118,10 +118,16 @@ export function applyChatBusEvent(event: ChatBusEvent, deps: ChatBusDeps): void 
       }
       deps.invalidate(event);
       return;
+    // A held ghost whose row is deleted before the list showed it would stand for a reply that no longer exists.
+    case "messagesDeleted":
+      for (const messageId of event.messageIds) {
+        deps.stream.releaseHandover(event.chatId, messageId);
+      }
+      deps.invalidate(event);
+      return;
     case "messageEdited":
     case "messageHidden":
     case "variantSelected":
-    case "messagesDeleted":
     case "messagesReordered":
     case "reasoningEdited":
     case "reasoningCleared":

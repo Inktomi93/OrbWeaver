@@ -5,7 +5,7 @@
 // Write ownership: every action here is bus-only (called only from `applyChatBusEvent`) except
 // `markStopping` + its guarded `recoverAfterStopFailure`, which the composer's Stop button reaches via
 // `data/bus` wrappers for instant feedback and rejected-request recovery, and `releaseHandover`, which the
-// transcript calls once it shows a closed turn's committed row (`chatStream` itself may only be
+// transcript also calls once it shows a closed turn's committed row (`chatStream` itself may only be
 // imported inside data/bus/ — lint rule `orb/chat-stream-writes-in-bus-only`). The slot does not close there — it
 // closes only on the bus's turnAborted (or a race-won turnCompleted).
 
@@ -431,6 +431,12 @@ export function useHeldGhost(chatId: ChatId | null): GhostHandover | null {
     const slot = chatId === null ? IDLE_TURN : (s.turns[chatId] ?? IDLE_TURN);
     return slot.phase === "completed" || slot.phase === "aborted" ? slot.handover : null;
   });
+}
+
+/** The committed row a closed turn's held ghost waits for, read outside render; null when nothing is held. */
+export function heldGhostMessageId(chatId: ChatId): MessageId | null {
+  const slot = slotOf(chatId);
+  return slot.phase === "completed" || slot.phase === "aborted" ? (slot.handover?.committedMessageId ?? null) : null;
 }
 
 /** The ghost's voiced speaker: the live turn's, or a closed turn's held ghost's (see {@link useHeldGhost}). */

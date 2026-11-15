@@ -6,7 +6,10 @@
 // wrappers are how a feature reaches those actions without importing chatStream directly.
 
 import type { ChatId, MessageId } from "@orb/kit/ids";
-import { chatStream } from "#state";
+import { hashKey, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { chatStream, heldGhostMessageId } from "#state";
+import { useTRPC } from "../trpc.ts";
 import { useInvalidation } from "../use-invalidation.ts";
 import type { ChatBusDeps } from "./apply-chat-bus-event.ts";
 
@@ -33,4 +36,37 @@ export function recoverTurnAfterStopFailure(chatId: ChatId, previousPhase: "pend
  *  Called from an effect after the render that showed the row. */
 export function releaseGhostHandover(chatId: ChatId, messageId: MessageId): void {
   chatStream.releaseHandover(chatId, messageId);
+}
+
+/**
+ * Release a closed turn's held ghost when a read of the room's tail that began while it was held comes back without
+ * its row: the server no longer has that row at the tail, so no later render will show it and the hold would never end.
+ * A read already in flight when the hold began is not trusted, since it may predate the commit.
+ */
+export function useHandoverReadRelease(chatId: ChatId): void {
+  const queryClient = useQueryClient();
+  const trpc = useTRPC();
+  useEffect(() => {
+    const tailKey = trpc.chat.listMessages.queryKey({ chatId });
+    const tailHash = hashKey(tailKey);
+    let heldAtStart: MessageId | null = null;
+    return queryClient.getQueryCache().subscribe((event) => {
+      if (event.type !== "updated" || event.query.queryHash !== tailHash) {
+        return;
+      }
+      if (event.action.type === "fetch") {
+        heldAtStart = heldGhostMessageId(chatId);
+        return;
+      }
+      // A manual success is a cache patch, not a read.
+      if (event.action.type !== "success" || event.action.manual === true) {
+        return;
+      }
+      const held = heldAtStart;
+      heldAtStart = null;
+      if (held !== null && queryClient.getQueryData(tailKey)?.messages.some((message) => message.id === held) === false) {
+        chatStream.releaseHandover(chatId, held);
+      }
+    });
+  }, [queryClient, trpc, chatId]);
 }

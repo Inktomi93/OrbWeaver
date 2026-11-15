@@ -44,7 +44,9 @@ export function lastUserRowIndex(items: readonly ChatRowProjection<"role">[]): n
   return -1;
 }
 
-export function useMessageItems(messages: readonly MessageView[], chatId: ChatId | null): readonly ChatRowItem[] {
+/** `atTail` says the rows reach the room's newest message; a held ghost paints only there (an anchored window on
+ *  older rows has no place for the reply that ends the room). */
+export function useMessageItems(messages: readonly MessageView[], chatId: ChatId | null, atTail: boolean): readonly ChatRowItem[] {
   const phase = useTurnPhase(chatId);
   // A live SWIPE reroll's target: the committed row the new variant replaces IN PLACE. Non-null only for a
   // `swipe` intent (continue/send/generate append or extend, never replace) — a lifecycle-only selector, so
@@ -69,7 +71,7 @@ export function useMessageItems(messages: readonly MessageView[], chatId: ChatId
     }
   }, [chatId, releasable]);
 
-  if (!isLiveTurnPhase(phase) && held === null) {
+  if (!isLiveTurnPhase(phase) && (held === null || !atTail)) {
     return base;
   }
   // The turn's own row is IN CANON — the seam applied that commit's `view` carrier into this very list
