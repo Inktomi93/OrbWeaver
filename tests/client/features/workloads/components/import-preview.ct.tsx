@@ -20,6 +20,7 @@ import type { StreamFrame } from "@orb/contracts/stream";
 import type { WorkloadRowAnyKind } from "@orb/contracts/workloads";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { WorkloadId } from "@orb/kit/ids";
+import { MAX_FIND_REGEX_LENGTH } from "@orb/kit/regex";
 import { actionGroupGeometry, resolvedLength, watchToastMounts } from "@orb/testkit/browser/spec";
 import type { ServedHold } from "@orb/testkit/ct";
 import { holdServed, routeAuthConfig, routeOrbSocket, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
@@ -45,6 +46,7 @@ import {
   importPreviewPresetScriptsLine,
   importPreviewProfileLabel,
   importPreviewScriptEntry,
+  importPreviewScriptRefused,
 } from "#client/features/workloads/lib/import-library-names.ts";
 import {
   asImportPreview,
@@ -696,6 +698,15 @@ const ST_SCRIPT = {
 };
 const WHISTLE = { ...ST_SCRIPT, id: "c0ffee00-0000-4000-8000-000000000041", scriptName: "Whistle", findRegex: "sings", replaceString: "whistles" };
 const KETTLE = { ...ST_SCRIPT, id: "c0ffee00-0000-4000-8000-000000000042", scriptName: "Kettle", findRegex: "<kettle>", replaceString: "<b>kettle</b>" };
+const HEAVY_UNIT = "(a|b)";
+// Capture groups of alternation up to the stored length cap: storable by length, refused by the compile door.
+const HEAVY = {
+  ...ST_SCRIPT,
+  id: "c0ffee00-0000-4000-8000-000000000043",
+  scriptName: "Heavy",
+  findRegex: HEAVY_UNIT.repeat(Math.floor(MAX_FIND_REGEX_LENGTH / HEAVY_UNIT.length)),
+  replaceString: "",
+};
 
 function stPresetWithScripts(scripts: readonly unknown[], text: string): string {
   return JSON.stringify({
@@ -714,8 +725,9 @@ test("the names panel lists each preset's regex scripts with what the run does w
   const caller = await root.internalCallerFor(root.ownerId);
   const folder = testInfo.outputPath("profile");
   await mkdir(join(folder, "OpenAI Settings"), { recursive: true });
-  // Amber brings a new script, one the library holds, and one that is not a script; Birch brings Amber's new one again.
-  await writeFile(join(folder, "OpenAI Settings", "Amber.json"), stPresetWithScripts([WHISTLE, KETTLE, "not a script"], "You narrate."));
+  // Amber brings a new script, one the library holds, one the write door refuses, and one that is not a script; Birch
+  // brings Amber's new one again.
+  await writeFile(join(folder, "OpenAI Settings", "Amber.json"), stPresetWithScripts([WHISTLE, KETTLE, HEAVY, "not a script"], "You narrate."));
   await writeFile(join(folder, "OpenAI Settings", "Birch.json"), stPresetWithScripts([WHISTLE], "You keep the bells."));
   await writeFile(join(folder, ST_SETTINGS_FILE), JSON.stringify({}));
   await caller.regex.importScriptFile({ fileText: JSON.stringify(KETTLE) });
@@ -731,7 +743,12 @@ test("the names panel lists each preset's regex scripts with what the run does w
   const [preview] = nonEmpty(await dryRunPreviews(root));
   const amber = preview.kinds.presets.items.find((item) => item.name === "Amber (OpenAI)");
   const birch = preview.kinds.presets.items.find((item) => item.name === "Birch (OpenAI)");
-  expect([amber?.regexScripts, birch?.regexScripts]).toEqual([[{ name: "Whistle" }, { name: "Kettle", inLibrary: true }], [{ name: "Whistle", repeat: true }]]);
+  const heavyReason = amber?.regexScripts?.find((script) => script.name === "Heavy")?.refused ?? "";
+  expect(heavyReason).toMatch(/ms to compile/u);
+  expect([amber?.regexScripts, birch?.regexScripts]).toEqual([
+    [{ name: "Whistle" }, { name: "Kettle", inLibrary: true }, { name: "Heavy", refused: heavyReason }],
+    [{ name: "Whistle", repeat: true }],
+  ]);
   const leftOut = nonEmpty([...(amber?.leftOut ?? [])]);
   await report.getByRole("button", { name: IMPORT_PREVIEW_SHOW_NAMES }).click();
 
@@ -740,6 +757,7 @@ test("the names panel lists each preset's regex scripts with what the run does w
       importPreviewPresetScriptsLine("Amber (OpenAI)", [
         importPreviewScriptEntry("Whistle", IMPORT_PREVIEW_SCRIPT_VERDICTS.added),
         importPreviewScriptEntry("Kettle", IMPORT_PREVIEW_SCRIPT_VERDICTS.inLibrary),
+        importPreviewScriptEntry("Heavy", importPreviewScriptRefused(heavyReason)),
       ]),
       { exact: true },
     ),

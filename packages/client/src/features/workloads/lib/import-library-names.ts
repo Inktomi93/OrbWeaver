@@ -54,12 +54,17 @@ export function importPreviewProfileLabel(profile: string): string {
 }
 
 /** What a run does with one of a preset's own regex scripts: add it, reuse the owner's copy, or reuse the copy an
- *  earlier preset of the same import adds. */
+ *  earlier preset of the same import adds. A refused script's verdict is {@link importPreviewScriptRefused}. */
 export const IMPORT_PREVIEW_SCRIPT_VERDICTS = {
   added: "new",
   inLibrary: "already in your library",
   repeat: "added by an earlier preset here",
 } as const;
+
+/** The verdict of a script the run refuses, with the write door's reason. */
+export function importPreviewScriptRefused(reason: string): string {
+  return `not imported: ${reason}`;
+}
 
 /** A preset's names-panel line for its own regex scripts, each already carrying its verdict. */
 export function importPreviewPresetScriptsLine(preset: string, scripts: readonly string[]): string {

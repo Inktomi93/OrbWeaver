@@ -17,6 +17,7 @@ import {
   importPreviewPresetLeftOutLine,
   importPreviewPresetScriptsLine,
   importPreviewScriptEntry,
+  importPreviewScriptRefused,
   importPreviewUncomparedNote,
   importSummaryImported,
 } from "./import-library-names.ts";
@@ -291,6 +292,9 @@ export function previewKindLine(kind: ImportPreviewKind, list: ImportPreviewList
 type PreviewScript = NonNullable<ImportPreviewItem["regexScripts"]>[number];
 
 function scriptVerdict(script: PreviewScript): string {
+  if (script.refused !== undefined) {
+    return importPreviewScriptRefused(script.refused);
+  }
   if (script.inLibrary === true) {
     return IMPORT_PREVIEW_SCRIPT_VERDICTS.inLibrary;
   }
