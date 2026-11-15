@@ -143,6 +143,9 @@ export { createResolveViewerVisibility } from "./verbs/resolve-viewer-visibility
 // The ONE leak-safe reverse-room read every attachment-junction library consumes (`ResolveVisibleRoomsOp`).
 export { createResolveVisibleRooms } from "./verbs/resolve-visible-rooms.ts";
 export { createEmitRoomEntityChanged, createRoomEntityRefresh } from "./verbs/room-refresh.ts";
+// The room-tier rows a non-host member may read, for regex's member-readable `listForChat`: the sharing switch and
+// the levers are chat's data, so chat answers and regex consumes the op.
+export { createRoomTierForMember } from "./verbs/room-tier-for-member.ts";
 export { createChatInferenceOps } from "./verbs/runtime-inference.ts";
 // The opaque rpg-pointer WRITE op (D58) — merges `metadata.rpg`; wired into `RpgContext.setPointer`
 // at the composition root (W1c). Standalone + principal-free (createGame gated host; the getMembership precedent).

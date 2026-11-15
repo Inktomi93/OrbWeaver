@@ -21,6 +21,8 @@
 //   • PROBED via MEMBERSHIP (D18 — the chat scope has no ownerId to probe): attachToChat/detachFromChat are
 //     HOST-gated and listForChat is MEMBER-gated, all through chat's own injected guards. The scripts named
 //     in attach/detach must still be the caller's, so the room scope cannot launder a foreign script in.
+//     Membership decides only who may ask: listForChat hands a non-host member the room-tier part of their
+//     display read (nothing while the host withholds display scripts), and the host the whole tier.
 //   • MEMBER-gated by design: listDisplayScripts (chat's verb) returns the room's resolved display tiers, which
 //     are the HOST's library, to a non-host member unless the host switched sharing off (shared by default);
 //     off, a member reads their own globals alone. A non-member is refused.

@@ -27,7 +27,7 @@ import { ID_PREFIX } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import { can } from "#domain/admin";
 import type { ChatServiceDeps } from "#domain/chat";
-import { createWiredChatGuards, loadPresentHostUserId } from "#domain/chat";
+import { createRoomTierForMember, createWiredChatGuards, loadPresentHostUserId } from "#domain/chat";
 import type { RegexService } from "#domain/regex";
 import {
   createExportCardScripts,
@@ -102,6 +102,7 @@ export function buildRegex(deps: RegexComposeDeps): RegexComposeResult {
     requireChatHost: chatGuards.requireHost,
     requireChatMember: chatGuards.requireParticipant,
     resolveChatHost: (chatId) => loadPresentHostUserId(db, chatId),
+    roomTierForMember: createRoomTierForMember({ db }),
     // The SHARED leak-safe reverse-room read — regex's original, promoted to `compose/visible-rooms.ts`
     // when databank and preset became its second and third consumers.
     resolveVisibleRooms: createVisibleRoomsReader(db),
