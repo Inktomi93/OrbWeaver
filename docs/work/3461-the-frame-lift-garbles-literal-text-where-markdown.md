@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-15
 priority: P2
 area: chat
+lane: wt/agent-ad2e7ecc51f3d5bc1
 ---
 
 # The frame lift garbles literal text where Markdown does not read the tags as HTML
