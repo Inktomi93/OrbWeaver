@@ -1003,6 +1003,27 @@ test("a block a display script deletes and a details panel with a style block ne
   expect(hits).toEqual([]);
 });
 
+// A coding answer's HTML sample, streamed in a styled room: a code block and a code span the renderer shows as written.
+const SAMPLE_CHUNKS = ["Here is the page:\n\n```html\n<style>h1 {", " color: teal; }\n\n</style>\n<h1>Hi</h1>\n```", "\n\nUse `<b>` for bold."] as const;
+
+test("a code sample streams as written in a styled room, its tags and stylesheet kept", async ({ corpus, mount, page }) => {
+  const room = await openStyledRoom(STYLED_BODY);
+  await using root = room.root;
+  await using _routes = await serveRoom(page, root, corpus);
+  await mount<typeof StyledReplyStreamStory>(STREAM_STORY, {
+    chatId: room.chatId,
+    speakerCharacterId: room.characterId,
+    chunks: SAMPLE_CHUNKS,
+    chunkLabel: CHUNK_LABEL,
+  });
+  await streamEachChunk(page, SAMPLE_CHUNKS);
+  const body = page.locator('[data-slot="ghost-message-row"] [data-slot="ghost-stream-body"]');
+  await expect(body.locator("pre")).toContainText("<style>h1 { color: teal; }");
+  await expect(body.locator("pre")).toContainText("<h1>Hi</h1>");
+  await expect(body.locator("code").last()).toHaveText("<b>");
+  await expect(body.locator(FORMING_CHIP)).toHaveCount(0);
+});
+
 test("a framed reply's height follows its content down from a taller held state, and back down when a drawer closes", async ({ corpus, mount, page }) => {
   const room = await openStyledRoom(STYLED_BODY);
   await using root = room.root;

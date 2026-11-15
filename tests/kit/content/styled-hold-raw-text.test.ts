@@ -4,7 +4,7 @@
 // @subject packages/kit/src/content/index.ts
 
 import type { StyledHoldSegment } from "@orb/kit/content";
-import { liftRawTextBodies, rawTextElements, scanStyledHold, stripStyleElements, tokenizeContent } from "@orb/kit/content";
+import { frameStyleElements, liftRawTextBodies, rawTextElements, scanStyledHold, stripStyleElements, stripTags, tokenizeContent } from "@orb/kit/content";
 import { expect, test } from "@orb/testkit/node";
 
 const HELD: StyledHoldSegment = { kind: "forming-markup" };
@@ -109,6 +109,59 @@ test("the frame's lift takes out each closed element's text, keeps its tags, and
   );
 });
 
+const PANEL_STYLE = "<style>.c{}\n\n.d{color:blue}</style>";
+const PANEL_BODY = ".c{}\n\n.d{color:blue}";
+
+test.each([
+  ["an unclosed sample in a code block", "```css\n<style>\n.sample{}\n```"],
+  ["a sample that names a close only in prose after it", "```html\n<style>.s{}\n```\nthe close is </style>"],
+  ["a style whose text holds a code block marker line", "<div><style>.a{}\n```\n\n.b{}</style></div>"],
+  ["an inline code span naming only the opener", "Use `<style>` to style it."],
+])("the frame's lift still takes a later panel's stylesheet after %s", (_name, before) => {
+  const mark = "\u{E000}";
+  const { text, bodies } = liftRawTextBodies(`${before}\n\n<div>${PANEL_STYLE}</div>`, mark);
+  const panel = bodies.indexOf(PANEL_BODY);
+  expect(panel).not.toBe(-1);
+  expect(text.endsWith(`<div><style>${mark}${String(panel)}${mark}</style></div>`)).toBe(true);
+});
+
+test.each([
+  ["inline code naming both tags", "Use `<style>` and then ` </style>` tags.", []],
+  ["a double-tick span holding the whole element", "``<style>a`b</style>`` after", []],
+  ["a tick run with no closer of its length", "a `` b <style>x`y</style>", ["x`y"]],
+  ["a span the blank line ends before its closer", "a `b\n\n<style>c`d</style>", ["c`d"]],
+  ["a script holding a template literal", "<script>const a = `x`;\n\nrun(a);</script>", ["const a = `x`;\n\nrun(a);"]],
+])("the frame's lift reads code spans as Markdown does: %s", (_name, body, expected) => {
+  expect(liftRawTextBodies(body, "\u{E000}").bodies).toEqual(expected);
+});
+
+test.each([
+  ["behind a backslash escape", "\\<script>VISIBLE</script>"],
+  ["inside a textarea", "<textarea><style>CSS</style></textarea>"],
+  ["after an escaped opener, inside the textarea it does not swallow", "\\<style><textarea></style><script>s</script>"],
+  ["inside a title", "<title><script>s</script></title>"],
+  ["after plaintext", "<plaintext><style>x</style>"],
+  ["in a tilde code block", "~~~\n<style>.x{}</style>\n~~~"],
+  ["in a longer tick fence a shorter one does not close", "````\n```\n<style>.x{}</style>\n````"],
+  ["in an indented code block", "Sample:\n\n    <style>.x{}</style>"],
+])("the frame reads no element %s", (_name, body) => {
+  expect(liftRawTextBodies(body, "\u{E000}").bodies).toEqual([]);
+  expect(frameStyleElements(body)).toEqual([]);
+});
+
+test.each([
+  ["a comment opener in a code span", "`<!--` <style>CSSMARK{}</style> `-->` after", "`<!--`  `-->` after"],
+  ["a sample in a code span", "Use `<style>x{}</style>` here <style>y{}</style>.", "Use `<style>x{}</style>` here ."],
+  ["an escaped opener", "\\<style>shown</style> <style>z{}</style>", "\\<style>shown</style> "],
+])("stripping keeps code and escapes as written: %s", (_name, text, expected) => {
+  expect(stripStyleElements(text)).toBe(expected);
+});
+
+test("tag stripping leaves a code block and a code span as written", () => {
+  const sample = "```html\n<style>h1{}\n\n</style>\n<h1>Hi</h1>\n```";
+  expect(stripTags(`<b>Bold</b>\n\n${sample}\n\nUse \`<i>\` <i>here</i>.`)).toBe(`Bold\n\n${sample}\n\nUse \`<i>\` here.`);
+});
+
 test.each([
   ["many unclosed style opens", "<style ".repeat(60_000)],
   ["many closed styles", "<style>a{}</style>".repeat(40_000)],
@@ -116,10 +169,13 @@ test.each([
   ["many comment opens", "<!--".repeat(100_000)],
   ["a long opener line with an unbalanced quote", `<style a="${"b".repeat(400_000)}`],
   ["many blank lines inside one style after text", `He waits. <style>${"\n\n<div>".repeat(60_000)}`],
+  ["many code block marker lines between styles", "```\n<style>a{}</style>\n".repeat(20_000)],
+  ["many tick runs before one style", `${"`a``b".repeat(50_000)}<style>x{}</style>`],
 ])("%s is read in linear time", (_name, body) => {
   const started = performance.now();
   scanStyledHold(body);
   stripStyleElements(body);
   tokenizeContent(body, { lenientHtml: true, committed: true });
+  liftRawTextBodies(body, "\u{E000}");
   expect(performance.now() - started).toBeLessThan(BUDGET_MS);
 });

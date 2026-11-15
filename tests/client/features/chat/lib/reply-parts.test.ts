@@ -49,6 +49,25 @@ test.each(["tierA", "tierB"] as const)("a marked card stays native at the row's 
   expect(parts.flatMap((part) => (part.kind === "frame" ? [part.styles.before, part.styles.after] : [])).join("")).not.toContain("ledger");
 });
 
+test.each([
+  ["inline code", "Use `<style>.run{display:none}</style>` to hide it."],
+  ["a tilde code block", "~~~html\n<style>.run{display:none}</style>\n~~~"],
+  ["an indented code block", "Like this:\n\n    <style>.run{display:none}</style>"],
+])("a stylesheet shown as %s is carried into no other run", (_name, sample) => {
+  const parts = replyParts(
+    [{ text: `${sample}\n\nShe rolls. [dice: d20 → 15]\n\n<style>.real{color:red}</style><b class="real">After.</b>`, tokens: undefined }],
+    {
+      lenientHtml: false,
+      cardTrust: "tierB",
+    },
+  );
+  // Positive control: the stylesheet the reply draws is carried.
+  expect(parts.filter((part) => part.kind === "frame").map((part) => part.styles)).toEqual([
+    { before: "", after: "<style>.real{color:red}</style>" },
+    { before: "", after: "" },
+  ]);
+});
+
 test("a lenient card is the reply's own markup and stays in its frame", () => {
   const lenient = '<div class="w">\n<p>One</p>\n<p>Two</p>\n</div>';
   const parts = replyParts([{ text: `${lenient}\n\nShe waits.`, tokens: undefined }], { lenientHtml: true, cardTrust: "tierB" });
