@@ -4,10 +4,10 @@
 // @subject packages/contracts/src/rpg/tools.ts
 // @subject packages/contracts/src/rpg/snapshot.ts
 
-import { RPG_PLOT_ACTS_MAX } from "@orb/contracts/rpg";
 import type { JsonValue } from "@orb/kit/json";
 import { expect, test } from "@orb/testkit/node";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
+import { RPG_PLOT_ACTS_MAX } from "#contracts/rpg/snapshot.ts";
 import { coreFrame, coreSse } from "../../chat/engine/core-physical.ts";
 import { TURN_SCENE_TOOL, turnRpgRoom } from "../../chat/verbs/turn-rpg-physical.ts";
 
