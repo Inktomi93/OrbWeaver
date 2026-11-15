@@ -5,8 +5,10 @@ export { neutralizeMacros, neutralizeSplice, swapIdentityMacros } from "./conten
 export {
   createMacroContext,
   globalMacroRegistry,
+  type MacroRenderOutcome,
   type ProcessMacroOptions,
   processMacros,
+  processMacrosOutcome,
 } from "./engine.ts";
 export { queryMacros } from "./metadata.ts";
 // MACRO_NAME_RE: the fully-anchored macro-name shape — user-macro registration + the contracts-side

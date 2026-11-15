@@ -6,7 +6,7 @@
 // @subject packages/server/src/domain/chat/persistence/import-write.ts
 
 import type { MessageView } from "@orb/contracts/chat";
-import { MESSAGE_TEXT_MAX_CHARS, MESSAGE_TOO_LONG_OP_CODE } from "@orb/contracts/chat";
+import { MESSAGE_MACRO_BUDGET_OP_CODE, MESSAGE_TEXT_MAX_CHARS, MESSAGE_TOO_LONG_OP_CODE } from "@orb/contracts/chat";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { createChatRoot, readRoomCanon } from "@orb/testkit/node/composed";
@@ -29,11 +29,12 @@ async function firstReply(h: ChatRoot): Promise<MessageView> {
   return reply;
 }
 
-test("a send over the cap is refused with the named code and stores nothing", async () => {
+test("a send over the cap is refused by name and stores nothing", async () => {
   await using h = await textRoom(["The answer."]);
   const { chat } = h.root.services;
 
-  await expect(chat.send({ principal: h.owner, chatId: h.chatId, content: OVER_CAP })).rejects.toMatchObject(REFUSED);
+  // A draft this large passes the macro engine's input limit first, so the send path's earlier bound names it.
+  await expect(chat.send({ principal: h.owner, chatId: h.chatId, content: OVER_CAP })).rejects.toMatchObject({ code: MESSAGE_MACRO_BUDGET_OP_CODE });
   expect(await readRoomCanon(h.root, h.owner, h.chatId)).toEqual([]);
   // Positive control: the same send with a short line commits it and its reply.
   await chat.send({ principal: h.owner, chatId: h.chatId, content: "Ask." });

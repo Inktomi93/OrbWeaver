@@ -1452,9 +1452,10 @@ async function freezeGreetingVolatiles(
       freezes,
       ...(freezeRegistry !== null ? { registry: freezeRegistry } : {}),
     });
-    return frozen === m.content
+    // A degraded freeze is empty or partial text: the greeting keeps its unbaked body rather than lose it.
+    return frozen.degraded || frozen.text === m.content
       ? []
-      : [freezeVariantContentStatement(ctx.db, { variantId: m.selectedVariantId, content: frozen, rawContent: m.content, macroFreezes: freezes })];
+      : [freezeVariantContentStatement(ctx.db, { variantId: m.selectedVariantId, content: frozen.text, rawContent: m.content, macroFreezes: freezes })];
   });
   if (stmts.length > 0) {
     const chatId = priorCanon[0]?.chatId;

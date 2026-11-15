@@ -227,6 +227,7 @@ export {
   isSeededGreetingRow,
   legacyNotionalCostSamples,
   MESSAGE_ASSET_ORIGINS,
+  MESSAGE_MACRO_BUDGET_OP_CODE,
   MESSAGE_TEXT_MAX_CHARS,
   MESSAGE_TOO_LONG_OP_CODE,
   macroFreezeRecordSchema,

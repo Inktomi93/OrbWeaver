@@ -77,6 +77,11 @@ export const MESSAGE_TEXT_MAX_CHARS = 4_000_000;
  *  server's `CHAT_OP_CODES.messageTooLong` derives this literal. */
 export const MESSAGE_TOO_LONG_OP_CODE = "message_too_long" as const;
 
+/** The `DomainOperationError.code` a send or commit refuses with when the macro pass over its draft exceeds the
+ *  macro engine's byte budget, which would otherwise render the typed text as empty; the server's
+ *  `CHAT_OP_CODES.messageMacroBudget` derives this literal. */
+export const MESSAGE_MACRO_BUDGET_OP_CODE = "message_macro_budget" as const;
+
 /** The PER-WIRE opaque provenance a `reasoning` part carries so the next leg of a tool loop — or a
  *  `carryReasoning: "conversation"` replay of a prior turn (§8.8) — can hand the model back its own verified
  *  thinking. CLOSED by wire, never an open bag: each arm is exactly what that provider's SDK reads off a

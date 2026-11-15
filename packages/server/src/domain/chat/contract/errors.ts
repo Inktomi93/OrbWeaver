@@ -13,6 +13,7 @@
 import {
   CHAT_NOT_HOST_OP_CODE,
   MEMORY_ITEM_STALE_OP_CODE,
+  MESSAGE_MACRO_BUDGET_OP_CODE,
   MESSAGE_TOO_LONG_OP_CODE,
   TURN_ABORTED_OP_CODE,
   TURN_HOST_UNAVAILABLE_OP_CODE,
@@ -209,6 +210,10 @@ export const CHAT_OP_CODES = {
   /** A canon write whose content or reasoning is longer than `MESSAGE_TEXT_MAX_CHARS`. Refused before the batch,
    *  so nothing is stored; the detail names the field, its length and the limit. Derived from the contract home. */
   messageTooLong: MESSAGE_TOO_LONG_OP_CODE,
+  /** A send or commit whose draft the macro freeze could not render within the engine's byte budget. Refused before
+   *  the room is claimed or a row is written, because the degraded render is empty or partial text. Derived from the
+   *  contract home. */
+  messageMacroBudget: MESSAGE_MACRO_BUDGET_OP_CODE,
   /** D259 — `createInvite` with `allowSignup` under a sign-in mode that mints no signup invites. */
   inviteSignupUnavailable: "invite_signup_unavailable",
   /** D259 — `createInvite` with `allowSignup` and a missing or over-cap use count or expiry, or a target. */
