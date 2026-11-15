@@ -300,3 +300,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D351 | [A plugin's surface state is capped by key count](0351-plugin-surface-state-is-capped-by-key-count.md) | active |
 | D352 | [Another account's document text reaches a prompt as literal text](0352-another-account-s-document-text-reaches-a-prompt-as-literal-text.md) | active |
 | D353 | [Stored story text reaches its slot as literal text](0353-stored-story-text-reaches-its-slot-as-literal-text.md) | active |
+| D354 | [A reply a display script styled renders whole in its row's card frame](0354-a-styled-reply-renders-whole-in-its-row-s-card-frame.md) | active |

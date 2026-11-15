@@ -1,4 +1,4 @@
-// What a framed reply's card-frame document needs besides its markup (D294), so the reply reads like its
+// What a framed reply's card-frame document needs besides its markup (D354), so the reply reads like its
 // neighbours: the app rules its markup can match, the resolved token set at the reply's place in the page (a
 // custom theme and a speaker's carried palette included), and the root's `data-*` channels. The frame re-clamps
 // the tokens and attributes (`@orb/kit/card-frame`); this only reads the page.

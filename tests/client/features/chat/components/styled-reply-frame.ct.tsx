@@ -1,5 +1,5 @@
 // A reply a display script styled renders in ONE routed card frame on a row whose card tier is the sandboxed one
-// (D294): the real transcript (`MessageListSurface`) over a corpus room, with a native DISPLAY script the viewer
+// (D354): the real transcript (`MessageListSurface`) over a corpus room, with a native DISPLAY script the viewer
 // created through `regex.createScript`, the room's reads served by the corpus root and the card-frame mint and
 // serve answered by the root's own HTTP entry. The script's `<style>` applies inside the frame and never lands in
 // the main document; with the character set to plain text the same reply renders through the inert path with no
