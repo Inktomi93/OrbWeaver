@@ -14,7 +14,7 @@ import { compileProbeResultSchema } from "./compile-probe-contract.ts";
 /** The thread CPU a find pattern's compile and first run may cost. Ten times the worst real one: the 242 scripts of a
  *  public HUD preset, measured in this probe on a host loaded past its core count, peak at 37 ms (its 10,189-character
  *  pattern). A compile-heavy pattern at the stored length cap costs 0.7-0.9 s here, and as much on the event loop. */
-export const FIND_COMPILE_LIMIT_MS = 370;
+const FIND_COMPILE_LIMIT_MS = 370;
 
 // Reclaims a worker that never answers. Far past any honest probe, which finishes in milliseconds per pattern.
 const PROBE_WALL_DEADLINE_MS = 30_000;
