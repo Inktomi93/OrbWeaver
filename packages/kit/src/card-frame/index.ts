@@ -35,7 +35,9 @@
 //     whoever initiates: the app names `frame-src 'self'`. CONTROL: an off-origin meta refresh with the parent
 //     widened to `frame-src *` DOES land the request, and a SAME-ORIGIN refresh lands under the app policy — so
 //     this is a real block, not a probe that could never navigate anything. A card's http, https or mailto link
-//     never reaches this: the pinned script hands its click to the embedder (`CARD_FRAME_HEIGHT_SCRIPT`).
+//     never reaches this: the pinned script hands its click to the embedder (`CARD_FRAME_HEIGHT_SCRIPT`). A refused
+//     navigation leaves the frame blank (measured: a card's `data:` or custom-scheme link under the app policy), so
+//     the script swallows every other card link but a `javascript:` one.
 //   • `target="_top"` — REFUSED (two belts: the sandbox has no `allow-top-navigation`, and the destination
 //     is off-origin anyway). The top document stays put.
 //   • a `<form action="https://elsewhere">` submit — REFUSED (`form-action 'none'`, this document's own).
@@ -171,10 +173,12 @@ export type CardFramePosture = (typeof CARD_FRAME_POSTURES)[number];
  * The ONE script the routed frame is allowed to run: measure the body and post the height to the embedder, and hand
  * a link click to the embedder instead of navigating the frame, which the app's `frame-src 'self'` would refuse
  * (FRAME NAVIGATION in the header). A fragment-only link keeps its default everywhere, so in-document jumps work. In a
- * card, only an http, https or mailto link is handed over and every other scheme keeps its default, so an interactive
- * card's script links still run. Inside a styled reply's body (`[data-frame-reply]`) every other link is swallowed
- * and handed over, so no other scheme runs or navigates there. The embedder decides what a link message may do: {@link readCardFrameLink} admits only an http, https or mailto
- * address, and the host opens it only through its own confirm after a user gesture. A document whose root carries
+ * card, an http, https or mailto link is handed over, a `javascript:` link keeps its default (Chromium did not follow one
+ * in an interactive card frame, and the static posture's `script-src` refuses it), and a link of any other scheme (`data:`, a custom scheme) does nothing: the app's `frame-src`
+ * refuses its navigation and Chromium would leave the frame blank. Inside a styled reply's body (`[data-frame-reply]`)
+ * every other link is swallowed and handed over, so no other scheme runs or navigates there. The embedder decides what
+ * a link message may do: {@link readCardFrameLink} admits only an http, https or mailto address, and the host opens it
+ * only through its own confirm, raised from a frame its focus gate admitted. A document whose root carries
  * {@link CARD_FRAME_MISSING_ATTRIBUTE} (the server's miss notice) says so once it loads, so a reply frame can mint
  * again instead of showing the notice in place of the reply.
  * Kept to a single expression with no dependencies because its BYTES are the security boundary — the CSP
@@ -189,13 +193,13 @@ export type CardFramePosture = (typeof CARD_FRAME_POSTURES)[number];
  * identity, never by the message. See {@link foldCardFrameHeight}.
  */
 const CARD_FRAME_HEIGHT_SCRIPT =
-  '(function(){var last=-1;function post(){var body=document.body;if(body===null){return;}var height=body.scrollHeight;if(height!==last){last=height;parent.postMessage({orbCardFrameHeight:height},"*");}}addEventListener("DOMContentLoaded",function(){new ResizeObserver(post).observe(document.body);if(document.documentElement.hasAttribute("data-frame-missing")){parent.postMessage({orbCardFrameMissing:true},"*");}});addEventListener("load",post);addEventListener("click",function(event){var target=event.target;var link=target instanceof Element?target.closest("a[href]"):null;if(link===null||link.getAttribute("href").charAt(0)==="#"){return;}var scheme=link.protocol;if(link.closest("[data-frame-reply]")===null&&scheme!=="http:"&&scheme!=="https:"&&scheme!=="mailto:"){return;}event.preventDefault();parent.postMessage({orbCardFrameLink:link.href},"*");},true);})();';
+  '(function(){var last=-1;function post(){var body=document.body;if(body===null){return;}var height=body.scrollHeight;if(height!==last){last=height;parent.postMessage({orbCardFrameHeight:height},"*");}}addEventListener("DOMContentLoaded",function(){new ResizeObserver(post).observe(document.body);if(document.documentElement.hasAttribute("data-frame-missing")){parent.postMessage({orbCardFrameMissing:true},"*");}});addEventListener("load",post);addEventListener("click",function(event){var target=event.target;var link=target instanceof Element?target.closest("a[href]"):null;if(link===null||link.getAttribute("href").charAt(0)==="#"){return;}var scheme=link.protocol;var handed=link.closest("[data-frame-reply]")!==null||scheme==="http:"||scheme==="https:"||scheme==="mailto:";if(!handed&&scheme==="javascript:"){return;}event.preventDefault();if(handed){parent.postMessage({orbCardFrameLink:link.href},"*");}},true);})();';
 
 /** The CSP source expression pinning {@link CARD_FRAME_HEIGHT_SCRIPT} by digest. A literal, because kit is
  *  isomorphic (no `node:crypto`) and WebCrypto's digest is async — the recompute lives in the unit test,
  *  which is the gate: change the script without re-pinning and the suite REDs before the policy ships
  *  (`tests/kit/card-frame/index.test.ts`). */
-const CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH = "'sha256-bi+JMFvTeGVPYG9zjfhf+4s7S1SneK7yAZVyKftV37A='";
+const CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH = "'sha256-szLGfMxpNEsbAykZ9RFtFUns0LzQwKHPMKIWtdS+u9U='";
 
 /** The one keyword that turns the posture into a capability. Named so the grant is greppable and so the
  *  `static` row can assert against it by identity rather than by a re-typed string. */
@@ -286,7 +290,7 @@ function holdsControlOrSpace(text: string): boolean {
  * Read one `message` payload as a framed link click: the absolute address when the payload carries one whose
  * scheme is http, https or mailto, else `undefined`. The payload is UNTRUSTED (an interactive frame can post it
  * without a click), so the caller still owes the sender check (`event.source === iframe.contentWindow`), a live
- * user activation, and its own confirm before anything opens.
+ * user activation, its focus gate's admission of that frame, and its own parse and confirm before anything opens.
  */
 export function readCardFrameLink(data: unknown): string | undefined {
   if (!isPlainObject(data)) {

@@ -112,6 +112,31 @@ test("a card's web link never navigates the frame, even with the embedder's fram
   await expect(link).toBeVisible();
 });
 
+// The links the pinned frame script neither hands over nor runs: a `data:` document that would refresh off-origin if it
+// loaded, and a scheme no browser handles.
+const UNHANDED_LINKS = {
+  data: `data:text/html,<meta http-equiv=refresh content='0;url=${EXTERNAL_URL}?via=data'>`,
+  custom: "web+tide:high-water",
+} as const;
+
+for (const [posture, characterId] of [
+  ["static", null],
+  ["interactive", undefined],
+] as const) {
+  for (const [scheme, href] of Object.entries(UNHANDED_LINKS)) {
+    test(`a ${posture} card's ${scheme} link requests nothing and leaves the card drawn under the served app policy`, async ({ room, page }) => {
+      const served = await room.serve(`<p id="tide-line">High water at dusk.</p><a href="${href}">go</a>`, characterId);
+      const hits = await openProbe(page, served, await room.appPolicy());
+      const frame = page.frameLocator("#card");
+      await expect(frame.locator("#tide-line")).toHaveText("High water at dusk.");
+      await frame.getByRole("link", { name: "go", exact: true }).click();
+      await settleNavigation(page);
+      expect(hits).toEqual([]);
+      await expect(frame.locator("#tide-line")).toHaveText("High water at dusk.");
+    });
+  }
+}
+
 test("a card link targeting the top window is blocked and the top document stays put", async ({ room, page }) => {
   const hits = await openProbe(page, await room.serve(`<a href="${EXTERNAL_URL}" target="_top">go</a>`, null), await room.appPolicy());
   await page.frameLocator("#card").getByRole("link", { name: "go" }).click();

@@ -71,6 +71,9 @@ interface ConfirmDialogBaseProps<C extends string = string, K extends string = s
   readonly forceRender?: boolean;
   /** Where focus goes on close. Give one when the act unmounts the trigger, or focus falls to the page body. */
   readonly finalFocus?: ConfirmFinalFocus;
+  /** Focus Cancel when the confirm opens, even when `body` holds a tab stop before it (a scroll region). Without it the
+   *  first tab stop in the popup takes focus. */
+  readonly focusCancel?: boolean;
 }
 
 /** A confirm another surface opens: a menu item, an icon action, a row. The caller owns the state and its changes. */
@@ -139,7 +142,9 @@ function ConfirmSurface({
   confirmLoading = false,
   forceRender,
   finalFocus,
+  focusCancel = false,
 }: ConfirmSurfaceProps): ReactElement {
+  const cancel = useRef<HTMLButtonElement>(null);
   // The dialog owns its open state in BOTH entry shapes, because a close that must wait for an outcome
   // cannot be Base UI's to make (#1563). Controlled callers are unaffected: `open` still wins, and every
   // transition — theirs, the trigger's, Cancel's, ours — goes out through their `onOpenChange`.
@@ -201,7 +206,11 @@ function ConfirmSurface({
   return (
     <AlertDialog open={isOpen} onOpenChange={moveOpen}>
       {trigger === undefined ? null : <AlertDialogTrigger render={trigger} />}
-      <AlertDialogPopup {...(forceRender === undefined ? {} : { forceRender })} {...(finalFocus === undefined ? {} : { finalFocus })}>
+      <AlertDialogPopup
+        {...(forceRender === undefined ? {} : { forceRender })}
+        {...(finalFocus === undefined ? {} : { finalFocus })}
+        {...(focusCancel ? { initialFocus: cancel } : {})}
+      >
         <Stack gap="block">
           <AlertDialogTitle>{title}</AlertDialogTitle>
           {description === undefined ? null : <AlertDialogDescription>{description}</AlertDialogDescription>}
@@ -211,7 +220,13 @@ function ConfirmSurface({
               retry, which is why nothing here is a second control. */}
           {failure === null ? null : <DialogFailure>{confirmFailureSentence(failure)}</DialogFailure>}
           <AlertDialogActions>
-            <AlertDialogClose render={<Button variant="ghost">{cancelLabel}</Button>} />
+            <AlertDialogClose
+              render={
+                <Button ref={cancel} variant="ghost">
+                  {cancelLabel}
+                </Button>
+              }
+            />
             {/* NOT an `AlertDialogClose` (#1563): the close is this component's to decide once the outcome
                 is known. Cancel stays one, because abandoning is done the moment it is pressed. */}
             <Button disabled={settling ? true : confirmDisabled} tone={confirmTone} loading={settling ? true : confirmLoading} onClick={onConfirmClick}>
