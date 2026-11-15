@@ -22,8 +22,8 @@ import { forEachNonEmpty } from "@orb/testkit/iso";
 import { captureCookieAuth, createCorpusHarness } from "@orb/testkit/node/composed";
 import { SCROLL_END_THRESHOLD_PX } from "@orb/ui/message-list";
 import type { FrameLocator, Locator, Page } from "@playwright/test";
-import { REPLY_LINK_CONFIRM_LABEL } from "#client/features/chat/lib/reply-frame-names.ts";
-import { REPLY_LINK_FIRST_WAIT_MS, REPLY_LINK_FREE_CANCELS } from "#client/features/chat/lib/reply-link-pace.ts";
+import { FRAMED_LINK_CONFIRM_LABEL } from "#client/components/framed-link-names.ts";
+import { FRAMED_LINK_FIRST_WAIT_MS, FRAMED_LINK_FREE_CANCELS } from "#client/components/framed-link-pace.ts";
 import type { RoutedCardTextScaleStory, RoutedReplyBesideFieldStory } from "./_routed-card-text-scale-stories.tsx";
 import type { StyledReplyStreamStory } from "./_styled-reply-stream-stories.tsx";
 
@@ -390,7 +390,7 @@ test("an open confirm keeps its address, and Open opens exactly the address it s
   await postFromFrame(page, { orbCardFrameLink: SWAPPED_URL });
   await expect(confirm).toContainText(LINK_URL);
   await expect(confirm).not.toContainText(SWAPPED_URL);
-  await confirm.getByRole("button", { name: REPLY_LINK_CONFIRM_LABEL, exact: true }).click();
+  await confirm.getByRole("button", { name: FRAMED_LINK_CONFIRM_LABEL, exact: true }).click();
   await expect.poll(() => [...opened]).toEqual([LINK_URL]);
 });
 
@@ -439,7 +439,7 @@ test("after a Cancel a frame's script alone raises nothing, and a reader's links
   await postFromFrame(page, { orbCardFrameLink: SWAPPED_URL });
   await expect(confirm).toHaveCount(0);
   // The reader's clicks: the free Cancels raise it at once.
-  for (let cancels = 1; cancels <= REPLY_LINK_FREE_CANCELS; cancels += 1) {
+  for (let cancels = 1; cancels <= FRAMED_LINK_FREE_CANCELS; cancels += 1) {
     await frame.locator("#w6p-link").click();
     await expect(confirm).toContainText(LINK_URL);
     await cancel();
@@ -450,7 +450,7 @@ test("after a Cancel a frame's script alone raises nothing, and a reader's links
   await frame.locator("#w6p-link-two").click();
   await expect(confirm).toHaveCount(0);
   // The second address extends the first, so naming it proves the first was replaced.
-  await expect(confirm).toContainText(LINK_TWO_URL, { timeout: REPLY_LINK_FIRST_WAIT_MS * 3 });
+  await expect(confirm).toContainText(LINK_TWO_URL, { timeout: FRAMED_LINK_FIRST_WAIT_MS * 3 });
 });
 
 test("a link to the app's own origin never reaches the confirm", async ({ corpus, mount, page }) => {

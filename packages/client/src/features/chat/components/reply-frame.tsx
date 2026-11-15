@@ -15,7 +15,7 @@
 // (FILLS_MEASURE): the frame's document cannot size the bubble around it, and a body that hugged its text would make
 // the swap a width jump.
 //
-// A link clicked inside the frame opens only through the shared confirm (`use-framed-link-confirm.tsx`), the one a
+// A link clicked inside the frame opens only through the shared confirm (`packages/client/src/components/framed-link-confirm.tsx`), the one a
 // framed card uses too; focus returns to this run's own stop.
 //
 // A HANDLE THAT IS GONE (expired, or evicted under store pressure) loads the server's miss notice, which says so.
@@ -29,8 +29,8 @@ import { resolveFrameReplyLook, SandboxFrame, useSandboxTheme } from "@orb/ui/sa
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement, ReactNode } from "react";
 import { useRef } from "react";
+import { useFramedLinkConfirm } from "#components";
 import { useCardFrame } from "#data";
-import { useFramedLinkConfirm } from "../hooks/use-framed-link-confirm.tsx";
 import { REPLY_FRAME_UNNAMED_TITLE } from "../lib/reply-frame-names.ts";
 import type { FrameReplySegment } from "../lib/reply-parts.ts";
 import type { CardOrigin } from "./card-block.tsx";

@@ -222,21 +222,21 @@ export function SandboxFrame({
   //      which is what keeps an INTERACTIVE card (#111 leg 3 — it can `postMessage` anything, including to
   //      its siblings, measured) from resizing any frame but its own.
   //   2. PAYLOAD — `foldCardFrameHeight` coerces, clamps to floor..cap and rations resizes (kit, tested).
-  // Listener registration follows the delivery, because a re-mint replaces the frame's window.
+  // Listener registration follows the delivery, because a re-mint replaces the frame's window. A `fill` frame's parent
+  // owns its height, so it folds no height; its links and its miss notice pass the same checks as any frame's.
   useEffect(() => {
-    if (fill) {
-      return;
-    }
     const onMessage = (event: MessageEvent): void => {
       const frameWindow = frameRef.current?.contentWindow;
       if (event.source === null || event.source !== frameWindow) {
         return;
       }
       const nowMs = performance.now();
-      setMeasured((current) => {
-        const height = foldCardFrameHeight(current?.delivery === deliveryKey ? current.height : undefined, event.data, holds, nowMs);
-        return height === undefined ? current : { delivery: deliveryKey, height };
-      });
+      if (!fill) {
+        setMeasured((current) => {
+          const height = foldCardFrameHeight(current?.delivery === deliveryKey ? current.height : undefined, event.data, holds, nowMs);
+          return height === undefined ? current : { delivery: deliveryKey, height };
+        });
+      }
       const link = readCardFrameLink(event.data);
       // A link counts only from a click IN THIS FRAME: the click activated the page (activation reaches every
       // ancestor of the frame it lands in) and focused this iframe. Activation alone is page-wide and lasts seconds,

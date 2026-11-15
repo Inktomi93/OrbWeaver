@@ -1,9 +1,8 @@
-// The link hand-off for a styled reply's routed frame. A card document reports no links (its frame script hands off only
-// links inside `[data-frame-reply]`, `packages/kit/src/card-frame/index.ts`), so no card takes this. A link clicked inside the frame reaches the host through
-// `SandboxFrame.onLink` (sender checked, address vetted, off the app's origin, a live user activation and a click in that
+// The one link hand-off for a routed frame: a chat card, a styled reply, and the rpg archive's card. A link clicked
+// inside the frame reaches the host through `SandboxFrame.onLink` (sender checked, address vetted, off the app's origin, a live user activation and a click in that
 // frame required) and opens only through the confirm below. An open confirm keeps the address it shows, and Open opens
 // exactly that string: a frame that posts again cannot change it. A Cancel only closes the confirm; the frame's next links
-// raise it again, paced by `reply-link-pace.ts`, so a scripted frame cannot raise it again and again.
+// raise it again, paced by `framed-link-pace.ts`, so a scripted frame cannot raise it again and again.
 //
 // Focus returns to the landing the request named, the frame's own stop in the app, never into the frame: the frame's focus
 // gate would send a return into it back as unasked, and the reader re-enters the frame by a press or a Tab like any other
@@ -11,9 +10,9 @@
 
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
-import { ConfirmDialog } from "#components";
-import { REPLY_LINK_CONFIRM_DESCRIPTION, REPLY_LINK_CONFIRM_LABEL, REPLY_LINK_CONFIRM_TITLE } from "../lib/reply-frame-names.ts";
-import { replyLinkWaitMs } from "../lib/reply-link-pace.ts";
+import { ConfirmDialog } from "./confirm-dialog.tsx";
+import { FRAMED_LINK_CONFIRM_DESCRIPTION, FRAMED_LINK_CONFIRM_LABEL, FRAMED_LINK_CONFIRM_TITLE } from "./framed-link-names.ts";
+import { framedLinkWaitMs } from "./framed-link-pace.ts";
 
 const LINK_TARGET = "_blank";
 const LINK_FEATURES = "noreferrer";
@@ -72,10 +71,10 @@ export function useFramedLinkConfirm(): FramedLinkConfirm {
   const confirm =
     pending === undefined ? null : (
       <ConfirmDialog
-        title={REPLY_LINK_CONFIRM_TITLE}
-        description={REPLY_LINK_CONFIRM_DESCRIPTION}
+        title={FRAMED_LINK_CONFIRM_TITLE}
+        description={FRAMED_LINK_CONFIRM_DESCRIPTION}
         body={pending.url}
-        confirmLabel={REPLY_LINK_CONFIRM_LABEL}
+        confirmLabel={FRAMED_LINK_CONFIRM_LABEL}
         confirmTone="primary"
         open={true}
         finalFocus={(): boolean => {
@@ -85,7 +84,7 @@ export function useFramedLinkConfirm(): FramedLinkConfirm {
         onOpenChange={(open): void => {
           if (!open) {
             const next = opened.current ? 0 : cancels + 1;
-            linksReadyAt.current = performance.now() + replyLinkWaitMs(next);
+            linksReadyAt.current = performance.now() + framedLinkWaitMs(next);
             setCancels(next);
             opened.current = false;
             setPending(undefined);

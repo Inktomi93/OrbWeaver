@@ -12,7 +12,7 @@ import { useSandboxTheme } from "@orb/ui/sandbox-frame";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { MutedLine, QueryBoundary, ViewerDialog } from "#components";
+import { MutedLine, QueryBoundary, useFramedLinkConfirm, ViewerDialog } from "#components";
 import { QueryErrorState, roomRosterOptions, roomTailOptions, SkeletonRows, useCardFrame, useSuspenseQueries, useTRPC } from "#data";
 import type { ArchivedCard } from "../lib/archived-cards.ts";
 import { cardLabel, collectArchivedCards } from "../lib/archived-cards.ts";
@@ -52,22 +52,28 @@ export function RpgCardLightbox({
  *  the card carries the ORIGIN ROW's render policy on BOTH axes: the archive is a second lens on the same
  *  authored content, so its sandbox CSP must be the transcript's, never a laxer default.
  *
- *  A lost handle mints once more and then draws the floor, as the transcript's card does. It takes no forming chip
- *  (the chat feature's, which this feature may not import), so the floor draws while the mint answers. */
+ *  A lost handle mints once more and then draws the floor, and a link opens only through the shared confirm, as in the
+ *  transcript's card. It takes no forming chip (the chat feature's, which this feature may not import), so the floor
+ *  draws while the mint answers. */
 function ArchivedCardBody({ card, chatId }: { readonly card: ArchivedCard; readonly chatId: ChatId | undefined }): ReactElement {
   const { themeTokens, styleTokens, fontFamily } = useSandboxTheme();
   const frame = useCardFrame(
     chatId === undefined ? undefined : { chatId, characterId: card.characterId, html: card.html, css: undefined, themeTokens, styleTokens, fontFamily },
   );
+  const links = useFramedLinkConfirm();
   return (
-    <ImmersiveCard
-      html={card.html}
-      {...(card.title === null ? {} : { title: card.title })}
-      origin={card.origin}
-      allowExternalMedia={card.allowExternalMedia}
-      {...(frame.mint.state === "routed" ? { frameSrc: frame.mint.url } : {})}
-      onMissing={frame.onMissing}
-    />
+    <>
+      <ImmersiveCard
+        html={card.html}
+        {...(card.title === null ? {} : { title: card.title })}
+        origin={card.origin}
+        allowExternalMedia={card.allowExternalMedia}
+        {...(frame.mint.state === "routed" ? { frameSrc: frame.mint.url } : {})}
+        onLink={links.requestLink}
+        onMissing={frame.onMissing}
+      />
+      {links.confirm}
+    </>
   );
 }
 

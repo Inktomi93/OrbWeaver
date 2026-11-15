@@ -15,6 +15,7 @@ import { ImmersiveCard, InertCard } from "@orb/ui/immersive-card";
 import { Markdown } from "@orb/ui/markdown";
 import { useSandboxTheme } from "@orb/ui/sandbox-frame";
 import type { ReactElement } from "react";
+import { useFramedLinkConfirm } from "#components";
 import { useCardFrame } from "#data";
 import type { PlainSubject } from "#lib";
 import { FORMING_CARD_UNTITLED } from "../lib/reply-frame-names.ts";
@@ -34,13 +35,13 @@ export interface CardOrigin {
  *  a theme flip must re-mint, or the routed document would serve yesterday's palette). Without a
  *  `cardOrigin` there is no room, hence no roster, hence no trust verdict — it renders the floor.
  *
- *  It frames as a styled reply does (`reply-frame.tsx`): `useCardFrame` mints once more when the handle is gone and
- *  then gives up to the floor, and while the mint answers and the routed document draws, a forming chip holds the
- *  card's body. Three differences are the card's own. Its floor is its srcdoc render (a card brings its own look and
- *  fits the floor, where a reply cannot), so a refused mint or a lost handle draws the card there instead of an inert
- *  copy. A frame whose scripts were stopped draws that same floor inside `SandboxFrame` itself, so the card needs no
- *  give-up of its own for it. And it takes no link hand-off: the card document's frame script reports only a reply
- *  body's links, so a card's own link stays under the frame's navigation rules and does nothing. */
+ *  It frames as a styled reply does (`reply-frame.tsx`), through the same parts: `useCardFrame` mints once more when
+ *  the handle is gone and then gives up to the floor, the shared confirm is the only way a framed link opens, and while
+ *  the mint answers and the routed document draws, a forming chip holds the card's body. Two differences are the
+ *  card's own. Its floor is its srcdoc render (a card brings its own look and fits the floor, where a reply cannot), so
+ *  a refused mint or a lost handle draws the card there instead of an inert copy; that floor runs no script, so its
+ *  links do nothing. A frame whose scripts were stopped draws that same floor inside `SandboxFrame` itself, so the card
+ *  needs no give-up of its own for it. */
 function TierBCard({
   block,
   allowExternal,
@@ -52,21 +53,26 @@ function TierBCard({
 }): ReactElement {
   const { themeTokens, styleTokens, fontFamily } = useSandboxTheme();
   const frame = useCardFrame(cardOrigin === undefined ? undefined : { ...cardOrigin, html: block.html, css: block.css, themeTokens, styleTokens, fontFamily });
+  const links = useFramedLinkConfirm();
   const { mint } = frame;
   // Pending and routed wait behind the chip; only the floor draws at once.
   const forming =
     mint.state === "floor" ? undefined : <FormingChip title={block.title !== undefined && block.title !== "" ? block.title : FORMING_CARD_UNTITLED} />;
   return (
-    <ImmersiveCard
-      html={block.html}
-      allowExternalMedia={allowExternal}
-      {...(mint.state === "routed" ? { frameSrc: mint.url } : {})}
-      {...(forming === undefined ? {} : { pending: forming })}
-      onMissing={frame.onMissing}
-      {...(block.css === undefined ? {} : { css: block.css })}
-      {...(block.title === undefined ? {} : { title: block.title })}
-      {...(block.origin === undefined ? {} : { origin: block.origin })}
-    />
+    <>
+      <ImmersiveCard
+        html={block.html}
+        allowExternalMedia={allowExternal}
+        {...(mint.state === "routed" ? { frameSrc: mint.url } : {})}
+        {...(forming === undefined ? {} : { pending: forming })}
+        onLink={links.requestLink}
+        onMissing={frame.onMissing}
+        {...(block.css === undefined ? {} : { css: block.css })}
+        {...(block.title === undefined ? {} : { title: block.title })}
+        {...(block.origin === undefined ? {} : { origin: block.origin })}
+      />
+      {links.confirm}
+    </>
   );
 }
 

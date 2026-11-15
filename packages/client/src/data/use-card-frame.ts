@@ -106,7 +106,7 @@ async function postMint(body: string): Promise<string | undefined> {
 }
 
 /** Where one mint stands: still answering, answered with a routed URL, or answered with nothing (the floor). */
-export type CardFrameMint = { readonly state: "pending" } | { readonly state: "routed"; readonly url: string } | { readonly state: "floor" };
+type CardFrameMint = { readonly state: "pending" } | { readonly state: "routed"; readonly url: string } | { readonly state: "floor" };
 
 const GAVE_UP: CardFrameMint = { state: "floor" };
 
