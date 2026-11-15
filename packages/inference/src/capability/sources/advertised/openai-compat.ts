@@ -1,11 +1,11 @@
 // The ADVERTISED tier from an OpenAI-compatible `/v1/models` row: ids and, when the server reports one, a chat
 // model's context window (vLLM `max_model_len`, LM Studio `max_context_length`, llama.cpp `meta.n_ctx`, Ollama's
-// pinned `num_ctx`, else its default floor as assumed), a hosted list's output cap, an embedder's width and input limit, and — where the row's native model-info API states them (D292) — the
+// pinned `num_ctx`, else its default floor as assumed), a hosted list's output cap, an embedder's width and input limit, a reranker's pair bound, and — where the row's native model-info API states them (D292) — the
 // modalities a turn may carry, whether the model takes `tools[]` and whether it thinks, schema-constrained output, and whether a
 // delivered assistant row is continued (the server's rendered prompt leaves it open), and the sampler values the
 // server runs when a request leaves a knob unset. Everything else is curated or declared (§5.7, §6.3).
 
-import type { CapabilityOverride, EffortLevel, EmbeddingCapability, EndpointFeatures, ModelKind } from "@orb/contracts/inference";
+import type { CapabilityOverride, EffortLevel, EmbeddingCapability, EndpointFeatures, ModelKind, RerankCapability } from "@orb/contracts/inference";
 import { DEFAULT_SAMPLER_KEYS, EFFORT_LEVELS, SAMPLING_RANGE_KNOBS } from "@orb/contracts/inference";
 import type { EndpointModel } from "#contract";
 
@@ -89,6 +89,7 @@ export function advertisedFromOpenAiCompat(
     | "maxCompletionTokens"
     | "embeddingDims"
     | "embedInputTokens"
+    | "rerankInputTokens"
     | "input"
     | "tools"
     | "structured"
@@ -99,12 +100,12 @@ export function advertisedFromOpenAiCompat(
   >,
   kind: ModelKind,
   features: EndpointFeatures,
-): GenerationPatch | Partial<EmbeddingCapability> {
+): GenerationPatch | Partial<EmbeddingCapability> | Partial<RerankCapability> {
   if (kind === "embedding") {
     return advertisedEmbedding(entry);
   }
-  if (kind !== "generation") {
-    return {};
+  if (kind === "rerank") {
+    return entry.rerankInputTokens === undefined ? {} : { maxInputTokens: entry.rerankInputTokens };
   }
   const samplingDefaults = samplingDefaultsOf(entry.serverDefaults, features);
   return {

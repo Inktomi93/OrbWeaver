@@ -93,6 +93,9 @@ const endpointModelSchema = z
      *  a refusal names it. Not `contextLength`: llama.cpp also bounds a pooled embedder by its physical batch, and
      *  KoboldCpp's window is its text model's. */
     embedInputTokens: z.number().int().positive().optional(),
+    /** The longest query and document pair, in tokens, the server's rerank route takes for this model, where a hosted
+     *  list states it. Not `contextLength`: a local server bounds a pooled reranker by its physical batch. */
+    rerankInputTokens: z.number().int().positive().optional(),
     /** What a chat turn may carry, where the server's native model info states it (D292). Absent ⇒ not stated. */
     input: z.array(modalitySchema).optional(),
     /** The server states the model takes `tools[]`; `parallel` only where it states that too. Absent ⇒ not stated. */

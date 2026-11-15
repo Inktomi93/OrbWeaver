@@ -217,11 +217,62 @@ const EFFORT_OFF = "none";
 const NANOGPT_DETAILED_PATH = "/models?detailed=true";
 const TEXT_OUTPUT = "text";
 
-/** The detailed list read in place of the bare one, which carries ids only. A `null` limit states nothing, so the
- *  capability keeps that limit marked assumed. A row whose stated output has no text is not a chat model. */
+/** The embedding list's fields this reader keeps (docs.nano-gpt.com Embedding Models): `dimensions` is the default
+ *  width the route returns when a request names none, `max_tokens` the longest input. */
+const nanoGptEmbedderSchema = z.looseObject({
+  id: z.string().min(1),
+  name: STATED_TEXT,
+  dimensions: STATED_LIMIT,
+  max_tokens: STATED_LIMIT,
+  pricing: z.looseObject({ per_million_tokens: STATED_PRICE }).optional().catch(undefined),
+});
+
+/** The rerank list's fields this reader keeps (the Rerank page): `max_tokens` bounds one query and document pair. */
+const nanoGptRerankerSchema = z.looseObject({
+  id: z.string().min(1),
+  name: STATED_TEXT,
+  max_tokens: STATED_LIMIT,
+  pricing: z.looseObject({ per_million_tokens: STATED_PRICE }).optional().catch(undefined),
+});
+
+const NANOGPT_EMBEDDING_PATH = "/embedding-models";
+const NANOGPT_RERANK_PATH = "/rerank-models";
+
+/** The detailed list read in place of the bare one, which carries ids only, then the embedding and rerank lists, which
+ *  sit outside it. A `null` limit states nothing, so the capability keeps that limit marked assumed. A row whose stated
+ *  output has no text is not a chat model. A side list that fails drops its own models and never the chat list. */
 async function fetchNanoGptModels(args: EndpointFetchArgs): Promise<EndpointModel[]> {
   const rows = await hostedRows(args, { path: NANOGPT_DETAILED_PATH, label: "NanoGPT models" }, nanoGptRowSchema);
-  return rows.filter((row) => row.architecture?.output_modalities?.includes(TEXT_OUTPUT) ?? true).map(nanoGptModel);
+  const embedders = await nativeRead(args, () => hostedRows(args, { path: NANOGPT_EMBEDDING_PATH, label: "NanoGPT embedding models" }, nanoGptEmbedderSchema));
+  const rerankers = await nativeRead(args, () => hostedRows(args, { path: NANOGPT_RERANK_PATH, label: "NanoGPT rerank models" }, nanoGptRerankerSchema));
+  return [
+    ...rows.filter((row) => row.architecture?.output_modalities?.includes(TEXT_OUTPUT) ?? true).map(nanoGptModel),
+    ...(embedders ?? []).map((row) =>
+      withStated(
+        { id: row.id, contextLength: null },
+        {
+          kind: "embedding",
+          name: row.name,
+          embeddingDims: row.dimensions ?? undefined,
+          embedInputTokens: row.max_tokens ?? undefined,
+          listedPrice: listedPriceOf(row.pricing?.per_million_tokens, undefined),
+          probed: true,
+        },
+      ),
+    ),
+    ...(rerankers ?? []).map((row) =>
+      withStated(
+        { id: row.id, contextLength: null },
+        {
+          kind: "rerank",
+          name: row.name,
+          rerankInputTokens: row.max_tokens ?? undefined,
+          listedPrice: listedPriceOf(row.pricing?.per_million_tokens, undefined),
+          probed: true,
+        },
+      ),
+    ),
+  ];
 }
 
 // The levels a thinker's list names, and whether `none` turns its thinking off (NanoGPT's DeepSeek Harness page: "its
