@@ -40,7 +40,7 @@ async function drive(body: string): Promise<Error | null> {
     const page = await browser.newPage({ viewport: VIEWPORT });
     await page.setContent(`${NAV_SHIM}${body}`);
     try {
-      await driveSurface(page, HOME_ROW);
+      await driveSurface(page, HOME_ROW, null);
       return null;
     } catch (error) {
       return error instanceof Error ? error : new Error(String(error));
@@ -67,6 +67,37 @@ test("a surface that never shows its settle subject refuses by name instead of t
 
 test("the same drive returns normally once the surface's settle subject is there", { timeout: BROWSER_TIMEOUT_MS }, async () => {
   expect(await drive('<div class="shell-grid">shell</div>')).toBeNull();
+});
+
+// A chat row opens the matrix's own room when the run provisioned one, so its verdict never depends on which
+// room a stage's database happens to list first. With no room it keeps the list's top row.
+const CHAT_ROW: RuntimeAppearanceHistoricalRow = {
+  id: "psh-chat-row",
+  surface: "chat",
+  subjects: [{ id: "row", selector: '[data-slot="message-row"]', population: "many", sample: "carrier" }],
+  cascade: [],
+  merge: { mechanism: "merge-not-applicable", reason: "direct-carrier", selector: '[data-slot="message-row"]', owner: "fixture" },
+  requiredChecks: [],
+  optionalSubjectIds: [],
+};
+const OPENED_CHAT_SHIM =
+  '<script>globalThis.__opened=[];globalThis.__orb={nav:{openChat:(target)=>{globalThis.__opened.push(target);return {ok:true};}}};</script><div data-slot="message-row">row</div>';
+
+async function openedChats(room: string | null): Promise<unknown> {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage({ viewport: VIEWPORT });
+    await page.setContent(OPENED_CHAT_SHIM);
+    await driveSurface(page, CHAT_ROW, room);
+    return await page.evaluate("globalThis.__opened");
+  } finally {
+    await browser.close();
+  }
+}
+
+test("a chat row opens the provisioned room by id, and the list's top row only without one", { timeout: BROWSER_TIMEOUT_MS }, async () => {
+  expect(await openedChats("chat_01matrixroomfixture00000")).toEqual(["chat_01matrixroomfixture00000"]);
+  expect(await openedChats(null)).toEqual(["latest"]);
 });
 
 // @instrument-proof: #2402 — ONE `scrollIntoView` IS NOT A VERDICT. The chat list re-pins to its latest

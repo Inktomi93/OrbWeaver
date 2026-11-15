@@ -20,9 +20,11 @@ refuseDirectInvocation(import.meta.url, "pnpm snap --matrix");
  *  NOT by the dialog-attach ceiling it used until #1104: a popup that has been asked to open returns in a
  *  frame or two, but reaching a chat on a cold stage means a route chunk, a query and a virtualized list,
  *  and a 5s popup ceiling made that read as a defect on load alone. */
-function appearanceSurfaceNav(row: RuntimeAppearanceHistoricalRow): readonly ["goto" | "open-chat", string, string] {
+function appearanceSurfaceNav(row: RuntimeAppearanceHistoricalRow, chatRoom: string | null): readonly ["goto" | "open-chat", string, string] {
   if (row.surface === "chat" || row.id === "light-art-scrim-glass-elevation") {
-    return ["open-chat", "latest", '[data-slot="message-row"]'];
+    // The run's own provisioned room when it has one, so the verdict does not depend on which room the
+    // stage's database lists first; a shared run with no room takes the list's top row.
+    return ["open-chat", chatRoom ?? "latest", '[data-slot="message-row"]'];
   }
   if (row.surface === "config-sizing") {
     return ["goto", "config:appearance.sizing", '[data-slot="density-preview"]'];
@@ -32,8 +34,8 @@ function appearanceSurfaceNav(row: RuntimeAppearanceHistoricalRow): readonly ["g
 
 /** Exported for its pin (`tests/tooling/snap/ops/appearance-surface-drive.int.test.ts`): the arm that
  *  proves an unreachable surface REFUSES BY NAME instead of surfacing as a bare Playwright timeout. */
-export async function driveSurface(page: Page, row: RuntimeAppearanceHistoricalRow): Promise<void> {
-  const [kind, target, waitSelector] = appearanceSurfaceNav(row);
+export async function driveSurface(page: Page, row: RuntimeAppearanceHistoricalRow, chatRoom: string | null): Promise<void> {
+  const [kind, target, waitSelector] = appearanceSurfaceNav(row, chatRoom);
   const result = navResultShape(await page.evaluate(buildNavScript(kind, target)), `nav ${kind} ${target}`);
   if (!result.ok) {
     instrumentRefusal(`Appearance row ${row.id} navigation refused: ${result.reason ?? "unknown"}`);
