@@ -180,8 +180,8 @@ function parseDepthPrompt(raw: unknown): CharacterCard["depthPrompt"] {
  *  position. The raw blob is V3 `data.extensions.regex_scripts` or the V2 root `data.regex_scripts`. */
 function parseRegexScripts(data: RawCard): { readonly scripts: RegexScriptCard[]; readonly notes: StScriptNote[] } {
   const read = Array.isArray(data.extensions?.regex_scripts)
-    ? readStScriptList(data.extensions.regex_scripts, "data.extensions.regex_scripts")
-    : readStScriptList(Array.isArray(data.regex_scripts) ? data.regex_scripts : [], "data.regex_scripts");
+    ? readStScriptList(data.extensions.regex_scripts, "data.extensions.regex_scripts", "scoped")
+    : readStScriptList(Array.isArray(data.regex_scripts) ? data.regex_scripts : [], "data.regex_scripts", "scoped");
   return { scripts: read.scripts, notes: stScriptListNotes(read) };
 }
 

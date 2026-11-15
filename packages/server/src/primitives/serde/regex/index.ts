@@ -12,16 +12,18 @@
 import { clipImportText } from "@orb/contracts/import";
 import type { PortableParse } from "@orb/contracts/portability";
 import { REGEX_SCRIPT_SCHEMA_KIND } from "@orb/contracts/portability";
-import type { PortableRegexScript, RegexScriptCard, RegexScriptLimitBreak } from "@orb/contracts/regex";
+import type { PortableRegexScript, RegexScriptCard, RegexScriptLimitBreak, StScriptList } from "@orb/contracts/regex";
 import {
   portableRegexScriptSchema,
   regexScriptCardSchema,
   regexScriptLimitBreak,
+  stGlobalRegexScriptCardSchema,
   stPlacementsWithoutTarget,
   stRegexScriptFields,
   stScriptPatternCompiles,
 } from "@orb/contracts/regex";
 import { isPlainObject } from "@orb/kit/guards";
+import { regexBehaviorReachesText } from "@orb/kit/regex";
 import { decodePortableObject, defineJsonObjectSerde } from "#primitives/serde/lib";
 
 export { REGEX_SCRIPT_SCHEMA_KIND } from "@orb/contracts/portability";
@@ -62,21 +64,28 @@ function stScriptRefusalNote({ field, name, reason }: StScriptRefusal): StScript
 }
 
 // What a parsed SillyTavern script lost on the way in, each under the field it sits in: a placement with no target
-// here, and a find pattern that does not compile. The lift switches off a script left with no target or with a
-// pattern that does not compile, and the reason says so.
-function stScriptLossNotes(candidate: unknown, script: Pick<RegexScriptCard, "name" | "targets">, field: string): StScriptNote[] {
+// here, a script whose passes read none of its targets, and a find pattern that does not compile. The lift switches
+// off a script that runs on no text or whose pattern does not compile, and the reason says so.
+function stScriptLossNotes(
+  candidate: unknown,
+  script: Pick<RegexScriptCard, "name" | "targets" | "passes">,
+  field: string,
+  list: StScriptList,
+): StScriptNote[] {
   const name = quotedName(script.name);
   const notes: StScriptNote[] = [];
-  const lost = stPlacementsWithoutTarget(candidate);
-  if (lost.length > 0) {
-    const placements = `SillyTavern placement ${lost.join(", ")}`;
+  const lost = stPlacementsWithoutTarget(candidate, list);
+  const placements = `SillyTavern placement ${lost.join(", ")}`;
+  if (!regexBehaviorReachesText(script)) {
     notes.push({
       field: `${field}.placement`,
       reason:
         script.targets.length === 0
           ? `script ${name} has nothing to run on here (${placements}), so it is imported switched off`
-          : `script ${name} keeps its other targets; ${placements} has no target here`,
+          : `script ${name} is imported switched off: none of the passes it runs on reads the text it targets`,
     });
+  } else if (lost.length > 0) {
+    notes.push({ field: `${field}.placement`, reason: `script ${name} keeps its other targets; ${placements} has no target here` });
   }
   if (!stScriptPatternCompiles(candidate)) {
     notes.push({ field: `${field}.findRegex`, reason: `script ${name} is imported switched off: its find pattern does not compile` });
@@ -86,17 +95,19 @@ function stScriptLossNotes(candidate: unknown, script: Pick<RegexScriptCard, "na
 
 /** One SillyTavern script list read: the scripts that parsed, each script it refuses, and the notes for what a parsed
  *  script lost, each by its position under `field`. Every door that reads a list of SillyTavern scripts (a preset, a
- *  card, the global list) reads it here. */
+ *  card, the global list) reads it here, naming which kind of list it is. */
 export function readStScriptList(
   list: readonly unknown[],
   field: string,
+  from: StScriptList,
 ): { readonly scripts: RegexScriptCard[]; readonly refused: StScriptRefusal[]; readonly notes: StScriptNote[] } {
+  const schema = from === "global" ? stGlobalRegexScriptCardSchema : regexScriptCardSchema;
   const scripts: RegexScriptCard[] = [];
   const refused: StScriptRefusal[] = [];
   const notes: StScriptNote[] = [];
   for (const [i, candidate] of list.entries()) {
     const at = `${field}[${i}]`;
-    const parsed = regexScriptCardSchema.safeParse(candidate);
+    const parsed = schema.safeParse(candidate);
     if (!parsed.success) {
       const raw = isPlainObject(candidate) ? (candidate["scriptName"] ?? candidate["name"]) : undefined;
       const name = typeof raw === "string" && raw !== "" ? clipImportText(raw) : at;
@@ -104,7 +115,7 @@ export function readStScriptList(
       continue;
     }
     scripts.push(parsed.data);
-    notes.push(...stScriptLossNotes(candidate, parsed.data, at));
+    notes.push(...stScriptLossNotes(candidate, parsed.data, at, from));
   }
   return { scripts, refused, notes };
 }
@@ -170,9 +181,9 @@ export function parseRegexScriptFile(bytes: Uint8Array): PortableParse<PortableR
   return st.success ? { ok: true, value: fromStScript(st.data) } : native;
 }
 
-/** What a parsed regex file lost on the way in: a SillyTavern placement with no target here, or a find pattern that
- *  does not compile. */
+/** What a parsed regex file lost on the way in: a SillyTavern placement with no target here, a script that runs on
+ *  no text, or a find pattern that does not compile. A single file is read as a scoped script: it lands on no list. */
 export function regexScriptFileNotes(bytes: Uint8Array, script: PortableRegexScript): readonly string[] {
   const decoded = decodePortableObject(bytes);
-  return decoded.ok ? stScriptLossNotes(decoded.value, script, "").map(({ reason }) => reason) : [];
+  return decoded.ok ? stScriptLossNotes(decoded.value, script, "", "scoped").map(({ reason }) => reason) : [];
 }

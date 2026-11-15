@@ -664,7 +664,7 @@ async function collectGlobalRegexScripts(
   profileDir: ImportDirectory,
 ): Promise<{ readonly scripts: RegexScriptCard[]; readonly notes: readonly StScriptNote[] }> {
   const list = descend(await readSettingsJson(fs, profileDir), "extension_settings", "regex");
-  const read = readStScriptList(Array.isArray(list) ? list : [], "extension_settings.regex");
+  const read = readStScriptList(Array.isArray(list) ? list : [], "extension_settings.regex", "global");
   return { scripts: read.scripts, notes: stScriptListNotes(read) };
 }
 

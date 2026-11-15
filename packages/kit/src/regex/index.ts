@@ -505,6 +505,12 @@ export function regexPassReadsTarget(pass: RegexPass, target: RegexTarget): bool
   return PASS_TARGETS[pass].includes(target);
 }
 
+/** Whether a script runs on any text at all: some pass it runs on reads some target it names
+ *  ({@link regexPassReadsTarget}). An import switches off a script that does not. */
+export function regexBehaviorReachesText(behavior: { readonly targets: readonly RegexTarget[]; readonly passes: readonly RegexPass[] }): boolean {
+  return behavior.passes.some((pass) => behavior.targets.some((target) => regexPassReadsTarget(pass, target)));
+}
+
 /**
  * Apply, in order, every enabled script whose passes and targets both name the call and whose depth and author
  * scope admit it. Returns the processed text. A script that throws (bad regex, too complex, or a timeout from a

@@ -57,7 +57,7 @@ function parsePresetExtensions(raw: Record<string, unknown>): {
     return { regexScripts: [], refusedScripts: [], dropped: [] };
   }
   const { regex_scripts: rawScripts, ...residue } = ext;
-  const read = readStScriptList(Array.isArray(rawScripts) ? rawScripts : [], `${ST_PRESET_EXTENSIONS_KEY}.regex_scripts`);
+  const read = readStScriptList(Array.isArray(rawScripts) ? rawScripts : [], `${ST_PRESET_EXTENSIONS_KEY}.regex_scripts`, "scoped");
   const dropped: StDroppedField[] = [...read.notes];
   for (const key of Object.keys(residue)) {
     dropped.push({ field: `${ST_PRESET_EXTENSIONS_KEY}.${key}`, reason: "preset-scoped extension state — no orb seat" });
