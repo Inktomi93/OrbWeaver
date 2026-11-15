@@ -3194,7 +3194,7 @@ function clampForeignValue(value: number, [min, max]: readonly [number, number],
   if (clamped !== value) {
     dropped.push({
       field,
-      reason: `SillyTavern sent ${value}; orb stores a whole number between ${min} and ${max}, so it was imported as ${clamped}.`,
+      reason: `The file sets ${value}. This app keeps whole numbers from ${min} to ${max}, so it was imported as ${clamped}.`,
       clamped: { sent: value, landedAs: clamped },
     });
   }
@@ -3293,7 +3293,10 @@ const ST_CONTINUE_POSTFIX: Record<string, ContinuePostfix> = {
 
 // Top-level ST fields with no neo home — reported (when present + meaningful) so the user knows.
 const DROPPABLE_FIELDS: readonly StDroppedField[] = [
-  { field: "group_nudge_prompt", reason: "group nudge is room-owned, not preset-owned" },
+  {
+    field: "group_nudge_prompt",
+    reason: "SillyTavern uses it to nudge the next speaker in a group chat. Here nudges are set per chat, so it was not imported.",
+  },
   // `new_chat_prompt` is NOT here: its orb seat EXISTS —
   // `formatStrings.newChatMarker`, the history-START boundary the assembler reads
   // (`assembly/context.ts` newChatMarkerCandidate / G9) — so `collectFormatStrings` maps it.
@@ -3302,16 +3305,32 @@ const DROPPABLE_FIELDS: readonly StDroppedField[] = [
   // every SOLO chat, a different behavior than the author recorded, not a translation.
   {
     field: "new_group_chat_prompt",
-    reason: "orb's one history-START boundary (newChatMarker) is room-agnostic and maps from new_chat_prompt; a group-only boundary has no conditional seat",
+    reason:
+      "SillyTavern uses it to open a new group chat. Here one opening line, from the new chat prompt, serves every chat, so a group-only line was not imported.",
   },
-  { field: "new_example_chat_prompt", reason: "no example-chat injection slot" },
-  { field: "bias_preset_selected", reason: "no logit-bias presets" },
-  { field: "assistant_prefill", reason: "response prefill unsupported across providers" },
-  { field: "assistant_impersonation", reason: "no impersonation prefill" },
-  { field: "wrap_in_quotes", reason: "no quote-wrapping knob" },
-  { field: "function_calling", reason: "no tool-calling in chat presets" },
-  { field: "enable_web_search", reason: "no web-search knob" },
+  {
+    field: "new_example_chat_prompt",
+    reason: "SillyTavern uses it to mark where example dialogue starts. This app has no separate line for that, so it was not imported.",
+  },
+  {
+    field: "bias_preset_selected",
+    reason: "SillyTavern uses it to pick a saved logit bias preset. This app has no saved logit bias presets, so it was not imported.",
+  },
+  { field: "assistant_prefill", reason: "SillyTavern starts the reply with this text. Not every provider supports that, so it was not imported." },
+  {
+    field: "assistant_impersonation",
+    reason: "SillyTavern starts an impersonated reply with this text. This app has no such prefill, so it was not imported.",
+  },
+  { field: "wrap_in_quotes", reason: "SillyTavern uses it to wrap your message in quotes. This app has no such setting, so it was not imported." },
+  {
+    field: "function_calling",
+    reason: "SillyTavern uses it to let the model call tools. Chat presets here do not switch tool calling on, so it was not imported.",
+  },
+  { field: "enable_web_search", reason: "SillyTavern uses it to turn on web search. This app has no such setting, so it was not imported." },
 ];
+
+/** The reason for a populated top-level field the mapper neither maps nor lists. */
+const UNUSED_FIELD_REASON = "This app does not use this SillyTavern setting, so it was not imported.";
 
 const finiteNumber = (v: unknown): number | undefined => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
 const setNum = (out: Record<string, unknown>, k: string, v: number | undefined): void => {
@@ -3492,7 +3511,7 @@ function collectDroppableFields(rawObj: Record<string, unknown>, handled: readon
   }
   for (const [field, value] of Object.entries(rawObj)) {
     if (!(MAPPED_FIELDS.has(field) || DROPPABLE_FIELD_NAMES.has(field) || handled.includes(field)) && isPopulatedValue(value)) {
-      out.push({ field, reason: "not a field orb recognises — no orb seat" });
+      out.push({ field, reason: UNUSED_FIELD_REASON });
     }
   }
   return out;
@@ -3570,15 +3589,24 @@ function stReasoningParse(powerUser: Record<string, unknown>): PromptConfig["rea
 // `power_user` keys that are GENERATION-adjacent (so they would belong on a preset) but have no orb seat at
 // all. Reported on the LIVE preset's dropped list so the operator sees them exactly where they'd have landed.
 const DROPPABLE_POWER_USER_FIELDS: readonly StDroppedField[] = [
-  { field: "token_padding", reason: "ST reserves context headroom for its own tokenizer's inaccuracy; orb budgets from provider-reported usage" },
-  { field: "tokenizer", reason: "the ST tokenizer set is reaffirmed OUT (D49) — orb counts through the provider" },
-  { field: "custom_stopping_strings_macro", reason: "macro substitution INSIDE stop strings — orb's stop list is literal (the strings themselves DO import)" },
-  { field: "auto_continue", reason: "ST's auto-continue-until-length loop — no orb counterpart" },
+  {
+    field: "token_padding",
+    reason: "SillyTavern pads its token count to allow for its own counting error. This app counts from what the provider reports, so it was not imported.",
+  },
+  { field: "tokenizer", reason: "SillyTavern uses it to choose which tokenizer counts tokens. This app counts through the provider, so it was not imported." },
+  {
+    field: "custom_stopping_strings_macro",
+    reason: "SillyTavern expands macros inside stop strings. Here stop strings are literal text, so the macros were not imported. The strings themselves were.",
+  },
+  {
+    field: "auto_continue",
+    reason: "SillyTavern keeps continuing a reply until it reaches the length limit. This app has no such loop, so it was not imported.",
+  },
   // BY DESIGN, not deferred (owner ruling, reaffirmed: "we are never running text-complete") —
   // these three are text-completion prompt-format state, and orb has no text-completion mode to spend them in.
-  { field: "context", reason: "text-completion context template — text-completion is out of product scope (owner ruling, reaffirmed 2026-08-15)" },
-  { field: "instruct", reason: "text-completion instruct template — text-completion is out of product scope (owner ruling, reaffirmed 2026-08-15)" },
-  { field: "sysprompt", reason: "text-completion system-prompt template — text-completion is out of product scope (owner ruling, reaffirmed 2026-08-15)" },
+  { field: "context", reason: "SillyTavern's context template for text completion. This app does not use text completion, so it was not imported." },
+  { field: "instruct", reason: "SillyTavern's instruct template for text completion. This app does not use text completion, so it was not imported." },
+  { field: "sysprompt", reason: "SillyTavern's system prompt template for text completion. This app does not use text completion, so it was not imported." },
 ];
 
 /** A value worth reporting as dropped: a non-empty string, a `true`, a non-zero number, or a non-empty object or
@@ -3661,7 +3689,7 @@ function stSchemaRejection(
   return {
     ok: false,
     recognised: true,
-    reason: `This SillyTavern preset mapped to a config orb cannot store (${outcome.failure})${detail}, so nothing was imported — importing it would have silently replaced it with orb's default preset.`,
+    reason: `This SillyTavern preset has a value this app cannot store${detail}, so nothing was imported. Importing it would have replaced it with the default preset without telling you.`,
   };
 }
 

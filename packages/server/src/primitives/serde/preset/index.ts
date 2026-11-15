@@ -48,7 +48,7 @@ const LIMIT_SUBJECT: Readonly<Record<RegexScriptLimitBreak["limit"], string>> = 
 function scriptDropReason(candidate: unknown): string {
   const broken = regexScriptLimitBreak(candidate);
   if (broken === null) {
-    return "not a recognizable regex script (malformed — dropped)";
+    return "This regex script could not be read, so it was not imported.";
   }
   const raw = isPlainObject(candidate) ? (candidate["scriptName"] ?? candidate["name"]) : undefined;
   const name = typeof raw === "string" ? `${JSON.stringify(clipImportText(raw))} ` : "";
@@ -81,7 +81,10 @@ function parsePresetExtensions(raw: Record<string, unknown>): {
     }
   }
   for (const key of Object.keys(residue)) {
-    dropped.push({ field: `${ST_PRESET_EXTENSIONS_KEY}.${key}`, reason: "preset-scoped extension state — no orb seat" });
+    dropped.push({
+      field: `${ST_PRESET_EXTENSIONS_KEY}.${key}`,
+      reason: "Extension data saved with this preset. This app does not use it, so it was not imported.",
+    });
   }
   return { regexScripts, dropped };
 }
