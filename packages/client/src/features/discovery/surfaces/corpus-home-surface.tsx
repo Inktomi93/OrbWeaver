@@ -217,7 +217,7 @@ function CorpusHomeBody(): ReactElement {
             region's `@container` is genuinely wide enough for two, `items-end` only in the two-column arm — a
             right-aligned figure block under a stacked headline would read as a stray. */}
       <Row align="end" gap="section" justify="between" stackBelow="cq-40" alignBelow="stretch-cq-40">
-        <Stack className="min-inline-0" grow={true} gap="tight">
+        <Stack minWidth="shrinks" grow={true} gap="tight">
           <Text as="span" voice="kicker">
             {CORPUS_UNDERSTANDING_HEADING}
           </Text>
@@ -278,13 +278,13 @@ function CorpusHomeBody(): ReactElement {
             own. The left track is unaffected: its children are content-height in a stretched flex column
             either way. */}
       <Grid cols="leadEarly" gap="gutter">
-        <Stack className="min-inline-0" gap="section">
+        <Stack minWidth="shrinks" gap="section">
           {mapIsFocal ? null : <CorpusUnderstandingInvitation />}
           {/* `totalDistilled` is the ARCHETYPES TAB's own gate signal (#154) — the door's viability is the
                 destination's fact, so it travels down rather than being guessed at here (A7). */}
           <CorpusFamilyMap canOpenFamilies={catalog.totalDistilled > 0} families={families} focal={mapIsFocal} />
         </Stack>
-        <Stack className="min-inline-0" gap="section">
+        <Stack minWidth="shrinks" gap="section">
           <CorpusReadinessRail
             queue={{ failed: runs.error !== null, onRetry: (): void => void runs.refetch().catch(globalThis.reportError) }}
             showRerun={mapIsFocal}

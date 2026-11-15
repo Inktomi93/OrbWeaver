@@ -42,7 +42,7 @@ interface RerankPickParams {
   /** Forwarded to the `natural` fallback only. */
   readonly mentionedIds?: readonly CharacterId[] | undefined;
   readonly rng: RandomSource;
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 /** The query and one `Name: line` document per candidate, each cut to the bound model's window. The query
@@ -81,7 +81,7 @@ async function rankKeys(params: RerankPickParams, line: TranscriptLine, named: r
   );
   const result = await reranker.rerank(fitted.query, fitted.documents, {
     ...(reranker.capability.instructionAware ? { instruction: PICK_INSTRUCTION } : {}),
-    ...(params.signal === undefined ? {} : { signal: params.signal }),
+    signal: params.signal,
   });
   return result.hits.toSorted((a, b) => b.score - a.score).map((h) => h.id);
 }
@@ -92,7 +92,7 @@ async function rankOrNull(params: RerankPickParams, line: TranscriptLine, named:
   try {
     return await rankKeys(params, line, named);
   } catch (error) {
-    if (error instanceof ProviderError || error instanceof DomainNoCredentialError || params.signal?.aborted === true) {
+    if (error instanceof ProviderError || error instanceof DomainNoCredentialError || params.signal.aborted) {
       return null;
     }
     throw error;
@@ -119,7 +119,7 @@ function orderAddressed(addressed: readonly CharacterId[], ranked: readonly stri
 export async function rerankPick(params: RerankPickParams): Promise<SmartArbitrationResult> {
   // Read through a call: the signal flips asynchronously, so a narrowed property read would go stale. A turn
   // already cancelled picks nobody, so no rule below (not even a name in the line) can schedule a speaker.
-  const cancelled = (): boolean => params.signal?.aborted === true;
+  const cancelled = (): boolean => params.signal.aborted;
   if (cancelled()) {
     return CANCELLED;
   }

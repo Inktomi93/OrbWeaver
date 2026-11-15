@@ -12,7 +12,8 @@ import { readGenerationTargets } from "../persistence/space-state.ts";
 async function currentConnection(ctx: EmbeddingsContext, ownerId: UserId, via: EmbeddingTask): Promise<EmbeddingConnectionSnapshot | null> {
   // An owner whose binding cannot resolve has nothing a re-index could embed with; any other failure propagates to the boot supervisor, which logs it once.
   try {
-    return await ctx.resolveEmbeddingConnection(ownerId, via);
+    // A boot read with no request above it; the resolve keeps its own deadline.
+    return await ctx.resolveEmbeddingConnection(ownerId, via, { signal: new AbortController().signal });
   } catch (error) {
     if (!isUnresolvableBinding(error)) {
       throw error;

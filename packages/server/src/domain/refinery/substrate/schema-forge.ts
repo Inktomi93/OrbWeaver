@@ -2,7 +2,6 @@
 // document on every arm/backend. Structured payload failures may retry; the final document refusal is
 // human-facing errors-as-data with the raw draft preserved for hand-fixing.
 
-import type { RolePresetParams } from "@orb/contracts/preset";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
@@ -63,13 +62,14 @@ const RESPONSE_FORMATS = {
 export async function resolveForgeCall(
   ctx: RefineryContext,
   ownerId: UserId,
-): Promise<{ overrides: ProseOverrides; sampleOpts: RolePresetParams; rc: RoleClients }> {
+  signal: AbortSignal,
+): Promise<{ overrides: ProseOverrides; sampleOpts: ForgeTurnArgs["sampleOpts"]; rc: RoleClients<AbortSignal> }> {
   const [overrides, presetParams, rc] = await Promise.all([
     ctx.resolveUserProse(ownerId),
     ctx.resolveUtilityPresetParams(ownerId),
     ctx.roleClientsFor(ownerId),
   ]);
-  return { overrides, sampleOpts: resolveSideGenSampling(SIDE_GEN_POSTURES.schema_forge, presetParams), rc };
+  return { overrides, sampleOpts: { ...resolveSideGenSampling(SIDE_GEN_POSTURES.schema_forge, presetParams), signal }, rc };
 }
 
 /** One enforced call. `format` picks the grammar; `task` is the `{{task}}` splice; `payload` is the
@@ -79,7 +79,7 @@ async function runCall<T>(
   spec: { readonly format: keyof typeof RESPONSE_FORMATS; readonly task: string; readonly user: string; readonly payload: z.ZodType<T> },
 ): Promise<T> {
   const system = resolveProseText("refinery.schemaForge.system", args.overrides, { core: CORE_TEXTS[args.stage], task: spec.task });
-  const opts: StructuredOptions = { ...args.sampleOpts, responseFormat: RESPONSE_FORMATS[spec.format] };
+  const opts: StructuredOptions<AbortSignal> = { ...args.sampleOpts, responseFormat: RESPONSE_FORMATS[spec.format] };
   const run = async (correction?: string): Promise<string> => {
     const userPrompt = correction === undefined ? spec.user : `${spec.user}\n\n${correction}`;
     const res = await args.rc.structured([{ systemPrompt: system, userPrompt }], opts);

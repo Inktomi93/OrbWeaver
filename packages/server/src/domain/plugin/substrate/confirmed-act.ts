@@ -24,10 +24,14 @@
 // not the plugin still has a resident instance. It works because the ACT is data, not a closure — a pending
 // record that could execute itself would be a capability sitting in a map.
 
-import type { PluginSuggestedAct, PluginSuggestedActKind } from "@orb/contracts/plugin";
+import type { PluginInvocationLiveness, PluginSuggestedAct, PluginSuggestedActKind } from "@orb/contracts/plugin";
 import type { ChatId, PluginId, UserId } from "@orb/kit/ids";
 import type { PluginBelts, PluginHostOps, PluginIdentity } from "../contract/ops.ts";
 import { buildPluginBridge } from "./bridge.ts";
+
+/** A confirmed act runs after its ask was claimed take-once, so no cancel may end it: a stopped act would spend the
+ *  host's yes on nothing. No guest invocation exists to end it either. */
+const CONFIRMED_ACT_LIVENESS: PluginInvocationLiveness = { aborted: false, onAbort: () => () => undefined };
 
 /** Run ONE confirmed act through the plugin's own bridge. Rejects on any refusal the bridge raises (an
  *  unattached book, the entry ceiling, a spend failure) — the caller records `action_error`. */
@@ -74,7 +78,7 @@ export function buildConfirmedActRunner(
         return;
       }
       case "generatePicture": {
-        await bridge.imagery.generatePicture(chatId, (act as Extract<PluginSuggestedAct, { kind: "generatePicture" }>).args);
+        await bridge.imagery.generatePicture(chatId, (act as Extract<PluginSuggestedAct, { kind: "generatePicture" }>).args, CONFIRMED_ACT_LIVENESS);
         return;
       }
       default: {

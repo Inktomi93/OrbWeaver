@@ -45,7 +45,7 @@ export function SkeletonRows({ count, shape = "line" }: SkeletonRowsProps): Reac
         {rows.map((i) => (
           <Row align="center" minHeight="controlMd" paddingBlock="field" paddingInline="row" gap="row" key={i}>
             <Skeleton variant="circle" width="avatarMd" height="avatarMd" />
-            <Stack className="min-inline-0" grow={true} gap="field">
+            <Stack minWidth="shrinks" grow={true} gap="field">
               <Skeleton width="full" height="lineMicro" />
               <Skeleton width="full" height="lineMicro" />
             </Stack>

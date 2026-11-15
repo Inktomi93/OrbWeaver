@@ -15,13 +15,13 @@ import type { SummarizerFacts } from "../contract/results.ts";
  *  context (`windowForPreset`), so the budget and the sent window agree. `resolved` reads `null` for both nothing
  *  bound and background consent withheld, so that case asks the plan line's `resolveStructuredBinding` which one it is. */
 export async function summarizerFactsOf(
-  rc: RoleClients,
+  rc: RoleClients<AbortSignal>,
   presetParams: Pick<UserIntent, "maxContextTokens"> | undefined,
-  binding: { readonly ownerId: UserId; readonly resolveStructuredBinding: ResolveStructuredBinding },
+  binding: { readonly ownerId: UserId; readonly resolveStructuredBinding: ResolveStructuredBinding; readonly signal: AbortSignal },
 ): Promise<SummarizerFacts> {
-  const resolved = await rc.resolved("structured");
+  const resolved = await rc.resolved("structured", binding.signal);
   if (resolved === null) {
-    const bound = await binding.resolveStructuredBinding(binding.ownerId);
+    const bound = await binding.resolveStructuredBinding(binding.ownerId, binding.signal);
     throw bound !== null && !canFund(bound, "structured") ? new RefineryBackgroundRefusedError() : new RefineryNotConfiguredError();
   }
   const contextTokens =

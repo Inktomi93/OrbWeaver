@@ -33,7 +33,7 @@ import { latestRunRowOf, loadOwnedSessionRow } from "../persistence/queries.ts";
 import { releaseRoundClaim, takeRoundClaim } from "../persistence/round-claim.ts";
 
 export function createIterate(ctx: RefineryContext, deps: StageEngineDeps): RefineryService["iterate"] {
-  return async ({ principal, sessionId, guidance }) => {
+  return async ({ principal, sessionId, guidance, signal }) => {
     const ownerId = principal.userId;
     const row = await loadOwnedSessionRow(ctx.db, ownerId, sessionId);
     if (row === undefined) {
@@ -60,8 +60,8 @@ export function createIterate(ctx: RefineryContext, deps: StageEngineDeps): Refi
     }
 
     try {
-      const rewrite = await deps.executeStage({ principal, sessionId, stage: "rewrite", isRefinement: true });
-      const analyze = await deps.executeStage({ principal, sessionId, stage: "analyze", isRefinement: true });
+      const rewrite = await deps.executeStage({ principal, sessionId, stage: "rewrite", isRefinement: true, signal });
+      const analyze = await deps.executeStage({ principal, sessionId, stage: "analyze", isRefinement: true, signal });
 
       // THE COUNTER IS INCREMENTED IN SQL, NEVER FROM THE LOADED SNAPSHOT. `row` was read before
       // two long model calls, so `row.iterationCount + 1` is a stale basis: two rounds running concurrently

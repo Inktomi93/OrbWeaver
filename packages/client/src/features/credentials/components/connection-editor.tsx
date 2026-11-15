@@ -269,7 +269,7 @@ function AvailableConnectionEditorBody({
             </Stack>
             <PurposeNotes notes={purposeNotes(capabilityView.capability, provider.auth === "endpoint")} />
             <Row align="start" gap="field" justify="between">
-              <Stack className="min-inline-0" grow="fill" gap="tight">
+              <Stack minWidth="shrinks" grow="fill" gap="tight">
                 <Text voice="label">{ALLOW_BACKGROUND_SETTING}</Text>
                 <Text voice="gloss">
                   Summaries, extraction, captions, embeddings and reranking run unattended on this connection. Leave it off for anything you pay per call, or

@@ -232,7 +232,7 @@ function FaceButton<Id extends string>({ ref, item, selected, verb, caption, squ
       variant="ghost"
       onClick={(): void => onSelect(item.id)}
     >
-      <Stack align="center" className="min-inline-0" gap="tight">
+      <Stack align="center" minWidth="shrinks" gap="tight">
         <Avatar hueSeed={item.id} ring={selected ? "accent" : "none"} size="md" {...(item.avatarHash === null ? {} : { src: blobUrl(item.avatarHash) })}>
           {initialsFor(item.name)}
         </Avatar>

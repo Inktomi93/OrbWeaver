@@ -5,7 +5,7 @@ import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, readRoomCanon, seedCharacter, seedGlobalRegexScript, seedRegexScript, seedTranscript } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
 
-// A catastrophic-backtracking pattern: the host's node:vm watchdog (or the kit's complexity guard) refuses it.
+// A catastrophic-backtracking pattern: the host's node:vm watchdog cuts it off.
 const RUNAWAY_PATTERN = "(a+)+$";
 const RUNAWAY_TEXT = `${"a".repeat(40)}!`;
 

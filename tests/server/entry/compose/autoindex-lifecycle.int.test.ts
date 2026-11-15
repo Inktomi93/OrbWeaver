@@ -53,7 +53,7 @@ test("a post-compose account seed and returned sweep ports enqueue real owner an
   const actor = await root.actor();
   const principal = await root.principalFor(actor.id);
   await root.settleBackground();
-  const bindings = await root.services.connection.listBindings({ principal });
+  const bindings = await root.services.connection.listBindings({ signal: new AbortController().signal, principal });
   expect(
     bindings
       .filter(({ binding }) => binding !== null)

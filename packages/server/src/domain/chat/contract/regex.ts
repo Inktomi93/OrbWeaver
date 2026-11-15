@@ -14,7 +14,7 @@ import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { ProcessMacroOptions } from "@orb/kit/macro";
 import type { RoomStanding } from "@orb/kit/message-author";
 import type { RegexScriptInput } from "@orb/kit/regex";
-import type { ApplyRegexReplaceOp } from "./engine-context.ts";
+import type { OpenRegexPassOp } from "./engine-context.ts";
 
 /**
  * The four host-tier regex sources, each ALREADY resolved under the frozen `runAsUserId` (D19 — the host,
@@ -74,8 +74,8 @@ export interface PromptHistoryRegexEnv {
   readonly scripts: readonly RegexScriptInput[];
   /** The turn-stage macro context for the find/replace TEMPLATE passes (`buildTurnMacroContext`). */
   readonly macroCtx: ProcessMacroOptions;
-  /** The injected node:vm ReDoS watchdog (D53) — every `text.replace` on this leg runs under it. */
-  readonly applyReplace: ApplyRegexReplaceOp;
+  /** Opens the node:vm ReDoS watchdog for this leg (D53): every `text.replace` of the pass runs under it and shares its budget. */
+  readonly openRegexPass: OpenRegexPassOp;
   /** Per-failure report. The caller logs it; the leg additionally EVICTS the script for the rest of the
    *  pass (its header states why history length must never multiply a watchdog trip). */
   readonly onScriptFailure: (err: unknown, script: RegexScriptInput) => void;

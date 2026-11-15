@@ -91,7 +91,7 @@ function FactRowView({ row, busy, onOverride, onReset, note, rowRef }: { readonl
         <Text className="shrink-0" voice="code">
           {row.name}
         </Text>
-        <Stack className="min-inline-0" grow="fill" gap="tight">
+        <Stack minWidth="shrinks" grow="fill" gap="tight">
           <Text tone={row.overridden ? "info" : undefined} voice="label">
             {row.value}
           </Text>
@@ -149,7 +149,7 @@ function FactOverrideEditor({
 
   return (
     <Row align="end" gap="field" stackBelow="cq-32" alignBelow="stretch-cq-32">
-      <Stack className="min-inline-0" grow="fill" gap="tight">
+      <Stack minWidth="shrinks" grow="fill" gap="tight">
         <FactEditControl edit={row.edit} label={factYourValueName(row.name)} value={draft} onChange={setDraft} />
         {refusal === null ? (
           <Text voice="gloss">{editHint(row.edit)}</Text>

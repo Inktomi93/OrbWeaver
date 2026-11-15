@@ -54,7 +54,9 @@ async function lensFilterOf(ctx: DatabankContext, params: ListDocumentsParams): 
   // The KEY SET is the whole fact this needs — "is this document chunked at all". The op returns counts
   // because its other consumer (the health census) sums them; a second id-only op would be a second read of
   // one table for one question.
-  const chunkedIds = [...(await ctx.chunkCountsByOwner({ ownerId: principal.userId, model: await activeSpaceModel(ctx, principal.userId) })).keys()];
+  const chunkedIds = [
+    ...(await ctx.chunkCountsByOwner({ ownerId: principal.userId, model: await activeSpaceModel(ctx, principal.userId, params.signal) })).keys(),
+  ];
   return {
     ...(needle === "" ? {} : { search: needle }),
     ...(origin === undefined ? {} : { origin }),
@@ -75,7 +77,7 @@ export function createList(ctx: DatabankContext): DatabankService["list"] {
     // A second, separate COUNT over the SAME filter rather than a derivation from `items`: the band header
     // and the home tile PRINT this number, and "how many rows this page happened to carry" is not it.
     const totalCount = await countOwnedDocuments(ctx.db, principal.userId, filter);
-    const counts = await ctx.countChunks({ documentIds: metas.map((m) => m.id), model: await activeSpaceModel(ctx, principal.userId) });
+    const counts = await ctx.countChunks({ documentIds: metas.map((m) => m.id), model: await activeSpaceModel(ctx, principal.userId, params.signal) });
     const items = metas.map((meta) => toDocumentView(meta, counts.get(meta.id) ?? 0));
     const last = metas.at(-1);
     // A full page means there MAY be more below it; a short page is the end of the bank.

@@ -88,6 +88,8 @@ export interface RegexContext {
    *  that still lists the gone script. Call this BEFORE the delete to snapshot the reach, then call the
    *  returned thunk with the ids the delete really removed. Error-isolated: it can never fault the delete. */
   readonly captureRoomReachForDelete: CaptureRegexRoomReachOp;
+  /** The write door's find-pattern compile check (D53), run before any verb stores a pattern. */
+  readonly probeFindCompiles: RegexPortabilityContext["probeFindCompiles"];
 }
 
 export interface RegexService {

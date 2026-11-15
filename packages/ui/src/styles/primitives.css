@@ -63,6 +63,13 @@
   min-block-size: min(var(--height-scroll-sm), var(--orb-list-content, var(--height-scroll-sm)));
 }
 
+/* A folding panel's clip: its own box widened on the block axis by the inline hint trigger's bleed (one field step), so a hint
+ * square seated on the panel's first or last row is whole, and nothing clipped on the inline axis, where a flush control's focus
+ * ring paints. `overflow-clip-margin` would say this, but Safari has none and Chrome honours it only when both axes clip. */
+@utility orb-fold-clip {
+  clip-path: inset(calc(-1 * var(--spacing-field)) -100vmax);
+}
+
 /* A list row title's floor: the title-floor width, or the title line itself when that is narrower. The floor is a rem length, so at
  * enlarged text it outgrows a phone's whole row, and a bare minimum width would push the title past its row. */
 @utility min-inline-title-fit {

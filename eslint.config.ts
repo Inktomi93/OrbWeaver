@@ -730,12 +730,41 @@ const ROLE_MEANING_HOME = homes("packages/contracts/src/identity/index.ts");
 // projection class of D121 clause (A)(2), and a client display read is never an authorization (D121 clause A).
 const ROLE_DISPLAY_HOME = homes("packages/client/src/components/user-role-status.ts");
 
+// An optional cancel is one a caller can drop without a word, and a dropped cancel never reaches the provider call or
+// the workload. A signal is required on every member and parameter; a caller with nothing above it creates one and
+// says why. The signal is `AbortSignal`, bare or as `globalThis.AbortSignal`, or the `Signal` type parameter the
+// isomorphic packages bind it through. Refused: an optional member or parameter, a union with `undefined` or `null`, a
+// defaulted parameter, a local alias (a field typed by it escapes every other arm), `Partial<>` over a bag that holds
+// a signal, and an optional inline bag that holds one. A bag behind a named type is out of a selector's reach.
+// The union arm reads direct members through the sibling combinator, so a nullable function type whose parameter is a
+// signal is not a finding.
+const ABORT_SIGNAL_NAME = ":matches([typeName.name='AbortSignal'], [typeName.right.name='AbortSignal'])";
+const SIGNAL_TYPE = "TSTypeReference:matches([typeName.name='AbortSignal'], [typeName.right.name='AbortSignal'], [typeName.name='Signal'])";
+const OPTIONAL_SLOT = ":matches(TSPropertySignature[optional=true], PropertyDefinition[optional=true], Identifier[optional=true]) > TSTypeAnnotation";
+const SIGNAL_MEMBER = "TSPropertySignature[key.name='signal']";
+const EMPTY_MEMBER = ":matches(TSUndefinedKeyword, TSNullKeyword)";
+const OPTIONAL_SIGNAL_SYNTAX = {
+  selector: [
+    `${OPTIONAL_SLOT} > ${SIGNAL_TYPE}`,
+    `TSUnionType > ${SIGNAL_TYPE} ~ ${EMPTY_MEMBER}`,
+    `TSUnionType > ${EMPTY_MEMBER} ~ ${SIGNAL_TYPE}`,
+    `AssignmentPattern > Identifier > TSTypeAnnotation > ${SIGNAL_TYPE}`,
+    `TSTypeAliasDeclaration > TSTypeReference.typeAnnotation${ABORT_SIGNAL_NAME}`,
+    `TSTypeReference[typeName.name='Partial'] ${SIGNAL_MEMBER}`,
+    `${OPTIONAL_SLOT} > TSTypeLiteral > ${SIGNAL_MEMBER}`,
+    `${OPTIONAL_SLOT} > TSIntersectionType > TSTypeLiteral > ${SIGNAL_MEMBER}`,
+  ].join(", "),
+  message:
+    "Require the AbortSignal: thread the caller's real signal, and where none exists above, create one with a comment that says why (docs/law/Spine-TypeScript-and-Patterns.md).",
+};
+
 const SERVER_BASE_SYNTAX = [
   {
     selector: String.raw`:matches(Literal[value=type(string)][raw=/corsproxy\.io/], TemplateElement[value.raw=/corsproxy\.io/])`,
     message: "D61 B5a: the rejected third-party CORS proxy cannot be spelled in server or inference literals; use the guarded network owner directly.",
   },
   ...MODULE_LOADER_SYNTAX,
+  OPTIONAL_SIGNAL_SYNTAX,
 ];
 // A child process or Worker launched without `env` inherits the whole process environment, so a reserved agent-SDK
 // key or secret the boot scrub missed reaches it (D8's credential firewall). Every launch in server and inference
@@ -2453,12 +2482,13 @@ export default [
   {
     files: rootSources("@kit", "@default-content", "@showcase", "@plugin-toolchain"),
     ignores: KIT_CLOCK_HOME,
-    rules: { "no-restricted-syntax": restrictedSyntax(CLOCK_SYNTAX) },
+    rules: { "no-restricted-syntax": restrictedSyntax(CLOCK_SYNTAX, OPTIONAL_SIGNAL_SYNTAX) },
   },
+  { files: KIT_CLOCK_HOME, rules: { "no-restricted-syntax": restrictedSyntax(OPTIONAL_SIGNAL_SYNTAX) } },
   {
     files: rootSources("@contracts"),
     rules: {
-      "no-restricted-syntax": restrictedSyntax(CLOCK_SYNTAX, {
+      "no-restricted-syntax": restrictedSyntax(CLOCK_SYNTAX, OPTIONAL_SIGNAL_SYNTAX, {
         selector:
           "Property:matches([key.name=/^(url|uri|email|baseUrl|sourceUrl|provenanceUrl)$/], [key.value=/^(url|uri|email|baseUrl|sourceUrl|provenanceUrl)$/]) CallExpression[callee.object.name='z'][callee.property.name='string']",
         message: "Use a Zod format for an address. Use its owning text schema for preserved metadata or diagnostic text.",

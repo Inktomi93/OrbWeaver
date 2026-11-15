@@ -103,7 +103,7 @@ test("a held card renamed since it was imported is named by its new name when th
   await using root = await createServerHarness(ROOT_OPTIONS);
   const { principal, characterId, bytes } = await ownCard(root);
   // The source card changes, so the file lands as a character of its own with the file's key; that character is the held one.
-  await root.services.character.update({ principal, characterId, input: { description: "Changed since the export." } });
+  await root.services.character.update({ principal, characterId, input: { description: "Changed since the export." }, signal: new AbortController().signal });
   const form = new FormData();
   form.append(UPLOAD_FILE_FIELD, new File([new Uint8Array(bytes)], CARD_FILE));
   const response = await root.http.request(PORTABILITY_ROUTES.importCards, { method: "POST", headers: { [CSRF_HEADER]: "1" }, body: form });
@@ -112,7 +112,7 @@ test("a held card renamed since it was imported is named by its new name when th
   if (landed?.created !== true) {
     throw new Error("the export did not land as a character of its own");
   }
-  await root.services.character.update({ principal, characterId: landed.characterId, input: { name: "Lantern Keeper" } });
+  await root.services.character.update({ principal, characterId: landed.characterId, input: { name: "Lantern Keeper" }, signal: new AbortController().signal });
   const dialog = await openCardImport({ page, root, signedInConfig: corpus.auth.signedInConfig, mountShell: () => mount<typeof ShellAmbientStory>(STORY, {}) });
 
   await dialog.drop([{ name: CARD_FILE, buffer: bytes }]);

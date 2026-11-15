@@ -24,6 +24,7 @@ async function run(job: DisplayPassRun): Promise<void> {
   await polyfilled;
   const timings: number[] = [];
   let text = job.text;
+  let styled = false;
   let spent = 0;
   let cut: "budget" | "oversize" | null = null;
   for (const [index, script] of job.scripts.entries()) {
@@ -37,13 +38,14 @@ async function run(job: DisplayPassRun): Promise<void> {
     const took = performance.now() - started;
     timings.push(took);
     spent += took;
-    if (next.length > DISPLAY_OUTPUT_MAX_CHARS) {
+    if (next.text.length > DISPLAY_OUTPUT_MAX_CHARS) {
       cut = "oversize";
       break;
     }
-    text = next;
+    text = next.text;
+    styled ||= next.styled;
   }
-  reply({ kind: "done", jobId: job.jobId, text, timings, cut });
+  reply({ kind: "done", jobId: job.jobId, text, styled, timings, cut });
 }
 
 // A throw here is this module's own defect, never a script's (the executor catches those). Reported, it reaches

@@ -38,7 +38,7 @@ import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { strictTwin } from "@orb/kit/zod-schema";
 import { z } from "zod";
 import { requireOwner } from "#domain/admin";
-import { authedProcedure, t } from "../trpc.ts";
+import { authedProcedure, procedureSignal, t } from "../trpc.ts";
 
 export const workloadsRouter = t.router({
   start: authedProcedure
@@ -90,11 +90,12 @@ export const workloadsRouter = t.router({
           .refine((value) => value.after === undefined || value.mode === "singular", { path: ["after"], message: "only a singular run is chained" }),
       ),
     )
-    .query(({ ctx, input }) => {
+    .query(({ ctx, input, signal }) => {
       if (input.mode === "bulk") {
         requireOwner(ctx.auth);
       }
       return ctx.services.workloads.estimateModelCalls({
+        signal: procedureSignal(signal),
         input: asStartWorkloadInput(input.input),
         ...(input.after !== undefined ? { after: input.after.map(asStartWorkloadInput) } : {}),
         caller: ctx.auth,
@@ -108,7 +109,7 @@ export const workloadsRouter = t.router({
   estimateRetryModelCalls: authedProcedure
     .output(modelCallEstimateSchema)
     .input(z.strictObject({ id: typeIdSchema(ID_PREFIX.workload) }))
-    .query(({ ctx, input }) => ctx.services.workloads.estimateRetryModelCalls({ id: input.id, caller: ctx.auth })),
+    .query(({ ctx, input, signal }) => ctx.services.workloads.estimateRetryModelCalls({ id: input.id, caller: ctx.auth, signal: procedureSignal(signal) })),
 
   cancel: authedProcedure
     .output(cancelWorkloadResultSchema)

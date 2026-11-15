@@ -17,11 +17,14 @@ import { usePluginDisplayText } from "#data";
 import type { DisplayRowCall, MessageRenderContext, RowRenderPolicy } from "#lib";
 import { useDisplayText } from "../hooks/use-display-text.ts";
 import { toContentBlocks } from "../lib/content-blocks.ts";
+import type { FrameReplySegment, ReplySpan } from "../lib/reply-parts.ts";
+import { replyParts } from "../lib/reply-parts.ts";
 import { colorForCharacter } from "../lib/speaker-color.ts";
 import type { CardOrigin } from "./card-block.tsx";
 import { CardBlock } from "./card-block.tsx";
 import { MessageChoicesBlock } from "./message-choices-block.tsx";
 import { MessageMediaBlock } from "./message-media-block.tsx";
+import { ReplyFrame } from "./reply-frame.tsx";
 
 /** A stable empty CHARACTER-NAME list — a fresh `[]` per render would be a new identity for no reason. */
 const NO_CHARACTER_NAMES: readonly string[] = [];
@@ -95,6 +98,77 @@ function MessageSegment({ text, render, keyPrefix, cardOrigin, pending, observeB
   );
 }
 
+function tinted(node: ReactElement, tokens: ThemeScopeTokens | undefined, key: string): ReactElement {
+  return tokens === undefined ? (
+    node
+  ) : (
+    <ThemeScope key={key} tokens={tokens}>
+      {node}
+    </ThemeScope>
+  );
+}
+
+// A frame run through the INERT path: what shows until the frame is routed, and whenever it cannot be. Its prose
+// renders under the untrusted allowlist, the same path the streaming ghost draws, so no inline style and no
+// `<style>` element survives. Each markdown run is projected again with today's reading policy, so a directive
+// the frame keeps as markup stays hidden here.
+function renderRunNatively(
+  segments: readonly FrameReplySegment[],
+  rowRender: RowRenderPolicy,
+  cardOrigin: CardOrigin | undefined,
+  keyPrefix: string,
+): ReactElement {
+  const render: RowRenderPolicy = { ...rowRender, trust: "untrusted" };
+  return (
+    <Stack gap="row">
+      {segments.map((segment, index) => {
+        const key = `${keyPrefix}${index}-${segment.kind}`;
+        if (segment.kind === "card") {
+          return renderBlock({ kind: "html-card", html: segment.html, trust: render.cardTier }, key, render, cardOrigin);
+        }
+        return tinted(<MessageSegment key={key} text={segment.markdown} render={render} keyPrefix={key} cardOrigin={cardOrigin} />, segment.tokens, key);
+      })}
+    </Stack>
+  );
+}
+
+/** A styled reply: its frame runs in routed card frames, and the blocks a frame cannot hold kept native between them. */
+function FramedReply({
+  spans,
+  render,
+  cardOrigin,
+  speakerName,
+  observeBody,
+}: {
+  readonly observeBody: RefCallback<HTMLElement> | undefined;
+  readonly spans: readonly ReplySpan[];
+  readonly render: RowRenderPolicy;
+  readonly cardOrigin: CardOrigin | undefined;
+  readonly speakerName: string | undefined;
+}): ReactElement {
+  const parts = replyParts(spans, { lenientHtml: render.lenientCards });
+  return (
+    <Stack gap="row" data-slot="message-content-framed" ref={observeBody}>
+      {parts.map((part, index) => {
+        const key = `${index}-${part.kind}`;
+        if (part.kind === "native") {
+          return tinted(renderBlock(part.block, key, render, cardOrigin), part.tokens, key);
+        }
+        return (
+          <ReplyFrame
+            key={key}
+            segments={part.segments}
+            colorQuotes={render.colorQuotes}
+            cardOrigin={cardOrigin}
+            speakerName={speakerName}
+            fallback={renderRunNatively(part.segments, render, cardOrigin, `${key}-`)}
+          />
+        );
+      })}
+    </Stack>
+  );
+}
+
 export interface MessageContentProps {
   readonly content: string;
   readonly render: RowRenderPolicy;
@@ -134,12 +208,35 @@ export function MessageContent({
   pluginDisplayRow,
   displayOrder,
 }: MessageContentProps): ReactElement {
-  const { text: displayed, pending, observeBody } = useDisplayText(content, renderContext, { ...display, order: displayOrder });
+  const { text: displayed, styled, pending, observeBody } = useDisplayText(content, renderContext, { ...display, order: displayOrder });
   // The LAST step before markup (§5.5/§5.29): the viewer's own plugins annotate what the house pipeline
   // produced. Inert without a row or without a registered transform — same string in, same string out.
   const resolvedContent = usePluginDisplayText(displayed, pluginDisplayRow);
   const characterNames = narratorVoiced && speakerThemes !== undefined ? [...speakerThemes.keys()] : NO_CHARACTER_NAMES;
   const spans = parseSpeakerSpans(resolvedContent, characterNames);
+
+  // D294: a display script's own markup styled this row and the row's tier is the sandboxed one, so the reply
+  // draws in a card frame. A plugin that rewrote the text has changed what the scripts produced, so the row keeps
+  // today's path; markup the model wrote alone never styles a row. A row still waiting on its scripts is never
+  // framed: it stays on the held inert path below until its answer lands.
+  if (render.cardTier === "tierB" && styled && !pending && resolvedContent === displayed) {
+    // The frame's accessible name is the row's own speaker: its character, or the persona that wrote it.
+    const { characterId, personaId } = display.row;
+    const characterName = characterId === null ? undefined : renderContext?.characterNamesById.get(characterId)?.name;
+    const personaName = personaId === null ? undefined : renderContext?.personaNamesById.get(personaId)?.name;
+    return (
+      <FramedReply
+        observeBody={observeBody}
+        spans={spans.map((span) => ({
+          text: span.text,
+          tokens: span.speaker === null ? undefined : (speakerThemes?.get(span.speaker) ?? colorForCharacter(span.speaker)),
+        }))}
+        render={render}
+        cardOrigin={cardOrigin}
+        speakerName={characterName ?? personaName}
+      />
+    );
+  }
 
   const [onlySpan] = spans;
   if (spans.length === 1 && onlySpan !== undefined && onlySpan.speaker === null) {

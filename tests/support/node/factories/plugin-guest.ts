@@ -138,7 +138,14 @@ export type GuestRun = (op: string, args?: Readonly<Record<string, JsonValue>>) 
 /** Run ops through the production command door and read the guest's own report of each. */
 export function guestRunner({ root, caller, pluginId, chatId }: GuestTarget): GuestRun {
   return async (op, args = {}) => {
-    await root.services.plugin.invokeUiCommand({ caller, pluginId, name: COMMAND, chatId, args: JSON.stringify({ ...args, op, room: chatId !== null }) });
+    await root.services.plugin.invokeUiCommand({
+      signal: new AbortController().signal,
+      caller,
+      pluginId,
+      name: COMMAND,
+      chatId,
+      args: JSON.stringify({ ...args, op, room: chatId !== null }),
+    });
     const [line] = await root.services.plugin.getLog({ caller, pluginId, limit: 1 });
     if (line === undefined) {
       throw new Error(`the guest logged no outcome for '${op}'`);

@@ -31,7 +31,13 @@ async function savedSummarizer(harness: Awaited<ReturnType<typeof createServerHa
     allowBackground: true,
     declared: declaredCapabilitySchema.parse({ kind: "generation", generation: { input: ["text", "image"] } }),
   });
-  const { resolved } = await harness.app.runtime.resolve({ task: "summarize", connectionId: connection.id, principal, cachedFacts: true });
+  const { resolved } = await harness.app.runtime.resolve({
+    signal: new AbortController().signal,
+    task: "summarize",
+    connectionId: connection.id,
+    principal,
+    cachedFacts: true,
+  });
   expect(resolved.api).toBe("agent-sdk");
   expect(resolved.task).toBe("summarize");
   await harness.settleBackground();
@@ -50,9 +56,9 @@ test("synchronous SDK execution refusal releases the already-armed side-generati
   const connection = await savedSummarizer(harness);
   readPending = harness.timers.pending;
   const before = readPending();
-  await expect(harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "timer control" }] })).rejects.toThrow(
-    ProviderError,
-  );
+  await expect(
+    harness.app.runtime.executor.summarize({ signal: new AbortController().signal, connection, inputs: [{ systemPrompt: "", userPrompt: "timer control" }] }),
+  ).rejects.toThrow(ProviderError);
   expect(execute).toHaveBeenCalled();
   expect(atExecution).toBe(before + 1);
   expect(readPending()).toBe(before);
@@ -67,6 +73,7 @@ test("asynchronous prompt preparation refusal releases idle ownership before SDK
   const before = harness.timers.pending();
   await expect(
     harness.app.runtime.executor.summarize({
+      signal: new AbortController().signal,
       connection,
       inputs: [{ systemPrompt: "", userPrompt: "timer control", images: ["data:text/plain;base64,AA=="] }],
     }),
@@ -96,7 +103,11 @@ test("native SDK Query keeps idle ownership while its physical stream is active 
   readPending = harness.timers.pending;
   const before = readPending();
   try {
-    const result = harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "timer control" }] });
+    const result = harness.app.runtime.executor.summarize({
+      signal: new AbortController().signal,
+      connection,
+      inputs: [{ systemPrompt: "", userPrompt: "timer control" }],
+    });
     await firstOutput.promise;
     expect(spawn).toHaveBeenCalledTimes(1);
     expect(atOutput).toBe(before + 1);
@@ -143,7 +154,7 @@ test("root cancellation joins its actual SDK child and owned grandchild exit bef
   await using harness = await createServerHarness({ logLevel: SDK_LOG_LEVEL, secretBoxKey: SECRET_BOX_TEST_KEY, sdkSpawn: spawn });
   const connection = await savedSummarizer(harness);
   const turn = harness.app.runtime.executor
-    .summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_OWNED_DESCENDANT SDK_HOLD_UNTIL_CANCEL" }] })
+    .summarize({ signal: new AbortController().signal, connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_OWNED_DESCENDANT SDK_HOLD_UNTIL_CANCEL" }] })
     .then(
       () => {
         throw new Error("cancelled native turn unexpectedly succeeded");
@@ -200,10 +211,12 @@ test("normal native SDK settlement waits for its owned descendant exit, not only
   await using harness = await createServerHarness({ logLevel: SDK_LOG_LEVEL, secretBoxKey: SECRET_BOX_TEST_KEY, sdkSpawn: spawn });
   const connection = await savedSummarizer(harness);
   let settled = false;
-  const result = harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_OWNED_DESCENDANT" }] }).then((value) => {
-    settled = true;
-    return value;
-  });
+  const result = harness.app.runtime.executor
+    .summarize({ signal: new AbortController().signal, connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_OWNED_DESCENDANT" }] })
+    .then((value) => {
+      settled = true;
+      return value;
+    });
   const pid = await ready.promise;
   try {
     await eof.promise;
@@ -229,7 +242,11 @@ test("raw SDK startup failure retains scrubbed split-UTF8 stderr diagnostics and
   await using harness = await createServerHarness({ logLevel: SDK_LOG_LEVEL, secretBoxKey: SECRET_BOX_TEST_KEY, sdkSpawn: spawn });
   const connection = await savedSummarizer(harness);
   await expect(
-    harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_DIAGNOSTIC_CRASH" }] }),
+    harness.app.runtime.executor.summarize({
+      signal: new AbortController().signal,
+      connection,
+      inputs: [{ systemPrompt: "", userPrompt: "SDK_DIAGNOSTIC_CRASH" }],
+    }),
   ).rejects.toMatchObject({ kind: "server" });
   expect(child?.exitCode).toBe(7);
   const diagnostics = harness.observability.logLines(100).filter((line) => line.includes("sdk-diagnostic:"));
@@ -256,11 +273,11 @@ test("native catalog and verify queries close their actual children after native
   };
   await using harness = await createServerHarness({ logLevel: SDK_LOG_LEVEL, secretBoxKey: SECRET_BOX_TEST_KEY, sdkSpawn: spawn });
   const connection = await savedSummarizer(harness);
-  const listing = await harness.app.runtime.diagnostics.listModels({ connection });
+  const listing = await harness.app.runtime.diagnostics.listModels({ signal: new AbortController().signal, connection });
   expect(listing).toEqual({ listed: false, reason: "the provider listed no models" });
   expect(children).toHaveLength(1);
   expect(nonEmpty(children).every((child) => closed.has(child) && child.exitCode === 0)).toBe(true);
-  const verified = await harness.app.runtime.diagnostics.verifyAuth({ connection });
+  const verified = await harness.app.runtime.diagnostics.verifyAuth({ signal: new AbortController().signal, connection });
   expect(verified).toMatchObject({ ok: true, reply: "settled native SDK reply" });
   expect(children).toHaveLength(2);
   expect(nonEmpty(children).every((child) => closed.has(child) && child.exitCode === 0)).toBe(true);
@@ -279,7 +296,11 @@ test("unexpected physical stderr failure stays visible at graph settlement witho
   await using harness = await createServerHarness({ logLevel: SDK_LOG_LEVEL, secretBoxKey: SECRET_BOX_TEST_KEY, sdkSpawn: spawn });
   const connection = await savedSummarizer(harness);
   await expect(
-    harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_DIAGNOSTIC_CRASH" }] }),
+    harness.app.runtime.executor.summarize({
+      signal: new AbortController().signal,
+      connection,
+      inputs: [{ systemPrompt: "", userPrompt: "SDK_DIAGNOSTIC_CRASH" }],
+    }),
   ).rejects.toMatchObject({ kind: "server" });
   await expect(harness[Symbol.asyncDispose]()).rejects.toBeInstanceOf(AggregateError);
   expect(present(child).exitCode).not.toBeNull();
@@ -296,9 +317,13 @@ test("native raw exit diagnostics include stderr drained by a real descendant af
   };
   await using harness = await createServerHarness({ logLevel: SDK_LOG_LEVEL, secretBoxKey: SECRET_BOX_TEST_KEY, sdkSpawn: spawn });
   const connection = await savedSummarizer(harness);
-  await expect(harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_LATE_DIAGNOSTIC" }] })).rejects.toMatchObject(
-    { kind: "server" },
-  );
+  await expect(
+    harness.app.runtime.executor.summarize({
+      signal: new AbortController().signal,
+      connection,
+      inputs: [{ systemPrompt: "", userPrompt: "SDK_LATE_DIAGNOSTIC" }],
+    }),
+  ).rejects.toMatchObject({ kind: "server" });
   expect(child?.exitCode).toBe(7);
   const lines = harness.observability.logLines(100).filter((line) => line.includes("sdk-late-diagnostic:"));
   expect(lines).toHaveLength(1);
@@ -317,7 +342,11 @@ test("native stderr never publishes overlapping public fixture credential fragme
   await using harness = await createServerHarness({ logLevel: SDK_LOG_LEVEL, secretBoxKey: SECRET_BOX_TEST_KEY, sdkSpawn: spawn });
   const connection = await savedSummarizer(harness, PUBLIC_OVERLAP_TOKEN);
   await expect(
-    harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_OVERLAP_DIAGNOSTIC" }] }),
+    harness.app.runtime.executor.summarize({
+      signal: new AbortController().signal,
+      connection,
+      inputs: [{ systemPrompt: "", userPrompt: "SDK_OVERLAP_DIAGNOSTIC" }],
+    }),
   ).rejects.toMatchObject({ kind: "server" });
   const lines = harness.observability.logLines(100).filter((line) => line.includes("sdk-overlap-diagnostic:"));
   expect(lines).toHaveLength(1);
@@ -339,7 +368,11 @@ test.each(["intact", "split"] as const)("native stderr protects a known sk-shape
   await using harness = await createServerHarness({ logLevel: SDK_LOG_LEVEL, secretBoxKey: SECRET_BOX_TEST_KEY, sdkSpawn: spawn });
   const connection = await savedSummarizer(harness, PUBLIC_SHAPED_TOKEN);
   await expect(
-    harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: `SDK_SHAPED_DIAGNOSTIC:${mode}` }] }),
+    harness.app.runtime.executor.summarize({
+      signal: new AbortController().signal,
+      connection,
+      inputs: [{ systemPrompt: "", userPrompt: `SDK_SHAPED_DIAGNOSTIC:${mode}` }],
+    }),
   ).rejects.toMatchObject({ kind: "server" });
   const lines = harness.observability.logLines(100).filter((line) => line.includes(`sdk-shaped-diagnostic:${mode}:`));
   expect(lines).toHaveLength(1);
@@ -388,9 +421,10 @@ test("physical SDK identity replays deterministically without colliding across c
     });
     const connection = await savedSummarizer(harness);
     for (const userPrompt of ["first deterministic launch", "second deterministic launch"]) {
-      expect((await harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt }] })).items[0]?.text).toBe(
-        "settled native SDK reply",
-      );
+      expect(
+        (await harness.app.runtime.executor.summarize({ signal: new AbortController().signal, connection, inputs: [{ systemPrompt: "", userPrompt }] }))
+          .items[0]?.text,
+      ).toBe("settled native SDK reply");
     }
     return launches.map((output) =>
       output
@@ -430,7 +464,11 @@ test("default native transport retains prepared executable and argv while joinin
     }),
   });
   const connection = await savedSummarizer(harness);
-  const result = await harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "native default control" }] });
+  const result = await harness.app.runtime.executor.summarize({
+    signal: new AbortController().signal,
+    connection,
+    inputs: [{ systemPrompt: "", userPrompt: "native default control" }],
+  });
   expect(result.items[0]?.text).toBe("settled native SDK reply");
   expect(child?.spawnargs.slice(0, 3)).toEqual(["node", "--no-warnings", new URL("./sdk-timer-process.ts", import.meta.url).pathname]);
   expect(child?.spawnargs).toContain("--strict-mcp-config");
@@ -476,7 +514,11 @@ test("default native root cancellation joins actual child and reaped descendant 
   });
   const connection = await savedSummarizer(harness);
   const turn = harness.app.runtime.executor
-    .summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_OWNED_DESCENDANT SDK_HOLD_UNTIL_CANCEL SDK_DEFAULT_GRACE" }] })
+    .summarize({
+      signal: new AbortController().signal,
+      connection,
+      inputs: [{ systemPrompt: "", userPrompt: "SDK_OWNED_DESCENDANT SDK_HOLD_UNTIL_CANCEL SDK_DEFAULT_GRACE" }],
+    })
     .then(
       () => {
         throw new Error("cancelled native default turn unexpectedly succeeded");
@@ -525,12 +567,14 @@ test("default native observer construction refusal retains original fault and jo
     }),
   });
   const connection = await savedSummarizer(harness);
-  const observed = await harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "not dispatched" }] }).then(
-    () => {
-      throw new Error("native observation refusal unexpectedly succeeded");
-    },
-    (error: unknown) => error,
-  );
+  const observed = await harness.app.runtime.executor
+    .summarize({ signal: new AbortController().signal, connection, inputs: [{ systemPrompt: "", userPrompt: "not dispatched" }] })
+    .then(
+      () => {
+        throw new Error("native observation refusal unexpectedly succeeded");
+      },
+      (error: unknown) => error,
+    );
   expect(observed).toBeInstanceOf(ProviderError);
   if (!(observed instanceof ProviderError)) {
     throw new Error("native observation refusal lost its provider classification");
@@ -561,9 +605,9 @@ test("default native asynchronous spawn refusal joins actual close without a PID
     },
   });
   const connection = await savedSummarizer(harness);
-  await expect(harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "not dispatched" }] })).rejects.toThrow(
-    ProviderError,
-  );
+  await expect(
+    harness.app.runtime.executor.summarize({ signal: new AbortController().signal, connection, inputs: [{ systemPrompt: "", userPrompt: "not dispatched" }] }),
+  ).rejects.toThrow(ProviderError);
   await harness[Symbol.asyncDispose]();
   expect(child).toBeDefined();
   expect(child?.pid).toBeUndefined();
@@ -581,7 +625,11 @@ test("default native decoder retains split UTF8 diagnostics with known credentia
   });
   const connection = await savedSummarizer(harness);
   await expect(
-    harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_DIAGNOSTIC_CRASH" }] }),
+    harness.app.runtime.executor.summarize({
+      signal: new AbortController().signal,
+      connection,
+      inputs: [{ systemPrompt: "", userPrompt: "SDK_DIAGNOSTIC_CRASH" }],
+    }),
   ).rejects.toMatchObject({ kind: "server" });
   expect(child?.exitCode).toBe(7);
   // The root's ring holds only this root's lines: the first live root empties it.
@@ -633,7 +681,11 @@ test("default native stderr protects an oversized known opaque credential in app
   await using harness = await createServerHarness({ logLevel: SDK_LOG_LEVEL, secretBoxKey: SECRET_BOX_TEST_KEY, sdkNative: nativeSdkOptions() });
   const connection = await savedSummarizer(harness, PUBLIC_NATIVE_LONG_TOKEN);
   await expect(
-    harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_SHAPED_DIAGNOSTIC:intact" }] }),
+    harness.app.runtime.executor.summarize({
+      signal: new AbortController().signal,
+      connection,
+      inputs: [{ systemPrompt: "", userPrompt: "SDK_SHAPED_DIAGNOSTIC:intact" }],
+    }),
   ).rejects.toMatchObject({ kind: "server" });
   const lines = harness.observability
     .logLines()
@@ -660,7 +712,13 @@ test.each(["chat", "verify"] as const)("default native startup diagnostics use s
   });
   const saved = await savedSummarizer(harness, PUBLIC_NATIVE_LONG_TOKEN);
   const principal = await harness.principalFor(harness.ownerId);
-  const { resolved } = await harness.app.runtime.resolve({ task: "chat", connectionId: saved.connectionId, principal, cachedFacts: true });
+  const { resolved } = await harness.app.runtime.resolve({
+    signal: new AbortController().signal,
+    task: "chat",
+    connectionId: saved.connectionId,
+    principal,
+    cachedFacts: true,
+  });
   if (resolved.task !== "chat") {
     throw new Error("native projection did not resolve its actual chat task");
   }
@@ -668,6 +726,7 @@ test.each(["chat", "verify"] as const)("default native startup diagnostics use s
   const request = ((): Promise<ChatResult | VerifyAuthResult> => {
     if (operation === "chat") {
       return harness.app.runtime.executor.runChatTurn({
+        signal: new AbortController().signal,
         api: "agent-sdk",
         connection: chat,
         posture: "side-gen",
@@ -676,7 +735,7 @@ test.each(["chat", "verify"] as const)("default native startup diagnostics use s
         systemPrompt: { static: "", dynamic: "" },
       });
     }
-    return harness.app.runtime.diagnostics.verifyAuth({ connection: resolved });
+    return harness.app.runtime.diagnostics.verifyAuth({ signal: new AbortController().signal, connection: resolved });
   })();
   const failure = await request.then(
     () => {
@@ -721,7 +780,7 @@ test("default native catalog refusal uses safe owned exit diagnostics", async ()
     },
   });
   const connection = await savedSummarizer(harness, PUBLIC_NATIVE_LONG_TOKEN);
-  const result = await harness.app.runtime.diagnostics.listModels({ connection });
+  const result = await harness.app.runtime.diagnostics.listModels({ signal: new AbortController().signal, connection });
   expect(result.listed).toBe(false);
   if (result.listed) {
     throw new Error("failed native catalog unexpectedly succeeded");
@@ -745,12 +804,19 @@ test("default native concurrent exit does not relabel an unrelated caller event 
   });
   const saved = await savedSummarizer(harness);
   const principal = await harness.principalFor(harness.ownerId);
-  const { resolved } = await harness.app.runtime.resolve({ task: "chat", connectionId: saved.connectionId, principal, cachedFacts: true });
+  const { resolved } = await harness.app.runtime.resolve({
+    signal: new AbortController().signal,
+    task: "chat",
+    connectionId: saved.connectionId,
+    principal,
+    cachedFacts: true,
+  });
   if (resolved.task !== "chat") {
     throw new Error("caller failure did not resolve its actual chat task");
   }
   const observed = await harness.app.runtime.executor
     .runChatTurn({
+      signal: new AbortController().signal,
       api: "agent-sdk",
       connection: { ...resolved, task: resolved.task },
       posture: "side-gen",
@@ -785,7 +851,9 @@ test("default native concurrent exit does not relabel an unrelated caller event 
 test("default native stderr never publishes a confirmed known credential prefix on physical EOF", async () => {
   await using harness = await createServerHarness({ logLevel: SDK_LOG_LEVEL, secretBoxKey: SECRET_BOX_TEST_KEY, sdkNative: nativeSdkOptions() });
   const connection = await savedSummarizer(harness, PUBLIC_NATIVE_LONG_TOKEN);
-  await expect(harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_PREFIX_EOF" }] })).rejects.toMatchObject({
+  await expect(
+    harness.app.runtime.executor.summarize({ signal: new AbortController().signal, connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_PREFIX_EOF" }] }),
+  ).rejects.toMatchObject({
     kind: "server",
   });
   const lines = harness.observability.logLines(100).filter((line) => line.includes("sdk-prefix-eof:"));

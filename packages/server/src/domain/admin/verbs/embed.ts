@@ -10,7 +10,7 @@ import { requireAdmin } from "../guard.ts";
 export function createEmbed(ctx: AdminContext): Pick<AdminService, "embedCharacterCard"> {
   const embedCharacterCard: AdminService["embedCharacterCard"] = async (params: EmbedCharacterCardParams): Promise<void> => {
     requireAdmin(params.principal);
-    const embedded = await ctx.embed.embedCharacterCard(params.principal, params.characterId);
+    const embedded = await ctx.embed.embedCharacterCard(params.principal, params.characterId, params.signal);
     if (!embedded) {
       throw new DomainNotFoundError("character", params.characterId);
     }

@@ -83,10 +83,22 @@ test("admitted singular and bulk estimates exactly match FILL/refresh execution 
 
   const before = await snapshot(root);
   const requests = [...wire.requests];
-  expect(await root.services.workloads.estimateModelCalls({ caller: member, mode: "singular", input: FILL })).toEqual({ calls: 1, bound: "exact" });
-  expect(await root.services.workloads.estimateModelCalls({ caller: owner, mode: "singular", input: FILL })).toEqual({ calls: 2, bound: "exact" });
-  expect(await root.services.workloads.estimateModelCalls({ caller: owner, mode: "bulk", input: FILL })).toEqual({ calls: 3, bound: "exact" });
-  expect(await root.services.workloads.estimateModelCalls({ caller: owner, mode: "bulk", input: REFRESH })).toEqual({ calls: 4, bound: "exact" });
+  expect(await root.services.workloads.estimateModelCalls({ signal: new AbortController().signal, caller: member, mode: "singular", input: FILL })).toEqual({
+    calls: 1,
+    bound: "exact",
+  });
+  expect(await root.services.workloads.estimateModelCalls({ signal: new AbortController().signal, caller: owner, mode: "singular", input: FILL })).toEqual({
+    calls: 2,
+    bound: "exact",
+  });
+  expect(await root.services.workloads.estimateModelCalls({ signal: new AbortController().signal, caller: owner, mode: "bulk", input: FILL })).toEqual({
+    calls: 3,
+    bound: "exact",
+  });
+  expect(await root.services.workloads.estimateModelCalls({ signal: new AbortController().signal, caller: owner, mode: "bulk", input: REFRESH })).toEqual({
+    calls: 4,
+    bound: "exact",
+  });
   expect(wire.requests).toEqual(requests);
   expect(await snapshot(root)).toEqual(before);
   expect(await root.db.select().from(refinerySessions)).toEqual([]);
@@ -111,7 +123,10 @@ test("admitted singular and bulk estimates exactly match FILL/refresh execution 
   };
   const collectors = [collect(owner), collect(member)];
   try {
-    expect(await root.services.workloads.estimateModelCalls({ caller: owner, mode: "bulk", input: FILL })).toEqual({ calls: 2, bound: "exact" });
+    expect(await root.services.workloads.estimateModelCalls({ signal: new AbortController().signal, caller: owner, mode: "bulk", input: FILL })).toEqual({
+      calls: 2,
+      bound: "exact",
+    });
     const fundingStart = wire.funders.length;
     const bulk = await root.services.workloads.start({ caller: owner, ownerId: owner.userId, mode: "bulk", input: FILL });
     await executeAdmitted(root, bulk.id);
@@ -123,7 +138,12 @@ test("admitted singular and bulk estimates exactly match FILL/refresh execution 
     expect(events.filter(({ event }) => event.type === "charactersChanged")).toEqual([{ userId: owner.userId, event: { type: "charactersChanged" } }]);
 
     events.length = 0;
-    const refreshQuote = await root.services.workloads.estimateModelCalls({ caller: owner, mode: "bulk", input: REFRESH });
+    const refreshQuote = await root.services.workloads.estimateModelCalls({
+      signal: new AbortController().signal,
+      caller: owner,
+      mode: "bulk",
+      input: REFRESH,
+    });
     expect(refreshQuote).toEqual({ calls: 4, bound: "exact" });
     expect(events).toEqual([]);
     const refreshFunding = wire.funders.length;
@@ -142,7 +162,10 @@ test("admitted singular and bulk estimates exactly match FILL/refresh execution 
     ).toEqual([owner.userId, member.userId].sort());
 
     const countBeforeRetry = wire.requests.length;
-    expect(await root.services.workloads.estimateRetryModelCalls({ caller: owner, id: bulk.id })).toEqual({ calls: 0, bound: "exact" });
+    expect(await root.services.workloads.estimateRetryModelCalls({ signal: new AbortController().signal, caller: owner, id: bulk.id })).toEqual({
+      calls: 0,
+      bound: "exact",
+    });
     expect(wire.requests).toHaveLength(countBeforeRetry);
     const retried = await root.services.workloads.retry({ caller: owner, id: bulk.id });
     await executeAdmitted(root, retried.id);
@@ -192,11 +215,15 @@ test("real members and non-owner admins cannot start, estimate or clone a bulk r
   const before = await snapshot(root);
   const requests = [...wire.requests];
   for (const principal of [member, admin]) {
-    await expect(root.services.workloads.estimateModelCalls({ caller: principal, mode: "bulk", input: FILL })).rejects.toThrow(DomainForbiddenError);
+    await expect(
+      root.services.workloads.estimateModelCalls({ signal: new AbortController().signal, caller: principal, mode: "bulk", input: FILL }),
+    ).rejects.toThrow(DomainForbiddenError);
     await expect(root.services.workloads.start({ caller: principal, ownerId: principal.userId, mode: "bulk", input: FILL })).rejects.toThrow(
       DomainForbiddenError,
     );
-    await expect(root.services.workloads.estimateRetryModelCalls({ caller: principal, id: bulk.id })).rejects.toThrow(DomainNotFoundError);
+    await expect(root.services.workloads.estimateRetryModelCalls({ signal: new AbortController().signal, caller: principal, id: bulk.id })).rejects.toThrow(
+      DomainNotFoundError,
+    );
     await expect(root.services.workloads.retry({ caller: principal, id: bulk.id })).rejects.toThrow(DomainNotFoundError);
   }
   expect(await snapshot(root)).toEqual(before);

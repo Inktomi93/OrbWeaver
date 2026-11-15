@@ -6,7 +6,7 @@ import { participantOf, standingOf } from "#message-author";
 import type { MessageRole } from "#message-role";
 
 // Pure regex-script executor, usable from both client and server. The server wraps it in its own onScriptFailure
-// and a node:vm-sandboxed `applyReplace` with a per-call timeout (node:vm cannot live here; kit is browser-safe).
+// and runs it inside a node:vm watchdog with a deadline and a pass budget (node:vm cannot live here; kit is browser-safe).
 // The executor reads a kit-local structural `RegexScriptInput` rather than the persisted `@orb/contracts` schema,
 // since kit must not import contracts; `RegexScriptRow satisfies RegexScriptInput` keeps them aligned.
 //
@@ -145,8 +145,9 @@ export type SubstituteFindRegex = (typeof SubstituteFindRegex)[keyof typeof Subs
 
 // Single source of truth: the executor rejects a pattern longer than this before `new RegExp`, and
 // the contracts schema rejects it at the storage boundary — keep them equal. Length is a weak stand-in for
-// cost, so it is set to fit a public HUD preset's panel patterns; the cost guards are the stacked-quantifier
-// check below and the server's per-call timeout (`packages/server/src/primitives/regex/index.ts`).
+// cost, so it is the storage bound, set above a public HUD preset's largest panel pattern (10,189 characters); the
+// cost guards are the server's: `packages/server/src/primitives/regex/index.ts` and
+// `packages/server/src/primitives/regex/compile-probe.ts`.
 export const MAX_FIND_REGEX_LENGTH = 16_384;
 
 /** The minimal structural shape the executor reads off a regex script. The persisted
@@ -184,20 +185,19 @@ function withinDepth(scope: RegexDepth | undefined, depth: number | undefined): 
   return depth >= scope.min && (scope.max === null || depth <= scope.max);
 }
 
-// ReDoS pre-compile heuristic (defense-in-depth, not a guarantee): counts quantifier-stack
-// OCCURRENCES, not nesting depth, so the canonical ReDoS shape `(a+)+` (one stack) passes it. Real
-// safety comes from the server's node:vm-sandboxed `applyReplace` per-call timeout; the browser has
-// no runtime timeout and relies on this heuristic + the per-script try/catch.
-const MAX_STACKED_QUANTIFIERS = 3;
+// No pattern is refused for its SHAPE (D53). A shape filter cannot tell a lazy `.*?` from a runaway: the
+// stacked-quantifier count it once applied refused a third of a real HUD preset, every one of which finishes in
+// milliseconds, and still admitted `(a+)+$`. The cost guard is a deadline: the server's per-call `node:vm` timeout
+// (`packages/server/src/primitives/regex/index.ts`). The only pre-compile refusal is the length cap above.
 const MAX_PATTERN_LENGTH = MAX_FIND_REGEX_LENGTH;
 const DEFAULT_REGEX_FLAGS = "gm";
 const DECIMAL_RADIX = 10;
 // captureCount = total args − (match + offset + subject) − (named-groups object present ? 1 : 0).
 const REPLACE_FIXED_ARGS = 3;
 
-/** The find-pattern guard a pattern broke: its length, or the stacked-quantifier count. `max` is the bound. */
+/** The find-pattern guard a pattern broke. `max` is the bound. */
 export interface FindPatternLimitBreak {
-  readonly limit: "find-length" | "stacked-quantifiers";
+  readonly limit: "find-length";
   readonly max: number;
   readonly actual: number;
 }
@@ -205,22 +205,57 @@ export interface FindPatternLimitBreak {
 /** The find-pattern guard `pattern` breaks, or null. The executor refuses such a pattern before it compiles, so an
  *  import names the same break instead of storing a script that never runs. */
 export function findPatternLimitBreak(pattern: string): FindPatternLimitBreak | null {
-  if (pattern.length > MAX_PATTERN_LENGTH) {
-    return { limit: "find-length", max: MAX_PATTERN_LENGTH, actual: pattern.length };
-  }
-  const stacks = pattern.match(/[*+?}][)\]]*[*+?]/g)?.length ?? 0;
-  // The guard refuses at the cap itself, so the largest count it admits is one under it.
-  return stacks >= MAX_STACKED_QUANTIFIERS ? { limit: "stacked-quantifiers", max: MAX_STACKED_QUANTIFIERS - 1, actual: stacks } : null;
+  return pattern.length > MAX_PATTERN_LENGTH ? { limit: "find-length", max: MAX_PATTERN_LENGTH, actual: pattern.length } : null;
 }
 
 function tooComplex(pattern: string): string | null {
   const broken = findPatternLimitBreak(pattern);
-  if (broken === null) {
-    return null;
+  return broken === null ? null : `pattern length ${broken.actual} exceeds cap ${broken.max}`;
+}
+
+// What raw substitution may add to a find pattern, in characters. Raw mode makes a macro's value pattern source, and a
+// store-time check only sees the stored text, so the run-time bound is here. Honest use substitutes a name: ten times
+// the 200-character name cap. 2,000 added characters of the costliest class measured compile in 86 ms of CPU; a card's
+// prose field (100,000 characters) would compile for seconds on every turn its value changes. Escaped output is
+// literal (5 ms at the full length cap), so only the length cap bounds it.
+const MAX_RAW_SUBSTITUTION_GROWTH = 2000;
+
+// A pass may grow a text to the larger of this multiple of its input and the floor below. The floor is ten times the
+// largest output a public HUD preset's whole script set produced from a 40,000-character reply showing every panel
+// (243,294 characters). The multiple covers a longer honest input, which panels grow by a fixed amount, not a factor.
+const REGEX_OUTPUT_GROWTH_FACTOR = 2;
+const REGEX_OUTPUT_FLOOR_LENGTH = 2_500_000;
+
+/** The code a script carries when raw substitution grew its find pattern past the bound. */
+export const REGEX_SUBSTITUTION_TOO_LONG = "ERR_REGEX_SUBSTITUTION_TOO_LONG";
+/** The code a script carries when its output would have grown the text past the pass's output bound. */
+export const REGEX_OUTPUT_TOO_LONG = "ERR_REGEX_OUTPUT_TOO_LONG";
+
+class RegexScriptBoundError extends Error {
+  readonly code: typeof REGEX_SUBSTITUTION_TOO_LONG | typeof REGEX_OUTPUT_TOO_LONG;
+  constructor(code: RegexScriptBoundError["code"], message: string) {
+    super(message);
+    this.code = code;
   }
-  return broken.limit === "find-length"
-    ? `pattern length ${broken.actual} exceeds cap ${broken.max}`
-    : `pattern stacks ${broken.actual} quantifiers (cap ${MAX_STACKED_QUANTIFIERS})`;
+}
+
+// The longest a pass that started from `passInputLength` characters may make its text.
+function regexOutputLimit(passInputLength: number): number {
+  return Math.max(passInputLength * REGEX_OUTPUT_GROWTH_FACTOR, REGEX_OUTPUT_FLOOR_LENGTH);
+}
+
+// The text one script call would produce, counted as the replacer runs, so an amplifying replacement is stopped
+// before the string is built rather than after.
+interface OutputBudget {
+  projected: number;
+  readonly limit: number;
+}
+
+function charge(budget: OutputBudget, delta: number): void {
+  budget.projected += delta;
+  if (budget.projected > budget.limit) {
+    throw new RegexScriptBoundError(REGEX_OUTPUT_TOO_LONG, `regex output would exceed ${budget.limit} characters; script not applied`);
+  }
 }
 
 // Used as the macro `postProcess` hook in `escaped` mode so a substituted value is matched literally.
@@ -274,6 +309,13 @@ function compilePattern(script: RegexScriptInput, ctx: ProcessMacroOptions): Reg
   let pattern = script.findRegex;
   if (script.substituteRegex === SubstituteFindRegex.raw) {
     pattern = processMacros(pattern, ctx);
+    const added = pattern.length - script.findRegex.length;
+    if (added > MAX_RAW_SUBSTITUTION_GROWTH) {
+      throw new RegexScriptBoundError(
+        REGEX_SUBSTITUTION_TOO_LONG,
+        `raw substitution added ${added} characters to the find pattern, over the ${MAX_RAW_SUBSTITUTION_GROWTH} character limit`,
+      );
+    }
   } else if (script.substituteRegex === SubstituteFindRegex.escaped) {
     pattern = processMacros(pattern, { ...ctx, postProcess: sanitizeRegexMacro });
   }
@@ -340,7 +382,7 @@ function resolveDollarToken(token: DollarToken, splice: SpliceContext): string {
 // ORDERING IS LOAD-BEARING: macros run on the replacement template FIRST, then `$N`/`$<name>`/
 // {{match}} are spliced with the raw captured text — so an AI_OUTPUT script re-emitting a model
 // reply containing `{{setvar::x::y}}` can never mutate persisted chat vars on the way through.
-function buildReplacement(args: readonly unknown[], script: RegexScriptInput, ctx: ProcessMacroOptions): string {
+function buildReplacement(args: readonly unknown[], script: RegexScriptInput, ctx: ProcessMacroOptions, budget: OutputBudget): string {
   const lastArg = args.at(-1);
   const namedGroups = isNamedGroups(lastArg) ? lastArg : undefined;
   const captureCount = args.length - REPLACE_FIXED_ARGS - (namedGroups ? 1 : 0);
@@ -350,31 +392,38 @@ function buildReplacement(args: readonly unknown[], script: RegexScriptInput, ct
 
   // `{{match}}` → `$0` resolves AFTER the macro pass so its expansion isn't itself macro-evaluated.
   replacement = replacement.replace(/\{\{match\}\}/gi, "$0");
+  charge(budget, replacement.length);
 
-  // `$$` matched first so `$(\d+)` can't consume the second `$` of an escape.
-  return replacement.replace(/\$\$|\$(\d+)|\$<([^>]+)>/g, (full: string, num: string | undefined, name: string | undefined): string =>
-    resolveDollarToken({ full, num, name }, { args, captureCount, namedGroups, script, ctx }),
-  );
+  // `$$` matched first so `$(\d+)` can't consume the second `$` of an escape. Each splice is charged before it is
+  // returned: the macro budget never sees captured text, so a template of many `$1`s is bounded only here.
+  return replacement.replace(/\$\$|\$(\d+)|\$<([^>]+)>/g, (full: string, num: string | undefined, name: string | undefined): string => {
+    const piece = resolveDollarToken({ full, num, name }, { args, captureCount, namedGroups, script, ctx });
+    charge(budget, piece.length - full.length);
+    return piece;
+  });
 }
 
 /** Native `String.replace` callback shape: `(match, p1..pn, offset, subject, groups?)`. */
 export type RegexReplacer = (substring: string, ...rest: unknown[]) => string;
 
-export interface RegexExecuteOptions {
+interface RegexExecuteOptions {
   /** Called per script that fails to compile or execute. Server wires this to a logger + a
    *  disabled-script tally; client can wire console.warn or leave it (undefined → silent skip,
    *  fine for display-side rendering). */
   onScriptFailure?: (err: unknown, script: RegexScriptInput) => void;
   /** Seam over `text.replace(regex, replacer)`. Default: plain native replace (no timeout — the
-   *  browser's lot). The server injects a node:vm-sandboxed version with a per-call timeout so a
-   *  catastrophic-backtracking pattern throws (→ `onScriptFailure`) instead of hanging the turn. A
-   *  throw from here is caught by the per-script try/catch like any other failure. */
+   *  browser's lot; the server instead runs the whole executor under its watchdog). The display tier
+   *  injects its shape check here. A throw from here is caught by the per-script try/catch like any other failure. */
   applyReplace?: (text: string, regex: RegExp, replacer: RegexReplacer) => string;
 }
 
 // Top-level factory (not an inline closure in the loop below — that would trip noLoopFunc).
-function makeReplacer(script: RegexScriptInput, ctx: ProcessMacroOptions): RegexReplacer {
-  return (...args: unknown[]): string => buildReplacement(args, script, ctx);
+function makeReplacer(script: RegexScriptInput, ctx: ProcessMacroOptions, budget: OutputBudget): RegexReplacer {
+  return (...args: unknown[]): string => {
+    const [matched] = args;
+    charge(budget, -(typeof matched === "string" ? matched.length : 0));
+    return buildReplacement(args, script, ctx, budget);
+  };
 }
 
 /** One executor call: the pass, the target, and what that pass knows about the text. The row's stamps are required
@@ -406,6 +455,10 @@ export interface ExecuteRegexScriptsArgs extends RegexExecuteOptions {
   readonly call: RegexPassCall;
   /** Macro context for the find/replace template passes (the same shape `processMacros` consumes). */
   readonly ctx: ProcessMacroOptions;
+  /** The length of the text the pass started from, when a caller runs one pass as several calls (the server runs
+   *  one script per call). Absent ⇒ `text` is the pass's input. The pass's output bound is read from it, so a chain
+   *  of scripts cannot ratchet the bound up call by call. */
+  readonly passInputLength?: number | undefined;
 }
 
 /** Every reason a script sits out a call, in the executor's gate order. */
@@ -459,6 +512,7 @@ export function executeRegexScripts(args: ExecuteRegexScriptsArgs): string {
   const applyReplace: NonNullable<RegexExecuteOptions["applyReplace"]> =
     args.applyReplace ?? ((text, regex, replacer): string => text.replace(regex, replacer));
   let result = args.text;
+  const limit = regexOutputLimit(args.passInputLength ?? args.text.length);
 
   for (const script of scripts) {
     if (regexSkipReason(script, call) !== null) {
@@ -470,7 +524,7 @@ export function executeRegexScripts(args: ExecuteRegexScriptsArgs): string {
     // preview shows it to the author; only the client display tier omits it, by design. Ends if a server caller drops the sink.
     try {
       const regex = compilePattern(script, ctx);
-      result = applyReplace(result, regex, makeReplacer(script, ctx));
+      result = applyReplace(result, regex, makeReplacer(script, ctx, { projected: result.length, limit }));
     } catch (err) {
       args.onScriptFailure?.(err, script);
     }

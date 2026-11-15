@@ -26,6 +26,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { DISPLAY_ROW_BUDGET_MS } from "#src/lib/display-pass-protocol.ts";
 import type { DisplayPassRequest, StoppedDisplayScript } from "#src/lib/display-pass-runner.ts";
 import { runDisplayPass, stoppedDisplayScripts } from "#src/lib/display-pass-runner.ts";
+import type { StyledDisplayText } from "#src/lib/display-styled.ts";
 import type { DisplayPass, DisplayRowCall, MessageRenderContext } from "#src/lib/message-render.ts";
 import { finishDisplayPass, prepareDisplayPass, renderMessageForDisplay } from "#src/lib/message-render.ts";
 
@@ -69,8 +70,7 @@ export interface DisplayRow extends DisplayRowCall {
   readonly order?: number | undefined;
 }
 
-export interface DisplayText {
-  readonly text: string;
+export interface DisplayText extends StyledDisplayText {
   /** The body is waiting for its first answer: lay it out, do not show it. */
   readonly pending: boolean;
   /** Attach to the body element so the queue knows the row is on screen; undefined when no script runs. */
@@ -142,7 +142,7 @@ export function useDisplayText(text: string, ctx: MessageRenderContext | undefin
   const query = useQuery(
     queryOptions({
       queryKey: pass === null ? [DISPLAY_PASS_KEY] : [DISPLAY_PASS_KEY, scriptSetId(set), pass.running, pass.text, pass.macroCtx],
-      queryFn: pass === null ? skipToken : ({ signal }): Promise<string> => runDisplayPass(pass, { signal, priority: slot.priority }),
+      queryFn: pass === null ? skipToken : ({ signal }): Promise<StyledDisplayText> => runDisplayPass(pass, { signal, priority: slot.priority }),
       // Local work: it must run offline, and a script that failed once fails the same way again.
       networkMode: "always",
       retry: false,
@@ -155,15 +155,15 @@ export function useDisplayText(text: string, ctx: MessageRenderContext | undefin
 
   // The last answer this row showed. A later miss (an edit, a script set that arrived after the row) keeps it on
   // screen until the new answer lands, so only a row that has never shown anything is held.
-  const [shown, setShown] = useState<string | null>(null);
+  const [shown, setShown] = useState<StyledDisplayText | null>(null);
   const answer = displayedAnswer({ text, ctx, row, pass, scripted: query.data });
-  if (answer.landed && answer.text !== shown) {
-    setShown(answer.text);
+  if (answer.landed && (answer.text !== shown?.text || answer.styled !== shown.styled)) {
+    setShown({ text: answer.text, styled: answer.styled });
   }
   if (answer.landed || shown === null) {
-    return { text: answer.text, pending: !answer.landed && waiting && !holdOver, observeBody };
+    return { text: answer.text, styled: answer.styled, pending: !answer.landed && waiting && !holdOver, observeBody };
   }
-  return { text: shown, pending: false, observeBody };
+  return { text: shown.text, styled: shown.styled, pending: false, observeBody };
 }
 
 /** The row's finished text once it has landed; before that, its text without the scripts. */
@@ -172,16 +172,19 @@ function displayedAnswer(input: {
   readonly ctx: MessageRenderContext | undefined;
   readonly row: DisplayRow;
   readonly pass: DisplayPass | null;
-  readonly scripted: string | undefined;
-}): { readonly landed: boolean; readonly text: string } {
+  readonly scripted: StyledDisplayText | undefined;
+}): StyledDisplayText & { readonly landed: boolean } {
   const { text, ctx, row, pass, scripted } = input;
   if (ctx === undefined) {
-    return { landed: true, text };
+    return { landed: true, text, styled: false };
   }
+  // No script admits the row, so the calling thread runs only the macro and markdown steps.
   if (pass === null) {
-    return { landed: true, text: renderMessageForDisplay(text, ctx, row) };
+    return { landed: true, text: renderMessageForDisplay(text, ctx, row), styled: false };
   }
-  return scripted === undefined ? { landed: false, text: finishDisplayPass(pass.text, ctx) } : { landed: true, text: finishDisplayPass(scripted, ctx) };
+  return scripted === undefined
+    ? { landed: false, text: finishDisplayPass(pass.text, ctx), styled: false }
+    : { landed: true, text: finishDisplayPass(scripted.text, ctx), styled: scripted.styled };
 }
 
 /** The display scripts stopped this session, in the order they were stopped. The room's On screen regex roster

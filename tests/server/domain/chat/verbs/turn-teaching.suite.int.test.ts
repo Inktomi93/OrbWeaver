@@ -297,7 +297,7 @@ test("a host's rewrite of the teach is the one teach on a game turn that also ha
 
 test("a game's state block is accounted under its own budget source and reaches the model, and a plain chat has none", async () => {
   await using game = await turnRpgRoom([(): Response => turnRpgReply("The keeper nods.")]);
-  const preview = await game.root.services.chat.previewAssembly({ principal: game.owner, chatId: game.chatId });
+  const preview = await game.root.services.chat.previewAssembly({ signal: new AbortController().signal, principal: game.owner, chatId: game.chatId });
   const state = preview.budget.sources.find((source) => source.source === "game-state");
   expect(state?.tokens).toBeGreaterThan(0);
   // The wire stubs a stored card, so the block's own opening line is the needle that survives to the provider.
@@ -307,7 +307,7 @@ test("a game's state block is accounted under its own budget source and reaches 
   expect(wire).toContain(opening);
 
   await using plain = await textRoom([]);
-  const plainPreview = await plain.root.services.chat.previewAssembly({ principal: plain.owner, chatId: plain.chatId });
+  const plainPreview = await plain.root.services.chat.previewAssembly({ signal: new AbortController().signal, principal: plain.owner, chatId: plain.chatId });
   expect(nonEmpty(plainPreview.budget.sources).some((source) => source.source === "game-state")).toBe(false);
 });
 

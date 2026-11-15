@@ -105,7 +105,7 @@ export function createPopulateFromCharacter(ctx: RpgContext): Pick<RpgService, "
     // card + opening. The op is ERRORS-AS-DATA — a round that could not RUN (unresolvable connection / no
     // structured writer / a failed model call) comes back `{ok:false, reason}` and is handed STRAIGHT to the
     // host. It used to come back as an empty delta, indistinguishable from a card that established nothing.
-    const round = await ctx.runPopulateExtraction({ chatId: game.chatId, hostUserId, targetRef: corpus.name, baseState, corpus });
+    const round = await ctx.runPopulateExtraction({ chatId: game.chatId, hostUserId, targetRef: corpus.name, baseState, corpus, signal: params.signal });
     if (!round.ok) {
       return round;
     }

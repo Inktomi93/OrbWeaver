@@ -32,7 +32,7 @@ export interface ChatWorkloadDeps {
   /** The memory subsystem's corpus-wide segment/digest rebuild (idempotent, hash-diff resumable). */
   readonly backfillMemory: (args: MemorySweepArgs) => Promise<MemoryBackfillSweepCounts>;
   /** The Utility-model calls {@link backfillMemory} would make over the scope, read without planning or writing. */
-  readonly estimateMemoryBackfill: (args: Pick<MemorySweepArgs, "ownerId" | "importWindow"> & { readonly funderUserId: UserId }) => Promise<number>;
+  readonly estimateMemoryBackfill: (args: Pick<MemorySweepArgs, "ownerId" | "importWindow" | "signal"> & { readonly funderUserId: UserId }) => Promise<number>;
   /** Mint the synthetic group character for every multi-character room that lacks one (D38). */
   readonly backfillGroupCharacters: (args: CorpusSweepArgs) => Promise<BackfillPassResult>;
   /** The memory sweep's TERMINAL: record `embed_space_state`'s `memory` completion for every space the

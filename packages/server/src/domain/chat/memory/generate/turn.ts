@@ -19,7 +19,7 @@ export async function buildTurnMemory(ctx: ChatContext, args: BuildTurnMemoryArg
     signal: args.signal,
   });
   // No summarize connection: digests pause (the Utility-model row says so) rather than fail every turn.
-  if (!(await digestsDerivable(ctx, args.funderUserId))) {
+  if (!(await digestsDerivable(ctx, args.funderUserId, args.signal))) {
     return;
   }
   const participants = await loadParticipants(ctx.db, args.chatId);

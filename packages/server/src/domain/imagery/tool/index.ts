@@ -15,7 +15,7 @@
 //   • `useAvatarReference` — inert without a `subjectCharacterId` (B3 needs a subject), so it rides the arm too.
 
 import { DEFAULT_ACTION_MODE, generateImageActionArgsSchema, IMAGERY_GENERATE_IMAGE_TOOL_DESCRIPTION, promptTemplateModeSchema } from "@orb/contracts/imagery";
-import type { ToolHandlerDefinition, ToolHandlerResult } from "@orb/contracts/tool-use";
+import type { SignalledToolHandlerDefinition, ToolHandlerResult } from "@orb/contracts/tool-use";
 import type { GeneratePictureParams } from "../contract/params.ts";
 import type { ImageryService } from "../contract/service.ts";
 
@@ -28,13 +28,15 @@ interface ImageryToolDeps {
   readonly generatePicture: ImageryService["generatePicture"];
 }
 
-/** The sanctioned erasure (buddy's precedent): a typed def is unassignable to `ToolHandlerDefinition<unknown>`
+type ImageryToolDefinition<A = unknown> = SignalledToolHandlerDefinition<A, AbortSignal>;
+
+/** The sanctioned erasure (buddy's precedent): a typed def is unassignable to `ImageryToolDefinition<unknown>`
  *  (handler contravariance), so mint with its own `A` and widen here for the array; `register<A>` re-narrows. */
-function imageryTool<A>(def: ToolHandlerDefinition<A>): ToolHandlerDefinition {
-  return def as ToolHandlerDefinition;
+function imageryTool<A>(def: ImageryToolDefinition<A>): ImageryToolDefinition {
+  return def as ImageryToolDefinition;
 }
 
-export function imageryToolDefinitions(deps: ImageryToolDeps): readonly ToolHandlerDefinition[] {
+export function imageryToolDefinitions(deps: ImageryToolDeps): readonly ImageryToolDefinition[] {
   return [
     imageryTool({
       name: "generate_image",
@@ -46,8 +48,9 @@ export function imageryToolDefinitions(deps: ImageryToolDeps): readonly ToolHand
       source: "builtin",
       handler: async (args, exec): Promise<ToolHandlerResult> => {
         const p = generateImageActionArgsSchema.parse(args);
-        const params: GeneratePictureParams = {
+        const params: GeneratePictureParams & { readonly signal: AbortSignal } = {
           caller: exec.principal,
+          signal: exec.signal,
           chatId: exec.chatId,
           ...(p.mode === "free" ? { mode: p.mode, prompt: p.prompt } : { mode: p.mode, ...(p.prompt !== undefined ? { prompt: p.prompt } : {}) }),
           ...(args.negative !== undefined ? { negative: args.negative } : {}),

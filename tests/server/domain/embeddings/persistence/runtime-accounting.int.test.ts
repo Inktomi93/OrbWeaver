@@ -32,7 +32,7 @@ test("the real executor attributes and settles each completed embedding batch un
   fundingProvider,
 }) => {
   const connection = await fundingConnection({ ownerCaller, harness, task: "embed" });
-  const result = await app.runtime.executor.embed({ connection, input: "banana" });
+  const result = await app.runtime.executor.embed({ signal: new AbortController().signal, connection, input: "banana" });
   expect(result.vectors).toEqual([new Float32Array([1, 0, 0])]);
   expect(fundingProvider.calls).toEqual(["/v1/embeddings"]);
   expect(await db.select().from(embeddingCalls).where(eq(embeddingCalls.connectionId, connection.connectionId))).toMatchObject([
@@ -81,7 +81,7 @@ test("durable batch append and settlement failures retain both causes without bu
     }
     return typeof statement === "string" ? execute(statement, args) : execute(statement);
   });
-  const failure = await app.runtime.executor.embed({ connection, input: "banana" }).then(
+  const failure = await app.runtime.executor.embed({ signal: new AbortController().signal, connection, input: "banana" }).then(
     () => {
       throw new Error("the controlled durable failures unexpectedly succeeded");
     },

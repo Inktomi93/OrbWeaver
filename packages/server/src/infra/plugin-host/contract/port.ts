@@ -112,8 +112,8 @@ export interface ProcessPluginHost extends AsyncDisposable {
     instance: PluginInstance,
     handler: PluginHandlerRef,
     argsJson: PluginInvokeArgs,
-    chat?: InvocationChat | null,
-    signal?: AbortSignal,
+    chat: InvocationChat | null,
+    signal: AbortSignal,
     phase?: PluginInvokePhase,
     cascadeDepth?: number,
   ) => Promise<string>;

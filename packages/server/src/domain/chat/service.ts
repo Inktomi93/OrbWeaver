@@ -94,7 +94,7 @@ export function createChatService(
       settleRetainedChatRebase: ctx.settleRetainedChatRebase,
       resolveRetainedChatAccountingScope: ctx.resolveRetainedChatAccountingScope,
       emitChatChanged: ctx.emitChatChanged,
-      applyRegexReplace: ctx.applyRegexReplace,
+      openRegexPass: ctx.openRegexPass,
       prng: ctx.prng,
       passageCounter: ctx.passageCounter,
       runChatTurn: ctx.runChatTurn,
@@ -104,7 +104,7 @@ export function createChatService(
       promptTransforms: ctx.promptTransforms,
       globalVariableWriteStatements: ctx.globalVariableWriteStatements,
       timers: ctx.timers,
-      ...(ctx.backgroundSignal === undefined ? {} : { backgroundSignal: ctx.backgroundSignal }),
+      backgroundSignal: ctx.backgroundSignal,
       trackBackground: ctx.trackBackground,
       ...(ctx.recordTurnOutcome === undefined ? {} : { recordTurnOutcome: ctx.recordTurnOutcome }),
       rpg:
@@ -142,7 +142,10 @@ export function createChatService(
     emit: deps.emit,
     prng: deps.prng,
     delay: deps.delay,
-    resolveConnection: deps.resolveConnection,
+    // A turn resolves its connection before it registers the Stop handle that cancels it, so only shutdown can
+    // end this resolve.
+    resolveConnection: (args: Omit<Parameters<ChatServiceDeps["resolveConnection"]>[0], "signal">): ReturnType<ChatServiceDeps["resolveConnection"]> =>
+      deps.resolveConnection({ ...args, signal: ctx.backgroundSignal }),
     resolveForeignInputs: deps.resolveForeignInputs,
     claimChat,
   };

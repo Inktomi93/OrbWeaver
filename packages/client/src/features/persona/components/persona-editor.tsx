@@ -155,7 +155,7 @@ function PersonaEditorBody({ session, persona, onDelete, nextDefaultName }: Pers
     <Stack cap="code" gap="row">
       <Row gap="row" align="start" data-slot="persona-editor-identity">
         {avatar.control}
-        <Stack gap="row" className="min-inline-0" grow={true}>
+        <Stack gap="row" minWidth="shrinks" grow={true}>
           <form.AppField name="name">
             {(field): ReactElement => <field.TextField label={PERSONA_NAME_FIELD_NAME} hint="Characters call you this. It can't be empty." />}
           </form.AppField>

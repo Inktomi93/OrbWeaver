@@ -90,6 +90,7 @@ async function drive(options: Drive): Promise<Driven> {
   using errors = vi.spyOn(root.logger, "error");
   const connection = await wireConnection(root, { task: "chat", providerId: "anthropic", model: options.model, baseUrl: null, key: "sk-ant-not-a-real-key" });
   const turn = await root.app.runtime.executor.runChatTurn({
+    signal: new AbortController().signal,
     api: "anthropic-messages",
     connection,
     params: options.params ?? { effort: "high" },
@@ -207,6 +208,7 @@ test("a delivered trailing assistant row on a model that refuses prefill is a ty
 
   const refused = await root.app.runtime.executor
     .runChatTurn({
+      signal: new AbortController().signal,
       api: "anthropic-messages",
       connection,
       params: { effort: "high" },

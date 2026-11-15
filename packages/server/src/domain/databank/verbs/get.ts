@@ -11,9 +11,9 @@ import { loadOwnedDocument, requireOwnedMeta, toDocumentView } from "../persiste
 import { activeSpaceModel } from "../substrate/active-space.ts";
 
 export function createGet(ctx: DatabankContext): DatabankService["get"] {
-  return async ({ principal, id, includeText }: GetDocumentParams): Promise<DocumentDetailView> => {
+  return async ({ principal, id, includeText, signal }: GetDocumentParams): Promise<DocumentDetailView> => {
     const meta = await requireOwnedMeta(ctx.db, principal.userId, id);
-    const counts = await ctx.countChunks({ documentIds: [id], model: await activeSpaceModel(ctx, principal.userId) });
+    const counts = await ctx.countChunks({ documentIds: [id], model: await activeSpaceModel(ctx, principal.userId, signal) });
     const base = toDocumentView(meta, counts.get(id) ?? 0);
     if (includeText !== true) {
       return base;

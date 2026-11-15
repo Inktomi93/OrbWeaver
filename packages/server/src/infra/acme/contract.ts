@@ -33,7 +33,7 @@ export type CertificateCheck = { readonly ok: true; readonly notBefore: number; 
 /** The issuer. `issue` never throws: every failure, the network's included, is an outcome. */
 export interface AcmeIssuer {
   readonly createAccountKey: () => Promise<string>;
-  readonly issue: (request: IssueRequest, signal?: AbortSignal) => Promise<IssueOutcome>;
+  readonly issue: (request: IssueRequest, signal: AbortSignal) => Promise<IssueOutcome>;
 }
 
 export interface OwnedAcmeIssuer extends AcmeIssuer, AsyncDisposable {

@@ -129,7 +129,10 @@ export function createDefaultCharacterSeeder(deps: DefaultCharacterSeederDeps): 
    *  primary book chose it. A freshly created row has nothing to lose, so it is written unconditionally. */
   async function dressCard(principal: Principal, card: SeedCard, characterId: CharacterId, force: boolean): Promise<void> {
     if (force || (await presentationIsUnset(principal, characterId))) {
-      await deps.characters.update({ principal, characterId, input: await presentationFor(principal, card) });
+      // A seed plate is an owned asset ref, never a URL, so this update fetches nothing; and a half-dressed seed is
+      // resumed, not cancelled, so no caller cancel may stop it.
+      const signal = new AbortController().signal;
+      await deps.characters.update({ principal, characterId, input: await presentationFor(principal, card), signal });
     }
     const ownerId = principal.userId;
     if (force || !(await deps.hasPrimaryBook({ ownerId, characterId }))) {

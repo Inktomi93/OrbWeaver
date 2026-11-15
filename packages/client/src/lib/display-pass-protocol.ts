@@ -40,6 +40,8 @@ export type DisplayPassReply =
       readonly kind: "done";
       readonly jobId: number;
       readonly text: string;
+      /** Whether a script that ran drew markup with its own template (`display-styled.ts`). */
+      readonly styled: boolean;
       /** Milliseconds each script that ran took, by its index in the job's scripts. */
       readonly timings: readonly number[];
       /** Why the Worker stopped before the last script: the row budget ran out, or the script at the last

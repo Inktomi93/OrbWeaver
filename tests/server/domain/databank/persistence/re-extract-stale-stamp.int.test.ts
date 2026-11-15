@@ -44,18 +44,18 @@ test("a re-extract sweep re-derives a document an older extractor stamped and le
   });
   const { owner } = await seedCorpusActors(root);
   const upload = (name: string, text: string, mime = "text/plain"): ReturnType<typeof root.services.databank.upload> =>
-    root.services.databank.upload({ principal: owner, bytes: strToU8(text), mime, name });
+    root.services.databank.upload({ signal: new AbortController().signal, principal: owner, bytes: strToU8(text), mime, name });
   const stale = (await upload("stale.txt", STALE_BYTES)).document;
   const current = (await upload("current.txt", CURRENT_BYTES)).document;
   const otherFormat = (await upload("other.md", OTHER_FORMAT_BYTES, MARKDOWN_MIME)).document;
   const canonOf = async (id: typeof stale.id): Promise<string | undefined> =>
-    (await root.services.databank.get({ principal: owner, id, includeText: true })).extractedText;
+    (await root.services.databank.get({ signal: new AbortController().signal, principal: owner, id, includeText: true })).extractedText;
 
   // A fresh upload is stamped with the version the sweep compares against, so nothing is stale yet.
-  expect((await root.services.databank.bankHealth({ principal: owner })).staleExtraction).toBe(0);
+  expect((await root.services.databank.bankHealth({ signal: new AbortController().signal, principal: owner })).staleExtraction).toBe(0);
 
   await root.db.update(documents).set({ extractorVersion: STALE_VERSION, extractedText: STALE_CANON }).where(eq(documents.id, stale.id));
-  expect((await root.services.databank.bankHealth({ principal: owner })).staleExtraction).toBe(1);
+  expect((await root.services.databank.bankHealth({ signal: new AbortController().signal, principal: owner })).staleExtraction).toBe(1);
   expect(await canonOf(stale.id)).toBe(STALE_CANON);
 
   const swept = await root.app.databankIngest.reindex({
@@ -69,7 +69,7 @@ test("a re-extract sweep re-derives a document an older extractor stamped and le
   expect(await canonOf(stale.id)).toBe(STALE_BYTES);
   expect(await canonOf(current.id)).toBe(CURRENT_BYTES);
   expect(await canonOf(otherFormat.id)).toBe(OTHER_FORMAT_BYTES);
-  expect((await root.services.databank.bankHealth({ principal: owner })).staleExtraction).toBe(0);
+  expect((await root.services.databank.bankHealth({ signal: new AbortController().signal, principal: owner })).staleExtraction).toBe(0);
 });
 
 const BUMPED_PDF_VERSION = "an-upgraded-pdf-loader";
@@ -122,20 +122,20 @@ test("raising the pdf extractor version marks only pdf documents stale, and the 
     await using first = await createServerHarness({ db: held.db, casDir, providerFetch });
     const { owner } = await seedCorpusActors(first);
     const upload = (name: string, bytes: Uint8Array, mime: string): ReturnType<typeof first.services.databank.upload> =>
-      first.services.databank.upload({ principal: owner, bytes, mime, name });
+      first.services.databank.upload({ signal: new AbortController().signal, principal: owner, bytes, mime, name });
     await upload("ledger.pdf", buildPdf(PDF_TEXT), PDF_MIME);
     await upload("log.md", strToU8("# The harbor log"), MARKDOWN_MIME);
     await upload("notes.txt", strToU8("The keeper's ledger."), "text/plain");
     // Plant a canon on every row, so a rewrite shows as the planted text being replaced by the extracted one.
     await first.db.update(documents).set({ extractedText: PLANTED_CANON });
-    expect((await first.services.databank.bankHealth({ principal: owner })).staleExtraction).toBe(0);
+    expect((await first.services.databank.bankHealth({ signal: new AbortController().signal, principal: owner })).staleExtraction).toBe(0);
     lineage = { ownerId: first.ownerId, clock: first.clock, ids: first.ids };
     before = await stored();
   }
 
   await using second = await createServerHarness({ db: held.db, casDir, providerFetch, ...lineage, extractorVersions: { pdf: BUMPED_PDF_VERSION } });
   const owner = await second.principalFor(lineage.ownerId);
-  expect((await second.services.databank.bankHealth({ principal: owner })).staleExtraction).toBe(1);
+  expect((await second.services.databank.bankHealth({ signal: new AbortController().signal, principal: owner })).staleExtraction).toBe(1);
 
   const swept = await second.app.databankIngest.reindex({
     ownerId: owner.userId,
@@ -149,5 +149,5 @@ test("raising the pdf extractor version marks only pdf documents stale, and the 
   for (const [id, row] of before) {
     expect(after.get(id)).toEqual(row.mime === PDF_MIME ? { mime: PDF_MIME, stamp: BUMPED_PDF_VERSION, canon: PDF_TEXT } : row);
   }
-  expect((await second.services.databank.bankHealth({ principal: owner })).staleExtraction).toBe(0);
+  expect((await second.services.databank.bankHealth({ signal: new AbortController().signal, principal: owner })).staleExtraction).toBe(0);
 });

@@ -32,6 +32,7 @@ function createCatalogModels(ctx: ConnectionContext): ConnectionService["catalog
       secret: { credentialId: row.credentialId },
       baseUrl: row.baseUrl,
       headers: row.transport?.headers,
+      signal: params.signal,
     });
   };
 }
@@ -50,6 +51,7 @@ function createDraftCatalogModels(ctx: ConnectionContext): ConnectionService["dr
       secret: params.key !== undefined ? { key: params.key } : { credentialId },
       baseUrl,
       ...(params.headers !== undefined ? { headers: params.headers } : {}),
+      signal: params.signal,
     });
   };
 }

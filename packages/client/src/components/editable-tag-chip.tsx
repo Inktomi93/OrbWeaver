@@ -60,7 +60,7 @@ export function EditableTagChip({
         render={
           trigger === undefined ? (
             <Button
-              className="min-inline-0"
+              minWidth="shrinks"
               cap="fit"
               aria-label={editTitle}
               variant="ghost"
@@ -84,7 +84,7 @@ export function EditableTagChip({
       />
       <PopoverPopup aria-label={editTitle} finalFocus={navigating ? false : triggerRef} width="stable">
         <Stack gap="block">
-          <Row className="min-inline-0" align="center" justify="between" gap="field">
+          <Row minWidth="shrinks" align="center" justify="between" gap="field">
             <PopoverTitle className="truncate">{editTitle}</PopoverTitle>
             <PopoverClose
               render={

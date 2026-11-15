@@ -581,7 +581,7 @@ test("an owner clone generates only through its disposable scripted connection a
     const candidate = (await root.services.connection.list({ principal })).find(({ model }) => model === CORPUS_TEXT_MODEL);
     assert(candidate !== undefined);
     originalConnection = await root.services.connection.update({ principal, connectionId: candidate.id, patch: { baseUrl: `${originalPeer.origin}/v1` } });
-    originalBindings = await root.services.connection.listBindings({ principal });
+    originalBindings = await root.services.connection.listBindings({ signal: new AbortController().signal, principal });
     originalAllowlist = (await root.services.settings.getAppSettings({ principal })).privateEndpointAllowlist;
   }
   const database = localPath(source.layout.databaseUrl);
@@ -602,9 +602,11 @@ test("an owner clone generates only through its disposable scripted connection a
   });
   const principal = await server.root.principalFor(prepared.owner.userId);
   const { connection, chat } = server.root.services;
-  expect(await connection.listBindings({ principal })).toEqual(originalBindings);
+  expect(await connection.listBindings({ signal: new AbortController().signal, principal })).toEqual(originalBindings);
   expect(await connection.get({ principal, connectionId: originalConnection.id })).toEqual(originalConnection);
-  expect(await connection.catalogModels({ principal, connectionId: originalConnection.id })).toMatchObject({ listed: false });
+  expect(await connection.catalogModels({ signal: new AbortController().signal, principal, connectionId: originalConnection.id })).toMatchObject({
+    listed: false,
+  });
   expect(originalRequests).toBe(1);
   const priorChat = originalBindings.find(({ task }) => task === "chat")?.binding?.connectionId ?? null;
   const room = await chat.startChat({ principal, characterIds: [source.cardId], opening: "none" });
@@ -668,7 +670,7 @@ test("an owner clone generates only through its disposable scripted connection a
   } finally {
     await connection.setBinding({ principal, task: "chat", connectionId: priorChat });
   }
-  expect(await connection.listBindings({ principal })).toEqual(originalBindings);
+  expect(await connection.listBindings({ signal: new AbortController().signal, principal })).toEqual(originalBindings);
   expect(await connection.get({ principal, connectionId: originalConnection.id })).toEqual(originalConnection);
   await server[Symbol.asyncDispose]();
   expect(JSON.parse(await readFile(join(server.generation.requestEvidencePath, "..", "admission.json"), "utf8"))).toMatchObject({

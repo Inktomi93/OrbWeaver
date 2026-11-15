@@ -43,7 +43,7 @@ test("scripted chat reads use admitted mount scope, reject main-host argument sh
   const committed = await root.services.chat.commitMessage({ principal: caller, chatId, content: "Mounted transcript witness." });
   expect(committed.aborted).toBe(false);
   expect(await root.services.plugin.listSurfaces({ caller })).toContainEqual(expect.objectContaining({ id: "relay", tier: "scripted" }));
-  await root.services.plugin.invokeUiCommand({ caller, pluginId, name: "seed", args: "", chatId });
+  await root.services.plugin.invokeUiCommand({ signal: new AbortController().signal, caller, pluginId, name: "seed", args: "", chatId });
 
   const relay = (fn: string, args: readonly z.input<typeof jsonValueSchema>[]): ReturnType<typeof root.services.plugin.uiHostCall> =>
     root.services.plugin.uiHostCall({ caller, pluginId, chatId, fn, argsJson: JSON.stringify(args) });

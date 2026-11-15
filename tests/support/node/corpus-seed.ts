@@ -155,6 +155,7 @@ export async function seedCorpusLibraries(root: ServerHarness): Promise<SeededCo
   const world = await captureWorldBookRows(root.db, book.id);
   await settleActiveWorkloads(root);
   const document = await seedDocumentRows(root, {
+    signal: new AbortController().signal,
     principal,
     name: "Orbital ledger source",
     text: "The orbital ledger preserves the witness names and the completed loom scenes.",

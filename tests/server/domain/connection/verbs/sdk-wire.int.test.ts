@@ -31,6 +31,7 @@ test("native SDK numeric accounting preserves two real model costs without coerc
   const observed: (number | null)[] = [];
   const result = await root.app.runtime.executor.runChatTurn(
     toChatRequest({
+      signal: new AbortController().signal,
       connection,
       params: {},
       systemPrompt: { static: "", dynamic: "" },
@@ -52,6 +53,7 @@ test("the mounted tool server keeps the namespace every tool name is prefixed wi
   const calls: ToolCallInput[] = [];
   const result = await root.app.runtime.executor.runChatTurn(
     toChatRequest({
+      signal: new AbortController().signal,
       connection,
       params: {},
       systemPrompt: { static: "", dynamic: "" },
@@ -87,6 +89,7 @@ test.each(["bad-cost", "bad-tokens", "bad-text"])(
     await expect(
       root.app.runtime.executor.runChatTurn(
         toChatRequest({
+          signal: new AbortController().signal,
           connection,
           params: {},
           systemPrompt: { static: "", dynamic: "" },
@@ -106,7 +109,7 @@ test("native SDK model discovery parses the actual valid control response", { ta
   await using root = await rootFor("valid");
   const connection = await savedConnection(root);
   const principal = await root.principalFor(root.ownerId);
-  const listing = await root.services.connection.catalogModels({ principal, connectionId: connection.connectionId });
+  const listing = await root.services.connection.catalogModels({ signal: new AbortController().signal, principal, connectionId: connection.connectionId });
   expect(listing).toMatchObject({ listed: true, models: [{ id: MODEL }] });
 });
 
@@ -114,7 +117,7 @@ test.each(["valid", "bad-account"])("native SDK %s account diagnostics retain th
   await using root = await rootFor(mode);
   const connection = await savedConnection(root);
   const principal = await root.principalFor(root.ownerId);
-  const verified = await root.services.connection.verifyAuth({ principal, connectionId: connection.connectionId });
+  const verified = await root.services.connection.verifyAuth({ signal: new AbortController().signal, principal, connectionId: connection.connectionId });
   expect(verified.ok).toBe(true);
   expect(verified.costUsd).toBe(3);
   expect(verified.account).toEqual(mode === "bad-account" ? undefined : { email: "native@example.test" });
@@ -129,6 +132,7 @@ test("native SDK metadata projects actual events and deltas without changing pai
   const deltas: ChatDeltaEvent[] = [];
   const result = await root.app.runtime.executor.runChatTurn(
     toChatRequest({
+      signal: new AbortController().signal,
       connection,
       chatId: room.id,
       onDelta: (delta) => deltas.push(delta),
@@ -168,6 +172,7 @@ test.each([
   await expect(
     root.app.runtime.executor.runChatTurn(
       toChatRequest({
+        signal: new AbortController().signal,
         connection,
         chatId: room.id,
         onDelta: (delta) => deltas.push(delta),
@@ -194,6 +199,7 @@ test("native SDK malformed property paths never survive in error serialization o
   const failure = await root.app.runtime.executor
     .runChatTurn(
       toChatRequest({
+        signal: new AbortController().signal,
         connection,
         params: {},
         systemPrompt: { static: "", dynamic: "" },

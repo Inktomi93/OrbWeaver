@@ -74,7 +74,7 @@ export function RpgActRail({ plot, edit }: { readonly plot: RpgPlot; readonly ed
               {heading}
             </Text>
           ) : (
-            <Row gap="field" align="center" className="min-inline-0">
+            <Row gap="field" align="center" minWidth="shrinks">
               <Text as="span" voice="kicker" ink="accolade">
                 Act
               </Text>

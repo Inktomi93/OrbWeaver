@@ -6,7 +6,7 @@
 // not the built chat service — so there is no ordering knot.
 //
 // The ENGINE is composed elsewhere and stays there: `@orb/kit/regex` executes, and the `node:vm` ReDoS
-// watchdog (`@orb/server/primitives/regex`) is injected onto ChatContext as `applyRegexReplace`. This seam wires
+// watchdog (`@orb/server/primitives/regex`) is injected onto ChatContext as `openRegexPass`. This seam wires
 // only the DATA the engine runs on (Constitution.md §1 "engine vs data").
 
 import type { ResolveRegexSources } from "@orb/contracts/chat";
@@ -37,6 +37,7 @@ import {
   createResolveRegexSources,
 } from "#domain/regex";
 import type { AuditWiring, Logger } from "#foundation/observability";
+import { probeFindCompiles } from "#primitives/regex";
 import type { LiveBuses } from "#transport/trpc";
 import { minter } from "./minter.ts";
 import { createDeleteReachCapture, createEmitRoomRegexChanged, createFanRegexScriptRooms } from "./room-reach.ts";
@@ -98,9 +99,10 @@ export function buildRegex(deps: RegexComposeDeps): RegexComposeResult {
     // The DELETE arm of the same reach: `chat_regex_scripts` CASCADEs with the library row, so the
     // two remove verbs snapshot through this BEFORE their delete and fan the confirmed set after.
     captureRoomReachForDelete: createDeleteReachCapture(db, deps.emitChatEventLive, deps.logger).regex,
+    probeFindCompiles,
   });
 
-  const portabilityCtx = { db, now, newScriptId };
+  const portabilityCtx = { db, now, newScriptId, probeFindCompiles };
 
   return {
     regex,

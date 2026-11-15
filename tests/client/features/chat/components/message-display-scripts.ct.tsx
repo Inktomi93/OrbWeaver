@@ -136,7 +136,8 @@ const REFUSED_SHAPES = [
   {
     shape: "three stacks: *)? *? *)?",
     findRegex: String.raw`(?:\n*)?<banner>([\s\S]*?)?</banner>(?:\n*)?`,
-    replaceString: "BANNER $1",
+    // The pattern eats the blank lines around the panel, so its replacement puts the paragraph break back.
+    replaceString: "\n\nBANNER $1",
     text: "<banner>Night falls</banner>",
     drawn: "BANNER Night falls",
   },

@@ -25,14 +25,14 @@ function imageReason(err: unknown): Exclude<BackgroundMaterializeFailure, "unrea
   return "not-image";
 }
 
-export function createMaterializeBackground(deps: MaterializeBackgroundDeps): MaterializeBackgroundOp {
+export function createMaterializeBackground(deps: MaterializeBackgroundDeps): MaterializeBackgroundOp<AbortSignal> {
   const { fetchImpl } = deps;
-  return async (principal: Principal, url: string): Promise<MaterializeBackgroundResult> => {
+  return async (principal: Principal, url: string, signal: AbortSignal): Promise<MaterializeBackgroundResult> => {
     const maxBytes = deps.maxBytes();
 
     let res: SafeFetchResult;
     try {
-      res = await fetchImpl(url, { allowedHosts: ANY_HOST, method: "GET", maxBytes });
+      res = await fetchImpl(url, { allowedHosts: ANY_HOST, method: "GET", maxBytes, signal });
     } catch (err) {
       return { ok: false, reason: egressReason(err) };
     }

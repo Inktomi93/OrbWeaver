@@ -60,7 +60,7 @@ test("only PRESENT owner assets reach byte processing, the turn's host included;
   expect(Array.from(prepareVideo.mock.calls[0]?.[0] ?? [])).toEqual(Array.from(bytes));
   await services.chat.selfLeave({ principal: member, chatId: room.id });
   read.mockClear();
-  const refused = await resolve({ chatId: room.id, ref: { kind: "asset", assetId: asset.assetId } });
+  const refused = await resolve({ signal: new AbortController().signal, chatId: room.id, ref: { kind: "asset", assetId: asset.assetId } });
   let emitted: string | null = null;
   if (refused !== null) {
     emitted = typeof refused.url === "function" ? await refused.url() : refused.url;
@@ -69,9 +69,9 @@ test("only PRESENT owner assets reach byte processing, the turn's host included;
   expect(prepareVideo).toHaveBeenCalledTimes(1);
   expect(read).not.toHaveBeenCalled();
   forbidden = true;
-  expect(await resolve({ chatId: room.id, ref: { kind: "external", url: "https://cdn.example/image" } })).toBeNull();
+  expect(await resolve({ signal: new AbortController().signal, chatId: room.id, ref: { kind: "external", url: "https://cdn.example/image" } })).toBeNull();
   forbidden = false;
-  expect(await resolve({ chatId: room.id, ref: { kind: "external", url: "https://cdn.example/image" } })).toEqual({
+  expect(await resolve({ signal: new AbortController().signal, chatId: room.id, ref: { kind: "external", url: "https://cdn.example/image" } })).toEqual({
     media: "image",
     url: "https://cdn.example/image",
   });

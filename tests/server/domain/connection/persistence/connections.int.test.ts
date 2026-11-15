@@ -83,7 +83,9 @@ test("foreign malformed bytes still reach the mismatch event, never decoding or 
   expect(mismatchEvents()).toEqual([expectedEvent]);
 
   const principal = await harness.principalFor(harness.ownerId);
-  await expect(app.runtime.capabilities.for({ connectionId: foreign.id, principal })).rejects.toThrow(`connection ${foreign.id} not found`);
+  await expect(app.runtime.capabilities.for({ signal: new AbortController().signal, connectionId: foreign.id, principal })).rejects.toThrow(
+    `connection ${foreign.id} not found`,
+  );
   await expect(ownerCaller.connection.get({ connectionId: foreign.id })).rejects.toMatchObject(foreignRefusal);
   await expect(ownerCaller.connection.remove({ connectionId: foreign.id })).toThrowTRPCError("BAD_REQUEST");
   expect((await ownerCaller.connection.get({ connectionId: own.id })).id).toBe(own.id);

@@ -12,7 +12,7 @@ import { MESSAGES_PATH, wireOf } from "../scenario-physical.ts";
 test("an omitted send persona stamps the actual active seat while a subsequent streamed draft changes no canon or variant", async () => {
   await using h = await personaRoom(["The keeper replies.", "The user's drafted line."], { group: { output: "per-speaker", policy: "list" } });
   const active = await seatPersona(h, h.owner, "Active speaker", "The user's current voice.");
-  const params = { principal: h.owner, chatId: h.chatId };
+  const params = { signal: new AbortController().signal, principal: h.owner, chatId: h.chatId };
   const sent = await h.root.services.chat.send({ ...params, content: "Ask the keeper." });
   expect(sent.aborted).toBe(false);
   expect(sent.messages.filter(({ role }) => role === "user")).toMatchObject([{ authorUserId: h.owner.userId, personaId: active.id }]);

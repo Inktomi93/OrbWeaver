@@ -11,7 +11,7 @@ import { withinHandleLength } from "@orb/kit/handle-key";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { adminUserViewSchema } from "../role-output.ts";
-import { adminProcedure, t } from "../trpc.ts";
+import { adminProcedure, procedureSignal, t } from "../trpc.ts";
 
 export const adminRouter = t.router({
   listUsers: adminProcedure.output(z.array(adminUserViewSchema).readonly()).query(({ ctx }) => ctx.services.admin.listUsers({ principal: ctx.auth })),
@@ -104,10 +104,11 @@ export const adminRouter = t.router({
   embedCharacterCard: adminProcedure
     .output(okResultSchema)
     .input(z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character) }))
-    .mutation(async ({ ctx, input }) => {
+    .mutation(async ({ ctx, input, signal }) => {
       await ctx.services.admin.embedCharacterCard({
         principal: ctx.auth,
         characterId: input.characterId,
+        signal: procedureSignal(signal),
       });
       return { ok: true } as const;
     }),

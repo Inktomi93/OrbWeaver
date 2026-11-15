@@ -729,7 +729,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   };
   const retryOpts = {
     scheduleTimeout: deps.scheduleTimeout,
-    ...(req.signal !== undefined ? { signal: req.signal } : {}),
+    signal: req.signal,
     now: deps.now,
     random: deps.random,
     ...(deps.addSpanEvent !== undefined ? { addSpanEvent: deps.addSpanEvent } : {}),

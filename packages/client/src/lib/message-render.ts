@@ -3,7 +3,8 @@
 //                            called by server assemble; the row's own characterId/personaId stamps
 //                            drive the subject.
 //   2. executeRegexScripts (the display pass) — the viewer's display scripts over the row's target, author
-//                            stamps, depth and room; ephemeral, never canon or the shared prompt.
+//                            stamps, depth and room; ephemeral, never canon or the shared prompt. It also
+//                            reports whether a script's own template drew markup (`display-styled.ts`).
 //   3. fixMarkdown          — LLM artifact repair.
 //
 // Output is a string for the @orb/ui/markdown renderer (never HTML) — not for composer/edit
@@ -26,7 +27,9 @@ import type { MacroEnv, ProcessMacroOptions, RowCharacterName, RowPersonaName } 
 import { resolveRowMacros } from "@orb/kit/macro";
 import type { RoomStanding } from "@orb/kit/message-author";
 import type { RegexPass, RegexPassCall, RegexRowStamps } from "@orb/kit/regex";
-import { executeRegexScripts, regexSkipReason } from "@orb/kit/regex";
+import { regexSkipReason } from "@orb/kit/regex";
+import type { StyledDisplayText } from "./display-styled.ts";
+import { executeDisplayScripts } from "./display-styled.ts";
 
 export interface MessageRenderContext {
   /** The per-chat name producer — every id the chat references, id→name. Names only; an empty Map is
@@ -139,8 +142,8 @@ export function prepareDisplayPass(text: string, ctx: MessageRenderContext, disp
  *  script gives the same text as one call over the whole list; the Worker calls it per script so the main
  *  thread learns which script is running. A script that fails to compile or throws is skipped silently: a
  *  viewer's broken script is never worth breaking the room render. */
-export function applyDisplayScript(text: string, script: RegexScriptRow, macroCtx: ProcessMacroOptions, call: DisplayCall): string {
-  return executeRegexScripts({ text, scripts: [script], call, ctx: macroCtx });
+export function applyDisplayScript(text: string, script: RegexScriptRow, macroCtx: ProcessMacroOptions, call: DisplayCall): StyledDisplayText {
+  return executeDisplayScripts({ text, scripts: [script], call, ctx: macroCtx });
 }
 
 /** Step 3. */
@@ -148,12 +151,21 @@ export function finishDisplayPass(text: string, ctx: MessageRenderContext): stri
   return ctx.autoFixMarkdown === true ? fixMarkdown(text, true) : text;
 }
 
-/** All three steps on the calling thread. In the browser this is only correct for a context with no display
- *  scripts; `useDisplayText` is the browser door. */
-export function renderMessageForDisplay(text: string, ctx: MessageRenderContext, display: DisplayRowCall): string {
+/** All three steps on the calling thread, and whether a script's own template drew markup. In the browser this is
+ *  only correct for a context with no display scripts; `useDisplayText` is the browser door. */
+export function renderStyledMessageForDisplay(text: string, ctx: MessageRenderContext, display: DisplayRowCall): StyledDisplayText {
   const pass = prepareDisplayPass(text, ctx, display);
-  return finishDisplayPass(
-    pass.scripts.reduce((running, script) => applyDisplayScript(running, script, pass.macroCtx, pass.call), pass.text),
-    ctx,
+  const scripted = pass.scripts.reduce<StyledDisplayText>(
+    (running, script) => {
+      const next = applyDisplayScript(running.text, script, pass.macroCtx, pass.call);
+      return { text: next.text, styled: running.styled || next.styled };
+    },
+    { text: pass.text, styled: false },
   );
+  return { text: finishDisplayPass(scripted.text, ctx), styled: scripted.styled };
+}
+
+/** {@link renderStyledMessageForDisplay}'s text. */
+export function renderMessageForDisplay(text: string, ctx: MessageRenderContext, display: DisplayRowCall): string {
+  return renderStyledMessageForDisplay(text, ctx, display).text;
 }

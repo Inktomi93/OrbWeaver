@@ -106,12 +106,12 @@ test("a former host's document left attached reaches neither the new host's pane
   await h.root.db.insert(chatDocuments).values({ chatId: h.chatId, documentId: stale }).onConflictDoNothing();
   await embedDocuments(h, newHost, [formerHost, newHost]);
 
-  await h.root.services.databank.rename({ principal: formerHost, id: stale, name: STALE_RENAMES[0] });
+  await h.root.services.databank.rename({ signal: new AbortController().signal, principal: formerHost, id: stale, name: STALE_RENAMES[0] });
   expectOnlyHostDocument(await sendTurn(h, newHost, MESSAGE));
   expect(await roomDocuments(h, newHost)).toEqual([own]);
 
   await h.root.services.chat.selfLeave({ principal: formerHost, chatId: h.chatId });
-  await h.root.services.databank.rename({ principal: formerHost, id: stale, name: STALE_RENAMES[1] });
+  await h.root.services.databank.rename({ signal: new AbortController().signal, principal: formerHost, id: stale, name: STALE_RENAMES[1] });
   await expect(h.root.services.databank.attachToChat({ principal: formerHost, chatId: h.chatId, documentId: stale })).rejects.toBeInstanceOf(ChatNotFoundError);
   expectOnlyHostDocument(await sendTurn(h, newHost, MESSAGE));
   expect(await roomDocuments(h, newHost)).toEqual([own]);

@@ -76,7 +76,7 @@ export type { Trpc, TrpcClient, TrpcReadError } from "./trpc.ts";
 export { createTrpcClient, createTrpcProxy, RIDES_ALONE, roomRosterOptions, roomTailOptions, TRPCProvider, useTRPC, useTRPCClient } from "./trpc.ts";
 export { UploadRefusedError } from "./upload-asset.ts";
 export { DocumentUploadRefusedError, uploadDocument } from "./upload-document.ts";
-export { useCardFrameSrc } from "./use-card-frame.ts";
+export { useCardFrameMint, useCardFrameSrc } from "./use-card-frame.ts";
 export { useCarriedAppearance } from "./use-carried-appearance.ts";
 export { useColorQuotedSpeech } from "./use-color-quoted-speech.ts";
 export { useDisplayEntries, useDisplayScripts, usePrefetchDisplayScripts } from "./use-display-scripts.ts";

@@ -13,7 +13,7 @@ test("native SDK malformed model identity refuses instead of entering the catalo
   const connection = await savedConnection(root);
   const principal = await root.principalFor(root.ownerId);
   const before = await root.db.select().from(settings);
-  const listing = await root.services.connection.catalogModels({ principal, connectionId: connection.connectionId });
+  const listing = await root.services.connection.catalogModels({ signal: new AbortController().signal, principal, connectionId: connection.connectionId });
   expect(listing.listed).toBe(false);
   expect(await root.db.select().from(settings)).toEqual(before);
 });

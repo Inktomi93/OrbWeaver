@@ -29,11 +29,13 @@
 // first time a script fails (bad compile, or a watchdog timeout), it is dropped for the REST of the pass.
 // A pathological pattern therefore costs ONE watchdog window per turn, not one per message, and the leg's
 // worst case is bounded by the SCRIPT COUNT — which the library owner controls — rather than by how long
-// the conversation has run. Every eviction is reported through `onScriptFailure` (already a logged warn at
-// both call sites), so the log cannot disagree with what applied.
+// the conversation has run. Eviction does not catch a script that stays just under the watchdog on every row, so
+// the whole history also shares one pass budget that grows with the row count (`openRegexPass`); past it, every
+// remaining script is skipped. Every eviction and skip is reported through `onScriptFailure` (already a logged
+// warn at both call sites), so the log cannot disagree with what applied.
 
 import type { RegexDepth, RegexPass, RegexRowStamps, RegexScriptInput } from "@orb/kit/regex";
-import { executeRegexScripts, messageTargetOf } from "@orb/kit/regex";
+import { messageTargetOf } from "@orb/kit/regex";
 import type { PromptHistoryRegexEnv } from "../contract/regex.ts";
 
 /** The minimum a row must expose for the leg to rewrite it — deliberately structural, so `CanonRow` (which
@@ -83,6 +85,8 @@ export function applyPromptHistoryRegex<T extends TextRow>(
     env.onScriptFailure(err, script);
   };
 
+  // One pass for the whole history, its budget sized by the row count (D53).
+  const pass = env.openRegexPass(rows.length);
   const out = [...rows];
   const depthOf = (index: number): number => rows.length - 1 - index - (env.continuing ? 1 : 0);
   // NEWEST FIRST — the same direction depth counts, so the rows a reader cares about most are transformed
@@ -97,12 +101,11 @@ export function applyPromptHistoryRegex<T extends TextRow>(
     if (live.length === 0) {
       break;
     }
-    const content = executeRegexScripts({
+    const content = pass.execute({
       text: row.content,
       scripts: live,
       call: { pass: PROMPT_PASS, target: messageTargetOf(stamp), row: stamp, room: env.room, depth: depthOf(index) },
       ctx: env.macroCtx,
-      applyReplace: env.applyReplace,
       onScriptFailure,
     });
     if (content !== row.content) {

@@ -85,13 +85,20 @@ test("a card question is grounded in no scene of a room still landing, and in it
   const principal = await root.principalFor(root.ownerId);
   await seedCorpusConnections(root, principal);
   const card = await createCard(root, LANDING);
-  expect(await root.services.discovery.distillCharacters({ ownerId: root.ownerId, funderUserId: root.ownerId, characterId: card })).toMatchObject({
+  expect(
+    await root.services.discovery.distillCharacters({
+      signal: new AbortController().signal,
+      ownerId: root.ownerId,
+      funderUserId: root.ownerId,
+      characterId: card,
+    }),
+  ).toMatchObject({
     distilled: 1,
   });
   await seedTranscript(root, { ownerId: root.ownerId, characterHandles: [LANDING], lines: transcriptLines(2, "the landed keeper") });
   const asked = async (): Promise<string> => {
     askPrompts.length = 0;
-    expect(await root.services.discovery.askCard(root.ownerId, card, "Which lamps does the keeper count?")).not.toBeNull();
+    expect(await root.services.discovery.askCard(root.ownerId, card, "Which lamps does the keeper count?", new AbortController().signal)).not.toBeNull();
     return askPrompts.join("\n");
   };
 

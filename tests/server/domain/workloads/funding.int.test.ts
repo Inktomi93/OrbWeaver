@@ -149,19 +149,23 @@ test("a retry and its estimate for a disabled member's run are refused as a disa
   expect(await root.services.workloads.get({ caller: admin, id: original.id })).toMatchObject({ status: "succeeded" });
   const memberRuns = (): ReturnType<typeof root.services.workloads.list> =>
     root.services.workloads.list({ caller: admin, ownerId: member.userId, kind: "distill-characters" });
-  const enabledEstimate = await root.services.workloads.estimateRetryModelCalls({ caller: admin, id: original.id });
+  const enabledEstimate = await root.services.workloads.estimateRetryModelCalls({ signal: new AbortController().signal, caller: admin, id: original.id });
 
   await root.services.admin.setEnabled({ principal: admin, userId: member.userId, enabled: false });
   const fundersBefore = wire.funders.length;
   await expect(root.services.workloads.retry({ caller: admin, id: original.id })).rejects.toMatchObject({ code: WORKLOAD_RUN_ACCOUNT_DISABLED });
-  await expect(root.services.workloads.estimateRetryModelCalls({ caller: admin, id: original.id })).rejects.toMatchObject({
-    code: WORKLOAD_RUN_ACCOUNT_DISABLED,
-  });
+  await expect(root.services.workloads.estimateRetryModelCalls({ signal: new AbortController().signal, caller: admin, id: original.id })).rejects.toMatchObject(
+    {
+      code: WORKLOAD_RUN_ACCOUNT_DISABLED,
+    },
+  );
   expect(await memberRuns()).toHaveLength(1);
   expect(wire.funders).toHaveLength(fundersBefore);
 
   await root.services.admin.setEnabled({ principal: admin, userId: member.userId, enabled: true });
-  expect(await root.services.workloads.estimateRetryModelCalls({ caller: admin, id: original.id })).toEqual(enabledEstimate);
+  expect(await root.services.workloads.estimateRetryModelCalls({ signal: new AbortController().signal, caller: admin, id: original.id })).toEqual(
+    enabledEstimate,
+  );
   const retried = await root.services.workloads.retry({ caller: admin, id: original.id });
   await executeAdmitted(root, retried.id);
   expect(await root.services.workloads.get({ caller: admin, id: retried.id })).toMatchObject({ status: "succeeded", ownerId: member.userId });

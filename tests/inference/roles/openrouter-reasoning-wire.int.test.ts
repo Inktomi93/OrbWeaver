@@ -12,6 +12,7 @@ test("an OpenRouter side-generation spells an explicit off as effort none on the
   await using root = await createRuntimeRoot({ providerFetch: server.execute });
   const capability = generationCapability({ reasoning: { mode: "budget", enabled: true, effortLevels: ["high"] } });
   await root.app.runtime.executor.summarize({
+    signal: new AbortController().signal,
     connection: await wireConnection(root, { task: "summarize", providerId: "openrouter", model: "vendor/budget-model", capability }),
     inputs: [ITEM],
     effort: "none",
@@ -26,6 +27,7 @@ test("an OpenRouter side-generation on an adaptive model sends the chosen effort
   await using root = await createRuntimeRoot({ providerFetch: server.execute });
   const capability = generationCapability({ reasoning: { mode: "adaptive", enabled: true, effortLevels: ["high"] } });
   await root.app.runtime.executor.summarize({
+    signal: new AbortController().signal,
     connection: await wireConnection(root, { task: "summarize", providerId: "openrouter", model: "anthropic/claude-sonnet-5", capability }),
     inputs: [ITEM],
     effort: "high",

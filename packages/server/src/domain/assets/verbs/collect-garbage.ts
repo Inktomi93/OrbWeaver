@@ -29,7 +29,7 @@ interface SweepInput {
   readonly referenced: ReadonlySet<AssetId>;
   readonly now: number;
   readonly dryRun: boolean;
-  readonly signal: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 /** Sweep ONE owner's blobs against the live set; return the counts. Extracted so the verb body stays under
@@ -41,7 +41,7 @@ async function sweepOwner(input: SweepInput): Promise<{ scanned: number; reclaim
   let reclaimed = 0;
 
   for await (const hash of input.cas.listHashes(input.ownerId)) {
-    input.signal?.throwIfAborted();
+    input.signal.throwIfAborted();
     scanned++;
     const assetId = idByHash.get(hash);
     if (assetId !== undefined && input.referenced.has(assetId)) {

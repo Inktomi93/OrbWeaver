@@ -73,7 +73,7 @@ export function SessionMasthead({
           <>
             {/* The chips are one named cluster: read out of context they ran together into one string. They wrap,
                 because the draft chip is a whole sentence. */}
-            <Row align="baseline" aria-label={REFINERY_SESSION_STATE_NAME} className="min-inline-0" wrap={true} cap="fit" gap="field" role="group">
+            <Row align="baseline" aria-label={REFINERY_SESSION_STATE_NAME} minWidth="shrinks" wrap={true} cap="fit" gap="field" role="group">
               <RefineryChip tone={SESSION_STATUS_CHIP[status].tone}>{SESSION_STATUS_CHIP[status].word}</RefineryChip>
               <RefinerySentenceChip tone="neutral">{applied ? "Applied · snapshot taken" : "Draft: the live card is untouched"}</RefinerySentenceChip>
             </Row>

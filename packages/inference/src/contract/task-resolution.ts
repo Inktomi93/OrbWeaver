@@ -11,7 +11,7 @@ export interface DetectCache {
 }
 
 export type ResolveArgs = ResolveTaskParams & {
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
   /** A validated, uncommitted edit. Resolution still verifies the persisted row and its owner. */
   readonly previewConnection?: UserConnection | undefined;
   /** Read only the server facts already held, in memory or in the persisted snapshot, and dial nothing. For a read-only

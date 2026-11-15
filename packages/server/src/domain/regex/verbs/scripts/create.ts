@@ -6,6 +6,7 @@
 import { regexScripts } from "@orb/db";
 import type { CreateScriptParams } from "#src/domain/regex/contract/params.ts";
 import type { RegexContext, RegexService } from "#src/domain/regex/contract/service.ts";
+import { requireFindAdmitted } from "#src/domain/regex/substrate/find-door.ts";
 
 export function createCreate(ctx: RegexContext): RegexService["createScript"] {
   return async ({ principal, input }: CreateScriptParams) => {
@@ -13,6 +14,7 @@ export function createCreate(ctx: RegexContext): RegexService["createScript"] {
     const at = ctx.now();
     const scriptId = ctx.newScriptId();
     const { name, enabled, ...behavior } = input;
+    await requireFindAdmitted(ctx.probeFindCompiles, { name, ...behavior });
 
     await ctx.db.insert(regexScripts).values({ id: scriptId, ownerId, name, enabled, behavior, createdAt: at, updatedAt: at });
 

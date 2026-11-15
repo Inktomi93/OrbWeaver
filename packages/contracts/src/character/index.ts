@@ -1142,7 +1142,9 @@ export interface FindByHandleParams {
 
 export type CreateCharacterOp = (params: CreateCharacterParams) => Promise<CharacterDetail>;
 export type GetCharacterOp = (params: GetCharacterParams) => Promise<CharacterDetail>;
-export type UpdateCharacterOp = (params: UpdateCharacterParams) => Promise<CharacterDetail>;
+/** `Signal` cancels the external background fetch an update may run; a type parameter because this package cannot
+ *  name `AbortSignal`. */
+export type UpdateCharacterOp<Signal> = (params: UpdateCharacterParams & { readonly signal: Signal }) => Promise<CharacterDetail>;
 export type DuplicateCharacterOp = (params: DuplicateCharacterParams) => Promise<CharacterDetail>;
 export type SnapshotCharacterOp = (params: SnapshotParams) => Promise<SnapshotRef>;
 export type FindCharacterByHandleOp = (params: FindByHandleParams) => Promise<CharacterRef | null>;

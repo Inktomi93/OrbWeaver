@@ -10,7 +10,7 @@ import type { AuditWiring } from "./audit-wiring.ts";
 import type { Logger, ObservabilityRings } from "./logging.ts";
 
 export interface AssetInspector {
-  fsck: () => Promise<object>;
+  fsck: (options: { readonly signal: AbortSignal }) => Promise<object>;
 }
 
 /**

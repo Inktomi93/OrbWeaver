@@ -56,9 +56,9 @@ export interface EmbeddingConnectionSnapshot extends EmbeddingConnectionFacts {
   readonly execution: EmbeddingExecution;
   readonly embed: (
     input: string | readonly string[],
-    opts?: { inputType?: "query" | "document"; instruction?: string; signal?: AbortSignal | undefined },
+    opts: { inputType?: "query" | "document"; instruction?: string; signal: AbortSignal },
   ) => Promise<EmbedResult>;
-  readonly imageEmbed: (input: ImageEmbedInput, opts?: { signal?: AbortSignal | undefined }) => Promise<ImageEmbedResult>;
+  readonly imageEmbed: (input: ImageEmbedInput, opts: { signal: AbortSignal }) => Promise<ImageEmbedResult>;
 }
 
 export interface PinnedGeneration extends GenerationReceipt {
@@ -73,7 +73,7 @@ export interface PinnedImageSpace {
   readonly generation: PinnedGeneration;
 }
 
-export type ResolveEmbeddingConnection = ResolveEmbeddingConnectionOp<EmbeddingConnectionSnapshot>;
+export type ResolveEmbeddingConnection = ResolveEmbeddingConnectionOp<EmbeddingConnectionSnapshot, AbortSignal>;
 
 /** Re-read a character card's embeddable text by id. `undefined` when deleted between emit and handler. */
 export type LoadCardText = (characterId: CharacterId) => Promise<string | undefined>;
@@ -125,7 +125,7 @@ export interface EmbeddingsContext {
   readonly db: Db;
   /** The per-FUNDER role-client bundle (inference program §7.5-2): a vector task is `scope: "owner"`, so the
    *  entity's OWNER funds the embed and DEFINES the space (their `embed`/`imageEmbed` binding). */
-  readonly roleClientsFor: RoleClientsFor;
+  readonly roleClientsFor: RoleClientsFor<AbortSignal>;
   /** The owner's Utility-role preset params (D304), `undefined` under task defaults — avatar analysis sampling. */
   readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;
   readonly resolveEmbeddingConnection: ResolveEmbeddingConnection;
@@ -163,7 +163,7 @@ export interface EmbeddingsService {
   readonly purgeDisallowedImages: () => Promise<void>;
   readonly indexAsset: (
     assetId: AssetId,
-    options?: { readonly force?: boolean; readonly embedderChanged?: boolean | undefined; readonly signal?: AbortSignal | undefined },
+    options: { readonly force?: boolean; readonly embedderChanged?: boolean | undefined; readonly signal: AbortSignal },
   ) => Promise<StoreResult | null>;
   readonly resolveGeneration: (ownerId: UserId, task: EmbeddingTask, via?: EmbeddingTask) => Promise<PinnedGeneration>;
   /** Bring the owner's stored targets in line with what their vector bindings resolve to now, moving any that
@@ -172,7 +172,7 @@ export interface EmbeddingsService {
    *  is width-probed before any moves, so a refusal leaves both targets and their indexes as they were. */
   readonly syncTargetGenerations: SyncTargetGenerationsOp;
   /** Check a proposed move with the same width probe as binding settlement, without landing it. */
-  readonly previewTargetMove: PreviewTargetMoveOp;
+  readonly previewTargetMove: PreviewTargetMoveOp<AbortSignal>;
   /** Every stored target in scope (one owner, or every owner for `null`) as one comparable value: two equal
    *  snapshots mean no target in scope moved between them. Read-only. */
   readonly targetSnapshot: TargetSnapshotOp;
@@ -194,7 +194,7 @@ export interface EmbeddingsService {
    * A one-element call is the live post-turn path; the corpus sweep passes every chat's pending chunks at
    * once, which is what turns the segment phase from N serialized embeds into one saturated flood.
    */
-  readonly storeSegments: (params: readonly SegmentStoreParams[], signal?: AbortSignal) => Promise<readonly StoreResult[]>;
+  readonly storeSegments: (params: readonly SegmentStoreParams[], signal: AbortSignal) => Promise<readonly StoreResult[]>;
   /** The only path that writes `hub_score` — the discovery → embeddings seam. Takes pre-computed scores. */
   readonly writeHubScores: WriteHubScoresOp;
   /** Bulk text catch-up sweep: enumerate every non-synthetic character → re-read card text → `store`.
@@ -204,7 +204,7 @@ export interface EmbeddingsService {
    *  generation only runs when retained analysis is missing or explicitly forced; embedder rebuilds reuse it. Same resume/abort contract. */
   readonly embedAssets: (params: EmbedPassParams) => Promise<EmbedPassResult>;
   /** The avatar analyses (one vision call each) {@link embedAssets} would make over this scope. Reads only. */
-  readonly countAssetAnalysisCalls: (params: Pick<EmbedPassParams, "ownerId" | "force" | "embedderChanged">) => Promise<number>;
+  readonly countAssetAnalysisCalls: (params: Pick<EmbedPassParams, "ownerId" | "force" | "embedderChanged" | "signal">) => Promise<number>;
   /** Reclaim the OLD chat-memory embed space — deletes `chat_segments`/`chat_digests` rows whose
    *  `model` differs from the active `roleClients.embedModel`. BULK-ONLY + skip-on-abort is the caller's
    *  guard (the memory-backfill runner), mirroring the embedCorpus/embedAssets purge. */
@@ -242,6 +242,8 @@ export interface EmbeddingsIndexerContext extends Pick<EmbeddingsContext, "roleC
   readonly store: EmbeddingsService["store"];
   readonly loadCardText: LoadCardText;
   readonly loadCharacterOwner: (characterId: CharacterId) => Promise<UserId | null>;
+  /** A bus event has no request or workload above it, so only shutdown ends the embed it starts. */
+  readonly backgroundSignal: AbortSignal;
 }
 
 /** The event subscription shape `entry/` binds onto the bus: `character.updated` re-embeds the card,

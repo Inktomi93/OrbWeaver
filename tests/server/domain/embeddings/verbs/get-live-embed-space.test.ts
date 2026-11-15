@@ -21,16 +21,16 @@ test("the progress space follows each owner's current binding and dtype, includi
     Promise.resolve({ resolved: (task) => (ownerId === owner ? resolve(task) : Promise.resolve(null)) }),
   );
   const read = createGetLiveEmbedSpace({ roleClientsFor: clients });
-  expect(await read(owner)).toEqual({ model: "first@q8" });
+  expect(await read(owner, new AbortController().signal)).toEqual({ model: "first@q8" });
   resolved = makeResolvedView({
     task: "embed",
     model: testModelId("second"),
     capability: { kind: "embedding", embedding: { ...EMBEDDING_FLOOR, dtype: "fp16" } },
   });
-  expect(await read(owner)).toEqual({ model: "second@fp16" });
-  expect(await read(other)).toBeNull();
+  expect(await read(owner, new AbortController().signal)).toEqual({ model: "second@fp16" });
+  expect(await read(other, new AbortController().signal)).toBeNull();
   resolved = null;
-  expect(await read(owner)).toBeNull();
+  expect(await read(owner, new AbortController().signal)).toBeNull();
   expect(clients.mock.calls.map(([ownerId]) => ownerId)).toEqual([owner, owner, other, owner]);
   expect(resolve.mock.calls).toEqual([["embed"], ["embed"], ["embed"]]);
 });

@@ -34,6 +34,7 @@ import {
 } from "./display-pass-copy.ts";
 import type { DisplayPassReply, DisplayPassRun } from "./display-pass-protocol.ts";
 import { DISPLAY_ROW_BUDGET_MS, DISPLAY_SCRIPT_DEADLINE_MS } from "./display-pass-protocol.ts";
+import type { StyledDisplayText } from "./display-styled.ts";
 import type { DisplayPass } from "./message-render.ts";
 import { notify } from "./notify.ts";
 
@@ -64,7 +65,7 @@ interface Job {
   readonly id: number;
   readonly pass: DisplayPass;
   readonly priority: DisplayPassRequest["priority"];
-  readonly resolve: (text: string) => void;
+  readonly resolve: (result: StyledDisplayText) => void;
   /** Main-thread time of the first dispatch; a rerun after a kill spends what is left of the same budget. */
   firstRunAt: number | null;
 }
@@ -167,6 +168,11 @@ function takeNext(): Job | undefined {
   return bestIndex === -1 ? undefined : queue.splice(bestIndex, 1)[0];
 }
 
+// A row whose scripts did not run: its step-1 text, and nothing a script drew.
+function unscripted(pass: DisplayPass): StyledDisplayText {
+  return { text: pass.text, styled: false };
+}
+
 /** The browser cannot run the Worker: every waiting row renders without its scripts, now and for the session. */
 function giveUp(): void {
   unavailable = true;
@@ -176,7 +182,7 @@ function giveUp(): void {
   const waiting = [...(active === null ? [] : [active.job]), ...queue.splice(0)];
   active = null;
   for (const job of waiting) {
-    job.resolve(job.pass.text);
+    job.resolve(unscripted(job.pass));
   }
   notify.warn({ id: UNAVAILABLE_NOTICE_ID, title: DISPLAY_SCRIPTS_UNAVAILABLE_TITLE, description: DISPLAY_SCRIPTS_UNAVAILABLE_DESCRIPTION });
 }
@@ -219,7 +225,7 @@ function onReply(event: MessageEvent<DisplayPassReply>): void {
     const culprit = scripts[message.timings.length - 1];
     stopScripts(culprit === undefined ? [] : [culprit], "oversize");
   }
-  job.resolve(message.text);
+  job.resolve({ text: message.text, styled: message.styled });
   pump();
 }
 
@@ -246,7 +252,7 @@ function pump(): void {
     job.firstRunAt ??= now;
     const budgetMs = DISPLAY_ROW_BUDGET_MS - (now - job.firstRunAt);
     if (scripts.length === 0 || budgetMs <= 0) {
-      job.resolve(job.pass.text);
+      job.resolve(unscripted(job.pass));
       continue;
     }
     worker ??= spawn();
@@ -270,11 +276,11 @@ function abandoned(): DOMException {
 /** Run a display pass's scripts in the Worker. Resolves with the scripted text; a stopped script is left out,
  *  and a browser that cannot run the Worker resolves with the text unscripted. An aborted request that has not
  *  started leaves the queue and rejects with an `AbortError`. */
-export function runDisplayPass(pass: DisplayPass, request: DisplayPassRequest): Promise<string> {
+export function runDisplayPass(pass: DisplayPass, request: DisplayPassRequest): Promise<StyledDisplayText> {
   if (unavailable) {
-    return Promise.resolve(pass.text);
+    return Promise.resolve(unscripted(pass));
   }
-  return new Promise<string>((resolve, reject) => {
+  return new Promise<StyledDisplayText>((resolve, reject) => {
     const signal = request.signal;
     if (signal?.aborted === true) {
       reject(abandoned());

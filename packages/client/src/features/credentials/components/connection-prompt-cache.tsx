@@ -381,7 +381,7 @@ function SettingLine({
 }): ReactElement {
   return (
     <Row align="start" gap="field" justify="between">
-      <Stack className="min-inline-0" grow="fill" gap="tight">
+      <Stack minWidth="shrinks" grow="fill" gap="tight">
         <Text id={labelId} voice="label">
           {label}
         </Text>
