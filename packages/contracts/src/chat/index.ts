@@ -327,6 +327,7 @@ export {
   messageKindSchema,
   messageRoleSchema,
   PARTICIPANT_KINDS,
+  PROMPT_KINDS,
   participantKindSchema,
   speakerKey,
 } from "./participants.ts";
