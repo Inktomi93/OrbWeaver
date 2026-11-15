@@ -197,7 +197,7 @@ export async function listOpenAiCompatModels(req: ListModelsRequest, deps: Diagn
     return listingOf(models);
     // the failure becomes `{ listed: false, reason }` through failedListing at diagnostics.ts:171, which the model pane reads; generation stays usable with an explicit model. Ends if callers require a successful catalog.
   } catch (err) {
-    return failedListing(err, secrets);
+    return failedListing(err, secrets, connection.provider.features?.forbiddenIsNotCredentialVerdict === true);
   }
 }
 

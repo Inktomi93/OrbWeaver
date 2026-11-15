@@ -133,7 +133,7 @@ export function createCatalogListing(deps: CatalogListingDeps): (draft: CatalogD
       return listingOf(rows.map(endpointCatalogEntry));
       // a failed dial is returned as `failedListing(err, secrets)`, i.e. `{ listed: false, reason }` with the scrubbed reason (backends/wire/model-listing.ts); the model picker (client credentials/lib/model-picker-model.ts) turns it into its failed arm with the reason and a retry, and the pane offers a typed id. Ends if callers require a successful catalog.
     } catch (err) {
-      return failedListing(err, secrets);
+      return failedListing(err, secrets, provider.features?.forbiddenIsNotCredentialVerdict === true);
     }
   };
 

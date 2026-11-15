@@ -5,6 +5,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId } from "react";
+import { MODEL_FIELD_NAME, MODEL_LIST_RETRY_NAME } from "../lib/credentials-names.ts";
 import type { ModelPickerView } from "../lib/model-picker-model.ts";
 
 /** The typed arm: no list to pick from (empty, failed, or none read). When policy forbids a typed id, it
@@ -41,14 +42,14 @@ export function TypedModelField({
             </Text>
           }
           error={error}
-          label="Model"
+          label={MODEL_FIELD_NAME}
         >
           <Input autoComplete="off" onChange={(event): void => onValueChange(event.target.value)} placeholder={placeholder} value={value} />
         </Field>
       ) : (
         <>
           <Text as="span" voice="label">
-            Model
+            {MODEL_FIELD_NAME}
           </Text>
           <Text cap="prose" tone={view.warns ? "warning" : undefined} data-slot="model-picker-notice" prose={true} voice="gloss">
             {notice}
@@ -63,7 +64,7 @@ export function TypedModelField({
       {view.retry === null ? null : (
         <Row gap="field">
           <Button variant="outline" loading={busy} onClick={onRetry ?? undefined} size="sm">
-            Try the list again
+            {MODEL_LIST_RETRY_NAME}
           </Button>
         </Row>
       )}

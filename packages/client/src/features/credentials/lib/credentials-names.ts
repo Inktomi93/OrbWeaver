@@ -33,6 +33,10 @@ export const FIRST_MODEL_ADD_UTILITY_NAME = "Add a model";
 
 /** The model picker's search box placeholder. */
 export const MODEL_SEARCH_PLACEHOLDER = "Search models…";
+/** The model picker's retry on a list read that failed. */
+export const MODEL_LIST_RETRY_NAME = "Try the list again";
+/** The model picker's label where it has no list to search, and its typed model id field. */
+export const MODEL_FIELD_NAME = "Model";
 
 /** The model picker's capability chips: the row badges and the filter toggles. */
 export const MODEL_VISION_LABEL = "Vision";

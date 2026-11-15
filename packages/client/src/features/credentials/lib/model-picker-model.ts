@@ -22,7 +22,7 @@ import { isSpaceChar, trimEndWhile } from "@orb/kit/strings";
 type ModelCatalogSource =
   | { readonly status: "loading" }
   | { readonly status: "listed"; readonly models: readonly ModelCatalogEntry[] }
-  | { readonly status: "failed"; readonly reason: string; readonly retry: (() => void) | null }
+  | { readonly status: "failed"; readonly reason: string; readonly retry: (() => void) | null; readonly keyRefused?: true }
   | { readonly status: "unlisted"; readonly reason: string };
 
 // ── the picker's rows ─────────────────────────────────────────────────────────────────────────────────
@@ -431,7 +431,11 @@ export function modelPickerView(source: ModelCatalogSource, args: { readonly lis
         ? emptyListView(`${args.listOwner} listed no models.`, args.typedAllowed, null)
         : { models: source.models, notice: null, warns: false, typingOffered: false, retry: null };
     case "failed":
-      return emptyListView(`Couldn't list ${args.listOwner}'s models: ${clauseOf(source.reason)}.`, args.typedAllowed, source.retry);
+      // A refused key is no evidence about the list, and listing again under it is refused again: the notice names the
+      // fix and nothing else.
+      return source.keyRefused === true
+        ? { models: null, notice: keyRefusedNotice(args.listOwner), warns: true, typingOffered: args.typedAllowed, retry: null }
+        : emptyListView(`Couldn't list ${args.listOwner}'s models: ${clauseOf(source.reason)}.`, args.typedAllowed, source.retry);
     case "unlisted":
       return { models: null, notice: source.reason, warns: !args.typedAllowed, typingOffered: args.typedAllowed, retry: null };
   }
@@ -446,7 +450,17 @@ export function failedCatalogSource(error: unknown, retry: (() => void) | null):
  *  that failed or came back empty: each answers `listed: false` with the reason, which is the failed arm with
  *  the typed field and the retry beside it. */
 export function modelListSource(result: ModelListing, retry: (() => void) | null): ModelCatalogSource {
-  return result.listed ? { status: "listed", models: result.models } : { status: "failed", reason: result.reason, retry };
+  if (result.listed) {
+    return { status: "listed", models: result.models };
+  }
+  return result.keyRefused === true
+    ? { status: "failed", reason: result.reason, retry: null, keyRefused: true }
+    : { status: "failed", reason: result.reason, retry };
+}
+
+/** The model field's notice when the provider refused the key the list was read under. */
+export function keyRefusedNotice(listOwner: string): string {
+  return `${listOwner} refused this key. Get a new key from your ${listOwner} account and paste it here.`;
 }
 
 /** The model field's required-value message, shared by every form that writes a connection's model. */
