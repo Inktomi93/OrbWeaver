@@ -12,7 +12,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { FormDialog, MutedLine } from "#components";
-import { PRESET_IMPORT_ALREADY_HELD, PRESET_IMPORT_NAME, PRESET_IMPORT_TITLE } from "../lib/preset-names.ts";
+import { PRESET_IMPORT_ALREADY_HELD, PRESET_IMPORT_NAME, PRESET_IMPORT_TITLE, presetImportAddedSections } from "../lib/preset-names.ts";
 
 /** The file the import sends, as the user picked it. */
 export interface PresetFileInput {
@@ -141,7 +141,7 @@ export function PresetImportDialog({ open, onOpenChange, onPreview, onImport, bu
 
 /** The pre-commit summary: the server's preview of what the import does. */
 function ImportSummary({ preview }: { readonly preview: ReadyPreview }): ReactElement {
-  const { format, name, inLibrary, sectionCount, regexScripts } = preview;
+  const { format, name, inLibrary, sectionCount, regexScripts, addedSections } = preview;
   return (
     <Section kicker="Ready to import">
       <Text cap="prose" prose={true} voice="label">
@@ -157,6 +157,7 @@ function ImportSummary({ preview }: { readonly preview: ReadyPreview }): ReactEl
             : `${regexScripts} regex scripts come with it and are attached to the preset.`}
         </MutedLine>
       )}
+      {addedSections.length === 0 ? null : <MutedLine>{presetImportAddedSections(addedSections)}</MutedLine>}
       {format === "orbweaver" ? null : <LeftOut leftOut={preview.leftOut} />}
     </Section>
   );

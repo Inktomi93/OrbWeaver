@@ -172,6 +172,8 @@ export interface ImportPresetNote {
   readonly scriptsLifted: number;
   /** Carried scripts that content-matched an existing library row and were attached rather than cloned. */
   readonly scriptsReused: number;
+  /** The sections a newly created preset gained for orb's own slots, by name; empty for a reused preset. */
+  readonly addedSections: readonly string[];
 }
 
 /** One imported ST theme's honest lossiness note — the same shape (and the same "present even when empty"

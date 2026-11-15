@@ -103,6 +103,9 @@ const importPreviewItemSchema = z.strictObject({
     .max(IMPORT_PREVIEW_LIST_MAX)
     .readonly()
     .optional(),
+  /** The names of the sections a SillyTavern preset gains for orb's own slots (memory, databank and the rest), which
+   *  the file has no prompt for. Absent on another kind, and on a preset the run reuses or does not land. */
+  addedSections: z.array(previewText).max(IMPORT_PREVIEW_LIST_MAX).readonly().optional(),
 });
 export type ImportPreviewItem = z.infer<typeof importPreviewItemSchema>;
 
