@@ -92,7 +92,16 @@ export const BUILTIN_PROVIDER_ROWS = [
     apis: ["chat-completions"],
     // Embedding and rerank models sit in their own lists, outside the models list, so the list read cannot type them.
     serves: ["chat", "summarize", "structured"],
-    features: { effort: "reasoning_effort", modelInfoApi: "nanogpt" },
+    features: {
+      effort: "reasoning_effort",
+      modelInfoApi: "nanogpt",
+      // The models list answers without a key, so the key check reads the personalized list, which answers 200 to
+      // a good key and 401 to a wrong or missing one (NanoGPT's Personalized Models page; seen live).
+      keyCheckPath: "/api/personalized/v1/models",
+      // NanoGPT's Error Handling page: 401 is a missing or wrong key, while 403 is "authenticated but not
+      // permitted", a model or feature the account may not use.
+      forbiddenIsNotCredentialVerdict: true,
+    },
     catalog: "url",
     metered: true,
     docsUrl: "https://docs.nano-gpt.com",
@@ -107,6 +116,14 @@ export const BUILTIN_PROVIDER_ROWS = [
     apis: ["chat-completions"],
     // Image models answer on a separate host, image.literouter.com, and the docs name no embedding route.
     serves: ["chat", "summarize", "structured"],
+    features: {
+      effort: "reasoning_effort",
+      modelInfoApi: "literouter",
+      // A 403 is a refusal, not a key verdict: measured live, a misspelled model answered 403 "[LiteRouter] Model '…' is
+      // not available or misspelled" and the plan cooldown 403 "[LiteRouter] Rate limit exceeded for your tier (7
+      // seconds between messages)…". A bad key answers 401 (LiteRouter's Errors page).
+      forbiddenIsNotCredentialVerdict: true,
+    },
     catalog: "url",
     metered: true,
     docsUrl: "https://docs.literouter.com",

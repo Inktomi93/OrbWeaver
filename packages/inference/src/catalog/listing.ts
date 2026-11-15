@@ -12,6 +12,7 @@
 
 import type { ResolvedSecret } from "@orb/contracts/credentials";
 import type { ModelCatalogEntry, ModelListing, ProviderDef } from "@orb/contracts/inference";
+import { TOOLS_PARAMETER } from "@orb/contracts/inference";
 import { agentSdkCatalogEntry } from "../backends/agent-sdk/index.ts";
 import { listAnthropicModels } from "../backends/anthropic-messages/index.ts";
 import { resolvedScrubSet } from "../backends/http/sanitize.ts";
@@ -43,13 +44,15 @@ function builtinListing(provider: ProviderDef): ModelListing {
   return listingOf(builtinCatalog(provider));
 }
 
-/** An endpoint list row as a catalog entry: the facts its reader stated, every other field unknown. */
+/** An endpoint list row as a catalog entry: the facts its reader stated, every other field unknown. Stated tool support
+ *  rides `supportedParameters` as OpenRouter's entries carry it, so the picker reads one seat. */
 function endpointCatalogEntry(row: EndpointModel): ModelCatalogEntry {
   return {
     ...bareCatalogEntry(row),
     ...(row.listedPrice?.prompt === undefined ? {} : { promptPrice: row.listedPrice.prompt }),
     ...(row.listedPrice?.completion === undefined ? {} : { completionPrice: row.listedPrice.completion }),
     ...(row.input === undefined ? {} : { inputModalities: [...row.input] }),
+    ...(row.tools === undefined ? {} : { supportedParameters: [TOOLS_PARAMETER] }),
     ...(row.maxCompletionTokens === undefined ? {} : { maxCompletionTokens: row.maxCompletionTokens }),
   };
 }

@@ -12,9 +12,10 @@ import { acceptsAssistantPrefill, cacheMinTokensOf, DEFAULT_ATTACHMENT_QUALITY, 
 import type { EffortLevel } from "@orb/contracts/preset";
 import { errorMessage } from "@orb/kit/error-message";
 import type { JsonValue } from "@orb/kit/json";
+import { parseJsonText } from "@orb/kit/json";
 import type { Clock, ScheduleOp } from "@orb/kit/time";
 import { z } from "zod";
-import type { ChatHistoryMessage, ChatResult, OpenAiCompatChatRequest, RateLimitSnapshot, Resolved, ResolvedChatKnobs } from "#contract";
+import type { ChatHistoryMessage, ChatResult, OpenAiCompatChatRequest, ProviderScrubSet, RateLimitSnapshot, Resolved, ResolvedChatKnobs } from "#contract";
 import { ProviderError } from "#contract";
 import { resolveCachePolicy, resolveChat, templateThinkingFor } from "#funnel";
 import type { ProviderLogger } from "#src/contract/http.ts";
@@ -146,6 +147,44 @@ function templateRoleRefusal(error: unknown, label: string, classified: Provider
     retryable: false,
     message: `${label}: ${TEMPLATE_ROLE_MESSAGE} (the server said: ${match[0].slice(0, TEMPLATE_DETAIL_LIMIT)})`,
     ...(classified.apiErrorStatus !== undefined ? { apiErrorStatus: classified.apiErrorStatus } : {}),
+    cause: classified,
+  });
+}
+
+const HTTP_FORBIDDEN = 403;
+
+const refusalBodySchema = z.looseObject({ error: z.union([z.string(), z.looseObject({ message: z.string() })]) });
+
+/** The service's own words from a refusal body: `error` as a string, or its `message`. Shown as sent, never read. */
+function refusalWords(error: unknown, secrets: ProviderScrubSet): string | undefined {
+  const { body } = extractHttpErrorDiagnostic(error, secrets);
+  const parsed = refusalBodySchema.safeParse(body === undefined ? undefined : parseJsonText(body));
+  if (!parsed.success) {
+    return;
+  }
+  const words = typeof parsed.data.error === "string" ? parsed.data.error : parsed.data.error.message;
+  return words.trim() === "" ? undefined : words;
+}
+
+/** On a row whose 403 is no credential verdict, a 403 is a refusal in the service's own words: never `auth_failed`,
+ *  which strikes the stored key, and never retried, since the same request meets the same plan, model or cooldown. */
+function forbiddenAsRefusal(args: {
+  readonly error: unknown;
+  readonly classified: ProviderError;
+  readonly label: string;
+  readonly secrets: ProviderScrubSet;
+  readonly forbiddenIsNotCredentialVerdict: boolean;
+}): ProviderError {
+  const { classified } = args;
+  if (!args.forbiddenIsNotCredentialVerdict || classified.kind !== "auth_failed" || classified.apiErrorStatus !== HTTP_FORBIDDEN) {
+    return classified;
+  }
+  const words = refusalWords(args.error, args.secrets);
+  return new ProviderError({
+    kind: "invalid",
+    retryable: false,
+    message: words === undefined ? classified.message : `${args.label}: ${words}`,
+    apiErrorStatus: HTTP_FORBIDDEN,
     cause: classified,
   });
 }
@@ -725,7 +764,16 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
         cause: classified,
       });
     }
-    return templateRoleRefusal(err, label, classified) ?? classified;
+    return (
+      templateRoleRefusal(err, label, classified) ??
+      forbiddenAsRefusal({
+        error: err,
+        classified,
+        label,
+        secrets,
+        forbiddenIsNotCredentialVerdict: connection.features.forbiddenIsNotCredentialVerdict === true,
+      })
+    );
   };
   const retryOpts = {
     scheduleTimeout: deps.scheduleTimeout,

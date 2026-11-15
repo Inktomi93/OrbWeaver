@@ -8,7 +8,7 @@
 // evidence: a server that does not answer it still lists, the reason goes to `warn`, and the facts stay unreported.
 
 import type { Modality, ModelInfoApi, ModelKind } from "@orb/contracts/inference";
-import { parseModalities } from "@orb/contracts/inference";
+import { EFFORT_LEVELS, parseModalities } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { z } from "zod";
 import { deadlineSignal } from "../backends/http/abort-flatten.ts";
@@ -61,6 +61,9 @@ export async function fetchEndpointModels(args: EndpointFetchArgs): Promise<Endp
   if (args.modelInfoApi === "nanogpt") {
     return await fetchNanoGptModels(args);
   }
+  if (args.modelInfoApi === "literouter") {
+    return await fetchLiteRouterModels(args);
+  }
   const listed = await boundedRead(args, {
     url: openAiPath(args.baseUrl, "/models"),
     headers: authHeaders(args.secret, args.headers),
@@ -89,103 +92,260 @@ export async function fetchEndpointModels(args: EndpointFetchArgs): Promise<Endp
   }
 }
 
-// ── NanoGPT ──────────────────────────────────────────────────────────────────────────────────────────
+// ── hosted lists (NanoGPT, LiteRouter) ───────────────────────────────────────────────────────────────
+// A hosted list states each model's facts as fields beside its id. Every field parses alone, so a value of the wrong
+// shape states nothing and never takes its neighbours with it, and no single row fails the list.
 
-const STATED_LIMIT = z.number().int().positive().nullable().optional().catch(null);
+/** A stated limit: a positive safe integer, else nothing. */
+const STATED_LIMIT = z.int().positive().nullable().optional().catch(null);
+const STATED_FLAG = z.boolean().optional().catch(undefined);
+const STATED_PRICE = z.number().nonnegative().nullable().optional().catch(undefined);
+const STATED_TEXT = z.string().min(1).optional().catch(undefined);
+/** A list of names; a member that is not a string is dropped, the rest kept. */
+const STATED_NAMES = z
+  .array(z.unknown())
+  .transform((values) => values.filter((value): value is string => typeof value === "string"))
+  .optional()
+  .catch(undefined);
 
-/** The detailed list's fields this reader keeps (docs.nano-gpt.com Models). Each fact parses alone and a value
- *  of the wrong shape states nothing, so one odd row neither fails the list nor reads as a fact. */
-const nanoGptRowSchema = z.looseObject({
-  id: z.string().min(1),
-  name: z.string().min(1).optional().catch(undefined),
-  /** The window shared by input and output; `null` when the service does not know it. */
-  context_length: STATED_LIMIT,
-  max_output_tokens: STATED_LIMIT,
-  architecture: z
-    .looseObject({ input_modalities: z.array(z.string()).optional() })
-    .optional()
-    .catch(undefined),
-  capabilities: z
-    .looseObject({
-      vision: z.boolean().optional(),
-      video_input: z.boolean().optional(),
-      tool_calling: z.boolean().optional(),
-      parallel_tool_calls: z.boolean().optional(),
-      structured_output: z.boolean().optional(),
-      reasoning: z.boolean().optional(),
-    })
-    .optional()
-    .catch(undefined),
-  /** USD per million tokens, as numbers. */
-  pricing: z
-    .looseObject({ prompt: z.number().nonnegative().nullable().optional(), completion: z.number().nonnegative().nullable().optional() })
-    .optional()
-    .catch(undefined),
-});
-
-const NANOGPT_DETAILED_QUERY = "?detailed=true";
 const PER_MILLION = 1_000_000;
 
-/** The detailed `/models` read in place of the bare list, which carries ids only. A row states each limit the list
- *  gives a number for; a `null` limit states nothing, so the capability keeps that limit marked assumed. */
-async function fetchNanoGptModels(args: EndpointFetchArgs): Promise<EndpointModel[]> {
-  const listed = await boundedRead(args, {
-    url: openAiPath(args.baseUrl, `/models${NANOGPT_DETAILED_QUERY}`),
-    headers: authHeaders(args.secret, args.headers),
-    label: "NanoGPT models",
-  });
-  const out: EndpointModel[] = [];
-  for (const raw of z.looseObject({ data: z.array(z.unknown()) }).parse(listed).data) {
-    const parsed = nanoGptRowSchema.safeParse(raw);
-    if (parsed.success) {
-      out.push(nanoGptModel(parsed.data));
-    }
-  }
-  return out;
+/** A window and output cap as a list states them. An output cap above the window cannot be run, so it states
+ *  nothing and the cap stays assumed. */
+function statedLimits(
+  window: number | null | undefined,
+  output: number | null | undefined,
+): { readonly window: number | null; readonly output: number | undefined } {
+  const stated = window ?? null;
+  const cap = output ?? undefined;
+  return { window: stated, output: cap !== undefined && stated !== null && cap > stated ? undefined : cap };
 }
 
 function perToken(perMillion: number | null | undefined): number | undefined {
   return perMillion === null || perMillion === undefined ? undefined : perMillion / PER_MILLION;
 }
 
-function nanoGptPrice(pricing: z.infer<typeof nanoGptRowSchema>["pricing"]): EndpointModel["listedPrice"] {
-  const prompt = perToken(pricing?.prompt);
-  const completion = perToken(pricing?.completion);
+function listedPriceOf(promptPerMillion: number | null | undefined, completionPerMillion: number | null | undefined): EndpointModel["listedPrice"] {
+  const prompt = perToken(promptPerMillion);
+  const completion = perToken(completionPerMillion);
   if (prompt === undefined && completion === undefined) {
     return;
   }
   return { ...(prompt === undefined ? {} : { prompt }), ...(completion === undefined ? {} : { completion }) };
 }
 
-function nanoGptInput(row: z.infer<typeof nanoGptRowSchema>): Modality[] | undefined {
-  const listed = row.architecture?.input_modalities;
+/** What a turn may carry: the list's modality names where it states known ones, else its image and video flags. */
+function hostedInput(
+  listed: readonly string[] | undefined,
+  flags: { readonly vision?: boolean | undefined; readonly video?: boolean | undefined },
+): Modality[] | undefined {
   if (listed !== undefined) {
     const { modalities } = parseModalities(listed);
     if (modalities.length > 0) {
       return [...modalities];
     }
   }
-  const flags = row.capabilities;
-  if (flags === undefined || (flags.vision === undefined && flags.video_input === undefined)) {
+  if (flags.vision === undefined && flags.video === undefined) {
     return;
   }
-  return modalitiesOf({ vision: flags.vision, video: flags.video_input });
+  return modalitiesOf(flags);
 }
 
-function nanoGptModel(row: z.infer<typeof nanoGptRowSchema>): EndpointModel {
+async function hostedRows<T>(args: EndpointFetchArgs, read: { readonly path: string; readonly label: string }, schema: z.ZodType<T>): Promise<T[]> {
+  const listed = await boundedRead(args, { url: openAiPath(args.baseUrl, read.path), headers: authHeaders(args.secret, args.headers), label: read.label });
+  const rows: T[] = [];
+  for (const raw of z.looseObject({ data: z.array(z.unknown()) }).parse(listed).data) {
+    const parsed = schema.safeParse(raw);
+    if (parsed.success) {
+      rows.push(parsed.data);
+    }
+  }
+  return rows;
+}
+
+// ── NanoGPT ──────────────────────────────────────────────────────────────────────────────────────────
+
+/** The detailed list's fields this reader keeps (docs.nano-gpt.com Models). */
+const nanoGptRowSchema = z.looseObject({
+  id: z.string().min(1),
+  name: STATED_TEXT,
+  /** The window shared by input and output; `null` when the service does not know it. */
+  context_length: STATED_LIMIT,
+  max_output_tokens: STATED_LIMIT,
+  architecture: z.looseObject({ input_modalities: STATED_NAMES, output_modalities: STATED_NAMES }).optional().catch(undefined),
+  capabilities: z
+    .looseObject({
+      vision: STATED_FLAG,
+      video_input: STATED_FLAG,
+      tool_calling: STATED_FLAG,
+      parallel_tool_calls: STATED_FLAG,
+      structured_output: STATED_FLAG,
+      reasoning: STATED_FLAG,
+    })
+    .optional()
+    .catch(undefined),
+  /** USD per million tokens, as numbers. */
+  pricing: z.looseObject({ prompt: STATED_PRICE, completion: STATED_PRICE }).optional().catch(undefined),
+  /** The effort words the model takes; the service refuses any other with a 400 before the turn runs. */
+  reasoning_efforts: STATED_NAMES,
+});
+type NanoGptRow = z.infer<typeof nanoGptRowSchema>;
+
+/** The effort word that turns thinking off where a list names it. */
+const EFFORT_OFF = "none";
+
+const NANOGPT_DETAILED_PATH = "/models?detailed=true";
+const TEXT_OUTPUT = "text";
+
+/** The detailed list read in place of the bare one, which carries ids only. A `null` limit states nothing, so the
+ *  capability keeps that limit marked assumed. A row whose stated output has no text is not a chat model. */
+async function fetchNanoGptModels(args: EndpointFetchArgs): Promise<EndpointModel[]> {
+  const rows = await hostedRows(args, { path: NANOGPT_DETAILED_PATH, label: "NanoGPT models" }, nanoGptRowSchema);
+  return rows.filter((row) => row.architecture?.output_modalities?.includes(TEXT_OUTPUT) ?? true).map(nanoGptModel);
+}
+
+// The levels a thinker's list names, and whether `none` turns its thinking off. The list states no default, so a
+// stated thinker is taken to think when a request names no effort.
+function nanoGptThinking(row: NanoGptRow): EndpointModel["thinking"] {
+  const efforts = row.reasoning_efforts;
+  if (efforts === undefined) {
+    return;
+  }
+  const levels = EFFORT_LEVELS.filter((level) => efforts.includes(level));
+  if (levels.length === 0) {
+    return;
+  }
+  return { values: [...levels, ...(efforts.includes(EFFORT_OFF) ? [false] : [])], default: true };
+}
+
+function nanoGptModel(row: NanoGptRow): EndpointModel {
   const flags = row.capabilities;
+  const limits = statedLimits(row.context_length, row.max_output_tokens);
   return withStated(
-    { id: row.id, contextLength: row.context_length ?? null },
+    { id: row.id, contextLength: limits.window },
     {
       kind: "generation",
       name: row.name,
-      maxCompletionTokens: row.max_output_tokens,
-      input: nanoGptInput(row),
+      maxCompletionTokens: limits.output,
+      input: hostedInput(row.architecture?.input_modalities, { vision: flags?.vision, video: flags?.video_input }),
       tools: flags?.tool_calling === true ? { parallel: flags.parallel_tool_calls === true } : undefined,
       structured: flags?.structured_output,
       thinks: flags?.reasoning === true ? true : undefined,
-      listedPrice: nanoGptPrice(row.pricing),
+      thinking: flags?.reasoning === true ? nanoGptThinking(row) : undefined,
+      listedPrice: listedPriceOf(row.pricing?.prompt, row.pricing?.completion),
       // A hosted list has no per-model probe: every fact it holds is in this read.
+      probed: true,
+    },
+  );
+}
+
+// ── LiteRouter ───────────────────────────────────────────────────────────────────────────────────────
+
+/** The served window per `variant`, from LiteRouter's Model naming page (docs.literouter.com/model-naming): the
+ *  native window for `full-context`, `metered:full-context` and `payg`; an approximate input budget for the named
+ *  budgets, and 5,000 tokens for `free`, each still bounded by the native window. The plain and `metered` variants run
+ *  the account's chat-memory setting, which no read states, so they are absent here and stay assumed, as does any
+ *  variant this table does not name. */
+const LITEROUTER_VARIANT_WINDOWS: Readonly<Record<string, number | "native">> = {
+  "full-context": "native",
+  "metered:full-context": "native",
+  payg: "native",
+  "32k-context": 32_000,
+  "64k-context": 64_000,
+  "128k-context": 128_000,
+  "256k-context": 256_000,
+  free: 5000,
+};
+
+/** The list's model type for a chat model; image models answer on the image host. */
+const LITEROUTER_CHAT_TYPE = "chat";
+
+const literouterRowSchema = z.looseObject({
+  id: z.string().min(1),
+  display_name: STATED_TEXT,
+  type: STATED_TEXT,
+  variant: STATED_TEXT,
+  /** The model's native window, whatever the variant serves. */
+  context_window: STATED_LIMIT,
+  max_output_tokens: STATED_LIMIT,
+  input_modalities: STATED_NAMES,
+  capabilities: z
+    .looseObject({ tools: STATED_FLAG, reasoning: STATED_FLAG, vision: STATED_FLAG, video: STATED_FLAG, structured_output: STATED_FLAG })
+    .optional()
+    .catch(undefined),
+  /** USD per million tokens. */
+  price_usd_per_1m: z.looseObject({ input: STATED_PRICE, output: STATED_PRICE }).optional().catch(undefined),
+  /** The service's measured reasoning controls: each effort word's status, and `mode` `none` for a model that shows
+   *  no reasoning on any route. */
+  reasoning_hint: z
+    .looseObject({
+      mode: STATED_TEXT,
+      efforts: z
+        .record(z.string(), z.looseObject({ status: STATED_TEXT }).optional().catch(undefined))
+        .optional()
+        .catch(undefined),
+    })
+    .optional()
+    .catch(undefined),
+});
+type LiteRouterRow = z.infer<typeof literouterRowSchema>;
+
+/** An effort word the service runs as asked; `turns_off` on `none` makes thinking switchable. */
+const EFFORT_SUPPORTED = "supported";
+const EFFORT_TURNS_OFF = "turns_off";
+const EFFORT_DEFAULT_ON = "on";
+const EFFORT_DEFAULT_OFF = "off";
+const REASONING_HIDDEN = "none";
+
+async function fetchLiteRouterModels(args: EndpointFetchArgs): Promise<EndpointModel[]> {
+  const rows = await hostedRows(args, { path: "/models", label: "LiteRouter models" }, literouterRowSchema);
+  return rows.filter((row) => (row.type ?? LITEROUTER_CHAT_TYPE) === LITEROUTER_CHAT_TYPE).map(literouterModel);
+}
+
+function literouterWindow(row: LiteRouterRow, native: number | null): number | null {
+  const served = row.variant === undefined ? undefined : LITEROUTER_VARIANT_WINDOWS[row.variant];
+  if (served === undefined) {
+    return null;
+  }
+  if (served === "native") {
+    return native;
+  }
+  return native === null ? served : Math.min(served, native);
+}
+
+/** The effort words the service measured as working, and whether `none` turns thinking off. */
+function literouterThinking(row: LiteRouterRow): EndpointModel["thinking"] {
+  const efforts = row.reasoning_hint?.efforts;
+  if (efforts === undefined) {
+    return;
+  }
+  const levels = EFFORT_LEVELS.filter((level) => efforts[level]?.status === EFFORT_SUPPORTED);
+  const values = [...levels, ...(efforts[EFFORT_OFF]?.status === EFFORT_TURNS_OFF ? [false] : [])];
+  const defaulted = efforts["default"]?.status;
+  if (levels.length === 0 || (defaulted !== EFFORT_DEFAULT_ON && defaulted !== EFFORT_DEFAULT_OFF)) {
+    return;
+  }
+  return { values, default: defaulted === EFFORT_DEFAULT_ON };
+}
+
+function literouterModel(row: LiteRouterRow): EndpointModel {
+  const flags = row.capabilities;
+  const limits = statedLimits(row.context_window, row.max_output_tokens);
+  const thinks = flags?.reasoning === true && row.reasoning_hint?.mode !== REASONING_HIDDEN;
+  return withStated(
+    { id: row.id, contextLength: literouterWindow(row, limits.window) },
+    {
+      kind: "generation",
+      name: row.display_name,
+      // The native window bounds whatever window the connection runs at, the assumed chat-memory one included.
+      contextTrained: limits.window ?? undefined,
+      maxCompletionTokens: limits.output,
+      input: hostedInput(row.input_modalities, { vision: flags?.vision, video: flags?.video }),
+      tools: flags?.tools === true ? { parallel: false } : undefined,
+      structured: flags?.structured_output,
+      thinks: thinks ? true : undefined,
+      thinking: thinks ? literouterThinking(row) : undefined,
+      listedPrice: listedPriceOf(row.price_usd_per_1m?.input, row.price_usd_per_1m?.output),
       probed: true,
     },
   );
@@ -858,6 +1018,7 @@ async function listedModelFacts(args: EndpointFetchArgs, row: EndpointModel): Pr
   switch (args.modelInfoApi) {
     case undefined:
     case "nanogpt":
+    case "literouter":
       return { probed: true };
     case "ollama":
       return await ollamaLateFacts(args, row);

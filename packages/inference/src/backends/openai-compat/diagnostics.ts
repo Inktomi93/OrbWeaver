@@ -30,6 +30,7 @@ const BODY_PREVIEW_LIMIT = 4000;
 const INSPECT_LABEL = "endpoint inspector";
 const INSPECT_API = "chat-completions";
 const CREDITS_PATH = "/credits";
+const MODELS_PATH = "/models";
 const GENERATION_PATH = "/generation";
 
 const creditsSchema = z.looseObject({ data: z.looseObject({ total_credits: z.number(), total_usage: z.number() }) });
@@ -53,15 +54,23 @@ function requireOpenRouter(connection: Resolved, label: string): string {
 
 interface ReadArgs {
   readonly connection: Resolved;
-  readonly path: string;
+  /** Under the base URL, or a path from its origin (a row's `keyCheckPath`). */
+  readonly path: string | { readonly fromOrigin: string };
   readonly label: string;
   readonly signal: AbortSignal;
+}
+
+function readUrl(connection: Resolved, baseUrl: string, path: ReadArgs["path"]): string {
+  if (typeof path !== "string") {
+    return new URL(path.fromOrigin, baseUrl).toString();
+  }
+  return connection.provider.dialect === "openrouter" ? `${baseUrl.replace(/\/$/u, "")}${path}` : openAiPath(baseUrl, path);
 }
 
 async function authenticatedRead(deps: DiagnosticsDeps, args: ReadArgs): Promise<unknown> {
   const { connection, path, label, signal } = args;
   const baseUrl = requireBaseUrl(connection, label);
-  const url = connection.provider.dialect === "openrouter" ? `${baseUrl.replace(/\/$/u, "")}${path}` : openAiPath(baseUrl, path);
+  const url = readUrl(connection, baseUrl, path);
   const result = await fetchJson({
     fetch: deps.fetch,
     url,
@@ -97,14 +106,23 @@ function brokenBeforeTheWire(error: unknown): boolean {
   return PROGRAMMING_ERRORS.some((kind) => root instanceof kind) && !("code" in root && typeof root.code === "string");
 }
 
-/** Credential health by the cheapest authenticated read the row admits: `/credits` on openrouter, `/models`
- *  elsewhere. Success → `ok`; a typed HTTP 401/403 → `revoked`; a failure of our own request → `unchecked`;
+function keyCheckPathOf(connection: Resolved): ReadArgs["path"] {
+  if (connection.provider.dialect === "openrouter") {
+    return CREDITS_PATH;
+  }
+  const keyCheck = connection.features.keyCheckPath;
+  return keyCheck === undefined ? MODELS_PATH : { fromOrigin: keyCheck };
+}
+
+/** Credential health by the cheapest authenticated read the row admits: `/credits` on openrouter, the row's
+ *  `keyCheckPath` where its models list answers without a key, `/models` elsewhere. Success → `ok`; a typed HTTP 401,
+ *  or a 403 on a row whose 403 judges the key, → `revoked`; a failure of our own request → `unchecked`;
  *  anything else → `unreachable`, carrying the status when the server answered. Upstream
  *  prose is never classification evidence: a 5xx body may mention another request's invalid API key. */
 export async function probeOpenAiCompat(req: DiagnosticRequestCommon, deps: DiagnosticsDeps): Promise<CredentialHealth> {
   const checkedAt = deps.now();
   const { connection } = req;
-  const path = connection.provider.dialect === "openrouter" ? CREDITS_PATH : "/models";
+  const path = keyCheckPathOf(connection);
   try {
     await authenticatedRead(deps, { connection, path, label: "credential probe", signal: req.signal });
     return { status: "ok", checkedAt };
@@ -112,7 +130,7 @@ export async function probeOpenAiCompat(req: DiagnosticRequestCommon, deps: Diag
   } catch (err) {
     const reason = sanitizeApiError(redactSecretsFromText(errorMessage(err), resolvedScrubSet(connection)));
     const httpStatus = err instanceof ProviderError ? err.apiErrorStatus : undefined;
-    if (httpStatus === HTTP_UNAUTHORIZED || httpStatus === HTTP_FORBIDDEN) {
+    if (httpStatus === HTTP_UNAUTHORIZED || (httpStatus === HTTP_FORBIDDEN && connection.features.forbiddenIsNotCredentialVerdict !== true)) {
       return { status: "revoked", checkedAt, reason };
     }
     if (brokenBeforeTheWire(err)) {

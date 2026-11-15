@@ -107,25 +107,62 @@ test("a NanoGPT turn sends the chosen effort as reasoning_effort and streams the
   ]);
 });
 
-// Error bodies as each service answers them: NanoGPT's nested object (live 401), its older bare-string 402, and
-// LiteRouter's bare string (live 401).
+// Error bodies as each service answers them live: NanoGPT's nested object for a missing or wrong key, its bare
+// string plus convenience fields for an empty balance, and its nested refusal of an effort the model does not list;
+// LiteRouter's bare string for a wrong key.
+const NANOGPT_EMPTY_BALANCE = {
+  error: "Insufficient balance",
+  message: "Insufficient USD balance. Available 0.000000 USD, required 0.000001 USD.",
+  estimatedOutputTokens: 16,
+  code: "insufficient_balance",
+  balanceCurrency: "USD",
+  availableBalance: 0,
+  requiredBalance: 9e-7,
+  baseModelCoveredBySubscription: false,
+  baseModelCoveredByFreeAccess: false,
+  balanceReason: "base_request",
+  status: 402,
+};
 const REFUSALS: readonly {
+  readonly answer: string;
   readonly providerId: HostedRow;
   readonly status: number;
   readonly body: Record<string, unknown>;
   readonly kind: ProviderErrorKind;
 }[] = [
   {
+    answer: "missing key",
     providerId: "nanogpt",
     status: 401,
     body: { error: { message: "Invalid Authentication", type: "invalid_request_error", code: "missing_api_key", status: 401 } },
     kind: "auth_failed",
   },
-  { providerId: "nanogpt", status: 402, body: { error: "Insufficient balance", requiredBalance: 0.0035, status: 402 }, kind: "billing" },
-  { providerId: "literouter", status: 401, body: { error: "[LiteRouter] Invalid or missing API key" }, kind: "auth_failed" },
+  {
+    answer: "wrong key",
+    providerId: "nanogpt",
+    status: 401,
+    body: { error: { message: "Invalid session", type: "invalid_api_key", code: "invalid_api_key", status: 401 } },
+    kind: "auth_failed",
+  },
+  { answer: "empty balance", providerId: "nanogpt", status: 402, body: NANOGPT_EMPTY_BALANCE, kind: "billing" },
+  {
+    answer: "unlisted effort",
+    providerId: "nanogpt",
+    status: 400,
+    body: {
+      error: {
+        message: 'Invalid value for reasoning_effort on model "vendor/chat-model": "max". Supported values are: none, low, high.',
+        type: "invalid_request_error",
+        param: "reasoning_effort",
+        code: "unsupported_reasoning_effort",
+      },
+    },
+    kind: "invalid",
+  },
+  { answer: "wrong key", providerId: "literouter", status: 401, body: { error: "[LiteRouter] Invalid or missing API key" }, kind: "auth_failed" },
 ];
 
-test.for(REFUSALS)("a $providerId $status answer fails the turn as $kind without a retry", async ({ providerId, status, body, kind }) => {
+test.for(REFUSALS)("a $providerId $answer answer fails the turn as $kind without a retry", async ({ providerId, status, body, kind }) => {
   const recorded: RecordedRequest[] = [];
   const settled = await settledProviderError(async () => {
     using server = scriptedResponses([errorReply(status, body)], recorded);
@@ -142,6 +179,137 @@ test.for(REFUSALS)("a $providerId $status answer fails the turn as $kind without
   });
   expect(settled.error?.kind).toBe(kind);
   expect(recorded).toHaveLength(1);
+});
+
+test("a LiteRouter stream that names its reasoning twice and repeats its stop on the usage chunk reads each once", async () => {
+  // The live stream's shape: every reasoning delta under both keys, then a stop chunk, then a usage chunk that
+  // repeats the stop.
+  const usage = { ["prompt_tokens"]: TOKENS_IN, ["completion_tokens"]: TOKENS_OUT, ["total_tokens"]: TOKENS_IN + TOKENS_OUT };
+  const live = (): Response =>
+    eventResponse([
+      chunk({ role: "assistant" }, null),
+      chunk({ reasoning: "Weighing", ["reasoning_content"]: "Weighing" }, null),
+      chunk({ reasoning: " it.", ["reasoning_content"]: " it." }, null),
+      chunk({ content: "Done." }, null),
+      chunk({ content: "", role: "assistant" }, "stop"),
+      chunk({ content: "", role: "assistant" }, "stop", usage),
+    ]);
+  const { deltas, turn } = await chatTurn("literouter", live, "high");
+  expect(deltas.map(kindAndText)).toEqual([
+    { kind: "reasoning", text: "Weighing" },
+    { kind: "reasoning", text: " it." },
+    { kind: "text", text: "Done." },
+  ]);
+  expect(turn.usage).toMatchObject({ tokensIn: TOKENS_IN, tokensOut: TOKENS_OUT });
+});
+
+// What a refusal does to the stored key. LiteRouter's 403s (live bodies) and NanoGPT's (its Error Handling page)
+// are refusals, never a verdict on the key; their 401s and every other row's 403 still strike it.
+const LITEROUTER_MISSPELLED = "[LiteRouter] Model 'vendor/chat-model' is not available or misspelled";
+const LITEROUTER_COOLDOWN =
+  "[LiteRouter] Rate limit exceeded for your tier (7 seconds between messages). You can upgrade your tier to reduce the cooldown period.";
+const STRIKES: readonly {
+  readonly name: string;
+  readonly providerId: string;
+  readonly status: number;
+  readonly body: Record<string, unknown>;
+  readonly kind: ProviderErrorKind;
+  readonly struck: boolean;
+}[] = [
+  {
+    name: "a LiteRouter 403 for a misspelled model",
+    providerId: "literouter",
+    status: 403,
+    body: { error: LITEROUTER_MISSPELLED },
+    kind: "invalid",
+    struck: false,
+  },
+  {
+    name: "a LiteRouter 403 for the plan cooldown",
+    providerId: "literouter",
+    status: 403,
+    body: { error: LITEROUTER_COOLDOWN },
+    kind: "invalid",
+    struck: false,
+  },
+  {
+    name: "a LiteRouter 401",
+    providerId: "literouter",
+    status: 401,
+    body: { error: "[LiteRouter] Invalid or missing API key" },
+    kind: "auth_failed",
+    struck: true,
+  },
+  {
+    name: "a NanoGPT 403 that declines the request for this account",
+    providerId: "nanogpt",
+    status: 403,
+    body: {
+      error: {
+        message: "This request can't be sent to Claude on this account for now.",
+        type: "permission_error",
+        code: "claude_request_declined",
+      },
+    },
+    kind: "invalid",
+    struck: false,
+  },
+  {
+    name: "a NanoGPT 401",
+    providerId: "nanogpt",
+    status: 401,
+    body: { error: { message: "Invalid session", type: "invalid_api_key", code: "invalid_api_key", status: 401 } },
+    kind: "auth_failed",
+    struck: true,
+  },
+  {
+    name: "an OpenAI 403",
+    providerId: "openai",
+    status: 403,
+    body: { error: { message: "Forbidden", type: "invalid_request_error" } },
+    kind: "auth_failed",
+    struck: true,
+  },
+  { name: "an OpenRouter 403", providerId: "openrouter", status: 403, body: { error: { message: "Forbidden", code: 403 } }, kind: "auth_failed", struck: true },
+];
+
+test.for(STRIKES)("$name fails the turn as $kind once, and strikes the key: $struck", async ({ providerId, status, body, kind, struck }) => {
+  const recorded: RecordedRequest[] = [];
+  using server = scriptedResponses([errorReply(status, body)], recorded);
+  await using root = await createRuntimeRoot({ providerFetch: server.execute });
+  const connection = await wireConnection(root, { task: "chat", providerId, model: "vendor/chat-model", capability: EFFORT_CAPABILITY });
+  const settled = await settledProviderError(() =>
+    root.app.runtime.executor.runChatTurn({
+      api: "chat-completions",
+      connection,
+      signal: new AbortController().signal,
+      params: {},
+      systemPrompt: { static: "You are a fixture.", dynamic: "" },
+      history: [USER_LINE],
+    }),
+  );
+  expect(settled.error?.kind).toBe(kind);
+  expect(recorded).toHaveLength(1);
+  const [credential, ...others] = await (await root.internalCallerFor(root.ownerId)).credentials.list();
+  expect(others).toEqual([]);
+  expect(credential?.revokedReason ?? null).toBe(struck ? "auth_failed" : null);
+});
+
+test("a LiteRouter 403 shows the service's own words, which name the cooldown", async () => {
+  using server = scriptedResponses([errorReply(403, { error: LITEROUTER_COOLDOWN })]);
+  await using root = await createRuntimeRoot({ providerFetch: server.execute });
+  const connection = await wireConnection(root, { task: "chat", providerId: "literouter", model: "vendor/chat-model", capability: EFFORT_CAPABILITY });
+  const settled = await settledProviderError(() =>
+    root.app.runtime.executor.runChatTurn({
+      api: "chat-completions",
+      connection,
+      signal: new AbortController().signal,
+      params: {},
+      systemPrompt: { static: "You are a fixture.", dynamic: "" },
+      history: [USER_LINE],
+    }),
+  );
+  expect(settled.error?.message).toContain(LITEROUTER_COOLDOWN);
 });
 
 test("a NanoGPT 429 is retried before anything streams, and a limit that holds fails the turn as rate_limit", async () => {

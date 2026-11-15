@@ -136,8 +136,9 @@ export const OUTPUT_CAP_FIELDS = ["max_tokens", "max_completion_tokens"] as cons
  *  server runs, an embedder's width, and what each model takes (tools, image input, its kind). `ollama` =
  *  `GET /api/version` + `GET /api/ps` + `POST /api/show`; `llama-cpp` = `GET /props` + the list's `meta`;
  *  `koboldcpp` = `GET /api/extra/version` + `GET /props`; `nanogpt` = the hosted list's own `?detailed=true` mode,
- *  read in place of the bare list. The readers live in `@orb/inference`'s endpoint catalog. */
-export const MODEL_INFO_APIS = ["ollama", "llama-cpp", "koboldcpp", "nanogpt"] as const;
+ *  read in place of the bare list; `literouter` = the hosted list's own per-model fields, read from the same list. The
+ *  readers live in `@orb/inference`'s endpoint catalog. */
+export const MODEL_INFO_APIS = ["ollama", "llama-cpp", "koboldcpp", "nanogpt", "literouter"] as const;
 export type ModelInfoApi = (typeof MODEL_INFO_APIS)[number];
 
 /** A server's native chat route, sent instead of `/v1/chat/completions` (D310). `ollama` = `POST /api/chat`,
@@ -166,6 +167,13 @@ export const endpointFeaturesSchema = z
      *  matching built-in row's features and model-info API in place of this row's. A declared `modelInfoApi`
      *  skips the probe; the connection's identity and credential stay this row's. */
     detectServer: z.boolean().optional(),
+    /** The key check's read, a path from the base URL's ORIGIN, for a service whose models list answers without a key;
+     *  absent ⇒ the models list under the base URL. */
+    keyCheckPath: z.string().startsWith("/").optional(),
+    /** The service answers 403 for refusals that say nothing about the key (a model the plan lacks, a cooldown),
+     *  so a 403 is a refusal shown in the service's words, never a credential verdict. Absent ⇒ a 403
+     *  judges the key. */
+    forbiddenIsNotCredentialVerdict: z.boolean().optional(),
     /** A rerank endpoint path relative to `baseUrl` (vLLM `/rerank`); absent ⇒ the wire serves no rerank. */
     rerankPath: z.string().optional(),
     /** The sleep/wake pair a server exposes (vLLM `/is_sleeping` + `/wake_up`). Set ⇒ a sleeping server reads
