@@ -2,7 +2,7 @@
 kind: decision
 status: open
 updated: 2026-11-15
-priority: P1
+priority: P2
 area: security
 plan: import-robustness
 ---
@@ -11,15 +11,15 @@ plan: import-robustness
 
 ## What
 
-A styled reply uses the same frame as an interactive card. A script block that a preset's display script writes into a reply runs inside that frame when the admin allows interactive cards, the character's trust resolves to interactive and the viewer's story-card scripts setting is on, which is its default. Inline handlers are stripped. The frame has an opaque origin and no network access. The owner expected a styled reply to be inert.
+A styled reply uses the same frame as an interactive card, under the same three gates: the admin ceiling, the character's trust and the viewer's story-card scripts setting. A script block that a preset's display script writes into a reply runs inside it when all three allow. The owner's position is that this is the existing interactive card behaviour and stays. One fact is unchecked: the gate reads the character's trust while the script text comes from the preset, so trusting a character may let any preset's scripts run on that character's replies, in each member's browser in a shared room.
 
 ## Why
 
-An imported preset's display scripts are third-party code, and nobody chose to run their scripts; the trust setting was written for a character's own cards.
+The behaviour is intended; what is missing is the written rule and a check that a reply frame reaches nothing a card frame does not.
 
 ## Done when
 
-A recorded ruling says whether a reply frame always serves the static posture or follows the card trust tier, D354 states it, and a case with a display script that emits a script block pins the ruled behaviour.
+D354 states that a reply frame follows the card trust tier and names what the gate keys on. A case shows a reply frame's policy equals the card frame's. The owner has been told, in plain words, whose trust setting lets a preset's script run and for whom in a shared room.
 
 ## Evidence
 

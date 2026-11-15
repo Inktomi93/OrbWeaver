@@ -288,6 +288,7 @@ export {
   narratorPolicyOf,
   openingPolicySchema,
   resolveCharactersCanReact,
+  resolveHostDisplayScripts,
   resolveOfferChoices,
   resolveReactionsEnabled,
   roomOverridesSchema,

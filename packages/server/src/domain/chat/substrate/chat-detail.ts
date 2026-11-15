@@ -6,7 +6,7 @@
 // ownership read, so the verb resolves it (`substrate/viewer-gallery.ts`), and the gallery subject derives here.
 
 import type { ChatIdentity, HistoryFloorSeq, ParticipantData } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES, NO_HISTORY_FLOOR } from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES, NO_HISTORY_FLOOR, resolveHostDisplayScripts } from "@orb/contracts/chat";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { ChatDetailData } from "../contract/views.ts";
 import type { ResolvedAnchor } from "../persistence/anchor.ts";
@@ -75,10 +75,9 @@ export function toChatDetail({
     group: chat.metadata.group ?? DEFAULT_GROUP_CONFIG,
     roomOverrides: chat.metadata.roomOverrides ?? DEFAULT_ROOM_OVERRIDES,
     toolRecurseLimit: chat.metadata.toolRecurseLimit ?? null,
-    hostDisplayScripts: chat.metadata.hostDisplayScripts === true,
-    // `?? null`, NOT `=== true`: absent is the INHERIT state here, and collapsing it to `false` would tell
-    // the host's toggle that a never-touched room is pinned off (the toolRecurseLimit shape, not the
-    // hostDisplayScripts one — that neighbour genuinely has no third state).
+    hostDisplayScripts: resolveHostDisplayScripts(chat.metadata.hostDisplayScripts),
+    // `?? null`: absent is the INHERIT state here, and collapsing it to `false` would tell the host's toggle that a
+    // never-touched room is pinned off (the toolRecurseLimit shape, not the resolved hostDisplayScripts one).
     offerChoices: chat.metadata.offerChoices ?? null,
     // B7 — the same tri-state shape as offerChoices (absent = inherit the host's per-user default).
     charactersCanReact: chat.metadata.charactersCanReact ?? null,

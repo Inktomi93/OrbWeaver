@@ -323,15 +323,15 @@ export interface ChatMetadata {
    *  heals to absent at the parser (`.catch(undefined)`). Schema is rpg's (`ChatRpgPointer`) — the
    *  databankVisibility/background foreign-schema precedent. */
   rpg?: ChatRpgPointer;
-  /** D121-E display-tier HOST OPTION (owner ruling). Absent/false ⇒ the default: display-tier
-   *  regex is PER-USER — each viewer sees only their own scripts applied to the transcript, and nobody can
-   *  restyle anybody else's reading. TRUE ⇒ the host opts this room in: the HOST's display scripts render
-   *  for EVERY viewer here — a host staging shared visual effects on the transcript — and each viewer's
-   *  OWN scripts still apply ON TOP, so a viewer can always counter-style.
+  /** Whether the room shares its host's display scripts with members (owner ruling: on by default). Absent or
+   *  `true` ⇒ shared: the room's display tiers, resolved under the host, render for every member, and each
+   *  viewer's own scripts still apply on top, so a viewer can always counter-style. A member then also receives
+   *  those scripts, patterns and replacement text included, and sees them in the room's roster. `false` ⇒ the
+   *  host switched it off: a member receives none of the host's scripts and sees only their own.
    *
-   *  An OPTION in the D121-B grammar, never a default: off is byte-identical to a room that never heard of
-   *  it. Host-set, host-only (`chat.setHostDisplayScripts`); it governs RENDER only — no wire payload, no
-   *  canon, no composer/edit text is touched on either arm. */
+   *  Absent is told from off by the key's presence: only `chat.setHostDisplayScripts` writes it, always as an
+   *  explicit boolean. Resolve through {@link resolveHostDisplayScripts}. It governs render only; no wire
+   *  payload, canon or composer text changes on either side. */
   hostDisplayScripts?: boolean;
   /** B1 / RULED F2 — the per-room "offer choices" POSTURE: whether this chat's model is taught the standing
    *  `:::choices` fence (the reading surface renders the options as click-to-compose affordances).
@@ -391,6 +391,13 @@ export interface ChatMetadata {
  *  wire, where the two spellings could drift into a toggle that lies about what the model is being told. */
 export function resolveOfferChoices(roomValue: boolean | undefined, userDefault: boolean): boolean {
   return roomValue ?? userDefault;
+}
+
+/** Whether the room shares its host's display scripts with members ({@link ChatMetadata.hostDisplayScripts}): on
+ *  unless the host switched it off. Absent is a room whose host never touched the switch, and it shares; only the
+ *  host's explicit `false` withholds. One home because the member read and the room detail must agree. */
+export function resolveHostDisplayScripts(roomValue: boolean | undefined): boolean {
+  return roomValue !== false;
 }
 
 /** The B7 "characters can react" precedence — the {@link resolveOfferChoices} rule for its knob: the
