@@ -14,3 +14,10 @@ export const HOST_UNAVAILABLE_COPY = "The host is unavailable.";
 
 /** A turn refused for that host state. */
 export const TURN_HOST_UNAVAILABLE_COPY = `${HOST_UNAVAILABLE_COPY} Nothing was changed.`;
+
+/** The host's reading of a struck or missing key on their bound chat connection. */
+export const KEY_REJECTED_COPY = "Your connection's key was rejected. Replace it, or pick another connection, in Settings → Connections.";
+
+/** A member's reading of the same cause: the key is the host's, so a member is told neither of it nor of a fix only
+ *  the host can make. */
+export const HOST_KEY_REJECTED_COPY = "The host's chat connection can't be used right now. Ask them to check it before sending.";

@@ -14,6 +14,7 @@ import type { ModelCatalogEntry, ModelCheck, ModelListing, ProviderDef } from "@
 import { TOOLS_PARAMETER } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { isSpaceChar, trimEndWhile } from "@orb/kit/strings";
+import { keyRefusedNotice } from "./credentials-names.ts";
 
 /** Where the picker's models come from, as the caller last saw it. `unlisted` is a source with no list to
  *  offer (nothing fetched yet, or no catalog door for this draft); `failed` is a list read that errored.
@@ -456,11 +457,6 @@ export function modelListSource(result: ModelListing, retry: (() => void) | null
   return result.keyRefused === true
     ? { status: "failed", reason: result.reason, retry: null, keyRefused: true }
     : { status: "failed", reason: result.reason, retry };
-}
-
-/** The model field's notice when the provider refused the key the list was read under. */
-export function keyRefusedNotice(listOwner: string): string {
-  return `${listOwner} refused this key. Get a new key from your ${listOwner} account and paste it here.`;
 }
 
 /** The model field's required-value message, shared by every form that writes a connection's model. */
