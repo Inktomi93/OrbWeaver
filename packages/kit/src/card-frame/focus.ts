@@ -103,31 +103,6 @@ export function foldFramePressSignal(signal: FramePressSignal, entry: { readonly
   return entry.learnsUnmarked ? "unmarked" : signal;
 }
 
-/**
- * What the host saw that bears on its own return of focus into a frame: it gave focus back to `frame` after a refusal,
- * focus landed in the app (an app element's `focusin`, or the app window's `focus`), or focus was found in `frame`.
- */
-export type FrameHostReturnEvent<F> =
-  | { readonly kind: "returned"; readonly frame: F }
-  | { readonly kind: "app-focus" }
-  | { readonly kind: "entry"; readonly frame: F };
-
-/**
- * The host's one-use mark for its own return of focus into `F`, after one event, and whether that event is the host's
- * own move. The mark is spent by the entry it explains, and dropped once focus is seen in the app: focus that left
- * the frame unseen must not turn the frame's later `focus()` into the host's move.
- */
-export function foldFrameHostReturn<F>(mark: F | undefined, event: FrameHostReturnEvent<F>): { readonly mark: F | undefined; readonly hostMove: boolean } {
-  switch (event.kind) {
-    case "returned":
-      return { mark: event.frame, hostMove: false };
-    case "app-focus":
-      return { mark: undefined, hostMove: false };
-    case "entry":
-      return event.frame === mark ? { mark: undefined, hostMove: true } : { mark, hostMove: false };
-  }
-}
-
 /** One frame's current run of refusals: how many, and when the last came. */
 export interface FrameRefusalRun {
   readonly count: number;

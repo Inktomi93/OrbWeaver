@@ -21,7 +21,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { forEachNonEmpty } from "@orb/testkit/iso";
 import { captureCookieAuth, createCorpusHarness } from "@orb/testkit/node/composed";
 import { SCROLL_END_THRESHOLD_PX } from "@orb/ui/message-list";
-import type { Locator, Page } from "@playwright/test";
+import type { FrameLocator, Locator, Page } from "@playwright/test";
 import { REPLY_LINK_CONFIRM_LABEL } from "#client/features/chat/lib/reply-frame-names.ts";
 import { REPLY_LINK_FIRST_WAIT_MS, REPLY_LINK_FREE_CANCELS } from "#client/features/chat/lib/reply-link-pace.ts";
 import type { RoutedCardTextScaleStory, RoutedReplyBesideFieldStory } from "./_routed-card-text-scale-stories.tsx";
@@ -710,6 +710,56 @@ test("a Cancel leaves focus on the reply, so a frame that takes focus as the con
   await expect(page.locator(REPLY_FRAME)).toBeFocused();
   await page.keyboard.type(TYPED);
   expect(await keysInFrame(page)).toBe("");
+});
+
+test("one reply's grab while the reader is in another reply stops neither, and the keys after it reach neither", async ({ corpus, mount, page }) => {
+  const room = await openLoggerRoom(false);
+  await using root = room.root;
+  const caller = await root.internalCallerFor(root.ownerId);
+  await caller.chat.duplicateMessage({ chatId: room.chatId, messageId: room.messageId });
+  await using _routes = await serveRoom(page, root, corpus);
+  await mount<typeof RoutedReplyBesideFieldStory>(FIELD_STORY, { chatId: room.chatId });
+  const sandboxes = page.locator(`${REPLY_FRAME} ${SANDBOX}`);
+  await expect(sandboxes).toHaveCount(2);
+  const frameAt = (nth: number): FrameLocator => sandboxes.nth(nth).contentFrame();
+  const keysAt = async (nth: number): Promise<string> => (await frameAt(nth).locator("body").getAttribute(KEYS_ATTRIBUTE)) ?? "";
+  const field = page.getByRole("textbox", OUTSIDE_FIELD);
+  // A held press, as a reader's is: a move from one frame into another is read while the press is down.
+  const pressField = async (nth: number): Promise<void> => {
+    const box = await frameAt(nth).locator("#w6p-field").boundingBox();
+    if (box === null) {
+      throw new Error("the reply's field has no box to press");
+    }
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await settle(page);
+    await page.mouse.up();
+  };
+  // The reader was last in the app's field, pressed into the second reply, then into the first, and is there now.
+  await field.click();
+  await pressField(1);
+  await pressField(0);
+  await page.keyboard.type("ab");
+  await expect.poll(async () => keysAt(0)).toBe("ab");
+  await frameAt(1)
+    .locator("body")
+    .evaluate((body, cue) => body.dispatchEvent(new Event(cue)), GRAB_EVENT);
+  await expect(frameAt(1).locator("body")).toHaveAttribute(GRABS_ATTRIBUTE, "1");
+  await settle(page);
+  // The grab is refused to the app's field, and the refusal costs the reply the reader was in nothing.
+  await expect(field).toBeFocused();
+  await page.keyboard.type(TYPED);
+  await expect(field).toHaveValue(TYPED);
+  expect(await keysAt(0)).toBe("ab");
+  expect(await keysAt(1)).toBe("");
+  await expect(page.locator(`${REPLY_FRAME}[data-delivery="routed"]`)).toHaveCount(2);
+  // Both replies' scripts still run: each answers one more grab of its own.
+  for (const nth of [0, 1]) {
+    await frameAt(nth)
+      .locator("body")
+      .evaluate((body, cue) => body.dispatchEvent(new Event(cue)), GRAB_EVENT);
+    await expect(frameAt(nth).locator("body")).toHaveAttribute(GRABS_ATTRIBUTE, nth === 0 ? "1" : "2");
+  }
 });
 
 /** The styled room with long unstyled replies above the styled one, so the transcript scrolls and the styled reply is

@@ -2,8 +2,9 @@
 // Shift+Tab from the app (D294, D354). An interactive frame runs model-written or preset-written script, which can call
 // `focus()` at any time. Focus taken that way would hand it every key the reader presses next, and its WebRTC channel
 // (residual R1 in `packages/kit/src/card-frame/index.ts`) can carry them off the box. Focus that enters any other way
-// goes back to where it was. The decision, the learned press signal and the grab-loop stop are pure, in
-// `packages/kit/src/card-frame/focus.ts`; this module observes the browser and feeds them.
+// goes back to the app element the reader last held, never into another frame. The decision, the learned press signal
+// and the grab-loop stop are pure, in `packages/kit/src/card-frame/focus.ts`; this module observes the browser and
+// feeds them.
 //
 // WHAT THE HOST CAN SEE, measured in Chromium (frame in and out of process) and WebKit. Gecko is not measured.
 // - Focus entering a frame from an app element fires that element's `focusout`; from the bare page, the app window's
@@ -30,19 +31,11 @@
 // - (OPEN) On an engine that does not mark a press, see the kit module: the frame under the pointer is admitted while
 //   the page holds an activation, and nothing is ever stopped.
 // - A Tab pressed inside a frame is invisible, so tabbing from one frame straight into the next is refused, and focus
-//   returns to the first.
+//   returns to the app.
 // - A screen reader command that moves into a frame without a Tab or a press is refused, one move at a time.
 
-import type { FrameFocusEntry, FrameHostReturnEvent, FramePressSignal, FrameRefusalRun } from "@orb/kit/card-frame";
-import {
-  APP_INPUT_ACTIVATION_MS,
-  admitsFrameFocus,
-  foldFrameHostReturn,
-  foldFramePressSignal,
-  foldFrameRefusal,
-  learnsUnmarkedPress,
-  stopsFrameScripts,
-} from "@orb/kit/card-frame";
+import type { FrameFocusEntry, FramePressSignal, FrameRefusalRun } from "@orb/kit/card-frame";
+import { APP_INPUT_ACTIVATION_MS, admitsFrameFocus, foldFramePressSignal, foldFrameRefusal, learnsUnmarkedPress, stopsFrameScripts } from "@orb/kit/card-frame";
 
 // Where the mouse pointer rests: on which gated frame, since when, and whether the page held an activation then.
 interface PointerVisit {
@@ -66,7 +59,8 @@ interface GatedFrame {
   run: FrameRefusalRun | undefined;
 }
 
-// The places a refusal may return focus to, newest last: the app elements the reader focused and the frames admitted.
+// The places the reader held focus, newest last: the app elements they focused and the frames admitted. A refusal
+// returns focus only to an app element; the frames are kept so the per-frame check knows which frame holds focus.
 const HOLDERS_KEPT = 8;
 const TOUCH_SCREEN_QUERY = "(hover: none)";
 
@@ -79,15 +73,6 @@ let appInputAt = Number.NEGATIVE_INFINITY;
 let frameFocusAt = Number.NEGATIVE_INFINITY;
 let tabbing = false;
 let watching = false;
-// The frame the host itself just focused to give it back: that move is the host's, not the frame's.
-let hostReturn: HTMLIFrameElement | undefined;
-
-// Fold one event into the host-return mark, and say whether it was the host's own move.
-function noteHostReturn(event: FrameHostReturnEvent<HTMLIFrameElement>): boolean {
-  const next = foldFrameHostReturn(hostReturn, event);
-  hostReturn = next.mark;
-  return next.hostMove;
-}
 
 function hold(element: Element): void {
   const at = holders.indexOf(element);
@@ -133,20 +118,20 @@ function observeMove(): FocusMove {
   };
 }
 
-// Focus the newest place the reader held that is still on the page and is not the refused frame. With none, take focus
-// out of the frame onto the app document.
+// Focus the newest app element the reader held that is still on the page; with none, take focus out of the frame onto
+// the app document. NEVER INTO ANOTHER FRAME: a host move into a frame is an entry the host would have to tell apart
+// from that frame's own, and a refusal of one frame must never be judged against another. The cost: a reader typing in
+// one card when another grabs loses their place in the first and clicks back in.
 function returnFocus(refused: HTMLIFrameElement): void {
   for (let index = holders.length - 1; index >= 0; index -= 1) {
     const holder = holders[index];
-    if (holder !== undefined && holder !== refused && holder.isConnected && holder instanceof HTMLElement) {
-      noteHostReturn(holder instanceof HTMLIFrameElement ? { kind: "returned", frame: holder } : { kind: "app-focus" });
+    if (holder instanceof HTMLElement && !(holder instanceof HTMLIFrameElement) && holder.isConnected) {
       holder.focus({ preventScroll: true });
       if (document.activeElement === holder) {
         return;
       }
     }
   }
-  noteHostReturn({ kind: "app-focus" });
   refused.blur();
 }
 
@@ -194,9 +179,6 @@ function judgeFocused(move: FocusMove, fresh: boolean): void {
   if (frame === undefined) {
     return;
   }
-  if (noteHostReturn({ kind: "entry", frame })) {
-    return;
-  }
   if (fresh || holders.at(-1) !== frame) {
     judge(frame, move);
   }
@@ -235,23 +217,8 @@ const onFocusLeavesApp = (): void => {
 
 const onFocusIn = (event: FocusEvent): void => {
   if (event.target instanceof Element && asGated(event.target) === undefined) {
-    noteHostReturn({ kind: "app-focus" });
     hold(event.target);
   }
-};
-
-// Focus came back to the app document from a frame, possibly with no app element taking it (the bare page). The host's
-// own return from one frame into another passes through the app document too, so the check runs once that move has
-// settled, ahead of the judgement any entry after it queues, and finds the frame it returned to focused.
-const onWindowFocus = (event: FocusEvent): void => {
-  if (event.target !== globalThis) {
-    return;
-  }
-  setTimeout(() => {
-    if (asGated(document.activeElement) === undefined) {
-      noteHostReturn({ kind: "app-focus" });
-    }
-  }, 0);
 };
 
 const onPointer = (event: PointerEvent): void => {
@@ -287,7 +254,6 @@ function listen(): void {
   document.addEventListener("pointerover", onPointer, true);
   document.addEventListener("keydown", onKeyDown, true);
   globalThis.addEventListener("blur", onFocusLeavesApp, true);
-  globalThis.addEventListener("focus", onWindowFocus, true);
 }
 
 function unlisten(): void {
@@ -297,7 +263,6 @@ function unlisten(): void {
   document.removeEventListener("pointerover", onPointer, true);
   document.removeEventListener("keydown", onKeyDown, true);
   globalThis.removeEventListener("blur", onFocusLeavesApp, true);
-  globalThis.removeEventListener("focus", onWindowFocus, true);
 }
 
 /**

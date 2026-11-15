@@ -444,15 +444,25 @@ test("a grab loop that begins while the reader is typing is stopped at the bound
 });
 
 test("a press on a card gives its own field the reader's keys, and the other card's script cannot take them", async ({ mount, room, page }) => {
-  await mount<typeof TwoFramesBesideFieldStory>(TWO_FRAMES_STORY, await serveTwoKeyLoggers(room, page));
+  const root = await mount<typeof TwoFramesBesideFieldStory>(TWO_FRAMES_STORY, await serveTwoKeyLoggers(room, page));
   await keyLoggersReady(page);
+  const field = root.getByRole("textbox", OUTSIDE_FIELD);
+  // The reader was last in the app's field, then pressed into the first card and typed there.
+  await field.click();
   await pressFrame(page, 0);
   await page.keyboard.type("ab");
   await expect.poll(async () => keysInFrame(page, 0)).toBe("ab");
+  // The second card grabs once. Focus goes back to the app element the reader held, never into a card, so neither
+  // card's script reads what the reader types next, and the second card's refusal costs the first card nothing.
   await stealFocus(page, 1);
+  await expect(field).toBeFocused();
   await page.keyboard.type("cd");
-  await expect.poll(async () => keysInFrame(page, 0)).toBe("abcd");
+  await expect(field).toHaveValue("cd");
+  expect(await keysInFrame(page, 0)).toBe("ab");
   expect(await keysInFrame(page, 1)).toBe("");
+  for (const nth of [0, 1]) {
+    await expect(page.locator(FRAME).nth(nth)).toHaveAttribute("data-delivery", "routed");
+  }
   // A press on the other card moves the reader there.
   await pressFrame(page, 1);
   await page.keyboard.type("ef");
