@@ -83,6 +83,8 @@ test("the Presets page reads a preset's placement 0 as no target, names each scr
   const outcome = await caller.preset.importFile({ fileText: file, fileName: "Zero.json" });
   expect(outcome.ok ? outcome.regexScripts : undefined).toMatchObject({ created: preview.regexScripts, reused: 0, refused: [] });
   expect(await storedOf(caller)).toEqual(SCOPED_STORED);
+  // The preview counts apart the attached scripts that come in switched off, as the run stores them.
+  expect(preview.regexScriptsOff).toBe(SCOPED_STORED.filter(({ enabled }) => !enabled).length);
 });
 
 test("the Characters dialog reads a card's placement 0 as no target and names each script that runs nowhere", async () => {
