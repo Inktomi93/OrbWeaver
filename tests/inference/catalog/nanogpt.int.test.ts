@@ -400,6 +400,8 @@ test("a rerank connection on a listed reranker posts only the fields the rerank 
   await using root = await createRuntimeRoot({ providerFetch: nanoGptRoutes([], posted) });
   const resolved = await resolvedOn(root, RERANK_MODEL, "rerank");
   expect(resolved.capability).toMatchObject({ kind: "rerank", rerank: { maxInputTokens: RERANK_PAIR_TOKENS } });
+  // The list stated the bound, so it reads as stated, not as a floor the user must correct.
+  expect(resolved.capability.kind === "rerank" ? resolved.capability.rerank.windowEstimated : "not a reranker").toBeUndefined();
   const result = await root.app.runtime.executor.rerank({
     signal: new AbortController().signal,
     connection: { ...resolved, task: "rerank" },
