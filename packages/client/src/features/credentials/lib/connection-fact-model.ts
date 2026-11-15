@@ -249,6 +249,8 @@ const QUIRK_LEAVES_BY_FEATURE: Record<keyof Required<EndpointFeatures>, readonly
   reasoningKeys: [{ path: "reasoningKeys", name: "reasoning fields", edit: { kind: "list" }, unset: NOT_SET }],
   images: [{ path: "images", name: "image generation arm", edit: { kind: "enum", options: IMAGE_ARMS }, unset: "not set: no image generation" }],
   rerankPath: [{ path: "rerankPath", name: "rerank path", edit: { kind: "text" }, unset: "not set: no reranking" }],
+  keyCheckPath: [{ path: "keyCheckPath", name: "key check path", edit: { kind: "text" }, unset: "not set: the models list" }],
+  forbiddenIsNotCredentialVerdict: [{ path: "forbiddenIsNotCredentialVerdict", name: "a 403 is not a key failure", edit: { kind: "boolean" }, unset: NOT_SET }],
   modelInfoApi: [{ path: "modelInfoApi", name: "model info API", edit: { kind: "enum", options: MODEL_INFO_APIS }, unset: NOT_SET }],
   nativeChat: [{ path: "nativeChat", name: "native chat route", edit: { kind: "enum", options: NATIVE_CHAT_APIS }, unset: "not set: chat uses /v1" }],
   detectServer: [{ path: "detectServer", name: "detect the server", edit: { kind: "boolean" }, unset: NOT_SET }],
