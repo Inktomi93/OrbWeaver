@@ -6,18 +6,17 @@
 // read that dials would run the per-model probe that loads or wakes a local model, only to learn its limits. A row
 // with nothing to ask goes straight on, and a failed read offers the same way on as keeping the guess.
 
-import type { DeclaredCapability } from "@orb/contracts/inference";
+import type { DeclaredCapability, ProviderId } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { DialogFooter } from "@orb/ui/dialog";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { QueryBoundary, useUpdateConnection } from "#components";
+import { CommitFooter, QueryBoundary, useUpdateConnection } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery } from "#data";
 import { DIALOG_VERBS } from "#lib";
@@ -36,6 +35,8 @@ import {
 
 export interface ConnectionLimitsStepProps {
   readonly connectionId: UserConnectionId;
+  /** The saved row's provider, which picks where the step says to look for the real numbers. */
+  readonly providerId: ProviderId;
   /** The saved row's own declaration, which the step's write extends rather than replaces. */
   readonly declared: DeclaredCapability | null;
   /** Called after a save lands, when the user keeps the guess, or at once when nothing is a guess. */
@@ -85,6 +86,7 @@ function ConnectionLimitsBody(props: ConnectionLimitsStepProps): ReactElement | 
 
 function LimitsForm({
   connectionId,
+  providerId,
   declared,
   onDone,
   trpc,
@@ -109,18 +111,14 @@ function LimitsForm({
       .then(onDone)
       .catch((error: unknown): void => setFailure(errorMessage(error)));
   };
-  // The footer's two parts, named so the dialog-footer composite takes them as its lead and its submit unchanged.
-  const footerLead = (
-    <Button disabled={update.isPending} onClick={onDone} variant="ghost">
-      {CONNECTION_LIMITS_KEEP_NAME}
-    </Button>
-  );
-  const submit = { label: CONNECTION_LIMITS_SAVE_NAME, onSubmit: save, disabled: invalid || declaring.length === 0, loading: update.isPending };
 
   return (
     <Stack gap="block" data-slot="connection-limits-step">
       <Stack gap="tight">
-        {connectionLimitsLead(limits.some(({ kind }) => kind === "output")).map((line) => (
+        {connectionLimitsLead(
+          limits.some(({ kind }) => kind === "output"),
+          providerId,
+        ).map((line) => (
           <Text cap="prose" key={line} prose={true} voice="gloss">
             {line}
           </Text>
@@ -148,12 +146,16 @@ function LimitsForm({
           {connectionLimitsFailureLabel(failure)}
         </Text>
       )}
-      <DialogFooter>
-        {footerLead}
-        <Button disabled={submit.disabled} loading={submit.loading} onClick={submit.onSubmit}>
-          {submit.label}
-        </Button>
-      </DialogFooter>
+      {/* The row already exists, so the corner close is the way out and keeping the guess is the lead. */}
+      <CommitFooter
+        exit="corner"
+        footerLead={
+          <Button disabled={update.isPending} onClick={onDone} variant="ghost">
+            {CONNECTION_LIMITS_KEEP_NAME}
+          </Button>
+        }
+        submit={{ label: CONNECTION_LIMITS_SAVE_NAME, onSubmit: save, disabled: invalid || declaring.length === 0, loading: update.isPending }}
+      />
     </Stack>
   );
 }

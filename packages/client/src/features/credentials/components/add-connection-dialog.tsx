@@ -99,6 +99,7 @@ export function AddConnectionDialog({ open, onOpenChange, trpc, invalidation, re
         {step.kind === "limits" ? (
           <ConnectionLimitsStep
             connectionId={step.created.id}
+            providerId={step.created.providerId}
             declared={step.created.declared}
             invalidation={invalidation}
             onDone={(): void => followOrClose(step.next)}

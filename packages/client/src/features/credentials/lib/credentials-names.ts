@@ -178,13 +178,17 @@ export function promptCacheRetentionName(connection: string): string {
  *  field for each guessed limit (named as the Advanced rows name them), and its two ways on. */
 export const CONNECTION_LIMITS_TITLE = "How much can this model take?";
 export const CONNECTION_LIMITS_DESCRIPTION = "This server doesn't say, so these limits are a guess. A guess that is too low cuts your chats short.";
+// Where to find the real numbers, for a provider that keeps them somewhere other than the model's page: one line,
+// keyed by provider id, that replaces the general where-to-look line.
+const CONNECTION_LIMITS_WHERE_BY_PROVIDER: ReadonlyMap<string, string> = new Map();
 /** What the limits mean and where to find them; `asksOutput` ⇒ the step also asks for the max output. */
-export function connectionLimitsLead(asksOutput: boolean): readonly string[] {
+export function connectionLimitsLead(asksOutput: boolean, providerId: string): readonly string[] {
   return [
     asksOutput
       ? "A chat that runs past the context window loses its oldest messages, and a reply stops at the max output."
       : "A chat that runs past the context window loses its oldest messages.",
-    "A hosted provider lists these on the model's page. For a server you run yourself, use the context size you started it with.",
+    CONNECTION_LIMITS_WHERE_BY_PROVIDER.get(providerId) ??
+      "A hosted provider lists these on the model's page. For a server you run yourself, use the context size you started it with.",
     "Numbers are in tokens; a token is about three quarters of a word. Leave a box empty to keep the guess. You can change these later under Advanced in this connection's settings.",
   ];
 }
