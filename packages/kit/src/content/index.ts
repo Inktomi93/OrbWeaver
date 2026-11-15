@@ -1598,9 +1598,10 @@ const COMMENT_BLOCK_CLOSE = "-->";
 // CommonMark's block-level tag names: a line opening with one starts an HTML block, even inside a paragraph.
 const BLOCK_TAG_LINE_RE =
   /^ {0,3}<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?=[\s/>]|$)/i;
-const TAG_NAME_START_RE = /^ {0,3}<\/?[A-Za-z][\w:.-]*/;
+// Any indent: markdown would print a tag line indented as code as raw source, so the hold takes it as markup.
+const TAG_NAME_START_RE = /^ *<\/?[A-Za-z][\w:.-]*/;
 // An opening tag at the start of a line, with its name; `[\w.-]` keeps a prefixed name's part before its `:` apart.
-const OPEN_TAG_LINE_RE = /^ {0,3}<([A-Za-z][\w.-]*)(?::[\w:.-]*)?(?=[\s/>]|$)/;
+const OPEN_TAG_LINE_RE = /^ *<([A-Za-z][\w.-]*)(?::[\w:.-]*)?(?=[\s/>]|$)/;
 // HTML's void elements: their tag opens no element, so nothing closes them.
 const VOID_TAG_NAMES: ReadonlySet<string> = new Set([
   "area",
@@ -1706,27 +1707,59 @@ function elementOpenedBy(opener: string): { readonly lt: number; readonly name: 
   return end === -1 || opener.charAt(end - 1) === "/" ? undefined : { lt, name };
 }
 
-// The offset just past the `>` of the close of the element `name` opened at `lt`, or -1 while it has not arrived. Elements
-// of the same name nest. A prefixed name closes by its part before the `:` (`<copper:bite>` and `</copper>`).
-function elementEnd(content: string, lt: number, name: string): number {
-  const tags = new RegExp(String.raw`<(\/?)${name.replaceAll(".", String.raw`\.`)}(?::[\w:.-]*)?(?=[\s/>])`, "gi");
-  tags.lastIndex = lt;
-  let depth = 0;
+// An element tag: `/` for a close, then the name a close repeats, the part before any `:` (`<copper:bite>`, `</copper>`).
+const ELEMENT_TAG_SOURCE = String.raw`<(\/?)([A-Za-z][\w.-]*)(?::[\w:.-]*)?(?=[\s/>])`;
+
+// For each element opener's `<`, the offset just past the `>` of its close; an opener whose close has not arrived has no
+// entry. Elements of the same name nest. ONE PASS, so the scan costs the text's length: after a tag the read resumes past
+// its `>` (a quoted `</x>` inside an attribute value closes nothing), and after a `<` whose `>` never arrives on its line
+// it resumes at the next line, as `stripTags` does.
+function elementCloses(content: string): ReadonlyMap<number, number> {
+  const closes = new Map<number, number>();
+  const openers = new Map<string, number[]>();
+  const tags = new RegExp(ELEMENT_TAG_SOURCE, "g");
   for (let tag = tags.exec(content); tag !== null; tag = tags.exec(content)) {
     const end = tagEndFrom(content, tag.index);
     if (end === -1) {
+      const newline = content.indexOf("\n", tag.index);
+      if (newline === -1) {
+        break;
+      }
+      tags.lastIndex = newline;
       continue;
     }
-    if (tag[1] === "/") {
-      depth -= 1;
-    } else if (content.charAt(end - 1) !== "/") {
-      depth += 1;
-    }
-    if (depth === 0) {
-      return end + 1;
-    }
+    tags.lastIndex = end + 1;
+    pairElementTag(
+      { closing: tag[1] === "/", name: (tag[2] ?? "").toLowerCase(), lt: tag.index, selfClosing: content.charAt(end - 1) === "/", end },
+      openers,
+      closes,
+    );
   }
-  return -1;
+  return closes;
+}
+
+// One complete tag into the open-element stacks: an opener is pushed, a close pops its name's innermost opener.
+function pairElementTag(
+  tag: { readonly closing: boolean; readonly name: string; readonly lt: number; readonly selfClosing: boolean; readonly end: number },
+  openers: Map<string, number[]>,
+  closes: Map<number, number>,
+): void {
+  if (tag.closing) {
+    const opener = openers.get(tag.name)?.pop();
+    if (opener !== undefined) {
+      closes.set(opener, tag.end + 1);
+    }
+    return;
+  }
+  if (tag.selfClosing || VOID_TAG_NAMES.has(tag.name)) {
+    return;
+  }
+  const stack = openers.get(tag.name);
+  if (stack === undefined) {
+    openers.set(tag.name, [tag.lt]);
+  } else {
+    stack.push(tag.lt);
+  }
 }
 
 // How an HTML block opened by `opener` ends when it opens no element held to its close: on the line that holds its
@@ -1746,24 +1779,34 @@ function markupBlockClose(opener: string): { readonly closesOn: (text: string, f
 
 // The line index where an HTML block opening at line `i` ends (exclusive), or `lines.length` when its end has not
 // arrived. A block whose element closes on a later line ends on that line; an element not yet closed holds to the end.
-function markupBlockEnd(content: string, lines: readonly Line[], i: number): number {
+function markupBlockEnd(lines: readonly Line[], i: number, closes: ReadonlyMap<number, number>): number {
   const line = lines[i];
   if (line === undefined) {
     return lines.length;
   }
   const opener = matchText(line);
   const element = RAW_TEXT_BLOCK_RE.test(opener) ? undefined : elementOpenedBy(opener);
-  const close = element === undefined ? line.end : elementEnd(content, line.start + element.lt, element.name);
+  const close = element === undefined ? line.end : (closes.get(line.start + element.lt) ?? -1);
   if (close === -1) {
     return lines.length;
   }
   return close > line.end ? lineAfter(lines, i, close) : blockEndByLine(lines, i, opener);
 }
 
-// The index just past the line, from `i` on, that holds the offset before `end`.
+// The index just past the first line after `i` whose end reaches `end`. Lines are in order, so this is a binary search:
+// a scan from the start for every block would cost the square of the block count.
 function lineAfter(lines: readonly Line[], i: number, end: number): number {
-  const at = lines.findIndex((candidate, index) => index > i && candidate.end >= end);
-  return at === -1 ? lines.length : at + 1;
+  let low = i + 1;
+  let high = lines.length;
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+    if ((lines[middle]?.end ?? Number.POSITIVE_INFINITY) >= end) {
+      high = middle;
+    } else {
+      low = middle + 1;
+    }
+  }
+  return low === lines.length ? lines.length : low + 1;
 }
 
 // Where a block whose end is a line shape ends: its close line, or before the next blank line (`markupBlockClose`).
@@ -1796,6 +1839,7 @@ function opensMarkupBlock(content: string, line: Line, inParagraph: boolean): bo
  *  dropped, so two held blocks read as one. */
 export function scanStyledHold(content: string): StyledHoldSegment[] {
   const lines = splitLines(content);
+  const closes = elementCloses(content);
   const segments: StyledHoldSegment[] = [];
   let pendingStart = 0;
   const flushText = (endExclusive: number): void => {
@@ -1821,7 +1865,7 @@ export function scanStyledHold(content: string): StyledHoldSegment[] {
     if (segments.at(-1)?.kind !== "forming-markup") {
       segments.push({ kind: "forming-markup" });
     }
-    i = markupBlockEnd(content, lines, i);
+    i = markupBlockEnd(lines, i, closes);
     pendingStart = lines[i]?.start ?? content.length;
     inParagraph = false;
   }

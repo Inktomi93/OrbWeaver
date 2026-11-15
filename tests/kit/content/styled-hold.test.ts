@@ -33,6 +33,8 @@ test.each<readonly [string, string, readonly StyledHoldSegment[]]>([
   ["a prefixed name closes by its part before the colon", '<copper:bite>\n"Line"\n\nMore\n</copper>\nAfter.', [HELD, prose("After.")]],
   ["a self-closing lone tag ends at the blank line", '<scene_header sky="noir" />\n\nShe sets down her goblet.', [HELD, prose("\nShe sets down her goblet.")]],
   ["a void tag opens no element", '<img src="x.png">\n\nAfter.', [HELD, prose("\nAfter.")]],
+  ["a close quoted inside an attribute closes nothing", '<sola_easel>\n<x title="</sola_easel>">\nThe vault\n</sola_easel>\nAfter.', [HELD, prose("After.")]],
+  ["a lone tag line indented as code is held", '    <sola_hud digest="d">\nThe ledger\n    </sola_hud>\nAfter.', [HELD, prose("After.")]],
   [
     "a details panel with a style block is held whole, its hidden body included",
     "<details>\n<summary>Spoilers</summary>\n<style>\n.x{color:red}\n</style>\n\nThe hidden body\n</details>\nAfter.",

@@ -1,17 +1,20 @@
 import type { CardFrameHeight, CardFrameHeightCap } from "@orb/kit/card-frame";
 import {
   CARD_FRAME_SANDBOX,
+  cardFrameSettleDelayMs,
   clampCardFrameFontFamily,
   clampCardFrameStyleTokens,
   clampCardFrameThemeTokens,
   foldCardFrameHeight,
   readCardFrameLink,
   readCardFrameMissing,
+  settleCardFrameHeight,
 } from "@orb/kit/card-frame";
 import type { CSSProperties, ReactElement, ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { cn } from "#lib";
 import { cssVar } from "#tokens";
+import { FRAME_FOCUS_REFUSALS_ALLOWED, gateFrameFocus } from "./frame-focus.ts";
 import { buildSrcDoc } from "./srcdoc.ts";
 
 // An iframe is a focusable landmark in the tab order, so its `title` IS its accessible name — an empty one
@@ -89,6 +92,15 @@ interface SandboxFramePropsBase {
   /** The frame's document is the server's miss notice: its handle is unknown, expired or evicted. Sender-checked
    *  like every frame message; the caller may mint again. */
   readonly onMissing?: () => void;
+  /**
+   * Leave focus into the frame ungated. A card or reply frame is gated ({@link gateFrameFocus}): focus enters it only by
+   * a click on it or a Tab from the app. A plugin surface passes this: it is the app's own installed surface, opened by
+   * a click in the app, and its controls take focus at once as the app's do. Only its load-time focus is returned.
+   */
+  readonly ungatedFocus?: boolean;
+  /** A gated frame took focus by its own script {@link FRAME_FOCUS_REFUSALS_ALLOWED} times, so the host stopped its
+   *  scripts: from then on it draws `html` on the script-dead floor. A caller whose `html` is empty draws its own. */
+  readonly onScriptsStopped?: () => void;
 }
 
 export type SandboxFrameProps = SandboxFramePropsBase &
@@ -181,7 +193,7 @@ export function SandboxFrame({
   styleTokens,
   fontFamily,
   allowExternalMedia = false,
-  src,
+  src: routedSrc,
   title,
   complete = true,
   heightPx,
@@ -192,11 +204,17 @@ export function SandboxFrame({
   onLink,
   onMissing,
   pending,
+  ungatedFocus = false,
+  onScriptsStopped,
 }: SandboxFrameProps): ReactElement {
   const frameRef = useRef<HTMLIFrameElement>(null);
   // The measurement is stored WITH the delivery it belongs to, so a re-mint (new `src`) is answered during
   // render instead of by a cascading `setState` — the same shape `useCardFrameSrc` uses for its handle.
   const [measured, setMeasured] = useState<{ readonly delivery: string; readonly height: CardFrameHeight } | undefined>(undefined);
+  // Set once the frame's scripts are stopped (`onScriptsStopped`), with the height it had: it stays on the floor.
+  const [stopped, setStopped] = useState<{ readonly px: number | undefined } | undefined>(undefined);
+  const refusals = useRef(0);
+  const src = stopped === undefined ? routedSrc : undefined;
   const deliveryKey = src ?? "srcdoc-floor";
 
   // The frame's self-reported height crosses a TRUST BOUNDARY: the document that sends it renders
@@ -206,7 +224,7 @@ export function SandboxFrame({
   //      origin check would accept any opaque frame on the page. Window identity names exactly one sender,
   //      which is what keeps an INTERACTIVE card (#111 leg 3 — it can `postMessage` anything, including to
   //      its siblings, measured) from resizing any frame but its own.
-  //   2. PAYLOAD — `foldCardFrameHeight` coerces, clamps to floor..cap and rations shrinks (kit, tested).
+  //   2. PAYLOAD — `foldCardFrameHeight` coerces, clamps to floor..cap and rations resizes (kit, tested).
   // Listener registration follows the delivery, because a re-mint replaces the frame's window.
   useEffect(() => {
     if (fill) {
@@ -251,15 +269,34 @@ export function SandboxFrame({
     };
   }, [fill, deliveryKey, onHostMessage, holds, onLink, onMissing]);
 
-  // NO FOCUS ON MOUNT. A framed document that focuses itself while it loads (an autofocused game board) would
-  // pull the page's keyboard focus into a third party's document every time the frame mounts — a room opening
-  // would drop a keyboard or screen-reader user inside it unannounced. The document cannot be stopped from
-  // calling `focus()`, so the host takes focus back: if the frame holds focus when it finishes loading, focus
-  // returns to wherever it last was outside the frame. A person who wants the frame clicks or tabs into it.
+  // A height the frame asked for while it had no resize credit lands when a credit comes back, so the last report a
+  // document sends is always applied, even when it sends nothing after it.
+  const waiting = measured?.delivery === deliveryKey ? measured.height : undefined;
+  useEffect(() => {
+    if (waiting === undefined) {
+      return;
+    }
+    const delayMs = cardFrameSettleDelayMs(waiting, performance.now());
+    if (delayMs === undefined) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      setMeasured((current) =>
+        current?.delivery === deliveryKey ? { delivery: deliveryKey, height: settleCardFrameHeight(current.height, performance.now()) } : current,
+      );
+    }, delayMs);
+    return (): void => {
+      clearTimeout(timer);
+    };
+  }, [waiting, deliveryKey]);
+
+  // NO FOCUS ON MOUNT, for an ungated frame (a gated one is covered whole by its gate). A framed document that focuses
+  // itself while it loads would pull the page's keyboard focus into a third party's document every time the frame
+  // mounts, so if the frame holds focus when it finishes loading, focus returns to wherever it last was outside it.
   // biome-ignore lint/correctness/useExhaustiveDependencies: deliveryKey + complete are the re-arm triggers — the iframe is re-keyed per delivery and absent while incomplete, so the ref's target changes with them.
   useEffect(() => {
     const frame = frameRef.current;
-    if (frame === null) {
+    if (frame === null || !ungatedFocus) {
       return;
     }
     let outside: Element | null = document.activeElement === frame ? null : document.activeElement;
@@ -285,13 +322,31 @@ export function SandboxFrame({
       document.removeEventListener("focusin", onFocusIn);
       frame.removeEventListener("load", onLoad);
     };
-  }, [deliveryKey, complete]);
+  }, [deliveryKey, complete, ungatedFocus]);
 
   const drawnPx = measured?.delivery === deliveryKey ? measured.height.px : undefined;
-  const appliedPx = drawnPx ?? heightPx;
+  const appliedPx = drawnPx ?? stopped?.px ?? heightPx;
   // Only the routed document measures itself; the srcdoc floor is script-dead, so it never waits.
   const veiled = pending !== undefined && src !== undefined && drawnPx === undefined;
   const style = frameStyle(fill, veiled, appliedPx);
+
+  // FOCUS ENTERS ONLY BY THE READER'S HAND (`frame-focus.ts`): a frame's own script cannot take keyboard focus.
+  const isVeiled = useEffectEvent((): boolean => veiled);
+  const onRefused = useEffectEvent((): void => {
+    refusals.current += 1;
+    if (refusals.current === FRAME_FOCUS_REFUSALS_ALLOWED) {
+      setStopped({ px: appliedPx });
+      onScriptsStopped?.();
+    }
+  });
+  // biome-ignore lint/correctness/useExhaustiveDependencies: deliveryKey + complete are the re-arm triggers — the iframe is re-keyed per delivery and absent while incomplete, so the ref's target changes with them.
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (frame === null || ungatedFocus) {
+      return;
+    }
+    return gateFrameFocus(frame, isVeiled, onRefused);
+  }, [deliveryKey, complete, ungatedFocus]);
 
   if (!complete) {
     return (

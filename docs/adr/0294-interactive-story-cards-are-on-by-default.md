@@ -1,7 +1,7 @@
 ---
 kind: adr
 status: active
-updated: 2026-11-14
+updated: 2026-11-15
 supersedes: docs/adr/0044-theming-and-rich-content-use-trust-tiers.md
 ---
 
@@ -35,11 +35,13 @@ A card runs its own scripts only under the `interactive` frame posture. The card
 
 The sandbox does not change with the posture: an opaque origin with `sandbox allow-scripts` and never `allow-same-origin`, `default-src 'none'` with no `connect-src`, `form-action 'none'`, `base-uri 'none'`, `frame-ancestors 'self'`, and the app's `frame-src 'self'`. Only `script-src` changes. The static posture admits our pinned script by hash, which measures the height and hands a link click to the host, and the interactive posture admits `'unsafe-inline'`.
 
+Keyboard focus enters a card or reply frame only by the reader's hand: a press or tap on that frame, or Tab or Shift+Tab from the app. Focus that a frame's script takes any other way returns to where it was, so a card that focuses its own field on load does not keep focus. The host learns of a move into an out-of-process frame only from the browser, so keys pressed before the return can still reach the frame. A frame refused `FRAME_FOCUS_REFUSALS_ALLOWED` times has its scripts stopped for that mount. A card then draws on the script-dead floor, and a reply on its inert path (D354). A plugin surface is not gated.
+
 Accepted residual: a card script can send a WebRTC/STUN beacon to a host it picks. The beacon can carry the viewer's IP, a signal that the card was shown, or text typed into the card. No CSP directive in Chromium closes it. The controls are `allowInteractiveCards` for the box and `runCardScripts` for one viewer.
 
 Media: own uploads render freely through `asset://id`. External URLs default to `forbidExternalMedia: true`, which a lower tier can only tighten. They are click-to-load, with `autoplay` forced off and `controls` required on untrusted audio and video (not overridable), behind a CSP that admits `https:` media only while the deployment allows external media, all through `@orb/ui/message-media`. The render block union is `MessageContentBlock` in `@orb/contracts/chat`. Gates: `no-untrusted-html-in-main-dom`, `no-external-media-without-gate`, `theme-override-only-via-scope`, and a present CSP.
 
-Homes: `resolveRenderPolicy` (`@orb/contracts/chat`), `ALLOW_INTERACTIVE_CARDS_FLOOR` in `packages/server/src/domain/settings/effective-config/layer.ts`, `packages/server/src/entry/http/card-frame.ts`, `@orb/kit/card-frame`, and `resolveRowRenderPolicy` in `packages/client/src/lib/render-trust.ts`.
+Homes: `resolveRenderPolicy` (`@orb/contracts/chat`), `ALLOW_INTERACTIVE_CARDS_FLOOR` in `packages/server/src/domain/settings/effective-config/layer.ts`, `packages/server/src/entry/http/card-frame.ts`, `@orb/kit/card-frame`, `packages/ui/src/content/sandbox-frame/frame-focus.ts`, and `resolveRowRenderPolicy` in `packages/client/src/lib/render-trust.ts`.
 
 ## Consequences
 

@@ -24,7 +24,7 @@ import { SCROLL_END_THRESHOLD_PX } from "@orb/ui/message-list";
 import type { Locator, Page } from "@playwright/test";
 import { REPLY_LINK_CONFIRM_LABEL } from "#client/features/chat/lib/reply-frame-names.ts";
 import { REPLY_LINK_FIRST_WAIT_MS, REPLY_LINK_FREE_CANCELS } from "#client/features/chat/lib/reply-link-pace.ts";
-import type { RoutedCardTextScaleStory } from "./_routed-card-text-scale-stories.tsx";
+import type { RoutedCardTextScaleStory, RoutedReplyBesideFieldStory } from "./_routed-card-text-scale-stories.tsx";
 import type { StyledReplyStreamStory } from "./_styled-reply-stream-stories.tsx";
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
@@ -41,6 +41,8 @@ const EXTERNAL_PAGES = "https://*.test/**";
 // A well-formed handle no mint ever produced: its serve is the server's own miss notice.
 const UNKNOWN_HANDLE = "0".repeat(32);
 const FOCUS_PRESS_BUDGET = 4;
+// The row and its message actions come before its reply frame in the Tab order.
+const ROW_STOPS_BUDGET = 12;
 // The shape of the Sola preset's scene banner: a `<style>` block with keyframes, an inline SVG, inline styles and
 // a `<details>` bar, all in the script's own template, with the model's attribute spliced in.
 const BANNER_TEMPLATE = [
@@ -401,35 +403,46 @@ test("a Cancel closes only the confirm: the same link and another link each rais
     await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
     await expect(confirm).toHaveCount(0);
   }
-  // Keyboard Enter on a link raises it too.
-  await frame.locator("#w6p-link").press("Enter");
+  // Keyboard Enter on a link raises it too: the Cancel left focus on the reply's own stop, and Tab enters the frame.
+  await tabToFrameNode(page, "w6p-link");
+  await page.keyboard.press("Enter");
   await expect(confirm).toContainText(LINK_URL);
 });
 
-test("a frame that raises the confirm again and again with no click is paced, and its request is kept, not dropped", async ({ corpus, mount, page }) => {
+test("after a Cancel a frame's script alone raises nothing, and a reader's links past the free Cancels wait, the newest kept", async ({
+  corpus,
+  mount,
+  page,
+}) => {
   const room = await openStyledRoom(STYLED_BODY);
   await using root = room.root;
   await using _routes = await serveRoom(page, root, corpus);
   await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  const frame = page.frameLocator(`${REPLY_FRAME} ${SANDBOX}`);
   const confirm = page.getByRole("alertdialog");
   const cancel = async (): Promise<void> => {
     await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
     await expect(confirm).toHaveCount(0);
   };
-  // One click in the frame gives it focus and the page an activation, as a reader's would.
-  await page.frameLocator(`${REPLY_FRAME} ${SANDBOX}`).locator("#w6p-link").click();
+  await frame.locator("#w6p-link").click();
   await expect(confirm).toContainText(LINK_URL);
   await cancel();
-  // The host cannot tell the frame's own script from a reader's click: the free Cancels raise it at once.
-  for (let cancels = 1; cancels <= REPLY_LINK_FREE_CANCELS; cancels += 1) {
-    await postFromFrame(page, { orbCardFrameLink: SWAPPED_URL });
-    await expect(confirm).toContainText(SWAPPED_URL);
-    await cancel();
-  }
-  // Past them the request waits: handled (the barrier) but no confirm yet, then the same address once the wait ends.
+  // The Cancel returned focus to the app, so the frame's own script cannot raise the confirm without a new click.
   await postFromFrame(page, { orbCardFrameLink: SWAPPED_URL });
   await expect(confirm).toHaveCount(0);
-  await expect(confirm).toContainText(SWAPPED_URL, { timeout: REPLY_LINK_FIRST_WAIT_MS * 3 });
+  // The reader's clicks: the free Cancels raise it at once.
+  for (let cancels = 1; cancels <= REPLY_LINK_FREE_CANCELS; cancels += 1) {
+    await frame.locator("#w6p-link").click();
+    await expect(confirm).toContainText(LINK_URL);
+    await cancel();
+  }
+  // Past them a click waits. A second click inside the wait replaces the first: the newest link is the one the
+  // reader wants, so the confirm that comes when the wait ends names it.
+  await frame.locator("#w6p-link").click();
+  await frame.locator("#w6p-link-two").click();
+  await expect(confirm).toHaveCount(0);
+  // The second address extends the first, so naming it proves the first was replaced.
+  await expect(confirm).toContainText(LINK_TWO_URL, { timeout: REPLY_LINK_FIRST_WAIT_MS * 3 });
 });
 
 test("a link to the app's own origin never reaches the confirm", async ({ corpus, mount, page }) => {
@@ -539,6 +552,8 @@ test("focus moves through the frame and out again in both directions, never trap
   await expect(link).toBeVisible();
   // The frame holds four stops (the notes summary and three links): a few presses either way must leave it.
   const pressesToLeave = async (key: string): Promise<number> => {
+    // A press on the frame's own prose enters it as a reader's would; the move to the link stays inside the frame.
+    await page.frameLocator(`${REPLY_FRAME} ${SANDBOX}`).locator("#w6p-location").click();
     await link.focus();
     for (let presses = 1; presses <= FOCUS_PRESS_BUDGET; presses += 1) {
       await page.keyboard.press(key);
@@ -553,6 +568,142 @@ test("focus moves through the frame and out again in both directions, never trap
   };
   expect(await pressesToLeave("Tab")).toBeLessThanOrEqual(FOCUS_PRESS_BUDGET);
   expect(await pressesToLeave("Shift+Tab")).toBeLessThanOrEqual(FOCUS_PRESS_BUDGET);
+  // Out by Shift+Tab, focus is on the row; Tab from there, through the row's own actions, enters the frame and keeps it.
+  const frame = page.locator(`${REPLY_FRAME} ${SANDBOX}`);
+  for (let presses = 1; presses <= ROW_STOPS_BUDGET && !(await frame.evaluate((node) => node === document.activeElement)); presses += 1) {
+    await page.keyboard.press("Tab");
+  }
+  await settle(page);
+  await expect(frame).toBeFocused();
+});
+
+// A display script whose template carries a field and a script that logs every key its document receives, counts
+// its own focus calls, and takes focus at once when the page asks it to, or as it loads. The reply's script is the
+// frame's own, as a hostile preset's would be.
+const KEYS_ATTRIBUTE = "data-keys";
+const GRABS_ATTRIBUTE = "data-grabs";
+const GRAB_EVENT = "w6p-grab";
+const LOGGER_TAG = "<key_logger />";
+const LOGGER_FIND = String.raw`/<key_logger \/>/g`;
+function loggerTemplate(grabOnLoad: boolean): string {
+  return [
+    '<input id="w6p-field" aria-label="Field inside the frame">',
+    "<script>",
+    `document.addEventListener("keydown",(e)=>{document.body.setAttribute("${KEYS_ATTRIBUTE}",(document.body.getAttribute("${KEYS_ATTRIBUTE}")??"")+e.key);},true);`,
+    `const grab=()=>{document.getElementById("w6p-field").focus();document.body.setAttribute("${GRABS_ATTRIBUTE}",String(Number(document.body.getAttribute("${GRABS_ATTRIBUTE}")??"0")+1));};`,
+    `document.body.addEventListener("${GRAB_EVENT}",grab);`,
+    grabOnLoad ? "grab();" : "",
+    "</script>",
+  ].join("");
+}
+const TYPED = "hunter2";
+const FIELD_STORY = "tests/client/features/chat/components/_routed-card-text-scale-stories/RoutedReplyBesideFieldStory";
+const OUTSIDE_FIELD = { name: "Outside the frame", exact: true } as const;
+
+/** The styled room with the key logger in its reply, loading quiet or taking focus as it loads. */
+async function openLoggerRoom(grabOnLoad: boolean): Promise<StyledRoom> {
+  await using construction = new AsyncDisposableStack();
+  const room = await openStyledRoom(`${STYLED_BODY}\n\n${LOGGER_TAG}`);
+  construction.use(room.root);
+  const caller = await room.root.internalCallerFor(room.root.ownerId);
+  await caller.regex.createScript({
+    input: { name: "Key logger", findRegex: LOGGER_FIND, replaceString: loggerTemplate(grabOnLoad), placement: ["DISPLAY"] },
+  });
+  construction.move();
+  return room;
+}
+
+/** The reply frame's document body, where the logger keeps its counts. */
+function frameBody(page: Page): Locator {
+  return page.frameLocator(`${REPLY_FRAME} ${SANDBOX}`).locator("body");
+}
+
+/** The keys the reply frame's document received. */
+async function keysInFrame(page: Page): Promise<string> {
+  return (await page.frameLocator(`${REPLY_FRAME} ${SANDBOX}`).locator("body").getAttribute(KEYS_ATTRIBUTE)) ?? "";
+}
+
+/** Two animation frames in the app, so the app has answered a focus move that has already happened. */
+async function settle(page: Page): Promise<void> {
+  await page.locator("html").evaluate(async () => {
+    for (let frame = 0; frame < 2; frame += 1) {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+  });
+}
+
+/** Press Tab until the frame's node `id` holds focus inside the frame document. */
+async function tabToFrameNode(page: Page, id: string): Promise<void> {
+  const frameFocus = page.frameLocator(`${REPLY_FRAME} ${SANDBOX}`).locator("html");
+  for (let presses = 1; presses <= FOCUS_PRESS_BUDGET; presses += 1) {
+    await page.keyboard.press("Tab");
+    if ((await frameFocus.evaluate(() => document.activeElement?.id)) === id) {
+      return;
+    }
+  }
+  throw new Error(`Tab never reached #${id} inside the frame`);
+}
+
+test("a drawn reply frame's script that takes focus gets none of the reader's keys: focus goes back to the field", async ({ corpus, mount, page }) => {
+  const room = await openLoggerRoom(false);
+  await using root = room.root;
+  await using _routes = await serveRoom(page, root, corpus);
+  await mount<typeof RoutedReplyBesideFieldStory>(FIELD_STORY, { chatId: room.chatId });
+  await expect(page.locator(`${REPLY_FRAME} ${SANDBOX}`)).toHaveAttribute("data-drawn", "");
+  const field = page.getByRole("textbox", OUTSIDE_FIELD);
+  await field.click();
+  await frameBody(page).evaluate((body, cue) => body.dispatchEvent(new Event(cue)), GRAB_EVENT);
+  await expect(frameBody(page)).toHaveAttribute(GRABS_ATTRIBUTE, "1");
+  await settle(page);
+  await expect(field).toBeFocused();
+  await page.keyboard.type(TYPED);
+  await expect(field).toHaveValue(TYPED);
+  expect(await keysInFrame(page)).toBe("");
+  // Positive control: a click on the frame's own field gives it the reader's keys.
+  await page.frameLocator(`${REPLY_FRAME} ${SANDBOX}`).locator("#w6p-field").click();
+  await page.keyboard.type("ok");
+  await expect.poll(async () => keysInFrame(page)).toBe("ok");
+});
+
+test("a veiled reply frame that takes focus as it loads gets none of the reader's keys", async ({ corpus, mount, page }) => {
+  const room = await openLoggerRoom(true);
+  await using root = room.root;
+  const serves = Promise.withResolvers<void>();
+  await using _routes = await serveRoom(page, root, corpus, { servesWait: serves.promise });
+  await mount<typeof RoutedReplyBesideFieldStory>(FIELD_STORY, { chatId: room.chatId });
+  const frame = page.locator(`${REPLY_FRAME} ${SANDBOX}`);
+  // The frame is mounted and veiled behind the held run while the reader is in the field; then its document loads.
+  await expect(frame).toHaveAttribute("data-delivery", "routed");
+  await expect(frame).toBeHidden();
+  const field = page.getByRole("textbox", OUTSIDE_FIELD);
+  await field.click();
+  serves.resolve();
+  await expect(frameBody(page)).toHaveAttribute(GRABS_ATTRIBUTE, "1");
+  await expect(frame).toHaveAttribute("data-drawn", "");
+  await settle(page);
+  await expect(field).toBeFocused();
+  await page.keyboard.type(TYPED);
+  await expect(field).toHaveValue(TYPED);
+  expect(await keysInFrame(page)).toBe("");
+});
+
+test("a Cancel leaves focus on the reply, so a frame that takes focus as the confirm closes gets no key", async ({ corpus, mount, page }) => {
+  const room = await openLoggerRoom(false);
+  await using root = room.root;
+  await using _routes = await serveRoom(page, root, corpus);
+  await mount<typeof RoutedReplyBesideFieldStory>(FIELD_STORY, { chatId: room.chatId });
+  const confirm = page.getByRole("alertdialog");
+  await page.frameLocator(`${REPLY_FRAME} ${SANDBOX}`).locator("#w6p-link").click();
+  await expect(confirm).toContainText(LINK_URL);
+  await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(confirm).toHaveCount(0);
+  await expect(page.locator(REPLY_FRAME)).toBeFocused();
+  await frameBody(page).evaluate((body, cue) => body.dispatchEvent(new Event(cue)), GRAB_EVENT);
+  await expect(frameBody(page)).toHaveAttribute(GRABS_ATTRIBUTE, "1");
+  await settle(page);
+  await expect(page.locator(REPLY_FRAME)).toBeFocused();
+  await page.keyboard.type(TYPED);
+  expect(await keysInFrame(page)).toBe("");
 });
 
 /** The styled room with long unstyled replies above the styled one, so the transcript scrolls and the styled reply is

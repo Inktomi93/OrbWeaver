@@ -7,9 +7,9 @@
 //
 // THE FRAME DRAWS ONLY ON THE ROUTED DELIVERY. While the frame document builds and the mint is pending, the run shows
 // `held`: its prose, with every HTML block a forming chip that carries none of the template's bytes. When the frame
-// cannot come (no room, a refused mint, a handle lost twice), it shows the inert `fallback`. The srcdoc floor is
-// script-dead, so it could neither measure the reply's height nor hand a link to the host, and a reply must not become
-// a clipped box with dead links. Once routed, the frame loads with no height or paint behind the held run, and replaces
+// cannot come (no room, a refused mint, a handle lost twice, or scripts stopped for taking the reader's focus), it
+// shows the inert `fallback`. The srcdoc floor is script-dead, so it could neither measure the reply's height nor hand
+// a link to the host, and a reply must not become a clipped box with dead links. Once routed, the frame loads with no height or paint behind the held run, and replaces
 // it only when its document reports its first height, so the reader never sees an empty frame while it loads, however
 // long that takes. The run takes the whole measure in every state
 // (FILLS_MEASURE): the frame's document cannot size the bubble around it, and a body that hugged its text would make
@@ -147,11 +147,12 @@ export function ReplyFrame({ segments, colorQuotes, cardOrigin, speakerName, hel
     if (performance.now() >= linksReadyAt.current) {
       setPendingLink(url);
     } else {
-      setWaitingLink((current) => current ?? url);
+      // The newest request wins: the reader's latest click is the link they want.
+      setWaitingLink(url);
     }
   };
 
-  // A link that arrived inside the wait raises its confirm when the wait ends: paced, never dropped.
+  // The newest link that arrived inside the wait raises its confirm when the wait ends: paced, never dropped.
   useEffect(() => {
     if (waitingLink === undefined || pendingLink !== undefined) {
       return;
@@ -169,7 +170,7 @@ export function ReplyFrame({ segments, colorQuotes, cardOrigin, speakerName, hel
   }, [waitingLink, pendingLink]);
 
   return (
-    <Stack ref={host} {...FILLS_MEASURE} data-slot="reply-frame" data-delivery={delivery}>
+    <Stack ref={host} {...FILLS_MEASURE} tabIndex={-1} data-slot="reply-frame" data-delivery={delivery}>
       {mint.state === "routed" && !lost ? (
         <SandboxFrame
           src={mint.url}
@@ -185,6 +186,9 @@ export function ReplyFrame({ segments, colorQuotes, cardOrigin, speakerName, hel
             }
           }}
           pending={held}
+          onScriptsStopped={(): void => {
+            setLost(true);
+          }}
         />
       ) : (
         unframed
@@ -197,6 +201,12 @@ export function ReplyFrame({ segments, colorQuotes, cardOrigin, speakerName, hel
           confirmLabel={REPLY_LINK_CONFIRM_LABEL}
           confirmTone="primary"
           open={true}
+          // Focus returns to the reply's own stop in the app, never into the frame: the frame's focus gate would send a
+          // return into it back as unasked, and the reader re-enters the frame by a press or a Tab like any other time.
+          finalFocus={(): boolean => {
+            host.current?.focus({ preventScroll: true });
+            return false;
+          }}
           onOpenChange={(open): void => {
             if (!open) {
               const next = opened.current ? 0 : cancels + 1;

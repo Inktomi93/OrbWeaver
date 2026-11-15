@@ -1,12 +1,19 @@
 // SandboxFrame in a real browser. Every routed card document is a real response of the production mint and serve
 // routes, so the policy the browser enforces is the policy the server emits.
-import { buildCardFrameCsp, CARD_FRAME_SAFE_FLOOR, foldCardFrameHeight } from "@orb/kit/card-frame";
+import {
+  buildCardFrameCsp,
+  CARD_FRAME_SAFE_FLOOR,
+  foldCardFrameHeight,
+  REPLY_FRAME_RESIZE_BURST,
+  REPLY_FRAME_RESIZE_REFILL_MS,
+  REPLY_FRAME_SETTLE_MS,
+} from "@orb/kit/card-frame";
 import { expect } from "@orb/testkit/ct-corpus";
 import { LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { z } from "zod";
-import type { FocusedBesideFrameStory, SandboxFrameStory } from "./_frame-stories.tsx";
-import type { ServedFrame } from "./_served-frame.ts";
+import type { FocusedBesideFrameStory, SandboxFrameStory, TwoFramesBesideFieldStory } from "./_frame-stories.tsx";
+import type { FrameRoom, ServedFrame } from "./_served-frame.ts";
 import { routeServedFrame, test } from "./_served-frame.ts";
 
 const STORY = "tests/ui/content/sandbox-frame/_frame-stories/SandboxFrameStory";
@@ -122,6 +129,50 @@ test("a short static card measures itself and the frame drops below its pre-meas
   await routeServedFrame(page, served);
   const frame = (await mount<typeof SandboxFrameStory>(STORY, routed(served, "short card"))).locator(FRAME);
   await expect.poll(async () => frameHeight(frame)).toBe(120);
+});
+
+// A reply document whose content height changes every animation frame once the frame has settled, then rests at
+// RESTING_PX: the pinned measure script reports every change, as a document whose height feeds back on itself would.
+const RESTING_PX = 555;
+const OSCILLATIONS = 240;
+const RESIZES_ATTRIBUTE = "data-w6p-resizes";
+const OSCILLATOR = `<div id="box" style="height:100px">reply</div>${script(
+  [
+    'const box=document.getElementById("box");let n=0;',
+    `const tick=()=>{if(n<${String(OSCILLATIONS)}){box.style.height=(n%2===0?900:400)+(n%120)+"px";n+=1;requestAnimationFrame(tick);}else{box.style.height="${String(RESTING_PX)}px";document.body.setAttribute("data-done","1");}};`,
+    `setTimeout(()=>{document.body.setAttribute("data-started","1");requestAnimationFrame(tick);},${String(REPLY_FRAME_SETTLE_MS + REPLY_FRAME_RESIZE_REFILL_MS)});`,
+  ].join(""),
+)}`;
+
+test("a reply frame whose document resizes every animation frame applies a bounded number of resizes, then its last height", async ({ mount, room, page }) => {
+  const served = await room.serve(OSCILLATOR);
+  expect(served.granted.interactive).toBe(true);
+  await routeServedFrame(page, served);
+  const frame = (await mount<typeof SandboxFrameStory>(STORY, { ...routed(served, "oscillating reply"), holds: "reply" })).locator(FRAME);
+  const body = page.frameLocator(FRAME).locator("body");
+  await expect(body).toHaveAttribute("data-started", "1");
+  // Count the frame's own applied heights from the moment the document starts to swing.
+  const startedAt = await frame.evaluate((node, attribute) => {
+    let count = 0;
+    let last = node.getBoundingClientRect().height;
+    new ResizeObserver(() => {
+      const height = node.getBoundingClientRect().height;
+      if (height !== last) {
+        count += 1;
+        last = height;
+        node.setAttribute(attribute, String(count));
+      }
+    }).observe(node);
+    return performance.now();
+  }, RESIZES_ATTRIBUTE);
+  await expect(body).toHaveAttribute("data-done", "1", { timeout: OSCILLATIONS * 100 });
+  const elapsedMs = (await frame.evaluate(() => performance.now())) - startedAt;
+  const count = Number((await page.locator(FRAME).getAttribute(RESIZES_ATTRIBUTE)) ?? "0");
+  // The burst, one per refill over the window, and the resting height.
+  expect(count).toBeLessThanOrEqual(REPLY_FRAME_RESIZE_BURST + Math.ceil(elapsedMs / REPLY_FRAME_RESIZE_REFILL_MS) + 1);
+  // Positive control: the document did swing, so the frame was asked to resize far more often than it did.
+  expect(count).toBeGreaterThan(0);
+  await expect.poll(async () => frameHeight(frame), { timeout: REPLY_FRAME_RESIZE_REFILL_MS * 4 }).toBe(RESTING_PX);
 });
 
 test("an oversize self-report clamps to the cap", async ({ mount, room, page }) => {
@@ -251,6 +302,154 @@ test("a frame that focuses itself on load does not take the page's focus", async
   await expect(page.frameLocator(FRAME).locator("body")).toHaveAttribute("data-card-ran", "1");
   await settle(page);
   await expect(root.getByRole("textbox", { name: "Outside the frame", exact: true })).toBeFocused();
+});
+
+// A card that logs every key its document receives and counts its own focus calls, and focuses its own field when the
+// page posts it a cue: the cue only times the script; the focus call is the frame's own, as a hostile card's would be.
+const KEYS_ATTRIBUTE = "data-keys";
+const GRABS_ATTRIBUTE = "data-grabs";
+const STEAL = "steal";
+const STEAL_LOOP = "steal-loop";
+const KEY_LOGGER = `<input id="field" aria-label="Field inside the frame">${script(
+  [
+    `document.addEventListener("keydown",(e)=>{document.body.setAttribute("${KEYS_ATTRIBUTE}",(document.body.getAttribute("${KEYS_ATTRIBUTE}")??"")+e.key);},true);`,
+    `const grab=()=>{document.getElementById("field").focus();document.body.setAttribute("${GRABS_ATTRIBUTE}",String(Number(document.body.getAttribute("${GRABS_ATTRIBUTE}")??"0")+1));};`,
+    `addEventListener("message",(e)=>{if(e.data==="${STEAL}"){grab();}if(e.data==="${STEAL_LOOP}"){setInterval(grab,5);}});`,
+    MARK_RAN,
+  ].join(""),
+)}`;
+const TYPED = "hunter2";
+const TWO_FRAMES_STORY = "tests/ui/content/sandbox-frame/_frame-stories/TwoFramesBesideFieldStory";
+const OUTSIDE_FIELD = { name: "Outside the frame", exact: true } as const;
+
+/** Post `cue` to the nth frame's own window, from the page, so the frame's script acts on it. */
+async function cueFrame(page: Page, nth: number, cue: string): Promise<void> {
+  await page.evaluate(
+    ({ selector, index, message }) => {
+      const frame = document.querySelectorAll(selector)[index];
+      if (!(frame instanceof HTMLIFrameElement) || frame.contentWindow === null) {
+        throw new Error("no frame window to cue");
+      }
+      frame.contentWindow.postMessage(message, "*");
+    },
+    { selector: FRAME, index: nth, message: cue },
+  );
+}
+
+/** The keys the nth frame's document received. */
+async function keysInFrame(page: Page, nth: number): Promise<string> {
+  return (await page.locator(FRAME).nth(nth).contentFrame().locator("body").getAttribute(KEYS_ATTRIBUTE)) ?? "";
+}
+
+/** Cue the nth frame to take focus, and wait until its focus call has run and the app has answered it. */
+async function stealFocus(page: Page, nth: number): Promise<void> {
+  const body = page.locator(FRAME).nth(nth).contentFrame().locator("body");
+  const before = Number((await body.getAttribute(GRABS_ATTRIBUTE)) ?? "0");
+  await cueFrame(page, nth, STEAL);
+  await expect(body).toHaveAttribute(GRABS_ATTRIBUTE, String(before + 1));
+  await settle(page);
+}
+
+/** A held press on the nth frame, as a reader's is: the gate reads the press while the button is down. */
+async function pressFrame(page: Page, nth: number): Promise<void> {
+  const box = await page.locator(FRAME).nth(nth).boundingBox();
+  if (box === null) {
+    throw new Error("the frame has no box to press");
+  }
+  await page.mouse.move(box.x + 20, box.y + 12);
+  await page.mouse.down();
+  await settle(page);
+  await page.mouse.up();
+}
+
+/** Two key-logging interactive cards, served for real, as the props of the two-frame story. */
+async function serveTwoKeyLoggers(
+  room: FrameRoom,
+  page: Page,
+): Promise<{ readonly first: ReturnType<typeof routed>; readonly second: ReturnType<typeof routed> }> {
+  const first = await room.serve(KEY_LOGGER);
+  const second = await room.serve(KEY_LOGGER);
+  expect(first.granted.interactive).toBe(true);
+  await routeServedFrame(page, first);
+  await routeServedFrame(page, second);
+  return { first: routed(first, "first card"), second: routed(second, "second card") };
+}
+
+/** Both key loggers have loaded and run their script. */
+async function keyLoggersReady(page: Page): Promise<void> {
+  for (const nth of [0, 1]) {
+    await expect(page.locator(FRAME).nth(nth).contentFrame().locator("body")).toHaveAttribute("data-card-ran", "1");
+  }
+}
+
+test("a card's script that takes focus gets none of the reader's keys: focus goes back to the field", async ({ mount, room, page }) => {
+  const root = await mount<typeof TwoFramesBesideFieldStory>(TWO_FRAMES_STORY, await serveTwoKeyLoggers(room, page));
+  await keyLoggersReady(page);
+  const field = root.getByRole("textbox", OUTSIDE_FIELD);
+  await field.click();
+  await stealFocus(page, 0);
+  await expect(field).toBeFocused();
+  await page.keyboard.type(TYPED);
+  await expect(field).toHaveValue(TYPED);
+  expect(await keysInFrame(page, 0)).toBe("");
+});
+
+test("a card that takes focus again and again has its scripts stopped, and the reader's keys stay in the field", async ({ mount, room, page }) => {
+  const root = await mount<typeof TwoFramesBesideFieldStory>(TWO_FRAMES_STORY, await serveTwoKeyLoggers(room, page));
+  await keyLoggersReady(page);
+  const field = root.getByRole("textbox", OUTSIDE_FIELD);
+  await field.click();
+  await cueFrame(page, 1, STEAL_LOOP);
+  // The looping card now draws on the script-dead floor; the other card, which took nothing, keeps its scripts.
+  await expect(page.locator(FRAME).nth(1)).toHaveAttribute("data-delivery", "srcdoc");
+  await expect(page.locator(FRAME).nth(0)).toHaveAttribute("data-delivery", "routed");
+  await expect(field).toBeFocused();
+  await page.keyboard.type(TYPED, { delay: 15 });
+  await expect(field).toHaveValue(TYPED);
+  expect(await keysInFrame(page, 0)).toBe("");
+});
+
+test("a press on a card gives its own field the reader's keys, and the other card's script cannot take them", async ({ mount, room, page }) => {
+  await mount<typeof TwoFramesBesideFieldStory>(TWO_FRAMES_STORY, await serveTwoKeyLoggers(room, page));
+  await keyLoggersReady(page);
+  await pressFrame(page, 0);
+  await page.keyboard.type("ab");
+  await expect.poll(async () => keysInFrame(page, 0)).toBe("ab");
+  await stealFocus(page, 1);
+  await page.keyboard.type("cd");
+  await expect.poll(async () => keysInFrame(page, 0)).toBe("abcd");
+  expect(await keysInFrame(page, 1)).toBe("");
+  // A press on the other card moves the reader there.
+  await pressFrame(page, 1);
+  await page.keyboard.type("ef");
+  await expect.poll(async () => keysInFrame(page, 1)).toBe("ef");
+});
+
+test("Tab from the app enters a card and Shift+Tab leaves it; a press released off the card earns its later script nothing", async ({ mount, room, page }) => {
+  const root = await mount<typeof TwoFramesBesideFieldStory>(TWO_FRAMES_STORY, await serveTwoKeyLoggers(room, page));
+  await keyLoggersReady(page);
+  const field = root.getByRole("textbox", OUTSIDE_FIELD);
+  await field.click();
+  await page.keyboard.press("Tab");
+  await page.keyboard.type("xy");
+  await expect.poll(async () => keysInFrame(page, 0)).toBe("xy");
+  await page.keyboard.press("Shift+Tab");
+  await expect(field).toBeFocused();
+  // A press that starts on the second card and is released over the field, then a click back in the field.
+  const box = await page.locator(FRAME).nth(1).boundingBox();
+  if (box === null) {
+    throw new Error("the frame has no box to press");
+  }
+  await page.mouse.move(box.x + 20, box.y + 12);
+  await page.mouse.down();
+  await field.hover();
+  await page.mouse.up();
+  await field.click();
+  await stealFocus(page, 1);
+  await expect(field).toBeFocused();
+  await page.keyboard.type("zz");
+  await expect(field).toHaveValue("zz");
+  expect(await keysInFrame(page, 1)).toBe("");
 });
 
 test("a frame that outgrows its box scrolls inside itself with the thin themed bar", async ({ mount, room, page }) => {
