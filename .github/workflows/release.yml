@@ -217,8 +217,10 @@ jobs:
   notes:
     if: needs.image.result == 'success'
     needs: [release-please, image]
-    runs-on: ubuntu-slim
-    # Setup installs cold here (cache: "false"), and even a warm install takes over two minutes on this runner.
+    # A full runner: setup's install compiles the router declarations, and the slim runner's memory kills that compiler,
+    # which leaves a built image behind a draft release.
+    runs-on: ubuntu-24.04
+    # Setup installs cold here (cache: "false").
     timeout-minutes: 15
     permissions:
       contents: write
