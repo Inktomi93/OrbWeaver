@@ -41,6 +41,8 @@ export const MODEL_FIELD_NAME = "Model";
 /** The model picker's capability chips: the row badges and the filter toggles. */
 export const MODEL_VISION_LABEL = "Vision";
 export const MODEL_TOOLS_LABEL = "Tools";
+/** A picker row's badge for a model whose list says it makes images and no text, so it serves no chat. */
+export const MODEL_IMAGES_ONLY_LABEL = "Makes images";
 
 /** A picker row's badge for a model the key already has a connection for. */
 export const MODEL_ALREADY_ADDED_LABEL = "Already added";

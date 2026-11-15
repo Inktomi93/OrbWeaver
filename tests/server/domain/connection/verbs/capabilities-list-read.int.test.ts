@@ -1,5 +1,5 @@
 // @subject packages/server/src/domain/connection/verbs/resolve.ts
-// The add flow's limits read asks `connection.capabilities` with `listFacts`: the server's model list and the reads that
+// The add flow's create and its limits read (`connection.capabilities` with `listFacts`) take the list reach: the server's model list and the reads that
 // load no model, never the per-model probe that can load or wake one. What it states about the model's window is then
 // the window a later chat turn resolves, so a server that states its window is never asked for it.
 
@@ -44,9 +44,9 @@ test("the list read of a just-added local row fetches its list and loads nothing
   const server = recordingServer(ollamaAnswers);
   await using root = await createServerHarness({ startJobs: false, providerFetch: server.fetch });
   const caller = await root.internalCallerFor(root.ownerId);
-  const row = await caller.connection.create({ providerId: "ollama", baseUrl: BASE_URL, credentialId: null, model: OLLAMA_MODEL, label: "Local Ollama" });
-
+  // The create reads the list itself (the add dialog binds Chat from the tasks it returns), so the window counts both.
   const beforeList = server.requested.length;
+  const row = await caller.connection.create({ providerId: "ollama", baseUrl: BASE_URL, credentialId: null, model: OLLAMA_MODEL, label: "Local Ollama" });
   const listed = await caller.connection.capabilities({ connectionId: row.id, listFacts: true });
   const listRequests = server.requested.slice(beforeList);
   expect(listRequests).toEqual(expect.arrayContaining(["/v1/models", "/api/show"]));

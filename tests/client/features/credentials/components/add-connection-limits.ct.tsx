@@ -37,6 +37,7 @@ import {
   IMAGE_SWITCH_STATED_GLOSS,
   imageSwitchSetGloss,
   MODEL_FIELD_NAME,
+  MODEL_IMAGES_ONLY_LABEL,
 } from "#client/features/credentials/lib/credentials-names.ts";
 import type { ConnectionLimitsStory } from "./_connection-limits-stories.tsx";
 
@@ -70,6 +71,8 @@ const ROUTER_HOST = "openrouter.ai";
 const ROUTER_PROVIDER = "openrouter";
 const ROUTER_MODEL = { id: "anthropic/claude-haiku-5.5", name: "Anthropic: Claude Haiku 5.5" };
 const ROUTER_NO_WINDOW_MODEL = { id: "vendor/unlisted-window", name: "Vendor: Unlisted window" };
+// An image model the catalog lists with its window: it makes pictures and answers no chat.
+const ROUTER_IMAGE_MODEL = { id: "vendor/painter", name: "Vendor: Painter" };
 const ROUTER_KEY = "synthetic-limits-key-never-returned";
 // The model's real limits, as its provider's page states them, and the ways a newcomer copies them off it.
 const REAL = { window: 1_000_000, output: 32_000 } as const;
@@ -83,12 +86,12 @@ const PHONE = { width: 390, height: 844 } as const;
 const ENLARGED_SCALES = [2, 3] as const;
 type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
 
-const routerRow = (model: { readonly id: string; readonly name: string }, window: number | undefined): object => ({
+const routerRow = (model: { readonly id: string; readonly name: string }, window: number | undefined, output: readonly string[] = ["text"]): object => ({
   ...model,
   ...(window === undefined ? {} : { ["context_length"]: window }),
   ["top_provider"]: { ["max_completion_tokens"]: REAL.output },
   pricing: { prompt: "0.000001", completion: "0.000005" },
-  architecture: { ["input_modalities"]: ["text"], ["output_modalities"]: ["text"] },
+  architecture: { ["input_modalities"]: ["text"], ["output_modalities"]: output },
   ["supported_parameters"]: ["tools"],
 });
 
@@ -101,7 +104,12 @@ const scriptedServers: typeof fetch = (input, init) => {
   }
   if (request.method === "GET" && url.hostname === ROUTER_HOST && url.pathname === "/api/v1/models") {
     return Promise.resolve(
-      Response.json({ data: url.search === "" ? [routerRow(ROUTER_MODEL, REAL.window), routerRow(ROUTER_NO_WINDOW_MODEL, undefined)] : [] }),
+      Response.json({
+        data:
+          url.search === ""
+            ? [routerRow(ROUTER_MODEL, REAL.window), routerRow(ROUTER_NO_WINDOW_MODEL, undefined), routerRow(ROUTER_IMAGE_MODEL, REAL.window, ["image"])]
+            : [],
+      }),
     );
   }
   // Every other read (a server-identity probe, a native model-info route) answers as a server without that route.
@@ -185,6 +193,11 @@ function limitsStep(page: Page): Locator {
 
 function finish(page: Page): Locator {
   return page.getByRole("button", { name: FIRST_MODEL_FINISH_NAME, exact: true });
+}
+
+/** The connection the user's Chat role points at, or `null`. */
+async function chatBinding(caller: Caller): Promise<string | null> {
+  return (await caller.connection.listBindings()).find((view) => view.task === "chat")?.binding?.connectionId ?? null;
 }
 
 /** The connection the add dialog saved for `providerId`; a fresh root already holds its built-in embedder. */
@@ -310,8 +323,32 @@ test("a provider that states its window adds with no limits step", async ({ moun
   await expect(finish(page)).toBeVisible();
   await expect(limitsStep(page)).toHaveCount(0);
   expect(calls.count("connection.capabilities")).toBeGreaterThan(0);
-  const view = await caller.connection.capabilities({ connectionId: (await addedConnection(caller, ROUTER_PROVIDER)).id });
+  const added = await addedConnection(caller, ROUTER_PROVIDER);
+  const view = await caller.connection.capabilities({ connectionId: added.id });
   expect(view.capability).toMatchObject({ generation: { context: { window: REAL.window }, output: { maxTokens: { max: REAL.output } } } });
+  // The first chat model takes the Chat role.
+  await expect.poll(() => chatBinding(caller)).toBe(added.id);
+});
+
+test("a first connection on an image-only model adds without taking the Chat role", async ({ mount, page }) => {
+  await using root = await freshRoot();
+  const caller = await root.internalCallerFor(root.ownerId);
+  await mountList({ page, mount }, caller, WIDE_PROPS);
+  const dialog = await pickProvider(page, caller, ROUTER_PROVIDER);
+  await dialog.getByLabel(API_KEY_FIELD_NAME, { exact: true }).fill(ROUTER_KEY);
+  // The picker marks the image row before it is picked; the chat row beside it is the positive control.
+  const option = (model: { readonly name: string }): Locator => dialog.getByRole("option", { name: new RegExp(model.name, "u") }).first();
+  await expect(option(ROUTER_IMAGE_MODEL).getByText(MODEL_IMAGES_ONLY_LABEL, { exact: true })).toBeVisible();
+  await expect(option(ROUTER_MODEL).getByText(MODEL_IMAGES_ONLY_LABEL, { exact: true })).toHaveCount(0);
+  await option(ROUTER_IMAGE_MODEL).click();
+  await dialog.getByRole("button", { name: ADD_CONNECTION_NAME, exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  const added = await addedConnection(caller, ROUTER_PROVIDER);
+  expect({ model: added.model, tasks: added.tasks, chat: await chatBinding(caller) }).toEqual({
+    model: ROUTER_IMAGE_MODEL.id,
+    tasks: ["generateImage"],
+    chat: null,
+  });
 });
 
 test("a guessed window beside a stated max output asks only for the window", async ({ mount, page }) => {

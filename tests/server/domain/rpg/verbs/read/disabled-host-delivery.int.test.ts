@@ -51,6 +51,8 @@ async function gameRoom(): Promise<GameRoom> {
     model: ENGINE_MODEL,
     modelCheck: "unchecked",
     allowBackground: true,
+    // A row that states its kind reads no model list as it is created, so its catalog stays cold until a resolve.
+    declared: { kind: "generation" },
   });
   await root.services.connection.setBinding({ principal: hostPrincipal, task: "chat", connectionId: row.id });
   const room = (await seedChat(root, { principal: hostPrincipal, characterIds: [] })).view.chat.id;
@@ -69,7 +71,7 @@ async function gameRoom(): Promise<GameRoom> {
   };
 }
 
-/** One member read over the wire. The connection was made unchecked, so its model catalog stays cold until a resolve lists it. */
+/** One member read over the wire. The connection states its kind, so its model catalog stays cold until a resolve lists it. */
 async function memberRead(box: GameRoom, route: (typeof GAME_READS)[number]): Promise<z.infer<typeof answerSchema>> {
   const response = await box.root.http.request(route, {
     method: "POST",

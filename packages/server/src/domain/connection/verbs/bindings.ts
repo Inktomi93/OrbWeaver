@@ -117,6 +117,11 @@ async function bindingReadout(
   // read names the cause the pane renders; nothing is swallowed. Ends if a non-refusal error class needs to surface.
   try {
     const outcome = await ctx.runtime.resolve(args);
+    // A row the binding was made on before its list said what the model is (an image model bound to Chat) resolves
+    // with an unmet verdict; a turn refuses it, so the readout says so rather than reading it as running.
+    if (!outcome.resolved.requirement.ok) {
+      return { task, binding, resolved: null, unavailableCause: "requirement-unmet" };
+    }
     // A resolved row can still be unable to serve: its in-process model failed its latest load.
     const loaded = ctx.runtime.loadVerdict(outcome.resolved);
     if (!loaded.available) {

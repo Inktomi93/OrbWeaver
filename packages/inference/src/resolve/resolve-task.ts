@@ -524,14 +524,19 @@ function connectionCapability(
 export async function modelTasks(
   ctx: ResolverContext,
   connection: UserConnection,
-  options: { readonly cachedFacts?: boolean | undefined; readonly coldAs?: ModelKind | undefined } = {},
+  options: { readonly cachedFacts?: boolean | undefined; readonly coldAs?: ModelKind | undefined; readonly listWhenCold?: boolean | undefined } = {},
 ): Promise<readonly Task[]> {
   const provider = ctx.registry.get(connection.providerId, connection.ownerId);
   if (provider === undefined) {
     return [];
   }
-  const behaved = options.cachedFacts === true ? await heldFacts(ctx, provider, connection) : await warmedOrCached(ctx, provider, connection, "full");
-  const held = connection.declared?.kind !== undefined || kindFactsHeld(ctx, provider, behaved, connection);
+  const reach = factsReachOf(options);
+  let behaved = reach === "held" ? await heldFacts(ctx, provider, connection) : await warmedOrCached(ctx, provider, connection, reach);
+  let held = connection.declared?.kind !== undefined || kindFactsHeld(ctx, provider, behaved, connection);
+  if (!held && options.listWhenCold === true) {
+    behaved = await warmedOrCached(ctx, provider, connection, "list");
+    held = kindFactsHeld(ctx, provider, behaved, connection);
+  }
   const kind = (!held && options.cachedFacts === true ? options.coldAs : undefined) ?? statedKind(ctx, { provider: behaved, connection }) ?? "generation";
   const tasks = connectionTasks(behaved, kind);
   if (tasks.length === 0) {

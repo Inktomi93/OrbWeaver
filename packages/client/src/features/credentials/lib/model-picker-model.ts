@@ -35,6 +35,8 @@ export interface PickerEntry {
   readonly contextLength: number | null;
   readonly promptPrice: number | null;
   readonly inputModalities: readonly string[];
+  /** Empty where the list states no output, which reads as a text model. */
+  readonly outputModalities: readonly string[];
   readonly supportedParameters: readonly string[];
   /** When to pick this model over its neighbours, where the catalog says. */
   readonly description: string | null;
@@ -55,6 +57,7 @@ export function pickerEntryOf(entry: ModelCatalogEntry): PickerEntry {
     contextLength: entry.contextLength,
     promptPrice: entry.promptPrice,
     inputModalities: entry.inputModalities,
+    outputModalities: entry.outputModalities ?? [],
     supportedParameters: entry.supportedParameters,
     description: entry.description ?? null,
   };
@@ -102,6 +105,11 @@ function trimZeros(value: number, maxFractionDigits = 1): string {
 /** `true` when an entry advertises image input (the Vision chip / filter). */
 export function hasVision(entry: Pick<PickerEntry, "inputModalities">): boolean {
   return entry.inputModalities.includes("image");
+}
+
+/** `true` when an entry's list states image output and no text: an image model, which serves no chat. */
+export function makesImagesOnly(entry: Pick<PickerEntry, "outputModalities">): boolean {
+  return entry.outputModalities.includes("image") && !entry.outputModalities.includes("text");
 }
 
 /** `true` when an entry advertises tool use (the Tools chip / filter). */

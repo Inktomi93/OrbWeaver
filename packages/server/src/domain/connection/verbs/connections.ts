@@ -35,12 +35,15 @@ import type { createOwnerWriteQueue } from "../substrate/owner-queue.ts";
 type OwnerWriteQueue = ReturnType<typeof createOwnerWriteQueue>;
 
 // A list read: the kind comes from what the mirrors already hold, so a server that does not answer never holds the list.
-async function toView(ctx: ConnectionContext, row: UserConnection): Promise<ConnectionView> {
+// A row just created reads its server's list when neither a held fact nor its declaration says what the model is, since
+// the create emptied that mirror and the add dialog binds Chat from these tasks: a listed image model must not read as
+// the floor's chat model. A failed read keeps the held facts.
+async function toView(ctx: ConnectionContext, row: UserConnection, read: "held" | "list" = "held"): Promise<ConnectionView> {
   const provider = ctx.runtime.providers.registry.get(row.providerId, row.ownerId);
   return {
     ...row,
     providerLabel: provider === undefined ? row.providerId : providerDisplayLabel(provider),
-    tasks: await ctx.runtime.modelTasks(row, { cachedFacts: true }),
+    tasks: await ctx.runtime.modelTasks(row, read === "held" ? { cachedFacts: true } : { cachedFacts: true, listWhenCold: true }),
   };
 }
 
@@ -101,7 +104,7 @@ function createCreate(ctx: ConnectionContext): ConnectionService["create"] {
     // an absent model reads the generic floor instead of what its server states.
     await ctx.runtime.catalogs.invalidateEndpoint(created);
     ctx.emitUserEvent(ownerId, { type: "connectionsChanged" });
-    return toView(ctx, created);
+    return toView(ctx, created, "list");
   };
 }
 

@@ -5,9 +5,9 @@ import { Badge } from "@orb/ui/badge";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { MODEL_ALREADY_ADDED_LABEL, MODEL_SELECTED_LABEL, MODEL_TOOLS_LABEL, MODEL_VISION_LABEL } from "../lib/credentials-names.ts";
+import { MODEL_ALREADY_ADDED_LABEL, MODEL_IMAGES_ONLY_LABEL, MODEL_SELECTED_LABEL, MODEL_TOOLS_LABEL, MODEL_VISION_LABEL } from "../lib/credentials-names.ts";
 import type { PickerEntry } from "../lib/model-picker-model.ts";
-import { formatContextLength, formatPromptPrice, hasTools, hasVision } from "../lib/model-picker-model.ts";
+import { formatContextLength, formatPromptPrice, hasTools, hasVision, makesImagesOnly } from "../lib/model-picker-model.ts";
 
 export function ModelPickerRow({ entry, picked, current }: { readonly entry: PickerEntry; readonly picked: boolean; readonly current: boolean }): ReactElement {
   return (
@@ -39,11 +39,17 @@ function ModelMetadata({ entry, picked, current }: Parameters<typeof ModelPicker
   const price = formatPromptPrice(entry.promptPrice);
   const vision = hasVision(entry);
   const tools = hasTools(entry);
-  if (!(vision || tools || context !== null || price !== null || current || picked)) {
+  const imagesOnly = makesImagesOnly(entry);
+  if (!(imagesOnly || vision || tools || context !== null || price !== null || current || picked)) {
     return null;
   }
   return (
     <Row align="center" className="@cq-32:shrink-0" minWidth="shrinks" wrap={true} gap="field">
+      {imagesOnly ? (
+        <Badge tone="warning" size="sm">
+          {MODEL_IMAGES_ONLY_LABEL}
+        </Badge>
+      ) : null}
       {vision ? (
         <Badge tone="info" variant="solid" size="sm">
           {MODEL_VISION_LABEL}

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { Capability, DeclaredCapability, EndpointFeatures, GenerationCapability, Task } from "@orb/contracts/inference";
-import { BUILTIN_PROVIDERS, builtinImageBaseUrl, declaredCapabilitySchema } from "@orb/contracts/inference";
+import { BUILTIN_PROVIDERS, builtinImageBaseUrl, declaredCapabilitySchema, taskDef } from "@orb/contracts/inference";
 import type { Resolved } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 import type { ScheduleOp } from "@orb/kit/time";
@@ -191,6 +191,7 @@ export function wireConnection<T extends Task>(root: ServerTestHarness, input: W
     baseUrl: input.baseUrl === undefined ? defaultBaseUrl : input.baseUrl,
     allowBackground: input.allowBackground ?? true,
     ...(key === undefined && provider.auth !== "apiKey" && provider.auth !== "oauthToken" ? {} : { key: key ?? defaultKey }),
-    declared: declared ?? declaredCapabilitySchema.parse({ ...capability, features: { detectServer: false, ...declaredFeatures } }),
+    // The row states the kind its task names, as a stated capability does, so its create reads no model list either.
+    declared: declared ?? declaredCapabilitySchema.parse({ kind: taskDef(task).kind, ...capability, features: { detectServer: false, ...declaredFeatures } }),
   });
 }
