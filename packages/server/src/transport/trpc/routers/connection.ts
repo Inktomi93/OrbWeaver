@@ -114,11 +114,18 @@ export const connectionRouter = t.router({
       }),
     ),
 
+  // `cachedFacts` reads what the runtime already holds and dials nothing: the add dialog's read right after a save,
+  // which must not load or wake a local model only to learn its limits.
   capabilities: authedProcedure
-    .input(z.strictObject({ connectionId }))
+    .input(z.strictObject({ connectionId, cachedFacts: z.literal(true).optional() }))
     .output(strictTwin(connectionCapabilityViewSchema))
     .query(({ ctx, input, signal }) =>
-      ctx.services.connection.capabilities({ principal: ctx.auth, connectionId: input.connectionId, signal: procedureSignal(signal) }),
+      ctx.services.connection.capabilities({
+        principal: ctx.auth,
+        connectionId: input.connectionId,
+        signal: procedureSignal(signal),
+        ...(input.cachedFacts === undefined ? {} : { cachedFacts: input.cachedFacts }),
+      }),
     ),
 
   // ── Model roles (`connection_bindings`; "binding" is a schema word — the pane says "Model roles", §5.3a)

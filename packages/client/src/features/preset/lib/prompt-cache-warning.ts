@@ -2,7 +2,11 @@
 // assembler consumes: section order establishes the cached prefix, the canonical parser establishes which
 // source spans are real calls, and the registry-backed kit analyzer follows output consumption plus
 // turn-state dependencies (including transitive user-macro calls).
+//
+// The warning speaks only for a connection that caches prompts. Moving a preset author's entries changes what the
+// model reads, so the editor never suggests it to a user whose provider would reuse nothing either way.
 
+import type { CachePolicy } from "@orb/contracts/inference";
 import type { MarkerType, PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
@@ -44,6 +48,12 @@ function entersCachedSystemPrefix(section: PromptSection): boolean {
     return false;
   }
   return section.role === "system";
+}
+
+/** Whether the chat connection reuses a cached prompt prefix on this preset's turns: the resolved plan places prefix
+ *  markers or an automatic request control, or the provider caches on its own and nothing turned that off. */
+export function cachesPrompts(policy: CachePolicy): boolean {
+  return policy.prefix.action !== "none" || (policy.implicit.supported === true && !policy.implicit.disableApplied);
 }
 
 /** Enabled per-turn sections placed in the cached prefix, in rack order. */

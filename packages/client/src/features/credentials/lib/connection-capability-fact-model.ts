@@ -39,15 +39,15 @@ const TOOL_CALL_CHOICES: readonly FactChoice[] = [
 const GENERATION_LEAVES: readonly FactLeaf[] = [
   {
     path: WINDOW_PATH,
-    name: "context window",
-    edit: { kind: "number" },
+    name: FACT_NAMES.contextWindow,
+    edit: { kind: "number", count: true },
     format: tokens,
     estimatedBy: "generation.context.windowEstimated",
   },
   {
     path: "generation.output.maxTokens.max",
     name: FACT_NAMES.maxOutput,
-    edit: { kind: "number" },
+    edit: { kind: "number", count: true },
     format: tokens,
     estimatedBy: "generation.output.maxTokensEstimated",
   },
@@ -139,6 +139,7 @@ function statedCapabilityRow(
     source,
     overridden,
     setElsewhere,
+    estimated,
     edit: leaf.edit,
     draft: draftOf(leaf.edit, value),
     siblings: siblingsFor(leaf.path, capability),
@@ -180,4 +181,28 @@ export function capabilityFactRows(capability: Capability, declared: DeclaredCap
     rows.push(statedCapabilityRow(leaf, value, { capability, declared, baseline }));
   }
   return rows;
+}
+
+/** The two limits the history fit and the reply cap run against, keyed by their fact path. */
+const LIMIT_KINDS = ["window", "output"] as const;
+type LimitKind = (typeof LIMIT_KINDS)[number];
+const LIMIT_PATH: Readonly<Record<LimitKind, string>> = { window: WINDOW_PATH, output: MAX_TOKENS_PATH };
+
+/** One limit whose value is a floor guess, with the fact row an override of it writes through. */
+export interface GuessedLimit {
+  readonly kind: LimitKind;
+  readonly row: FactRow;
+}
+
+/** The limits the add dialog asks for, written through the same rows the Advanced tier overrides: none unless the
+ *  context window is a floor guess, then the window and, when it is a guess too, the max output. Most servers state no
+ *  output cap, so a guessed max output alone is left to the preset's own hint and door. A window the preset sets
+ *  (`setElsewhere`) is never a guess. */
+export function guessedLimits(capability: Capability, declared: DeclaredCapability | null, baseline: Capability): readonly GuessedLimit[] {
+  const rows = capabilityFactRows(capability, declared, baseline);
+  const guessed = LIMIT_KINDS.flatMap((kind) => {
+    const row = rows.find((candidate) => candidate.path === LIMIT_PATH[kind]);
+    return row?.estimated === true ? [{ kind, row }] : [];
+  });
+  return guessed.some((limit) => limit.kind === "window") ? guessed : [];
 }

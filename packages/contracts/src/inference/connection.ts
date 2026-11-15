@@ -170,6 +170,8 @@ export const CONNECTION_OP_CODES = {
   embedUnreachable: "connection_embed_unreachable",
   /** The embedder's server refused the row's key on the width probe; the write is undone, as for an unreachable one. */
   embedAuth: "connection_embed_auth",
+  /** A role read found no usable connection: none is bound for the role, or the bound row is gone. */
+  roleModelUnset: "connection_role_model_unset",
 } as const;
 
 /** The two widths an `embedWidthUnmakeable` refusal names: what the connection states, and what the model made. */

@@ -16,18 +16,23 @@
 // literally a `400 incoherent routing (agent-sdk × local-light)`). So:
 //
 //   NOT_FOUND    → the PRESET is gone. Naming a routing problem here is simply false.
-//   BAD_REQUEST  → the capability resolution refused. The F-02 verdict is EARNED and is kept VERBATIM.
+//   BAD_REQUEST, reason `roleModelUnset` → no model is set for chat: nothing is bound, or the bound row is gone. A new
+//                   user who has added no connection lands here. It is a missing model, said in plain words, and the
+//                   runtime's own sentence is not shown.
+//   BAD_REQUEST otherwise → the capability resolution refused. The F-02 verdict is EARNED and is kept VERBATIM.
 //   anything else → a 500, a timeout, a dropped socket. We know the read failed and nothing more, so the
 //                   band states no cause at all and offers the place to look plus a Retry.
 //
-// The code is read off `error.data.code`, the structured field, never message text (the `invite-dialog` /
-// `rpg-error-state` discrimination precedent).
+// The code is read off `error.data.code` and `error.data.reason`, the structured fields, never message text (the
+// `invite-dialog` / `rpg-error-state` discrimination precedent).
 
-import { MODEL_ROLES_PATH_TEXT, trpcErrorCode } from "#lib";
+import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
+import { MODEL_ROLES_PATH_TEXT, trpcErrorCode, trpcErrorReason } from "#lib";
+import { PRESET_NO_CHAT_MODEL_TITLE } from "./preset-names.ts";
 
-/** The three causes the failure band can distinguish — `unknown` is the honest arm, not a fallback hole.
+/** The causes the failure band can distinguish — `unknown` is the honest arm, not a fallback hole.
  *  Homed as a tuple so the union DERIVES rather than re-spells it (§5.5; `orb/no-inline-union-alias`). */
-const RESOLVE_FAILURE_CAUSES = ["not-found", "routing", "unknown"] as const;
+const RESOLVE_FAILURE_CAUSES = ["not-found", "no-model", "routing", "unknown"] as const;
 
 type ResolveFailureCause = (typeof RESOLVE_FAILURE_CAUSES)[number];
 
@@ -44,6 +49,10 @@ const RESOLVE_FAILURE_COPY: Record<ResolveFailureCause, ResolveFailureCopy> = {
   "not-found": {
     headline: "This preset couldn't be read, so what the next turn will send can't be shown.",
     guidance: "It may have been deleted or renamed in another tab. Reopen it from Configuration → Presets.",
+  },
+  "no-model": {
+    headline: PRESET_NO_CHAT_MODEL_TITLE,
+    guidance: "Once you choose one in Connections, this shows what the next turn will send.",
   },
   routing: {
     headline: "Your chat model couldn't be resolved, so what the next turn will send can't be shown.",
@@ -70,7 +79,10 @@ export function failureCause(error: unknown): ResolveFailureCause {
   if (code === "NOT_FOUND") {
     return "not-found";
   }
-  return code === "BAD_REQUEST" ? "routing" : "unknown";
+  if (code !== "BAD_REQUEST") {
+    return "unknown";
+  }
+  return trpcErrorReason(error) === CONNECTION_OP_CODES.roleModelUnset ? "no-model" : "routing";
 }
 
 /** The failure band's words for a thrown `preset.resolveEffective` error. */
@@ -80,9 +92,10 @@ export function resolveFailureCopy(error: unknown): ResolveFailureCopy {
 
 /** The server's own message, quoted verbatim under the headline — the F-02 pin (a swallowed server error
  *  dressed up as an empty state is what started all of this). `null` when the thrown value carries no
- *  message worth printing, so the band renders two lines instead of an empty one. */
+ *  message worth printing, so the band renders two lines instead of an empty one, and for a missing chat model,
+ *  whose headline already says all there is. */
 export function resolveFailureMessage(error: unknown): string | null {
-  if (typeof error !== "object" || error === null || !("message" in error)) {
+  if (typeof error !== "object" || error === null || !("message" in error) || failureCause(error) === "no-model") {
     return null;
   }
   const message = (error as { message?: unknown }).message;
