@@ -1,7 +1,6 @@
-import { timeLib } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { createTimeLib, UTC_TIME_ZONE } from "@orb/kit/time";
 import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { ROOM_PROCEDURES, routeAuthConfig, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
@@ -119,7 +118,8 @@ for (const mode of ROW_MODES) {
     await mount<typeof ShellAmbientStory>(STORY, {});
     const row = page.getByRole("list", { name: CHAT_LIST_NAME, exact: true }).getByRole("button", { name: subjects.row.title, exact: true });
     const subtitle = row.locator('[data-slot="list-row-subtitle"]');
-    const stamp = timeLib.formatRelativeCompact(subjects.row.at);
+    // The client timeLib reads browser storage this Node side lacks; the kit formatter it wraps renders in the CT's UTC zone.
+    const stamp = createTimeLib({ timeZone: UTC_TIME_ZONE }).formatRelativeCompact(subjects.row.at);
     await expect(subtitle).toHaveText(subjects.row.preview);
     await expect(row.locator('[data-slot="list-row-meta"]')).toBeVisible();
     await expect(row.locator('[data-slot="list-row-meta"]')).toHaveText(stamp);
