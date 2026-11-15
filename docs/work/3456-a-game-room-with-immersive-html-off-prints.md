@@ -2,7 +2,7 @@
 kind: work
 status: open
 updated: 2026-11-15
-priority: P3
+priority: P1
 area: chat
 plan: cross-surface-consistency
 ---
