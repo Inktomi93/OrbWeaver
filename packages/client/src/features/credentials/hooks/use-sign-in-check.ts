@@ -4,7 +4,7 @@
 import type { ProviderDef } from "@orb/contracts/inference";
 import type { UserConnectionId } from "@orb/kit/ids";
 import type { Invalidation, Trpc } from "#data";
-import { notify } from "#lib";
+import { notify, rethrowUnlessTrpcFailure } from "#lib";
 import type { SignInVerdict } from "../lib/connection-account-model.ts";
 import { servesSignInCheck, signInVerdict } from "../lib/connection-account-model.ts";
 import { useVerifySignIn } from "./use-connections-mutations.ts";
@@ -20,10 +20,7 @@ export function useSignInCheckAfterSave(deps: {
       return;
     }
     // A failed check is already a toast through the mutation's `errorToast`; nothing is left to handle here.
-    verify.mutateAsync({ connectionId }).then(
-      (result): void => announce(signInVerdict(result)),
-      () => undefined,
-    );
+    verify.mutateAsync({ connectionId }).then((result): void => announce(signInVerdict(result)), rethrowUnlessTrpcFailure);
   };
 }
 

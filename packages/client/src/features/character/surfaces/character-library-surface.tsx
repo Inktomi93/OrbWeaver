@@ -46,7 +46,7 @@ import { useRef } from "react";
 import { CHARACTER_SEARCH_NAME, FaceStrip, ListPage, useRowDeleteFocus } from "#components";
 import type { Trpc } from "#data";
 import { createCollectionSurface, useInvalidation, useStartChat, useTRPC } from "#data";
-import { SEARCH_DEBOUNCE_MS, useDebouncedValue, useFocusListArrival } from "#lib";
+import { rethrowUnlessTrpcFailure, SEARCH_DEBOUNCE_MS, useDebouncedValue, useFocusListArrival } from "#lib";
 import {
   clearCharacterFilters,
   clearCharacterSelection,
@@ -197,7 +197,7 @@ export function CharacterLibrarySurface(): ReactElement {
     void duplicate
       .mutateAsync({ characterId: CHARACTER_ID.parse(id) })
       .then((created) => selectCharacter(created.id))
-      .catch(() => undefined);
+      .catch(rethrowUnlessTrpcFailure);
   };
   const deleteCharacter = (id: string): void => {
     const characterId = CHARACTER_ID.parse(id);
@@ -208,7 +208,7 @@ export function CharacterLibrarySurface(): ReactElement {
           clearCharacterSelection();
         }
       })
-      .catch(() => undefined);
+      .catch(rethrowUnlessTrpcFailure);
   };
   const chatWith = (id: string): void => {
     const characterId = CHARACTER_ID.parse(id);
@@ -221,7 +221,7 @@ export function CharacterLibrarySurface(): ReactElement {
       setActiveSection("chats");
       // startChat awaits `mutation.mutateAsync`
       // (use-start-chat.ts:62), whose mutation sets `errorToast` (use-start-chat.ts:41); MutationCache.onError toasts it (query-client.ts:81-83). Ends if that errorToast is dropped.
-      startChat({ characterIds: [characterId] }).catch(() => undefined); // useStartChat's errorToast owns failure.
+      startChat({ characterIds: [characterId] }).catch(rethrowUnlessTrpcFailure); // useStartChat's errorToast owns failure.
       return;
     }
     resumeChat(target);

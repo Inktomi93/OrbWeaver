@@ -143,13 +143,10 @@ export const untrustedUrlTransform: UrlTransform = (url) => {
   if (UNTRUSTED_ALLOWED_PREFIXES.some((prefix) => value.startsWith(prefix))) {
     return value;
   }
-  let parsed: URL;
-  // the empty string is this gate's block verdict. Markdown passes
-  // untrustedUrlTransform as Streamdown's urlTransform, which drops a url that transforms to "", and
-  // the unparseable case lands there. Ends if the catch returns anything but "".
-  try {
-    parsed = new URL(value);
-  } catch {
+  // The empty string is this gate's block verdict: Markdown passes untrustedUrlTransform as Streamdown's
+  // urlTransform, which drops a url that transforms to "".
+  const parsed = URL.parse(value);
+  if (parsed === null) {
     return ""; // not parseable as absolute + not an allowed relative form → block
   }
   if (!SAFE_PROTOCOLS.includes(parsed.protocol)) {

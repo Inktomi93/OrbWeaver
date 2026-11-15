@@ -13,7 +13,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { DialogFailure, FormDialogPopup, FormDialogRoot } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { notify, testId } from "#lib";
+import { notify, rethrowUnlessTrpcFailure, testId } from "#lib";
 import { useLinkSsoIdentity } from "../hooks/use-admin-mutations.ts";
 import type { AdminUserDialogProps } from "../lib/admin-model.ts";
 
@@ -37,12 +37,17 @@ function LinkSsoBody({ handle, userId, onDone }: { readonly handle: string; read
     if (trimmed.length === 0) {
       return;
     }
+    const externalId = externalIdSchema.safeParse(trimmed);
+    if (!externalId.success) {
+      return;
+    }
     // The failure is rendered by the `link.error !== null` line in this component, which its hook call declares, and
-    // the dialog stays open. Ends if the line stops rendering it.
+    // the dialog stays open.
     try {
-      await link.mutateAsync({ userId, externalId: externalIdSchema.parse(trimmed) });
-    } catch {
+      await link.mutateAsync({ userId, externalId: externalId.data });
+    } catch (error) {
       // The sticky mutation error renders below — stay open.
+      rethrowUnlessTrpcFailure(error);
       return;
     }
     notify.success("SSO identity linked: their next single sign-on will use this account.");

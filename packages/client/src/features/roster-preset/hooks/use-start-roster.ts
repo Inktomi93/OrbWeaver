@@ -4,7 +4,7 @@
 
 import type { ApplyRosterPresetResult, RosterPresetSummary } from "@orb/contracts/roster-preset";
 import { useInvalidation, useStartChat, useTRPC } from "#data";
-import { notify, viewerTimeZone } from "#lib";
+import { notify, rethrowUnlessTrpcFailure, viewerTimeZone } from "#lib";
 import { applyNotice } from "../lib/roster-copy.ts";
 import { useApplyRosterPreset } from "./use-roster-preset-mutations.ts";
 import { useRulePresetCatalogue } from "./use-saved-rosters.ts";
@@ -56,7 +56,7 @@ export function useStartRoster(options: { readonly onEntered?: () => void } = {}
           options.onEntered?.();
           report(roster.name, await apply.mutateAsync({ presetId: roster.id, chatId, timeZone: viewerTimeZone() }));
         })
-        .catch(() => undefined); // both mutations toast their own failures.
+        .catch(rethrowUnlessTrpcFailure); // both mutations toast their own failures.
     },
   };
 }

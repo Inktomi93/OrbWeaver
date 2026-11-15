@@ -13,8 +13,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import { useState } from "react";
 import type { Trpc } from "#data";
-import { createEntityMutation, roomRosterOptions, UploadRefusedError, useInvalidation, useTRPC, useUploadAsset } from "#data";
-import { notify, trpcErrorCode, trpcErrorMessage, trpcErrorReason, turnMutationToast, viewerTimeZone } from "#lib";
+import { createEntityMutation, isUploadFailure, roomRosterOptions, UploadRefusedError, useInvalidation, useTRPC, useUploadAsset } from "#data";
+import { notify, rethrowUnlessTrpcFailure, trpcErrorCode, trpcErrorMessage, trpcErrorReason, turnMutationToast, viewerTimeZone } from "#lib";
 import { holdRoomForSend, subscribeUserMessageCommitted } from "#state";
 import { providerFailureReason } from "../lib/provider-failure-reason.ts";
 import { clearReplyFailure, recordReplyFailure } from "../lib/reply-failure.ts";
@@ -130,9 +130,14 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
       return;
     }
     setIsPending(true);
-    // `runSend` has already stated its failure (the upload's notice, the send's notice or the reply-failure line).
+    // `runSend` has already stated an upload or send failure (the upload's notice, the send's notice or the
+    // reply-failure line); any other fault rejects.
     runSend(trimmed, attachments)
-      .catch(() => undefined)
+      .catch((error: unknown) => {
+        if (!isUploadFailure(error)) {
+          rethrowUnlessTrpcFailure(error);
+        }
+      })
       .finally(() => setIsPending(false));
   };
 

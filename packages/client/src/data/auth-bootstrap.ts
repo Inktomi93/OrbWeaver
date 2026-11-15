@@ -26,9 +26,11 @@ import { queryOptions } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import type { z } from "zod";
 import { postSessionMessage, sessionDocument } from "#lib";
+import { HttpError, readJsonBody } from "./http-error.ts";
 import { clearJoinStash } from "./session-resume.ts";
 
 const AUTH_ME_KEY = ["auth", "me"] as const;
+const AUTH_ME_ROUTE = "/api/auth/me";
 
 /** Thrown by `login` with the server's user-safe message (generic "invalid credentials" — the server
  *  never enumerates, and neither do we). */
@@ -41,22 +43,24 @@ class LoginFailedError extends Error {
 
 /** Fetch the live cookie verdict and parse the HTTP contract before exposing it to readers. */
 export async function fetchAuthMe(): Promise<AuthMe> {
-  const response = await fetch("/api/auth/me", { credentials: "same-origin" });
+  const response = await fetch(AUTH_ME_ROUTE, { credentials: "same-origin" });
   if (!response.ok) {
-    throw new Error(`/api/auth/me: HTTP ${response.status}`);
+    throw new HttpError(`${AUTH_ME_ROUTE}: HTTP ${response.status}`, response.status);
   }
-  return authMeSchema.parse(await response.json());
+  const me = authMeSchema.safeParse(await readJsonBody(response));
+  if (!me.success) {
+    throw new HttpError(`${AUTH_ME_ROUTE}: the answer was not an auth state`, response.status);
+  }
+  return me.data;
 }
 
 /** An unreadable optional body is absent; each caller supplies its visible fallback. */
 async function optionalAuthBody<T>(response: Response, schema: z.ZodType<T>): Promise<T | null> {
-  // each caller owns its null: login and firstRunSetup still throw LoginFailedError with the HTTP status line, signUpWithInvite and confirmPendingJoin still return `{ ok: false, code: null }`, and logout reads it as the documented no-end-session fallback after `res.ok` passed. Ends if a caller reads null as success copy.
-  try {
-    const parsed = schema.safeParse(await response.json());
-    return parsed.success ? parsed.data : null;
-  } catch {
-    return null;
-  }
+  // Each caller owns its null: login and firstRunSetup still throw LoginFailedError with the HTTP status line,
+  // signUpWithInvite and confirmPendingJoin still return `{ ok: false, code: null }`, and logout reads it as the
+  // documented no-end-session fallback after `res.ok` passed.
+  const parsed = schema.safeParse(await readJsonBody(response));
+  return parsed.success ? parsed.data : null;
 }
 
 /** This session's auth state, for a surface that suspends on it under a QueryBoundary. The app QueryClient's
@@ -260,7 +264,7 @@ async function logout(): Promise<AuthLogoutResult> {
     headers: { [CSRF_HEADER]: "1" },
   });
   if (!res.ok) {
-    throw new Error(`logout failed (HTTP ${res.status})`);
+    throw new HttpError(`logout failed (HTTP ${res.status})`, res.status);
   }
   const parsed = await optionalAuthBody(res, authLogoutResultSchema);
   return { endSessionUrl: parsed?.endSessionUrl ?? null };

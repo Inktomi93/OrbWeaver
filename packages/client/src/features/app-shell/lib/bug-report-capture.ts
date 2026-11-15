@@ -22,7 +22,7 @@ import type { EvidenceSlice } from "@orb/kit/evidence-window";
 import { resolveEvidenceWindow, sliceByWindow, wholeSource } from "@orb/kit/evidence-window";
 import { isPlainObject } from "@orb/kit/guards";
 import { coarsePointerNow, prefersReducedMotionNow } from "@orb/ui/lib";
-import { postBugReport } from "#data";
+import { postBugReport, readJsonBody } from "#data";
 import { readAgentDebugHandle } from "#src/lib/agent-bridge.ts";
 import type { ThemeObservableRead } from "#src/lib/appearance-carrier-manifest.ts";
 import { APPEARANCE_CARRIER_OBSERVABLES, THEME_CARRIER_OBSERVABLES } from "#src/lib/appearance-carrier-manifest.ts";
@@ -209,18 +209,16 @@ export type BugReportSubmission = { readonly ok: true; readonly id: string; read
  *  non-gate failure (a proxy 502, an HTML error page) has no such body — then the status alone is the honest
  *  answer, and inventing a cause for it would be worse than saying less. */
 async function refusalReason(response: Response): Promise<string | null> {
-  // the refusal itself is owned by the only caller, submitBugReport, which returns `{ ok: false, reason: "HTTP <status> from <route>" }` (bug-report-capture.ts:250) and bug-report-button.tsx:157 stores that reason as the failed status. This try only reads an optional body suffix; a non-JSON body yields null and the status line still renders. Ends if the failed status stops rendering reason.
-  try {
-    const body: unknown = await response.json();
-    if (!isPlainObject(body)) {
-      return null;
-    }
-    // `reason` names the ARM; `error` is the gate's older one-word shape — take whichever the server sent.
-    const named = [body["reason"], body["error"]].find((value): value is string => typeof value === "string" && value.length > 0);
-    return named ?? null;
-  } catch {
+  // The refusal itself is owned by the only caller, submitBugReport, which returns `{ ok: false, reason: "HTTP <status>
+  // from <route>" }`, and bug-report-button.tsx stores that reason as the failed status. This reads only an optional
+  // body suffix; an unreadable or non-JSON body yields null and the status line still renders.
+  const body = await readJsonBody(response);
+  if (!isPlainObject(body)) {
     return null;
   }
+  // `reason` names the ARM; `error` is the gate's older one-word shape — take whichever the server sent.
+  const named = [body["reason"], body["error"]].find((value): value is string => typeof value === "string" && value.length > 0);
+  return named ?? null;
 }
 
 /** POST one captured report. Same-origin, credentialed — the `/api/_debug` gate admits an OWNER session

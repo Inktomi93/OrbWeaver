@@ -18,6 +18,7 @@ import type { ImportPreview } from "@orb/contracts/import";
 import type { WorkloadId } from "@orb/kit/ids";
 import { useEffect, useRef } from "react";
 import { RECOVERY_RETRY_BACKOFF_MS, useTRPCClient } from "#data";
+import { rethrowUnlessTrpcFailure } from "#lib";
 import type { WorkloadSubscriptionHandlers } from "../hooks/use-workload-subscription.ts";
 import { useWorkloadSubscription } from "../hooks/use-workload-subscription.ts";
 import type { BundleCounts } from "../lib/portability-model.ts";
@@ -105,17 +106,17 @@ export function BundleWorkloadTracker({ workloadId, onProgress, onSucceeded, onF
   };
 
   const reconcile = (attempt: number): void => {
-    // the `.catch` below owns the rejection: it schedules the next
-    // `reconcile(attempt + 1)` from RECOVERY_RETRY_BACKOFF_MS, and the stream's `onSocketLive` re-arms `reconcile(0)`.
-    // A failed read is never turned into a terminal claim about the run. Ends if a read failure needs its own UI state.
-    void trpcClient.workloads.get
-      .query({ id })
-      .then((row): void => {
+    // The rejection arm owns a failed read (a tRPC failure): it schedules the next `reconcile(attempt + 1)` from
+    // RECOVERY_RETRY_BACKOFF_MS, and the stream's `onSocketLive` re-arms `reconcile(0)`. A failed read is never turned
+    // into a terminal claim about the run. A throw from `report` is a fault and is not caught here.
+    void trpcClient.workloads.get.query({ id }).then(
+      (row): void => {
         if (aliveRef.current) {
           report(row); // …and if it is NOT alive: torn down mid-read, so the caller and its callbacks are gone
         }
-      })
-      .catch((): void => {
+      },
+      (error: unknown): void => {
+        rethrowUnlessTrpcFailure(error);
         if (!aliveRef.current) {
           return; // …and a failed read after teardown schedules nothing either
         }
@@ -130,7 +131,8 @@ export function BundleWorkloadTracker({ workloadId, onProgress, onSucceeded, onF
           reconcile(attempt + 1);
         }, backoff);
         timers.add(handle);
-      });
+      },
+    );
   };
 
   useWorkloadSubscription({

@@ -15,7 +15,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { Tip } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { notify, rowQualifiers, timeLib } from "#lib";
+import { notify, rethrowUnlessTrpcFailure, rowQualifiers, timeLib } from "#lib";
 import { selectPersonaEditor, usePersonaEditorId } from "#state";
 import { useCreatePersona, useImportPersonaFile, useRemovePersona } from "../hooks/use-persona-mutations.ts";
 import { useDefaultPersona } from "../hooks/use-playing-persona.ts";
@@ -54,7 +54,8 @@ export function PersonaList(): ReactElement {
     try {
       const created = await create.mutateAsync({ input: { name: "New persona", description: "" } });
       setExpandedId(created.id);
-    } catch {
+    } catch (error) {
+      rethrowUnlessTrpcFailure(error);
       // createEntityMutation's errorToast already surfaced the failure — nothing to expand.
     }
   };

@@ -18,6 +18,7 @@ import type { DocumentDestination, UploadResult } from "@orb/contracts/databank"
 import { DOCUMENT_DESTINATION_FORM_FIELD, documentUploadRefusalSchema, uploadResultSchema } from "@orb/contracts/databank";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { DATABANK_UPLOAD_ROUTE, UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
+import { parseJsonText } from "@orb/kit/json";
 import { throwHttpError } from "./http-error.ts";
 
 const NAME_FIELD = "name";
@@ -56,13 +57,9 @@ export async function uploadDocument(file: File, name?: string, destination?: Do
     headers: { [CSRF_HEADER]: "1" },
   });
   if (!response.ok) {
-    // a body that is not JSON (the empty 413 a body-limit belt sends) leaves `refusal.success` false, and the line after it throws the status-line error. Ends if that throw stops following.
-    const refusal = documentUploadRefusalSchema.safeParse(
-      await response
-        .clone()
-        .json()
-        .catch(() => null),
-    );
+    // A body that is not JSON (the empty 413 a body-limit guard sends) leaves `refusal.success` false, and the line
+    // after it throws the status-line error.
+    const refusal = documentUploadRefusalSchema.safeParse(parseJsonText(await response.clone().text()));
     if (refusal.success) {
       throw new DocumentUploadRefusedError(refusal.data, response.status);
     }

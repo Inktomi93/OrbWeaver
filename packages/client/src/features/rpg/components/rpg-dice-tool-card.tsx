@@ -17,6 +17,7 @@
 import type { ToolCallRecord } from "@orb/contracts/chat";
 import type { RollDiceToolResult } from "@orb/contracts/rpg";
 import { rollDiceToolResultSchema } from "@orb/contracts/rpg";
+import { parseJsonText } from "@orb/kit/json";
 import { Card } from "@orb/ui/card";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -35,14 +36,9 @@ function parseDiceResult(raw: string | null): RollDiceToolResult | null {
   if (raw === null) {
     return null;
   }
-  let json: unknown;
-  // a malformed blob leaves `json` undefined, `safeParse` rejects it and this function returns null, and RpgDiceToolCard renders the generic `ToolCallBlock` for a null result so the canon record is never dropped. Ends if the caller stops rendering that block on null.
-  try {
-    json = JSON.parse(raw);
-  } catch {
-    json = undefined;
-  }
-  const parsed = rollDiceToolResultSchema.safeParse(json);
+  // A malformed blob parses to undefined, `safeParse` rejects it and this function returns null, and RpgDiceToolCard
+  // renders the generic `ToolCallBlock` for a null result so the canon record is never dropped.
+  const parsed = rollDiceToolResultSchema.safeParse(parseJsonText(raw));
   return parsed.success ? parsed.data : null;
 }
 

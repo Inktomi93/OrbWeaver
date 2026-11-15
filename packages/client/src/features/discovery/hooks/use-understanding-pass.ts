@@ -53,6 +53,7 @@ import type { ModelRunConfirmDialogProps } from "#components";
 import { useModelRunConfirm } from "#components";
 import type { Trpc } from "#data";
 import { createEntityMutation, useBusRoom, useInvalidation, useTRPC } from "#data";
+import { rethrowUnlessTrpcFailure } from "#lib";
 
 type WorkloadRow = inferOutput<Trpc["workloads"]["list"]>[number];
 
@@ -240,7 +241,7 @@ export function useUnderstandingPass(): UnderstandingPassView {
         })),
         run: enqueueChain,
       })
-      .catch(() => undefined);
+      .catch(rethrowUnlessTrpcFailure);
   };
 
   // The LIVE tail wins while it is connected; with no frame yet (a reload mid-pass) the row's DURABLE

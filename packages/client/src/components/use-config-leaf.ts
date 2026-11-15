@@ -25,7 +25,7 @@ import { useQuery } from "@tanstack/react-query";
 import { use } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import type { ContributorRegistry } from "#lib";
-import { notify, settingsValueAtPath, settingsValueDiffers } from "#lib";
+import { notify, rethrowUnlessTrpcFailure, settingsValueAtPath, settingsValueDiffers } from "#lib";
 import type { ConfigSectionContribution, ConfigSettingRef } from "#state";
 import { configSectionRegistryContext } from "#state";
 import { useResetLeaf } from "./use-config-leaf-mutations.ts";
@@ -92,7 +92,7 @@ export function useConfigLeaf(address: ConfigSettingRef | null): ConfigLeafValue
       const undo = (): void => {
         write(current)
           .then((): void => after.onUndone?.())
-          .catch(() => undefined);
+          .catch(rethrowUnlessTrpcFailure);
       };
       write(defaultValue)
         .then((): void => {
@@ -101,7 +101,7 @@ export function useConfigLeaf(address: ConfigSettingRef | null): ConfigLeafValue
             notify.info({ title: "Reset to default", action: { label: "Undo", onClick: undo } });
           }
         })
-        .catch(() => undefined);
+        .catch(rethrowUnlessTrpcFailure);
     },
     resetPending: resetMutation.isPending,
   };

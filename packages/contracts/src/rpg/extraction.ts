@@ -22,6 +22,7 @@
 // 4.4.3 and is unused here anyway — see the mechanism note in `./tools`.) So this composed object projects to
 // a structured-output JSON Schema without throwing (tests/contracts/rpg/extraction-constrain.contract.test.ts projects it).
 // Strip mode: these schemas also read model output, which can carry keys this release does not declare.
+import { parseJsonText } from "@orb/kit/json";
 import { z } from "zod";
 import { rpgNpcSlug } from "./actor.ts";
 import type { UpdateSceneArgs } from "./tools.ts";
@@ -419,11 +420,7 @@ export function parseToolCallArgs(raw: string): unknown {
   // `malformedToolCallDetails` records "arguments: not valid JSON" (the recorded call's `dropped` verdict), and
   // `stripHiddenInJson` in rpg's tool-call-visibility marks the member view `withheld: "unparseable"`. Ends if either
   // stops reading null as "this payload is not readable".
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
+  return parseJsonText(raw) ?? null;
 }
 
 /** One salvaged call: the args that DID parse once the invalid top-level fields were removed. */

@@ -1,5 +1,6 @@
 // Read-only inventory: production owns registration and eligibility; cache evidence never stands in for a mounted host.
 import type { ChatId, PluginId } from "@orb/kit/ids";
+import { parseJsonText } from "@orb/kit/json";
 import type { QueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import type { Trpc, TrpcClient } from "#data";
@@ -44,17 +45,12 @@ function menuHosts(pluginId: PluginId, name: string): readonly OrbPluginUiHost[]
   const selector = `[${PLUGIN_UI_AUDIT_ATTRIBUTES.menu}]`;
   return [...document.querySelectorAll(selector)].flatMap((element, index) => {
     const raw = element.getAttribute(PLUGIN_UI_AUDIT_ATTRIBUTES.menu);
-    let commands: readonly string[] | undefined;
     // Parser errors can contain private DOM values, so retain only the inventory's fixed refusal.
-    try {
-      const parsed = menuSchema.safeParse(raw === null ? null : JSON.parse(raw));
-      commands = parsed.success ? parsed.data : undefined;
-    } catch {
-      commands = undefined;
-    }
-    if (commands === undefined) {
+    const parsed = menuSchema.safeParse(raw === null ? null : parseJsonText(raw));
+    if (!parsed.success) {
       throw new Error("Plugin UI inventory: malformed composer command metadata");
     }
+    const commands = parsed.data;
     return commands.includes(pluginUiAuditKey(pluginId, name)) ? [hostObservation(element, selector, index)] : [];
   });
 }

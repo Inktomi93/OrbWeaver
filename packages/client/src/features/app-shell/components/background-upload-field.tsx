@@ -23,7 +23,7 @@ import { Icon, ImagePlus } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { useIds, useUploadAsset, useUploadCaps } from "#data";
+import { isUploadFailure, useIds, useUploadAsset, useUploadCaps } from "#data";
 
 /** A human name for the entry, from the file name minus its extension (the server `deriveName` twin for the
  *  URL arm — same fallback, so a library row reads the same whichever way it came in). */
@@ -88,7 +88,10 @@ export function BackgroundUploadField({ currentHash, onUploaded }: BackgroundUpl
       });
       setPreviewHash(stored.hash);
       setSuccess(true);
-    } catch {
+    } catch (error) {
+      if (!isUploadFailure(error)) {
+        throw error;
+      }
       setUploadError("Upload failed. Try again.");
     } finally {
       setLoading(false);

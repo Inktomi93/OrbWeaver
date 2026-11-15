@@ -175,7 +175,10 @@ function compilePattern(pattern: string): RegExp | null {
   // ("pattern (invalid regex)") when this returns null. Ends if liftString stops checking for null.
   try {
     return new RegExp(pattern, "u");
-  } catch {
+  } catch (error) {
+    if (!(error instanceof SyntaxError)) {
+      throw error;
+    }
     return null;
   }
 }

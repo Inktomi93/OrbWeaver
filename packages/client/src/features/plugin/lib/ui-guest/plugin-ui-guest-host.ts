@@ -19,6 +19,7 @@
 
 import type { PluginLogLevel, PluginSurfaceNode } from "@orb/contracts/plugin";
 import { isPluginUiHostCallCode, PLUGIN_UI_HOST_CALL_FAILED, pluginSurfaceSpecSchema } from "@orb/contracts/plugin";
+import { parseJsonText } from "@orb/kit/json";
 import type { UiGuestInbound, UiGuestOutbound, UiGuestReadyMessage, UiGuestSettledMessage, UiGuestUnavailableMessage } from "#lib";
 import { timeLib, trpcErrorReason, UI_GUEST_BOOT_WALL_MS, UI_GUEST_WALL_MS } from "#lib";
 
@@ -129,12 +130,10 @@ export function startPluginUiGuest(options: PluginUiGuestOptions): PluginUiGuest
     if (published.get(surfaceId) === treeJson) {
       return;
     }
-    let parsed: unknown;
-    // `kill` terminates the worker and calls options.events.onCrash, which collapses
-    // the surface and reports it through useReportUiCrash (components/plugin-scripted-surface.tsx). Ends if this catch stops calling `kill`.
-    try {
-      parsed = JSON.parse(treeJson);
-    } catch {
+    // A publish that is not JSON calls `kill`, which terminates the worker and calls options.events.onCrash, which
+    // collapses the surface and reports it through useReportUiCrash (components/plugin-scripted-surface.tsx).
+    const parsed = parseJsonText(treeJson);
+    if (parsed === undefined) {
       kill("the plugin's interface published something that was not a valid tree");
       return;
     }
@@ -199,10 +198,9 @@ export function startPluginUiGuest(options: PluginUiGuestOptions): PluginUiGuest
       return;
     }
     if (message.kind === "hostCall") {
-      // handleHostCall already catches its
-      // own await internally and always resolves (it sends a rejected hostResult instead of throwing) — this
-      // outer catch is belt-and-suspenders. Ends if handleHostCall stops catching internally.
-      void handleHostCall(message.callId, message.fn, message.argsJson).catch(() => undefined);
+      // handleHostCall catches its own await and answers a failure as a rejected hostResult, so a rejection here is a
+      // fault in that answer itself, reported to the window's error ring.
+      void handleHostCall(message.callId, message.fn, message.argsJson).catch(globalThis.reportError);
       return;
     }
     if (message.kind === "ready" || message.kind === "unavailable") {

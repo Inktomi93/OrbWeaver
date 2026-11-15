@@ -64,7 +64,7 @@ import { useRef, useState } from "react";
 import { DescribedMenuItem, QueryBoundary, RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
-import { deleteConfirmTitle, notify } from "#lib";
+import { deleteConfirmTitle, notify, rethrowUnlessTrpcFailure } from "#lib";
 import { useMobileViewport } from "#state";
 import { ruleConnectionsName, ruleRunNowName, ruleTestName, ruleTestResultName } from "../lib/automation-names.ts";
 import {
@@ -236,13 +236,10 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
     );
   };
   const onRunNow = (): void => {
-    runNow.mutateAsync({ ruleId: rule.id, chatId }).then(
-      (result) => {
-        const notice = runOutcomeNotice(rule.name, result.outcome);
-        notify[notice.channel](notice.line);
-      },
-      () => undefined,
-    );
+    runNow.mutateAsync({ ruleId: rule.id, chatId }).then((result) => {
+      const notice = runOutcomeNotice(rule.name, result.outcome);
+      notify[notice.channel](notice.line);
+    }, rethrowUnlessTrpcFailure);
   };
 
   return (

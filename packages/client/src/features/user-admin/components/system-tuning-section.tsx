@@ -15,6 +15,7 @@ import { useState } from "react";
 import { QueryBoundary, SettingRowGroup, useFirstBootRows } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { saveStateOf, useReportSaveStatus } from "#forms";
+import { rethrowUnlessTrpcFailure } from "#lib";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { draftNumber, envFloor, isOverridden } from "../lib/app-override-model.ts";
 import { SYSTEM_TUNING_SUBCATEGORY } from "../lib/system-tuning-nav.ts";
@@ -145,7 +146,7 @@ function SystemTuningBody({ anchorId, sectionId }: { readonly anchorId: string; 
     for (const knob of dirtyKnobs) {
       Object.assign(partial, deepMergePatch(partial, knob.patch(draftNumber(draft[knob.id] ?? ""))));
     }
-    save.mutateAsync({ partial }).catch(() => undefined);
+    save.mutateAsync({ partial }).catch(rethrowUnlessTrpcFailure);
   };
   // Reset clears every override this section owns to the deployment floor.
   const onReset = (): void => {
@@ -163,7 +164,7 @@ function SystemTuningBody({ anchorId, sectionId }: { readonly anchorId: string; 
       // default alongside the "Using the deployment default" copy — otherwise the input keeps the stale typed
       // value (side-eye P2). `useState` runs its initializer once; the mutation result is the server truth.
       .then((resolvedAfter) => setDraft(toDraft(resolvedAfter)))
-      .catch(() => undefined);
+      .catch(rethrowUnlessTrpcFailure);
   };
 
   return (

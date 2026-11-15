@@ -18,6 +18,7 @@ import type { ReactElement } from "react";
 import { QueryBoundary, SettingRowGroup, useFirstBootRows } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQueries, useTRPC } from "#data";
 import { saveStateOf, useReportSaveStatus } from "#forms";
+import { rethrowUnlessTrpcFailure } from "#lib";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { envFloor, isOverridden } from "../lib/app-override-model.ts";
 import { LOG_LEVEL_ITEMS } from "../lib/log-level-items.ts";
@@ -58,7 +59,7 @@ function OperationsBody({ anchorId, sectionId }: { readonly anchorId: string; re
   const logLevelOverridden = isOverridden(overrides.logLevel);
 
   const write = (partial: Pick<AppSettings, "corpusAutoindex" | "logLevel">): void => {
-    save.mutateAsync({ partial }).catch(() => undefined); // the sticky save.error slot surfaces the failure
+    save.mutateAsync({ partial }).catch(rethrowUnlessTrpcFailure); // the sticky save.error slot surfaces the failure
   };
 
   return (

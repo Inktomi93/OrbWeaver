@@ -1263,15 +1263,13 @@ function fireManagedCompaction(
       } catch (compactErr) {
         // FAILURE-HONEST: a thrown marker build (provider error OR empty generation) leaves the existing marker
         // untouched and surfaces the `compaction_failed` warning (the memory_build_failed mirror).
-        getLog(ctx.logger).warn({ err: compactErr, chatId }, "chat: managed compaction failed");
         await emitBackground(deps, { type: "warning", chatId, code: "compaction_failed" });
-        // Rethrow so the span marks itself ERROR (I-7: previously swallowed here too). Still fire-and-forget —
-        // the outer `.catch` below absorbs it.
+        // Rethrow so the span marks itself ERROR. Still fire-and-forget — the outer `.catch` below logs it.
         throw compactErr;
       } finally {
         compactionInFlight.delete(chatId);
       }
-    }).catch(() => undefined),
+    }).catch((compactErr: unknown) => getLog(ctx.logger).warn({ err: compactErr, chatId }, "chat: managed compaction failed")),
   );
 }
 
@@ -2169,21 +2167,18 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
               signal: ctx.backgroundSignal,
             });
           } catch (memErr) {
-            // Must never surface to the caller, but must not be invisible — log + emit a machine-dispatchable
-            // warning code.
-            getLog(ctx.logger).warn({ err: memErr, chatId: prep.chatId }, "memory: post-turn build failed");
+            // Must never surface to the caller, but must not be invisible — emit a machine-dispatchable warning code,
+            // and the outer `.catch` logs the failure.
             // A failed WARNING emit must not mask `memErr` — the build failure rethrown below is what the span must
             // record. The emit's own failure is read as a value and logged, never re-thrown out of the fire-and-forget.
             const [warned] = await Promise.allSettled([deps.emit({ type: "warning", chatId: prep.chatId, code: "memory_build_failed" })]);
             if (warned.status === "rejected") {
               getLog(ctx.logger).warn({ err: warned.reason, chatId: prep.chatId }, "memory: build-failure warning emit also failed");
             }
-            // Rethrow so the span marks itself ERROR (I-7: previously swallowed here, so a failed build always
-            // looked "ok" on the trace ring even though the warning above fired). Still fire-and-forget to the
-            // caller — the outer `.catch` below absorbs it.
+            // Rethrow so the span marks itself ERROR. Still fire-and-forget to the caller.
             throw memErr;
           }
-        }).catch(() => undefined),
+        }).catch((memErr: unknown) => getLog(ctx.logger).warn({ err: memErr, chatId: prep.chatId }, "memory: post-turn build failed")),
       );
     }
 

@@ -9,7 +9,7 @@ import type { ChatId } from "@orb/kit/ids";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
-import { viewerTimeZone } from "#lib";
+import { rethrowUnlessTrpcFailure, viewerTimeZone } from "#lib";
 
 // Base free-mode only — extraction and edit modes are driven through the /imagine slash command and its modal (imagery feature), not through this composer hook.
 const FREE_MODE: PromptTemplateMode = "free";
@@ -44,7 +44,7 @@ export function useGenerateImage(chatId: ChatId | null): UseGenerateImageResult 
     void mutation
       .mutateAsync({ chatId, mode: FREE_MODE, prompt: trimmed, timeZone: viewerTimeZone() })
       .then(() => opts?.onSuccess?.())
-      .catch(() => undefined);
+      .catch(rethrowUnlessTrpcFailure);
   };
 
   return {

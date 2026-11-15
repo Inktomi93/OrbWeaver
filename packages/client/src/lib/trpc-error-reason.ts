@@ -2,6 +2,19 @@
 // (`transport/trpc/error-mapping.ts`), and a coded refusal's stated facts on `data.detail`. Clients key on those
 // structured fields, never on message text.
 
+import { isTRPCClientError } from "@trpc/client";
+
+/** Absorb a tRPC failure that has already reached its surface, and rethrow every other throw. Every entity mutation
+ *  names its failure surface, so its `mutateAsync` rejection was already toasted, logged or stated inline; a query's
+ *  failure sits in the cache's error state (client-architecture-state-and-gates.md §11); and the client's loggerLink
+ *  (`data/trpc.ts`) logs every failed query or mutation settlement. A throw that is not a tRPC failure is a fault in
+ *  the caller's own follow-up, and rethrowing it lets the unhandled-rejection ring record it. */
+export function rethrowUnlessTrpcFailure(error: unknown): undefined {
+  if (!isTRPCClientError(error)) {
+    throw error;
+  }
+}
+
 function errorData(error: unknown): unknown {
   return typeof error === "object" && error !== null && "data" in error ? error.data : null;
 }

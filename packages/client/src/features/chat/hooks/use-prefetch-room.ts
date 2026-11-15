@@ -40,6 +40,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { peekQueryData, roomRosterOptions, useTRPC } from "#data";
+import { rethrowUnlessTrpcFailure } from "#lib";
 
 /**
  * Warm the room's roster read for `chatId`. `null` warms nothing — the caller's surface has no room to
@@ -61,7 +62,7 @@ export function usePrefetchRoom(chatId: ChatId | null): void {
     const options = roomRosterOptions(trpc, { chatId });
     if (peekQueryData(queryClient, options.queryKey) === undefined) {
       // this only warms chat.getChat; ChatThread reads the same key with useSuspenseQuery inside QueryBoundary (surfaces/message-list-surface.tsx), whose renderError shows QueryErrorState with Retry. Ends if ChatThread stops reading that key under a boundary or this warmer owns a user operation.
-      void queryClient.query(options).catch(() => undefined);
+      void queryClient.query(options).catch(rethrowUnlessTrpcFailure);
     }
   }, [queryClient, trpc, chatId]);
 }
@@ -92,7 +93,7 @@ export function useWarmRoomOnIntent(): (chatId: ChatId) => void {
     const options = roomRosterOptions(trpc, { chatId });
     if (peekQueryData(queryClient, options.queryKey) === undefined) {
       // intent warming owns no user result; ChatThread reads chat.getChat with useSuspenseQuery inside QueryBoundary (surfaces/message-list-surface.tsx), whose renderError shows QueryErrorState with Retry. Ends if ChatThread stops reading that key under a boundary or warming becomes a user operation.
-      void queryClient.query(options).catch(() => undefined);
+      void queryClient.query(options).catch(rethrowUnlessTrpcFailure);
     }
   };
 }

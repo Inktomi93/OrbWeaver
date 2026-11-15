@@ -13,7 +13,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useId } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { notify } from "#lib";
+import { notify, rethrowUnlessTrpcFailure } from "#lib";
 import { isLiveTurnPhase, useTurnPhase } from "#state";
 import { useMoveMessageMutation } from "../hooks/use-message-mutations.ts";
 import { MESSAGE_MOVE_DOWN_NAME, MESSAGE_MOVE_FAILED, MESSAGE_MOVE_NEIGHBOUR_GONE, MESSAGE_MOVE_UP_NAME } from "../lib/message-action-names.ts";
@@ -55,7 +55,8 @@ export function MessageMoveArrows({ message, neighbours }: MessageMoveArrowsProp
     let seq: number | null;
     try {
       seq = await unloadedNeighbourSeq(direction);
-    } catch {
+    } catch (error) {
+      rethrowUnlessTrpcFailure(error);
       notify.error(MESSAGE_MOVE_FAILED);
       return null;
     }

@@ -56,6 +56,7 @@ import {
   avatarUploadFailedLine,
   notify,
   oversizeUploadMessage,
+  rethrowUnlessTrpcFailure,
 } from "#lib";
 import { useFileDrop } from "./use-file-drop.ts";
 
@@ -108,7 +109,8 @@ async function writeInTurn(previous: Promise<unknown>, send: () => Promise<unkno
   try {
     await send();
     return "committed";
-  } catch {
+  } catch (error) {
+    rethrowUnlessTrpcFailure(error);
     return "refused";
   }
 }

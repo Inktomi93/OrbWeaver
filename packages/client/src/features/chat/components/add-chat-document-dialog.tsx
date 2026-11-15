@@ -36,7 +36,7 @@ import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { DialogFailure, DismissDialog, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { CLEAR_SEARCH_NAME, DIALOG_VERBS, NO_MATCHES_TITLE, SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
+import { CLEAR_SEARCH_NAME, DIALOG_VERBS, NO_MATCHES_TITLE, rethrowUnlessTrpcFailure, SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
 import { useAttachDocumentToChat } from "../hooks/use-chat-document-mutations.ts";
 import { CHAT_BANK_EMPTY_TITLE, CHAT_DOCUMENT_PICKER_READ, CHAT_DOCUMENT_SEARCH_NAME } from "../lib/chat-attach-names.ts";
 import { attachableDocuments } from "../lib/chat-documents-model.ts";
@@ -69,7 +69,8 @@ export function AddChatDocumentDialog({ chatId, open, onOpenChange, activeIds }:
     try {
       await attach.mutateAsync({ chatId, documentId });
       onOpenChange(false);
-    } catch {
+    } catch (error) {
+      rethrowUnlessTrpcFailure(error);
       setFailure("Couldn't add the document to this chat.");
     } finally {
       ownedRef.current = false;

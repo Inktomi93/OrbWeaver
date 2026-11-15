@@ -27,7 +27,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { COLLECTION_LARGE_GROUP, ITEM_ATTACH_SETTING, itemSwitchName, regexScriptScent, regexScriptTitle, timeLib } from "#lib";
+import { COLLECTION_LARGE_GROUP, ITEM_ATTACH_SETTING, itemSwitchName, regexScriptScent, regexScriptTitle, rethrowUnlessTrpcFailure, timeLib } from "#lib";
 import { MutedLine } from "./muted-line.tsx";
 import { useAttachCharacter, useAttachChat, useAttachPreset, useDetachCharacter, useDetachChat, useDetachPreset } from "./regex-mutations.ts";
 import { RegexScopeOrder } from "./regex-scope-order.tsx";
@@ -281,7 +281,7 @@ function PickerRow({
         checked={attached}
         onCheckedChange={(next): void => {
           // `toggle` returns the `mutateAsync` promise of one of the six `createEntityMutation` hooks at the end of this file, each with failure-copy `errorToast` that the MutationCache toasts. Ends if any of those hooks loses its errorToast.
-          toggle(script.id, next).catch(() => undefined); // The selected mutation's errorToast owns failure.
+          toggle(script.id, next).catch(rethrowUnlessTrpcFailure); // The selected mutation's errorToast owns failure.
         }}
       />
     </Row>

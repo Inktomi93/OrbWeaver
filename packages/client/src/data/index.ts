@@ -42,7 +42,7 @@ export { createEntityMutation, withProcedureInput } from "./create-entity-mutati
 export { readAutomationFires } from "./fetch-automation-fires.ts";
 export { fetchPluginUiSource } from "./fetch-plugin-ui-source.ts";
 export { readFresh } from "./fresh-read.ts";
-export { HttpError } from "./http-error.ts";
+export { HttpError, isHttpFailure, readJsonBody } from "./http-error.ts";
 export { importBundle } from "./import-bundle.ts";
 export { importCharacters } from "./import-characters.ts";
 export { importChats } from "./import-chats.ts";
@@ -74,7 +74,7 @@ export { completeReauth } from "./stale-session.ts";
 export { requireQueryBoundary, useSuspenseInfiniteQuery, useSuspenseQueries, useSuspenseQuery } from "./suspense-reads.ts";
 export type { Trpc, TrpcClient, TrpcReadError } from "./trpc.ts";
 export { createTrpcClient, createTrpcProxy, RIDES_ALONE, roomRosterOptions, roomTailOptions, TRPCProvider, useTRPC, useTRPCClient } from "./trpc.ts";
-export { UploadRefusedError } from "./upload-asset.ts";
+export { isUploadFailure, UploadRefusedError } from "./upload-asset.ts";
 export { DocumentUploadRefusedError, uploadDocument } from "./upload-document.ts";
 export { useCardFrameMint, useCardFrameSrc } from "./use-card-frame.ts";
 export { useCarriedAppearance } from "./use-carried-appearance.ts";

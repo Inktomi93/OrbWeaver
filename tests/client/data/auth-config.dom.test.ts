@@ -1,5 +1,5 @@
 // Bootstrap memoization and live relay reads through the public data door and native query observers.
-import { fetchLiveShare, useAuthConfig } from "@orb/client/data";
+import { fetchLiveShare, HttpError, useAuthConfig } from "@orb/client/data";
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { AppDataProviders, createClientRuntime } from "@orb/testkit/browser";
@@ -7,7 +7,6 @@ import { expect, test } from "@orb/testkit/node";
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
 import { vi } from "vitest";
-import { ZodError } from "zod";
 
 const CONFIG = authConfigSchema.parse({
   mode: "local",
@@ -63,7 +62,7 @@ test("bootstrap retries refused reads, shares an in-flight read across caches an
   transport.mockResolvedValueOnce(new Response("refused", { status: 500 }));
   await expect(first.refetch({ throwOnError: true })).rejects.toThrow("HTTP 500");
   transport.mockResolvedValueOnce(Response.json({ ...CONFIG, transport: "ftp" }));
-  await expect(first.refetch({ throwOnError: true })).rejects.toThrow(ZodError);
+  await expect(first.refetch({ throwOnError: true })).rejects.toThrow(HttpError);
 
   const held = Promise.withResolvers<Response>();
   transport.mockImplementation(() => held.promise.then((response) => response.clone()));
@@ -100,7 +99,7 @@ test("live share refuses HTTP errors and malformed full configs before accepting
   await expect(fetchLiveShare()).rejects.toThrow("HTTP 502");
   for (const body of [{ ...CONFIG, share: { state: "up" } }, { share: SHARING_CONFIG.share }, { ...SHARING_CONFIG, transport: "ftp" }]) {
     transport.mockResolvedValueOnce(Response.json(body));
-    await expect(fetchLiveShare()).rejects.toThrow(ZodError);
+    await expect(fetchLiveShare()).rejects.toThrow(HttpError);
   }
   transport.mockResolvedValueOnce(Response.json(SHARING_CONFIG));
   await expect(fetchLiveShare()).resolves.toEqual(SHARING_CONFIG.share);

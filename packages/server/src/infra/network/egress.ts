@@ -90,6 +90,12 @@ const TRAILING_DOT_RE = /\.$/;
  *  `ENOTFOUND`, and passes `EAI_AGAIN` (the resolver could not answer now) and `EAI_FAIL` (it failed for good) through.
  *  `ENODATA` is a `dns.resolve*` code, so a lookup never answers it. */
 const UNRESOLVED_NAME_CODES: ReadonlySet<string> = new Set(["ENOTFOUND", "EAI_AGAIN", "EAI_FAIL"]);
+
+/** Whether a resolver rejection says the name has no address; any other resolver fault is a different failure. */
+function isUnresolvedName(error: unknown): boolean {
+  const code = errnoCode(error);
+  return code !== undefined && UNRESOLVED_NAME_CODES.has(code);
+}
 /** The IPv6 zone separator (`fe80::1%eth0`); percent-encoded it is still a `%`. */
 const ZONE_MARK = "%";
 /** The socket family a connector lookup reports for an IPv4 and an IPv6 literal. */
@@ -546,7 +552,13 @@ async function resolvedEndpointAdmissionFor(context: EgressContext, baseUrl: str
 /** Every address a hostname resolves to through the firewall's own lookup; none when it does not resolve. */
 function lookupAllFor(context: EgressContext, hostname: string): Promise<readonly string[]> {
   if (!context.global) {
-    return context.resolver(hostname).catch(() => []);
+    // A name with no address is no verdict at write time; any other resolver fault rejects.
+    return context.resolver(hostname).catch((error: unknown) => {
+      if (!isUnresolvedName(error)) {
+        throw error;
+      }
+      return [];
+    });
   }
   return new Promise((resolve) => {
     context.firewallLookup(hostname, { all: true }, (err, address): void => {
@@ -1322,7 +1334,7 @@ async function resolveHostFor(context: EgressContext, host: string): Promise<rea
     return await context.resolver(host);
   } catch (error) {
     const code = errnoCode(error);
-    if (code === undefined || !UNRESOLVED_NAME_CODES.has(code)) {
+    if (code === undefined || !isUnresolvedName(error)) {
       throw error;
     }
     return blockEgress(context.log, { reason: "unresolvable", host, detail: `host ${host} did not resolve (${code})`, fields: { code } });

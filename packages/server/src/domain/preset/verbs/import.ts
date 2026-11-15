@@ -25,6 +25,7 @@ import { regexScriptCardContentKey } from "@orb/contracts/regex";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { PresetId, UserId } from "@orb/kit/ids";
+import { parseJsonText } from "@orb/kit/json";
 import { nextFreeName } from "@orb/kit/strings";
 import { getLog } from "#foundation/observability";
 import { mapYielding } from "#primitives/abort";
@@ -41,11 +42,8 @@ type ParsedPreset = Extract<ReturnType<typeof parsePresetFile>, { ok: true }>;
 
 /** Decode + JSON-parse without throwing — a non-UTF-8/non-JSON blob is a malformed file, not a crash. */
 function readJson(bytes: Uint8Array): { ok: true; value: unknown } | { ok: false } {
-  try {
-    return { ok: true, value: JSON.parse(new TextDecoder().decode(bytes)) };
-  } catch {
-    return { ok: false };
-  }
+  const value = parseJsonText(new TextDecoder().decode(bytes));
+  return value === undefined ? { ok: false } : { ok: true, value };
 }
 
 interface LandedPreset {

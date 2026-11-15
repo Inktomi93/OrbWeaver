@@ -1,6 +1,6 @@
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
-import { AST_NODE_TYPES } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES, TSESLint } from "@typescript-eslint/utils";
 import { lexicalVariable, singleInitializer } from "./general.ts";
 import { staticMemberName } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
@@ -260,28 +260,53 @@ function escapedCatchClause(context: OrbRuleContext, thrown: TSESTree.ThrowState
 }
 
 const BLIND_CATCH_MESSAGE =
-  "This catch never reads its error and answers null or nothing, so a database fault or a programming error reads as an ordinary miss and reaches no log. " +
-  "Decide by the error's class and rethrow the rest (`if (!isResolveRefusal(error)) throw error;`). Where a ruling keeps every fault contained, cite it and log the error.";
+  "This catch never reads its error and answers a constant or nothing, so a database fault or a programming error reads as an ordinary false, empty or missing answer and reaches no log. " +
+  "Decide by the error's class and rethrow the rest (`if (!isResolveRefusal(error)) throw error;`), or carry the fault to the caller. Where a ruling keeps every fault contained, cite it and log the error.";
 
 const RENAME_DEPTH = 3;
 
-// `await` and `Promise.resolve(...)` carry their operand's answer, so `return Promise.resolve(null)` answers nothing too.
-function isNoAnswer(argument: TSESTree.Node | null | undefined): boolean {
+const CONSTANT_HOPS = 4;
+
+const CONSTANT_UNARY = new Set(["-", "+", "!", "void"]);
+
+// A constant is built only from literals: the same answer whatever fault reached the catch. `await` and
+// `Promise.resolve(...)` carry their operand's answer, and a same-file `const` with such an initializer is that literal
+// by another name. A value read from any other state is an answer the catch did not invent.
+function isConstantAnswer(context: OrbRuleContext, argument: TSESTree.Node | null | undefined, hops = CONSTANT_HOPS): boolean {
   if (argument === null || argument === undefined) {
     return true;
   }
   const value = unwrapTransparent(argument);
-  if (value.type === AST_NODE_TYPES.AwaitExpression) {
-    return isNoAnswer(value.argument);
+  const constant = (node: TSESTree.Node | null | undefined): boolean => isConstantAnswer(context, node, hops);
+  switch (value.type) {
+    case AST_NODE_TYPES.Literal:
+      return true;
+    case AST_NODE_TYPES.TemplateLiteral:
+      return value.expressions.length === 0;
+    case AST_NODE_TYPES.Identifier: {
+      const initializer = value.name === "undefined" || hops === 0 ? undefined : singleInitializer(context, value);
+      return value.name === "undefined" || (initializer !== undefined && isConstantAnswer(context, initializer, hops - 1));
+    }
+    case AST_NODE_TYPES.UnaryExpression:
+      return value.operator === "void" || (CONSTANT_UNARY.has(value.operator) && constant(value.argument));
+    case AST_NODE_TYPES.ArrayExpression:
+      return value.elements.every((element) => element === null || (element.type !== AST_NODE_TYPES.SpreadElement && constant(element)));
+    case AST_NODE_TYPES.ObjectExpression:
+      return value.properties.every(
+        (property) =>
+          property.type === AST_NODE_TYPES.Property && !property.method && (!property.computed || constant(property.key)) && constant(property.value),
+      );
+    case AST_NODE_TYPES.ConditionalExpression:
+      return constant(value.consequent) && constant(value.alternate);
+    case AST_NODE_TYPES.LogicalExpression:
+      return constant(value.left) && constant(value.right);
+    case AST_NODE_TYPES.AwaitExpression:
+      return constant(value.argument);
+    case AST_NODE_TYPES.CallExpression:
+      return isPromiseResolve(value) && constant(value.arguments[0]);
+    default:
+      return false;
   }
-  if (isPromiseResolve(value)) {
-    return isNoAnswer(value.arguments[0]);
-  }
-  return (
-    (value.type === AST_NODE_TYPES.Literal && value.raw === "null") ||
-    (value.type === AST_NODE_TYPES.Identifier && value.name === "undefined") ||
-    (value.type === AST_NODE_TYPES.UnaryExpression && value.operator === "void")
-  );
 }
 
 function isPromiseResolve(node: TSESTree.Node): node is TSESTree.CallExpression {
@@ -292,25 +317,67 @@ function isPromiseResolve(node: TSESTree.Node): node is TSESTree.CallExpression 
   return object.type === AST_NODE_TYPES.Identifier && object.name === "Promise" && property.type === AST_NODE_TYPES.Identifier && property.name === "resolve";
 }
 
-// A read that discards the value (`void error`, a bare `error;`) or only renames it into a binding nothing reads
-// leaves the error as unexamined as no binding at all.
-function usedRead(context: OrbRuleContext, identifier: TSESTree.Node, depth: number): boolean {
-  let current = identifier;
-  while (TRANSPARENT_PARENTS.has(current.parent?.type ?? "")) {
-    current = current.parent as TSESTree.Node;
+// The node whose value is `node`'s value: a wrapper, `error ?? x`, `error || x`, the right of `&&`, or an arm of `?:`.
+function carriedValue(node: TSESTree.Node): TSESTree.Node {
+  let current = node;
+  for (let parent = current.parent; parent !== undefined; parent = current.parent) {
+    const carries =
+      TRANSPARENT_PARENTS.has(parent.type) ||
+      (parent.type === AST_NODE_TYPES.LogicalExpression && (parent.operator !== "&&" || parent.right === current)) ||
+      (parent.type === AST_NODE_TYPES.ConditionalExpression && parent.test !== current);
+    if (!carries) {
+      break;
+    }
+    current = parent;
   }
+  return current;
+}
+
+const TESTED_STATEMENTS: ReadonlySet<string> = new Set([
+  AST_NODE_TYPES.IfStatement,
+  AST_NODE_TYPES.WhileStatement,
+  AST_NODE_TYPES.DoWhileStatement,
+  AST_NODE_TYPES.ForStatement,
+  AST_NODE_TYPES.ConditionalExpression,
+]);
+
+// A caught value is truthy whenever anything was thrown, so a bare truthiness test classifies nothing.
+function onlyTested(parent: TSESTree.Node, current: TSESTree.Node): boolean {
+  return (
+    (TESTED_STATEMENTS.has(parent.type) && "test" in parent && parent.test === current) ||
+    (parent.type === AST_NODE_TYPES.UnaryExpression && parent.operator === "!") ||
+    (parent.type === AST_NODE_TYPES.LogicalExpression && parent.operator === "&&" && parent.left === current)
+  );
+}
+
+// A read inside a function nested in the binding's scope counts only when that function itself is used: called,
+// handed on or returned. `boundary` is the scope block that declares the binding.
+function closureUsed(context: OrbRuleContext, identifier: TSESTree.Node, boundary: TSESTree.Node, depth: number): boolean {
+  const ancestors = context.sourceCode.getAncestors(identifier);
+  const closure = ancestors.slice(ancestors.indexOf(boundary) + 1).find((ancestor) => FUNCTION_NODES.has(ancestor.type));
+  if (closure === undefined) {
+    return true;
+  }
+  if (closure.type === AST_NODE_TYPES.FunctionDeclaration) {
+    return closure.id !== null && depth > 0 && variableUsed(context, lexicalVariable(context, closure.id), depth - 1);
+  }
+  return usedRead(context, closure, depth);
+}
+
+// A read that discards the value (`void error`, a bare `error;`), only tests its truthiness, sits in a closure nothing
+// runs, or only renames it into a binding nothing reads leaves the error as unexamined as no binding at all.
+function usedRead(context: OrbRuleContext, identifier: TSESTree.Node, depth: number, boundary?: TSESTree.Node): boolean {
+  const current = carriedValue(identifier);
   const parent = current.parent;
-  if (parent === undefined || parent.type === AST_NODE_TYPES.ExpressionStatement) {
+  if (parent === undefined || parent.type === AST_NODE_TYPES.ExpressionStatement || onlyTested(parent, current)) {
     return false;
   }
   if (parent.type === AST_NODE_TYPES.UnaryExpression && parent.operator === "void") {
     return false;
   }
   const renamed = renamedInto(parent, current);
-  if (renamed?.type !== AST_NODE_TYPES.Identifier) {
-    return true;
-  }
-  return depth > 0 && variableUsed(context, lexicalVariable(context, renamed), depth - 1);
+  const used = renamed?.type !== AST_NODE_TYPES.Identifier || (depth > 0 && variableUsed(context, lexicalVariable(context, renamed), depth - 1));
+  return used && (boundary === undefined || closureUsed(context, identifier, boundary, depth));
 }
 
 function renamedInto(parent: TSESTree.Node, current: TSESTree.Node): TSESTree.Node | undefined {
@@ -321,13 +388,67 @@ function renamedInto(parent: TSESTree.Node, current: TSESTree.Node): TSESTree.No
 }
 
 function variableUsed(context: OrbRuleContext, variable: ReturnType<typeof lexicalVariable>, depth: number): boolean {
-  return variable?.references.some((reference) => reference.isRead() && usedRead(context, reference.identifier, depth)) === true;
+  return variable?.references.some((reference) => reference.isRead() && usedRead(context, reference.identifier, depth, variable.scope.block)) === true;
+}
+
+type RejectionHandler = TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression;
+
+type ErrorHandler = TSESTree.CatchClause | RejectionHandler;
+
+const ZOD_NAMESPACE = "z";
+
+const SCHEMA_SUFFIX = /(?:^s|S)chema$/u;
+
+const ASYNC_SUFFIX = "Async";
+
+// A zod schema's `.catch(fn)` is a parse fallback: zod calls it only for the schema's own validation issues, never for
+// a thrown fault, so the narrowing is the library's. A schema is a method chain on the `z` namespace or on a `*Schema`
+// binding; a plain call such as `loadSchema()`, or an async method such as `parseAsync` or `then`, answers a promise.
+function isSchemaReceiver(receiver: TSESTree.Node): boolean {
+  let current = unwrapTransparent(receiver);
+  for (;;) {
+    if (current.type === AST_NODE_TYPES.MemberExpression) {
+      current = unwrapTransparent(current.object);
+    } else if (current.type === AST_NODE_TYPES.CallExpression && unwrapTransparent(current.callee).type === AST_NODE_TYPES.MemberExpression) {
+      const method = staticMemberName(unwrapTransparent(current.callee)) ?? "";
+      if (PROMISE_LINKS.has(method) || method.endsWith(ASYNC_SUFFIX)) {
+        return false;
+      }
+      current = unwrapTransparent(current.callee);
+    } else {
+      break;
+    }
+  }
+  return current.type === AST_NODE_TYPES.Identifier && (current.name === ZOD_NAMESPACE || SCHEMA_SUFFIX.test(current.name));
+}
+
+// An inline function a promise link hands its rejection to: `.catch(fn)` or the second argument of `.then`. A named
+// handler is a function declared elsewhere, judged by whatever reads it there.
+function isRejectionHandler(context: OrbRuleContext, node: TSESTree.Node): node is RejectionHandler {
+  if (node.type !== AST_NODE_TYPES.ArrowFunctionExpression && node.type !== AST_NODE_TYPES.FunctionExpression) {
+    return false;
+  }
+  const call = node.parent;
+  const link = call.type === AST_NODE_TYPES.CallExpression ? literalMember(context, call.callee) : undefined;
+  const index = link === undefined ? undefined : REJECTION_HANDLER_ARGUMENT.get(link.name);
+  return (
+    index !== undefined &&
+    call.type === AST_NODE_TYPES.CallExpression &&
+    call.arguments[index] === node &&
+    !(link?.name === "catch" && isSchemaReceiver(link.receiver))
+  );
 }
 
 // Every name the parameter binds, a destructured field included, counts only when it is itself read; `catch ({})` binds
 // nothing and so reads nothing.
-function readsCaughtError(context: OrbRuleContext, clause: TSESTree.CatchClause): boolean {
-  return context.sourceCode.getDeclaredVariables(clause).some((variable) => variableUsed(context, variable, RENAME_DEPTH));
+function readsCaughtError(context: OrbRuleContext, handler: ErrorHandler): boolean {
+  return context.sourceCode
+    .getDeclaredVariables(handler)
+    .some(
+      (variable) =>
+        (handler.type === AST_NODE_TYPES.CatchClause || variable.defs.some(({ type }) => type === TSESLint.Scope.DefinitionType.Parameter)) &&
+        variableUsed(context, variable, RENAME_DEPTH),
+    );
 }
 
 // Only `return` and `throw` end a catch with an answer. A `break` or `continue` that leaves the catch answers nothing,
@@ -390,19 +511,72 @@ function jumpTarget(context: OrbRuleContext, jump: TSESTree.BreakStatement | TSE
   return undefined;
 }
 
-// The catch clause whose body holds `node` with no function boundary between them. A `return`, `break` or `throw` in a
-// `finally` is Biome's `lint/correctness/noUnsafeFinally`, so this rule judges catch clauses only.
-function owningCatch(context: OrbRuleContext, node: TSESTree.Node): TSESTree.CatchClause | undefined {
+// The catch clause or rejection handler whose body holds `node` with no other function boundary between them. A
+// `return`, `break` or `throw` in a `finally` is Biome's `lint/correctness/noUnsafeFinally`, so this rule judges catch
+// clauses and rejection handlers only.
+function owningHandler(context: OrbRuleContext, node: TSESTree.Node): ErrorHandler | undefined {
   const boundary = context.sourceCode
     .getAncestors(node)
     .findLast((ancestor) => FUNCTION_NODES.has(ancestor.type) || ancestor.type === AST_NODE_TYPES.CatchClause);
-  return boundary?.type === AST_NODE_TYPES.CatchClause ? boundary : undefined;
+  if (boundary === undefined) {
+    return undefined;
+  }
+  return boundary.type === AST_NODE_TYPES.CatchClause || isRejectionHandler(context, boundary) ? boundary : undefined;
+}
+
+// Whether a handler can finish with no answer: a block that falls out of its end, or an expression body that is constant.
+function fallsThrough(context: OrbRuleContext, handler: ErrorHandler, left: ReadonlySet<TSESTree.Node>): boolean {
+  if (handler.body.type !== AST_NODE_TYPES.BlockStatement) {
+    return isConstantAnswer(context, handler.body);
+  }
+  return !endsAbruptly(handler.body, left);
+}
+
+// `undefined`, `void x`, a bare `return` or `Promise.resolve()`: the handler hands its reader no value at all.
+function isNoValue(argument: TSESTree.Node | null | undefined): boolean {
+  if (argument === null || argument === undefined) {
+    return true;
+  }
+  const value = unwrapTransparent(argument);
+  if (value.type === AST_NODE_TYPES.AwaitExpression) {
+    return isNoValue(value.argument);
+  }
+  if (isPromiseResolve(value)) {
+    return isNoValue(value.arguments[0]);
+  }
+  return (
+    (value.type === AST_NODE_TYPES.Identifier && value.name === "undefined") || (value.type === AST_NODE_TYPES.UnaryExpression && value.operator === "void")
+  );
+}
+
+// A side branch on a promise binding that another statement also reads: the rejection reaches that reader, so a handler
+// that answers nothing here only does bookkeeping or keeps a queue tail from rejecting.
+function forksObservedPromise(context: OrbRuleContext, handler: RejectionHandler): boolean {
+  let receiver = handler.parent.type === AST_NODE_TYPES.CallExpression ? literalMember(context, handler.parent.callee)?.receiver : undefined;
+  while (receiver?.type === AST_NODE_TYPES.CallExpression) {
+    const link = literalMember(context, receiver.callee);
+    receiver = link !== undefined && PROMISE_LINKS.has(link.name) ? link.receiver : undefined;
+  }
+  if (receiver?.type !== AST_NODE_TYPES.Identifier) {
+    return false;
+  }
+  const statement = context.sourceCode
+    .getAncestors(handler)
+    .findLast((ancestor) => ancestor.type.endsWith("Statement") || ancestor.type === AST_NODE_TYPES.VariableDeclaration);
+  const [start, end] = statement?.range ?? handler.range;
+  return (
+    lexicalVariable(context, receiver)?.references.some(
+      (reference) => reference.isRead() && (reference.identifier.range[0] < start || reference.identifier.range[1] > end),
+    ) === true
+  );
 }
 
 export const blindCatchRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
-    const unanswered = new Set<TSESTree.CatchClause>();
+    const unanswered = new Set<ErrorHandler>();
+    // Handlers with a `return` that hands back a value rather than nothing.
+    const valued = new Set<ErrorHandler>();
     const left = new Set<TSESTree.Node>();
     const jump = (statement: TSESTree.BreakStatement | TSESTree.ContinueStatement): void => {
       const target = jumpTarget(context, statement);
@@ -420,23 +594,39 @@ export const blindCatchRule: OrbRule = {
         }
       }
     };
+    const judge = (handler: ErrorHandler): void => {
+      if (readsCaughtError(context, handler)) {
+        return;
+      }
+      if (unanswered.has(handler) || fallsThrough(context, handler, left)) {
+        context.report({ node: handler, message: BLIND_CATCH_MESSAGE });
+      }
+    };
+    const judgeFunction = (node: RejectionHandler): void => {
+      if (!isRejectionHandler(context, node)) {
+        return;
+      }
+      const answersNothing = node.body.type === AST_NODE_TYPES.BlockStatement ? !valued.has(node) : isNoValue(node.body);
+      if (!(answersNothing && forksObservedPromise(context, node))) {
+        judge(node);
+      }
+    };
     return {
       ReturnStatement: (statement: TSESTree.ReturnStatement) => {
-        const clause = isNoAnswer(statement.argument) ? owningCatch(context, statement) : undefined;
-        if (clause !== undefined) {
-          unanswered.add(clause);
+        const handler = isConstantAnswer(context, statement.argument) ? owningHandler(context, statement) : undefined;
+        if (handler !== undefined) {
+          unanswered.add(handler);
+        }
+        const owner = isNoValue(statement.argument) ? undefined : owningHandler(context, statement);
+        if (owner !== undefined) {
+          valued.add(owner);
         }
       },
       BreakStatement: jump,
       ContinueStatement: jump,
-      "CatchClause:exit": (clause: TSESTree.CatchClause) => {
-        if (readsCaughtError(context, clause)) {
-          return;
-        }
-        if (unanswered.has(clause) || !endsAbruptly(clause.body, left)) {
-          context.report({ node: clause, message: BLIND_CATCH_MESSAGE });
-        }
-      },
+      "CatchClause:exit": judge,
+      "ArrowFunctionExpression:exit": judgeFunction,
+      "FunctionExpression:exit": judgeFunction,
     };
   },
 };

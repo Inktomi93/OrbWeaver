@@ -1,12 +1,14 @@
 // Fixed, anonymous GitHub GETs only; safeFetch pins the host on every redirect and bounds the body.
 // Foreign payloads and network failures become named refusals, never a guessed upstream.
 
+import { parseJsonText } from "@orb/kit/json";
 import { SEMVER_RE } from "@orb/kit/semver";
 import type { ReleaseChannel, Upstream, UpstreamOf, UpstreamProbeResult, UpstreamProbes } from "@orb/kit/version-identity";
 import { ORBWEAVER_REPO_SLUG, shortCommit } from "@orb/kit/version-identity";
 import { z } from "zod";
 import { APP_NAME, APP_URL } from "#foundation/config";
 import type { SafeFetchResult } from "#infra/network";
+import { EgressBlockedError } from "#infra/network";
 
 import type { UpstreamFetchDeps } from "./contract.ts";
 
@@ -65,6 +67,11 @@ const releasePayload = z
 /** A release tag as release-please spells it: `v` then the plain three-part version. */
 const RELEASE_TAG_PREFIX = "v";
 
+// An egress refusal (a block, the deadline, the byte cap) or fetch's network failure: the box cannot reach GitHub.
+function isUnreachable(error: unknown): boolean {
+  return error instanceof EgressBlockedError || error instanceof TypeError;
+}
+
 function statusReason(channel: ReleaseChannel, status: number): string {
   if (status === RATE_LIMITED || status === TOO_MANY_REQUESTS) {
     return "GitHub is rate-limiting this box's anonymous requests — try again in a few minutes";
@@ -95,11 +102,13 @@ export function createUpstreamFetches(deps: UpstreamFetchDeps): UpstreamProbes {
         deadlineMs: DEADLINE_MS,
         allowedContentTypes: ["application/json"],
       });
-    } catch {
+    } catch (error) {
       // The refusal IS the product: offline, DNS failure, deadline and every egress denial collapse to the
-      // one thing the update-check surface can say, and the belt has already logged its own securityEvent for the
-      // denials that matter. No waiver is owed — the owner is machine-visible (the returned typed refusal,
-      // which the caller must branch on), which is why the caught-failure gate does not report this site.
+      // one thing the update-check surface can say, and the egress module has already logged its own securityEvent
+      // for the denials that matter. Any other fault rejects.
+      if (!isUnreachable(error)) {
+        throw error;
+      }
       return { ok: false, reason: "couldn't reach GitHub — this box may be offline" };
     }
     if (res.status < OK_STATUS_MIN || res.status >= OK_STATUS_MAX) {
@@ -109,9 +118,12 @@ export function createUpstreamFetches(deps: UpstreamFetchDeps): UpstreamProbes {
     let text: string;
     try {
       text = new TextDecoder().decode(await res.bytes());
-    } catch {
+    } catch (error) {
       // A body that exceeded the cap or died mid-read is the same "couldn't read the answer" the parse arm
       // below reports; there is no second thing a reader could do with it.
+      if (!isUnreachable(error)) {
+        throw error;
+      }
       return { ok: false, reason: "GitHub's answer could not be read" };
     }
     return parse(text);
@@ -127,27 +139,23 @@ export function createUpstreamFetches(deps: UpstreamFetchDeps): UpstreamProbes {
 export function parseMainHead(body: string): UpstreamProbeResult<UpstreamOf<"main">> {
   // A non-JSON or reshaped payload becomes a named refusal — the ONLY alternative is pretending to know the
   // upstream head, which is the exact failure this whole check exists to avoid.
-  try {
-    const parsed = commitPayload.parse(JSON.parse(body));
-    return {
-      ok: true,
-      upstream: { channel: "main", commit: parsed.sha, short: shortCommit(parsed.sha), committedAt: parsed.commit.committer?.date ?? null },
-    };
-  } catch {
+  const parsed = commitPayload.safeParse(parseJsonText(body));
+  if (!parsed.success) {
     return { ok: false, reason: "GitHub's answer was not the commit payload this check expects" };
   }
+  const { sha, commit } = parsed.data;
+  return { ok: true, upstream: { channel: "main", commit: sha, short: shortCommit(sha), committedAt: commit.committer?.date ?? null } };
 }
 
 /** Parse the release payload into the latest stable version, or a named reason. A tag that is not
  *  `v<major>.<minor>.<patch>` is refused rather than compared: ordering a foreign tag would be a guess. */
 export function parseLatestRelease(body: string): UpstreamProbeResult<UpstreamOf<"stable">> {
-  let parsed: z.infer<typeof releasePayload>;
   // Same posture as the commit parse: a reshaped payload is a named refusal, never a guessed version.
-  try {
-    parsed = releasePayload.parse(JSON.parse(body));
-  } catch {
+  const release = releasePayload.safeParse(parseJsonText(body));
+  if (!release.success) {
     return { ok: false, reason: "GitHub's answer was not the release payload this check expects" };
   }
+  const parsed = release.data;
   const tag = parsed[TAG_NAME];
   const version = tag.startsWith(RELEASE_TAG_PREFIX) ? tag.slice(RELEASE_TAG_PREFIX.length) : "";
   if (!SEMVER_RE.test(version)) {

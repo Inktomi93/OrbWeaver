@@ -20,6 +20,7 @@ import { useState } from "react";
 import { QueryBoundary, SettingRowGroup, useFirstBootRows } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { saveStateOf, useReportSaveStatus } from "#forms";
+import { rethrowUnlessTrpcFailure } from "#lib";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { envFloor, isOverridden } from "../lib/app-override-model.ts";
 import { MEDIA_TRUST_SUBCATEGORY } from "../lib/system-config-nav.ts";
@@ -90,7 +91,7 @@ function MediaTrustBody({ anchorId, sectionId }: { readonly anchorId: string; re
   // Every write names ONLY this section's keys (S1) — the switches write immediately (a toggle IS the
   // override), the cap batches through Save.
   const write = (partial: Pick<AppSettings, "forbidExternalMedia" | "trustHtml" | "allowInteractiveCards" | "maxImageBytes">): void => {
-    save.mutateAsync({ partial }).catch(() => undefined); // the sticky save.error slot surfaces the failure
+    save.mutateAsync({ partial }).catch(rethrowUnlessTrpcFailure); // the sticky save.error slot surfaces the failure
   };
   // Reset clears this section's three keys to the floor. All three are TOP-LEVEL scalars, so a plain `null`
   // each is the merge-clear (no nested-object hazard here). Re-sync the draft to the RESOLVED floor the
@@ -99,7 +100,7 @@ function MediaTrustBody({ anchorId, sectionId }: { readonly anchorId: string; re
     save
       .mutateAsync({ partial: { forbidExternalMedia: null, trustHtml: null, allowInteractiveCards: null, maxImageBytes: null } })
       .then((resolvedAfter) => setMaxImageDraft(toMbDraft(resolvedAfter.maxImageBytes)))
-      .catch(() => undefined);
+      .catch(rethrowUnlessTrpcFailure);
   };
 
   return (

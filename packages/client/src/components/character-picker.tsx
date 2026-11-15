@@ -32,7 +32,7 @@ import type { ReactElement, ReactNode, Ref, UIEvent } from "react";
 import { useDeferredValue, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseInfiniteQuery, useTRPC } from "#data";
-import { CLEAR_SEARCH_NAME, SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
+import { CLEAR_SEARCH_NAME, SEARCH_DEBOUNCE_MS, surfaceDeferredFailure, useDebouncedValue } from "#lib";
 import { QueryBoundary } from "./query-boundary.tsx";
 import { pickerShowingLine } from "./shared-control-names.ts";
 
@@ -186,14 +186,14 @@ function CharacterPickerBody({
     if (hasNextPage && !isFetching) {
       // The retained-page error below owns the rejection; the promise is consumed so it cannot become an
       // unhandled rejection while TanStack exposes the same failure through `isFetchNextPageError`.
-      fetchNextPage().catch(() => undefined);
+      fetchNextPage().catch(surfaceDeferredFailure);
     }
   };
   useEffect(() => {
     const list = listRef.current;
     const cannotScrollToTail = candidates.length === 0 || (list !== null && list.clientHeight > 0 && list.scrollHeight <= list.clientHeight);
     if (cannotScrollToTail && hasNextPage && !isFetching && !query.isFetchNextPageError) {
-      fetchNextPage().catch(() => undefined);
+      fetchNextPage().catch(surfaceDeferredFailure);
     }
   }, [candidates.length, fetchNextPage, hasNextPage, isFetching, query.isFetchNextPageError]);
   const onScroll = (event: UIEvent<HTMLDivElement>): void => {
