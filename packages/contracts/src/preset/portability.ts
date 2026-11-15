@@ -39,6 +39,10 @@ export type PresetImportOutcome = z.output<typeof presetImportOutcomeSchema>;
 /** The two formats the Presets page's import reads, told apart by the file's envelope. */
 const PRESET_FILE_FORMATS = ["orbweaver", "sillyTavern"] as const;
 
+/** The field a SillyTavern preset carries its regex scripts under. A preview's `leftOut` entry under it is about one
+ *  script (`<field>[<position>]…`), and its reason names that script. */
+export const ST_PRESET_SCRIPT_LIST_FIELD = "extensions.regex_scripts";
+
 /** What importing one preset file does, from the run's own parse and a dry run of its write. `name` is the name the
  *  file asks for, clipped; `inLibrary` says the run reuses an equal preset the owner holds. `sectionCount` counts
  *  the prompts the preset lands with and `enabledCount` those switched on; `samplerCount` and `limitCount` count the

@@ -1,11 +1,13 @@
 // The Presets import for a first user who arrives with a SillyTavern preset: the empty state offers Import beside New, the
-// preview says what the file holds and what has no equivalent, a landed preset says whether it is in use and offers the one
+// preview says what the file holds, how many of its scripts arrive switched off with the import's own script notes beside
+// that count, and what has no equivalent, a landed preset says whether it is in use and offers the one
 // call that makes it so, and the preview stays reachable at 200% text. The band's own door is held at the shell's widths in
 // tests/client/features/app-shell/surfaces/list-band-import-door.ct.tsx.
 // @subject packages/client/src/features/preset/hooks/use-preset-import.tsx
 // @subject packages/client/src/features/preset/components/preset-import-dialog.tsx
 // @subject packages/client/src/features/preset/components/preset-library-welcome.tsx
 
+import { ST_PRESET_SCRIPT_LIST_FIELD } from "@orb/contracts/preset";
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import { setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName, noticeToast, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
@@ -197,7 +199,7 @@ test("the preview counts the prompts and those enabled, says samplers and limits
   await expect(dialog.getByText(presetImportAddedSections(added), { exact: true })).toBeVisible();
   await expect(dialog.getByText(presetImportLead(true, PRESET_NAME, PRESET_COUNTS.prompts, PRESET_COUNTS.enabled), { exact: true })).toBeVisible();
   await expect(dialog.getByText(presetImportCarried(PRESET_COUNTS.samplers, PRESET_COUNTS.limits), { exact: true })).toBeVisible();
-  await expect(dialog.getByText(presetImportScriptsComing(PRESET_COUNTS.scripts), { exact: true })).toBeVisible();
+  await expect(dialog.getByText(presetImportScriptsComing(PRESET_COUNTS.scripts, 0), { exact: true })).toBeVisible();
   await expect(dialog.getByText(PRESET_IMPORT_DROPPED_HEADING, { exact: true })).toBeVisible();
   const left = dialog.getByRole("region", { name: PRESET_IMPORT_DROPPED_REGION_NAME, exact: true });
   // The unmapped field is the positive control: the list names it, and `name`, which the preset used, is not in it.
@@ -205,6 +207,49 @@ test("the preview counts the prompts and those enabled, says samplers and limits
   await expect(left.locator("code", { hasText: /^name$/u })).toHaveCount(0);
   // The dropzone names the picked file.
   await expect(dialog.getByText(FILE_NAME, { exact: true })).toBeVisible();
+});
+
+// Three scripts: one that runs, one whose pattern does not compile, which the import switches off and notes, and one
+// the file itself switched off.
+const OFF_SCRIPTS_FILE = JSON.stringify({
+  prompts: [{ identifier: "main", name: "Main", content: "You narrate.", role: "system" }],
+  ["prompt_order"]: [{ ["character_id"]: 100_001, order: [{ identifier: "main", enabled: true }] }],
+  ["wi_format"]: "on",
+  extensions: {
+    ["regex_scripts"]: [
+      { ...ST_SCRIPT, id: "c0ffee00-0000-4000-8000-000000000041", scriptName: "Status panel", findRegex: "<status>", replaceString: "<div>status</div>" },
+      { ...ST_SCRIPT, id: "c0ffee00-0000-4000-8000-000000000042", scriptName: "Broken bracket", findRegex: "/(unclosed/g", replaceString: "x" },
+      { ...ST_SCRIPT, id: "c0ffee00-0000-4000-8000-000000000043", scriptName: "Resting panel", findRegex: "<rest>", replaceString: "y", disabled: true },
+    ],
+  },
+});
+
+test("the script count says how many arrive switched off, and the import's own note on a script sits beside it, not among the settings left out", async ({
+  mount,
+  page,
+}) => {
+  await using root = await createCorpusHarness();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await serve(page, root);
+  const preview = await (await root.internalCallerFor(root.ownerId)).preset.previewFile({ fileText: OFF_SCRIPTS_FILE, fileName: FILE_NAME });
+  if (!preview.ok) {
+    throw new Error(preview.error);
+  }
+  const notes = preview.leftOut.filter(({ field }) => field.startsWith(`${ST_PRESET_SCRIPT_LIST_FIELD}[`));
+  // The positive control: the server switched two off and noted the one it switched off itself.
+  expect([preview.regexScripts, preview.regexScriptsOff]).toEqual([3, 2]);
+  expect(notes).toHaveLength(1);
+  await mount<typeof PresetImportDoorStory>(STORY, {});
+  await pickFile(page, welcomeDoor(page), OFF_SCRIPTS_FILE);
+  const dialog = page.getByRole("dialog", { name: PRESET_IMPORT_TITLE, exact: true });
+
+  await expect(dialog.getByText(presetImportScriptsComing(preview.regexScripts, preview.regexScriptsOff), { exact: true })).toBeVisible();
+  const scriptNotes = dialog.locator('[data-slot="preset-import-script-notes"]');
+  await expect(scriptNotes.getByText(notes[0]?.reason ?? "", { exact: true })).toBeVisible();
+  await expect(scriptNotes.locator("code")).toHaveCount(0);
+  const left = dialog.getByRole("region", { name: PRESET_IMPORT_DROPPED_REGION_NAME, exact: true });
+  await expect(left.locator("code", { hasText: /^wi_format$/u })).toBeVisible();
+  await expect(left.locator("code", { hasText: ST_PRESET_SCRIPT_LIST_FIELD })).toHaveCount(0);
 });
 
 test("a value the import brings into range is listed as changed with what it landed as, and is not among the settings left out", async ({ mount, page }) => {

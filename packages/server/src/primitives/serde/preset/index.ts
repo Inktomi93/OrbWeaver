@@ -10,7 +10,7 @@
 // never reads the `name` a preset file may carry, so that field is handled here and reported nowhere.
 
 import type { PresetFile, StDroppedField } from "@orb/contracts/preset";
-import { buildPresetFile, tryImportStChatCompletionPreset } from "@orb/contracts/preset";
+import { buildPresetFile, ST_PRESET_SCRIPT_LIST_FIELD, tryImportStChatCompletionPreset } from "@orb/contracts/preset";
 import type { RegexScriptCard, RegexScriptRefusal } from "@orb/contracts/regex";
 import { isPlainObject } from "@orb/kit/guards";
 import { readStScriptList } from "#primitives/serde/regex";
@@ -57,7 +57,7 @@ function parsePresetExtensions(raw: Record<string, unknown>): {
     return { regexScripts: [], refusedScripts: [], dropped: [] };
   }
   const { regex_scripts: rawScripts, ...residue } = ext;
-  const read = readStScriptList(Array.isArray(rawScripts) ? rawScripts : [], `${ST_PRESET_EXTENSIONS_KEY}.regex_scripts`, "scoped");
+  const read = readStScriptList(Array.isArray(rawScripts) ? rawScripts : [], ST_PRESET_SCRIPT_LIST_FIELD, "scoped");
   const dropped: StDroppedField[] = [...read.notes];
   for (const key of Object.keys(residue)) {
     dropped.push({

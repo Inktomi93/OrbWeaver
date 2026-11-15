@@ -111,11 +111,15 @@ export function presetImportCarried(samplers: number, limits: number): string {
   return limits > 0 ? "Limits came across. The file sets no samplers." : "The file sets no samplers or limits.";
 }
 
-/** The summary's line on the regex scripts a SillyTavern preset brings, attached to the preset. */
-export function presetImportScriptsComing(count: number): string {
-  return count === 1
-    ? "1 regex script comes with it and is attached to the preset."
-    : `${String(count)} regex scripts come with it and are attached to the preset.`;
+/** The summary's line on the regex scripts a SillyTavern preset brings, attached to the preset, with how many of them
+ *  arrive switched off. */
+export function presetImportScriptsComing(count: number, off: number): string {
+  const scripts =
+    count === 1 ? "1 regex script comes with it and is attached to the preset" : `${String(count)} regex scripts come with it and are attached to the preset`;
+  if (off === 0) {
+    return `${scripts}.`;
+  }
+  return off === count ? `${scripts}, all switched off.` : `${scripts}: ${String(count - off)} on, ${String(off)} switched off.`;
 }
 
 /** The summary's list of what has no equivalent here: its heading, its scroll region's name, and the line when nothing is left out. */

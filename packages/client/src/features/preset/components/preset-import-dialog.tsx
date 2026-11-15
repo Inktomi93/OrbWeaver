@@ -2,10 +2,13 @@
 // file arrives in: an orbweaver preset export or a SillyTavern Chat Completion preset. The dialog parses nothing. On
 // pick it sends the file to `preset.previewFile`, which reads it with the import's own parse and dry-runs the import,
 // and it shows that answer; on confirm the same file goes to `preset.importFile`. So the summary states what the run
-// does (the prompts and how many are on, the samplers and limits, a SillyTavern preset's own regex scripts included),
-// and a bad file's reason is the server's sentence.
+// does (the prompts and how many are on, the samplers and limits, a SillyTavern preset's own regex scripts included,
+// with how many arrive switched off and, beside that count, each note the import made about one script), and a bad
+// file's reason is the server's sentence. A script the file itself switched off is counted, not named: the preview
+// carries no note for it.
 
 import type { PresetFilePreview } from "@orb/contracts/preset";
+import { ST_PRESET_SCRIPT_LIST_FIELD } from "@orb/contracts/preset";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { Icon, TriangleAlert } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -164,7 +167,23 @@ export function PresetImportDialog({ open, onOpenChange, onPreview, onImport, bu
 
 /** The pre-commit summary: the server's preview of what the import does. */
 function ImportSummary({ preview }: { readonly preview: ReadyPreview }): ReactElement {
-  const { format, name, inLibrary, sectionCount, enabledCount, samplerCount, limitCount, regexScripts, refusedScripts, addedSections, clamped } = preview;
+  const {
+    format,
+    name,
+    inLibrary,
+    sectionCount,
+    enabledCount,
+    samplerCount,
+    limitCount,
+    regexScripts,
+    regexScriptsOff,
+    refusedScripts,
+    addedSections,
+    clamped,
+  } = preview;
+  // A note about one script sits with the script count, in its own words; the field path is the file's, not the reader's.
+  const scriptNotes = preview.leftOut.filter(({ field }) => field.startsWith(`${ST_PRESET_SCRIPT_LIST_FIELD}[`));
+  const leftOut = preview.leftOut.filter((entry) => !scriptNotes.includes(entry));
   // The lead counts the file's own prompts. The import switches on each prompt it adds, so they come off both totals and
   // the line that names them carries the rest.
   const ownPrompts = sectionCount - addedSections.length;
@@ -177,10 +196,19 @@ function ImportSummary({ preview }: { readonly preview: ReadyPreview }): ReactEl
       <MutedLine>{presetImportCarried(samplerCount, limitCount)}</MutedLine>
       {inLibrary ? <MutedLine>{PRESET_IMPORT_ALREADY_HELD}</MutedLine> : null}
       {addedSections.length === 0 ? null : <MutedLine>{presetImportAddedSections(addedSections)}</MutedLine>}
-      {regexScripts === 0 ? null : <MutedLine>{presetImportScriptsComing(regexScripts)}</MutedLine>}
+      {regexScripts === 0 ? null : <MutedLine>{presetImportScriptsComing(regexScripts, regexScriptsOff)}</MutedLine>}
+      {scriptNotes.length === 0 ? null : (
+        <Stack data-slot="preset-import-script-notes" gap="tight">
+          {scriptNotes.map(({ field, reason }) => (
+            <Text key={field} voice="gloss">
+              {reason}
+            </Text>
+          ))}
+        </Stack>
+      )}
       {refusedScripts.length === 0 ? null : <MutedLine>{presetImportScriptsRefused(refusedScripts.length)}</MutedLine>}
       {format === "orbweaver" ? null : <Clamped clamped={clamped} />}
-      {format === "orbweaver" ? null : <LeftOut clamped={clamped.length > 0} leftOut={preview.leftOut} />}
+      {format === "orbweaver" ? null : <LeftOut clamped={clamped.length > 0} leftOut={leftOut} />}
     </Section>
   );
 }

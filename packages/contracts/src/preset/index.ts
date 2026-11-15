@@ -3884,6 +3884,7 @@ export {
   type PresetImportOutcome,
   presetFilePreviewSchema,
   presetImportOutcomeSchema,
+  ST_PRESET_SCRIPT_LIST_FIELD,
 } from "./portability.ts";
 
 // Wire outputs validate already-produced configuration; storage parsing retains its lenient degradation.
