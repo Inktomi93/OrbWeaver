@@ -89,7 +89,7 @@ function assertRenderedCanon(rendered: Awaited<ReturnType<typeof readRenderedCan
 
 function scriptedChatTitle(stopped: boolean): string {
   return stopped
-    ? "Stop closes the held provider socket and retains the user row without an unfinished assistant"
+    ? "Stop closes the held provider socket and keeps the user row and the streamed prefix as the reply"
     : "first send streams incrementally, second send works, and exact canon survives reload";
 }
 
@@ -136,7 +136,11 @@ for (const stopped of [false, true]) {
           { role: "assistant", content: GREETING },
           ...turns
             .slice(0, index + 1)
-            .flatMap((item) => [{ role: "user", content: item.userMessage }, ...(stopped ? [] : [{ role: "assistant", content: item.prefix + item.suffix }])]),
+            // A Stop keeps what the reader saw: the streamed prefix is the reply.
+            .flatMap((item) => [
+              { role: "user", content: item.userMessage },
+              { role: "assistant", content: stopped ? item.prefix : item.prefix + item.suffix },
+            ]),
         ]);
     }
     const before = await listCanon(chatId);
