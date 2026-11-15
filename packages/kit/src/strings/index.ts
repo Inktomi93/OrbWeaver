@@ -129,6 +129,33 @@ export function groupThousands(value: number): string {
   return `${negative ? "-" : ""}${groupDigitRuns(whole)}${fraction}`;
 }
 
+// A count read back as people type it off a model page: grouped by comma, space or underscore ("1,000,000",
+// "128 000"), or shortened with k or m ("128k", "1.5m"). The shortened form may carry a fraction as long as the
+// whole count it names is an integer.
+const THOUSAND = 1000;
+const MILLION = 1_000_000;
+const COUNT_SCALES: ReadonlyMap<string, number> = new Map([
+  ["k", THOUSAND],
+  ["m", MILLION],
+]);
+const TYPED_COUNT = /^(\d+(?:\.\d+)?)([km]?)$/u;
+const COUNT_GROUPING = /[,_\s]/gu;
+// Scaling a decimal lands a hair off the integer it names (1.1 × 1000 is 1100.0000000000002).
+const SCALE_SLACK = 1e-6;
+
+/** The whole count above zero that `raw` names, the inverse of {@link groupThousands} plus the `k`/`m` short forms;
+ *  `undefined` for anything else (empty, zero, negative, a fraction of one, words). */
+export function parseCount(raw: string): number | undefined {
+  const match = TYPED_COUNT.exec(raw.toLowerCase().replace(COUNT_GROUPING, ""));
+  if (match === null) {
+    return;
+  }
+  const [, digits = "", unit = ""] = match;
+  const value = Number(digits) * (COUNT_SCALES.get(unit) ?? 1);
+  const whole = Math.round(value);
+  return Math.abs(value - whole) < SCALE_SLACK && Number.isSafeInteger(whole) && whole > 0 ? whole : undefined;
+}
+
 // ── dollar amounts ───────────────────────────────────────────────────────────────────────────────────
 // The ONE USD formatter, lifted from the stats view-model when the connection editor's account balance
 // became its second feature (AGENTS.md: a second copy of a helper is a defect). `null` is an amount nobody

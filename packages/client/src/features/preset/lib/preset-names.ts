@@ -40,8 +40,9 @@ export function presetForkKeepEditingName(forkName: string): string {
 /** The editor header's activate command; the list's radiogroup names the same pick differently. */
 export const PRESET_ACTIVATE_NAME = "Activate: use this preset for generation";
 
-/** The editor header's reset door, its name and tooltip alike. */
+/** The editor header's reset door: its accessible name, and the visible word it leads with. */
 export const PRESET_RESET_ARRANGEMENT_NAME = "Reset to starter arrangement";
+export const PRESET_RESET_ARRANGEMENT_LABEL = "Reset to starter";
 
 /** The reset door's confirm: its title and its confirm button. */
 export const PRESET_RESET_ARRANGEMENT_TITLE = "Reset to the starter arrangement?";
@@ -192,4 +193,83 @@ export function sequenceChipSubject(noun: string, shown: string): string {
 /** A sequence list's add box, named for the noun it adds. */
 export function sequenceAddName(noun: string): string {
   return `Add ${noun}`;
+}
+
+/** The Context cluster's count of the newest messages a summary leaves word for word. */
+export const PRESET_VERBATIM_TAIL_LABEL = "Messages kept word-for-word";
+
+/** The Output cluster's two token caps. */
+export const PRESET_MAX_OUTPUT_LABEL = "Max output tokens";
+export const PRESET_MAX_CONTEXT_LABEL = "Max context tokens";
+
+/** The readout's capability row for the model's reply cap, and the tag a limit no tier stated carries (the kind
+ *  floor's guess, not the model's own number). */
+export const PRESET_READOUT_OUTPUT_CAP_LABEL = "Output cap";
+export const PRESET_ESTIMATED_LIMIT_SUFFIX = "estimated";
+
+/** The Prompt rack's one line when entries above Chat History change between turns on a connection that caches. */
+export function presetCacheBustersLine(count: number): string {
+  return `${String(count)} ${count === 1 ? "entry" : "entries"} above Chat History change between turns, so this connection can't reuse its prompt cache past them.`;
+}
+export const PRESET_CACHE_BUSTERS_SHOW_NAME = "Show which";
+
+/** The editor's state when no model is set for chat: its title, what it means for the deck, and its one door. */
+export const PRESET_NO_CHAT_MODEL_TITLE = "No model is set for chat yet.";
+export const PRESET_NO_CHAT_MODEL_DETAIL = "The sampling, reasoning and output controls show once you choose a chat model, at that model's own limits.";
+export const PRESET_OPEN_CONNECTIONS_NAME = "Open Connections";
+
+/** The Output cluster's door to the chat connection's own limit settings, shown when its limits are a guess. */
+export const PRESET_SET_REAL_LIMITS_NAME = "Set this model's real limits";
+
+/** The Output cluster's line when the chat connection's limits are a guess; each argument is the guessed number as the
+ *  row prints it, or `null` when that limit is reported. */
+export function presetGuessedLimitsNotice(context: string | null, output: string | null): string {
+  const guesses = [context === null ? null : `a context window of ${context} tokens`, output === null ? null : `a max output of ${output} tokens`].filter(
+    (guess): guess is string => guess !== null,
+  );
+  return `This model's connection doesn't say how much it can take, so these limits are a guess: ${guesses.join(" and ")}. If the model takes more, set its real limits.`;
+}
+
+/** Max output tokens' hint: what the knob does, then the ceiling, said as a guess when the connection reports none. */
+export function presetMaxOutputHint(ceiling: string, guessed: boolean): string {
+  return guessed
+    ? `Caps the length of one reply. This model's connection doesn't report its max output, so the slider stops at a guess of ${ceiling} tokens; the model may take more.`
+    : `Caps the length of one reply. This model accepts up to ${ceiling} output tokens.`;
+}
+
+/** Max context tokens' hint on a route that caps below the window: the window, said as a guess when the connection
+ *  reports none, and the room left for prompt and history. */
+export function presetMaxContextHint(window: string, room: string, guessed: boolean): string {
+  const size = guessed
+    ? `This model's connection doesn't report its context window, so we guess ${window} tokens (the model may take more);`
+    : `This model's window is ${window} tokens;`;
+  return `Soft-caps the working set below the model window: older turns beyond this are trimmed. ${size} ${room} of them fit prompt and history after the reply and the safety margin.`;
+}
+
+/** Max context tokens' hint on a route that sends the window: the knob sets how much the server runs. */
+export function presetSentWindowHint(settableMax: string, window: string): string {
+  return `How much context this server runs, up to ${settableMax} tokens. Unset, it runs ${window}.`;
+}
+
+/** Appended to the Max context hint when the cap leaves no room beside the reply. */
+export function presetReplyExceedsCapNote(reply: string): string {
+  return `The reply (${reply}) is larger than this limit, so only the newest message is sent.`;
+}
+
+/** A blank Max output tokens row: what a reply is capped at when the preset sets nothing. `sends` is the number sent,
+ *  `appDefault` the app's own default; they differ only when the model's limit is lower. */
+export function presetBlankOutputNote(sends: string, appDefault: string): string {
+  return sends === appDefault
+    ? `Blank: replies stop at ${appDefault} tokens, the app's default. A higher model limit doesn't change this; set a number for longer replies.`
+    : `Blank: replies stop at ${sends} tokens, this model's limit, below the app's default of ${appDefault}.`;
+}
+
+/** A stored limit above a ceiling the connection reports: the value stays, and the turn is capped at that ceiling. */
+export function presetCappedOnConnectionNote(stored: string, ceiling: string): string {
+  return `Saved as ${stored}, but capped at ${ceiling}, this model's limit on this connection.`;
+}
+
+/** A stored limit above a guessed ceiling: the value stays, and the turn is capped at the guess. */
+export function presetCappedByGuessNote(stored: string, ceiling: string): string {
+  return `Saved as ${stored}, but capped at ${ceiling} because this model's limit is a guess. Set the real limits to use more.`;
 }

@@ -5,6 +5,7 @@ import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS, providerDisplayLabel } from
 import { isLoopbackHost } from "@orb/kit/allowed-hosts";
 import type { UserCredentialId } from "@orb/kit/ids";
 import { ADD_CONNECTION_PATH, ALLOW_BACKGROUND_SETTING } from "#lib";
+import { CONNECTION_LIMITS_DESCRIPTION, CONNECTION_LIMITS_TITLE } from "./credentials-names.ts";
 import { clauseOf, MODEL_REQUIRED_MESSAGE } from "./model-picker-model.ts";
 
 /** A selected credential disappeared or was revoked while authoring. */
@@ -188,13 +189,14 @@ export const CONNECTION_FORM_COPY = {
   submitFailed: "Couldn't submit the connection.",
 } as const;
 
-/** The add dialog's steps: an add, the first-model step a first chat-capable add opens, and the Utility add that
- *  step can ask for (`add-connection-dialog.tsx`). */
-const ADD_DIALOG_STEPS = ["add", "setup", "add-utility"] as const;
+/** The add dialog's steps: an add, the limits step a saved row whose limits are a guess opens, the first-model step a
+ *  first chat-capable add opens, and the Utility add that step can ask for (`add-connection-dialog.tsx`). */
+const ADD_DIALOG_STEPS = ["add", "limits", "setup", "add-utility"] as const;
 
 /** Each step's dialog title and description. */
 export const ADD_DIALOG_COPY: Record<(typeof ADD_DIALOG_STEPS)[number], { readonly title: string; readonly description: string }> = {
   add: { title: "Add a connection", description: "One provider, one model. Keys are encrypted at rest and never shown again." },
+  limits: { title: CONNECTION_LIMITS_TITLE, description: CONNECTION_LIMITS_DESCRIPTION },
   setup: { title: "Set up your first model", description: "Pick the model background work runs on. You can change both under Model roles later." },
   "add-utility": { title: "Add a Utility model", description: "One provider, one model, for background work. A cheaper model is fine." },
 };

@@ -84,9 +84,21 @@ export type CapabilityOverride = z.infer<typeof capabilityOverrideSchema>;
  *  the zod parse ever runs. */
 export type CapabilityOverrideInput = z.input<typeof capabilityOverrideSchema>;
 
+// A limit a user declares is a count of tokens. Zero, a negative or a fraction would reach the history fit as a window
+// or the send as a reply cap, so the write refuses it; curated and advertised evidence keep the wider number schema.
+const declaredTokenCount = z.number().int().positive();
+const declaredGeneration = deepPartialGeneration.extend({
+  context: deepPartialGeneration.shape.context.unwrap().extend({ window: declaredTokenCount.optional() }).optional(),
+  output: deepPartialGeneration.shape.output
+    .unwrap()
+    .extend({ maxTokens: generationCapabilitySchema.shape.output.shape.maxTokens.extend({ max: declaredTokenCount }).optional() })
+    .optional(),
+});
+
 /** A connection's `declared` block: an override with no `match` (it is that row's), no `evidence` (it IS the
  *  `declared` tier) and no `catalog` (a row is not a catalog entry). */
 export const declaredCapabilitySchema = capabilityOverrideSchema.omit({ match: true, evidence: true, catalog: true }).extend({
+  generation: declaredGeneration.optional(),
   embedding: embeddingCapabilitySchema.omit({ localTextEncoding: true }).partial().strict().optional(),
   // A reranker's ONNX serving picks the files the shared in-process cache loads for every user of that model, so
   // it is shipped curated data only; a connection that states it is refused, never silently dropped.
