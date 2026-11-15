@@ -28,7 +28,7 @@ import { useId, useRef, useState } from "react";
 import type { RowDestructiveAction } from "#components";
 import { RowActionsMenu } from "#components";
 import { roomRosterOptions, useGatedQuery, useInvalidation, useStartChat, useTRPC } from "#data";
-import { ROW_RENAME_NAME } from "#lib";
+import { ROW_RENAME_NAME, rethrowUnlessTrpcFailure } from "#lib";
 import {
   enterSelectionMode,
   GAME_MODE_KEPT_LINE,
@@ -283,7 +283,7 @@ export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters, 
           <MenuItem
             onClick={(): void => {
               // `startChat` rejects from `useStartChat`'s mutateAsync (data/use-start-chat.ts), whose errorToast "Couldn't start the chat." is the surface; this launcher stays in the current room. Ends if useStartChat drops errorToast.
-              startChat({ characterIds }).catch(() => undefined);
+              startChat({ characterIds }).catch(rethrowUnlessTrpcFailure);
             }}
           >
             <Icon icon={MessagesSquare} size="sm" />

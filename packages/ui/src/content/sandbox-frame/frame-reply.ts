@@ -49,6 +49,8 @@ interface FrameReplyLook {
 const APP_LAYER = "orb-app";
 const CUSTOM_PROPERTY = /^--/u;
 const DATA_ATTRIBUTE = /^data-/u;
+const CSSOM_REFUSAL = "SecurityError";
+const SELECTOR_REFUSAL = "SyntaxError";
 // States a static document never enters, and parts no element is: stripped before matching so their rules travel.
 const UNMATCHABLE_STATE =
   /::?(?:before|after|marker|placeholder|selection|backdrop|first-line|first-letter|file-selector-button|-webkit-[\w-]+|-moz-[\w-]+)|:(?:hover|active|focus-visible|focus-within|focus|visited|target|open|checked|placeholder-shown|popover-open|autofill)(?![\w-])/gu;
@@ -73,15 +75,22 @@ function isAppSheet(sheet: CSSStyleSheet): boolean {
 function readableRules(sheet: CSSStyleSheet): readonly CSSRule[] {
   try {
     return [...sheet.cssRules];
-  } catch {
+  } catch (error) {
+    if (!(Error.isError(error) && error.name === CSSOM_REFUSAL)) {
+      throw error;
+    }
     return [];
   }
 }
 
+// A selector the frame's parser does not take (it throws `SyntaxError`) keeps its rule, since its match cannot be read.
 function canMatch(selectorText: string, document: Document): boolean {
   try {
     return document.querySelector(selectorText.replaceAll(UNMATCHABLE_STATE, "")) !== null;
-  } catch {
+  } catch (error) {
+    if (!(Error.isError(error) && error.name === SELECTOR_REFUSAL)) {
+      throw error;
+    }
     return true;
   }
 }

@@ -39,6 +39,7 @@ import type { ChatId, Handle } from "@orb/kit/ids";
 import { notify, onSessionMessage, postSessionMessage, runSessionRecoverySingleFlight, sessionDocument, trpcErrorCode } from "#lib";
 import { fetchAuthMe } from "./auth-bootstrap.ts";
 import { fetchAuthConfig } from "./auth-config.ts";
+import { isHttpFailure } from "./http-error.ts";
 import { markSessionFresh } from "./session-freshness.ts";
 import { writeSessionResume } from "./session-resume.ts";
 
@@ -165,11 +166,19 @@ export function completeReauth(outcome: ReauthOutcome): void {
   settle?.(outcome);
 }
 
+/** A ladder read that fails as a request (the server unreachable, not the session dead) answers null; any other fault
+ *  rejects into the ladder's own catch. */
+function nullOnRequestFailure(error: unknown): null {
+  if (!isHttpFailure(error)) {
+    throw error;
+  }
+  return null;
+}
+
 /** The ladder itself — rung 0, then the mode-forked rung 1, then rung 2. */
 async function runLadder(): Promise<void> {
   postSessionMessage({ kind: "session-recovering" });
-  // the server is unreachable, not the session dead (see the comment below) — the tab is left exactly as it is and the next real edge re-enters the ladder. Ends if unreachable must be distinguished from dead here.
-  const me = await fetchAuthMe().catch(() => null);
+  const me = await fetchAuthMe().catch(nullOnRequestFailure);
   if (me === null) {
     // The server is unreachable, not the session dead (the route guard draws the same line). Leave the tab
     // exactly as it is: the next real edge re-enters the ladder.
@@ -185,16 +194,18 @@ async function runLadder(): Promise<void> {
     resume(me.handle);
     return;
   }
-  // a failed config read leaves `config` null, which matches neither `config?.mode` branch and reaches `signOut()` at the end of runLadder, which broadcasts `signed-out` and navigates to /login. Ends if a branch after this stops reaching signOut().
-  const config = await fetchAuthConfig().catch(() => null);
+  // A config read that fails as a request leaves `config` null, which matches neither `config?.mode` branch and reaches
+  // `signOut()` at the end of runLadder, which broadcasts `signed-out` and navigates to /login.
+  const config = await fetchAuthConfig().catch(nullOnRequestFailure);
   if (config?.mode === "oidc") {
     writeSessionResume({ chatId: host?.resumeChatId() ?? null });
     navigateTo(OIDC_LOGIN_PATH);
     return;
   }
   if (config?.mode === "local" && (await promptReauth()) === "recovered") {
-    // a failed re-auth read leaves `reauthed` null, so `reauthed?.authenticated === true` is false and control reaches `signOut()` at the end of runLadder, which broadcasts `signed-out` and navigates to /login. Ends if this branch stops reaching signOut().
-    const reauthed = await fetchAuthMe().catch(() => null);
+    // A re-auth read that fails as a request leaves `reauthed` null, so `reauthed?.authenticated === true` is false and
+    // control reaches `signOut()` at the end of runLadder, which broadcasts `signed-out` and navigates to /login.
+    const reauthed = await fetchAuthMe().catch(nullOnRequestFailure);
     if (reauthed?.authenticated === true) {
       // §4.2.1's identity boundary: a DIFFERENT handle just signed in on this browser, so every warm cache
       // entry and every durable-local blob belongs to somebody else. A full document load is the only
@@ -223,7 +234,10 @@ export function beginSessionRecovery(): void {
     .finally(() => {
       recovering = false;
     })
-    .catch(() => {
+    .catch((error: unknown) => {
+      // Every way the ladder can fail ends in the same sign-out; the cause is logged so a fault in the ladder itself
+      // is not read as an ordinary failed recovery.
+      console.error("session recovery failed", error);
       notify.error("Session recovery failed. Sign in again.");
       signOut();
     });

@@ -36,13 +36,13 @@ function verdictOf(cpuMs: number): FindCompileVerdict {
     : { ok: false, reason: `its find pattern costs ${Math.round(cpuMs)} ms to compile and first run, over the ${FIND_COMPILE_LIMIT_MS} ms limit` };
 }
 
-/** Measure each pattern's compile off the event loop. Resolves one verdict per pattern, in order. Throws only when the
- *  worker cannot be constructed, which refuses the write. */
+/** Measure each pattern's compile off the event loop. Resolves one verdict per pattern, in order. Rejects only when the
+ *  worker cannot be constructed or cannot be stopped at its deadline, which refuses the write. */
 export function probeFindCompiles(patterns: readonly FindCompileProbe[]): Promise<FindCompileVerdict[]> {
   if (patterns.length === 0) {
     return Promise.resolve([]);
   }
-  const { promise, resolve } = Promise.withResolvers<FindCompileVerdict[]>();
+  const { promise, resolve, reject } = Promise.withResolvers<FindCompileVerdict[]>();
   const verdicts: FindCompileVerdict[] = [];
   let stoppedAtDeadline = false;
   const worker = new Worker(new URL("./compile-worker.ts", import.meta.url), {
@@ -54,8 +54,8 @@ export function probeFindCompiles(patterns: readonly FindCompileProbe[]): Promis
   });
   const deadline = setTimeout(() => {
     stoppedAtDeadline = true;
-    // eslint-disable-next-line orb/detached-work-traced -- the worker's `exit` settles the batch and names the pattern it stopped; a terminate that fails leaves a worker that already exited. Ends if the probe gains a caller that awaits the kill.
-    worker.terminate().catch(() => undefined);
+    // The worker's `exit` settles the batch and names the pattern it stopped; a terminate that fails refuses the write.
+    worker.terminate().catch(reject);
   }, PROBE_WALL_DEADLINE_MS);
   worker.on("message", (value: unknown) => {
     const parsed = compileProbeResultSchema.safeParse(value);

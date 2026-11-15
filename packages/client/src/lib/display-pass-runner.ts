@@ -49,6 +49,9 @@ export interface DisplayPassRequest {
 
 /** How long a fresh Worker may take to report its first script before the browser is judged unable to run it. */
 const WORKER_START_LIMIT_MS = 10_000;
+// The browser refuses to construct a Worker with a `SecurityError` (a policy that forbids it) or a `SyntaxError` (a
+// script URL it cannot parse).
+const WORKER_REFUSAL_NAMES: ReadonlySet<string> = new Set(["SecurityError", "SyntaxError"]);
 const UNAVAILABLE_NOTICE_ID = "display-scripts-unavailable";
 
 interface DisplayJob {
@@ -252,7 +255,10 @@ function spawn(): Worker | null {
     // A module that fails to load (a refused policy, a network failure) reports here and never answers.
     spawned.addEventListener("error", giveUp);
     return spawned;
-  } catch {
+  } catch (error) {
+    if (!(Error.isError(error) && WORKER_REFUSAL_NAMES.has(error.name))) {
+      throw error;
+    }
     return null;
   }
 }

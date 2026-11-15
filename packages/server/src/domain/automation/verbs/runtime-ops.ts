@@ -3,6 +3,7 @@
 import { automationRuleToolViewSchema } from "@orb/contracts/automation";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { resolveSideGenSampling } from "@orb/inference";
+import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AutomationRuntimeDeps, AutomationRuntimeOps } from "../contract/runtime-ops.ts";
 
 /** Build the action adapters without transferring the author's shelf or the room host's funding. */
@@ -85,11 +86,14 @@ export function createAutomationRuntimeOps<TSet>(deps: AutomationRuntimeDeps<TSe
         // with N users' copies of the same plugin resident, a name-only resolve would hand the arm whichever
         // copy happened to register first, i.e. it would spend a stranger's grant on the author's rule.
         set = deps.toolUse.resolveDrivableTools(authorUserId, [name]);
-      } catch {
-        // `resolveDrivableTools` THROWS on an unknown name — the "OUR wiring bug" posture it shares with
+      } catch (error) {
+        // `resolveDrivableTools` THROWS a not-found on an unknown name — the "OUR wiring bug" posture it shares with
         // `resolveTools`, which is right for a turn and wrong for this consumer. Reaching it here means the
         // deactivation landed in the microtask between the check above and this line, so it is the same
-        // vanished-contributor answer, never a rule fault.
+        // vanished-contributor answer, never a rule fault. Any other throw is a fault and rejects.
+        if (!(error instanceof DomainNotFoundError)) {
+          throw error;
+        }
         return { ok: false, reason: "unavailable" };
       }
       const records = await deps.toolUse.executeToolCalls(set, [{ toolCallId: deps.newToolCallId(), name, arguments: argsJson }], {

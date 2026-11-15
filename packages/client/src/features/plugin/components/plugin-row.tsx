@@ -19,6 +19,7 @@ import { useRef, useState } from "react";
 import { MutedLine, QueryBoundary, RowActionsMenu, SettingRowGroup, SettingSwitchRow, SettingTrackRow } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
+import { rethrowUnlessTrpcFailure } from "#lib";
 import { installedPluginControlId } from "#state";
 import { usePluginChatVisibility } from "../hooks/use-plugin-chat-visibility.ts";
 import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
@@ -112,7 +113,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
   const applyUpgrade = async (preview: PluginBundlePreview): Promise<void> => {
     // useUpgradePlugin (lib/plugin-mutations.ts) carries
     // errorToast serverReason("Couldn't update that plugin."); undefined ends this handler. Ends if it drops its errorToast.
-    const updated = await upgrade.mutateAsync({ pluginId: plugin.id, bundleBase64: toBundleBase64(preview.bytes) }).catch(() => undefined);
+    const updated = await upgrade.mutateAsync({ pluginId: plugin.id, bundleBase64: toBundleBase64(preview.bytes) }).catch(rethrowUnlessTrpcFailure);
     if (updated === undefined) {
       return;
     }

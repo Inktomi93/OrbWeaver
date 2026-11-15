@@ -9,6 +9,7 @@
 // over one neutral shape and never learns them (D177).
 
 import { mintToolCallId } from "@orb/contracts/chat";
+import { parseJsonText } from "@orb/kit/json";
 import type { AgentSdkChatRequest, AgentSeedBlock, AgentSeedTurn, AgentToolServer, ChatHistoryMessage, ChatToolOffer, ChatTurnInput } from "#contract";
 import { AGENT_CONTINUATION_PROMPT_STUB, AGENT_PROMPT_TAIL_JOINER, deltaSubscriptionOf } from "#contract";
 import type { AgentToolSpec } from "#src/contract/agent-sdk-backend.ts";
@@ -237,13 +238,8 @@ function answeredIdsAfter(history: readonly ChatHistoryMessage[], index: number)
  *  may be? `JSON.parse`, never an object literal: `parse` defines a `__proto__` key as an OWN property where a
  *  literal would set the prototype. */
 function isJsonObject(raw: string): boolean {
-  let parsed: unknown;
-  // classifier: the `false` answer is read by pairedToolCallIds at turn-input.ts:224, so a non-object call and its pair degrade to announced text the model receives. Ends if this ever gates something other than the structural-vs-text choice.
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return false;
-  }
+  // A non-object call and its pair degrade to announced text the model receives.
+  const parsed = parseJsonText(raw);
   return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed);
 }
 

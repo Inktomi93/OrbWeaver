@@ -16,7 +16,7 @@ import { useState } from "react";
 import type { ChatBusDeps } from "#data";
 import { useChatBusDeps, useTRPC } from "#data";
 import type { ChatContextTabId, ChatSurfaceContribution, ContributorRegistry, NotifyAction, NotifyNotice, ToolRenderer } from "#lib";
-import { MODEL_ROLES_PATH, notify, RERANK_ROLE_DOOR, turnAbortNotice, UTILITY_ROLE_DOOR } from "#lib";
+import { MODEL_ROLES_PATH, notify, RERANK_ROLE_DOOR, rethrowUnlessTrpcFailure, turnAbortNotice, UTILITY_ROLE_DOOR } from "#lib";
 import { isLanding, openConfigTo, openNewChatPicker, revealContextPanel, useActiveChatHandle } from "#state";
 import { leaveGoneRoom } from "../lib/gone-room-draft.ts";
 import { REGEX_STOP_OPEN_ROOM_NAME } from "../lib/regex-stop-copy.ts";
@@ -87,11 +87,15 @@ export function ChatContent({ surfaceContributors, toolRenderers }: ChatContentP
   const baseBusDeps = useChatBusDeps();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  // A skipped script's warning names it by id: the host's library names it, and an unreadable library names nothing.
+  // A skipped script's warning names it by id: the host's library names it, and a library read the server refused (a
+  // tRPC failure) or an invalidation retired (TanStack's cancel) names nothing. Any other fault rejects.
   const scriptOf = (scriptId: RegexScriptId): Promise<RegexScriptRow | null> =>
     queryClient.query(trpc.regex.listScripts.queryOptions()).then(
       (rows) => rows.find((row) => row.id === scriptId) ?? null,
-      () => null,
+      (error: unknown) => {
+        rethrowUnlessTrpcFailure(error);
+        return null;
+      },
     );
   // One cadence per mounted Chats body: it remembers the last turn's drops per connection across room switches.
   const [warningSurface] = useState(() =>

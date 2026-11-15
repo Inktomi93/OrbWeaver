@@ -18,6 +18,7 @@ import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { ChatId } from "@orb/kit/ids";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { rethrowUnlessTrpcFailure } from "#lib";
 import { peekQueryData } from "./peek-query.ts";
 import { useSuspenseQuery } from "./suspense-reads.ts";
 import type { Trpc } from "./trpc.ts";
@@ -76,7 +77,7 @@ export function usePrefetchDisplayScripts(chatId: ChatId): void {
     const options = displayScriptQuery(trpc, chatId);
     if (peekQueryData(queryClient, options.queryKey) === undefined) {
       // the transcript's reader falls back to no scripts and the roster's suspending reader surfaces the error, so a failed warm-up needs no handler of its own. Ends if either reader stops sharing this key.
-      void queryClient.query(options).catch(() => undefined);
+      void queryClient.query(options).catch(rethrowUnlessTrpcFailure);
     }
   }, [queryClient, trpc, chatId]);
 }

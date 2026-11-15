@@ -35,7 +35,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog, SettingSwitchRow } from "#components";
 import { QueryErrorState, useInvalidation, useTRPC } from "#data";
-import { DIALOG_VERBS, notify, START_NEW_CHAT_NAME, viewerTimeZone } from "#lib";
+import { DIALOG_VERBS, notify, rethrowUnlessTrpcFailure, START_NEW_CHAT_NAME, viewerTimeZone } from "#lib";
 import { closeModal, openModal } from "#state";
 import { useApplyRosterPreset, useCreateRosterPreset, useRemoveRosterPreset } from "../hooks/use-roster-preset-mutations.ts";
 import type { CapturedRosterRule, RosterRuleCapture } from "../hooks/use-saved-rosters.ts";
@@ -302,7 +302,7 @@ export function RosterPicker(): ReactElement {
         reportApply(roster, result);
         closeModal();
       })
-      .catch(() => undefined); // errorToast owns the failure copy.
+      .catch(rethrowUnlessTrpcFailure); // errorToast owns the failure copy.
   };
 
   const onSave = (name: string, game: RpgGameTemplate | null): void => {
@@ -346,7 +346,7 @@ export function RosterPicker(): ReactElement {
           `Saved “${view.name}”: ${characterCountPhrase(view.members.length)}${view.rules.length > 0 ? `, ${view.rules.length} rule${view.rules.length === 1 ? "" : "s"}` : ""}.`,
         ),
       )
-      .catch(() => undefined); // errorToast owns the failure copy (e.g. the duplicate-name conflict).
+      .catch(rethrowUnlessTrpcFailure); // errorToast owns the failure copy (e.g. the duplicate-name conflict).
   };
 
   // THE LIBRARY LEADS, THE SAVE DOOR FOLLOWS (side-eye P3-1). The door into this surface is the Members

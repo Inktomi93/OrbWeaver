@@ -28,7 +28,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { DestructiveAction, MutedLine, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { DIALOG_VERBS, notify } from "#lib";
+import { DIALOG_VERBS, notify, rethrowUnlessTrpcFailure } from "#lib";
 import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
 import { PluginBundlePreviewError, readPluginBundle, toBundleBase64 } from "../lib/plugin-bundle.ts";
 import { PLUGIN_DISTRIBUTE_ACTION_NAME } from "../lib/plugin-copy.ts";
@@ -109,13 +109,10 @@ function PluginDistributeBody({ anchorId }: { readonly anchorId: string }): Reac
     const { name } = state.preview.manifest;
     // useDistributePlugin (lib/plugin-mutations.ts) carries
     // errorToast serverReason("Couldn't distribute that plugin."), which always returns a message. Ends if it drops its errorToast.
-    distribute.mutateAsync({ bundleBase64: toBundleBase64(state.preview.bytes) }).then(
-      (result) => {
-        notify.success(fanoutSentence(result, name));
-        setState({ step: "pick" });
-      },
-      () => undefined,
-    );
+    distribute.mutateAsync({ bundleBase64: toBundleBase64(state.preview.bytes) }).then((result) => {
+      notify.success(fanoutSentence(result, name));
+      setState({ step: "pick" });
+    }, rethrowUnlessTrpcFailure);
   };
 
   return (

@@ -3,7 +3,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { CharacterPicker } from "#components";
 import { useOpenRefinery } from "#data";
-import { useOpenRequests } from "#lib";
+import { rethrowUnlessTrpcFailure, useOpenRequests } from "#lib";
 import { REFINERY_START_SESSION_PICKER_NAME } from "../lib/refinery-names.ts";
 import { startSessionRequests } from "../lib/start-session-requests.ts";
 
@@ -64,7 +64,7 @@ export function StartSessionDoor({
             // openRefinery rejects only from its `start.mutateAsync`
             // (packages/client/src/data/use-open-refinery.ts), whose mutation carries `errorToast: "Couldn't start a
             // refinery session for that card."`. Ends if that errorToast is dropped.
-            void openRefinery(id).catch(() => undefined);
+            void openRefinery(id).catch(rethrowUnlessTrpcFailure);
           }}
           placeholder="Search characters…"
           reserveKey="refinery.startSessionPicker"

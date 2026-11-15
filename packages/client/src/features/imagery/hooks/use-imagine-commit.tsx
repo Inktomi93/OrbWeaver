@@ -39,7 +39,7 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import { useId, useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { roomRosterOptions, useGatedQuery, useInvalidation, useTRPC } from "#data";
-import { IMAGE_MODE_LABELS, useFocusOnSwap, viewerTimeZone } from "#lib";
+import { IMAGE_MODE_LABELS, rethrowUnlessTrpcFailure, useFocusOnSwap, viewerTimeZone } from "#lib";
 import type { ImagineSeed, ModalCommit } from "#state";
 import { closeModal, holdRoomForSend, useImagineSeed } from "#state";
 import { DoubleSpendNotice, GeneratingNotice, PendingLine, RoomPicturesNote } from "../components/imagine-body.tsx";
@@ -135,7 +135,7 @@ export function useImagineCommit(): ModalCommit {
     void extract
       .mutateAsync({ chatId: seed.chatId, mode, timeZone: viewerTimeZone() })
       .then((result) => edit({ prompt: result.prompt, receipt: result }))
-      .catch(() => undefined);
+      .catch(rethrowUnlessTrpcFailure);
   };
 
   const runGenerate = (): void => {
@@ -154,7 +154,7 @@ export function useImagineCommit(): ModalCommit {
       await generate.mutateAsync(request);
       closeModal();
     };
-    run().catch(() => undefined);
+    run().catch(rethrowUnlessTrpcFailure);
   };
 
   return {

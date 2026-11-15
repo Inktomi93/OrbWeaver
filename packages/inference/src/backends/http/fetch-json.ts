@@ -88,8 +88,10 @@ export function isRedirect(res: Response): boolean {
   return res.type === "opaqueredirect" || (res.status >= REDIRECT_MIN && res.status <= REDIRECT_MAX);
 }
 
-/** A thrown `fetch` → the typed error, cancellation bound to THIS request's signal (never the error's text). */
-function transportError(args: FetchJsonArgs, cause: unknown): ProviderError {
+/** A thrown `fetch` → the typed error, cancellation bound to THIS request's signal (never the error's text). Every
+ *  rejection of an injected fetch is its transport's answer, a refused endpoint included: inference cannot name the
+ *  server's egress refusal. */
+export function transportError(args: Pick<FetchJsonArgs, "label" | "signal">, cause: unknown): ProviderError {
   if (args.signal.aborted) {
     return new ProviderError({ kind: "aborted", retryable: false, message: `${args.label}: request aborted`, cause });
   }

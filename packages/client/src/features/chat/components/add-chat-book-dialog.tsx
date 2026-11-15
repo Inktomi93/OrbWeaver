@@ -34,7 +34,7 @@ import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { DialogFailure, DismissDialog, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { DIALOG_VERBS } from "#lib";
+import { DIALOG_VERBS, rethrowUnlessTrpcFailure } from "#lib";
 import { useAttachBookToChat } from "../hooks/use-chat-book-mutations.ts";
 import { CHAT_ATTACH_BOOK_FAILURE, CHAT_BOOK_PICKER_EMPTY_TITLE, CHAT_BOOK_PICKER_READ, chatAttachItemName } from "../lib/chat-attach-names.ts";
 import { attachableBooks } from "../lib/chat-books-model.ts";
@@ -67,7 +67,8 @@ export function AddChatBookDialog({ chatId, open, onOpenChange, attachedIds }: A
     try {
       await attach.mutateAsync({ chatId, bookId });
       onOpenChange(false);
-    } catch {
+    } catch (error) {
+      rethrowUnlessTrpcFailure(error);
       setFailure(CHAT_ATTACH_BOOK_FAILURE);
     } finally {
       ownedRef.current = false;

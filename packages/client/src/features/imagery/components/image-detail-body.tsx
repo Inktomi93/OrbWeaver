@@ -21,6 +21,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
+import { rethrowUnlessTrpcFailure } from "#lib";
 import type { ImageSubject } from "#state";
 import { openImageEdit, useDetailSubject } from "#state";
 import { useSetChatBackground } from "../hooks/use-imagery-mutations.ts";
@@ -74,7 +75,8 @@ function ImageDetail({ subject }: { readonly subject: ImageSubject }): ReactElem
             chatId: subject.chatId,
             background: { kind: "asset", assetId: subject.assetId, assetHash: ref.hash, mime: ref.mime },
           });
-        } catch {
+        } catch (error) {
+          rethrowUnlessTrpcFailure(error);
           return;
         }
         // This repaints the whole room from a lightbox button, so the toast names where to change it back —

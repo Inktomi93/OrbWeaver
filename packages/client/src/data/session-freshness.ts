@@ -29,6 +29,7 @@
 import type { Clock } from "@orb/kit/time";
 import { sessionDocument } from "#lib";
 import type { SessionDocumentHost } from "../lib/session-document-host.ts";
+import { isHttpFailure } from "./http-error.ts";
 
 /** The server's session-slide throttle — see the header for why the probe floor is exactly this. */
 const FRESHNESS_FLOOR_MS = 300_000;
@@ -77,7 +78,8 @@ export function startSessionFreshness(deps: SessionFreshnessDeps): () => void {
       return;
     }
     probing = true;
-    // a rejection means unreachable, not signed out (see the interface doc) — the reject arm deliberately leaves the clock alone so the next visible edge retries. Ends if unreachable must be distinguished from signed-out here.
+    // A probe that fails as a request means unreachable, not signed out (see the interface doc) — the reject arm leaves
+    // the clock alone so the next visible edge retries. Any other fault rejects.
     deps.probe().then(
       (authenticated) => {
         probing = false;
@@ -87,9 +89,12 @@ export function startSessionFreshness(deps: SessionFreshnessDeps): () => void {
         }
         deps.onDead();
       },
-      () => {
+      (error: unknown) => {
         // Unreachable ≠ signed out (see the header). Leave the clock alone so the NEXT visible edge retries.
         probing = false;
+        if (!isHttpFailure(error)) {
+          throw error;
+        }
       },
     );
   });

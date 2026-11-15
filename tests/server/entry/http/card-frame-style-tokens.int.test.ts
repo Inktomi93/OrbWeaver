@@ -2,7 +2,6 @@
 // The routed card mint carries the closed style slice through the real HTTP entry: the served document's root
 // reads the clamped values, a key or value outside the slice is refused at the mint, and the
 // response policy is the same bytes it is without the slice.
-import type { CardFrameMintResponse } from "@orb/contracts/chat";
 import { CARD_FRAME_ROUTE, cardFrameMintResponseSchema } from "@orb/contracts/chat";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { buildCardFrameCsp, CARD_FRAME_SAFE_FLOOR, CARD_FRAME_STYLE_TOKEN, cardFrameResponseHeaders } from "@orb/kit/card-frame";
@@ -11,8 +10,10 @@ import type { ChatId } from "@orb/kit/ids";
 import { IN_RANGE_CARD_FRAME_STYLE } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import type { z } from "zod";
 
 type Root = Awaited<ReturnType<typeof createServerHarness>>;
+type CardFrameMintResponse = z.infer<typeof cardFrameMintResponseSchema>;
 
 const HEADERS = { [CSRF_HEADER]: "1", "content-type": "application/json" } as const;
 const POLICY = "content-security-policy";

@@ -22,7 +22,7 @@ import { useToastManager } from "@orb/ui/toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { useFocusOnSwap } from "#lib";
+import { rethrowUnlessTrpcFailure, useFocusOnSwap } from "#lib";
 import type { ImageSubject, ModalCommit } from "#state";
 import { openImageDetail, useEditSubject } from "#state";
 import { IMAGE_EDIT_BACK_NAME, IMAGE_EDIT_EMPTY_TEXT, IMAGE_EDIT_INSTRUCTION_NAME, imageEditGenerateLabel } from "../lib/imagine-names.ts";
@@ -91,7 +91,8 @@ export function useImageEditCommit(): ModalCommit {
         // call is removed.
         try {
           refs = await queryClient.query(trpc.assets.resolveBlobRefs.queryOptions({ assetIds: [first.assetId] }));
-        } catch {
+        } catch (error) {
+          rethrowUnlessTrpcFailure(error);
           toast.add({ title: "Edited image saved", description: "Couldn't open it here. It's in your gallery." });
           return;
         }
@@ -102,7 +103,7 @@ export function useImageEditCommit(): ModalCommit {
         }
         openImageDetail(editedSubject(ref, first.assetId, subject.chatId));
       })
-      .catch(() => undefined);
+      .catch(rethrowUnlessTrpcFailure);
   };
 
   return {

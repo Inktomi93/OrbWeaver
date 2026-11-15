@@ -8,7 +8,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId, useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { notify } from "#lib";
+import { notify, rethrowUnlessTrpcFailure } from "#lib";
 import { useRollDice } from "../hooks/use-rpg-mutations.ts";
 import { canGenerateD20Attributes, rollD20Attributes, standardD20Attributes } from "../lib/attribute-generation.ts";
 import { RPG_ROLL_SCORES_NAME, RPG_STANDARD_ARRAY_NAME } from "../lib/rpg-names.ts";
@@ -39,7 +39,8 @@ export function RpgAttributeSetup({
     try {
       const scores = rolled ? await rollD20Attributes(async () => (await rollDice.mutateAsync({ chatId, notation: "4d6" })).rolls) : standardD20Attributes();
       await onFill(scores);
-    } catch {
+    } catch (error) {
+      rethrowUnlessTrpcFailure(error);
       notify.error("Couldn't fill the attributes. Your saved scores are unchanged.");
     } finally {
       setBusy(false);

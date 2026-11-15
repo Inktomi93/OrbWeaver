@@ -33,6 +33,7 @@ import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useOpenRefinery } from "#data";
+import { rethrowUnlessTrpcFailure } from "#lib";
 import { selectRefinerySession } from "#state";
 import { useRefinerySessions } from "../hooks/use-refinery-sessions.ts";
 import { TeachingState } from "./teaching-state.tsx";
@@ -79,7 +80,7 @@ export function RefineryStartPane(): ReactElement {
         // openRefinery rejects only from its `start.mutateAsync`
         // (packages/client/src/data/use-open-refinery.ts), whose mutation carries `errorToast: "Couldn't start a
         // refinery session for that card."`. Ends if that errorToast is dropped.
-        void openRefinery(characterId).catch(() => undefined);
+        void openRefinery(characterId).catch(rethrowUnlessTrpcFailure);
       }}
       starting={isPending}
     />

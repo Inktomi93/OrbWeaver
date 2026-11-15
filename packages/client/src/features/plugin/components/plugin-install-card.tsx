@@ -53,7 +53,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { DIALOG_VERBS } from "#lib";
+import { DIALOG_VERBS, rethrowUnlessTrpcFailure } from "#lib";
 import { openConfigTo } from "#state";
 import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
 import { PluginBundlePreviewError, readPluginBundle, readPluginFolder, toBundleBase64 } from "../lib/plugin-bundle.ts";
@@ -273,7 +273,7 @@ export function PluginInstallCard(): ReactElement {
     // `settled` is one of useInstallPlugin or useInstallPluginFromUrl
     // (lib/plugin-mutations.ts) or useInstallPluginFromGit (lib/plugin-distribution-mutations.ts), each with an errorToast;
     // the dialog stays open for retry. Ends if any of them drops its errorToast.
-    settled.then(onDone, () => undefined);
+    settled.then(onDone, rethrowUnlessTrpcFailure);
   };
 
   return (

@@ -21,7 +21,7 @@ import { z } from "zod";
 import { DialogFailure, FormDialogPopup, FormDialogRoot, ModelRunConfirmDialog, useModelRunConfirm } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
-import { timeLib } from "#lib";
+import { rethrowUnlessTrpcFailure, timeLib } from "#lib";
 import { useRunWorkloadForm } from "../hooks/use-run-workload-form.ts";
 import { useStartWorkload } from "../hooks/use-workload-mutations.ts";
 import type { RunWorkloadFormValues, WorkloadRunRequestScope } from "../lib/workloads-model.ts";
@@ -141,7 +141,7 @@ function RunWorkloadFormBody({
         testKey: "runWorkloadSubmit",
         onSubmit: (): void => {
           // The save's failure is already said, inline or by the toast; the rethrow carries nothing new.
-          form.handleSubmit().catch(() => undefined);
+          form.handleSubmit().catch(rethrowUnlessTrpcFailure);
         },
       }}
       testKey="runWorkloadDialog"

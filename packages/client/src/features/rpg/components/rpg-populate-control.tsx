@@ -26,7 +26,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { notify } from "#lib";
+import { notify, rethrowUnlessTrpcFailure } from "#lib";
 import { usePopulateFromCharacter } from "../hooks/use-rpg-mutations.ts";
 import { Kicker } from "./rpg-kicker.tsx";
 
@@ -65,7 +65,8 @@ export function RpgPopulateControl({ chatId, actor, canPopulate }: RpgPopulateCo
       if (verdict.ok && !verdict.populated) {
         notify.info(`Nothing to fill: ${actor.name}'s card added nothing that isn't already set.`);
       }
-    } catch {
+    } catch (error) {
+      rethrowUnlessTrpcFailure(error);
       // The failed mutation's own error toast has already spoken.
     }
   };

@@ -54,6 +54,14 @@ export function secondsToMs(seconds: number | null | undefined): number | undefi
   return Math.round(seconds * MS_PER_SECOND);
 }
 
+// Temporal refuses a malformed reading, an impossible date or an unknown zone with a `RangeError`; that refusal is the
+// typed `null` each parser below answers. Any other throw is a fault and rejects.
+function rethrowUnlessRefused(error: unknown): void {
+  if (!(error instanceof RangeError)) {
+    throw error;
+  }
+}
+
 /** An `[IANA/Zone]`-annotated or offset/`Z`-designated string names an EXACT instant — the string's own
  *  zone decides it, never the caller's. `null` when it carries neither (the zone-less arm below). */
 function exactInstantMs(value: string): number | null {
@@ -61,14 +69,16 @@ function exactInstantMs(value: string): number | null {
   // goes to the Instant.from arm below, whose catch returns the null that isoToMs hands to naiveIsoMs. Ends if the fallthrough is removed.
   try {
     return Temporal.ZonedDateTime.from(value).epochMilliseconds;
-  } catch {
+  } catch (error) {
     // No `[IANA/Zone]` annotation — fall through to the designator arm.
+    rethrowUnlessRefused(error);
   }
   // the null is exactInstantMs's typed "no zone form" result; isoToMs reads it with
   // `?? naiveIsoMs(value)` and returns null when both arms fail. Ends if isoToMs stops reading the null.
   try {
     return Temporal.Instant.from(value).epochMilliseconds;
-  } catch {
+  } catch (error) {
+    rethrowUnlessRefused(error);
     return null;
   }
 }
@@ -80,7 +90,8 @@ function naiveIsoMs(value: string): number | null {
   // (the sole caller) returns it as its own null, which parseStDate in serde/chat reads as an unreadable date. Ends if isoToMs stops returning it.
   try {
     return Temporal.PlainDateTime.from(value, { overflow: "reject" }).toZonedDateTime("UTC").epochMilliseconds;
-  } catch {
+  } catch (error) {
+    rethrowUnlessRefused(error);
     return null;
   }
 }
@@ -142,7 +153,8 @@ export function wallClockToMs(
     // a nearby valid one, which is Temporal's default and would silently land a wrong instant.
     const plain = Temporal.PlainDateTime.from(endOfDay ? { ...parts, hour: 0 } : parts, { overflow: "reject" });
     return (endOfDay ? plain.add({ days: 1 }) : plain).toZonedDateTime(zone).epochMilliseconds;
-  } catch {
+  } catch (error) {
+    rethrowUnlessRefused(error);
     return null;
   }
 }
@@ -164,7 +176,8 @@ export function msToWallClock(
     // exactly what `Date`/luxon did with a sub-ms fraction, so a fractional input lands the same clock.
     const zoned = Temporal.Instant.fromEpochMilliseconds(Math.trunc(ms)).toZonedDateTimeISO(zone);
     return { year: zoned.year, month: zoned.month, day: zoned.day, hour: zoned.hour, minute: zoned.minute, second: zoned.second };
-  } catch {
+  } catch (error) {
+    rethrowUnlessRefused(error);
     return null;
   }
 }
@@ -189,7 +202,8 @@ export function parseIanaTimeZone(value: string): IanaTimeZone | null {
   try {
     const id = Temporal.Instant.fromEpochMilliseconds(0).toZonedDateTimeISO(value).timeZoneId;
     return OFFSET_ZONE_ID.test(id) ? null : (id as IanaTimeZone);
-  } catch {
+  } catch (error) {
+    rethrowUnlessRefused(error);
     return null;
   }
 }

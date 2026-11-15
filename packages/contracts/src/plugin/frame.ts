@@ -107,8 +107,6 @@ export const pluginFrameMintResponseSchema = z.strictObject({
   url: frameDocumentUrlSchema(PLUGIN_FRAME_ROUTE),
   expiresInMs: z.int().positive(),
 });
-/** Type twin of {@link pluginFrameMintResponseSchema}. */
-export type PluginFrameMintResponse = z.infer<typeof pluginFrameMintResponseSchema>;
 
 // ── The postMessage BRIDGE ────────────────────────────────────────────────────────────────────────────────────
 

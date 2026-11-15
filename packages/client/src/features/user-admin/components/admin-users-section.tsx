@@ -18,7 +18,7 @@ import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { QueryBoundary, useFirstBootRows } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQueries, useTRPC } from "#data";
-import { testId } from "#lib";
+import { rethrowUnlessTrpcFailure, testId } from "#lib";
 import { confirmedAction } from "#src/components/confirmed-action.ts";
 import { useSetEnabled, useSetRole } from "../hooks/use-admin-mutations.ts";
 import { ADMIN_USERS_SUBCATEGORY } from "../lib/admin-users-nav.ts";
@@ -76,7 +76,7 @@ function AdminUsersBody({ anchorId }: { readonly anchorId: string }): ReactEleme
     setRolePendingIds(new Set(rolePendingRef.current));
     void setRole
       .mutateAsync({ userId, role })
-      .catch(() => undefined)
+      .catch(rethrowUnlessTrpcFailure)
       .finally(() => {
         rolePendingRef.current.delete(userId);
         setRolePendingIds(new Set(rolePendingRef.current));
@@ -91,7 +91,7 @@ function AdminUsersBody({ anchorId }: { readonly anchorId: string }): ReactEleme
     setEnabledPendingIds(new Set(enabledPendingRef.current));
     void setEnabled
       .mutateAsync({ userId, enabled })
-      .catch(() => undefined)
+      .catch(rethrowUnlessTrpcFailure)
       .finally(() => {
         enabledPendingRef.current.delete(userId);
         setEnabledPendingIds(new Set(enabledPendingRef.current));

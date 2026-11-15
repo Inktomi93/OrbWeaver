@@ -22,7 +22,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId } from "react";
 import { roomTailOptions, useGatedQuery, useInvalidation, useTRPC } from "#data";
-import { viewerTimeZone } from "#lib";
+import { rethrowUnlessTrpcFailure, viewerTimeZone } from "#lib";
 import { holdRoomForSend, isLiveTurnPhase, requestComposerFocus, setComposerDraft, useTurnPhase } from "#state";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useSendChoice } from "../hooks/use-rpg-mutations.ts";
@@ -84,7 +84,7 @@ export function RpgChoiceEcho({ state }: RpgChoiceEchoProps): ReactElement | nul
   const pick = (text: string): void => {
     if (behavior === "send") {
       // The mutation's own error toast reports a failed send.
-      sendPick(text).catch(() => undefined);
+      sendPick(text).catch(rethrowUnlessTrpcFailure);
       return;
     }
     setComposerDraft(chatId, text);

@@ -12,7 +12,7 @@
 // Async contract: highlight() returns null while the grammar hasn't loaded yet, and calls `callback`
 // once loading + tokenizing finishes; HighlightedCodeBlockBody is written for exactly this.
 import type { HighlighterCore, ThemeRegistration } from "@shikijs/core";
-import { createHighlighterCore } from "@shikijs/core";
+import { createHighlighterCore, ShikiError } from "@shikijs/core";
 import { createJavaScriptRegexEngine } from "@shikijs/engine-javascript";
 import type { CodeHighlighterPlugin, HighlightOptions } from "streamdown";
 import { SEED_THEME_VALUE_SETS, TOKEN_POLARITY_ARMS, TOKENS } from "#tokens";
@@ -224,8 +224,13 @@ export const MARKDOWN_SHIKI_PLUGIN = {
     // fallback with a token shape we do not own. Ends if `raw`/`useState(raw)` leaves that component.
     highlightAsync(options.code, options.language)
       .then((result) => callback?.(result))
-      .catch(() => {
-        // Grammar fetch/tokenize failure: leave the block on Streamdown's own raw/plain-text result.
+      .catch((error: unknown) => {
+        // A grammar that fails to load (the dynamic import's `TypeError`) or to compile or tokenize (`ShikiError`,
+        // or the regex engine's `SyntaxError`) leaves the block on Streamdown's own raw/plain-text result. Any other
+        // fault rejects.
+        if (!(error instanceof ShikiError || error instanceof TypeError || error instanceof SyntaxError)) {
+          throw error;
+        }
       });
     return null;
   },

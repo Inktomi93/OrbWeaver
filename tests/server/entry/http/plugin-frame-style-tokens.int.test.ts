@@ -4,7 +4,6 @@
 // response policy and every script byte stay what they are without the slice.
 import { spawn } from "node:child_process";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
-import type { PluginFrameMintResponse } from "@orb/contracts/plugin";
 import { PLUGIN_FRAME_ROUTE, PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginFrameMintResponseSchema, pluginManifestSchema } from "@orb/contracts/plugin";
 import type { CardFrameStyleTokens } from "@orb/kit/card-frame";
 import { CARD_FRAME_SANDBOX, CARD_FRAME_STYLE_TOKEN, cardFrameResponseHeaders } from "@orb/kit/card-frame";
@@ -68,7 +67,7 @@ async function serve(root: ServerTestHarness, url: string): Promise<Omit<Served,
 async function mintAndServe(root: ServerTestHarness, pluginId: PluginId, extra: Record<string, unknown>): Promise<Served> {
   const minted = await postMint(root, { pluginId, surfaceId: SURFACE_ID, ...extra });
   expect(minted.status).toBe(200);
-  const frame: PluginFrameMintResponse = pluginFrameMintResponseSchema.parse(await minted.json());
+  const frame = pluginFrameMintResponseSchema.parse(await minted.json());
   const handle = frame.url.split("/").at(-1) ?? "";
   return { handle, ...(await serve(root, frame.url)) };
 }

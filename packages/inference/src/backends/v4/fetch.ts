@@ -382,16 +382,17 @@ function tapReply(res: Response, args: WrapFetchArgs, body: Record<string, unkno
   const emit = (reply: string): void => {
     emitCapture(args, body, res.headers, reply);
   };
-  // both settlement arms call `emit`, which writes the wire-capture row (the rejection arm with an empty reply); `readCappedStream` carries its tear-down in `CappedRead` and does not reject. Ends if either arm stops emitting.
+  // Both settlement arms call `emit`, which writes the wire-capture row (the rejection arm with an empty reply).
   void readCappedStream(ours, overreadLimit(args.secrets)).then(
     (read) => {
       emit(read.text);
     },
     // Unreachable by construction — `readCappedStream` CARRIES its tear-down in `CappedRead` rather than
     // throwing. The arm is here because that guarantee is internal to this file while the floating read is
-    // the only thing standing between a send and its ring row: it emits, it never swallows.
-    () => {
+    // the only thing standing between a send and its ring row: it emits, then lets the defect reject unhandled.
+    (error: unknown) => {
       emit("");
+      throw error;
     },
   );
   return new Response(downstream, { status: res.status, statusText: res.statusText, headers: res.headers });

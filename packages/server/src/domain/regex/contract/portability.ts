@@ -19,7 +19,8 @@ export interface FindCompileProbe {
 /** A pattern's verdict at the write door: admitted, or refused with a reason a summary prints after the name. */
 export type FindCompileVerdict = { readonly ok: true } | { readonly ok: false; readonly reason: string };
 
-/** The write door's compile-cost check (D53): one verdict per pattern, in order; never rejects. */
+/** The write door's compile-cost check (D53): one verdict per pattern, in order. Rejects only when the probe cannot
+ *  run or cannot be stopped, which refuses the write. */
 export type ProbeFindCompilesOp = (patterns: readonly FindCompileProbe[]) => Promise<readonly FindCompileVerdict[]>;
 
 /** The DI bundle every portability op closes over (assembled at the entry composition root). */

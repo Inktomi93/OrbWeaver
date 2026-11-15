@@ -15,6 +15,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { BackgroundSourceField } from "#components";
 import { roomRosterOptions, useInvalidation, useTRPC } from "#data";
+import { rethrowUnlessTrpcFailure } from "#lib";
 import { useSetChatBackground, useSetRoomOverrides } from "../hooks/use-context-panel-mutations.ts";
 import { ROOM_OVERRIDES_ENTITY_PREFIX } from "../lib/room-overrides-form-model.ts";
 import { RoomOverridesForm } from "./room-overrides-form.tsx";
@@ -29,7 +30,7 @@ export function RoomOverridesTab({ chatId, roomOverrides, isHost }: RoomOverride
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const setOverrides = useSetRoomOverrides({ trpc, invalidation });
-  const save = (overrides: RoomOverrides): Promise<unknown> => setOverrides.mutateAsync({ chatId, overrides }).catch(() => undefined);
+  const save = (overrides: RoomOverrides): Promise<unknown> => setOverrides.mutateAsync({ chatId, overrides }).catch(rethrowUnlessTrpcFailure);
 
   return (
     <RoomOverridesForm entityId={`${ROOM_OVERRIDES_ENTITY_PREFIX}${chatId}`} roomOverrides={roomOverrides} isHost={isHost} save={isHost ? save : undefined} />

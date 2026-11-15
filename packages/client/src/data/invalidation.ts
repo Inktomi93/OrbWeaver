@@ -12,7 +12,7 @@ import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { ChatId } from "@orb/kit/ids";
 import type { InvalidateQueryFilters, Query, QueryClient } from "@tanstack/react-query";
 import { CancelledError, matchQuery } from "@tanstack/react-query";
-import { busDupCheck, busInvalidate, IS_DEV, runAfterViewTransition, surfaceDeferredFailure } from "#lib";
+import { busDupCheck, busInvalidate, IS_DEV, rethrowUnlessTrpcFailure, runAfterViewTransition, surfaceDeferredFailure } from "#lib";
 import { collapseFilters, filterKeyName } from "./collapse-filters.ts";
 import { allAutomationRoomFilters, automationEventFilters } from "./invalidation-automation.ts";
 import { applyCanonView } from "./invalidation-carrier.ts";
@@ -266,7 +266,9 @@ function holdRefetch(query: Query, gate: Promise<void>): Promise<unknown> | unde
         },
         { cancelRefetch: true },
       )
-      .catch(() => undefined);
+      // The query's own state holds a failed read (a tRPC failure) and a retired one (TanStack's cancel); any other
+      // fault rejects.
+      .catch(rethrowUnlessTrpcFailure);
     held = query.promise;
   } finally {
     query.setOptions(options);

@@ -13,6 +13,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { MessageRenderContext } from "#lib";
+import { rethrowUnlessTrpcFailure } from "#lib";
 import { cancelEditingReasoning, setReasoningEditDraft, startEditingReasoning, useIsEditingReasoning, useReasoningEditDraftText } from "#state";
 import { useDisplayText } from "../hooks/use-display-text.ts";
 import { useClearReasoningMutation, useEditReasoningMutation } from "../hooks/use-message-mutations.ts";
@@ -62,7 +63,8 @@ function ReasoningEditor({ message }: { readonly message: MessageView }): ReactE
     try {
       await edit.mutateAsync({ chatId: message.chatId, messageId: message.id, reasoning: draft });
       onDone();
-    } catch {
+    } catch (error) {
+      rethrowUnlessTrpcFailure(error);
       // Stay in the field so the reader can retry without retyping.
     }
   };

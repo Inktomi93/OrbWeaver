@@ -20,6 +20,7 @@ import { Text } from "@orb/ui/text";
 import type { FocusEvent, ReactElement, RefObject } from "react";
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import { useStartChat, useSuspenseQuery, useTRPC } from "#data";
+import { rethrowUnlessTrpcFailure } from "#lib";
 import { resumeChat, setActiveSection } from "#state";
 import {
   CHAT_ALL_CHARACTERS_NAME,
@@ -61,7 +62,7 @@ export function HomeQuickPicksTileBody({ gridRef }: { readonly gridRef?: RefObje
   const { startChat } = useStartChat();
   const startChatWith = (characterId: CharacterId): void => {
     // `startChat` rejects from `useStartChat`'s mutateAsync (data/use-start-chat.ts), whose errorToast "Couldn't start the chat." is the surface. Ends if useStartChat drops errorToast.
-    startChat({ characterIds: [characterId] }).catch(() => undefined); // useStartChat's errorToast owns failure.
+    startChat({ characterIds: [characterId] }).catch(rethrowUnlessTrpcFailure); // useStartChat's errorToast owns failure.
   };
   const { data: page } = useSuspenseQuery(trpc.character.list.queryOptions({ limit: HOME_QUICK_PICKS_LIMIT }));
   const quickPicks = page.items.slice(0, HOME_QUICK_PICKS_LIMIT);

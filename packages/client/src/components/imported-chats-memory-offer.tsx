@@ -10,7 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { testId } from "#lib";
+import { rethrowUnlessTrpcFailure, testId } from "#lib";
 import { isAlreadyRunning, useStartImportedChatsMemory } from "./imported-chats-memory-offer-mutations.ts";
 import { ModelRunConfirmDialog } from "./model-run-confirm-dialog.tsx";
 import { useModelRunConfirm } from "./use-model-run-confirm.ts";
@@ -65,7 +65,7 @@ export function ImportedChatsMemoryOffer({ scope, onStarted, nested }: ImportedC
     // `useStartImportedChatsMemory`'s errorToast and a conflict becomes ALREADY_RUNNING_NOTE in `runBuild`. Ends if any of those stops surfacing its failure.
     paidRun
       .confirmThen({ title: "Build memory for the imported chats?", confirmLabel: "Build memory", estimates: [{ input, mode: "singular" }], run: runBuild })
-      .catch(() => undefined);
+      .catch(rethrowUnlessTrpcFailure);
   };
   return (
     <Stack aria-label="Memory for imported chats" data-testid={testId("importedChatsMemoryOffer")} gap="field" role="group">

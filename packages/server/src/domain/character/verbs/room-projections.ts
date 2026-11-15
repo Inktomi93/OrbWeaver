@@ -1,6 +1,16 @@
 // The deployment ceiling remains authoritative; missing or unreadable cards project only its safe floor.
+// A gone or foreign card (one leak-free `CharacterNotFoundError`) is the only miss; any other fault rejects into the
+// read that asked.
 import { resolveRenderPolicy } from "@orb/contracts/chat";
+import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterRoomProjectionDeps, CharacterRoomProjections } from "../contract/room-projections.ts";
+
+function rethrowUnlessGone(error: unknown): void {
+  if (!(error instanceof DomainNotFoundError)) {
+    throw error;
+  }
+}
+
 /** Resolve tags and roster decoration through character-owned reads. */
 export function createCharacterRoomProjections(deps: CharacterRoomProjectionDeps): CharacterRoomProjections {
   return {
@@ -8,17 +18,17 @@ export function createCharacterRoomProjections(deps: CharacterRoomProjectionDeps
     // through the character domain (chat stays character-table-blind, the getCard precedent); a gone card
     // fail-closes to [] rather than throwing into the member-card read.
     resolveCharacterTags: async ({ ownerId, characterId }): ReturnType<CharacterRoomProjections["resolveCharacterTags"]> => {
-      // FAIL-CLOSED — documented above: a gone card fail-closes to `[]` rather than throwing into the member-card read. Ends if a gone card needs to surface distinctly from an infra failure.
       try {
         const detail = await deps.get({ principal: deps.principalForUser(ownerId), characterId });
         return detail.tags.map(({ id, name }) => ({ id, name }));
-      } catch {
+      } catch (error) {
+        rethrowUnlessGone(error);
         return [];
       }
     },
     // ONE character read → the whole per-seat decoration (render policy layered over the deployment floor,
     // the raw theme + background override columns, and the card name/avatar). A human/agent seat, no host,
-    // or an unreadable card resolves to the bare global floor + a null card (fail-closed, never a throw into
+    // or a gone card resolves to the bare global floor + a null card (fail-closed, never a throw into
     // roster assembly). Collapses what were four separate reads of the same `characters` row per participant.
     // The tier combine is the ONE contracts resolver (`resolveRenderPolicy`) — external media is
     // TIGHTEN-ONLY there, so a card's `forbidExternalMedia: false` can never widen past a blocking
@@ -33,9 +43,6 @@ export function createCharacterRoomProjections(deps: CharacterRoomProjectionDeps
       if (characterId === null || ownerId === null) {
         return { renderPolicy: resolvedFloor, themeOverride: null, backgroundOverride: null, card: null };
       }
-      // FAIL-CLOSED — the comment block above states
-      // the contract: a no-host/unreadable-card seat resolves to the bare global floor + a null card, never
-      // a throw into roster assembly. Ends if an unreadable card needs to surface distinctly from absence.
       try {
         const detail = await deps.get({ principal: deps.principalForUser(ownerId), characterId });
         return {
@@ -44,7 +51,8 @@ export function createCharacterRoomProjections(deps: CharacterRoomProjectionDeps
           backgroundOverride: detail.backgroundOverride,
           card: { name: detail.name, avatarAssetId: detail.avatarAssetId },
         };
-      } catch {
+      } catch (error) {
+        rethrowUnlessGone(error);
         return { renderPolicy: resolvedFloor, themeOverride: null, backgroundOverride: null, card: null };
       }
     },

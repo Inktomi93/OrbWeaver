@@ -229,6 +229,9 @@ class RegexScriptBoundError extends Error {
   }
 }
 
+// A find pattern refused before it compiles because it breaks a pattern limit (`findPatternLimitBreak`).
+class RegexPatternLimitError extends Error {}
+
 // The longest a pass that started from `passInputLength` characters may make its text.
 function regexOutputLimit(passInputLength: number): number {
   return Math.max(passInputLength * REGEX_OUTPUT_GROWTH_FACTOR, REGEX_OUTPUT_FLOOR_LENGTH);
@@ -312,7 +315,7 @@ function compilePattern(script: RegexScriptInput, ctx: ProcessMacroOptions): Reg
   const parsed = parsePatternFlags(pattern);
   const complexity = tooComplex(parsed.pattern);
   if (complexity !== null) {
-    throw new Error(`regex too complex: ${complexity}`);
+    throw new RegexPatternLimitError(`regex too complex: ${complexity}`);
   }
   return new RegExp(parsed.pattern, parsed.flags);
 }
@@ -321,12 +324,16 @@ function compilePattern(script: RegexScriptInput, ctx: ProcessMacroOptions): Reg
 const STORED_PATTERN_MACROS: ProcessMacroOptions = { char: "", user: "", persona: "", scenario: "", env: {} };
 
 /** Whether a find pattern, as stored, compiles to a regular expression. Construction only parses the pattern; V8
- *  compiles it to code on its first run, which is the cost the server's compile probe measures off the event loop. */
+ *  compiles it to code on its first run, which is the cost the server's compile probe measures off the event loop. A
+ *  pattern the parser or a pattern bound refuses does not compile; any other fault throws. */
 export function findPatternCompiles(script: Pick<RegexScriptInput, "findRegex" | "substituteRegex">): boolean {
   try {
     compilePattern({ enabled: true, targets: [], passes: [], replaceString: "", ...script }, STORED_PATTERN_MACROS);
     return true;
-  } catch {
+  } catch (error) {
+    if (!(error instanceof SyntaxError || error instanceof RegexPatternLimitError || error instanceof RegexScriptBoundError)) {
+      throw error;
+    }
     return false;
   }
 }

@@ -19,6 +19,7 @@ import { useState } from "react";
 import { QueryBoundary, SettingRowGroup, useFirstBootRows } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { saveStateOf, useReportSaveStatus } from "#forms";
+import { rethrowUnlessTrpcFailure } from "#lib";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { anyFieldOverridden, draftNumber, isOverridden } from "../lib/app-override-model.ts";
 import { MEMORY_TUNING_SUBCATEGORY } from "../lib/memory-tuning-nav.ts";
@@ -161,14 +162,14 @@ function MemoryTuningBody({ anchorId, sectionId }: { readonly anchorId: string; 
   // memoryDefaults writes MERGE over the currently-stored overrides so untouched knobs survive; the enum +
   // boolean write immediately, the numeric knobs via Save. Reset clears the whole nested override.
   const writeMemoryDefaults = (delta: MemoryDefaults): void => {
-    save.mutateAsync({ partial: { memoryDefaults: { ...(stored ?? {}), ...delta } } }).catch(() => undefined);
+    save.mutateAsync({ partial: { memoryDefaults: { ...(stored ?? {}), ...delta } } }).catch(rethrowUnlessTrpcFailure);
   };
   const resetMemoryDefaults = (): void => {
     // Re-sync the local draft to the floor so the input VALUE flips to the default alongside the "Using the
     // deployment default" copy — otherwise the input keeps the stale typed value (side-eye P2: a visible
     // contradiction). `useState` runs its initializer once, so the post-reset refetch alone never updates it.
     setDraft(toNumericDraft(DEFAULT_MEMORY_DEFAULTS));
-    save.mutateAsync({ partial: { memoryDefaults: null } }).catch(() => undefined);
+    save.mutateAsync({ partial: { memoryDefaults: null } }).catch(rethrowUnlessTrpcFailure);
   };
 
   return (

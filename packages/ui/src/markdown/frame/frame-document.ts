@@ -1,6 +1,10 @@
 // Render a tree to static markup for a FRAME DOCUMENT, off the render path. Its output keeps raw HTML unsanitized
 // (`frame-markdown.tsx`), so it is a card-frame document's body and nothing else. `react-dom/server` loads on first
 // use, so a transcript that frames nothing never pays for it.
+//
+// A FAILED RENDER KEEPS THE PLAIN PATH. A tree that throws while rendering statically, a `finish` that throws, and a
+// renderer that fails to load all have no fallback inside a frame, so every fault answers `failed` and the caller
+// renders its plain path. The fault is reported (`reportError`), so a defect still reaches the error ring.
 
 import type { ReactElement } from "react";
 import { createElement, useEffect, useEffectEvent, useState } from "react";
@@ -20,11 +24,11 @@ const FAILED = { state: "failed" } as const;
 export function useFrameDocument<T>(key: string, build: () => ReactElement, finish: (markup: string) => T): FrameDocument<T> {
   const [rendered, setRendered] = useState<{ readonly key: string; readonly document: FrameDocument<T> } | undefined>(undefined);
   const render = useEffectEvent(async (): Promise<FrameDocument<T>> => {
-    // A tree that throws while rendering statically has no fallback inside a frame; the caller keeps its plain path.
     try {
       const { renderToStaticMarkup } = await import("react-dom/server");
       return { state: "ready", value: finish(renderToStaticMarkup(createElement(FrameDocumentContext, { value: true }, build()))) };
-    } catch {
+    } catch (error) {
+      reportError(error);
       return FAILED;
     }
   });

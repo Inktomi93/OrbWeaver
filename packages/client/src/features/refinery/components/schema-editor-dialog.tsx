@@ -27,7 +27,9 @@
 
 import type { RefineryForgeArm, RefinerySchemaStage, RefinerySchemaSummary } from "@orb/contracts/refinery";
 import { REFINERY_FORGE_ARM_DEFAULT, REFINERY_FORGE_ARMS } from "@orb/contracts/refinery";
+import { isPlainObject } from "@orb/kit/guards";
 import type { RefinerySchemaId } from "@orb/kit/ids";
+import { parseJsonText } from "@orb/kit/json";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
@@ -101,15 +103,10 @@ function previewEmptyTextOf(schemaText: string): string {
 }
 
 function parseDraft(text: string): Record<string, unknown> | null {
-  // null is the caller's "not parsing yet" signal: SchemaEditorDialog
-  // renders `previewEmptyTextOf(schemaText)` ("That JSON doesn't parse yet") when `schema === null` and disables
-  // Save on it. Ends if the dialog stops branching on a null parse.
-  try {
-    const parsed: unknown = JSON.parse(text);
-    return parsed !== null && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null;
-  } catch {
-    return null;
-  }
+  // null is the caller's "not parsing yet" signal: SchemaEditorDialog renders `previewEmptyTextOf(schemaText)`
+  // ("That JSON doesn't parse yet") when `schema === null` and disables Save on it.
+  const parsed = parseJsonText(text);
+  return isPlainObject(parsed) ? parsed : null;
 }
 
 interface SaveDeps {

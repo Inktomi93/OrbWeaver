@@ -28,7 +28,9 @@
 
 import { DEADLINE_ABORT_REASON } from "@orb/contracts/chat";
 import type { PluginDisplayTransformRegistration, PluginInstance } from "@orb/contracts/plugin";
+import { errorMessage } from "@orb/kit/error-message";
 import type { ScheduleOp } from "@orb/kit/time";
+import { addSpanEvent } from "#foundation/observability";
 
 import type { TransformForDisplayParams } from "../contract/params.ts";
 import type { PluginContext, PluginRegistry, PluginService } from "../contract/service.ts";
@@ -40,6 +42,7 @@ import { pluginFailureLine } from "../substrate/failure-log.ts";
  *  runs once per VISIBLE ROW and its latency is a person watching a transcript paint, not a turn already
  *  waiting on a model. Overrun ⇒ that transform is skipped and the row keeps the text it had. */
 const PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS = 200;
+const DISPLAY_TRANSFORM_SKIPPED_EVENT = "plugin.display_transform.skipped";
 
 /** One resident's read-path re-entry, curried to the (handler, argsJson) pair this seam uses. */
 type ResidentInvoke = (handler: PluginDisplayTransformRegistration["handler"], argsJson: string, signal: AbortSignal) => Promise<string>;
@@ -65,12 +68,14 @@ async function applyBounded(
       resolve({ skip: "deadline" });
     }, PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS);
   });
-  // the rejection was already logged by the resident's `invokeForRead`; the
-  // caller keeps the row's prior text. Ends if `invokeForRead` stops logging the failures it rethrows.
+  // The refusal posture in the header keeps every rejection contained and the row keeps its prior text. The resident's
+  // `invokeForRead` already logged a guest failure; a host refusal (a conflict) is never the plugin's fault and reaches
+  // no failure log, so every skip is also recorded on the request's span.
   try {
     const answer = await Promise.race([invoke(transform.handler, argsJson, orphan.signal), deadline]);
     return typeof answer === "string" ? { text: answer } : answer;
-  } catch {
+  } catch (error) {
+    addSpanEvent(DISPLAY_TRANSFORM_SKIPPED_EVENT, { transform: transform.name, error: errorMessage(error) });
     return { skip: "failed" };
   } finally {
     cancelTimer?.();

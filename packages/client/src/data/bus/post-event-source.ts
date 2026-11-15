@@ -4,7 +4,7 @@
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { STREAM_INACTIVITY_TIMEOUT_MS } from "@orb/contracts/stream";
-import { jsonValueSchema } from "@orb/kit/json";
+import { parseJsonText } from "@orb/kit/json";
 import type { RandomSource } from "@orb/kit/macro";
 import type { Clock } from "@orb/kit/time";
 import { MS_PER_SECOND } from "@orb/kit/time";
@@ -357,21 +357,17 @@ export class PostEventSource extends EventTarget {
   }
 
   #connectedPayload(payload: string): string | null {
-    // the catch calls `#fail`, which closes the source and dispatches a StreamFailureEvent that tRPC's subscription link reads as the stream's error. Ends if the catch stops calling #fail.
-    try {
-      const options = jsonValueSchema.parse(JSON.parse(payload));
-      if (typeof options !== "object" || !options || Array.isArray(options)) {
-        this.#fail("The server sent an invalid connection frame.");
-        return null;
-      }
-      // The native watchdog recreates EventSource outside this adapter's retry budget; only that
-      // instruction is removed. Other metadata and ordinary event payloads remain unchanged.
-      const { reconnectAfterInactivityMs: _nativeWatchdog, ...forwarded } = options;
-      return JSON.stringify(forwarded);
-    } catch {
+    // A frame that is not a JSON object calls `#fail`, which closes the source and dispatches a StreamFailureEvent
+    // that tRPC's subscription link reads as the stream's error.
+    const options = parseJsonText(payload);
+    if (typeof options !== "object" || !options || Array.isArray(options)) {
       this.#fail("The server sent an invalid connection frame.");
       return null;
     }
+    // The native watchdog recreates EventSource outside this adapter's retry budget; only that
+    // instruction is removed. Other metadata and ordinary event payloads remain unchanged.
+    const { reconnectAfterInactivityMs: _nativeWatchdog, ...forwarded } = options;
+    return JSON.stringify(forwarded);
   }
 
   #dispatchBufferedEvent(buffer: EventBuffer, attempt: ConnectionAttempt): void {

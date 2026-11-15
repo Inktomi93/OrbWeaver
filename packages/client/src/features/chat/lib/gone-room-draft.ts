@@ -7,7 +7,7 @@
 // entries without the notice: they confirmed the delete.
 
 import type { ChatId } from "@orb/kit/ids";
-import { copyHeldText, notify } from "#lib";
+import { copyHeldText, notify, rethrowUnlessTrpcFailure } from "#lib";
 import { activeChatId, chatDeletedFromList, clearComposerDraft, readComposerDraft, takePendingAttachments } from "#state";
 import { CHAT_GONE_DRAFT_NOTICE, goneDraftDescription } from "./chat-surface-names.ts";
 
@@ -60,10 +60,7 @@ function forgetDeletedChat(chatId: ChatId): void {
 export function deleteOwnChat(chatId: ChatId, remove: () => Promise<unknown>): void {
   selfDeleting.add(chatId);
   remove()
-    .then(
-      (): void => forgetDeletedChat(chatId),
-      () => undefined,
-    )
+    .then((): void => forgetDeletedChat(chatId), rethrowUnlessTrpcFailure)
     .finally((): void => {
       selfDeleting.delete(chatId);
     });

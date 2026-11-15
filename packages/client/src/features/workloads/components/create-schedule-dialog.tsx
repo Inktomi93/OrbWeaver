@@ -23,7 +23,7 @@ import {
 } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
-import { DIALOG_PENDING_VERBS } from "#lib";
+import { DIALOG_PENDING_VERBS, rethrowUnlessTrpcFailure } from "#lib";
 import { useCreateScheduleForm } from "../hooks/use-create-schedule-form.ts";
 import { useCreateSchedule, useUpdateSchedule } from "../hooks/use-workload-mutations.ts";
 import { buildStartInput, isMaintenanceWorkloadKind, isStartableWorkloadKind, WORKLOAD_KIND_LABELS, workloadKindItems } from "../lib/workloads-model.ts";
@@ -152,7 +152,7 @@ function ScheduleFormBody({
         testKey: isEdit ? "editScheduleSubmit" : "createScheduleSubmit",
         onSubmit: (): void => {
           // The save's failure is already said, inline or by the toast; the rethrow carries nothing new.
-          form.handleSubmit().catch(() => undefined);
+          form.handleSubmit().catch(rethrowUnlessTrpcFailure);
         },
       }}
       testKey={isEdit ? "editScheduleDialog" : "createScheduleDialog"}

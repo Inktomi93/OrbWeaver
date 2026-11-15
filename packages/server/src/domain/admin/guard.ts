@@ -81,13 +81,15 @@ export const requireOwner: RequireOwner = (principal) => {
 // must branch (rather than throw) can ask it. ONE catch serves both exported gates below: a second copy
 // would be a second place the role ladder could be mis-spelled, which is what this file exists to prevent.
 function allowsGlobal(principal: Principal, action: GlobalAction): boolean {
-  // FAIL-CLOSED — the ONE `can()` kernel's refusal
-  // collapses to a boolean verdict for a role-aware caller; a denied `can()` can never read as allowed.
-  // Ends if `can()` grows a distinct infra-error class this boolean must stop swallowing.
+  // FAIL-CLOSED — the ONE `can()` kernel's refusal collapses to a boolean verdict for a role-aware caller; a denied
+  // `can()` can never read as allowed, and any other throw rejects.
   try {
     can(principal, action, { kind: "global" });
     return true;
-  } catch {
+  } catch (error) {
+    if (!(error instanceof DomainForbiddenError)) {
+      throw error;
+    }
     return false;
   }
 }

@@ -14,7 +14,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { DialogFailure, FormDialogPopup, FormDialogRoot } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { notify } from "#lib";
+import { notify, rethrowUnlessTrpcFailure } from "#lib";
 import { useResetPassword } from "../hooks/use-admin-mutations.ts";
 import type { AdminUserDialogProps } from "../lib/admin-model.ts";
 
@@ -41,7 +41,8 @@ function ResetPasswordBody({ handle, userId, onDone }: { readonly handle: string
     }
     try {
       await resetPassword.mutateAsync({ userId, password });
-    } catch {
+    } catch (error) {
+      rethrowUnlessTrpcFailure(error);
       // The sticky mutation error renders below — stay open.
       return;
     }

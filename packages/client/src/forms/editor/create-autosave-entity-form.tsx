@@ -5,7 +5,7 @@
 import { revalidateLogic } from "@tanstack/react-form";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
-import { timeLib } from "#lib";
+import { rethrowUnlessTrpcFailure, timeLib } from "#lib";
 // The NON-JSX HALF (the seam law, the session surface, and the three module-scope pure helpers) is the
 // `-model.ts` sibling — this JSX module carries the factory and its closure components (the
 // capped-field-model precedent).
@@ -246,7 +246,7 @@ export function createAutosaveEntityForm<TValues extends object>(
         // onSubmit's catch sets saveState to "error" before rethrowing, foldSaveState displays it to the consumer with the Retry affordance, and the draft mirror holds the edit; a superseded submit defers to the newer one. Ends if onSubmit stops setting "error" before it rethrows.
         // handleSubmit re-throws an onSubmit rejection; swallow it here — onSubmit's catch has already
         // recorded saveState "error" (the retry affordance) and the draft mirror holds the edit for retry.
-        form.handleSubmit().catch(() => undefined);
+        form.handleSubmit().catch(rethrowUnlessTrpcFailure);
       };
       const onValuesChange = (values: TValues): void => {
         // A programmatic write (the clean-echo effect pushing server truth) is NOT a user edit — it must
@@ -329,7 +329,7 @@ export function createAutosaveEntityForm<TValues extends object>(
         }
         if (form.state.isValid && unsaved(form.state.values, lastSavedRef.current)) {
           // same swallow as the debounce driver above — the editor has unmounted, so the injected save's errorToast is the only surface for the failure and the draft mirror holds the edit for retry. Ends if the injected save stops wiring an errorToast.
-          form.handleSubmit().catch(() => undefined);
+          form.handleSubmit().catch(rethrowUnlessTrpcFailure);
         }
       };
       // `unwritableRef` is a REF OBJECT, stable by construction exactly like `discardRef` — naming it here
@@ -347,7 +347,7 @@ export function createAutosaveEntityForm<TValues extends object>(
     const retrySave = (): void => {
       // explicit user retry on a mounted Session — same owner as the debounce driver: onSubmit's catch sets saveState to "error" before rethrowing, so the Retry affordance stays lit. Ends if onSubmit stops setting "error" before it rethrows.
       // Direct submit — an explicit user retry always re-attempts the held edit; same swallow as the driver.
-      form.handleSubmit().catch(() => undefined);
+      form.handleSubmit().catch(rethrowUnlessTrpcFailure);
     };
 
     // THE DISPLAYED LIFECYCLE (see `foldSaveState`). Two arms landed here first and the third joined them

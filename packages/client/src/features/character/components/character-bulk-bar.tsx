@@ -21,7 +21,7 @@ import { useState } from "react";
 import { ConfirmDialog, TagPickerDialog } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
-import { DIALOG_VERBS, notify } from "#lib";
+import { DIALOG_VERBS, notify, rethrowUnlessTrpcFailure } from "#lib";
 import { useBulkAddCardTag, useBulkArchiveCharacters, useBulkRemoveCharacters } from "../hooks/use-character-mutations.ts";
 import type { CHARACTER_ACTION_SCOPE_IDS } from "../lib/character-actions.ts";
 import { characterActionsForScope } from "../lib/character-actions.ts";
@@ -56,7 +56,7 @@ export function CharacterBulkBar({ ids, selectedCount, onClear, onRemoveSubmitte
     void bulkTag
       .mutateAsync({ tagName: name, characterIds })
       .then(() => onRemoveSubmitted(characterIds))
-      .catch(() => undefined);
+      .catch(rethrowUnlessTrpcFailure);
   };
 
   // The cards whose delete was refused stay selected, so the bar keeps counting the ones the reader still has to deal with.
@@ -71,7 +71,7 @@ export function CharacterBulkBar({ ids, selectedCount, onClear, onRemoveSubmitte
         const stayed = new Set<string>(result.failed.map((failure) => failure.characterId));
         onRemoveSubmitted(characterIds.filter((id) => !stayed.has(id)));
       })
-      .catch(() => undefined);
+      .catch(rethrowUnlessTrpcFailure);
   };
 
   /** Every verb the `bulk` scope offers, wired — a verb added to that scope is a `tsc` error here until it
@@ -83,7 +83,7 @@ export function CharacterBulkBar({ ids, selectedCount, onClear, onRemoveSubmitte
       void bulkArchive
         .mutateAsync({ characterIds, archived: true })
         .then(() => onRemoveSubmitted(characterIds))
-        .catch(() => undefined);
+        .catch(rethrowUnlessTrpcFailure);
     },
     delete: (): void => setDeleteOpen(true),
   };
