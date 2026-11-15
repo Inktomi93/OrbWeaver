@@ -187,7 +187,14 @@ export const CONNECTION_LIMITS_TITLE = "How much can this model take?";
 export const CONNECTION_LIMITS_DESCRIPTION = "This server doesn't say, so what follows is a guess. A window guessed too low cuts your chats short.";
 // Where to find the real numbers, for a provider that keeps them somewhere other than the model's page: one line,
 // keyed by provider id, that replaces the general where-to-look line.
-const CONNECTION_LIMITS_WHERE_BY_PROVIDER: ReadonlyMap<string, string> = new Map();
+// LiteRouter's list states no window for its plain models: the window there is the account's chat memory setting.
+const LITEROUTER_PROVIDER_ID = "literouter";
+const CONNECTION_LIMITS_WHERE_BY_PROVIDER: ReadonlyMap<string, string> = new Map([
+  [
+    LITEROUTER_PROVIDER_ID,
+    "LiteRouter doesn't publish this model's limits. The context window is your account's chat memory setting in the LiteRouter dashboard.",
+  ],
+]);
 /** What the limits mean and where to find them; `asksOutput` ⇒ the step also asks for the max output. */
 export function connectionLimitsLead(asksOutput: boolean, providerId: string): readonly string[] {
   return [
