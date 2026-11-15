@@ -5,7 +5,7 @@
 
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { RegexPass, RegexTarget } from "@orb/kit/regex";
-import { REGEX_PASSES, REGEX_TARGETS, regexPassReadsTarget } from "@orb/kit/regex";
+import { REGEX_PASSES, REGEX_TARGETS, regexBehaviorReachesText, regexPassReadsTarget } from "@orb/kit/regex";
 import type { LucideIcon } from "@orb/ui/icons";
 import { BookOpen, BrainCircuit, Eye, Pencil, ScrollText, Send, Sparkles } from "@orb/ui/icons";
 
@@ -49,10 +49,11 @@ export function regexPassStages(passes: readonly RegexPass[]): readonly RegexPas
   return REGEX_PASSES.filter((pass) => passes.includes(pass));
 }
 
-/** Whether a script can run at all: it needs at least one target and one pass. An imported script can arrive with
- *  neither, so the empty state is reachable and every list says it in words. */
+/** Whether a script runs on no text at all: no pass it runs on reads a target it names (the kit's
+ *  {@link regexBehaviorReachesText}, the same reading that switches such a script off on import). An imported script
+ *  can arrive so, so the state is reachable and every list says it in words. */
 export function regexRunsNowhere(script: { readonly targets: readonly RegexTarget[]; readonly passes: readonly RegexPass[] }): boolean {
-  return script.targets.length === 0 || script.passes.length === 0;
+  return !regexBehaviorReachesText(script);
 }
 
 /** Whether any of these passes reads a target (the kit's {@link regexPassReadsTarget}). */
