@@ -37,6 +37,7 @@ The locked principles are the first section of Core-0, the enforcement catalog i
 | [`@orb/ui` — the package design (structure · factories · seals · tokens)](ui-package-design.md) | active |
 | [UI platform rulings: styling, fonts, appearance, browser floor and evidence](ui-platform-rulings.md) | active |
 | [UI-Primitives-and-Reuse](UI-Primitives-and-Reuse.md) | active |
+| [UI surface and interaction rules](ui-surface-and-interaction-rules.md) | active |
 | [UI-Theming-and-Content](UI-Theming-and-Content.md) | active |
 | [User docs](user-docs.md) | active |
 | [THE VOCABULARY MAP — one concept, one word](vocabulary-map.md) | active |

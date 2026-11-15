@@ -456,6 +456,22 @@ test.describe("glass and elevation", () => {
     await expect.poll(() => carrierBlur(pane)).toContain("saturate(");
   });
 
+  test("glow lifts a docked pane beside the content on a desktop, and casts nothing from the phone's list-as-screen", async ({ corpus, mount, page }) => {
+    await routeAppearance(page, corpus, { elevation: "glow" });
+    await seedShellState(page, BOTH_DOCKED);
+    await mount<typeof AppShellStory>(STORY, {});
+    const grid = page.locator(".shell-grid");
+    const pane = page.locator(LIST);
+    await expect(grid).toHaveAttribute("data-elevation", "glow");
+    await expect(pane).toHaveAttribute("data-panel-mode", "docked");
+    await expect.poll(() => computed(pane, "box-shadow")).not.toBe("none");
+
+    await page.setViewportSize(PHONE);
+    await expect(grid).toHaveAttribute("data-list-mode", "docked");
+    await expect(pane).toHaveAttribute("data-panel-mode", "docked");
+    await expect.poll(() => computed(pane, "box-shadow")).toBe("none");
+  });
+
   test("glow lifts Home's surface through its first child while the surface root stays a box-less contents wrapper", async ({ corpus, mount, page }) => {
     await routeAppearance(page, corpus, { elevation: "glow" });
     await mount<typeof AppShellStory>(STORY, {});
