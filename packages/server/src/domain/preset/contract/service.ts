@@ -7,7 +7,7 @@ import type { ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { ResolveChatCapabilityOp } from "@orb/contracts/inference";
 import type { EffectivePreset, PresetDetail, PresetFilePreview, PresetImportOutcome, PresetSummary, PresetUsageView } from "@orb/contracts/preset";
-import type { ImportPresetScripts } from "@orb/contracts/regex";
+import type { ImportPresetScripts, PlanPresetScripts } from "@orb/contracts/regex";
 import type { LoadUserSettings } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
@@ -64,6 +64,8 @@ export interface PresetContext {
   /** The regex domain's preset script lift, the one the profile folder's import uses, for a SillyTavern preset's
    *  own scripts on the single-file door. */
   readonly importPresetScripts: ImportPresetScripts;
+  /** That lift's dry run, so the single-file preview names what the run does with each script. */
+  readonly planPresetScripts: PlanPresetScripts;
 }
 
 export type PresetAssemblyContext = DbAssemblyInput<PresetContext>;

@@ -11,7 +11,7 @@
 import { clipImportText } from "@orb/contracts/import";
 import type { ImportPresets, PresetFilePreview, PresetImportOutcome } from "@orb/contracts/preset";
 import { PRESET_SCHEMA_KIND, parsePresetFile } from "@orb/contracts/preset";
-import type { ImportPresetScripts, RegexScriptCard } from "@orb/contracts/regex";
+import type { ImportPresetScripts, PlanPresetScripts, RegexScriptCard, RegexScriptRefusal } from "@orb/contracts/regex";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import { isPlainObject } from "@orb/kit/guards";
 import { parseJsonText } from "@orb/kit/json";
@@ -81,11 +81,17 @@ function readPresetFile({ fileText, fileName }: Pick<ImportPresetFileParams, "fi
   };
 }
 
+// A refusal crosses the wire with the file's name and the door's reason, both clipped as an import shows them.
+function clippedRefusal(name: string, reason: string): RegexScriptRefusal {
+  return { name: clipImportText(name), reason: clipImportText(reason) };
+}
+
 /** Both ops are INJECTED (verb-to-verb value imports are the banned edge — `domain-no-cross-verb`): service.ts
  *  builds `createImportPresets(ctx)` once and hands it here with the regex domain's script lift. */
 export function createImportFile(deps: {
   readonly importPresets: ImportPresets;
   readonly importPresetScripts: ImportPresetScripts;
+  readonly planPresetScripts: PlanPresetScripts;
   readonly emitUserEvent: EmitUserEvent;
 }): Pick<PresetService, "importFile" | "previewFile"> {
   async function previewFile(params: ImportPresetFileParams): Promise<PresetFilePreview> {
@@ -94,6 +100,8 @@ export function createImportFile(deps: {
       return read;
     }
     const answer = soleResult(await deps.importPresets({ ownerId: params.userId, files: [read.bytes], dryRun: true, signal: NEVER_ABORTED }));
+    const [plan = []] = await deps.planPresetScripts({ ownerId: params.userId, presets: [read.regexScripts] });
+    const refusedScripts = plan.flatMap((verdict, i) => ("refused" in verdict ? [clippedRefusal(read.regexScripts[i]?.name ?? "", verdict.refused)] : []));
     return {
       ok: true,
       format: read.format,
@@ -101,7 +109,8 @@ export function createImportFile(deps: {
       inLibrary: answer.reuse === "library",
       sectionCount: read.sectionCount,
       leftOut: read.leftOut,
-      regexScripts: read.regexScripts.length,
+      regexScripts: read.regexScripts.length - refusedScripts.length,
+      refusedScripts,
     };
   }
 
@@ -119,7 +128,7 @@ export function createImportFile(deps: {
     const regexScripts = await deps.importPresetScripts({ ownerId: params.userId, presetId: outcome.presetId, scripts: read.regexScripts });
     // The lift writes the regex library and the preset's attachments without an event of its own.
     deps.emitUserEvent(params.userId, { type: "regexChanged" });
-    return { ...outcome, regexScripts };
+    return { ...outcome, regexScripts: { ...regexScripts, refused: regexScripts.refused.map(({ name, reason }) => clippedRefusal(name, reason)) } };
   }
 
   return { importFile, previewFile };

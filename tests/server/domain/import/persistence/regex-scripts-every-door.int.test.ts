@@ -13,6 +13,7 @@ import { ST_SETTINGS_FILE } from "@orb/contracts/import";
 import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
+import { MAX_FIND_REGEX_LENGTH } from "@orb/kit/regex";
 import { expect, test } from "@orb/testkit/node";
 import { makeAssetBytes } from "@orb/testkit/node/composed";
 import { admit, dryRun, finishRun, harness, importThroughDialog, settings } from "./_st-tree-door.ts";
@@ -144,6 +145,37 @@ test("the SillyTavern folder's dry run names each preset script the run adds or 
     { name: "Saved whistle", inLibrary: true },
     { name: "Bell", inLibrary: true },
   ]);
+});
+
+test("a preset script the write door refuses is named refused by the folder's dry run, the Presets preview and the run, and lands nowhere", {
+  tags: ["slow"],
+}, async () => {
+  await using root = await harness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const unit = "(a|b)";
+  // Capture groups of alternation up to the stored length cap: storable by length, refused by the compile door.
+  const heavy = {
+    ...SAVED,
+    id: "c0ffee00-0000-4000-8000-000000000034",
+    scriptName: "Heavy",
+    findRegex: unit.repeat(Math.floor(MAX_FIND_REGEX_LENGTH / unit.length)),
+  };
+  const file = presetFile([SAVED, heavy]);
+  const files = { [ST_SETTINGS_FILE]: settings({}), "OpenAI Settings/Heavy.json": file };
+  const refused = { name: "Heavy", refused: expect.stringMatching(/ms to compile/u) };
+
+  expect((await dryRun(root, files)).kinds.presets.items[0]?.regexScripts).toEqual([{ name: "Saved whistle" }, refused]);
+  expect(await caller.preset.previewFile({ fileText: file, fileName: "Heavy.json" })).toMatchObject({
+    regexScripts: 1,
+    refusedScripts: [{ name: "Heavy", reason: refused.refused }],
+  });
+
+  const result = await finishRun(root, await admit(root, files));
+  if (result.reportPath === undefined) {
+    throw new Error("the folder run wrote no report");
+  }
+  expect(unmappedFieldsOf(await readFile(result.reportPath, "utf8"), "Heavy (OpenAI)")).toEqual(["extensions.regex_scripts"]);
+  expect((await caller.regex.listScripts()).map(({ name }) => name)).toEqual(["Saved whistle"]);
 });
 
 test("the Characters dialog lands a card's scripts on their passes and reuses them on a second import", async () => {

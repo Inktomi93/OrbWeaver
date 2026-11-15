@@ -13,6 +13,6 @@ export type {
   ImportRegexScript,
   PlanPresetScripts,
   ResolveRegexScriptRoomsOp,
-  ScriptReuse,
+  ScriptPlan,
 } from "./owner-ops.ts";
 export * from "./schemas.ts";
