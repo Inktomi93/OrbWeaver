@@ -30,7 +30,9 @@ const MODES = ["stream", "headers", "retry", "complete"] as const;
 const PLUGIN_SLUG = "cancel-witness";
 const TOOL_NAME = pluginToolWireName(PLUGIN_SLUG, "witness");
 const TOOL_RAN = "tool-ran";
-const FIRST_DELTA = 'data: {"id":"physical-cancel","choices":[{"index":0,"delta":{"content":"first"},"finish_reason":null}]}\n\n';
+/** The prose the stream and complete modes send before anything else. */
+export const FIRST_DELTA_TEXT = "first";
+const FIRST_DELTA = `data: {"id":"physical-cancel","choices":[{"index":0,"delta":{"content":${JSON.stringify(FIRST_DELTA_TEXT)}},"finish_reason":null}]}\n\n`;
 const LATE_DELTA = 'data: {"choices":[{"index":0,"delta":{"content":"late"},"finish_reason":null}]}\n\n';
 
 async function providerPeer(mode: (typeof MODES)[number]): Promise<

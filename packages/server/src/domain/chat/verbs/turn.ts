@@ -3138,7 +3138,9 @@ function createOwedRound(ctx: ChatContext, deps: TurnDeps): (row: NonNullable<Aw
   };
   return async (claimed): Promise<void> => {
     const completed = await runDeferredRound(ctx, settlementDeps, claimed);
-    if (completed.aborted) {
+    // A reply that committed before the abort (a Stop's kept text, or the speakers who finished before it) has
+    // answered the send, so the debt is settled; re-running it would generate and bill a second reply on top.
+    if (completed.aborted && completed.messages.length === 0) {
       throw new ChatOperationError(CHAT_OP_CODES.aborted, "the owed reply was aborted and must be retried");
     }
   };

@@ -20,6 +20,7 @@ import { MODEL_ROLES_PATH, notify, RERANK_ROLE_DOOR, turnAbortNotice, UTILITY_RO
 import { isLanding, openConfigTo, openNewChatPicker, revealContextPanel, useActiveChatHandle } from "#state";
 import { leaveGoneRoom } from "../lib/gone-room-draft.ts";
 import { REGEX_STOP_OPEN_ROOM_NAME } from "../lib/regex-stop-copy.ts";
+import { OPEN_CONNECTIONS_NAME } from "../lib/send-failure-copy.ts";
 import { createWarningSurface } from "../lib/turn-warning-surface.ts";
 import { ChatLandingSurface } from "../surfaces/chat-landing-surface.tsx";
 import { ChatRoomSurface } from "../surfaces/chat-room-surface.tsx";
@@ -44,7 +45,7 @@ function surfaceTurnAbort(reason: TurnAbortReason): void {
 // notice offers the jump to the pane that owns them. Attached here rather than in the mapper because
 // `warningNotice` is pure copy and navigation is a feature capability (see that file's header).
 const OPEN_CONNECTIONS: NotifyAction = {
-  label: "Open Connections",
+  label: OPEN_CONNECTIONS_NAME,
   onClick: (): void => {
     openConfigTo("connections");
   },

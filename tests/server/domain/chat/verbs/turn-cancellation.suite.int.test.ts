@@ -5,9 +5,14 @@ import type { MessageView } from "@orb/contracts/chat";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { readRoomCanon } from "@orb/testkit/node/composed";
-import { registerCancellationRoom } from "./turn-cancellation-physical.ts";
+import { FIRST_DELTA_TEXT, registerCancellationRoom } from "./turn-cancellation-physical.ts";
 
 const withPeer = registerCancellationRoom();
+
+const KEPT_ON_STOP = {
+  stream: [{ content: FIRST_DELTA_TEXT, terminalReason: "user", toolCalls: [] }],
+  headers: [],
+} as const satisfies Record<"stream" | "headers", readonly Pick<MessageView, "content" | "terminalReason" | "toolCalls">[]>;
 
 async function roles(h: ChatRoot): Promise<MessageView["role"][]> {
   return (await readRoomCanon(h.root, h.owner, h.chatId)).map(({ role }) => role);
@@ -59,7 +64,10 @@ for (const phase of ["stream", "headers"] as const) {
       expect(f.peer.requests).toEqual([f.chatPath]);
       expect(f.retries()).toEqual([]);
       expect(f.pendingTurnTimeouts()).toEqual([]);
-      expect(await roles(f.h)).toEqual(["user"]);
+      // A Stop after prose keeps it as the reply; the tool call still mid-stream never completed, so it is dropped
+      // and never runs (the tool witness below stays empty). A Stop before any prose keeps nothing.
+      const replies = (await readRoomCanon(f.h.root, f.h.owner, f.h.chatId)).filter(({ role }) => role === "assistant");
+      expect(replies.map(({ content, terminalReason, toolCalls }) => ({ content, terminalReason, toolCalls }))).toEqual(KEPT_ON_STOP[phase]);
       expect(f.events.map(({ type }) => type)).toContain("turnAborted");
       expect(f.events.map(({ type }) => type)).not.toContain("turnCompleted");
       expect(await f.toolWrites()).toEqual([]);

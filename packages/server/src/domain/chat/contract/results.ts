@@ -260,6 +260,9 @@ export interface TurnEconomics {
   readonly connectionId?: UserConnectionId | null;
   readonly tokensIn?: number | null;
   readonly tokensOut?: number | null;
+  /** Where the two counts above came from. Absent reads as `measured` when either count is present; a stopped
+   *  reply's cut call is `estimated`, because no provider reported its usage. */
+  readonly tokenProvenance?: TokenProvenance;
   readonly cacheReadTokens?: number | null;
   readonly cacheWriteTokens?: number | null;
   /** The reasoning share of `tokensOut` where the wire reports one; absent/null otherwise. */

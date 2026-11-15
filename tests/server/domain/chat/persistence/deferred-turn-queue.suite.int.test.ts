@@ -1,15 +1,24 @@
 // A host-offline send queues one pending_turns row carrying the member's identity and the host's run-as
-// principal; the drain consumes the row and commits the owed reply.
+// principal; the drain consumes the row and commits the owed reply. A Stop on the owed reply that kept text
+// settles the debt, while a Stop that kept nothing and a transient fault leave the row queued for the next drain.
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 
-import { messages, pendingTurns } from "@orb/db";
+import type { TurnAbortReason } from "@orb/contracts/chat";
+import type { NotificationType } from "@orb/contracts/notifications";
+import { messages, notifications, pendingTurns } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node";
-import { connectDevice } from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
+import type { ChatRoot } from "@orb/testkit/node/composed";
+import { connectDevice, readRoomCanon } from "@orb/testkit/node/composed";
+import { and, eq } from "drizzle-orm";
+import type { CoreWireReply } from "../engine/core-physical.ts";
+import { coreFrame, coreHeldReply, coreHttpRoom, corePartialReply, coreProse } from "../engine/core-physical.ts";
 import { textRoom } from "../scenario-physical.ts";
 
 const DRAIN_TIMEOUT_MS = 10_000;
+const KEPT = "The lantern gutters as the door";
+const USER_STOP = "user" satisfies TurnAbortReason;
+const DROPPED_NOTICE = "deferred-turn-dropped" satisfies NotificationType;
 
 test("a member's host-offline send queues the frozen identity and the host reconnecting consumes it once", async () => {
   await using h = await textRoom(["The owed reply."], { group: { policy: "list", output: "per-speaker" } });
@@ -39,4 +48,124 @@ test("a member's host-offline send queues the frozen identity and the host recon
   } finally {
     online.abort();
   }
+});
+
+interface OwedRoom {
+  readonly h: ChatRoot;
+  readonly member: Awaited<ReturnType<ChatRoot["root"]["principalFor"]>>;
+}
+
+/** A member's send while the host is offline, leaving exactly one owed row. The host stays offline: each case
+ *  runs the drain verb itself, so the drain's verdict is awaited rather than raced against a connect edge. */
+async function owedRoom(replies: readonly CoreWireReply[]): Promise<OwedRoom & AsyncDisposable> {
+  await using construction = new AsyncDisposableStack();
+  const h = construction.use(await coreHttpRoom(replies));
+  const member = await h.root.principalFor((await h.root.actor()).id);
+  const invite = await h.root.services.chat.createInvite({ principal: h.owner, chatId: h.chatId, input: { invitedHandle: member.handle } });
+  await h.root.services.chat.acceptInvite({ principal: member, inviteId: invite.invite.id });
+  await h.root.services.chat.send({ principal: member, chatId: h.chatId, content: "An owed reply.", timeZone: UTC_TIME_ZONE });
+  expect(await queuedRows(h)).toBe(1);
+  const lifetime = construction.move();
+  return { h, member, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
+}
+
+async function queuedRows(h: ChatRoot): Promise<number> {
+  return (await h.root.db.select().from(pendingTurns).where(eq(pendingTurns.chatId, h.chatId))).length;
+}
+
+async function dropNotices(room: OwedRoom): Promise<number> {
+  const rows = await room.h.root.db
+    .select()
+    .from(notifications)
+    .where(and(eq(notifications.recipientUserId, room.member.userId), eq(notifications.type, DROPPED_NOTICE)));
+  return rows.length;
+}
+
+/** Drain the owed row and press the member's Stop once `reached` resolves; returns the drain's report. */
+async function stopTheDrain(
+  room: OwedRoom,
+  reached: Promise<unknown>,
+): Promise<Awaited<ReturnType<ChatRoot["root"]["services"]["chat"]["drainDeferredTurns"]>>> {
+  const { h, member } = room;
+  const draining = h.root.services.chat.drainDeferredTurns({ hostUserId: h.owner.userId });
+  const settled = Promise.allSettled([draining]);
+  try {
+    await Promise.race([
+      reached,
+      draining.then(() => {
+        throw new Error("the drain settled before the Stop point");
+      }),
+    ]);
+    await h.root.services.chat.abort({ principal: member, chatId: h.chatId });
+    const report = await draining;
+    await h.root.settleBackground();
+    return report;
+  } finally {
+    await h.root.services.chat.abort({ principal: member, chatId: h.chatId });
+    await settled;
+  }
+}
+
+test("a member's Stop on an owed reply that kept text settles the debt: no re-queue, no second reply, no drop notice", async () => {
+  const partial = corePartialReply([coreFrame({ choices: [{ delta: { content: KEPT } }] })]);
+  await using room = await owedRoom([partial.respond]);
+  const report = await stopTheDrain(room, partial.streamed);
+  await partial.closed;
+  expect(report).toEqual({ ran: 1, dropped: 0 });
+  expect(await queuedRows(room.h)).toBe(0);
+  expect(await dropNotices(room)).toBe(0);
+  const canon = await room.h.root.db.select().from(messages).where(eq(messages.chatId, room.h.chatId)).orderBy(messages.seq);
+  expect(canon.map(({ role }) => role)).toEqual(["user", "assistant"]);
+  const kept = await readRoomCanon(room.h.root, room.member, room.h.chatId);
+  expect(kept.at(-1)).toMatchObject({ role: "assistant", content: KEPT, terminalReason: USER_STOP });
+  // The room's reply plan holds one call, so a re-run of the debt would fail on the unscripted request.
+  expect(await room.h.root.services.chat.drainDeferredTurns({ hostUserId: room.h.owner.userId })).toEqual({ ran: 0, dropped: 0 });
+});
+
+test("a member's Stop on an owed reply before any text leaves the debt queued, and the next drain answers it once", async () => {
+  const held = coreHeldReply();
+  await using room = await owedRoom([held.respond, (): Response => coreProse("The owed reply, second time.")]);
+  const report = await stopTheDrain(room, held.reached);
+  expect(report).toEqual({ ran: 0, dropped: 0 });
+  expect(await queuedRows(room.h)).toBe(1);
+  expect(await dropNotices(room)).toBe(0);
+  const listed = async (): Promise<readonly string[]> => (await readRoomCanon(room.h.root, room.member, room.h.chatId)).map(({ role }) => role);
+  expect(await listed()).toEqual(["user"]);
+  expect(await room.h.root.services.chat.drainDeferredTurns({ hostUserId: room.h.owner.userId })).toEqual({ ran: 1, dropped: 0 });
+  await room.h.root.settleBackground();
+  expect(await queuedRows(room.h)).toBe(0);
+  expect(await listed()).toEqual(["user", "assistant"]);
+});
+
+/** A stream that delivers one text frame and then loses its connection. Text has streamed, so the provider layer
+ *  cannot retry it inside the call, and the fault reaches the drain. */
+function droppedStream(): Response {
+  let pulls = 0;
+  return new Response(
+    new ReadableStream<Uint8Array>(
+      {
+        pull(controller): void {
+          if (pulls++ === 0) {
+            controller.enqueue(new TextEncoder().encode(`${coreFrame({ choices: [{ delta: { content: KEPT } }] })}\n\n`));
+            return;
+          }
+          controller.error(new Error("controlled connection reset"));
+        },
+      },
+      { highWaterMark: 0 },
+    ),
+    { headers: { "content-type": "text/event-stream" } },
+  );
+}
+
+test("a connection lost mid-stream on an owed reply keeps nothing and re-queues it without a drop notice", async () => {
+  await using room = await owedRoom([droppedStream, (): Response => coreProse("The owed reply after the outage.")]);
+  expect(await room.h.root.services.chat.drainDeferredTurns({ hostUserId: room.h.owner.userId })).toEqual({ ran: 0, dropped: 0 });
+  await room.h.root.settleBackground();
+  expect(await queuedRows(room.h)).toBe(1);
+  expect(await dropNotices(room)).toBe(0);
+  expect((await readRoomCanon(room.h.root, room.member, room.h.chatId)).map(({ role }) => role)).toEqual(["user"]);
+  expect(await room.h.root.services.chat.drainDeferredTurns({ hostUserId: room.h.owner.userId })).toEqual({ ran: 1, dropped: 0 });
+  await room.h.root.settleBackground();
+  expect(await queuedRows(room.h)).toBe(0);
 });

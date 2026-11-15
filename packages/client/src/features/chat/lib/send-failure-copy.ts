@@ -1,4 +1,18 @@
-// What the composer's Send says when it fails for a reason the turn mapper does not name. A zero-import leaf, so a
-// test reads the same words the toast prints.
+// What the composer says when a send fails: the toast for a send the room never took, and the line under the composer
+// for a send whose message landed but whose reply did not. A zero-import leaf, so a test reads the same words the
+// product prints.
 
 export const SEND_FAILED_TITLE = "Couldn't send your message.";
+
+/** The reply-failure line's lead: the message is in the room, the reply is not. */
+export const REPLY_FAILED_LEAD = "Your message is saved, but the reply failed.";
+
+/** A member's reason when the host's connection failed: the member cannot fix it, and is not shown the host's
+ *  account detail. The send gate's host causes use the same "Ask them" voice. */
+export const HOST_CONNECTION_FAILED_COPY = "The host's connection couldn't answer. Ask them to check it.";
+
+/** The line's action that asks for the reply again on the saved message. */
+export const RETRY_REPLY_NAME = "Retry the reply";
+
+/** The line's door to the connection settings, for a failure the connection's owner fixes there. */
+export const OPEN_CONNECTIONS_NAME = "Open Connections";

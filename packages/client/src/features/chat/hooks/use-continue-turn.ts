@@ -38,19 +38,27 @@ const useGenerateMutation = createEntityMutation<inferInput<Trpc["chat"]["genera
 export interface UseContinueTurnResult {
   readonly continueTurn: (chatId: ChatId, messageId: MessageId) => void;
   /** W-E — empty-Enter generate on a committed non-assistant tail (a plain reply, no steer). The tail is
-   *  never an assistant turn on this arm, so no `afterAssistant`/responseNudge is passed. */
-  readonly generateReply: (chatId: ChatId) => void;
+   *  never an assistant turn on this arm, so no `afterAssistant`/responseNudge is passed. The reply-failure line's
+   *  retry is this same call; it passes `settle` to state its own outcome. */
+  readonly generateReply: (chatId: ChatId, settle?: GenerateSettle) => void;
   readonly isPending: boolean;
 }
 
-export function useContinueTurn(): UseContinueTurnResult {
+/** A caller's own handling of one generate's outcome, beside the hook's. */
+interface GenerateSettle {
+  readonly onError: (error: unknown) => void;
+  readonly onSuccess: () => void;
+}
+
+/** `failureShownInline` names the line that states a generate failure while that line is up, so no toast repeats it. */
+export function useContinueTurn(failureShownInline?: string): UseContinueTurnResult {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const mutation = useContinueTurnMutation({ trpc, invalidation });
-  const generate = useGenerateMutation({ trpc, invalidation });
+  const generate = useGenerateMutation({ trpc, invalidation, failureShownInline });
   return {
     continueTurn: (chatId, messageId): void => mutation.mutate({ chatId, messageId, timeZone: viewerTimeZone() }),
-    generateReply: (chatId): void => generate.mutate({ chatId, timeZone: viewerTimeZone() }),
+    generateReply: (chatId, settle): void => generate.mutate({ chatId, timeZone: viewerTimeZone() }, settle),
     isPending: mutation.isPending || generate.isPending,
   };
 }

@@ -373,6 +373,82 @@ function assertNever(chunk: never): never {
   throw new Error(`Unknown turn stream chunk: ${String(chunk)}`);
 }
 
+/** One depth's streamed text and reasoning as it arrives, so a stopped stream still says what it wrote. */
+interface StreamedDepth {
+  text: string;
+  reasoning: string;
+  reasoningMs: number | null;
+}
+
+/** The recurse loop's running totals: every depth that completed, plus the depth in flight when it stopped. */
+type RecurseLoopResult = Awaited<ReturnType<typeof runRecurseLoop>>;
+
+/**
+ * The provider stream stopped under the turn's own signal. Carries what the loop had: completed depths in full,
+ * the depth in flight as streamed (`inFlight`, null when the stop landed between depths), and how many provider
+ * calls completed (`completedCalls`), so the engine can tell whether the stopped call reported its own usage.
+ * The engine decides what the stop means; the pipeline never classifies a reason.
+ */
+class StoppedRecurseLoop extends Error {
+  readonly loop: RecurseLoopResult;
+  readonly inFlight: StreamedDepth | null;
+  readonly completedCalls: number;
+  constructor(
+    stopped: { readonly loop: RecurseLoopResult; readonly inFlight: StreamedDepth | null; readonly completedCalls: number },
+    options: { readonly cause: unknown },
+  ) {
+    super("the turn's provider stream stopped mid-generation", options);
+    this.name = "StoppedRecurseLoop";
+    this.loop = stopped.loop;
+    this.inFlight = stopped.inFlight;
+    this.completedCalls = stopped.completedCalls;
+  }
+}
+
+/** The estimated usage of the one provider call a stop cut short: no final chunk ever reported its own. */
+export interface StoppedCallEstimate {
+  readonly tokensIn: number;
+  readonly tokensOut: number;
+}
+
+/**
+ * A turn stopped by its own signal mid-generation: `result` is what streamed, through the same receive
+ * transforms a finished reply takes. `estimate` prices the cut call; it is null when the stop landed between
+ * calls. `completedCalls` counts the provider calls that finished, so an observation beyond that count is
+ * the cut call's own measured usage.
+ */
+export class StoppedTurn extends Error {
+  readonly result: Awaited<ReturnType<typeof runTurnPipeline>>;
+  readonly estimate: StoppedCallEstimate | null;
+  readonly completedCalls: number;
+  constructor(
+    stopped: {
+      readonly result: Awaited<ReturnType<typeof runTurnPipeline>>;
+      readonly estimate: StoppedCallEstimate | null;
+      readonly completedCalls: number;
+    },
+    options: { readonly cause: unknown },
+  ) {
+    super("the turn stopped mid-generation", options);
+    this.name = "StoppedTurn";
+    this.result = stopped.result;
+    this.estimate = stopped.estimate;
+    this.completedCalls = stopped.completedCalls;
+  }
+}
+
+/** Run one step of the recurse loop; a throw under the aborted turn signal becomes the stop carrier. */
+async function orStopped<T>(work: () => Promise<T>, signal: AbortSignal, stopped: () => ConstructorParameters<typeof StoppedRecurseLoop>[0]): Promise<T> {
+  try {
+    return await work();
+  } catch (err) {
+    if (signal.aborted && !(err instanceof StoppedRecurseLoop)) {
+      throw new StoppedRecurseLoop(stopped(), { cause: err });
+    }
+    throw err;
+  }
+}
+
 /** Drains the role's stream: text/reasoning deltas accumulate + fan out; the out-of-band `warning` chunks
  *  collect for the engine's bus emit (D41 — the runner's honest-degrade codes, still in the infra vocabulary;
  *  the engine narrows them to chat's own); the terminal final chunk yields economics. The runner's
@@ -380,6 +456,8 @@ function assertNever(chunk: never): never {
 async function reduceStream(
   stream: AsyncIterable<TurnStreamChunk>,
   args: RunTurnPipelineArgs,
+  // What this depth streamed so far, readable after the stream throws: a user Stop keeps it.
+  streamed: StreamedDepth,
 ): Promise<{
   content: string;
   reasoning: string | null;
@@ -399,11 +477,14 @@ async function reduceStream(
       case "text":
         clock.onAnswerDelta();
         text += chunk.text;
+        streamed.text = text;
         args.onDelta({ chatId: args.chatId, kind: "text", text: chunk.text });
         break;
       case "reasoning":
         clock.onReasoningDelta();
         reasoning += chunk.text;
+        streamed.reasoning = reasoning;
+        streamed.reasoningMs = clock.elapsedMs();
         args.onDelta({ chatId: args.chatId, kind: "reasoning", text: chunk.text });
         break;
       case "warning": {
@@ -876,17 +957,91 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
   const registryNames: ReadonlySet<string> = new Set(attach.execute === null ? [] : args.attachedToolNames);
   const terminal = attachTerminalTools(args, attach.request, registryNames);
   const structured = attachResponseFormat(args, terminal.request);
-  const loop = await runRecurseLoop({
-    args,
-    request: structured.request,
-    execute: attach.execute,
-    reserveToolOrdinals,
-    reserveReceiptEvents,
-    terminalNames: terminal.names,
-    carryReasoning,
-  });
   // RECEIVE, applied once over the depth-cumulative text (prose flows across recursion depths into one variant).
-  const received = applyReceiveTransforms({ content: loop.content, reasoning: loop.reasoning }, args, ctx);
+  // A stopped loop takes the same pass over what it kept, so a kept reply is stored as a finished one would be.
+  const finish = (loop: RecurseLoopTotals): TurnPipelineResult => {
+    const received = applyReceiveTransforms({ content: loop.content, reasoning: loop.reasoning }, args, ctx);
+    return pipelineResult({
+      loop,
+      received,
+      attach,
+      terminal,
+      structured,
+      toolEvents,
+      exchangeEnds,
+      shaped,
+      fitted,
+      budget,
+      deliveredBudget,
+      fitUsedTokens,
+      args,
+      ctx,
+      imageDropped,
+      videoDropped,
+    });
+  };
+  try {
+    return finish(
+      await runRecurseLoop({
+        args,
+        request: structured.request,
+        execute: attach.execute,
+        reserveToolOrdinals,
+        reserveReceiptEvents,
+        terminalNames: terminal.names,
+        carryReasoning,
+      }),
+    );
+  } catch (err) {
+    if (!(err instanceof StoppedRecurseLoop)) {
+      throw err;
+    }
+    // The cut call reported no usage: price its request as this turn's fit priced it and its output by what streamed.
+    const estimate =
+      err.inFlight === null
+        ? null
+        : { tokensIn: fitted.usedTokens + systemTokens, tokensOut: estimateTokens(err.inFlight.text) + estimateTokens(err.inFlight.reasoning) };
+    throw new StoppedTurn({ result: finish(err.loop), estimate, completedCalls: err.completedCalls }, { cause: err });
+  }
+}
+
+/** Assemble the pipeline product from the loop's totals and the per-turn facts computed before it ran. */
+function pipelineResult(input: {
+  readonly loop: RecurseLoopTotals;
+  readonly received: { readonly content: string; readonly reasoning: string | null };
+  readonly attach: Awaited<ReturnType<typeof attachTools>>;
+  readonly terminal: ReturnType<typeof attachTerminalTools>;
+  readonly structured: ReturnType<typeof attachResponseFormat>;
+  readonly toolEvents: ReadonlyMap<number, number>;
+  readonly exchangeEnds: ReadonlyMap<number, number>;
+  readonly shaped: Awaited<ReturnType<typeof shapeConvertFit>>["shaped"];
+  readonly fitted: Awaited<ReturnType<typeof shapeConvertFit>>["fitted"];
+  readonly budget: ReturnType<typeof buildHistoryBudget>;
+  readonly deliveredBudget: Awaited<ReturnType<typeof shapeConvertFit>>["fitBudget"];
+  readonly fitUsedTokens: number;
+  readonly args: RunTurnPipelineArgs;
+  readonly ctx: AssembleContext;
+  readonly imageDropped: boolean;
+  readonly videoDropped: boolean;
+}): TurnPipelineResult {
+  const {
+    loop,
+    received,
+    attach,
+    terminal,
+    structured,
+    toolEvents,
+    exchangeEnds,
+    shaped,
+    fitted,
+    budget,
+    deliveredBudget,
+    fitUsedTokens,
+    args,
+    ctx,
+    imageDropped,
+    videoDropped,
+  } = input;
   return {
     toolEvents,
     exchangeEnds,
@@ -1175,10 +1330,29 @@ async function runRecurseLoop(input: {
   // ON the cognitive-complexity cap and a logical operator in the loop body is what pushes it over.
   const refusedByDepth: boolean[] = [];
   let depth = 0;
+  const totals = (): RecurseLoopTotals => ({
+    content,
+    reasoning,
+    economics,
+    records,
+    toolSignatures,
+    terminalCalls,
+    replyImages,
+    warnings: [...warnings.values()],
+    refused: refusedByDepth.includes(true),
+    reasoningMs,
+  });
   for (;;) {
     // Sequential by design: each recursion depends on the previous depth's executed results.
     const contentStart = content.length;
-    const reduced = await reduceStream(args.runChatTurn({ ...input.request, history }), args);
+    const streamed: StreamedDepth = { text: "", reasoning: "", reasoningMs: null };
+    const sent = history;
+    const completedCalls = depth;
+    const reduced = await orStopped(
+      () => reduceStream(args.runChatTurn({ ...input.request, history: sent }), args, streamed),
+      args.signal,
+      () => ({ loop: withInFlight(totals(), streamed), inFlight: streamed, completedCalls }),
+    );
     content += reduced.content;
     refusedByDepth.push(reduced.refused);
     for (const warning of reduced.warnings) {
@@ -1223,7 +1397,12 @@ async function runRecurseLoop(input: {
     // `Promise.resolve` wrap: biome's nursery `useAwaitThenable` does not carry the `execute === null` break above
     // into this line and reads the union as non-thenable (the same false positive `applyDynamicTransform` wraps
     // for); the wrap is a no-op on an already-Promise and keeps the await honest without a suppression.
-    const batch = await Promise.resolve(execute(calls));
+    // A stop while the batch runs keeps the completed depths; the batch's own records never come back.
+    const batch = await orStopped(
+      () => Promise.resolve(execute(calls)),
+      args.signal,
+      () => ({ loop: totals(), inFlight: null, completedCalls: completedCalls + 1 }),
+    );
     records.push(...recordToolBoundary(batch, { textOffset: content.length, turnId: args.toolExecFrame.turnId, firstOrdinal, calls, prefix: contentStart }));
     history = [
       ...history,
@@ -1237,18 +1416,29 @@ async function runRecurseLoop(input: {
     ];
     depth += 1;
   }
-  return {
-    content,
-    reasoning,
-    economics,
-    records,
-    toolSignatures,
-    terminalCalls,
-    replyImages,
-    warnings: [...warnings.values()],
-    refused: refusedByDepth.includes(true),
-    reasoningMs,
-  };
+  return totals();
+}
+
+/** The recurse loop's product: every depth folded into one reply. */
+interface RecurseLoopTotals {
+  readonly content: string;
+  readonly reasoning: string | null;
+  readonly economics: TurnEconomics | null;
+  readonly records: readonly ToolCallRecord[];
+  readonly toolSignatures: NonNullable<ContentSignatures["tools"]>;
+  readonly terminalCalls: readonly ToolCallInput[];
+  readonly replyImages: readonly OrderedReplyImage[];
+  readonly warnings: readonly ResolvedWarning[];
+  readonly refused: boolean;
+  readonly reasoningMs: number | null;
+}
+
+/** The completed depths plus what the depth in flight streamed. Its unfinished tool calls never arrived: they ride
+ *  only the final chunk, so nothing here can carry one. */
+function withInFlight(totals: RecurseLoopTotals, streamed: StreamedDepth): RecurseLoopTotals {
+  const reasoning = streamed.reasoning.length > 0 ? (totals.reasoning ?? "") + streamed.reasoning : totals.reasoning;
+  const reasoningMs = streamed.reasoningMs === null ? totals.reasoningMs : (totals.reasoningMs ?? 0) + streamed.reasoningMs;
+  return { ...totals, content: totals.content + streamed.text, reasoning, reasoningMs };
 }
 
 /** §6.7 — one depth's inline pictures rebased onto the DEPTH-CUMULATIVE reply. `atChars` is an offset into

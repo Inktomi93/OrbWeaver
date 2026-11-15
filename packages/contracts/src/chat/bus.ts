@@ -356,6 +356,23 @@ export const TURN_ROOM_CLOSING_OP_CODE = "room_closing" as const;
  *  found. It names no account state: a member is told the host is unavailable, never why. */
 export const TURN_HOST_UNAVAILABLE_OP_CODE = "host_unavailable" as const;
 
+/** The `data.reason` prefix every provider failure rides on a tRPC error, followed by the provider's failure kind
+ *  (`provider_auth_failed`). The server's error mapping spells the reason from this constant. */
+export const PROVIDER_FAILURE_REASON_PREFIX = "provider_";
+
+/** A provider failure's `data.reason`: the prefix and one of `@orb/inference`'s failure kinds, which contracts cannot
+ *  import (it sits below inference). */
+export type ProviderFailureReason = `${typeof PROVIDER_FAILURE_REASON_PREFIX}${string}`;
+
+/** The provider failures the connection's owner fixes under Connections: a rejected key, the account's balance, or a
+ *  model the provider does not serve. A failed reply offers that door for these alone. Each member must name one of
+ *  those failure kinds. */
+export const CONNECTION_FIXABLE_FAILURE_REASONS = [
+  "provider_auth_failed",
+  "provider_billing",
+  "provider_model_unavailable",
+] as const satisfies readonly ProviderFailureReason[];
+
 /** The `DomainOperationError.code` `chat.setUserMacroValues` refuses an off-vocabulary select pick with
  * — the same wire-vocabulary home as the two twins above, for the same reason: the picks pane keys
  *  on `data.reason` rather than on message text, and the server's `CHAT_OP_CODES.unknownMacroPick` derives
