@@ -128,10 +128,9 @@ test("an assumed window never runs past a small native window", async () => {
   });
 });
 
-test("the list keeps chat models only, with each one's stated input, tools and price", async () => {
+test("the list keeps chat models with each one's stated input, tools and price", async () => {
   await using root = await createRuntimeRoot({ providerFetch: host() });
   const listing = await draftListing(root);
-  expect(entry(listing, "lr/painter")).toBeUndefined();
   expect(entry(listing, "lr/base")).toMatchObject({
     name: "Model lr/base",
     inputModalities: ["text", "image"],
@@ -169,20 +168,36 @@ test("a model whose list row omits a sampler has that knob not honoured, and one
   expect((await capabilityOf(root, "lr/min-p")).sampling.minP).toBeDefined();
 });
 
-// A row whose kind is missing or malformed states no chat model, so the list leaves it out rather than guess chat.
+// A row whose type is missing, malformed or one the reader does not know states no model, so the list leaves it out
+// rather than guess chat.
 const KIND_LIST = {
   object: "list",
   data: [
     row("lr/chat", "base"),
+    row("lr/painter-too", "base", { type: "image" }),
     row("lr/untyped", "base", { type: undefined }),
     row("lr/numbered", "base", { type: 5 }),
     row("lr/blank", "base", { type: "" }),
-    row("lr/painter-too", "base", { type: "image" }),
+    row("lr/speaker", "base", { type: "audio" }),
   ],
 };
 
-test("a row with no type, or a type that is not a string, lists as no chat model", async () => {
+test("a row with no type, a type that is not a string, or a type the reader does not know lists as no model", async () => {
   await using root = await createRuntimeRoot({ providerFetch: () => Promise.resolve(Response.json(KIND_LIST)) });
   const listing = await draftListing(root);
-  expect(listing.listed ? listing.models.map((model) => model.id) : []).toEqual(["lr/chat"]);
+  expect(listing.listed ? listing.models.map((model) => model.id) : []).toEqual(["lr/chat", "lr/painter-too"]);
+});
+
+// The live list's image rows state no window, price or input, and mark the kind in `type` (Image Generation page).
+const IMAGE_ROW = { id: "lr/sdxl", ["display_name"]: "SDXL", object: "model", type: "image", modality: ["image"], variant: "base", ["price_usd_per_1m"]: [] };
+
+test("an image row lists as a model that takes a text prompt and returns an image", async () => {
+  await using root = await createRuntimeRoot({ providerFetch: () => Promise.resolve(Response.json({ object: "list", data: [IMAGE_ROW] })) });
+  expect(entry(await draftListing(root), IMAGE_ROW.id)).toMatchObject({ name: "SDXL", inputModalities: ["text"], outputModalities: ["image"] });
+  const generation = await capabilityOf(root, IMAGE_ROW.id);
+  expect({ input: generation.input, output: generation.output.modalities, imageEdit: generation.imageEdit }).toEqual({
+    input: ["text"],
+    output: ["image"],
+    imageEdit: undefined,
+  });
 });

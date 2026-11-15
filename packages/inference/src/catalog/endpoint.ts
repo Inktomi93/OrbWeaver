@@ -357,14 +357,17 @@ const LITEROUTER_VARIANT_WINDOWS: Readonly<Record<string, number | "native">> = 
   free: 5000,
 };
 
-/** The list's model type for a chat model; image models answer on the image host. */
+/** The list's model types this reader keeps: a chat model, and an image model, which answers on the row's image host
+ *  (the Image Generation page). */
 const LITEROUTER_CHAT_TYPE = "chat";
+const LITEROUTER_IMAGE_TYPE = "image";
 
 const literouterRowSchema = z.looseObject({
   id: z.string().min(1),
   display_name: STATED_TEXT,
-  // The kind decides chat, so only a stated chat type parses; a missing or malformed one drops the row.
-  type: z.literal(LITEROUTER_CHAT_TYPE),
+  // The type decides what the model is, so only a stated chat or image type parses; a missing or malformed one drops
+  // the row.
+  type: z.enum([LITEROUTER_CHAT_TYPE, LITEROUTER_IMAGE_TYPE]),
   variant: STATED_TEXT,
   /** The model's native window, whatever the variant serves. */
   context_window: STATED_LIMIT,
@@ -403,7 +406,12 @@ const REASONING_HIDDEN = "none";
 
 async function fetchLiteRouterModels(args: EndpointFetchArgs): Promise<EndpointModel[]> {
   const rows = await hostedRows(args, { path: "/models", label: "LiteRouter models" }, literouterRowSchema);
-  return rows.map(literouterModel);
+  return rows.map((row) => (row.type === LITEROUTER_IMAGE_TYPE ? literouterImageModel(row) : literouterModel(row)));
+}
+
+// An image model takes a text prompt and returns one picture; the list states neither a window nor a price for it.
+function literouterImageModel(row: LiteRouterRow): EndpointModel {
+  return withStated({ id: row.id, contextLength: null }, { kind: "generation", name: row.display_name, input: ["text"], output: ["image"], probed: true });
 }
 
 function literouterWindow(row: LiteRouterRow, native: number | null): number | null {

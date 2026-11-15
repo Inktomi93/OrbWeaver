@@ -102,6 +102,9 @@ const endpointModelSchema = z
     rerankInputTokens: z.number().int().positive().optional(),
     /** What a chat turn may carry, where the server's native model info states it (D292). Absent ⇒ not stated. */
     input: z.array(modalitySchema).optional(),
+    /** What the model returns, where a hosted list states a model that does not answer in text (an image model).
+     *  Absent ⇒ not stated, and the floor's text stands. */
+    output: z.array(modalitySchema).optional(),
     /** The request fields a hosted list says the model takes (`supported_parameters`), in OpenRouter's vocabulary.
      *  Absent ⇒ not stated. */
     supportedParameters: z.array(z.string()).optional(),

@@ -120,10 +120,12 @@ export const BUILTIN_PROVIDER_ROWS = [
     auth: "apiKey",
     baseUrl: "https://api.literouter.com/v1",
     apis: ["chat-completions"],
-    // Image models answer on a separate host, image.literouter.com, and the docs name no embedding route.
-    serves: ["chat", "summarize", "structured"],
+    // Image models answer on a separate host ({@link BUILTIN_IMAGE_BASE_URLS}), and the docs name no embedding route.
+    serves: ["chat", "summarize", "structured", "generateImage"],
     features: {
       effort: "reasoning_effort",
+      // The image host's OpenAI-format `POST /v1/images/generations` (Image Generation page): one `b64_json` image back.
+      images: "images-api",
       modelInfoApi: "literouter",
       // A 403 is a refusal, not a key verdict: measured live, a misspelled model answered 403 "[LiteRouter] Model '…' is
       // not available or misspelled" and the plan cooldown 403 "[LiteRouter] Rate limit exceeded for your tier (7
@@ -289,6 +291,16 @@ export const BUILTIN_PROVIDER_ROWS = [
 
 // A typical Server URL per built-in endpoint row, shown as the field placeholder. Static pane metadata kept out of
 // the persisted provider row, so plugin and admin rows carry none.
+/**
+ * The base URL a built-in row's image generation answers on, where its service puts images on another host than chat.
+ *
+ * @remarks SECURITY: the row's key is sent to this host. It lives beside the shipped rows and outside the persisted
+ * provider row, so a plugin, admin or user row can never name a host that receives a key.
+ */
+export const BUILTIN_IMAGE_BASE_URLS: Readonly<Partial<Record<(typeof BUILTIN_PROVIDER_ROWS)[number]["id"], string>>> = {
+  literouter: "https://image.literouter.com/v1",
+};
+
 export const BUILTIN_EXAMPLE_BASE_URLS: Readonly<Record<string, string>> = {
   vllm: "http://localhost:8000",
   "lm-studio": "http://localhost:1234",

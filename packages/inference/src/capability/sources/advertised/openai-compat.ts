@@ -21,14 +21,18 @@ function advertisedContext(entry: Pick<EndpointModel, "contextLength" | "context
   return entry.contextFloor === undefined ? {} : { context: { window: entry.contextFloor, windowEstimated: true } };
 }
 
-/** A stated output cap is reported; an unstated one is left to the floor, which the fold marks assumed. */
-function advertisedOutput(entry: Pick<EndpointModel, "maxCompletionTokens" | "structured">): Pick<GenerationPatch, "output"> {
+/** A stated output cap is reported; an unstated one is left to the floor, which the fold marks assumed. A stated
+ *  output kind (an image model's) replaces the floor's text. */
+function advertisedOutput(entry: Pick<EndpointModel, "maxCompletionTokens" | "structured" | "output">): Pick<GenerationPatch, "output"> {
   const cap = entry.maxCompletionTokens;
-  const structured = entry.structured === true ? { structured: true } : {};
+  const stated = {
+    ...(entry.structured === true ? { structured: true } : {}),
+    ...(entry.output === undefined ? {} : { modalities: [...entry.output] }),
+  };
   if (cap === null || cap === undefined || cap < 1) {
-    return entry.structured === true ? { output: structured } : {};
+    return Object.keys(stated).length === 0 ? {} : { output: stated };
   }
-  return { output: { maxTokens: { min: 1, max: cap }, ...structured } };
+  return { output: { maxTokens: { min: 1, max: cap }, ...stated } };
 }
 
 /** The server's defaults keyed by sampler knob: each knob's value under the key this row spells it with
@@ -100,6 +104,7 @@ export function advertisedFromOpenAiCompat(
     | "embedTruncatable"
     | "rerankInputTokens"
     | "input"
+    | "output"
     | "tools"
     | "structured"
     | "prefill"

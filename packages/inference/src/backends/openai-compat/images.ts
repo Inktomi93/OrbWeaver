@@ -9,7 +9,7 @@
 
 import type { ImageModelV4File } from "@ai-sdk/provider";
 import type { GenerationUsage, ResolvedWarning, ResponseCache, TokenDetails, TokenUsage } from "@orb/contracts/inference";
-import { acceptsImageEdit } from "@orb/contracts/inference";
+import { acceptsImageEdit, builtinImageBaseUrl } from "@orb/contracts/inference";
 import type { ImageInput } from "@orb/contracts/role-clients";
 import { z } from "zod";
 import type { GeneratedImage, ImageGenerateRequest, ImageGenerateResult, ProviderScrubSet } from "#contract";
@@ -252,6 +252,14 @@ async function runChatModalities(req: ImageGenerateRequest, deps: ImagesDeps, ca
   return { images, model: req.connection.model, usage: { ...usage, servedModel: result.response?.modelId ?? null }, warnings };
 }
 
+// SECURITY: the image host receives the row's key, and only `builtinImageBaseUrl` names one, so a plugin, admin or
+// Custom connection, even one on the same chat base URL, stays on its own base URL. The SDK joins a fixed path under
+// this base, so no URL it builds leaves the base's origin; egress refuses a cross-origin redirect that carries the key.
+function imageConnection(connection: ImageGenerateRequest["connection"]): ImageGenerateRequest["connection"] {
+  const imageBase = builtinImageBaseUrl(connection.providerId);
+  return imageBase === undefined ? connection : { ...connection, baseUrl: imageBase };
+}
+
 export async function runOpenAiCompatGenerateImage(req: ImageGenerateRequest, deps: ImagesDeps): Promise<ImageGenerateResult> {
   const { connection } = req;
   const label = `${connection.providerId} generateImage (${connection.model})`;
@@ -261,7 +269,7 @@ export async function runOpenAiCompatGenerateImage(req: ImageGenerateRequest, de
   }
   const warnings: ResolvedWarning[] = [];
   const call: ModelCall = {
-    connection,
+    connection: imageConnection(connection),
     deps: deps.transport,
     label,
     api: "generateImage",

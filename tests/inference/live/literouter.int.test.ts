@@ -55,3 +55,33 @@ test.skipIf(KEY === undefined)(
     expect(turn.usage.tokensOut).toBeGreaterThan(0);
   },
 );
+
+// The list's image models answer on the row's image host; the cheapest listed one, at the smallest size it documents.
+const IMAGE_MODEL = "sdxl-turbo";
+const IMAGE_SIZE = { width: 512, height: 512 };
+
+test.skipIf(KEY === undefined)(
+  "the LiteRouter row lists its image models and makes one image on the image host",
+  { tags: ["live"], timeout: LIVE_TIMEOUT_MS },
+  async () => {
+    const key = KEY ?? "";
+    await using root = await createRuntimeRoot({ providerFetch: fetch, networkExecution: { resolver: resolveHost } });
+    const principal = await root.principalFor(root.ownerId);
+    const signal = new AbortController().signal;
+    const listing = await root.services.connection.draftCatalogModels({ principal, providerId: PROVIDER, key, signal });
+    expect(listing.listed ? listing.models.find((model) => model.id === IMAGE_MODEL) : undefined).toMatchObject({ outputModalities: ["image"] });
+
+    const credential = await root.services.credentials.add({ principal, provider: PROVIDER, key });
+    const row = await root.services.connection.create({ principal, providerId: PROVIDER, credentialId: credential.id, baseUrl: null, model: IMAGE_MODEL });
+    await root.services.connection.capabilities({ principal, connectionId: row.id, signal });
+    const { resolved } = await root.app.runtime.resolve({ signal, principal, task: "generateImage", connectionId: row.id, cachedFacts: true });
+    const result = await root.app.runtime.executor.generateImage({
+      signal,
+      connection: { ...resolved, task: "generateImage" },
+      prompt: "a small red circle",
+      size: IMAGE_SIZE,
+    });
+    expect(result.images).toHaveLength(1);
+    expect(result.images[0]?.base64?.length).toBeGreaterThan(0);
+  },
+);

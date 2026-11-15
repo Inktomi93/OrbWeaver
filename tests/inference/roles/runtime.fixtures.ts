@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { Capability, DeclaredCapability, EndpointFeatures, GenerationCapability, Task } from "@orb/contracts/inference";
-import { BUILTIN_PROVIDERS, declaredCapabilitySchema } from "@orb/contracts/inference";
+import { BUILTIN_PROVIDERS, builtinImageBaseUrl, declaredCapabilitySchema } from "@orb/contracts/inference";
 import type { Resolved } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 import type { ScheduleOp } from "@orb/kit/time";
@@ -64,7 +64,8 @@ export function createRuntimeRoot(options: ServerHarnessOptions = {}): Promise<S
         if (hostname === "box.local" || hostname === new URL(RUNTIME_ENDPOINT).hostname) {
           return Promise.resolve(["127.0.0.1"]);
         }
-        if (BUILTIN_PROVIDERS.some((provider) => provider.baseUrl !== undefined && new URL(provider.baseUrl).hostname === hostname)) {
+        const hosted = BUILTIN_PROVIDERS.flatMap((provider) => [provider.baseUrl, builtinImageBaseUrl(provider.id)]);
+        if (hosted.some((url) => url !== undefined && new URL(url).hostname === hostname)) {
           return Promise.resolve([PUBLIC_PEER_ADDRESS]);
         }
         throw new Error(`unscripted runtime-fixture DNS lookup: ${hostname}`);

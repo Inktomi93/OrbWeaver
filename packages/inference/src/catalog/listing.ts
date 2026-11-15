@@ -52,6 +52,7 @@ function endpointCatalogEntry(row: EndpointModel): ModelCatalogEntry {
     ...(row.listedPrice?.prompt === undefined ? {} : { promptPrice: row.listedPrice.prompt }),
     ...(row.listedPrice?.completion === undefined ? {} : { completionPrice: row.listedPrice.completion }),
     ...(row.input === undefined ? {} : { inputModalities: [...row.input] }),
+    ...(row.output === undefined ? {} : { outputModalities: [...row.output] }),
     ...(row.tools === undefined ? {} : { supportedParameters: [TOOLS_PARAMETER] }),
     ...(row.maxCompletionTokens === undefined ? {} : { maxCompletionTokens: row.maxCompletionTokens }),
   };
