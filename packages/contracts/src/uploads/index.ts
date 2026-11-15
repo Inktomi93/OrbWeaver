@@ -88,6 +88,25 @@ export const IMPORT_TREE_MAX_FILE_BYTES = IMPORT_TREE_FILE_MIB * BYTES_PER_MIB;
 /** The direct profile-tree entry ceiling, aligned with the archive codec's house entry cap. */
 export const IMPORT_TREE_MAX_FILES = 50_000;
 
+// ── The tRPC family (a JSON body → /api/trpc) ──────────────────────────────────────────────────────────
+// The mount's body cap sits above the largest text a procedure admits, so each procedure's own input schema is the
+// limit a person meets and this one only bounds a hostile body.
+const TRPC_BODY_MIB = 32;
+
+/** The byte cap on one tRPC request body: the server's mount refuses a larger body with a bare 413, and the client
+ *  names this number in the message it shows for that answer. */
+export const TRPC_BODY_MAX_BYTES = TRPC_BODY_MIB * BYTES_PER_MIB;
+
+/** The character cap each file-text import procedure's input admits (`fileText`, measured as a JS string length).
+ *  The server schemas read these and the client checks a picked file's text against the same number before it sends. */
+export const IMPORT_FILE_TEXT_MAX_CHARS = {
+  preset: 8_000_000,
+  worldBook: 8_000_000,
+  persona: 2_000_000,
+  theme: 1_000_000,
+  regexScript: 200_000,
+} as const;
+
 /** The client-served deployment byte caps — the honest upper bounds the client pre-checks + dropzone hints
  *  derive from (a deployment fact, served on `/api/auth/config`). The image cap is the EFFECTIVE ceiling for
  *  an image upload = `min(assetUpload, maxImageBytes)` resolved server-side, so the client hint matches what

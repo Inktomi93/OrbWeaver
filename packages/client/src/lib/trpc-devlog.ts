@@ -5,6 +5,7 @@
 import { isPrimitive } from "@orb/kit/guards";
 import { CONSOLE_STYLES } from "./console-styles.ts";
 import { logClock } from "./log-clock.ts";
+import { requestRefusalOf } from "./request-refused.ts";
 
 /**
  * The structural slice of tRPC's `LoggerLinkFnOptions` this formatter reads — declared locally
@@ -101,8 +102,10 @@ export function formatTrpcOp(entry: TrpcOpLogEntry): void {
   }
   const ms = `${Math.round(entry.elapsedMs)}ms`;
   if (entry.result instanceof Error) {
+    // A refused request's headline is plain words; the raw status and content type ride only this line.
+    const detail = requestRefusalOf(entry.result)?.detail;
     console.error(
-      `${prefix} %c✗ ${entry.type} ${entry.path}%c ${ms} · ${entry.result.message}`,
+      `${prefix} %c✗ ${entry.type} ${entry.path}%c ${ms} · ${entry.result.message}${detail === undefined ? "" : ` (${detail})`}`,
       CONSOLE_STYLES.prefix,
       CONSOLE_STYLES.error,
       CONSOLE_STYLES.muted,

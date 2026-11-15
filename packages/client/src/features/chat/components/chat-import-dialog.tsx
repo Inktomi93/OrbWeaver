@@ -13,13 +13,23 @@
 import type { ImportWindow } from "@orb/contracts/chat";
 import { mergeImportWindows } from "@orb/contracts/chat";
 import type { ChatImportResult } from "@orb/contracts/import";
+import { IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { DismissDialog, ImportedChatsMemoryOffer } from "#components";
 import { importChats, useInvalidation, useTRPC } from "#data";
-import { chatInLibraryNotice, chatsInLibraryNotice, DIALOG_VERBS, importedOfLead, inLibraryClause, notify, rethrowUnlessTrpcFailure } from "#lib";
+import {
+  chatInLibraryNotice,
+  chatsInLibraryNotice,
+  DIALOG_VERBS,
+  importedOfLead,
+  inLibraryClause,
+  notify,
+  refuseOversizeFiles,
+  rethrowUnlessTrpcFailure,
+} from "#lib";
 import { CHAT_IMPORT_TITLE } from "../lib/chat-surface-names.ts";
 
 // Both chat formats the single-chat door accepts: the ST/share transcript and the R6 orb-native BUNDLE
@@ -103,6 +113,12 @@ export function ChatImportDialog({ open, onOpenChange }: ChatImportDialogProps):
 
   const onFiles = (accepted: readonly File[]): void => {
     if (accepted.length === 0) {
+      return;
+    }
+    // The route holds a whole drop in memory under one cap, so the files' sizes together are what it refuses on.
+    const tooLarge = refuseOversizeFiles(accepted, IMPORT_MAX_TOTAL_BYTES);
+    if (tooLarge !== undefined) {
+      notify.error(tooLarge.message);
       return;
     }
     importChats(accepted).then(

@@ -3,6 +3,7 @@
 // the switcher is the play surface. Suspends on `persona.list` + `settings.getUserSettings` — the MOUNT owns
 // the boundary.
 
+import { IMPORT_FILE_TEXT_MAX_CHARS } from "@orb/contracts/uploads";
 import type { PersonaId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -15,7 +16,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { Tip } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { notify, rethrowUnlessTrpcFailure, rowQualifiers, timeLib } from "#lib";
+import { notify, readTextWithin, rethrowUnlessTrpcFailure, rowQualifiers, timeLib } from "#lib";
 import { selectPersonaEditor, usePersonaEditorId } from "#state";
 import { useCreatePersona, useImportPersonaFile, useRemovePersona } from "../hooks/use-persona-mutations.ts";
 import { useDefaultPersona } from "../hooks/use-playing-persona.ts";
@@ -63,7 +64,7 @@ export function PersonaList(): ReactElement {
   // personas it restores.
   const onImportFile = async (file: File): Promise<void> => {
     try {
-      const restored = await importPersona.mutateAsync({ fileText: await file.text() });
+      const restored = await importPersona.mutateAsync({ fileText: await readTextWithin(file, IMPORT_FILE_TEXT_MAX_CHARS.persona) });
       setExpandedId(restored.id);
     } catch (error) {
       // The SERVER's refusal reason, rendered as words — "written by a newer version of orbweaver" is a

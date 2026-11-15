@@ -47,14 +47,13 @@ import {
   reorderResultSchema,
   updateRegexScriptSchema,
 } from "@orb/contracts/regex";
+import { IMPORT_FILE_TEXT_MAX_CHARS } from "@orb/contracts/uploads";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { strictTwin } from "@orb/kit/zod-schema";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
-/** One portable script file is a handful of fields; the cap only fences a hostile upload. */
-const MAX_SCRIPT_FILE_CHARS = 200_000;
 /** How many scripts one bulk gesture may name — far above any real selection, low enough to bound the
  *  statement a single request can build. */
 const MAX_BULK_SCRIPTS = 500;
@@ -132,7 +131,7 @@ export const regexRouter = t.router({
   // written by a newer orbweaver no longer reads as "not a valid file". The import dialog renders it.
   importScriptFile: authedProcedure
     .output(importScriptFileResultSchema)
-    .input(z.strictObject({ fileText: z.string().max(MAX_SCRIPT_FILE_CHARS) }))
+    .input(z.strictObject({ fileText: z.string().max(IMPORT_FILE_TEXT_MAX_CHARS.regexScript) }))
     .mutation(({ ctx, input }) => ctx.services.regex.importScriptFile({ principal: ctx.auth, fileText: input.fileText })),
 
   // The REVERSE rosters (REGROSTER): which presets/characters/rooms attach ONE owned script. Owner-gated on

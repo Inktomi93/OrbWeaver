@@ -7,12 +7,22 @@
 // open for another file, so the line is already in front of the person and no toast repeats it), and a partial says how many of how many.
 
 import type { CardImportResult } from "@orb/contracts/import";
+import { IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { DismissDialog } from "#components";
 import { importCharacters, useInvalidation } from "#data";
-import { cardImportPartialLine, cardImportRefusalLine, cardInLibraryNotice, cardsInLibraryNotice, DIALOG_VERBS, inLibraryClause, notify } from "#lib";
+import {
+  cardImportPartialLine,
+  cardImportRefusalLine,
+  cardInLibraryNotice,
+  cardsInLibraryNotice,
+  DIALOG_VERBS,
+  inLibraryClause,
+  notify,
+  refuseOversizeFiles,
+} from "#lib";
 import { selectCharacter } from "#state";
 import { CHARACTER_IMPORT_NAME } from "../lib/character-names.ts";
 
@@ -61,6 +71,12 @@ export function CharacterImportDialog({ open, onOpenChange }: CharacterImportDia
       return;
     }
     setRefusal(null);
+    // The route holds a whole drop in memory under one cap, so the files' sizes together are what it refuses on.
+    const tooLarge = refuseOversizeFiles(accepted, IMPORT_MAX_TOTAL_BYTES);
+    if (tooLarge !== undefined) {
+      setRefusal(tooLarge.message);
+      return;
+    }
     importCharacters(accepted).then(
       (result) => {
         if (result.imported.length === 0) {

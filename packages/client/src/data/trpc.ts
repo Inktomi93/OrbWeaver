@@ -14,7 +14,7 @@ import type { HTTPLinkOptions, TRPCClient, TRPCClientErrorLike } from "@trpc/cli
 import { createTRPCClient, httpBatchLink, httpLink, httpSubscriptionLink, loggerLink, splitLink } from "@trpc/client";
 import type { inferOutput, TRPCOptionsProxy, TRPCQueryKey, TRPCQueryOptionsResult } from "@trpc/tanstack-react-query";
 import { createTRPCContext, createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
-import { formatTrpcOp, IS_DEV } from "#lib";
+import { formatTrpcOp, IS_DEV, refusalOfAnswer } from "#lib";
 import { PostEventSource } from "./bus/post-event-source.ts";
 
 declare module "@trpc/client" {
@@ -47,9 +47,11 @@ export type TrpcReadError = TRPCClientErrorLike<AppRouter>;
 
 export const { TRPCProvider, useTRPC, useTRPCClient } = createTRPCContext<AppRouter>();
 
-/** Refuse a non-JSON answer to a tRPC call with an error that names the HTTP status, instead of letting the
- *  batch link's JSON parse report `Unexpected token '<'`. A page here came from something in front of the app
- *  (a proxy or login redirect), never from the tRPC mount, which always answers JSON. */
+/** Refuse a non-JSON answer to a tRPC call with a {@link RequestRefusedError} of the kind its status names, instead of
+ *  letting the batch link's JSON parse report `Unexpected token '<'`. The tRPC mount answers JSON for every call it
+ *  reads; what arrives otherwise is the mount's own bare refusal (an over-size body, a non-JSON content type, a
+ *  blocked address) or a page from something in front of the app (a proxy or login redirect). The link wraps what this
+ *  throws, so a caller reads the typed error with `requestRefusalOf`. */
 const jsonOnlyFetch: NonNullable<Parameters<typeof httpBatchLink>[0]["fetch"]> = async (input, init) => {
   // The link's init type allows an explicit `undefined` signal; the DOM type (exactOptionalPropertyTypes) does not.
   const response = await fetch(input, init === undefined ? undefined : { ...init, signal: init.signal ?? null });
@@ -57,8 +59,7 @@ const jsonOnlyFetch: NonNullable<Parameters<typeof httpBatchLink>[0]["fetch"]> =
   if (contentType.includes("json")) {
     return response;
   }
-  const where = response.redirected ? ` after a redirect to ${response.url}` : "";
-  throw new Error(`The server answered HTTP ${response.status}${where} with ${contentType === "" ? "no content type" : contentType} instead of JSON`);
+  throw refusalOfAnswer(response);
 };
 
 /**
