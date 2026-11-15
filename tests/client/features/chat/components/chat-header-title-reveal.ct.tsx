@@ -85,6 +85,26 @@ async function wholeTitle(page: Page): Promise<string> {
   return chatTitleWhole(participants, ROOM_NAME);
 }
 
+/** Wait until the title is drawn cut or uncut and the component has taken that state. The component learns a cut from a resize
+ *  observer after the layout that causes it, so the drawn text alone says nothing about what a press does yet. A cut title's control
+ *  announces its reveal; an uncut host title is a control with none; an uncut member title is no control. */
+async function expectTitleSettled(page: Page, cut: boolean, role: (typeof ROLES)[number] = "host"): Promise<void> {
+  await expect.poll(() => titleIsCut(page)).toBe(cut);
+  const control = page.locator(`${WIDE_IDENTITY} [data-slot="title-reveal"]`).getByRole("button");
+  const uncut = role === "host" ? "acts" : "plain";
+  await expect
+    .poll(() =>
+      control.evaluateAll((found) => {
+        const [first] = found;
+        if (first === undefined) {
+          return "plain";
+        }
+        return first.getAttribute("aria-haspopup") === "dialog" ? "reveals" : "acts";
+      }),
+    )
+    .toBe(cut ? "reveals" : uncut);
+}
+
 /** The wide identity's title control, found by the room's name its accessible name carries. */
 function titleControl(page: Page): Locator {
   return page.locator(WIDE_IDENTITY).getByRole("button", { name: ROOM_NAME });
@@ -96,8 +116,7 @@ for (const role of ROLES) {
       await using root = await createCorpusHarness();
       const { chatId } = await routeSharedRoomAs({ root, page, corpus }, role, ROOM_NAME);
       await mount<typeof ChatRoomShellStory>(STORY, { chatId });
-      await expect(titleControl(page)).toBeVisible();
-      expect(await titleIsCut(page)).toBe(true);
+      await expectTitleSettled(page, true, role);
       const whole = await wholeTitle(page);
       await titleControl(page).tap();
       const reveal = page.getByRole("dialog", { name: whole, exact: true });
@@ -110,7 +129,7 @@ for (const role of ROLES) {
       const chatId = role === "host" ? await routeShortRoom({ root, page }) : (await routeSharedRoomAs({ root, page, corpus }, role, null)).chatId;
       await mount<typeof ChatRoomShellStory>(STORY, { chatId });
       await expect(page.locator(`${WIDE_IDENTITY} .shell-topbar-title`)).toBeVisible();
-      expect(await titleIsCut(page)).toBe(false);
+      await expectTitleSettled(page, false, role);
       // The host's title is the rename control; a member's is plain text.
       await expect(page.locator(`${WIDE_IDENTITY} [data-slot="title-reveal"]`).getByRole("button")).toHaveCount(role === "host" ? 1 : 0);
     });
@@ -135,12 +154,16 @@ for (const role of ROLES) {
       await expect(participants).toHaveCount(1);
       const offsetInRow = async (): Promise<{ readonly x: number; readonly y: number }> => {
         const [text, box] = [await participants.boundingBox(), await row.boundingBox()];
-        return { x: (text?.x ?? Number.NaN) - (box?.x ?? Number.NaN), y: (text?.y ?? Number.NaN) - (box?.y ?? Number.NaN) };
+        if (text === null || box === null) {
+          throw new Error("The title or its row is not drawn");
+        }
+        return { x: text.x - box.x, y: text.y - box.y };
       };
-      expect(await titleIsCut(page)).toBe(true);
+      await expectTitleSettled(page, true, role);
       const cut = await offsetInRow();
       await page.setViewportSize({ width: REVEAL_WIDTH, height: DESKTOP.height });
-      await expect.poll(() => titleIsCut(page)).toBe(false);
+      // A member's control gives way to plain text here, so the title is measured only once that swap is done.
+      await expectTitleSettled(page, false, role);
       const uncut = await offsetInRow();
       // Within a device pixel: the two widths round the box's own edge differently.
       expect(Math.abs(uncut.x - cut.x)).toBeLessThanOrEqual(1);
@@ -151,7 +174,7 @@ for (const role of ROLES) {
       await using root = await createCorpusHarness();
       const { chatId } = await routeSharedRoomAs({ root, page, corpus }, role, ROOM_NAME);
       await mount<typeof ChatRoomShellStory>(STORY, { chatId });
-      expect(await titleIsCut(page)).toBe(true);
+      await expectTitleSettled(page, true, role);
       const whole = await wholeTitle(page);
       await titleControl(page).tap();
       const reveal = page.getByRole("dialog", { name: whole, exact: true });
@@ -191,7 +214,7 @@ test.describe("the host's press", () => {
         const { chatId } = await routeSharedRoomAs({ root, page, corpus }, "host", ROOM_NAME);
         await page.setViewportSize({ width: state.width, height: DESKTOP.height });
         await mount<typeof ChatRoomShellStory>(STORY, { chatId });
-        expect(await titleIsCut(page)).toBe(state.cut);
+        await expectTitleSettled(page, state.cut);
         await press(titleControl(page));
         const field = page.getByRole("textbox", { name: CHAT_NAME_FIELD_NAME, exact: true });
         const reveal = page.getByRole("dialog", { name: await wholeTitle(page), exact: true });
@@ -206,7 +229,7 @@ test.describe("the host's press", () => {
     const { chatId } = await routeSharedRoomAs({ root, page, corpus }, "host", ROOM_NAME);
     await page.setViewportSize({ width: REVEAL_WIDTH, height: DESKTOP.height });
     await mount<typeof ChatRoomShellStory>(STORY, { chatId });
-    expect(await titleIsCut(page)).toBe(false);
+    await expectTitleSettled(page, false);
     const box = await titleControl(page).boundingBox();
     await page.mouse.move((box?.x ?? 0) + 8, (box?.y ?? 0) + (box?.height ?? 0) / 2);
     await page.mouse.down();
@@ -217,7 +240,7 @@ test.describe("the host's press", () => {
     await expect(page.getByRole("dialog")).toHaveCount(0);
     // The title is cut when the next activation arrives with no pointer press before it (assistive technology): it acts on the state it is in then.
     await page.setViewportSize(DESKTOP);
-    await expect.poll(() => titleIsCut(page)).toBe(true);
+    await expectTitleSettled(page, true);
     await titleControl(page).dispatchEvent("click");
     await expect(page.getByRole("dialog", { name: await wholeTitle(page), exact: true })).toBeVisible();
     await expect(field).toHaveCount(0);
@@ -227,7 +250,7 @@ test.describe("the host's press", () => {
     await using root = await createCorpusHarness();
     const { chatId } = await routeSharedRoomAs({ root, page, corpus }, "host", ROOM_NAME);
     await mount<typeof ChatRoomShellStory>(STORY, { chatId });
-    expect(await titleIsCut(page)).toBe(true);
+    await expectTitleSettled(page, true);
     const whole = await wholeTitle(page);
     await titleControl(page).tap();
     await page.getByRole("dialog", { name: whole, exact: true }).getByRole("button", { name: RENAME_CHAT_NAME, exact: true }).tap();
