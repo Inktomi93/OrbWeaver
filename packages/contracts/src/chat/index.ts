@@ -319,6 +319,7 @@ export type {
   ResolveSeatDecoOp,
   ResolveSeatDecosOp,
   ResolveViewerVisibility,
+  RoomTierForMemberOp,
   SignupMinterCheckOp,
   StoreSegmentParams,
   TurnRetrievalEvents,

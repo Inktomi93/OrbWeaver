@@ -34,7 +34,9 @@ const chatMetadataSchema = z.looseObject({
   databankVisibility: chatDocumentVisibilitySchema.optional().catch(undefined),
   background: themeBackgroundSchema.optional().catch(undefined),
   rpg: chatRpgPointerSchema.optional().catch(undefined),
-  hostDisplayScripts: z.boolean().optional().catch(undefined),
+  // Fails closed: absent means shared, so a stored value that does not parse reads as the host's off, never as
+  // absent.
+  hostDisplayScripts: z.boolean().optional().catch(false),
   // B1 — the per-room offer-choices posture. `.optional()` is LOAD-BEARING here in a way it is not for its
   // boolean neighbour above: absent means INHERIT the host's per-user default, not "off", so the heal arm
   // (a corrupt value ⇒ absent) lands on inherit rather than on a silently-forced posture.

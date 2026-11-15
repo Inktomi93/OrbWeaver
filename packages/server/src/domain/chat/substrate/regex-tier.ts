@@ -42,6 +42,7 @@ import type {
 } from "@orb/contracts/chat";
 import { characterRegexTierKey, isRegexEnabledInChat, isRegexTierAllowed } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
+import type { RegexPass } from "@orb/kit/regex";
 import type { HostTierRegexSources, RegexTierLabels } from "../contract/regex.ts";
 
 /** The room's REGEX LEVERS, lifted off the parsed metadata blob for the pure resolver below — which
@@ -148,6 +149,14 @@ export function resolveRegexTiers(sources: HostTierRegexSources, labels: RegexTi
  *  `executeRegexScripts` still does the enabled/placement/flag filtering. */
 export function resolveHostTierRegexScripts(sources: HostTierRegexSources): RegexScriptRow[] {
   return resolveHostTierRegexEntries(sources).map((entry) => entry.script);
+}
+
+const DISPLAY_PASS = "display" satisfies RegexPass;
+
+/** Whether a resolved script draws on the display pass: the one filter a viewer's display set applies after the
+ *  tiers resolve. The display read and the member room-tier read share it. */
+export function drawsOnDisplay(script: RegexScriptRow): boolean {
+  return script.enabled && script.passes.includes(DISPLAY_PASS);
 }
 
 /** The same effective run order with the tier each row ran from, which the display read reports per script. */

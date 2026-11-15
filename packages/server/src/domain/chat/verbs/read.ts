@@ -86,7 +86,6 @@ import type { MacroRegistry, RowMacroNameContext } from "@orb/kit/macro";
 import { globalMacroRegistry, resolveRowMacros } from "@orb/kit/macro";
 import { NO_SEATS } from "@orb/kit/message-author";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
-import type { RegexPass } from "@orb/kit/regex";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { estimateTokens } from "@orb/kit/tokens";
 import { getLog } from "#foundation/observability";
@@ -183,7 +182,7 @@ import {
   presentAndEnabledHumanUserIdsOf,
   seatsMultipleHumans,
 } from "../substrate/participants-humans.ts";
-import { regexAllowOf, resolveHostTierRegexEntries, resolveRegexTiers } from "../substrate/regex-tier.ts";
+import { drawsOnDisplay, regexAllowOf, resolveHostTierRegexEntries, resolveRegexTiers } from "../substrate/regex-tier.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
 import { eventViewMessageId, withViewPosition } from "../substrate/view-position.ts";
 import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
@@ -1223,8 +1222,6 @@ function createListEffectiveRegex(ctx: ChatContext, deps: ReadDeps): ChatService
   };
 }
 
-const DISPLAY_PASS = "display" satisfies RegexPass;
-
 /** `listDisplayScripts` — the display-pass set one viewer's transcript renders through (D121-E as amended by
  *  the two-axis ruling).
  *
@@ -1254,7 +1251,7 @@ function createListDisplayScripts(ctx: ChatContext, deps: ReadDeps): ChatService
     const own = viewerIsHost ? [] : (await ctx.resolveRegexSources({ ownerId: viewer, presetId: null, characterIds: [], chatId: null })).hostGlobal;
     const seen = new Set(room.map((entry) => entry.script.id));
     const entries = [...room, ...own.filter((script) => !seen.has(script.id)).map((script): RegexDisplayEntry => ({ script, from: REGEX_VIEWER_SOURCE }))];
-    return entries.filter(({ script }) => script.enabled && script.passes.includes(DISPLAY_PASS));
+    return entries.filter(({ script }) => drawsOnDisplay(script));
   };
 }
 

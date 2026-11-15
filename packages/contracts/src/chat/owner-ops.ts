@@ -241,3 +241,8 @@ export type RequireHostOp = (principal: Principal, chatId: ChatId) => Promise<vo
 /** The room's present host, or `null` for a hostless room. A consumer domain that filters a room's attachments by
  *  owner reads the host through this op, because it reads neither the roster nor `chats`. */
 export type ResolveChatHostOp = (chatId: ChatId) => Promise<UserId | null>;
+
+/** Narrow the present host's room-tier rows to what a non-host member of `chatId` may read: the room-tier part of
+ *  that member's display read. Nothing while the host withholds their display scripts; otherwise only the enabled
+ *  display-pass rows the room's levers apply. The caller has already gated membership and resolved the host. */
+export type RoomTierForMemberOp = (chatId: ChatId, hostRows: readonly RegexScriptRow[]) => Promise<RegexScriptRow[]>;
