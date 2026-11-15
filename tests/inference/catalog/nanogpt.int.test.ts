@@ -278,7 +278,7 @@ const UNRECORDED = { costUsd: null, costProvenance: "unrecorded" } as const;
 // A free prompt is still priced: the cached tokens at the cache price and the reply at the completion price.
 const FREE_PROMPT_USD = (TOKENS_CACHED * CACHE_READ_PER_MILLION + TOKENS_OUT * COMPLETION_PER_MILLION) / TOKENS_PER_MILLION;
 const LISTED_PRICES = [
-  { name: "zero", prompt: "0", usage: { costUsd: FREE_PROMPT_USD, costProvenance: "estimated" } },
+  { name: "zero", prompt: "0", usage: { costUsd: expect.closeTo(FREE_PROMPT_USD, 12), costProvenance: "estimated" } },
   { name: "negative", prompt: "-1", usage: UNRECORDED },
   { name: "null", prompt: "null", usage: UNRECORDED },
   { name: "huge", prompt: "1e300", usage: UNRECORDED },
@@ -296,7 +296,7 @@ function pricedList(prompt: string): () => Response {
 test.for(LISTED_PRICES)("a $name listed prompt price gives an estimate only when it is a plausible price", async ({ prompt, usage }) => {
   await using root = await createRuntimeRoot({ providerFetch: nanoGptListAndChat(pricedList(prompt)) });
   const recorded = await turnUsage(root, STATED_MODEL);
-  expect(recorded).toEqual({ costProvenance: usage.costProvenance, costUsd: usage.costUsd === null ? null : expect.closeTo(usage.costUsd, 12) });
+  expect(recorded).toEqual(usage);
 });
 
 test("a declared price whose arithmetic overflows records no cost rather than an infinite one", async () => {

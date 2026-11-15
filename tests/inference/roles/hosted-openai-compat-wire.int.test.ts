@@ -3,7 +3,7 @@
 // chosen effort out and its reasoning back, and each service's own error bodies reach a named failure.
 import type { ChatDeltaEvent } from "@orb/contracts/chat";
 import type { SamplerKnob } from "@orb/contracts/inference";
-import { BUILTIN_PROVIDERS, DEFAULT_SAMPLER_KEYS } from "@orb/contracts/inference";
+import { BUILTIN_PROVIDERS, DEFAULT_SAMPLER_KEYS, SAMPLER_KNOBS, WARNING_CODE } from "@orb/contracts/inference";
 import type { ProviderErrorKind } from "@orb/inference";
 import { MS_PER_SECOND } from "@orb/kit/time";
 import { FROZEN_AT_MS } from "@orb/testkit/iso";
@@ -698,11 +698,11 @@ async function samplerTurn(providerId: HostedRow, listed: Record<string, unknown
   if (body === undefined) {
     throw new Error("the turn sent no request");
   }
-  return { body, dropped: turn.events.flatMap((event) => (event.kind === "warning" && event.code === "sampling_knob_dropped" ? [event.knob] : [])) };
+  return { body, dropped: turn.events.flatMap((event) => (event.kind === "warning" && event.code === WARNING_CODE.samplingKnobDropped ? [event.knob] : [])) };
 }
 
 function sentSamplers(providerId: HostedRow, turn: SamplerTurn, set: SetSampler): Record<string, unknown> {
-  return Object.fromEntries(Object.keys(set).map((knob) => [knob, turn.body[wireKey(providerId, knob as SamplerKnob)]]));
+  return Object.fromEntries(SAMPLER_KNOBS.filter((knob) => set[knob] !== undefined).map((knob) => [knob, turn.body[wireKey(providerId, knob)]]));
 }
 
 // Every sampler NanoGPT's chat-completion page names, each inside its stated span.
