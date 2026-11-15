@@ -9,7 +9,7 @@
 // Neither arm throws for a bad file: a refusal is an outcome carrying its sentence.
 
 import { clipImportText } from "@orb/contracts/import";
-import type { ImportPresets, PresetFilePreview, PresetImportOutcome } from "@orb/contracts/preset";
+import type { ImportPresets, PresetFilePreview, PresetImportFile, PresetImportOutcome } from "@orb/contracts/preset";
 import { PRESET_SCHEMA_KIND, parsePresetFile } from "@orb/contracts/preset";
 import type { ImportPresetScripts, PlanPresetScripts, RegexScriptCard, RegexScriptRefusal } from "@orb/contracts/regex";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
@@ -30,11 +30,14 @@ type PresetFileRead =
   | {
       readonly ok: true;
       readonly format: Extract<PresetFilePreview, { ok: true }>["format"];
-      readonly bytes: Uint8Array;
+      /** The batch file: a SillyTavern preset carries the scripts its lift attaches; an orbweaver file carries none. */
+      readonly file: PresetImportFile;
       readonly name: string;
       readonly sectionCount: number;
       readonly leftOut: Extract<PresetFilePreview, { ok: true }>["leftOut"];
       readonly regexScripts: readonly RegexScriptCard[];
+      /** The scripts the parse refused, by name; the lift's own refusals join them. */
+      readonly refusedScripts: readonly RegexScriptRefusal[];
       readonly addedSections: readonly string[];
     }
   | { readonly ok: false; readonly error: string };
@@ -63,22 +66,33 @@ function readPresetFile({ fileText, fileName }: Pick<ImportPresetFileParams, "fi
     if (!orb.ok) {
       return orb;
     }
-    const bytes = new TextEncoder().encode(fileText);
-    return { ok: true, format: "orbweaver", bytes, name: orb.name, sectionCount: orb.config.sections.length, leftOut: [], regexScripts: [], addedSections: [] };
+    const file = { bytes: new TextEncoder().encode(fileText) };
+    return {
+      ok: true,
+      format: "orbweaver",
+      file,
+      name: orb.name,
+      sectionCount: orb.config.sections.length,
+      leftOut: [],
+      regexScripts: [],
+      refusedScripts: [],
+      addedSections: [],
+    };
   }
   const st = parseStPresetJson(raw, { name: stemOf(fileName) });
   if (!st.ok) {
     return { ok: false, error: stRefusal(st.recognised, st.reason) };
   }
-  const { name, file, unmapped, regexScripts, addedSections } = st.parsed;
+  const { name, file, unmapped, regexScripts, refusedScripts, addedSections } = st.parsed;
   return {
     ok: true,
     format: "sillyTavern",
-    bytes: new TextEncoder().encode(JSON.stringify(file)),
+    file: { bytes: new TextEncoder().encode(JSON.stringify(file)), regexScripts },
     name,
     sectionCount: file.config.sections.length,
     leftOut: unmapped.map(({ field, reason }) => ({ field: clipImportText(field), reason })),
     regexScripts,
+    refusedScripts,
     addedSections,
   };
 }
@@ -101,9 +115,9 @@ export function createImportFile(deps: {
     if (!read.ok) {
       return read;
     }
-    const answer = soleResult(await deps.importPresets({ ownerId: params.userId, files: [read.bytes], dryRun: true, signal: NEVER_ABORTED }));
+    const answer = soleResult(await deps.importPresets({ ownerId: params.userId, files: [read.file], dryRun: true, signal: NEVER_ABORTED }));
     const [plan = []] = await deps.planPresetScripts({ ownerId: params.userId, presets: [read.regexScripts] });
-    const refusedScripts = plan.flatMap((verdict, i) => ("refused" in verdict ? [clippedRefusal(read.regexScripts[i]?.name ?? "", verdict.refused)] : []));
+    const liftRefused = plan.flatMap((verdict, i) => ("refused" in verdict ? [clippedRefusal(read.regexScripts[i]?.name ?? "", verdict.refused)] : []));
     return {
       ok: true,
       format: read.format,
@@ -111,8 +125,8 @@ export function createImportFile(deps: {
       inLibrary: answer.reuse === "library",
       sectionCount: read.sectionCount,
       leftOut: read.leftOut,
-      regexScripts: read.regexScripts.length - refusedScripts.length,
-      refusedScripts,
+      regexScripts: read.regexScripts.length - liftRefused.length,
+      refusedScripts: [...liftRefused, ...read.refusedScripts.map(({ name, reason }) => clippedRefusal(name, reason))],
       // A reused preset already holds the sections, so the run adds none.
       addedSections: answer.reuse === "library" ? [] : read.addedSections,
     };
@@ -123,17 +137,23 @@ export function createImportFile(deps: {
     if (!read.ok) {
       return read;
     }
-    const landed = soleResult(await deps.importPresets({ ownerId: params.userId, files: [read.bytes], dryRun: false, signal: NEVER_ABORTED }));
+    const landed = soleResult(await deps.importPresets({ ownerId: params.userId, files: [read.file], dryRun: false, signal: NEVER_ABORTED }));
     const outcome = landed.ok && landed.created === true && read.addedSections.length > 0 ? { ...landed, addedSections: read.addedSections } : landed;
-    // A reused equal preset takes the scripts too: the lift reuses equal script rows and its attach is idempotent,
-    // so a second import of one file writes nothing.
-    if (!outcome.ok || outcome.presetId === undefined || read.regexScripts.length === 0) {
+    if (!outcome.ok || outcome.presetId === undefined || read.regexScripts.length + read.refusedScripts.length === 0) {
       return outcome;
     }
-    const regexScripts = await deps.importPresetScripts({ ownerId: params.userId, presetId: outcome.presetId, scripts: read.regexScripts });
-    // The lift writes the regex library and the preset's attachments without an event of its own.
-    deps.emitUserEvent(params.userId, { type: "regexChanged" });
-    return { ...outcome, regexScripts: { ...regexScripts, refused: regexScripts.refused.map(({ name, reason }) => clippedRefusal(name, reason)) } };
+    // A reused equal preset takes the scripts too: the lift reuses equal script rows and its attach is idempotent,
+    // so a second import of one file writes nothing.
+    const lifted =
+      read.regexScripts.length === 0
+        ? { created: 0, reused: 0, refused: [] }
+        : await deps.importPresetScripts({ ownerId: params.userId, presetId: outcome.presetId, scripts: read.regexScripts });
+    if (read.regexScripts.length > 0) {
+      // The lift writes the regex library and the preset's attachments without an event of its own.
+      deps.emitUserEvent(params.userId, { type: "regexChanged" });
+    }
+    const refused = [...lifted.refused, ...read.refusedScripts].map(({ name, reason }) => clippedRefusal(name, reason));
+    return { ...outcome, regexScripts: { ...lifted, refused } };
   }
 
   return { importFile, previewFile };

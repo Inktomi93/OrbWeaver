@@ -3815,7 +3815,7 @@ export function parsePresetFile(raw: unknown): ParsePresetResult {
   return { ok: true, name, config: result.data };
 }
 
-export type { CopyPresetToUser, ExportPresets, ImportPresets, PresetReadable } from "./owner-ops.ts";
+export type { CopyPresetToUser, ExportPresets, ImportPresets, PresetImportFile, PresetReadable } from "./owner-ops.ts";
 export {
   type PresetFilePreview,
   type PresetImportOutcome,

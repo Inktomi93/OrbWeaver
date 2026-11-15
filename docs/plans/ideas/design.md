@@ -119,6 +119,13 @@ A cross-domain need is an injected op typed in the consuming domain's contract a
 - **Mechanism**: A new chat trigger, "a tracker crossed a bound", carrying the tracker key and the direction. The clock rule preset already fires on a counter, so this is one more trigger for the same machinery.
 - **Lands**: `CHAT_TRIGGER_TYPES` in `packages/contracts/src/automation`, and the emit after a flush.
 
+#### A first event table to ship with the relationship pack
+
+- **Concept**: A small table that has slow gain, real loss and decay, so a value cannot only rise. It is a worked case of the named-events entry above.
+- **Mechanism**: Five events per character who dealt with the player: positive interaction, slight, insult, betrayal, apology. Code keeps three counters per pair. A positive interaction adds a spark and a slight adds a grudge. An insult costs one bond and a betrayal two. An apology clears the grudge. On a fixed period, sparks decay when the turn was not positive, and a set number of sparks converts to one bond unless the grudge is high. On a second period, a high grudge costs one bond and resets, and a lower one decays. Bond is clamped. A bond level unlocks a named step of closeness, and the prompt carries the current step, so one warm scene cannot jump several steps.
+- **Lands**: An event table on a tracker definition, as the named-events entry describes, shipped as the relationship pack's default table.
+- **Known ways this fails**: A helper that rewrites the whole state every turn can drop a note without saying so, so apply events as deltas. The table tracks each character against the player only. Sending the raw counters to the writing model is what the meter-as-words entry argues against.
+
 ### Hidden knowledge and memory
 
 #### The model keeps a lie after the scene is summarised
@@ -195,6 +202,20 @@ A cross-domain need is an injected op typed in the consuming domain's contract a
 
 The board holds this as a bug: a group room pays for one summary per character over the same text. The point-of-view entry above decides which fix applies.
 
+#### A secret is one tagged line before it is a schema
+
+- **Concept**: The first step toward "a hidden fact records who knows it", with no new stored shape.
+- **Mechanism**: The game state round keeps a short bounded list of notes, each tagged as a rule, an open thread or a secret. A secret names who knows and who does not, and the instruction says to record one whenever a character was absent for an event. Secrets render under their own heading in the host's hidden panel and in the reminder.
+- **Depends on**: The standing-lies entry, for the host-only check on every surface that shows the stored prompt.
+- **Known ways this fails**: A free-text line cannot be filtered per speaker, so this step informs a narrator turn and does nothing for a single-voice turn. The `heardBy` attribute is still the design for that.
+
+#### Summarising waits for a queue sized to the prompt cache
+
+- **Concept**: Each time memory summarises, the start of the prompt changes and a provider's prompt cache misses. Summarising less often, in larger steps, keeps the cached start stable for longer.
+- **Mechanism**: Recent chat stays verbatim up to a budget. Summarising starts only when the live chat exceeds that budget plus a queue allowance, and then compresses back down to the budget. The allowance is a setting tied to whether the bound connection caches prompts: large when it does, small when it does not. Compress whole turns only, a user message with the replies after it, and never the last two turns.
+- **Lands**: The trigger that decides when a block is summarised, under `packages/server/src/domain/chat/memory/generate`. `packages/server/src/domain/chat/assembly/history-budget.ts` already trims history in cache-aligned chunks.
+- **Board check**: The summariser's trigger was not read for this entry, so whether a queue allowance already exists in another form is unverified. Read it before picking this.
+
 ### Lorebooks
 
 #### The stored SillyTavern activation fields take effect
@@ -246,6 +267,30 @@ The board holds this as a bug: a group room pays for one summary per character o
 #### A standalone lorebook exports in the SillyTavern world-file format
 
 A book exports in the app's own envelope. The only SillyTavern-shaped export is a card's embedded book. A reader reported that the card export writes `position: "before"` where the card format expects `before_char`. Confirm that against the format before writing a second exporter.
+
+#### An evaluation order for the activation fields
+
+This adds an order of operations to "The stored SillyTavern activation fields take effect". Treat it as a starting point and check each step against SillyTavern's own source, because the reader it came from differs from SillyTavern in several places.
+
+1. Drop entries that are disabled, empty, or excluded by the character filter.
+2. Build the entry's scan text from its own scan depth, or the default.
+3. Delay: skip while the chat has fewer than that many messages.
+4. An entry inside its sticky window is active and skips keys and probability.
+5. An entry inside its cooldown window is skipped.
+6. A constant entry is active when its probability roll passes.
+7. An entry marked to wait for recursion is skipped in the first pass.
+8. Otherwise the entry is active when a primary key matches, the secondary-key logic passes, and the roll passes.
+
+- **Recursion**: Join the content of the newly active entries, leaving out any that prevent recursion, and scan the remaining entries against it. Repeat with the newly active set until nothing new fires or the pass limit is reached. Record a reason when the limit stops a pass.
+- **Inclusion groups**: An entry can name several groups. In a group with two or more active entries one wins: sticky first, then the override flag by highest order, otherwise a roll weighted by group weight.
+- **Timers**: An entry that fired by key or as a constant records a sticky window, and a cooldown window that starts when the sticky window ends.
+- **For us**: Rolls come from the injected random source, so a swipe re-rolls the same draw. Timer state derives from the selected lineage, as the parent entry says, because a stored window is a position in the chat and deleting messages moves the chat under it.
+
+#### Two books that hold the same entry send it once
+
+- **Concept**: A card's embedded book that also exists as a linked book, or a book copied into a second book, sends its entries twice.
+- **Mechanism**: When a card's embedded book and a linked book share a name, use the linked one. Then drop an entry whose keys and content match one already collected, and record the drop with a reason.
+- **Lands**: `packages/server/src/domain/chat/assembly/world-info/pool.ts`. The pool already drops a repeated entry id, so one book attached at two scopes is sent once. Matching across distinct books is the part not built.
 
 ### Presets and prompts
 
@@ -300,6 +345,13 @@ Every count divides characters by four. A better estimate with no dependency: AS
 
 Board check: a recorded ruling excludes adding tokenizers. The better character estimate and the estimate marks do not depend on one.
 
+#### A preset keeps the SillyTavern fields the mapper does not understand
+
+- **Concept**: The mapper reports an unknown field as dropped. A preset imported and exported again loses it, and a field a later release learns to map is already gone.
+- **Mechanism**: A residual bag on the preset config holds every field the mapper did not claim, untouched. Export writes the bag back and then overwrites the parts the app owns. A character card already keeps one, in `characters.residual_data`.
+- **Lands**: The SillyTavern mapper and the config schema in `packages/contracts/src/preset/index.ts`. The import report then lists such a field as kept and inactive, not dropped.
+- **Known ways this fails**: A residual field that a later release maps must be lifted out of the bag once, or the bag and the mapped field disagree on export.
+
 ### Seeing what was sent and what it cost
 
 #### The host can list recent model requests from every caller
@@ -342,6 +394,20 @@ The dry run renders templates and calls no model. Add a run that executes the ru
 
 Enabling a rule is the consent, and an edit keeps it. Store a digest of the action classes and data sources the owner consented to. An update that adds one disables the rule until the owner confirms, in the way a plugin upgrade that widens its reach sets `pending_reconsent`.
 
+#### A failed reply says what happened and what to try
+
+- **Concept**: A reply that failed, was blocked, came back empty or was cut shows little a user can act on. The variant already stores its finish reason, terminal reason and provider status.
+- **Mechanism**: Classify each ended reply into a closed set with a mapped record: stopped by the user, error, blocked by the provider's filter, empty, cut at the output limit, or fine. An error is told apart further: unreachable server, rejected key, out of credit, rate limit, prompt too long, model not found, rejected request, moderation refusal, provider fault. Each case carries two short lines, what happened and what to try.
+- **Lands**: A pure classifier over the stored reasons in contracts, and the client chat feature for the notice.
+- **Ruling touched**: The header of `packages/client/src/features/chat/components/message-metadata-row.tsx` rules a finish-reason outcome notice off that row. Read it first; the notice needs another home or that ruling amended.
+- **Pairs with**: "The host can list recent model requests from every caller".
+
+#### A notice when the model can see almost none of the chat
+
+- **Concept**: In a long chat with a small context window the model may see only the newest turn or two, and the user reads the result as the model forgetting.
+- **Mechanism**: The server already stamps where history was cut on each variant. When that boundary sits within a turn or two of the newest message in a chat longer than a few messages, show one notice per chat that says how many messages fit and where to raise the limit. The prompt preview repeats it.
+- **Lands**: The boundary reaches no client code today, so this needs the field on a read and a notice in the client chat feature.
+
 ### Rule presets to consider
 
 #### A rule that counts repeated phrases with no model call
@@ -353,6 +419,20 @@ Enabling a rule is the consent, and an edit keeps it. Store a digest of the acti
 
 - **Mechanism**: A small table of named quantities, about a dozen rows, each a stock or a timer, with an optional amount per day. The owner sets a value with a typed command. A text check for digits and time words gates the model call. The model reports lines such as `gold: -30` or `days: 2`, numbers only. Code applies them, clamps timers at zero and bounds a day jump. The next prompt carries the current totals with an instruction to use them and invent none.
 - **Relation to the game mode**: A game tracker already does most of this. The parts to take are the gate, the per-day rate, and the totals line.
+
+### Import
+
+#### A SillyTavern import selects the preset the user was running
+
+- **Concept**: A newcomer's first chat should behave as their last one did.
+- **Mechanism**: The profile's settings file records the active preset by name. The import already brings the live settings in as a preset of their own. Select that preset as the default when the import finishes, and say so in the report.
+- **Board check**: Whether the app has one account-wide default preset to select was not confirmed for this entry. Our limits come from the connection, so the profile's context and output limits are not taken.
+
+#### An imported SillyTavern theme keeps its custom CSS where the law allows
+
+- **Concept**: The theme import brings the palette and notes what it lost. A theme's custom CSS is not imported.
+- **Mechanism**: An import step that maps a known set of SillyTavern selectors onto our tokens and reports every rule it could not map. D158 gives user CSS a home.
+- **Ruled out**: Reusing another app's class names in our markup so its CSS matches unchanged. `docs/law/client-architecture-lockdown.md` §4 forbids it.
 
 ### Out of scope
 

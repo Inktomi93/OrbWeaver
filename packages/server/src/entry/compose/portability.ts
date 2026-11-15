@@ -162,7 +162,7 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
       dir: PORTABLE_DIRECTORIES.preset,
       ext: ".json",
       exportAll: exports.preset,
-      importFile: async (ownerId, file) => soleResult(await importPresets({ ownerId, files: [file.bytes], dryRun: false, signal: NEVER_ABORTED })),
+      importFile: async (ownerId, file) => soleResult(await importPresets({ ownerId, files: [{ bytes: file.bytes }], dryRun: false, signal: NEVER_ABORTED })),
     },
     {
       kind: "world-info",

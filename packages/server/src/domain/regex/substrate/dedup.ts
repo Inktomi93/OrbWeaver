@@ -6,36 +6,26 @@
 // hands them here, and writes back what this planner returns.
 //
 // THE RULE: a candidate matches an existing owned row when its NAME is equal AND its behavior body is
-// CONTENT-equal. `dedupKey` canonicalizes by sorting the body's keys — a JSON blob's key order is not
-// semantic, so a re-encoded identical script must still match. Re-importing a card pack is the norm, and
-// always-new would breed hundreds of identical rows.
+// CONTENT-equal, by `regexScriptContentKey` (`@orb/contracts/regex`), which a preset's import identity is built
+// from too. Re-importing a card pack is the norm, and always-new would breed hundreds of identical rows.
 //
 // CARRIED REFERENCES WIN OVER CONTENT, and they win TOTALLY: if any reference resolves,
 // the by-value payload is skipped entirely rather than merely content-checked (see `planCardLift`). That is
 // what makes a same-install re-import produce exactly zero duplicate rows even when a script was EDITED
 // after the export. The content rule is the FOREIGN-card fallback, where no reference can resolve.
 
-import type { PortableRegexScript, RegexScriptBehavior, RegexScriptCard, RegexScriptRow, ScriptPlan } from "@orb/contracts/regex";
-import { regexScriptBehaviorSchema } from "@orb/contracts/regex";
+import type { PortableRegexScript, RegexScriptCard, RegexScriptRow, ScriptPlan } from "@orb/contracts/regex";
+import { regexScriptBehaviorSchema, regexScriptContentKey } from "@orb/contracts/regex";
 import type { RegexScriptId } from "@orb/kit/ids";
 import type { CardLiftInput, CardLiftPlan, PlannedInsert, SplitScript } from "../contract/dedup.ts";
 
-// The content-equality key: name + canonical (key-sorted) behavior JSON. See the header.
-function dedupKey(name: string, behavior: RegexScriptBehavior): string {
-  const entries = Object.entries(behavior as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : 1));
-  return `${name} ${JSON.stringify(entries)}`;
-}
-
-// An EXISTING library row's key — the same function applied to the row's own name + body.
-//
-//  THE DESTRUCTURE IS THE FILTER, so every NON-CONTENT field of `RegexScriptRow` must be named here. It is
-//  the row's identity columns (`id`), its promoted columns (`name`/`enabled`, keyed separately or not at
-//  all) and its STAMPS (`updatedAt`) — none of which are what the script does. Missing one silently breaks
-//  dedup for every row: `updatedAt` alone made two byte-identical scripts imported an hour apart fail to
-//  match, because the stamp rode into the canonical JSON as if it were behavior.
-function rowKey(row: RegexScriptRow): string {
+/** An EXISTING library row's content key: {@link regexScriptContentKey} of the row's own name and body. */
+export function rowKey(row: RegexScriptRow): string {
+  // THE DESTRUCTURE IS THE FILTER, so every NON-CONTENT field of `RegexScriptRow` must be named here: the row's
+  // identity column (`id`), its promoted columns (`name`/`enabled`) and its stamp (`updatedAt`). A missed stamp rides
+  // into the canonical JSON as if it were behavior, and two identical scripts stop matching.
   const { id: _id, name: _name, enabled: _enabled, updatedAt: _updatedAt, ...behavior } = row;
-  return dedupKey(row.name, behavior);
+  return regexScriptContentKey(row.name, behavior);
 }
 
 /** Split a wire script (ST card or portable bundle file) into its row parts. The portable shape's `global`
@@ -71,7 +61,7 @@ export function planCardLift({ existing, carriedIds, scripts, mintId }: CardLift
 
   for (const script of scripts) {
     const split = splitScript(script);
-    const key = dedupKey(split.name, split.behavior);
+    const key = regexScriptContentKey(split.name, split.behavior);
     const match = byKey.get(key);
     if (match !== undefined) {
       // Already attached via a carried reference (or an earlier duplicate in the same card) — the position
@@ -110,7 +100,7 @@ export function planUploadLift(
   return lifts.map((scripts, lift) =>
     scripts.map((script, index): ScriptPlan => {
       const split = splitScript(script);
-      const key = dedupKey(split.name, split.behavior);
+      const key = regexScriptContentKey(split.name, split.behavior);
       if (held.has(key)) {
         return { reuse: "library" };
       }
@@ -129,6 +119,6 @@ export function planUploadLift(
 
 /** The single-candidate arm (the backup-bundle import): the existing row this payload matches, or null. */
 export function findDuplicate(existing: readonly RegexScriptRow[], candidate: SplitScript): RegexScriptId | null {
-  const key = dedupKey(candidate.name, candidate.behavior);
+  const key = regexScriptContentKey(candidate.name, candidate.behavior);
   return existing.find((row) => rowKey(row) === key)?.id ?? null;
 }

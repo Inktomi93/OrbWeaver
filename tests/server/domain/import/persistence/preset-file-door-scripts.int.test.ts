@@ -52,7 +52,9 @@ test("a SillyTavern preset through the Presets page door brings its regex script
   expect(addedSections).toHaveLength(4);
   const leftOut = preview.ok ? preview.leftOut.map(({ field }) => field) : [];
   // The unrecognised knob is the positive control: the report reads top-level fields, and `name` is not among them.
-  expect(leftOut).toEqual(["mystery_knob", "extensions.regex_scripts[2]"]);
+  expect(leftOut).toEqual(["mystery_knob"]);
+  // The malformed script has no name, so it is named by its place in the file.
+  expect(preview.ok ? preview.refusedScripts.map(({ name }) => name) : []).toEqual(["extensions.regex_scripts[2]"]);
   expect((await caller.regex.listScripts()).length).toBe(scriptsBefore);
 
   const imported = await caller.preset.importFile(file);

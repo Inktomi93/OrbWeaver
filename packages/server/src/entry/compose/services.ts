@@ -894,6 +894,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     resolveChatCapability: (args) => connection.resolveChatCacheContext(args),
     importPresetScripts: regexCompose.importPresetScripts,
     planPresetScripts: regexCompose.planPresetScripts,
+    listPresetScriptKeys: regexCompose.listPresetScriptKeys,
     getContributions: getWorkloadContributions,
     isBoxOwner,
     isAccountEnabled: createResolveUserEnabled(sessions),

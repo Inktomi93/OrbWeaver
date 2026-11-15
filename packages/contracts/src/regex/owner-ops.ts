@@ -1,6 +1,6 @@
 // Shared owner data and injected operations; implementations and authority resolution stay in server domains.
 
-import type { CharacterId, ChatId, RegexScriptId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
 import type { ImportReuse } from "#import";
 import type { PortableFile } from "#portability";
 import type {
@@ -10,6 +10,7 @@ import type {
   ImportGlobalScriptsArgs,
   ImportPresetScriptsArgs,
   RegexScriptCard,
+  regexScriptContentKey,
 } from "./schemas.ts";
 
 /** The rooms each script reaches, keyed by script id. */
@@ -35,6 +36,10 @@ export type PlanPresetScripts = (args: {
   readonly presets: readonly (readonly RegexScriptCard[])[];
 }) => Promise<readonly (readonly ScriptPlan[])[]>;
 
+/** Each of the owner's presets that holds scripts, with each attached script's {@link regexScriptContentKey} in the
+ *  preset's run order: what a preset import compares a file's own scripts against. Read-only. */
+export type ListPresetScriptKeys = (args: { readonly ownerId: UserId }) => Promise<ReadonlyMap<PresetId, readonly string[]>>;
+
 export type ImportGlobalScripts = (args: ImportGlobalScriptsArgs) => Promise<ImportCardScriptsResult>;
 
 /** The card re-embed: the character's attached scripts back out to the card-wire shape. */
@@ -46,8 +51,11 @@ export type ExportRegexScripts = (args: { readonly ownerId: UserId }) => Promise
 /** One owned script as its portable file. A foreign or absent id answers `null`. */
 export type ExportRegexScript = (args: { readonly ownerId: UserId; readonly scriptId: RegexScriptId }) => Promise<PortableFile | null>;
 
-/** Import one `regex/*.json`. `created: false` means it matched an existing row. */
-export type ImportRegexScript = (args: { readonly ownerId: UserId; readonly bytes: Uint8Array }) => Promise<{ readonly created: boolean }>;
+/** Import one `regex/*.json`. `created: false` means it matched an existing row; `notes` names what the file lost. */
+export type ImportRegexScript = (args: { readonly ownerId: UserId; readonly bytes: Uint8Array }) => Promise<{
+  readonly created: boolean;
+  readonly notes: readonly string[];
+}>;
 
 /** The host-handoff regex copy takes these args. The copy returns unexecuted statements, so its signature stays
  *  with each consuming domain. */

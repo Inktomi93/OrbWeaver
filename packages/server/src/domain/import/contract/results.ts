@@ -277,6 +277,8 @@ export interface ImportReport {
   readonly held?: { readonly inLibrary: number; readonly skipped: number };
   /** ST library tags that did not attach to their imported card (the attach is per-tag isolated). */
   readonly skippedCardTags: readonly ImportSkippedCardTag[];
+  /** What an imported card did not land, by card file: a refused or narrowed regex script, a kept world book. */
+  readonly cardNotes: readonly ImportSkippedCard[];
   /** Cards skipped by per-card isolation (validation defect repair could not fix), with the reason each. */
   readonly skippedCards: readonly ImportSkippedCard[];
   readonly unreadableCards: readonly string[];
@@ -363,8 +365,8 @@ export interface ImportReport {
   readonly globalRegexScriptsFound: number;
   readonly globalRegexScriptsLifted: number;
   readonly globalRegexScriptsReused: number;
-  /** `extension_settings.regex` entries the ST card-wire schema refused. */
-  readonly malformedGlobalRegexScripts: number;
+  /** Each `extension_settings.regex` entry refused and each placement lost, by position. */
+  readonly globalRegexScriptNotes: readonly { readonly field: string; readonly reason: string }[];
   /** Why found global scripts did not lift (unwired op / dryRun), or null when they lifted (or none exist). */
   readonly globalRegexSkippedReason: string | null;
   /** The CARD lift halves (D121-E — `data.extensions.regex_scripts`), summed across the bundle wave. */

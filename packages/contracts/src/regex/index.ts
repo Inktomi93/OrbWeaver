@@ -11,6 +11,7 @@ export type {
   ImportGlobalScripts,
   ImportPresetScripts,
   ImportRegexScript,
+  ListPresetScriptKeys,
   PlanPresetScripts,
   ResolveRegexScriptRoomsOp,
   ScriptPlan,

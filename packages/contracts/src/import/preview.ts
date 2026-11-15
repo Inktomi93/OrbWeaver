@@ -81,9 +81,10 @@ const importPreviewItemSchema = z.strictObject({
   /** A persona whose avatar file is missing or unreadable: it imports, without art. Absent otherwise. */
   withoutArt: z.literal(true).optional(),
   /** A preset's own regex scripts, in its order, flagged as an entry is: `inLibrary` when an owned script holds it,
-   *  `repeat` when an earlier script of this upload lands it, `refused` with the write door's reason when the run
-   *  refuses it, none of them when the run adds it. Absent on another kind, on a preset with none, and on one the run
-   *  does not land. Each upload judges its own; the merge flags none. */
+   *  `repeat` when an earlier script of this upload lands it, `refused` with the reason when the run refuses it, none
+   *  of them when the run adds it. The scripts the file's parse refuses (malformed, over a length cap) follow the
+   *  others, by name. Absent on another kind, on a preset with none, and on one the run does not land. Each upload
+   *  judges its own; the merge flags none. */
   regexScripts: z
     .array(
       z.strictObject({
@@ -96,8 +97,9 @@ const importPreviewItemSchema = z.strictObject({
     .max(IMPORT_PREVIEW_LIST_MAX)
     .readonly()
     .optional(),
-  /** Each field of a SillyTavern preset the run does not keep, with why, including a malformed regex script. Absent on
-   *  another kind and on a preset that keeps everything. */
+  /** Each field of a SillyTavern preset the run does not keep, with why, including what a kept regex script loses (a
+   *  placement with no target, a pattern that does not compile). Absent on another kind and on a preset that keeps
+   *  everything. */
   leftOut: z
     .array(z.strictObject({ field: previewText, reason: previewText }))
     .max(IMPORT_PREVIEW_LIST_MAX)

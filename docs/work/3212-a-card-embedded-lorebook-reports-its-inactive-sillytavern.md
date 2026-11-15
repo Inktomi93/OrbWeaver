@@ -11,7 +11,7 @@ plan: import-robustness
 
 ## What
 
-`inertActivationFields` in `packages/kit/src/world-info/index.ts` reads top-level metadata keys in the world-file spelling such as the secondary keys name. Card import stores an embedded book's entry whole (`loreEntryMetadata` in `packages/server/src/primitives/serde/card/index.ts`), so a card entry keeps its own spelling for secondary keys and keeps other activation fields under its extensions object. The editor and the import report then show nothing kept for a card book, and the card identity hash reads the same function. Make the read cover both spellings, or normalise at the card import, without changing the identity of books already imported.
+`inertActivationFields` in `packages/kit/src/world-info/index.ts` reads top-level metadata keys in the world-file spelling. Card import stores an embedded book's entry whole (`loreEntryMetadata` in `packages/server/src/primitives/serde/card/index.ts`), so a card entry keeps the card spelling: its own names for secondary keys, keys, order, enabled and name, a word for position, and the case, whole-word, scan-depth, probability, group, weight, recursion, sticky, cooldown and delay fields under its extensions object in snake case. The editor and the import report then show nothing kept for a card book, and the card identity hash, which reads the same function, misses those fields. One normaliser reads each field from every place a file can hold it, first defined value wins, and both readers use it.
 
 ## Why
 

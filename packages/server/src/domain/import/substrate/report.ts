@@ -95,9 +95,7 @@ function regexLines(report: ImportReport): string[] {
     `Preset-carried scripts (\`extensions.regex_scripts\` in a chat-completion preset): see each preset's own note above`,
     `Global scripts (\`settings.json#extension_settings.regex\`): found ${report.globalRegexScriptsFound} — ${report.globalRegexScriptsLifted} new library rows (global), ${report.globalRegexScriptsReused} matched existing`,
   ];
-  if (report.malformedGlobalRegexScripts > 0) {
-    lines.push(`Global entries that did not parse as regex scripts: ${report.malformedGlobalRegexScripts} — dropped, see the server log`);
-  }
+  lines.push(...report.globalRegexScriptNotes.map(({ field, reason }) => `Global script \`${field}\` — ${reason}`));
   if (report.globalRegexSkippedReason !== null) {
     lines.push(`Global scripts NOT imported: ${report.globalRegexSkippedReason}`);
   }
@@ -218,6 +216,10 @@ export function formatImportReport(report: ImportReport, generatedAt: number): s
       ...report.orphanSkipped.map((o) => `\`${o.dir}\` — NOT imported: ${o.reason}`),
     ]),
     section("Characters skipped (skip-listed)", report.skippedCharacters),
+    section(
+      "Character planes that did NOT land (the character imported)",
+      report.cardNotes.map((n) => `\`${n.file}\` — ${n.reason}`),
+    ),
     section(
       "Library tags that did NOT attach (the character imported without them)",
       report.skippedCardTags.map((t) => `\`${t.character}\` → \`${t.tag}\` — ${t.reason}`),

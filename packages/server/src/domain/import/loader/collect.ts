@@ -10,11 +10,12 @@ import { characterHandleSchema, deriveCharacterHandle } from "@orb/contracts/cha
 import type { ImportDirectory, ImportFsPort, StProfileHandledEntry } from "@orb/contracts/import";
 import { chatDirCardCandidates, ST_SETTINGS_FILE, stProfileEntryDisposition } from "@orb/contracts/import";
 import type { RegexScriptCard } from "@orb/contracts/regex";
-import { regexScriptCardSchema } from "@orb/contracts/regex";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import { chatContentHash, parseChatJsonl } from "#primitives/serde/chat";
 import { portableParseError } from "#primitives/serde/lib";
+import type { StScriptNote } from "#primitives/serde/regex";
+import { readStScriptList, stScriptListNotes } from "#primitives/serde/regex";
 import { parseThemeFile, THEME_SCHEMA_KIND } from "#primitives/serde/theme";
 import { parseWorldBookFile } from "#primitives/serde/world-info";
 import type {
@@ -658,19 +659,13 @@ async function readSettingsJson(fs: ImportFsPort, profileDir: ImportDirectory): 
  *  (orb's identical semantic is the `global_regex_scripts` attachment). Each candidate parses through the
  *  ONE ST card-wire schema; a malformed one is COUNTED (the report prints it), never silent. A
  *  missing/corrupt settings.json yields zeroes — the same best-effort posture as tags/personas. */
-async function collectGlobalRegexScripts(fs: ImportFsPort, profileDir: ImportDirectory): Promise<{ scripts: RegexScriptCard[]; malformed: number }> {
+async function collectGlobalRegexScripts(
+  fs: ImportFsPort,
+  profileDir: ImportDirectory,
+): Promise<{ readonly scripts: RegexScriptCard[]; readonly notes: readonly StScriptNote[] }> {
   const list = descend(await readSettingsJson(fs, profileDir), "extension_settings", "regex");
-  const scripts: RegexScriptCard[] = [];
-  let malformed = 0;
-  for (const candidate of Array.isArray(list) ? list : []) {
-    const parsed = regexScriptCardSchema.safeParse(candidate);
-    if (parsed.success) {
-      scripts.push(parsed.data);
-    } else {
-      malformed += 1;
-    }
-  }
-  return { scripts, malformed };
+  const read = readStScriptList(Array.isArray(list) ? list : [], "extension_settings.regex");
+  return { scripts: read.scripts, notes: stScriptListNotes(read) };
 }
 
 /** One charLore entry's (stem, books) pair, or null when it carries no usable binding. */
@@ -858,7 +853,7 @@ export async function collectBundlesFromDir(fs: ImportFsPort, profileDir: Import
     groups: state.groups,
     tagsByEntityKey,
     globalRegexScripts: globalRegex.scripts,
-    malformedGlobalRegexScripts: globalRegex.malformed,
+    globalRegexScriptNotes: globalRegex.notes,
     extraBooksByCardStem,
     databankFileCount: userPlanes.databankFiles,
     galleryImageCount: userPlanes.galleryImages,

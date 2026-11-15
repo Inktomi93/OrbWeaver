@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-14
+updated: 2026-11-15
 priority: P2
 area: identity
 plan: typed-enforcers
@@ -15,7 +15,7 @@ plan: typed-enforcers
 
 ## Why
 
-The spend chokepoint mints a `Principal` for any id, enabled or not, so every door the host brand does not reach still depends on each caller remembering the consent read. The memory backfill estimate is a live case of that.
+The spend chokepoint mints a `Principal` for any id, enabled or not, so every door the host brand does not reach still depends on each caller remembering the consent read. The memory backfill estimate was a live case of that and is fixed: it now takes the consenting host brand, as does `ResolveMemoryEmbedSpaceOp`. The memory settings read stays a plain user id by ruling: an owner's own account uses the same function, and a settings read spends nothing, so it is not a brand site.
 
 ## Done when
 

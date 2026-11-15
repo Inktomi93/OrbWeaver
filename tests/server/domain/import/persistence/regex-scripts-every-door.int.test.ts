@@ -16,6 +16,7 @@ import { writeCardChunk } from "@orb/kit/png-card-chunk";
 import { MAX_FIND_REGEX_LENGTH } from "@orb/kit/regex";
 import { expect, test } from "@orb/testkit/node";
 import { makeAssetBytes } from "@orb/testkit/node/composed";
+import { z } from "zod";
 import { admit, dryRun, finishRun, harness, importThroughDialog, settings } from "./_st-tree-door.ts";
 
 const ST_AI_OUTPUT = 2;
@@ -56,12 +57,16 @@ const presetFile = (scripts: readonly unknown[], text = "You narrate."): string 
   });
 const PRESET_FILE = presetFile(SCRIPTS);
 
-function cardFile(name: string): string {
+function cardFileWith(name: string, scripts: readonly unknown[]): string {
   return JSON.stringify({
     spec: "chara_card_v2",
     ["spec_version"]: "2.0",
-    data: { name, description: `${name} keeps the kettle.`, ["first_mes"]: "The kettle sings.", extensions: { ["regex_scripts"]: SCRIPTS } },
+    data: { name, description: `${name} keeps the kettle.`, ["first_mes"]: "The kettle sings.", extensions: { ["regex_scripts"]: scripts } },
   });
+}
+
+function cardFile(name: string): string {
+  return cardFileWith(name, SCRIPTS);
 }
 
 const axesOf = (scripts: readonly { readonly name: string; readonly targets: readonly string[]; readonly passes: readonly string[] }[]): unknown =>
@@ -100,7 +105,7 @@ test("the SillyTavern folder lands a preset's and a card's scripts on their pass
   }
   expect(axesOf(await caller.regex.listForPreset({ presetId: preset.id }))).toEqual(LANDED);
   expect(axesOf(await caller.regex.listForCharacter({ characterId: card.id }))).toEqual(LANDED);
-  expect(unmappedFieldsOf(await readFile(result.reportPath, "utf8"), preset.name)).toEqual(["extensions.regex_scripts[2]"]);
+  expect(unmappedFieldsOf(await readFile(result.reportPath, "utf8"), preset.name)).toEqual(["extensions.regex_scripts"]);
   const library = await caller.regex.listScripts();
 
   await finishRun(root, await admit(root, files));
@@ -122,9 +127,10 @@ test("the SillyTavern folder's dry run names each preset script the run adds or 
   const scriptsOf = (items: readonly ImportPreviewItem[], name: string): unknown => items.find((item) => item.name === name)?.regexScripts;
 
   const before = await presetsOf();
-  expect(scriptsOf(before, "Amber (OpenAI)")).toEqual([{ name: "Saved whistle" }, { name: "Panel kettle", inLibrary: true }]);
+  const malformed = { name: "extensions.regex_scripts[2]", refused: expect.stringContaining("malformed") };
+  expect(scriptsOf(before, "Amber (OpenAI)")).toEqual([{ name: "Saved whistle" }, { name: "Panel kettle", inLibrary: true }, malformed]);
   expect(scriptsOf(before, "Birch (OpenAI)")).toEqual([{ name: "Saved whistle", repeat: true }, { name: "Bell" }]);
-  expect(before.find((item) => item.name === "Amber (OpenAI)")?.leftOut?.map(({ field }) => field)).toEqual(["extensions.regex_scripts[2]"]);
+  expect(before.find((item) => item.name === "Amber (OpenAI)")?.leftOut).toBeUndefined();
   expect(before.find((item) => item.name === "Birch (OpenAI)")?.leftOut).toBeUndefined();
   expect(await caller.regex.listScripts()).toHaveLength(1);
   // The folder names the sections it adds for orbweaver's own slots exactly as the Presets page does for the same file.
@@ -139,7 +145,7 @@ test("the SillyTavern folder's dry run names each preset script the run adds or 
   }
   // The run adds exactly the two scripts the dry run said it adds, and leaves out the field it named.
   expect((await caller.regex.listScripts()).map(({ name }) => name).toSorted()).toEqual(["Bell", "Panel kettle", "Saved whistle"]);
-  expect(unmappedFieldsOf(await readFile(result.reportPath, "utf8"), "Amber (OpenAI)")).toEqual(["extensions.regex_scripts[2]"]);
+  expect(unmappedFieldsOf(await readFile(result.reportPath, "utf8"), "Amber (OpenAI)")).toEqual(["extensions.regex_scripts"]);
 
   const after = await presetsOf();
   const landed = (await caller.preset.list()).find(({ name }) => name === "Amber (OpenAI)");
@@ -151,10 +157,7 @@ test("the SillyTavern folder's dry run names each preset script the run adds or 
   // A second run reuses the preset it made, so it adds no section.
   expect(after.find((item) => item.name === "Amber (OpenAI)")).toMatchObject({ inLibrary: true });
   expect(after.find((item) => item.name === "Amber (OpenAI)")?.addedSections).toBeUndefined();
-  expect(scriptsOf(after, "Amber (OpenAI)")).toEqual([
-    { name: "Saved whistle", inLibrary: true },
-    { name: "Panel kettle", inLibrary: true },
-  ]);
+  expect(scriptsOf(after, "Amber (OpenAI)")).toEqual([{ name: "Saved whistle", inLibrary: true }, { name: "Panel kettle", inLibrary: true }, malformed]);
   expect(scriptsOf(after, "Birch (OpenAI)")).toEqual([
     { name: "Saved whistle", inLibrary: true },
     { name: "Bell", inLibrary: true },
@@ -222,4 +225,138 @@ test("the Regex page takes SillyTavern's own script file on its switches, refuse
   expect(await caller.regex.importScriptFile({ fileText: JSON.stringify(PANEL) })).toMatchObject({ created: false });
   await expect(caller.regex.importScriptFile({ fileText: JSON.stringify({ scriptName: 7 }) })).rejects.toMatchObject({ code: "BAD_REQUEST" });
   expect(axesOf(await caller.regex.listScripts())).toEqual([LANDED[1]]);
+});
+
+// SillyTavern's slash-command placement, which has no target here: a script holding only it has nothing to run on.
+const ST_SLASH_COMMAND = 3;
+const NOWHERE = {
+  ...ST_SCRIPT,
+  id: "c0ffee00-0000-4000-8000-000000000035",
+  scriptName: "Slash echo",
+  findRegex: "echo",
+  replaceString: "ECHO",
+  placement: [ST_SLASH_COMMAND],
+};
+const HALF = { ...BELL, id: "c0ffee00-0000-4000-8000-000000000036", scriptName: "Half bell", placement: [ST_SLASH_COMMAND, ST_AI_OUTPUT] };
+// A pattern that does not compile: SillyTavern keeps the script and never runs it.
+const BROKEN = { ...BELL, id: "c0ffee00-0000-4000-8000-000000000037", scriptName: "Broken bell", findRegex: "/([unclosed/g" };
+
+/** Each named script's switch and targets in the owner's library. */
+async function switchesOf(caller: Awaited<ReturnType<Awaited<ReturnType<typeof harness>>["internalCallerFor"]>>): Promise<unknown> {
+  return (await caller.regex.listScripts()).map(({ name, enabled, targets }) => ({ name, enabled, targets })).toSorted((a, b) => a.name.localeCompare(b.name));
+}
+
+const SWITCHES = [
+  { name: "Broken bell", enabled: false, targets: ["AI_OUTPUT"] },
+  { name: "Half bell", enabled: true, targets: ["AI_OUTPUT"] },
+  { name: "Slash echo", enabled: false, targets: [] },
+];
+
+// Each door below is its own case: one harness each keeps every case inside its timeout.
+test("the Presets page names a SillyTavern placement with no target here and stores a script left with none switched off", async () => {
+  await using root = await harness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const file = presetFile([NOWHERE, HALF, BROKEN]);
+
+  // The Presets page names both lost placements before the run, and the run stores the empty script switched off.
+  const preview = await caller.preset.previewFile({ fileText: file, fileName: "Echo.json" });
+  expect(preview.ok ? preview.leftOut.map(({ field }) => field) : []).toEqual([
+    "extensions.regex_scripts[0].placement",
+    "extensions.regex_scripts[1].placement",
+    "extensions.regex_scripts[2].findRegex",
+  ]);
+  await caller.preset.importFile({ fileText: file, fileName: "Echo.json" });
+  expect(await switchesOf(caller)).toEqual(SWITCHES);
+});
+
+test("the Characters dialog names a SillyTavern placement with no target here and stores a script left with none switched off", async () => {
+  await using cardRoot = await harness();
+  const dialog = await importThroughDialog(cardRoot, "echo.json", cardFileWith("Echo", [NOWHERE, HALF, BROKEN]));
+  const notes = dialog.imported[0]?.notes ?? [];
+  expect(
+    ["data.extensions.regex_scripts[0].placement", "data.extensions.regex_scripts[1].placement", "data.extensions.regex_scripts[2].findRegex"].map((field) =>
+      notes.some((note) => note.includes(field)),
+    ),
+  ).toEqual([true, true, true]);
+  expect(await switchesOf(await cardRoot.internalCallerFor(cardRoot.ownerId))).toEqual(SWITCHES);
+});
+
+test("the Regex page names a SillyTavern placement with no target here and stores a script left with none switched off", async () => {
+  await using fileRoot = await harness();
+  const fileCaller = await fileRoot.internalCallerFor(fileRoot.ownerId);
+  expect((await fileCaller.regex.importScriptFile({ fileText: JSON.stringify(NOWHERE) })).notes).toHaveLength(1);
+  expect((await fileCaller.regex.importScriptFile({ fileText: JSON.stringify(HALF) })).notes).toHaveLength(1);
+  expect((await fileCaller.regex.importScriptFile({ fileText: JSON.stringify(BROKEN) })).notes).toHaveLength(1);
+  expect(await switchesOf(fileCaller)).toEqual(SWITCHES);
+});
+
+test("the SillyTavern folder report names a global script's and a card's placement with no target here", async () => {
+  await using folderRoot = await harness();
+  const profileSettings = { ...z.record(z.string(), z.unknown()).parse(JSON.parse(settings({}))), ["extension_settings"]: { regex: [NOWHERE, HALF, BROKEN] } };
+  const result = await finishRun(
+    folderRoot,
+    await admit(folderRoot, {
+      [ST_SETTINGS_FILE]: JSON.stringify(profileSettings),
+      "characters/Gong.png": writeCardChunk(
+        new Uint8Array(makeAssetBytes(folderRoot.idSource.typeId(ID_PREFIX.asset))),
+        cardFileWith("Gong", [{ ...NOWHERE, scriptName: "Gong echo" }]),
+      ),
+    }),
+  );
+  if (result.reportPath === undefined) {
+    throw new Error("the folder run wrote no report");
+  }
+  const report = await readFile(result.reportPath, "utf8");
+  for (const field of [
+    "extension_settings.regex[0].placement",
+    "extension_settings.regex[1].placement",
+    "extension_settings.regex[2].findRegex",
+    "data.extensions.regex_scripts[0].placement",
+  ]) {
+    expect({ field, named: report.includes(field) }).toEqual({ field, named: true });
+  }
+});
+
+test("a card script the card reader refuses is named by the Characters dialog and the folder report, and is not part of the card", async () => {
+  await using root = await harness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const refusedField = "data.extensions.regex_scripts[2]";
+
+  const first = await importThroughDialog(root, "kettle.json", cardFile("Kettle"));
+  expect(first.imported[0]?.notes?.some((note) => note.includes(refusedField))).toBe(true);
+  // The same card without the refused script is the same character: the refusal rides beside the card.
+  const second = await importThroughDialog(root, "kettle.json", cardFileWith("Kettle", [SAVED, PANEL]));
+  expect(second.imported[0]).toMatchObject({ created: false, characterId: first.imported[0]?.characterId });
+  expect(second.imported[0]?.notes ?? []).toEqual([]);
+  expect((await caller.character.list({})).items.filter(({ name }) => name === "Kettle")).toHaveLength(1);
+
+  await using folderRoot = await harness();
+  const cardPng = writeCardChunk(new Uint8Array(makeAssetBytes(folderRoot.idSource.typeId(ID_PREFIX.asset))), cardFile("Kettle"));
+  const result = await finishRun(folderRoot, await admit(folderRoot, { [ST_SETTINGS_FILE]: settings({}), "characters/Kettle.png": cardPng }));
+  if (result.reportPath === undefined) {
+    throw new Error("the folder run wrote no report");
+  }
+  expect(await readFile(result.reportPath, "utf8")).toContain(refusedField);
+});
+
+test("a script that runs on no pass or no target leaves an export and comes back the same", async () => {
+  await using root = await harness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const base = { findRegex: "quiet", replaceString: "QUIET", substituteRegex: 0, runOnEdit: false } as const;
+  const shapes = [
+    { name: "No pass", targets: ["AI_OUTPUT"], passes: [] },
+    { name: "No target", targets: [], passes: ["display"] },
+  ] as const;
+  for (const shape of shapes) {
+    const row = await caller.regex.createScript({ input: { ...base, ...shape, trimStrings: [], targets: [...shape.targets], passes: [...shape.passes] } });
+    const file = await caller.regex.exportScript({ scriptId: row.id });
+    await caller.regex.removeScript({ scriptId: row.id });
+    expect(await caller.regex.importScriptFile({ fileText: file.fileText })).toMatchObject({ created: true });
+  }
+  expect(
+    (await caller.regex.listScripts()).map(({ name, targets, passes }) => ({ name, targets, passes })).toSorted((a, b) => a.name.localeCompare(b.name)),
+  ).toEqual([
+    { name: "No pass", targets: ["AI_OUTPUT"], passes: [] },
+    { name: "No target", targets: [], passes: ["display"] },
+  ]);
 });

@@ -21,7 +21,7 @@ import type { ImportOwnership, ProfileCollected, ProfileDirImportDeps } from "..
 import { currentCardIdentity, importFileHash, reusedCardRow } from "../substrate/card.ts";
 import { partitionGroups, resolveMembers, seatsOf } from "../substrate/group.ts";
 import { orphanImportHash } from "../substrate/handle.ts";
-import { presetBytes, themeBytes } from "../substrate/landing-bytes.ts";
+import { presetImportFile, themeBytes } from "../substrate/landing-bytes.ts";
 
 /** The row a character's chats land under: an owned character, or the one the upload itself creates. A row an upload
  *  creates is named by the content hash of the card that lands it, so a later upload names the same row alike. */
@@ -333,7 +333,7 @@ async function passLibrary(
   const { ownership, principal, signal } = deps;
   const ownerId = principal.userId;
   const books = await deps.importStandaloneLorebooks({ ownerId, books: collected.worlds.map(({ book }) => book), dryRun: true, signal });
-  const presets = await deps.importPresets({ ownerId, files: await mapYielding(collected.presets, signal, presetBytes), dryRun: true, signal });
+  const presets = await deps.importPresets({ ownerId, files: await mapYielding(collected.presets, signal, presetImportFile), dryRun: true, signal });
   const themeFiles = await mapYielding(collected.themes, signal, (theme) => ({ bytes: themeBytes(theme) }));
   const themes = await deps.importThemes({ ownerId, files: themeFiles, dryRun: true, signal });
   const heldHashes = collected.backgrounds.length === 0 ? new Set<string>() : await ownership.backgroundHashes(ownerId);

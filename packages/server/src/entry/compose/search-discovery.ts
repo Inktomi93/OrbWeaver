@@ -117,6 +117,7 @@ export interface SearchDiscoveryComposeDeps {
   readonly resolveChatCapability: PresetAssemblyContext["resolveChatCapability"];
   readonly importPresetScripts: PresetAssemblyContext["importPresetScripts"];
   readonly planPresetScripts: PresetAssemblyContext["planPresetScripts"];
+  readonly listPresetScriptKeys: PresetAssemblyContext["listPresetScriptKeys"];
   /** The LATE-BOUND workload contribution registry (assembled after chat, at the keystone) — the workloads
    *  verbs deref it per call as their per-kind params validator. */
   readonly getContributions: WorkloadServiceContext["getContributions"];
@@ -274,6 +275,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     resolveChatCapability: deps.resolveChatCapability,
     importPresetScripts: deps.importPresetScripts,
     planPresetScripts: deps.planPresetScripts,
+    listPresetScriptKeys: deps.listPresetScriptKeys,
     // The CONTEXT panel's backward-bindings read: preset's rule over settings', rpg's and chat's facts.
     resolvePresetUsage: createResolvePresetUsage({
       loadUserSettings: deps.settings.loadUserSettings,
