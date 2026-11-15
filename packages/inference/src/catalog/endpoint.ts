@@ -126,13 +126,28 @@ function perToken(perMillion: number | null | undefined): number | undefined {
   return perMillion === null || perMillion === undefined ? undefined : perMillion / PER_MILLION;
 }
 
-function listedPriceOf(promptPerMillion: number | null | undefined, completionPerMillion: number | null | undefined): EndpointModel["listedPrice"] {
+const PER_THOUSAND = 1000;
+
+function perTokenOfThousand(perThousand: number | null | undefined): number | undefined {
+  return perThousand === null || perThousand === undefined ? undefined : perThousand / PER_THOUSAND;
+}
+
+function listedPriceOf(
+  promptPerMillion: number | null | undefined,
+  completionPerMillion: number | null | undefined,
+  cache: { readonly read?: number | undefined; readonly write?: number | undefined } = {},
+): EndpointModel["listedPrice"] {
   const prompt = perToken(promptPerMillion);
   const completion = perToken(completionPerMillion);
   if (prompt === undefined && completion === undefined) {
     return;
   }
-  return { ...(prompt === undefined ? {} : { prompt }), ...(completion === undefined ? {} : { completion }) };
+  return {
+    ...(prompt === undefined ? {} : { prompt }),
+    ...(completion === undefined ? {} : { completion }),
+    ...(cache.read === undefined ? {} : { cacheRead: cache.read }),
+    ...(cache.write === undefined ? {} : { cacheWrite: cache.write }),
+  };
 }
 
 /** What a turn may carry: the list's modality names where it states known ones, else its image and video flags. */
@@ -194,8 +209,13 @@ const nanoGptRowSchema = z.looseObject({
     })
     .optional()
     .catch(undefined),
-  /** USD per million tokens, as numbers. */
-  pricing: z.looseObject({ prompt: STATED_PRICE, completion: STATED_PRICE }).optional().catch(undefined),
+  /** USD per million tokens for `prompt` and `completion`; USD per thousand for the cache prices, absent when the model
+   *  has none (the API reference's `ModelsResponse`). The price tiers above a context threshold are not read, so a
+   *  long prompt's estimate uses the base price. */
+  pricing: z
+    .looseObject({ prompt: STATED_PRICE, completion: STATED_PRICE, cacheReadInputPer1kTokens: STATED_PRICE, cacheWriteInputPer1kTokens: STATED_PRICE })
+    .optional()
+    .catch(undefined),
   /** The effort words the model takes; the service refuses any other with a 400 before the turn runs. */
   reasoning_efforts: STATED_NAMES,
 });
@@ -207,11 +227,68 @@ const EFFORT_OFF = "none";
 const NANOGPT_DETAILED_PATH = "/models?detailed=true";
 const TEXT_OUTPUT = "text";
 
-/** The detailed list read in place of the bare one, which carries ids only. A `null` limit states nothing, so the
- *  capability keeps that limit marked assumed. A row whose stated output has no text is not a chat model. */
+/** The embedding list's fields this reader keeps (docs.nano-gpt.com Embedding Models): `dimensions` is the default
+ *  width the route returns when a request names none, `max_tokens` the longest input, and `supports_dimensions`
+ *  whether a request may name a smaller width. `max_inputs`, the most inputs one request takes, is on the live list
+ *  though the page omits it. */
+const nanoGptEmbedderSchema = z.looseObject({
+  id: z.string().min(1),
+  name: STATED_TEXT,
+  dimensions: STATED_LIMIT,
+  max_tokens: STATED_LIMIT,
+  max_inputs: STATED_LIMIT,
+  supports_dimensions: STATED_FLAG,
+  pricing: z.looseObject({ per_million_tokens: STATED_PRICE }).optional().catch(undefined),
+});
+
+/** The rerank list's fields this reader keeps (the Rerank page): `max_tokens` bounds one query and document pair. */
+const nanoGptRerankerSchema = z.looseObject({
+  id: z.string().min(1),
+  name: STATED_TEXT,
+  max_tokens: STATED_LIMIT,
+  pricing: z.looseObject({ per_million_tokens: STATED_PRICE }).optional().catch(undefined),
+});
+
+const NANOGPT_EMBEDDING_PATH = "/embedding-models";
+const NANOGPT_RERANK_PATH = "/rerank-models";
+
+/** The detailed list read in place of the bare one, which carries ids only, then the embedding and rerank lists, which
+ *  sit outside it. A `null` limit states nothing, so the capability keeps that limit marked assumed. A row whose stated
+ *  output has no text is not a chat model. A side list that fails drops its own models and never the chat list. */
 async function fetchNanoGptModels(args: EndpointFetchArgs): Promise<EndpointModel[]> {
   const rows = await hostedRows(args, { path: NANOGPT_DETAILED_PATH, label: "NanoGPT models" }, nanoGptRowSchema);
-  return rows.filter((row) => row.architecture?.output_modalities?.includes(TEXT_OUTPUT) ?? true).map(nanoGptModel);
+  const embedders = await nativeRead(args, () => hostedRows(args, { path: NANOGPT_EMBEDDING_PATH, label: "NanoGPT embedding models" }, nanoGptEmbedderSchema));
+  const rerankers = await nativeRead(args, () => hostedRows(args, { path: NANOGPT_RERANK_PATH, label: "NanoGPT rerank models" }, nanoGptRerankerSchema));
+  return [
+    ...rows.filter((row) => row.architecture?.output_modalities?.includes(TEXT_OUTPUT) ?? true).map(nanoGptModel),
+    ...(embedders ?? []).map((row) =>
+      withStated(
+        { id: row.id, contextLength: null },
+        {
+          kind: "embedding",
+          name: row.name,
+          embeddingDims: row.dimensions ?? undefined,
+          embedInputTokens: row.max_tokens ?? undefined,
+          embedMaxInputs: row.max_inputs ?? undefined,
+          embedTruncatable: row.supports_dimensions,
+          listedPrice: listedPriceOf(row.pricing?.per_million_tokens, undefined),
+          probed: true,
+        },
+      ),
+    ),
+    ...(rerankers ?? []).map((row) =>
+      withStated(
+        { id: row.id, contextLength: null },
+        {
+          kind: "rerank",
+          name: row.name,
+          rerankInputTokens: row.max_tokens ?? undefined,
+          listedPrice: listedPriceOf(row.pricing?.per_million_tokens, undefined),
+          probed: true,
+        },
+      ),
+    ),
+  ];
 }
 
 // The levels a thinker's list names, and whether `none` turns its thinking off (NanoGPT's DeepSeek Harness page: "its
@@ -244,7 +321,10 @@ function nanoGptModel(row: NanoGptRow): EndpointModel {
       structured: flags?.structured_output,
       thinks: flags?.reasoning === true ? true : undefined,
       thinking: flags?.reasoning === true ? nanoGptThinking(row) : undefined,
-      listedPrice: listedPriceOf(row.pricing?.prompt, row.pricing?.completion),
+      listedPrice: listedPriceOf(row.pricing?.prompt, row.pricing?.completion, {
+        read: perTokenOfThousand(row.pricing?.cacheReadInputPer1kTokens),
+        write: perTokenOfThousand(row.pricing?.cacheWriteInputPer1kTokens),
+      }),
       // A hosted list has no per-model probe: every fact it holds is in this read.
       probed: true,
     },

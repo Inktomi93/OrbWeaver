@@ -90,11 +90,15 @@ export const BUILTIN_PROVIDER_ROWS = [
     // catalog during a rollout (NanoGPT's API Hosts page).
     baseUrl: "https://api.nano-gpt.com/api/v1",
     apis: ["chat-completions"],
-    // Embedding and rerank models sit in their own lists, outside the models list, so the list read cannot type them.
-    serves: ["chat", "summarize", "structured"],
+    // Embedding and rerank models sit in their own lists beside the models list, which the reader reads as their kinds.
+    // The embeddings route takes text only for us: its image items are a per-model input shape the docs do not
+    // give as a wire form, so `imageEmbed` stays off.
+    serves: ["chat", "summarize", "structured", "embed", "rerank"],
     features: {
       effort: "reasoning_effort",
       modelInfoApi: "nanogpt",
+      // The Rerank page: `POST /api/v1/rerank` answers `{ results: [{ index, relevance_score }] }`.
+      rerankPath: "/rerank",
       // The models list answers without a key, so the key check reads the personalized list, which answers 200 to
       // a good key and 401 to a wrong or missing one (NanoGPT's Personalized Models page; seen live).
       keyCheckPath: "/api/personalized/v1/models",

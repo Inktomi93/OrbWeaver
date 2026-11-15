@@ -21,9 +21,16 @@ import type { ProviderGenerationId } from "@orb/contracts/inference";
 import { providerGenerationIdSchema } from "@orb/contracts/inference";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
+import { z } from "zod";
 import type { GeneratedImage, ReasoningContentPart, ToolCallInput } from "#contract";
 import { ProviderError } from "#contract";
 import type { DrainCallbacks, StreamDrain } from "#src/contract/v4.ts";
+import { classifyHttpStatus } from "../http/error-classify.ts";
+
+/** An OpenAI-compatible error frame's payload (NanoGPT's Error Handling page: `{status, message, code}`). */
+const HTTP_ERROR_FLOOR = 400;
+const HTTP_ERROR_CEILING = 599;
+const errorPartStatusSchema = z.looseObject({ status: z.number().int().min(HTTP_ERROR_FLOOR).max(HTTP_ERROR_CEILING) });
 
 const BASE64 = "base64";
 const IMAGE_PREFIX = "image/";
@@ -206,7 +213,16 @@ function applyControlPart(acc: Accumulator, part: LanguageModelV4StreamPart, cal
     }
     const words = callbacks.errorWords?.(part.error);
     const message = words === undefined ? "the stream carried an error part" : `the stream failed: ${words}`;
-    throw new ProviderError({ kind: "server", retryable: true, message: `${callbacks.label}: ${message}`, cause: part.error });
+    // A payload's numeric `status` is the HTTP status it would have carried before the stream, so the same table
+    // picks the kind; a payload without one stays a server fault.
+    const status = errorPartStatusSchema.safeParse(part.error).data?.status;
+    const classified = status === undefined ? { kind: "server" as const, retryable: true } : classifyHttpStatus(status);
+    throw new ProviderError({
+      ...classified,
+      message: `${callbacks.label}: ${message}`,
+      ...(status === undefined ? {} : { apiErrorStatus: status }),
+      cause: part.error,
+    });
   }
 }
 

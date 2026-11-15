@@ -78,6 +78,12 @@ function retryAfterAt(value: string, now: number): number | undefined {
   return seconds !== undefined ? now + seconds * MS_PER.s : asInstant(value);
 }
 
+/** When a failed response's `retry-after` header says the service will take the request again. */
+export function retryAfterResetsAt(headers: Readonly<Record<string, string>>, now: number): number | undefined {
+  const value = Object.entries(headers).find(([key]) => key.toLowerCase() === RETRY_AFTER)?.[1];
+  return value === undefined ? undefined : retryAfterAt(value, now);
+}
+
 function setField(axis: Axis, field: string, value: string, reset: (raw: string) => number | undefined): void {
   if (field === "limit") {
     axis.limit = asCount(value);

@@ -1,11 +1,11 @@
 // The ADVERTISED tier from an OpenAI-compatible `/v1/models` row: ids and, when the server reports one, a chat
 // model's context window (vLLM `max_model_len`, LM Studio `max_context_length`, llama.cpp `meta.n_ctx`, Ollama's
-// pinned `num_ctx`, else its default floor as assumed), a hosted list's output cap, an embedder's width and input limit, and — where the row's native model-info API states them (D292) — the
+// pinned `num_ctx`, else its default floor as assumed), a hosted list's output cap, an embedder's width and input limit, a reranker's pair bound, and — where the row's native model-info API states them (D292) — the
 // modalities a turn may carry, whether the model takes `tools[]` and whether it thinks, schema-constrained output, and whether a
 // delivered assistant row is continued (the server's rendered prompt leaves it open), and the sampler values the
 // server runs when a request leaves a knob unset. Everything else is curated or declared (§5.7, §6.3).
 
-import type { CapabilityOverride, EffortLevel, EmbeddingCapability, EndpointFeatures, ModelKind } from "@orb/contracts/inference";
+import type { CapabilityOverride, EffortLevel, EmbeddingCapability, EndpointFeatures, ModelKind, RerankCapability } from "@orb/contracts/inference";
 import { DEFAULT_SAMPLER_KEYS, EFFORT_LEVELS, SAMPLING_RANGE_KNOBS } from "@orb/contracts/inference";
 import type { EndpointModel } from "#contract";
 
@@ -46,8 +46,14 @@ function samplingDefaultsOf(serverDefaults: EndpointModel["serverDefaults"], fea
 
 /** An embedder's input limit is its embedding route's own, never the generation window; a server's floor for a
  *  window it does not state bounds that route too, and stays assumed. */
-function advertisedEmbedding(entry: Pick<EndpointModel, "contextFloor" | "embeddingDims" | "embedInputTokens">): Partial<EmbeddingCapability> {
-  const dims = entry.embeddingDims === undefined ? {} : { dims: entry.embeddingDims };
+function advertisedEmbedding(
+  entry: Pick<EndpointModel, "contextFloor" | "embeddingDims" | "embedInputTokens" | "embedMaxInputs" | "embedTruncatable">,
+): Partial<EmbeddingCapability> {
+  const dims = {
+    ...(entry.embeddingDims === undefined ? {} : { dims: entry.embeddingDims }),
+    ...(entry.embedMaxInputs === undefined ? {} : { maxBatchInputs: entry.embedMaxInputs }),
+    ...(entry.embedTruncatable === undefined ? {} : { mrl: entry.embedTruncatable }),
+  };
   if (entry.embedInputTokens !== undefined) {
     return { ...dims, maxInputTokens: entry.embedInputTokens };
   }
@@ -89,6 +95,9 @@ export function advertisedFromOpenAiCompat(
     | "maxCompletionTokens"
     | "embeddingDims"
     | "embedInputTokens"
+    | "embedMaxInputs"
+    | "embedTruncatable"
+    | "rerankInputTokens"
     | "input"
     | "tools"
     | "structured"
@@ -99,12 +108,12 @@ export function advertisedFromOpenAiCompat(
   >,
   kind: ModelKind,
   features: EndpointFeatures,
-): GenerationPatch | Partial<EmbeddingCapability> {
+): GenerationPatch | Partial<EmbeddingCapability> | Partial<RerankCapability> {
   if (kind === "embedding") {
     return advertisedEmbedding(entry);
   }
-  if (kind !== "generation") {
-    return {};
+  if (kind === "rerank") {
+    return entry.rerankInputTokens === undefined ? {} : { maxInputTokens: entry.rerankInputTokens };
   }
   const samplingDefaults = samplingDefaultsOf(entry.serverDefaults, features);
   return {
@@ -116,6 +125,23 @@ export function advertisedFromOpenAiCompat(
     // The server rendered a trailing assistant row and left it open: a delivered prefill is continued.
     ...(entry.prefill === undefined ? {} : { turns: { assistantPrefill: entry.prefill === "deliver" } }),
     ...(samplingDefaults === undefined ? {} : { samplingDefaults }),
+  };
+}
+
+const TOKENS_PER_MILLION = 1_000_000;
+
+/** A hosted list's per-token price as the turn's cost estimate reads it, where the list states both halves. Beneath
+ *  the row's and the user's `pricing`, which a connection declares on purpose. */
+export function advertisedPricing(entry: Pick<EndpointModel, "listedPrice"> | undefined): EndpointFeatures["pricing"] {
+  const listed = entry?.listedPrice;
+  if (listed?.prompt === undefined || listed.completion === undefined) {
+    return;
+  }
+  return {
+    inputPerMTok: listed.prompt * TOKENS_PER_MILLION,
+    outputPerMTok: listed.completion * TOKENS_PER_MILLION,
+    ...(listed.cacheRead === undefined ? {} : { cacheReadPerMTok: listed.cacheRead * TOKENS_PER_MILLION }),
+    ...(listed.cacheWrite === undefined ? {} : { cacheWritePerMTok: listed.cacheWrite * TOKENS_PER_MILLION }),
   };
 }
 
