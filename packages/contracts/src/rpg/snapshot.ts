@@ -34,14 +34,20 @@ const rpgPlotActSchema = z
   })
   .strip();
 
+/** The most acts a plot holds, read by the model's `plot.act` argument and by the stored plot alike. The applier pads
+ *  an untitled act for every number up to `act`, and the rail draws one stop per act, so the number is a size. 100 is
+ *  far beyond any story's arc and keeps that padding trivial. A stored plot above it fails the plot parse
+ *  (`RpgStateCorruptError` at the snapshot read); the row itself is never rewritten. */
+export const RPG_PLOT_ACTS_MAX = 100;
+
 // Strip mode: also reads imported files, model output and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 /** The snapshot-resident plot object. `act` indexes 1-based into `acts` (the applier keeps
  *  `acts.length >= act`, padding untitled acts, so the rail is total). */
 export const rpgPlotSchema = z
   .object({
-    act: z.int().min(1).default(1),
+    act: z.int().min(1).max(RPG_PLOT_ACTS_MAX).default(1),
     title: z.string().default(""),
-    acts: z.array(rpgPlotActSchema).default([]),
+    acts: z.array(rpgPlotActSchema).max(RPG_PLOT_ACTS_MAX).default([]),
   })
   .strip();
 export type RpgPlot = z.infer<typeof rpgPlotSchema>;
