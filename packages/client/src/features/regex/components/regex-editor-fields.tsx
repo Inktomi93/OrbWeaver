@@ -8,6 +8,7 @@
 // (`../lib/regex-save-boundary.ts`) keeps the stored row in step with what is shown.
 
 import type { CreateRegexScriptInput } from "@orb/contracts/regex";
+import type { RegexScriptId } from "@orb/kit/ids";
 import type { RegexDepth, RegexPass, RegexTarget } from "@orb/kit/regex";
 import { REGEX_DEPTH_FLOOR, REGEX_DEPTH_MAX, REGEX_TARGETS, SubstituteFindRegex } from "@orb/kit/regex";
 import { CodeEditorFallback } from "@orb/ui/code-editor/fallback";
@@ -210,7 +211,7 @@ export interface RegexEditorFieldsProps {
   readonly form: RegexEditorForm;
   /** The row id of the script being edited, or `null` before it has one; the pipeline panel needs it to find the
    *  script in the always-on set. */
-  readonly scriptId: string | null;
+  readonly scriptId: RegexScriptId | null;
 }
 
 /** The regex-script field set, bound to one library row. */
@@ -327,7 +328,7 @@ export function RegexEditorFields({ form, scriptId }: RegexEditorFieldsProps): R
       <form.Subscribe selector={(state): CreateRegexScriptInput => state.values}>
         {(values): ReactElement => (
           <>
-            <RegexTestPanel script={values} />
+            <RegexTestPanel script={values} scriptId={scriptId} />
             <RegexPipelinePanel script={values} scriptId={scriptId} />
           </>
         )}

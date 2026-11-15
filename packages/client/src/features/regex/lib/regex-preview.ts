@@ -2,38 +2,30 @@
 // `#regex_test_mode`, wired at index.js `updateTestResult`), which orbweaver had no answer to: the editor
 // let you author a pattern and gave you no way to see it bite until you sent a real turn into a real chat.
 //
-// THE ENGINE IS THE PRODUCTION ENGINE, and that is the whole point of a tester. This module calls
-// `executeRegexScripts` from `@orb/kit/regex` — the same function the display pass calls in
-// `message-render.ts` and the same one the server's save and prompt passes call — so the pattern parsing
-// (`/…/flags` vs bare, the forced `g`), the length cap, the macro pass on the replacement template, the
-// `{{match}}`/`$N`/`$<name>` splice and the `trimStrings` filter are all the shipped behaviour, never a
-// lookalike re-implementation. A tester that agrees with a second engine is a tester that lies.
-//
-// WHAT THE SEAMS BUY US, without leaving that path: `applyReplace` (the seam the SERVER uses to inject its
-// node:vm watchdog) hands us the REAL compiled `RegExp` and wraps the real replacer, so the effective flags
-// and the match count are READ off the production compile rather than re-derived; `onScriptFailure` (the
-// seam the server wires to its logger) is where an invalid or over-long pattern surfaces, with the
-// executor's own message.
+// THE ENGINE IS THE PRODUCTION ENGINE, and that is the whole point of a tester. The run is `runInstrumentedRegex`
+// (`#lib/regex-instrumented.ts`), which calls the kit's `executeRegexScripts`, the same function the display pass
+// and the server's save and prompt passes call, and reads the compiled flags and the match count off its seams. A
+// tester that agrees with a second engine is a tester that lies.
 //
 // THE TESTER NEUTRALISES THE RUN GATES; THE PIPELINE DEBUGGER HONOURS THEM. That difference is the point of
 // having both, not an inconsistency to unify: `previewRegexScript` answers "what does this find/replace DO"
 // and must not be silenced by the row being switched off or by its targets and passes (ST's test mode forces
 // the same fields), while `regex-pipeline.ts` answers "what WILL actually happen at this time" and would be
-// worthless if it ignored them. Both go through ONE engine call — `runInstrumentedRegex`, below.
+// worthless if it ignored them. Both go through ONE engine call, `runInstrumentedRegex`.
 //
-// THIS PREVIEW RUNS ON THE MAIN THREAD, UNWATCHED (D75). The server runs its passes under a node:vm deadline and
-// the transcript's display pass runs in the display-pass Worker, which the page can terminate; this panel does
-// neither. The sample cap bounds an ordinary pattern but not a catastrophic one, which can backtrack for seconds
-// on a short near-miss, so a runaway pattern typed here can freeze the tab until the panel moves to the Worker.
+// THE RUN IS IN THE DISPLAY-PASS WORKER (D75). A catastrophic pattern backtracks for minutes on a short near-miss,
+// and the browser has no regex timeout, so both panels hand their scripts to the Worker the page can terminate
+// (`#lib/display-pass-runner.ts` `runRegexPreview`). A script past its deadline is stopped for the session under
+// the same key the transcript stops it by, and the panel says so.
 
 import type { CreateRegexScriptInput } from "@orb/contracts/regex";
+import type { RegexScriptId } from "@orb/kit/ids";
 import type { ProcessMacroOptions } from "@orb/kit/macro";
-import type { RegexPassCall, RegexReplacer, RegexScriptInput } from "@orb/kit/regex";
-import { executeRegexScripts } from "@orb/kit/regex";
+import type { RegexPassCall, RegexScriptInput } from "@orb/kit/regex";
+import type { RegexPreviewRequest } from "#lib";
 
-/** How much sample text the tester will run a pattern over. The browser has no watchdog (see the header),
- *  so the bound on catastrophic backtracking is the haystack. Roughly one long chat message — the unit a
- *  regex script is actually written against. */
+/** How much sample text the tester will run a pattern over: roughly one long chat message, the unit a regex script
+ *  is written against. */
 export const REGEX_PREVIEW_MAX_INPUT = 4000;
 
 /** The sample a freshly-opened tester starts from: prose carrying the three things scripts are written to
@@ -52,7 +44,7 @@ export const REGEX_PREVIEW_USER = "You";
  *  multi-script PIPELINE debugger (`regex-pipeline.ts`), which reaches it through `runInstrumentedRegex`
  *  rather than importing it. One context, so two panels looking at the same script can never disagree about
  *  what `{{char}}` was. */
-const PREVIEW_MACRO_CTX: ProcessMacroOptions = {
+export const PREVIEW_MACRO_CTX: ProcessMacroOptions = {
   char: REGEX_PREVIEW_CHAR,
   user: REGEX_PREVIEW_USER,
   persona: "",
@@ -64,23 +56,6 @@ const PREVIEW_MACRO_CTX: ProcessMacroOptions = {
  *  target, and a save call reads neither depth nor an author, so the tester shows the transformation itself, the
  *  way ST's test mode does. The panel states separately whether the script's own axes would ever get it run. */
 const PREVIEW_CALL: RegexPassCall = { pass: "save", target: "USER_INPUT", edit: false };
-
-export interface RegexPreview {
-  /** What the sample becomes. On a failed compile this is the sample UNCHANGED — which is what production
-   *  does too: `executeRegexScripts` reports the failure and moves on with the text as-is. */
-  readonly output: string;
-  /** How many times the replacer actually fired. `0` with no error = the pattern is valid and did not bite. */
-  readonly matchCount: number;
-  /** The flags the executor really compiled with (`gm` for a bare pattern; the slash form's own flags plus a
-   *  forced `g`). `null` when the pattern never compiled. */
-  readonly flags: string | null;
-  /** The executor's own failure message (invalid syntax, the length cap, or an output bound), else `null`. */
-  readonly error: string | null;
-}
-
-function failureMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
-}
 
 /** The probe script. The run gates are forced open, for the same reason ST forces them: the tester answers "what
  *  does this find/replace DO", which must not be silenced by the row being switched off or by its targets and
@@ -102,46 +77,13 @@ function probeOf(script: CreateRegexScriptInput): RegexScriptInput {
   };
 }
 
-/**
- * THE INSTRUMENTED SINGLE-SCRIPT RUN — the one engine seam every library-side preview goes through.
- *
- * It runs the PRODUCTION executor over a one-script list and reads the effective flags + the real match
- * count off the `applyReplace` seam (the same seam the server fills with its node:vm watchdog), so nothing
- * here re-derives what the engine already decided. Both callers ride it: the tester below (with a probe that
- * neutralises the run gates) and the PIPELINE debugger (`regex-pipeline.ts`, which honours them and runs
- * many scripts in sequence). Two panels, one engine call shape.
- *
- * Pure — safe to call in render.
- */
-export function runInstrumentedRegex(script: RegexScriptInput, text: string, call: RegexPassCall): RegexPreview {
-  let matchCount = 0;
-  let flags: string | null = null;
-  let error: string | null = null;
-
-  const output = executeRegexScripts({
-    text,
-    scripts: [script],
-    call,
-    ctx: PREVIEW_MACRO_CTX,
-    // The server's watchdog seam, used here as an instrument: same call, same regex, same replacer — we
-    // only read what passes through it.
-    applyReplace: (subject: string, regex: RegExp, replacer: RegexReplacer): string => {
-      flags = regex.flags;
-      return subject.replace(regex, (substring: string, ...rest: unknown[]): string => {
-        matchCount += 1;
-        return replacer(substring, ...rest);
-      });
-    },
-    onScriptFailure: (err: unknown): void => {
-      error = failureMessage(err);
-    },
-  });
-
-  return { output, matchCount, flags, error };
-}
-
-/** Run one authored script over a sample through the production executor, with the run gates neutralised (see
- *  {@link probeOf}). Pure — safe to call in render. */
-export function previewRegexScript(script: CreateRegexScriptInput, sample: string): RegexPreview {
-  return runInstrumentedRegex(probeOf(script), sample, PREVIEW_CALL);
+/** The tester's preview request: one authored script over a sample, with the run gates neutralised (see
+ *  {@link probeOf}). A stop names the script by its row id, or by none for a draft. */
+export function regexTesterRequest(script: CreateRegexScriptInput, scriptId: RegexScriptId | null, sample: string): RegexPreviewRequest {
+  return {
+    entries: [{ script: probeOf(script), id: scriptId, findRegex: script.findRegex, name: script.name }],
+    text: sample,
+    call: PREVIEW_CALL,
+    macroCtx: PREVIEW_MACRO_CTX,
+  };
 }

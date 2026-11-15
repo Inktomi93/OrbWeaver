@@ -1,10 +1,13 @@
 // The display-pass Worker's wire: what the main thread sends (`display-pass-runner.ts`) and what the Worker
-// answers (`display-pass.worker.ts`). It imports no React module, because the Worker imports it and a React
-// module in dev carries the refresh preamble that reads `window`.
+// answers (`display-pass.worker.ts`). Two jobs share it: a row's display pass, and the regex editor's preview,
+// which runs each script of a list in turn and reports what each one did. It imports no React module, because the
+// Worker imports it and a React module in dev carries the refresh preamble that reads `window`.
 
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { ProcessMacroOptions } from "@orb/kit/macro";
+import type { RegexPassCall, RegexScriptInput } from "@orb/kit/regex";
 import type { DisplayCall } from "./message-render.ts";
+import type { RegexPreview } from "./regex-instrumented.ts";
 
 /** How long one script may run on one row. The main thread measures it from the moment it receives that
  *  script's start notice, so Worker start-up and queue wait never count, and main-thread jank can only
@@ -33,9 +36,21 @@ export interface DisplayPassRun {
   readonly budgetMs: number;
 }
 
-/** Worker to main thread. `start` arrives before each script; `done` ends the job. */
+/** Main thread to Worker: run each script over the text the one before it left, and report what each one did. */
+export interface RegexPreviewRun {
+  readonly kind: "preview";
+  readonly jobId: number;
+  readonly text: string;
+  readonly scripts: readonly RegexScriptInput[];
+  readonly macroCtx: ProcessMacroOptions;
+  readonly call: RegexPassCall;
+}
+
+/** Worker to main thread. `start` arrives before each script; `previewed` after each script of a preview, the
+ *  last of which ends it; `done` ends a display job. */
 export type DisplayPassReply =
   | { readonly kind: "start"; readonly jobId: number; readonly index: number }
+  | { readonly kind: "previewed"; readonly jobId: number; readonly index: number; readonly result: RegexPreview }
   | {
       readonly kind: "done";
       readonly jobId: number;

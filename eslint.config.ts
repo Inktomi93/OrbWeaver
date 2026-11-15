@@ -2398,18 +2398,28 @@ const SUSPENSE_INFINITE_IMPORT = {
   importNames: ["useSuspenseInfiniteQuery"],
   message: "A paged suspending read belongs to createCollectionSurface; the files in SUSPENSE_INFINITE_HOMES (eslint.config.ts) name why they cannot use it.",
 };
+// The kit executor runs a regex script on the calling thread, and a find pattern can backtrack for minutes. The client
+// runs it only in the display-pass Worker's two engine modules; kit regex is one module that also carries the gate
+// and the labels features read, so the refusal is by name (depcruise `display-scripts-off-main-thread` holds the modules).
+const REGEX_EXECUTOR_HOMES = homes("packages/client/src/lib/display-styled.ts", "packages/client/src/lib/regex-instrumented.ts");
+const REGEX_EXECUTOR_IMPORT = {
+  name: "@orb/kit/regex",
+  importNames: ["executeRegexScripts"],
+  message: "Run a regex script in the display-pass Worker: useDisplayText for a row, runRegexPreview for the editor's preview.",
+};
 const refuseImports = (...paths: readonly object[]): Linter.RulesRecord => ({ "no-restricted-imports": ["error", { paths }] });
 const UI_LAW_BLOCKS: FlatConfig.Config[] = [
   { files: REACT_SOURCE, plugins: { orb: localPlugin }, rules: { "orb/no-manual-memo": "error", "orb/no-use-promise": "error" } },
   // Flat config replaces a rule's options per block, so each file gets the one block naming every path it must refuse.
   {
     files: [CLIENT_SRC],
-    ignores: [...homes(INFINITE_QUERY_HOME, SUSPENSE_READS_HOME), ...Object.keys(SUSPENSE_INFINITE_HOMES)],
-    rules: refuseImports(INFINITE_QUERY_IMPORT, SUSPENSE_READ_IMPORT, SUSPENSE_INFINITE_IMPORT),
+    ignores: [...homes(INFINITE_QUERY_HOME, SUSPENSE_READS_HOME), ...Object.keys(SUSPENSE_INFINITE_HOMES), ...REGEX_EXECUTOR_HOMES],
+    rules: refuseImports(INFINITE_QUERY_IMPORT, SUSPENSE_READ_IMPORT, SUSPENSE_INFINITE_IMPORT, REGEX_EXECUTOR_IMPORT),
   },
-  { files: Object.keys(SUSPENSE_INFINITE_HOMES), rules: refuseImports(INFINITE_QUERY_IMPORT, SUSPENSE_READ_IMPORT) },
-  { files: [INFINITE_QUERY_HOME], rules: refuseImports(SUSPENSE_READ_IMPORT, SUSPENSE_INFINITE_IMPORT) },
-  { files: [SUSPENSE_READS_HOME], rules: refuseImports(INFINITE_QUERY_IMPORT) },
+  { files: Object.keys(SUSPENSE_INFINITE_HOMES), rules: refuseImports(INFINITE_QUERY_IMPORT, SUSPENSE_READ_IMPORT, REGEX_EXECUTOR_IMPORT) },
+  { files: [INFINITE_QUERY_HOME], rules: refuseImports(SUSPENSE_READ_IMPORT, SUSPENSE_INFINITE_IMPORT, REGEX_EXECUTOR_IMPORT) },
+  { files: [SUSPENSE_READS_HOME], rules: refuseImports(INFINITE_QUERY_IMPORT, REGEX_EXECUTOR_IMPORT) },
+  { files: REGEX_EXECUTOR_HOMES, rules: refuseImports(INFINITE_QUERY_IMPORT, SUSPENSE_READ_IMPORT, SUSPENSE_INFINITE_IMPORT) },
 ];
 
 // Files whose module state is one process's by construction: each is its own process root or a documented

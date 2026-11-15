@@ -7,7 +7,8 @@
 // answers the opposite question, "what will ACTUALLY happen", so it honours every gate and reports the
 // reason for each script that sits out, read from the kit's own `regexSkipReason` so the panel can never name a
 // gate the executor does not apply. Both run through the SAME engine call
-// (`runInstrumentedRegex`) — one executor, two questions.
+// (`runInstrumentedRegex`, in the display-pass Worker) — one executor, two questions. The gate is read here, on the
+// main thread, because it reads only the script and the call; only the scripts it admits go to the Worker.
 //
 // THE ORDER IS THE REAL ORDER, not a display convenience. `executeRegexScripts` applies its list in order and
 // the chat turn's union is `global → preset → character → chat`, deduped by row id (the resolver's own contract).
@@ -24,6 +25,7 @@
 //    half-applied.
 
 import type { CreateRegexScriptInput, RegexScriptRow } from "@orb/contracts/regex";
+import type { RegexScriptId } from "@orb/kit/ids";
 import { NO_SEATS } from "@orb/kit/message-author";
 import type {
   RegexPass,
@@ -36,22 +38,29 @@ import type {
   RegexTarget,
 } from "@orb/kit/regex";
 import { regexSkipReason } from "@orb/kit/regex";
-import { runInstrumentedRegex } from "./regex-preview.ts";
+import type { RegexPreviewEntry, RegexPreviewOutcome, RegexPreviewRequest } from "#lib";
+import { PREVIEW_MACRO_CTX } from "./regex-preview.ts";
 
-interface RegexPipelineStageBase {
+interface RegexPipelineEntry {
   readonly key: string;
   readonly name: string;
   readonly isSubject: boolean;
   readonly isAppended: boolean;
+}
+
+interface RegexPipelineStageBase extends RegexPipelineEntry {
   readonly before: string;
   readonly after: string;
 }
 
-/** Skipped stages do not execute; executed stages retain the engine's match count and failure. */
+/** What one stage did: sat out at the kit's gate, ran with the engine's match count and failure, was stopped at the
+ *  Worker's deadline (this session, or on this run), or could not run because the browser could not start the Worker. */
 export type RegexPipelineStage = RegexPipelineStageBase &
   (
-    | { readonly skipped: RegexSkipReason; readonly matchCount: 0; readonly error: null }
-    | { readonly skipped: null; readonly matchCount: number; readonly error: string | null }
+    | { readonly status: "skipped"; readonly skipped: RegexSkipReason }
+    | { readonly status: "ran"; readonly matchCount: number; readonly error: string | null }
+    | { readonly status: "stopped" }
+    | { readonly status: "unavailable" }
   );
 
 export interface RegexPipelineRun {
@@ -110,21 +119,15 @@ function withoutAuthorScope(script: RegexScriptInput): RegexScriptInput {
   return rest;
 }
 
-/** One script's stage. A skipped script still gets a stage — an omitted one would leave the reader asking
- *  where their script went, which is the exact question this panel exists to answer. */
-function stageOf(
-  entry: { readonly key: string; readonly name: string; readonly isSubject: boolean; readonly isAppended: boolean },
-  script: RegexScriptInput,
-  text: string,
-  call: RegexPassCall,
-): RegexPipelineStage {
-  const input = withoutAuthorScope(script);
-  const skipped = regexSkipReason(input, call);
-  if (skipped !== null) {
-    return { ...entry, before: text, after: text, matchCount: 0, error: null, skipped };
-  }
-  const run = runInstrumentedRegex(input, text, call);
-  return { ...entry, before: text, after: run.output, matchCount: run.matchCount, error: run.error, skipped: null };
+/** One stage before the run: the kit's gate verdict, or the index of its entry in the Worker request. */
+type PlannedStage = RegexPipelineEntry & ({ readonly skipped: RegexSkipReason } | { readonly skipped: null; readonly entry: number });
+
+/** The run's plan: every stage in order, and the request carrying the stages the gate admits. */
+export interface RegexPipelinePlan {
+  readonly stages: readonly PlannedStage[];
+  readonly request: RegexPreviewRequest;
+  /** True when the subject is in the owner's global tier (so it was not appended). */
+  readonly subjectIsGlobal: boolean;
 }
 
 export interface RunRegexPipelineArgs {
@@ -133,31 +136,58 @@ export interface RunRegexPipelineArgs {
   /** The script being edited, as LIVE form values. */
   readonly subject: CreateRegexScriptInput;
   /** The subject's row id, or `null` while it has none — decides whether it is found in `globals`. */
-  readonly subjectId: string | null;
+  readonly subjectId: RegexScriptId | null;
   readonly sample: string;
   readonly call: RegexPassCall;
 }
 
-/** Run one text at one time. Pure — safe to call in render, like the tester it sits beside. */
-export function runRegexPipeline({ globals, subject, subjectId, sample, call }: RunRegexPipelineArgs): RegexPipelineRun {
+/** Plan one text at one time. A skipped script still gets a stage — an omitted one would leave the reader asking
+ *  where their script went, which is the exact question this panel exists to answer. */
+export function planRegexPipeline({ globals, subject, subjectId, sample, call }: RunRegexPipelineArgs): RegexPipelinePlan {
   const subjectIsGlobal = subjectId !== null && globals.some((row) => row.id === subjectId);
-  const stages: RegexPipelineStage[] = [];
-  let text = sample;
+  const stages: PlannedStage[] = [];
+  const entries: RegexPreviewEntry[] = [];
+  const plan = (stage: RegexPipelineEntry, id: RegexScriptId | null, script: RegexScriptInput & { readonly name: string }): void => {
+    const input = withoutAuthorScope(script);
+    const skipped = regexSkipReason(input, call);
+    if (skipped !== null) {
+      stages.push({ ...stage, skipped });
+      return;
+    }
+    stages.push({ ...stage, skipped: null, entry: entries.length });
+    entries.push({ script: input, id, findRegex: script.findRegex, name: script.name });
+  };
 
   for (const row of globals) {
     const isSubject = row.id === subjectId;
     // The SUBJECT's stage runs the LIVE form values, never the stored row: an unsaved edit that changes what
     // the pipeline does is the single most useful thing this panel can show.
-    const stage = stageOf({ key: row.id, name: isSubject ? subject.name : row.name, isSubject, isAppended: false }, isSubject ? subject : row, text, call);
-    stages.push(stage);
-    text = stage.after;
+    plan({ key: row.id, name: isSubject ? subject.name : row.name, isSubject, isAppended: false }, row.id, isSubject ? subject : row);
   }
-
   if (!subjectIsGlobal) {
-    const stage = stageOf({ key: subjectId ?? "draft", name: subject.name, isSubject: true, isAppended: true }, subject, text, call);
-    stages.push(stage);
-    text = stage.after;
+    plan({ key: subjectId ?? "draft", name: subject.name, isSubject: true, isAppended: true }, subjectId, subject);
   }
+  return { stages, request: { entries, text: sample, call, macroCtx: PREVIEW_MACRO_CTX }, subjectIsGlobal };
+}
 
-  return { stages, output: text, subjectIsGlobal };
+/** The run read off the Worker's outcomes, one per request entry, threading the text through every stage. */
+export function regexPipelineRun(plan: RegexPipelinePlan, outcomes: readonly RegexPreviewOutcome[]): RegexPipelineRun {
+  const stages: RegexPipelineStage[] = [];
+  let text = plan.request.text;
+  for (const planned of plan.stages) {
+    const { skipped, ...entry } = planned;
+    const before = text;
+    if (skipped !== null) {
+      stages.push({ ...entry, before, after: before, status: "skipped", skipped });
+      continue;
+    }
+    const outcome = "entry" in planned ? outcomes[planned.entry] : undefined;
+    if (outcome === undefined || outcome.kind !== "ran") {
+      stages.push({ ...entry, before, after: before, status: outcome?.kind ?? "unavailable" });
+      continue;
+    }
+    text = outcome.output;
+    stages.push({ ...entry, before, after: text, status: "ran", matchCount: outcome.matchCount, error: outcome.error });
+  }
+  return { stages, output: text, subjectIsGlobal: plan.subjectIsGlobal };
 }

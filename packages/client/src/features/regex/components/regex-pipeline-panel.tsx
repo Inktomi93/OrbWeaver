@@ -4,7 +4,7 @@
 // neutralises the run gates so a switched-off draft still previews (ST's test mode does the same), and this
 // panel HONOURS every gate and names the one that skipped each script. One asks what the pattern does; the
 // other asks what will actually happen. Unifying them would destroy whichever question lost. Both go through
-// ONE engine call (`../lib/regex-preview.ts`'s `runInstrumentedRegex`); the ordering model is
+// ONE engine call (`runInstrumentedRegex`, in the display-pass Worker); the ordering model is
 // `../lib/regex-pipeline.ts`, whose header carries the union-order law.
 //
 // NO NEW PANE, BY THE ANATOMY: the Configuration workspace has three slots (rows · the mounted member editor
@@ -17,6 +17,7 @@
 // in a chat and no author. Both are said in the panel's own words rather than left for the reader to discover.
 
 import type { CreateRegexScriptInput } from "@orb/contracts/regex";
+import type { RegexScriptId } from "@orb/kit/ids";
 import type { RegexPass, RegexSkipReason, RegexTarget } from "@orb/kit/regex";
 import { REGEX_PASSES, REGEX_TARGETS, regexPassReadsTarget } from "@orb/kit/regex";
 import { Badge } from "@orb/ui/badge";
@@ -29,9 +30,18 @@ import type { ChangeEvent, ReactElement } from "react";
 import { useState } from "react";
 import { useSuspenseQuery, useTRPC } from "#data";
 import { REGEX_PASS_LABELS, REGEX_TARGET_LABELS, regexScriptTitle } from "#lib";
-import { REGEX_PIPELINE_TEXT_NAME, REGEX_PIPELINE_WHEN_NAME, REGEX_TEXT_AFTER_EVERY_SCRIPT_NAME, REGEX_TEXT_GOING_IN_NAME } from "../lib/regex-names.ts";
+import { useRegexPreview } from "../hooks/use-regex-preview.ts";
+import {
+  REGEX_PIPELINE_TEXT_NAME,
+  REGEX_PIPELINE_WHEN_NAME,
+  REGEX_PREVIEW_RUNNING,
+  REGEX_PREVIEW_STOPPED,
+  REGEX_PREVIEW_UNAVAILABLE,
+  REGEX_TEXT_AFTER_EVERY_SCRIPT_NAME,
+  REGEX_TEXT_GOING_IN_NAME,
+} from "../lib/regex-names.ts";
 import type { RegexPipelinePair, RegexPipelineStage } from "../lib/regex-pipeline.ts";
-import { regexPipelineCall, regexPipelinePair, runRegexPipeline } from "../lib/regex-pipeline.ts";
+import { planRegexPipeline, regexPipelineCall, regexPipelinePair, regexPipelineRun } from "../lib/regex-pipeline.ts";
 import { REGEX_PREVIEW_CHAR, REGEX_PREVIEW_DEFAULT_SAMPLE, REGEX_PREVIEW_MAX_INPUT, REGEX_PREVIEW_USER } from "../lib/regex-preview.ts";
 import { regexUnreadReasons } from "../lib/regex-when.ts";
 
@@ -78,26 +88,37 @@ const SKIP_COPY: Record<RegexSkipReason, string> = {
 /** What one stage did, in one line. The match count is READ off the production replacer, so "no matches"
  *  means the shipped engine found none. */
 function stageStatus(stage: RegexPipelineStage): string {
-  if (stage.skipped !== null) {
-    return `Skipped: ${SKIP_COPY[stage.skipped]}.`;
+  switch (stage.status) {
+    case "skipped":
+      return `Skipped: ${SKIP_COPY[stage.skipped]}.`;
+    case "stopped":
+      return REGEX_PREVIEW_STOPPED;
+    case "unavailable":
+      return REGEX_PREVIEW_UNAVAILABLE;
+    case "ran":
+      if (stage.error !== null) {
+        return `This pattern can’t run: ${stage.error}`;
+      }
+      if (stage.matchCount === 0) {
+        return "No matches: the text passes through unchanged.";
+      }
+      return stage.matchCount === ONE_MATCH ? "1 match" : `${String(stage.matchCount)} matches`;
   }
-  if (stage.error !== null) {
-    return `This pattern can’t run: ${stage.error}`;
-  }
-  if (stage.matchCount === 0) {
-    return "No matches: the text passes through unchanged.";
-  }
-  return stage.matchCount === ONE_MATCH ? "1 match" : `${String(stage.matchCount)} matches`;
 }
 
-/** The status line's tone — a failed compile is destructive, a skip is a warning, and a stage that simply ran
- *  keeps the gloss. Colour is load-bearing here: both non-default arms CONTRADICT the run, and a grey
+/** The status line's tone — a failed compile or a stop is destructive, a skip is a warning, and a stage that simply
+ *  ran keeps the gloss. Colour is load-bearing here: every non-default arm CONTRADICTS the run, and a grey
  *  "Skipped" reads as a caption. */
 function statusTone(stage: RegexPipelineStage): "destructive" | "warning" | undefined {
-  if (stage.error !== null) {
-    return "destructive";
+  switch (stage.status) {
+    case "skipped":
+      return "warning";
+    case "stopped":
+    case "unavailable":
+      return "destructive";
+    case "ran":
+      return stage.error === null ? undefined : "destructive";
   }
-  return stage.skipped === null ? undefined : "warning";
 }
 
 export interface RegexPipelinePanelProps {
@@ -105,7 +126,7 @@ export interface RegexPipelinePanelProps {
   readonly script: CreateRegexScriptInput;
   /** This script's row id (`null` for a draft that has none yet) — decides whether it is found in the
    *  global tier or appended after it. */
-  readonly scriptId: string | null;
+  readonly scriptId: RegexScriptId | null;
 }
 
 /** The debugger: a sample, a text and a time in, the ordered run out. */
@@ -116,8 +137,10 @@ export function RegexPipelinePanel({ script, scriptId }: RegexPipelinePanelProps
   const { data: globals } = useSuspenseQuery(trpc.regex.listGlobal.queryOptions());
   const [sample, setSample] = useState<string>(REGEX_PREVIEW_DEFAULT_SAMPLE);
   const [pair, setPair] = useState(() => openingPair(script));
-  const run = runRegexPipeline({ globals, subject: script, subjectId: scriptId, sample, call: regexPipelineCall(pair) });
-  const ran = run.stages.filter((stage) => stage.skipped === null && stage.matchCount > 0).length;
+  const plan = planRegexPipeline({ globals, subject: script, subjectId: scriptId, sample, call: regexPipelineCall(pair) });
+  // Before the first answer no stage is drawn; after it, the last run stays on screen while the next one runs.
+  const { answer: run, pending } = useRegexPreview(plan, regexPipelineRun);
+  const ran = run?.stages.filter((stage) => stage.status === "ran" && stage.matchCount > 0).length ?? 0;
 
   return (
     <Section heading="In the pipeline">
@@ -171,21 +194,25 @@ export function RegexPipelinePanel({ script, scriptId }: RegexPipelinePanelProps
           />
         </Field>
 
-        {run.stages.map((stage, index) => (
+        {run?.stages.map((stage, index) => (
           <PipelineStageRow index={index} key={stage.key} stage={stage} />
         ))}
 
-        <Field
-          description={ran === 0 ? "Nothing changed this sample at this time." : `${String(ran)} script${ran === ONE_MATCH ? "" : "s"} changed the text.`}
-          label={REGEX_TEXT_AFTER_EVERY_SCRIPT_NAME}
-        >
-          <Textarea readOnly={true} rows={OUTPUT_ROWS} value={run.output} />
+        <Field description={runSummary(ran, pending)} label={REGEX_TEXT_AFTER_EVERY_SCRIPT_NAME}>
+          <Textarea readOnly={true} rows={OUTPUT_ROWS} value={run?.output ?? sample} />
         </Field>
 
-        <PipelineCaveats pass={pair.pass} script={script} subjectIsGlobal={run.subjectIsGlobal} />
+        <PipelineCaveats pass={pair.pass} script={script} subjectIsGlobal={plan.subjectIsGlobal} />
       </Stack>
     </Section>
   );
+}
+
+function runSummary(ran: number, running: boolean): string {
+  if (running) {
+    return REGEX_PREVIEW_RUNNING;
+  }
+  return ran === 0 ? "Nothing changed this sample at this time." : `${String(ran)} script${ran === ONE_MATCH ? "" : "s"} changed the text.`;
 }
 
 /** ONE stage: its position, its name, what it did, and — only when it changed something — what it produced.

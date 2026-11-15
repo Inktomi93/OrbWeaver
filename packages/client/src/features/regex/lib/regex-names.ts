@@ -1,4 +1,4 @@
-// The accessible names the regex editor, tester and pipeline panels print. A zero-import leaf, so a spec's node side reads
+// The accessible names and run statuses the regex editor, tester and pipeline panels print. A zero-import leaf, so a spec's node side reads
 // them without loading the component graph.
 
 /** The editor's find field. */
@@ -69,3 +69,12 @@ export const REGEX_RUN_ON_EDIT_NAME = "Run on edit";
 /** The pipeline panel's two selects. */
 export const REGEX_PIPELINE_TEXT_NAME = "Text";
 export const REGEX_PIPELINE_WHEN_NAME = "When";
+
+/** A tester or pipeline status while the run for the text on screen has not answered yet. */
+export const REGEX_PREVIEW_RUNNING = "Running…";
+
+/** A script stopped at the Worker's deadline, in the tester or in a pipeline stage. */
+export const REGEX_PREVIEW_STOPPED = "Stopped: this pattern ran too long, so it is off until you reload the page. Change the pattern to try it again.";
+
+/** A script the browser could not run because it could not start the Worker. */
+export const REGEX_PREVIEW_UNAVAILABLE = "This browser could not start the regex runner, so the pattern did not run.";

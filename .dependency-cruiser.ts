@@ -1752,10 +1752,13 @@ const CLIENT_BOUNDARIES = [
   {
     name: "display-scripts-off-main-thread",
     comment:
-      "message-render.ts can run display regex scripts on the calling thread; a browser surface reads the pipeline through useDisplayText, which runs them in the display-pass Worker.",
+      "message-render.ts, display-styled.ts and regex-instrumented.ts run regex scripts on the calling thread; a browser surface reads the display pipeline through useDisplayText and the editor's preview through runRegexPreview, which run them in the display-pass Worker.",
     severity: "error",
     from: { path: CLIENT, pathNot: [`${CLIENT}lib/`, `${CLIENT}features/chat/hooks/use-display-text\\.ts$`] },
-    to: { path: `${CLIENT}lib/message-render\\.ts$`, dependencyTypesNot: ["type-only"] },
+    to: {
+      path: [`${CLIENT}lib/message-render\\.ts$`, `${CLIENT}lib/display-styled\\.ts$`, `${CLIENT}lib/regex-instrumented\\.ts$`],
+      dependencyTypesNot: ["type-only"],
+    },
   },
 ] satisfies IForbiddenRuleType[];
 
