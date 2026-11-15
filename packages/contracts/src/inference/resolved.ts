@@ -53,10 +53,12 @@ export const resolvedConnectionViewSchema = z.strictObject({
 //  resolve; renamed from `host-claude`); `background-refused` = a background task on a row whose
 //  `allowBackground` is off (`canFund`); `requirement-unmet` = the row's model cannot do the task;
 //  `unavailable` = the wire's backend is not wired (an operator error); `model-load-failed` = the in-process
-//  model's latest load failed (the next call retries it). `engine-off` is RETIRED: no row is
+//  model's latest load failed (the next call retries it); `key-rejected` = the bound row's key is struck (the provider
+//  or the user revoked it) or gone, so the row needs a new key or another connection. `engine-off` is RETIRED: no row is
 //  `no-connection` like every other absence.
 const UNAVAILABLE_CAUSES = [
   "no-connection",
+  "key-rejected",
   "endpoint-unreachable",
   "runtime-missing",
   "background-refused",

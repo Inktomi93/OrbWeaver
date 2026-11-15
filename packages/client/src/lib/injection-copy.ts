@@ -205,6 +205,8 @@ const SEND_UNAVAILABLE_REASON: Record<SendRefusalKey, string> = {
   "no-connection": `No chat connection is set: choose one under ${MODEL_ROLES_PATH_TEXT} to send.`,
   "no-chat-connection": `None of your connections can chat yet: add one under ${ADD_CONNECTION_PATH.trail} to send.`,
   "host-no-chat-connection": "The host has no chat connection set. Ask them to choose one before sending.",
+  // The bound row's key is struck (the provider or the user revoked it) or gone.
+  "key-rejected": "Your connection's key was rejected. Replace it, or pick another connection, in Settings → Connections.",
   // The bound endpoint row's server did not answer its reachability probe (or a wake timed out).
   "endpoint-unreachable": "Can't reach your model's server. It may be down.",
   // A `claude-sub` row on a deployment where the Claude runtime does not resolve (§5.3a).

@@ -47,7 +47,7 @@ import { addModelActionGloss, addModelActionLabel, addModelScope } from "../lib/
 import { ADD_CONNECTION_NAME, backgroundStateLabel, CAN_SERVE_LABEL, connectionRailGroupName, USED_FOR_LABEL } from "../lib/connections-copy.ts";
 import { boundRoleLabels, connectionRoleLabels, joinRoleLabels, sweepRebindsEmbedder, sweepRoleLabels } from "../lib/connections-model.ts";
 import { ADD_CONNECTION_SETTING, CONNECTIONS_LIST_SUBCATEGORY } from "../lib/connections-nav.ts";
-import { CONNECTIONS_EMPTY_TITLE } from "../lib/credentials-names.ts";
+import { CONNECTION_KEY_REJECTED_BADGE, CONNECTIONS_EMPTY_TITLE } from "../lib/credentials-names.ts";
 import { AddConnectionDialog } from "./add-connection-dialog.tsx";
 import { AddModelOnKeyDialog } from "./add-model-on-key-dialog.tsx";
 import { ConnectionEditor } from "./connection-editor.tsx";
@@ -339,7 +339,13 @@ function ConnectionRow({
           </RowActionsMenu>
         }
       />
-      <ConnectionBadges connection={connection} heldRoles={boundRoles} name={name} providerUnavailable={providerUnavailable} />
+      <ConnectionBadges
+        connection={connection}
+        heldRoles={boundRoles}
+        name={name}
+        providerUnavailable={providerUnavailable}
+        keyRejected={credentials.some((credential) => credential.id === connection.credentialId && credential.revokedAt !== null)}
+      />
       {reindex.dialog}
       {provider === null || addModel === null ? null : (
         <AddModelOnKeyDialog
@@ -365,12 +371,15 @@ function ConnectionBadges({
   name,
   heldRoles,
   providerUnavailable,
+  keyRejected,
 }: {
   readonly connection: ConnectionListItem;
   /** The row's one-line identity, which names each rail group apart from the other rows'. */
   readonly name: string;
   readonly heldRoles: readonly string[];
   readonly providerUnavailable: boolean;
+  /** The row's key is revoked, so no turn runs on it until the key is replaced. */
+  readonly keyRejected: boolean;
 }): ReactElement {
   const canServe = connectionRoleLabels(connection.tasks);
   return (
@@ -399,6 +408,11 @@ function ConnectionBadges({
         {providerUnavailable ? (
           <Badge tone="warning" size="sm" whitespace="normal">
             Provider unavailable
+          </Badge>
+        ) : null}
+        {keyRejected ? (
+          <Badge tone="warning" size="sm" whitespace="normal">
+            {CONNECTION_KEY_REJECTED_BADGE}
           </Badge>
         ) : null}
         {connection.modelCheck === "unlisted" ? (

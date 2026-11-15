@@ -28,6 +28,7 @@ function samplerFields(opts: SummarizeCallOptions): TaskSampling {
  *  `tsc` here. */
 const REFUSAL_TEXT: Record<UnavailableCause, (task: Task) => string> = {
   "no-connection": (task) => `no ${task} connection is bound for this user — bind one in Connections`,
+  "key-rejected": (task) => `the key on the connection bound for "${task}" was rejected — replace it in Connections, or pick another connection`,
   "endpoint-unreachable": (task) => `the connection bound for "${task}" is unreachable right now`,
   "runtime-missing": (task) => `the connection bound for "${task}" needs the Claude runtime, which is not installed on this server`,
   "background-refused": (task) => `the connection bound for "${task}" does not allow background work — enable it in Connections`,

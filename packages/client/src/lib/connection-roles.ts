@@ -269,6 +269,7 @@ type RoleReadout =
  *  unreachable, and a map makes a new `UnavailableCause` member a `tsc` error here instead of a row with no words. */
 const UNAVAILABLE_CLAUSES: Record<UnavailableCause, string> = {
   "no-connection": "the connection it pointed at is gone",
+  "key-rejected": "its key was rejected; replace the key in Saved keys, or pick another connection",
   // The host arm below wins whenever the row HAS a URL; this is the hosted-provider fallback.
   "endpoint-unreachable": "the server isn't answering",
   "runtime-missing": "the Claude runtime isn't installed on this server",

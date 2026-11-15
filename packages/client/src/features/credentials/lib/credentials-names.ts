@@ -103,6 +103,9 @@ export const KEY_REVOKE_VERB = "Revoke";
 /** A saved key's subtitle cause when the user revoked it. */
 export const KEY_REVOKED_BY_YOU = "Revoked by you";
 
+/** A connection row's status badge while its key is revoked; the key's own row in Saved keys carries Replace. */
+export const CONNECTION_KEY_REJECTED_BADGE = "Key rejected: replace it in Saved keys";
+
 /** The row's identity as every one of its actions names it: `OpenRouter "work"`, feeding
  *  `Replace the <provider> "<label>" key` / `Revoke the <provider> "<label>" key` verbatim. ONE spelling —
  *  a title in a second form would put the visible label and the accessible name out of agreement, which is
