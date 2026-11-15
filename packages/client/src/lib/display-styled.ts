@@ -25,6 +25,12 @@ function templateDrawsMarkup(script: RegexScriptInput): boolean {
   return HTML_TAG_RE.test(script.replaceString.replace(REPLACEMENT_TOKEN_RE, ""));
 }
 
+/** Whether any of these display scripts can style a row: its own template draws markup. A streaming reply under such
+ *  scripts may settle styled, so it holds its own HTML blocks until then. */
+export function scriptsDrawMarkup(scripts: readonly RegexScriptInput[]): boolean {
+  return scripts.some(templateDrawsMarkup);
+}
+
 /** Run the display scripts in order, reporting whether a markup-drawing template replaced anything. */
 export function executeDisplayScripts(args: ExecuteRegexScriptsArgs): StyledDisplayText {
   const applyReplace = args.applyReplace ?? ((subject, regex, replacer): string => subject.replace(regex, replacer));

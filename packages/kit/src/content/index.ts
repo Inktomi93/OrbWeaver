@@ -1563,6 +1563,186 @@ export function scanGhostContent(content: string): GhostContentSegment[] {
   return segments;
 }
 
+// ── The STYLED REPLY hold (D354 — a display-styled reply outside its frame) ─────────────────────────────────
+//
+// A reply a display script styled draws in its card frame (D354). Until the frame is routed, the row shows the text
+// split the way the ghost card scan splits a card: prose as text, and an HTML block as a forming chip that carries NO
+// bytes, so a renderer cannot paint a template's markup or its CSS even by mistake. While the frame is on the way the
+// split runs on the display output; while the reply streams no display script runs, so it runs on the model's own
+// text, whose tags are what the scripts turn into panels, and the prose drops its inline tags ({@link stripTags}).
+//
+// A styled region is recognized by its markdown block shape, not by provenance (later scripts' lookbehinds and capture
+// echoes lose provenance, D354). An HTML block is CommonMark's: a raw-text element (`pre`, `script`, `style`,
+// `textarea`) to its close tag, a comment to its end, a block-level tag line or a lone complete tag line to the next
+// blank line. Inline markup in a paragraph streams as the paragraph through the inert allowlist, which drops its
+// attributes and keeps its text; an inline `<style>` or `<script>` element is removed with its content first, because
+// the allowlist would keep that content as prose. A tag still arriving on the last line is held as forming markup, so
+// a half-written tag never prints.
+//
+// The text arm is not immutable under append the way a closed card is: a paragraph's tail can still change. It needs
+// no such proof, because it only ever carries bytes the inert allowlist renders anyway; the bytes the trust line keeps
+// off the row are the markup arm's, and that arm carries none.
+
+/** One segment of a styled reply shown outside its frame: prose for the inert path, or an HTML block, held. */
+export type StyledHoldSegment = { readonly kind: "text"; readonly text: string } | { readonly kind: "forming-markup" };
+
+const RAW_TEXT_BLOCK_RE = /^ {0,3}<(pre|script|style|textarea)(?=[\s>]|$)/i;
+const COMMENT_BLOCK_OPEN = "<!--";
+const COMMENT_BLOCK_CLOSE = "-->";
+// CommonMark's block-level tag names: a line opening with one starts an HTML block, even inside a paragraph.
+const BLOCK_TAG_LINE_RE =
+  /^ {0,3}<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?=[\s/>]|$)/i;
+const TAG_NAME_START_RE = /^ {0,3}<\/?[A-Za-z][A-Za-z0-9-]*/;
+const STYLE_ELEMENT_RE = /<(style|script)\b(?:[^>]*>[\s\S]*?(?:<\/\1\s*>|$)|[^>]*$)/gi;
+
+/** Removes every `<style>` and `<script>` element with its content; an element whose close has not arrived is removed
+ *  to the end. The inert allowlist drops both tags but keeps their content as prose. */
+export function stripStyleElements(text: string): string {
+  return text.replace(STYLE_ELEMENT_RE, "");
+}
+
+// Where the tag that opens at `lt` ends: the first `>` after it on its line, outside a quoted attribute value, or -1
+// when it has not arrived. One pass, so a long line costs its length.
+function tagEndFrom(text: string, lt: number): number {
+  let quote = "";
+  for (let index = lt + 1; index < text.length; index += 1) {
+    const char = text.charAt(index);
+    if (char === "\n") {
+      return -1;
+    }
+    if (quote !== "") {
+      quote = char === quote ? "" : quote;
+    } else if (char === '"' || char === "'") {
+      quote = char;
+    } else if (char === ">") {
+      return index;
+    }
+  }
+  return -1;
+}
+
+function tagEnd(line: string): number {
+  return tagEndFrom(line, line.indexOf("<"));
+}
+
+const TAG_START_RE = /<\/?[A-Za-z]/g;
+
+/** Removes every tag and keeps the text between them: a stream's own markup, shown before the scripts that would
+ *  turn it into a panel run. A tag whose `>` has not arrived on the last line is removed to the end; elsewhere the
+ *  rest of a line whose `<` never closes is prose and stays. Run {@link stripStyleElements} first, or a style
+ *  element's CSS stays as text. */
+export function stripTags(text: string): string {
+  let kept = "";
+  let from = 0;
+  // Past an unclosed `<`, every later `<` on the same line is prose too: one failed scan per line keeps this linear.
+  let proseUntil = 0;
+  for (const start of text.matchAll(TAG_START_RE)) {
+    const lt = start.index;
+    if (lt < from || lt < proseUntil) {
+      continue;
+    }
+    const end = tagEndFrom(text, lt);
+    if (end === -1) {
+      const newline = text.indexOf("\n", lt);
+      if (newline === -1) {
+        return kept + text.slice(from, lt);
+      }
+      proseUntil = newline;
+      continue;
+    }
+    kept += text.slice(from, lt);
+    from = end + 1;
+  }
+  return kept + text.slice(from);
+}
+
+// A line holding one complete open or close tag and nothing else (CommonMark's last HTML block kind).
+function isLoneTagLine(line: string): boolean {
+  if (!TAG_NAME_START_RE.test(line)) {
+    return false;
+  }
+  const end = tagEnd(line);
+  return end !== -1 && line.slice(end + 1).trim() === "";
+}
+
+// How an HTML block opened by `opener` ends: on the line that holds its close (that line included), or before the next
+// blank line.
+function markupBlockClose(opener: string): { readonly closesOn: (text: string, first: boolean) => boolean; readonly inclusive: boolean } {
+  const raw = RAW_TEXT_BLOCK_RE.exec(opener);
+  if (raw !== null) {
+    const close = `</${(raw[1] ?? "").toLowerCase()}>`;
+    return { closesOn: (text) => text.toLowerCase().includes(close), inclusive: true };
+  }
+  if (opener.trimStart().startsWith(COMMENT_BLOCK_OPEN)) {
+    const after = opener.indexOf(COMMENT_BLOCK_OPEN) + COMMENT_BLOCK_OPEN.length;
+    return { closesOn: (text, first) => text.includes(COMMENT_BLOCK_CLOSE, first ? after : 0), inclusive: true };
+  }
+  return { closesOn: (text) => text.trim() === "", inclusive: false };
+}
+
+// The line index where an HTML block opening at `i` ends (exclusive), or `lines.length` when its end has not arrived.
+function markupBlockEnd(lines: readonly Line[], i: number, opener: string): number {
+  const { closesOn, inclusive } = markupBlockClose(opener);
+  for (let j = i; j < lines.length; j += 1) {
+    const line = lines[j];
+    if (line !== undefined && closesOn(matchText(line), j === i)) {
+      return inclusive ? j + 1 : j;
+    }
+  }
+  return lines.length;
+}
+
+// Whether line `i` opens an HTML block. A lone tag line cannot interrupt a paragraph; the other kinds can.
+function opensMarkupBlock(content: string, line: Line, inParagraph: boolean): boolean {
+  const text = matchText(line);
+  if (RAW_TEXT_BLOCK_RE.test(text) || text.trimStart().startsWith(COMMENT_BLOCK_OPEN) || BLOCK_TAG_LINE_RE.test(text)) {
+    return true;
+  }
+  // The last line, still arriving, with a tag that has not closed: held until the line settles.
+  if (line.end >= content.length && TAG_NAME_START_RE.test(text) && tagEnd(text) === -1) {
+    return true;
+  }
+  return !inParagraph && isLoneTagLine(text);
+}
+
+/** Split a styled reply's text into prose and held HTML blocks (see the section note). Code fence regions stay text.
+ *  Each prose segment has its `<style>` and `<script>` elements removed, and a prose segment that is only whitespace is
+ *  dropped, so two held blocks read as one. */
+export function scanStyledHold(content: string): StyledHoldSegment[] {
+  const lines = splitLines(content);
+  const segments: StyledHoldSegment[] = [];
+  let pendingStart = 0;
+  const flushText = (endExclusive: number): void => {
+    const text = stripStyleElements(content.slice(pendingStart, endExclusive));
+    if (text.trim() !== "") {
+      segments.push({ kind: "text", text });
+    }
+  };
+  let inCode = false;
+  let inParagraph = false;
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i] ?? { start: content.length, end: content.length, text: "" };
+    const text = matchText(line);
+    const fence = text.startsWith(CODE_FENCE_MARK);
+    inCode = fence ? !inCode : inCode;
+    if (fence || inCode || !opensMarkupBlock(content, line, inParagraph)) {
+      inParagraph = !(inCode || fence) && text.trim() !== "";
+      i += 1;
+      continue;
+    }
+    flushText(line.start);
+    if (segments.at(-1)?.kind !== "forming-markup") {
+      segments.push({ kind: "forming-markup" });
+    }
+    i = markupBlockEnd(lines, i, text);
+    pendingStart = lines[i]?.start ?? content.length;
+    inParagraph = false;
+  }
+  flushText(content.length);
+  return segments;
+}
+
 /** The deterministic card WIRE STUB (§3.5): same bytes every assembly (cache-stable), compact, honest —
  *  `[card: <title>]`, or `[card]` when the card carries no title. ONE home so the turn wire, compaction /
  *  summarize reads, and any future consumer collapse identically. */

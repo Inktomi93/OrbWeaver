@@ -1,10 +1,13 @@
 import { createHash } from "node:crypto";
+import type { CardFrameHeight } from "@orb/kit/card-frame";
 import {
   buildCardFrameCsp,
   buildCardFrameDocument,
   CARD_FRAME_MISSING_ATTRIBUTE,
   CARD_FRAME_SAFE_FLOOR,
   CARD_FRAME_SANDBOX,
+  CARD_FRAME_SHRINK_BURST,
+  CARD_FRAME_SHRINK_REFILL_MS,
   CARD_FRAME_STYLE_TOKEN,
   CARD_FRAME_THEME_TOKEN_LIMITS,
   clampCardFrameFontFamily,
@@ -207,13 +210,65 @@ test("a framed link reaches the host only as an absolute http, https or mailto a
 });
 
 test("a reply frame folds its height against its own cap, far above a card's", () => {
-  const card = foldCardFrameHeight(undefined, { orbCardFrameHeight: Number.MAX_SAFE_INTEGER });
-  const reply = foldCardFrameHeight(undefined, { orbCardFrameHeight: Number.MAX_SAFE_INTEGER }, "reply");
+  const card = foldCardFrameHeight(undefined, { orbCardFrameHeight: Number.MAX_SAFE_INTEGER })?.px;
+  const reply = foldCardFrameHeight(undefined, { orbCardFrameHeight: Number.MAX_SAFE_INTEGER }, "reply")?.px;
   expect(card).toBeDefined();
   expect(reply).toBeGreaterThan(card ?? Number.POSITIVE_INFINITY);
   const tall = (card ?? 0) * 10;
-  expect(foldCardFrameHeight(undefined, { orbCardFrameHeight: tall }, "reply")).toBe(tall);
-  expect(foldCardFrameHeight(tall, { orbCardFrameHeight: tall - 1 }, "reply")).toBe(tall);
+  expect(foldCardFrameHeight(undefined, { orbCardFrameHeight: tall }, "reply")?.px).toBe(tall);
+});
+
+// Each report in order, at its time on the caller's clock; the heights the frame applies after each.
+function applied(cap: "card" | "reply", reports: readonly (readonly [px: number, atMs: number])[]): readonly (number | undefined)[] {
+  let height: CardFrameHeight | undefined;
+  return reports.map(([px, atMs]) => {
+    height = foldCardFrameHeight(height, { orbCardFrameHeight: px }, cap, atMs);
+    return height?.px;
+  });
+}
+
+test("a card frame never shrinks after its first report, which may be smaller than any seed", () => {
+  expect(
+    applied("card", [
+      [300, 0],
+      [200, 10_000],
+      [400, 10_001],
+      [100, 60_000],
+    ]),
+  ).toEqual([300, 300, 400, 400]);
+});
+
+test("a reply frame follows its content down as well as up, within its shrink burst", () => {
+  expect(
+    applied("reply", [
+      [900, 0],
+      [400, 1],
+      [800, 2],
+      [300, 3],
+    ]),
+  ).toEqual([900, 400, 800, 300]);
+});
+
+test("a reply frame whose height alternates every frame is held to one shrink per refill once its burst is spent", () => {
+  const reports: (readonly [number, number])[] = [];
+  for (let frame = 0; frame < 120; frame += 1) {
+    reports.push([frame % 2 === 0 ? 900 : 400, frame * 16]);
+  }
+  const heights = applied("reply", reports);
+  const shrinks = heights.filter((px, index) => index > 0 && px !== undefined && px < (heights[index - 1] ?? 0)).length;
+  // About two seconds of frames: the burst, then at most one refill.
+  const window = (reports.at(-1)?.[1] ?? 0) - (reports[0]?.[1] ?? 0);
+  expect(shrinks).toBeLessThanOrEqual(CARD_FRAME_SHRINK_BURST.reply + Math.floor(window / CARD_FRAME_SHRINK_REFILL_MS));
+  expect(heights.at(-1)).toBe(900);
+});
+
+test("a reply frame's spent burst refills with time, so a drawer closed later still shrinks it", () => {
+  const spend: (readonly [number, number])[] = [[900, 0]];
+  for (let step = 1; step <= 10; step += 1) {
+    spend.push([900 - step * 10, step], [900, step]);
+  }
+  const later = (spend.at(-1)?.[1] ?? 0) + CARD_FRAME_SHRINK_REFILL_MS;
+  expect(applied("reply", [...spend, [500, later]]).at(-1)).toBe(500);
 });
 
 test("a framed reply mirrors only plain data channels on its root, and its styles stay inline only", () => {

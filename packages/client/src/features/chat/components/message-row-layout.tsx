@@ -99,7 +99,8 @@ export function MessageContentColumn({ skin, mirrored, ...props }: RowBoxProps &
     return <Stack {...props} gap="row" data-slot="message-content-column" columnMeasure={skin.columnMeasure} align={align} minWidth="shrinks" grow={true} />;
   }
   // A train's column hugs its widest pill, so the speaker row above it and the pager under it share the train's edges;
-  // the skin's `columnMeasure` caps it. A mirrored train packs to the trailing edge, beside its own chip.
+  // the skin's `columnMeasure` caps it. A pill that holds a reply's frame spans the measure as a long pill does. A
+  // mirrored train packs to the trailing edge, beside its own chip.
   return (
     <Stack
       {...props}
@@ -107,6 +108,7 @@ export function MessageContentColumn({ skin, mirrored, ...props }: RowBoxProps &
       data-slot="message-content-column"
       columnMeasure={skin.columnMeasure}
       align={align}
+      width="spansFiller"
       cap="fit"
       push={mirrored ? "inlineEnd" : undefined}
       minWidth="shrinks"

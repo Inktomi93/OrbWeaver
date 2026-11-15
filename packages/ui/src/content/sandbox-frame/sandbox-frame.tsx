@@ -1,4 +1,4 @@
-import type { CardFrameHeightCap } from "@orb/kit/card-frame";
+import type { CardFrameHeight, CardFrameHeightCap } from "@orb/kit/card-frame";
 import {
   CARD_FRAME_SANDBOX,
   clampCardFrameFontFamily,
@@ -148,7 +148,7 @@ export function SandboxFrame({
   const frameRef = useRef<HTMLIFrameElement>(null);
   // The measurement is stored WITH the delivery it belongs to, so a re-mint (new `src`) is answered during
   // render instead of by a cascading `setState` — the same shape `useCardFrameSrc` uses for its handle.
-  const [measured, setMeasured] = useState<{ readonly delivery: string; readonly px: number } | undefined>(undefined);
+  const [measured, setMeasured] = useState<{ readonly delivery: string; readonly height: CardFrameHeight } | undefined>(undefined);
   const deliveryKey = src ?? "srcdoc-floor";
 
   // The frame's self-reported height crosses a TRUST BOUNDARY: the document that sends it renders
@@ -158,7 +158,7 @@ export function SandboxFrame({
   //      origin check would accept any opaque frame on the page. Window identity names exactly one sender,
   //      which is what keeps an INTERACTIVE card (#111 leg 3 — it can `postMessage` anything, including to
   //      its siblings, measured) from resizing any frame but its own.
-  //   2. PAYLOAD — `foldCardFrameHeight` coerces, clamps to floor..cap and refuses a shrink (kit, tested).
+  //   2. PAYLOAD — `foldCardFrameHeight` coerces, clamps to floor..cap and rations shrinks (kit, tested).
   // Listener registration follows the delivery, because a re-mint replaces the frame's window.
   useEffect(() => {
     if (fill) {
@@ -169,9 +169,10 @@ export function SandboxFrame({
       if (event.source === null || event.source !== frameWindow) {
         return;
       }
+      const nowMs = performance.now();
       setMeasured((current) => {
-        const px = foldCardFrameHeight(current?.delivery === deliveryKey ? current.px : undefined, event.data, holds);
-        return px === undefined ? current : { delivery: deliveryKey, px };
+        const height = foldCardFrameHeight(current?.delivery === deliveryKey ? current.height : undefined, event.data, holds, nowMs);
+        return height === undefined ? current : { delivery: deliveryKey, height };
       });
       const link = readCardFrameLink(event.data);
       // A link counts only from a click IN THIS FRAME: the click activated the page (activation reaches every
@@ -239,7 +240,7 @@ export function SandboxFrame({
   }, [deliveryKey, complete]);
 
   // `fill` = the lightbox arm, where the PARENT owns height and a self-report must not participate.
-  const appliedPx = (measured?.delivery === deliveryKey ? measured.px : undefined) ?? heightPx;
+  const appliedPx = (measured?.delivery === deliveryKey ? measured.height.px : undefined) ?? heightPx;
   const style: CSSProperties | undefined = fill ? undefined : { height: appliedPx === undefined ? cssVar("height.chart") : `${appliedPx}px` };
 
   if (!complete) {

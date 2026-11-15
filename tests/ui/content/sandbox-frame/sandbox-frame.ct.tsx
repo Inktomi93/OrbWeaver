@@ -13,7 +13,7 @@ const STORY = "tests/ui/content/sandbox-frame/_frame-stories/SandboxFrameStory";
 const FOCUS_STORY = "tests/ui/content/sandbox-frame/_frame-stories/FocusedBesideFrameStory";
 const FRAME = '[data-slot="sandbox-frame"]';
 // Both bounds come from the production fold, not from a restated number.
-const HEIGHT_CAP_PX = foldCardFrameHeight(undefined, { orbCardFrameHeight: Number.MAX_SAFE_INTEGER });
+const HEIGHT_CAP_PX = foldCardFrameHeight(undefined, { orbCardFrameHeight: Number.MAX_SAFE_INTEGER })?.px;
 const MARK_RAN = 'document.body.setAttribute("data-card-ran","1");';
 // The reviewed sandbox grants, spelled out on purpose: they are the contract under test, so a widened production
 // constant must fail here rather than flow into both the expectation and the frame.

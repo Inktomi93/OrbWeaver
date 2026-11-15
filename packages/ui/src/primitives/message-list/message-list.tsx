@@ -1,7 +1,7 @@
 import type { ScrollMode } from "@orb/kit/scroll-mode";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ReactElement, ReactNode, Ref } from "react";
-import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import type { VariantProps } from "tailwind-variants";
 import type { GapToken } from "#lib";
 import { assertBoundedScrollHeight, cn, FOCUS_RING_OUTLINE_INSET, gapPxFor, usePrefersReducedMotion } from "#lib";
@@ -562,6 +562,61 @@ export function MessageList<T>({
   // The chrome counts: it sits above the rows, so its growth pushes the tail away from a reader who is following it.
   useTailRepin({ contentHeightPx: contentHeightPx + leadingPx, scrollRef, scrollportHeightPx, stickToBottomRef, tailFollowActive, virtualizer });
 
+  // A row that grows while the reader follows the tail (a framed reply landing taller than its held state, a reply
+  // streaming in) is re-pinned BEFORE the frame paints. Virtual-core measures rows a frame late
+  // (`useAnimationFrameWithResizeObserver`), and the `contentHeightPx` re-pin above runs after the commit that measure
+  // causes, so a row that grows by a screen would leave the reader that far off the end for a frame or more. A
+  // ResizeObserver callback runs after layout and before paint, and the scroll height already holds the grown row (an
+  // absolute row overflows the list), so one scroll write there keeps the end in view. It writes the position only,
+  // never a size, so it adds no resize loop.
+  const repinGrownRow = useEffectEvent((): void => {
+    const el = scrollRef.current;
+    if (el === null || !tailFollowActive || !stickToBottomRef.current || userOwnsAxis() || movedByOutsider(el)) {
+      return;
+    }
+    const end = el.scrollHeight - el.clientHeight;
+    if (end - el.scrollTop > PROGRAMMATIC_SCROLL_EPSILON_PX) {
+      el.scrollTop = end;
+      noteOwnWrite(el);
+    }
+  });
+  const rowGrowthRef = useRef<ResizeObserver | null>(null);
+  const grownRowsRef = useRef(new Set<Element>());
+  useLayoutEffect(() => {
+    if (typeof ResizeObserver === "undefined") {
+      return;
+    }
+    const observer = new ResizeObserver(() => {
+      repinGrownRow();
+    });
+    for (const row of grownRowsRef.current) {
+      observer.observe(row);
+    }
+    rowGrowthRef.current = observer;
+    return (): void => {
+      observer.disconnect();
+      rowGrowthRef.current = null;
+    };
+  }, []);
+  // Virtual-core's measure, plus the growth watch. A row that left the list is dropped from the watch on the next call.
+  const measureRow = useCallback(
+    (node: HTMLLIElement | null): void => {
+      virtualizer.measureElement(node);
+      const rows = grownRowsRef.current;
+      for (const row of rows) {
+        if (!row.isConnected) {
+          rows.delete(row);
+          rowGrowthRef.current?.unobserve(row);
+        }
+      }
+      if (node !== null && !rows.has(node)) {
+        rows.add(node);
+        rowGrowthRef.current?.observe(node);
+      }
+    },
+    [virtualizer],
+  );
+
   // A scroll position matching virtual-core's last recorded write is its own drift/re-pin — ignore
   // it for FOLLOW intent (edge fades track every scroll, whoever moved it). Anything else was moved
   // externally (wheel/touch/keyboard/AT/scrollIntoView) and is trustworthy.
@@ -719,7 +774,7 @@ export function MessageList<T>({
             key={virtualItem.key}
             // Nothing is measured while printing: the first measure of a row mounted for paper above a scrolled-up reader
             // re-places every row below it. Rows are still placed at their screen offset; paper flows them statically.
-            ref={printing ? placeWithoutMeasure(virtualItem.start - virtualizer.options.scrollMargin) : virtualizer.measureElement}
+            ref={printing ? placeWithoutMeasure(virtualItem.start - virtualizer.options.scrollMargin) : measureRow}
             data-index={virtualItem.index}
             data-slot={MESSAGE_LIST_ROW_SLOT}
             className={cn("absolute inset-x-0", roving && FOCUS_RING_OUTLINE_INSET)}

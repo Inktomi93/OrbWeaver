@@ -241,7 +241,7 @@ const CARD_FRAME_MAX_HEIGHT_PX = 720;
  *  hostile document cannot report an unbounded height. Measured in a routed reply frame: a long scene drawn by
  *  the public Sola V4 preset's display scripts (six trackers, drawers closed) stands 16,792px tall at a 320px
  *  phone width and 300% text, and 1,623px on a desktop at 100%; the cap sits an order of magnitude above it.
- *  Grow-only folding still bounds the measure loop to one downward step per mount. */
+ *  The shrink ration in {@link foldCardFrameHeight} bounds the measure loop. */
 const REPLY_FRAME_MAX_HEIGHT_PX = 200_000;
 
 /** The height bound a frame folds its self-reports against: one card, or one whole reply. */
@@ -292,22 +292,52 @@ export function readCardFrameLink(data: unknown): string | undefined {
   return typeof raw === "string" && FRAME_LINK_RE.test(raw) && !holdsControlOrSpace(raw) ? raw : undefined;
 }
 
+/** How many shrinks a frame may take at once after its first report, per cap: a card takes none, and a reply takes a
+ *  burst that refills one per {@link CARD_FRAME_SHRINK_REFILL_MS}. A reply's own drawers open and close, and a reply
+ *  that cannot shrink leaves the reader a blank tail under every closed drawer. */
+export const CARD_FRAME_SHRINK_BURST = { card: 0, reply: 4 } as const satisfies Record<CardFrameHeightCap, number>;
+/** One shrink credit per this many ms, up to the burst: a reader toggles a drawer far slower, and a feedback loop that
+ *  alternates every frame relayouts the transcript at most this often once the burst is spent. */
+export const CARD_FRAME_SHRINK_REFILL_MS = 2000;
+
+/** A frame's applied height, and the shrinks it may still take (`credit`, counted from `at`, the caller's clock). */
+export interface CardFrameHeight {
+  readonly px: number;
+  readonly credit: number;
+  readonly at: number;
+}
+
+function refilled(height: CardFrameHeight, burst: number, nowMs: number): CardFrameHeight {
+  const gained = Math.floor((nowMs - height.at) / CARD_FRAME_SHRINK_REFILL_MS);
+  if (gained <= 0) {
+    return height;
+  }
+  const credit = Math.min(burst, height.credit + gained);
+  return { px: height.px, credit, at: credit === burst ? nowMs : height.at + gained * CARD_FRAME_SHRINK_REFILL_MS };
+}
+
 /**
- * Fold one `message` payload into the frame's applied height. Returns `current` UNCHANGED for anything that
- * is not a valid growth — a foreign/garbage payload, a non-finite or non-numeric height, and any report
- * SMALLER than one already applied.
+ * Fold one `message` payload into the frame's applied height. Returns `current` UNCHANGED for anything that is not
+ * a valid change: a foreign or garbage payload, a non-finite or non-numeric height, and a shrink the frame has no
+ * credit for. The first report sets the height whatever it is.
  *
  * The caller still owes the sender check (`event.source === iframe.contentWindow`); this half owns the
  * payload. Window identity is the only usable authentication: every sandboxed frame's `event.origin` is the
  * string `"null"`, so origin cannot tell OUR frame from any other opaque sender.
  *
- * MONOTONIC after the first report, deliberately: frame height feeds back into content height (`vh` units,
- * percentage heights, media queries), so a card — hostile or merely fluid — can otherwise drive an endless
- * measure/resize/measure loop that relayouts the whole transcript. Grow-only bounds that to ONE downward
- * step per mount, which is exactly the step the height channel needs (the void closes on the first measurement); a later
- * shrink just leaves whitespace inside the frame.
+ * GROWTH IS FREE AND SHRINKING IS RATIONED, deliberately: frame height feeds back into content height (`vh` units,
+ * percentage heights, media queries), so a document, hostile or merely fluid, can otherwise drive an endless
+ * measure/resize/measure loop that relayouts the whole transcript. A card is grow-only: one downward step per mount,
+ * which closes the void on the first measurement, and a later shrink leaves whitespace inside the frame. A reply takes
+ * a small burst of shrinks that refills slowly ({@link CARD_FRAME_SHRINK_BURST}), so its drawers close without a blank
+ * tail while a loop is held to one relayout per refill.
  */
-export function foldCardFrameHeight(current: number | undefined, data: unknown, cap: CardFrameHeightCap = "card"): number | undefined {
+export function foldCardFrameHeight(
+  current: CardFrameHeight | undefined,
+  data: unknown,
+  cap: CardFrameHeightCap = "card",
+  nowMs = 0,
+): CardFrameHeight | undefined {
   if (!isPlainObject(data)) {
     return current;
   }
@@ -318,10 +348,15 @@ export function foldCardFrameHeight(current: number | undefined, data: unknown, 
   // Ceil, not round: a fractional content height rounded DOWN clips its own last device pixel and the frame
   // grows a scrollbar over one subpixel.
   const clamped = Math.min(CARD_FRAME_HEIGHT_CAPS[cap], Math.max(CARD_FRAME_MIN_HEIGHT_PX, Math.ceil(raw)));
-  if (current !== undefined && clamped <= current) {
-    return current;
+  const burst = CARD_FRAME_SHRINK_BURST[cap];
+  if (current === undefined) {
+    return { px: clamped, credit: burst, at: nowMs };
   }
-  return clamped;
+  if (clamped >= current.px) {
+    return clamped === current.px ? current : { ...current, px: clamped };
+  }
+  const height = refilled(current, burst, nowMs);
+  return height.credit < 1 ? current : { px: clamped, credit: height.credit - 1, at: height.at };
 }
 
 /** The card frame's ONE variable axis pair — both decided by the SERVER (a client may select which
