@@ -16,6 +16,8 @@ import { Markdown } from "@orb/ui/markdown";
 import { useSandboxTheme } from "@orb/ui/sandbox-frame";
 import type { ReactElement } from "react";
 import { useCardFrameSrc } from "#data";
+import type { PlainSubject } from "#lib";
+import { PlainContentNotice } from "./plain-content-notice.tsx";
 
 /** The room a card was authored in — the card-frame doorway's POLICY SELECTOR (the server resolves this
  *  character's `renderPolicy` and builds the frame CSP from it). Absent ⇒ the srcdoc floor renders, which is
@@ -60,20 +62,23 @@ export interface CardBlockProps {
   readonly allowExternal: boolean;
   /** The routed-mint selector; absent ⇒ the srcdoc floor (see {@link CardOrigin}). */
   readonly cardOrigin?: CardOrigin | undefined;
+  /** Why a tierA card is plain, the row policy's `plain` verdict; absent ⇒ the inert frame carries no notice. */
+  readonly plain?: PlainSubject | undefined;
 }
 
 /** The `html-card` arm — the tierB sandbox or the tierA inert frame, selected by the tier the caller's
  *  render policy already resolved. */
-export function CardBlock({ block, allowExternal, cardOrigin }: CardBlockProps): ReactElement {
+export function CardBlock({ block, allowExternal, cardOrigin, plain }: CardBlockProps): ReactElement {
   if (block.trust === "tierB") {
     return <TierBCard block={block} allowExternal={allowExternal} cardOrigin={cardOrigin} />;
   }
-  // Tier A: the sanitized body inside the inert frame. No `authorName` is threaded yet — the row policy
-  // does not carry one, and InertCard degrades to "this character" rather than printing an empty name.
-  // Threading the real name is a follow-up worth doing (it makes the remedy one click more obvious), not a
-  // reason to hold the visibility fix.
+  // Tier A: the sanitized body inside the inert frame, with the row's plain verdict saying why. A caller with no
+  // verdict (the streaming ghost) draws the frame alone; its settled row carries the notice.
   return (
-    <InertCard {...(block.title === undefined ? {} : { title: block.title })}>
+    <InertCard
+      {...(block.title === undefined ? {} : { title: block.title })}
+      notice={plain === undefined ? undefined : <PlainContentNotice subject={plain} placement="card" />}
+    >
       <Markdown trust="untrusted" mode="static">
         {block.html}
       </Markdown>
