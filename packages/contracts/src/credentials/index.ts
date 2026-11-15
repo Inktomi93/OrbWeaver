@@ -13,6 +13,7 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { jsonMemberSchema } from "@orb/kit/json";
 import { z } from "zod";
 import type { Principal } from "#identity";
+import type { UnavailableCause } from "#inference";
 import { providerIdSchema } from "#inference";
 
 // Dispatch axis: every member needs a resolver arm + an infra/providers runner (tsc's assertNever
@@ -96,6 +97,23 @@ export type RelabelCredentialOp = (params: RelabelCredentialParams) => Promise<v
  *  answered is the exact product lie the honest `unchecked` health arm already exists to prevent. */
 export const CRED_REVOKED_REASONS = ["auth_failed", "unreachable", "user"] as const;
 export type CredRevokedReason = (typeof CRED_REVOKED_REASONS)[number];
+
+/** The availability cause a bound row reads while its key is revoked, one per reason, so every surface says why. */
+export const REVOKED_KEY_CAUSES = {
+  ["auth_failed"]: "key-rejected",
+  unreachable: "key-revoked-unreachable",
+  user: "key-revoked-by-user",
+} as const satisfies Record<CredRevokedReason, UnavailableCause>;
+export type RevokedKeyCause = (typeof REVOKED_KEY_CAUSES)[CredRevokedReason];
+
+const credRevokedReasonSchema = z.enum(CRED_REVOKED_REASONS);
+
+/** The cause for a key revoked for `reason`. A stored reason this build cannot read, or none (a row that is not the
+ *  caller's), names no cause it cannot prove: the row is `unavailable`. */
+export function revokedKeyCause(reason: string | null): RevokedKeyCause | "unavailable" {
+  const parsed = credRevokedReasonSchema.safeParse(reason);
+  return parsed.success ? REVOKED_KEY_CAUSES[parsed.data] : "unavailable";
+}
 
 /** The credential read-model the `credentials.list`/`credentials.add` procedures return. It never carries a
  *  secret column (`ciphertext`/`iv`/`tag`) or the plaintext key; `toCredentialView` in the credentials domain

@@ -1,10 +1,11 @@
 // A room whose host is unavailable disables Send before anything is typed into a doomed turn, and the composer's own
-// refusal line and Send's description say only that the host is unavailable, never why. A struck key on the host's
-// connection names a fix only to the host. A refusal whose cause this build has no words for still gives Send a reason.
+// refusal line and Send's description say only that the host is unavailable, never why. A revoked key on the host's
+// connection tells the host why it was revoked and the fix for that reason, and a member none of it. A refusal whose cause this build has no words for still gives Send a reason.
 // @subject packages/client/src/features/chat/hooks/use-send-availability.ts
 // @subject packages/client/src/lib/injection-copy.ts
 
 import { TURN_HOST_UNAVAILABLE_OP_CODE } from "@orb/contracts/chat";
+import { CRED_REVOKED_REASONS, REVOKED_KEY_CAUSES } from "@orb/contracts/credentials";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import {
   createShellAmbientReads,
@@ -18,7 +19,8 @@ import {
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { CHAT_MESSAGE_INPUT_NAME, CHAT_SEND_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
-import { HOST_KEY_REJECTED_COPY, HOST_UNAVAILABLE_COPY, KEY_REJECTED_COPY } from "#client/lib/turn-refusal-copy.ts";
+import { REVOKED_KEY_COPY } from "#client/lib/revoked-key-copy.ts";
+import { HOST_KEY_REVOKED_COPY, HOST_UNAVAILABLE_COPY } from "#client/lib/turn-refusal-copy.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
@@ -54,15 +56,15 @@ test("a room whose host is unavailable disables Send and says the host is unavai
   await expect(input).toHaveValue(DRAFT);
 });
 
-// A struck key on the host's bound chat connection: the host is told to replace it, a member only that the host's
-// connection is out, since the key is not the member's and Saved keys is not theirs to open.
-const KEY_REJECTED_READS = [
-  { viewer: "host", copy: KEY_REJECTED_COPY },
-  { viewer: "member", copy: HOST_KEY_REJECTED_COPY },
-] as const;
+// A revoked key on the host's bound chat connection, for each stored reason: the host reads that reason's words, a
+// member only that the host's connection is out, since the key is not the member's and Saved keys is not theirs.
+const VIEWERS = ["host", "member"] as const;
+const KEY_REVOKED_READS = CRED_REVOKED_REASONS.flatMap((reason) =>
+  VIEWERS.map((viewer) => ({ reason, viewer, copy: viewer === "host" ? REVOKED_KEY_COPY[reason].composer : HOST_KEY_REVOKED_COPY })),
+);
 
-for (const { viewer, copy } of KEY_REJECTED_READS) {
-  test(`a room whose host's key was rejected tells the ${viewer} whose fix it is`, async ({ corpus, mount, page }) => {
+for (const { reason, viewer, copy } of KEY_REVOKED_READS) {
+  test(`a room whose host's key was revoked for ${reason} tells the ${viewer} why and whose fix it is`, async ({ corpus, mount, page }) => {
     await using root = await createCorpusHarness();
     const memberId = corpus.memberIdentities?.sharedMember.viewer.userId;
     const room = corpus.reads["chat.getChat"].find(({ output }) => output.participants.some((person) => person.userId === memberId))?.output;
@@ -76,7 +78,7 @@ for (const { viewer, copy } of KEY_REJECTED_READS) {
     await routeTrpc(page, {
       ...createShellAmbientReads(corpus, root.ownerId),
       ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, "plugin.listCommands", "rpg.getGame", "rpg.listTurnToolCalls"]),
-      "chat.checkSendAvailability": (request) => (request.chatId === room.id ? { available: false, cause: "key-rejected" } : trpcError()),
+      "chat.checkSendAvailability": (request) => (request.chatId === room.id ? { available: false, cause: REVOKED_KEY_CAUSES[reason] } : trpcError()),
     });
     await mount<typeof ChatRoomShellStory>(STORY, { chatId: room.id });
 

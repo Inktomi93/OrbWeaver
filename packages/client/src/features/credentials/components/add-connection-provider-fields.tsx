@@ -13,7 +13,7 @@ import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { MutedLine } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { touchedFieldError } from "#forms/editor";
@@ -34,7 +34,7 @@ import {
   savedKeyName,
 } from "../lib/add-connection-form-model.ts";
 import { CHAT_API_LABELS, showsApiControl } from "../lib/connections-model.ts";
-import { API_KEY_FIELD_NAME, API_KEY_OPTIONAL_FIELD_NAME, SETUP_TOKEN_FIELD_NAME } from "../lib/credentials-names.ts";
+import { API_KEY_FIELD_NAME, API_KEY_OPTIONAL_FIELD_NAME, keyRefusedNotice, keyUncheckedNotice, SETUP_TOKEN_FIELD_NAME } from "../lib/credentials-names.ts";
 import { typedModelAllowed } from "../lib/model-picker-model.ts";
 import { ClaudeSubscriptionNotice } from "./claude-subscription-notice.tsx";
 import { AdmitPrivateHost } from "./connection-reachability.tsx";
@@ -148,7 +148,15 @@ export function ProviderFields({
       ) : null}
       {isClaudeSubscription(provider) ? <ClaudeSubscriptionNotice /> : null}
       {provider.auth === "oauthToken" && held === null ? <SetupTokenCommand /> : null}
-      <KeyField form={form} credentials={credentials} provider={provider} held={held} keyStorage={keyStorage} onKeyLeft={setCommittedKey} />
+      <KeyField
+        form={form}
+        credentials={credentials}
+        provider={provider}
+        held={held}
+        keyStorage={keyStorage}
+        onKeyLeft={setCommittedKey}
+        verdict={keyVerdictOf(modelSource, listOwnerOf(provider, form.state.values.baseUrl))}
+      />
       {listsUnderDraft(provider) ? (
         <form.Subscribe
           selector={(state): { readonly baseUrl: string; readonly key: string; readonly credentialId: CredentialView["id"] | null } => ({
@@ -224,6 +232,20 @@ export function ProviderFields({
   );
 }
 
+/** What the provider said about the draft key, from the list read under it: refused, or no verdict from its key
+ *  check. A refusal marks the key field invalid; neither says anything about the model list. */
+interface KeyVerdict {
+  readonly refused: boolean;
+  readonly notice: string;
+}
+
+function keyVerdictOf(source: ModelCatalogSource, listOwner: string): KeyVerdict | null {
+  if (source.status === "failed" && source.keyRefused === true) {
+    return { refused: true, notice: keyRefusedNotice(listOwner) };
+  }
+  return source.status === "listed" && source.keyUnchecked === true ? { refused: false, notice: keyUncheckedNotice(listOwner) } : null;
+}
+
 /** The key step: the paste field, or — once this dialog saved the key — a line naming the saved row. */
 function KeyField({
   form,
@@ -232,6 +254,7 @@ function KeyField({
   held,
   keyStorage,
   onKeyLeft,
+  verdict,
 }: {
   readonly form: AddConnectionForm;
   readonly credentials: readonly CredentialView[];
@@ -240,9 +263,20 @@ function KeyField({
   readonly keyStorage: boolean;
   /** The key field was left: the key it held then. */
   readonly onKeyLeft: (key: string) => void;
+  readonly verdict: KeyVerdict | null;
 }): ReactElement | null {
   const unavailableId = useId();
+  const verdictId = useId();
+  const keyInput = useRef<HTMLInputElement>(null);
   const [lastChoice, setLastChoice] = useState<CredentialView | null>(null);
+  const refused = verdict?.refused === true;
+  // Focus moves to the refused key once per refusal; the input's description then reads the notice out, so the
+  // notice itself is no live region and is announced once.
+  useEffect(() => {
+    if (refused) {
+      keyInput.current?.focus();
+    }
+  }, [refused]);
   if (held !== null) {
     return (
       <Text data-slot="add-connection-key-held" cap="prose" prose={true} voice="gloss">
@@ -321,12 +355,19 @@ function KeyField({
                   type="password"
                   revealable={true}
                   autoComplete="off"
+                  inputRef={keyInput}
+                  {...(verdict === null ? {} : { describedBy: verdictId, invalid: verdict.refused })}
                 />
               )}
             </form.AppField>
           )
         }
       </form.Subscribe>
+      {verdict === null ? null : (
+        <Text id={verdictId} data-slot="add-connection-key-verdict" tone="warning" cap="prose" prose={true} voice="gloss">
+          {verdict.notice}
+        </Text>
+      )}
     </>
   );
 }

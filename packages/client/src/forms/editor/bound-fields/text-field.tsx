@@ -8,7 +8,7 @@ import { GlyphButton } from "@orb/ui/glyph-button";
 import { Eye, EyeOff, Icon } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row } from "@orb/ui/layout";
-import type { ReactElement } from "react";
+import type { ReactElement, Ref } from "react";
 import { useState } from "react";
 import { CONCEAL_SECRET_NAME, REVEAL_SECRET_NAME } from "./secret-field-names.ts";
 import type { BoundFieldShellProps } from "./use-bound-field.ts";
@@ -28,9 +28,11 @@ export interface TextFieldProps extends BoundFieldShellProps {
   readonly invalid?: boolean;
   /** The id of the element that states that failure; the input points at it. */
   readonly describedBy?: string;
+  /** The native input, for a caller that moves focus to the field when that failure arrives. */
+  readonly inputRef?: Ref<HTMLInputElement>;
 }
 
-export function TextField(props: TextFieldProps): ReactElement {
+export function TextField({ inputRef, ...props }: TextFieldProps): ReactElement {
   const { field, fieldProps } = useBoundField<string>(props);
   const [revealed, setRevealed] = useState(false);
   const canReveal = props.type === "password" && props.revealable === true;
@@ -38,6 +40,7 @@ export function TextField(props: TextFieldProps): ReactElement {
     <Field {...fieldProps} {...(props.invalid === undefined ? {} : { invalid: props.invalid })}>
       <Row gap="field" align="center">
         <Input
+          ref={inputRef}
           value={field.state.value}
           onChange={(e): void => {
             field.handleChange(e.target.value);

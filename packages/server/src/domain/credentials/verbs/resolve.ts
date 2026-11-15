@@ -36,7 +36,8 @@ export function createResolve(ctx: CredentialContext): CredentialsService["resol
     }
     const row = await fetchOwnedCredential(ctx.db, ownerId, credentialId);
     if (row === undefined || row.revokedAt !== null) {
-      throw new DomainNoCredentialError(providerId);
+      // The reason rides along so the readouts say why the key stopped; a foreign or missing row names none.
+      throw new DomainNoCredentialError(providerId, row?.revokedReason ?? null);
     }
     // The AAD is `${owner}|${providerId}` — a row sealed under another provider id (or lifted to another
     // owner) decrypt-fails as the typed configuration error, never as a wrong key on the wire.

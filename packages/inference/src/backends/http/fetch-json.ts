@@ -196,4 +196,20 @@ export function onBaseOrigin(baseUrl: string, url: string, label: string): strin
   return url;
 }
 
+/**
+ * The URL of a row's key check read: `fromOrigin` resolved against the base URL's origin.
+ *
+ * @remarks SECURITY: the read carries the key, so it never resolves off the base URL's origin, whatever a stored row
+ * holds (`//host`, `/\host` and a parser-dropped tab all name another host). The throw is our own request breaking
+ * before the wire: nothing is sent, and the key check reads it as no verdict.
+ */
+export function keyCheckUrl(baseUrl: string, fromOrigin: string): string {
+  const url = new URL(fromOrigin, baseUrl);
+  const origin = new URL(baseUrl).origin;
+  if (url.origin !== origin) {
+    throw new TypeError(`the key check path leaves ${origin}, so nothing was sent`);
+  }
+  return url.toString();
+}
+
 export type { FetchJsonArgs, FetchJsonResult } from "#src/contract/http.ts";
