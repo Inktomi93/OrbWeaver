@@ -3,6 +3,8 @@
 // chosen effort out and its reasoning back, and each service's own error bodies reach a named failure.
 import type { ChatDeltaEvent } from "@orb/contracts/chat";
 import type { ProviderErrorKind } from "@orb/inference";
+import { MS_PER_SECOND } from "@orb/kit/time";
+import { FROZEN_AT_MS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { seedRecallRoom } from "@orb/testkit/node/composed";
 import type { RecordedRequest } from "@orb/testkit/node/helpers";
@@ -518,4 +520,55 @@ test("a NanoGPT 429 is retried before anything streams, and a limit that holds f
   const settled = await outcome;
   expect(settled.error?.kind).toBe("rate_limit");
   expect(recorded).toHaveLength(RETRY_ATTEMPTS);
+});
+
+// NanoGPT's Rate Limits page: a limit 429 carries `Retry-After` in seconds; its Request Billing page: "`Retry-After`
+// may contain seconds or an HTTP date". The retry waits that long, not the exponential backoff.
+const RETRY_AFTER_DATE_SECONDS = 3;
+const RETRY_AFTER_FORMS: readonly { readonly form: string; readonly header: string; readonly waitMs: number }[] = [
+  { form: "seconds", header: String(RETRY_AFTER_SECONDS), waitMs: RETRY_AFTER_SECONDS * MS_PER_SECOND },
+  {
+    form: "an HTTP date",
+    header: new Date(FROZEN_AT_MS + RETRY_AFTER_DATE_SECONDS * MS_PER_SECOND).toUTCString(),
+    waitMs: RETRY_AFTER_DATE_SECONDS * MS_PER_SECOND,
+  },
+];
+
+test.for(RETRY_AFTER_FORMS)("a NanoGPT 429 whose Retry-After is $form schedules its retry then, and the retry streams", async ({ header, waitMs }) => {
+  const recorded: RecordedRequest[] = [];
+  const timer = observeRuntimeTimers();
+  const limited = errorReply(
+    429,
+    { error: { message: "Rate limit exceeded", type: "rate_limit_error", code: "api_key_rpd_limit" } },
+    { ["retry-after"]: header },
+  );
+  using server = scriptedResponses([limited, (): Response => streamOf([{ role: "assistant", content: "Hi" }])], recorded);
+  await using root = await createRuntimeRoot({ providerFetch: server.execute, timers: timer.timers });
+  const connection = await wireConnection(root, {
+    task: "chat",
+    providerId: "nanogpt",
+    model: "vendor/chat-model",
+    capability: EFFORT_CAPABILITY,
+    declaredFeatures: { requestTimeoutMs: REQUEST_TIMEOUT_MS },
+  });
+  const cancel = new AbortController();
+  const outcome = root.app.runtime.executor.runChatTurn({
+    api: "chat-completions",
+    connection,
+    params: {},
+    systemPrompt: { static: "You are a fixture.", dynamic: "" },
+    history: [USER_LINE],
+    signal: cancel.signal,
+  });
+  await using _retryRequest = {
+    async [Symbol.asyncDispose](): Promise<void> {
+      cancel.abort();
+      await outcome.catch(() => undefined);
+    },
+  };
+  const wait = await timer.next((window) => recorded.length === 1 && window.ms !== REQUEST_TIMEOUT_MS, cancel.signal);
+  expect(wait.ms).toBe(waitMs);
+  wait.fire();
+  expect((await outcome).reply).toBe("Hi");
+  expect(recorded).toHaveLength(2);
 });

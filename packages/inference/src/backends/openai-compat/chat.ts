@@ -761,7 +761,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
     if (err instanceof ProviderError) {
       return err;
     }
-    const classified = withSchemaRejection(providerErrorFromHttp(err, label, secrets), err, {
+    const classified = withSchemaRejection(providerErrorFromHttp(err, label, secrets, deps.now), err, {
       log,
       model: connection.model,
       mode: structured.mode,

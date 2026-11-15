@@ -428,7 +428,7 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
   const classify = (err: unknown): ProviderError =>
     err instanceof ProviderError
       ? err
-      : withSchemaRejection(providerErrorFromHttp(err, label, secrets), err, { log, model: connection.model, mode: structured.mode, secrets });
+      : withSchemaRejection(providerErrorFromHttp(err, label, secrets, deps.now), err, { log, model: connection.model, mode: structured.mode, secrets });
   // THE TYPED-FAILURE BOUNDARY. `runWithPreCommitRetry` re-throws the ORIGINAL error on purpose (its JSDoc
   // states it: the classification is only the retry policy's input, and the openai-compat replay below peels
   // `responseBody`/`cause` off that raw object, which `providerErrorFromHttp` would have scrubbed away). That

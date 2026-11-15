@@ -61,7 +61,7 @@ export async function runGoogleChat(req: GoogleChatRequest, deps: GoogleBackendD
   const classify = (err: unknown): ProviderError =>
     err instanceof ProviderError
       ? err
-      : withSchemaRejection(providerErrorFromHttp(err, label, secrets), err, { log, model: connection.model, mode: structured.mode, secrets });
+      : withSchemaRejection(providerErrorFromHttp(err, label, secrets, deps.now), err, { log, model: connection.model, mode: structured.mode, secrets });
   const drain = await runWithPreCommitRetry(
     async (markCommitted) => {
       const idle = turnAbortSignal(req.signal, connection.features.requestTimeoutMs, deps.scheduleTimeout);

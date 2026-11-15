@@ -12,11 +12,13 @@ import type { WireSchemaMode, WireSchemaViolation } from "@orb/contracts/inferen
 import { errorMessage } from "@orb/kit/error-message";
 import type { ModelId } from "@orb/kit/ids";
 import { parseJsonText } from "@orb/kit/json";
+import type { Clock } from "@orb/kit/time";
 import type { ProviderScrubSet } from "#contract";
 import { ProviderError, SCHEMA_REJECTED_DETAIL } from "#contract";
 import type { ErrorClassification, HttpErrorDiagnostic, SchemaRejectionContext } from "#src/contract/http.ts";
 import { redactSecretsFromText } from "../wire/openai-body.ts";
 import { isIdleTrip } from "./idle-timeout.ts";
+import { retryAfterResetsAt } from "./rate-limit-headers.ts";
 import { decodedJsonText, NO_PROVIDER_SECRETS, sanitizeApiError } from "./sanitize.ts";
 
 // Transport-name patterns on the hot error-classification path.
@@ -39,6 +41,10 @@ const HTTP_SERVER_ERROR_FLOOR = 500;
 // File-local: narrow an unknown to a string-keyed record without an `as` cast (`orb/no-unsafe-cast` refuses one).
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object";
+}
+
+function isStringRecord(value: unknown): value is Record<string, string> {
+  return isRecord(value) && Object.values(value).every((entry) => typeof entry === "string");
 }
 
 /**
@@ -298,8 +304,12 @@ export function withSchemaRejection(failure: ProviderError, error: unknown, ctx:
  * left — a message reaching that durable sink cannot carry a credential fragment the 500-char cap or the
  * `<…>` strip created. See {@link sanitizeApiError}'s file header.
  */
-export function providerErrorFromHttp(error: unknown, prefix: string, secrets: ProviderScrubSet): ProviderError {
+export function providerErrorFromHttp(error: unknown, prefix: string, secrets: ProviderScrubSet, now?: Clock): ProviderError {
   const { kind, retryable, status } = classifyHttpError(error);
+  // A rate limit's `retry-after` (seconds or an HTTP date) is when the service takes the request again; the retry
+  // policy waits until then. The SDK's `APICallError` carries the failed response's headers.
+  const headers = isRecord(error) ? error["responseHeaders"] : undefined;
+  const resetsAt = kind === "rate_limit" && now !== undefined && isStringRecord(headers) ? retryAfterResetsAt(headers, now()) : undefined;
   const safe = sanitizeApiError(redactSecretsFromText(errorMessage(error), secrets));
   // Credential-bearing HTTP boundaries must never retain the raw thrown object: SDK/fetch errors can
   // carry reflected bodies, headers and nested causes as enumerable fields that a later logger serializes.
@@ -315,6 +325,7 @@ export function providerErrorFromHttp(error: unknown, prefix: string, secrets: P
     retryable,
     message: `${prefix}: ${safe}`,
     ...(status !== undefined ? { apiErrorStatus: status } : {}),
+    ...(resetsAt !== undefined ? { resetsAt } : {}),
     cause,
   });
 }
