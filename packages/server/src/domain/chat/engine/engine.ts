@@ -115,7 +115,8 @@ import { mintRoomAdmission } from "../substrate/room-tokens.ts";
 import { projectRpgTranscript } from "../substrate/rpg-transcript.ts";
 import { foldChain } from "../substrate/runtime-variables.ts";
 import { appendStatsDeltas, assistantTurnDelta, canonMessageDelta, canonRowOf, swipeVariantDelta } from "../substrate/stats-delta.ts";
-import { runTurnPipeline } from "./pipeline.ts";
+import type { StoppedCallEstimate } from "./pipeline.ts";
+import { runTurnPipeline, StoppedTurn } from "./pipeline.ts";
 import { watchProviderWait } from "./provider-wait.ts";
 import { resolveTurnNarrative } from "./recover-narrative.ts";
 import { abortedOutcome, committedOutcome } from "./result.ts";
@@ -147,6 +148,7 @@ interface EconomicsCommon extends Pick<Parameters<typeof appendVariantStatements
   readonly costProvenance: TokenProvenance;
   readonly tokensIn: number | null;
   readonly tokensOut: number | null;
+  readonly tokenProvenance: TokenProvenance | undefined;
   readonly cacheReadTokens: number | null;
   readonly cacheWriteTokens: number | null;
   readonly costUsd: number | null;
@@ -163,6 +165,7 @@ function economicsCommon(e: TurnEconomics | null): EconomicsCommon {
     costProvenance: e?.costProvenance ?? "unrecorded",
     tokensIn: e?.tokensIn ?? null,
     tokensOut: e?.tokensOut ?? null,
+    tokenProvenance: e?.tokenProvenance,
     cacheReadTokens: e?.cacheReadTokens ?? null,
     cacheWriteTokens: e?.cacheWriteTokens ?? null,
     costUsd: e?.costUsd ?? null,
@@ -230,6 +233,51 @@ function observedResult(
   return { ...result, economics: { ...economics, ...projectGenerationUsage(legs).total, usageLegs: [...legs] } };
 }
 
+/** The stored reason a kept stopped reply carries: the caller's Stop, in the abort vocabulary the outcome ring
+ *  already writes as a terminal reason. No provider finish arrived, so the normalized finish stays null. */
+const STOPPED_TERMINAL_REASON = "user" satisfies TurnAbortReason;
+
+/**
+ * A kept stopped reply's economics. The cut call's own finish never arrived, so the last completed call's finish
+ * words are dropped rather than left describing a call that is not the reply's end. Without its measured usage
+ * the cut call is added as an estimate: the counts read `estimated`, and the total cost reads unrecorded, never
+ * the completed calls' cost alone, because a part of the spend has no price. The connection stamps the reply as
+ * a finished one would be stamped, since a stop on the first call has no final chunk to carry them.
+ */
+function stoppedResult(
+  result: Awaited<ReturnType<typeof runTurnPipeline>>,
+  prep: TurnPrep,
+  estimate: StoppedCallEstimate | null,
+): Awaited<ReturnType<typeof runTurnPipeline>> {
+  const e = result.economics;
+  const stamped: TurnEconomics = {
+    ...e,
+    content: e?.content ?? result.content,
+    model: e?.model ?? prep.connection.model,
+    provider: e?.provider ?? prep.connection.provider.id,
+    connectionId: e?.connectionId ?? prep.connection.connectionId,
+    finishReason: null,
+    stopReason: null,
+    terminalReason: STOPPED_TERMINAL_REASON,
+    toolCalls: undefined,
+  };
+  if (estimate === null) {
+    return { ...result, economics: stamped };
+  }
+  return {
+    ...result,
+    economics: {
+      ...stamped,
+      tokensIn: (e?.tokensIn ?? 0) + estimate.tokensIn,
+      tokensOut: (e?.tokensOut ?? 0) + estimate.tokensOut,
+      tokenProvenance: "estimated",
+      costUsd: null,
+      costDetails: null,
+      costProvenance: "unrecorded",
+    },
+  };
+}
+
 /** Builds the variant payload (content + reasoning + economics + per-swipe snapshot) — every persist mode
  *  writes the same generation record. */
 function variantPayloadOf(
@@ -290,7 +338,7 @@ function generatedRowEconomics(
 ): {
   tokensIn: number | null;
   tokensOut: number | null;
-  tokenProvenance: "measured" | "unrecorded";
+  tokenProvenance: TokenProvenance;
   costUsd: number | null;
   cacheReadTokens: number | null;
   cacheWriteTokens: number | null;
@@ -309,7 +357,7 @@ function generatedRowEconomics(
     tokensOut,
     // Economics on this path came from the live provider result. A reported zero is still a measured
     // sample; absence on both axes is the only unrecorded state.
-    tokenProvenance: tokensIn !== null || tokensOut !== null ? "measured" : "unrecorded",
+    tokenProvenance: e?.tokenProvenance ?? (tokensIn !== null || tokensOut !== null ? "measured" : "unrecorded"),
     costUsd: e?.costUsd ?? null,
     cacheReadTokens: e?.cacheReadTokens ?? null,
     cacheWriteTokens: e?.cacheWriteTokens ?? null,
@@ -609,13 +657,17 @@ async function commitGeneration(args: {
    *  grant reads. It is also what the wire-history fence reads to let the model see its own picture next
    *  turn — one row, two jobs, both load-bearing. */
   readonly inlineReplyAssetIds: readonly AssetId[];
+  /** Set when the caller's Stop cut this generation and what streamed is kept as the reply. */
+  readonly stopped?: StoppedTurn | undefined;
 }): Promise<MessageView> {
-  const { ctx, deps, prep, persist, target, nextSeq, genStartedAt, genFinishedAt } = args;
+  const { ctx, deps, prep, persist, target, nextSeq, genStartedAt, genFinishedAt, stopped } = args;
   const facts = await args.observations.load();
-  const result = observedResult(
+  const observed = observedResult(
     args.result,
     facts.map((fact) => fact.leg),
   );
+  // An observation past the completed calls is the cut call's own measured usage; only without one is it estimated.
+  const result = stopped === undefined ? observed : stoppedResult(observed, prep, facts.length > stopped.completedCalls ? null : stopped.estimate);
   const now = ctx.now();
   const variant = variantPayloadOf(prep, result, genStartedAt, genFinishedAt);
   const globals = prep.assembleContext.globalVariables;
@@ -681,7 +733,7 @@ async function commitGeneration(args: {
 
     // THE WRITE FENCE — the LAST thing before the batch, and re-run on the seq-retry. Everything
     // above is in-memory statement building; this is where the turn stops being reversible.
-    await assertTurnMayCommit(ctx, deps, prep);
+    await assertTurnMayCommit(ctx, deps, prep, stopped !== undefined);
     await args.observations.commit(statements, facts, retainedStats.predicate);
     return loadView();
   };
@@ -713,7 +765,9 @@ async function commitGeneration(args: {
   }
   // Decided here, not in the stream scrub: a turn commits one body, and it is the transformed text members actually read.
   // A scrub sees every delta, sees bytes a receive transform may still rewrite, and sees turns that never commit.
-  if (concealsBrokenHiddenTag(view.content, view.finishReason !== null && CUT_OFF_FINISH_REASONS.has(view.finishReason))) {
+  // A kept stopped reply ends where the Stop cut it, so a tag left open there is the cut, not a lost tail.
+  const cutOff = stopped !== undefined || (view.finishReason !== null && CUT_OFF_FINISH_REASONS.has(view.finishReason));
+  if (concealsBrokenHiddenTag(view.content, cutOff)) {
     await deps.emit({ type: "warning", chatId: prep.chatId, code: HIDDEN_TAG_BROKEN_CODE });
   }
   return view;
@@ -729,7 +783,9 @@ async function commitGeneration(args: {
  * checked here, immediately before the batch:
  *
  *  • the SIGNAL — covers the caller's Stop and the heartbeat's stale-lock abort. `throwIfAborted` carries
- *    the signal's own reason, so `abortReasonFor` still classifies it "user" vs "stale" downstream.
+ *    the signal's own reason, so `abortReasonFor` still classifies it "user" vs "stale" downstream. A kept
+ *    stopped reply skips this half: the caller's Stop is the reason it commits. Its lock-holder half still
+ *    runs, so a lock lost during the Stop refuses the write exactly as it would any other.
  *  • the LOCK HOLDER — the fact the abort is a proxy for. A `lockFree` turn has no lock to hold (it runs
  *    concurrent with a locked send BY DESIGN — its seq-unique retry is what makes that safe), so it is
  *    fenced by the signal alone.
@@ -741,8 +797,10 @@ async function commitGeneration(args: {
  * generation's — and {@link runInLockWithHeartbeat} no longer releases the lock while this body is still
  * live, so the same-process half of the race is closed outright.
  */
-async function assertTurnMayCommit(ctx: EngineContext, deps: EngineDeps, prep: TurnPrep): Promise<void> {
-  prep.signal.throwIfAborted();
+async function assertTurnMayCommit(ctx: EngineContext, deps: EngineDeps, prep: TurnPrep, keepsStoppedReply: boolean): Promise<void> {
+  if (!keepsStoppedReply) {
+    prep.signal.throwIfAborted();
+  }
   if (prep.lockFree === true) {
     return;
   }
@@ -1588,7 +1646,7 @@ function emptyGenerationMessage(result: Awaited<ReturnType<typeof runTurnPipelin
 
 /** This turn's cascade depth: a human turn is 0; an automation/plugin-initiated turn
  *  carries `parent + 1` on `prep`. Extracted so the nullish default stays OUT of `executeTurn`'s cognitive
- *  budget — the value rides the `turnAborted` event (the abort commits no reply slot to read depth back from). */
+ *  budget — the value rides the `turnAborted` event (most aborts commit no reply slot to read depth back from). */
 function turnCascadeDepth(prep: TurnPrep): number {
   return prep.automationDepth ?? 0;
 }
@@ -1705,6 +1763,117 @@ function announcedTurn(prep: TurnPrep, turnId: ChatTurnId): ChatTurnId {
   return prep.acceptedTurnId ?? turnId;
 }
 
+/** The tail seq and generation start a kept stopped reply commits under, fixed when generation began. */
+interface StoppedCommitWindow {
+  readonly nextSeq: number;
+  readonly genStartedAt: number;
+}
+
+/**
+ * THE CALLER'S STOP KEEPS WHAT STREAMED (owner ruling). The text so far commits as the reply through the same
+ * write a finished reply takes (the message cap, the lock-holder fence, stats, the paid observations), marked
+ * stopped on its terminal reason. Then the turn closes as the abort it is: `messageCommitted` first, so every
+ * member's live stream and durable replay carry the row before `turnAborted{reason:"user"}` closes the slot.
+ *
+ * WHAT A STOPPED REPLY DOES NOT START, each a ruling:
+ *  • no rpg state round and no game write: its staged writes clear as on any abort; a continue that completes
+ *    the reply runs the round.
+ *  • no `turnCompleted`, so no reply-complete automation; `messageCommitted` still fires, the reply being a
+ *    real message.
+ *  • no post-turn memory build or managed compaction: a Stop ends the generation work it asked for. The kept
+ *    row is ordinary canon, so the next build reads it like any other.
+ *  • no pictures: storing one runs under the turn's signal, which the Stop already ended.
+ *
+ * A commit the write refuses settles as that refusal: a lost lock is the stale abort, anything else throws.
+ */
+async function keepStoppedReply(args: {
+  readonly ctx: EngineContext;
+  readonly deps: OwnedEngineDeps;
+  readonly prep: TurnPrep;
+  readonly persist: TurnPersist;
+  readonly target: SlotTarget | null;
+  readonly observations: GenerationObservationSession;
+  readonly announcedTurnId: ChatTurnId;
+  readonly turnId: ChatTurnId;
+  readonly stopped: StoppedTurn;
+  readonly window: StoppedCommitWindow;
+}): Promise<TurnOutcome> {
+  const { ctx, deps, prep, stopped, announcedTurnId, turnId } = args;
+  const intent = KIND_TO_INTENT[prep.kind];
+  const automationDepth = turnCascadeDepth(prep);
+  await emitCapabilityDropWarnings(deps.emit, prep.chatId, stopped.result);
+  let view: MessageView;
+  try {
+    view = await commitGeneration({
+      observations: args.observations,
+      announcedTurnId,
+      ctx,
+      deps,
+      prep,
+      persist: args.persist,
+      target: args.target,
+      result: stopped.result,
+      inlineReplyAssetIds: [],
+      nextSeq: args.window.nextSeq,
+      genStartedAt: args.window.genStartedAt,
+      genFinishedAt: ctx.now(),
+      stopped,
+    });
+  } catch (commitErr) {
+    const reason: TurnAbortReason = commitErr instanceof ChatOperationError && commitErr.code === CHAT_OP_CODES.aborted ? "stale" : "error";
+    await deps.emit({ type: "turnAborted", chatId: prep.chatId, turnId: announcedTurnId, intent, reason, automationDepth });
+    fireRpgTurnAborted(ctx, prep.chatId, turnId, reason);
+    if (reason === "error") {
+      throw commitErr;
+    }
+    return abortedOutcome(reason);
+  }
+  await deps.emit({ type: "turnAborted", chatId: prep.chatId, turnId: announcedTurnId, intent, reason: STOPPED_TERMINAL_REASON, automationDepth });
+  fireRpgTurnAborted(ctx, prep.chatId, turnId, STOPPED_TERMINAL_REASON);
+  await ctx.emitChatChanged(prep.chatId);
+  return { messages: [view], aborted: true, abortReason: STOPPED_TERMINAL_REASON };
+}
+
+/** The post-start abort, classified once: a fault row first, then the caller's Stop keeps what streamed, and every
+ *  other abort (and a Stop before any prose) closes the turn with nothing kept. Lifted out of {@link executeTurn},
+ *  which sits at its complexity ceiling. */
+async function settleAbortedTurn(args: {
+  readonly ctx: EngineContext;
+  readonly deps: OwnedEngineDeps;
+  readonly prep: TurnPrep;
+  readonly persist: TurnPersist;
+  readonly target: SlotTarget | null;
+  readonly observations: GenerationObservationSession;
+  readonly announcedTurnId: ChatTurnId;
+  readonly turnId: ChatTurnId;
+  readonly abortDepth: number;
+  readonly failure: unknown;
+  readonly window: StoppedCommitWindow | null;
+}): Promise<TurnOutcome> {
+  const { ctx, deps, prep, failure, announcedTurnId, turnId } = args;
+  const intent = KIND_TO_INTENT[prep.kind];
+  const reason = abortReasonFor(failure, prep.signal);
+  // The FAULT row in the wire-outcome ring. FIRST, before the bus emit and the rpg flush:
+  // those are awaited/injected and can themselves fail, and the row explaining WHY the turn died must not
+  // be hostage to them. Itself throw-safe (see `captureTurnFault`).
+  captureTurnFault(ctx, prep, failure, reason);
+  if (reason === "user" && failure instanceof StoppedTurn && failure.result.content.trim().length > 0 && args.window !== null) {
+    return await keepStoppedReply({ ...args, stopped: failure, window: args.window });
+  }
+  // Carry the aborting turn's OWN cascade depth: this abort commits no reply
+  // slot, so the automation fact-resolver cannot read this back through `getTurnOrigin` — it must ride the
+  // event. A depth ≥ 1 abort (this turn was itself automation-initiated) makes the `turnAborted` fact depth
+  // ≥ 1, so the cascade guard suppresses non-opted `turnAborted` rules (closes the retry-on-failure self-loop).
+  await deps.emit({ type: "turnAborted", chatId: prep.chatId, turnId: announcedTurnId, intent, reason, automationDepth: args.abortDepth });
+  // CLEAR the turn's staged tool writes on every abort path (user/stale/error) so a dead turn never flushes
+  // into the next turn on this chat (D58 hardening a).
+  fireRpgTurnAborted(ctx, prep.chatId, turnId, reason);
+  if (reason === "error") {
+    throw failure;
+  }
+  return abortedOutcome(reason);
+}
+
 /** The turn body, parametrized by persist mode + lock-freedom: security belts → resolve persist target →
  *  turnStarted → assemble/generate → persist → turnCompleted. On a post-start error: emit turnAborted then
  *  rethrow. Pre-start refusals throw a coded error and emit nothing — except the accepted-slot close
@@ -1751,6 +1920,8 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
   // throws can publish turnAborted before its already-observed delta reaches the durable bus.
   let deltaTail: Promise<void> = Promise.resolve();
   const streamCap = createStreamCap(prep.signal, persist, target);
+  // Set once generation starts: the seq and window a kept stopped reply commits under.
+  let generating: StoppedCommitWindow | null = null;
   try {
     // PRE-TURN managed-compaction arm (the wedge-state fix): a chat whose context ALREADY overflows the window
     // makes the model fail, and the post-turn arm never runs on a failed turn — so compact BEFORE dispatch when
@@ -1772,6 +1943,7 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
     const speakerAssembleContext = applyCompactionOverlay(await resolveSpeakerMemory(deps, prep), compactionOverlay);
     // The engine measures the wall-clock window around the role call and stamps it on the variant.
     const genStartedAt = ctx.now();
+    generating = { nextSeq: maxSeq + 1, genStartedAt };
     // `runTurnPipeline`'s delta callback is synchronous, but chat emission is a durable-first Promise. Own an
     // ordered tail for this turn: every delta waits for the previous append, and the drain is awaited below
     // before any commit/terminal event. A rejection remains on the tail and fails the turn — a missing durable
@@ -2005,24 +2177,19 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
     //       still see a hard throw. This branch only settles the abandoned body cleanly (no unhandled reject).
     //   • "error" (provider/DB fault — signal NOT aborted) → THROW: a real failure must stay a failure.
     // A stream stopped at the text cap surfaces its named refusal, not the provider's abort error.
-    const failure = streamCap.failure(err);
-    const reason = abortReasonFor(failure, prep.signal);
-    // The FAULT row in the wire-outcome ring. FIRST in the catch, before the bus emit and the rpg flush:
-    // those are awaited/injected and can themselves fail, and the row explaining WHY the turn died must not
-    // be hostage to them. Itself throw-safe (see `captureTurnFault`).
-    captureTurnFault(ctx, prep, failure, reason);
-    // Carry the aborting turn's OWN cascade depth: an aborted turn commits no reply
-    // slot, so the automation fact-resolver cannot read this back through `getTurnOrigin` — it must ride the
-    // event. A depth ≥ 1 abort (this turn was itself automation-initiated) makes the `turnAborted` fact depth
-    // ≥ 1, so the cascade guard suppresses non-opted `turnAborted` rules (closes the retry-on-failure self-loop).
-    await deps.emit({ type: "turnAborted", chatId: prep.chatId, turnId: announcedTurnId, intent, reason, automationDepth: abortDepth });
-    // CLEAR the turn's staged tool writes on every abort path (user/stale/error) so a dead turn never flushes
-    // into the next turn on this chat (D58 hardening a).
-    fireRpgTurnAborted(ctx, prep.chatId, turnId, reason);
-    if (reason === "error") {
-      throw failure;
-    }
-    return abortedOutcome(reason);
+    return await settleAbortedTurn({
+      ctx,
+      deps,
+      prep,
+      persist,
+      target,
+      observations,
+      announcedTurnId,
+      turnId,
+      abortDepth,
+      failure: streamCap.failure(err),
+      window: generating,
+    });
   }
 }
 

@@ -140,7 +140,8 @@ async function resolveTurn(ops: AutomationOps, event: BusEvent): Promise<Resolve
     return { fact: { ...base, turn: { intent: event.intent, api: "", provider: "", model: "", speakerCharacterId: null, automationDepth } }, automationDepth };
   }
   if (event.type === "turnAborted") {
-    // An aborted turn commits NO reply slot, so depth can't be read via `getTurnOrigin` (the sibling paths' way).
+    // An aborted turn usually commits no reply slot (only a user Stop after streamed text keeps one), so depth can't
+    // be read via `getTurnOrigin` (the sibling paths' way).
     // It rides the event instead (chat's engine threads the aborting turn's own depth) — so a depth ≥ 1 abort
     // (an automation turn that failed) yields a depth ≥ 1 fact, and `runGates` suppresses non-opted `turnAborted`
     // rules. Hardcoding 0 here let a depth-0 "retry on failure" rule self-loop (the default-no-retrigger hole).
