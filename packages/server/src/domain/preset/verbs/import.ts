@@ -8,12 +8,19 @@
 // preset's scripts in its order, so the scripts key is each script's content key in that order. A script the write
 // door refuses never attaches, so the file side leaves it out, and a script repeated in one file attaches once, so
 // both sides keep its first place; an owned preset is keyed by what it holds now. A script's switch is not content:
-// one library row holds one switch for every preset it is attached to. A file that carries no script list (an
-// orbweaver backup) is compared by its config alone.
+// one library row holds one switch for every preset it is attached to. A file with no script list (an orbweaver
+// backup written before the export carried one) is compared by its config alone.
+//
+// AN ORBWEAVER FILE CARRIES ITS SCRIPTS (`PresetFile.regexScripts`, from the export). Unless its caller attaches a list
+// of its own (a SillyTavern preset's), this verb reads that list through the one SillyTavern script reader and
+// attaches it to the preset the file lands as, through the injected `importPresetScripts`, the folder's script lift;
+// a script the reader refuses is named in the outcome beside the lift's own refusals.
 
 import type { ImportAnswer } from "@orb/contracts/import";
+import { clipImportText } from "@orb/contracts/import";
 import type { ImportPresets, PresetImportFile, PresetImportOutcome } from "@orb/contracts/preset";
 import { OWNED_PRESET_KIND, parsePresetFile, presetContentKey } from "@orb/contracts/preset";
+import type { RegexScriptCard, RegexScriptRefusal } from "@orb/contracts/regex";
 import { regexScriptCardContentKey } from "@orb/contracts/regex";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
@@ -21,6 +28,7 @@ import type { PresetId, UserId } from "@orb/kit/ids";
 import { nextFreeName } from "@orb/kit/strings";
 import { getLog } from "#foundation/observability";
 import { mapYielding } from "#primitives/abort";
+import { readPresetFileScripts } from "#primitives/serde/preset";
 import type { PresetContext } from "../contract/service.ts";
 import { insertPreset, listOwned } from "../persistence/queries.ts";
 
@@ -86,14 +94,21 @@ interface Decision {
   readonly create?: { readonly row: LandedPreset; readonly parsed: ParsedPreset };
 }
 
-/** One file of the batch and the scripts key of the scripts its caller attaches, or null when it carries none. */
-interface KeyedFile {
-  readonly bytes: Uint8Array;
-  readonly scriptsKey: string | null;
+/** The scripts an orbweaver file carries, which this verb attaches: those its reader kept, and those it refused. */
+interface CarriedScripts {
+  readonly scripts: readonly RegexScriptCard[];
+  readonly refused: readonly RegexScriptRefusal[];
 }
 
-function decide(library: PresetLibrary, { bytes, scriptsKey }: KeyedFile, newId: () => PresetId): Decision {
-  const decoded = readJson(bytes);
+/** One file of the batch, read once: its JSON, the scripts key of the scripts that attach (null when the file speaks
+ *  for none), and the scripts this verb attaches itself when its caller attaches none. */
+interface KeyedFile {
+  readonly decoded: ReturnType<typeof readJson>;
+  readonly scriptsKey: string | null;
+  readonly carried?: CarriedScripts;
+}
+
+function decide(library: PresetLibrary, { decoded, scriptsKey }: KeyedFile, newId: () => PresetId): Decision {
   const parsed = decoded.ok ? parsePresetFile(decoded.value) : null;
   if (parsed?.ok !== true) {
     return { answer: { reuse: null, keys: [] }, outcome: { ok: false, error: parsed?.error ?? UNREADABLE_FILE } };
@@ -144,21 +159,45 @@ export function createImportPresets(input: DbAssemblyInput<PresetContext>): Impo
 
   // Each file's scripts key over the scripts its lift attaches: the write door's verdict, asked of the lift's own plan.
   async function keyedFiles(ownerId: UserId, files: readonly PresetImportFile[]): Promise<readonly KeyedFile[]> {
-    const carrying = files.flatMap(({ regexScripts }) => (regexScripts === undefined ? [] : [regexScripts]));
+    const read = files.map(({ bytes, regexScripts }) => {
+      const decoded = readJson(bytes);
+      const carried = regexScripts === undefined && decoded.ok ? readPresetFileScripts(decoded.value) : undefined;
+      return { decoded, carried, scripts: regexScripts ?? carried?.scripts };
+    });
+    const carrying = read.flatMap(({ scripts }) => (scripts === undefined ? [] : [scripts]));
     const plans = carrying.length === 0 ? [] : await ctx.planPresetScripts({ ownerId, presets: carrying });
     let at = 0;
-    return files.map(({ bytes, regexScripts }): KeyedFile => {
-      if (regexScripts === undefined) {
-        return { bytes, scriptsKey: null };
+    return read.map(({ decoded, carried, scripts }): KeyedFile => {
+      if (scripts === undefined) {
+        return { decoded, scriptsKey: null };
       }
       const plan = plans[at] ?? [];
       at += 1;
-      const attached = regexScripts.filter((_, i) => {
+      const attached = scripts.filter((_, i) => {
         const verdict = plan[i];
         return verdict === undefined || !("refused" in verdict);
       });
-      return { bytes, scriptsKey: scriptsKeyOf(attached.map(regexScriptCardContentKey)) };
+      const scriptsKey = scriptsKeyOf(attached.map(regexScriptCardContentKey));
+      return carried === undefined ? { decoded, scriptsKey } : { decoded, scriptsKey, carried };
     });
+  }
+
+  // A landed file's own scripts, attached to the preset it landed as. A reused preset takes them too: the lift reuses
+  // equal script rows and its attach is idempotent, so a second import of one file writes nothing.
+  async function attachCarried(ownerId: UserId, outcome: PresetImportOutcome, carried: CarriedScripts): Promise<PresetImportOutcome> {
+    if (!outcome.ok || outcome.presetId === undefined || carried.scripts.length + carried.refused.length === 0) {
+      return outcome;
+    }
+    const lifted =
+      carried.scripts.length === 0
+        ? { created: 0, reused: 0, refused: [] }
+        : await ctx.importPresetScripts({ ownerId, presetId: outcome.presetId, scripts: carried.scripts });
+    if (carried.scripts.length > 0) {
+      // The lift writes the regex library and the preset's attachments without an event of its own.
+      ctx.emitUserEvent(ownerId, { type: "regexChanged" });
+    }
+    const refused = [...lifted.refused, ...carried.refused].map(({ name, reason }) => ({ name: clipImportText(name), reason: clipImportText(reason) }));
+    return { ...outcome, regexScripts: { ...lifted, refused } };
   }
 
   async function importPresets(args: Batch & { readonly dryRun: true }): Promise<readonly ImportAnswer[]>;
@@ -172,10 +211,13 @@ export function createImportPresets(input: DbAssemblyInput<PresetContext>): Impo
     const library = libraryOf(await listOwned(ctx.db, ownerId), await ctx.listPresetScriptKeys({ ownerId }));
     const decided = await mapYielding(await keyedFiles(ownerId, files), signal, async (file): Promise<Decision> => {
       const decision = decide(library, file, ctx.newPresetId);
-      if (!dryRun && decision.create !== undefined) {
+      if (dryRun) {
+        return decision;
+      }
+      if (decision.create !== undefined) {
         await write(ownerId, decision.create);
       }
-      return decision;
+      return file.carried === undefined ? decision : { ...decision, outcome: await attachCarried(ownerId, decision.outcome, file.carried) };
     });
     return dryRun ? decided.map(({ answer }) => answer) : decided.map(({ outcome }) => outcome);
   }

@@ -11,6 +11,7 @@ import type {
   ImportPresetScriptsArgs,
   RegexScriptCard,
   regexScriptContentKey,
+  StRegexScriptFields,
 } from "./schemas.ts";
 
 /** The rooms each script reaches, keyed by script id. */
@@ -39,6 +40,10 @@ export type PlanPresetScripts = (args: {
 /** Each of the owner's presets that holds scripts, with each attached script's {@link regexScriptContentKey} in the
  *  preset's run order: what a preset import compares a file's own scripts against. Read-only. */
 export type ListPresetScriptKeys = (args: { readonly ownerId: UserId }) => Promise<ReadonlyMap<PresetId, readonly string[]>>;
+
+/** Each of the owner's presets that holds scripts, with its attached scripts in run order on the card wire, for a
+ *  preset export. Only the owner's own rows are read. */
+export type ExportPresetScripts = (args: { readonly ownerId: UserId }) => Promise<ReadonlyMap<PresetId, readonly (RegexScriptCard & StRegexScriptFields)[]>>;
 
 export type ImportGlobalScripts = (args: ImportGlobalScriptsArgs) => Promise<ImportCardScriptsResult>;
 

@@ -19,8 +19,8 @@ export const presetImportOutcomeSchema = z.discriminatedUnion("ok", [
     presetId: typeIdSchema(ID_PREFIX.preset).exactOptional(),
     name: z.string().exactOptional(),
     renamedFrom: z.string().nullable().exactOptional(),
-    /** The scripts a SillyTavern preset carried, attached to the preset: new library rows, equal ones reused, and
-     *  each one the write door refused. */
+    /** The scripts the preset file carried (a SillyTavern preset's, or an orbweaver preset file's own list), attached
+     *  to the preset: new library rows, equal ones reused, and each one the write door refused. */
     regexScripts: z
       .strictObject({ created: z.int().nonnegative(), reused: z.int().nonnegative(), refused: z.array(refusedScriptSchema).readonly() })
       .exactOptional(),

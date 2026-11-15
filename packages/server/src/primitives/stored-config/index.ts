@@ -34,7 +34,7 @@
 // caller's note sink, which the library zip writes to its export report and a single-item door turns into a refusal
 // naming the row.
 
-import type { PortableExportNotes } from "@orb/contracts/portability";
+import type { PortableExportNote, PortableExportNotes } from "@orb/contracts/portability";
 import type { VersionedParseFailure, VersionedParseOutcome } from "@orb/contracts/versioned-config";
 import { VERSIONED_PARSE_FAILURES } from "@orb/contracts/versioned-config";
 import { DomainOperationError } from "@orb/kit/errors";
@@ -92,7 +92,7 @@ export function exportableStoredConfig<T>(outcome: VersionedParseOutcome<T>): Ex
 
 /** The note sink of a single-item export door, which has nothing else to deliver: the first note refuses, naming the
  *  row. The owner repairs the row in its editor, whose save rewrites the stored blob, or deletes it. */
-export const refuseExportNote: PortableExportNotes = (note) => {
+export const refuseExportNote = (note: PortableExportNote): never => {
   throw unreadableStoredConfig(note.failure, `the ${note.kind} "${note.item}"`, STORED_CONFIG_REFUSALS.export);
 };
 

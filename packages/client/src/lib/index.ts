@@ -154,7 +154,7 @@ export { createRegistryContext } from "./create-registry-context.tsx";
 export { IS_DEV } from "./dev-flag.ts";
 export type { DialogSubmit } from "./dialog-submit.ts";
 export { DIALOG_PENDING_VERBS, DIALOG_VERBS } from "./dialog-verbs.ts";
-export { downloadJson, downloadTextFile, downloadUrl, slugifyFilename } from "./download-json.ts";
+export { downloadJson, downloadTextFile, downloadUrl } from "./download-json.ts";
 export type { EditSession } from "./edit-session.ts";
 export { resolveCommit } from "./edit-session.ts";
 export {

@@ -11,6 +11,7 @@
 import type { PortableFile } from "@orb/contracts/portability";
 import type {
   ExportCardScripts,
+  ExportPresetScripts,
   ExportRegexScript,
   ExportRegexScripts,
   ImportCardScripts,
@@ -24,6 +25,7 @@ import type {
   RegexScriptRefusal,
   RegexScriptRow,
 } from "@orb/contracts/regex";
+import { toRegexScriptCardWire } from "@orb/contracts/regex";
 import { characterRegexScripts, characters, globalRegexScripts, presetRegexScripts, regexScripts } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
@@ -177,6 +179,19 @@ export function createListPresetScriptKeys(input: DbAssemblyInput<Pick<RegexPort
       keys.set(presetId, [...(keys.get(presetId) ?? []), rowKey(toRow(script))]);
     }
     return keys;
+  };
+}
+
+/** The owner's presets' attached scripts on the card wire, in each preset's run order, for a preset export. */
+export function createExportPresetScripts(input: DbAssemblyInput<Pick<RegexPortabilityContext, "db">>): ExportPresetScripts {
+  const db = databaseForOwner(input.db);
+  return async ({ ownerId }) => {
+    const scripts = new Map<PresetId, ReturnType<typeof toRegexScriptCardWire>[]>();
+    for (const { presetId, script } of await listOwnedPresetAttachments(db, ownerId)) {
+      const { updatedAt: _updatedAt, ...card } = toRow(script);
+      scripts.set(presetId, [...(scripts.get(presetId) ?? []), toRegexScriptCardWire(card)]);
+    }
+    return scripts;
   };
 }
 

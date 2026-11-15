@@ -16,7 +16,7 @@ import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import { isPlainObject } from "@orb/kit/guards";
 import { parseJsonText } from "@orb/kit/json";
 import { NEVER_ABORTED, soleResult } from "#primitives/abort";
-import { parseStPresetJson } from "#primitives/serde/preset";
+import { parseStPresetJson, readPresetFileScripts } from "#primitives/serde/preset";
 import type { ImportPresetFileParams } from "../contract/params.ts";
 import type { PresetService } from "../contract/service.ts";
 
@@ -38,6 +38,9 @@ type PresetFileRead =
       readonly regexScripts: readonly RegexScriptCard[];
       /** The scripts the parse refused, by name; the lift's own refusals join them. */
       readonly refusedScripts: readonly RegexScriptRefusal[];
+      /** Whether this door attaches the scripts. An orbweaver file's own are attached by the batch op it lands
+       *  through, as on the backup door. */
+      readonly doorAttaches: boolean;
       readonly addedSections: readonly string[];
     }
   | { readonly ok: false; readonly error: string };
@@ -66,16 +69,17 @@ function readPresetFile({ fileText, fileName }: Pick<ImportPresetFileParams, "fi
     if (!orb.ok) {
       return orb;
     }
-    const file = { bytes: new TextEncoder().encode(fileText) };
+    const carried = readPresetFileScripts(raw);
     return {
       ok: true,
       format: "orbweaver",
-      file,
+      file: { bytes: new TextEncoder().encode(fileText) },
       name: orb.name,
       sectionCount: orb.config.sections.length,
       leftOut: [],
-      regexScripts: [],
-      refusedScripts: [],
+      regexScripts: carried?.scripts ?? [],
+      refusedScripts: carried?.refused ?? [],
+      doorAttaches: false,
       addedSections: [],
     };
   }
@@ -93,6 +97,7 @@ function readPresetFile({ fileText, fileName }: Pick<ImportPresetFileParams, "fi
     leftOut: unmapped.map(({ field, reason }) => ({ field: clipImportText(field), reason })),
     regexScripts,
     refusedScripts,
+    doorAttaches: true,
     addedSections,
   };
 }
@@ -139,7 +144,7 @@ export function createImportFile(deps: {
     }
     const landed = soleResult(await deps.importPresets({ ownerId: params.userId, files: [read.file], dryRun: false, signal: NEVER_ABORTED }));
     const outcome = landed.ok && landed.created === true && read.addedSections.length > 0 ? { ...landed, addedSections: read.addedSections } : landed;
-    if (!outcome.ok || outcome.presetId === undefined || read.regexScripts.length + read.refusedScripts.length === 0) {
+    if (!(read.doorAttaches && outcome.ok) || outcome.presetId === undefined || read.regexScripts.length + read.refusedScripts.length === 0) {
       return outcome;
     }
     // A reused equal preset takes the scripts too: the lift reuses equal script rows and its attach is idempotent,
