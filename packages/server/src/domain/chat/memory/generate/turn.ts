@@ -13,7 +13,6 @@ import { generateSegments } from "./segments.ts";
 export async function buildTurnMemory(ctx: ChatContext, args: BuildTurnMemoryArgs): Promise<void> {
   await generateSegments(ctx, {
     chatId: args.chatId,
-    funderUserId: args.funderUserId,
     config: args.config,
     embedOwnerId: args.runAsUserId,
     signal: args.signal,

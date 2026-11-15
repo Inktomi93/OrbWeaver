@@ -2,6 +2,9 @@
 // counted from canon and the stored digests WITHOUT the planner (it mints group characters and prunes, so it
 // cannot double as a read). It walks the planner's own block grid, witness narrowing and content hashes, so an
 // edited block counts and a block the character never witnessed does not.
+//
+// A room whose host does not consent (departed, or disabled) counts zero and resolves nothing on that host, exactly as
+// the sweep skips it: a host's embed-space resolve can probe their encoder, so it takes `hostConsentOf`'s proof.
 
 import type { ImportWindow } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
@@ -10,7 +13,7 @@ import type { BlockSpan, ResolveBackfillMemoryConfig, ResolvedMemoryConfig } fro
 import { loadParticipants } from "#src/domain/chat/persistence/participants-read.ts";
 import { digestsDerivable } from "#src/domain/chat/substrate/digests-derivable.ts";
 import { classifyParticipant } from "#src/domain/chat/substrate/participant-actor.ts";
-import { hostUserIdOf } from "#src/domain/chat/substrate/participants-host.ts";
+import { hostConsentOf } from "#src/domain/chat/substrate/participants-humans.ts";
 import { resolveCfg } from "../constants.ts";
 import { blockHash, consolidationHash, sliceBlocks } from "../generate/substrate/transcript.ts";
 import { spanWitnessed } from "../generate/substrate/witnessing.ts";
@@ -74,10 +77,11 @@ async function bucketKeys(ctx: ChatContext, chatId: ChatId, characterIds: readon
 
 async function chatCalls(ctx: ChatContext, chatId: ChatId, resolveMemoryConfig: ResolveBackfillMemoryConfig): Promise<number> {
   const participants = await loadParticipants(ctx.db, chatId);
-  const hostUserId = hostUserIdOf(participants);
-  if (hostUserId === null) {
+  const consent = await hostConsentOf(ctx, participants);
+  if (consent.kind !== "consents") {
     return 0;
   }
+  const { hostUserId } = consent;
   const cfg = resolveCfg(await resolveMemoryConfig(hostUserId));
   const cutoff = (await loadChatMeta(ctx.db, chatId)).maxSeq - cfg.verbatimWindow;
   if (cfg.mode === "off" || cutoff < cfg.blockSize) {
