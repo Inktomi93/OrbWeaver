@@ -14,7 +14,15 @@ import { z } from "zod";
 import { settledProviderError } from "../conformance/runtime.fixtures.ts";
 import type { SseEvent } from "../conformance/transport.fixtures.ts";
 import { eventResponse, scriptedResponses } from "../conformance/transport.fixtures.ts";
-import { createRuntimeRoot, ESCAPED_HAZARD_WORDS, generationCapability, observeRuntimeTimers, RUNTIME_KEY, wireConnection } from "./runtime.fixtures.ts";
+import {
+  createRuntimeRoot,
+  ESCAPED_HAZARD_WORDS,
+  generationCapability,
+  NANOGPT_FORBIDDEN_BODIES,
+  observeRuntimeTimers,
+  RUNTIME_KEY,
+  wireConnection,
+} from "./runtime.fixtures.ts";
 
 const HOSTED_ROWS = ["nanogpt", "literouter"] as const;
 type HostedRow = (typeof HOSTED_ROWS)[number];
@@ -376,12 +384,12 @@ const STRIKES: readonly {
     kind: "auth_failed",
     struck: true,
   },
-  // A 403 whose structured code names the key judges it; LiteRouter's words alone never do.
+  // A 403 whose structured code names the key judges it; words alone never do. The key check reads the same bodies.
   {
     name: "a NanoGPT 403 whose code names a wrong key",
     providerId: "nanogpt",
     status: 403,
-    body: { error: { message: "Invalid session", type: "invalid_api_key", code: "invalid_api_key", status: 403 } },
+    body: NANOGPT_FORBIDDEN_BODIES.wrongKey,
     kind: "auth_failed",
     struck: true,
   },
@@ -389,7 +397,7 @@ const STRIKES: readonly {
     name: "a NanoGPT 403 whose code names a missing key",
     providerId: "nanogpt",
     status: 403,
-    body: { error: { message: "Invalid Authentication", type: "invalid_request_error", code: "missing_api_key", status: 403 } },
+    body: NANOGPT_FORBIDDEN_BODIES.missingKey,
     kind: "auth_failed",
     struck: true,
   },
@@ -397,7 +405,15 @@ const STRIKES: readonly {
     name: "a NanoGPT 403 for a model the account cannot use",
     providerId: "nanogpt",
     status: 403,
-    body: { error: { message: "Model vendor/chat-model is not supported", type: "invalid_request_error", code: "model_not_supported" } },
+    body: NANOGPT_FORBIDDEN_BODIES.unsupportedModel,
+    kind: "invalid",
+    struck: false,
+  },
+  {
+    name: "a NanoGPT 403 whose words name the key",
+    providerId: "nanogpt",
+    status: 403,
+    body: NANOGPT_FORBIDDEN_BODIES.keyWordsOnly,
     kind: "invalid",
     struck: false,
   },
@@ -442,6 +458,62 @@ test.for(STRIKES)("$name fails the turn as $kind once, and strikes the key: $str
   expect(settled.error?.kind).toBe(kind);
   expect(recorded).toHaveLength(1);
 });
+
+// The same rule holds on either side of the stream start: an error frame's 403 strikes the key on a NanoGPT or
+// LiteRouter row only when its structured code names the key, and a 401 frame strikes on every row, as before the
+// stream. A row without the 403 rule (OpenRouter) strikes on any 403 frame.
+const FRAME_POSITIONS = [
+  { position: "after streamed text", lead: [chunk({ role: "assistant", content: "Hel" }, null).data] },
+  { position: "before any text", lead: [] },
+] as const;
+const FRAME_VERDICTS = [
+  { providerId: "nanogpt", status: 403, code: "model_not_allowed", kind: "invalid", struck: false },
+  { providerId: "nanogpt", status: 403, code: "invalid_api_key", kind: "auth_failed", struck: true },
+  { providerId: "nanogpt", status: 401, code: "unauthorized", kind: "auth_failed", struck: true },
+  { providerId: "literouter", status: 403, code: "model_not_allowed", kind: "invalid", struck: false },
+  { providerId: "literouter", status: 403, code: "invalid_api_key", kind: "auth_failed", struck: true },
+  { providerId: "literouter", status: 401, code: "unauthorized", kind: "auth_failed", struck: true },
+  { providerId: "openrouter", status: 403, code: "model_not_allowed", kind: "auth_failed", struck: true },
+  { providerId: "openrouter", status: 401, code: "unauthorized", kind: "auth_failed", struck: true },
+] as const satisfies readonly {
+  readonly providerId: string;
+  readonly status: number;
+  readonly code: string;
+  readonly kind: ProviderErrorKind;
+  readonly struck: boolean;
+}[];
+const FRAME_STRIKES = FRAME_POSITIONS.flatMap(({ position, lead }) => FRAME_VERDICTS.map((verdict) => ({ ...verdict, position, lead })));
+
+test.for(FRAME_STRIKES)(
+  "a $providerId $status frame coded $code $position fails the turn as $kind, and strikes the key: $struck",
+  async ({ providerId, status, code, kind, struck, lead }) => {
+    const frames = [...lead, { ...MID_STREAM_ERROR, error: { status, message: "Stopped.", code } }];
+    const reply = (): Response =>
+      new Response(`${frames.map((entry) => `data: ${JSON.stringify(entry)}\n\n`).join("")}data: [DONE]\n\n`, {
+        headers: { "content-type": "text/event-stream" },
+      });
+    const recorded: RecordedRequest[] = [];
+    using server = scriptedResponses([reply], recorded);
+    await using root = await createRuntimeRoot({ providerFetch: server.execute });
+    const connection = await wireConnection(root, { task: "chat", providerId, model: "vendor/chat-model", capability: EFFORT_CAPABILITY });
+    const settled = await settledProviderError(() =>
+      root.app.runtime.executor.runChatTurn({
+        api: "chat-completions",
+        connection,
+        signal: new AbortController().signal,
+        params: {},
+        systemPrompt: { static: "You are a fixture.", dynamic: "" },
+        history: [USER_LINE],
+      }),
+    );
+    const [credential, ...others] = await (await root.internalCallerFor(root.ownerId)).credentials.list();
+    expect(others).toEqual([]);
+    expect(credential?.revokedReason ?? null).toBe(struck ? "auth_failed" : null);
+    expect(settled.error?.kind).toBe(kind);
+    expect(settled.error?.apiErrorStatus).toBe(status);
+    expect(recorded).toHaveLength(1);
+  },
+);
 
 // Each hazard reaches the wire as a `\u` escape, so only the decoded words carry it.
 const HAZARD_BODIES: Record<HostedRow, string> = {

@@ -23,7 +23,7 @@ import type { StructuredPlan } from "#src/contract/structured.ts";
 import type { ResultContext, StreamDrain, WirePlan } from "#src/contract/v4.ts";
 import type { ExplicitCachePlan, OpenRouterRouting } from "#src/contract/wire.ts";
 import { requireStructuredPlan, structuredChatResult } from "#structured";
-import { extractHttpErrorDiagnostic, providerErrorFromHttp, upstreamBody, withSchemaRejection } from "../http/error-classify.ts";
+import { extractHttpErrorDiagnostic, judgesTheKey, providerErrorFromHttp, upstreamBody, withSchemaRejection } from "../http/error-classify.ts";
 import { observeChatResult } from "../http/generation-observation.ts";
 import { turnAbortSignal } from "../http/idle-timeout.ts";
 import { providerLogger } from "../http/provider-log.ts";
@@ -155,11 +155,6 @@ const HTTP_FORBIDDEN = 403;
 
 const refusalBodySchema = z.looseObject({ error: z.union([z.string(), z.looseObject({ message: z.string() })]) });
 
-/** The structured `error.code` values that name the key itself: OpenAI's `invalid_api_key`, which NanoGPT also sends,
- *  and NanoGPT's `missing_api_key`. A body that carries only prose names nothing. */
-const CREDENTIAL_ERROR_CODES = ["invalid_api_key", "missing_api_key"] as const;
-const credentialVerdictBodySchema = z.looseObject({ error: z.looseObject({ code: z.enum(CREDENTIAL_ERROR_CODES) }) });
-
 /** The service's own words from a refusal body: `error` as a string, or its `message`. Shown, never read. They are
  *  pulled from the PARSED body, so the scrub and the sanitizer run on the decoded words a reader sees. */
 function refusalWords(body: unknown, secrets: ProviderScrubSet): string | undefined {
@@ -173,7 +168,7 @@ function refusalWords(body: unknown, secrets: ProviderScrubSet): string | undefi
 
 /** On a row whose 403 is no credential verdict, a 403 is a refusal in the service's own words: never `auth_failed`,
  *  which strikes the stored key, and never retried, since the same request meets the same plan, model or cooldown.
- *  A 403 whose structured code names the key ({@link CREDENTIAL_ERROR_CODES}) still judges it. */
+ *  A 403 whose structured code names the key still judges it: {@link judgesTheKey}, the rule the key check reads. */
 function forbiddenAsRefusal(args: {
   readonly error: unknown;
   readonly classified: ProviderError;
@@ -182,14 +177,10 @@ function forbiddenAsRefusal(args: {
   readonly forbiddenIsNotCredentialVerdict: boolean;
 }): ProviderError {
   const { classified } = args;
-  if (!args.forbiddenIsNotCredentialVerdict || classified.kind !== "auth_failed" || classified.apiErrorStatus !== HTTP_FORBIDDEN) {
+  if (classified.kind !== "auth_failed" || judgesTheKey(classified, args.forbiddenIsNotCredentialVerdict)) {
     return classified;
   }
-  const body = upstreamBody(args.error);
-  if (credentialVerdictBodySchema.safeParse(body).success) {
-    return classified;
-  }
-  const words = refusalWords(body, args.secrets);
+  const words = refusalWords(upstreamBody(args.error), args.secrets);
   return new ProviderError({
     kind: "invalid",
     retryable: false,
@@ -757,9 +748,12 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
     label,
   );
   warnings.push(...structured.downgrades);
+  const forbiddenIsNotCredentialVerdict = connection.features.forbiddenIsNotCredentialVerdict === true;
   const classify = (err: unknown): ProviderError => {
+    // SECURITY: an error the stream drain already typed (an error frame's status) meets the same 403 rule as one from
+    // before the stream, or a frame that only refuses the request would strike the stored key.
     if (err instanceof ProviderError) {
-      return err;
+      return forbiddenAsRefusal({ error: err, classified: err, label, secrets, forbiddenIsNotCredentialVerdict });
     }
     const classified = withSchemaRejection(providerErrorFromHttp(err, label, secrets, deps.now), err, {
       log,
@@ -776,16 +770,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
         cause: classified,
       });
     }
-    return (
-      templateRoleRefusal(err, label, classified) ??
-      forbiddenAsRefusal({
-        error: err,
-        classified,
-        label,
-        secrets,
-        forbiddenIsNotCredentialVerdict: connection.features.forbiddenIsNotCredentialVerdict === true,
-      })
-    );
+    return templateRoleRefusal(err, label, classified) ?? forbiddenAsRefusal({ error: err, classified, label, secrets, forbiddenIsNotCredentialVerdict });
   };
   const retryOpts = {
     scheduleTimeout: deps.scheduleTimeout,

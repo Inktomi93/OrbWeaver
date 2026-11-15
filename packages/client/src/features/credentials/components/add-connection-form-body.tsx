@@ -22,6 +22,7 @@ import {
   acceptsKey,
   CONNECTION_FORM_COPY,
   draftModelReason,
+  KEY_REFUSED_SAVE_REASON,
   keyStorageBlocks,
   listingKeyFor,
   listsInDialog,
@@ -203,7 +204,13 @@ export function AddConnectionFormBody({
     }
     setSubmitFailure(null);
     // Read before the mint: the mint clears the key, which is half of the endpoint listing's draft key.
-    const modelCheck = modelCheckOf(modelSourceFor(provider, values), values.model);
+    const source = modelSourceFor(provider, values);
+    // A key the provider refused is neither minted nor saved under a connection: its first turn would fail. Nothing
+    // cites a deliberate save on a refused key, so the dialog asks for a new one instead.
+    if (source.status === "failed" && source.keyRefused === true) {
+      throw new Error(KEY_REFUSED_SAVE_REASON);
+    }
+    const modelCheck = modelCheckOf(source, values.model);
     const credential = await credentialFor(provider, values);
     let created: ConnectionView;
     try {

@@ -7,6 +7,8 @@
 import type { ModelCatalogEntry, ModelListing } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import type { ProviderScrubSet } from "#contract";
+import { ProviderError } from "#contract";
+import { judgesTheKey } from "../http/error-classify.ts";
 import { sanitizeApiError } from "../http/sanitize.ts";
 import { redactSecretsFromText } from "./openai-body.ts";
 
@@ -49,6 +51,9 @@ export function scrubbedReason(err: unknown, secrets: ProviderScrubSet): string 
   return sanitizeApiError(redactSecretsFromText(errorMessage(err), secrets));
 }
 
-export function failedListing(err: unknown, secrets: ProviderScrubSet): ModelListing {
-  return { listed: false, reason: scrubbedReason(err, secrets) };
+/** A failed dial as a listing. A refusal that judges the key ({@link judgesTheKey}, under the row's
+ *  `forbiddenIsNotCredentialVerdict`) says so, so the pane states it and offers no retry under the same key. */
+export function failedListing(err: unknown, secrets: ProviderScrubSet, forbiddenIsNotCredentialVerdict = false): ModelListing {
+  const keyRefused = err instanceof ProviderError && judgesTheKey(err, forbiddenIsNotCredentialVerdict);
+  return { listed: false, reason: scrubbedReason(err, secrets), ...(keyRefused ? { keyRefused } : {}) };
 }

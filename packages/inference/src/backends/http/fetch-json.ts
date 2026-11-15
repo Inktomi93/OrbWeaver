@@ -22,11 +22,12 @@
 //     collapse, hard cap), each of which can bite a known literal in half, so the by-value belt reads
 //     INTACT text and the cap applies to already-scrubbed bytes.
 
+import { parseJsonText } from "@orb/kit/json";
 import type { ProviderScrubSet } from "#contract";
 import { ProviderError } from "#contract";
 import type { FetchJsonArgs, FetchJsonResult } from "#src/contract/http.ts";
 import { redactSecretsFromText, secretScrubOverhang } from "../wire/openai-body.ts";
-import { classifyHttpStatus } from "./error-classify.ts";
+import { classifyHttpStatus, credentialDetail } from "./error-classify.ts";
 import { decodedJsonText, sanitizeApiError } from "./sanitize.ts";
 
 /** How long a server may take to answer a read that loads nothing (its identity, its model list, its sleep state)
@@ -76,9 +77,10 @@ async function readCapped(res: Response, limit: number): Promise<string> {
 /** The reflected upstream error body, made safe for a `ProviderError.message`: over-read → decode a JSON body's
  *  escapes → by-value scrub → slice to the read bound → sanitize (which applies the 500-char cap every provider
  *  message obeys). The order is the laws in this file's header and `sanitize.ts`'s; do not reorder. */
-async function safeErrorBody(res: Response, secrets: ProviderScrubSet): Promise<string> {
+async function safeErrorBody(res: Response, secrets: ProviderScrubSet): Promise<{ readonly text: string; readonly body: unknown }> {
   const raw = await readCapped(res, ERROR_BODY_LIMIT + secretScrubOverhang(secrets));
-  return sanitizeApiError(redactSecretsFromText(decodedJsonText(raw), secrets).slice(0, ERROR_BODY_LIMIT));
+  // `body` is data a classifier reads a structured code from, never shown; `text` is the shown copy.
+  return { text: sanitizeApiError(redactSecretsFromText(decodedJsonText(raw), secrets).slice(0, ERROR_BODY_LIMIT)), body: parseJsonText(raw) };
 }
 
 /** HOST-PIN (#25): a 3xx, or the opaque redirect `redirect: "manual"` yields, is never followed. */
@@ -136,13 +138,14 @@ export async function fetchJson(args: FetchJsonArgs): Promise<FetchJsonResult> {
     });
   }
   if (!res.ok) {
-    const text = await safeErrorBody(res, args.secrets);
+    const { text, body } = await safeErrorBody(res, args.secrets);
     const classified = classifyHttpStatus(res.status);
     throw new ProviderError({
       kind: classified.kind,
       retryable: classified.retryable,
       message: `${args.label}: HTTP ${res.status}${text.length > 0 ? ` — ${text}` : ""}`,
       apiErrorStatus: res.status,
+      ...credentialDetail(classified.kind, body),
     });
   }
   const text = await res.text();
@@ -172,6 +175,25 @@ export function openAiPath(baseUrl: string, path: string): string {
  *  native API (Ollama's `/api/*`) lives. */
 export function serverRootOf(baseUrl: string): string {
   return baseUrl.replace(TRAILING_SLASH_RE, "").replace(V1_SUFFIX_RE, "");
+}
+
+/**
+ * `url`, a request built from `baseUrl` and a row's declared path, once it is checked to stay on the base URL's origin.
+ *
+ * @remarks SECURITY: a declared path rides the row's key, and joining strings lets a path extend the host
+ * (`http://box.local` + `.evil.example/collect`). The features parse admits only a plain path; this check holds for a
+ * stored or folded row that parse never saw. A refused URL sends nothing and fails the task as `invalid`.
+ */
+export function onBaseOrigin(baseUrl: string, url: string, label: string): string {
+  const origin = URL.parse(baseUrl)?.origin;
+  if (origin === undefined || URL.parse(url)?.origin !== origin) {
+    throw new ProviderError({
+      kind: "invalid",
+      retryable: false,
+      message: `${label}: the row's declared path leaves the base URL's host, so nothing was sent`,
+    });
+  }
+  return url;
 }
 
 export type { FetchJsonArgs, FetchJsonResult } from "#src/contract/http.ts";

@@ -20,6 +20,15 @@ const ESC = String.fromCodePoint(0x1b);
 const RIGHT_TO_LEFT_OVERRIDE = String.fromCodePoint(0x20_2e);
 const MARKUP = "<img src=x onerror=alert(1)>";
 
+/** NanoGPT 403 bodies in its live shapes. A structured `error.code` that names the key judges it; a model the account
+ *  cannot use, and words alone, judge nothing. The chat turn and the key check read each the same way. */
+export const NANOGPT_FORBIDDEN_BODIES = {
+  wrongKey: { error: { message: "Invalid session", type: "invalid_api_key", code: "invalid_api_key", status: 403 } },
+  missingKey: { error: { message: "Invalid Authentication", type: "invalid_request_error", code: "missing_api_key", status: 403 } },
+  unsupportedModel: { error: { message: "Model vendor/chat-model is not supported", type: "invalid_request_error", code: "model_not_supported" } },
+  keyWordsOnly: { error: "Invalid API key" },
+} as const;
+
 /** Each UTF-16 unit as a `\uXXXX` escape, the way an encoder that escapes everything writes it in a JSON string. */
 function jsonEscapedUnits(text: string): string {
   return Array.from({ length: text.length }, (_, index) => `\\u${text.charCodeAt(index).toString(16).padStart(4, "0")}`).join("");

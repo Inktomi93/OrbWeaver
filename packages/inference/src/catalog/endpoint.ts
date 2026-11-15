@@ -94,7 +94,8 @@ export async function fetchEndpointModels(args: EndpointFetchArgs): Promise<Endp
 
 // ── hosted lists (NanoGPT, LiteRouter) ───────────────────────────────────────────────────────────────
 // A hosted list states each model's facts as fields beside its id. Every field parses alone, so a value of the wrong
-// shape states nothing and never takes its neighbours with it, and no single row fails the list.
+// shape states nothing and never takes its neighbours with it, and no single row fails the list. The one exception is
+// the field that says whether a row is a chat model: a malformed one drops its row, so it never lists as chat.
 
 /** A stated limit: a positive safe integer, else nothing. */
 const STATED_LIMIT = z.int().positive().nullable().optional().catch(null);
@@ -195,7 +196,16 @@ const nanoGptRowSchema = z.looseObject({
   /** The window shared by input and output; `null` when the service does not know it. */
   context_length: STATED_LIMIT,
   max_output_tokens: STATED_LIMIT,
-  architecture: z.looseObject({ input_modalities: STATED_NAMES, output_modalities: STATED_NAMES }).optional().catch(undefined),
+  // The stated output kind decides chat, so a malformed one fails the row instead of stating nothing; absent stays chat.
+  architecture: z
+    .looseObject({
+      input_modalities: STATED_NAMES,
+      output_modalities: z
+        .array(z.unknown())
+        .transform((values) => values.filter((value): value is string => typeof value === "string"))
+        .optional(),
+    })
+    .nullish(),
   capabilities: z
     .looseObject({
       vision: STATED_FLAG,
@@ -353,7 +363,8 @@ const LITEROUTER_CHAT_TYPE = "chat";
 const literouterRowSchema = z.looseObject({
   id: z.string().min(1),
   display_name: STATED_TEXT,
-  type: STATED_TEXT,
+  // The kind decides chat, so only a stated chat type parses; a missing or malformed one drops the row.
+  type: z.literal(LITEROUTER_CHAT_TYPE),
   variant: STATED_TEXT,
   /** The model's native window, whatever the variant serves. */
   context_window: STATED_LIMIT,
@@ -392,7 +403,7 @@ const REASONING_HIDDEN = "none";
 
 async function fetchLiteRouterModels(args: EndpointFetchArgs): Promise<EndpointModel[]> {
   const rows = await hostedRows(args, { path: "/models", label: "LiteRouter models" }, literouterRowSchema);
-  return rows.filter((row) => (row.type ?? LITEROUTER_CHAT_TYPE) === LITEROUTER_CHAT_TYPE).map(literouterModel);
+  return rows.map(literouterModel);
 }
 
 function literouterWindow(row: LiteRouterRow, native: number | null): number | null {

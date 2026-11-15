@@ -15,6 +15,7 @@ import type { DiagnosticRequestCommon, GenerationCostRequest, ListModelsRequest,
 import { ProviderError } from "#contract";
 import type { DiagnosticsDeps, InspectDeps } from "#src/contract/openai-backend.ts";
 import type { MirrorFetch } from "#src/contract/runtime.ts";
+import { judgesTheKey } from "../http/error-classify.ts";
 import { authHeaders, bodyByteReader, fetchJson, openAiPath } from "../http/fetch-json.ts";
 import { turnAbortSignal } from "../http/idle-timeout.ts";
 import { resolvedScrubSet, sanitizeApiError } from "../http/sanitize.ts";
@@ -22,8 +23,6 @@ import { bareCatalogEntry, failedListing, listingOf } from "../wire/model-listin
 import { redactHeaders, redactSecretsFromText, secretScrubOverhang } from "../wire/openai-body.ts";
 import { languageModelFor } from "./model.ts";
 
-const HTTP_UNAUTHORIZED = 401;
-const HTTP_FORBIDDEN = 403;
 const PING_CONTENT = "ping";
 const PING_MAX_TOKENS = 1;
 const BODY_PREVIEW_LIMIT = 4000;
@@ -123,8 +122,8 @@ function keyCheckPathOf(connection: Resolved): ReadArgs["path"] {
 }
 
 /** Credential health by the cheapest authenticated read the row admits: `/credits` on openrouter, the row's
- *  `keyCheckPath` where its models list answers without a key, `/models` elsewhere. Success → `ok`; a typed HTTP 401,
- *  or a 403 on a row whose 403 judges the key, → `revoked`; a failure of our own request → `unchecked`;
+ *  `keyCheckPath` where its models list answers without a key, `/models` elsewhere. Success → `ok`; an answer that
+ *  judges the key ({@link judgesTheKey}, the rule a chat turn strikes by) → `revoked`; a failure of our own request → `unchecked`;
  *  anything else → `unreachable`, carrying the status when the server answered. Upstream
  *  prose is never classification evidence: a 5xx body may mention another request's invalid API key. */
 export async function probeOpenAiCompat(req: DiagnosticRequestCommon, deps: DiagnosticsDeps): Promise<CredentialHealth> {
@@ -138,7 +137,7 @@ export async function probeOpenAiCompat(req: DiagnosticRequestCommon, deps: Diag
   } catch (err) {
     const reason = sanitizeApiError(redactSecretsFromText(errorMessage(err), resolvedScrubSet(connection)));
     const httpStatus = err instanceof ProviderError ? err.apiErrorStatus : undefined;
-    if (httpStatus === HTTP_UNAUTHORIZED || (httpStatus === HTTP_FORBIDDEN && connection.features.forbiddenIsNotCredentialVerdict !== true)) {
+    if (err instanceof ProviderError && judgesTheKey(err, connection.features.forbiddenIsNotCredentialVerdict === true)) {
       return { status: "revoked", checkedAt, reason };
     }
     if (brokenBeforeTheWire(err)) {
@@ -198,7 +197,7 @@ export async function listOpenAiCompatModels(req: ListModelsRequest, deps: Diagn
     return listingOf(models);
     // the failure becomes `{ listed: false, reason }` through failedListing at diagnostics.ts:171, which the model pane reads; generation stays usable with an explicit model. Ends if callers require a successful catalog.
   } catch (err) {
-    return failedListing(err, secrets);
+    return failedListing(err, secrets, connection.provider.features?.forbiddenIsNotCredentialVerdict === true);
   }
 }
 

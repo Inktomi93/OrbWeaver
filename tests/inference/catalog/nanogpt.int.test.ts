@@ -510,3 +510,21 @@ test("an output cap above its window leaves the cap assumed while the window is 
     maxTokensEstimated: true,
   });
 });
+
+// A stated output kind that is not a list says nothing a reader can trust, so the row leaves the chat list; a row that
+// states no output kind at all stays, as the list's text models do.
+const KIND_LIST = {
+  object: "list",
+  data: [
+    { id: "kind/text", architecture: { ["output_modalities"]: ["text"] } },
+    { id: "kind/unstated" },
+    { id: "kind/string", architecture: { ["output_modalities"]: "image" } },
+    { id: "kind/object", architecture: { ["output_modalities"]: { image: true } } },
+  ],
+};
+
+test("a row whose stated output kind is not a list lists as no chat model", async () => {
+  await using root = await createRuntimeRoot({ providerFetch: nanoGptHost([], KIND_LIST) });
+  const listing = await draftListing(root);
+  expect(listing.listed ? listing.models.map((model) => model.id) : []).toEqual(["kind/text", "kind/unstated"]);
+});

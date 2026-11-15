@@ -1,12 +1,13 @@
 // @subject packages/inference/src/backends/openai-compat/diagnostics.ts
 // The key check reads a route that needs the key. NanoGPT's models list answers without one, so its row names the
-// personalized list; a wrong route fails safe as unreachable. LiteRouter's and NanoGPT's 403 is no verdict on the key.
+// personalized list; a wrong route fails safe as unreachable. LiteRouter's and NanoGPT's 403 is no verdict on the key
+// unless its structured code names the key, the same rule a chat turn strikes by.
 // A declared path never carries the key off the row's origin, and a refusal's reason shows its decoded words, clean.
 import type { CredentialHealth } from "@orb/contracts/credentials";
 import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/composed";
-import { createRuntimeRoot, ESCAPED_HAZARD_WORDS, RUNTIME_KEY, wireConnection } from "../../roles/runtime.fixtures.ts";
+import { createRuntimeRoot, ESCAPED_HAZARD_WORDS, NANOGPT_FORBIDDEN_BODIES, RUNTIME_KEY, wireConnection } from "../../roles/runtime.fixtures.ts";
 
 const NANOGPT_KEY_CHECK_URL = "https://api.nano-gpt.com/api/personalized/v1/models";
 const HTTP_UNAUTHORIZED = 401;
@@ -19,12 +20,12 @@ interface Seen {
 }
 
 /** Answers `keyCheckStatus` on `keyCheckUrl` and an empty list everywhere else, as a list that needs no key does. */
-function host(seen: Seen[], keyCheckUrl: string, keyCheckStatus: number): typeof fetch {
+function host(seen: Seen[], keyCheckUrl: string, keyCheckStatus: number, body: unknown = { error: { message: "refused" } }): typeof fetch {
   return (input, init) => {
     const request = new Request(input, init);
     seen.push({ url: request.url, authorization: request.headers.get("authorization") });
     if (request.url === keyCheckUrl) {
-      return Promise.resolve(Response.json({ error: { message: "refused" } }, { status: keyCheckStatus }));
+      return Promise.resolve(Response.json(body, { status: keyCheckStatus }));
     }
     return Promise.resolve(Response.json({ object: "list", data: [] }));
   };
@@ -58,6 +59,19 @@ const FORBIDDEN_CHECKS = [
 test.for(FORBIDDEN_CHECKS)("a $providerId key check answered 403 reads $status", async ({ providerId, url, status }) => {
   await using root = await createRuntimeRoot({ providerFetch: host([], url, HTTP_FORBIDDEN) });
   expect(await keyCheck(root, providerId)).toMatchObject({ status });
+});
+
+// The bodies the chat turn's strike cases read (`hosted-openai-compat-wire.int.test.ts`): the same code, the same verdict.
+const CODED_FORBIDDEN_CHECKS = [
+  { answer: "a code naming a wrong key", body: NANOGPT_FORBIDDEN_BODIES.wrongKey, status: "revoked" },
+  { answer: "a code naming a missing key", body: NANOGPT_FORBIDDEN_BODIES.missingKey, status: "revoked" },
+  { answer: "a code naming a model the account cannot use", body: NANOGPT_FORBIDDEN_BODIES.unsupportedModel, status: "unreachable" },
+  { answer: "words alone that name the key", body: NANOGPT_FORBIDDEN_BODIES.keyWordsOnly, status: "unreachable" },
+] as const;
+
+test.for(CODED_FORBIDDEN_CHECKS)("a NanoGPT key check answered 403 with $answer reads $status, as a chat turn judges it", async ({ body, status }) => {
+  await using root = await createRuntimeRoot({ providerFetch: host([], NANOGPT_KEY_CHECK_URL, HTTP_FORBIDDEN, body) });
+  expect(await keyCheck(root, "nanogpt")).toMatchObject({ status, ...(status === "unreachable" ? { httpStatus: HTTP_FORBIDDEN } : {}) });
 });
 
 test("a LiteRouter key check answered 401 reads revoked", async () => {
@@ -106,8 +120,8 @@ test.for(OFF_ORIGIN_PATHS)("a key check path with $shape sends nothing past the 
   await using root = await createRuntimeRoot(anyHost(seen));
   const connection = await wireConnection(root, { task: "chat", providerId: "nanogpt", model: "vendor/chat-model" });
   const signal = new AbortController().signal;
-  // The stored schema refuses these paths (`key-check-path.contract.test.ts`). The resolved features are re-spelled
-  // here so the case proves the runtime guard on its own.
+  // The stored schema refuses these paths (`tests/contracts/inference/declared-path.contract.test.ts`). The resolved
+  // features are re-spelled here so the case proves the runtime guard on its own.
   const hostile = await root.app.runtime.diagnostics.probe({ connection: { ...connection, features: { ...connection.features, keyCheckPath: path } }, signal });
   expect(seen).toEqual([]);
   expect(hostile.status).toBe("unchecked");

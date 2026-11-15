@@ -33,6 +33,10 @@ export const FIRST_MODEL_ADD_UTILITY_NAME = "Add a model";
 
 /** The model picker's search box placeholder. */
 export const MODEL_SEARCH_PLACEHOLDER = "Search models…";
+/** The model picker's retry on a list read that failed. */
+export const MODEL_LIST_RETRY_NAME = "Try the list again";
+/** The model picker's label where it has no list to search, and its typed model id field. */
+export const MODEL_FIELD_NAME = "Model";
 
 /** The model picker's capability chips: the row badges and the filter toggles. */
 export const MODEL_VISION_LABEL = "Vision";
@@ -102,6 +106,9 @@ export const KEY_REVOKE_VERB = "Revoke";
 
 /** A saved key's subtitle cause when the user revoked it. */
 export const KEY_REVOKED_BY_YOU = "Revoked by you";
+
+/** A connection row's status badge while its key is revoked; the key's own row in Saved keys carries Replace. */
+export const CONNECTION_KEY_REJECTED_BADGE = "Key rejected: replace it in Saved keys";
 
 /** The row's identity as every one of its actions names it: `OpenRouter "work"`, feeding
  *  `Replace the <provider> "<label>" key` / `Revoke the <provider> "<label>" key` verbatim. ONE spelling —

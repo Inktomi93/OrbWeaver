@@ -13,7 +13,8 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { ModelId } from "@orb/kit/ids";
 import { parseJsonText } from "@orb/kit/json";
 import type { Clock } from "@orb/kit/time";
-import type { ProviderScrubSet } from "#contract";
+import { z } from "zod";
+import type { ProviderErrorKind, ProviderScrubSet } from "#contract";
 import { ProviderError, SCHEMA_REJECTED_DETAIL } from "#contract";
 import type { ErrorClassification, HttpErrorDiagnostic, SchemaRejectionContext } from "#src/contract/http.ts";
 import { redactSecretsFromText } from "../wire/openai-body.ts";
@@ -151,6 +152,36 @@ export function upstreamBody(error: unknown): unknown {
   }
   const body = readBody(error);
   return typeof body === "string" ? parseJsonText(body) : body;
+}
+
+/** The structured `error.code` values that name the key itself: OpenAI's `invalid_api_key`, which NanoGPT also sends,
+ *  and NanoGPT's `missing_api_key`. A body that carries only prose names nothing. */
+const CREDENTIAL_ERROR_CODES = ["invalid_api_key", "missing_api_key"] as const;
+const credentialCodeSchema = z.enum(CREDENTIAL_ERROR_CODES);
+const credentialCodeBodySchema = z.looseObject({ error: z.looseObject({ code: credentialCodeSchema }) });
+
+/** The `detail` an `auth_failed` failure carries when its parsed upstream body names the key by a structured code. */
+export function credentialDetail(kind: ProviderErrorKind, body: unknown): { readonly detail?: string } {
+  if (kind !== "auth_failed") {
+    return {};
+  }
+  const parsed = credentialCodeBodySchema.safeParse(body);
+  return parsed.success ? { detail: parsed.data.error.code } : {};
+}
+
+/**
+ * Whether a failure is a verdict on the stored key: an `auth_failed` 401 always, and a 403 unless the row says its
+ * 403 judges nothing (`features.forbiddenIsNotCredentialVerdict`) and the body named no key code
+ * ({@link credentialDetail}). The ONE rule: a chat turn's strike and the key check both read it.
+ */
+export function judgesTheKey(failure: ProviderError, forbiddenIsNotCredentialVerdict: boolean): boolean {
+  if (failure.kind !== "auth_failed") {
+    return false;
+  }
+  if (failure.apiErrorStatus !== HTTP_FORBIDDEN || !forbiddenIsNotCredentialVerdict) {
+    return true;
+  }
+  return credentialCodeSchema.safeParse(failure.detail).success;
 }
 
 function isModerationBlock(error: unknown): boolean {
@@ -325,6 +356,7 @@ export function providerErrorFromHttp(error: unknown, prefix: string, secrets: P
     retryable,
     message: `${prefix}: ${safe}`,
     ...(status !== undefined ? { apiErrorStatus: status } : {}),
+    ...credentialDetail(kind, upstreamBody(error)),
     ...(resetsAt !== undefined ? { resetsAt } : {}),
     cause,
   });

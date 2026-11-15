@@ -25,7 +25,7 @@ import { z } from "zod";
 import type { GeneratedImage, ReasoningContentPart, ToolCallInput } from "#contract";
 import { ProviderError } from "#contract";
 import type { DrainCallbacks, StreamDrain } from "#src/contract/v4.ts";
-import { classifyHttpStatus } from "../http/error-classify.ts";
+import { classifyHttpStatus, credentialDetail } from "../http/error-classify.ts";
 
 /** An OpenAI-compatible error frame's payload (NanoGPT's Error Handling page: `{status, message, code}`). */
 const HTTP_ERROR_FLOOR = 400;
@@ -217,10 +217,13 @@ function applyControlPart(acc: Accumulator, part: LanguageModelV4StreamPart, cal
     // picks the kind; a payload without one stays a server fault.
     const status = errorPartStatusSchema.safeParse(part.error).data?.status;
     const classified = status === undefined ? { kind: "server" as const, retryable: true } : classifyHttpStatus(status);
+    // The payload is the body's `error` object, so its structured code names the key exactly as a pre-stream body's
+    // does, and the wire's 403 rule judges a frame by the same evidence.
     throw new ProviderError({
       ...classified,
       message: `${callbacks.label}: ${message}`,
       ...(status === undefined ? {} : { apiErrorStatus: status }),
+      ...credentialDetail(classified.kind, { error: part.error }),
       cause: part.error,
     });
   }
