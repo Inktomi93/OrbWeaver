@@ -39,8 +39,22 @@ export type TurnSlot =
       readonly phase: "completed";
       readonly intent: TurnIntent;
       readonly messageId: MessageId | null;
+      readonly handover: GhostHandover | null;
     }
-  | { readonly phase: "aborted"; readonly intent: TurnIntent; readonly reason: TurnAbortReason };
+  | { readonly phase: "aborted"; readonly intent: TurnIntent; readonly reason: TurnAbortReason; readonly handover: GhostHandover | null };
+
+/**
+ * A closed turn's ghost, held until the message list shows the row the turn committed. The turn's terminal closes
+ * the slot at once, but the list learns of the committed row through the query cache's own, later notification;
+ * without the hold, the frames between show neither row. Null when the turn committed nothing, or once the list
+ * showed the row.
+ */
+export interface GhostHandover {
+  readonly committedMessageId: MessageId;
+  readonly speakerCharacterId: CharacterId | null;
+  readonly text: string;
+  readonly reasoning: string;
+}
 
 /** The per-chat memory-recall phase, kept on a separate axis from the turn slot. */
 export type RecallState = { readonly phase: "recalling" } | { readonly phase: "recalled"; readonly count: number };
@@ -64,6 +78,8 @@ export interface ChatStreamApi {
   readonly markStopping: (chatId: ChatId) => "pending" | "streaming" | null;
   readonly recoverAfterStopFailure: (chatId: ChatId, previousPhase: "pending" | "streaming") => void;
   readonly markCommitted: (chatId: ChatId, messageId: MessageId, turnId: ChatTurnId | undefined) => void;
+  /** Drop a closed turn's held ghost once the list shows `messageId`, so a later removal of that row never brings it back. */
+  readonly releaseHandover: (chatId: ChatId, messageId: MessageId) => void;
   readonly setRecallPhase: (chatId: ChatId, phase: MemoryRecallPhase, count: number | null) => void;
   readonly setProviderWait: (chatId: ChatId, turnId: ChatTurnId, phase: ProviderWaitPhase) => void;
   readonly resetRecall: (chatId: ChatId) => void;

@@ -85,6 +85,8 @@ export {
   chatStream,
   isLiveTurnPhase,
   subscribeUserMessageCommitted,
+  useGhostSpeakerCharacterId,
+  useHeldGhost,
   useRecallState,
   useSwipeTargetMessageId,
   useTurnCommittedMessageId,

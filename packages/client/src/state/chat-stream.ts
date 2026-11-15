@@ -4,14 +4,15 @@
 //
 // Write ownership: every action here is bus-only (called only from `applyChatBusEvent`) except
 // `markStopping` + its guarded `recoverAfterStopFailure`, which the composer's Stop button reaches via
-// `data/bus` wrappers for instant feedback and rejected-request recovery (`chatStream` itself may only be
+// `data/bus` wrappers for instant feedback and rejected-request recovery, and `releaseHandover`, which the
+// transcript calls once it shows a closed turn's committed row (`chatStream` itself may only be
 // imported inside data/bus/ — lint rule `orb/chat-stream-writes-in-bus-only`). The slot does not close there — it
 // closes only on the bus's turnAborted (or a race-won turnCompleted).
 
 import type { CharacterId, ChatId, ChatTurnId, MessageId } from "@orb/kit/ids";
 import { omitKey } from "@orb/kit/objects";
 import { perfMark, perfMeasure } from "#lib";
-import type { ChatStreamApi, RecallState, TurnSlot } from "./chat-stream-types.ts";
+import type { ChatStreamApi, GhostHandover, RecallState, TurnSlot } from "./chat-stream-types.ts";
 import { createGatedStore } from "./create-gated-store.ts";
 
 // Mark names are per-chat so concurrent rooms never cross-measure: beginTurn stamps the start, the
@@ -162,6 +163,21 @@ function flushPending(chatId: ChatId): void {
   }
 }
 
+type LiveSlot = Extract<TurnSlot, { readonly phase: "pending" | "streaming" | "stopping" }>;
+
+/** The ghost a closing live slot hands over, or null when the turn committed no row for it to wait on. */
+function handoverOf(slot: LiveSlot): GhostHandover | null {
+  if (slot.committedMessageId === null) {
+    return null;
+  }
+  return {
+    committedMessageId: slot.committedMessageId,
+    speakerCharacterId: slot.speakerCharacterId,
+    text: slot.phase === "pending" ? "" : slot.text,
+    reasoning: slot.phase === "pending" ? "" : slot.reasoning,
+  };
+}
+
 /** The write API — every action but `markStopping` is consumed only by `applyChatBusEvent`. */
 // Fire-and-forget notification, not state anyone reads back — homing it as store state would only
 // invite a stray selector and a fresh render on every send.
@@ -228,7 +244,7 @@ export const chatStream: ChatStreamApi = {
     const slot = slotOf(chatId);
     if (slot.phase === "pending" || slot.phase === "streaming" || slot.phase === "stopping") {
       perfMeasure(turnLatencyMeasure(chatId), turnStartMark(chatId));
-      setSlot(chatId, { phase: "completed", intent: slot.intent, messageId }, "turn/complete");
+      setSlot(chatId, { phase: "completed", intent: slot.intent, messageId, handover: handoverOf(slot) }, "turn/complete");
     }
   },
   abortTurn: (chatId, turnId, reason) => {
@@ -239,7 +255,7 @@ export const chatStream: ChatStreamApi = {
     const slot = slotOf(chatId);
     if (slot.phase === "pending" || slot.phase === "streaming" || slot.phase === "stopping") {
       perfMeasure(turnLatencyMeasure(chatId), turnStartMark(chatId));
-      setSlot(chatId, { phase: "aborted", intent: slot.intent, reason }, "turn/abort");
+      setSlot(chatId, { phase: "aborted", intent: slot.intent, reason, handover: handoverOf(slot) }, "turn/abort");
     }
   },
   notifyUserMessageCommitted: (chatId) => {
@@ -317,6 +333,12 @@ export const chatStream: ChatStreamApi = {
       return; // idempotent — a replayed commit must not re-render every ghost subscriber.
     }
     setSlot(chatId, { ...slot, committedMessageId: messageId }, "turn/committed");
+  },
+  releaseHandover: (chatId, messageId) => {
+    const slot = slotOf(chatId);
+    if ((slot.phase === "completed" || slot.phase === "aborted") && slot.handover?.committedMessageId === messageId) {
+      setSlot(chatId, { ...slot, handover: null }, "turn/handover-released");
+    }
   },
   setProviderWait: (chatId, turnId, phase) => {
     const slot = slotOf(chatId);
@@ -400,6 +422,22 @@ export function useTurnCommittedMessageId(chatId: ChatId | null): MessageId | nu
     const slot = s.turns[chatId] ?? IDLE_TURN;
     return slot.phase === "pending" || slot.phase === "streaming" || slot.phase === "stopping" ? slot.committedMessageId : null;
   });
+}
+
+/** A closed turn's ghost still waiting for its committed row to reach the list (see {@link GhostHandover}); null for a
+ *  live, idle or released slot. Stable until the slot changes, so reading it never re-renders on a delta. */
+export function useHeldGhost(chatId: ChatId | null): GhostHandover | null {
+  return useChatStreamStore((s) => {
+    const slot = chatId === null ? IDLE_TURN : (s.turns[chatId] ?? IDLE_TURN);
+    return slot.phase === "completed" || slot.phase === "aborted" ? slot.handover : null;
+  });
+}
+
+/** The ghost's voiced speaker: the live turn's, or a closed turn's held ghost's (see {@link useHeldGhost}). */
+export function useGhostSpeakerCharacterId(chatId: ChatId | null): CharacterId | null {
+  const live = useTurnSpeakerCharacterId(chatId);
+  const held = useHeldGhost(chatId);
+  return live ?? held?.speakerCharacterId ?? null;
 }
 
 /** True for pending/streaming/stopping — the render side must agree stopping is still live, or the
