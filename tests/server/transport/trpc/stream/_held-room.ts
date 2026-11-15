@@ -246,8 +246,8 @@ export async function openOutsider(room: Room, account: Account): Promise<Outsid
   };
 }
 
-/** The provider's reply bytes: the opening tokens now, the rest when the test releases them. */
-function heldReply(): { readonly release: () => void; readonly fail: () => void; readonly respond: () => Response } {
+/** The provider's reply bytes: the reasoning and the `opening` text tokens now, the rest when the test releases them. */
+function heldReply(opening: readonly string[] = BEFORE_JOIN): { readonly release: () => void; readonly fail: () => void; readonly respond: () => Response } {
   const released = Promise.withResolvers<boolean>();
   const encoder = new TextEncoder();
   const line = (body: string): Uint8Array => encoder.encode(`${body}\n\n`);
@@ -260,7 +260,7 @@ function heldReply(): { readonly release: () => void; readonly fail: () => void;
         new ReadableStream<Uint8Array>({
           async start(controller): Promise<void> {
             controller.enqueue(frame({ ["reasoning_content"]: THOUGHT }));
-            for (const content of BEFORE_JOIN) {
+            for (const content of opening) {
               controller.enqueue(frame({ content }));
             }
             if (!(await released.promise)) {
@@ -289,8 +289,8 @@ export interface Room extends AsyncDisposable {
   readonly hostSeat: Seat;
   /** The reply the next provider request streams. */
   readonly reply: () => Reply;
-  /** Arm a fresh held reply for the next turn. */
-  readonly rearm: () => void;
+  /** Arm a fresh held reply for the next turn; `opening` is the text it streams before it waits. */
+  readonly rearm: (opening?: readonly string[]) => void;
   /** Answer every later provider request at once with this finished text. */
   readonly answerWith: (text: string) => void;
   /** Answer every later provider request at once with these tokens, one stream frame each, ending on `finishReason`. */
@@ -358,8 +358,8 @@ export async function openRoom(): Promise<Room> {
     host,
     hostSeat: { id: host.userId, cookie: hostCookie, [heldChair]: true },
     reply: (): Reply => reply,
-    rearm: (): void => {
-      reply = heldReply();
+    rearm: (opening): void => {
+      reply = heldReply(opening);
     },
     answerWith: (text): void => {
       reply = { ...reply, respond: (): Response => coreProse(text) };

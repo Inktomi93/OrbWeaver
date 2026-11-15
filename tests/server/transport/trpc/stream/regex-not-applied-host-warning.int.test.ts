@@ -1,9 +1,10 @@
 // A host regex script a server pass did not apply is named to the host once per script and cause per turn or edit,
 // live and on replay, and to no member by any delivery path (D53). The event carries the script id, a cause and the
 // pass, never a name or pattern. A turn names at most `REGEX_NOT_APPLIED_NAMED_MAX` and folds the rest into one
-// host-only count. A seated member's own scripts never run on a server leg, so they can raise nothing; a preview read
-// raises nothing.
+// host-only count. A Stop names the reply's scripts only when it keeps the reply. A seated member's own scripts never
+// run on a server leg, so they can raise nothing; a preview read raises nothing.
 // @subject packages/server/src/domain/chat/substrate/regex-notice-episode.ts
+// @subject packages/server/src/domain/chat/engine/pipeline.ts
 // @subject packages/server/src/domain/chat/substrate/member-visibility.ts
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // @subject packages/server/src/domain/chat/verbs/edit.ts
@@ -16,8 +17,9 @@ import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
 import type { RegexScriptId } from "@orb/kit/ids";
 import { SubstituteFindRegex } from "@orb/kit/regex";
 import { expect, test } from "@orb/testkit/node";
+import { readRoomCanon } from "@orb/testkit/node/composed";
 import type { Device, Guest, Room } from "./_held-room.ts";
-import { ended, memberWatching, openDevice, openRoom } from "./_held-room.ts";
+import { ended, memberWatching, openDevice, openRoom, tokenCount } from "./_held-room.ts";
 
 // Exponential on this near miss, so the row deadline stops it.
 const RUNAWAY = "/(a+)+$/";
@@ -42,6 +44,7 @@ type Axes = Pick<CreateRegexScriptInput, "targets" | "passes">;
 // The server legs these cases drive: the saved send, the saved reply, world info and the prompt's history walk.
 const SAVED_SEND: Axes = { targets: ["USER_INPUT"], passes: ["save"] };
 const SAVED_REPLY: Axes = { targets: ["AI_OUTPUT"], passes: ["save"] };
+const SAVED_REASONING: Axes = { targets: ["REASONING"], passes: ["save"] };
 const WORLD_INFO: Axes = { targets: ["WORLD_INFO"], passes: ["prompt"] };
 const PROMPT_HISTORY: Axes = { targets: ["AI_OUTPUT"], passes: ["prompt"] };
 // Every prompt leg at once: the history walk over both message kinds, and each fired world-info entry.
@@ -268,6 +271,87 @@ test("a member's edit whose re-apply skips a host script tells the host alone", 
     expect(liveWarnings(member)).toEqual([]);
     expect(await replayedWarnings(room, guest)).toEqual([]);
   } finally {
+    await member.close();
+  }
+});
+
+/** A member's send whose reply the member stops once `streamed` delta frames stand in the log; answers once both
+ *  devices saw the turn end. */
+async function stoppedSend(room: Room, guest: Guest, devices: readonly Device[], streamed: number): Promise<void> {
+  const running = room.root.services.chat.send({ principal: guest, chatId: room.chatId, content: "A line of mine." });
+  const settled = Promise.allSettled([running]);
+  try {
+    await room.tokensLogged(streamed);
+    await room.root.services.chat.abort({ principal: guest, chatId: room.chatId });
+    await running;
+    for (const device of devices) {
+      await device.waitFor(ended);
+    }
+  } finally {
+    room.reply().release();
+    await settled;
+  }
+}
+
+/** One host script per saved leg a stopped turn can reach: the send, the reply text and its reasoning. */
+async function brokenOnEverySavedLeg(room: Room): Promise<Readonly<Record<"send" | "reply" | "reasoning", RegexScriptId | undefined>>> {
+  const [send] = await globalScripts(room, room.host, SAVED_SEND, [{ name: "send broken", findRegex: UNCLOSED }]);
+  const [reply] = await globalScripts(room, room.host, SAVED_REPLY, [{ name: "reply broken", findRegex: UNCLOSED }]);
+  const [reasoning] = await globalScripts(room, room.host, SAVED_REASONING, [{ name: "reasoning broken", findRegex: UNCLOSED }]);
+  return { send, reply, reasoning };
+}
+
+const notAppliedOf = (warnings: readonly RegexWarningEvent[]): string[] =>
+  named(warnings)
+    .map((warning) => notApplied(warning.scriptId, warning.cause, warning.pass))
+    .toSorted();
+
+test("a Stop that keeps the streamed reply tells the host each saved leg's script once, and no member", { tags: ["slow"] }, async () => {
+  await using room = await openRoom();
+  const ids = await brokenOnEverySavedLeg(room);
+  const host = await hostDevice(room);
+  const { device: member, guest } = await memberWatching(room, "kept-stop-member");
+  try {
+    await stoppedSend(room, guest, [host, member], tokenCount);
+
+    expect((await readRoomCanon(room.root, room.host, room.chatId)).map(({ role }) => role)).toEqual(["user", "assistant"]);
+    // A kept reply takes the reply and reasoning passes: the positive control for the prose-less Stop below.
+    const expected = [
+      notApplied(ids.send, "did_not_compile", "user_input"),
+      notApplied(ids.reply, "did_not_compile", "ai_output"),
+      notApplied(ids.reasoning, "did_not_compile", "reasoning"),
+    ].toSorted();
+    const live = liveWarnings(host);
+    expect(notAppliedOf(live)).toEqual(expected);
+    expect(live).toHaveLength(expected.length);
+    expect(await replayedWarnings(room, room.host)).toEqual(live);
+    expect(liveWarnings(member)).toEqual([]);
+    expect(await replayedWarnings(room, guest)).toEqual([]);
+  } finally {
+    await host.close();
+    await member.close();
+  }
+});
+
+test("a Stop before any reply text keeps no reply and tells the host only the send's script, and no member", { tags: ["slow"] }, async () => {
+  await using room = await openRoom();
+  const ids = await brokenOnEverySavedLeg(room);
+  // Only the reasoning streams before the reply waits, so the Stop finds no text to keep.
+  room.rearm([]);
+  const host = await hostDevice(room);
+  const { device: member, guest } = await memberWatching(room, "proseless-stop-member");
+  try {
+    await stoppedSend(room, guest, [host, member], 1);
+
+    expect((await readRoomCanon(room.root, room.host, room.chatId)).map(({ role }) => role)).toEqual(["user"]);
+    const live = liveWarnings(host);
+    expect(notAppliedOf(live)).toEqual([notApplied(ids.send, "did_not_compile", "user_input")]);
+    expect(live).toHaveLength(1);
+    expect(await replayedWarnings(room, room.host)).toEqual(live);
+    expect(liveWarnings(member)).toEqual([]);
+    expect(await replayedWarnings(room, guest)).toEqual([]);
+  } finally {
+    await host.close();
     await member.close();
   }
 });

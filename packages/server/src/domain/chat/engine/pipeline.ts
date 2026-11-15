@@ -411,10 +411,15 @@ export interface StoppedCallEstimate {
   readonly tokensOut: number;
 }
 
+/** Whether a reply's text holds prose. A stopped turn keeps its reply only then, and only then runs the receive pass on it. */
+export function holdsReplyProse(content: string): boolean {
+  return content.trim().length > 0;
+}
+
 /**
  * A turn stopped by its own signal mid-generation: `result` is what streamed, through the same receive
- * transforms a finished reply takes. `estimate` prices the cut call; it is null when the stop landed between
- * calls. `completedCalls` counts the provider calls that finished, so an observation beyond that count is
+ * transforms a finished reply takes when it {@link holdsReplyProse}, and as streamed otherwise. `estimate`
+ * prices the cut call; it is null when the stop landed between calls. `completedCalls` counts the provider calls that finished, so an observation beyond that count is
  * the cut call's own measured usage.
  */
 export class StoppedTurn extends Error {
@@ -643,6 +648,12 @@ function applyReceiveTransforms(
   }
 
   return { content, reasoning };
+}
+
+// A stopped loop's receive pass: run only over a reply it keeps, so a script it skipped never names a reply never saved.
+function receiveStopped(loop: RecurseLoopTotals, args: RunTurnPipelineArgs, ctx: AssembleContext): { content: string; reasoning: string | null } {
+  const streamed = { content: loop.content, reasoning: loop.reasoning };
+  return holdsReplyProse(loop.content) ? applyReceiveTransforms(streamed, args, ctx) : streamed;
 }
 
 /** Field-wise merge of the two `advanced` escape-hatch blocks — the per-turn override wins per sub-field;
@@ -958,10 +969,9 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
   const terminal = attachTerminalTools(args, attach.request, registryNames);
   const structured = attachResponseFormat(args, terminal.request);
   // RECEIVE, applied once over the depth-cumulative text (prose flows across recursion depths into one variant).
-  // A stopped loop takes the same pass over what it kept, so a kept reply is stored as a finished one would be.
-  const finish = (loop: RecurseLoopTotals): TurnPipelineResult => {
-    const received = applyReceiveTransforms({ content: loop.content, reasoning: loop.reasoning }, args, ctx);
-    return pipelineResult({
+  // A stopped loop takes the same pass over what it kept (`receiveStopped`), so a kept reply is stored as a finished one would be.
+  const settle = (loop: RecurseLoopTotals, received: { content: string; reasoning: string | null }): TurnPipelineResult =>
+    pipelineResult({
       loop,
       received,
       attach,
@@ -979,7 +989,8 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
       imageDropped,
       videoDropped,
     });
-  };
+  const finish = (loop: RecurseLoopTotals): TurnPipelineResult =>
+    settle(loop, applyReceiveTransforms({ content: loop.content, reasoning: loop.reasoning }, args, ctx));
   try {
     return finish(
       await runRecurseLoop({
@@ -1001,7 +1012,7 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
       err.inFlight === null
         ? null
         : { tokensIn: fitted.usedTokens + systemTokens, tokensOut: estimateTokens(err.inFlight.text) + estimateTokens(err.inFlight.reasoning) };
-    throw new StoppedTurn({ result: finish(err.loop), estimate, completedCalls: err.completedCalls }, { cause: err });
+    throw new StoppedTurn({ result: settle(err.loop, receiveStopped(err.loop, args, ctx)), estimate, completedCalls: err.completedCalls }, { cause: err });
   }
 }
 
