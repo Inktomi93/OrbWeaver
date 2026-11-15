@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-15
 priority: P1
 area: chat
+lane: wt/agent-ab44fb1e85a108193
 ---
 
 # A reply a display script styles renders in a 300px column
