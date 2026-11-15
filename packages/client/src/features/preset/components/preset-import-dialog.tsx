@@ -2,17 +2,31 @@
 // file arrives in: an orbweaver preset export or a SillyTavern Chat Completion preset. The dialog parses nothing. On
 // pick it sends the file to `preset.previewFile`, which reads it with the import's own parse and dry-runs the import,
 // and it shows that answer; on confirm the same file goes to `preset.importFile`. So the summary states what the run
-// does, a SillyTavern preset's own regex scripts included, and a bad file's reason is the server's sentence.
+// does (the prompts and how many are on, the samplers and limits, a SillyTavern preset's own regex scripts included),
+// and a bad file's reason is the server's sentence.
 
 import type { PresetFilePreview } from "@orb/contracts/preset";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { Icon, TriangleAlert } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
+import { ScrollArea } from "@orb/ui/scroll-area";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { FormDialog, MutedLine } from "#components";
-import { PRESET_IMPORT_ALREADY_HELD, PRESET_IMPORT_NAME, PRESET_IMPORT_TITLE } from "../lib/preset-names.ts";
+import {
+  PRESET_IMPORT_ALREADY_HELD,
+  PRESET_IMPORT_DESCRIPTION,
+  PRESET_IMPORT_DROPPED_HEADING,
+  PRESET_IMPORT_DROPPED_REGION_NAME,
+  PRESET_IMPORT_NAME,
+  PRESET_IMPORT_NOTHING_DROPPED,
+  PRESET_IMPORT_PICK_ANOTHER,
+  PRESET_IMPORT_TITLE,
+  presetImportCarried,
+  presetImportLead,
+  presetImportScriptsComing,
+} from "../lib/preset-names.ts";
 
 /** The file the import sends, as the user picked it. */
 export interface PresetFileInput {
@@ -41,17 +55,21 @@ export interface PresetImportDialogProps {
 /** The preset import dialog: drop → the server's preview of the import → commit. */
 export function PresetImportDialog({ open, onOpenChange, onPreview, onImport, busy }: PresetImportDialogProps): ReactElement {
   const [picked, setPicked] = useState<{ readonly file: PresetFileInput; readonly preview: ReadyPreview } | null>(null);
+  /** The picked file's name from the moment it is picked, so the zone names it while its preview is still on the way. */
+  const [chosenName, setChosenName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   /** Which file selection owns this dialog — bumped per pick, checked before any write (see `onFile`). */
   const pickToken = useRef(0);
 
   const reset = (): void => {
     setPicked(null);
+    setChosenName(null);
     setError(null);
   };
 
   const onFile = (chosen: File): void => {
     reset();
+    setChosenName(chosen.name);
     // EVERY PICK GETS A TOKEN, AND ONLY THE CURRENT ONE MAY WRITE (#1502). The read and the preview are promises per
     // selection with no cancellation: pick a large file, change your mind and pick a small one, and the two race —
     // LAST TO RESOLVE wins, which is not the same thing as LAST PICKED. The dialog would then summarize (and, on
@@ -99,7 +117,7 @@ export function PresetImportDialog({ open, onOpenChange, onPreview, onImport, bu
       closeButton={true}
       // The outcome, not the mechanism: what a user needs before committing is what happens to their library.
       // An import never edits an owned preset (D290). The summary below repeats no part of this line.
-      description="Pick an orbweaver preset export or a SillyTavern Chat Completion preset (.json). A preset equal to one you have is already in your library; a different one with a name you use is added under a new name."
+      description={PRESET_IMPORT_DESCRIPTION}
       onOpenChange={(next): void => {
         if (!next) {
           reset();
@@ -111,11 +129,12 @@ export function PresetImportDialog({ open, onOpenChange, onPreview, onImport, bu
       title={PRESET_IMPORT_TITLE}
     >
       <Stack gap="block">
-        {/* NO `hint` (side-eye F-10): "orbweaver preset exports and SillyTavern Chat Completion presets"
-            was the dialog description's first clause, printed a second time two lines below it. */}
+        {/* NO `hint` before a pick (side-eye F-10): "orbweaver preset exports and SillyTavern Chat Completion presets"
+            was the dialog description's first clause, printed a second time two lines below it. After a pick the
+            zone names the file, so the person can tell which file the summary below describes. */}
         <FileDropzone
           accept="application/json,.json"
-          subject="a preset .json"
+          {...(chosenName === null ? { subject: "a preset .json" } : { instructions: chosenName, hint: PRESET_IMPORT_PICK_ANOTHER })}
           onFilesSelected={(result): void => {
             const first = result.accepted[0];
             if (first !== undefined) {
@@ -141,40 +160,39 @@ export function PresetImportDialog({ open, onOpenChange, onPreview, onImport, bu
 
 /** The pre-commit summary: the server's preview of what the import does. */
 function ImportSummary({ preview }: { readonly preview: ReadyPreview }): ReactElement {
-  const { format, name, inLibrary, sectionCount, regexScripts } = preview;
+  const { format, name, inLibrary, sectionCount, enabledCount, samplerCount, limitCount, regexScripts } = preview;
   return (
     <Section kicker="Ready to import">
       <Text cap="prose" prose={true} voice="label">
-        {format === "orbweaver"
-          ? `orbweaver preset export: "${name}".`
-          : `SillyTavern preset "${name}": ${sectionCount} section${sectionCount === 1 ? "" : "s"}.`}
+        {presetImportLead(format === "sillyTavern", name, sectionCount, enabledCount)}
       </Text>
+      <MutedLine>{presetImportCarried(samplerCount, limitCount)}</MutedLine>
       {inLibrary ? <MutedLine>{PRESET_IMPORT_ALREADY_HELD}</MutedLine> : null}
-      {regexScripts === 0 ? null : (
-        <MutedLine>
-          {regexScripts === 1
-            ? "1 regex script comes with it and is attached to the preset."
-            : `${regexScripts} regex scripts come with it and are attached to the preset.`}
-        </MutedLine>
-      )}
+      {regexScripts === 0 ? null : <MutedLine>{presetImportScriptsComing(regexScripts)}</MutedLine>}
       {format === "orbweaver" ? null : <LeftOut leftOut={preview.leftOut} />}
     </Section>
   );
 }
 
-/** The SillyTavern fields with no orbweaver home (reported, never silently lost). */
+/** The SillyTavern settings with no equivalent here (reported, never silently lost), under one heading. The list is the
+ *  one part of the summary that grows with the file, so it scrolls in a region of its own that shows its scrollbar: the
+ *  sentences above it are never cut by the dialog's own scroll. */
 function LeftOut({ leftOut }: { readonly leftOut: ReadyPreview["leftOut"] }): ReactElement {
   if (leftOut.length === 0) {
-    return <MutedLine>Everything mapped: nothing was dropped.</MutedLine>;
+    return <MutedLine>{PRESET_IMPORT_NOTHING_DROPPED}</MutedLine>;
   }
   return (
     <Stack gap="field">
-      <Text voice="gloss">These SillyTavern fields have no orbweaver home and were left out:</Text>
-      {leftOut.map((field) => (
-        <Text key={field.field} voice="gloss">
-          <code>{field.field}</code>: {field.reason}
-        </Text>
-      ))}
+      <Text voice="gloss">{PRESET_IMPORT_DROPPED_HEADING}</Text>
+      <ScrollArea maxHeight="scrollSm" viewportProps={{ role: "region", "aria-label": PRESET_IMPORT_DROPPED_REGION_NAME }} wrapContent={true}>
+        <Stack gap="field">
+          {leftOut.map((field) => (
+            <Text key={field.field} voice="gloss">
+              <code>{field.field}</code>: {field.reason}
+            </Text>
+          ))}
+        </Stack>
+      </ScrollArea>
     </Stack>
   );
 }

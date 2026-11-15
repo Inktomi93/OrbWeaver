@@ -19,7 +19,7 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import { Notice } from "#components";
 import { useFocusOnSwap } from "#lib";
-import { PRESET_CHAT_HISTORY_LABEL } from "#src/features/preset/lib/preset-names.ts";
+import { PRESET_AFTER_HISTORY_LABEL, PRESET_BEFORE_HISTORY_LABEL, PRESET_CHAT_HISTORY_LABEL } from "#src/features/preset/lib/preset-names.ts";
 
 export interface PivotBandProps {
   /** This is a DUPLICATE pivot (2nd+ `chat_history`) — render an inert warning band, no zone boundary. */
@@ -45,7 +45,7 @@ export function PivotBand({ duplicate, restoreFocus, onSelect, onDrill }: PivotB
     <Card variant="soft" dashed={true}>
       <Stack gap="tight">
         <Text tone="info" voice="kicker">
-          setup · before the conversation
+          {PRESET_BEFORE_HISTORY_LABEL}
         </Text>
         <Row align="center" gap="row">
           <Icon className="shrink-0" icon={MessagesSquare} size="sm" />
@@ -72,7 +72,7 @@ export function PivotBand({ duplicate, restoreFocus, onSelect, onDrill }: PivotB
           </Button>
         </Row>
         <Text tone="warning" voice="kicker">
-          post · after your last message
+          {PRESET_AFTER_HISTORY_LABEL}
         </Text>
       </Stack>
     </Card>

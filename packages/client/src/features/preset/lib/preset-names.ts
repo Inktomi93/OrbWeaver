@@ -1,16 +1,16 @@
 // The accessible names the preset section drill-in prints. A zero-import leaf, so a spec's node side reads them without
 // loading the component graph.
 
-/** The section delete confirmation's title. */
-export const PRESET_DELETE_SECTION_TITLE = "Delete this section?";
-export const PRESET_BACK_TO_RACK_NAME = "Back to rack";
-export const PRESET_SECTION_ACTIONS_NAME = "Section actions";
+/** The prompt delete confirmation's title. */
+export const PRESET_DELETE_SECTION_TITLE = "Delete this prompt?";
+export const PRESET_BACK_TO_RACK_NAME = "Back to prompts";
+export const PRESET_SECTION_ACTIONS_NAME = "Prompt actions";
 export const PRESET_EDITOR_NAME = "Preset editor";
 export const PRESET_NAME_FIELD_NAME = "Preset name";
 export const PRESET_RENAME_NAME = "Rename preset";
 /** The Params deck's disclosure over the less-used knobs. */
 export const PRESET_ADVANCED_NAME = "Advanced";
-export const PRESET_SECTIONS_NAME = "Preset sections";
+export const PRESET_SECTIONS_NAME = "Preset prompts";
 export const PRESET_IMPORT_TITLE = "Import a preset";
 
 /** The variable editor's question field. */
@@ -51,6 +51,11 @@ export function presetImportScripts(attached: number, created: number): string {
   return `${String(attached)} regex script${attached === 1 ? "" : "s"} attached, ${String(created)} new to your library.`;
 }
 
+/** The result line's count of scripts the write door left out, so "attached" never reads as every script the file held. */
+export function presetImportScriptsRefused(refused: number): string {
+  return `${String(refused)} more ${refused === 1 ? "was" : "were"} left out: too costly to run.`;
+}
+
 /** The editor header's activate command; the list's radiogroup names the same pick differently. */
 export const PRESET_ACTIVATE_NAME = "Activate: use this preset for generation";
 
@@ -76,6 +81,47 @@ export const PRESET_SECTION_NAME_FIELD_NAME = "Name";
 /** The rack toolbar's add-section menu trigger, which also names the menu it opens. */
 export const PRESET_ADD_SECTION_LABEL = "Add";
 
+/** The import dialog's description: the SillyTavern preset a newcomer brings first, then the rule for a preset the library already holds. */
+export const PRESET_IMPORT_DESCRIPTION =
+  "Pick a SillyTavern Chat Completion preset or an orbweaver preset export (.json). A preset equal to one you have is already in your library; a different one with a name you use is added under a new name.";
+
+/** The dropzone's line under a picked file. */
+export const PRESET_IMPORT_PICK_ANOTHER = "Drop or choose another file to replace it.";
+
+/** The summary's lead: what the file is and how many prompts it holds, and how many of them are enabled. */
+export function presetImportLead(fromSillyTavern: boolean, name: string, prompts: number, enabled: number): string {
+  const kind = fromSillyTavern ? "SillyTavern preset" : "orbweaver preset export";
+  return `${kind} “${name}”: ${String(prompts)} prompt${prompts === 1 ? "" : "s"}, ${String(enabled)} enabled.`;
+}
+
+/** The summary's line on the sampler values and the context and output limits the preset lands with. */
+export function presetImportCarried(samplers: number, limits: number): string {
+  if (samplers > 0 && limits > 0) {
+    return "Samplers and limits came across.";
+  }
+  if (samplers > 0) {
+    return "Samplers came across. The file sets no limits.";
+  }
+  return limits > 0 ? "Limits came across. The file sets no samplers." : "The file sets no samplers or limits.";
+}
+
+/** The summary's line on the regex scripts a SillyTavern preset brings, attached to the preset. */
+export function presetImportScriptsComing(count: number): string {
+  return count === 1
+    ? "1 regex script comes with it and is attached to the preset."
+    : `${String(count)} regex scripts come with it and are attached to the preset.`;
+}
+
+/** The summary's list of what has no equivalent here: its heading, its scroll region's name, and the line when nothing is left out. */
+export const PRESET_IMPORT_DROPPED_HEADING = "Settings this app has no equivalent for";
+export const PRESET_IMPORT_DROPPED_REGION_NAME = "Settings left out";
+export const PRESET_IMPORT_NOTHING_DROPPED = "Everything in the file came across.";
+
+/** A landed import's action, and the line it says about whether the preset is in use. */
+export const PRESET_USE_THIS_NAME = "Use this preset";
+export const PRESET_IMPORT_IN_USE = "Every chat uses your active preset, and this one is the active preset.";
+export const PRESET_IMPORT_NOT_IN_USE = "Every chat uses your active preset, and this one is not active yet.";
+
 /** The template drill-in's return to the Actions list. */
 export const PRESET_BACK_TO_ACTIONS_NAME = "Back to actions";
 
@@ -85,8 +131,12 @@ export const PRESET_EDITOR_VIEW_LABELS = {
   prompt: "Prompt",
   actions: "Actions",
   data: "Data",
-  transforms: "Transforms",
+  transforms: "Regex",
 } as const;
+
+/** The two sides of the chat history pivot, as the budget readout and the pivot band name them. */
+export const PRESET_BEFORE_HISTORY_LABEL = "Before chat history";
+export const PRESET_AFTER_HISTORY_LABEL = "After chat history";
 
 /** The section menu's zone jump, from the side of the conversation the section sits on now. */
 export function presetMoveToZoneLabel(inSetup: boolean): string {
@@ -166,7 +216,7 @@ export const PRESET_CAPABILITY_CONNECTION_NAME = "Connection to describe";
 
 /** The section drill-in region, named for the section it edits. */
 export function presetSectionEditorName(section: string): string {
-  return `${section}: section editor`;
+  return `${section}: prompt editor`;
 }
 
 /** The template drill-in region, named for the template it edits. */

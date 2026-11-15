@@ -103,7 +103,7 @@ export function AssemblyRack({
                   the revealed control lost its control height and its side padding. Same posture, one
                   spelling, both skip links. */}
               <Button hiddenAt="focusInFlow" variant="outline" onClick={(): void => afterRackRef.current?.focus()} size="sm" type="button">
-                Skip the section list
+                Skip the prompt list
               </Button>
               {zones.missingPivot ? (
                 <Notice

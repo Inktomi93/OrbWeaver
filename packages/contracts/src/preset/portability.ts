@@ -14,8 +14,15 @@ export const presetImportOutcomeSchema = z.discriminatedUnion("ok", [
     presetId: typeIdSchema(ID_PREFIX.preset).exactOptional(),
     name: z.string().exactOptional(),
     renamedFrom: z.string().nullable().exactOptional(),
-    /** The scripts a SillyTavern preset carried, attached to the preset: new library rows and equal ones reused. */
-    regexScripts: z.strictObject({ created: z.int().nonnegative(), reused: z.int().nonnegative() }).exactOptional(),
+    /** The scripts a SillyTavern preset carried, attached to the preset: new library rows and equal ones reused, and the
+     *  ones the write door left out by name with the reason. */
+    regexScripts: z
+      .strictObject({
+        created: z.int().nonnegative(),
+        reused: z.int().nonnegative(),
+        refused: z.array(z.strictObject({ name: importTextSchema, reason: z.string() })).readonly(),
+      })
+      .exactOptional(),
   }),
   refused.omit({ notes: true }).extend({
     presetId: z.never().exactOptional(),
@@ -30,9 +37,11 @@ export type PresetImportOutcome = z.output<typeof presetImportOutcomeSchema>;
 const PRESET_FILE_FORMATS = ["orbweaver", "sillyTavern"] as const;
 
 /** What importing one preset file does, from the run's own parse and a dry run of its write. `name` is the name the
- *  file asks for, clipped; `inLibrary` says the run reuses an equal preset the owner holds. `leftOut` names each
- *  field with no seat, a refused regex script by its position, and `regexScripts` counts the scripts the run
- *  attaches to the preset. */
+ *  file asks for, clipped; `inLibrary` says the run reuses an equal preset the owner holds. `sectionCount` counts
+ *  the prompts the preset lands with and `enabledCount` those switched on; `samplerCount` and `limitCount` count the
+ *  sampler values and the context and output limits the preset lands with. `leftOut` names each field with no
+ *  seat and says why in plain words, a refused regex script by its position, and `regexScripts` counts the scripts
+ *  the run attaches to the preset. */
 export const presetFilePreviewSchema = z.discriminatedUnion("ok", [
   z.strictObject({
     ok: z.literal(true),
@@ -40,6 +49,9 @@ export const presetFilePreviewSchema = z.discriminatedUnion("ok", [
     name: importTextSchema,
     inLibrary: z.boolean(),
     sectionCount: z.int().nonnegative(),
+    enabledCount: z.int().nonnegative(),
+    samplerCount: z.int().nonnegative(),
+    limitCount: z.int().nonnegative(),
     leftOut: z.array(z.strictObject({ field: importTextSchema, reason: z.string() })).readonly(),
     regexScripts: z.int().nonnegative(),
   }),

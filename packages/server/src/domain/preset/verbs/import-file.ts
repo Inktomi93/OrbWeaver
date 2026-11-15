@@ -9,7 +9,8 @@
 // Neither arm throws for a bad file: a refusal is an outcome carrying its sentence.
 
 import { clipImportText } from "@orb/contracts/import";
-import type { ImportPresets, PresetFilePreview, PresetImportOutcome } from "@orb/contracts/preset";
+import { SAMPLER_KNOBS } from "@orb/contracts/inference";
+import type { ImportPresets, PresetFilePreview, PresetImportOutcome, PromptConfig } from "@orb/contracts/preset";
 import { PRESET_SCHEMA_KIND, parsePresetFile } from "@orb/contracts/preset";
 import type { ImportPresetScripts, RegexScriptCard } from "@orb/contracts/regex";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
@@ -26,16 +27,56 @@ const JSON_EXT = /\.json$/iu;
 const UNNAMED_PRESET = "Imported preset";
 const NOT_JSON = "That file isn't valid JSON, so neither an orbweaver preset export nor a SillyTavern Chat Completion preset could be read from it.";
 
+/** The context and output limits a preset stores beside its samplers. */
+const LIMIT_PARAMS = ["maxContextTokens", "maxOutputTokens"] as const satisfies readonly (keyof PromptConfig["params"])[];
+
+// The serde's unmapped-field reasons are written for the profile folder's report and name this app's internals. This
+// door says the same facts in plain words. A refused regex script's reason already names its script and its limit.
+const NO_EQUIVALENT = "This app has no equivalent.";
+const REFUSED_SCRIPT_FIELD = /^extensions\.regex_scripts\[/u;
+const PLAIN_REASONS: Readonly<Record<string, string>> = {
+  ["group_nudge_prompt"]: "Group nudges are set per chat here, not in a preset.",
+  ["new_group_chat_prompt"]: "There is one start-of-chat line here, taken from the new chat prompt, so a group-only one has no place.",
+  ["new_example_chat_prompt"]: "There is no example-chat line here.",
+  ["bias_preset_selected"]: "There are no saved logit bias presets here.",
+  ["assistant_prefill"]: "Response prefill isn't supported across providers.",
+  ["assistant_impersonation"]: "There is no impersonation prefill here.",
+  ["wrap_in_quotes"]: "There is no quote-wrapping setting here.",
+  ["function_calling"]: "Chat presets don't switch tool calling on.",
+  ["enable_web_search"]: "There is no web-search setting here.",
+};
+
+type LeftOut = Extract<PresetFilePreview, { ok: true }>["leftOut"][number];
+
+function plainLeftOut({ field, reason }: LeftOut): LeftOut {
+  return { field: clipImportText(field), reason: REFUSED_SCRIPT_FIELD.test(field) ? reason : (PLAIN_REASONS[field] ?? NO_EQUIVALENT) };
+}
+
+/** What the preset lands with, counted off the config the import writes. */
+function configCounts(config: PromptConfig): {
+  readonly sectionCount: number;
+  readonly enabledCount: number;
+  readonly samplerCount: number;
+  readonly limitCount: number;
+} {
+  const set = (knob: keyof PromptConfig["params"]): boolean => config.params[knob] !== undefined;
+  return {
+    sectionCount: config.sections.length,
+    enabledCount: config.sections.filter((section) => section.enabled).length,
+    samplerCount: SAMPLER_KNOBS.filter(set).length,
+    limitCount: LIMIT_PARAMS.filter(set).length,
+  };
+}
+
 type PresetFileRead =
-  | {
+  | ({
       readonly ok: true;
       readonly format: Extract<PresetFilePreview, { ok: true }>["format"];
       readonly bytes: Uint8Array;
       readonly name: string;
-      readonly sectionCount: number;
       readonly leftOut: Extract<PresetFilePreview, { ok: true }>["leftOut"];
       readonly regexScripts: readonly RegexScriptCard[];
-    }
+    } & ReturnType<typeof configCounts>)
   | { readonly ok: false; readonly error: string };
 
 // The SillyTavern reader's two refusals read differently: one never claimed the file, the other claimed it and
@@ -63,7 +104,7 @@ function readPresetFile({ fileText, fileName }: Pick<ImportPresetFileParams, "fi
       return orb;
     }
     const bytes = new TextEncoder().encode(fileText);
-    return { ok: true, format: "orbweaver", bytes, name: orb.name, sectionCount: orb.config.sections.length, leftOut: [], regexScripts: [] };
+    return { ok: true, format: "orbweaver", bytes, name: orb.name, ...configCounts(orb.config), leftOut: [], regexScripts: [] };
   }
   const st = parseStPresetJson(raw, { name: stemOf(fileName) });
   if (!st.ok) {
@@ -75,8 +116,8 @@ function readPresetFile({ fileText, fileName }: Pick<ImportPresetFileParams, "fi
     format: "sillyTavern",
     bytes: new TextEncoder().encode(JSON.stringify(file)),
     name,
-    sectionCount: file.config.sections.length,
-    leftOut: unmapped.map(({ field, reason }) => ({ field: clipImportText(field), reason })),
+    ...configCounts(file.config),
+    leftOut: unmapped.map(plainLeftOut),
     regexScripts,
   };
 }
@@ -100,6 +141,9 @@ export function createImportFile(deps: {
       name: clipImportText(read.name),
       inLibrary: answer.reuse === "library",
       sectionCount: read.sectionCount,
+      enabledCount: read.enabledCount,
+      samplerCount: read.samplerCount,
+      limitCount: read.limitCount,
       leftOut: read.leftOut,
       regexScripts: read.regexScripts.length,
     };

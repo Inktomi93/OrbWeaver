@@ -42,6 +42,8 @@ import { trpcErrorCode, viewerTimeZone } from "#lib";
 import { isPlainMarkerSection, sectionKind } from "#src/features/preset/lib/assembly-model.ts";
 import { CARRIER_COST_GLYPH, formatEstimate, spokenEstimate } from "#src/features/preset/lib/format-count.ts";
 import {
+  PRESET_AFTER_HISTORY_LABEL,
+  PRESET_BEFORE_HISTORY_LABEL,
   PRESET_BOUND_COSTS_READ_LABEL,
   PRESET_CHAT_HISTORY_LABEL,
   PRESET_HIDE_PREVIEW_NAME,
@@ -168,9 +170,9 @@ function BoundPricedSections({
  *  readings — never one sentence that describes two of them. */
 function budgetGloss(costs: MaterializedCosts | null): string {
   if (costs !== null) {
-    return "A bar click selects its section. These are the REAL costs in the bound chat. Carriers included; a struck row is switched off and costs nothing.";
+    return "A bar click selects its prompt. These are the REAL costs in the bound chat. Carriers included; a struck row is switched off and costs nothing.";
   }
-  return "A bar click selects its section. A struck row is switched off and costs nothing; carriers read ~, because their cost is the conversation's, not the preset's.";
+  return "A bar click selects its prompt. A struck row is switched off and costs nothing; carriers read ~, because their cost is the conversation's, not the preset's.";
 }
 
 /** The read-independent half — the pivot health and the preview disclosure — in ONE instance across the pricing read, so the
@@ -196,7 +198,7 @@ function PromptReadoutBody({ sections, children }: { readonly sections: readonly
 
       <Section kicker="Pivot">
         {zones.missingPivot ? (
-          <DatumRow label={PRESET_CHAT_HISTORY_LABEL} suffix="add one on the rack" value="missing" />
+          <DatumRow label={PRESET_CHAT_HISTORY_LABEL} suffix="add one from the Add menu" value="missing" />
         ) : (
           <DatumRow
             label={PRESET_CHAT_HISTORY_LABEL}
@@ -259,7 +261,7 @@ function PricedSections({
         <Stack gap="tight">
           <Row align="center" gap="field">
             <Badge tone="info" size="sm">
-              Setup
+              {PRESET_BEFORE_HISTORY_LABEL}
             </Badge>
             <Text voice="gloss">
               {zones.summaries.setup.enabledCount} on · {formatEstimate(zones.summaries.setup.tokenEstimate)}
@@ -267,7 +269,7 @@ function PricedSections({
           </Row>
           <Row align="center" gap="field">
             <Badge tone="warning" size="sm">
-              Post
+              {PRESET_AFTER_HISTORY_LABEL}
             </Badge>
             <Text voice="gloss">
               {zones.summaries.post.enabledCount} on · {formatEstimate(zones.summaries.post.tokenEstimate)}
