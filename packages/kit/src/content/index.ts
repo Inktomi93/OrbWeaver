@@ -1572,12 +1572,18 @@ export function scanGhostContent(content: string): GhostContentSegment[] {
 // text, whose tags are what the scripts turn into panels, and the prose drops its inline tags ({@link stripTags}).
 //
 // A styled region is recognized by its markdown block shape, not by provenance (later scripts' lookbehinds and capture
-// echoes lose provenance, D354). An HTML block is CommonMark's: a raw-text element (`pre`, `script`, `style`,
-// `textarea`) to its close tag, a comment to its end, a block-level tag line or a lone complete tag line to the next
-// blank line. Inline markup in a paragraph streams as the paragraph through the inert allowlist, which drops its
-// attributes and keeps its text; an inline `<style>` or `<script>` element is removed with its content first, because
-// the allowlist would keep that content as prose. A tag still arriving on the last line is held as forming markup, so
-// a half-written tag never prints.
+// echoes lose provenance, D354). An HTML block opens where CommonMark's does: a raw-text element (`pre`, `script`,
+// `style`, `textarea`), a comment, a block-level tag line, or a lone complete tag line. The tag name may be a preset's
+// own (`sola_hud`, `copper:bite`), which CommonMark would print as text. The block is held to the end of the element
+// it opens, blank lines included, because a script that turns the element into a panel, or hides or deletes it,
+// transforms all of it: a region the finished reply hides must never show while it forms. An element whose close has
+// not arrived is held to the end of the text. A block whose opening line closes or opens no element (a close tag, a
+// self-closing or void tag, an element closed on its own line) ends at the next blank line, as CommonMark's does.
+//
+// Inline markup in a paragraph streams as the paragraph through the inert allowlist, which drops its attributes and
+// keeps its text; an inline `<style>` or `<script>` element is removed with its content first, because the allowlist
+// would keep that content as prose. A tag still arriving on the last line is held as forming markup, so a half-written
+// tag never prints.
 //
 // The text arm is not immutable under append the way a closed card is: a paragraph's tail can still change. It needs
 // no such proof, because it only ever carries bytes the inert allowlist renders anyway; the bytes the trust line keeps
@@ -1592,7 +1598,26 @@ const COMMENT_BLOCK_CLOSE = "-->";
 // CommonMark's block-level tag names: a line opening with one starts an HTML block, even inside a paragraph.
 const BLOCK_TAG_LINE_RE =
   /^ {0,3}<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?=[\s/>]|$)/i;
-const TAG_NAME_START_RE = /^ {0,3}<\/?[A-Za-z][A-Za-z0-9-]*/;
+const TAG_NAME_START_RE = /^ {0,3}<\/?[A-Za-z][\w:.-]*/;
+// An opening tag at the start of a line, with its name; `[\w.-]` keeps a prefixed name's part before its `:` apart.
+const OPEN_TAG_LINE_RE = /^ {0,3}<([A-Za-z][\w.-]*)(?::[\w:.-]*)?(?=[\s/>]|$)/;
+// HTML's void elements: their tag opens no element, so nothing closes them.
+const VOID_TAG_NAMES: ReadonlySet<string> = new Set([
+  "area",
+  "base",
+  "br",
+  "col",
+  "embed",
+  "hr",
+  "img",
+  "input",
+  "link",
+  "meta",
+  "param",
+  "source",
+  "track",
+  "wbr",
+]);
 const STYLE_ELEMENT_RE = /<(style|script)\b(?:[^>]*>[\s\S]*?(?:<\/\1\s*>|$)|[^>]*$)/gi;
 
 /** Removes every `<style>` and `<script>` element with its content; an element whose close has not arrived is removed
@@ -1626,9 +1651,11 @@ function tagEnd(line: string): number {
 }
 
 const TAG_START_RE = /<\/?[A-Za-z]/g;
+const TAG_OPENING_TAIL_RE = /<\/?$/;
 
 /** Removes every tag and keeps the text between them: a stream's own markup, shown before the scripts that would
- *  turn it into a panel run. A tag whose `>` has not arrived on the last line is removed to the end; elsewhere the
+ *  turn it into a panel run. A tag whose `>` has not arrived on the last line is removed to the end, and so is a `<`
+ *  or `</` that ends the text; elsewhere the
  *  rest of a line whose `<` never closes is prose and stays. Run {@link stripStyleElements} first, or a style
  *  element's CSS stays as text. */
 export function stripTags(text: string): string {
@@ -1653,7 +1680,8 @@ export function stripTags(text: string): string {
     kept += text.slice(from, lt);
     from = end + 1;
   }
-  return kept + text.slice(from);
+  // A `<` or `</` that ends the text may still become a tag.
+  return (kept + text.slice(from)).replace(TAG_OPENING_TAIL_RE, "");
 }
 
 // A line holding one complete open or close tag and nothing else (CommonMark's last HTML block kind).
@@ -1665,8 +1693,44 @@ function isLoneTagLine(line: string): boolean {
   return end !== -1 && line.slice(end + 1).trim() === "";
 }
 
-// How an HTML block opened by `opener` ends: on the line that holds its close (that line included), or before the next
-// blank line.
+// The element a line's opening tag opens: its `<` and the name a close repeats. None for a void or self-closing tag, or
+// a tag whose `>` is not on its line.
+function elementOpenedBy(opener: string): { readonly lt: number; readonly name: string } | undefined {
+  const open = OPEN_TAG_LINE_RE.exec(opener);
+  const name = open?.[1]?.toLowerCase();
+  if (name === undefined || VOID_TAG_NAMES.has(name)) {
+    return undefined;
+  }
+  const lt = opener.indexOf("<");
+  const end = tagEndFrom(opener, lt);
+  return end === -1 || opener.charAt(end - 1) === "/" ? undefined : { lt, name };
+}
+
+// The offset just past the `>` of the close of the element `name` opened at `lt`, or -1 while it has not arrived. Elements
+// of the same name nest. A prefixed name closes by its part before the `:` (`<copper:bite>` and `</copper>`).
+function elementEnd(content: string, lt: number, name: string): number {
+  const tags = new RegExp(String.raw`<(\/?)${name.replaceAll(".", String.raw`\.`)}(?::[\w:.-]*)?(?=[\s/>])`, "gi");
+  tags.lastIndex = lt;
+  let depth = 0;
+  for (let tag = tags.exec(content); tag !== null; tag = tags.exec(content)) {
+    const end = tagEndFrom(content, tag.index);
+    if (end === -1) {
+      continue;
+    }
+    if (tag[1] === "/") {
+      depth -= 1;
+    } else if (content.charAt(end - 1) !== "/") {
+      depth += 1;
+    }
+    if (depth === 0) {
+      return end + 1;
+    }
+  }
+  return -1;
+}
+
+// How an HTML block opened by `opener` ends when it opens no element held to its close: on the line that holds its
+// close (that line included), or before the next blank line.
 function markupBlockClose(opener: string): { readonly closesOn: (text: string, first: boolean) => boolean; readonly inclusive: boolean } {
   const raw = RAW_TEXT_BLOCK_RE.exec(opener);
   if (raw !== null) {
@@ -1680,12 +1744,34 @@ function markupBlockClose(opener: string): { readonly closesOn: (text: string, f
   return { closesOn: (text) => text.trim() === "", inclusive: false };
 }
 
-// The line index where an HTML block opening at `i` ends (exclusive), or `lines.length` when its end has not arrived.
-function markupBlockEnd(lines: readonly Line[], i: number, opener: string): number {
+// The line index where an HTML block opening at line `i` ends (exclusive), or `lines.length` when its end has not
+// arrived. A block whose element closes on a later line ends on that line; an element not yet closed holds to the end.
+function markupBlockEnd(content: string, lines: readonly Line[], i: number): number {
+  const line = lines[i];
+  if (line === undefined) {
+    return lines.length;
+  }
+  const opener = matchText(line);
+  const element = RAW_TEXT_BLOCK_RE.test(opener) ? undefined : elementOpenedBy(opener);
+  const close = element === undefined ? line.end : elementEnd(content, line.start + element.lt, element.name);
+  if (close === -1) {
+    return lines.length;
+  }
+  return close > line.end ? lineAfter(lines, i, close) : blockEndByLine(lines, i, opener);
+}
+
+// The index just past the line, from `i` on, that holds the offset before `end`.
+function lineAfter(lines: readonly Line[], i: number, end: number): number {
+  const at = lines.findIndex((candidate, index) => index > i && candidate.end >= end);
+  return at === -1 ? lines.length : at + 1;
+}
+
+// Where a block whose end is a line shape ends: its close line, or before the next blank line (`markupBlockClose`).
+function blockEndByLine(lines: readonly Line[], i: number, opener: string): number {
   const { closesOn, inclusive } = markupBlockClose(opener);
   for (let j = i; j < lines.length; j += 1) {
-    const line = lines[j];
-    if (line !== undefined && closesOn(matchText(line), j === i)) {
+    const candidate = lines[j];
+    if (candidate !== undefined && closesOn(matchText(candidate), j === i)) {
       return inclusive ? j + 1 : j;
     }
   }
@@ -1735,7 +1821,7 @@ export function scanStyledHold(content: string): StyledHoldSegment[] {
     if (segments.at(-1)?.kind !== "forming-markup") {
       segments.push({ kind: "forming-markup" });
     }
-    i = markupBlockEnd(lines, i, text);
+    i = markupBlockEnd(content, lines, i);
     pendingStart = lines[i]?.start ?? content.length;
     inParagraph = false;
   }

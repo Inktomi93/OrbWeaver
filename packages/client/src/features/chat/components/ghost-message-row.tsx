@@ -72,7 +72,7 @@ interface GhostSegmentOptions {
   readonly streaming: boolean;
   readonly colorQuotes: boolean;
   readonly cardTier: CardTrust;
-  /** The viewer's display scripts draw markup, so this reply may settle styled (D354). */
+  /** A display script in force may reshape this reply's markup once it settles, so the stream holds it (D354). */
   readonly holdsMarkup: boolean;
 }
 

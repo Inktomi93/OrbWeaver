@@ -9,8 +9,9 @@
 // `held`: its prose, with every HTML block a forming chip that carries none of the template's bytes. When the frame
 // cannot come (no room, a refused mint, a handle lost twice), it shows the inert `fallback`. The srcdoc floor is
 // script-dead, so it could neither measure the reply's height nor hand a link to the host, and a reply must not become
-// a clipped box with dead links. The frame takes the held run's last measured height as its first height, so the swap
-// does not jump the transcript before the frame measures itself. The run takes the whole measure in every state
+// a clipped box with dead links. Once routed, the frame loads with no height or paint behind the held run, and replaces
+// it only when its document reports its first height, so the reader never sees an empty frame while it loads, however
+// long that takes. The run takes the whole measure in every state
 // (FILLS_MEASURE): the frame's document cannot size the bubble around it, and a body that hugged its text would make
 // the swap a width jump.
 //
@@ -131,7 +132,6 @@ export function ReplyFrame({ segments, colorQuotes, cardOrigin, speakerName, hel
     lost,
   });
   const unframed = delivery === "held" ? held : fallback;
-  const [fallbackPx, setFallbackPx] = useState<number | undefined>(undefined);
   const [pendingLink, setPendingLink] = useState<string | undefined>(undefined);
   const [waitingLink, setWaitingLink] = useState<string | undefined>(undefined);
   const [cancels, setCancels] = useState(0);
@@ -168,21 +168,6 @@ export function ReplyFrame({ segments, colorQuotes, cardOrigin, speakerName, hel
     };
   }, [waitingLink, pendingLink]);
 
-  // The held or inert run's height, kept while it shows, so the frame that replaces it starts at the same size.
-  useEffect(() => {
-    const element = host.current;
-    if (routed || element === null) {
-      return;
-    }
-    const observer = new ResizeObserver(() => {
-      setFallbackPx(Math.ceil(element.getBoundingClientRect().height));
-    });
-    observer.observe(element);
-    return (): void => {
-      observer.disconnect();
-    };
-  }, [routed]);
-
   return (
     <Stack ref={host} {...FILLS_MEASURE} data-slot="reply-frame" data-delivery={delivery}>
       {mint.state === "routed" && !lost ? (
@@ -199,7 +184,7 @@ export function ReplyFrame({ segments, colorQuotes, cardOrigin, speakerName, hel
               setLost(true);
             }
           }}
-          {...(fallbackPx === undefined ? {} : { heightPx: fallbackPx })}
+          pending={held}
         />
       ) : (
         unframed

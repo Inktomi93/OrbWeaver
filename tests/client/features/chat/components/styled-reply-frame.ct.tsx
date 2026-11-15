@@ -74,6 +74,22 @@ const STREAM_CHUNKS = [
   ' her goblet. "You are late,',
   ' Arthur."',
 ] as const;
+// A director block a display script deletes, with a blank line inside, streamed around its tags and its prose.
+const DIRECTOR_FIND = String.raw`/<director_notes>[\s\S]*?<\/director_notes>/g`;
+// Then a details panel whose body is hidden until opened, with its own style block, streamed the same way.
+const DIRECTOR_SPOILERS = ["Mordred", "gallery", "Seeds", "Spoilers", "lantern"] as const;
+const DIRECTOR_CHUNKS = [
+  "Guinevere sets down her goblet.",
+  "\n\n<director_no",
+  "tes>\nThe twist: Mordred",
+  " waits in the gallery.\n\nSeeds: the",
+  " gallery door\n</director_notes>",
+  "\n\n<details><summary>Spoil",
+  "ers</summary>\n<style>.w6p-hid{color:#F4A2",
+  "61}</style>\n\nThe lantern",
+  " is lit.\n</details>",
+  "\n\nShe waits for an answer.",
+] as const;
 const END_GAP_KEY = "w6pWidestEndGap";
 const PINNED_ROOM_COPIES = 3;
 const TALL_PANEL_TAG = "<scene_tall />";
@@ -128,6 +144,8 @@ interface FrameServing {
   readonly missServes?: number;
   /** Every mint is answered only once this settles, so the reply holds its pending state until then. */
   readonly mintsWait?: Promise<void>;
+  /** Every frame document is served only once this settles, so a routed frame cannot draw until then. */
+  readonly servesWait?: Promise<void>;
 }
 
 /** The request headers the root reads, under the viewer's session cookie. */
@@ -143,15 +161,13 @@ function forwardedHeaders(sent: Readonly<Record<string, string>>, cookie: string
 }
 
 /** Answer the card-frame mint and serve from the page with the root's own HTTP entry, under the viewer's session. */
-async function routeCardFrames(page: Page, root: Root, { missServes = 0, mintsWait }: FrameServing): Promise<FrameTraffic> {
+async function routeCardFrames(page: Page, root: Root, { missServes = 0, mintsWait, servesWait }: FrameServing): Promise<FrameTraffic> {
   const { cookie } = await captureCookieAuth(root, await root.principalFor(root.ownerId), VIEWER_PASSWORD);
   const traffic: FrameTraffic = { mints: 0, serves: 0 };
   await page.route(`**${CARD_FRAME_ROUTE}**`, async (route) => {
     const request = route.request();
     const isMint = request.method() === "POST";
-    if (isMint) {
-      await mintsWait;
-    }
+    await (isMint ? mintsWait : servesWait);
     const missed = !isMint && traffic.serves < missServes;
     traffic.mints += isMint ? 1 : 0;
     traffic.serves += isMint ? 0 : 1;
@@ -229,7 +245,7 @@ function sourceIn(text: string): readonly string[] {
 /** From before mount, check the text of every node `watched` matches on every DOM change: each source marker it ever
  *  showed lands in {@link sourceSeen}'s hits, with the text that showed it, and its longest text is kept as the positive
  *  control that the watch saw the row at all. */
-async function watchForSource(page: Page, watched: string): Promise<void> {
+async function watchForSource(page: Page, watched: string, shown: readonly string[] = SOURCE_MARKERS): Promise<void> {
   await page.addInitScript(
     ({ selector, markers, hitsKey, seenKey, separator }) => {
       if (globalThis.window !== globalThis.top) {
@@ -255,7 +271,7 @@ async function watchForSource(page: Page, watched: string): Promise<void> {
       };
       new MutationObserver(sample).observe(document, { subtree: true, childList: true, characterData: true });
     },
-    { selector: watched, markers: SOURCE_MARKERS, hitsKey: SOURCE_HITS_KEY, seenKey: SOURCE_SEEN_KEY, separator: SOURCE_HIT_SEPARATOR },
+    { selector: watched, markers: shown, hitsKey: SOURCE_HITS_KEY, seenKey: SOURCE_SEEN_KEY, separator: SOURCE_HIT_SEPARATOR },
   );
 }
 
@@ -586,6 +602,40 @@ test("from mount to framed the row shows its prose and a forming panel, never th
   expect(hits).toEqual([]);
 });
 
+/** Press the stream control once per chunk; each chunk paints before the next arrives: two animation frames, so the
+ *  commit and its layout have landed. */
+async function streamEachChunk(page: Page, chunks: readonly string[], afterEach?: (chunk: string) => Promise<void>): Promise<void> {
+  for (const chunk of chunks) {
+    await page.getByRole("button", { name: CHUNK_LABEL, exact: true }).click();
+    await page.evaluate(async () => {
+      for (let frame = 0; frame < 2; frame += 1) {
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+      }
+    });
+    await afterEach?.(chunk);
+  }
+}
+
+test("a routed frame stays hidden behind the held run until its document draws, so no empty frame ever shows", async ({ corpus, mount, page }) => {
+  const room = await openStyledRoom(STYLED_BODY);
+  await using root = room.root;
+  const serves = Promise.withResolvers<void>();
+  await using _routes = await serveRoom(page, root, corpus, { servesWait: serves.promise });
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  const host = page.locator(REPLY_FRAME);
+  const frame = host.locator(SANDBOX);
+  // The mint has routed, so the frame is mounted and loading; its document cannot arrive yet.
+  await expect(frame).toHaveAttribute("data-delivery", "routed");
+  await expect(frame).toBeHidden();
+  await expect(host.locator(FORMING_CHIP)).toBeVisible();
+  await expect(host).toContainText("You are late, Arthur.");
+  serves.resolve();
+  await expect(frame).toHaveAttribute("data-drawn", "");
+  await expect(frame).toBeVisible();
+  await expect(page.frameLocator(`${REPLY_FRAME} ${SANDBOX}`).locator("#w6p-location")).toHaveText("Camelot · Great Hall");
+  await expect(host.locator(FORMING_CHIP)).toHaveCount(0);
+});
+
 test("a styled reply streams its prose and forms its panel, and no markup or CSS source shows at any moment", async ({ corpus, mount, page }) => {
   const room = await openStyledRoom(STYLED_BODY);
   await using root = room.root;
@@ -601,20 +651,43 @@ test("a styled reply streams its prose and forms its panel, and no markup or CSS
   const body = page.locator(`${ghost} [data-slot="ghost-stream-body"]`);
   const scroller = page.locator('[data-slot="message-list-scroll"]');
   const endGap = async (): Promise<number> => await scroller.evaluate((node) => node.scrollHeight - node.scrollTop - node.clientHeight);
-  for (const chunk of STREAM_CHUNKS) {
-    await page.getByRole("button", { name: CHUNK_LABEL, exact: true }).click();
-    // Each chunk paints before the next arrives: two animation frames, so the commit and its layout have landed.
-    await page.evaluate(async () => {
-      for (let frame = 0; frame < 2; frame += 1) {
-        await new Promise((resolve) => requestAnimationFrame(resolve));
-      }
-    });
+  await streamEachChunk(page, STREAM_CHUNKS, async (chunk) => {
     expect(await endGap(), chunk).toBeLessThanOrEqual(SCROLL_END_THRESHOLD_PX);
-  }
+  });
   await expect(body.locator(FORMING_CHIP)).toHaveCount(1);
   await expect(body).toContainText("You are late, Arthur.");
   const { hits, seen } = await sourceSeen(page);
   expect(seen).toContain("You are late, Arthur.");
+  expect(hits).toEqual([]);
+});
+
+test("a block a display script deletes and a details panel with a style block never show while the reply streams, with no styling script", async ({
+  corpus,
+  mount,
+  page,
+}) => {
+  const room = await openStyledRoom(STYLED_BODY);
+  await using root = room.root;
+  const caller = await root.internalCallerFor(root.ownerId);
+  // The deleting script alone: it draws no markup, so nothing would style the reply, yet the block must still hold.
+  for (const script of await caller.regex.listScripts()) {
+    await caller.regex.removeScript({ scriptId: script.id });
+  }
+  await caller.regex.createScript({ input: { name: "Director notes", findRegex: DIRECTOR_FIND, replaceString: "", placement: ["DISPLAY"] } });
+  await using _routes = await serveRoom(page, root, corpus);
+  const ghost = '[data-slot="ghost-message-row"] [data-slot="ghost-stream-body"]';
+  await watchForSource(page, ghost, [...SOURCE_MARKERS, ...DIRECTOR_SPOILERS]);
+  await mount<typeof StyledReplyStreamStory>(STREAM_STORY, {
+    chatId: room.chatId,
+    speakerCharacterId: room.characterId,
+    chunks: DIRECTOR_CHUNKS,
+    chunkLabel: CHUNK_LABEL,
+  });
+  await streamEachChunk(page, DIRECTOR_CHUNKS);
+  // Positive control: the prose on both sides of the block streamed, so the watch read the row as it formed.
+  await expect(page.locator(ghost)).toContainText("Guinevere sets down her goblet.");
+  await expect(page.locator(ghost)).toContainText("She waits for an answer.");
+  const { hits } = await sourceSeen(page);
   expect(hits).toEqual([]);
 });
 
@@ -644,39 +717,58 @@ test("a framed reply's height follows its content down from a taller held state,
   await expect.poll(async () => Math.abs((await framePx()) - closedPx)).toBeLessThanOrEqual(SUBPIXEL_PX);
 });
 
-test("a reader pinned to the end stays pinned while the newest reply's frame lands", async ({ corpus, mount, page }) => {
+test("a reader pinned to the end stays pinned while the newest reply's frame lands, and through a swipe of it", async ({ corpus, mount, page }) => {
   const room = await openPinnedRoom();
   await using root = room.root;
   const mints = Promise.withResolvers<void>();
   await using _routes = await serveRoom(page, root, corpus, { mintsWait: mints.promise });
-  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
-  const host = page.locator(`[data-slot="message-row"][data-message-id="${room.messageId}"] ${REPLY_FRAME}`);
+  await mount<typeof StyledReplyStreamStory>(STREAM_STORY, {
+    chatId: room.chatId,
+    speakerCharacterId: room.characterId,
+    chunks: STREAM_CHUNKS,
+    chunkLabel: CHUNK_LABEL,
+    swipeOf: room.messageId,
+  });
+  const row = `[data-slot="message-row"][data-message-id="${room.messageId}"]`;
+  const host = page.locator(`${row} ${REPLY_FRAME}`);
   await expect(host).toHaveAttribute("data-delivery", "held");
   const scroller = page.locator('[data-slot="message-list-scroll"]');
+  const endGap = async (): Promise<number> => await scroller.evaluate((node) => node.scrollHeight - node.scrollTop - node.clientHeight);
   // Positive control: the transcript scrolls, and the reader starts at its end.
   expect(await scroller.evaluate((node) => node.scrollHeight - node.clientHeight)).toBeGreaterThan(SCROLL_END_THRESHOLD_PX);
-  await expect.poll(async () => await scroller.evaluate((node) => node.scrollHeight - node.scrollTop - node.clientHeight)).toBeLessThanOrEqual(SUBPIXEL_PX);
-  // From here on, every layout in which a row or the list changes size records how far the reader sits from the end, as
+  await expect.poll(endGap).toBeLessThanOrEqual(SUBPIXEL_PX);
+  // From here on, every layout in which the list or a row changes size records how far the reader sits from the end, as
   // it will paint: a resize observer made after the list's own runs after the list's in the same delivery, which comes
-  // after layout and before paint. A frame callback would read the layout before the list had its turn.
+  // after layout and before paint. A frame callback would read the layout before the list had its turn. A row that
+  // mounts later (the swipe's live row) is watched from the moment it mounts.
   await scroller.evaluate((node, key) => {
-    const observer = new ResizeObserver(() => {
+    const record = (): void => {
       const gap = node.scrollHeight - node.scrollTop - node.clientHeight;
       document.documentElement.dataset[key] = String(Math.max(Number(document.documentElement.dataset[key] ?? "0"), gap));
-    });
-    for (const watched of [node, ...node.querySelectorAll('[data-slot="message-list-viewport"], [data-slot="message-list-row"]')]) {
-      observer.observe(watched);
-    }
+    };
+    const sizes = new ResizeObserver(record);
+    const watch = (): void => {
+      for (const watched of [node, ...node.querySelectorAll('[data-slot="message-list-viewport"], [data-slot="message-list-row"]')]) {
+        sizes.observe(watched);
+      }
+    };
+    watch();
+    // Only to watch new rows: a mutation callback runs before layout, so a read there sees no frame that will paint.
+    new MutationObserver(watch).observe(node, { subtree: true, childList: true });
   }, END_GAP_KEY);
+  const widestGap = async (): Promise<number> => await page.evaluate((key) => Number(document.documentElement.dataset[key] ?? "0"), END_GAP_KEY);
   mints.resolve();
   const frame = host.locator(SANDBOX);
   await expect(frame).toHaveAttribute("data-delivery", "routed");
-  const reply = page.frameLocator(`${REPLY_FRAME} ${SANDBOX}`).locator("[data-frame-reply]");
+  const reply = page.frameLocator(`${row} ${REPLY_FRAME} ${SANDBOX}`).locator("[data-frame-reply]");
   await expect
     .poll(async () => Math.abs((await sizeOf(frame)).height - (await reply.evaluate((node) => Math.ceil(node.getBoundingClientRect().bottom)))))
     .toBeLessThanOrEqual(SUBPIXEL_PX);
-  const widestGap = await page.evaluate((key) => Number(document.documentElement.dataset[key] ?? "0"), END_GAP_KEY);
-  expect(widestGap).toBeLessThanOrEqual(SCROLL_END_THRESHOLD_PX);
+  expect(await widestGap(), "while the frame landed").toBeLessThanOrEqual(SCROLL_END_THRESHOLD_PX);
+  // The swipe: its live reply takes the framed row's place, from its first chunk to its last.
+  await streamEachChunk(page, STREAM_CHUNKS);
+  await expect(page.locator('[data-slot="ghost-message-row"]')).toContainText("You are late, Arthur.");
+  expect(await widestGap(), "through the swipe").toBeLessThanOrEqual(SCROLL_END_THRESHOLD_PX);
 });
 
 test("a wide table in a bubble-style framed reply scrolls inside its row with a cue, and the page never scrolls sideways", async ({ corpus, mount, page }) => {

@@ -8,8 +8,9 @@ import {
   readCardFrameLink,
   readCardFrameMissing,
 } from "@orb/kit/card-frame";
-import type { CSSProperties, ReactElement } from "react";
+import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
+import { cn } from "#lib";
 import { cssVar } from "#tokens";
 import { buildSrcDoc } from "./srcdoc.ts";
 
@@ -98,13 +99,59 @@ export type SandboxFrameProps = SandboxFramePropsBase &
          *  is the final height. Not a minimum: the whole point of #91 is that a short card measures BELOW it. */
         readonly heightPx?: number;
         readonly fill?: false;
+        /**
+         * What shows in the routed frame's place until its document reports its first height. Until then the frame
+         * loads with no height, no paint and no focus, so the reader never sees a blank frame while its document
+         * loads and draws. Absent ⇒ the frame shows from its first byte at `heightPx`.
+         */
+        readonly pending?: ReactNode;
       }
     | {
         readonly heightPx?: never;
         /** Fill the parent instead of the fixed `heightPx` — the expanded/lightbox arm (the parent owns height). */
         readonly fill?: boolean;
+        readonly pending?: never;
       }
   );
+
+// The frame's height: none while it is veiled, its measured or given height, or the chart height when it has neither.
+// `fill` = the lightbox arm, where the PARENT owns height and a self-report must not participate.
+function frameStyle(fill: boolean, veiled: boolean, appliedPx: number | undefined): CSSProperties | undefined {
+  if (fill) {
+    return undefined;
+  }
+  if (veiled) {
+    return { height: 0 };
+  }
+  return { height: appliedPx === undefined ? cssVar("height.chart") : `${appliedPx}px` };
+}
+
+// EXACTLY ONE of the two delivery attributes is ever emitted — see the `src` prop doc.
+function frameDelivery(input: {
+  readonly html: string;
+  readonly css: string | undefined;
+  readonly themeTokens: Readonly<Record<string, string>> | undefined;
+  readonly styleTokens: Readonly<Record<string, string>> | undefined;
+  readonly fontFamily: string | undefined;
+  readonly allowExternalMedia: boolean;
+  readonly src: string | undefined;
+}): { readonly srcDoc: string } | { readonly src: string } {
+  if (input.src !== undefined) {
+    return { src: input.src };
+  }
+  return {
+    srcDoc: buildSrcDoc({
+      html: input.html,
+      css: input.css,
+      themeTokens: clampCardFrameThemeTokens(input.themeTokens),
+      styleTokens: clampCardFrameStyleTokens(input.styleTokens),
+      fontFamily: clampCardFrameFontFamily(input.fontFamily),
+      // A whole reply frames only on the routed delivery; the floor serves cards, which bring their own look.
+      rootAttributes: undefined,
+      allowExternalMedia: input.allowExternalMedia,
+    }),
+  };
+}
 
 /**
  * Renders untrusted self-contained HTML/CSS inside a sandboxed iframe. The iframe IS the security
@@ -144,6 +191,7 @@ export function SandboxFrame({
   holds = "card",
   onLink,
   onMissing,
+  pending,
 }: SandboxFrameProps): ReactElement {
   const frameRef = useRef<HTMLIFrameElement>(null);
   // The measurement is stored WITH the delivery it belongs to, so a re-mint (new `src`) is answered during
@@ -239,9 +287,11 @@ export function SandboxFrame({
     };
   }, [deliveryKey, complete]);
 
-  // `fill` = the lightbox arm, where the PARENT owns height and a self-report must not participate.
-  const appliedPx = (measured?.delivery === deliveryKey ? measured.height.px : undefined) ?? heightPx;
-  const style: CSSProperties | undefined = fill ? undefined : { height: appliedPx === undefined ? cssVar("height.chart") : `${appliedPx}px` };
+  const drawnPx = measured?.delivery === deliveryKey ? measured.height.px : undefined;
+  const appliedPx = drawnPx ?? heightPx;
+  // Only the routed document measures itself; the srcdoc floor is script-dead, so it never waits.
+  const veiled = pending !== undefined && src !== undefined && drawnPx === undefined;
+  const style = frameStyle(fill, veiled, appliedPx);
 
   if (!complete) {
     return (
@@ -256,42 +306,33 @@ export function SandboxFrame({
     );
   }
 
-  // EXACTLY ONE of the two delivery attributes is ever emitted — see the `src` prop doc.
-  const delivery =
-    src === undefined
-      ? {
-          srcDoc: buildSrcDoc({
-            html,
-            css,
-            themeTokens: clampCardFrameThemeTokens(themeTokens),
-            styleTokens: clampCardFrameStyleTokens(styleTokens),
-            fontFamily: clampCardFrameFontFamily(fontFamily),
-            // A whole reply frames only on the routed delivery; the floor serves cards, which bring their own look.
-            rootAttributes: undefined,
-            allowExternalMedia,
-          }),
-        }
-      : { src };
+  const delivery = frameDelivery({ html, css, themeTokens, styleTokens, fontFamily, allowExternalMedia, src });
   return (
-    <iframe
-      // A DELIVERY FLIP MUST REMOUNT (measured live 2026-08-15): Chromium does not re-process `src` when
-      // `srcdoc` is removed from an already-committed frame — flipping the floor to the routed arm on ONE
-      // element leaves the frame parked at about:blank forever (an opaque sandboxed blank paints WHITE, so
-      // every routed card rendered as a white void). Keying by delivery mounts a fresh element whose `src`
-      // is present at insertion, which navigates. srcdoc-arm content changes stay in-place diffs (reliable).
-      key={deliveryKey}
-      ref={frameRef}
-      sandbox={CARD_FRAME_SANDBOX[src === undefined ? "meta" : "document"]}
-      {...delivery}
-      title={title === "" ? UNNAMED_FRAME_TITLE : title}
-      loading="lazy"
-      referrerPolicy="no-referrer"
-      className={className ?? FRAME_SURFACE[holds]}
-      style={style}
-      data-slot="sandbox-frame"
-      // Which delivery won — the ONLY externally observable tell that a card got its own policy instead of
-      // the inherited floor (the CSP itself lives on a response header / inside an opaque-origin document).
-      data-delivery={src === undefined ? "srcdoc" : "routed"}
-    />
+    <>
+      {veiled ? pending : null}
+      <iframe
+        // A DELIVERY FLIP MUST REMOUNT (measured live 2026-08-15): Chromium does not re-process `src` when
+        // `srcdoc` is removed from an already-committed frame — flipping the floor to the routed arm on ONE
+        // element leaves the frame parked at about:blank forever (an opaque sandboxed blank paints WHITE, so
+        // every routed card rendered as a white void). Keying by delivery mounts a fresh element whose `src`
+        // is present at insertion, which navigates. srcdoc-arm content changes stay in-place diffs (reliable).
+        key={deliveryKey}
+        ref={frameRef}
+        sandbox={CARD_FRAME_SANDBOX[src === undefined ? "meta" : "document"]}
+        {...delivery}
+        title={title === "" ? UNNAMED_FRAME_TITLE : title}
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        className={cn(className ?? FRAME_SURFACE[holds], veiled && "invisible")}
+        style={style}
+        inert={veiled}
+        aria-hidden={veiled ? true : undefined}
+        data-slot="sandbox-frame"
+        // Which delivery won — the ONLY externally observable tell that a card got its own policy instead of
+        // the inherited floor (the CSP itself lives on a response header / inside an opaque-origin document).
+        data-delivery={src === undefined ? "srcdoc" : "routed"}
+        data-drawn={veiled ? undefined : ""}
+      />
+    </>
   );
 }

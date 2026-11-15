@@ -25,10 +25,10 @@ function templateDrawsMarkup(script: RegexScriptInput): boolean {
   return HTML_TAG_RE.test(script.replaceString.replace(REPLACEMENT_TOKEN_RE, ""));
 }
 
-/** Whether any of these display scripts can style a row: its own template draws markup. A streaming reply under such
- *  scripts may settle styled, so it holds its own HTML blocks until then. */
-export function scriptsDrawMarkup(scripts: readonly RegexScriptInput[]): boolean {
-  return scripts.some(templateDrawsMarkup);
+/** Whether a streaming reply holds its own markup (D354): no display script runs on a stream, and any one in force may
+ *  turn the reply's tagged regions into panels, or hide or delete them, once it settles. */
+export function displayHoldsStreamedMarkup(scripts: readonly RegexScriptInput[]): boolean {
+  return scripts.some((script) => script.enabled);
 }
 
 /** Run the display scripts in order, reporting whether a markup-drawing template replaced anything. */
