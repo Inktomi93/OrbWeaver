@@ -36,7 +36,7 @@
 // the host's own payload. Strip the return; emit the truth.
 
 import type { ClaimChatOp, HostTierRegexAllow, MessageView, ReattributeScope, RoomClaim } from "@orb/contracts/chat";
-import { isReattributableReply, isSeededGreetingRow, macroFreezeRecordSchema, parseVariantMetadata, REGEX_SCRIPT_NOT_APPLIED_CODE } from "@orb/contracts/chat";
+import { isReattributableReply, isSeededGreetingRow, macroFreezeRecordSchema, parseVariantMetadata } from "@orb/contracts/chat";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
 import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
 import type { StatsDelta } from "@orb/contracts/stats";
@@ -651,7 +651,7 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ClaimingVerb<"edit
     await deps.emit({ type: "messageEdited", chatId, messageId, view });
     // Host-only on every delivery path (`stripChatEventForMember`), so a member's own edit tells only the host.
     for (const notice of regexNotices.take()) {
-      await deps.emit({ type: "warning", chatId, code: REGEX_SCRIPT_NOT_APPLIED_CODE, ...notice });
+      await deps.emit({ type: "warning", chatId, ...notice });
     }
     return await projectEditReturn(ctx, view, membership);
   };

@@ -62,7 +62,7 @@
 // and the fork copy (a non-host forker of a deception game must not launder a member→host reasoning leak).
 
 import type { ChatBusEvent, ChatDeltaEvent, DurableChatBusEvent, MemberCardView, MessageView } from "@orb/contracts/chat";
-import { HIDDEN_TAG_BROKEN_CODE, projectViewForMember, REGEX_SCRIPT_NOT_APPLIED_CODE } from "@orb/contracts/chat";
+import { HIDDEN_TAG_BROKEN_CODE, projectViewForMember, REGEX_NOT_APPLIED_OVERFLOW_CODE, REGEX_SCRIPT_NOT_APPLIED_CODE } from "@orb/contracts/chat";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
 import { isHostRole } from "@orb/contracts/identity";
 import type { HiddenSpanStreamScrubber } from "@orb/kit/content";
@@ -220,8 +220,9 @@ export function stripChatEventForMember(event: ChatBusEvent, reasoningHostOnly =
     return null;
   }
   // SECURITY: a host's script list is the host's, and a server leg runs only host-owned scripts, so this warning names
-  // a script no member is entitled to know exists. Withheld on the same one arm for the same three paths.
-  if (event.type === "warning" && event.code === REGEX_SCRIPT_NOT_APPLIED_CODE) {
+  // a script no member is entitled to know exists. Withheld on the same one arm for the same three paths, with the
+  // overflow count that stands for the scripts past the per-turn cap.
+  if (event.type === "warning" && (event.code === REGEX_SCRIPT_NOT_APPLIED_CODE || event.code === REGEX_NOT_APPLIED_OVERFLOW_CODE)) {
     return null;
   }
   if (!isViewCarrying(event)) {

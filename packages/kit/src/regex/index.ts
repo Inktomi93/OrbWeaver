@@ -407,8 +407,9 @@ export interface ExecuteRegexScriptsArgs extends RegexExecuteOptions {
 /** EVERY reason a script sits out this call, in one place and in gate order: switched off · not on this
  *  leg · the two tier masks (`markdownOnly` is display-only, `promptOnly` skips DISPLAY) · out of depth
  *  scope. Extracted from the loop so the gates read as one list rather than five interleaved `continue`s —
- *  they are a single decision, and each new gate would otherwise deepen the executor by one branch. */
-function skipsScript(script: RegexScriptInput, placement: RegexPlacement, depth: number | undefined): boolean {
+ *  they are a single decision, and each new gate would otherwise deepen the executor by one branch. The server's
+ *  watchdog reads it too, so a pass that stops early reports only the scripts that would have run. */
+export function skipsScript(script: RegexScriptInput, placement: RegexPlacement, depth: number | undefined): boolean {
   if (!(script.enabled && script.placement.includes(placement))) {
     return true;
   }

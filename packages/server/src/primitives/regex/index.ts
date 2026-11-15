@@ -22,7 +22,7 @@ import process from "node:process";
 import vm from "node:vm";
 import type { RegexNotAppliedCause } from "@orb/contracts/chat";
 import type { ExecuteRegexScriptsArgs } from "@orb/kit/regex";
-import { executeRegexScripts, REGEX_OUTPUT_TOO_LONG, REGEX_SUBSTITUTION_TOO_LONG } from "@orb/kit/regex";
+import { executeRegexScripts, REGEX_OUTPUT_TOO_LONG, REGEX_SUBSTITUTION_TOO_LONG, skipsScript } from "@orb/kit/regex";
 
 export { FIND_COMPILE_LIMIT_MS, probeFindCompiles } from "./compile-probe.ts";
 
@@ -60,18 +60,19 @@ class RegexPassBudgetSpentError extends Error {
 // Node's code for a `runInContext` stopped at its timeout: the row deadline.
 const VM_TIMEOUT_CODE = "ERR_SCRIPT_EXECUTION_TIMEOUT";
 
-const CAUSE_BY_CODE: Readonly<Record<string, RegexNotAppliedCause>> = {
-  [VM_TIMEOUT_CODE]: "row_deadline",
-  [REGEX_PASS_BUDGET_SPENT]: "pass_budget",
-  [REGEX_SUBSTITUTION_TOO_LONG]: "substitution_too_long",
-  [REGEX_OUTPUT_TOO_LONG]: "output_too_long",
-};
+// A Map, so an error code spelled like an `Object.prototype` key finds nothing rather than an inherited member.
+const CAUSE_BY_CODE: ReadonlyMap<unknown, RegexNotAppliedCause> = new Map([
+  [VM_TIMEOUT_CODE, "row_deadline"],
+  [REGEX_PASS_BUDGET_SPENT, "pass_budget"],
+  [REGEX_SUBSTITUTION_TOO_LONG, "substitution_too_long"],
+  [REGEX_OUTPUT_TOO_LONG, "output_too_long"],
+]);
 
 /** Why a pass did not apply a script, from the error its `onScriptFailure` received. Anything without one of the
  *  pass's own codes is a pattern that would not compile or run. */
 export function regexNotAppliedCause(err: unknown): RegexNotAppliedCause {
   const code = typeof err === "object" && err !== null && "code" in err ? err.code : undefined;
-  return (typeof code === "string" ? CAUSE_BY_CODE[code] : undefined) ?? "did_not_compile";
+  return CAUSE_BY_CODE.get(code) ?? "did_not_compile";
 }
 
 const MICROS_PER_MS = 1000;
@@ -118,9 +119,13 @@ function runScripts(state: EntryState): void {
   }
 }
 
+// Only a script this call would have run was skipped; one off this leg, switched off or out of depth sat out anyway,
+// and reporting it would tell the host a script was not applied on a pass it never runs on.
 function reportBudgetSpent(state: EntryState, budgetMs: number): void {
   for (const skipped of state.args.scripts.slice(state.next)) {
-    state.args.onScriptFailure?.(new RegexPassBudgetSpentError(`regex pass budget of ${budgetMs} ms CPU spent; script not run`), skipped);
+    if (!skipsScript(skipped, state.args.placement, state.args.depth)) {
+      state.args.onScriptFailure?.(new RegexPassBudgetSpentError(`regex pass budget of ${budgetMs} ms CPU spent; script not run`), skipped);
+    }
   }
 }
 

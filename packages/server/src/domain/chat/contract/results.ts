@@ -4,6 +4,7 @@ import type {
   AssemblySectionRow,
   AssemblySource,
   ChatContentPart,
+  ChatRegexNotAppliedOverflowWarning,
   ChatRegexNotAppliedWarning,
   CueRole,
   GroupConfig,
@@ -342,20 +343,22 @@ export interface InlineReplyImageProjection {
   readonly offsets: readonly number[];
 }
 
-/** One host script a pass did not apply, as the host-only `regex_script_not_applied` warning carries it. */
-export type RegexNotice = Omit<ChatRegexNotAppliedWarning, "code">;
+/** A host-only regex warning's payload: one script a pass did not apply, or the count left unnamed past the cap. */
+export type RegexNotice = ChatRegexNotAppliedWarning | ChatRegexNotAppliedOverflowWarning;
 
 /**
  * A turn's (or one edit's) record of the host scripts its passes did not apply (D53). Each script and cause is
  * recorded once for the episode's life, however many rows, entries or speakers report it; the pass is where it was
- * first seen. A turn's round shares one episode across its speakers. A preview build carries none, so it records
- * nothing.
+ * first seen. Only the first `REGEX_NOT_APPLIED_NAMED_MAX` are named; past that the episode keeps a count and builds
+ * nothing per notice. A turn's round shares one episode across its speakers. A preview build carries none, so it
+ * records nothing.
  */
 export interface RegexNoticeEpisode {
   /** Record one `onScriptFailure`. `scripts` is the list the pass was given: the script is named by finding its
    *  stored row in that list by identity, never by its pattern. */
   readonly note: (pass: RegexServerPass, err: unknown, script: RegexScriptInput, scripts: readonly RegexScriptRow[]) => void;
-  /** The notices recorded since the last take, in the order they were first seen. */
+  /** The named notices recorded since the last take, in the order they were first seen, then one overflow notice
+   *  when any went unnamed since the last take. */
   readonly take: () => readonly RegexNotice[];
 }
 
