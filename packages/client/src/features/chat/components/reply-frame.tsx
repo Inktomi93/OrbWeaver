@@ -7,7 +7,8 @@
 //
 // THE FRAME DRAWS ONLY ON THE ROUTED DELIVERY. While the frame document builds and the mint is pending, the run shows
 // `held`: its prose, with every HTML block a forming chip that carries none of the template's bytes. When the frame
-// cannot come (no room, a refused mint, a handle lost twice, or scripts stopped for taking the reader's focus), it
+// cannot come (no room, a refused mint, a handle lost twice, a frame fallen to its floor for taking the reader's focus
+// or for a document that loaded and never reported), it
 // shows the inert `fallback`. The srcdoc floor is script-dead, so it could neither measure the reply's height nor hand
 // a link to the host, and a reply must not become a clipped box with dead links. Once routed, the frame loads with no height or paint behind the held run, and replaces
 // it only when its document reports its first height, so the reader never sees an empty frame while it loads, however
@@ -119,7 +120,7 @@ export function ReplyFrame({ segments, colorQuotes, cardOrigin, speakerName, hel
     routed: mint.state === "routed",
     framedable: cardOrigin !== undefined,
     documentFailed: framed.state === "failed",
-    // A frame given up on (lost twice, or its scripts stopped) reads as the floor too.
+    // A frame given up on (lost twice, or fallen to its floor) reads as the floor too.
     mintRefused: built !== undefined && mint.state === "floor",
   });
   const unframed = delivery === "held" ? held : fallback;
@@ -138,7 +139,7 @@ export function ReplyFrame({ segments, colorQuotes, cardOrigin, speakerName, hel
           }}
           onMissing={frame.onMissing}
           pending={held}
-          onScriptsStopped={frame.giveUp}
+          onFloor={frame.giveUp}
         />
       ) : (
         unframed

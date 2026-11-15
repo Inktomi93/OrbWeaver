@@ -258,6 +258,34 @@ export function stepFromRenderPolicyOverride(override: Pick<RenderPolicyOverride
   return override.trustHtml ? "trusted" : "untrusted";
 }
 
+const RENDER_POLICY_SOURCES = ["own", "inherited", "no-card", "no-host"] as const;
+/** Where a seat's resolved render policy came from, so a surface that names the setting holding a row plain names the
+ *  one that does. `own`: the character's ladder step is set ({@link stepFromRenderPolicyOverride} is not null).
+ *  `inherited`: the character follows the install default. `no-card`: no card is read for the seat (a human seat, or a
+ *  card gone between the roster read and its card read; deleting a card removes its seats), so the install floor
+ *  applies. `no-host`: the room seats no consenting host, so no card applies and the install floor does.
+ *
+ *  @remarks Every member reads it (D210: the visibility tier is default-visible, limited only by the host's options).
+ *  It is not card content under the D22 dial: `no-card` and `no-host` repeat what the seat's removed-character name
+ *  already says, and `own` versus `inherited` is the resolved step (already on the wire) read against the install
+ *  defaults `/api/auth/config` serves every signed-in user. D44 owns the tiers it explains. */
+export type RenderPolicySource = (typeof RENDER_POLICY_SOURCES)[number];
+
+/** A seat's resolved policy and where it came from, produced together so the two can never disagree. */
+export interface SeatRenderPolicy {
+  readonly renderPolicy: RenderPolicy;
+  readonly renderSource: RenderPolicySource;
+}
+
+/** Resolve one seat: from its readable card's override, or from the install floor for the reason no card applies. The
+ *  one producer of {@link SeatRenderPolicy}; it resolves through {@link resolveRenderPolicy}, never beside it. */
+export function resolveSeatRenderPolicy(deployment: DeploymentRenderPolicy, basis: RenderPolicyOverride | "no-card" | "no-host"): SeatRenderPolicy {
+  if (typeof basis === "string") {
+    return { renderPolicy: resolveRenderPolicy(deployment, null), renderSource: basis };
+  }
+  return { renderPolicy: resolveRenderPolicy(deployment, basis), renderSource: stepFromRenderPolicyOverride(basis) === null ? "inherited" : "own" };
+}
+
 /** The roster read-model (one `chat_participants` row, resolved for display). `kind` (∈ PARTICIPANT_KINDS)
  *  drives the identity + column shape per the `chat_participants_kind_shape` CHECK: `human` carries `userId`,
  *  `character` carries `characterId` (the old 2-way XOR was replaced at AP0; the CHECK still carries dormant
@@ -296,6 +324,9 @@ export interface ParticipantView {
    *  partial/legacy payload or a not-yet-migrated test literal fails CLOSED at the client (absent ⇒ the
    *  untrusted + gate-external safe floor), never fails open. */
   renderPolicy?: RenderPolicy;
+  /** Where {@link renderPolicy} came from, resolved with it by {@link resolveSeatRenderPolicy}. Optional for the same
+   *  reason: absent, the client names no cause and offers no control. */
+  renderSource?: RenderPolicySource;
   /** D294, UI-Theming-and-Content §12.1/§12.5 — the RAW per-character theme-token override (`character.themeOverride`, threaded
    *  through unmerged — chat assembly never reads the `themes` table). `null` = no
    *  override for a character seat, or always `null` for a human seat. Resolution to "character over
@@ -339,6 +370,7 @@ export const participantViewSchema = z.strictObject({
   avatarAssetId: typeIdSchema(ID_PREFIX.asset).nullable(),
   avatarHash: z.string().nullable(),
   renderPolicy: renderPolicySchema.exactOptional(),
+  renderSource: z.enum(RENDER_POLICY_SOURCES).exactOptional(),
   // Lenient on purpose: strips and heals a stale stored blob so it cannot fail a committed join; no secrets here.
   themeOverride: themeOverrideSchema.nullable().exactOptional(),
   // Lenient on purpose: strips and heals a stale stored blob so it cannot fail a committed join; no secrets here.

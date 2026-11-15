@@ -25,6 +25,7 @@ export type { FaceStripItem } from "./face-strip.tsx";
 export { FaceStrip } from "./face-strip.tsx";
 export { FlowDialog } from "./flow-dialog.tsx";
 export { CommitFooter, CommitForm, DismissDialog, FormDialog, FormDialogPopup, FormDialogRoot, RequiredFormDialog } from "./form-dialog.tsx";
+export { FormingChip } from "./forming-chip.tsx";
 export { useFramedLinkConfirm } from "./framed-link-confirm.tsx";
 export { ImportedChatsMemoryOffer } from "./imported-chats-memory-offer.tsx";
 export type { LibraryRowActions } from "./library-row.tsx";

@@ -147,14 +147,9 @@ export function useInteractiveCardsAllowed(): boolean {
  *  A {@link DeploymentRenderPolicy}, not a resolved `RenderPolicy`: the deployment serves the three axes an
  *  AppSetting carries, and the resolver folds a per-character override over them. */
 export function useRenderPolicyFloor(): DeploymentRenderPolicy {
-  return useServedRenderPolicy() ?? DEPLOYMENT_FLOOR;
-}
-
-/** The deployment render policy exactly as `/api/auth/config` served it, or `undefined` until it lands. For a surface
- *  that NAMES the install's setting to the reader, where assuming the strict floor would blame a switch nobody read. */
-export function useServedRenderPolicy(): DeploymentRenderPolicy | undefined {
   const config = useAuthConfig().data;
-  return config === undefined
-    ? undefined
-    : { trustHtml: config.trustHtml, forbidExternalMedia: config.forbidExternalMedia, allowInteractiveCards: config.allowInteractiveCards };
+  if (config === undefined) {
+    return DEPLOYMENT_FLOOR;
+  }
+  return { trustHtml: config.trustHtml, forbidExternalMedia: config.forbidExternalMedia, allowInteractiveCards: config.allowInteractiveCards };
 }

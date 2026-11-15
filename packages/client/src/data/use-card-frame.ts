@@ -110,6 +110,25 @@ type CardFrameMint = { readonly state: "pending" } | { readonly state: "routed";
 
 const GAVE_UP: CardFrameMint = { state: "floor" };
 
+// The first mint and the one re-mint a miss earns.
+const MINT_ATTEMPTS = 2;
+
+function mintKey(attempt: number, body: string): string {
+  return `${String(attempt)}:${body}`;
+}
+
+// A miss means the server dropped the handle, so every handle the tab remembers for these bytes goes: the re-mint and
+// any later remount mint afresh instead of serving a handle that is gone.
+function forgetMints(request: CardFrameRequest | undefined): void {
+  if (request === undefined) {
+    return;
+  }
+  const body = JSON.stringify(cardFrameMintBody(request));
+  for (let attempt = 0; attempt < MINT_ATTEMPTS; attempt += 1) {
+    minted.delete(mintKey(attempt, body));
+  }
+}
+
 /** One routed frame's mint, and the two ways its caller learns the handle is no use. */
 export interface CardFrame {
   readonly mint: CardFrameMint;
@@ -136,7 +155,8 @@ export function useCardFrame(request: CardFrameRequest | undefined): CardFrame {
   return {
     mint: lost ? GAVE_UP : mint,
     onMissing: (): void => {
-      if (attempt === 0) {
+      forgetMints(request);
+      if (attempt < MINT_ATTEMPTS - 1) {
         setAttempt(1);
       } else {
         setLost(true);
@@ -158,7 +178,7 @@ function useCardFrameMint(request: CardFrameRequest | undefined, attempt: number
   // The serialized body and its attempt key are the effect's dependencies — strings, so they compare by value
   // where `request` (a fresh object every render) would re-mint on every paint.
   const body = request === undefined ? undefined : JSON.stringify(cardFrameMintBody(request));
-  const key = body === undefined ? undefined : `${String(attempt)}:${body}`;
+  const key = body === undefined ? undefined : mintKey(attempt, body);
 
   useEffect(() => {
     if (body === undefined || key === undefined) {

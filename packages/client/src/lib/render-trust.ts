@@ -12,7 +12,7 @@
 // archive (Scene "Cards" / Journal) — and a cross-feature RUNTIME import is banned, so a second home
 // here would mean a second spelling of a SECURITY verdict.
 
-import type { DeploymentRenderPolicy, ParticipantView, RenderPolicy } from "@orb/contracts/chat";
+import type { DeploymentRenderPolicy, ParticipantView, RenderPolicy, RenderPolicySource } from "@orb/contracts/chat";
 import { rendersTrustedHtml } from "@orb/contracts/chat";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -68,6 +68,10 @@ const PLAIN_REASONS = [
   "character",
   // The character inherits the install default, and the install renders HTML as plain.
   "install",
+  // No card is read for the seat, so the install's plain default applies.
+  "no-card",
+  // The room has no consenting host, so no card applies and the install's plain default does.
+  "no-host",
   // Another person wrote the row: no setting renders someone else's HTML.
   "member",
   // No seated character's policy covers the row, so it renders at the fail-closed floor.
@@ -83,6 +87,8 @@ const PLAIN_REMEDIES = [
   "system-trust",
   // Only the room's host can change it.
   "ask-host",
+  // Only the server's admin can change it.
+  "ask-admin",
   // Nothing turns it on.
   "none",
 ] as const;
@@ -92,6 +98,8 @@ export type PlainRemedy = (typeof PLAIN_REMEDIES)[number];
  *  neither (the fail-closed floor). */
 export interface PlainSubject {
   readonly author: "character" | "member" | "unattributed";
+  /** Where the character's policy came from; set when `author` is `character`. */
+  readonly source: RenderPolicySource | undefined;
   /** The character whose setting it is; null when no character's setting applies. */
   readonly characterId: CharacterId | null;
   /** That character's name in this room, when the room names one. */
@@ -105,13 +113,6 @@ export interface PlainVerdict {
   readonly remedy: PlainRemedy;
   readonly characterId: CharacterId | null;
   readonly characterName: string | undefined;
-}
-
-/** What the plain-content verdict reads beyond the row: the install's render defaults as `/api/auth/config` served
- *  them, and whether the viewer may open the admin settings. */
-export interface ViewerRenderStanding {
-  readonly deployment: DeploymentRenderPolicy;
-  readonly isAdmin: boolean;
 }
 
 export interface ResolveRowRenderPolicyInput {
@@ -128,16 +129,24 @@ export interface ResolveRowRenderPolicyInput {
   readonly viewerIsHost?: boolean | undefined;
 }
 
-// Why an untrusted character policy is untrusted. `resolveRenderPolicy` (`@orb/contracts/chat`) renders HTML when the
-// override says so, else when the install says so, and an override that inherits on both columns resolves to the
-// interactive rung while the install allows interactive cards. So with either install switch up, an untrusted step can
-// only be the character's own Plain text. With both down the install default is the cause; a character set to Plain
-// text on top of it reads the same here, and the notice moves to the character once the install default is on.
-function plainReason(author: PlainSubject["author"], deployment: DeploymentRenderPolicy): PlainReason {
-  if (author !== "character") {
-    return author;
+// Why an untrusted character policy is untrusted, read off where the server says it came from. Under
+// `resolveRenderPolicy` (`@orb/contracts/chat`) one setting always suffices: a character's own step wins over the
+// install default, and an inheriting character or a seat on the floor follows the install default alone.
+function plainReason(subject: PlainSubject): PlainReason {
+  if (subject.author !== "character" || subject.source === undefined) {
+    return subject.author === "character" ? "unattributed" : subject.author;
   }
-  return deployment.trustHtml || deployment.allowInteractiveCards ? "character" : "install";
+  switch (subject.source) {
+    case "own":
+      return "character";
+    case "inherited":
+      return "install";
+    case "no-card":
+    case "no-host":
+      return subject.source;
+    default:
+      return assertNeverReason(subject.source);
+  }
 }
 
 function plainRemedy(reason: PlainReason, isHost: boolean, isAdmin: boolean): PlainRemedy {
@@ -150,6 +159,10 @@ function plainRemedy(reason: PlainReason, isHost: boolean, isAdmin: boolean): Pl
         return "system-trust";
       }
       return isHost ? "character-trust" : "ask-host";
+    case "no-card":
+    case "no-host":
+      // No card's setting applies, so only the install default can change it.
+      return isAdmin ? "system-trust" : "ask-admin";
     case "member":
     case "unattributed":
       return "none";
@@ -162,14 +175,16 @@ function assertNeverReason(reason: never): never {
   throw new Error(`render-trust: unhandled plain reason ${String(reason)}`);
 }
 
-/** Which setting holds a `tierA` row plain and where this viewer can change it. */
-export function resolvePlainVerdict(subject: PlainSubject, standing: ViewerRenderStanding): PlainVerdict {
-  const reason = plainReason(subject.author, standing.deployment);
+/** Which setting holds a `tierA` row plain and where this viewer can change it. A character is named only when its
+ *  own setting, or the default it inherits, is the cause. */
+export function resolvePlainVerdict(subject: PlainSubject, viewerIsAdmin: boolean): PlainVerdict {
+  const reason = plainReason(subject);
+  const named = reason === "character" || reason === "install";
   return {
     reason,
-    remedy: plainRemedy(reason, subject.viewerIsHost, standing.isAdmin),
-    characterId: subject.characterId,
-    characterName: subject.characterName,
+    remedy: plainRemedy(reason, subject.viewerIsHost, viewerIsAdmin),
+    characterId: named ? subject.characterId : null,
+    characterName: named ? subject.characterName : undefined,
   };
 }
 
@@ -201,6 +216,7 @@ export function resolveRowRenderPolicy(input: ResolveRowRenderPolicyInput): RowR
     ...base,
     plain: {
       author,
+      source: author === "character" ? seat?.renderSource : undefined,
       characterId: author === "character" ? characterId : null,
       characterName: seat?.displayName,
       viewerIsHost: input.viewerIsHost === true,

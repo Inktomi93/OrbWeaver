@@ -9,6 +9,9 @@
 import type { ConfigSubcategory } from "#state";
 import { MEDIA_TRUST_CONFIG_SUB, MULTI_USER_CONFIG_SUB, TRUST_HTML_CONFIG_SETTING } from "#state";
 
+/** The install's trust-HTML setting, as its nav entry and its switch both name it. */
+export const TRUST_HTML_SETTING_LABEL = "Render rich HTML as trusted";
+
 export const MEDIA_TRUST_SUBCATEGORY: ConfigSubcategory = {
   id: MEDIA_TRUST_CONFIG_SUB,
   label: "Media & trust",
@@ -29,7 +32,7 @@ export const MEDIA_TRUST_SUBCATEGORY: ConfigSubcategory = {
     },
     {
       id: TRUST_HTML_CONFIG_SETTING,
-      label: "Render rich HTML as trusted",
+      label: TRUST_HTML_SETTING_LABEL,
       keywords: ["html", "sanitize", "xss", "cards"],
       teach: {
         summary: "Renders rich HTML cards as trusted instead of sanitized. Only for deployments where every author is trusted.",

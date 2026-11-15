@@ -1,11 +1,10 @@
 // A link in the card archive's card opens only through the shared confirm: the real archive (`RpgSceneCards`) over a
 // corpus room whose latest reply is one `:::card` with a link, its card-frame mint and serve answered by the corpus
 // root's own HTTP entry.
-import { CARD_FRAME_ROUTE, rendersTrustedHtml } from "@orb/contracts/chat";
-import { CSRF_HEADER } from "@orb/contracts/identity";
+import { rendersTrustedHtml } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { ROOM_PROCEDURES, routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { ROOM_PROCEDURES, routeAuthConfig, routeCardFrames, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { captureCookieAuth, createCorpusHarness } from "@orb/testkit/node/composed";
 import { FRAMED_LINK_CONFIRM_LABEL } from "#client/components/framed-link-names.ts";
@@ -52,20 +51,7 @@ test("a link in the archive's card opens nothing until the confirm, and Open ope
   await routeAuthConfig(page, corpus.auth.signedInConfig);
   await routeTrpc(page, serveCorpusProcedures(caller, ARCHIVE_READS));
   const { cookie } = await captureCookieAuth(root, await root.principalFor(root.ownerId), VIEWER_PASSWORD);
-  await page.route(`**${CARD_FRAME_ROUTE}**`, async (route) => {
-    const request = route.request();
-    const sent = await request.allHeaders();
-    const headers: Record<string, string> = { cookie, forwarded: "" };
-    for (const name of [CSRF_HEADER, "content-type"]) {
-      const value = sent[name.toLowerCase()];
-      if (value !== undefined) {
-        headers[name] = value;
-      }
-    }
-    const body = request.postData();
-    const response = await root.http.request(new URL(request.url()).pathname, { method: request.method(), headers, ...(body === null ? {} : { body }) });
-    await route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body: Buffer.from(await response.arrayBuffer()) });
-  });
+  await routeCardFrames(page, root, cookie);
   const requested: string[] = [];
   const popups: string[] = [];
   await page.context().route(EXTERNAL_PAGES, async (route) => {

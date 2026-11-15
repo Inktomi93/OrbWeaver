@@ -10,13 +10,13 @@
 //
 // A hostile frame is played by evaluating in the frame's own document: `parent.postMessage` from there is exactly
 // what a reply's own script could send.
-import { CARD_FRAME_ROUTE, rendersTrustedHtml } from "@orb/contracts/chat";
-import { CSRF_HEADER } from "@orb/contracts/identity";
+import { rendersTrustedHtml } from "@orb/contracts/chat";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { ROOM_PROCEDURES, routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import type { CardFrameServing, CardFrameTraffic } from "@orb/testkit/ct";
+import { ROOM_PROCEDURES, routeAuthConfig, routeCardFrames, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { forEachNonEmpty } from "@orb/testkit/iso";
 import { captureCookieAuth, createCorpusHarness } from "@orb/testkit/node/composed";
@@ -39,8 +39,6 @@ const LINK_URL = "https://example.test/sola";
 const LINK_TWO_URL = "https://example.test/sola-notes";
 const SWAPPED_URL = "https://swapped.test/elsewhere";
 const EXTERNAL_PAGES = "https://*.test/**";
-// A well-formed handle no mint ever produced: its serve is the server's own miss notice.
-const UNKNOWN_HANDLE = "0".repeat(32);
 const FOCUS_PRESS_BUDGET = 4;
 // The row and its message actions come before its reply frame in the Tab order.
 const ROW_STOPS_BUDGET = 12;
@@ -144,52 +142,6 @@ async function openStyledRoom(body: string): Promise<StyledRoom> {
   throw new Error("No corpus room has a reply from a character that renders trusted HTML");
 }
 
-interface FrameTraffic {
-  mints: number;
-  serves: number;
-}
-
-interface FrameServing {
-  /** The first this many serves ask the root for a handle no mint produced, so they get its real miss notice. */
-  readonly missServes?: number;
-  /** Every mint is answered only once this settles, so the reply holds its pending state until then. */
-  readonly mintsWait?: Promise<void>;
-  /** Every frame document is served only once this settles, so a routed frame cannot draw until then. */
-  readonly servesWait?: Promise<void>;
-}
-
-/** The request headers the root reads, under the viewer's session cookie. */
-function forwardedHeaders(sent: Readonly<Record<string, string>>, cookie: string): Record<string, string> {
-  const headers: Record<string, string> = { cookie, forwarded: "" };
-  for (const name of [CSRF_HEADER, "content-type"]) {
-    const value = sent[name.toLowerCase()];
-    if (value !== undefined) {
-      headers[name] = value;
-    }
-  }
-  return headers;
-}
-
-/** Answer the card-frame mint and serve from the page with the root's own HTTP entry, under the viewer's session. */
-async function routeCardFrames(page: Page, root: Root, { missServes = 0, mintsWait, servesWait }: FrameServing): Promise<FrameTraffic> {
-  const { cookie } = await captureCookieAuth(root, await root.principalFor(root.ownerId), VIEWER_PASSWORD);
-  const traffic: FrameTraffic = { mints: 0, serves: 0 };
-  await page.route(`**${CARD_FRAME_ROUTE}**`, async (route) => {
-    const request = route.request();
-    const isMint = request.method() === "POST";
-    await (isMint ? mintsWait : servesWait);
-    const missed = !isMint && traffic.serves < missServes;
-    traffic.mints += isMint ? 1 : 0;
-    traffic.serves += isMint ? 0 : 1;
-    const headers = forwardedHeaders(await request.allHeaders(), cookie);
-    const body = request.postData();
-    const path = missed ? `${CARD_FRAME_ROUTE}/${UNKNOWN_HANDLE}` : new URL(request.url()).pathname;
-    const response = await root.http.request(path, { method: request.method(), headers, ...(body === null ? {} : { body }) });
-    await route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body: Buffer.from(await response.arrayBuffer()) });
-  });
-  return traffic;
-}
-
 interface Corpus {
   readonly auth: { readonly signedInConfig: Parameters<typeof routeAuthConfig>[1] };
 }
@@ -197,11 +149,12 @@ interface Corpus {
 /** The room's reads and its card-frame traffic, routed to `root`. Declare it with `await using` AFTER the root: it is
  *  disposed first, and disposal removes the routes and waits for any handler still answering, so no request the page
  *  makes after the case ends reaches a closed root. */
-async function serveRoom(page: Page, root: Root, corpus: Corpus, serving: FrameServing = {}): Promise<FrameTraffic & AsyncDisposable> {
+async function serveRoom(page: Page, root: Root, corpus: Corpus, serving: CardFrameServing = {}): Promise<CardFrameTraffic & AsyncDisposable> {
   const caller = await root.internalCallerFor(root.ownerId);
   await routeAuthConfig(page, corpus.auth.signedInConfig);
   await routeTrpc(page, serveCorpusProcedures(caller, TRANSCRIPT_READS));
-  const traffic = await routeCardFrames(page, root, serving);
+  const { cookie } = await captureCookieAuth(root, await root.principalFor(root.ownerId), VIEWER_PASSWORD);
+  const traffic = await routeCardFrames(page, root, cookie, serving);
   return Object.assign(traffic, {
     [Symbol.asyncDispose]: async (): Promise<void> => {
       await page.unrouteAll({ behavior: "wait" });
@@ -469,7 +422,7 @@ test("a link to the app's own origin never reaches the confirm", async ({ corpus
 test("an expired frame handle mints again and the reply draws, never the expiry notice", async ({ corpus, mount, page }) => {
   const room = await openStyledRoom(STYLED_BODY);
   await using root = room.root;
-  await using traffic = await serveRoom(page, root, corpus, { missServes: 1 });
+  await using traffic = await serveRoom(page, root, corpus, { droppedMints: 1 });
   await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
   await expect(page.frameLocator(`${REPLY_FRAME} ${SANDBOX}`).locator("#w6p-location")).toHaveText("Camelot · Great Hall");
   expect([traffic.mints, traffic.serves]).toEqual([2, 2]);
@@ -478,7 +431,7 @@ test("an expired frame handle mints again and the reply draws, never the expiry 
 test("a handle that is gone again after its fresh mint leaves the reply on the inert path", async ({ corpus, mount, page }) => {
   const room = await openStyledRoom(STYLED_BODY);
   await using root = room.root;
-  await using traffic = await serveRoom(page, root, corpus, { missServes: 2 });
+  await using traffic = await serveRoom(page, root, corpus, { droppedMints: 2 });
   await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
   // The inert path also shows while a mint is pending, so the settled outcome is read off the traffic first: the
   // second miss has been served, and the frame that loaded it is gone.
@@ -489,6 +442,23 @@ test("a handle that is gone again after its fresh mint leaves the reply on the i
   // Given up: no third mint and no further serve.
   expect([traffic.mints, traffic.serves]).toEqual([2, 2]);
 });
+
+for (const status of [401, 500]) {
+  test(`a reply whose frame document answers ${String(status)} gives up its frame and reads on the inert path`, async ({ corpus, mount, page }) => {
+    const room = await openStyledRoom(STYLED_BODY);
+    await using root = room.root;
+    await using traffic = await serveRoom(page, root, corpus, { serveStatus: status });
+    await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+    // The inert path also shows while the mint is pending, so the barrier is the served error page. It posts no height,
+    // so only the bound after its load takes the frame away.
+    await expect.poll(() => traffic.serves).toBe(1);
+    await expect(page.locator(SANDBOX)).toHaveCount(0);
+    await expect(page.locator(`${REPLY_FRAME}[data-delivery="fallback"]`)).toBeVisible();
+    await expect(page.locator(FORMING_CHIP)).toHaveCount(0);
+    await expect(page.getByText("Camelot · Great Hall", { exact: true })).toBeVisible();
+    expect([traffic.mints, traffic.serves]).toEqual([1, 1]);
+  });
+}
 
 test("the framed prose reads in the transcript's own type: the app stylesheet and tokens reach the frame", async ({ corpus, mount, page }) => {
   const room = await openStyledRoom(STYLED_BODY);

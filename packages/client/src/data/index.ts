@@ -23,7 +23,6 @@ export {
   useLiveShare,
   useMultiHumanCapable,
   useRenderPolicyFloor,
-  useServedRenderPolicy,
   useUploadCaps,
 } from "./auth-config.ts";
 export type { ChatBusDeps } from "./bus/apply-chat-bus-event.ts";

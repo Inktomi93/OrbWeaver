@@ -58,6 +58,9 @@ export const CHARACTER_LOOK_TAB_LABEL = "Look";
 /** The context pane's card trust tab. */
 export const CHARACTER_TRUST_TAB_LABEL = "Trust";
 
+/** The Trust tab's HTML-trust ladder control. */
+export const CHARACTER_HTML_TRUST_LABEL = "HTML rendering";
+
 /** The closed filter disclosure names what it opens, not the act: collapsed, nothing else on the rail says
  *  Favorites, Archived or a tag vocabulary exist. It must stay one rail cell wide, because a wider cell wraps
  *  at the docked width. The open arm says how to put the filters away, since its contents are on screen. */

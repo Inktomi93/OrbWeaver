@@ -1,12 +1,11 @@
 // A routed chat card follows the viewer's appearance font scale: the transcript mints the card through the real
 // card-frame routes with the clamped style slice, and the served document's rem text scales while authored px
 // text stays fixed. An out-of-range scale lands at the clamp's bound, not past it.
-import { CARD_FRAME_ROUTE, rendersTrustedHtml } from "@orb/contracts/chat";
-import { CSRF_HEADER } from "@orb/contracts/identity";
+import { rendersTrustedHtml } from "@orb/contracts/chat";
 import { FONT_SCALE } from "@orb/kit/font-scale";
 import type { ChatId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { ROOM_PROCEDURES, routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { ROOM_PROCEDURES, routeAuthConfig, routeCardFrames, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { captureCookieAuth, createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
@@ -56,25 +55,6 @@ async function openCardRoom(): Promise<CardRoom> {
   throw new Error("No corpus room has a reply from a character that renders trusted HTML");
 }
 
-/** Answer the card-frame mint and serve from the page with the root's own HTTP entry, under the viewer's session. */
-async function routeCardFrames(page: Page, root: Root): Promise<void> {
-  const { cookie } = await captureCookieAuth(root, await root.principalFor(root.ownerId), VIEWER_PASSWORD);
-  await page.route(`**${CARD_FRAME_ROUTE}**`, async (route) => {
-    const request = route.request();
-    const sent = await request.allHeaders();
-    const headers: Record<string, string> = { cookie, forwarded: "" };
-    for (const name of [CSRF_HEADER, "content-type"]) {
-      const value = sent[name.toLowerCase()];
-      if (value !== undefined) {
-        headers[name] = value;
-      }
-    }
-    const body = request.postData();
-    const response = await root.http.request(new URL(request.url()).pathname, { method: request.method(), headers, ...(body === null ? {} : { body }) });
-    await route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body: Buffer.from(await response.arrayBuffer()) });
-  });
-}
-
 /** Which delivery the card frame used, and the computed font size of one line inside it. */
 async function frameText(page: Page, selector: string): Promise<{ readonly delivery: string | null; readonly px: number }> {
   const delivery = await page.locator(FRAME).getAttribute("data-delivery");
@@ -102,7 +82,7 @@ for (const viewport of VIEWPORTS) {
       const caller = await root.internalCallerFor(root.ownerId);
       await routeAuthConfig(page, corpus.auth.signedInConfig);
       await routeTrpc(page, serveCorpusProcedures(caller, TRANSCRIPT_READS));
-      await routeCardFrames(page, root);
+      await routeCardFrames(page, root, (await captureCookieAuth(root, await root.principalFor(root.ownerId), VIEWER_PASSWORD)).cookie);
       const story = await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId, fontScale: 1 });
       await expect.poll(() => frameText(page, "#px")).toMatchObject({ delivery: "routed" });
       const fixed = (await frameText(page, "#px")).px;

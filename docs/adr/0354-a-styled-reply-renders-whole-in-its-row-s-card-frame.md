@@ -42,9 +42,9 @@ It opens the link only through a confirm. An open confirm keeps its address, and
 
 **Before the frame draws.** The row shows the reply the way a streaming card forms (`scanStyledHold` in `@orb/kit/content`): prose through the inert allowlist, and each HTML block as a forming chip that carries none of its bytes. A block opens on CommonMark's block shapes, because provenance does not survive later scripts, and holds to the close of the element it opens, blank lines included: a region a script styles, hides or deletes never shows while it forms. While the frame is on the way, this splits the display output; the routed frame loads hidden and replaces it at its first height report. While the reply streams, no display script runs, so it splits the model's own text whenever a display script is in force, and inline tags drop with their words kept.
 
-**Inert path.** The reply renders through the inert allowlist on a Tier A row, when a plugin rewrote its text, when the mint is refused, when a handle is lost twice, and when its scripts were stopped for taking focus (D294). Its `<style>` and `<script>` elements are removed with their content first, because the allowlist drops those tags but keeps their content as text.
+**Inert path.** The reply renders through the inert allowlist on a Tier A row, when a plugin rewrote its text, when the mint is refused, when a handle is lost twice, when its scripts were stopped for taking focus (D294), and when its frame document loads and reports no height within a bound (`SandboxFrame`). Its `<style>` and `<script>` elements are removed with their content first, because the allowlist drops those tags but keeps their content as text.
 
-**A lost handle.** The server's miss document carries `data-frame-missing`, and the pinned script reports it. A frame whose handle expired or was evicted mints again once, then renders the inert path.
+**A lost handle.** The server's miss document carries `data-frame-missing`, and the pinned script reports it. A frame whose handle expired or was evicted mints again once, then renders the inert path. A miss drops every handle the tab remembers for those bytes, so a frame that mounts again mints afresh.
 
 **Limits.** Each is sized from Sola V4 replies drawn by their own display scripts:
 

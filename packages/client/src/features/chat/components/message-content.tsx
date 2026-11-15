@@ -13,6 +13,7 @@ import { Markdown } from "@orb/ui/markdown";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement, RefCallback } from "react";
+import { FormingChip } from "#components";
 import type { PluginDisplayRow } from "#data";
 import { usePluginDisplayText } from "#data";
 import type { DisplayRowCall, MessageRenderContext, RowRenderPolicy } from "#lib";
@@ -24,7 +25,6 @@ import { replyParts } from "../lib/reply-parts.ts";
 import { colorForCharacter } from "../lib/speaker-color.ts";
 import type { CardOrigin } from "./card-block.tsx";
 import { CardBlock } from "./card-block.tsx";
-import { FormingChip } from "./forming-chip.tsx";
 import { MessageChoicesBlock } from "./message-choices-block.tsx";
 import { MessageMediaBlock } from "./message-media-block.tsx";
 import { PlainContentNotice } from "./plain-content-notice.tsx";
@@ -59,10 +59,10 @@ function renderBlock(block: MessageContentBlock, key: string, render: RowRenderP
     //           inline style=, so `block.css` is not merely unused here, it is unusable by law.
     // The inert arm is wrapped in InertCard rather than emitted bare: an unstyled card in the prose flow is
     // indistinguishable from the model writing plain text, which is how this read as "cards vanish". The
-    // frame says a card is here, the badge says it is plain, and the hint says what turns it on — the same
+    // frame says a card is here, the badge says it is plain, and the row's notice says what turns it on — the same
     // refuse-VISIBLY posture MessageMedia's click-to-load gate has always had.
     case "html-card":
-      return <CardBlock key={key} block={block} allowExternal={allowExternal} cardOrigin={cardOrigin} plain={render.plain} />;
+      return <CardBlock key={key} block={block} allowExternal={allowExternal} cardOrigin={cardOrigin} />;
     // The CYOA choice set — clickable send-affordances: a click sends the option as the
     // user's next turn through the room's choice-send capability (provider-less mounts render the
     // same buttons disabled). The block contract is untouched.
@@ -202,10 +202,15 @@ function FramedReply({
   );
 }
 
-// A display script styled this row and its tier is the inert one, so the reader sees its template drawn plain: the
-// notice says which setting holds it there. A plugin rewrite on a sandboxed row is not a trust block and gets none.
-function styledPlainNotice(settledStyled: boolean, render: RowRenderPolicy): ReactElement | null {
-  return settledStyled && render.plain !== undefined ? <PlainContentNotice key="plain-notice" subject={render.plain} placement="reply" /> : null;
+// A tierA row draws rich content plain when a display script styled it or when it carries a card: the notice says once,
+// under the row, which setting holds it there. A row still waiting on its scripts shows none until its answer lands.
+function rowPlainNotice(texts: readonly string[], render: RowRenderPolicy, styled: boolean, pending: boolean): ReactElement | null {
+  if (render.plain === undefined || pending) {
+    return null;
+  }
+  const holdsCard = (): boolean =>
+    texts.some((text) => toContentBlocks(text, { cardTrust: render.cardTier, lenientHtml: render.lenientCards }).some((block) => block.kind === "html-card"));
+  return styled || holdsCard() ? <PlainContentNotice key="plain-notice" subject={render.plain} /> : null;
 }
 
 function withNotice(body: ReactElement, notice: ReactElement | null): ReactElement {
@@ -292,7 +297,12 @@ export function MessageContent({
   // allowlist, with the template's `<style>` and `<script>` elements removed, so their content never prints as prose.
   const segmentRender: RowRenderPolicy = styled ? { ...render, trust: "untrusted" } : render;
   const segmentText = (text: string): string => (styled ? stripStyleElements(text) : text);
-  const plainNotice = styledPlainNotice(styled && !pending, render);
+  const plainNotice = rowPlainNotice(
+    spans.map((span) => segmentText(span.text)),
+    render,
+    styled,
+    pending,
+  );
   const [onlySpan] = spans;
   if (spans.length === 1 && onlySpan !== undefined && onlySpan.speaker === null) {
     return withNotice(

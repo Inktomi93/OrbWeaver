@@ -12,7 +12,7 @@ import { useSandboxTheme } from "@orb/ui/sandbox-frame";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { MutedLine, QueryBoundary, useFramedLinkConfirm, ViewerDialog } from "#components";
+import { FormingChip, MutedLine, QueryBoundary, useFramedLinkConfirm, ViewerDialog } from "#components";
 import { QueryErrorState, roomRosterOptions, roomTailOptions, SkeletonRows, useCardFrame, useSuspenseQueries, useTRPC } from "#data";
 import type { ArchivedCard } from "../lib/archived-cards.ts";
 import { cardLabel, collectArchivedCards } from "../lib/archived-cards.ts";
@@ -52,15 +52,15 @@ export function RpgCardLightbox({
  *  the card carries the ORIGIN ROW's render policy on BOTH axes: the archive is a second lens on the same
  *  authored content, so its sandbox CSP must be the transcript's, never a laxer default.
  *
- *  A lost handle mints once more and then draws the floor, and a link opens only through the shared confirm, as in the
- *  transcript's card. It takes no forming chip (the chat feature's, which this feature may not import), so the floor
- *  draws while the mint answers. */
+ *  It frames as the transcript's card does: a lost handle mints once more and then draws the floor, a link opens only
+ *  through the shared confirm, and a forming chip holds the body until the routed frame draws. */
 function ArchivedCardBody({ card, chatId }: { readonly card: ArchivedCard; readonly chatId: ChatId | undefined }): ReactElement {
   const { themeTokens, styleTokens, fontFamily } = useSandboxTheme();
   const frame = useCardFrame(
     chatId === undefined ? undefined : { chatId, characterId: card.characterId, html: card.html, css: undefined, themeTokens, styleTokens, fontFamily },
   );
   const links = useFramedLinkConfirm();
+  const forming = frame.mint.state === "floor" ? undefined : <FormingChip title={cardLabel(card.title)} />;
   return (
     <>
       <ImmersiveCard
@@ -69,6 +69,7 @@ function ArchivedCardBody({ card, chatId }: { readonly card: ArchivedCard; reado
         origin={card.origin}
         allowExternalMedia={card.allowExternalMedia}
         {...(frame.mint.state === "routed" ? { frameSrc: frame.mint.url } : {})}
+        {...(forming === undefined ? {} : { pending: forming })}
         onLink={links.requestLink}
         onMissing={frame.onMissing}
       />

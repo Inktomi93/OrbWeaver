@@ -26,6 +26,10 @@ const FRAME_SURFACE: Record<CardFrameHeightCap, string> = { card: "rounded-base 
 
 const UNNAMED_FRAME_TITLE = "Embedded card";
 
+// How long a veiled routed frame may stay silent after its document loads. The pinned script reports on load, so a
+// document still silent past this answered with an error status, or carries no script the policy let run.
+const FRAME_REPORT_BOUND_MS = 2000;
+
 // Whether a vetted framed link points off the app's own origin. An address the URL parser refuses leaves nothing.
 function leavesApp(link: string): boolean {
   const url = URL.parse(link);
@@ -95,10 +99,10 @@ interface SandboxFramePropsBase {
    * a click in the app, and its controls take focus at once as the app's do. Only its load-time focus is returned.
    */
   readonly ungatedFocus?: boolean;
-  /** A gated frame took focus by its own script in a grab loop ({@link FRAME_FOCUS_GRAB_LOOP_BOUND}), so the host
-   *  stopped its scripts: from then on it draws `html` on the script-dead floor. A caller whose `html` is empty draws
-   *  its own. */
-  readonly onScriptsStopped?: () => void;
+  /** The frame fell to the script-dead floor for good and draws `html` there; a caller whose `html` is empty draws its
+   *  own. A gated frame falls when its own script took focus in a grab loop ({@link FRAME_FOCUS_GRAB_LOOP_BOUND}); a
+   *  veiled routed frame falls when its document loads and reports no height within {@link FRAME_REPORT_BOUND_MS}. */
+  readonly onFloor?: () => void;
 }
 
 export type SandboxFrameProps = SandboxFramePropsBase &
@@ -203,13 +207,13 @@ export function SandboxFrame({
   onMissing,
   pending,
   ungatedFocus = false,
-  onScriptsStopped,
+  onFloor,
 }: SandboxFrameProps): ReactElement {
   const frameRef = useRef<HTMLIFrameElement>(null);
   // The measurement is stored WITH the delivery it belongs to, so a re-mint (new `src`) is answered during
   // render instead of by a cascading `setState` — the same shape `useCardFrame` uses for its handle.
   const [measured, setMeasured] = useState<{ readonly delivery: string; readonly height: CardFrameHeight } | undefined>(undefined);
-  // Set once the frame's scripts are stopped (`onScriptsStopped`), with the height it had: it stays on the floor.
+  // Set once the frame falls to the floor (`onFloor`), with the height it had: it stays there.
   const [stopped, setStopped] = useState<{ readonly px: number | undefined } | undefined>(undefined);
   const src = stopped === undefined ? routedSrc : undefined;
   const deliveryKey = src ?? "srcdoc-floor";
@@ -329,19 +333,40 @@ export function SandboxFrame({
 
   // FOCUS ENTERS ONLY BY THE READER'S HAND (`frame-focus.ts`): a frame's own script cannot take keyboard focus.
   const isVeiled = useEffectEvent((): boolean => veiled);
-  const onGrabLoop = useEffectEvent((): void => {
+  const fallToFloor = useEffectEvent((): void => {
     if (stopped === undefined) {
       setStopped({ px: appliedPx });
-      onScriptsStopped?.();
+      onFloor?.();
     }
   });
+  // A veiled frame whose document loaded and stayed silent would hold its stand-in for good.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: deliveryKey + complete are the re-arm triggers — the iframe is re-keyed per delivery and absent while incomplete, so the ref's target changes with them.
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (frame === null || !isVeiled()) {
+      return;
+    }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const onLoad = (): void => {
+      timer = setTimeout(() => {
+        if (isVeiled()) {
+          fallToFloor();
+        }
+      }, FRAME_REPORT_BOUND_MS);
+    };
+    frame.addEventListener("load", onLoad);
+    return (): void => {
+      frame.removeEventListener("load", onLoad);
+      clearTimeout(timer);
+    };
+  }, [deliveryKey, complete]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: deliveryKey + complete are the re-arm triggers — the iframe is re-keyed per delivery and absent while incomplete, so the ref's target changes with them.
   useEffect(() => {
     const frame = frameRef.current;
     if (frame === null || ungatedFocus) {
       return;
     }
-    return gateFrameFocus(frame, isVeiled, onGrabLoop);
+    return gateFrameFocus(frame, isVeiled, fallToFloor);
   }, [deliveryKey, complete, ungatedFocus]);
 
   if (!complete) {

@@ -1,7 +1,7 @@
 // The deployment ceiling remains authoritative; missing or unreadable cards project only its safe floor.
 // A gone or foreign card (one leak-free `CharacterNotFoundError`) is the only miss; any other fault rejects into the
 // read that asked.
-import { resolveRenderPolicy } from "@orb/contracts/chat";
+import { resolveSeatRenderPolicy } from "@orb/contracts/chat";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterRoomProjectionDeps, CharacterRoomProjections } from "../contract/room-projections.ts";
 
@@ -30,30 +30,36 @@ export function createCharacterRoomProjections(deps: CharacterRoomProjectionDeps
     // the raw theme + background override columns, and the card name/avatar). A human/agent seat, no host,
     // or a gone card resolves to the bare global floor + a null card (fail-closed, never a throw into
     // roster assembly). Collapses what were four separate reads of the same `characters` row per participant.
-    // The tier combine is the ONE contracts resolver (`resolveRenderPolicy`) — external media is
+    // The tier combine is the ONE contracts resolver (`resolveSeatRenderPolicy`, over `resolveRenderPolicy`) — external media is
     // TIGHTEN-ONLY there, so a card's `forbidExternalMedia: false` can never widen past a blocking
     // deployment (which the app-document CSP enforces independently), and the ladder's top rung needs the
     // `allowInteractiveCards` ceiling, which is also the default rung of a card that inherits.
     resolveSeatDeco: async ({ ownerId, characterId }): ReturnType<CharacterRoomProjections["resolveSeatDeco"]> => {
       const floor = deps.readRenderPolicy();
-      // The deployment floor AS A RESOLVED policy — what a seat with no readable card gets. Produced by the
-      // SAME resolver with no override rather than hand-built, so the no-card arm can never spell a step
-      // the resolver would not (the html-trust ladder is folded in exactly one place).
-      const resolvedFloor = resolveRenderPolicy(floor, null);
-      if (characterId === null || ownerId === null) {
-        return { renderPolicy: resolvedFloor, themeOverride: null, backgroundOverride: null, card: null };
+      // A seat with no readable card gets the deployment floor from the SAME resolver, never a hand-built policy.
+      const bare = (basis: "no-card" | "no-host"): Awaited<ReturnType<CharacterRoomProjections["resolveSeatDeco"]>> => ({
+        ...resolveSeatRenderPolicy(floor, basis),
+        themeOverride: null,
+        backgroundOverride: null,
+        card: null,
+      });
+      if (characterId === null) {
+        return bare("no-card");
+      }
+      if (ownerId === null) {
+        return bare("no-host");
       }
       try {
         const detail = await deps.get({ principal: deps.principalForUser(ownerId), characterId });
         return {
-          renderPolicy: resolveRenderPolicy(floor, detail),
+          ...resolveSeatRenderPolicy(floor, detail),
           themeOverride: detail.themeOverride,
           backgroundOverride: detail.backgroundOverride,
           card: { name: detail.name, avatarAssetId: detail.avatarAssetId },
         };
       } catch (error) {
         rethrowUnlessGone(error);
-        return { renderPolicy: resolvedFloor, themeOverride: null, backgroundOverride: null, card: null };
+        return bare("no-card");
       }
     },
     resolveSeatDecos: async ({ ownerId, characterIds }): ReturnType<CharacterRoomProjections["resolveSeatDecos"]> => {
@@ -63,7 +69,7 @@ export function createCharacterRoomProjections(deps: CharacterRoomProjectionDeps
         cards.map((card) => [
           card.id,
           {
-            renderPolicy: resolveRenderPolicy(floor, card),
+            ...resolveSeatRenderPolicy(floor, card),
             themeOverride: card.themeOverride,
             backgroundOverride: card.backgroundOverride,
             card: { name: card.name, avatarAssetId: card.avatarAssetId },

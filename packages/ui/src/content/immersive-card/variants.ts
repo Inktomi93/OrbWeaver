@@ -42,13 +42,7 @@ export const inertCardVariants = tv({
   },
 });
 
-/** The plain-content notice's seat: the inert card's dashed footer band, or a dashed rule under a reply's plain prose. */
+/** The plain-content notice's seat: a dashed rule under a message's plain content. */
 export const plainNoticeVariants = tv({
-  base: `${ROW_STRIP} flex-wrap border-bs border-dashed border-border`,
-  variants: {
-    placement: {
-      card: "px-block py-row",
-      reply: "pbs-row",
-    },
-  },
+  base: `${ROW_STRIP} flex-wrap border-bs border-dashed border-border pbs-row`,
 });

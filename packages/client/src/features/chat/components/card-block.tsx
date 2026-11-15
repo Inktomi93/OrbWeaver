@@ -15,12 +15,9 @@ import { ImmersiveCard, InertCard } from "@orb/ui/immersive-card";
 import { Markdown } from "@orb/ui/markdown";
 import { useSandboxTheme } from "@orb/ui/sandbox-frame";
 import type { ReactElement } from "react";
-import { useFramedLinkConfirm } from "#components";
+import { FormingChip, useFramedLinkConfirm } from "#components";
 import { useCardFrame } from "#data";
-import type { PlainSubject } from "#lib";
 import { FORMING_CARD_UNTITLED } from "../lib/reply-frame-names.ts";
-import { FormingChip } from "./forming-chip.tsx";
-import { PlainContentNotice } from "./plain-content-notice.tsx";
 
 /** The room a card was authored in — the card-frame doorway's POLICY SELECTOR (the server resolves this
  *  character's `renderPolicy` and builds the frame CSP from it). Absent ⇒ the srcdoc floor renders, which is
@@ -40,8 +37,8 @@ export interface CardOrigin {
  *  the mint answers and the routed document draws, a forming chip holds the card's body. Two differences are the
  *  card's own. Its floor is its srcdoc render (a card brings its own look and fits the floor, where a reply cannot), so
  *  a refused mint or a lost handle draws the card there instead of an inert copy; that floor runs no script, so its
- *  links do nothing. A frame whose scripts were stopped draws that same floor inside `SandboxFrame` itself, so the card
- *  needs no give-up of its own for it. */
+ *  links do nothing. A frame that falls to its floor (its scripts stopped, or its document loaded and never reported)
+ *  draws that same floor inside `SandboxFrame` itself, so the card needs no give-up of its own for it. */
 function TierBCard({
   block,
   allowExternal,
@@ -82,23 +79,17 @@ export interface CardBlockProps {
   readonly allowExternal: boolean;
   /** The routed-mint selector; absent ⇒ the srcdoc floor (see {@link CardOrigin}). */
   readonly cardOrigin?: CardOrigin | undefined;
-  /** Why a tierA card is plain, the row policy's `plain` verdict; absent ⇒ the inert frame carries no notice. */
-  readonly plain?: PlainSubject | undefined;
 }
 
 /** The `html-card` arm — the tierB sandbox or the tierA inert frame, selected by the tier the caller's
  *  render policy already resolved. */
-export function CardBlock({ block, allowExternal, cardOrigin, plain }: CardBlockProps): ReactElement {
+export function CardBlock({ block, allowExternal, cardOrigin }: CardBlockProps): ReactElement {
   if (block.trust === "tierB") {
     return <TierBCard block={block} allowExternal={allowExternal} cardOrigin={cardOrigin} />;
   }
-  // Tier A: the sanitized body inside the inert frame, with the row's plain verdict saying why. A caller with no
-  // verdict (the streaming ghost) draws the frame alone; its settled row carries the notice.
+  // Tier A: the sanitized body inside the inert frame. Why it is plain is said once, under the whole row.
   return (
-    <InertCard
-      {...(block.title === undefined ? {} : { title: block.title })}
-      notice={plain === undefined ? undefined : <PlainContentNotice subject={plain} placement="card" />}
-    >
+    <InertCard {...(block.title === undefined ? {} : { title: block.title })}>
       <Markdown trust="untrusted" mode="static">
         {block.html}
       </Markdown>

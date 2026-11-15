@@ -13,9 +13,9 @@
 // the same posture of REFUSING VISIBLY instead of degrading silently.
 //
 // It renders the sanitized content (nothing is withheld — Tier A is safe by construction) inside the card
-// frame, labelled, with the caller's `PlainNotice` saying why it is plain and what turns it on. Only the caller
-// knows which setting blocks it, so this component states no reason of its own. Dashed borders distinguish it
-// from a live Tier-B card at a glance without inventing a new visual language.
+// frame, labelled. Why it is plain is said once for the whole message, under it, by the caller's `PlainNotice`, so
+// this component states no reason of its own. Dashed borders distinguish it from a live Tier-B card at a glance
+// without inventing a new visual language.
 
 import type { ReactElement, ReactNode } from "react";
 import { Badge } from "#primitives/badge";
@@ -30,17 +30,15 @@ export interface InertCardProps {
   readonly title?: string | undefined;
   /** The already-sanitized Tier-A render of the card body. This component NEVER sanitizes — it frames. */
   readonly children: ReactNode;
-  /** The `PlainNotice` under the body: why the card is plain and where to change it. */
-  readonly notice?: ReactNode;
   readonly className?: string;
 }
 
 /**
  * `@orb/ui` — the Tier-A (inert) presentation of a card block. Pairs with `ImmersiveCard` (Tier B): same
- * frame, dashed to read as degraded, plus the caller's notice. See the file header for why a silent
+ * frame, dashed to read as degraded. See the file header for why a silent
  * degrade was the defect.
  */
-export function InertCard({ title, children, notice, className }: InertCardProps): ReactElement {
+export function InertCard({ title, children, className }: InertCardProps): ReactElement {
   const slots = inertCardVariants();
   const label = title !== undefined && title !== "" ? title : UNTITLED_LABEL;
   return (
@@ -58,8 +56,6 @@ export function InertCard({ title, children, notice, className }: InertCardProps
       <div className={slots.body()} data-slot="inert-card-body">
         {children}
       </div>
-      {/* The hint slot stays the notice's seat: an owner stylesheet may key on it. */}
-      {notice === undefined ? null : <div data-slot="inert-card-hint">{notice}</div>}
     </div>
   );
 }
