@@ -1,7 +1,8 @@
 // The regex member editor's two axes, run through the registered configuration content and the real update verb.
 // Each case names the defect it catches: a stored target cleared because its time does not read it, a pair that
-// cannot run offered as a choice, and an author-scope pick that never reaches the stored row.
-import { REGEX_TARGET_LABELS } from "@orb/client/lib";
+// cannot run offered as a choice, an author-scope pick that never reaches the stored row, and a move to when saved
+// that drops a set depth or author scope without asking.
+import { DIALOG_VERBS, REGEX_TARGET_LABELS } from "@orb/client/lib";
 import { routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -9,6 +10,8 @@ import {
   REGEX_AUTHORS_ADD_NAME,
   REGEX_AUTHORS_ONLY_NAME,
   REGEX_REPLACE_WITH_NAME,
+  REGEX_SAVE_CLEARS_SCOPE_CONFIRM_NAME,
+  REGEX_SAVE_CLEARS_SCOPE_TITLE,
   REGEX_STANDING_HOST_NAME,
   REGEX_WHEN_CHOICE_NAMES,
   REGEX_WHEN_FIELD_NAME,
@@ -95,7 +98,7 @@ test("picking the host in the only-from list stores a standing selector on the s
     .toEqual({ include: [{ by: "standing", standing: "host" }], exclude: [] });
 });
 
-test("moving a scoped display script to when saved stores it with no depth and no author scope", async ({ mount, page }) => {
+test("moving a scoped display script to when saved keeps its scope stored until the clear is confirmed", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
   const caller = await root.internalCallerFor(root.ownerId);
   const script = await caller.regex.createScript({
@@ -116,10 +119,38 @@ test("moving a scoped display script to when saved stores it with no depth and n
   // The positive control: the scope the move must drop is stored before it.
   expect(await stored()).toMatchObject({ depth: { min: 0, max: 2 }, authors: { include: [{ by: "standing", standing: "host" }], exclude: [] } });
 
-  await page.getByRole("combobox", { name: REGEX_WHEN_FIELD_NAME, exact: true }).click();
-  await page.getByRole("option", { name: REGEX_WHEN_CHOICE_NAMES.save, exact: true }).click();
+  const when = page.getByRole("combobox", { name: REGEX_WHEN_FIELD_NAME, exact: true });
+  const pickSave = async (): Promise<void> => {
+    await when.click();
+    await page.getByRole("option", { name: REGEX_WHEN_CHOICE_NAMES.save, exact: true }).click();
+  };
+  const confirm = page.getByRole("alertdialog", { name: REGEX_SAVE_CLEARS_SCOPE_TITLE });
 
+  await pickSave();
+  await expect(confirm).toBeVisible();
+  await confirm.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
+  await expect(confirm).toBeHidden();
+  await expect(when).toHaveText(REGEX_WHEN_CHOICE_NAMES.display);
+  expect(await stored()).toMatchObject({ passes: ["display"], depth: { min: 0, max: 2 } });
+
+  await pickSave();
+  await confirm.getByRole("button", { name: REGEX_SAVE_CLEARS_SCOPE_CONFIRM_NAME, exact: true }).click();
   await expect.poll(async () => (await stored())?.passes).toEqual(["save"]);
   const moved = await stored();
   expect([moved?.depth, moved?.authors]).toEqual([undefined, undefined]);
+});
+
+test("moving an unscoped display script to when saved switches at once", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const script = await caller.regex.createScript({
+    input: { name: "Every line", findRegex: "x", replaceString: "y", targets: ["USER_INPUT"], passes: ["display"] },
+  });
+  await routeTrpc(page, serveCorpusProcedures(caller, PROCEDURES));
+  await mount<typeof RegexMemberSaveStory>(STORY, { scriptId: script.id });
+
+  await page.getByRole("combobox", { name: REGEX_WHEN_FIELD_NAME, exact: true }).click();
+  await page.getByRole("option", { name: REGEX_WHEN_CHOICE_NAMES.save, exact: true }).click();
+  await expect.poll(async () => (await caller.regex.listScripts()).find((row) => row.id === script.id)?.passes).toEqual(["save"]);
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
 });

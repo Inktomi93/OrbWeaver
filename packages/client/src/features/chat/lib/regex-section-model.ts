@@ -82,21 +82,37 @@ export function regexTierLeverCount(rows: readonly RegexTierRowView[]): number {
 /** The display pass, as the library rows spell it. */
 export const REGEX_DISPLAY_PASS = "display" satisfies RegexPass;
 
+/** Why an attached display script is not on screen: its own library switch, its tier's lever in this room, or the
+ *  room's master switch. */
+const REGEX_ROSTER_OFFS = ["script", "tier", "room"] as const;
+export type RegexRosterOff = (typeof REGEX_ROSTER_OFFS)[number];
+
+/** A display script the `On screen` roster lists as off, at the tier it would run from, with the switch that holds it. */
+export interface RegexRosterOffEntry extends RegexDisplayEntry {
+  readonly off: RegexRosterOff;
+}
+
 /**
- * The host's switched-off display scripts that would draw on screen if switched back on, each at the tier that holds
- * its rank, in run order.
+ * The host's attached display scripts that are not on screen, each once at its home tier ({@link regexRowHomes}),
+ * in run order, with the switch that keeps it off.
  *
  * @remarks
- * The display read lists only enabled scripts, so the `On screen` roster appends these to keep a flip there
- * reversible. A rank is the test: the resolver ranks a disabled row like any other, so a row with no rank sits in a
- * tier this room switched off and would stay off screen when enabled.
+ * The display read lists only what runs, so the `On screen` roster appends these: a script the room's levers hold
+ * off is part of why the screen looks as it does. A rank is the test: the resolver ranks a disabled row like any
+ * other, so a ranked row is off by its own switch, and a row with no rank anywhere is held by the master or by
+ * every tier that holds it.
  */
-export function regexSwitchedOffDisplay(view: EffectiveRegexView): readonly RegexDisplayEntry[] {
-  return view.tiers
-    .flatMap((tier) => tier.rows.flatMap((row) => (row.runsAt === null ? [] : [{ script: row.script, from: tier.scope, runsAt: row.runsAt }])))
-    .filter(({ script }) => !script.enabled && script.passes.includes(REGEX_DISPLAY_PASS))
-    .toSorted((a, b) => a.runsAt - b.runsAt)
-    .map(({ script, from }) => ({ script, from }));
+export function regexSwitchedOffDisplay(view: EffectiveRegexView): readonly RegexRosterOffEntry[] {
+  const homes = regexRowHomes(view.tiers);
+  const heldBy: RegexRosterOff = view.enabled ? "tier" : "room";
+  return view.tiers.flatMap((tier) =>
+    regexTierRows(tier, homes).flatMap((row): RegexRosterOffEntry[] => {
+      if (!row.script.passes.includes(REGEX_DISPLAY_PASS) || (row.runsAt !== null && row.script.enabled)) {
+        return [];
+      }
+      return [{ script: row.script, from: tier.scope, off: row.runsAt === null ? heldBy : "script" }];
+    }),
+  );
 }
 
 /**
@@ -156,9 +172,24 @@ export function regexTierLever(scope: RegexTierKey, labels: ReadonlyMap<RegexTie
 
 const REGEX_SCRIPT_ENABLED_SETTING = "Enabled everywhere";
 const REGEX_TIER_ALLOW_SETTING = "Allow scripts from";
+/** The room's master switch, its visible label and its accessible name. */
+export const REGEX_MASTER_SETTING = "Run regex in this chat";
 
 /** The mark a switched-off script's row carries, in the tier groups and the On screen roster. */
 export const REGEX_OFF_MARK = "Off";
+
+/** Why a roster row a room switch holds off is not on screen, naming the switch to flip; `null` for a script off by
+ *  its own library switch, which its row's switch already shows. */
+export function regexRosterOffReason(off: RegexRosterOff, tierLever: string): string | null {
+  switch (off) {
+    case "script":
+      return null;
+    case "tier":
+      return `Not on screen: “${REGEX_TIER_ALLOW_SETTING} ${tierLever}” is off in this chat.`;
+    case "room":
+      return `Not on screen: “${REGEX_MASTER_SETTING}” is off.`;
+  }
+}
 
 /** The display roster's heading, and the list word its row switches carry. */
 export const REGEX_ON_SCREEN_LIST = "On screen";

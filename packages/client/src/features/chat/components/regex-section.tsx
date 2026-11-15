@@ -31,7 +31,7 @@
 // A member gets the rows and NO controls — the §8.1 permission-OMIT at row level, the Lorebooks rack's
 // shape — plus one line saying whose regex this is. Nothing about the host's library leaks.
 
-import type { RegexDisplayEntry, RegexTierGroupView, RegexTierKey } from "@orb/contracts/chat";
+import type { RegexTierGroupView, RegexTierKey } from "@orb/contracts/chat";
 import { REGEX_VIEWER_SOURCE } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { CharacterId, ChatId, RegexScriptId } from "@orb/kit/ids";
@@ -47,8 +47,10 @@ import type { ReactElement, ReactNode } from "react";
 import { roomRosterOptions, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { REGEX_PASS_GLYPHS, REGEX_PASS_LABELS, REGEX_TARGET_GLYPHS, REGEX_TARGET_LABELS } from "#lib";
 import { useSetRegexAllow } from "../hooks/use-chat-regex-mutations.ts";
+import type { RegexRosterOffEntry } from "../lib/regex-section-model.ts";
 import {
   REGEX_DISPLAY_PASS,
+  REGEX_MASTER_SETTING,
   regexRowHomes,
   regexSwitchedOffDisplay,
   regexTierAllowedSwitchName,
@@ -179,7 +181,7 @@ function MemberRegexBody({ chatId }: { readonly chatId: ChatId }): ReactElement 
   const { data: globals } = useSuspenseQuery(trpc.regex.listGlobal.queryOptions());
   const switchedOff = globals
     .filter((script) => !script.enabled && script.passes.includes(REGEX_DISPLAY_PASS))
-    .map((script): RegexDisplayEntry => ({ script, from: REGEX_VIEWER_SOURCE }));
+    .map((script): RegexRosterOffEntry => ({ script, from: REGEX_VIEWER_SOURCE, off: "script" }));
   const tier = memberChatTier(scripts);
   return (
     <Stack data-slot="regex-section" gap="block">
@@ -274,10 +276,10 @@ function RegexLeverStrip({
     <Stack data-slot="regex-levers" gap="tight">
       <Row align="center" gap="field" justify="between">
         <Text as="span" voice="label">
-          Run regex in this chat
+          {REGEX_MASTER_SETTING}
         </Text>
         <Switch
-          aria-label="Run regex in this chat"
+          aria-label={REGEX_MASTER_SETTING}
           checked={enabled}
           onCheckedChange={(next): void => {
             setAllow.mutate({ chatId, lever: { kind: "master", enabled: next } });

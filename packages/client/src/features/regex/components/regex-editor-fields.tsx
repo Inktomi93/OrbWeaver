@@ -19,8 +19,8 @@ import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ChangeEvent, ReactElement } from "react";
-import { lazy, Suspense, useId } from "react";
-import { SettingSwitchRow } from "#components";
+import { lazy, Suspense, useId, useState } from "react";
+import { ConfirmDialog, SettingSwitchRow } from "#components";
 import type { AppFormInstance } from "#forms/editor";
 import { REGEX_TARGET_ITEMS, regexPassesRead } from "#lib";
 import {
@@ -31,9 +31,13 @@ import {
   REGEX_NAME_FIELD_NAME,
   REGEX_REPLACE_WITH_NAME,
   REGEX_RUN_ON_EDIT_NAME,
+  REGEX_SAVE_CLEARS_SCOPE_CONFIRM_NAME,
+  REGEX_SAVE_CLEARS_SCOPE_DESCRIPTION,
+  REGEX_SAVE_CLEARS_SCOPE_TITLE,
   REGEX_TARGETS_FIELD_NAME,
   REGEX_WHEN_FIELD_NAME,
 } from "../lib/regex-names.ts";
+import { regexHoldsMessageScope } from "../lib/regex-save-boundary.ts";
 import type { RegexWhenChoice } from "../lib/regex-when.ts";
 import { regexUnreadReasons, regexUnreadTargetsNote, regexWhenIsEphemeral, regexWhenItems, regexWhenOf, regexWhenPasses } from "../lib/regex-when.ts";
 import { RegexAuthorScopeFields } from "./regex-author-scope-fields.tsx";
@@ -120,28 +124,54 @@ function TargetsField({ form, passes }: { readonly form: RegexEditorForm; readon
   );
 }
 
+// A move to the save choice drops a set depth range or author scope at the save boundary, and the autosave would
+// store that loss at once, so the move waits for a confirm. With neither set it switches at once.
 function WhenField({ form, targets }: { readonly form: RegexEditorForm; readonly targets: readonly RegexTarget[] }): ReactElement {
   const items = regexWhenItems(targets);
+  const [held, setHeld] = useState<RegexPass[] | null>(null);
   return (
     <form.AppField name="passes">
       {(field): ReactElement => {
         const choice = regexWhenOf(field.state.value);
         const chosen = items.find((item) => item.value === choice);
         return (
-          <Field description={chosen?.description ?? null} error={whenError(field.state.value)} label={REGEX_WHEN_FIELD_NAME} name={field.name}>
-            <Select<RegexWhenChoice>
-              aria-label={REGEX_WHEN_FIELD_NAME}
-              items={items}
-              placeholder="Pick when it runs"
-              value={choice}
-              onValueChange={(next: RegexWhenChoice | null): void => {
-                const picked = next === null ? undefined : WHEN_CHOICES_BY_VALUE.get(next);
-                if (picked !== undefined) {
-                  field.handleChange(regexWhenPasses(picked));
+          <>
+            <Field description={chosen?.description ?? null} error={whenError(field.state.value)} label={REGEX_WHEN_FIELD_NAME} name={field.name}>
+              <Select<RegexWhenChoice>
+                aria-label={REGEX_WHEN_FIELD_NAME}
+                items={items}
+                placeholder="Pick when it runs"
+                value={choice}
+                onValueChange={(next: RegexWhenChoice | null): void => {
+                  const picked = next === null ? undefined : WHEN_CHOICES_BY_VALUE.get(next);
+                  if (picked === undefined) {
+                    return;
+                  }
+                  if (!regexWhenIsEphemeral(picked) && regexHoldsMessageScope({ depth: form.getFieldValue("depth"), authors: form.getFieldValue("authors") })) {
+                    setHeld(regexWhenPasses(picked));
+                  } else {
+                    field.handleChange(regexWhenPasses(picked));
+                  }
+                }}
+              />
+            </Field>
+            <ConfirmDialog
+              confirmLabel={REGEX_SAVE_CLEARS_SCOPE_CONFIRM_NAME}
+              description={REGEX_SAVE_CLEARS_SCOPE_DESCRIPTION}
+              onConfirm={(): void => {
+                if (held !== null) {
+                  field.handleChange(held);
                 }
               }}
+              onOpenChange={(open: boolean): void => {
+                if (!open) {
+                  setHeld(null);
+                }
+              }}
+              open={held !== null}
+              title={REGEX_SAVE_CLEARS_SCOPE_TITLE}
             />
-          </Field>
+          </>
         );
       }}
     </form.AppField>

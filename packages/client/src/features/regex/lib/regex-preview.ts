@@ -15,7 +15,7 @@
 //
 // THE RUN IS IN THE DISPLAY-PASS WORKER (D75). A catastrophic pattern backtracks for minutes on a short near-miss,
 // and the browser has no regex timeout, so both panels hand their scripts to the Worker the page can terminate
-// (`#lib/display-pass-runner.ts` `runRegexPreview`). A script past its deadline is stopped for the session under
+// (`packages/client/src/lib/display-pass-runner.ts` `runRegexPreview`). A script past its deadline is stopped for the session under
 // the same key the transcript stops it by, and the panel says so.
 
 import type { CreateRegexScriptInput } from "@orb/contracts/regex";

@@ -20,6 +20,9 @@ export const REGEX_GROUP_LABEL = "Regex scripts";
 /** The collection's file import and bulk select doors. */
 export const REGEX_IMPORT_SCRIPT_NAME = "Import a regex script";
 export const REGEX_SELECT_SCRIPTS_NAME = "Select scripts";
+/** The bulk bar's switch pair, which changes only whether the selected scripts run. */
+export const REGEX_BULK_ENABLE_NAME = "Enable";
+export const REGEX_BULK_DISABLE_NAME = "Disable";
 /** The bulk bar's verb that opens the axes picker for the selection. */
 export const REGEX_BULK_AXES_NAME = "Change what they change and when";
 
@@ -62,6 +65,12 @@ export const REGEX_AUTHORS_CLOSE_CHARACTERS_NAME = "Close the character list";
 export const REGEX_STANDING_HOST_NAME = "The host";
 export const REGEX_STANDING_MEMBER_NAME = "Other players";
 export const REGEX_AUTHORS_NOT_NAME = "Not messages from";
+
+/** The confirm before a move to the save choice drops a set depth range or author scope. */
+export const REGEX_SAVE_CLEARS_SCOPE_TITLE = "Clear how far back it reaches and whose messages it changes?";
+export const REGEX_SAVE_CLEARS_SCOPE_DESCRIPTION =
+  "A script that changes the saved message runs on every message as it is saved, so it has no depth range and no whose-messages lists. Switching clears this script's.";
+export const REGEX_SAVE_CLEARS_SCOPE_CONFIRM_NAME = "Clear them and switch";
 
 /** The run-on-edit switch, shown beside the save choice. */
 export const REGEX_RUN_ON_EDIT_NAME = "Run on edit";

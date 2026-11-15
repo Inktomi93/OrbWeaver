@@ -214,6 +214,8 @@ const SUBPATH_LEAF_IMPORTERS = [
   // The lib barrel deliberately omits the display pipeline that runs scripts on the calling thread; only the
   // Worker-backed display hook reads it.
   "packages/client/src/features/chat/hooks/use-display-text.ts",
+  // The editor preview's read of the same Worker runner.
+  "packages/client/src/features/regex/hooks/use-regex-preview.ts",
   // The display row's call shape, a type of the same pipeline the lib barrel omits.
   "packages/client/src/features/chat/lib/display-row.ts",
   // The lib barrel deliberately omits these development-only leaves.
@@ -583,6 +585,8 @@ const TEST_CONSTANT_HOMES = {
     "characterRefusalCopy: the copy a coded character refusal raises, which a notice case reads its expected toast from",
   "packages/client/src/features/chat/lib/warning-notice.ts":
     "warningNotice: the notice each chat warning code raises, which a notice case reads its expected toast from",
+  "packages/client/src/features/chat/lib/regex-stop-copy.ts":
+    "the On screen roster's marks and reasons for a script this browser stopped or a server pass skipped",
   "packages/client/src/features/config/lib/config-copy.ts": "CONFIG_SECTION_LABEL: the settings section labels",
   "packages/client/src/features/notifications/lib/notifications-copy.ts":
     "DEFERRED_TURN_HOST_UNAVAILABLE_COPY: the notice a dropped queued reply raises when its host is unavailable, which the inbox case reads its expected row from",

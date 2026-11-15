@@ -11,8 +11,9 @@
 //
 // ONLY YOUR OWN ROWS CARRY A SWITCH. A row from the room is the host's library row for a member: you cannot flip
 // someone else's library flag, and a control that looked operable and was not is the affordance lie the sibling
-// racks exist to correct. The server's list holds only enabled scripts, so your own switched-off display scripts
-// are appended with the `Off` mark, each at the place it would run from: a flip here is reversible here.
+// racks exist to correct. The server's list holds only what runs, so the scripts that are attached but held off are
+// appended with the `Off` mark, each at the place it would run from: your own switched-off ones, so a flip here is
+// reversible here, and for the host a script a tier lever or the room's master holds off, with the switch named.
 //
 // A STOPPED SCRIPT IS MARKED, NOT HIDDEN. The display pass stops a script that overruns its time on this device for
 // the rest of the session; its row keeps its place and says so, because a script silently missing from a list
@@ -32,11 +33,21 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { MutedLine, RegexAxesGlyphs, RowActionsMenu } from "#components";
 import { roomRosterOptions, useDisplayEntries, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import type { StoppedDisplayScript } from "#lib";
 import { ROW_MORE_LEAD, regexScriptTitle, rowActionSubject, rowQualifiers, timeLib } from "#lib";
 import { openConfigTo, selectCollectionMember } from "#state";
 import { useSetRegexScriptEnabled } from "../hooks/use-chat-regex-mutations.ts";
-import { useIsDisplayScriptStopped } from "../hooks/use-display-text.ts";
-import { REGEX_OFF_MARK, REGEX_ON_SCREEN_LIST, regexScriptEverywhereSwitchName, regexTierKicker } from "../lib/regex-section-model.ts";
+import { useDisplayScriptStop } from "../hooks/use-display-text.ts";
+import type { RegexRosterOff, RegexRosterOffEntry } from "../lib/regex-section-model.ts";
+import {
+  REGEX_OFF_MARK,
+  REGEX_ON_SCREEN_LIST,
+  regexRosterOffReason,
+  regexScriptEverywhereSwitchName,
+  regexTierKicker,
+  regexTierLever,
+} from "../lib/regex-section-model.ts";
+import { REGEX_BROWSER_STOPPED_MARK, REGEX_BROWSER_STOPPED_REASON, REGEX_NOT_APPLIED_MARK, regexNotAppliedReason } from "../lib/regex-stop-copy.ts";
 import { HostDisplayScriptsControl } from "./host-display-scripts-control.tsx";
 
 /** The config group the script library lives in — the `⋯ → Open in library` destination (#1725). */
@@ -45,19 +56,15 @@ const REGEX_COLLECTION = "regex";
 /** A row's source word for the viewer's own scripts. */
 const YOURS = "yours";
 
-/** The mark and its spoken reason on a script the display pass stopped. */
-const STOPPED_MARK = "Stopped";
-const STOPPED_REASON = "It took too long to run on this device and is stopped until you reload.";
-
 export interface RegexOnScreenGroupProps {
   readonly chatId: ChatId;
   readonly isHost: boolean;
   /** The room's tier names the host's section already resolved (the preset's name above all). A member passes an
    *  empty map; seat names come from the roster either way. */
   readonly labels: ReadonlyMap<RegexTierKey, string>;
-  /** The viewer's own switched-off display scripts, at the place each would run from once switched back on: the
-   *  host's from the room's tiers (`regexSwitchedOffDisplay`), a member's from their globals. */
-  readonly switchedOff: readonly RegexDisplayEntry[];
+  /** The display scripts that are attached but not on screen, at the place each would run from, with the switch that
+   *  holds it: the host's from the room's tiers (`regexSwitchedOffDisplay`), a member's own from their globals. */
+  readonly switchedOff: readonly RegexRosterOffEntry[];
 }
 
 export function RegexOnScreenGroup({ chatId, isHost, labels, switchedOff }: RegexOnScreenGroupProps): ReactElement {
@@ -65,9 +72,9 @@ export function RegexOnScreenGroup({ chatId, isHost, labels, switchedOff }: Rege
   const entries = useDisplayEntries(chatId);
   const { data: owned } = useSuspenseQuery(trpc.regex.listScripts.queryOptions());
   const { data: chat } = useSuspenseQuery(roomRosterOptions(trpc, { chatId }));
-  const isStopped = useIsDisplayScriptStopped();
+  const stopOf = useDisplayScriptStop();
   const ownedIds = new Set(owned.map((script) => script.id));
-  const rows: readonly RegexDisplayEntry[] = [...entries, ...switchedOff];
+  const rows: readonly (RegexDisplayEntry & { readonly off?: RegexRosterOff })[] = [...entries, ...switchedOff];
   const names = withSeatNames(labels, rows, chat.participants);
   // Two scripts can share a title, and a row's switch and menu then announce one name for two rows: the qualifier is resolved with the whole roster in hand.
   const qualifiers = rowQualifiers(
@@ -86,10 +93,11 @@ export function RegexOnScreenGroup({ chatId, isHost, labels, switchedOff }: Rege
             <Stack key={row.script.id} role="listitem">
               <DisplayScriptRow
                 isYours={ownedIds.has(row.script.id)}
+                offReason={row.off === undefined || row.from === REGEX_VIEWER_SOURCE ? null : regexRosterOffReason(row.off, regexTierLever(row.from, names))}
                 qualifier={qualifiers[index]}
                 script={row.script}
                 source={sourceWords(row.from, isHost, names)}
-                stopped={isStopped(row.script)}
+                stop={stopOf(row.script)}
               />
             </Stack>
           ))}
@@ -139,20 +147,25 @@ function sourceWords(from: RegexDisplaySource, isHost: boolean, names: ReadonlyM
   return isHost ? tier : `the host’s · ${tier}`;
 }
 
-/** One display-pass row: name · axes · pattern · source, and for the viewer's own script the library switch. */
+/** One display-pass row: the name, then the axes and whose script it is and which tier it runs from, then the pattern
+ *  and any stop with its reason; for the viewer's own script, the library switch. The source line answers why the
+ *  screen looks as it does, so it never shares a line with the pattern, which is the part that may truncate. */
 function DisplayScriptRow({
   isYours,
+  offReason,
   qualifier,
   script,
   source,
-  stopped,
+  stop,
 }: {
   readonly isYours: boolean;
+  /** The room switch that holds this script off screen, in words, or `null` when none does. */
+  readonly offReason: string | null;
   /** The disambiguator the row's switch and menu carry beside its name (`rowQualifiers`). */
   readonly qualifier: string | undefined;
   readonly script: RegexScriptRow;
   readonly source: string;
-  readonly stopped: boolean;
+  readonly stop: StoppedDisplayScript | undefined;
 }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -162,7 +175,7 @@ function DisplayScriptRow({
   const pattern = script.findRegex.trim() === "" ? "no pattern yet" : script.findRegex.trim();
   return (
     <ListRow
-      markers={<RowMarks enabled={script.enabled} stopped={stopped} />}
+      markers={<RowMarks off={!script.enabled || offReason !== null} stop={stop} />}
       {...(isYours
         ? {
             actions: (
@@ -192,31 +205,61 @@ function DisplayScriptRow({
             ),
           }
         : {})}
-      subtitle={`${pattern} · ${source}`}
+      detail={<RowDetail offReason={offReason} pattern={pattern} stop={stop} />}
+      subtitle={source}
       subtitleLead={<RegexAxesGlyphs passes={script.passes} targets={script.targets} />}
-      subtitlePlacement="inline"
+      subtitleWrap={true}
       title={name}
     />
   );
 }
 
-/** The title-line marks. The stopped reason rides an sr-only line beside the visible word, the tier row's shape
- *  for a compressed mark whose sentence is the datum. */
-function RowMarks({ enabled, stopped }: { readonly enabled: boolean; readonly stopped: boolean }): ReactElement | null {
-  if (enabled && !stopped) {
+/** The title-line marks; a stop's reason is the row's detail, in words. */
+function RowMarks({ off, stop }: { readonly off: boolean; readonly stop: StoppedDisplayScript | undefined }): ReactElement | null {
+  if (!off && stop === undefined) {
     return null;
   }
   return (
     <Row align="center" gap="tight">
-      {enabled ? null : <InlineToken>{REGEX_OFF_MARK}</InlineToken>}
-      {stopped ? (
-        <>
-          <InlineToken tone="warning">{STOPPED_MARK}</InlineToken>
-          <Text as="span" className="sr-only">
-            {STOPPED_REASON}
-          </Text>
-        </>
-      ) : null}
+      {off ? <InlineToken>{REGEX_OFF_MARK}</InlineToken> : null}
+      {stop === undefined ? null : <StopMark stop={stop} />}
     </Row>
+  );
+}
+
+// A browser stop and a server one read differently because the next step differs: a browser stop lifts at a
+// reload, which does not fix it, and a server one holds until the pattern is fixed.
+function StopMark({ stop }: { readonly stop: StoppedDisplayScript }): ReactElement {
+  const mark = stop.side === "browser" ? REGEX_BROWSER_STOPPED_MARK : REGEX_NOT_APPLIED_MARK;
+  return <InlineToken tone="warning">{mark}</InlineToken>;
+}
+
+/** Under the source: the pattern on one truncating line, then the room switch holding it off and a stop's reason, in
+ *  full. */
+function RowDetail({
+  offReason,
+  pattern,
+  stop,
+}: {
+  readonly offReason: string | null;
+  readonly pattern: string;
+  readonly stop: StoppedDisplayScript | undefined;
+}): ReactElement {
+  return (
+    <>
+      <Text cap="fit" data-slot="regex-on-screen-pattern" truncate={true} voice="gloss">
+        {pattern}
+      </Text>
+      {offReason === null ? null : (
+        <Text data-slot="regex-on-screen-off-reason" voice="gloss">
+          {offReason}
+        </Text>
+      )}
+      {stop === undefined ? null : (
+        <Text data-slot="regex-on-screen-stop-reason" tone="warning" voice="gloss">
+          {stop.side === "browser" ? REGEX_BROWSER_STOPPED_REASON : regexNotAppliedReason(stop.cause, stop.pass)}
+        </Text>
+      )}
+    </>
   );
 }

@@ -11,7 +11,7 @@ export function displayScriptsStoppedTitle(count: number): string {
 export function displayScriptsStoppedDescription(latestName: string, reason: DisplayStopReason, count: number): string {
   const what = reason === "slow" ? "ran too long on a message" : "made too much text from a message";
   const who = count === 1 ? `"${latestName}"` : `The latest, "${latestName}",`;
-  return `${who} ${what}. Stopped scripts stay off until you reload the page, and messages show without them.`;
+  return `${who} ${what}, so messages show without it. It is off on this device until you reload, and then it is tried again: fix its find pattern in your regex library, or switch it off in This chat under Regex.`;
 }
 
 export const DISPLAY_SCRIPTS_UNAVAILABLE_TITLE = "Regex scripts cannot run here";

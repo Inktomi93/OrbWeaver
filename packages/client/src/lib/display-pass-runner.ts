@@ -17,28 +17,20 @@
 // again), so a hostile script costs its bound once, not once per row. The main thread never runs a script:
 // the only per-row main-thread work is a result arriving, so no per-frame budget is needed.
 //
-// THE VIEWER LEARNS through ONE notice, updated in place as stops accumulate (a preset of two hundred slow
-// scripts must not stack two hundred toasts), and through `stoppedDisplayScripts`, the store the room's
-// regex roster reads. A preview's stop raises no notice: the panel that ran it says so beside the result. It
-// lands in the same store, so a saved script stopped in the tester stays off in the transcript too. There is never
+// THE VIEWER LEARNS through the stop store (`display-script-stops.ts`): its one notice and the room's regex
+// roster. A preview's stop raises no notice: the panel that ran it says so beside the result. It lands in the same
+// store, so a saved script stopped in the tester stays off in the transcript too. There is never
 // a main-thread fallback: when the Worker cannot start, every row renders without its scripts and one notice says
 // so, and every preview reports itself unavailable.
 //
 // QUEUE ORDER: a row on screen first, then the newest; the caller supplies both through its priority read,
 // which is read at each dispatch because a row scrolls in and out while it waits.
 
-import type { RegexScriptRow } from "@orb/contracts/regex";
-import type { ProcessMacroOptions } from "@orb/kit/macro";
-import type { RegexPassCall, RegexScriptInput } from "@orb/kit/regex";
-import type { DisplayStopReason } from "./display-pass-copy.ts";
-import {
-  DISPLAY_SCRIPTS_UNAVAILABLE_DESCRIPTION,
-  DISPLAY_SCRIPTS_UNAVAILABLE_TITLE,
-  displayScriptsStoppedDescription,
-  displayScriptsStoppedTitle,
-} from "./display-pass-copy.ts";
-import type { DisplayPassReply, DisplayPassRun, RegexPreviewRun } from "./display-pass-protocol.ts";
+import { DISPLAY_SCRIPTS_UNAVAILABLE_DESCRIPTION, DISPLAY_SCRIPTS_UNAVAILABLE_TITLE } from "./display-pass-copy.ts";
+import type { DisplayPassReply, DisplayPassRun, RegexPreviewOutcome, RegexPreviewRequest, RegexPreviewRun } from "./display-pass-protocol.ts";
 import { DISPLAY_ROW_BUDGET_MS, DISPLAY_SCRIPT_DEADLINE_MS } from "./display-pass-protocol.ts";
+import type { StopSubject } from "./display-script-stops.ts";
+import { isDisplayScriptStopped, stopDisplayScripts } from "./display-script-stops.ts";
 import type { StyledDisplayText } from "./display-styled.ts";
 import type { DisplayPass } from "./message-render.ts";
 import { notify } from "./notify.ts";
@@ -55,42 +47,8 @@ export interface DisplayPassRequest {
   readonly priority: () => DisplayPassPriority;
 }
 
-/** Which script a stop names: its row id, or `null` for an editor draft that has none yet. */
-interface StopSubject {
-  readonly id: RegexScriptRow["id"] | null;
-  /** The pattern it was stopped on: an edit that changes the pattern runs the script again. */
-  readonly findRegex: string;
-  readonly name: string;
-}
-
-/** A script the display pass stopped this session. */
-export interface StoppedDisplayScript extends StopSubject {
-  readonly reason: DisplayStopReason;
-}
-
-/** One script of a preview: what runs, and the subject a stop names. */
-export interface RegexPreviewEntry extends StopSubject {
-  readonly script: RegexScriptInput;
-}
-
-/** What a preview says about one script: what it did, or why it did not run. A stopped or unavailable script
- *  leaves the text as it found it. */
-export type RegexPreviewOutcome =
-  | ({ readonly kind: "ran" } & RegexPreview)
-  | { readonly kind: "stopped"; readonly output: string }
-  | { readonly kind: "unavailable"; readonly output: string };
-
-/** A preview's input: the scripts in run order, the text the first one reads, and the call and macros each runs under. */
-export interface RegexPreviewRequest {
-  readonly entries: readonly RegexPreviewEntry[];
-  readonly text: string;
-  readonly call: RegexPassCall;
-  readonly macroCtx: ProcessMacroOptions;
-}
-
 /** How long a fresh Worker may take to report its first script before the browser is judged unable to run it. */
 const WORKER_START_LIMIT_MS = 10_000;
-const STOPPED_NOTICE_ID = "display-scripts-stopped";
 const UNAVAILABLE_NOTICE_ID = "display-scripts-unavailable";
 
 interface DisplayJob {
@@ -135,51 +93,6 @@ let active: Active | null = null;
 let timer: ReturnType<typeof setTimeout> | undefined;
 const queue: Job[] = [];
 
-const stoppedKeys = new Set<string>();
-let stopped: readonly StoppedDisplayScript[] = [];
-const stoppedListeners = new Set<() => void>();
-
-/** The scripts stopped this session, as a store for `useSyncExternalStore`. */
-export const stoppedDisplayScripts = {
-  subscribe(listener: () => void): () => void {
-    stoppedListeners.add(listener);
-    return (): void => {
-      stoppedListeners.delete(listener);
-    };
-  },
-  getSnapshot(): readonly StoppedDisplayScript[] {
-    return stopped;
-  },
-};
-
-/** What a stop is keyed by: the script and the pattern it was stopped on. */
-export function displayScriptStopKey(script: Pick<StopSubject, "id" | "findRegex">): string {
-  return `${script.id ?? ""}\u0000${script.findRegex}`;
-}
-
-function stopScripts(scripts: readonly StopSubject[], reason: DisplayStopReason, notice: boolean): void {
-  const fresh = scripts.filter((script) => !stoppedKeys.has(displayScriptStopKey(script)));
-  const latest = fresh.at(-1);
-  if (latest === undefined) {
-    return;
-  }
-  for (const script of fresh) {
-    stoppedKeys.add(displayScriptStopKey(script));
-  }
-  stopped = [...stopped, ...fresh.map((script) => ({ id: script.id, findRegex: script.findRegex, name: script.name, reason }))];
-  for (const listener of stoppedListeners) {
-    listener();
-  }
-  if (!notice) {
-    return;
-  }
-  notify.warn({
-    id: STOPPED_NOTICE_ID,
-    title: displayScriptsStoppedTitle(stopped.length),
-    description: displayScriptsStoppedDescription(latest.name, reason, stopped.length),
-  });
-}
-
 /** The row spent its budget: stop the scripts that took longest on it until the rest fit in half the budget,
  *  so the next row with similar text runs whole. */
 function stopSlowest(scripts: readonly StopSubject[], timings: readonly number[]): void {
@@ -194,7 +107,7 @@ function stopSlowest(scripts: readonly StopSubject[], timings: readonly number[]
     slowest.push(script);
     remaining -= ms;
   }
-  stopScripts(slowest, "slow", true);
+  stopDisplayScripts(slowest, "slow", true);
 }
 
 function clearTimer(): void {
@@ -284,7 +197,7 @@ function onDeadline(): void {
   worker = null;
   const culprit = scripts[index];
   if (culprit !== undefined) {
-    stopScripts([culprit], "slow", job.kind === "display");
+    stopDisplayScripts([culprit], "slow", job.kind === "display");
   }
   queue.push(job);
   pump();
@@ -326,7 +239,7 @@ function onReply(event: MessageEvent<DisplayPassReply>): void {
     stopSlowest(scripts, message.timings);
   } else if (message.cut === "oversize") {
     const culprit = scripts[message.timings.length - 1];
-    stopScripts(culprit === undefined ? [] : [culprit], "oversize", true);
+    stopDisplayScripts(culprit === undefined ? [] : [culprit], "oversize", true);
   }
   job.resolve({ text: message.text, styled: message.styled });
   pump();
@@ -344,15 +257,13 @@ function spawn(): Worker | null {
   }
 }
 
-const isStopped = (script: StopSubject): boolean => stoppedKeys.has(displayScriptStopKey(script));
-
 /** The message that starts a job, with the scripts and preview entries it carries, or null when nothing is left
  *  to run and the job has been settled. */
 function dispatchOf(
   job: Job,
 ): { readonly message: DisplayPassRun | RegexPreviewRun; readonly scripts: readonly StopSubject[]; readonly entries: readonly number[] } | null {
   if (job.kind === "preview") {
-    const entries = job.request.entries.flatMap((entry, index) => (job.results.has(index) || isStopped(entry) ? [] : [index]));
+    const entries = job.request.entries.flatMap((entry, index) => (job.results.has(index) || isDisplayScriptStopped(entry) ? [] : [index]));
     const first = entries[0];
     if (first === undefined) {
       job.resolve(previewOutcomes(job, "stopped"));
@@ -370,7 +281,7 @@ function dispatchOf(
     };
     return { message, scripts: carried, entries };
   }
-  const scripts = job.pass.scripts.filter((script) => !isStopped(script));
+  const scripts = job.pass.scripts.filter((script) => !isDisplayScriptStopped(script));
   const now = performance.now();
   job.firstRunAt ??= now;
   const budgetMs = DISPLAY_ROW_BUDGET_MS - (now - job.firstRunAt);

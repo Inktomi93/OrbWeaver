@@ -6,6 +6,7 @@
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { ProcessMacroOptions } from "@orb/kit/macro";
 import type { RegexPassCall, RegexScriptInput } from "@orb/kit/regex";
+import type { StopSubject } from "./display-script-stops.ts";
 import type { DisplayCall } from "./message-render.ts";
 import type { RegexPreview } from "./regex-instrumented.ts";
 
@@ -37,6 +38,26 @@ export interface DisplayPassRun {
 }
 
 /** Main thread to Worker: run each script over the text the one before it left, and report what each one did. */
+/** One script of a preview: what runs, and the subject a stop names. */
+export interface RegexPreviewEntry extends StopSubject {
+  readonly script: RegexScriptInput;
+}
+
+/** What a preview says about one script: what it did, or why it did not run. A stopped or unavailable script
+ *  leaves the text as it found it. */
+export type RegexPreviewOutcome =
+  | ({ readonly kind: "ran" } & RegexPreview)
+  | { readonly kind: "stopped"; readonly output: string }
+  | { readonly kind: "unavailable"; readonly output: string };
+
+/** A preview's input: the scripts in run order, the text the first one reads, and the call and macros each runs under. */
+export interface RegexPreviewRequest {
+  readonly entries: readonly RegexPreviewEntry[];
+  readonly text: string;
+  readonly call: RegexPassCall;
+  readonly macroCtx: ProcessMacroOptions;
+}
+
 export interface RegexPreviewRun {
   readonly kind: "preview";
   readonly jobId: number;

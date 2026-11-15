@@ -6,7 +6,7 @@
 
 import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query";
 import type { RegexPreviewOutcome, RegexPreviewRequest } from "#lib";
-import { runRegexPreview } from "#lib";
+import { runRegexPreview } from "#src/lib/display-pass-runner.ts";
 
 const REGEX_PREVIEW_KEY = "regex-preview";
 

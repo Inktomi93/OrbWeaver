@@ -24,8 +24,10 @@ import { keepPreviousData, queryOptions, skipToken, useQuery } from "@tanstack/r
 import type { RefCallback } from "react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { DISPLAY_ROW_BUDGET_MS } from "#src/lib/display-pass-protocol.ts";
-import type { DisplayPassRequest, StoppedDisplayScript } from "#src/lib/display-pass-runner.ts";
-import { displayScriptStopKey, runDisplayPass, stoppedDisplayScripts } from "#src/lib/display-pass-runner.ts";
+import type { DisplayPassRequest } from "#src/lib/display-pass-runner.ts";
+import { runDisplayPass } from "#src/lib/display-pass-runner.ts";
+import type { StoppedDisplayScript } from "#src/lib/display-script-stops.ts";
+import { displayScriptStopKey, stoppedDisplayScripts } from "#src/lib/display-script-stops.ts";
 import type { StyledDisplayText } from "#src/lib/display-styled.ts";
 import type { DisplayPass, DisplayRowCall, MessageRenderContext } from "#src/lib/message-render.ts";
 import { finishDisplayPass, prepareDisplayPass, renderMessageForDisplay } from "#src/lib/message-render.ts";
@@ -188,10 +190,17 @@ function displayedAnswer(input: {
     : { landed: true, text: finishDisplayPass(scripted.text, ctx), styled: scripted.styled };
 }
 
-/** Whether the display pass has stopped a script as it is now: an edit to its pattern clears the mark, because the
- *  pass runs the edited script again. The room's On screen regex roster reads it. */
-export function useIsDisplayScriptStopped(): (script: Pick<RegexScriptRow, "id" | "findRegex">) => boolean {
+/** The stop on a script as it is now, if any: an edit to its pattern clears it, because every pass runs the edited
+ *  script again. This browser's own stop wins over a server pass's report, because it is why the script is off on
+ *  this screen. The room's On screen regex roster reads it. */
+export function useDisplayScriptStop(): (script: Pick<RegexScriptRow, "id" | "findRegex">) => StoppedDisplayScript | undefined {
   const stoppedThisSession: readonly StoppedDisplayScript[] = useSyncExternalStore(stoppedDisplayScripts.subscribe, stoppedDisplayScripts.getSnapshot);
-  const stopped = new Set(stoppedThisSession.map(displayScriptStopKey));
-  return (script) => stopped.has(displayScriptStopKey(script));
+  const byKey = new Map<string, StoppedDisplayScript>();
+  for (const entry of stoppedThisSession) {
+    const key = displayScriptStopKey(entry);
+    if (byKey.get(key)?.side !== "browser") {
+      byKey.set(key, entry);
+    }
+  }
+  return (script) => byKey.get(displayScriptStopKey(script));
 }
