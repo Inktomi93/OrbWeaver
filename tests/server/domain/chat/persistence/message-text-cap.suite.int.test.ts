@@ -133,29 +133,106 @@ test("a model reply that streams past the cap stops its stream, is refused with 
   expect((await readRoomCanon(h.root, h.owner, h.chatId)).map((message) => message.role)).toEqual(["user"]);
 });
 
-test("an imported chat with one over-long row imports the rest and names the refused row", async () => {
-  await using h = await textRoom([]);
-  const descriptor = h.root.app.portability.find((entity) => entity.kind === "chat");
+/** One SillyTavern transcript line: a user or character turn, with an optional swipe pool and the swipe shown. */
+interface StLine {
+  readonly user: boolean;
+  readonly text: string;
+  readonly swipes?: readonly string[];
+  readonly swipeId?: number;
+}
+
+type ChatImport = NonNullable<ReturnType<ChatRoot["root"]["app"]["portability"]["find"]>>;
+
+/** The production chat import door and the bytes of a SillyTavern file for the room's first character. */
+function stTranscript(h: ChatRoot, lines: readonly StLine[]): { readonly door: ChatImport; readonly filename: string; readonly bytes: Uint8Array } {
+  const door = h.root.app.portability.find((entity) => entity.kind === "chat");
   const card = h.characters[0];
-  if (descriptor === undefined || card === undefined) {
+  if (door === undefined || card === undefined) {
     throw new Error("the import needs the production chat descriptor and a seated character");
   }
-  const sentAt = JSON.stringify(new Date(h.root.clock.now()).toISOString());
-  const line = (user: boolean, text: string): string =>
-    `{"name":${JSON.stringify(user ? h.owner.handle : card.name)},"is_user":${String(user)},"is_system":false,"mes":${JSON.stringify(text)},"send_date":${sentAt}}`;
-  const header = `{"character_name":${JSON.stringify(card.name)},"user_name":${JSON.stringify(h.owner.handle)},"create_date":${sentAt}}`;
-  const bytes = new TextEncoder().encode([header, line(true, "First line."), line(false, OVER_CAP), line(true, "Third line.")].join("\n"));
+  const sentAt = new Date(h.root.clock.now()).toISOString();
+  // SillyTavern's own field names.
+  const header = { ["character_name"]: card.name, ["user_name"]: h.owner.handle, ["create_date"]: sentAt };
+  const rows = lines.map((line) => ({
+    name: line.user ? h.owner.handle : card.name,
+    ["is_user"]: line.user,
+    ["is_system"]: false,
+    mes: line.text,
+    ["send_date"]: sentAt,
+    ...(line.swipes === undefined ? {} : { swipes: line.swipes, ["swipe_id"]: line.swipeId ?? 0 }),
+  }));
+  const bytes = new TextEncoder().encode([header, ...rows].map((row) => JSON.stringify(row)).join("\n"));
+  return { door, filename: `${card.handle}/imported.jsonl`, bytes };
+}
 
-  const outcome = await descriptor.importFile(h.owner.userId, { filename: `${card.handle}/runaway.jsonl`, bytes });
+/** The canon of the room whose first line is `first`. */
+async function importedCanon(h: ChatRoot, first: string): Promise<MessageView[]> {
+  const rooms = (await h.root.services.chat.listChats({ principal: h.owner })).items;
+  const canons = await Promise.all(rooms.map(async (room) => await readRoomCanon(h.root, h.owner, room.id)));
+  const canon = canons.find((rows) => rows[0]?.content === first);
+  if (canon === undefined) {
+    throw new Error("the import landed no room with that first line");
+  }
+  return canon;
+}
+
+test("an imported chat with one over-long row imports the rest and names the refused row", async () => {
+  await using h = await textRoom([]);
+  const file = stTranscript(h, [
+    { user: true, text: "First line." },
+    { user: false, text: OVER_CAP },
+    { user: true, text: "Third line." },
+  ]);
+
+  const outcome = await file.door.importFile(h.owner.userId, { filename: file.filename, bytes: file.bytes });
 
   expect(outcome).toMatchObject({ ok: true, created: true });
   expect(outcome.ok && outcome.notes).toHaveLength(1);
-  const rooms = (await h.root.services.chat.listChats({ principal: h.owner })).items;
-  const imported = await Promise.all(rooms.map(async (room) => await readRoomCanon(h.root, h.owner, room.id)));
-  const landed = imported.find((canon) => canon[0]?.content === "First line.");
   // The refused row's seq stays empty, so the rows around it keep their places.
-  expect(landed?.map(({ content, seq }) => ({ content, seq }))).toEqual([
+  expect((await importedCanon(h, "First line.")).map(({ content, seq }) => ({ content, seq }))).toEqual([
     { content: "First line.", seq: 1 },
     { content: "Third line.", seq: 3 },
   ]);
+});
+
+test("an import that refuses a swipe keeps the kept swipes' positions dense, so a later swipe of that message lands", async () => {
+  await using h = await textRoom(["Swiped onto the first.", "Swiped onto the second."]);
+  const { chat } = h.root.services;
+  // The refused swipe is the shown one in the first reply, and sits between two kept swipes in the second.
+  const file = stTranscript(h, [
+    { user: true, text: "Opening." },
+    { user: false, text: OVER_CAP, swipes: [OVER_CAP, "Kept after a refused first."], swipeId: 0 },
+    { user: true, text: "Again." },
+    { user: false, text: "Kept last.", swipes: ["Kept first.", OVER_CAP, "Kept last."], swipeId: 2 },
+  ]);
+
+  const outcome = await file.door.importFile(h.owner.userId, { filename: file.filename, bytes: file.bytes });
+
+  expect(outcome).toMatchObject({ ok: true, created: true });
+  expect(outcome.ok && outcome.notes).toHaveLength(2);
+  const [, first, , second] = await importedCanon(h, "Opening.");
+  if (first === undefined || second === undefined) {
+    throw new Error("the import landed fewer than four rows");
+  }
+  // A refused shown swipe hands the selection to the first kept swipe; a kept shown swipe stays shown at its new place.
+  expect({ content: first.content, idx: first.selectedVariantIdx }).toEqual({ content: "Kept after a refused first.", idx: 0 });
+  expect({ content: second.content, idx: second.selectedVariantIdx }).toEqual({ content: "Kept last.", idx: 1 });
+
+  for (const message of [first, second]) {
+    await chat.swipe({ principal: h.owner, chatId: message.chatId, messageId: message.id });
+  }
+  const positions = await Promise.all(
+    [first, second].map(async (message) =>
+      (await chat.listMessageVariants({ principal: h.owner, chatId: message.chatId, messageId: message.id })).map(({ idx }) => idx),
+    ),
+  );
+  expect(positions).toEqual([
+    [0, 1],
+    [0, 1, 2],
+  ]);
+
+  // The same file again is the same import: held, not landed twice.
+  const again = await file.door.importFile(h.owner.userId, { filename: file.filename, bytes: file.bytes });
+  expect(again).toMatchObject({ ok: true, created: false });
+  expect((await chat.listChats({ principal: h.owner })).items.filter((room) => room.id === first.chatId)).toHaveLength(1);
 });

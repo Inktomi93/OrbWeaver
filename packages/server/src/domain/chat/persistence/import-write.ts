@@ -451,21 +451,47 @@ function overlongText(v: BulkImportVariantInput): Pick<BulkImportRefusedRow, "fi
   return null;
 }
 
+/** What the import does with one input variant: store it at `idx`, or refuse it as over-long. */
+type VariantLanding =
+  | { readonly kind: "kept"; readonly idx: number }
+  | { readonly kind: "refused"; readonly overlong: Pick<BulkImportRefusedRow, "field" | "chars"> };
+
+/** Each input variant's landing, the kept ones numbered from 0 in input order. Live swipes append at the variant
+ *  count, so a hole left by a refused variant would collide with the next swipe. The write and the dedup remap both
+ *  read this, so they pair by the same positions. With nothing refused the position equals the source `idx`, since
+ *  both producers number their variants densely in order. */
+function variantLandings(variants: readonly BulkImportVariantInput[]): VariantLanding[] {
+  let next = 0;
+  return variants.map((v): VariantLanding => {
+    const overlong = overlongText(v);
+    if (overlong !== null) {
+      return { kind: "refused", overlong };
+    }
+    next += 1;
+    return { kind: "kept", idx: next - 1 };
+  });
+}
+
 /** The message's rows without its over-long variants, or null when every variant was refused: such a message gets
  *  no slot, and its seq stays empty the way a deleted slot's does. A refused selected variant hands the selection
- *  to the first variant written. */
+ *  to the first kept one, now at position 0: no choice among the kept swipes carries the reader's intent, and the
+ *  first is where stepping through them starts. */
 function messageRows(args: MessageRowsArgs): MessageRows | null {
   const { ctx, messageId, chatId, seq, message } = args;
   const isUser = message.role === "user";
+  const landings = variantLandings(message.variants);
   let selectedVariantId: MessageVariantId | null = null;
   const variantIds: (MessageVariantId | null)[] = [];
   const variants = message.variants.flatMap((v, i): (typeof messageVariants.$inferInsert)[] => {
-    const overlong = overlongText(v);
-    if (overlong !== null) {
-      args.refused.push({ chat: args.chat, messageIndex: args.messageIndex, variantIdx: v.idx, ...overlong });
+    const landing = landings[i];
+    if (landing === undefined || landing.kind === "refused") {
+      if (landing !== undefined) {
+        args.refused.push({ chat: args.chat, messageIndex: args.messageIndex, variantIdx: v.idx, ...landing.overlong });
+      }
       variantIds.push(null);
       return [];
     }
+    const { idx } = landing;
     const variantId = ctx.newMessageVariantId();
     variantIds.push(variantId);
     if (i === message.selectedIdx) {
@@ -475,7 +501,7 @@ function messageRows(args: MessageRowsArgs): MessageRows | null {
       {
         id: variantId,
         messageId,
-        idx: v.idx,
+        idx,
         content: v.content,
         model: importedModelId(v.model),
         provider: importedProviderId(v.provider),
@@ -500,8 +526,7 @@ function messageRows(args: MessageRowsArgs): MessageRows | null {
   if (firstWritten === undefined && message.variants.length > 0) {
     return null;
   }
-  const selected = message.variants[message.selectedIdx];
-  if (selected !== undefined && overlongText(selected) !== null) {
+  if (landings[message.selectedIdx]?.kind === "refused") {
     selectedVariantId = firstWritten?.id ?? null;
   }
   return {
@@ -907,8 +932,8 @@ async function loadImportedRemap(db: Db, chatId: ChatId, ci: BulkImportChatInput
   const pairs = ci.messages.map((m, index) => {
     const messageId = slotBySeq.get(index + origin) ?? null;
     const pool = messageId === null ? undefined : variantsByMessage.get(messageId);
-    // A carried variant pairs by its own `idx`, the column the import stored it under.
-    return { messageId, variantIds: m.variants.map((v) => pool?.get(v.idx) ?? null) };
+    // A carried variant pairs by the position the write stored it at; a refused one was never stored.
+    return { messageId, variantIds: variantLandings(m.variants).map((landing) => (landing.kind === "kept" ? (pool?.get(landing.idx) ?? null) : null)) };
   });
   return { kind: "aligned", chatId, messageIds: pairs.map((pair) => pair.messageId), variantIds: pairs.map((pair) => pair.variantIds) };
 }
