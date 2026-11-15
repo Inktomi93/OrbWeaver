@@ -84,9 +84,11 @@ const PAYLOAD_TOO_LARGE = 413;
 const UNSUPPORTED_MEDIA_TYPE = 415;
 const BYTES_PER_KIB = 1024;
 const BYTES_PER_MIB = BYTES_PER_KIB * BYTES_PER_KIB;
-// tRPC bodies are JSON (a batched call's inputs + params). 1 MiB is generous for that; oversized binary
-// rides the upload/import routes with their own larger caps. Bounds a malicious oversized mutation body.
-const TRPC_BODY_MAX_BYTES = BYTES_PER_MIB;
+// tRPC bodies are JSON (a batched call's inputs + params). The cap sits above the largest text a procedure admits,
+// a preset file or a stored message as escaped UTF-8, so each procedure's own input schema is the limit a person
+// meets and this one only bounds a hostile body. Binary rides the upload and import routes with their own caps.
+const TRPC_BODY_MAX_MIB = 32;
+const TRPC_BODY_MAX_BYTES = TRPC_BODY_MAX_MIB * BYTES_PER_MIB;
 
 // The ONE content-type a tRPC mutation may carry, and the bound on how much of a rejected one reaches the
 // log ring (the header is attacker-controlled and header-size-bounded, not length-bounded by us).
