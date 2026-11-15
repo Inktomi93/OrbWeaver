@@ -55,6 +55,7 @@
 import {
   allowsInteractiveCards,
   CARD_FRAME_MINT_BODY_MAX_BYTES,
+  CARD_FRAME_MINTS_IN_FLIGHT,
   CARD_FRAME_ROUTE,
   cardFrameMintRequestSchema,
   cardFrameUrl,
@@ -62,10 +63,10 @@ import {
 } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { CardFrameMediaPolicy, CardFramePosture } from "@orb/kit/card-frame";
-import { buildCardFrameCsp, buildCardFrameDocument, CARD_FRAME_SAFE_FLOOR, cardFrameResponseHeaders } from "@orb/kit/card-frame";
-import type { CharacterId, ChatId } from "@orb/kit/ids";
+import { buildCardFrameCsp, buildCardFrameDocument, CARD_FRAME_MISSING_ATTRIBUTE, CARD_FRAME_SAFE_FLOOR, cardFrameResponseHeaders } from "@orb/kit/card-frame";
+import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
-import type { Hono } from "hono";
+import type { Hono, MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { ChatService } from "#domain/chat";
 import { hasCsrfHeader } from "#infra/auth";
@@ -79,6 +80,7 @@ const FORBIDDEN = 403;
 const NOT_FOUND = 404;
 const BAD_REQUEST = 400;
 const PAYLOAD_TOO_LARGE = 413;
+const TOO_MANY_REQUESTS = 429;
 
 /** The membership-gated participant read — the ONE authority for a card's render policy. Structural port
  *  so `entry/http` states exactly the slice it consumes (the `BlobAssetsPort` precedent). */
@@ -121,6 +123,8 @@ const MISS_DOC = buildCardFrameDocument({
   themeTokens: undefined,
   styleTokens: undefined,
   fontFamily: undefined,
+  // The frame says so on load, so a framed reply mints again rather than showing this notice as the reply.
+  rootAttributes: { [CARD_FRAME_MISSING_ATTRIBUTE]: "" },
 });
 
 /** What ONE mint resolves from its selector: the media grants AND the document's script posture. Both come
@@ -182,8 +186,36 @@ async function resolvePolicy(
 /** Register `POST /api/card-frame` (mint) + `GET /api/card-frame/:id` (serve) on `app`. */
 export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps): void {
   const store = createFrameHandleStore(deps.now);
+  const mintsInFlight = new Map<UserId, number>();
 
-  app.post(CARD_FRAME_ROUTE, bodyLimit({ maxSize: CARD_FRAME_MINT_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
+  // THE IN-FLIGHT GATE runs BEFORE the body limit, because the body limit buffers a chunked body whole before the
+  // handler runs. Past the bound the mint answers 429 without reading a byte of its body. A request with no principal
+  // passes through to the handler's own 401.
+  const mintGate: MiddlewareHandler<PrincipalEnv> = async (c, next) => {
+    const principal = c.get("principal");
+    if (principal === null) {
+      await next();
+      return c.res;
+    }
+    const inFlight = mintsInFlight.get(principal.userId) ?? 0;
+    if (inFlight >= CARD_FRAME_MINTS_IN_FLIGHT) {
+      return c.body(null, TOO_MANY_REQUESTS);
+    }
+    mintsInFlight.set(principal.userId, inFlight + 1);
+    try {
+      await next();
+    } finally {
+      const left = (mintsInFlight.get(principal.userId) ?? 1) - 1;
+      if (left > 0) {
+        mintsInFlight.set(principal.userId, left);
+      } else {
+        mintsInFlight.delete(principal.userId);
+      }
+    }
+    return c.res;
+  };
+
+  app.post(CARD_FRAME_ROUTE, mintGate, bodyLimit({ maxSize: CARD_FRAME_MINT_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
     const principal = c.get("principal");
     if (principal === null) {
       return c.body(null, UNAUTHORIZED);
@@ -216,6 +248,7 @@ export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps):
       // here and is the one that bounds the root size to the appearance range.
       styleTokens: body.styleTokens,
       fontFamily: body.fontFamily,
+      rootAttributes: body.rootAttributes,
     });
     // A document minted for a named character keeps its selector and the grants it resolved beside it, so a
     // SERVE can withdraw any of them (see the GET below). A null selector resolves to the floor, which has

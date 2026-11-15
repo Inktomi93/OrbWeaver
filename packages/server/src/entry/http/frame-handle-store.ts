@@ -13,11 +13,20 @@
 // THE OWNER CHECK IS THE LAST WORD AND NEVER FALLS THROUGH TO A DIFFERENT ANSWER — `take` returns `undefined`
 // for a foreign owner exactly as it does for a miss, so a caller cannot accidentally build two response arms.
 //
-// ── THE TWO CEILINGS, BOTH ENFORCED ──────────────────────────────────────────────────────────────────────────
-// Count AND bytes, because a document's size varies by two orders of magnitude: a count-only cap would let 256
-// max-size documents pin ~20 MiB, a byte-only cap would let a flood of tiny ones pin an unbounded map.
-// Oldest-first eviction (Map iteration is insertion-ordered, so `keys().next()` IS the oldest handle); a victim
-// of eviction re-mints.
+// ── THE CEILINGS, ALL ENFORCED ───────────────────────────────────────────────────────────────────────────────
+// Count AND bytes, because a document's size varies by three orders of magnitude: a count-only cap would let
+// max-size documents pin far more than the byte ceiling, a byte-only cap would let a flood of tiny ones pin an
+// unbounded map. A PER-USER count and byte ceiling sits under the process one, so a viewer's own mints evict that
+// viewer's oldest documents first and one account alone cannot push another member's open frames out. Oldest-first
+// eviction (Map iteration is insertion-ordered, so the first matching key IS the oldest handle); a victim of
+// eviction re-mints.
+//
+// SIZED for a whole framed reply (D294), measured on the public Sola V4 preset's display scripts: the longest reply
+// (a six-tracker scene) mints a 279,294-byte body (204,544 chars of markup, 58,319 of matched app CSS, the token
+// set), so its stored document is about 0.27 MiB. An open transcript keeps eight framed rows mounted plus the
+// visible ones, about sixteen such documents, 4.3 MiB for one viewer. The per-user ceiling holds that about twice
+// over; the process ceiling holds four viewers at their ceiling. What one signed-in account can pin: its own
+// per-user ceiling, for the handle lifetime after its last serve; a few accounts together, the process ceiling.
 //
 // TTL SLIDES ON EACH SERVE — a transcript or a room left open re-frames on remount (lazy iframes refetch) and
 // must not find a hole where its document was. The slide costs a timestamp write and bounds retention to "the
@@ -36,9 +45,13 @@ export const FRAME_HANDLE_TTL_MS = TTL_MINUTES * MS_PER_MINUTE;
 
 /** Retention ceilings, shared by both doorways. */
 const BYTES_PER_MIB = 1_048_576;
-const MAX_TOTAL_MIB = 8;
-const MAX_ENTRIES = 256;
+const MAX_TOTAL_MIB = 32;
+const MAX_USER_MIB = 8;
+const MAX_ENTRIES = 1024;
+// A transcript's frames plus its card frames, several times over.
+const MAX_USER_ENTRIES = 256;
 const MAX_TOTAL_BYTES = MAX_TOTAL_MIB * BYTES_PER_MIB;
+const MAX_USER_BYTES = MAX_USER_MIB * BYTES_PER_MIB;
 const ID_BYTES = 16;
 
 /** The handle grammar. A path segment that does not match never reaches the store at all — checked by the
@@ -100,16 +113,48 @@ export interface FrameHandleStore {
 /** Create a per-process handle store. Created per registrar call, so a test gets a clean one. */
 export function createFrameHandleStore(now: () => number): FrameHandleStore {
   const entries = new Map<string, FrameHandleEntry>();
+  const userBytes = new Map<UserId, number>();
+  const userEntries = new Map<UserId, number>();
   let totalBytes = 0;
 
   const drop = (id: string): boolean => {
     const found = entries.get(id);
     if (found !== undefined) {
       totalBytes -= found.bytes;
+      const remaining = (userBytes.get(found.userId) ?? 0) - found.bytes;
+      const count = (userEntries.get(found.userId) ?? 0) - 1;
+      if (count > 0) {
+        userBytes.set(found.userId, remaining);
+        userEntries.set(found.userId, count);
+      } else {
+        userBytes.delete(found.userId);
+        userEntries.delete(found.userId);
+      }
       entries.delete(id);
       return true;
     }
     return false;
+  };
+
+  // The oldest handle `owner` holds other than `keep`, or the oldest of anyone's when `owner` is undefined.
+  const oldest = (keep: string, owner: UserId | undefined): string | undefined =>
+    entries.entries().find(([id, entry]) => id !== keep && (owner === undefined || entry.userId === owner))?.[0];
+
+  const evictFor = (id: string, owner: UserId): void => {
+    while ((userBytes.get(owner) ?? 0) > MAX_USER_BYTES || (userEntries.get(owner) ?? 0) > MAX_USER_ENTRIES) {
+      const victim = oldest(id, owner);
+      if (victim === undefined) {
+        break;
+      }
+      drop(victim);
+    }
+    while (entries.size > MAX_ENTRIES || totalBytes > MAX_TOTAL_BYTES) {
+      const victim = oldest(id, undefined);
+      if (victim === undefined) {
+        break;
+      }
+      drop(victim);
+    }
   };
 
   const live = (id: string): FrameHandleEntry | undefined => {
@@ -131,13 +176,9 @@ export function createFrameHandleStore(now: () => number): FrameHandleStore {
       const bytes = Buffer.byteLength(doc, "utf8");
       entries.set(id, { ...entry, doc, bytes });
       totalBytes += bytes;
-      while (entries.size > MAX_ENTRIES || totalBytes > MAX_TOTAL_BYTES) {
-        const oldest = entries.keys().next().value;
-        if (oldest === undefined || oldest === id) {
-          break;
-        }
-        drop(oldest);
-      }
+      userBytes.set(entry.userId, (userBytes.get(entry.userId) ?? 0) + bytes);
+      userEntries.set(entry.userId, (userEntries.get(entry.userId) ?? 0) + 1);
+      evictFor(id, entry.userId);
       return id;
     },
     take: (id, userId): FrameHandleEntry | undefined => {
