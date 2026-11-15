@@ -9,7 +9,7 @@ import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { MAX_FIND_REGEX_LENGTH } from "@orb/kit/regex";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
-import { FIND_COMPILE_LIMIT_MS } from "#server/primitives/regex/index.ts";
+import { FIND_COMPILE_LIMIT_MS } from "#server/primitives/regex/compile-probe.ts";
 
 // The save pass over replies.
 const AXES = { targets: ["AI_OUTPUT"], passes: ["save"] } as const;
