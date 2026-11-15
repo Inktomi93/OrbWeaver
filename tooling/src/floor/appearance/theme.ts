@@ -22,7 +22,7 @@ import { isPlainObject } from "../browser/page-validate.ts";
 //
 // NAME → ID: the id is a sentinel the probe must not re-spell (a second home for
 // domain/settings/constants.ts), and custom themes have minted ids no constant could know. So the shim asks
-// the app's own API — one read-only `settings.listThemes` GET on the browser context's cookie jar — and
+// the app's own API — one read-only `settings.listThemes` GET, CSRF header included, on the browser context's cookie jar — and
 // matches the request against the real library. A name that is not there WARNS loudly and the run proceeds
 // on the account's real theme: the silent-drop trap the appearance presets file documents, refused here.
 //
