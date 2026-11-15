@@ -1,9 +1,9 @@
 import type { PresetDetail } from "@orb/contracts/preset";
-import { promptConfigConfig } from "@orb/contracts/preset";
+import { OWNED_PRESET_KIND, promptConfigConfig } from "@orb/contracts/preset";
 import { nextFreeName } from "@orb/kit/strings";
 import { getLog } from "#foundation/observability";
 import { requireIntactStoredConfig, STORED_CONFIG_REFUSALS } from "#primitives/stored-config";
-import { OWNED_PRESET_KIND, SYSTEM_DEFAULT_PRESET_ID } from "../constants.ts";
+import { SYSTEM_DEFAULT_PRESET_ID } from "../constants.ts";
 import { PresetNotFoundError } from "../contract/errors.ts";
 import type { PresetForkIntent, UpdatePresetParams } from "../contract/params.ts";
 import type { PresetContext, PresetService } from "../contract/service.ts";

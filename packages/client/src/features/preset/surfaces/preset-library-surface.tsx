@@ -17,7 +17,7 @@
 // serde the whole-profile bundle's export arm writes (`domain/preset/verbs/export.ts`). No second
 // serialization and no export endpoint of its own; the single-preset door is a thin arm over the one seam.
 
-import { buildPresetFile } from "@orb/contracts/preset";
+import { buildPresetFile, OWNED_PRESET_KIND } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -40,14 +40,7 @@ import {
 } from "#state";
 import { PresetLibraryRow } from "../components/preset-library-row.tsx";
 import { useCreatePreset, useRemovePreset, useSetDefaultPreset } from "../hooks/use-preset-mutations.ts";
-import {
-  NEW_PRESET_KIND,
-  NEW_PRESET_NAME,
-  PRESET_ACTIVE_RADIOGROUP_NAME,
-  PRESET_LIBRARY_READ_LABEL,
-  PRESET_LIST_NAME,
-  PRESET_SEARCH_NAME,
-} from "../lib/preset-names.ts";
+import { NEW_PRESET_NAME, PRESET_ACTIVE_RADIOGROUP_NAME, PRESET_LIBRARY_READ_LABEL, PRESET_LIST_NAME, PRESET_SEARCH_NAME } from "../lib/preset-names.ts";
 import { filterPresetsByName, presetSearchNeedle } from "../lib/preset-search.ts";
 
 export interface PresetLibrarySurfaceProps {
@@ -138,7 +131,7 @@ function PresetList({
   // The band owns the pane's create PRIMARY; this is the EMPTY-STATE's own action, which must stay (an
   // empty library that only says "no presets yet" is a dead end).
   const onCreate = (): void => {
-    create.mutate({ name: NEW_PRESET_NAME, kind: NEW_PRESET_KIND }, { onSuccess: (created): void => onSelectPreset(created.id) });
+    create.mutate({ name: NEW_PRESET_NAME, kind: OWNED_PRESET_KIND }, { onSuccess: (created): void => onSelectPreset(created.id) });
   };
 
   // §16 row 3: the ONE activation writer this pane has (the row toggle) — the kebab's echo of it is GONE
@@ -171,7 +164,7 @@ function PresetList({
       .query({ id })
       .then((detail) => {
         create.mutate(
-          { name: `Copy of ${source?.name ?? "preset"}`, kind: NEW_PRESET_KIND, config: detail.config },
+          { name: `Copy of ${source?.name ?? "preset"}`, kind: OWNED_PRESET_KIND, config: detail.config },
           { onSuccess: (created): void => onSelectPreset(created.id) },
         );
       })

@@ -203,19 +203,19 @@ export async function seedCorpusLibraries(root: ServerHarness): Promise<SeededCo
   if (descriptor === undefined) {
     throw new Error("native library corpus has no preset export descriptor");
   }
-  let fileText: string | undefined;
+  let exported: { readonly fileText: string; readonly fileName: string } | undefined;
   for await (const file of descriptor.exportAll(root.ownerId, failOnExportNote)) {
     const text = new TextDecoder().decode(file.bytes);
     const parsed = parsePresetFile(JSON.parse(text));
     if (parsed.ok && parsed.name === branchedPreset.view.name) {
-      fileText = text;
+      exported = { fileText: text, fileName: file.filename };
       break;
     }
   }
-  if (fileText === undefined) {
+  if (exported === undefined) {
     throw new Error("native preset export omitted the produced library branch");
   }
-  const importedPreset = await seedImportedPresetRows(root, root.ownerId, { fileText });
+  const importedPreset = await seedImportedPresetRows(root, root.ownerId, exported);
   const roster = await seedRosterPresetRows(root, {
     principal,
     input: createRosterPresetSchema.parse({

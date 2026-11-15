@@ -12,7 +12,7 @@ import type { Db } from "./index.ts";
 export const REGEX_TWO_AXIS_MIGRATION = "0020_regex-two-axis";
 
 /** `moved`: a flagged row leaves the save pass. `narrowed`: an editor-written row loses some reach. */
-export type RegexTwoAxisChange = "moved" | "narrowed";
+type RegexTwoAxisChange = "moved" | "narrowed";
 
 /** One script the rewrite changes, with the placement-set shape it held before. */
 export interface RegexTwoAxisChangedScript {

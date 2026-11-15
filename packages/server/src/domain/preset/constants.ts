@@ -10,12 +10,3 @@ export const SYSTEM_DEFAULT_PRESET_ID: PresetId = typeIdSchema(ID_PREFIX.preset)
 
 export const SYSTEM_DEFAULT_PRESET_NAME = "Default";
 export const SYSTEM_DEFAULT_PRESET_KIND = "system";
-
-/** The kind an OWNED preset is born with — the copy-on-write fork's.
- *
- *  `kind` is free text describing what a preset IS, and it is rendered VERBATIM as the leading token of the
- *  library row's subtitle (`preset-row-view.ts`). The fork used to copy its base's kind, so a user's own
- *  fully-editable copy wore `system` — this surface's word for "locked, not yours, no Export, no Reset" —
- *  and the two doors to a copy disagreed (the client's New/Duplicate mints `generation`). Provenance is not
- *  this field's job: the same subtitle already carries it as `forked from <source>`. */
-export const OWNED_PRESET_KIND = "generation";

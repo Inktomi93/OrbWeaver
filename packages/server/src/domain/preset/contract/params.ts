@@ -84,10 +84,11 @@ export interface ListPresetUsageParams {
   readonly id: PresetId;
 }
 
-/** Import ONE orb-native preset FILE into the caller's library. `fileText` is the file's UTF-8 JSON text —
- *  an `orb.preset` file IS text, so the door hands the verb exactly what the user picked (the verb's own
- *  first act is a UTF-8 decode; base64 would only round-trip the same bytes). */
+/** Import, or preview importing, ONE preset file into the caller's library: an `orb.preset` export or a SillyTavern
+ *  chat-completion preset. `fileText` is the file's UTF-8 JSON text, exactly what the user picked; `fileName` names a
+ *  SillyTavern preset, which carries no name SillyTavern itself reads. */
 export interface ImportPresetFileParams {
   readonly userId: UserId;
   readonly fileText: string;
+  readonly fileName: string;
 }

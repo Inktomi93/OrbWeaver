@@ -120,6 +120,7 @@ import { runtimeVariablesUpdateStatement } from "../persistence/runtime-variable
 import { buildTurnMacroContext, freezeVolatileMacros } from "../substrate/assembly-access.ts";
 import { assertAuthorOrHost, isBelowHistoryFloor, permitsHost } from "../substrate/auth/index.ts";
 import { continuationToolsAreUndone } from "../substrate/content-signatures.ts";
+import type { SaveGreetingTexts } from "../substrate/greeting-regex.ts";
 import { projectViewReturnForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { ownedCitedAssetIds } from "../substrate/owned-citations.ts";
 import { classifyParticipant } from "../substrate/participant-actor.ts";
@@ -150,6 +151,8 @@ interface EditDeps {
    *  runOnEdit regex macro context. A selection that has a stored freeze record consumes NO draw at all (it
    *  replays), so the bake draws only for the first freeze of a never-frozen alternate. */
   readonly prng: RandomSource;
+  /** The greeting save pass a step to a card alternate runs through, as the seeded greeting did. */
+  readonly saveGreetingTexts: SaveGreetingTexts;
 }
 
 /** The canon-edit slice of `ChatService` this grouped file owns. */
@@ -653,7 +656,7 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ClaimingVerb<"edit
  * Card-authored text steps in place. Any other body survives as a swipe beside the selected card alternate.
  * Choosing an alternate is not an edit: the row keeps the edit stamp it already held, never a new one.
  */
-function createSetSeededGreeting(ctx: ChatContext, emit: EmitDurableChatEventOp): ClaimingVerb<"setSeededGreeting"> {
+function createSetSeededGreeting(ctx: ChatContext, emit: EmitDurableChatEventOp, saveGreetingTexts: SaveGreetingTexts): ClaimingVerb<"setSeededGreeting"> {
   return async ({ principal, chatId, messageId, greetingIndex }: SetSeededGreetingParams, claim: ClaimRoom) => {
     const membership = await requireHost(ctx, principal, chatId);
     const slot = await loadRetainedSlotInChat(ctx, chatId, messageId);
@@ -670,12 +673,20 @@ function createSetSeededGreeting(ctx: ChatContext, emit: EmitDurableChatEventOp)
     }
     const card = await ctx.getCard({ ownerId: hostUserId, characterId: slot.characterId });
     const greetings = card?.greetings ?? [];
-    const alternate = greetings[greetingIndex]?.text;
-    if (alternate === undefined) {
+    if (greetings[greetingIndex] === undefined) {
       throw new ChatOperationError(CHAT_OP_CODES.greetingAlternateNotFound, `chat ${chatId}: greeting ${String(greetingIndex)} is not on this card`);
     }
+    // Every alternate goes through the save pass from the card's text, so the one shown is compared and stepped as
+    // stored, and the pass never runs again over text it already wrote.
+    const room = { chatId, participants, anchorPersonaId: membership.chat.anchorPersonaId, regexAllow: regexAllowOf(membership.chat.metadata) };
+    const saved = await saveGreetingTexts(
+      room,
+      greetings.map((greeting) => ({ characterId: slot.characterId, characterName: card?.name ?? "", text: greeting.text })),
+    );
+    const alternate = saved[greetingIndex]?.text ?? "";
     const now = ctx.now();
-    const cardWroteCurrent = greetings.some((greeting) => greeting.text === slot.content);
+    // A greeting seeded before its scripts existed holds the card's own text, which steps in place as well.
+    const cardWroteCurrent = saved.some((greeting) => greeting.text === slot.content) || greetings.some((greeting) => greeting.text === slot.content);
     const mutation = cardWroteCurrent
       ? {
           statements: editMessageContentStatements(ctx.db, {
@@ -1386,7 +1397,7 @@ export function createEdit(ctx: ChatContext, deps: EditDeps): EditVerbs {
   return {
     selectVariant: claim(createSelectVariant(ctx, deps)),
     editMessage: claim(createEditMessage(ctx, deps)),
-    setSeededGreeting: claim(createSetSeededGreeting(ctx, emit)),
+    setSeededGreeting: claim(createSetSeededGreeting(ctx, emit, deps.saveGreetingTexts)),
     applyProseRewrite: claim(createApplyProseRewrite(ctx, emit)),
     setMessageHidden: claim(createSetMessageHidden(ctx, emit)),
     editToolCall: claim(createEditToolCall(ctx, emit)),
