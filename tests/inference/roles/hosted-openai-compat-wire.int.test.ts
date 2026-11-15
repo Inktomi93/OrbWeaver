@@ -177,6 +177,42 @@ test("a NanoGPT error frame after streamed text fails the turn in the service's 
     });
   });
   expect(settled.error?.message).toContain(MID_STREAM_ERROR.error.message);
+  expect(settled.error?.kind).toBe("server");
+  expect(recorded).toHaveLength(1);
+});
+
+// The frame's `status` is the HTTP status the failure would have carried before the stream (Error Handling page:
+// retry only on 408, 429, 500, 503); it picks the kind through the same table. The text before it commits the turn,
+// so no frame retries.
+const FRAME_KINDS: readonly { readonly status: number; readonly code: string; readonly kind: ProviderErrorKind }[] = [
+  { status: 402, code: "insufficient_balance", kind: "billing" },
+  { status: 429, code: "rate_limited", kind: "rate_limit" },
+  { status: 400, code: "context_length_exceeded", kind: "invalid" },
+];
+
+test.for(FRAME_KINDS)("a NanoGPT error frame with status $status fails the turn as $kind", async ({ status, code, kind }) => {
+  const frame = { ...MID_STREAM_ERROR, error: { status, message: "Stopped.", code } };
+  const frames = [chunk({ role: "assistant", content: "Hel" }, null).data, frame];
+  const reply = (): Response =>
+    new Response(`${frames.map((entry) => `data: ${JSON.stringify(entry)}\n\n`).join("")}data: [DONE]\n\n`, {
+      headers: { "content-type": "text/event-stream" },
+    });
+  const recorded: RecordedRequest[] = [];
+  const settled = await settledProviderError(async () => {
+    using server = scriptedResponses([reply], recorded);
+    await using root = await createRuntimeRoot({ providerFetch: server.execute });
+    const connection = await wireConnection(root, { task: "chat", providerId: "nanogpt", model: "vendor/chat-model", capability: EFFORT_CAPABILITY });
+    return await root.app.runtime.executor.runChatTurn({
+      api: "chat-completions",
+      connection,
+      signal: new AbortController().signal,
+      params: {},
+      systemPrompt: { static: "You are a fixture.", dynamic: "" },
+      history: [USER_LINE],
+    });
+  });
+  expect(settled.error?.kind).toBe(kind);
+  expect(settled.error?.apiErrorStatus).toBe(status);
   expect(recorded).toHaveLength(1);
 });
 
