@@ -97,14 +97,22 @@ function createGetBoundConnection(ctx: ConnectionContext): ConnectionService["ge
 }
 
 /** What a task resolves TO right now for this actor — the pane's persisted-resolve readout (§5.3a): the
- *  resolved view, or the availability cause when the fold refuses. */
+ *  resolved view, or the availability cause when the fold refuses. It reads the server facts already held and dials
+ *  nothing: a list that draws on render must not reach a provider, or load a local model, for a row the user only
+ *  looked at. A row never warmed reads its stated and curated facts until a turn or an explicit read warms it. */
 async function bindingReadout(
   ctx: ConnectionContext,
   params: Parameters<ConnectionService["listBindings"]>[0],
   task: RoutableTask,
   binding: ConnectionBinding | null,
 ): Promise<BindingView> {
-  const args = { task, principal: params.principal, signal: params.signal, ...(params.actor !== undefined ? { actor: params.actor } : {}) };
+  const args = {
+    task,
+    principal: params.principal,
+    signal: params.signal,
+    cachedFacts: true,
+    ...(params.actor !== undefined ? { actor: params.actor } : {}),
+  };
   // a resolve REFUSAL is the readout's other arm — the availability
   // read names the cause the pane renders; nothing is swallowed. Ends if a non-refusal error class needs to surface.
   try {

@@ -85,7 +85,7 @@ export function createCapabilities(ctx: ConnectionContext): ConnectionService["c
       connectionId: params.connectionId,
       principal: params.principal,
       signal: params.signal,
-      cachedFacts: params.cachedFacts,
+      listFacts: params.listFacts,
     });
     const cache = resolveCachePolicy({
       context: read.cacheContext,

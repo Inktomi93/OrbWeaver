@@ -47,7 +47,7 @@ import { ProviderError } from "../contract/errors.ts";
 
 import type { Resolved } from "../contract/resolved.ts";
 import type { EndpointModel } from "../contract/runtime.ts";
-import type { ResolveArgs, ResolveOutcome, ResolverContext } from "../contract/task-resolution.ts";
+import type { FactsReach, ResolveArgs, ResolveOutcome, ResolverContext } from "../contract/task-resolution.ts";
 import { behaveAs, behavedFeatures, detectionUrl } from "./behave-as.ts";
 import { resolveApi } from "./coherence.ts";
 import { normalizeModelId } from "./heal.ts";
@@ -210,7 +210,14 @@ function factsModelFor(ctx: ResolverContext, provider: ProviderDef, model: Model
   return alias === undefined ? model : modelIdSchema.parse(alias);
 }
 
-async function warmFor(ctx: ResolverContext, provider: ProviderDef, connection: UserConnection, credential: ResolvedSecret): Promise<void> {
+/** The reach a read makes once it dials: the per-model probes run only for a full warm. */
+type WarmReach = Exclude<FactsReach, "held">;
+
+async function warmFor(
+  ctx: ResolverContext,
+  { provider, connection, credential }: { readonly provider: ProviderDef; readonly connection: UserConnection; readonly credential: ResolvedSecret },
+  reach: WarmReach,
+): Promise<void> {
   if (provider.catalog === "builtin") {
     return;
   }
@@ -222,7 +229,15 @@ async function warmFor(ctx: ResolverContext, provider: ProviderDef, connection: 
     await ctx.warmOpenRouter();
     return;
   }
-  await ctx.warmEndpoint(connection, provider, credential.secret);
+  await ctx.warmEndpoint(connection, provider, credential.secret, { modelProbes: reach === "full" });
+}
+
+/** The reach a read's args ask for; nothing is dialed when both lesser reads are named. */
+function factsReachOf(args: Pick<ResolveArgs, "cachedFacts" | "listFacts">): FactsReach {
+  if (args.cachedFacts === true) {
+    return "held";
+  }
+  return args.listFacts === true ? "list" : "full";
 }
 
 async function connectionFor(ctx: ResolverContext, args: ResolveArgs): Promise<UserConnection> {
@@ -295,15 +310,15 @@ function withLocalLightEmbedDtype(
 /** The warms that must land before any step reads provider facts: a detecting row's server probe, and Google's
  *  native catalog (its kind decides which tasks the row serves). Both need the credential, which is always the
  *  REGISTERED row's: its AAD binds the registered provider id, whatever the server turned out to be. `reached` is
- *  false when the detect probe found nothing answering at the URL, or when `cachedFacts` asked for no dial at all. */
+ *  false when the detect probe found nothing answering at the URL, or when a `held` read asked for no dial at all. */
 async function warmBeforeFacts(
   ctx: ResolverContext,
   provider: ProviderDef,
   connection: UserConnection,
-  cachedFacts: boolean,
+  reach: FactsReach,
 ): Promise<{ readonly behaved: ProviderDef; readonly earlyCredential: ResolvedSecret | null; readonly reached: boolean }> {
   const detecting = detectionUrl(provider, connection) !== null;
-  if (cachedFacts) {
+  if (reach === "held") {
     return { behaved: await heldFacts(ctx, provider, connection), earlyCredential: null, reached: false };
   }
   if (provider.wire !== "google-generative-ai" && !detecting) {
@@ -313,7 +328,7 @@ async function warmBeforeFacts(
   const reached = detecting ? await ctx.warmDetect(connection, provider, earlyCredential.secret) : true;
   const behaved = behaveAs(ctx, provider, connection);
   if (provider.wire === "google-generative-ai") {
-    await warmFor(ctx, behaved, connection, earlyCredential);
+    await warmFor(ctx, { provider: behaved, connection, credential: earlyCredential }, reach);
   }
   return { behaved, earlyCredential, reached };
 }
@@ -324,15 +339,15 @@ async function warmFacts(
   ctx: ResolverContext,
   provider: ProviderDef,
   connection: UserConnection,
-  cachedFacts: boolean,
+  reach: FactsReach,
 ): Promise<{ readonly behaved: ProviderDef; readonly credential: ResolvedSecret }> {
-  const { behaved, earlyCredential, reached } = await warmBeforeFacts(ctx, provider, connection, cachedFacts);
+  const { behaved, earlyCredential, reached } = await warmBeforeFacts(ctx, provider, connection, reach);
   const credential =
     earlyCredential ?? (await ctx.deps.resolveCredential({ credentialId: connection.credentialId, ownerId: connection.ownerId, providerId: provider.id }));
   // A server that answered no detect probe will not answer its model list either; dialing it again only waits out
   // the same dead host a second time.
-  if (provider.wire !== "google-generative-ai" && reached) {
-    await warmFor(ctx, behaved, connection, credential);
+  if (provider.wire !== "google-generative-ai" && reached && reach !== "held") {
+    await warmFor(ctx, { provider: behaved, connection, credential }, reach);
   }
   return { behaved, credential };
 }
@@ -390,28 +405,24 @@ function kindFactsHeld(ctx: ResolverContext, registered: ProviderDef, behaved: P
   return entry === undefined || reader === undefined || entry.probed === true || entry.kind !== undefined;
 }
 
-/** The kind a row's model is, as the resolver will read it: the catalog warmed first (or, under `cachedFacts`, only the
- *  facts already held, with no dial), then the declaration, the catalog and the curated rows. `undefined` when no
+/** The kind a row's model is, as the resolver will read it: the catalog warmed first as far as `reach` goes (`held`: only
+ *  the facts already held, with no dial), then the declaration, the catalog and the curated rows. `undefined` when no
  *  evidence states one; the row's provider not being registered for its owner reads the same. */
-export async function discoveredKind(
-  ctx: ResolverContext,
-  connection: UserConnection,
-  options: { readonly cachedFacts?: boolean | undefined } = {},
-): Promise<ModelKind | undefined> {
+export async function discoveredKind(ctx: ResolverContext, connection: UserConnection, reach: FactsReach = "full"): Promise<ModelKind | undefined> {
   const provider = ctx.registry.get(connection.providerId, connection.ownerId);
   if (provider === undefined) {
     return;
   }
-  const behaved = options.cachedFacts === true ? await heldFacts(ctx, provider, connection) : await warmedOrCached(ctx, provider, connection);
+  const behaved = reach === "held" ? await heldFacts(ctx, provider, connection) : await warmedOrCached(ctx, provider, connection, reach);
   return statedKind(ctx, { provider: behaved, connection });
 }
 
 // A kind read gathers evidence and never refuses: a revoked key or a server that does not answer leaves the facts the
 // mirrors already hold, and the task that needs the key refuses with its own reason.
-async function warmedOrCached(ctx: ResolverContext, provider: ProviderDef, connection: UserConnection): Promise<ProviderDef> {
+async function warmedOrCached(ctx: ResolverContext, provider: ProviderDef, connection: UserConnection, reach: WarmReach): Promise<ProviderDef> {
   // a failed warm leaves the kind read on the cached facts; the task that needs the row runs the same uncaught `warmFacts` in `resolveTaskFold`, which throws the failure to its caller. Ends if a caller needs the kind read to refuse.
   try {
-    return (await warmFacts(ctx, provider, connection, false)).behaved;
+    return (await warmFacts(ctx, provider, connection, reach)).behaved;
   } catch {
     return behaveAs(ctx, provider, connection);
   }
@@ -503,7 +514,7 @@ export async function modelTasks(
   if (provider === undefined) {
     return [];
   }
-  const behaved = options.cachedFacts === true ? await heldFacts(ctx, provider, connection) : await warmedOrCached(ctx, provider, connection);
+  const behaved = options.cachedFacts === true ? await heldFacts(ctx, provider, connection) : await warmedOrCached(ctx, provider, connection, "full");
   const held = connection.declared?.kind !== undefined || kindFactsHeld(ctx, provider, behaved, connection);
   const kind = (!held && options.cachedFacts === true ? options.coldAs : undefined) ?? statedKind(ctx, { provider: behaved, connection }) ?? "generation";
   const tasks = connectionTasks(behaved, kind);
@@ -532,7 +543,7 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
   }
   // Every fact read below goes through the behaved row; identity (`providerId`, `provider`, the credential and
   // every refusal's wording) stays the registered row's.
-  const { behaved, credential } = await warmFacts(ctx, provider, connection, args.cachedFacts === true);
+  const { behaved, credential } = await warmFacts(ctx, provider, connection, factsReachOf(args));
   const kind = kindOf(ctx, { task: args.task, provider: behaved, connection });
   const baselineKind = includeBaseline ? kindOf(ctx, { task: args.task, provider: behaved, connection, includeDeclared: false }) : undefined;
   const served = connectionTasks(behaved, kind);
