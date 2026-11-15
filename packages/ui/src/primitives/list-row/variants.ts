@@ -91,9 +91,10 @@ export const listRowVariants = tv({
     detail: "flex flex-col gap-tight text-start min-inline-0",
     // A disclosure row's turn, at the body's inline end.
     chevron: `shrink-0 text-muted-foreground ${OPEN_TURN}`,
-    // What a disclosure row opens takes a full line under the body and its actions, at the row's own inline step.
+    // What a disclosure row opens takes a full line under the body and its actions, at the row's inline step held to a share of the
+    // screen, so a phone at enlarged text keeps the panel's controls their width.
     panel: "basis-full min-inline-0",
-    panelBody: "px-row pbe-row",
+    panelBody: "px-inset-row pbe-row",
     // The subtitle ⇄ reveal SWAP STACK: ONE grid cell holding both spans (`col-start-1 row-start-1`), so the
     // line's box is `max(subtitle, reveal)` and is IDENTICAL at rest and on hover. The swap itself is
     // VISIBILITY, never display — a hover-keyed `display` swap removes a box from layout under a stationary
@@ -120,6 +121,12 @@ export const listRowVariants = tv({
     align: { start: { root: "items-start" } },
     // Read only by the compound below: a block-placed name beside a qualifier keeps the smaller of the title floor and its own text.
     qualified: { true: {}, false: {} },
+    // A shut disclosure row cuts its name to one line like every list row; the open row sets the name whole, so a reader reaches the
+    // whole name by the row's own press. The body is the collapsible's trigger, which carries `data-panel-open` while open.
+    disclosure: {
+      true: { title: "group-data-panel-open/body:wrap-break-word group-data-panel-open/body:whitespace-normal" },
+      false: {},
+    },
     titleQualifierFace: {
       mono: {},
       body: { titleQualifier: "font-sans", titleSeparator: "font-sans" },
@@ -346,6 +353,7 @@ export const listRowVariants = tv({
   ],
   defaultVariants: {
     clickable: false,
+    disclosure: false,
     float: false,
     stackActions: false,
     stackActionsAt: "cq-32",

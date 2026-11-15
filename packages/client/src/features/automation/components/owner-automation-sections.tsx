@@ -25,7 +25,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { MutedLine, QueryBoundary, SettingRowGroup, SettingTrackRow } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { OWNER_RULE_RATE_FIELD_NAME, OWNER_RULES_INTRO } from "../lib/automation-names.ts";
+import { OWNER_RULE_RATE_FIELD_NAME, OWNER_RULES_EMPTY_LINE, OWNER_RULES_INTRO } from "../lib/automation-names.ts";
 import { AUTOMATION_BUDGET_SUBCATEGORY, AUTOMATION_RULES_SUBCATEGORY } from "../lib/automation-nav.ts";
 import { useSetOwnerBudgets } from "../lib/owner-budget-mutations.ts";
 import { RuleManager } from "./rule-manager.tsx";
@@ -146,11 +146,7 @@ function OwnerRulesBody(): ReactElement {
       <Text voice="gloss" prose={true} cap="prose">
         {OWNER_RULES_INTRO}
       </Text>
-      {rules.length === 0 ? (
-        <MutedLine>
-          Nothing is watching your library yet. Add a rule (illustrate a character when its card changes, for instance) and it starts off until you enable it.
-        </MutedLine>
-      ) : null}
+      {rules.length === 0 ? <MutedLine>{OWNER_RULES_EMPTY_LINE}</MutedLine> : null}
       <RuleManager chatId={null} rules={rules} />
     </Stack>
   );
