@@ -126,8 +126,9 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  # The job's check is named by its id: main's branch rule requires the check `ci-ok`, and a display name would report a
+  # different check, which leaves the rule unmet on every pull request.
   ci-ok:
-    name: CI
     if: always()
     needs: [static, eslint, node, ct, e2e-smoke]
     runs-on: ubuntu-24.04
