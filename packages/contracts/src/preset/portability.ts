@@ -39,6 +39,18 @@ export type PresetImportOutcome = z.output<typeof presetImportOutcomeSchema>;
 /** The two formats the Presets page's import reads, told apart by the file's envelope. */
 const PRESET_FILE_FORMATS = ["orbweaver", "sillyTavern"] as const;
 
+// Each format as the export a person picks it from. The record is exhaustive by type, so a format added above fails
+// `tsc` until it is named here, and the refusal's list of accepted exports cannot drift from what the import reads.
+const PRESET_FILE_EXPORT_NAMES: Readonly<Record<(typeof PRESET_FILE_FORMATS)[number], string>> = {
+  orbweaver: "an orbweaver preset export",
+  sillyTavern: "a SillyTavern Chat Completion preset",
+};
+
+/** The exports the single-file preset import reads, as one phrase a refusal can end on. */
+export const PRESET_IMPORT_ACCEPTS = new Intl.ListFormat("en", { type: "disjunction" }).format(
+  PRESET_FILE_FORMATS.map((format) => PRESET_FILE_EXPORT_NAMES[format]),
+);
+
 /** The field a SillyTavern preset carries its regex scripts under. A preview's `leftOut` entry under it is about one
  *  script (`<field>[<position>]…`), and its reason names that script. */
 export const ST_PRESET_SCRIPT_LIST_FIELD = "extensions.regex_scripts";

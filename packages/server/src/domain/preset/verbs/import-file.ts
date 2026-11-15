@@ -11,7 +11,7 @@
 import { clipImportText } from "@orb/contracts/import";
 import { SAMPLER_KNOBS } from "@orb/contracts/inference";
 import type { ImportPresets, PresetFilePreview, PresetImportFile, PresetImportOutcome, PromptConfig } from "@orb/contracts/preset";
-import { PRESET_SCHEMA_KIND, parsePresetFile } from "@orb/contracts/preset";
+import { PRESET_IMPORT_ACCEPTS, PRESET_SCHEMA_KIND, parsePresetFile } from "@orb/contracts/preset";
 import type { ImportPresetScripts, PlanPresetScripts, RegexScriptCard, RegexScriptRefusal, ScriptPlan } from "@orb/contracts/regex";
 import { regexScriptCardContentKey } from "@orb/contracts/regex";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
@@ -26,7 +26,8 @@ const JSON_EXT = /\.json$/iu;
 /** The name a SillyTavern preset lands under when its file name is only an extension; `parsePresetFile` uses the
  *  same name for a nameless orb file. */
 const UNNAMED_PRESET = "Imported preset";
-const NOT_JSON = "That file isn't valid JSON, so neither an orbweaver preset export nor a SillyTavern Chat Completion preset could be read from it.";
+const NOT_JSON = `That file isn't valid JSON. The preset import reads ${PRESET_IMPORT_ACCEPTS}.`;
+const NOT_RECOGNISED = `That file's format is not recognized. The preset import reads ${PRESET_IMPORT_ACCEPTS}.`;
 
 /** The context and output limits a preset stores beside its samplers. */
 const LIMIT_PARAMS = ["maxContextTokens", "maxOutputTokens"] as const satisfies readonly (keyof PromptConfig["params"])[];
@@ -73,12 +74,11 @@ type PresetFileRead =
     } & ReturnType<typeof configCounts>)
   | { readonly ok: false; readonly error: string };
 
-// The SillyTavern reader's two refusals read differently: one never claimed the file, the other claimed it and
-// refused what it mapped to, and saying "not a SillyTavern preset" for the second denies what the reason names.
+// The SillyTavern reader's two refusals read differently: one never claimed the file, so the person is told which
+// exports the import reads, the other claimed it and refused what it mapped to, and saying "not recognized" for the
+// second denies what its reason names.
 function stRefusal(recognised: boolean, reason: string): string {
-  return recognised
-    ? `Recognised as a SillyTavern preset, refused: ${reason}`
-    : `orbweaver couldn't import this file. It isn't an orbweaver preset export, and the SillyTavern reader stopped: ${reason}`;
+  return recognised ? `Recognised as a SillyTavern preset, refused: ${reason}` : NOT_RECOGNISED;
 }
 
 /** SillyTavern names an imported preset by its file stem, so this door does too. */
