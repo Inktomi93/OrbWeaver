@@ -69,7 +69,7 @@ import { bodyLimit } from "hono/body-limit";
 import type { PluginService } from "#domain/plugin";
 import { hasCsrfHeader } from "#infra/auth";
 import type { PrincipalEnv } from "./contract/request-env.ts";
-import { createFrameHandleStore, FRAME_HANDLE_SHAPE, FRAME_HANDLE_TTL_MS } from "./frame-handle-store.ts";
+import { createFrameHandleStore, FRAME_HANDLE_SHAPE, FRAME_HANDLE_TTL_MS, PLUGIN_FRAME_CEILINGS } from "./frame-handle-store.ts";
 import type { OwnPolicyRegistrar, OwnPolicyReply } from "./security-headers.ts";
 
 const OK = 200;
@@ -164,7 +164,7 @@ function assetUrlBootstrap(id: string): string {
 
 /** Register `POST /api/plugin-frame` (mint) + `GET /api/plugin-frame/:id` (serve) on `app`. */
 export function registerPluginFrame(app: Hono<PrincipalEnv>, deps: PluginFrameDeps): void {
-  const store = createFrameHandleStore(deps.now);
+  const store = createFrameHandleStore(deps.now, PLUGIN_FRAME_CEILINGS);
 
   app.post(PLUGIN_FRAME_ROUTE, bodyLimit({ maxSize: PLUGIN_FRAME_MINT_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
     const principal = c.get("principal");

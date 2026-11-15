@@ -416,6 +416,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/entry/http/security-headers.ts": "OWN_POLICY_ROUTES: the own-policy route registration, one suite case per member",
   "packages/server/src/entry/http/plugin-frame.ts": "PLUGIN_FRAME_CSP and PLUGIN_FRAME_ASSET_CSP: the policies the plugin frame routes write",
   "packages/server/src/entry/http/card-frame.ts": "CARD_FRAME_FLOOR_CSP: the policy the card frame serves a document with no character under",
+  "packages/server/src/entry/http/frame-handle-store.ts":
+    "CARD_FRAME_CEILINGS and FRAME_HANDLE_TTL_MS: the card store's ceilings and lifetime, which the ceiling suite sizes its fills and expiries by",
   "packages/server/src/domain/character/contract/errors.ts": "CharacterNotFoundError: the refusal class greeting suites assert",
   "packages/server/src/transport/trpc/fault-copy.ts": "UNCLASSIFIED_FAULT_MESSAGE: the words the error formatter sends for every unclassified throw",
   "packages/server/src/domain/imagery/substrate/size.ts": "SIZE_PRESETS: the dimensions a size preset puts on the provider request",
