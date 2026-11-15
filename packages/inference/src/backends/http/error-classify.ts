@@ -157,8 +157,8 @@ export function upstreamBody(error: unknown): unknown {
 /** The structured `error.code` values that name the key itself: OpenAI's `invalid_api_key`, which NanoGPT also sends,
  *  and NanoGPT's `missing_api_key`. A body that carries only prose names nothing. */
 const CREDENTIAL_ERROR_CODES = ["invalid_api_key", "missing_api_key"] as const;
-const credentialCodeBodySchema = z.looseObject({ error: z.looseObject({ code: z.enum(CREDENTIAL_ERROR_CODES) }) });
-const CREDENTIAL_ERROR_CODE_SET: ReadonlySet<string> = new Set(CREDENTIAL_ERROR_CODES);
+const credentialCodeSchema = z.enum(CREDENTIAL_ERROR_CODES);
+const credentialCodeBodySchema = z.looseObject({ error: z.looseObject({ code: credentialCodeSchema }) });
 
 /** The `detail` an `auth_failed` failure carries when its parsed upstream body names the key by a structured code. */
 export function credentialDetail(kind: ProviderErrorKind, body: unknown): { readonly detail?: string } {
@@ -181,7 +181,7 @@ export function judgesTheKey(failure: ProviderError, forbiddenIsNotCredentialVer
   if (failure.apiErrorStatus !== HTTP_FORBIDDEN || !forbiddenIsNotCredentialVerdict) {
     return true;
   }
-  return failure.detail !== undefined && CREDENTIAL_ERROR_CODE_SET.has(failure.detail);
+  return credentialCodeSchema.safeParse(failure.detail).success;
 }
 
 function isModerationBlock(error: unknown): boolean {

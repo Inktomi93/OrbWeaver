@@ -748,9 +748,12 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
     label,
   );
   warnings.push(...structured.downgrades);
+  const forbiddenIsNotCredentialVerdict = connection.features.forbiddenIsNotCredentialVerdict === true;
   const classify = (err: unknown): ProviderError => {
+    // SECURITY: an error the stream drain already typed (an error frame's status) meets the same 403 rule as one from
+    // before the stream, or a frame that only refuses the request would strike the stored key.
     if (err instanceof ProviderError) {
-      return err;
+      return forbiddenAsRefusal({ error: err, classified: err, label, secrets, forbiddenIsNotCredentialVerdict });
     }
     const classified = withSchemaRejection(providerErrorFromHttp(err, label, secrets, deps.now), err, {
       log,
@@ -767,16 +770,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
         cause: classified,
       });
     }
-    return (
-      templateRoleRefusal(err, label, classified) ??
-      forbiddenAsRefusal({
-        error: err,
-        classified,
-        label,
-        secrets,
-        forbiddenIsNotCredentialVerdict: connection.features.forbiddenIsNotCredentialVerdict === true,
-      })
-    );
+    return templateRoleRefusal(err, label, classified) ?? forbiddenAsRefusal({ error: err, classified, label, secrets, forbiddenIsNotCredentialVerdict });
   };
   const retryOpts = {
     scheduleTimeout: deps.scheduleTimeout,
