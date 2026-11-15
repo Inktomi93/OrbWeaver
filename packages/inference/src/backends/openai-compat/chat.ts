@@ -12,7 +12,6 @@ import { acceptsAssistantPrefill, cacheMinTokensOf, DEFAULT_ATTACHMENT_QUALITY, 
 import type { EffortLevel } from "@orb/contracts/preset";
 import { errorMessage } from "@orb/kit/error-message";
 import type { JsonValue } from "@orb/kit/json";
-import { parseJsonText } from "@orb/kit/json";
 import type { Clock, ScheduleOp } from "@orb/kit/time";
 import { z } from "zod";
 import type { ChatHistoryMessage, ChatResult, OpenAiCompatChatRequest, ProviderScrubSet, RateLimitSnapshot, Resolved, ResolvedChatKnobs } from "#contract";
@@ -24,14 +23,14 @@ import type { StructuredPlan } from "#src/contract/structured.ts";
 import type { ResultContext, StreamDrain, WirePlan } from "#src/contract/v4.ts";
 import type { ExplicitCachePlan, OpenRouterRouting } from "#src/contract/wire.ts";
 import { requireStructuredPlan, structuredChatResult } from "#structured";
-import { extractHttpErrorDiagnostic, providerErrorFromHttp, withSchemaRejection } from "../http/error-classify.ts";
+import { extractHttpErrorDiagnostic, providerErrorFromHttp, upstreamBody, withSchemaRejection } from "../http/error-classify.ts";
 import { observeChatResult } from "../http/generation-observation.ts";
 import { turnAbortSignal } from "../http/idle-timeout.ts";
 import { providerLogger } from "../http/provider-log.ts";
 import { rateLimitCanaryEvent, rateLimitFromHeaders } from "../http/rate-limit-headers.ts";
 import { cachePolicyContextOf, effectiveDialectOf, responseCacheOf } from "../http/response-cache.ts";
 import { runWithPreCommitRetry } from "../http/retry.ts";
-import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "../http/sanitize.ts";
+import { NO_PROVIDER_SECRETS, resolvedScrubSet, sanitizeApiError } from "../http/sanitize.ts";
 import { emitTurnSpanEvents } from "../http/turn-span.ts";
 import { plannedOptions, standardSampling } from "../v4/options.ts";
 import { buildWirePlan, withMessageOptions } from "../v4/prompt.ts";
@@ -39,6 +38,7 @@ import { appliedSampling, DROPPED_SAMPLING_CODES, measuredCostOf, sdkWarnings, t
 import { drainStream } from "../v4/stream.ts";
 import { effortWordOf } from "../wire/applied-effort.ts";
 import { automaticCachePlan, effectiveProviderRouting, explicitCachePlan, isAnthropicModel, placeExplicitCacheMarkers } from "../wire/cache-control.ts";
+import { redactSecretsFromText } from "../wire/openai-body.ts";
 import { languageModelFor, providerOptionsKey } from "./model.ts";
 import { compatibleReasoning, isMandatoryReasoningRejection, openRouterReasoning, sendsOpenRouterReasoning } from "./reasoning.ts";
 import { wireSampling } from "./sampling.ts";
@@ -155,15 +155,15 @@ const HTTP_FORBIDDEN = 403;
 
 const refusalBodySchema = z.looseObject({ error: z.union([z.string(), z.looseObject({ message: z.string() })]) });
 
-/** The service's own words from a refusal body: `error` as a string, or its `message`. Shown as sent, never read. */
-function refusalWords(error: unknown, secrets: ProviderScrubSet): string | undefined {
-  const { body } = extractHttpErrorDiagnostic(error, secrets);
-  const parsed = refusalBodySchema.safeParse(body === undefined ? undefined : parseJsonText(body));
+/** The service's own words from a refusal body: `error` as a string, or its `message`. Shown, never read. They are
+ *  pulled from the PARSED body, so the scrub and the sanitizer run on the decoded words a reader sees. */
+function refusalWords(body: unknown, secrets: ProviderScrubSet): string | undefined {
+  const parsed = refusalBodySchema.safeParse(body);
   if (!parsed.success) {
     return;
   }
-  const words = typeof parsed.data.error === "string" ? parsed.data.error : parsed.data.error.message;
-  return words.trim() === "" ? undefined : words;
+  const words = sanitizeApiError(redactSecretsFromText(typeof parsed.data.error === "string" ? parsed.data.error : parsed.data.error.message, secrets));
+  return words === "" ? undefined : words;
 }
 
 /** On a row whose 403 is no credential verdict, a 403 is a refusal in the service's own words: never `auth_failed`,
@@ -179,7 +179,7 @@ function forbiddenAsRefusal(args: {
   if (!args.forbiddenIsNotCredentialVerdict || classified.kind !== "auth_failed" || classified.apiErrorStatus !== HTTP_FORBIDDEN) {
     return classified;
   }
-  const words = refusalWords(args.error, args.secrets);
+  const words = refusalWords(upstreamBody(args.error), args.secrets);
   return new ProviderError({
     kind: "invalid",
     retryable: false,

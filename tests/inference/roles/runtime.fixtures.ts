@@ -16,6 +16,29 @@ export const RUNTIME_KEY = "synthetic-runtime-fixture-key";
 export const RUNTIME_TOKEN = "sk-ant-oat01-0123456789abcdef0123456789abcdef";
 export const RUNTIME_ENDPOINT = "http://127.0.0.1:8703/v1";
 
+const ESC = String.fromCodePoint(0x1b);
+const RIGHT_TO_LEFT_OVERRIDE = String.fromCodePoint(0x20_2e);
+const MARKUP = "<img src=x onerror=alert(1)>";
+
+/** Each UTF-16 unit as a `\uXXXX` escape, the way an encoder that escapes everything writes it in a JSON string. */
+function jsonEscapedUnits(text: string): string {
+  return Array.from({ length: text.length }, (_, index) => `\\u${text.charCodeAt(index).toString(16).padStart(4, "0")}`).join("");
+}
+
+/** A refusal's words as they sit inside a JSON string on the wire, every hazard spelled as a `\u` escape so only a
+ *  decode reveals it: a markup tag, ESC colour codes, a right-to-left override, and the fixture key with its first
+ *  character escaped. `visible` is the text a clean message still shows; `keyTail` is what an undecoded key leaves. */
+export const ESCAPED_HAZARD_WORDS = {
+  wire: [
+    jsonEscapedUnits(MARKUP),
+    `${jsonEscapedUnits(ESC)}[31mRED${jsonEscapedUnits(ESC)}[0m`,
+    `${jsonEscapedUnits(RIGHT_TO_LEFT_OVERRIDE)}gpj.exe`,
+    `${jsonEscapedUnits(RUNTIME_KEY.slice(0, 1))}${RUNTIME_KEY.slice(1)}`,
+  ].join(" "),
+  visible: ["RED", "gpj.exe"],
+  keyTail: RUNTIME_KEY.slice(1),
+} as const;
+
 /** The `metadata.user_id` Anthropic correlates one account on. Spelled here rather than read from its producer: a
  *  control that called the producer would pass on any digest it returned, and this value must outlive a rewrite of it. */
 export function anthropicOwnerDigest(ownerId: UserId): string {

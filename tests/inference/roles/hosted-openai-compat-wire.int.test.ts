@@ -9,7 +9,7 @@ import type { RecordedRequest } from "@orb/testkit/node/helpers";
 import { settledProviderError } from "../conformance/runtime.fixtures.ts";
 import type { SseEvent } from "../conformance/transport.fixtures.ts";
 import { eventResponse, scriptedResponses } from "../conformance/transport.fixtures.ts";
-import { createRuntimeRoot, generationCapability, observeRuntimeTimers, RUNTIME_KEY, wireConnection } from "./runtime.fixtures.ts";
+import { createRuntimeRoot, ESCAPED_HAZARD_WORDS, generationCapability, observeRuntimeTimers, RUNTIME_KEY, wireConnection } from "./runtime.fixtures.ts";
 
 const HOSTED_ROWS = ["nanogpt", "literouter"] as const;
 type HostedRow = (typeof HOSTED_ROWS)[number];
@@ -293,6 +293,37 @@ test.for(STRIKES)("$name fails the turn as $kind once, and strikes the key: $str
   const [credential, ...others] = await (await root.internalCallerFor(root.ownerId)).credentials.list();
   expect(others).toEqual([]);
   expect(credential?.revokedReason ?? null).toBe(struck ? "auth_failed" : null);
+});
+
+// Each hazard reaches the wire as a `\u` escape, so only the decoded words carry it.
+const HAZARD_BODIES: Record<HostedRow, string> = {
+  literouter: `{"error":"${ESCAPED_HAZARD_WORDS.wire}"}`,
+  nanogpt: `{"error":{"message":"${ESCAPED_HAZARD_WORDS.wire}","type":"permission_error","code":"claude_request_declined"}}`,
+};
+
+test.for(HOSTED_ROWS)("a %s 403 shows its decoded words with no markup, control character, bidi override or key", async (providerId) => {
+  const hazard = (): Response => new Response(HAZARD_BODIES[providerId], { status: 403, headers: { "content-type": "application/json" } });
+  using server = scriptedResponses([hazard]);
+  await using root = await createRuntimeRoot({ providerFetch: server.execute });
+  const connection = await wireConnection(root, { task: "chat", providerId, model: "vendor/chat-model", capability: EFFORT_CAPABILITY });
+  const settled = await settledProviderError(() =>
+    root.app.runtime.executor.runChatTurn({
+      api: "chat-completions",
+      connection,
+      signal: new AbortController().signal,
+      params: {},
+      systemPrompt: { static: "You are a fixture.", dynamic: "" },
+      history: [USER_LINE],
+    }),
+  );
+  const message = settled.error?.message ?? "";
+  for (const word of ESCAPED_HAZARD_WORDS.visible) {
+    expect(message).toContain(word);
+  }
+  expect(message).not.toMatch(/[<>]/u);
+  expect(message).not.toMatch(/\p{Cc}/u);
+  expect(message).not.toMatch(/\p{Bidi_Control}/u);
+  expect(message).not.toContain(ESCAPED_HAZARD_WORDS.keyTail);
 });
 
 test("a LiteRouter 403 shows the service's own words, which name the cooldown", async () => {

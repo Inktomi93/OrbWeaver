@@ -1,10 +1,11 @@
 // @subject packages/inference/src/backends/openai-compat/diagnostics.ts
 // The key check reads a route that needs the key. NanoGPT's models list answers without one, so its row names the
 // personalized list; a wrong route fails safe as unreachable. LiteRouter's and NanoGPT's 403 is no verdict on the key.
+// A refusal's reason shows its decoded words, clean.
 import type { CredentialHealth } from "@orb/contracts/credentials";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createRuntimeRoot, RUNTIME_KEY } from "../../roles/runtime.fixtures.ts";
+import { createRuntimeRoot, ESCAPED_HAZARD_WORDS, RUNTIME_KEY } from "../../roles/runtime.fixtures.ts";
 
 const NANOGPT_KEY_CHECK_URL = "https://api.nano-gpt.com/api/personalized/v1/models";
 const HTTP_UNAUTHORIZED = 401;
@@ -61,4 +62,20 @@ test.for(FORBIDDEN_CHECKS)("a $providerId key check answered 403 reads $status",
 test("a LiteRouter key check answered 401 reads revoked", async () => {
   await using root = await createRuntimeRoot({ providerFetch: host([], "https://api.literouter.com/v1/models", HTTP_UNAUTHORIZED) });
   expect(await keyCheck(root, "literouter")).toMatchObject({ status: "revoked" });
+});
+
+test("a key check's reason shows the refusal's decoded words with no markup, control character, bidi override or key", async () => {
+  const refusal = (): Promise<Response> =>
+    Promise.resolve(new Response(`{"error":"${ESCAPED_HAZARD_WORDS.wire}"}`, { status: HTTP_UNAUTHORIZED, headers: { "content-type": "application/json" } }));
+  await using root = await createRuntimeRoot({ providerFetch: refusal });
+  const health = await keyCheck(root, "literouter");
+  expect(health.status).toBe("revoked");
+  const reason = "reason" in health ? health.reason : "";
+  for (const word of ESCAPED_HAZARD_WORDS.visible) {
+    expect(reason).toContain(word);
+  }
+  expect(reason).not.toMatch(/[<>]/u);
+  expect(reason).not.toMatch(/\p{Cc}/u);
+  expect(reason).not.toMatch(/\p{Bidi_Control}/u);
+  expect(reason).not.toContain(ESCAPED_HAZARD_WORDS.keyTail);
 });
