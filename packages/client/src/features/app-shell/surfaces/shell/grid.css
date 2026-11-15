@@ -143,8 +143,10 @@
     border-block-end: none;
   }
 
-  /* Elevation `glow`: the layered float recipe on every pane. */
-  .shell-grid[data-elevation="glow"] .shell-panel {
+  /* Elevation `glow`: the layered float recipe on a pane beside the content. A collapsed pane is off screen and casts
+   * nothing onto the edge it parks behind; on a phone a docked pane is the screen itself, and mobile.css takes the
+   * recipe off it there. */
+  .shell-grid[data-elevation="glow"] .shell-panel:not([data-panel-mode="collapsed"]) {
     box-shadow: var(--shadow-overlay);
   }
 

@@ -100,12 +100,16 @@ const SHORT_ROOM_TITLE = "Getting started with Assistant";
 
 let root: Awaited<ReturnType<typeof createCorpusHarness>>;
 let roomId: ChatId;
+let roomTitle: string;
 let shortRoomId: ChatId;
 
 test.beforeAll(async () => {
   root = await createCorpusHarness(undefined, { pluginSpawn: spawn });
   const rooms = (await (await root.internalCallerFor(root.ownerId)).chat.listChats({ limit: 100 })).items;
-  roomId = namedGroupRoom(rooms).id;
+  const group = namedGroupRoom(rooms);
+  roomId = group.id;
+  // `namedGroupRoom` picks only a titled room.
+  roomTitle = group.title ?? "";
   const short = rooms.find((room) => room.title === SHORT_ROOM_TITLE);
   if (short === undefined) {
     throw new Error(`The corpus has no room titled ${SHORT_ROOM_TITLE}`);
@@ -859,6 +863,110 @@ test.describe("on a phone", () => {
       });
     });
     expect(arms).toStrictEqual(["data-list-flip: none / none", "data-context-flip: none / none", "data-list-settle: none / none"]);
+  });
+
+  test("every section swap and every selection crossfades one named region on each side, the list when the list is the screen", async ({
+    corpus,
+    mount,
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      interface Capture {
+        step: string;
+        before: number;
+        after: number;
+        pseudos: string[];
+        refused: string | null;
+      }
+      const seen: Capture[] = [];
+      Reflect.set(globalThis, "__swapCaptures", seen);
+      Reflect.set(globalThis, "__swapStep", "mount");
+      // How many rendered boxes carry a capture name: the old side is read as the swap starts, the new side once it is ready.
+      const named = (): number =>
+        [...document.body.querySelectorAll("*")].filter((el) => getComputedStyle(el).viewTransitionName !== "none" && el.getClientRects().length > 0).length;
+      const start = document.startViewTransition.bind(document);
+      document.startViewTransition = (update?: StartViewTransitionOptions | ViewTransitionUpdateCallback): ViewTransition => {
+        const record: Capture = { step: String(Reflect.get(globalThis, "__swapStep")), before: named(), after: -1, pseudos: [], refused: null };
+        seen.push(record);
+        const transition = start(update);
+        transition.ready.then(
+          () => {
+            record.after = named();
+            record.pseudos = document
+              .getAnimations()
+              .map((animation) => (animation.effect instanceof KeyframeEffect ? animation.effect.pseudoElement : null))
+              .filter((pseudo): pseudo is string => pseudo?.startsWith("::view-transition") === true);
+          },
+          // A duplicate name refuses the transition, and the user sees a hard cut.
+          (error: unknown) => {
+            record.refused = error instanceof Error ? error.name : String(error);
+          },
+        );
+        return transition;
+      };
+    });
+    const [character] = (await (await root.internalCallerFor(root.ownerId)).character.list({})).items;
+    if (character === undefined) {
+      throw new Error("The corpus has no character");
+    }
+    const characterName = character.name;
+    await seedShellState(page, { activeSection: "chats" });
+    await routeMotion(page, corpus);
+    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
+    await expect(page.locator(DOOR_BOXES.composer)).toBeVisible();
+    const grid = page.locator(".shell-grid");
+    const settle = (): Promise<unknown> => page.waitForFunction(() => !document.documentElement.matches(":active-view-transition"));
+    const step = async (name: string, act: () => Promise<void>, landed: () => Promise<void>): Promise<void> => {
+      await page.evaluate((label) => Reflect.set(globalThis, "__swapStep", label), name);
+      await act();
+      await landed();
+      await settle();
+    };
+    const tab = (label: string): Promise<void> => page.locator(".shell-rail").getByRole("button", { name: label, exact: true }).tap();
+    const inSection =
+      (id: string): (() => Promise<void>) =>
+      (): Promise<void> =>
+        expect(grid).toHaveAttribute("data-section", id);
+
+    await settle();
+    await step(
+      "room closes to the list",
+      () => page.getByRole("button", { name: sectionBackName(SECTION_LABELS.chats), exact: true }).tap(),
+      () => expect(grid).toHaveAttribute("data-list-mode", "docked"),
+    );
+    await step("list to list", () => tab(SECTION_LABELS.characters), inSection("characters"));
+    await step("list to content", () => tab(SECTION_LABELS.home), inSection("home"));
+    await step("content to list", () => tab(SECTION_LABELS.characters), inSection("characters"));
+    await step(
+      "list opens a character",
+      () => page.locator(LIST).getByText(characterName, { exact: true }).first().tap(),
+      () => expect(grid).not.toHaveAttribute("data-list-mode", "docked"),
+    );
+    // A room screen has no tab bar, so a selection's content leaves for another section from Characters.
+    await step("selection to another section", () => tab(SECTION_LABELS.chats), inSection("chats"));
+    await step(
+      "list opens a room",
+      () => page.locator(LIST).getByText(roomTitle, { exact: true }).first().tap(),
+      () => expect(page.locator(DOOR_BOXES.composer)).toBeVisible(),
+    );
+
+    const captures = z
+      .array(z.object({ step: z.string(), before: z.number(), after: z.number(), pseudos: z.array(z.string()), refused: z.string().nullable() }))
+      .parse(await page.evaluate((): unknown => Reflect.get(globalThis, "__swapCaptures")));
+    const crossfade = { before: 1, after: 1, refused: null, old: true, new: true };
+    const judged = captures.map(({ step: name, before, after, pseudos, refused }) => ({
+      step: name,
+      before,
+      after,
+      refused,
+      old: pseudos.includes("::view-transition-old(orb-section-content)"),
+      new: pseudos.includes("::view-transition-new(orb-section-content)"),
+    }));
+    // Every section swap raises a transition; a selection may join one, but whatever it raises must crossfade too.
+    expect(judged.map(({ step: name }) => name)).toEqual(
+      expect.arrayContaining(["list to list", "list to content", "content to list", "selection to another section"]),
+    );
+    expect(judged).toStrictEqual(judged.map(({ step: name }) => ({ step: name, ...crossfade })));
   });
 });
 

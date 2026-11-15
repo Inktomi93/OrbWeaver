@@ -96,9 +96,12 @@
     inline-size: var(--size-control-lg);
     block-size: var(--size-control-lg);
   }
-  .shell-rail .shell-rail-button:hover {
-    background: var(--color-sidebar-accent);
-    color: var(--color-sidebar-accent-foreground);
+  /* Only where the pointer can hover: a touch browser keeps `:hover` on the last tapped tab, which then reads as pressed. */
+  @variant hover-capable {
+    .shell-rail .shell-rail-button:hover {
+      background: var(--color-sidebar-accent);
+      color: var(--color-sidebar-accent-foreground);
+    }
   }
   /* The ring weights sit on the host, where the gradient-ring pigment the button stamps resolves. */
   .shell-rail .shell-rail-button[data-active] {

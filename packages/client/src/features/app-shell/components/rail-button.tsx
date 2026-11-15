@@ -3,7 +3,7 @@
 // the icon on the mobile bottom bar and hides it on the desktop icon column (the tooltip carries it there
 // instead). `aria-label` is the accessible name in BOTH regimes — the desktop label is `display:none`, so
 // it contributes nothing to the name, and it never conflicts with the visible mobile label (same string).
-// Visual states live in shell.css keyed off `.shell-rail-button` + `data-active`/`data-mobile`, not inline
+// Visual states live in shell.css keyed off `.shell-rail-button` + `data-active`/`data-modal-open`/`data-mobile`, not inline
 // utilities. Button's inset focus recipe keeps the keyboard ring inside the rail's scrollport,
 // including coarse-pointer controls that fill its width; an outer offset ring would be clipped.
 
@@ -15,6 +15,7 @@ import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
 import type { MobileCuration, ModalSlotId } from "#state";
+import { useModalTrigger } from "../hooks/use-modal-trigger.ts";
 import { SHELL_ACCENT_TONE } from "../lib/shell-accent.ts";
 
 export type RailButtonProps = {
@@ -38,7 +39,8 @@ export type RailButtonProps = {
   readonly describedById?: string;
 } & (
   | {
-      /** The registry-owned modal this affordance opens, when it is a modal trigger. */
+      /** The registry-owned modal this affordance opens, when it is a modal trigger. Its open state follows the
+       *  store (`useModalTrigger`), never `aria-current`: a modal is not a page. */
       readonly modalId?: ModalSlotId;
       readonly active?: false;
     }
@@ -60,6 +62,7 @@ export function RailButton({
   describedById,
   modalId,
 }: RailButtonProps): ReactElement {
+  const modal = useModalTrigger(modalId);
   return (
     <Tooltip disableHoverablePopup={true}>
       <TooltipTrigger
@@ -67,13 +70,15 @@ export function RailButton({
           <Button
             variant="ghost"
             // The active cell stamps the shell accent, whose roles rail.css paints; a button's own stamp would
-            // otherwise reset the rail's ancestor scope to neutral.
-            tone={active ? SHELL_ACCENT_TONE : undefined}
+            // otherwise reset the rail's ancestor scope to neutral. An open trigger wears it only on the phone bar,
+            // the one place its sheet leaves it in view; a desktop modal's trigger keeps its rest paint.
+            tone={active || (modal.open && mobileOnly) ? SHELL_ACCENT_TONE : undefined}
             square={true}
             aria-label={label}
             aria-describedby={describedById === undefined || describedById === "" ? undefined : describedById}
             aria-current={active ? "page" : undefined}
             data-active={active ? "" : undefined}
+            {...modal.attributes}
             data-mobile={mobile}
             data-modal-trigger={modalId}
             data-rail-mobile-only={mobileOnly ? "" : undefined}

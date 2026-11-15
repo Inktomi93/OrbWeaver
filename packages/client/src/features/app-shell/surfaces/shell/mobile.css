@@ -118,6 +118,16 @@
     .shell-rail .shell-rail-button[data-active]::after {
       content: none;
     }
+    /* While the You sheet is up its door is the pressed tab, in the active tab's roles. The standing section keeps
+     * `aria-current` (it is still the page) but gives up the paint, so exactly one tab reads as pressed. */
+    .shell-rail .shell-rail-button[data-modal-open] {
+      background: var(--color-tone-tint);
+      color: var(--color-tone-text-on-tint);
+    }
+    .shell-rail:has(.shell-rail-button[data-modal-open]) .shell-rail-button[data-active] {
+      background: none;
+      color: var(--color-muted-foreground);
+    }
     .shell-rail-button-label {
       display: block;
     }
@@ -192,6 +202,16 @@
      * between rows, and skipping the paint is cheaper anyway. Keyed on the shell's own mode. */
     .shell-grid[data-list-mode="docked"] .shell-content {
       display: none;
+    }
+    /* The list as the screen is the screen's content, so it carries the content pane's capture name (content.css). One
+     * attribute both hides the content pane and names the list, so only one named region renders on either side of a
+     * swap: a second would abort the transition to a hard cut. */
+    .shell-grid[data-list-mode="docked"] .shell-panel[data-panel-side="list"] {
+      view-transition-name: orb-section-content;
+    }
+    /* A docked pane here is the screen, in flow, so it casts no glow float shadow (grid.css); one would land on the tab bar. */
+    .shell-grid[data-elevation="glow"] .shell-panel[data-panel-mode="docked"] {
+      box-shadow: none;
     }
 
     /* The title the rule below sheds holds no floor either, so the actions get the band back. */
