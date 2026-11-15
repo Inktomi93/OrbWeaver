@@ -14,7 +14,7 @@ import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { cn } from "#lib";
 import { cssVar } from "#tokens";
-import { FRAME_FOCUS_REFUSALS_ALLOWED, gateFrameFocus } from "./frame-focus.ts";
+import { gateFrameFocus } from "./frame-focus.ts";
 import { buildSrcDoc } from "./srcdoc.ts";
 
 // An iframe is a focusable landmark in the tab order, so its `title` IS its accessible name — an empty one
@@ -98,8 +98,9 @@ interface SandboxFramePropsBase {
    * a click in the app, and its controls take focus at once as the app's do. Only its load-time focus is returned.
    */
   readonly ungatedFocus?: boolean;
-  /** A gated frame took focus by its own script {@link FRAME_FOCUS_REFUSALS_ALLOWED} times, so the host stopped its
-   *  scripts: from then on it draws `html` on the script-dead floor. A caller whose `html` is empty draws its own. */
+  /** A gated frame took focus by its own script in a grab loop ({@link FRAME_FOCUS_GRAB_LOOP_BOUND}), so the host
+   *  stopped its scripts: from then on it draws `html` on the script-dead floor. A caller whose `html` is empty draws
+   *  its own. */
   readonly onScriptsStopped?: () => void;
 }
 
@@ -213,7 +214,6 @@ export function SandboxFrame({
   const [measured, setMeasured] = useState<{ readonly delivery: string; readonly height: CardFrameHeight } | undefined>(undefined);
   // Set once the frame's scripts are stopped (`onScriptsStopped`), with the height it had: it stays on the floor.
   const [stopped, setStopped] = useState<{ readonly px: number | undefined } | undefined>(undefined);
-  const refusals = useRef(0);
   const src = stopped === undefined ? routedSrc : undefined;
   const deliveryKey = src ?? "srcdoc-floor";
 
@@ -332,9 +332,8 @@ export function SandboxFrame({
 
   // FOCUS ENTERS ONLY BY THE READER'S HAND (`frame-focus.ts`): a frame's own script cannot take keyboard focus.
   const isVeiled = useEffectEvent((): boolean => veiled);
-  const onRefused = useEffectEvent((): void => {
-    refusals.current += 1;
-    if (refusals.current === FRAME_FOCUS_REFUSALS_ALLOWED) {
+  const onGrabLoop = useEffectEvent((): void => {
+    if (stopped === undefined) {
       setStopped({ px: appliedPx });
       onScriptsStopped?.();
     }
@@ -345,7 +344,7 @@ export function SandboxFrame({
     if (frame === null || ungatedFocus) {
       return;
     }
-    return gateFrameFocus(frame, isVeiled, onRefused);
+    return gateFrameFocus(frame, isVeiled, onGrabLoop);
   }, [deliveryKey, complete, ungatedFocus]);
 
   if (!complete) {

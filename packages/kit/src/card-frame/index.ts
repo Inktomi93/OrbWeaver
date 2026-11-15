@@ -103,6 +103,8 @@ import { FONT_SCALE_PERCENT } from "#font-scale";
 import { isPlainObject } from "#guards";
 import { isSafeColor } from "#safe-color";
 
+export * from "./focus.ts";
+
 /** Where the policy is delivered. `document` = a `Content-Security-Policy` RESPONSE HEADER (the routed arm —
  *  can express `sandbox` + `frame-ancestors`, and is not intersected with the embedder's policy).
  *  `meta` = an in-document `<meta http-equiv>` (the srcdoc floor — those two directives are ignored there,

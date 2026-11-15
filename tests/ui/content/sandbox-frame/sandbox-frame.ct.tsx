@@ -3,6 +3,8 @@
 import {
   buildCardFrameCsp,
   CARD_FRAME_SAFE_FLOOR,
+  FRAME_FOCUS_GRAB_GAP_MS,
+  FRAME_FOCUS_GRAB_LOOP_BOUND,
   foldCardFrameHeight,
   REPLY_FRAME_RESIZE_BURST,
   REPLY_FRAME_RESIZE_REFILL_MS,
@@ -310,11 +312,26 @@ const KEYS_ATTRIBUTE = "data-keys";
 const GRABS_ATTRIBUTE = "data-grabs";
 const STEAL = "steal";
 const STEAL_LOOP = "steal-loop";
+// Focus calls spaced well past the grab gap, as a reader's own refused moves come: their count and spacing.
+const STEAL_SPACED = "steal-spaced";
+const SPACED_GRABS = FRAME_FOCUS_GRAB_LOOP_BOUND + 1;
+const SPACED_GRAB_MS = FRAME_FOCUS_GRAB_GAP_MS * 3;
+// A loop that begins once the reader is typing and ends before the reader stops, inside the grab gap but slower than
+// the reader's keys: its start, its period and how many focus calls it makes.
+const STEAL_LOOP_LATER = "steal-loop-later";
+const LATER_LOOP_START_MS = 150;
+const LATER_LOOP_MS = 50;
+const LATER_LOOP_GRABS = 6;
+// Typed a key every TYPE_DELAY_MS, it outlasts the whole loop.
+const LONG_TYPING = "the quick brown fox jumps over the lazy dog, and the lazy dog sleeps on";
+const TYPE_DELAY_MS = 15;
 const KEY_LOGGER = `<input id="field" aria-label="Field inside the frame">${script(
   [
     `document.addEventListener("keydown",(e)=>{document.body.setAttribute("${KEYS_ATTRIBUTE}",(document.body.getAttribute("${KEYS_ATTRIBUTE}")??"")+e.key);},true);`,
     `const grab=()=>{document.getElementById("field").focus();document.body.setAttribute("${GRABS_ATTRIBUTE}",String(Number(document.body.getAttribute("${GRABS_ATTRIBUTE}")??"0")+1));};`,
-    `addEventListener("message",(e)=>{if(e.data==="${STEAL}"){grab();}if(e.data==="${STEAL_LOOP}"){setInterval(grab,5);}});`,
+    `addEventListener("message",(e)=>{if(e.data==="${STEAL}"){grab();}if(e.data==="${STEAL_LOOP}"){setInterval(grab,5);}`,
+    `if(e.data==="${STEAL_SPACED}"){let n=0;const t=setInterval(()=>{grab();n+=1;if(n>=${String(SPACED_GRABS)}){clearInterval(t);}},${String(SPACED_GRAB_MS)});}`,
+    `if(e.data==="${STEAL_LOOP_LATER}"){setTimeout(()=>{let n=0;const t=setInterval(()=>{grab();n+=1;if(n>=${String(LATER_LOOP_GRABS)}){clearInterval(t);}},${String(LATER_LOOP_MS)});},${String(LATER_LOOP_START_MS)});}});`,
     MARK_RAN,
   ].join(""),
 )}`;
@@ -409,6 +426,23 @@ test("a card that takes focus again and again has its scripts stopped, and the r
   expect(await keysInFrame(page, 0)).toBe("");
 });
 
+test("a grab loop that begins while the reader is typing is stopped at the bound", async ({ mount, room, page }) => {
+  const root = await mount<typeof TwoFramesBesideFieldStory>(TWO_FRAMES_STORY, await serveTwoKeyLoggers(room, page));
+  await keyLoggersReady(page);
+  const field = root.getByRole("textbox", OUTSIDE_FIELD);
+  await field.click();
+  await cueFrame(page, 1, STEAL_LOOP_LATER);
+  // The card still runs as the reader starts, so the stop below comes from the loop that began during the typing.
+  await expect(page.locator(FRAME).nth(1)).toHaveAttribute("data-delivery", "routed");
+  // The whole loop runs inside the typing: the reader's keys fall between its refusals, and none break the run.
+  await page.keyboard.type(LONG_TYPING, { delay: TYPE_DELAY_MS });
+  await expect(page.locator(FRAME).nth(1)).toHaveAttribute("data-delivery", "srcdoc");
+  await expect(field).toBeFocused();
+  await field.fill("");
+  await page.keyboard.type(TYPED);
+  await expect(field).toHaveValue(TYPED);
+});
+
 test("a press on a card gives its own field the reader's keys, and the other card's script cannot take them", async ({ mount, room, page }) => {
   await mount<typeof TwoFramesBesideFieldStory>(TWO_FRAMES_STORY, await serveTwoKeyLoggers(room, page));
   await keyLoggersReady(page);
@@ -450,6 +484,66 @@ test("Tab from the app enters a card and Shift+Tab leaves it; a press released o
   await page.keyboard.type("zz");
   await expect(field).toHaveValue("zz");
   expect(await keysInFrame(page, 1)).toBe("");
+});
+
+// Where the reader goes after typing in a card, and what the field holds once they type there: a click below every
+// control leaves focus on the page itself, with no app element to take it.
+const LEAVE_CARD = [
+  {
+    name: "the bare page",
+    leave: async (page: Page): Promise<void> => {
+      const viewport = page.viewportSize();
+      await page.mouse.click((viewport?.width ?? 1) - 2, (viewport?.height ?? 1) - 2);
+    },
+    landed: "BODY",
+    fieldValue: "",
+  },
+  {
+    name: "the field",
+    leave: async (page: Page): Promise<void> => {
+      await page.getByRole("textbox", OUTSIDE_FIELD).click();
+    },
+    landed: "INPUT",
+    fieldValue: TYPED,
+  },
+] as const;
+
+for (const { name, leave, landed, fieldValue } of LEAVE_CARD) {
+  test(`a card the reader pressed into, left for ${name}, gets none of the reader's keys when its script takes focus back`, async ({ mount, room, page }) => {
+    const root = await mount<typeof TwoFramesBesideFieldStory>(TWO_FRAMES_STORY, await serveTwoKeyLoggers(room, page));
+    await keyLoggersReady(page);
+    await pressFrame(page, 0);
+    await page.keyboard.type("ab");
+    await expect.poll(async () => keysInFrame(page, 0)).toBe("ab");
+    await leave(page);
+    await expect.poll(async () => page.locator("body").evaluate(() => document.activeElement?.tagName)).toBe(landed);
+    await stealFocus(page, 0);
+    await expect.poll(async () => page.locator("body").evaluate(() => document.activeElement?.tagName)).toBe(landed);
+    await page.keyboard.type(TYPED);
+    expect(await keysInFrame(page, 0)).toBe("ab");
+    await expect(root.getByRole("textbox", OUTSIDE_FIELD)).toHaveValue(fieldValue);
+  });
+}
+
+test("a card refused now and then, as a reader's own moves are, keeps its scripts; only a grab loop stops them", async ({ mount, room, page }) => {
+  const root = await mount<typeof TwoFramesBesideFieldStory>(TWO_FRAMES_STORY, await serveTwoKeyLoggers(room, page));
+  await keyLoggersReady(page);
+  const field = root.getByRole("textbox", OUTSIDE_FIELD);
+  await field.click();
+  // Each focus call comes well past the gap after the last, with nothing in the app between them.
+  await cueFrame(page, 0, STEAL_SPACED);
+  await expect(page.locator(FRAME).nth(0).contentFrame().locator("body")).toHaveAttribute(GRABS_ATTRIBUTE, String(SPACED_GRABS), {
+    timeout: SPACED_GRABS * SPACED_GRAB_MS * 4,
+  });
+  await settle(page);
+  await expect(field).toBeFocused();
+  // Every call was refused, and the card's scripts still run: one more focus call is still answered.
+  await expect(page.locator(FRAME).nth(0)).toHaveAttribute("data-delivery", "routed");
+  await stealFocus(page, 0);
+  await expect(field).toBeFocused();
+  // Positive control in the same card: a grab loop does stop it.
+  await cueFrame(page, 0, STEAL_LOOP);
+  await expect(page.locator(FRAME).nth(0)).toHaveAttribute("data-delivery", "srcdoc");
 });
 
 test("a frame that outgrows its box scrolls inside itself with the thin themed bar", async ({ mount, room, page }) => {
