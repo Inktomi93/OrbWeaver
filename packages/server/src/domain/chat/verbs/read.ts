@@ -63,7 +63,6 @@ import {
   TURN_HOST_UNAVAILABLE_OP_CODE,
 } from "@orb/contracts/chat";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
-import { isHostRole } from "@orb/contracts/identity";
 import type { GenerationCapability, UnavailableCause } from "@orb/contracts/inference";
 import { acceptsAssistantPrefill, acceptsImageInput, acceptsVideoInput, turnsLevelFor, windowForPreset } from "@orb/contracts/inference";
 import type { GuidedActionKind, PromptConfig, TemplateDefId, UserMacroSpec } from "@orb/contracts/preset";
@@ -91,7 +90,6 @@ import type { IanaTimeZone } from "@orb/kit/time";
 import { estimateTokens } from "@orb/kit/tokens";
 import { getLog } from "#foundation/observability";
 import { captureParticipantRole } from "#primitives/role-data";
-import { participantRoleValue } from "#primitives/role-data/decode";
 import type { MacroRenderEnv, TurnUserMacros } from "../contract/assembly-macros.ts";
 import type { ChatContext, ChatServiceDeps, LoadParticipantViewsBatchOp, LoadParticipantViewsOp } from "../contract/context.ts";
 import { ChatHostWithoutConsentError, ChatNotFoundError } from "../contract/errors.ts";
@@ -1235,7 +1233,7 @@ function createListDisplayScripts(ctx: ChatContext, deps: ReadDeps): ChatService
     let viewerIsHost = false;
     if (chatId !== null) {
       const membership = await requireParticipant(ctx, principal, chatId);
-      viewerIsHost = isHostRole(participantRoleValue(membership.role));
+      viewerIsHost = hostUserIdOf([{ role: membership.role, userId: viewer }]) === viewer;
       if (viewerIsHost || membership.chat.metadata.hostDisplayScripts === true) {
         room = await roomDisplayEntries(ctx, deps, chatId, membership.chat.anchorPersonaId);
       }

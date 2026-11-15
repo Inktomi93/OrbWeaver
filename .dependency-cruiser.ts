@@ -47,6 +47,7 @@ const ENTRY_DRIVERS = {
   "boot/index.ts": "the boot barrel the lifecycle reads re-exports the drivers below",
   "boot/migrate.ts": "runs the migrations, backups and integrity check, and resolves the migrations folder through node:module",
   "boot/migrate-data-layout.ts": "opens, snapshots and detaches the legacy database while the data layout moves",
+  "boot/report-regex-two-axis.ts": "reads the scripts migration 0020 rewrites, before and after boot/migrate.ts runs it",
 } as const satisfies Readonly<Record<string, string>>;
 const ENTRY_DRIVER_PATTERN = `${ENTRY_SOURCE}(?:${Object.keys(ENTRY_DRIVERS)
   .map((path) => RegExp.escape(path))
@@ -954,6 +955,12 @@ const PACKAGE_TEST_REACHES = {
   "tests/db/schema/chat-freeze-provenance.repo.int.test.ts": {
     "packages/server/src/entry/boot/index.ts":
       "runBootMigrations: the case proves boot backs up the pre-migration file before the provenance rebuild, and only the persistence tier may seed that schema",
+  },
+  "tests/db/schema/regex-two-axis.repo.int.test.ts": {
+    "packages/server/src/entry/boot/index.ts":
+      "runBootMigrations: the case proves boot names every script migration 0020 rewrites, and only the persistence tier may seed the old shape",
+    "packages/server/src/foundation/observability/index.ts": "createLogger: the boot lines are read off the logger's own ring",
+    "packages/server/src/foundation/env/record/index.ts": "DEFAULT_LOG_LEVEL: the level boot logs at, so the warn lines the case reads are written",
   },
   "tests/db/client/traced-client-spans.int.test.ts": {
     "packages/server/src/foundation/observability/index.ts":
@@ -1997,7 +2004,7 @@ const DOMAIN_AUTHORITY = [
     severity: "error",
     from: {
       pathNot:
-        "^packages/server/src/(domain/(admin/persistence/queries|automation/persistence/canon-reads|databank/persistence/scope|sessions/verbs/(validate|load-user-by-id|provision-identity)|chat/(persistence/(queries|participants-read)|verbs/(edit|read|participants)))|entry/(auth/seam|compose/chat))\\.ts$",
+        "^packages/server/src/(domain/(admin/persistence/queries|automation/persistence/canon-reads|databank/persistence/scope|sessions/verbs/(validate|load-user-by-id|provision-identity)|chat/(persistence/(queries|participants-read)|verbs/(edit|read|participants|start-chat)))|entry/(auth/seam|compose/chat))\\.ts$",
     },
     to: { path: "^packages/server/src/primitives/role-data/index\\.ts$" },
   },
