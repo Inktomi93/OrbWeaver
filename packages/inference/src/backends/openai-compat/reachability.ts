@@ -10,7 +10,7 @@ import type { Reachability } from "#contract";
 import { ProviderError } from "#contract";
 import type { ProbeTarget, ReachabilityDeps, ReachabilityProber, SleepTarget } from "#src/contract/openai-backend.ts";
 import { deadlineSignal } from "../http/abort-flatten.ts";
-import { authHeaders, fetchJson, onBaseOrigin, openAiPath, SERVER_READ_TIMEOUT_MS, serverRootOf } from "../http/fetch-json.ts";
+import { authHeaders, fetchJson, onBaseOrigin, openAiPath, SERVER_READ_TIMEOUT_MS, serverRootOf, transportError } from "../http/fetch-json.ts";
 import { NO_PROVIDER_SECRETS } from "../http/sanitize.ts";
 import { waitForTimeout } from "../http/timers.ts";
 
@@ -182,22 +182,25 @@ export function createReachabilityProber(deps: ReachabilityDeps): ReachabilityPr
   const wakeOnce = async (target: SleepTarget, signal: AbortSignal): Promise<boolean> => {
     invalidate(target.baseUrl);
     const post = deadlineSignal(signal, SERVER_READ_TIMEOUT_MS, deps.scheduleTimeout);
-    // A wake POST that fails on the network or its deadline falls through to the bounded probe loop below, whose final
-    // `false` makes `wakeBeforeSend` (openai-compat/index.ts) throw a retryable `model_unavailable` ProviderError, and
-    // whose cancel check throws `wakeAborted`. Any other fault rejects.
-    await deps
+    // A wake POST the endpoint never takes (the network, its deadline, a refused endpoint) is a transport failure, read
+    // as `transportError` reads the probe's. It falls through to the bounded probe loop below, whose final `false` makes
+    // `wakeBeforeSend` (openai-compat/index.ts) throw a retryable `model_unavailable` ProviderError. A cancel of this
+    // task's own signal throws `wakeAborted` at once.
+    const refused = await deps
       .fetch(sleepUrl(target.baseUrl, target.wakePath), {
         method: "POST",
         headers: authHeaders(target.secret, target.headers),
         redirect: "manual",
         signal: post.signal,
       })
-      .catch((error: unknown) => {
-        if (!isFetchFailure(error)) {
-          throw error;
-        }
-      })
+      .then(
+        (): ProviderError | null => null,
+        (error: unknown) => transportError({ label: "wake", signal: post.signal }, error),
+      )
       .finally(post.dispose);
+    if (refused !== null && signal.aborted) {
+      throw wakeAborted(refused);
+    }
     const deadline = deps.now() + WAKE_TIMEOUT_MS;
     while (deps.now() < deadline) {
       const state = await probeOnce(deps, target, signal);

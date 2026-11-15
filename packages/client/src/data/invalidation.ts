@@ -268,11 +268,7 @@ function holdRefetch(query: Query, gate: Promise<void>): Promise<unknown> | unde
       )
       // The query's own state holds a failed read (a tRPC failure) and a retired one (TanStack's cancel); any other
       // fault rejects.
-      .catch((error: unknown) => {
-        if (!(error instanceof CancelledError)) {
-          rethrowUnlessTrpcFailure(error);
-        }
-      });
+      .catch(rethrowUnlessTrpcFailure);
     held = query.promise;
   } finally {
     query.setOptions(options);

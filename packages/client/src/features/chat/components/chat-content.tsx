@@ -10,7 +10,7 @@
 import type { TurnAbortReason } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { RegexScriptId } from "@orb/kit/ids";
-import { CancelledError, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { ChatBusDeps } from "#data";
@@ -93,9 +93,7 @@ export function ChatContent({ surfaceContributors, toolRenderers }: ChatContentP
     queryClient.query(trpc.regex.listScripts.queryOptions()).then(
       (rows) => rows.find((row) => row.id === scriptId) ?? null,
       (error: unknown) => {
-        if (!(error instanceof CancelledError)) {
-          rethrowUnlessTrpcFailure(error);
-        }
+        rethrowUnlessTrpcFailure(error);
         return null;
       },
     );
