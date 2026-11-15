@@ -3667,7 +3667,8 @@ function stPowerUserGenerationKnobs(powerUser: unknown): {
  *  "the reader stopped" tells the owner their SillyTavern preset was not a SillyTavern preset.
  *
  *  `recognised` is the discriminant on purpose: it is the question the caller is actually asking, and it
- *  reads correctly at the call site without the caller re-deriving it from `reason` bytes. */
+ *  reads correctly at the call site without the caller re-deriving it from `reason` bytes. An unclaimed file has no
+ *  reason of its own: the door that refuses it says what it reads. */
 /** What the caller adds to {@link tryImportStChatCompletionPreset}'s read of the preset. */
 export interface StImportOptions {
   /** ST's global `settings.json.power_user` blob, supplied only for the live `oai_settings` preset: its
@@ -3680,7 +3681,7 @@ export interface StImportOptions {
 
 export type StImportOutcome =
   | { readonly ok: true; readonly result: StImportResult }
-  | { readonly ok: false; readonly recognised: false; readonly reason: string }
+  | { readonly ok: false; readonly recognised: false }
   | { readonly ok: false; readonly recognised: true; readonly reason: string };
 
 /** Render a `schema-rejected` outcome's issue for the ST import door: resolve a `sections.<n>…`
@@ -3723,7 +3724,7 @@ function stSchemaRejection(
 export function tryImportStChatCompletionPreset(raw: unknown, options: StImportOptions = {}): StImportOutcome {
   const parsed = stPresetSchema.safeParse(raw);
   if (!(parsed.success && (parsed.data.prompts || parsed.data.prompt_order))) {
-    return { ok: false, recognised: false, reason: "Not a SillyTavern Chat Completion preset (expected prompts[] + prompt_order)." };
+    return { ok: false, recognised: false };
   }
   const data = parsed.data;
   const rawObj: Record<string, unknown> = raw !== null && typeof raw === "object" ? (raw as Record<string, unknown>) : {};

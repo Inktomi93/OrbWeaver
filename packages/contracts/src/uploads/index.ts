@@ -97,6 +97,10 @@ const TRPC_BODY_MIB = 32;
  *  names this number in the message it shows for that answer. */
 export const TRPC_BODY_MAX_BYTES = TRPC_BODY_MIB * BYTES_PER_MIB;
 
+/** The response header the mount's own 413 carries, holding {@link TRPC_BODY_MAX_BYTES} in bytes. A 413 without it came
+ *  from something in front of the app, whose limit the app does not know, so the client names a number only for this one. */
+export const TRPC_BODY_LIMIT_HEADER = "x-orb-body-limit";
+
 /** The character cap each file-text import procedure's input admits (`fileText`, measured as a JS string length).
  *  The server schemas read these and the client checks a picked file's text against the same number before it sends. */
 export const IMPORT_FILE_TEXT_MAX_CHARS = {

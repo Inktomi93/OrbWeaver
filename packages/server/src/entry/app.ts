@@ -8,7 +8,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { ImportCardScripts } from "@orb/contracts/regex";
 import { TRPC_BATCH_MAX_ITEMS } from "@orb/contracts/rpc";
-import { TRPC_BODY_MAX_BYTES } from "@orb/contracts/uploads";
+import { TRPC_BODY_LIMIT_HEADER, TRPC_BODY_MAX_BYTES } from "@orb/contracts/uploads";
 import type { ImportWorldInfoPort } from "@orb/contracts/world-info";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { DomainRateLimitError } from "@orb/kit/errors";
@@ -383,9 +383,13 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
   // Cap tRPC JSON bodies before the handler buffers them. The cap sits above the largest text a procedure admits, so
   // each procedure's own input schema is the limit a person meets and this one only bounds a hostile body; binary rides
   // the upload and import routes with their own caps. Returns a bare 413 rather than throwing an HTTPException (which
-  // the app's observability onError would flatten to a 500 — an ugly shape for a tRPC client). The client names
-  // `TRPC_BODY_MAX_BYTES` in the message it shows for that 413. Mirrors the upload/import routes' body-limit belt.
-  app.use(TRPC_MOUNT, bodyLimit({ maxSize: TRPC_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }));
+  // the app's observability onError would flatten to a 500 — an ugly shape for a tRPC client). The 413 states the cap in
+  // `TRPC_BODY_LIMIT_HEADER`, which is how the client tells it from a proxy's 413 and names a number only for this one.
+  // Mirrors the upload/import routes' body-limit belt.
+  app.use(
+    TRPC_MOUNT,
+    bodyLimit({ maxSize: TRPC_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE, { [TRPC_BODY_LIMIT_HEADER]: String(TRPC_BODY_MAX_BYTES) }) }),
+  );
 
   app.all(TRPC_MOUNT, (c) =>
     fetchRequestHandler({

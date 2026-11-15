@@ -30,6 +30,9 @@ import {
 import { filterPresetsByName, presetSearchNeedle } from "../lib/preset-search.ts";
 import { useImportPresetFile, usePreviewPresetFile, useSetDefaultPreset } from "./use-preset-mutations.ts";
 
+/** Names the line that states a failed import, for the mutation's toast to defer to. */
+const PRESET_IMPORT_FAILURE_LINE = "the preset import dialog";
+
 type Landed = Extract<PresetImportOutcome, { ok: true }>;
 
 /** The result line for a landed import: what the library gained, and the scripts that came with a SillyTavern preset. */
@@ -61,12 +64,13 @@ export interface PresetImport {
 export function usePresetImport(): PresetImport {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const importFile = useImportPresetFile({ trpc, invalidation });
+  const [isOpen, setOpen] = useState(false);
+  // The open dialog says a failed import on its own line, so the mutation's toast steps aside while it shows.
+  const importFile = useImportPresetFile({ trpc, invalidation, failureShownInline: isOpen ? PRESET_IMPORT_FAILURE_LINE : undefined });
   const previewFile = usePreviewPresetFile({ trpc, invalidation });
   const setDefault = useSetDefaultPreset({ trpc, invalidation });
   // Non-suspending: the band renders outside any read boundary, and only the notice's wording depends on it.
   const settings = useQuery(trpc.settings.getUserSettings.queryOptions());
-  const [isOpen, setOpen] = useState(false);
   const searchQuery = usePresetSearchQuery();
 
   const landedNotice = (outcome: Landed): NotifyNotice => {

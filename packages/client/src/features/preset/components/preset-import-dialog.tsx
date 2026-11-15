@@ -11,13 +11,12 @@ import type { PresetFilePreview } from "@orb/contracts/preset";
 import { ST_PRESET_SCRIPT_LIST_FIELD } from "@orb/contracts/preset";
 import { IMPORT_FILE_TEXT_MAX_CHARS } from "@orb/contracts/uploads";
 import { FileDropzone } from "@orb/ui/file-dropzone";
-import { Icon, TriangleAlert } from "@orb/ui/icons";
-import { Row, Section, Stack } from "@orb/ui/layout";
+import { Section, Stack } from "@orb/ui/layout";
 import { ScrollArea } from "@orb/ui/scroll-area";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { FormDialog, MutedLine } from "#components";
+import { DialogFailure, FormDialog, MutedLine } from "#components";
 import { readTextWithin, requestRefusalOf } from "#lib";
 import {
   PRESET_IMPORT_ALREADY_HELD,
@@ -152,14 +151,7 @@ export function PresetImportDialog({ open, onOpenChange, onPreview, onImport, bu
           }}
         />
 
-        {error !== null ? (
-          <Row align="start" gap="field">
-            <Icon icon={TriangleAlert} size="sm" tone="destructive" />
-            <Text cap="prose" prose={true} voice="label">
-              {error}
-            </Text>
-          </Row>
-        ) : null}
+        {error !== null ? <DialogFailure>{error}</DialogFailure> : null}
 
         {picked === null ? null : <ImportSummary preview={picked.preview} />}
       </Stack>

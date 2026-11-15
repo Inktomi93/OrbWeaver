@@ -74,13 +74,6 @@ type PresetFileRead =
     } & ReturnType<typeof configCounts>)
   | { readonly ok: false; readonly error: string };
 
-// The SillyTavern reader's two refusals read differently: one never claimed the file, so the person is told which
-// exports the import reads, the other claimed it and refused what it mapped to, and saying "not recognized" for the
-// second denies what its reason names.
-function stRefusal(recognised: boolean, reason: string): string {
-  return recognised ? `Recognised as a SillyTavern preset, refused: ${reason}` : NOT_RECOGNISED;
-}
-
 /** SillyTavern names an imported preset by its file stem, so this door does too. */
 function stemOf(fileName: string): string {
   const stem = fileName.replace(JSON_EXT, "").trim();
@@ -114,7 +107,10 @@ function readPresetFile({ fileText, fileName }: Pick<ImportPresetFileParams, "fi
   }
   const st = parseStPresetJson(raw, { name: stemOf(fileName) });
   if (!st.ok) {
-    return { ok: false, error: stRefusal(st.recognised, st.reason) };
+    // The reader's two refusals read differently: one never claimed the file, so the person is told which exports the
+    // import reads, the other claimed it and refused what it mapped to, and saying "not recognized" for the second
+    // denies what its reason names.
+    return { ok: false, error: st.recognised ? `Recognised as a SillyTavern preset, refused: ${st.reason}` : NOT_RECOGNISED };
   }
   const { name, file, unmapped, regexScripts, refusedScripts, addedSections } = st.parsed;
   return {

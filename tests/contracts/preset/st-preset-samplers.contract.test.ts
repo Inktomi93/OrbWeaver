@@ -53,7 +53,7 @@ function landedParams(file: Record<string, unknown>): {
 } {
   const outcome = tryImportStChatCompletionPreset({ ...PROMPTS, ...file });
   if (!outcome.ok) {
-    throw new Error(outcome.reason);
+    throw new Error(JSON.stringify(outcome));
   }
   const { params } = outcome.result.config;
   return {

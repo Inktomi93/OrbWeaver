@@ -41,7 +41,8 @@ export interface ParsedStPreset {
  *  all, `true` when it is one that maps to a config orb cannot store. */
 export type StPresetParse =
   | { readonly ok: true; readonly parsed: ParsedStPreset }
-  | { readonly ok: false; readonly recognised: boolean; readonly reason: string };
+  | { readonly ok: false; readonly recognised: false }
+  | { readonly ok: false; readonly recognised: true; readonly reason: string };
 
 /** ST's presetManager stores extension fields on the preset itself under `extensions`; the regex extension's
  *  preset-scoped scripts ride `extensions.regex_scripts` (SillyTavern `extensions/regex/engine.js:126`), read by the
@@ -92,7 +93,7 @@ export function readPresetFileScripts(
  *  current knobs onto it would rewrite it. */
 export function parseStPresetJson(raw: unknown, options: { readonly name: string; readonly powerUser?: unknown }): StPresetParse {
   if (!isPlainObject(raw)) {
-    return { ok: false, recognised: false, reason: "Not a SillyTavern Chat Completion preset (not a JSON object)." };
+    return { ok: false, recognised: false };
   }
   const outcome = tryImportStChatCompletionPreset(raw, {
     powerUser: options.powerUser,

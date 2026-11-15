@@ -7,6 +7,7 @@
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { TRPC_BATCH_MAX_ITEMS, TRPC_BATCH_MAX_URL_LENGTH } from "@orb/contracts/rpc";
+import { isPlainObject } from "@orb/kit/guards";
 import type { ChatId } from "@orb/kit/ids";
 import type { AppRouter } from "@orb/server";
 import type { DataTag, QueryClient, UnusedSkipTokenOptions } from "@tanstack/react-query";
@@ -47,16 +48,35 @@ export type TrpcReadError = TRPCClientErrorLike<AppRouter>;
 
 export const { TRPCProvider, useTRPC, useTRPCClient } = createTRPCContext<AppRouter>();
 
-/** Refuse a non-JSON answer to a tRPC call with a {@link RequestRefusedError} of the kind its status names, instead of
- *  letting the batch link's JSON parse report `Unexpected token '<'`. The tRPC mount answers JSON for every call it
- *  reads; what arrives otherwise is the mount's own bare refusal (an over-size body, a non-JSON content type, a
- *  blocked address) or a page from something in front of the app (a proxy or login redirect). The link wraps what this
- *  throws, so a caller reads the typed error with `requestRefusalOf`. */
+/** Whether a failed answer's JSON body is a tRPC envelope (`result` or `error`, alone or one per batched call), which the
+ *  link reads itself. A proxy's JSON error page is not one. */
+async function carriesTrpcEnvelope(response: Response): Promise<boolean> {
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch (error) {
+    // `Response.json()` rejects a body that is not JSON text with a `SyntaxError`; any other throw is a failed read.
+    if (error instanceof SyntaxError) {
+      return false;
+    }
+    throw error;
+  }
+  const isEnvelope = (entry: unknown): boolean => isPlainObject(entry) && ("result" in entry || "error" in entry);
+  return Array.isArray(body) ? body.every(isEnvelope) : isEnvelope(body);
+}
+
+/** Refuse an answer that is not a tRPC answer with a {@link RequestRefusedError} of the kind its status names, instead of
+ *  letting the batch link's JSON parse report `Unexpected token '<'` or "Unable to transform response from server". The
+ *  tRPC mount answers JSON envelopes for every call it reads; what arrives otherwise is the mount's own bare refusal (an
+ *  over-size body, a non-JSON content type, a blocked address) or a page from something in front of the app (a proxy or
+ *  login redirect, in HTML or in a JSON error body of its own). The link wraps what this throws, so a caller reads the
+ *  typed error with `requestRefusalOf`. */
 const jsonOnlyFetch: NonNullable<Parameters<typeof httpBatchLink>[0]["fetch"]> = async (input, init) => {
   // The link's init type allows an explicit `undefined` signal; the DOM type (exactOptionalPropertyTypes) does not.
   const response = await fetch(input, init === undefined ? undefined : { ...init, signal: init.signal ?? null });
   const contentType = response.headers.get("content-type") ?? "";
-  if (contentType.includes("json")) {
+  // A success is read by the link as it is; only a failed JSON answer is checked for being the app's own envelope.
+  if (contentType.includes("json") && (response.ok || (await carriesTrpcEnvelope(response.clone())))) {
     return response;
   }
   throw refusalOfAnswer(response);

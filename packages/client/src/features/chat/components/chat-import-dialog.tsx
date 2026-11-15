@@ -101,9 +101,12 @@ export function ChatImportDialog({ open, onOpenChange }: ChatImportDialogProps):
     );
   // The scope on offer: every drop since the last started build, merged. A closed dialog forgets it.
   const [offer, setOffer] = useState<{ readonly scope: ImportWindow; readonly started: boolean } | null>(null);
+  // The drop's size refusal, on the dropzone's own line: the dialog stays open for another file, so a toast would repeat it.
+  const [refusal, setRefusal] = useState<string | null>(null);
   const changeOpen = (next: boolean): void => {
     if (!next) {
       setOffer(null);
+      setRefusal(null);
     }
     onOpenChange(next);
   };
@@ -115,10 +118,11 @@ export function ChatImportDialog({ open, onOpenChange }: ChatImportDialogProps):
     if (accepted.length === 0) {
       return;
     }
+    setRefusal(null);
     // The route holds a whole drop in memory under one cap, so the files' sizes together are what it refuses on.
     const tooLarge = refuseOversizeFiles(accepted, IMPORT_MAX_TOTAL_BYTES);
     if (tooLarge !== undefined) {
-      notify.error(tooLarge.message);
+      setRefusal(tooLarge.message);
       return;
     }
     importChats(accepted).then(
@@ -155,7 +159,13 @@ export function ChatImportDialog({ open, onOpenChange }: ChatImportDialogProps):
       open={open}
       title={CHAT_IMPORT_TITLE}
     >
-      <FileDropzone accept={TRANSCRIPT_ACCEPT} subject="files" multiple={true} onFilesSelected={({ accepted }): void => onFiles(accepted)} />
+      <FileDropzone
+        accept={TRANSCRIPT_ACCEPT}
+        {...(refusal === null ? {} : { error: refusal })}
+        subject="files"
+        multiple={true}
+        onFilesSelected={({ accepted }): void => onFiles(accepted)}
+      />
       <ImportedChatsMemoryOffer
         nested={true}
         onStarted={(): void => setOffer((prev) => (prev === null ? null : { ...prev, started: true }))}

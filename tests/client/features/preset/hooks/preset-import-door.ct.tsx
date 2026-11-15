@@ -8,6 +8,7 @@
 // @subject packages/client/src/features/preset/components/preset-library-welcome.tsx
 
 import { ST_PRESET_SCRIPT_LIST_FIELD } from "@orb/contracts/preset";
+import { IMPORT_FILE_TEXT_MAX_CHARS } from "@orb/contracts/uploads";
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import { setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName, noticeToast, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
@@ -49,6 +50,7 @@ const READS = [
   "connection.providersAvailable",
   "connection.list",
 ] as const;
+const PREVIEW_PROCEDURE = "/preset.previewFile";
 const EMPTY_STATE = '[data-slot="empty-state-root"]';
 const BAND_ACTIONS = '[data-slot="list-pane-action"]';
 
@@ -320,6 +322,37 @@ test("importing a file the library holds, which is the active preset, says it is
   });
   await expect(inUse).toBeVisible();
   await expect(inUse.getByRole("button", { name: PRESET_USE_THIS_NAME, exact: true })).toHaveCount(0);
+});
+
+test("a file over the import's text cap is refused on the dialog's own line before any request, and a file within it then previews", async ({
+  mount,
+  page,
+}) => {
+  await using root = await createCorpusHarness();
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await serve(page, root);
+  const previews: string[] = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname.endsWith(PREVIEW_PROCEDURE)) {
+      previews.push(request.url());
+    }
+  });
+  await mount<typeof PresetImportDoorStory>(STORY, {});
+  await welcomeDoor(page).click();
+  const dialog = page.getByRole("dialog", { name: PRESET_IMPORT_TITLE, exact: true });
+  const input = dialog.locator('input[type="file"]');
+
+  await input.setInputFiles({ name: FILE_NAME, mimeType: "application/json", buffer: Buffer.alloc(IMPORT_FILE_TEXT_MAX_CHARS.preset + 1, "x") });
+  // The refusal is on screen, so the read has failed and nothing can have been sent after it.
+  await expect(dialog.getByRole("alert")).toHaveCount(1);
+  expect(previews).toHaveLength(0);
+  await expect(dialog.getByRole("button", { name: PRESET_IMPORT_NAME, exact: true })).toBeDisabled();
+
+  // The positive control: the same dialog takes a file within the cap, sends one preview and lifts the refusal.
+  await input.setInputFiles({ name: FILE_NAME, mimeType: "application/json", buffer: Buffer.from(presetFile(ONE_UNMAPPED)) });
+  await expect(dialog.getByRole("button", { name: PRESET_IMPORT_NAME, exact: true })).toBeEnabled();
+  await expect(dialog.getByRole("alert")).toHaveCount(0);
+  expect(previews).toHaveLength(1);
 });
 
 test("at 200% text the preview's sentences stay whole and the long list of left-out settings scrolls in a region that shows it", async ({ mount, page }) => {

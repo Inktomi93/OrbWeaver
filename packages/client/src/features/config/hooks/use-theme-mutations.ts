@@ -7,6 +7,7 @@ import type { Theme } from "@orb/contracts/theme";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { SectionPatchVars, Trpc } from "#data";
 import { createEntityMutation } from "#data";
+import { refusalOr } from "#lib";
 
 export const useCreateTheme = createEntityMutation<inferInput<Trpc["settings"]["createTheme"]>, Theme>({
   options: (trpc) => trpc.settings.createTheme.mutationOptions(),
@@ -20,7 +21,7 @@ export const useCreateTheme = createEntityMutation<inferInput<Trpc["settings"]["
 export const useImportThemeFile = createEntityMutation<inferInput<Trpc["settings"]["importThemeFile"]>, inferOutput<Trpc["settings"]["importThemeFile"]>>({
   options: (trpc) => trpc.settings.importThemeFile.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't import the theme.",
+  errorToast: refusalOr("Couldn't import the theme."),
 });
 
 export const useDuplicateTheme = createEntityMutation<inferInput<Trpc["settings"]["duplicateTheme"]>, Theme>({

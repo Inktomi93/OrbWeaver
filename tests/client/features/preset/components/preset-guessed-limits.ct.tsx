@@ -100,7 +100,7 @@ async function importedPreset(caller: Caller): Promise<PresetId> {
     prompts: [{ identifier: "main", name: "Main Prompt", role: "system", content: "Write the next reply." }],
   });
   if (!outcome.ok) {
-    throw new Error(`The SillyTavern preset was refused: ${outcome.reason}`);
+    throw new Error(`The SillyTavern preset was refused: ${JSON.stringify(outcome)}`);
   }
   const preset = await caller.preset.create({ name: "Imported long-context preset", kind: "generation", config: outcome.result.config });
   return preset.id;
