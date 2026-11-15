@@ -1,6 +1,6 @@
 // The ADVERTISED tier from an OpenAI-compatible `/v1/models` row: ids and, when the server reports one, a chat
 // model's context window (vLLM `max_model_len`, LM Studio `max_context_length`, llama.cpp `meta.n_ctx`, Ollama's
-// pinned `num_ctx`, else its default floor as assumed), an embedder's width and input limit, and — where the row's native model-info API states them (D292) — the
+// pinned `num_ctx`, else its default floor as assumed), a hosted list's output cap, an embedder's width and input limit, and — where the row's native model-info API states them (D292) — the
 // modalities a turn may carry, whether the model takes `tools[]` and whether it thinks, schema-constrained output, and whether a
 // delivered assistant row is continued (the server's rendered prompt leaves it open), and the sampler values the
 // server runs when a request leaves a knob unset. Everything else is curated or declared (§5.7, §6.3).
@@ -18,6 +18,16 @@ function advertisedContext(entry: Pick<EndpointModel, "contextLength" | "context
     return { context: { window: entry.contextLength } };
   }
   return entry.contextFloor === undefined ? {} : { context: { window: entry.contextFloor, windowEstimated: true } };
+}
+
+/** A stated output cap is reported; an unstated one is left to the floor, which the fold marks assumed. */
+function advertisedOutput(entry: Pick<EndpointModel, "maxCompletionTokens" | "structured">): Pick<GenerationPatch, "output"> {
+  const cap = entry.maxCompletionTokens;
+  const structured = entry.structured === true ? { structured: true } : {};
+  if (cap === null || cap === undefined || cap < 1) {
+    return entry.structured === true ? { output: structured } : {};
+  }
+  return { output: { maxTokens: { min: 1, max: cap }, ...structured } };
 }
 
 /** The server's defaults keyed by sampler knob: each knob's value under the key this row spells it with
@@ -76,6 +86,7 @@ export function advertisedFromOpenAiCompat(
     EndpointModel,
     | "contextLength"
     | "contextFloor"
+    | "maxCompletionTokens"
     | "embeddingDims"
     | "embedInputTokens"
     | "input"
@@ -100,7 +111,7 @@ export function advertisedFromOpenAiCompat(
     ...advertisedContext(entry),
     ...(entry.input === undefined ? {} : { input: [...entry.input] }),
     ...(entry.tools === undefined ? {} : { tools: { parallel: entry.tools.parallel } }),
-    ...(entry.structured === true ? { output: { structured: true } } : {}),
+    ...advertisedOutput(entry),
     ...advertisedReasoning(entry),
     // The server rendered a trailing assistant row and left it open: a delivered prefill is continued.
     ...(entry.prefill === undefined ? {} : { turns: { assistantPrefill: entry.prefill === "deliver" } }),

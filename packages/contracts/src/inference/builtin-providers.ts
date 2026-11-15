@@ -81,6 +81,54 @@ export const BUILTIN_PROVIDER_ROWS = [
     docsUrl: "https://platform.openai.com/docs",
   },
   {
+    id: "nanogpt",
+    label: "NanoGPT",
+    wire: "openai-compat",
+    dialect: "openai-compatible",
+    auth: "apiKey",
+    // The direct API host: the website host, nano-gpt.com, caps a request body near 4.5 MB and can list another
+    // catalog during a rollout (NanoGPT's API Hosts page).
+    baseUrl: "https://api.nano-gpt.com/api/v1",
+    apis: ["chat-completions"],
+    // Embedding and rerank models sit in their own lists, outside the models list, so the list read cannot type them.
+    serves: ["chat", "summarize", "structured"],
+    features: {
+      effort: "reasoning_effort",
+      modelInfoApi: "nanogpt",
+      // The models list answers without a key, so the key check reads the personalized list, which answers 200 to
+      // a good key and 401 to a wrong or missing one (NanoGPT's Personalized Models page; seen live).
+      keyCheckPath: "/api/personalized/v1/models",
+      // NanoGPT's Error Handling page: 401 is a missing or wrong key, while 403 is "authenticated but not
+      // permitted", a model or feature the account may not use; its key codes sit on 401 (Feedback, OAuth PKCE pages).
+      forbiddenIsNotCredentialVerdict: true,
+    },
+    catalog: "url",
+    metered: true,
+    docsUrl: "https://docs.nano-gpt.com",
+  },
+  {
+    id: "literouter",
+    label: "LiteRouter",
+    wire: "openai-compat",
+    dialect: "openai-compatible",
+    auth: "apiKey",
+    baseUrl: "https://api.literouter.com/v1",
+    apis: ["chat-completions"],
+    // Image models answer on a separate host, image.literouter.com, and the docs name no embedding route.
+    serves: ["chat", "summarize", "structured"],
+    features: {
+      effort: "reasoning_effort",
+      modelInfoApi: "literouter",
+      // A 403 is a refusal, not a key verdict: measured live, a misspelled model answered 403 "[LiteRouter] Model '…' is
+      // not available or misspelled" and the plan cooldown 403 "[LiteRouter] Rate limit exceeded for your tier (7
+      // seconds between messages)…". A bad key answers 401 (LiteRouter's Errors page).
+      forbiddenIsNotCredentialVerdict: true,
+    },
+    catalog: "url",
+    metered: true,
+    docsUrl: "https://docs.literouter.com",
+  },
+  {
     id: "vllm",
     label: "vLLM",
     wire: "openai-compat",

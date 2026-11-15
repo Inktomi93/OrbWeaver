@@ -14,7 +14,7 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { JsonValue } from "@orb/kit/json";
 import type { Clock, ScheduleOp } from "@orb/kit/time";
 import { z } from "zod";
-import type { ChatHistoryMessage, ChatResult, OpenAiCompatChatRequest, RateLimitSnapshot, Resolved, ResolvedChatKnobs } from "#contract";
+import type { ChatHistoryMessage, ChatResult, OpenAiCompatChatRequest, ProviderScrubSet, RateLimitSnapshot, Resolved, ResolvedChatKnobs } from "#contract";
 import { ProviderError } from "#contract";
 import { resolveCachePolicy, resolveChat, templateThinkingFor } from "#funnel";
 import type { ProviderLogger } from "#src/contract/http.ts";
@@ -23,14 +23,14 @@ import type { StructuredPlan } from "#src/contract/structured.ts";
 import type { ResultContext, StreamDrain, WirePlan } from "#src/contract/v4.ts";
 import type { ExplicitCachePlan, OpenRouterRouting } from "#src/contract/wire.ts";
 import { requireStructuredPlan, structuredChatResult } from "#structured";
-import { extractHttpErrorDiagnostic, providerErrorFromHttp, withSchemaRejection } from "../http/error-classify.ts";
+import { extractHttpErrorDiagnostic, providerErrorFromHttp, upstreamBody, withSchemaRejection } from "../http/error-classify.ts";
 import { observeChatResult } from "../http/generation-observation.ts";
 import { turnAbortSignal } from "../http/idle-timeout.ts";
 import { providerLogger } from "../http/provider-log.ts";
 import { rateLimitCanaryEvent, rateLimitFromHeaders } from "../http/rate-limit-headers.ts";
 import { cachePolicyContextOf, effectiveDialectOf, responseCacheOf } from "../http/response-cache.ts";
 import { runWithPreCommitRetry } from "../http/retry.ts";
-import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "../http/sanitize.ts";
+import { NO_PROVIDER_SECRETS, resolvedScrubSet, sanitizeApiError } from "../http/sanitize.ts";
 import { emitTurnSpanEvents } from "../http/turn-span.ts";
 import { plannedOptions, standardSampling } from "../v4/options.ts";
 import { buildWirePlan, withMessageOptions } from "../v4/prompt.ts";
@@ -38,6 +38,7 @@ import { appliedSampling, DROPPED_SAMPLING_CODES, measuredCostOf, sdkWarnings, t
 import { drainStream } from "../v4/stream.ts";
 import { effortWordOf } from "../wire/applied-effort.ts";
 import { automaticCachePlan, effectiveProviderRouting, explicitCachePlan, isAnthropicModel, placeExplicitCacheMarkers } from "../wire/cache-control.ts";
+import { redactSecretsFromText } from "../wire/openai-body.ts";
 import { languageModelFor, providerOptionsKey } from "./model.ts";
 import { compatibleReasoning, isMandatoryReasoningRejection, openRouterReasoning, sendsOpenRouterReasoning } from "./reasoning.ts";
 import { wireSampling } from "./sampling.ts";
@@ -146,6 +147,54 @@ function templateRoleRefusal(error: unknown, label: string, classified: Provider
     retryable: false,
     message: `${label}: ${TEMPLATE_ROLE_MESSAGE} (the server said: ${match[0].slice(0, TEMPLATE_DETAIL_LIMIT)})`,
     ...(classified.apiErrorStatus !== undefined ? { apiErrorStatus: classified.apiErrorStatus } : {}),
+    cause: classified,
+  });
+}
+
+const HTTP_FORBIDDEN = 403;
+
+const refusalBodySchema = z.looseObject({ error: z.union([z.string(), z.looseObject({ message: z.string() })]) });
+
+/** The structured `error.code` values that name the key itself: OpenAI's `invalid_api_key`, which NanoGPT also sends,
+ *  and NanoGPT's `missing_api_key`. A body that carries only prose names nothing. */
+const CREDENTIAL_ERROR_CODES = ["invalid_api_key", "missing_api_key"] as const;
+const credentialVerdictBodySchema = z.looseObject({ error: z.looseObject({ code: z.enum(CREDENTIAL_ERROR_CODES) }) });
+
+/** The service's own words from a refusal body: `error` as a string, or its `message`. Shown, never read. They are
+ *  pulled from the PARSED body, so the scrub and the sanitizer run on the decoded words a reader sees. */
+function refusalWords(body: unknown, secrets: ProviderScrubSet): string | undefined {
+  const parsed = refusalBodySchema.safeParse(body);
+  if (!parsed.success) {
+    return;
+  }
+  const words = sanitizeApiError(redactSecretsFromText(typeof parsed.data.error === "string" ? parsed.data.error : parsed.data.error.message, secrets));
+  return words === "" ? undefined : words;
+}
+
+/** On a row whose 403 is no credential verdict, a 403 is a refusal in the service's own words: never `auth_failed`,
+ *  which strikes the stored key, and never retried, since the same request meets the same plan, model or cooldown.
+ *  A 403 whose structured code names the key ({@link CREDENTIAL_ERROR_CODES}) still judges it. */
+function forbiddenAsRefusal(args: {
+  readonly error: unknown;
+  readonly classified: ProviderError;
+  readonly label: string;
+  readonly secrets: ProviderScrubSet;
+  readonly forbiddenIsNotCredentialVerdict: boolean;
+}): ProviderError {
+  const { classified } = args;
+  if (!args.forbiddenIsNotCredentialVerdict || classified.kind !== "auth_failed" || classified.apiErrorStatus !== HTTP_FORBIDDEN) {
+    return classified;
+  }
+  const body = upstreamBody(args.error);
+  if (credentialVerdictBodySchema.safeParse(body).success) {
+    return classified;
+  }
+  const words = refusalWords(body, args.secrets);
+  return new ProviderError({
+    kind: "invalid",
+    retryable: false,
+    message: words === undefined ? classified.message : `${args.label}: ${words}`,
+    apiErrorStatus: HTTP_FORBIDDEN,
     cause: classified,
   });
 }
@@ -536,6 +585,8 @@ async function streamOnce(args: StreamOnceArgs): Promise<StreamDrain> {
     args.onResponse(response?.headers);
     return await drainStream(stream, {
       label,
+      // The SDK hands over a chunk's `error` object as the part's payload; it carries `message` as a refusal body does.
+      errorWords: (payload) => refusalWords({ error: payload }, resolvedScrubSet(req.connection)),
       onPart: idle.reset,
       onText: (text): void => {
         commit();
@@ -725,7 +776,16 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
         cause: classified,
       });
     }
-    return templateRoleRefusal(err, label, classified) ?? classified;
+    return (
+      templateRoleRefusal(err, label, classified) ??
+      forbiddenAsRefusal({
+        error: err,
+        classified,
+        label,
+        secrets,
+        forbiddenIsNotCredentialVerdict: connection.features.forbiddenIsNotCredentialVerdict === true,
+      })
+    );
   };
   const retryOpts = {
     scheduleTimeout: deps.scheduleTimeout,
