@@ -36,7 +36,6 @@ import {
   DEFAULT_MESSAGE_KIND,
   HIDDEN_TAG_BROKEN_CODE,
   INLINE_REPLY_ORIGIN,
-  REGEX_SCRIPT_NOT_APPLIED_CODE,
   VARIANT_METADATA_REASONING_MS_KEY,
 } from "@orb/contracts/chat";
 import type { NormalizedFinishReason, ProviderId } from "@orb/contracts/inference";
@@ -1652,10 +1651,11 @@ async function emitRetrievalWarningsOnce(deps: EngineDeps, chatId: ChatId, episo
 
 /** Tell the host which of their regex scripts this round's passes did not apply, each script and cause once; a
  *  later speaker of the same round adds only what is new. Drained before the turn's terminal, so the warning lands
- *  with the turn it belongs to. Host-only on every delivery path (`stripChatEventForMember`). */
+ *  with the turn it belongs to. Past the episode's cap the rest arrive as one count. Host-only on every delivery path
+ *  (`stripChatEventForMember`). */
 async function emitRegexNotices(deps: EngineDeps, prep: TurnPrep): Promise<void> {
   for (const notice of prep.regexNotices?.take() ?? []) {
-    await deps.emit({ type: "warning", chatId: prep.chatId, code: REGEX_SCRIPT_NOT_APPLIED_CODE, ...notice });
+    await deps.emit({ type: "warning", chatId: prep.chatId, ...notice });
   }
 }
 
