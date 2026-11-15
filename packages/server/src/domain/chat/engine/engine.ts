@@ -116,7 +116,7 @@ import { projectRpgTranscript } from "../substrate/rpg-transcript.ts";
 import { foldChain } from "../substrate/runtime-variables.ts";
 import { appendStatsDeltas, assistantTurnDelta, canonMessageDelta, canonRowOf, swipeVariantDelta } from "../substrate/stats-delta.ts";
 import type { StoppedCallEstimate } from "./pipeline.ts";
-import { runTurnPipeline, StoppedTurn } from "./pipeline.ts";
+import { holdsReplyProse, runTurnPipeline, StoppedTurn } from "./pipeline.ts";
 import { watchProviderWait } from "./provider-wait.ts";
 import { resolveTurnNarrative } from "./recover-narrative.ts";
 import { abortedOutcome, committedOutcome } from "./result.ts";
@@ -1871,9 +1871,9 @@ async function keepStoppedReply(args: {
  *  stream finished, so the finished reply is the one kept. */
 function keptReplyOf(failure: unknown, finished: FinishedGeneration | null): KeptReply | null {
   if (failure instanceof StoppedTurn) {
-    return failure.result.content.trim().length > 0 ? { kind: "cut", stopped: failure } : null;
+    return holdsReplyProse(failure.result.content) ? { kind: "cut", stopped: failure } : null;
   }
-  return finished !== null && finished.result.content.trim().length > 0 ? { kind: "finished", ...finished } : null;
+  return finished !== null && holdsReplyProse(finished.result.content) ? { kind: "finished", ...finished } : null;
 }
 
 /** The post-start abort, classified once: a fault row first, then the caller's Stop keeps what streamed, and every
