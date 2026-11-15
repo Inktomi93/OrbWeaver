@@ -239,7 +239,8 @@ test.describe("committed corpus workbench", () => {
     // trigger that opened the confirm (a descendant of the finder, so containment cannot tell them apart) is the landing.
     const finder = list.locator('[data-slot="labels-finder"]');
     await expect(finder).toBeFocused();
-    expect(await unusedTags()).toEqual([]);
+    // The server is read until the prune shows in it, not once beside the dialog closing.
+    await expect.poll(unusedTags, { message: "the unused tags left after the prune" }).toEqual([]);
   });
 
   test("phone Labels: a row delete lands focus on the finder, never <body>", { tag: "@smoke" }, async ({ page, baseURL, isMobile }, info) => {
@@ -260,6 +261,6 @@ test.describe("committed corpus workbench", () => {
     await expect(page.getByRole("alertdialog")).toHaveCount(0);
     // The row that opened the confirm is gone with its tag, so the finder root is the landing.
     await expect(list.locator('[data-slot="labels-finder"]')).toBeFocused();
-    expect(await tagIds()).not.toContain(created.id);
+    await expect.poll(tagIds, { message: "the tag ids left after the delete" }).not.toContain(created.id);
   });
 });

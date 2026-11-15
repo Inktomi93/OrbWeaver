@@ -5,16 +5,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { actionGroupGeometry, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
-import {
-  ALERTS_REGION_NAME,
-  channelName,
-  createShellAmbientReads,
-  routeAuthConfig,
-  routeTrpc,
-  SECTION_LABELS,
-  SECTION_PROCEDURES,
-  serveCorpusProcedures,
-} from "@orb/testkit/ct";
+import { channelName, createShellAmbientReads, routeAuthConfig, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { BACKGROUND_ADD_IN_SETTINGS_NAME, CHARACTER_SEARCH_NAME } from "#client/components/shared-control-names.ts";
@@ -27,18 +18,17 @@ import {
   CHARACTER_START_FROM_THEME_NAME,
 } from "#client/features/character/lib/character-names.ts";
 import { sectionBackName } from "#client/lib/context-pane-names.ts";
-import { TOAST_CLOSE_NAME } from "#ui/primitives/toast/toast-names.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const CARD_NAME = "The look text-scale archivist";
 const CHARACTERS = SECTION_LABELS.characters;
-const SHOW_LIST = new RegExp(`^Show (?:list panel|${RegExp.escape(CHARACTERS)}(?: · .+)? list)$`, "u");
 const READ_PROCEDURES = [...SECTION_PROCEDURES, "tag.listTagFilterVocabulary"] as const;
 const ENLARGED_TEXT = [
   { name: "200% text", factor: 2 },
   { name: "300% text", factor: 3 },
 ] as const;
 const CONTEXT = '.shell-panel[data-panel-side="context"]';
+const LIST = '.shell-panel[data-panel-side="list"]';
 
 test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 
@@ -61,19 +51,10 @@ for (const scale of ENLARGED_TEXT) {
     await routeTrpc(page, { ...createShellAmbientReads(corpus, root.ownerId), ...serveCorpusProcedures(caller, READ_PROCEDURES) });
     await mount<typeof ShellAmbientStory>(STORY, {});
 
-    const notification = page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true }).getByRole("button", { name: TOAST_CLOSE_NAME, exact: true });
-    if (await notification.isVisible()) {
-      await notification.click();
-      await notification.waitFor({ state: "hidden" });
-    }
-    const back = page.getByRole("button", { name: sectionBackName(CHARACTERS), exact: true });
-    if (await back.isVisible()) {
-      await back.click();
-    }
-    const showList = page.getByRole("button", { name: SHOW_LIST });
-    if ((await page.locator('.shell-panel[data-panel-side="list"]').getAttribute("data-panel-mode")) === "collapsed") {
-      await showList.click();
-    }
+    // A phone with nothing picked lands on its list as the screen, with no pushed detail behind it and the details pane closed. The shell is
+    // awaited at those modes, and the presses below follow from them.
+    await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
+    await expect(page.getByRole("button", { name: sectionBackName(CHARACTERS), exact: true })).toBeHidden();
     const search = page.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true });
     await expect(search).toBeVisible();
     await search.fill(CARD_NAME);
@@ -83,9 +64,8 @@ for (const scale of ENLARGED_TEXT) {
     ).toHaveValue(CARD_NAME);
 
     const context = page.locator(CONTEXT);
-    if ((await context.getAttribute("data-panel-mode")) === "collapsed") {
-      await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
-    }
+    await expect(context).toHaveAttribute("data-panel-mode", "collapsed");
+    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     const tab = context.getByRole("tab", { name: CHARACTER_LOOK_TAB_LABEL, exact: true });
     await tab.focus();
     await page.keyboard.press("Enter");

@@ -42,10 +42,15 @@ function panel(page: Page, side: "list" | "context"): Locator {
   return page.locator(`.shell-panel[data-panel-side="${side}"]`);
 }
 
-/** Chats opens with its context pane collapsed; the edge control is the same node either way. */
+/** The modes Chats settles its panes to on a wide desktop before anything is pressed: the list docked, the context collapsed. */
+const CHATS_PANE_AT_MOUNT = { list: "docked", context: "collapsed" } as const;
+
+/** Chats opens with its context pane collapsed; the edge control is the same node either way. The pane is awaited at the mode Chats settles
+ *  it to, and the control is pressed only for the pane that starts closed. */
 async function dock(page: Page, side: "list" | "context", control: RegExp): Promise<void> {
   const pane = panel(page, side);
-  if ((await pane.getAttribute("data-panel-mode")) !== "docked") {
+  await expect(pane).toHaveAttribute("data-panel-mode", CHATS_PANE_AT_MOUNT[side]);
+  if (CHATS_PANE_AT_MOUNT[side] === "collapsed") {
     await page.getByRole("button", { name: control }).click();
   }
   await expect(pane).toHaveAttribute("data-panel-mode", "docked");

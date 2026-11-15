@@ -26,8 +26,21 @@ const CONTEXT = '.shell-panel[data-panel-side="context"]';
 const WIDE_PX = 1440;
 
 // Docked, the pane sits beside the content and the hero's door is the screen's one. Floating, the pane covers the content and its door is.
+// `listAtMount` and `contextAtMount` are the modes the shell settles each pane to before the case presses anything: the seed asks both
+// docked, a narrow desktop keeps a docked pane behind its toggle, a phone's list is the screen and its details pane starts closed, and a
+// content floor folds the details pane away.
 const REGIMES = [
-  { name: "desktop 1440px", viewport: { width: WIDE_PX, height: 900 }, coarse: false, narrow: false, mode: "docked", covered: false, atFloor: false },
+  {
+    name: "desktop 1440px",
+    viewport: { width: WIDE_PX, height: 900 },
+    coarse: false,
+    narrow: false,
+    mode: "docked",
+    covered: false,
+    atFloor: false,
+    listAtMount: "docked",
+    contextAtMount: "docked",
+  },
   {
     name: "narrow desktop overlay 1000px",
     viewport: { width: 1000, height: 800 },
@@ -36,6 +49,8 @@ const REGIMES = [
     mode: "overlay",
     covered: true,
     atFloor: false,
+    listAtMount: "collapsed",
+    contextAtMount: "collapsed",
   },
   // Resized after mount to the widest width the shell still reports a content deficit at. Past the shell-narrow breakpoint, so only the content floor floats the pane; asserted below, not assumed.
   {
@@ -46,9 +61,23 @@ const REGIMES = [
     mode: "overlay",
     covered: true,
     atFloor: true,
+    listAtMount: "docked",
+    contextAtMount: "collapsed",
   },
-  { name: "phone 390px", viewport: { width: 390, height: 844 }, coarse: true, narrow: true, mode: "overlay", covered: true, atFloor: false },
+  {
+    name: "phone 390px",
+    viewport: { width: 390, height: 844 },
+    coarse: true,
+    narrow: true,
+    mode: "overlay",
+    covered: true,
+    atFloor: false,
+    listAtMount: "docked",
+    contextAtMount: "collapsed",
+  },
 ] as const;
+
+type Regime = (typeof REGIMES)[number];
 
 const SENTINEL = ".shell-content-primacy-sentinel";
 
@@ -79,10 +108,11 @@ async function fitToContentFloor(page: Page, enabled: boolean): Promise<void> {
   await deficitAt(low);
 }
 
-async function openLibraryRow(page: Page): Promise<void> {
-  const showList = page.getByRole("button", { name: SHOW_LIST });
-  if ((await page.locator(LIST).getAttribute("data-panel-mode")) === "collapsed" && (await showList.isVisible())) {
-    await showList.click();
+async function openLibraryRow(page: Page, regime: Regime): Promise<void> {
+  // The list is awaited at the mode the regime settles it to, and the toggle is pressed from that value, not from a read taken on the way.
+  await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", regime.listAtMount);
+  if (regime.listAtMount === "collapsed") {
+    await page.getByRole("button", { name: SHOW_LIST }).click();
   }
   const search = page.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true });
   await expect(search).toBeVisible();
@@ -91,9 +121,11 @@ async function openLibraryRow(page: Page): Promise<void> {
   await expect(page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true })).toBeVisible();
 }
 
-async function openChatsTab(page: Page): Promise<Locator> {
+async function openChatsTab(page: Page, regime: Regime): Promise<Locator> {
   const context = page.locator(CONTEXT);
-  if ((await context.getAttribute("data-panel-mode")) === "collapsed") {
+  // At the content floor the shell folds a docked pane away only after it has measured the floor, so this waits for that fold.
+  await expect(context).toHaveAttribute("data-panel-mode", regime.contextAtMount);
+  if (regime.contextAtMount === "collapsed") {
     await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
   }
   const tab = context.getByRole("tab", { name: CHARACTER_CHATS_TAB_LABEL, exact: true });
@@ -121,8 +153,8 @@ for (const regime of REGIMES) {
       await mount<typeof ShellAmbientStory>(STORY, {});
       await fitToContentFloor(page, regime.atFloor);
 
-      await openLibraryRow(page);
-      const context = await openChatsTab(page);
+      await openLibraryRow(page, regime);
+      const context = await openChatsTab(page, regime);
       await expect(context.getByText(CHAT_LIST_EMPTY_TITLE, { exact: true })).toBeVisible();
 
       // The control: an `overlay` on a viewport the narrow breakpoint does not claim can only come from the content floor.

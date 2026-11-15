@@ -106,18 +106,21 @@ async function everyTabScrollsInOneBox(page: Page): Promise<number> {
 
 // The pane at a desktop width, and at the enlarged text a phone reaches on a phone and on a landscape phone, where a body's inset and its scroller
 // meet the least room.
+// `paneAtMount` is the mode the shell settles the seeded-docked CONTEXT pane to: a desktop keeps it docked and a narrower shell folds it behind its toggle.
 const REGIMES = [
-  { label: "desktop, default text", viewport: { width: 1600, height: 600 }, touch: false, scale: 1 },
-  { label: "phone, double text", viewport: { width: 390, height: 844 }, touch: true, scale: 2 },
-  { label: "phone, largest text", viewport: { width: 390, height: 844 }, touch: true, scale: 3 },
-  { label: "landscape phone, double text", viewport: { width: 844, height: 390 }, touch: true, scale: 2 },
-  { label: "landscape phone, largest text", viewport: { width: 844, height: 390 }, touch: true, scale: 3 },
+  { label: "desktop, default text", viewport: { width: 1600, height: 600 }, touch: false, scale: 1, paneAtMount: "docked" },
+  { label: "phone, double text", viewport: { width: 390, height: 844 }, touch: true, scale: 2, paneAtMount: "collapsed" },
+  { label: "phone, largest text", viewport: { width: 390, height: 844 }, touch: true, scale: 3, paneAtMount: "collapsed" },
+  { label: "landscape phone, double text", viewport: { width: 844, height: 390 }, touch: true, scale: 2, paneAtMount: "collapsed" },
+  { label: "landscape phone, largest text", viewport: { width: 844, height: 390 }, touch: true, scale: 3, paneAtMount: "collapsed" },
 ] as const;
 
 // A phone docks no CONTEXT pane: its topbar toggle opens it over the content, and enlarged text folds that toggle into the trail's More menu.
-async function openPane(page: Page): Promise<void> {
+async function openPane(page: Page, paneAtMount: (typeof REGIMES)[number]["paneAtMount"]): Promise<void> {
   const pane = page.locator(CONTEXT);
-  if ((await pane.getAttribute("data-panel-mode")) !== "collapsed") {
+  // The pane is awaited at the mode its regime settles it to, and the toggle is pressed only for a pane that starts closed.
+  await expect(pane).toHaveAttribute("data-panel-mode", paneAtMount);
+  if (paneAtMount === "docked") {
     return;
   }
   const name = contextToggleLabel(true);
@@ -148,7 +151,7 @@ for (const regime of REGIMES) {
       await routeShell(page, corpus, caller, SERVED);
       await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "docked" } } });
       await mount<typeof AppShellRoomStory>(`${SHELL_STORIES}/AppShellRoomStory`, { chatId: room.id });
-      await openPane(page);
+      await openPane(page, regime.paneAtMount);
       expect(await everyTabScrollsInOneBox(page)).toBeGreaterThan(1);
     });
 
@@ -164,7 +167,7 @@ for (const regime of REGIMES) {
       await routeShell(page, corpus, caller, SERVED);
       await seedShellState(page, { activeSection: "characters", panelOverrides: { characters: { list: "collapsed", context: "docked" } } });
       await mount<typeof AppShellCharacterStory>(`${SHELL_STORIES}/AppShellCharacterStory`, { characterId: character.id });
-      await openPane(page);
+      await openPane(page, regime.paneAtMount);
       expect(await everyTabScrollsInOneBox(page)).toBeGreaterThan(1);
     });
   });
