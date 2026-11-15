@@ -153,3 +153,21 @@ test("a thinker offers only the efforts the service measured as working, and one
   expect((await capabilityOf(root, "lr/thinker")).reasoning.mandatory).toBeUndefined();
   expect((await capabilityOf(root, "lr/always-thinks")).reasoning).toMatchObject({ effortLevels: ["low", "medium", "high", "max"], mandatory: true });
 });
+
+// A row whose kind is missing or malformed states no chat model, so the list leaves it out rather than guess chat.
+const KIND_LIST = {
+  object: "list",
+  data: [
+    row("lr/chat", "base"),
+    row("lr/untyped", "base", { type: undefined }),
+    row("lr/numbered", "base", { type: 5 }),
+    row("lr/blank", "base", { type: "" }),
+    row("lr/painter-too", "base", { type: "image" }),
+  ],
+};
+
+test("a row with no type, or a type that is not a string, lists as no chat model", async () => {
+  await using root = await createRuntimeRoot({ providerFetch: () => Promise.resolve(Response.json(KIND_LIST)) });
+  const listing = await draftListing(root);
+  expect(listing.listed ? listing.models.map((model) => model.id) : []).toEqual(["lr/chat"]);
+});
