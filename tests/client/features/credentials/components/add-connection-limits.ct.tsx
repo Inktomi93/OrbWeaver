@@ -420,6 +420,8 @@ test("a model whose inputs nobody reports shows the image switch on as a guess, 
   const images = step.getByRole("switch", { name: IMAGE_SWITCH_NAME, exact: true });
   await expect(images).toBeChecked();
   await expect(step.getByText(IMAGE_SWITCH_ASSUMED_GLOSS, { exact: true })).toBeVisible();
+  // A screen reader hears the guess with the switch, not only a sighted reader beside it.
+  await expect(images).toHaveAccessibleDescription(IMAGE_SWITCH_ASSUMED_GLOSS);
   const save = step.getByRole("button", { name: CONNECTION_LIMITS_SAVE_NAME, exact: true });
   // Untouched, the switch declares nothing, so there is nothing to save.
   await expect(save).toBeDisabled();

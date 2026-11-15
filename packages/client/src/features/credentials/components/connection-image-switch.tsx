@@ -6,6 +6,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { useId } from "react";
 import type { ImageInputSwitch } from "../lib/connection-capability-fact-model.ts";
 import {
   IMAGE_SWITCH_ASSUMED_GLOSS,
@@ -35,13 +36,24 @@ function glossOf({ on, provenance, was }: ImageInputSwitch): string {
 }
 
 export function ConnectionImageSwitch({ answer, checked, disabled, onCheckedChange }: ConnectionImageSwitchProps): ReactElement {
+  // The gloss says whether the state is a guess, so it describes the switch: a screen reader hears it with the state.
+  const glossId = useId();
   return (
     <Row align="start" data-slot="connection-image-switch" gap="field" justify="between">
       <Stack grow="fill" gap="tight" minWidth="shrinks">
         <Text voice="label">{IMAGE_SWITCH_NAME}</Text>
-        <Text voice="gloss">{glossOf(answer)}</Text>
+        <Text id={glossId} voice="gloss">
+          {glossOf(answer)}
+        </Text>
       </Stack>
-      <Switch aria-label={IMAGE_SWITCH_NAME} checked={checked} className="shrink-0" disabled={disabled} onCheckedChange={onCheckedChange} />
+      <Switch
+        aria-describedby={glossId}
+        aria-label={IMAGE_SWITCH_NAME}
+        checked={checked}
+        className="shrink-0"
+        disabled={disabled}
+        onCheckedChange={onCheckedChange}
+      />
     </Row>
   );
 }

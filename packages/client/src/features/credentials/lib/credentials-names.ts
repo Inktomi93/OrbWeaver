@@ -188,13 +188,17 @@ export function promptCacheRetentionName(connection: string): string {
 export const CONNECTION_LIMITS_TITLE = "How much can this model take?";
 export const CONNECTION_LIMITS_DESCRIPTION = "This server doesn't say, so what follows is a guess. A window guessed too low cuts your chats short.";
 // Where to find the real numbers, for a provider that keeps them somewhere other than the model's page: one line,
-// keyed by provider id, that replaces the general where-to-look line.
-// LiteRouter's list states no window for its plain models: the window there is the account's chat memory setting.
+// keyed by provider id and by whether the step asks for the max output, that replaces the general where-to-look line.
+// LiteRouter's list states a model's native window and usually its max output, but a plain or metered model runs at the
+// account's chat memory setting (its Model naming page), which no read states; the line names only what is unlisted.
 const LITEROUTER_PROVIDER_ID = "literouter";
-const CONNECTION_LIMITS_WHERE_BY_PROVIDER: ReadonlyMap<string, string> = new Map([
+const CONNECTION_LIMITS_WHERE_BY_PROVIDER: ReadonlyMap<string, (asksOutput: boolean) => string> = new Map([
   [
     LITEROUTER_PROVIDER_ID,
-    "LiteRouter doesn't publish this model's limits. The context window is your account's chat memory setting in the LiteRouter dashboard.",
+    (asksOutput: boolean): string =>
+      asksOutput
+        ? "LiteRouter doesn't list this model's max output, or the context window your plan runs it at: that window is the chat memory setting in your LiteRouter dashboard."
+        : "LiteRouter doesn't list the context window your plan runs this model at: it is the chat memory setting in your LiteRouter dashboard.",
   ],
 ]);
 /** What the limits mean and where to find them; `asksOutput` ⇒ the step also asks for the max output. */
@@ -203,7 +207,7 @@ export function connectionLimitsLead(asksOutput: boolean, providerId: string): r
     asksOutput
       ? "A chat that runs past the context window loses its oldest messages, and a reply stops at the max output."
       : "A chat that runs past the context window loses its oldest messages.",
-    CONNECTION_LIMITS_WHERE_BY_PROVIDER.get(providerId) ??
+    CONNECTION_LIMITS_WHERE_BY_PROVIDER.get(providerId)?.(asksOutput) ??
       "A hosted provider lists these on the model's page. For a server you run yourself, use the context size you started it with.",
     "Numbers are in tokens; a token is about three quarters of a word. Leave a box empty to keep the guess. You can change these later under Advanced in this connection's settings.",
   ];
