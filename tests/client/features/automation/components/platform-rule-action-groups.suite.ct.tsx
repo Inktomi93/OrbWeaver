@@ -140,18 +140,25 @@ for (const regime of REGIMES) {
       const beforeFires = await caller.automation.listFires({ ruleId: rule.id });
       const calls = await routeTrpc(page, serveCorpusProcedures(caller, READS));
       await mount<typeof RuleActionGroupsStory>(STORY, { width: regime.width, appearance: regime.appearance });
+      // Shut, the row may cut the name to one line, as every list row does; it stays in view, clear of the enable switch, and the
+      // switch stays inside the pane.
       const nameText = page.getByText(name, { exact: true });
       await expect(nameText).toBeVisible();
-      await expect.poll(() => nameText.evaluate((node) => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
-      const nameBox = await nameText.boundingBox();
-      const enableBox = await page.getByRole("switch", { name: ruleEnabledSwitchName(name), exact: true }).boundingBox();
-      if (nameBox === null || enableBox === null) {
-        throw new Error("The closed rule must retain its visible identity and enable switch");
-      }
+      const [nameBox, enableBox, paneBox] = await Promise.all([
+        paintedBox(nameText),
+        paintedBox(page.getByRole("switch", { name: ruleEnabledSwitchName(name), exact: true })),
+        paintedBox(page.getByRole("group", { name: "Rule action host", exact: true })),
+      ]);
       expect(Math.min(nameBox.x + nameBox.width - enableBox.x, nameBox.y + nameBox.height - enableBox.y)).toBeLessThanOrEqual(0);
+      expect(enableBox.x).toBeGreaterThanOrEqual(paneBox.x - SUBPIXEL);
+      expect(enableBox.x + enableBox.width).toBeLessThanOrEqual(paneBox.x + paneBox.width + SUBPIXEL);
       const disclosure = page.getByRole("button").filter({ has: page.getByText(name, { exact: true }) });
       await disclosure.focus();
       await page.keyboard.press("Enter");
+      // Open, the row sets the whole name: nothing of it is cut on either axis.
+      await expect
+        .poll(() => nameText.evaluate((node) => Math.max(node.scrollWidth - node.clientWidth, node.scrollHeight - node.clientHeight)))
+        .toBeLessThanOrEqual(1);
       const edit = page.getByRole("button", { name: editActionName(name), exact: true });
       const dryRun = page.getByRole("button", { name: ruleTestName(name), exact: true });
       const more = page.getByRole("button", { name: moreActionsName(name), exact: true });
