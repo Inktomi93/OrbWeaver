@@ -33,7 +33,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Scan workflow trust boundaries with zizmor
-        uses: zizmorcore/zizmor-action@85b2b9fb8e3325e7a23d7d0a9d7ba5ae0f999e3e # v0.7.1
+        uses: zizmorcore/zizmor-action@53290badfa369cb0bf7ad16342cb62c2fa47ac7b # v0.8.0
 
   image:
     name: published image (Trivy)
@@ -58,7 +58,7 @@ jobs:
         run: |
           echo "Trivy: $(jq '.runs[0].results | length' trivy.sarif) HIGH/CRITICAL fixable findings in $IMAGE" >> "$GITHUB_STEP_SUMMARY"
       - name: Upload the native Trivy SARIF
-        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           sarif_file: trivy.sarif
           category: trivy-image
