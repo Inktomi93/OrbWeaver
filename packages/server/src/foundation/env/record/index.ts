@@ -17,6 +17,7 @@ import {
 } from "@orb/contracts/identity";
 import { localLightCpuPercentSchema } from "@orb/contracts/inference";
 import { RESERVED_CLAUDE_ENV_KEYS } from "@orb/contracts/preset";
+import type { LogLevel } from "@orb/contracts/settings";
 import { LOG_LEVELS } from "@orb/contracts/settings";
 import { ALLOWED_HOSTS_KEY, parseAllowedHosts } from "@orb/kit/allowed-hosts";
 import { envNameKey } from "@orb/kit/env-file";
@@ -56,6 +57,8 @@ export type { OperatorJwks } from "../operator-jwks.ts";
 export { parseTrustedPrivateRanges } from "../private-ranges.ts";
 
 const DEFAULT_PORT = 8788;
+/** The level a server logs at when `LOG_LEVEL` is unset, which the release image leaves it. */
+export const DEFAULT_LOG_LEVEL = "info" satisfies LogLevel;
 const MIN_SESSION_SECRET_CHARS = 32;
 const RATE_LIMIT_WINDOW_MS_DEFAULT = 60_000;
 const RATE_LIMIT_AI_TURN_DEFAULT = 30;
@@ -230,7 +233,7 @@ const envObjectSchema = z
     // on agent-sdk/max-pro-sub only.
     OPENROUTER_API_KEY: z.string().min(1).optional(),
 
-    LOG_LEVEL: z.enum(LOG_LEVELS).default("info"),
+    LOG_LEVEL: z.enum(LOG_LEVELS).default(DEFAULT_LOG_LEVEL),
     // Gates /api/_debug/*. Unset = off (404). Set (any value) to enable; a request must present it via
     // x-debug-token.
     DEBUG_TOKEN: z.string().min(1).optional(),

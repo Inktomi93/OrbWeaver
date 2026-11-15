@@ -7,6 +7,8 @@
 // "get a preset" job, ember-free, exactly as it was in the retired in-pane header. Both create paths (and
 // the ONE // The hook supplies view data; the shell owns the band renderer. Actions and overlays retain their existing behavior.
 
+import type { PresetImportOutcome } from "@orb/contracts/preset";
+import { OWNED_PRESET_KIND } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
 import { Icon, Plus, Upload } from "@orb/ui/icons";
 import { useState } from "react";
@@ -14,15 +16,37 @@ import { Tip } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { ListPaneHeaderView } from "#lib";
 import { BAND_NEW_LABEL, notify } from "#lib";
-import { selectPresetFromList } from "#state";
+import { selectPresetFromList, setPresetSearchQuery, usePresetSearchQuery } from "#state";
+import type { PresetFileInput } from "../components/preset-import-dialog.tsx";
 import { PresetImportDialog } from "../components/preset-import-dialog.tsx";
 import { usePresetCensus } from "../hooks/use-preset-census.ts";
-import { useCreatePreset, useImportPresetFile } from "../hooks/use-preset-mutations.ts";
-import { NEW_PRESET_KIND, NEW_PRESET_NAME, PRESET_IMPORT_TITLE } from "../lib/preset-names.ts";
+import { useCreatePreset, useImportPresetFile, usePreviewPresetFile } from "../hooks/use-preset-mutations.ts";
+import {
+  NEW_PRESET_NAME,
+  PRESET_IMPORT_ALREADY_HELD,
+  PRESET_IMPORT_LANDED,
+  PRESET_IMPORT_TITLE,
+  presetImportRenamed,
+  presetImportScripts,
+} from "../lib/preset-names.ts";
+import { filterPresetsByName, presetSearchNeedle } from "../lib/preset-search.ts";
 import { PRESETS_SECTION_LABEL } from "../lib/presets-section-label.ts";
 
 /** ONE string for the import door's accessible name AND its hover tooltip (O-3). */
 const IMPORT_LABEL = PRESET_IMPORT_TITLE;
+
+/** The result line for a landed import: what the library gained, and the scripts that came with a SillyTavern preset. */
+function importedSentence(outcome: Extract<PresetImportOutcome, { ok: true }>): string {
+  const renamedFrom = outcome.renamedFrom ?? null;
+  let landed = PRESET_IMPORT_LANDED;
+  if (outcome.created !== true) {
+    landed = PRESET_IMPORT_ALREADY_HELD;
+  } else if (renamedFrom !== null) {
+    landed = presetImportRenamed(outcome.name ?? renamedFrom, renamedFrom);
+  }
+  const scripts = outcome.regexScripts;
+  return scripts === undefined ? landed : `${landed} ${presetImportScripts(scripts.created + scripts.reused, scripts.created)}`;
+}
 
 export function usePresetListHeader(): ListPaneHeaderView {
   const trpc = useTRPC();
@@ -34,26 +58,29 @@ export function usePresetListHeader(): ListPaneHeaderView {
   const census = usePresetCensus();
   const create = useCreatePreset({ trpc, invalidation });
   const importFile = useImportPresetFile({ trpc, invalidation });
+  const previewFile = usePreviewPresetFile({ trpc, invalidation });
   const [importOpen, setImportOpen] = useState(false);
+  const searchQuery = usePresetSearchQuery();
 
   const onCreate = (): void => {
-    create.mutate({ name: NEW_PRESET_NAME, kind: NEW_PRESET_KIND }, { onSuccess: (created): void => selectPresetFromList(created.id) });
+    create.mutate({ name: NEW_PRESET_NAME, kind: OWNED_PRESET_KIND }, { onSuccess: (created): void => selectPresetFromList(created.id) });
   };
 
-  /** The orb-native arm: resolves to the server's error message, or null once the row landed. */
-  const onImportOrb = async (fileText: string): Promise<string | null> => {
-    const outcome = await importFile.mutateAsync({ fileText });
+  /** Resolves to the server's error message, or null once the row landed; the landed preset opens. */
+  const onImport = async (file: PresetFileInput): Promise<string | null> => {
+    const outcome = await importFile.mutateAsync(file);
     if (!outcome.ok) {
       return outcome.error;
     }
     setImportOpen(false);
-    if (outcome.created !== true) {
-      notify.success("That preset is already in your library. Nothing was added.");
-    } else if (outcome.renamedFrom !== null && outcome.renamedFrom !== undefined) {
-      notify.success(`Imported as “${outcome.name ?? outcome.renamedFrom}”: you already have a different “${outcome.renamedFrom}”.`);
-    } else {
-      notify.success("Preset imported.");
+    // The landed preset opens, and a search that would hide its row clears, so the import never reads as nothing.
+    if (outcome.name !== undefined && filterPresetsByName([{ name: outcome.name }], presetSearchNeedle(searchQuery)).length === 0) {
+      setPresetSearchQuery("");
     }
+    if (outcome.presetId !== undefined) {
+      selectPresetFromList(outcome.presetId);
+    }
+    notify.success(importedSentence(outcome));
     return null;
   };
 
@@ -92,20 +119,10 @@ export function usePresetListHeader(): ListPaneHeaderView {
     overlay: (
       <>
         <PresetImportDialog
-          busy={create.isPending || importFile.isPending}
-          onImportOrb={onImportOrb}
-          onImportSt={({ name, config }): void => {
-            create.mutate(
-              { name, kind: NEW_PRESET_KIND, config },
-              {
-                onSuccess: (created): void => {
-                  setImportOpen(false);
-                  selectPresetFromList(created.id);
-                },
-              },
-            );
-          }}
+          busy={importFile.isPending}
+          onImport={onImport}
           onOpenChange={setImportOpen}
+          onPreview={previewFile.mutateAsync}
           open={importOpen}
         />
       </>

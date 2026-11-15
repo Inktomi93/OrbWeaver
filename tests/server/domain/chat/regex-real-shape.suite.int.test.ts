@@ -15,8 +15,8 @@ import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG, THINK_PREFIX_DEFAULT, THINK_SUFFIX_DEFAULT } from "@orb/contracts/preset";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { createBookSchema, createEntrySchema, updateEntrySchema } from "@orb/contracts/world-info";
-import type { RegexPlacement, RegexScriptInput } from "@orb/kit/regex";
-import { deriveRegexHistoryDepth, deriveRegexTierFlags } from "@orb/kit/regex";
+import { NO_SEATS } from "@orb/kit/message-author";
+import type { RegexPass, RegexPassCall, RegexScriptInput, RegexTarget } from "@orb/kit/regex";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { appendedBy } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
@@ -111,6 +111,16 @@ const longText = (salt: string): string => `${PROSE.repeat(Math.ceil(LONG_TEXT_C
 const historyRow = (salt: string, r: number): string => `Row ${String(r)}. ${PROSE.repeat(4)}${realShapedBlocks(salt)}`;
 const LOG_FIELDS = z.record(z.string(), z.unknown());
 
+// Each server leg, as the two axes that put a script on it.
+const LEG_AXES = {
+  ["USER_INPUT"]: { targets: ["USER_INPUT"], passes: ["save"] },
+  ["AI_OUTPUT"]: { targets: ["AI_OUTPUT"], passes: ["save"] },
+  ["REASONING"]: { targets: ["REASONING"], passes: ["save"] },
+  ["WORLD_INFO"]: { targets: ["WORLD_INFO"], passes: ["prompt"] },
+  ["PROMPT_HISTORY"]: { targets: ["USER_INPUT", "AI_OUTPUT"], passes: ["prompt"] },
+} as const satisfies Record<string, { readonly targets: readonly RegexTarget[]; readonly passes: readonly RegexPass[] }>;
+type ServerLeg = keyof typeof LEG_AXES;
+
 interface Room extends AsyncDisposable {
   readonly h: ChatRoot;
   readonly bodies: string[];
@@ -120,7 +130,7 @@ interface Room extends AsyncDisposable {
 
 async function openRoom(
   salt: string,
-  placement: Exclude<RegexPlacement, "DISPLAY">,
+  leg: ServerLeg,
   options: { readonly reply: string; readonly promptConfig?: PromptConfig; readonly transcript?: readonly string[]; readonly runOnEdit?: boolean },
 ): Promise<Room> {
   const bodies: string[] = [];
@@ -155,17 +165,14 @@ async function openRoom(
     declared: { kind: "generation", generation: { input: ["text"], context: { window: WIDE_WINDOW_TOKENS } }, features: { detectServer: false } },
   });
   await h.root.services.connection.setBinding({ principal: h.owner, task: "chat", connectionId: wide.id });
-  const placements = [placement];
-  const historyDepth = deriveRegexHistoryDepth(placements, undefined);
   for (const k of REAL_SHAPE.keys()) {
     const row = await h.caller.regex.createScript({
       input: createRegexScriptSchema.parse({
         name: `real-shaped ${String(k)}`,
         findRegex: realShapedFind(salt, k),
         replaceString: "",
-        placement: placements,
-        ...deriveRegexTierFlags(placements),
-        ...(historyDepth === undefined ? {} : { historyDepth }),
+        targets: [...LEG_AXES[leg].targets],
+        passes: [...LEG_AXES[leg].passes],
         ...(options.runOnEdit === true ? { runOnEdit: true } : {}),
       }),
     });
@@ -190,10 +197,8 @@ async function newestPrompt(room: Room, content: string): Promise<string> {
   return (await appendedBy(room.bodies, () => send(room, content))).newest;
 }
 
-type ServerLeg = Exclude<RegexPlacement, "DISPLAY">;
-
 interface LegCase {
-  readonly placement: ServerLeg;
+  readonly leg: ServerLeg;
   readonly salt: string;
   readonly open: (salt: string) => Promise<Room>;
   /** One run of the leg; answers the text the leg produced. */
@@ -206,12 +211,12 @@ const REASONING_CONFIG: PromptConfig = {
 };
 
 /** Answers its argument; a table that leaves a server leg without a case does not compile. */
-function everyServerLeg<const T extends readonly LegCase[]>(legs: T & ([Exclude<ServerLeg, T[number]["placement"]>] extends [never] ? unknown : never)): T {
+function everyServerLeg<const T extends readonly LegCase[]>(legs: T & ([Exclude<ServerLeg, T[number]["leg"]>] extends [never] ? unknown : never)): T {
   return legs;
 }
 
 const HISTORY_LEG = {
-  placement: "PROMPT_HISTORY",
+  leg: "PROMPT_HISTORY",
   salt: "ph",
   open: (salt) => openRoom(salt, "PROMPT_HISTORY", { reply: "Noted.", transcript: Array.from({ length: HISTORY_ROWS }, (_, r) => historyRow(salt, r)) }),
   run: (room) => newestPrompt(room, "Go on."),
@@ -219,26 +224,26 @@ const HISTORY_LEG = {
 
 const LEGS = everyServerLeg([
   {
-    placement: "USER_INPUT",
+    leg: "USER_INPUT",
     salt: "ui",
     open: (salt) => openRoom(salt, "USER_INPUT", { reply: "Noted." }),
     run: async (room, salt) => (await send(room, longText(salt))).messages.find((message) => message.role === "user")?.content ?? "",
   },
   {
-    placement: "AI_OUTPUT",
+    leg: "AI_OUTPUT",
     salt: "ao",
     open: (salt) => openRoom(salt, "AI_OUTPUT", { reply: longText(salt) }),
     run: async (room) => (await send(room, "Go on.")).messages.find((message) => message.role === "assistant")?.content ?? "",
   },
   {
-    placement: "REASONING",
+    leg: "REASONING",
     salt: "re",
     open: (salt) =>
       openRoom(salt, "REASONING", { reply: `${THINK_PREFIX_DEFAULT}${longText(salt)}${THINK_SUFFIX_DEFAULT}Done.`, promptConfig: REASONING_CONFIG }),
     run: async (room) => (await send(room, "Go on.")).messages.find((message) => message.role === "assistant")?.reasoning ?? "",
   },
   {
-    placement: "WORLD_INFO",
+    leg: "WORLD_INFO",
     salt: "wi",
     open: async (salt) => {
       const room = await openRoom(salt, "WORLD_INFO", { reply: "Noted." });
@@ -270,7 +275,7 @@ function outcomeOf(room: Room, out: string, salt: string): Outcome {
   return { keptProse: out.includes(PROSE), blockLeft: out.includes(`<${salt}`) || out.includes(`[${salt}`), notApplied: room.notApplied() };
 }
 
-test.for(LEGS)("$placement: the real-shaped set runs whole, cold and warm", { tags: ["slow"] }, async (leg) => {
+test.for(LEGS)("$leg: the real-shaped set runs whole, cold and warm", { tags: ["slow"] }, async (leg) => {
   await using room = await leg.open(leg.salt);
 
   const cold = outcomeOf(room, await leg.run(room, leg.salt), leg.salt);
@@ -315,9 +320,22 @@ test("the edit re-apply: the real-shaped set runs whole, cold and warm", { tags:
 const COLD_PASSES = ["c0", "c1", "c2", "c3", "c4"] as const;
 const CTX = { char: "Aria", user: "Bob", persona: "", scenario: "", env: {} };
 
-function realShapedSet(salt: string, placement: RegexPlacement): RegexScriptInput[] {
-  return REAL_SHAPE.map((_, k) => ({ enabled: true, placement: [placement], findRegex: realShapedFind(salt, k), replaceString: "" }));
+function realShapedSet(salt: string, leg: ColdLeg): RegexScriptInput[] {
+  return REAL_SHAPE.map((_, k) => ({ enabled: true, ...LEG_AXES[leg], findRegex: realShapedFind(salt, k), replaceString: "" }));
 }
+
+// The two legs a budget is derived on, and the executor call each makes at a row's depth.
+type ColdLeg = "AI_OUTPUT" | "PROMPT_HISTORY";
+const COLD_CALL: { readonly [L in ColdLeg]: (depth: number) => RegexPassCall } = {
+  ["AI_OUTPUT"]: () => ({ pass: "save", target: "AI_OUTPUT", edit: false }),
+  ["PROMPT_HISTORY"]: (depth) => ({
+    pass: "prompt",
+    target: "AI_OUTPUT",
+    row: { role: "assistant", kind: "standard", authorUserId: null, characterId: null, personaId: null },
+    room: NO_SEATS,
+    depth,
+  }),
+};
 
 interface ColdPass {
   readonly cpuMs: number;
@@ -326,13 +344,13 @@ interface ColdPass {
 }
 
 // Only the pass itself is timed: its texts and scripts are built before, and its outputs checked after.
-function cheapestColdPass(placement: RegexPlacement, textsOf: (salt: string) => readonly string[]): ColdPass {
+function cheapestColdPass(leg: ColdLeg, textsOf: (salt: string) => readonly string[]): ColdPass {
   const passes = COLD_PASSES.map((salt): ColdPass => {
     const texts = textsOf(salt);
-    const scripts = realShapedSet(salt, placement);
+    const scripts = realShapedSet(salt, leg);
     const pass = openRegexPass(Number.POSITIVE_INFINITY);
     const before = process.threadCpuUsage();
-    const outs = texts.map((text, depth) => pass.execute({ text, scripts, placement, depth, ctx: CTX }));
+    const outs = texts.map((text, depth) => pass.execute({ text, scripts, call: COLD_CALL[leg](depth), ctx: CTX }));
     const used = process.threadCpuUsage(before);
     return { cpuMs: (used.user + used.system) / 1000, blocksLeft: outs.filter((out) => out.includes(`<${salt}`) || out.includes(`[${salt}`)) };
   });

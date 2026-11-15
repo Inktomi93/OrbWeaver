@@ -22,6 +22,7 @@ import {
   allRpgGameFilters,
   chatCanonReads,
   chatReads,
+  displayScriptsRead,
   hiddenRevealRead,
   personaWriteReads,
   promptPreviewReads,
@@ -192,6 +193,9 @@ const BUS_FILTERS: BusFilterMap = {
     trpc.chat.listEffectiveRegex.queryFilter({ chatId: e.chatId }),
     // A handoff detaches the scripts the new host does not own (D64) and announces only this event.
     trpc.regex.listForChat.queryFilter({ chatId: e.chatId }),
+    // The display set follows the same drivers (roster, levers, handoff) and the host's sharing switch, which
+    // announces only this event.
+    ...displayScriptsRead(trpc, e.chatId),
     trpc.rpg.getGame.queryFilter({ chatId: e.chatId }), // both judge the HOST's connection; a handoff emits only this
     trpc.rpg.getTrackerView.queryFilter({ chatId: e.chatId }),
   ],

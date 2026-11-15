@@ -15,7 +15,7 @@ test("concurrent graphs with identical IDs neither deliver foreign room events n
   const firstChat = (await firstCaller.chat.startChat({ characterIds: [] })).chat;
   const secondChat = (await secondCaller.chat.startChat({ characterIds: [] })).chat;
   expect(firstChat.id).toBe(secondChat.id);
-  const input = createRegexScriptSchema.parse({ name: "owned", findRegex: "x", replaceString: "y", placement: [] });
+  const input = createRegexScriptSchema.parse({ name: "owned", findRegex: "x", replaceString: "y", targets: [], passes: [] });
   const firstScript = await firstCaller.regex.createScript({ input });
   const secondScript = await secondCaller.regex.createScript({ input });
   expect(firstScript.id).toBe(secondScript.id);
@@ -52,7 +52,7 @@ test("same-ID nested roots coalesce only their own bulk gesture and disposal can
   const firstChat = (await firstCaller.chat.startChat({ characterIds: [] })).chat;
   const secondChat = (await secondCaller.chat.startChat({ characterIds: [] })).chat;
   expect(firstChat.id).toBe(secondChat.id);
-  const input = createRegexScriptSchema.parse({ name: "bulk", findRegex: "x", replaceString: "y", placement: [] });
+  const input = createRegexScriptSchema.parse({ name: "bulk", findRegex: "x", replaceString: "y", targets: [], passes: [] });
   const firstScript = await firstCaller.regex.createScript({ input });
   const secondScript = await secondCaller.regex.createScript({ input });
   expect(firstScript.id).toBe(secondScript.id);

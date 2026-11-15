@@ -6,7 +6,7 @@
 
 import type { ImportAnswer } from "@orb/contracts/import";
 import type { ImportPresets, PresetImportOutcome } from "@orb/contracts/preset";
-import { parsePresetFile, presetContentKey } from "@orb/contracts/preset";
+import { OWNED_PRESET_KIND, parsePresetFile, presetContentKey } from "@orb/contracts/preset";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { PresetId, UserId } from "@orb/kit/ids";
@@ -18,8 +18,6 @@ import { insertPreset, listOwned } from "../persistence/queries.ts";
 
 const PRESET_IMPORT = "preset.import";
 const PRESET_ENTITY = "preset";
-// The portable file carries no `kind`; a freshly-imported preset lands under this neutral label.
-const IMPORTED_PRESET_KIND = "roleplay";
 const UNREADABLE_FILE = "Not a valid JSON preset file.";
 
 type Batch = Omit<Parameters<ImportPresets>[0], "dryRun">;
@@ -100,7 +98,7 @@ export function createImportPresets(input: DbAssemblyInput<PresetContext>): Impo
       id: row.id,
       ownerId,
       name: row.name,
-      kind: IMPORTED_PRESET_KIND,
+      kind: OWNED_PRESET_KIND,
       config: parsed.config,
       schemaVersion: parsed.config.schemaVersion,
       // An import is born here — its provenance is the FILE, and the source preset (if any) is not a row

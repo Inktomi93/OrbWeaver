@@ -39,7 +39,7 @@ const TAB_PROCEDURES = [
   "databank.listActiveForChat",
   "worldInfo.listForChat",
   "regex.listForChat",
-  "regex.listRoomDisplayScripts",
+  "regex.listDisplayScripts",
   "chat.listEffectiveRegex",
   "chat.getUserMacroPicks",
   "chat.getVariablePicks",
@@ -135,11 +135,11 @@ test("a script attach in flight keeps the picker open, so its failure is said in
   await using root = await createCorpusHarness();
   const { chatId, host } = await hostRoom(root);
   const script = await host.regex.createScript({
-    input: createRegexScriptSchema.parse({ name: "Held script", findRegex: "x", replaceString: "y", placement: [] }),
+    input: createRegexScriptSchema.parse({ name: "Held script", findRegex: "x", replaceString: "y", targets: [], passes: [] }),
   });
   const hold = holdServed();
   await openTab(root, page, host, {
-    ...serveCorpusProcedures(host, ["regex.listScripts"]),
+    ...serveCorpusProcedures(host, ["regex.listScripts", "regex.listGlobal"]),
     ...serveCorpusProcedures(host, ["regex.attachToChat"], () => hold),
   });
   await corpusMedia();

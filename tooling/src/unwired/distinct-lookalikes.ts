@@ -73,7 +73,7 @@ export const DISTINCT_LOOKALIKES = [
       "packages/client/src/features/refinery/components/schema-editor-dialog.tsx#onOpenChange",
       "packages/client/src/features/refinery/components/scope-editor-dialog.tsx#onOpenChange",
       "packages/client/src/features/refinery/surfaces/refinery-content-surface.tsx#setOpen",
-      "packages/client/src/features/regex/components/regex-bulk-placement-dialog.tsx#onOpenChange",
+      "packages/client/src/features/regex/components/regex-bulk-axes-dialog.tsx#onOpenChange",
       "packages/client/src/features/user-admin/components/admin-create-user-dialog.tsx#onOpenChange",
       "packages/client/src/features/user-admin/lib/admin-model.ts#onOpenChange",
       "packages/client/src/features/user-admin/components/admin-override-field.tsx#onSet",

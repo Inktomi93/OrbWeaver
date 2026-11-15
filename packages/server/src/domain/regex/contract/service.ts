@@ -9,6 +9,7 @@
 import type { RequireHostOp, RequireParticipantOp, ResolveChatHostOp, ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type { PortableFile } from "@orb/contracts/portability";
 import type {
+  BulkAxesResult,
   BulkResult,
   CaptureRegexRoomReachOp,
   DetachResult,
@@ -16,7 +17,6 @@ import type {
   RegexScriptRow,
   RegexScriptUsage,
   ReorderResult,
-  ResolveRoomDisplayPolicyOp,
 } from "@orb/contracts/regex";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
@@ -30,9 +30,9 @@ import type {
   AttachToChatParams,
   AttachToPresetParams,
   BulkRemoveScriptsParams,
+  BulkSetScriptsAxesParams,
   BulkSetScriptsEnabledParams,
   BulkSetScriptsGlobalParams,
-  BulkSetScriptsPlacementParams,
   CreateScriptParams,
   DetachFromCharacterParams,
   DetachFromChatParams,
@@ -45,7 +45,6 @@ import type {
   ListForChatParams,
   ListForPresetParams,
   ListGlobalParams,
-  ListRoomDisplayScriptsParams,
   ListScriptsParams,
   ListScriptUsageParams,
   RemoveScriptParams,
@@ -63,12 +62,6 @@ export interface RegexContext {
   readonly requireChatMember: RequireParticipantOp;
   /** The room's present host: the owner a chat-attached script must have for the room to apply it (D64). */
   readonly resolveChatHost: ResolveChatHostOp;
-  /** D121-E display-tier room OPTION (owner ruling): resolve WHOSE display scripts this room
-   *  broadcasts. Injected from chat because both halves are chat's data — the room's host seat and the
-   *  `chatMetadata.hostDisplayScripts` flag. Regex reads neither the roster nor chat metadata itself (the
-   *  same posture as the guards above). `enabled:false` ⇒ the per-user default, and `listRoomDisplayScripts`
-   *  returns nothing at all. */
-  readonly resolveRoomDisplayPolicy: ResolveRoomDisplayPolicyOp;
   /** The REVERSE-roster room filter (`listScriptUsage`) — chat's answer to "of these rooms, which may this
    *  caller see, and what are they called". Injected for the same reason the guards are: D18 rooms scope on
    *  `chat_participants`, and regex reads neither the roster nor `chats`. The TYPE is chat's (shared with
@@ -85,9 +78,10 @@ export interface RegexContext {
    *  regex touches no bus itself (the `requireChatHost` posture: chat's plane, injected). */
   readonly emitRoomRegexChanged: (chatId: ChatId) => void;
   /** The other half — the LIBRARY-ROW fan. A row's `enabled` (the Regex section's row switch, which is
-   *  off-EVERYWHERE by design) or its name is member-visible in every room whose own tier attaches it, and
-   *  those rooms are not knowable from the verb's arguments. Regex persistence reads its room junction;
-   *  chat's injected refresh policy isolates failures so the lookup cannot fault the committed write. */
+   *  off-EVERYWHERE by design), its name or its axes are member-visible in every room that reads it through a
+   *  tier: its own junction, a seated character's, or the host's global and preset tiers. Those rooms are not
+   *  knowable from the verb's arguments, so regex persistence reads them; chat's injected refresh policy
+   *  isolates failures so the lookup cannot fault the committed write. */
   readonly fanRegexScriptRooms: (scriptId: RegexScriptId) => Promise<void>;
   /** The DELETE half of the same reach. `chat_regex_scripts` CASCADEs with the library row, so
    *  `fanRegexScriptRooms` after a delete resolves ∅ and every OTHER member of the room keeps reading a rack
@@ -119,11 +113,9 @@ export interface RegexService {
   /** Attaching APPENDS the block at the end of the global tier in the caller's order — a bulk make-global
    *  never renumbers the run order the owner already authored in the context pane. */
   readonly bulkSetScriptsGlobal: (params: BulkSetScriptsGlobalParams) => Promise<BulkResult>;
-  /** REPLACE the placement set of every named owned script, re-deriving each row's tier flags + history-depth
-   *  scope from the new set (`@orb/kit/regex` — the SAME derivations the per-script editor uses). Per-row, in
-   *  one batch: each row keeps its own find/replace body and any authored depth scope, and no flag rides the
-   *  wire. D2 unblocked — the derivation now lives beside the executor masks it mirrors. */
-  readonly bulkSetScriptsPlacement: (params: BulkSetScriptsPlacementParams) => Promise<BulkResult>;
+  /** REPLACE both axes of every named owned script, per row in one batch. A row moved to the save pass loses its
+   *  depth and author scope, which apply only on display or in the prompt, and is named in `cleared`. */
+  readonly bulkSetScriptsAxes: (params: BulkSetScriptsAxesParams) => Promise<BulkAxesResult>;
   readonly bulkRemoveScripts: (params: BulkRemoveScriptsParams) => Promise<BulkResult>;
 
   /** The two SINGLE-ENTITY DOORS (REGX2 · D121-D `band=Import · kebab=Export`). Both are THIN ARMS over the
@@ -153,12 +145,6 @@ export interface RegexService {
   readonly detachFromChat: (params: DetachFromChatParams) => Promise<DetachResult>;
   /** Member-read: the room's attached scripts the present host owns, the set a turn applies (D64). */
   readonly listForChat: (params: ListForChatParams) => Promise<RegexScriptRow[]>;
-
-  /** The room's BROADCAST display set (D121-E host option). Member-readable: any present member needs it to
-   *  render the transcript the way the host intends. Returns the HOST's enabled DISPLAY-placement scripts
-   *  when the room opted in, and `[]` otherwise — so the OFF arm is byte-identical to a room that never
-   *  heard of the option, and a member can never learn what scripts the host owns while it is off. */
-  readonly listRoomDisplayScripts: (params: ListRoomDisplayScriptsParams) => Promise<RegexScriptRow[]>;
 
   /** Rewrite one scope's execution order (position 0 runs first). Authority is that scope's own gate. */
   readonly applyScopeOrder: (params: ApplyScopeOrderParams) => Promise<ReorderResult>;

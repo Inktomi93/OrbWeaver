@@ -1,40 +1,48 @@
 // The regex SCRIPT LIBRARY wire shapes (D121-E — the library is a first-class owner-stamped store with
 // per-type FK junctions; the three embed-by-value carriers are GONE). Three shapes, ONE behavior body:
 //
-//   • `regexScriptBehaviorSchema` — what a script DOES (find/replace/placement/flags). Stored as the
-//     `regex_scripts.behavior` typed JSON column (the world_entries "behavior in JSON, not columns"
-//     precedent); `name`/`enabled` are promoted to real columns and therefore live OUTSIDE the body.
+//   • `regexScriptBehaviorSchema` — what a script DOES. Stored as the `regex_scripts.behavior` typed JSON column
+//     (the world_entries "behavior in JSON, not columns" precedent); `name`/`enabled` are promoted to real columns
+//     and therefore live OUTSIDE the body.
 //   • `regexScriptSchema` / `RegexScriptRow` — the flat library-row wire view (`id` is the `regex_script_…`
-//     TypeID brand). This is what every consumer (the chat legs, the client library surface) reads, and it
+//     TypeID brand). This is what every consumer (the chat passes, the client library surface) reads, and it
 //     is the shape `@orb/kit/regex`'s executor consumes: `RegexScriptRow satisfies RegexScriptInput`.
-//   • `regexScriptCardSchema` / `RegexScriptCard` — the ST CARD-WIRE shape only (`data.extensions.
-//     regex_scripts`, V2 root `data.regex_scripts`). Its `id` is a foreign client-minted UUID, never a
-//     library id; the import LIFT mints a real row from it and the export RE-EMBED projects back onto it.
+//   • `regexScriptCardSchema` / `RegexScriptCard` — the CARD-WIRE shape (`data.extensions.regex_scripts`, V2 root
+//     `data.regex_scripts`, a preset's `extensions.regex_scripts`, SillyTavern's global list and a single exported
+//     script). Its `id` is a foreign client-minted UUID, never a library id; the import LIFT mints a real row from
+//     it and the export RE-EMBED projects back onto it.
 //
-// THE TWO ACCEPT-AND-DROP HEALS (both card-boundary only, both ruled by the regex-model review):
-//   • `placement` is filtered at the card boundary — an unknown member (ST's `SLASH_COMMAND`, which has no orbweaver leg
-//     and was struck from `REGEX_PLACEMENTS`) is dropped from the ARRAY rather than failing the whole
-//     script. A strict enum would silently delete the entire script instead of the dead value.
-//   • ST's flat `minDepth`/`maxDepth` are still GONE from the card wire (unknown keys are stripped by zod's
-//     default object behavior, so an ST card carrying them still imports). Their SEMANTIC came back with the
-//     `PROMPT_HISTORY` leg as `historyDepth` — a nested object on the behavior body, see below. The lift
-//     deliberately does NOT map the ST pair onto it: ST scopes depth on its USER_INPUT/AI_OUTPUT placements
-//     (which are prompt-time there and PERSIST-time here), so mapping them would move an imported script
-//     onto a different leg than the card asked for. Re-scoping an imported script is one chip in the editor.
+// TWO AXES (`@orb/kit/regex` states the model): `targets` say what text a script touches and `passes` say when it
+// runs. Depth and an author scope are legal only beside an ephemeral pass (display or prompt).
 //
-// THE DEPTH-IS-ONLY-A-PROMPT_HISTORY-THING CHECK (`historyDepthMatchesPlacement`). `placement` is a SET, not
-// a discriminant, so a discriminated union CANNOT express "these fields exist only on this placement" — a
-// script legitimately runs on `USER_INPUT` and `PROMPT_HISTORY` at once. The honest shape available is
-// therefore: ONE nested optional object (so the bounds can never half-exist), refused by a schema-level
-// check unless `PROMPT_HISTORY` is in the set AND required when it is. The pairing is total in BOTH
-// directions, so "a depth field on a leg that cannot execute it" and "the depth-scoped leg with no depth
-// scope" are equally unrepresentable, and the client derives the pair at its ONE save boundary (the
-// `withDerivedTierFlags` precedent) rather than validating it in a form.
+// THE SILLYTAVERN LIFT translates at this boundary only, by SillyTavern's own fields: its numeric placement is the
+// target list, and its two switches are the passes (`markdownOnly` is display, `promptOnly` is prompt, both is
+// both, neither is save). `minDepth` and `maxDepth` become `depth` with SillyTavern's sentinels (a floor below -1
+// or a ceiling below 0 is no bound). A script is in the SillyTavern dialect when its placement holds numbers; the
+// orbweaver dialect names its targets and passes.
+//
+// WHERE COHERENCE IS CHECKED. `.claude/rules/db.md`: "A refine on a parse-on-read schema bricks already-stored rows.
+// Put coherence checks at the write-producing verb, not the reader's schema." So the read schema
+// (`regexScriptBehaviorSchema`, the shape the stored-row seam parses) carries no cross-field check, and the
+// pairing rules (`behaviorCoheres`) ride the write schemas: create, the update verb's re-parse of the merged body,
+// and the card wire every import parses. Stored rows hold only the two-axis shape: the numbered migration rewrote
+// every row, and the old placement-set shape is lifted only at the file boundaries, where an export from before
+// the change still arrives.
 
 import type { CharacterId, ChatId, PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
-import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import type { RegexHistoryDepth, RegexPlacement } from "@orb/kit/regex";
-import { findPatternLimitBreak, HISTORY_DEPTH_PLACEMENT, MAX_FIND_REGEX_LENGTH, REGEX_PLACEMENTS, SubstituteFindRegex } from "@orb/kit/regex";
+import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { MESSAGE_KINDS, PARTICIPANT_KINDS, PARTICIPANT_ROLES } from "@orb/kit/message-author";
+import type { RegexAuthorScope, RegexAuthorSelector, RegexDepth, RegexPass, RegexTarget } from "@orb/kit/regex";
+import {
+  EPHEMERAL_REGEX_PASSES,
+  findPatternLimitBreak,
+  MAX_FIND_REGEX_LENGTH,
+  REGEX_DEPTH_FLOOR,
+  REGEX_DEPTH_MAX,
+  REGEX_PASSES,
+  REGEX_TARGETS,
+  SubstituteFindRegex,
+} from "@orb/kit/regex";
 import { z } from "zod";
 // The chat MODULE FILE, not the `#chat` barrel: `chat/assemble.ts` imports this module, so routing through
 // the barrel would close a cycle (`no-circular`). The shape's home is unchanged — chat owns it.
@@ -51,53 +59,50 @@ export const REGEX_SCRIPT_NAME_MAX = 200;
 export const MAX_REPLACE_LENGTH = 65_536;
 const MAX_TRIM_STRING_LENGTH = 2000;
 const MAX_TRIM_STRINGS = 100;
+/** The cap on an author scope's selectors, per list. */
+const MAX_AUTHOR_SELECTORS = 64;
 
-const PLACEMENT_SET: ReadonlySet<string> = new Set(REGEX_PLACEMENTS);
+/** The target list: strict, so a stored behavior re-parses to itself. */
+export const regexTargetListSchema = z.array(z.enum(REGEX_TARGETS)).max(REGEX_TARGETS.length) satisfies z.ZodType<RegexTarget[]>;
 
-function isRegexPlacement(value: string): value is RegexPlacement {
-  return PLACEMENT_SET.has(value);
-}
-
-/** The placement list: strict, so a stored behavior re-parses to itself. Unknown members are a card-boundary
- *  concern, dropped by {@link normalizeStScriptWire} before the card schema sees them (the header's
- *  accept-and-drop clause). The bulk-placement verb takes it as input too: the server re-derives each
- *  script's tier flags and history-depth scope FROM this set (`@orb/kit/regex`), so no flag or depth rides
- *  the wire. */
-export const regexPlacementListSchema = z.array(z.enum(REGEX_PLACEMENTS)).max(REGEX_PLACEMENTS.length) satisfies z.ZodType<RegexPlacement[]>;
+/** The pass list: strict, so a stored behavior re-parses to itself. */
+export const regexPassListSchema = z.array(z.enum(REGEX_PASSES)).max(REGEX_PASSES.length) satisfies z.ZodType<RegexPass[]>;
 
 // Strip mode: also reads imported files and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
-// How deep in the assembled history a `PROMPT_HISTORY` script applies — DEPTH 0 IS THE NEWEST MESSAGE,
-//  counting backwards (the kit `RegexHistoryDepth` header cites the ST source for the semantic). The two
-//  bounds live in ONE nested object rather than beside each other on the body so they cannot half-exist:
-//  a stored `min` with no `max` was the ST shape, and it made "unbounded" spellable four ways.
-const regexHistoryDepthSchema = z
+// The two bounds live in ONE nested object so they cannot half-exist.
+const regexDepthSchema = z
   .object({
-    min: z.int().min(0).default(0),
-    max: z.int().min(0).nullable().default(null),
+    min: z.int().min(REGEX_DEPTH_FLOOR).max(REGEX_DEPTH_MAX).default(REGEX_DEPTH_FLOOR),
+    max: z.int().min(0).max(REGEX_DEPTH_MAX).nullable().default(null),
   })
-  .strip()
-  .superRefine((scope, ctx): void => {
-    if (scope.max !== null && scope.max < scope.min) {
-      ctx.addIssue({ code: "custom", message: "maximum depth must not be shallower than the minimum", path: ["max"] });
-    }
-  }) satisfies z.ZodType<RegexHistoryDepth>;
+  .strip() satisfies z.ZodType<RegexDepth>;
+
+const regexAuthorSelectorSchema = z.discriminatedUnion("by", [
+  z.strictObject({ by: z.literal("participant"), participant: z.enum(PARTICIPANT_KINDS) }),
+  z.strictObject({ by: z.literal("standing"), standing: z.enum(PARTICIPANT_ROLES) }),
+  z.strictObject({ by: z.literal("kind"), kind: z.enum(MESSAGE_KINDS) }),
+  z.strictObject({ by: z.literal("character"), characterId: typeIdSchema(ID_PREFIX.character) }),
+  z.strictObject({ by: z.literal("persona"), personaId: typeIdSchema(ID_PREFIX.persona) }),
+  z.strictObject({ by: z.literal("user"), userId: brandedId("UserId") }),
+]) satisfies z.ZodType<RegexAuthorSelector>;
+
+const regexAuthorScopeSchema = z
+  .object({
+    include: z.array(regexAuthorSelectorSchema).max(MAX_AUTHOR_SELECTORS).default([]),
+    exclude: z.array(regexAuthorSelectorSchema).max(MAX_AUTHOR_SELECTORS).default([]),
+  })
+  .strip() satisfies z.ZodType<RegexAuthorScope>;
 
 // Strip mode: also reads imported files and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
-/** The behavior FIELDS, un-checked — the base every `.extend()`/`.partial()` derives from. The pairing
- *  check rides {@link regexScriptBehaviorSchema}; zod refuses `.partial()` on a refined object, so the
- *  patch schema has to descend from this one. */
+/** The behavior FIELDS, un-checked: the base every `.extend()`/`.partial()` derives from, and the read schema. */
 const regexScriptBehaviorFields = z
   .object({
     // Storage-boundary cap == execution cap (`@orb/kit/regex` MAX_FIND_REGEX_LENGTH) so an over-long
     // pattern can't even be persisted (it would otherwise only be rejected at execution).
     findRegex: z.string().max(MAX_FIND_REGEX_LENGTH),
     replaceString: z.string().max(MAX_REPLACE_LENGTH),
-    placement: regexPlacementListSchema,
-
-    // Options mimicking the legacy ST card-format. `markdownOnly` = the per-user DISPLAY tier (D53's
-    // preserved clause — the flags ARE the tier discriminant); `promptOnly` is its complement.
-    markdownOnly: z.boolean().default(false),
-    promptOnly: z.boolean().default(false),
+    targets: regexTargetListSchema,
+    passes: regexPassListSchema,
     runOnEdit: z.boolean().default(false),
     trimStrings: z.array(z.string().max(MAX_TRIM_STRING_LENGTH)).max(MAX_TRIM_STRINGS).default([]),
 
@@ -106,32 +111,45 @@ const regexScriptBehaviorFields = z
     // where the old three-arm `z.union` emitted a nested `invalid_union`. Same accepted set.
     substituteRegex: z.literal([SubstituteFindRegex.none, SubstituteFindRegex.raw, SubstituteFindRegex.escaped]).default(SubstituteFindRegex.none),
 
-    // Present IFF `placement` carries `PROMPT_HISTORY` — enforced in both directions below.
-    historyDepth: regexHistoryDepthSchema.optional(),
+    depth: regexDepthSchema.optional(),
+    authors: regexAuthorScopeSchema.optional(),
   })
   .strip();
 
-/** The depth scope and the depth-scoped LEG are one fact, so they are validated as one (see the header's
- *  check clause). Both arms are stated: depth without the leg would be a knob that governs nothing (D107),
- *  and the leg without depth would leave "the whole history" spelled by ABSENCE, which no reader can
- *  distinguish from "the author never got to that field". */
-function historyDepthMatchesPlacement(
-  behavior: { placement: readonly RegexPlacement[]; historyDepth?: RegexHistoryDepth | undefined },
+function runsEphemeral(passes: readonly RegexPass[]): boolean {
+  return passes.some((pass) => (EPHEMERAL_REGEX_PASSES as readonly RegexPass[]).includes(pass));
+}
+
+/** The write-time pairing rules: the save pass alone or the ephemeral passes, never both (SillyTavern's two switches
+ *  give exactly these four choices); depth and an author scope only beside a display or prompt pass, since no other
+ *  pass has a position or a row author to read; and a ceiling no shallower than its floor. */
+function behaviorCoheres(
+  behavior: { readonly passes: readonly RegexPass[]; readonly depth?: RegexDepth | undefined; readonly authors?: RegexAuthorScope | undefined },
   ctx: z.RefinementCtx,
 ): void {
-  const runsOnHistory = behavior.placement.includes(HISTORY_DEPTH_PLACEMENT);
-  if (behavior.historyDepth !== undefined && !runsOnHistory) {
-    ctx.addIssue({ code: "custom", message: `historyDepth is only meaningful on the ${HISTORY_DEPTH_PLACEMENT} leg`, path: ["historyDepth"] });
+  const ephemeral = runsEphemeral(behavior.passes);
+  // A saved rewrite already changed what display and prompt read, so a script is either saved or ephemeral.
+  if (ephemeral && behavior.passes.includes("save")) {
+    ctx.addIssue({ code: "custom", message: "a script runs when saved or on screen and in the prompt, not both", path: ["passes"] });
   }
-  if (behavior.historyDepth === undefined && runsOnHistory) {
-    ctx.addIssue({ code: "custom", message: `a ${HISTORY_DEPTH_PLACEMENT} script must state its historyDepth scope`, path: ["historyDepth"] });
+  if (behavior.depth !== undefined && !ephemeral) {
+    ctx.addIssue({ code: "custom", message: "depth applies only on the display or prompt pass", path: ["depth"] });
+  }
+  if (behavior.authors !== undefined && !ephemeral) {
+    ctx.addIssue({ code: "custom", message: "an author scope applies only on the display or prompt pass", path: ["authors"] });
+  }
+  if (behavior.depth !== undefined && behavior.depth.max !== null && behavior.depth.max < behavior.depth.min) {
+    ctx.addIssue({ code: "custom", message: "maximum depth must not be shallower than the minimum", path: ["depth", "max"] });
   }
 }
 
-/** What a script DOES — the `regex_scripts.behavior` JSON column. `name`/`enabled` are promoted columns
- *  and live on the ROW, not here (no doubling). The ONE behavior gate: the tRPC create input extends it,
- *  the update verb re-parses the merged body through it, and the read seam parses stored blobs with it. */
-export const regexScriptBehaviorSchema = regexScriptBehaviorFields.superRefine(historyDepthMatchesPlacement);
+/** What a script DOES — the `regex_scripts.behavior` JSON column, as the stored-row seam reads it. `name`/`enabled`
+ *  are promoted columns and live on the ROW, not here. No cross-field check: see the header. */
+export const regexScriptBehaviorSchema = regexScriptBehaviorFields;
+
+/** The behavior as a write accepts it: the read shape plus the pairing rules. The update verb re-parses the merged
+ *  body through this. */
+export const regexScriptBehaviorWriteSchema = regexScriptBehaviorFields.superRefine(behaviorCoheres);
 
 export type RegexScriptBehavior = z.infer<typeof regexScriptBehaviorSchema>;
 
@@ -152,45 +170,39 @@ export type RegexScriptRow = z.infer<typeof regexScriptSchema>;
 
 // Outputs validate already-normalized rows without changing the storage or foreign-card grammars.
 export const regexScriptViewSchema = regexScriptSchema.strict().safeExtend({
-  historyDepth: regexHistoryDepthSchema.strict().optional(),
+  depth: regexDepthSchema.strict().optional(),
+  authors: regexAuthorScopeSchema.strict().optional(),
 }) satisfies z.ZodType<RegexScriptRow>;
 
-/** The ST CARD-WIRE script (`data.extensions.regex_scripts`). Its `id` is a FOREIGN client-minted UUID —
- *  the lift mints a real `regex_script_…` row from it and the carried-refs key re-links a same-install
- *  re-import, so this id is provenance, never a library identity.
+/** The CARD-WIRE script. Its `id` is a FOREIGN client-minted UUID — the lift mints a real `regex_script_…` row from
+ *  it and the carried-refs key re-links a same-install re-import, so this id is provenance, never a library
+ *  identity.
  *
  *  THE ENABLED/DISABLED POLARITY IS THE ST WIRE'S, NOT OURS. ST has no `enabled` field at all: its editor
  *  writes `disabled` (`input[name="disabled"]`) and its executor skips on `!!regexScript.disabled`. Reading
  *  only `enabled` therefore made an ST card's switched-OFF script arrive switched ON — a find/replace the
  *  card's author had deliberately parked, silently rewriting canon on the first turn after import. Both
- *  keys are accepted, ours winning when present (so an orbweaver-exported card round-trips exactly), and
- *  `toRegexScriptCardWire` writes both back out so a foreign ST reading our card honours the state too. */
-const regexScriptCardFieldsSchema = regexScriptBehaviorSchema.extend({
+ *  keys are accepted, SillyTavern's winning in its dialect (`liftStScriptWire`), and `toRegexScriptCardWire`
+ *  writes both back out so a foreign ST reading our card honours the state too. */
+const regexScriptCardFieldsSchema = regexScriptBehaviorFields.extend({
   id: z.string().min(MIN_CARD_ID_LENGTH).max(MAX_CARD_ID_LENGTH),
   name: z.string().max(REGEX_SCRIPT_NAME_MAX),
   enabled: z.boolean().optional(),
   disabled: z.boolean().optional(),
 });
 
-/** ST's NUMERIC placement enum → orb's member (SOURCE-PINNED, SillyTavern
- *  `public/scripts/extensions/regex/engine.js:281` — MD_DISPLAY 0 · USER_INPUT 1 · AI_OUTPUT 2 ·
- *  SLASH_COMMAND 3 · WORLD_INFO 5 · REASONING 6; 4 is a struck legacy sendAs arm). `3`/`4` are
- *  DELIBERATELY absent — orb has no slash-command text leg (D107; the header's accept-and-drop clause),
- *  so they are dropped by the card normalizer like the string `"SLASH_COMMAND"` is. */
-const ST_REGEX_PLACEMENT_BY_NUMBER: Readonly<Record<number, RegexPlacement>> = {
-  0: "DISPLAY",
+/** SillyTavern's NUMERIC placement → orbweaver's target (SillyTavern `public/scripts/extensions/regex/engine.js`
+ *  `regex_placement`: MD_DISPLAY 0 · USER_INPUT 1 · AI_OUTPUT 2 · SLASH_COMMAND 3 · WORLD_INFO 5 · REASONING 6).
+ *  `0` is absent: no SillyTavern caller passes it, so a script holding it never ran there. `3` is absent: it is
+ *  slash-command text and SillyTavern's typed narrator line, neither of which exists here (D107). The import
+ *  summary names a script that loses a member this way. */
+const ST_REGEX_TARGET_BY_NUMBER: Readonly<Record<number, RegexTarget>> = {
   1: "USER_INPUT",
   2: "AI_OUTPUT",
   5: "WORLD_INFO",
   6: "REASONING",
 };
 
-/** Normalize the GENUINE ST spelling onto the orb wire before the schema parses. ST's editor writes
- *  `scriptName` (`extensions/regex/index.js:850`) and INTEGER placements — the orb-exported dialect
- *  (`name`, string placements) is what the fields schema reads, so a real ST script failed `safeParse`
- *  wholesale and the lift silently dropped it (measured: all 15 corpus preset scripts). Ours wins when
- *  both spellings are present (the enabled/disabled precedent above); an unmapped or unknown placement is
- *  dropped from the array here, so the card loses the MEMBER, never the script. */
 /** ST's older BOOLEAN spelling of `substituteRegex`: `true` substituted macros into the pattern raw, `false`
  *  did not. Any other value is the current enum form and passes through to the schema. */
 function stSubstituteRegex(value: unknown): unknown {
@@ -200,29 +212,147 @@ function stSubstituteRegex(value: unknown): unknown {
   return value ? SubstituteFindRegex.raw : SubstituteFindRegex.none;
 }
 
-function normalizeStScriptWire(raw: unknown): unknown {
+/** The passes SillyTavern's two switches name: neither is the save pass, each switch its own ephemeral pass. */
+function stPasses(markdownOnly: boolean, promptOnly: boolean): RegexPass[] {
+  if (!(markdownOnly || promptOnly)) {
+    return ["save"];
+  }
+  return [...(markdownOnly ? (["display"] as const) : []), ...(promptOnly ? (["prompt"] as const) : [])];
+}
+
+/** SillyTavern's depth pair, by its own gate: a floor applies when it is a number of at least -1, a ceiling when it
+ *  is a number of at least 0. No bound at all is no depth. */
+function stDepth(minDepth: unknown, maxDepth: unknown): RegexDepth | undefined {
+  const min = typeof minDepth === "number" && Number.isInteger(minDepth) && minDepth >= REGEX_DEPTH_FLOOR ? minDepth : REGEX_DEPTH_FLOOR;
+  const max = typeof maxDepth === "number" && Number.isInteger(maxDepth) && maxDepth >= 0 ? maxDepth : null;
+  return min === REGEX_DEPTH_FLOOR && max === null ? undefined : { min, max };
+}
+
+/** Translate one SillyTavern-dialect script (numeric placement) onto the two axes. Its name, polarity and macro mode
+ *  are SillyTavern's spellings too, and each wins over this app's own beside it, so a file exported here and edited
+ *  there comes back as edited. Depth and an author scope ride only beside an ephemeral pass, since SillyTavern's save
+ *  calls pass neither; the author scope is this app's alone and is carried through. */
+function liftStScriptWire(obj: Record<string, unknown>, placement: readonly unknown[]): Record<string, unknown> {
+  const { placement: _placement, markdownOnly, promptOnly, minDepth, maxDepth, scriptName, targets: _t, passes: _p, depth: _d, authors, ...rest } = obj;
+  const passes = stPasses(markdownOnly === true, promptOnly === true);
+  const ephemeral = runsEphemeral(passes);
+  const depth = ephemeral ? stDepth(minDepth, maxDepth) : undefined;
+  const targets = REGEX_TARGETS.filter((target) => placement.some((member) => typeof member === "number" && ST_REGEX_TARGET_BY_NUMBER[member] === target));
+  return {
+    ...rest,
+    name: typeof scriptName === "string" ? scriptName : rest["name"],
+    ...(typeof rest["disabled"] === "boolean" ? { enabled: !rest["disabled"] } : {}),
+    targets,
+    passes,
+    ...(depth === undefined ? {} : { depth }),
+    ...(ephemeral && authors !== undefined ? { authors } : {}),
+    ...(rest["substituteRegex"] === undefined ? {} : { substituteRegex: stSubstituteRegex(rest["substituteRegex"]) }),
+  };
+}
+
+/** Whether a card-wire script is in SillyTavern's dialect: its placement holds numbers. A file exported here carries
+ *  both spellings, and SillyTavern's wins, so an edit made there comes back; its spelling holds every axis but the
+ *  author scope, which the lift carries through untouched. */
+function isStDialect(obj: Record<string, unknown>): obj is Record<string, unknown> & { readonly placement: readonly unknown[] } {
+  const placement = obj["placement"];
+  return Array.isArray(placement) && placement.some((member) => typeof member === "number");
+}
+
+// ── THE PLACEMENT-SET SHAPE, lifted at the file boundaries ─────────────────────────────────────────────────────
+// Before the two axes, a script held one `placement` set in which `DISPLAY` and `PROMPT_HISTORY` stood beside the
+// save-time members, with `markdownOnly`, `promptOnly` and `historyDepth` beside it. A file exported then still
+// imports, and the numbered migration rewrites stored rows by this same mapping
+// (`tests/contracts/regex/legacy-behavior-lift.contract.test.ts` pins each shape). Two readings, in order:
+//   • A `DISPLAY` or `PROMPT_HISTORY` member means the editor here wrote the row, since the old lift never did.
+//     With a save member (`USER_INPUT`, `AI_OUTPUT`, `REASONING`) the save reading wins: the save pass on those
+//     members alone, its other members dropped, since a script is saved or ephemeral and the save pass is the one
+//     that has been changing stored text. With none, `DISPLAY` is the display pass and `PROMPT_HISTORY` or
+//     `WORLD_INFO` the prompt pass, and a target is kept only where every kept pass reached it before, so the lift
+//     never widens a script's reach; `PROMPT_HISTORY` brings its depth.
+//   • Otherwise the flags are read at their word, with SillyTavern's meaning: `markdownOnly` is display,
+//     `promptOnly` is prompt, both is both, neither is save. An editor-written save-time script also carries
+//     `promptOnly: true` (the old derive set it whenever `DISPLAY` was absent), so it reads as prompt-only: owner
+//     ruling, accepted because only the owner has installed the app.
+const LEGACY_DISPLAY = "DISPLAY";
+const LEGACY_PROMPT_HISTORY = "PROMPT_HISTORY";
+const LEGACY_SAVE_TARGETS: readonly RegexTarget[] = ["USER_INPUT", "AI_OUTPUT", "REASONING"];
+/** The old depth floor: 0 meant every message, which is -1 now that a continue's reply sits there. */
+const LEGACY_NO_FLOOR = 0;
+
+/** Whether a card-wire or portable script is in the placement-set shape: a `placement` list and no `targets`. */
+function isPlacementSetShape(obj: Record<string, unknown>): obj is Record<string, unknown> & { readonly placement: readonly unknown[] } {
+  return Array.isArray(obj["placement"]) && obj["targets"] === undefined;
+}
+
+function legacyDepth(historyDepth: unknown): RegexDepth | undefined {
+  if (typeof historyDepth !== "object" || historyDepth === null) {
+    return;
+  }
+  const { min, max } = historyDepth as Record<string, unknown>;
+  const floor = typeof min === "number" && min !== LEGACY_NO_FLOOR ? min : REGEX_DEPTH_FLOOR;
+  const ceiling = typeof max === "number" ? max : null;
+  return floor === REGEX_DEPTH_FLOOR && ceiling === null ? undefined : { min: floor, max: ceiling };
+}
+
+/** An editor-written row (the section header). The old history pass read user and AI rows, the old display pass
+ *  every row's text including reasoning, and world info was read only as the prompt was built. */
+function legacyNativeAxes(members: readonly string[], historyDepth: unknown): { targets: RegexTarget[]; passes: RegexPass[]; depth?: RegexDepth } {
+  const save = LEGACY_SAVE_TARGETS.filter((target) => members.includes(target));
+  if (save.length > 0) {
+    return { targets: REGEX_TARGETS.filter((target) => save.includes(target)), passes: ["save"] };
+  }
+  const worldInfo = members.includes("WORLD_INFO");
+  const display = members.includes(LEGACY_DISPLAY);
+  const history = members.includes(LEGACY_PROMPT_HISTORY);
+  const userAndAi = history || (display && !worldInfo);
+  const kept = (target: RegexTarget): boolean => {
+    switch (target) {
+      case "WORLD_INFO":
+        return worldInfo;
+      case "REASONING":
+        return display && !history && !worldInfo;
+      case "USER_INPUT":
+      case "AI_OUTPUT":
+        return userAndAi;
+    }
+  };
+  const passes = REGEX_PASSES.filter((pass) => ({ save: false, display: display && (history || !worldInfo), prompt: history || worldInfo })[pass]);
+  const depth = history ? legacyDepth(historyDepth) : undefined;
+  return { targets: REGEX_TARGETS.filter(kept), passes, ...(depth === undefined ? {} : { depth }) };
+}
+
+/** Lift one placement-set script onto the two axes. */
+function liftPlacementSetShape(obj: Record<string, unknown>, placement: readonly unknown[]): Record<string, unknown> {
+  const { placement: _placement, markdownOnly, promptOnly, historyDepth, ...rest } = obj;
+  const members = placement.filter((member): member is string => typeof member === "string");
+  const native = members.includes(LEGACY_DISPLAY) || members.includes(LEGACY_PROMPT_HISTORY);
+  const axes = native
+    ? legacyNativeAxes(members, historyDepth)
+    : { targets: REGEX_TARGETS.filter((target) => members.includes(target)), passes: stPasses(markdownOnly === true, promptOnly === true) };
+  return { ...rest, ...axes };
+}
+
+/** Lift a stored or exported behavior in the placement-set shape onto the two axes; any other value passes
+ *  through. The numbered migration's data rewrite follows this mapping. */
+function liftPlacementSetBehavior(raw: unknown): unknown {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
     return raw;
   }
   const obj = raw as Record<string, unknown>;
-  const name = obj["name"] ?? obj["scriptName"];
-  const placement = Array.isArray(obj["placement"])
-    ? obj["placement"]
-        .map((member) => (typeof member === "number" ? ST_REGEX_PLACEMENT_BY_NUMBER[member] : member))
-        .filter((member): member is RegexPlacement => typeof member === "string" && isRegexPlacement(member))
-    : obj["placement"];
-  const substituteRegex = stSubstituteRegex(obj["substituteRegex"]);
-  return {
-    ...obj,
-    ...(name === undefined ? {} : { name }),
-    ...(placement === undefined ? {} : { placement }),
-    ...(substituteRegex === undefined ? {} : { substituteRegex }),
-  };
+  return isPlacementSetShape(obj) ? liftPlacementSetShape(obj, obj.placement) : obj;
+}
+
+function normalizeCardScriptWire(raw: unknown): unknown {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    return raw;
+  }
+  const obj = raw as Record<string, unknown>;
+  return isStDialect(obj) ? liftStScriptWire(obj, obj.placement) : liftPlacementSetBehavior(obj);
 }
 
 export const regexScriptCardSchema = z.preprocess(
-  normalizeStScriptWire,
-  regexScriptCardFieldsSchema.transform(({ enabled, disabled, ...rest }) => ({
+  normalizeCardScriptWire,
+  regexScriptCardFieldsSchema.superRefine(behaviorCoheres).transform(({ enabled, disabled, ...rest }) => ({
     ...rest,
     enabled: enabled ?? disabled !== true,
   })),
@@ -306,24 +436,60 @@ export const regexScriptCardViewSchema = regexScriptBehaviorFields
     id: regexScriptCardFieldsSchema.shape.id,
     name: regexScriptCardFieldsSchema.shape.name,
     enabled: z.boolean(),
-    historyDepth: regexHistoryDepthSchema.strict().optional(),
+    depth: regexDepthSchema.strict().optional(),
+    authors: regexAuthorScopeSchema.strict().optional(),
   })
-  .superRefine(historyDepthMatchesPlacement) satisfies z.ZodType<RegexScriptCard>;
+  .superRefine(behaviorCoheres) satisfies z.ZodType<RegexScriptCard>;
 
-/** Project a card script back onto the ST wire — `disabled` beside our `enabled`, so the card is readable
- *  by both engines with one meaning. The ONE emit-side home for the polarity (the parse side is above). */
-export function toRegexScriptCardWire(card: RegexScriptCard): RegexScriptCard & { readonly disabled: boolean } {
-  return { ...card, disabled: !card.enabled };
+/** A card script in SillyTavern's own spelling, written beside the two axes. */
+export interface StRegexScriptFields {
+  readonly scriptName: string;
+  readonly disabled: boolean;
+  readonly placement: readonly number[];
+  readonly markdownOnly: boolean;
+  readonly promptOnly: boolean;
+  readonly minDepth: number | null;
+  readonly maxDepth: number | null;
+}
+
+const ST_NUMBER_BY_TARGET = new Map(Object.entries(ST_REGEX_TARGET_BY_NUMBER).map(([number, target]) => [target, Number(number)]));
+
+/**
+ * A script's SillyTavern spelling: its numbered placement, its two switches and its depth pair, written beside the
+ * two axes on every file this app exports, so the file runs where its author meant in both apps. The ONE emit-side
+ * home for the polarity and the placement numbers (the parse side is above).
+ *
+ * @remarks An author scope has no SillyTavern spelling, so SillyTavern runs such a script on every row of its targets.
+ */
+export function stRegexScriptFields(
+  script: Pick<RegexScriptCard, "name" | "enabled" | "targets" | "passes"> & { readonly depth?: RegexDepth | undefined },
+): StRegexScriptFields {
+  return {
+    scriptName: script.name,
+    disabled: !script.enabled,
+    placement: script.targets.flatMap((target) => ST_NUMBER_BY_TARGET.get(target) ?? []),
+    markdownOnly: script.passes.includes("display"),
+    promptOnly: script.passes.includes("prompt"),
+    minDepth: script.depth === undefined || script.depth.min === REGEX_DEPTH_FLOOR ? null : script.depth.min,
+    maxDepth: script.depth?.max ?? null,
+  };
+}
+
+/** Project a card script onto the card wire in both dialects ({@link stRegexScriptFields}). */
+export function toRegexScriptCardWire(card: RegexScriptCard): RegexScriptCard & StRegexScriptFields {
+  return { ...card, ...stRegexScriptFields(card) };
 }
 
 // ── The CRUD wire inputs (the tRPC router + the domain verbs validate against exactly these) ──────────
 
 /** Create one library script. `id`/`ownerId`/`createdAt` are the server's (an app-minted TypeID + the
  *  principal), so the wire carries only authored content. */
-export const createRegexScriptSchema = regexScriptBehaviorSchema.extend({
-  name: z.string().max(REGEX_SCRIPT_NAME_MAX),
-  enabled: z.boolean().default(true),
-});
+export const createRegexScriptSchema = regexScriptBehaviorFields
+  .extend({
+    name: z.string().max(REGEX_SCRIPT_NAME_MAX),
+    enabled: z.boolean().default(true),
+  })
+  .superRefine(behaviorCoheres);
 
 export type CreateRegexScriptInput = z.infer<typeof createRegexScriptSchema>;
 
@@ -332,8 +498,8 @@ export type CreateRegexScriptInput = z.infer<typeof createRegexScriptSchema>;
  *  fields it is not changing; the verb merges over the stored body.
  *
  *  Descends from the UN-refined shape because zod refuses `.partial()` on a refined object — and that is
- *  the correct seam anyway: a patch is not a behavior, so the depth/placement pairing is checked on the
- *  MERGED body (`updateScript` re-parses through `regexScriptBehaviorSchema`), where it is actually true. */
+ *  the correct seam anyway: a patch is not a behavior, so the pairing rules are checked on the MERGED body
+ *  (`updateScript` re-parses through `regexScriptBehaviorWriteSchema`), where they are actually true. */
 export const updateRegexScriptSchema = regexScriptBehaviorFields.extend({ name: z.string().max(REGEX_SCRIPT_NAME_MAX), enabled: z.boolean() }).partial();
 
 export type UpdateRegexScriptInput = z.infer<typeof updateRegexScriptSchema>;
@@ -441,11 +607,18 @@ export const regexScriptUsageSchema = z.strictObject({
 /** The PORTABLE file shape — one script per `regex/*.json` in a backup bundle. `global` is the only
  *  attachment carried: it is a property of the script itself (the `global_regex_scripts` PK-is-the-script
  *  junction), where character/preset/chat attachments point at rows the bundle does not guarantee. */
-export const portableRegexScriptSchema = createRegexScriptSchema.extend({
-  global: z.boolean().default(false),
-});
+export const portableRegexScriptSchema = z.preprocess(
+  normalizeCardScriptWire,
+  regexScriptBehaviorFields
+    .extend({
+      name: z.string().max(REGEX_SCRIPT_NAME_MAX),
+      enabled: z.boolean().default(true),
+      global: z.boolean().default(false),
+    })
+    .superRefine(behaviorCoheres),
+);
 
-export type PortableRegexScript = z.infer<typeof portableRegexScriptSchema>;
+export type PortableRegexScript = z.output<typeof portableRegexScriptSchema>;
 
 /** `detachFrom{Character,Preset,Chat}` / `detachGlobal` — `false` when the junction row was already absent
  *  (idempotent no-op), `true` when a row was removed. */
@@ -469,6 +642,20 @@ export interface BulkResult {
 export const detachResultSchema = z.strictObject({ detached: z.boolean() }) satisfies z.ZodType<DetachResult>;
 export const reorderResultSchema = z.strictObject({ reordered: z.number() }) satisfies z.ZodType<ReorderResult>;
 export const bulkResultSchema = z.strictObject({ affected: z.number() }) satisfies z.ZodType<BulkResult>;
+
+/** Both axes a bulk gesture sets on every listed script, paired as a write pairs them. */
+export const regexAxesWriteSchema = z.strictObject({ targets: regexTargetListSchema, passes: regexPassListSchema }).superRefine(behaviorCoheres);
+
+/** The bulk axes verb's answer: the changed count, and the scripts a move to the save pass cleared a depth or
+ *  an author scope from, so the gesture can name them. */
+export interface BulkAxesResult extends BulkResult {
+  readonly cleared: readonly RegexScriptId[];
+}
+
+export const bulkAxesResultSchema = z.strictObject({
+  affected: z.number(),
+  cleared: z.array(typeIdSchema(ID_PREFIX.regexScript)).readonly(),
+}) satisfies z.ZodType<BulkAxesResult>;
 
 export const importScriptFileResultSchema = z.strictObject({ created: z.boolean() });
 export type ImportScriptFileResult = z.output<typeof importScriptFileResultSchema>;

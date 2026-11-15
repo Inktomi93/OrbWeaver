@@ -1,82 +1,96 @@
-// `ON SCREEN` — the last group of the room's Regex section, and the display leg's own roster
-// (the `ON SCREEN` row; v2 change (b)).
+// `ON SCREEN` — the last group of the room's Regex section: every display script running on this viewer's
+// transcript here, in the order it runs, each with where it comes from.
 //
-// IT IS NOT A TIER, AND THAT IS THE POINT. The display leg is ATTACHMENT-BLIND by the 2026-08-02 O-4 ruling:
-// what runs on YOUR transcript is your whole library ∩ `DISPLAY`, plus the host's broadcast set when the host
-// opted this room in (`data/use-display-scripts.ts`). No per-chat tier lever and no room master can reach it,
-// so drawing these rows inside the tier groups above would put them under switches that do not govern them.
-// They get their own roster, their own provenance word, and their own sentence: what you see, now.
+// THE LIST IS THE SERVER'S (`regex.listDisplayScripts`, through `#data`'s `useDisplayEntries`). A display script
+// runs where it is attached: the room's tiers under the host, then the viewer's own globals last. A member gets
+// the room's tiers only while the host shares them, so the gloss says which case this viewer is in, and each row
+// says whose script it is. The tier groups above list the same scripts for their prompt pass; this roster is the
+// one that answers "why does my screen look like this".
 //
-// THE HOST'S BROADCAST SWITCH LIVES HERE (§2, §3). It was `Host controls › Appearance` — one regex control
-// under an appearance name, in the host band, three doors away from every other regex lever. That disclosure
-// retired with this section; `HostDisplayScriptsControl` itself is unchanged and moved whole.
+// THE HOST'S SHARING SWITCH LIVES HERE (§2, §3), host-only: a member's group omits it (§8.1 permission-OMIT).
 //
-// A MEMBER GETS THIS GROUP TOO, unlike the mock's member board (which draws neither this roster nor the
-// broadcast line). §7.5 requires the "member with broadcast on" state to be rendered, and it is exactly this:
-// a member whose transcript is being restyled by the host's scripts must be able to see WHICH ones and turn
-// their own off. What a member does not get is the broadcast SWITCH (host-only) — the §8.1 permission-OMIT.
+// ONLY YOUR OWN ROWS CARRY A SWITCH. A row from the room is the host's library row for a member: you cannot flip
+// someone else's library flag, and a control that looked operable and was not is the affordance lie the sibling
+// racks exist to correct. The server's list holds only enabled scripts, so your own switched-off display scripts
+// are appended with the `Off` mark, each at the place it would run from: a flip here is reversible here.
 //
-// ONLY YOUR OWN ROWS CARRY A SWITCH. A broadcast row is the HOST's library row: you cannot flip someone
-// else's library flag, and a control that looked operable and was not is the affordance lie the sibling racks
-// exist to correct. Your own scripts still apply on top of the host's, which is what the provenance word and
-// the ordering (broadcast first, yours last) already say.
+// A STOPPED SCRIPT IS MARKED, NOT HIDDEN. The display pass stops a script that overruns its time on this device for
+// the rest of the session; its row keeps its place and says so, because a script silently missing from a list
+// that claims to be what runs is the defect this roster exists to prevent.
 
+import type { RegexDisplayEntry, RegexDisplaySource, RegexTierKey } from "@orb/contracts/chat";
+import { parseCharacterRegexTierKey, REGEX_VIEWER_SOURCE } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
-import type { ChatId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, RegexScriptId } from "@orb/kit/ids";
 import { BookOpen, Icon } from "@orb/ui/icons";
 import { InlineToken } from "@orb/ui/inline-token";
-import { Section, Stack } from "@orb/ui/layout";
+import { Row, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { MenuItem } from "@orb/ui/menu";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { MutedLine, RowActionsMenu } from "#components";
-import { DISPLAY_PLACEMENT, useDisplayScripts, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { MutedLine, RegexAxesGlyphs, RowActionsMenu } from "#components";
+import { roomRosterOptions, useDisplayEntries, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { ROW_MORE_LEAD, regexScriptTitle, rowActionSubject, rowQualifiers, timeLib } from "#lib";
 import { openConfigTo, selectCollectionMember } from "#state";
 import { useSetRegexScriptEnabled } from "../hooks/use-chat-regex-mutations.ts";
-import { REGEX_ON_SCREEN_LIST, regexScriptEverywhereSwitchName } from "../lib/regex-section-model.ts";
+import { useStoppedDisplayScripts } from "../hooks/use-display-text.ts";
+import { REGEX_OFF_MARK, REGEX_ON_SCREEN_LIST, regexScriptEverywhereSwitchName, regexTierKicker } from "../lib/regex-section-model.ts";
 import { HostDisplayScriptsControl } from "./host-display-scripts-control.tsx";
 
 /** The config group the script library lives in — the `⋯ → Open in library` destination (#1725). */
 const REGEX_COLLECTION = "regex";
 
+/** A row's source word for the viewer's own scripts. */
+const YOURS = "yours";
+
+/** The mark and its spoken reason on a script the display pass stopped. */
+const STOPPED_MARK = "Stopped";
+const STOPPED_REASON = "It took too long to run on this device and is stopped until you reload.";
+
 export interface RegexOnScreenGroupProps {
   readonly chatId: ChatId;
   readonly isHost: boolean;
+  /** The room's tier names the host's section already resolved (the preset's name above all). A member passes an
+   *  empty map; seat names come from the roster either way. */
+  readonly labels: ReadonlyMap<RegexTierKey, string>;
+  /** The viewer's own switched-off display scripts, at the place each would run from once switched back on: the
+   *  host's from the room's tiers (`regexSwitchedOffDisplay`), a member's from their globals. */
+  readonly switchedOff: readonly RegexDisplayEntry[];
 }
 
-export function RegexOnScreenGroup({ chatId, isHost }: RegexOnScreenGroupProps): ReactElement {
+export function RegexOnScreenGroup({ chatId, isHost, labels, switchedOff }: RegexOnScreenGroupProps): ReactElement {
   const trpc = useTRPC();
-  // The viewer's OWN library — the provenance test (`yours` vs `the host's`) and the switch gate. It is the
-  // same cache entry `useDisplayScripts` reads, so this costs no second request.
+  const entries = useDisplayEntries(chatId);
   const { data: owned } = useSuspenseQuery(trpc.regex.listScripts.queryOptions());
-  const inForce = useDisplayScripts(chatId);
+  const { data: chat } = useSuspenseQuery(roomRosterOptions(trpc, { chatId }));
+  const stopped = new Set<RegexScriptId>(useStoppedDisplayScripts().map((script) => script.id));
   const ownedIds = new Set(owned.map((script) => script.id));
-  // THE ROSTER IS "IN FORCE" PLUS YOUR OWN SWITCHED-OFF DISPLAY SCRIPTS, and the second half is what makes
-  // the switch round-trippable: `useDisplayScripts` filters on `enabled` by construction, so a row flipped
-  // off here would VANISH and the only way back would be the library. The off rows carry the `OFF` mark and
-  // no rank claim — the canvas draws exactly that arm.
-  const rows = [...inForce, ...owned.filter((script) => !script.enabled && script.placement.includes(DISPLAY_PLACEMENT))];
+  const rows: readonly RegexDisplayEntry[] = [...entries, ...switchedOff];
+  const names = withSeatNames(labels, rows, chat.participants);
   // Two scripts can share a title, and a row's switch and menu then announce one name for two rows: the qualifier is resolved with the whole roster in hand.
   const qualifiers = rowQualifiers(
-    rows.map((script) => ({ name: regexScriptTitle(script), at: script.updatedAt })),
+    rows.map((row) => ({ name: regexScriptTitle(row.script), at: row.script.updatedAt })),
     timeLib.formatRelative,
     timeLib.formatDateTime,
   );
   return (
     <Section data-slot="regex-on-screen" kicker={REGEX_ON_SCREEN_LIST}>
-      <Text voice="gloss">
-        Display scripts change what <b>you</b> see, now. Yours come from your library; the host can broadcast theirs.
-      </Text>
+      <Text voice="gloss">{rosterGloss(isHost, chat.hostDisplayScripts)}</Text>
       {rows.length === 0 ? (
         <MutedLine>No display scripts are running on your transcript here.</MutedLine>
       ) : (
         <Stack gap="tight" role="list">
-          {rows.map((script, index) => (
-            <Stack key={script.id} role="listitem">
-              <DisplayScriptRow isYours={ownedIds.has(script.id)} qualifier={qualifiers[index]} script={script} />
+          {rows.map((row, index) => (
+            <Stack key={row.script.id} role="listitem">
+              <DisplayScriptRow
+                isYours={ownedIds.has(row.script.id)}
+                qualifier={qualifiers[index]}
+                script={row.script}
+                source={sourceWords(row.from, isHost, names)}
+                stopped={stopped.has(row.script.id)}
+              />
             </Stack>
           ))}
         </Stack>
@@ -86,25 +100,69 @@ export function RegexOnScreenGroup({ chatId, isHost }: RegexOnScreenGroupProps):
   );
 }
 
-/** One display-leg row: name · pattern · provenance, and — for the viewer's own — the library switch. */
+/** What the roster is, for this viewer. A member's case turns on whether the host shares the room's scripts. */
+function rosterGloss(isHost: boolean, shared: boolean): string {
+  if (isHost) {
+    return "What changes your screen here, in the order it runs: the scripts attached to this room. Members see them only while you share them below.";
+  }
+  return shared
+    ? "What changes your screen here, in the order it runs: the host's scripts for this room, then your own Everywhere scripts."
+    : "What changes your screen here: your own Everywhere scripts. The host isn't sharing this room's scripts.";
+}
+
+/** The tier names, with each character tier the entries carry named from the roster by its own seat id. */
+function withSeatNames(
+  labels: ReadonlyMap<RegexTierKey, string>,
+  entries: readonly RegexDisplayEntry[],
+  participants: readonly { readonly characterId: CharacterId | null; readonly displayName: string }[],
+): ReadonlyMap<RegexTierKey, string> {
+  const names = new Map(labels);
+  for (const { from } of entries) {
+    if (from === REGEX_VIEWER_SOURCE || names.has(from)) {
+      continue;
+    }
+    const characterId = parseCharacterRegexTierKey(from);
+    const seat = characterId === null ? undefined : participants.find((participant) => participant.characterId === characterId);
+    if (seat !== undefined) {
+      names.set(from, seat.displayName);
+    }
+  }
+  return names;
+}
+
+/** Whose script a row is and where it runs from. A member reads the room's tiers as the host's. */
+function sourceWords(from: RegexDisplaySource, isHost: boolean, names: ReadonlyMap<RegexTierKey, string>): string {
+  if (from === REGEX_VIEWER_SOURCE) {
+    return `${YOURS} · Everywhere`;
+  }
+  const tier = regexTierKicker(from, names);
+  return isHost ? tier : `the host’s · ${tier}`;
+}
+
+/** One display-pass row: name · axes · pattern · source, and for the viewer's own script the library switch. */
 function DisplayScriptRow({
   isYours,
   qualifier,
   script,
+  source,
+  stopped,
 }: {
   readonly isYours: boolean;
   /** The disambiguator the row's switch and menu carry beside its name (`rowQualifiers`). */
   readonly qualifier: string | undefined;
   readonly script: RegexScriptRow;
+  readonly source: string;
+  readonly stopped: boolean;
 }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const setEnabled = useSetRegexScriptEnabled({ trpc, invalidation });
   const name = regexScriptTitle(script);
   const subject = rowActionSubject(name, qualifier);
+  const pattern = script.findRegex.trim() === "" ? "no pattern yet" : script.findRegex.trim();
   return (
     <ListRow
-      markers={script.enabled ? null : <InlineToken>Off</InlineToken>}
+      markers={<RowMarks enabled={script.enabled} stopped={stopped} />}
       {...(isYours
         ? {
             actions: (
@@ -134,9 +192,31 @@ function DisplayScriptRow({
             ),
           }
         : {})}
-      subtitle={`${script.findRegex.trim() === "" ? "no pattern yet" : script.findRegex.trim()} · ${isYours ? "yours" : "the host’s"}`}
+      subtitle={`${pattern} · ${source}`}
+      subtitleLead={<RegexAxesGlyphs passes={script.passes} targets={script.targets} />}
       subtitlePlacement="inline"
       title={name}
     />
+  );
+}
+
+/** The title-line marks. The stopped reason rides an sr-only line beside the visible word, the tier row's shape
+ *  for a compressed mark whose sentence is the datum. */
+function RowMarks({ enabled, stopped }: { readonly enabled: boolean; readonly stopped: boolean }): ReactElement | null {
+  if (enabled && !stopped) {
+    return null;
+  }
+  return (
+    <Row align="center" gap="tight">
+      {enabled ? null : <InlineToken>{REGEX_OFF_MARK}</InlineToken>}
+      {stopped ? (
+        <>
+          <InlineToken tone="warning">{STOPPED_MARK}</InlineToken>
+          <Text as="span" className="sr-only">
+            {STOPPED_REASON}
+          </Text>
+        </>
+      ) : null}
+    </Row>
   );
 }

@@ -1228,7 +1228,9 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
     files: ["packages/client/src/**/*.{ts,tsx}"],
     plugins: { "@tanstack/query": pluginQuery, "@tanstack/router": pluginRouter },
     rules: {
-      "@tanstack/query/exhaustive-deps": "error",
+      // A display pass's queue slot (`use-display-text.ts`) is a scheduling hint the query function reads, never an
+      // input to its answer: rows whose pass is equal share one cached answer, whichever row asked first.
+      "@tanstack/query/exhaustive-deps": ["error", { allowlist: { types: ["DisplayQueueSlot"] } }],
       "@tanstack/query/no-unstable-deps": "error",
       "@tanstack/query/no-void-query-fn": "error",
       "@tanstack/query/stable-query-client": "error",

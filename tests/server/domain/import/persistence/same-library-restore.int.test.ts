@@ -161,7 +161,13 @@ async function livedInLibrary(root: ServerTestHarness, pictures: Uint8Array[]): 
   await root.services.settings.createTheme({ principal: owner, input: { name: "Dusk", override: { accent: "#334455" }, css: null } });
   const script = await root.services.regex.createScript({
     principal: owner,
-    input: createRegexScriptSchema.parse({ name: "Strip dice", findRegex: "/\\[dice:[^\\]]*\\]/g", replaceString: "", placement: ["USER_INPUT"] }),
+    input: createRegexScriptSchema.parse({
+      name: "Strip dice",
+      findRegex: "/\\[dice:[^\\]]*\\]/g",
+      replaceString: "",
+      targets: ["USER_INPUT"],
+      passes: ["save"],
+    }),
   });
   await root.services.regex.attachToCharacter({ principal: owner, characterId: warden.id, scriptId: script.id });
   await root.services.worldInfo.createBook({ principal: owner, input: { name: "Loose Notes" } });

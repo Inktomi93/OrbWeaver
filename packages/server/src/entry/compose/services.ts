@@ -855,6 +855,11 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // Now that `assets` exists, rebind the real materializeBackground op (the holder above forwards to it).
   materializeBackgroundOp = assetsCharacter.materializeBackgroundOp;
 
+  // ── the regex script LIBRARY (D121-E). Built before preset, admin and chat: the preset import door lifts a
+  // SillyTavern preset's scripts through it, admin's export service needs its card RE-EMBED op and chat's context
+  // needs its four-scope RESOLVE op.
+  const regexCompose = buildRegex({ logger: deps.logger, emitUserEvent: liveBuses.user.publishUserEvent, db, now, audit, emitChatEventLive, idSource });
+
   // ── the derived-data cluster + persona/preset/stats/search/discovery/notifications/workloads (the
   // search-discovery seam). Produces `persona` + `preset` (forward-referenced above) and `workloads` +
   // `detachEmbedReindex` (bound onto the keystone's late-bound holder below).
@@ -887,6 +892,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // preset's ONE cross-feature op (`resolveEffective` projects the funnel against the caller's own chat
     // model) — the SAME verb the client's params panel already reads, so the two can't disagree.
     resolveChatCapability: (args) => connection.resolveChatCacheContext(args),
+    importPresetScripts: regexCompose.importPresetScripts,
     getContributions: getWorkloadContributions,
     isBoxOwner,
     isAccountEnabled: createResolveUserEnabled(sessions),
@@ -928,10 +934,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     resolveUtilityPresetParams,
     loadUserSettings: settings.loadUserSettings,
   });
-
-  // ── the regex script LIBRARY (D121-E). Built before admin/chat: admin's export service needs its card
-  // RE-EMBED op and chat's context needs its four-scope RESOLVE op.
-  const regexCompose = buildRegex({ logger: deps.logger, emitUserEvent: liveBuses.user.publishUserEvent, db, now, audit, emitChatEventLive, idSource });
 
   // ── admin + the ONE tool-use registry + the export service (the admin seam).
   const { admin, toolUse, exportService } = buildAdmin({

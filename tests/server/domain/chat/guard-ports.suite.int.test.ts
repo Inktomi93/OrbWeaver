@@ -47,7 +47,7 @@ test("composed host and member ports preserve room authority and leak-free refus
   await root.services.chat.selfLeave({ principal: departed, chatId: chat.id });
   const script = await root.services.regex.createScript({
     principal: host,
-    input: createRegexScriptSchema.parse({ name: "Guard script", findRegex: "needle", replaceString: "replacement", placement: [] }),
+    input: createRegexScriptSchema.parse({ name: "Guard script", findRegex: "needle", replaceString: "replacement", targets: [], passes: [] }),
   });
   const book = await root.services.worldInfo.createBook({ principal: host, input: createBookSchema.parse({ name: "Guard book" }) });
   const { document } = await root.services.databank.createFromText({

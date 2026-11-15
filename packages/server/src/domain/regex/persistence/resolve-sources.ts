@@ -46,7 +46,7 @@ export function createResolveRegexSources(input: DbAssemblyInput<RegexResolveCon
       listGlobalScripts(ctx.db, ownerId),
       presetId === null ? Promise.resolve<ScriptRecord[]>([]) : listPresetScripts(ctx.db, ownerId, presetId),
       characterSlices(ctx, ownerId, characterIds),
-      listHostChatScripts(ctx.db, chatId, ownerId),
+      chatId === null ? Promise.resolve<ScriptRecord[]>([]) : listHostChatScripts(ctx.db, chatId, ownerId),
     ]);
     return {
       hostGlobal: hostGlobal.map(toRow),

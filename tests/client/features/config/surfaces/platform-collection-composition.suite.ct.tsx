@@ -51,7 +51,14 @@ async function prepare(
   await caller.settings.updateUserSettingsSection({ section: "theme", patch: DEFAULT_USER_SETTINGS.theme });
   if (subject === "regex") {
     await caller.regex.createScript({
-      input: createRegexScriptSchema.parse({ name: LONG_NAME, findRegex: "witness", replaceString: "", placement: ["AI_OUTPUT"], enabled: false }),
+      input: createRegexScriptSchema.parse({
+        name: LONG_NAME,
+        findRegex: "witness",
+        replaceString: "",
+        targets: ["AI_OUTPUT"],
+        passes: ["save"],
+        enabled: false,
+      }),
     });
   } else if (subject === "worldInfo") {
     await caller.worldInfo.createBook({ input: { name: LONG_NAME } });
@@ -386,7 +393,7 @@ async function seedLongLibrary(caller: Caller, subject: (typeof WINDOWED_SUBJECT
     const name = `${LONG_NAME} ${String(index)}`;
     if (subject === "regex") {
       await caller.regex.createScript({
-        input: createRegexScriptSchema.parse({ name, findRegex: "witness", replaceString: "", placement: ["AI_OUTPUT"], enabled: false }),
+        input: createRegexScriptSchema.parse({ name, findRegex: "witness", replaceString: "", targets: ["AI_OUTPUT"], passes: ["save"], enabled: false }),
       });
     } else {
       await caller.worldInfo.createBook({ input: { name } });
@@ -400,7 +407,14 @@ async function seedOneScript(caller: Caller): Promise<void> {
     await caller.regex.removeScript({ scriptId: script.id });
   }
   await caller.regex.createScript({
-    input: createRegexScriptSchema.parse({ name: LONG_NAME, findRegex: "witness", replaceString: "", placement: ["AI_OUTPUT"], enabled: false }),
+    input: createRegexScriptSchema.parse({
+      name: LONG_NAME,
+      findRegex: "witness",
+      replaceString: "",
+      targets: ["AI_OUTPUT"],
+      passes: ["save"],
+      enabled: false,
+    }),
   });
 }
 
@@ -502,7 +516,7 @@ test.describe("two members that share a name", () => {
     for (const enabled of [false, true]) {
       root.clock.advance(1000);
       await caller.regex.createScript({
-        input: createRegexScriptSchema.parse({ name: "", findRegex: "twin", replaceString: "", placement: ["AI_OUTPUT"], enabled }),
+        input: createRegexScriptSchema.parse({ name: "", findRegex: "twin", replaceString: "", targets: ["AI_OUTPUT"], passes: ["save"], enabled }),
       });
     }
     const unnamed = (await caller.regex.listScripts()).filter((script) => script.name === "");

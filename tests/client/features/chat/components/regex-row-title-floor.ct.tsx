@@ -24,7 +24,8 @@ const TAB_PROCEDURES = [
   "worldInfo.listForChat",
   "regex.listForChat",
   "regex.listScripts",
-  "regex.listRoomDisplayScripts",
+  "regex.listGlobal",
+  "regex.listDisplayScripts",
   "chat.listEffectiveRegex",
   "chat.getUserMacroPicks",
   "chat.getVariablePicks",
@@ -83,12 +84,21 @@ for (const phone of PHONES) {
       const chatId = await hostRoom(root);
       const host = await root.internalCallerFor(root.ownerId);
       const tier = await host.regex.createScript({
-        input: createRegexScriptSchema.parse({ name: TIER_NAME, findRegex: "x", replaceString: "y", placement: ["AI_OUTPUT"], enabled: true }),
+        input: createRegexScriptSchema.parse({ name: TIER_NAME, findRegex: "x", replaceString: "y", targets: ["AI_OUTPUT"], passes: ["save"], enabled: true }),
       });
-      await host.regex.createScript({
-        input: createRegexScriptSchema.parse({ name: SCREEN_NAME, findRegex: "x", replaceString: "y", placement: ["DISPLAY"], enabled: true }),
+      const screen = await host.regex.createScript({
+        input: createRegexScriptSchema.parse({
+          name: SCREEN_NAME,
+          findRegex: "x",
+          replaceString: "y",
+          targets: ["USER_INPUT", "AI_OUTPUT", "REASONING"],
+          passes: ["display"],
+          enabled: true,
+        }),
       });
       await host.regex.attachToChat({ chatId, scriptId: tier.id });
+      // A display script runs where it is attached, so the on-screen row's script sits on the room.
+      await host.regex.attachToChat({ chatId, scriptId: screen.id });
       await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
       await routeTrpc(page, serveCorpusProcedures(host, TAB_PROCEDURES));
       await corpusMedia();
@@ -96,8 +106,12 @@ for (const phone of PHONES) {
       await page.getByRole("button", { name: /^Regex/u }).click();
 
       const floor = await resolvedLength(page, `var(${TOKENS["width.title-floor"].cssVar})`, page.locator("body"));
-      for (const name of [TIER_NAME, SCREEN_NAME]) {
-        const row = page.locator('[data-slot="list-row-root"]').filter({ has: page.locator('[data-slot="list-row-title"]').getByText(name, { exact: true }) });
+      // The room draws the display script twice, in its tier group and in the On screen roster; the roster's row is the one judged.
+      for (const [name, scope] of [
+        [TIER_NAME, page.locator('[data-slot="regex-section"]')],
+        [SCREEN_NAME, page.locator('[data-slot="regex-on-screen"]')],
+      ] as const) {
+        const row = scope.locator('[data-slot="list-row-root"]').filter({ has: page.locator('[data-slot="list-row-title"]').getByText(name, { exact: true }) });
         await expect(row).toHaveCount(1);
         const reach = await titleReach(row, floor);
         expect(reach.pastRowBy).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
@@ -118,7 +132,7 @@ for (const phone of PHONES) {
       const chatId = await hostRoom(root);
       const host = await root.internalCallerFor(root.ownerId);
       const tier = await host.regex.createScript({
-        input: createRegexScriptSchema.parse({ name: TIER_NAME, findRegex: "x", replaceString: "y", placement: ["AI_OUTPUT"], enabled: true }),
+        input: createRegexScriptSchema.parse({ name: TIER_NAME, findRegex: "x", replaceString: "y", targets: ["AI_OUTPUT"], passes: ["save"], enabled: true }),
       });
       await host.regex.attachToChat({ chatId, scriptId: tier.id });
       await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
@@ -148,16 +162,24 @@ for (const phone of PHONES) {
         await using root = await createCorpusHarness();
         const chatId = await hostRoom(root);
         const host = await root.internalCallerFor(root.ownerId);
-        await host.regex.createScript({
-          input: createRegexScriptSchema.parse({ name: SCREEN_NAME, findRegex: "x", replaceString: "y", placement: ["DISPLAY"], enabled: true }),
+        const screen = await host.regex.createScript({
+          input: createRegexScriptSchema.parse({
+            name: SCREEN_NAME,
+            findRegex: "x",
+            replaceString: "y",
+            targets: ["USER_INPUT", "AI_OUTPUT", "REASONING"],
+            passes: ["display"],
+            enabled: true,
+          }),
         });
+        await host.regex.attachToChat({ chatId, scriptId: screen.id });
         await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
         await routeTrpc(page, serveCorpusProcedures(host, TAB_PROCEDURES));
         await corpusMedia();
         await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId, width: phone.width });
         await page.getByRole("button", { name: /^Regex/u }).click();
         const row = page
-          .locator('[data-slot="list-row-root"]')
+          .locator('[data-slot="regex-on-screen"] [data-slot="list-row-root"]')
           .filter({ has: page.locator('[data-slot="list-row-title"]').getByText(SCREEN_NAME, { exact: true }) });
         await expect(row).toHaveCount(1);
         await expect(

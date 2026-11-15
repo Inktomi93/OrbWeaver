@@ -1,10 +1,10 @@
 // The per-room DISPLAY-TIER broadcast switch (D121-E, owner ruling 2026-08-02) — the CLIENT half of
 // `chat.setHostDisplayScripts`.
 //
-// WHAT IT DOES, in the host's terms: display-tier regex is normally a private reading preference — each
-// person sees only their own scripts applied to the transcript. Turning this on shares the HOST'S display
-// scripts with everyone in this room, so a host can stage a shared look. Everyone's own scripts still apply
-// on top, so nobody is ever locked into someone else's styling.
+// WHAT IT DOES, in the host's terms: the display scripts attached to this room (its tiers, resolved under the
+// host) change only the host's screen until this is on. Turning it on shows them to everyone in the room, so a
+// host can stage a shared look. Everyone's own Everywhere scripts still run last, so nobody is ever locked into
+// someone else's styling.
 //
 // A room-settings control on the chat context panel's Settings tab (NOT a settings pane), mounted only
 // under `isHost` — the §8.1 permission-OMIT, matching the tool-round control in the same section. Reads the
@@ -33,8 +33,8 @@ export function HostDisplayScriptsControl({ chatId }: HostDisplayScriptsControlP
     // `SettingSwitchRow`, not a hand-paired Field+Switch: the composite is the ONE home for the row
     // grammar, and Base UI mints the label/control id from field context (C21 / LANE NAVFORM).
     <SettingSwitchRow
-      label="Show my display scripts to everyone"
-      description="Your display-only regex normally changes just your own view. Turn this on to apply it to the transcript for everyone in this room. Their own display scripts still run on top. Never changes what's sent to the model or what anyone types."
+      label="Show this room's display scripts to everyone"
+      description="The display scripts attached to this room change only your own screen until this is on. Turn it on to show them to everyone here. Their own Everywhere scripts still run last. Never changes what's sent to the model or what anyone types."
       checked={chat.hostDisplayScripts}
       onChange={(next): void => {
         setEnabled.mutate({ chatId, enabled: next });

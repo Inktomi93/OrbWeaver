@@ -3,7 +3,7 @@
 // into a real chat and read the transcript. This panel answers the question in the editor, live.
 //
 // It runs the PRODUCTION engine (`../lib/regex-preview` → `@orb/kit/regex`'s `executeRegexScripts`, the
-// same call the DISPLAY tier and the server legs make) — see that module's header for why a tester with its
+// same call the display pass and the server's passes make) — see that module's header for why a tester with its
 // own regex engine is worse than no tester, and for the client/server watchdog split it does not hide.
 //
 // FEATURE-LOCAL, like the fields it sits under: the editor moved out of `components/` when the config rail
@@ -11,8 +11,8 @@
 // the panel has exactly one consumer.
 //
 // IT ALSO ANSWERS THE SECOND QUESTION — "would this ever run?". The probe deliberately neutralises
-// `enabled` and `placement` so a switched-off draft still previews, which would be a lie
-// if the panel stopped there: so when the row is off, or bites no stream, the panel says so in the same
+// `enabled`, the targets and the passes so a switched-off draft still previews, which would be a lie
+// if the panel stopped there: so when the row is off, or runs nowhere, the panel says so in the same
 // breath as the result. That is the F3 class — a script that can never fire, with nothing on screen saying
 // so — caught at authoring time instead of at silence time.
 
@@ -23,6 +23,7 @@ import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ChangeEvent, ReactElement } from "react";
 import { useState } from "react";
+import { regexRunsNowhere } from "#lib";
 import { REGEX_RESULT_NAME, REGEX_SAMPLE_TEXT_NAME } from "../lib/regex-names.ts";
 import type { RegexPreview } from "../lib/regex-preview.ts";
 import { previewRegexScript, REGEX_PREVIEW_CHAR, REGEX_PREVIEW_DEFAULT_SAMPLE, REGEX_PREVIEW_MAX_INPUT, REGEX_PREVIEW_USER } from "../lib/regex-preview.ts";
@@ -54,16 +55,15 @@ function runCaveat(script: CreateRegexScriptInput): string | null {
   if (!script.enabled) {
     return "Heads up: this script is switched off, so it only runs here in the tester.";
   }
-  if (script.placement.length === 0) {
-    return "Heads up: no streams are selected under “Runs on”, so this script never runs outside the tester.";
+  if (regexRunsNowhere(script)) {
+    return "Heads up: this script has no text or no time to run at, so it never runs outside the tester.";
   }
-  // THE ONE THING THE TESTER HONESTLY CANNOT SHOW. A depth bound selects WHICH MESSAGES of an assembled
-  // history a script touches; the sample below is one loose string with no position in any history, so the
-  // bound has nothing to bite on and the probe deliberately leaves it off (`../lib/regex-preview`). Showing
-  // the transformation while silently ignoring the scope would be the tester lying by omission — so it says
-  // so, in the same breath as the result, exactly like the two arms above.
-  if (script.historyDepth !== undefined && (script.historyDepth.min > 0 || script.historyDepth.max !== null)) {
-    return "Heads up: the depth range only applies to real chat history, so the result below ignores it. This shows what the pattern does, not which messages it reaches.";
+  // THE ONE THING THE TESTER HONESTLY CANNOT SHOW. Depth and the author scope select WHICH MESSAGES of a chat a
+  // script touches; the sample below is one loose string with no place in a chat and no author, so the probe
+  // leaves both off (`../lib/regex-preview`). Showing the transformation while silently ignoring the scope would
+  // be the tester lying by omission, so it says so in the same breath as the result.
+  if (script.depth !== undefined || (script.authors !== undefined && (script.authors.include.length > 0 || script.authors.exclude.length > 0))) {
+    return "Heads up: the depth range and the whose-messages lists only apply in a real chat, so the result below ignores them. This shows what the pattern does, not which messages it reaches.";
   }
   return null;
 }

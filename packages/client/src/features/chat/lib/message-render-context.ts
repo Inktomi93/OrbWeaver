@@ -8,6 +8,7 @@ import type { ParticipantView } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
+import type { RoomStanding } from "@orb/kit/message-author";
 // The LEAF, not the `#lib` barrel: a type-only import is erased at runtime but TypeScript still RESOLVES the
 // barrel, and `lib/index.ts` value-exports DOM-coupled modules — through this one line a node-side test that
 // imports this adapter dragged 19 browser files into the DOM-less program (type-worlds #1351).
@@ -26,6 +27,8 @@ export interface ResolveMessageRenderContextInput {
    *  it is per-USER by construction (never the host's, never another member's) and never touches the
    *  wire — the composer, the edit textarea, and every payload read the un-transformed body. */
   readonly displayScripts?: readonly RegexScriptRow[] | undefined;
+  /** The room's present human seats (`roomStandingOf`), which a display script scoped by standing reads. */
+  readonly room: RoomStanding;
 }
 
 const SOLO_CHARACTER_FLOOR = 1;
@@ -76,5 +79,6 @@ export function resolveMessageRenderContext(input: ResolveMessageRenderContextIn
     ...(anchorPersona === undefined ? {} : { fallbackPersonaDescription: anchorPersona.description }),
     ...(input.autoFixMarkdown === undefined ? {} : { autoFixMarkdown: input.autoFixMarkdown }),
     ...(input.displayScripts === undefined ? {} : { displayScripts: input.displayScripts }),
+    room: input.room,
   };
 }

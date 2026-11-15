@@ -33,7 +33,7 @@ import {
   REGEX_RESULT_NAME,
   REGEX_SAMPLE_TEXT_NAME,
   REGEX_SCRIPT_NAME_FIELD_NAME,
-  REGEX_TEXT_AFTER_STREAM_NAME,
+  REGEX_TEXT_AFTER_EVERY_SCRIPT_NAME,
   REGEX_TEXT_GOING_IN_NAME,
 } from "#client/features/regex/lib/regex-names.ts";
 import { ROSTER_NAME_FIELD_NAME } from "#client/features/roster-preset/lib/roster-names.ts";
@@ -593,7 +593,7 @@ async function regex(flow: SurfaceWalk): Promise<void> {
     await editor.getByRole("textbox", { name: REGEX_SAMPLE_TEXT_NAME, exact: true }).fill("surface surface");
     await expect(editor.getByRole("textbox", { name: REGEX_RESULT_NAME, exact: true })).toHaveValue("walk walk");
     await editor.getByRole("textbox", { name: REGEX_TEXT_GOING_IN_NAME, exact: true }).fill("surface surface");
-    await expect(editor.getByRole("textbox", { name: REGEX_TEXT_AFTER_STREAM_NAME, exact: true })).toBeVisible();
+    await expect(editor.getByRole("textbox", { name: REGEX_TEXT_AFTER_EVERY_SCRIPT_NAME, exact: true })).toBeVisible();
     await walkScope(flow, content, "config/regex-editor-and-real-testers");
     await teacher(flow, "regex-member-scopes");
     note(

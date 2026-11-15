@@ -124,12 +124,11 @@ test("regex output captures preserve execution order, host opt-in, portable reus
   expect(views.ordered.output).toEqual({ reordered: 2 });
   expect(views.displayOff.output).toEqual([]);
   expect(views.displayOn.output).toHaveLength(views.after.output.length);
-  expect(views.displayOn.output).toEqual(expect.arrayContaining([...views.after.output]));
+  expect(views.displayOn.output.map(({ script }) => script)).toEqual(expect.arrayContaining([...views.after.output]));
   expect(views.list.output.find((script) => script.id === views.first.id)).toMatchObject({
     enabled: true,
-    placement: ["DISPLAY"],
-    markdownOnly: true,
-    promptOnly: false,
+    targets: ["USER_INPUT", "AI_OUTPUT", "REASONING"],
+    passes: ["display"],
     updatedAt: root.clock.now(),
   });
   expect(views.global.output.map((script) => script.id)).toContain(views.first.id);

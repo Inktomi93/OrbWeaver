@@ -376,7 +376,7 @@ test("a prior host's chat book and chat regex, edited after they left, neither r
   await h.root.services.worldInfo.attachToChat({ principal: prior, chatId: h.chatId, bookId: book.id });
   const script = await h.root.services.regex.createScript({
     principal: prior,
-    input: createRegexScriptSchema.parse({ name: "Echo", findRegex: "/hello/g", replaceString: "hello", placement: ["USER_INPUT"] }),
+    input: createRegexScriptSchema.parse({ name: "Echo", findRegex: "/hello/g", replaceString: "hello", targets: ["USER_INPUT"], passes: ["save"] }),
   });
   await h.root.services.regex.attachToChat({ principal: prior, chatId: h.chatId, scriptId: script.id });
   const host = await invitePerson(h);

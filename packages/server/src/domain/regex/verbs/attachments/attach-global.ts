@@ -18,5 +18,7 @@ export function createAttachGlobal(ctx: RegexContext): RegexService["attachGloba
     await ctx.db.insert(globalRegexScripts).values({ regexScriptId: scriptId, position, createdAt: at }).onConflictDoNothing();
     await ctx.audit({ actorUserId: ownerId, action: "regex.attachGlobal", entityType: "regex_script", entityId: scriptId }, at);
     ctx.emitUserEvent(ownerId, { type: "regexChanged", scriptId });
+    // The host's tiers draw for the room's members, so the rooms this attachment reaches hear it.
+    await ctx.fanRegexScriptRooms(scriptId);
   };
 }

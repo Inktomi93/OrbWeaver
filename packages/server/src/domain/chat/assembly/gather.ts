@@ -26,8 +26,10 @@ import type { GatherAssembleArgs, SendRegexSink } from "../contract/gather.ts";
 import type { MsgRow, TurnRetrievalWarningEpisode } from "../contract/memory.ts";
 import type { loadTranscriptNames } from "../memory/persistence/queries.ts";
 import type { recallMemory } from "../memory/recall/recall.ts";
+import { loadParticipants } from "../persistence/participants-read.ts";
 import { loadCanonHistory, loadChatInjections, loadChatRow, loadStoredVariables, loadVariableDeltas } from "../persistence/queries.ts";
 import { assemblyTimeZone } from "../substrate/assembly-time-zone.ts";
+import { roomStandingOf } from "../substrate/participants-host.ts";
 import { regexAllowOf, resolveHostTierRegexScripts } from "../substrate/regex-tier.ts";
 import { foldChain } from "../substrate/runtime-variables.ts";
 import { createTurnRetrievalWarningEpisode } from "../substrate/turn-retrieval-warning.ts";
@@ -296,12 +298,13 @@ export async function gatherAssembleContext(
   const { ctx, memoryOps } = bound;
   const { chatId, runAsUserId, model, characterIds, personaIds } = args;
 
-  const [chatRow, canon, injectionRows, storedVariables, variableDeltas] = await Promise.all([
+  const [chatRow, canon, injectionRows, storedVariables, variableDeltas, seats] = await Promise.all([
     loadChatRow(ctx.db, chatId),
     loadCanonHistory(ctx.db, chatId),
     loadChatInjections(ctx.db, chatId),
     loadStoredVariables(ctx.db, chatId),
     loadVariableDeltas(ctx.db, chatId),
+    loadParticipants(ctx.db, chatId),
   ]);
 
   // Two-plane env seed: resolve the config plane (ChoiceBlock picks → concrete map), then overlay the
@@ -435,6 +438,7 @@ export async function gatherAssembleContext(
       ...(args.globalVariables !== undefined ? { globalVariables: args.globalVariables } : {}),
       injectionTokenBudget: foreign.injectionTokenBudget,
       hostTierRegexScripts,
+      hostTierRegexRoom: roomStandingOf(seats),
       model,
       generationType: args.generationType ?? "normal",
       nowMs: ctx.now(),

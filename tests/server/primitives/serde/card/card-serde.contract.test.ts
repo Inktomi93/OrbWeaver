@@ -291,6 +291,31 @@ describe("buildCardV3 emits the strict V3 wire", () => {
     expect(importCard(on, FALLBACK).regexScripts).toEqual([SCRIPT]);
   });
 
+  // SillyTavern reads only its own spelling, so the case strips the axes the way a SillyTavern-only reader ignores them.
+  test("an exported script carries SillyTavern's spelling of both axes and returns here with its author scope", () => {
+    const scoped = regexScriptCardSchema.parse({
+      id: "st-client-id",
+      name: "older replies",
+      findRegex: "a",
+      replaceString: "b",
+      targets: ["USER_INPUT", "AI_OUTPUT"],
+      passes: ["prompt"],
+      depth: { min: 1, max: 3 },
+      authors: { include: [{ by: "participant", participant: "character" }], exclude: [] },
+    });
+    const card = buildCardV3(exportFields({ regexScripts: [scoped] }), []);
+    const [wire] = z.array(z.record(z.string(), z.unknown())).parse(card.data.extensions["regex_scripts"]);
+    expect(wire).toMatchObject({ scriptName: "older replies", placement: [1, 2], markdownOnly: false, promptOnly: true, minDepth: 1, maxDepth: 3 });
+    expect(importCard(card, FALLBACK).regexScripts).toEqual([scoped]);
+    const { targets: _targets, passes: _passes, depth: _depth, authors: _authors, name: _name, enabled: _enabled, ...stOnly } = wire ?? {};
+    const { authors: _scope, ...unscoped } = scoped;
+    expect(regexScriptCardSchema.parse(stOnly)).toEqual(unscoped);
+    // Edited in SillyTavern: renamed, switched off and moved to the save pass. Its spelling wins, and the depth and
+    // author scope, which a save script cannot hold, are dropped.
+    const edited = { ...wire, scriptName: "renamed", disabled: true, promptOnly: false };
+    expect(regexScriptCardSchema.parse(edited)).toEqual({ ...unscoped, name: "renamed", enabled: false, passes: ["save"], depth: undefined });
+  });
+
   test("the embedded book appears only with entries, under its own name when it has one", () => {
     expect(buildCardV3(exportFields(), []).data).not.toHaveProperty("character_book");
     const named = buildCardV3(exportFields({ bookName: "Harbor Lore" }), [worldEntry()]);
