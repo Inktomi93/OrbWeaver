@@ -1,6 +1,6 @@
 {
   "name": "@orb/plugin-toolchain",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "description": "Strict deterministic compiler and packer for Orbweaver plugin runtimes",
   "license": "AGPL-3.0-only",
