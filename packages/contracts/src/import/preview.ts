@@ -80,6 +80,21 @@ const importPreviewItemSchema = z.strictObject({
   identities: z.array(previewText).max(IMPORT_PREVIEW_LIST_MAX).readonly(),
   /** A persona whose avatar file is missing or unreadable: it imports, without art. Absent otherwise. */
   withoutArt: z.literal(true).optional(),
+  /** A preset's own regex scripts, in its order, flagged as an entry is: `inLibrary` when an owned script holds it,
+   *  `repeat` when an earlier script of this upload lands it, neither when the run adds it. Absent on another kind,
+   *  on a preset with none, and on one the run does not land. Each upload judges its own; the merge flags none. */
+  regexScripts: z
+    .array(z.strictObject({ name: previewText, inLibrary: z.literal(true).optional(), repeat: z.literal(true).optional() }))
+    .max(IMPORT_PREVIEW_LIST_MAX)
+    .readonly()
+    .optional(),
+  /** Each field of a SillyTavern preset the run does not keep, with why, including a malformed regex script. Absent on
+   *  another kind and on a preset that keeps everything. */
+  leftOut: z
+    .array(z.strictObject({ field: previewText, reason: previewText }))
+    .max(IMPORT_PREVIEW_LIST_MAX)
+    .readonly()
+    .optional(),
 });
 export type ImportPreviewItem = z.infer<typeof importPreviewItemSchema>;
 

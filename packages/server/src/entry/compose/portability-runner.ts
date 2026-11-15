@@ -1,7 +1,14 @@
 import type { BulkImportChatsOp } from "@orb/contracts/chat";
 import type { BulkImportPersonas } from "@orb/contracts/persona";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
-import type { ExportRegexScripts, ImportCardScripts, ImportGlobalScripts, ImportPresetScripts, ImportRegexScript } from "@orb/contracts/regex";
+import type {
+  ExportRegexScripts,
+  ImportCardScripts,
+  ImportGlobalScripts,
+  ImportPresetScripts,
+  ImportRegexScript,
+  PlanPresetScripts,
+} from "@orb/contracts/regex";
 import type { ImportRpgGame } from "@orb/contracts/rpg";
 import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import type { AttachOwnedBooksByName, ImportStandaloneLorebooks, ImportWorldInfoPort } from "@orb/contracts/world-info";
@@ -93,6 +100,7 @@ export interface PortabilityRunnerComposeDeps {
   readonly importRegexScript: ImportRegexScript;
   /** The ST profile import's PRESET-scoped + GLOBAL regex lifts (the silent-gap sweep). */
   readonly importPresetScripts: ImportPresetScripts;
+  readonly planPresetScripts: PlanPresetScripts;
   readonly importGlobalScripts: ImportGlobalScripts;
   /** The ST world NAME-LINK attach (card `extensions.world` + charLore → the owner's books, by exact name). */
   readonly attachBooksByName: AttachOwnedBooksByName;
@@ -195,6 +203,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
             admitsAvatar: createAdmitsAvatar(),
           },
           importPresetScripts: deps.importPresetScripts,
+          planPresetScripts: deps.planPresetScripts,
           importGlobalScripts: deps.importGlobalScripts,
           attachBooksByName: deps.attachBooksByName,
           importPresets: createImportPresets(deps.presetCtx),

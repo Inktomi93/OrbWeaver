@@ -17,6 +17,7 @@ import type {
   ImportGlobalScripts,
   ImportPresetScripts,
   ImportRegexScript,
+  PlanPresetScripts,
 } from "@orb/contracts/regex";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { IdSource } from "@orb/kit/ids";
@@ -33,6 +34,7 @@ import {
   createImportGlobalScripts,
   createImportPresetScripts,
   createImportRegexScript,
+  createPlanPresetScripts,
   createRegexService,
   createResolveRegexSources,
 } from "#domain/regex";
@@ -66,6 +68,8 @@ export interface RegexComposeResult {
   readonly importCardScripts: ImportCardScripts;
   /** The ST profile import's PRESET-scoped lift (`extensions.regex_scripts` on a chat-completion preset). */
   readonly importPresetScripts: ImportPresetScripts;
+  /** The folder dry run's answer for those preset lifts. */
+  readonly planPresetScripts: PlanPresetScripts;
   /** The ST profile import's GLOBAL lift (`extension_settings.regex` → `global_regex_scripts`). */
   readonly importGlobalScripts: ImportGlobalScripts;
   /** Injected into `ExportContext` — the card RE-EMBED. */
@@ -107,6 +111,7 @@ export function buildRegex(deps: RegexComposeDeps): RegexComposeResult {
     resolveRegexSources: createResolveRegexSources({ db }),
     importCardScripts: createImportCardScripts(portabilityCtx),
     importPresetScripts: createImportPresetScripts(portabilityCtx),
+    planPresetScripts: createPlanPresetScripts({ db }),
     importGlobalScripts: createImportGlobalScripts(portabilityCtx),
     exportCardScripts: createExportCardScripts({ db }),
     exportRegexScripts: createExportRegexScripts({ db }),
