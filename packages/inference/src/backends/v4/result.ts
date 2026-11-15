@@ -226,6 +226,10 @@ function costOf(
         core.cacheWriteTokens * (ctx.pricing.cacheWritePerMTok ?? 0)) /
       TOKENS_PER_MTOK;
     const completionUsd = (core.tokensOut / TOKENS_PER_MTOK) * ctx.pricing.outputPerMTok;
+    // A declared or listed price can be large enough to overflow; an infinite cost is no estimate.
+    if (!Number.isFinite(promptUsd + completionUsd)) {
+      return { costUsd: null, costDetails: null, costProvenance: "unrecorded" };
+    }
     return {
       costUsd: promptUsd + completionUsd,
       costDetails: { totalUsd: promptUsd + completionUsd, promptUsd, completionUsd, pricing: ctx.pricing },

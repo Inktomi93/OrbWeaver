@@ -94,7 +94,8 @@ export async function fetchEndpointModels(args: EndpointFetchArgs): Promise<Endp
 
 // ── hosted lists (NanoGPT, LiteRouter) ───────────────────────────────────────────────────────────────
 // A hosted list states each model's facts as fields beside its id. Every field parses alone, so a value of the wrong
-// shape states nothing and never takes its neighbours with it, and no single row fails the list.
+// shape states nothing and never takes its neighbours with it, and no single row fails the list. The one exception is
+// the field that says whether a row is a chat model: a malformed one drops its row, so it never lists as chat.
 
 /** A stated limit: a positive safe integer, else nothing. */
 const STATED_LIMIT = z.int().positive().nullable().optional().catch(null);
@@ -121,17 +122,40 @@ function statedLimits(
   return { window: stated, output: cap !== undefined && stated !== null && cap > stated ? undefined : cap };
 }
 
-function perToken(perMillion: number | null | undefined): number | undefined {
-  return perMillion === null || perMillion === undefined ? undefined : perMillion / PER_MILLION;
+// A listed price is the provider's data. Far above any hosted price (the dearest listed today is $120 per million
+// output tokens), a figure past this is a list error, and an estimate from it would print a nonsense cost.
+const MAX_LISTED_USD_PER_TOKEN = 0.01;
+
+function plausiblePerToken(usd: number): number | undefined {
+  return Number.isFinite(usd) && usd <= MAX_LISTED_USD_PER_TOKEN ? usd : undefined;
 }
 
-function listedPriceOf(promptPerMillion: number | null | undefined, completionPerMillion: number | null | undefined): EndpointModel["listedPrice"] {
+function perToken(perMillion: number | null | undefined): number | undefined {
+  return perMillion === null || perMillion === undefined ? undefined : plausiblePerToken(perMillion / PER_MILLION);
+}
+
+const PER_THOUSAND = 1000;
+
+function perTokenOfThousand(perThousand: number | null | undefined): number | undefined {
+  return perThousand === null || perThousand === undefined ? undefined : plausiblePerToken(perThousand / PER_THOUSAND);
+}
+
+function listedPriceOf(
+  promptPerMillion: number | null | undefined,
+  completionPerMillion: number | null | undefined,
+  cache: { readonly read?: number | undefined; readonly write?: number | undefined } = {},
+): EndpointModel["listedPrice"] {
   const prompt = perToken(promptPerMillion);
   const completion = perToken(completionPerMillion);
   if (prompt === undefined && completion === undefined) {
     return;
   }
-  return { ...(prompt === undefined ? {} : { prompt }), ...(completion === undefined ? {} : { completion }) };
+  return {
+    ...(prompt === undefined ? {} : { prompt }),
+    ...(completion === undefined ? {} : { completion }),
+    ...(cache.read === undefined ? {} : { cacheRead: cache.read }),
+    ...(cache.write === undefined ? {} : { cacheWrite: cache.write }),
+  };
 }
 
 /** What a turn may carry: the list's modality names where it states known ones, else its image and video flags. */
@@ -172,7 +196,16 @@ const nanoGptRowSchema = z.looseObject({
   /** The window shared by input and output; `null` when the service does not know it. */
   context_length: STATED_LIMIT,
   max_output_tokens: STATED_LIMIT,
-  architecture: z.looseObject({ input_modalities: STATED_NAMES, output_modalities: STATED_NAMES }).optional().catch(undefined),
+  // The stated output kind decides chat, so a malformed one fails the row instead of stating nothing; absent stays chat.
+  architecture: z
+    .looseObject({
+      input_modalities: STATED_NAMES,
+      output_modalities: z
+        .array(z.unknown())
+        .transform((values) => values.filter((value): value is string => typeof value === "string"))
+        .optional(),
+    })
+    .nullish(),
   capabilities: z
     .looseObject({
       vision: STATED_FLAG,
@@ -184,8 +217,13 @@ const nanoGptRowSchema = z.looseObject({
     })
     .optional()
     .catch(undefined),
-  /** USD per million tokens, as numbers. */
-  pricing: z.looseObject({ prompt: STATED_PRICE, completion: STATED_PRICE }).optional().catch(undefined),
+  /** USD per million tokens for `prompt` and `completion`; USD per thousand for the cache prices, absent when the model
+   *  has none (the API reference's `ModelsResponse`). The price tiers above a context threshold are not read, so a
+   *  long prompt's estimate uses the base price. */
+  pricing: z
+    .looseObject({ prompt: STATED_PRICE, completion: STATED_PRICE, cacheReadInputPer1kTokens: STATED_PRICE, cacheWriteInputPer1kTokens: STATED_PRICE })
+    .optional()
+    .catch(undefined),
   /** The effort words the model takes; the service refuses any other with a 400 before the turn runs. */
   reasoning_efforts: STATED_NAMES,
 });
@@ -197,11 +235,68 @@ const EFFORT_OFF = "none";
 const NANOGPT_DETAILED_PATH = "/models?detailed=true";
 const TEXT_OUTPUT = "text";
 
-/** The detailed list read in place of the bare one, which carries ids only. A `null` limit states nothing, so the
- *  capability keeps that limit marked assumed. A row whose stated output has no text is not a chat model. */
+/** The embedding list's fields this reader keeps (docs.nano-gpt.com Embedding Models): `dimensions` is the default
+ *  width the route returns when a request names none, `max_tokens` the longest input, and `supports_dimensions`
+ *  whether a request may name a smaller width. `max_inputs`, the most inputs one request takes, is on the live list
+ *  though the page omits it. */
+const nanoGptEmbedderSchema = z.looseObject({
+  id: z.string().min(1),
+  name: STATED_TEXT,
+  dimensions: STATED_LIMIT,
+  max_tokens: STATED_LIMIT,
+  max_inputs: STATED_LIMIT,
+  supports_dimensions: STATED_FLAG,
+  pricing: z.looseObject({ per_million_tokens: STATED_PRICE }).optional().catch(undefined),
+});
+
+/** The rerank list's fields this reader keeps (the Rerank page): `max_tokens` bounds one query and document pair. */
+const nanoGptRerankerSchema = z.looseObject({
+  id: z.string().min(1),
+  name: STATED_TEXT,
+  max_tokens: STATED_LIMIT,
+  pricing: z.looseObject({ per_million_tokens: STATED_PRICE }).optional().catch(undefined),
+});
+
+const NANOGPT_EMBEDDING_PATH = "/embedding-models";
+const NANOGPT_RERANK_PATH = "/rerank-models";
+
+/** The detailed list read in place of the bare one, which carries ids only, then the embedding and rerank lists, which
+ *  sit outside it. A `null` limit states nothing, so the capability keeps that limit marked assumed. A row whose stated
+ *  output has no text is not a chat model. A side list that fails drops its own models and never the chat list. */
 async function fetchNanoGptModels(args: EndpointFetchArgs): Promise<EndpointModel[]> {
   const rows = await hostedRows(args, { path: NANOGPT_DETAILED_PATH, label: "NanoGPT models" }, nanoGptRowSchema);
-  return rows.filter((row) => row.architecture?.output_modalities?.includes(TEXT_OUTPUT) ?? true).map(nanoGptModel);
+  const embedders = await nativeRead(args, () => hostedRows(args, { path: NANOGPT_EMBEDDING_PATH, label: "NanoGPT embedding models" }, nanoGptEmbedderSchema));
+  const rerankers = await nativeRead(args, () => hostedRows(args, { path: NANOGPT_RERANK_PATH, label: "NanoGPT rerank models" }, nanoGptRerankerSchema));
+  return [
+    ...rows.filter((row) => row.architecture?.output_modalities?.includes(TEXT_OUTPUT) ?? true).map(nanoGptModel),
+    ...(embedders ?? []).map((row) =>
+      withStated(
+        { id: row.id, contextLength: null },
+        {
+          kind: "embedding",
+          name: row.name,
+          embeddingDims: row.dimensions ?? undefined,
+          embedInputTokens: row.max_tokens ?? undefined,
+          embedMaxInputs: row.max_inputs ?? undefined,
+          embedTruncatable: row.supports_dimensions,
+          listedPrice: listedPriceOf(row.pricing?.per_million_tokens, undefined),
+          probed: true,
+        },
+      ),
+    ),
+    ...(rerankers ?? []).map((row) =>
+      withStated(
+        { id: row.id, contextLength: null },
+        {
+          kind: "rerank",
+          name: row.name,
+          rerankInputTokens: row.max_tokens ?? undefined,
+          listedPrice: listedPriceOf(row.pricing?.per_million_tokens, undefined),
+          probed: true,
+        },
+      ),
+    ),
+  ];
 }
 
 // The levels a thinker's list names, and whether `none` turns its thinking off (NanoGPT's DeepSeek Harness page: "its
@@ -234,7 +329,10 @@ function nanoGptModel(row: NanoGptRow): EndpointModel {
       structured: flags?.structured_output,
       thinks: flags?.reasoning === true ? true : undefined,
       thinking: flags?.reasoning === true ? nanoGptThinking(row) : undefined,
-      listedPrice: listedPriceOf(row.pricing?.prompt, row.pricing?.completion),
+      listedPrice: listedPriceOf(row.pricing?.prompt, row.pricing?.completion, {
+        read: perTokenOfThousand(row.pricing?.cacheReadInputPer1kTokens),
+        write: perTokenOfThousand(row.pricing?.cacheWriteInputPer1kTokens),
+      }),
       // A hosted list has no per-model probe: every fact it holds is in this read.
       probed: true,
     },
@@ -259,18 +357,25 @@ const LITEROUTER_VARIANT_WINDOWS: Readonly<Record<string, number | "native">> = 
   free: 5000,
 };
 
-/** The list's model type for a chat model; image models answer on the image host. */
+/** The list's model types this reader keeps: a chat model, and an image model, which answers on the row's image host
+ *  (the Image Generation page). */
 const LITEROUTER_CHAT_TYPE = "chat";
+const LITEROUTER_IMAGE_TYPE = "image";
 
 const literouterRowSchema = z.looseObject({
   id: z.string().min(1),
   display_name: STATED_TEXT,
-  type: STATED_TEXT,
+  // The type decides what the model is, so only a stated chat or image type parses; a missing or malformed one drops
+  // the row.
+  type: z.enum([LITEROUTER_CHAT_TYPE, LITEROUTER_IMAGE_TYPE]),
   variant: STATED_TEXT,
   /** The model's native window, whatever the variant serves. */
   context_window: STATED_LIMIT,
   max_output_tokens: STATED_LIMIT,
   input_modalities: STATED_NAMES,
+  /** The request fields the model takes; the chat route accepts any field silently, so this is the only word on which
+   *  samplers it honours. */
+  supported_parameters: STATED_NAMES,
   capabilities: z
     .looseObject({ tools: STATED_FLAG, reasoning: STATED_FLAG, vision: STATED_FLAG, video: STATED_FLAG, structured_output: STATED_FLAG })
     .optional()
@@ -301,7 +406,12 @@ const REASONING_HIDDEN = "none";
 
 async function fetchLiteRouterModels(args: EndpointFetchArgs): Promise<EndpointModel[]> {
   const rows = await hostedRows(args, { path: "/models", label: "LiteRouter models" }, literouterRowSchema);
-  return rows.filter((row) => (row.type ?? LITEROUTER_CHAT_TYPE) === LITEROUTER_CHAT_TYPE).map(literouterModel);
+  return rows.map((row) => (row.type === LITEROUTER_IMAGE_TYPE ? literouterImageModel(row) : literouterModel(row)));
+}
+
+// An image model takes a text prompt and returns one picture; the list states neither a window nor a price for it.
+function literouterImageModel(row: LiteRouterRow): EndpointModel {
+  return withStated({ id: row.id, contextLength: null }, { kind: "generation", name: row.display_name, input: ["text"], output: ["image"], probed: true });
 }
 
 function literouterWindow(row: LiteRouterRow, native: number | null): number | null {
@@ -348,6 +458,7 @@ function literouterModel(row: LiteRouterRow): EndpointModel {
       thinks: thinks ? true : undefined,
       thinking: thinks ? literouterThinking(row) : undefined,
       listedPrice: listedPriceOf(row.price_usd_per_1m?.input, row.price_usd_per_1m?.output),
+      supportedParameters: row.supported_parameters,
       probed: true,
     },
   );

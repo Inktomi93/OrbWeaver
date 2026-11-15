@@ -5,7 +5,7 @@
 import type { Capability, DeclaredCapability } from "@orb/contracts/inference";
 import { REASONING_MODES, RERANK_MIN_WINDOW_TOKENS } from "@orb/contracts/inference";
 import type { FactChoice, FactLeaf, FactRow } from "./connection-fact-model.ts";
-import { draftOf, formatLeaf, grouped, NOT_STATED, readPath, tokens, unsetRow } from "./connection-fact-model.ts";
+import { draftOf, formatLeaf, grouped, NOT_STATED, readPath, tokens, unsetRow, withDeclaredOverride } from "./connection-fact-model.ts";
 import { FACT_NAMES, VECTOR_WIDTH_FACT_NAME } from "./credentials-names.ts";
 
 /** The source line for a capability row this client cannot attribute per field. Deliberately NOT one of the
@@ -21,6 +21,7 @@ const RAISED_OVERRIDE_SOURCE = (asked: string, floor: string, prior: string): st
   `Your override of ${asked} is under the ${floor}-token minimum, so ${floor} is used. It was ${prior}.`;
 /** A route whose request sends the window runs the preset's Max context, so that is the window's one home. */
 const WINDOW_PATH = "generation.context.window";
+const INPUT_PATH = "generation.input";
 const PRESET_WINDOW_SOURCE = (max: string): string => `Set per preset: Max context tokens (up to ${max})`;
 
 function toolsWith(parallel: boolean): (value: unknown) => boolean {
@@ -53,7 +54,7 @@ const GENERATION_LEAVES: readonly FactLeaf[] = [
   },
   // The endpoint posture widens an undescribed row to image + video and marks the guess; a server that states
   // its modalities (D292) clears the mark, so the row reads reported only when something reported it.
-  { path: "generation.input", name: "takes", edit: { kind: "list" }, estimatedBy: "generation.modalitiesEstimated" },
+  { path: INPUT_PATH, name: "takes", edit: { kind: "list" }, estimatedBy: "generation.modalitiesEstimated" },
   { path: "generation.output.modalities", name: "gives back", edit: { kind: "list" } },
   { path: "generation.reasoning.enabled", name: "thinking", edit: { kind: "boolean" } },
   { path: "generation.reasoning.mode", name: "thinking dial", edit: { kind: "enum", options: REASONING_MODES } },
@@ -181,6 +182,46 @@ export function capabilityFactRows(capability: Capability, declared: DeclaredCap
     rows.push(statedCapabilityRow(leaf, value, { capability, declared, baseline }));
   }
   return rows;
+}
+
+/** Where an image answer comes from: the server or catalog stated it, the fold assumed it, or the user set it. */
+const IMAGE_INPUT_PROVENANCES = ["stated", "assumed", "set"] as const;
+type ImageInputProvenance = (typeof IMAGE_INPUT_PROVENANCES)[number];
+
+/** "Takes images" as one switch over the `takes` fact: the image member of `generation.input`, nothing more. */
+export interface ImageInputSwitch {
+  readonly on: boolean;
+  readonly provenance: ImageInputProvenance;
+  /** The answer before the user's own setting, so a set switch can say what it replaced. */
+  readonly was: boolean;
+  readonly input: readonly string[];
+  readonly row: FactRow;
+}
+
+/** The image switch for a generation model, read through the same row the Advanced `takes` list renders, so the two
+ *  cannot disagree. Embedding and rerank rows have no image answer to give. */
+export function imageInputSwitch(capability: Capability, declared: DeclaredCapability | null, baseline: Capability): ImageInputSwitch | undefined {
+  if (capability.kind !== "generation") {
+    return;
+  }
+  const row = capabilityFactRows(capability, declared, baseline).find((candidate) => candidate.path === INPUT_PATH);
+  if (row === undefined) {
+    return;
+  }
+  const input = capability.generation.input;
+  let provenance: ImageInputProvenance = "stated";
+  if (row.overridden) {
+    provenance = "set";
+  } else if (row.estimated === true) {
+    provenance = "assumed";
+  }
+  return { on: input.includes("image"), provenance, was: baseline.kind === "generation" && baseline.generation.input.includes("image"), input, row };
+}
+
+/** The `declared` block with the image member of `takes` set, every other modality left as the fold reads it. */
+export function withImageInput(declared: DeclaredCapability | null, answer: ImageInputSwitch, on: boolean): DeclaredCapability {
+  const others = answer.input.filter((modality) => modality !== "image");
+  return withDeclaredOverride(declared, answer.row, on ? [...others, "image"] : others);
 }
 
 /** The two limits the history fit and the reply cap run against, keyed by their fact path. */

@@ -151,10 +151,16 @@ export type NativeChatApi = (typeof NATIVE_CHAT_APIS)[number];
  *  bound holds on every wire rather than per backend. */
 export const SUMMARIZE_CONCURRENCY_MAX = 32;
 
-/** A key check path: `/`-led segments of plain path characters, so `new URL(path, base)` stays on the base URL's
- *  origin. No empty segment (`//host` is another host), no `.` or `..` segment, and no backslash, `@`, `%`, query,
- *  space or control character (the URL parser reads a backslash as `/` and drops a tab or newline). */
-const KEY_CHECK_PATH_RE = /^(?:\/(?!\.{1,2}(?:\/|$))[\w\-.~!$&'()*+,;=:]+)+\/?$/u;
+/** A declared request path: `/`-led segments of plain path characters, so the URL built from it, joined to the base URL
+ *  or resolved against it, stays on the base URL's origin. No empty segment (`//host` is another host), no `.` or `..`
+ *  segment, and no backslash, `@`, `%`, query, space or control character (the URL parser reads a backslash as `/` and
+ *  drops a tab or newline). */
+const DECLARED_PATH_RE = /^(?:\/(?!\.{1,2}(?:\/|$))[\w\-.~!$&'()*+,;=:]+)+\/?$/u;
+
+// SECURITY: every declared path rides the row's key, so a path the parse admits never names another host. The backends
+// check the built URL's origin again before they send (`onBaseOrigin` in packages/inference/src/backends/http/fetch-json.ts,
+// and the key check's `readUrl`).
+const declaredPathSchema = z.string().regex(DECLARED_PATH_RE, "a declared path is a plain path such as /v1/me, with no host");
 
 export const endpointFeaturesSchema = z
   .object({
@@ -173,19 +179,19 @@ export const endpointFeaturesSchema = z
      *  skips the probe; the connection's identity and credential stay this row's. */
     detectServer: z.boolean().optional(),
     /** The key check's read, a path from the base URL's ORIGIN, for a service whose models list answers without a key;
-     *  absent ⇒ the models list under the base URL. A plain path only ({@link KEY_CHECK_PATH_RE}), because the read
+     *  absent ⇒ the models list under the base URL. A plain path only ({@link DECLARED_PATH_RE}), because the read
      *  carries the key. Any row may declare one (a server behind a proxy whose list needs no key); this parse and the
      *  read's own origin check keep the key on the row's base URL origin. */
-    keyCheckPath: z.string().regex(KEY_CHECK_PATH_RE, "a key check path is a plain path from the base URL's origin, such as /v1/me").optional(),
+    keyCheckPath: declaredPathSchema.optional(),
     /** The service answers 403 for refusals that say nothing about the key (a model the plan lacks, a cooldown),
      *  so a 403 is a refusal shown in the service's words unless its body's structured `error.code` names the key
      *  (`invalid_api_key`, `missing_api_key`). Absent ⇒ every 403 judges the key. */
     forbiddenIsNotCredentialVerdict: z.boolean().optional(),
     /** A rerank endpoint path relative to `baseUrl` (vLLM `/rerank`); absent ⇒ the wire serves no rerank. */
-    rerankPath: z.string().optional(),
-    /** The sleep/wake pair a server exposes (vLLM `/is_sleeping` + `/wake_up`). Set ⇒ a sleeping server reads
-     *  AVAILABLE and is woken before the request; unset ⇒ sleeping IS down. */
-    sleep: z.object({ isSleepingPath: z.string(), wakePath: z.string() }).strip().optional(),
+    rerankPath: declaredPathSchema.optional(),
+    /** The sleep/wake pair a server exposes (vLLM `/is_sleeping` + `/wake_up`), at the server root. Set ⇒ a sleeping
+     *  server reads AVAILABLE and is woken before the request; unset ⇒ sleeping IS down. */
+    sleep: z.object({ isSleepingPath: declaredPathSchema, wakePath: declaredPathSchema }).strip().optional(),
     /** The measured vLLM interlock (§8.1, verify6 M2): a CONTENT prefill with thinking on ⇒ an empty reply, so
      *  the transport strips the thinking toggle on a prefill turn with `reasoning_dropped_for_prefill`. A row
      *  that leaves it unset gets the raw behaviour — the honest default for an unmeasured server. */

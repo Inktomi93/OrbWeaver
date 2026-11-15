@@ -33,10 +33,16 @@ export const FIRST_MODEL_ADD_UTILITY_NAME = "Add a model";
 
 /** The model picker's search box placeholder. */
 export const MODEL_SEARCH_PLACEHOLDER = "Search models…";
+/** The model picker's retry on a list read that failed. */
+export const MODEL_LIST_RETRY_NAME = "Try the list again";
+/** The model picker's label where it has no list to search, and its typed model id field. */
+export const MODEL_FIELD_NAME = "Model";
 
 /** The model picker's capability chips: the row badges and the filter toggles. */
 export const MODEL_VISION_LABEL = "Vision";
 export const MODEL_TOOLS_LABEL = "Tools";
+/** A picker row's badge for a model whose list says it makes images and no text, so it serves no chat. */
+export const MODEL_IMAGES_ONLY_LABEL = "Makes images";
 
 /** A picker row's badge for a model the key already has a connection for. */
 export const MODEL_ALREADY_ADDED_LABEL = "Already added";
@@ -99,9 +105,6 @@ export const CLEAR_REVOKED_NAME = "Clear revoked";
 
 /** The verb on a saved key's revoke button and its confirm. */
 export const KEY_REVOKE_VERB = "Revoke";
-
-/** A saved key's subtitle cause when the user revoked it. */
-export const KEY_REVOKED_BY_YOU = "Revoked by you";
 
 /** The row's identity as every one of its actions names it: `OpenRouter "work"`, feeding
  *  `Replace the <provider> "<label>" key` / `Revoke the <provider> "<label>" key` verbatim. ONE spelling —
@@ -175,29 +178,53 @@ export function promptCacheRetentionName(connection: string): string {
 }
 
 /** The add dialog's limits step, shown when a new connection's context window is a guess: its title, what it says, the
- *  field for each guessed limit (named as the Advanced rows name them), and its two ways on. */
+ *  field for each guessed limit (named as the Advanced rows name them), the image switch, and its two ways on. */
 export const CONNECTION_LIMITS_TITLE = "How much can this model take?";
-export const CONNECTION_LIMITS_DESCRIPTION = "This server doesn't say, so these limits are a guess. A guess that is too low cuts your chats short.";
+export const CONNECTION_LIMITS_DESCRIPTION = "This server doesn't say, so what follows is a guess. A window guessed too low cuts your chats short.";
 // Where to find the real numbers, for a provider that keeps them somewhere other than the model's page: one line,
-// keyed by provider id, that replaces the general where-to-look line.
-const CONNECTION_LIMITS_WHERE_BY_PROVIDER: ReadonlyMap<string, string> = new Map();
+// keyed by provider id and by whether the step asks for the max output, that replaces the general where-to-look line.
+// LiteRouter's list states a model's native window and usually its max output, but a plain or metered model runs at the
+// account's chat memory setting (its Model naming page), which no read states; the line names only what is unlisted.
+const LITEROUTER_PROVIDER_ID = "literouter";
+const CONNECTION_LIMITS_WHERE_BY_PROVIDER: ReadonlyMap<string, (asksOutput: boolean) => string> = new Map([
+  [
+    LITEROUTER_PROVIDER_ID,
+    (asksOutput: boolean): string =>
+      asksOutput
+        ? "LiteRouter doesn't list this model's max output, or the context window your plan runs it at: that window is the chat memory setting in your LiteRouter dashboard."
+        : "LiteRouter doesn't list the context window your plan runs this model at: it is the chat memory setting in your LiteRouter dashboard.",
+  ],
+]);
 /** What the limits mean and where to find them; `asksOutput` ⇒ the step also asks for the max output. */
 export function connectionLimitsLead(asksOutput: boolean, providerId: string): readonly string[] {
   return [
     asksOutput
       ? "A chat that runs past the context window loses its oldest messages, and a reply stops at the max output."
       : "A chat that runs past the context window loses its oldest messages.",
-    CONNECTION_LIMITS_WHERE_BY_PROVIDER.get(providerId) ??
+    CONNECTION_LIMITS_WHERE_BY_PROVIDER.get(providerId)?.(asksOutput) ??
       "A hosted provider lists these on the model's page. For a server you run yourself, use the context size you started it with.",
     "Numbers are in tokens; a token is about three quarters of a word. Leave a box empty to keep the guess. You can change these later under Advanced in this connection's settings.",
   ];
 }
 export const CONNECTION_LIMIT_FIELD_NAMES = { window: "Context window, in tokens", output: "Max output, in tokens" } as const;
-export const CONNECTION_LIMITS_SAVE_NAME = "Save these limits";
+export const CONNECTION_LIMITS_SAVE_NAME = "Save";
 export const CONNECTION_LIMITS_KEEP_NAME = "Keep the guess";
 /** What one limit field says about the value now in use; `guess` is that number as the field prints it. */
 export function connectionLimitGuessLabel(guess: string): string {
   return `Our guess: ${guess}.`;
+}
+/** The one switch for image input, in the limits step and the connection editor. It states the same stored fact as the
+ *  Advanced `takes` row, so its gloss says where the answer comes from in that row's own words. */
+export const IMAGE_SWITCH_NAME = "Takes images";
+export const IMAGE_SWITCH_ASSUMED_GLOSS =
+  "Our guess: yes, because the server doesn't report what this model takes. Turn it off if the model can't read images.";
+/** A hosted provider that reports nothing keeps images off until the user says the model reads them. */
+export const IMAGE_SWITCH_ASSUMED_OFF_GLOSS =
+  "Our guess: no, because the provider doesn't report what this model takes. Turn it on if the model can read images.";
+export const IMAGE_SWITCH_STATED_GLOSS = "What this server and model report. Changing it tells us what to believe; it does not change what the server does.";
+/** A set switch restates the answer it replaced, as the Advanced rows do. */
+export function imageSwitchSetGloss(was: boolean): string {
+  return `Your setting: it was ${was ? "yes" : "no"}.`;
 }
 /** What the limits step's read failure names as the thing that did not load. */
 export const CONNECTION_LIMITS_READ_LABEL = "this connection's limits";
@@ -205,3 +232,16 @@ export const CONNECTION_LIMITS_READ_LABEL = "this connection's limits";
 export function connectionLimitsFailureLabel(reason: string): string {
   return `The limits weren't saved: ${reason}`;
 }
+
+/** The key field's notice when the provider refused the key the list was read under. */
+export function keyRefusedNotice(listOwner: string): string {
+  return `${listOwner} refused this key. Get a new key from your ${listOwner} account and paste it here.`;
+}
+/** The model field's notice while the key it would list under is refused. */
+export const KEY_REFUSED_MODEL_NOTICE = "No models to list until the key is accepted.";
+/** The key field's notice when the provider's key check gave no verdict: the add still saves. */
+export function keyUncheckedNotice(listOwner: string): string {
+  return `${listOwner} didn't answer the key check, so this key is unchecked. It will be saved, and the first chat says if it's wrong.`;
+}
+/** A save refused because the provider refused the draft's key: a connection on it would fail its first turn. */
+export const KEY_REFUSED_SAVE_REASON = "the provider refused this key. Paste a new key, then add the connection";

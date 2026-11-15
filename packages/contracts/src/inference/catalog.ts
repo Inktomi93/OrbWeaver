@@ -65,10 +65,12 @@ export type ModelCatalogEntry = z.infer<typeof modelCatalogEntrySchema>;
 
 /** One model-list answer for a provider, saved row or draft. `listed: false` carries WHY — a failed dial and
  *  an empty list both land here with their own reason, so a failure never reads as "listed no models". Both
- *  branches are strict: a stray `models` on `listed: false` is a wrong answer, and it is rejected, not stripped. */
+ *  branches are strict: a stray `models` on `listed: false` is a wrong answer, and it is rejected, not stripped.
+ *  `keyRefused` says the provider refused the key the list was read under, by the rule a chat turn strikes a key by.
+ *  `keyUnchecked` says a list that answers without a key listed, but the row's key check got no verdict on the key. */
 export const modelListingSchema = z.discriminatedUnion("listed", [
-  z.strictObject({ listed: z.literal(true), models: z.array(modelCatalogEntrySchema) }),
-  z.strictObject({ listed: z.literal(false), reason: z.string() }),
+  z.strictObject({ listed: z.literal(true), models: z.array(modelCatalogEntrySchema), keyUnchecked: z.literal(true).optional() }),
+  z.strictObject({ listed: z.literal(false), reason: z.string(), keyRefused: z.literal(true).optional() }),
 ]);
 export type ModelListing = z.infer<typeof modelListingSchema>;
 

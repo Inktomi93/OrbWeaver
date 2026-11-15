@@ -70,7 +70,15 @@ const endpointModelSchema = z
     name: z.string().min(1).optional(),
     contextLength: z.number().nullable(),
     /** USD per token, where a hosted list states the model's price. */
-    listedPrice: z.object({ prompt: z.number().nonnegative().optional(), completion: z.number().nonnegative().optional() }).strip().optional(),
+    listedPrice: z
+      .object({
+        prompt: z.number().nonnegative().optional(),
+        completion: z.number().nonnegative().optional(),
+        cacheRead: z.number().nonnegative().optional(),
+        cacheWrite: z.number().nonnegative().optional(),
+      })
+      .strip()
+      .optional(),
     /** The smallest window the server runs a model at whose window it does not state, where the server's own
      *  defaults bound it. The advertised tier assumes it in place of the generic floor; never a reading. */
     contextFloor: z.number().int().positive().optional(),
@@ -85,8 +93,21 @@ const endpointModelSchema = z
      *  a refusal names it. Not `contextLength`: llama.cpp also bounds a pooled embedder by its physical batch, and
      *  KoboldCpp's window is its text model's. */
     embedInputTokens: z.number().int().positive().optional(),
+    /** The most inputs one embeddings request may carry for this model, where a hosted list states it. */
+    embedMaxInputs: z.number().int().positive().optional(),
+    /** Whether the embedder honours a `dimensions` request, where a hosted list states it. */
+    embedTruncatable: z.boolean().optional(),
+    /** The longest query and document pair, in tokens, the server's rerank route takes for this model, where a hosted
+     *  list states it. Not `contextLength`: a local server bounds a pooled reranker by its physical batch. */
+    rerankInputTokens: z.number().int().positive().optional(),
     /** What a chat turn may carry, where the server's native model info states it (D292). Absent ⇒ not stated. */
     input: z.array(modalitySchema).optional(),
+    /** What the model returns, where a hosted list states a model that does not answer in text (an image model).
+     *  Absent ⇒ not stated, and the floor's text stands. */
+    output: z.array(modalitySchema).optional(),
+    /** The request fields a hosted list says the model takes (`supported_parameters`), in OpenRouter's vocabulary.
+     *  Absent ⇒ not stated. */
+    supportedParameters: z.array(z.string()).optional(),
     /** The server states the model takes `tools[]`; `parallel` only where it states that too. Absent ⇒ not stated. */
     tools: z.object({ parallel: z.boolean() }).strip().optional(),
     /** The server states the model thinks before it answers, so its thinking can be switched (Ollama's `thinking`

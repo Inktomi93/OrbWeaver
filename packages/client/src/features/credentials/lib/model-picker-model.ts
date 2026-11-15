@@ -14,6 +14,7 @@ import type { ModelCatalogEntry, ModelCheck, ModelListing, ProviderDef } from "@
 import { TOOLS_PARAMETER } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { isSpaceChar, trimEndWhile } from "@orb/kit/strings";
+import { KEY_REFUSED_MODEL_NOTICE } from "./credentials-names.ts";
 
 /** Where the picker's models come from, as the caller last saw it. `unlisted` is a source with no list to
  *  offer (nothing fetched yet, or no catalog door for this draft); `failed` is a list read that errored.
@@ -21,8 +22,8 @@ import { isSpaceChar, trimEndWhile } from "@orb/kit/strings";
  *  it from `ModelPickerProps["source"]`, and a new arm is a `tsc` error at each of them. */
 type ModelCatalogSource =
   | { readonly status: "loading" }
-  | { readonly status: "listed"; readonly models: readonly ModelCatalogEntry[] }
-  | { readonly status: "failed"; readonly reason: string; readonly retry: (() => void) | null }
+  | { readonly status: "listed"; readonly models: readonly ModelCatalogEntry[]; readonly keyUnchecked?: true }
+  | { readonly status: "failed"; readonly reason: string; readonly retry: (() => void) | null; readonly keyRefused?: true }
   | { readonly status: "unlisted"; readonly reason: string };
 
 // ── the picker's rows ─────────────────────────────────────────────────────────────────────────────────
@@ -34,6 +35,8 @@ export interface PickerEntry {
   readonly contextLength: number | null;
   readonly promptPrice: number | null;
   readonly inputModalities: readonly string[];
+  /** Empty where the list states no output, which reads as a text model. */
+  readonly outputModalities: readonly string[];
   readonly supportedParameters: readonly string[];
   /** When to pick this model over its neighbours, where the catalog says. */
   readonly description: string | null;
@@ -54,6 +57,7 @@ export function pickerEntryOf(entry: ModelCatalogEntry): PickerEntry {
     contextLength: entry.contextLength,
     promptPrice: entry.promptPrice,
     inputModalities: entry.inputModalities,
+    outputModalities: entry.outputModalities ?? [],
     supportedParameters: entry.supportedParameters,
     description: entry.description ?? null,
   };
@@ -101,6 +105,11 @@ function trimZeros(value: number, maxFractionDigits = 1): string {
 /** `true` when an entry advertises image input (the Vision chip / filter). */
 export function hasVision(entry: Pick<PickerEntry, "inputModalities">): boolean {
   return entry.inputModalities.includes("image");
+}
+
+/** `true` when an entry's list states image output and no text: an image model, which serves no chat. */
+export function makesImagesOnly(entry: Pick<PickerEntry, "outputModalities">): boolean {
+  return entry.outputModalities.includes("image") && !entry.outputModalities.includes("text");
 }
 
 /** `true` when an entry advertises tool use (the Tools chip / filter). */
@@ -431,7 +440,11 @@ export function modelPickerView(source: ModelCatalogSource, args: { readonly lis
         ? emptyListView(`${args.listOwner} listed no models.`, args.typedAllowed, null)
         : { models: source.models, notice: null, warns: false, typingOffered: false, retry: null };
     case "failed":
-      return emptyListView(`Couldn't list ${args.listOwner}'s models: ${clauseOf(source.reason)}.`, args.typedAllowed, source.retry);
+      // A refused key is no evidence about the list, and listing again under it is refused again. The key field states the
+      // refusal and its fix; this field says only why it has no list.
+      return source.keyRefused === true
+        ? { models: null, notice: KEY_REFUSED_MODEL_NOTICE, warns: true, typingOffered: args.typedAllowed, retry: null }
+        : emptyListView(`Couldn't list ${args.listOwner}'s models: ${clauseOf(source.reason)}.`, args.typedAllowed, source.retry);
     case "unlisted":
       return { models: null, notice: source.reason, warns: !args.typedAllowed, typingOffered: args.typedAllowed, retry: null };
   }
@@ -446,7 +459,12 @@ export function failedCatalogSource(error: unknown, retry: (() => void) | null):
  *  that failed or came back empty: each answers `listed: false` with the reason, which is the failed arm with
  *  the typed field and the retry beside it. */
 export function modelListSource(result: ModelListing, retry: (() => void) | null): ModelCatalogSource {
-  return result.listed ? { status: "listed", models: result.models } : { status: "failed", reason: result.reason, retry };
+  if (result.listed) {
+    return result.keyUnchecked === true ? { status: "listed", models: result.models, keyUnchecked: true } : { status: "listed", models: result.models };
+  }
+  return result.keyRefused === true
+    ? { status: "failed", reason: result.reason, retry: null, keyRefused: true }
+    : { status: "failed", reason: result.reason, retry };
 }
 
 /** The model field's required-value message, shared by every form that writes a connection's model. */

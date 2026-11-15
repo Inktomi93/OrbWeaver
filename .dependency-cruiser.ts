@@ -494,6 +494,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/contracts/src/chat/bus.ts": "CHAT_WARNING_CODES and PROVIDER_ADJUSTMENT_KINDS: the warning vocabularies",
   "packages/contracts/src/chat/content-classes.ts": "CONTENT_CLASS_POLICY: the content-class projection table",
   "packages/contracts/src/chat/impersonation.ts": "impersonateStreamDeltaSchema: the impersonation delta parser",
+  "packages/contracts/src/inference/builtin-providers.ts":
+    "BUILTIN_PROVIDER_ROWS: the built-in row table whose literal ids key the sampler-source table, so a new row fails to compile there",
   "packages/contracts/src/import/persona-collision.ts": "PERSONA_COLLISION_CHOICES: the collision choice vocabulary",
   "packages/contracts/src/refinery/core.ts": "SCORE_MIN and SCORE_MAX: the score scale a custom score schema must keep",
   "packages/contracts/src/plugin/ui-host.ts": "PLUGIN_UI_CHAT_MESSAGES_LIMIT_MAX: the message read cap",
@@ -652,6 +654,8 @@ const TEST_CONSTANT_HOMES = {
     "AVATAR_UPLOAD_FAILED and its siblings: the lines the shared avatar upload control prints for a failed upload and a refused write",
   "packages/client/src/lib/turn-refusal-copy.ts":
     "TURN_ROOM_CLOSING_COPY and its siblings: the toast a refused turn raises for each room state, which the send refusal case reads",
+  "packages/client/src/lib/revoked-key-copy.ts":
+    "REVOKED_KEY_COPY: what the Saved keys row, the connection badge, the Model roles readout and the composer say per revocation reason",
   "packages/client/src/lib/display-pass-copy.ts":
     "displayScriptsStoppedTitle and its siblings: the one notice the display pass raises for a stopped regex script, which the display script cases read",
   "packages/client/src/features/chat/lib/reply-frame-names.ts": "REPLY_LINK_CONFIRM_LABEL: the confirm a link clicked inside a framed reply opens",

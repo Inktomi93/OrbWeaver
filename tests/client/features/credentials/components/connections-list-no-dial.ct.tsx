@@ -76,6 +76,8 @@ test("the list reads a just-added Chat row from held facts and reaches no provid
     baseUrl: SERVER_URL,
     model: SERVER_MODEL,
     label: SERVER_LABEL,
+    // A row that states its kind reads no model list as it is created, so every request below is the list's or the picker's.
+    declared: { kind: "generation" },
   });
   await caller.connection.setBinding({ task: "chat", connectionId: row.id });
   // The premise: adding and binding the row asked its server nothing, so whatever the list sends is the list's.

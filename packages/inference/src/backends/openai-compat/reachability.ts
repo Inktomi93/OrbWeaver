@@ -9,7 +9,7 @@ import type { Reachability } from "#contract";
 import { ProviderError } from "#contract";
 import type { ProbeTarget, ReachabilityDeps, ReachabilityProber, SleepTarget } from "#src/contract/openai-backend.ts";
 import { deadlineSignal } from "../http/abort-flatten.ts";
-import { authHeaders, fetchJson, openAiPath, SERVER_READ_TIMEOUT_MS, serverRootOf } from "../http/fetch-json.ts";
+import { authHeaders, fetchJson, onBaseOrigin, openAiPath, SERVER_READ_TIMEOUT_MS, serverRootOf } from "../http/fetch-json.ts";
 import { NO_PROVIDER_SECRETS } from "../http/sanitize.ts";
 import { waitForTimeout } from "../http/timers.ts";
 
@@ -22,9 +22,10 @@ interface CacheEntry {
   readonly state: Reachability;
 }
 
-// vLLM serves its sleep pair at the server root, never under `/v1`.
+// vLLM serves its sleep pair at the server root, never under `/v1`. An off-origin sleep check reads awake (the catch in
+// `readsSleeping`); an off-origin wake fails the task before the POST.
 function sleepUrl(baseUrl: string, path: string): string {
-  return `${serverRootOf(baseUrl)}${path}`;
+  return onBaseOrigin(baseUrl, `${serverRootOf(baseUrl)}${path}`, "sleep path");
 }
 
 /** vLLM answers `{ "is_sleeping": true }`; any truthy `is_sleeping`/`sleeping` reads asleep. */

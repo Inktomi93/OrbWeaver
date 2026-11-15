@@ -35,7 +35,7 @@ import { detectModelFamily } from "../capability/families.ts";
 import { applyEndpointPosture, applyServerToolChoice, clampToServedWindow, clampToTrainedWindow, markSettableWindow } from "../capability/floor.ts";
 import { advertisedFromAgentSdk, agentSdkRowFor } from "../capability/sources/advertised/agent-sdk.ts";
 import { advertisedFromGoogle } from "../capability/sources/advertised/google.ts";
-import { advertisedFromOpenAiCompat, advertisedStatesInput } from "../capability/sources/advertised/openai-compat.ts";
+import { advertisedFromOpenAiCompat, advertisedPricing, advertisedStatesInput } from "../capability/sources/advertised/openai-compat.ts";
 import { advertisedFromOpenRouter } from "../capability/sources/advertised/openrouter.ts";
 import { curatedKind, curatedRows } from "../capability/sources/curated/loader.ts";
 import { measuredRows } from "../capability/sources/measured/loader.ts";
@@ -470,13 +470,19 @@ function connectionCapability(
   // D292: the row's own declaration or its server's advertisement states what a turn may carry; only a row
   // nobody described gets the permissive posture.
   const advertisedInput = advertisedStatesInput(entry);
+  // A hosted catalog (OpenRouter's) states input through the advertised tier, and a curated or measured row through its
+  // own; only the hosted posture reads them, to mark a model none of them describes.
+  const advertised = evidence.advertised;
+  const rowsStateInput =
+    (advertised !== undefined && "input" in advertised && advertised.input !== undefined) ||
+    [...(evidence.curated ?? []), ...(evidence.measured ?? [])].some((row) => row.generation?.input !== undefined);
   // The server-side floors, after synthesis: the endpoint posture, the server's tool-choice support, the trained
   // clamp, the window a route that sends none runs, and the window a route that sends one lets the preset set.
   const postured = (synthesizedCapability: Capability, inputStated: boolean, windowDeclared: boolean): Capability =>
     markSettableWindow(
       clampToServedWindow(
         clampToTrainedWindow(
-          applyServerToolChoice(applyEndpointPosture(behaved, synthesizedCapability, inputStated), entry?.toolChoice),
+          applyServerToolChoice(applyEndpointPosture(behaved, synthesizedCapability, inputStated, rowsStateInput), entry?.toolChoice),
           entry?.contextTrained,
         ),
         servedWindowOf(features, entry, windowDeclared),
@@ -501,21 +507,36 @@ function connectionCapability(
           advertisedInput,
           false,
         );
-  return { api, model, factsModel, features, capability, baseline, warnings: synthesized.warnings };
+  // A hosted list's price feeds the cost estimate only where neither the row nor the user declared one.
+  const pricing = features.pricing ?? advertisedPricing(entry);
+  return {
+    api,
+    model,
+    factsModel,
+    features: pricing === undefined ? features : { ...features, pricing },
+    capability,
+    baseline,
+    warnings: synthesized.warnings,
+  };
 }
 
 /** Model-supported tasks from the same capability fold as execution, without opening credentials on a cached read. */
 export async function modelTasks(
   ctx: ResolverContext,
   connection: UserConnection,
-  options: { readonly cachedFacts?: boolean | undefined; readonly coldAs?: ModelKind | undefined } = {},
+  options: { readonly cachedFacts?: boolean | undefined; readonly coldAs?: ModelKind | undefined; readonly listWhenCold?: boolean | undefined } = {},
 ): Promise<readonly Task[]> {
   const provider = ctx.registry.get(connection.providerId, connection.ownerId);
   if (provider === undefined) {
     return [];
   }
-  const behaved = options.cachedFacts === true ? await heldFacts(ctx, provider, connection) : await warmedOrCached(ctx, provider, connection, "full");
-  const held = connection.declared?.kind !== undefined || kindFactsHeld(ctx, provider, behaved, connection);
+  const reach = factsReachOf(options);
+  let behaved = reach === "held" ? await heldFacts(ctx, provider, connection) : await warmedOrCached(ctx, provider, connection, reach);
+  let held = connection.declared?.kind !== undefined || kindFactsHeld(ctx, provider, behaved, connection);
+  if (!held && options.listWhenCold === true) {
+    behaved = await warmedOrCached(ctx, provider, connection, "list");
+    held = kindFactsHeld(ctx, provider, behaved, connection);
+  }
   const kind = (!held && options.cachedFacts === true ? options.coldAs : undefined) ?? statedKind(ctx, { provider: behaved, connection }) ?? "generation";
   const tasks = connectionTasks(behaved, kind);
   if (tasks.length === 0) {

@@ -12,11 +12,14 @@ import type { WireSchemaMode, WireSchemaViolation } from "@orb/contracts/inferen
 import { errorMessage } from "@orb/kit/error-message";
 import type { ModelId } from "@orb/kit/ids";
 import { parseJsonText } from "@orb/kit/json";
-import type { ProviderScrubSet } from "#contract";
+import type { Clock } from "@orb/kit/time";
+import { z } from "zod";
+import type { ProviderErrorKind, ProviderScrubSet } from "#contract";
 import { ProviderError, SCHEMA_REJECTED_DETAIL } from "#contract";
 import type { ErrorClassification, HttpErrorDiagnostic, SchemaRejectionContext } from "#src/contract/http.ts";
 import { redactSecretsFromText } from "../wire/openai-body.ts";
 import { isIdleTrip } from "./idle-timeout.ts";
+import { retryAfterResetsAt } from "./rate-limit-headers.ts";
 import { decodedJsonText, NO_PROVIDER_SECRETS, sanitizeApiError } from "./sanitize.ts";
 
 // Transport-name patterns on the hot error-classification path.
@@ -39,6 +42,10 @@ const HTTP_SERVER_ERROR_FLOOR = 500;
 // File-local: narrow an unknown to a string-keyed record without an `as` cast (`orb/no-unsafe-cast` refuses one).
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object";
+}
+
+function isStringRecord(value: unknown): value is Record<string, string> {
+  return isRecord(value) && Object.values(value).every((entry) => typeof entry === "string");
 }
 
 /**
@@ -145,6 +152,49 @@ export function upstreamBody(error: unknown): unknown {
   }
   const body = readBody(error);
   return typeof body === "string" ? parseJsonText(body) : body;
+}
+
+/** The structured `error.code` values that name the key itself: OpenAI's `invalid_api_key`, which NanoGPT also sends,
+ *  and NanoGPT's `missing_api_key`. A body that carries only prose names nothing. */
+const CREDENTIAL_ERROR_CODES = ["invalid_api_key", "missing_api_key"] as const;
+const credentialCodeSchema = z.enum(CREDENTIAL_ERROR_CODES);
+const credentialCodeBodySchema = z.looseObject({ error: z.looseObject({ code: credentialCodeSchema }) });
+
+/** The `detail` an `auth_failed` failure carries when its parsed upstream body names the key by a structured code. */
+export function credentialDetail(kind: ProviderErrorKind, body: unknown): { readonly detail?: string } {
+  if (kind !== "auth_failed") {
+    return {};
+  }
+  const parsed = credentialCodeBodySchema.safeParse(body);
+  return parsed.success ? { detail: parsed.data.error.code } : {};
+}
+
+/**
+ * Whether a failure is a verdict on the stored key: an `auth_failed` 401 always, and a 403 unless the row says its
+ * 403 judges nothing (`features.forbiddenIsNotCredentialVerdict`) and the body named no key code
+ * ({@link credentialDetail}). The ONE rule: a chat turn's strike and the key check both read it.
+ */
+export function judgesTheKey(failure: ProviderError, forbiddenIsNotCredentialVerdict: boolean): boolean {
+  if (failure.kind !== "auth_failed") {
+    return false;
+  }
+  if (failure.apiErrorStatus !== HTTP_FORBIDDEN || !forbiddenIsNotCredentialVerdict) {
+    return true;
+  }
+  return credentialCodeSchema.safeParse(failure.detail).success;
+}
+
+const refusalBodySchema = z.looseObject({ error: z.union([z.string(), z.looseObject({ message: z.string() })]) });
+
+/** The service's own words from a refusal body: `error` as a string, or its `message`. Shown, never read. They are
+ *  pulled from the PARSED body, so the scrub and the sanitizer run on the decoded words a reader sees. */
+export function refusalWords(body: unknown, secrets: ProviderScrubSet): string | undefined {
+  const parsed = refusalBodySchema.safeParse(body);
+  if (!parsed.success) {
+    return;
+  }
+  const words = sanitizeApiError(redactSecretsFromText(typeof parsed.data.error === "string" ? parsed.data.error : parsed.data.error.message, secrets));
+  return words === "" ? undefined : words;
 }
 
 function isModerationBlock(error: unknown): boolean {
@@ -298,9 +348,16 @@ export function withSchemaRejection(failure: ProviderError, error: unknown, ctx:
  * left — a message reaching that durable sink cannot carry a credential fragment the 500-char cap or the
  * `<…>` strip created. See {@link sanitizeApiError}'s file header.
  */
-export function providerErrorFromHttp(error: unknown, prefix: string, secrets: ProviderScrubSet): ProviderError {
+export function providerErrorFromHttp(error: unknown, prefix: string, secrets: ProviderScrubSet, now?: Clock): ProviderError {
   const { kind, retryable, status } = classifyHttpError(error);
-  const safe = sanitizeApiError(redactSecretsFromText(errorMessage(error), secrets));
+  // A rate limit's `retry-after` (seconds or an HTTP date) is when the service takes the request again; the retry
+  // policy waits until then. The SDK's `APICallError` carries the failed response's headers.
+  const headers = isRecord(error) ? error["responseHeaders"] : undefined;
+  const resetsAt = kind === "rate_limit" && now !== undefined && isStringRecord(headers) ? retryAfterResetsAt(headers, now()) : undefined;
+  // A refused credential's message is the body's own words where the SDK kept only the status text (a bare-string
+  // `error`, as LiteRouter sends), so a 403 the executor reads as a refusal still says what the service said.
+  const words = kind === "auth_failed" ? refusalWords(upstreamBody(error), secrets) : undefined;
+  const safe = words ?? sanitizeApiError(redactSecretsFromText(errorMessage(error), secrets));
   // Credential-bearing HTTP boundaries must never retain the raw thrown object: SDK/fetch errors can
   // carry reflected bodies, headers and nested causes as enumerable fields that a later logger serializes.
   // Keep the classified status and sanitized message, but replace that opaque graph with a safe cause.
@@ -315,6 +372,8 @@ export function providerErrorFromHttp(error: unknown, prefix: string, secrets: P
     retryable,
     message: `${prefix}: ${safe}`,
     ...(status !== undefined ? { apiErrorStatus: status } : {}),
+    ...credentialDetail(kind, upstreamBody(error)),
+    ...(resetsAt !== undefined ? { resetsAt } : {}),
     cause,
   });
 }

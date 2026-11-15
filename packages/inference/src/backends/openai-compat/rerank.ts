@@ -17,7 +17,7 @@ import type { RerankRequest } from "#contract";
 import { ProviderError } from "#contract";
 import type { RerankDeps } from "#src/contract/openai-backend.ts";
 import type { NormalizeImageBytes } from "#src/contract/wire.ts";
-import { authHeaders, fetchJson } from "../http/fetch-json.ts";
+import { authHeaders, fetchJson, onBaseOrigin } from "../http/fetch-json.ts";
 import { providerLogger } from "../http/provider-log.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";
 import { toImageUrl } from "../wire/image-normalize.ts";
@@ -141,7 +141,7 @@ export async function runOpenAiCompatRerank(req: RerankRequest, deps: RerankDeps
   const { query, documents } = await wireSides(req, docs, sides, deps.normalize);
   const result = await fetchJson({
     fetch: deps.fetch,
-    url: `${connection.baseUrl.replace(TRAILING_SLASH_RE, "")}${path}`,
+    url: onBaseOrigin(connection.baseUrl, `${connection.baseUrl.replace(TRAILING_SLASH_RE, "")}${path}`, label),
     method: "POST",
     headers: authHeaders(connection.credential.secret, connection.transport?.headers),
     body: {

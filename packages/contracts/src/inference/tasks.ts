@@ -67,12 +67,22 @@ export type LocalLightSeedSlot = (typeof LOCAL_LIGHT_SEED_ROWS)[number]["task"];
 
 // `as const satisfies` (not a `Record<Task, TaskDef>` annotation): the literal `routable` flags must
 // survive so `RoutableTask` can be DERIVED from the rows rather than spelled twice.
+// The text tasks require text output. A model whose output nothing states keeps the floor's text, so only a stated
+// non-text output (an image model) leaves them.
+const TEXT_OUT = { output: ["text"] } as const;
 const taskDefinitions = {
-  chat: { kind: "generation", scope: "actor", spend: "foreground", routable: true },
-  summarize: { kind: "generation", scope: "actor", spend: "background", routable: true },
+  chat: { kind: "generation", requires: TEXT_OUT, scope: "actor", spend: "foreground", routable: true },
+  summarize: { kind: "generation", requires: TEXT_OUT, scope: "actor", spend: "background", routable: true },
   // The one-shot schema-constrained primitive (owner ruling) — its OWN task on the wire, riding
   // the summarize binding in the pane (F4: one Utility slot, three requirement badges).
-  structured: { kind: "generation", requires: { structured: true }, scope: "actor", spend: "background", routable: false, ridesOn: "summarize" },
+  structured: {
+    kind: "generation",
+    requires: { ...TEXT_OUT, structured: true },
+    scope: "actor",
+    spend: "background",
+    routable: false,
+    ridesOn: "summarize",
+  },
   generateImage: { kind: "generation", requires: { output: ["image"] }, scope: "actor", spend: "foreground", routable: true },
   embed: { kind: "embedding", scope: "owner", spend: "background", routable: true },
   imageEmbed: { kind: "embedding", requires: { input: ["image"] }, scope: "owner", spend: "background", routable: true },

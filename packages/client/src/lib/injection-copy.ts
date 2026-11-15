@@ -5,7 +5,8 @@
 import type { RoomUnavailableCause } from "@orb/contracts/chat";
 import { TURN_HOST_UNAVAILABLE_OP_CODE } from "@orb/contracts/chat";
 import type { ChatControlMode } from "./contribution-contracts.ts";
-import { HOST_UNAVAILABLE_COPY } from "./turn-refusal-copy.ts";
+import { REVOKED_KEY_COPY } from "./revoked-key-copy.ts";
+import { HOST_KEY_REVOKED_COPY, HOST_UNAVAILABLE_COPY } from "./turn-refusal-copy.ts";
 
 export const ASSISTANT_PREFILL_WARNING = "Assistant role at depth 0 is a response prefill. Unsupported across providers. Use depth ≥ 1, or role system/user.";
 
@@ -196,8 +197,9 @@ export const ROOM_READ_FAILED_CAUSE = "room-read-failed";
 export type SendRefusalCause = RoomUnavailableCause | typeof ROOM_READ_FAILED_CAUSE;
 
 /** A composer refusal reason: a gate cause, or `no-chat-connection`, the host-side split of `no-connection`
- *  for a host with no connection that can serve chat, where the Model roles picker has nothing to offer. */
-export type SendRefusalKey = SendRefusalCause | "no-chat-connection" | "host-no-chat-connection";
+ *  for a host with no connection that can serve chat, where the Model roles picker has nothing to offer. The
+ *  `host-` keys are a member's reading of a cause on the host's account. */
+export type SendRefusalKey = SendRefusalCause | "no-chat-connection" | "host-no-chat-connection" | "host-key-revoked";
 
 const SEND_UNAVAILABLE_REASON: Record<SendRefusalKey, string> = {
   // No connection is BOUND to your Chat role (§7.2). A saved connection binds nothing on its own, so the copy
@@ -205,6 +207,11 @@ const SEND_UNAVAILABLE_REASON: Record<SendRefusalKey, string> = {
   "no-connection": `No chat connection is set: choose one under ${MODEL_ROLES_PATH_TEXT} to send.`,
   "no-chat-connection": `None of your connections can chat yet: add one under ${ADD_CONNECTION_PATH.trail} to send.`,
   "host-no-chat-connection": "The host has no chat connection set. Ask them to choose one before sending.",
+  // The bound row's key is revoked, each cause in its own words.
+  "key-rejected": REVOKED_KEY_COPY.auth_failed.composer,
+  "key-revoked-unreachable": REVOKED_KEY_COPY.unreachable.composer,
+  "key-revoked-by-user": REVOKED_KEY_COPY.user.composer,
+  "host-key-revoked": HOST_KEY_REVOKED_COPY,
   // The bound endpoint row's server did not answer its reachability probe (or a wake timed out).
   "endpoint-unreachable": "Can't reach your model's server. It may be down.",
   // A `claude-sub` row on a deployment where the Claude runtime does not resolve (§5.3a).

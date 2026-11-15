@@ -192,16 +192,19 @@ function synthesizeRerank(evidence: Evidence): SynthesizedCapability {
   for (const row of evidence.curated ?? []) {
     capability = mergeFlat(capability, row.rerank);
   }
-  capability = mergeFlat(capability, evidence.advertised as Partial<RerankCapability> | undefined);
+  const advertised = evidence.advertised as Partial<RerankCapability> | undefined;
+  capability = mergeFlat(capability, advertised);
   const measuredRows = (evidence.measured ?? []).map((row) => row.rerank).filter((row): row is Patch<RerankCapability> => row !== undefined);
   for (const row of measuredRows) {
     capability = mergeFlat(capability, row);
   }
   const declared = evidence.declared?.rerank;
   capability = mergeFlat(capability, declared);
-  const stated =
-    [...(evidence.curated ?? []), ...(evidence.measured ?? [])].some((row) => row.rerank?.maxInputTokens !== undefined) ||
-    declared?.maxInputTokens !== undefined;
+  // As for an embedder: the tier whose pair window won the fold decides whether it is stated or a floor.
+  const windowSetters = [...(evidence.curated ?? []).map((row) => row.rerank), advertised, ...measuredRows, declared].filter(
+    (patch) => patch?.maxInputTokens !== undefined,
+  );
+  const stated = windowSetters.length > 0 && windowSetters.at(-1)?.windowEstimated !== true;
   const { windowEstimated: _dropped, ...merged } = capability;
   const rest = { ...merged, maxInputTokens: Math.max(merged.maxInputTokens, RERANK_MIN_WINDOW_TOKENS) };
   return {

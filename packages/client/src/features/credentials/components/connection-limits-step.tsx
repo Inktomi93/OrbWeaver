@@ -1,6 +1,8 @@
 // The add dialog's limits step: a new connection whose context window is the fold's guess says so the moment it is
-// saved, and takes the real numbers there. It writes the connection's `declared` block through the same fact rows,
-// parser and `withDeclaredOverride` the Advanced tier uses, so the step adds no second home for a limit or its rules.
+// saved, and takes the real answers there, with the image answer beside them when that is a guess too. It writes the
+// connection's `declared` block through the same fact rows, parser and `withDeclaredOverride` the Advanced tier uses,
+// so the step adds no second home for a limit, the image answer or their rules. The image switch opens on the guess and
+// writes only when the user changes it.
 //
 // The dialog moves here as soon as the row is created and the step reads the capability itself, with `listFacts`: the
 // server's model list states what it states about the model, but the per-model probe that loads or wakes a local
@@ -21,8 +23,8 @@ import { CommitFooter, QueryBoundary, useUpdateConnection } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery } from "#data";
 import { DIALOG_VERBS } from "#lib";
-import type { GuessedLimit } from "../lib/connection-capability-fact-model.ts";
-import { guessedLimits } from "../lib/connection-capability-fact-model.ts";
+import type { GuessedLimit, ImageInputSwitch } from "../lib/connection-capability-fact-model.ts";
+import { guessedLimits, imageInputSwitch, withImageInput } from "../lib/connection-capability-fact-model.ts";
 import { boundRefusal, parseFactValue, tokens, withDeclaredOverride } from "../lib/connection-fact-model.ts";
 import {
   CONNECTION_LIMIT_FIELD_NAMES,
@@ -33,6 +35,7 @@ import {
   connectionLimitsFailureLabel,
   connectionLimitsLead,
 } from "../lib/credentials-names.ts";
+import { ConnectionImageSwitch } from "./connection-image-switch.tsx";
 
 export interface ConnectionLimitsStepProps {
   readonly connectionId: UserConnectionId;
@@ -73,16 +76,22 @@ export function ConnectionLimitsStep(props: ConnectionLimitsStepProps): ReactEle
 
 function ConnectionLimitsBody(props: ConnectionLimitsStepProps): ReactElement | null {
   const { data: view } = useSuspenseQuery(props.trpc.connection.capabilities.queryOptions({ connectionId: props.connectionId, listFacts: true }));
-  // Frozen at the first read: the save's own invalidation re-reads a capability whose limits are no longer guesses.
-  const [limits] = useState(() => guessedLimits(view.capability, props.declared, view.baseline));
+  // Frozen at the first read: the save's own invalidation re-reads a capability whose answers are no longer guesses.
+  // A guessed window raises the step; an assumed image answer rides along but never raises it alone, since every add on
+  // a server that reports no inputs would otherwise stop here.
+  const [asks] = useState(() => {
+    const limits = guessedLimits(view.capability, props.declared, view.baseline);
+    const image = limits.length === 0 ? undefined : imageInputSwitch(view.capability, props.declared, view.baseline);
+    return { limits, image: image?.provenance === "assumed" ? image : undefined };
+  });
   const { onDone } = props;
-  const nothingToAsk = limits.length === 0;
+  const nothingToAsk = asks.limits.length === 0;
   useEffect(() => {
     if (nothingToAsk) {
       onDone();
     }
   }, [nothingToAsk, onDone]);
-  return nothingToAsk ? null : <LimitsForm {...props} limits={limits} />;
+  return nothingToAsk ? null : <LimitsForm {...props} image={asks.image} limits={asks.limits} />;
 }
 
 function LimitsForm({
@@ -93,20 +102,25 @@ function LimitsForm({
   trpc,
   invalidation,
   limits,
-}: ConnectionLimitsStepProps & { readonly limits: readonly GuessedLimit[] }): ReactElement {
+  image,
+}: ConnectionLimitsStepProps & { readonly limits: readonly GuessedLimit[]; readonly image: ImageInputSwitch | undefined }): ReactElement {
   const update = useUpdateConnection({ trpc, invalidation, failureShownInline: "the add dialog's limits step failure line" });
   const [drafts, setDrafts] = useState<Readonly<Record<GuessedLimit["kind"], string>>>({ window: "", output: "" });
+  const [takesImages, setTakesImages] = useState(image?.on ?? false);
   const [failure, setFailure] = useState<string | null>(null);
   const refusals = limits.map(({ kind, row }) => boundRefusal(row.edit, drafts[kind]));
   const declaring = limits.filter(({ kind }) => drafts[kind].trim() !== "");
+  // The switch opens on the guess, so only an answer that differs from it is a declaration; leaving it keeps the guess.
+  const imageChange = image !== undefined && takesImages !== image.on ? image : undefined;
   const invalid = refusals.some((refusal) => refusal !== null);
 
   const save = (): void => {
     setFailure(null);
-    const next = declaring.reduce<DeclaredCapability | null>(
+    const limited = declaring.reduce<DeclaredCapability | null>(
       (block, { kind, row }) => withDeclaredOverride(block, row, parseFactValue(row.edit, drafts[kind])),
       declared,
     );
+    const next = imageChange === undefined ? limited : withImageInput(limited, imageChange, takesImages);
     update
       .mutateAsync({ connectionId, patch: { declared: next } })
       .then(onDone)
@@ -142,6 +156,7 @@ function LimitsForm({
           />
         </Field>
       ))}
+      {image === undefined ? null : <ConnectionImageSwitch answer={image} checked={takesImages} disabled={update.isPending} onCheckedChange={setTakesImages} />}
       {failure === null ? null : (
         <Text tone="destructive" role="alert" voice="gloss">
           {connectionLimitsFailureLabel(failure)}
@@ -155,7 +170,12 @@ function LimitsForm({
             {CONNECTION_LIMITS_KEEP_NAME}
           </Button>
         }
-        submit={{ label: CONNECTION_LIMITS_SAVE_NAME, onSubmit: save, disabled: invalid || declaring.length === 0, loading: update.isPending }}
+        submit={{
+          label: CONNECTION_LIMITS_SAVE_NAME,
+          onSubmit: save,
+          disabled: invalid || (declaring.length === 0 && imageChange === undefined),
+          loading: update.isPending,
+        }}
       />
     </Stack>
   );

@@ -46,6 +46,8 @@ import { connectionRolePickerName } from "./shared-control-names.ts";
 import { useEmbedderRebuild } from "./use-embedder-rebuild.ts";
 
 const UNSET_VALUE = "";
+/** The disabled reason on a bound connection whose model can no longer serve the role. */
+const STRANDED_BOUND_REASON = "Its model can't do this job now. Pick another connection.";
 
 // The pane is as wide as the settings body; a sentence capped at the prose measure never runs across it.
 
@@ -181,10 +183,7 @@ export function ConnectionRoleSlot({
   const unsetText = unsetLabel ?? (row.optional ? "None" : "Not set");
   const items = [
     { label: unsetText, value: UNSET_VALUE },
-    ...compatible.map((connection) => {
-      const refusal = bindRefusal(connection, row.task);
-      return { label: connectionSummary(connection), value: connection.id, ...(refusal === null ? {} : { disabled: true, description: refusal }) };
-    }),
+    ...connectionItems({ connections, compatible, task: row.task, boundId: view?.binding?.connectionId ?? null }),
   ];
 
   const factsOf = (connectionId: UserConnectionId): RoleConnectionFacts | null => {
@@ -277,6 +276,31 @@ export function ConnectionRoleSlot({
       {children}
     </Stack>
   );
+}
+
+/** The picker's connection items: each compatible connection, disabled with its refusal where it has one, then the bound
+ *  connection when it is not among them. A binding made before its model stopped serving the role (a model whose list
+ *  now says it makes images, bound to Chat) would otherwise have no item, and the closed Select would print its raw id. */
+function connectionItems({
+  connections,
+  compatible,
+  task,
+  boundId,
+}: {
+  readonly connections: readonly ConnectionListItem[];
+  readonly compatible: readonly ConnectionListItem[];
+  readonly task: RoleRow["task"];
+  readonly boundId: UserConnectionId | null;
+}): readonly { readonly label: string; readonly value: string; readonly disabled?: true; readonly description?: string }[] {
+  const items = compatible.map((connection) => {
+    const refusal = bindRefusal(connection, task);
+    return { label: connectionSummary(connection), value: connection.id, ...(refusal === null ? {} : { disabled: true as const, description: refusal }) };
+  });
+  const stranded =
+    boundId === null || compatible.some((connection) => connection.id === boundId) ? undefined : connections.find((connection) => connection.id === boundId);
+  return stranded === undefined
+    ? items
+    : [...items, { label: connectionSummary(stranded), value: stranded.id, disabled: true, description: STRANDED_BOUND_REASON }];
 }
 
 /** A failed pick's handler: the server undid a write onto an embedder whose width it could not accept or could not

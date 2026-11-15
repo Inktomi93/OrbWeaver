@@ -34,6 +34,7 @@ import {
 } from "../lib/add-connection-form-model.ts";
 import { endpointAuthorityOf } from "../lib/connection-editor-model.ts";
 import { CONNECTION_PROVIDER_FIELD_NAME } from "../lib/connections-copy.ts";
+import { KEY_REFUSED_SAVE_REASON } from "../lib/credentials-names.ts";
 import { failedCatalogSource, modelCheckOf, modelListSource } from "../lib/model-picker-model.ts";
 import { AddConnectionFailure } from "./add-connection-failure.tsx";
 import type { HeldKey } from "./add-connection-provider-fields.tsx";
@@ -203,7 +204,13 @@ export function AddConnectionFormBody({
     }
     setSubmitFailure(null);
     // Read before the mint: the mint clears the key, which is half of the endpoint listing's draft key.
-    const modelCheck = modelCheckOf(modelSourceFor(provider, values), values.model);
+    const source = modelSourceFor(provider, values);
+    // A key the provider refused is neither minted nor saved under a connection: its first turn would fail. Nothing
+    // cites a deliberate save on a refused key, so the dialog asks for a new one instead.
+    if (source.status === "failed" && source.keyRefused === true) {
+      throw new Error(KEY_REFUSED_SAVE_REASON);
+    }
+    const modelCheck = modelCheckOf(source, values.model);
     const credential = await credentialFor(provider, values);
     let created: ConnectionView;
     try {

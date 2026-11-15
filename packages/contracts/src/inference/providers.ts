@@ -11,7 +11,7 @@
 import type { LookupText } from "@orb/kit/ids";
 import { z } from "zod";
 import type { ChatApi } from "./apis.ts";
-import { BUILTIN_EXAMPLE_BASE_URLS, BUILTIN_PROVIDER_ROWS } from "./builtin-providers.ts";
+import { BUILTIN_EXAMPLE_BASE_URLS, BUILTIN_IMAGE_BASE_URLS, BUILTIN_PROVIDER_ROWS } from "./builtin-providers.ts";
 import type { ProviderId } from "./provider-id.ts";
 import { isPluginProviderId } from "./provider-id.ts";
 import type { ProviderDef } from "./provider-schema.ts";
@@ -39,6 +39,14 @@ export function builtinProvider(id: LookupText<ProviderId>): ProviderDef | undef
 /** The placeholder Server URL for a built-in endpoint row; `undefined` for any other row. */
 export function exampleBaseUrl(providerId: ProviderId): string | undefined {
   return BUILTIN_EXAMPLE_BASE_URLS[providerId];
+}
+
+const IMAGE_BASE_BY_ID: ReadonlyMap<string, string> = new Map(Object.entries(BUILTIN_IMAGE_BASE_URLS));
+
+/** The base URL a connection's image generation is sent to when its built-in row names one apart from the chat base
+ *  URL; `undefined` for every other row, a plugin, admin or Custom row included. */
+export function builtinImageBaseUrl(providerId: LookupText<ProviderId>): string | undefined {
+  return IMAGE_BASE_BY_ID.get(providerId);
 }
 
 /** The apis a provider's rows may pick — the ONE coherence home (no `assertCoherent` matrix, no client

@@ -16,13 +16,13 @@ import {
   factSaveName,
   factYourValueName,
   KEY_REVOKE_VERB,
-  KEY_REVOKED_BY_YOU,
   removeKeyName,
   removeKeyTitle,
   replaceKeyName,
   revokeKeyName,
   revokeKeyTitle,
 } from "#client/features/credentials/lib/credentials-names.ts";
+import { REVOKED_KEY_COPY } from "#client/lib/revoked-key-copy.ts";
 import type { ConnectionActionGroupsStory, CredentialActionGroupsStory } from "./_connection-action-groups-stories.tsx";
 
 const KEYS_STORY = "tests/client/features/credentials/components/_connection-action-groups-stories/CredentialActionGroupsStory";
@@ -124,11 +124,13 @@ for (const regime of REGIMES) {
       await page.getByRole("alertdialog").getByRole("button", { name: KEY_REVOKE_VERB, exact: true }).click();
       const clear = row.getByRole("button", { name: CLEAR_REVOKED_NAME, exact: true });
       const remove = row.getByRole("button", { name: removeKeyName(subject), exact: true });
+      // A revoked key keeps Replace: a new key clears the revocation in one step.
+      await expect(replace).toBeVisible();
       await expect(clear).toBeVisible();
       await expect(remove).toHaveAccessibleName(`Remove the ${subject} key`);
-      await expect(row.getByText(KEY_REVOKED_BY_YOU, { exact: false })).toBeVisible();
-      await expect(row.getByRole("button")).toHaveCount(2);
-      geometry = await actionGroupGeometry(page.locator('[data-slot="credential-action-host"]'), [clear, remove]);
+      await expect(row.getByText(REVOKED_KEY_COPY.user.savedKey, { exact: false })).toBeVisible();
+      await expect(row.getByRole("button")).toHaveCount(3);
+      geometry = await actionGroupGeometry(page.locator('[data-slot="credential-action-host"]'), [replace, clear, remove]);
       await testInfo.attach("revoked-key-action-boxes", { body: JSON.stringify(geometry), contentType: "application/json" });
       expect(geometry.inlineOverflow).toBeLessThanOrEqual(1);
       await clear.focus();

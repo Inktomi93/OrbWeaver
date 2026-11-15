@@ -90,11 +90,17 @@ export const BUILTIN_PROVIDER_ROWS = [
     // catalog during a rollout (NanoGPT's API Hosts page).
     baseUrl: "https://api.nano-gpt.com/api/v1",
     apis: ["chat-completions"],
-    // Embedding and rerank models sit in their own lists, outside the models list, so the list read cannot type them.
-    serves: ["chat", "summarize", "structured"],
+    // Embedding and rerank models sit in their own lists beside the models list, which the reader reads as their kinds.
+    // The embeddings route takes text only for us: its image items are a per-model input shape the docs do not
+    // give as a wire form, so `imageEmbed` stays off.
+    serves: ["chat", "summarize", "structured", "embed", "rerank"],
     features: {
       effort: "reasoning_effort",
       modelInfoApi: "nanogpt",
+      // The Rerank page: `POST /api/v1/rerank` answers `{ results: [{ index, relevance_score }] }`.
+      rerankPath: "/rerank",
+      // The chat-completion page spells the Mirostat switch `mirostat_mode`.
+      samplerKeys: { mirostatMode: "mirostat_mode" },
       // The models list answers without a key, so the key check reads the personalized list, which answers 200 to
       // a good key and 401 to a wrong or missing one (NanoGPT's Personalized Models page; seen live).
       keyCheckPath: "/api/personalized/v1/models",
@@ -114,10 +120,12 @@ export const BUILTIN_PROVIDER_ROWS = [
     auth: "apiKey",
     baseUrl: "https://api.literouter.com/v1",
     apis: ["chat-completions"],
-    // Image models answer on a separate host, image.literouter.com, and the docs name no embedding route.
-    serves: ["chat", "summarize", "structured"],
+    // Image models answer on a separate host ({@link BUILTIN_IMAGE_BASE_URLS}), and the docs name no embedding route.
+    serves: ["chat", "summarize", "structured", "generateImage"],
     features: {
       effort: "reasoning_effort",
+      // The image host's OpenAI-format `POST /v1/images/generations` (Image Generation page): one `b64_json` image back.
+      images: "images-api",
       modelInfoApi: "literouter",
       // A 403 is a refusal, not a key verdict: measured live, a misspelled model answered 403 "[LiteRouter] Model '…' is
       // not available or misspelled" and the plan cooldown 403 "[LiteRouter] Rate limit exceeded for your tier (7
@@ -283,6 +291,16 @@ export const BUILTIN_PROVIDER_ROWS = [
 
 // A typical Server URL per built-in endpoint row, shown as the field placeholder. Static pane metadata kept out of
 // the persisted provider row, so plugin and admin rows carry none.
+/**
+ * The base URL a built-in row's image generation answers on, where its service puts images on another host than chat.
+ *
+ * @remarks SECURITY: the row's key is sent to this host. It lives beside the shipped rows and outside the persisted
+ * provider row, so a plugin, admin or user row can never name a host that receives a key.
+ */
+export const BUILTIN_IMAGE_BASE_URLS: Readonly<Partial<Record<(typeof BUILTIN_PROVIDER_ROWS)[number]["id"], string>>> = {
+  literouter: "https://image.literouter.com/v1",
+};
+
 export const BUILTIN_EXAMPLE_BASE_URLS: Readonly<Record<string, string>> = {
   vllm: "http://localhost:8000",
   "lm-studio": "http://localhost:1234",

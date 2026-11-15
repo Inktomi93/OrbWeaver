@@ -10,7 +10,6 @@ import { clauseOf, MODEL_REQUIRED_MESSAGE } from "./model-picker-model.ts";
 
 /** A selected credential disappeared or was revoked while authoring. */
 export const SAVED_KEY_UNAVAILABLE = "This saved key is no longer available. Choose another key or paste a new one.";
-
 /** The command the Claude-subscription step asks the user to run (§5.3a: "a copyable `claude setup-token`"). */
 export const CLAUDE_SETUP_TOKEN_COMMAND = "claude setup-token";
 

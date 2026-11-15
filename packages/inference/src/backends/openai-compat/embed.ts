@@ -5,7 +5,8 @@
 //     NOTHING; a `truncate_prompt_tokens` knob converts an over-window input into an unbounded hang. A clamp
 //     is LOGGED — a silently shortened embed quietly changes what a vector means.
 //   • THE TRANSPORT BATCH IS BOUNDED BY TOKENS AS WELL AS ITEMS (#187): `features.embedBatch.maxTokens` caps
-//     a POST; the deadline scales with the tokens it carries at `floorTokensPerSec`.
+//     a POST; the deadline scales with the tokens it carries at `floorTokensPerSec`. A model's own
+//     `maxBatchInputs` caps the item count below the wire's.
 //   • the `dimensions` REJECTION fallback: a pooling combo that 400s on the MRL knob is re-asked without it and
 //     the MRL vector is cut client-side; `fitToDim` refuses every other width mismatch.
 //   • the ChatML scaffold when the capability says `promptScaffold: "chatml"` (Qwen3-VL-Embedding); the
@@ -236,7 +237,8 @@ export async function runOpenAiCompatEmbed(req: EmbedRequest, deps: EmbedDeps): 
   };
   const model = embeddingModelFor(call);
   const maxPerCall = (await Promise.resolve(model.maxEmbeddingsPerCall)) ?? DEFAULT_CHUNK_ITEMS;
-  const batches = packBatches(kept, Math.min(maxPerCall, DEFAULT_CHUNK_ITEMS), connection.features.embedBatch?.maxTokens);
+  const maxItems = Math.min(maxPerCall, DEFAULT_CHUNK_ITEMS, capability.maxBatchInputs ?? DEFAULT_CHUNK_ITEMS);
+  const batches = packBatches(kept, maxItems, connection.features.embedBatch?.maxTokens);
   const run: BatchRun = {
     scheduleTimeout: deps.scheduleTimeout,
     req,

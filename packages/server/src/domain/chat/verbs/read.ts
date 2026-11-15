@@ -63,6 +63,7 @@ import {
   resolveHostDisplayScripts,
   TURN_HOST_UNAVAILABLE_OP_CODE,
 } from "@orb/contracts/chat";
+import { CRED_REVOKED_REASONS, REVOKED_KEY_CAUSES } from "@orb/contracts/credentials";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
 import type { GenerationCapability, UnavailableCause } from "@orb/contracts/inference";
 import { acceptsAssistantPrefill, acceptsImageInput, acceptsVideoInput, turnsLevelFor, windowForPreset } from "@orb/contracts/inference";
@@ -879,6 +880,10 @@ function createGetChat(ctx: ChatContext, deps: ReadDeps): ChatService["getChat"]
 /** A member's reading of a room whose host is outside the consent set: the same code a refused send carries. */
 const HOST_UNAVAILABLE: RoomSendAvailability = { available: false, cause: TURN_HOST_UNAVAILABLE_OP_CODE };
 
+// SECURITY: why the host's key was revoked is the host's to read. A member reads every revocation as the one cause the
+// composer renders as the host's line, so the wire never says whether the host revoked it or its endpoint went dark.
+const MEMBER_REVOKED_KEY: RoomSendAvailability = { available: false, cause: REVOKED_KEY_CAUSES.auth_failed };
+
 /** The honest-refusal pre-send gate: the deterministic serveability verdict for the room HOST's chat
  *  connection — the one every turn in this room runs on. Member-gated (any participant may read it — the composer
  *  disables SEND on it), so a stranger and an unknown room read the same NOT_FOUND before any host read. A hostless
@@ -894,7 +899,11 @@ function createCheckSendAvailability(ctx: ChatContext, deps: ReadDeps): ChatServ
     if (consent.kind === "withheld") {
       return HOST_UNAVAILABLE;
     }
-    return deps.checkSendAvailability({ funderUserId: consent.hostUserId, chatId, signal });
+    const verdict = await deps.checkSendAvailability({ funderUserId: consent.hostUserId, chatId, signal });
+    if (verdict.available || principal.userId === consent.hostUserId) {
+      return verdict;
+    }
+    return CRED_REVOKED_REASONS.some((reason) => REVOKED_KEY_CAUSES[reason] === verdict.cause) ? MEMBER_REVOKED_KEY : verdict;
   };
 }
 

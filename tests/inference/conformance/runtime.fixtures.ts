@@ -20,6 +20,7 @@ import type {
 import { ProviderError } from "@orb/inference";
 import type { ChatId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
+import type { ControlledTimers } from "@orb/testkit/iso";
 import { createSeededIds, DEFAULT_EMBED_MODEL, forged } from "@orb/testkit/iso";
 import { test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -243,6 +244,14 @@ export interface ChatArmOptions {
   readonly omitChatIdAtRuntime?: true | undefined;
   /** Tools the agent-sdk turn carries (its terminal-tool channel). Ignored on the hosted wires. */
   readonly terminalTools?: readonly WireTool[] | undefined;
+  /** Hosted wires only: replies sent before the scripted stream (a refused attempt the turn retries). */
+  readonly refusals?: readonly (() => Response)[] | undefined;
+  /** Hosted wires only: the root's timers, so a case can observe and fire the retry's wait. */
+  readonly timers?: ControlledTimers | undefined;
+  /** The connection's idle window, so a case can tell it apart from the retry's wait. */
+  readonly requestTimeoutMs?: number | undefined;
+  /** The built-in row the turn runs on; absent ⇒ the wire's first row. */
+  readonly providerId?: string | undefined;
 }
 
 interface ChatEventSink {
@@ -255,10 +264,13 @@ async function chatRequestFor(root: ServerTestHarness, wire: Wire, options: Chat
   const capability = options.capability ?? chatCapability();
   const connection = await wireConnection(root, {
     task: "chat",
-    providerId: providerForWire(wire),
+    providerId: options.providerId ?? providerForWire(wire),
     model: modelForWire(wire),
     capability,
-    ...(options.pricing === true ? { declaredFeatures: { pricing: PRICING } } : {}),
+    declaredFeatures: {
+      ...(options.pricing === true ? { pricing: PRICING } : {}),
+      ...(options.requestTimeoutMs === undefined ? {} : { requestTimeoutMs: options.requestTimeoutMs }),
+    },
   });
   const common = {
     connection,
@@ -310,8 +322,10 @@ export async function driveChat(wire: Wire, options: ChatArmOptions): Promise<Ch
     wire === "agent-sdk"
       ? { sdkSpawn: physicalSdkScenario({ frames: agentSdkFrames(options.script, model) }).spawn }
       : {
-          providerFetch: plans.use(scriptedResponses(options.signal?.aborted === true ? [] : [() => eventResponse(hostedScript(wire, options.script))]))
-            .execute,
+          providerFetch: plans.use(
+            scriptedResponses(options.signal?.aborted === true ? [] : [...(options.refusals ?? []), () => eventResponse(hostedScript(wire, options.script))]),
+          ).execute,
+          ...(options.timers === undefined ? {} : { timers: options.timers }),
         },
   );
   const chatId = await seedRecallRoom(await root.internalCallerFor(root.ownerId));

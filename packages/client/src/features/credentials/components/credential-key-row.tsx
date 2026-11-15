@@ -12,9 +12,9 @@
 //
 // TWO PER ROW STATE, NOT TWO IN TOTAL (the §5.3a correction this lane owes back). §5.3a's "two actions" is a
 // COPY rule about naming, never a cap on the row's capabilities, and rendering literally two would have
-// deleted the only door to `remove`. An ACTIVE row is Replace + Revoke; a REVOKED row is Clear revoked +
-// Remove — which is also when deleting a dead key is the thing you actually want. `Revoke` therefore keeps
-// its recorded meaning (`markRevokedByUser`, recoverable, invariant #6) instead of being silently
+// deleted the only door to `remove`. An ACTIVE row is Replace + Revoke; a REVOKED row is Replace + Clear revoked +
+// Remove: a key the provider rejected wants a new one, and deleting a dead key is also a real want. `Revoke`
+// therefore keeps its recorded meaning (`markRevokedByUser`, recoverable, invariant #6) instead of being silently
 // re-pointed at the destructive verb.
 //
 // REPLACE NAMES THE ROW BY ID. `credentials.replace` rotates this row's secret in place and clears its
@@ -78,6 +78,19 @@ export function CredentialKeyRow({ credential, usedBy, providerLabel, trpc, inva
   const subject = keySubjectName(providerLabel, label);
   const subtitle = keyRowSubtitle(credential, usedBy);
 
+  const replaceTrigger = (
+    <Button
+      ref={replaceButton}
+      variant="outline"
+      size="sm"
+      aria-label={replaceKeyName(subject)}
+      disabled={replace.isPending}
+      onClick={(): void => setReplaceOpen(true)}
+    >
+      Replace
+    </Button>
+  );
+
   const submitReplacement = (): void => {
     replace.mutate({ credentialId: credential.id, key: replacementKey });
     setReplacementKey("");
@@ -103,6 +116,7 @@ export function CredentialKeyRow({ credential, usedBy, providerLabel, trpc, inva
         <Row wrap={true} gap="field" align="center">
           {revoked ? (
             <>
+              {replaceTrigger}
               {/* No undo: re-revoking would record a different reason and time than the revocation being cleared. */}
               <DestructiveAction
                 confirm={{
@@ -128,16 +142,7 @@ export function CredentialKeyRow({ credential, usedBy, providerLabel, trpc, inva
             </>
           ) : (
             <>
-              <Button
-                ref={replaceButton}
-                variant="outline"
-                size="sm"
-                aria-label={replaceKeyName(subject)}
-                disabled={replace.isPending}
-                onClick={(): void => setReplaceOpen(true)}
-              >
-                Replace
-              </Button>
+              {replaceTrigger}
               <Button
                 data-testid={testId("credentialMarkRevoked")}
                 variant="ghost"

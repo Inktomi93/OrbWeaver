@@ -24,6 +24,7 @@
 // which is the only thing they need in order to decide — and it omitted the one fact that stops a user
 // keeping a dead row out of fear: the CREDENTIAL survives, because a key is its own row (§5.3).
 
+import type { CredRevokedReason } from "@orb/contracts/credentials";
 import { providerDisplayLabel } from "@orb/contracts/inference";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -40,7 +41,7 @@ import { useEffect, useRef, useState } from "react";
 import { QueryBoundary, RowActionsMenu, useFirstBootRows, useReindexConfirm } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQueries, useTRPC } from "#data";
-import { connectionSummary } from "#lib";
+import { connectionSummary, REVOKED_KEY_COPY } from "#lib";
 import { clearConnectionEditorRequest, configSettingControlId, useRequestedConnectionEditor } from "#state";
 import { useRemoveConnection, useUseForEverything } from "../hooks/use-connections-mutations.ts";
 import { addModelActionGloss, addModelActionLabel, addModelScope } from "../lib/add-model-on-key-form-model.ts";
@@ -339,7 +340,13 @@ function ConnectionRow({
           </RowActionsMenu>
         }
       />
-      <ConnectionBadges connection={connection} heldRoles={boundRoles} name={name} providerUnavailable={providerUnavailable} />
+      <ConnectionBadges
+        connection={connection}
+        heldRoles={boundRoles}
+        name={name}
+        providerUnavailable={providerUnavailable}
+        revokedReason={credentials.find((credential) => credential.id === connection.credentialId && credential.revokedAt !== null)?.revokedReason ?? null}
+      />
       {reindex.dialog}
       {provider === null || addModel === null ? null : (
         <AddModelOnKeyDialog
@@ -365,12 +372,15 @@ function ConnectionBadges({
   name,
   heldRoles,
   providerUnavailable,
+  revokedReason,
 }: {
   readonly connection: ConnectionListItem;
   /** The row's one-line identity, which names each rail group apart from the other rows'. */
   readonly name: string;
   readonly heldRoles: readonly string[];
   readonly providerUnavailable: boolean;
+  /** Why the row's key is revoked, so no turn runs on it; `null` while the key is live. */
+  readonly revokedReason: CredRevokedReason | null;
 }): ReactElement {
   const canServe = connectionRoleLabels(connection.tasks);
   return (
@@ -401,6 +411,11 @@ function ConnectionBadges({
             Provider unavailable
           </Badge>
         ) : null}
+        {revokedReason === null ? null : (
+          <Badge tone="warning" size="sm" whitespace="normal">
+            {REVOKED_KEY_COPY[revokedReason].badge}
+          </Badge>
+        )}
         {connection.modelCheck === "unlisted" ? (
           <Badge tone="warning" size="sm" whitespace="normal">
             Model not in list

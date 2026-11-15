@@ -13,6 +13,7 @@ const CHAT_MODEL = "vendor/chat-model";
 const EMBEDDING_MODEL = "vendor/embedding-model";
 const RERANK_MODEL = "vendor/rerank-model";
 const KIND_QUERY_KEY = "output_modalities";
+const RERANK_WINDOW = 8192;
 
 const LIST_NAMES = ["chat", "embeddings", "rerank"] as const;
 type ListName = (typeof LIST_NAMES)[number];
@@ -22,7 +23,7 @@ const KIND_LISTS = ["embeddings", "rerank"] as const satisfies readonly KindList
 const ROWS: Record<ListName, Record<string, unknown>> = {
   chat: { id: CHAT_MODEL, architecture: { ["input_modalities"]: ["text"], ["output_modalities"]: ["text"] } },
   embeddings: { id: EMBEDDING_MODEL, architecture: { ["input_modalities"]: ["text"], ["output_modalities"]: ["embeddings"] } },
-  rerank: { id: RERANK_MODEL, architecture: { ["input_modalities"]: ["text"], ["output_modalities"]: ["rerank"] } },
+  rerank: { id: RERANK_MODEL, ["context_length"]: RERANK_WINDOW, architecture: { ["input_modalities"]: ["text"], ["output_modalities"]: ["rerank"] } },
 };
 
 function openRouter(): NonNullable<typeof OPENROUTER> {
@@ -80,6 +81,18 @@ test("a failed chat list names the provider and the failure class, never the req
   expect(reason).toContain(openRouter().label);
   expect(reason).not.toContain(KIND_QUERY_KEY);
   expect(reason).not.toMatch(/[?/=]/u);
+});
+
+test("a reranker whose catalog row states its window reads that window as stated", async () => {
+  await using root = await createRuntimeRoot({ providerFetch: catalogHost(new Set<ListName>()) });
+  const principal = await root.principalFor(root.ownerId);
+  const provider = openRouter();
+  expect(listedIds(await draftList(root))).toContain(RERANK_MODEL);
+  const credential = await root.services.credentials.add({ principal, provider: provider.id, key: RUNTIME_KEY });
+  const row = await root.services.connection.create({ principal, providerId: provider.id, credentialId: credential.id, baseUrl: null, model: RERANK_MODEL });
+  const { capability } = await root.services.connection.capabilities({ principal, connectionId: row.id, signal: new AbortController().signal });
+  expect(capability).toMatchObject({ kind: "rerank", rerank: { maxInputTokens: RERANK_WINDOW } });
+  expect(capability.kind === "rerank" ? capability.rerank.windowEstimated : "not a reranker").toBeUndefined();
 });
 
 test("a refresh that loses the embeddings list keeps the stored catalog an embedding connection reads its kind from", async () => {

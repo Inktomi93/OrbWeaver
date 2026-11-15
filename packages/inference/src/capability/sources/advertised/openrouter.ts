@@ -59,8 +59,9 @@ function reasoningFromOr(reasoning: NonNullable<ModelCatalogEntry["reasoning"]>)
   };
 }
 
-/** A cold/empty `supported` set yields the permissive baseline (temperature + top_p). */
-function samplingFromOr(supported: ReadonlySet<string>): SamplingCapability {
+/** A cold/empty `supported` set yields the permissive baseline (temperature + top_p). The names are OpenRouter's
+ *  `supported_parameters`, which LiteRouter's list states in the same vocabulary. */
+export function samplingFromOr(supported: ReadonlySet<string>): SamplingCapability {
   if (supported.size === 0) {
     return { temperature: TEMP_RANGE, topP: TOP_P_RANGE };
   }
