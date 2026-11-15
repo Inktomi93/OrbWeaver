@@ -4,13 +4,13 @@
 // @subject packages/db/src/migrations/0020_regex-two-axis.sql
 import { join } from "node:path";
 import { regexScriptBehaviorWriteSchema } from "@orb/contracts/regex";
+import type { LogLevel } from "@orb/contracts/settings";
 import type { Db, RegexTwoAxisChangedScript } from "@orb/db";
 import { assertReferentialIntegrity, createDb, REGEX_TWO_AXIS_MIGRATION, runMigrations } from "@orb/db";
 import { createBoundedRing } from "@orb/kit/bounded-ring";
 import { createIdSource, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { RegexDepth, RegexPass, RegexTarget } from "@orb/kit/regex";
 import { runBootMigrations } from "@orb/server/entry/boot";
-import { DEFAULT_LOG_LEVEL } from "@orb/server/foundation/env/record";
 import { createLogger } from "@orb/server/foundation/observability";
 import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
@@ -22,6 +22,8 @@ import { z } from "zod";
 const MIGRATION = REGEX_TWO_AXIS_MIGRATION;
 /** Room for every line one boot writes over the seeds below. */
 const LOG_LINES = 200;
+/** Boot counts the rewrite at info and names each script at warn; the ring must keep both. */
+const BOOT_LOG_LEVEL = "info" satisfies LogLevel;
 
 // The fields a boot line carries that this case reads; every other key is left unread.
 const bootLineSchema = z.object({
@@ -208,7 +210,7 @@ test("boot names exactly the scripts the rewrite moves or narrows, with the reac
 
   await runBootMigrations({
     db,
-    logger: createLogger(DEFAULT_LOG_LEVEL, ring),
+    logger: createLogger(BOOT_LOG_LEVEL, ring),
     databaseUrl: ":memory:",
     backupDir: join(importStagingDir, "backups"),
     migrationsFolder: SHIPPED_MIGRATIONS,

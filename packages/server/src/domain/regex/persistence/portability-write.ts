@@ -33,7 +33,7 @@ import type { RegexScriptId, UserId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import { and, asc, eq } from "drizzle-orm";
 import { portableParseError } from "#primitives/serde/lib";
-import { buildRegexScriptFile, parseRegexScriptFile, REGEX_SCRIPT_SCHEMA_KIND } from "#primitives/serde/regex";
+import { buildRegexScriptFile, parseRegexScriptFile, REGEX_SCRIPT_SCHEMA_KIND, regexScriptFileNotes } from "#primitives/serde/regex";
 import type { CardLiftPlan, SplitScript } from "../contract/dedup.ts";
 import { REGEX_FIND_TOO_COSTLY } from "../contract/errors.ts";
 import type { RegexPortabilityContext } from "../contract/portability.ts";
@@ -281,7 +281,7 @@ async function requireImportAdmitted(ctx: RegexPortabilityContext, candidate: Sp
  *  GLOBAL attachment. */
 export function createImportRegexScript(input: DbAssemblyInput<RegexPortabilityContext>): ImportRegexScript {
   const ctx: RegexPortabilityContext = { ...input, db: databaseForOwner(input.db) };
-  return async ({ ownerId, bytes }): Promise<{ readonly created: boolean }> => {
+  return async ({ ownerId, bytes }) => {
     const parsed = parseRegexScriptFile(bytes);
     if (!parsed.ok) {
       throw new DomainOperationError("regex_script_unparseable", portableParseError(REGEX_SCRIPT_SCHEMA_KIND, parsed.reason));
@@ -312,6 +312,6 @@ export function createImportRegexScript(input: DbAssemblyInput<RegexPortabilityC
     if (payload.global) {
       await ctx.fanRegexScriptRooms(id);
     }
-    return { created: match === null };
+    return { created: match === null, notes: regexScriptFileNotes(bytes, payload) };
   };
 }

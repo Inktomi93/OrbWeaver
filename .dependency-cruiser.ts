@@ -972,7 +972,6 @@ const PACKAGE_TEST_REACHES = {
     "packages/server/src/entry/boot/index.ts":
       "runBootMigrations: the case proves boot names every script migration 0020 rewrites, and only the persistence tier may seed the old shape",
     "packages/server/src/foundation/observability/index.ts": "createLogger: the boot lines are read off the logger's own ring",
-    "packages/server/src/foundation/env/record/index.ts": "DEFAULT_LOG_LEVEL: the level boot logs at, so the warn lines the case reads are written",
   },
   "tests/db/client/traced-client-spans.int.test.ts": {
     "packages/server/src/foundation/observability/index.ts":

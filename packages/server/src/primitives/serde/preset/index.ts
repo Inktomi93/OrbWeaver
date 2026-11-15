@@ -9,12 +9,11 @@
 // The NAME is the caller's, read from the file name: SillyTavern names an imported preset by its file stem and
 // never reads the `name` a preset file may carry, so that field is handled here and reported nowhere.
 
-import { clipImportText } from "@orb/contracts/import";
 import type { PresetFile, StDroppedField } from "@orb/contracts/preset";
 import { buildPresetFile, tryImportStChatCompletionPreset } from "@orb/contracts/preset";
-import type { RegexScriptCard, RegexScriptLimitBreak } from "@orb/contracts/regex";
-import { regexScriptCardSchema, regexScriptLimitBreak } from "@orb/contracts/regex";
+import type { RegexScriptCard } from "@orb/contracts/regex";
 import { isPlainObject } from "@orb/kit/guards";
+import { readStScriptList } from "#primitives/serde/regex";
 
 /** The preset's extension-field object, read here rather than by the shared mapper. */
 const ST_PRESET_EXTENSIONS_KEY = "extensions";
@@ -41,49 +40,25 @@ export type StPresetParse =
   | { readonly ok: true; readonly parsed: ParsedStPreset }
   | { readonly ok: false; readonly recognised: boolean; readonly reason: string };
 
-const LIMIT_SUBJECT: Readonly<Record<RegexScriptLimitBreak["limit"], string>> = { "find-length": "find pattern", "replace-length": "replacement" };
-
-/** Why a preset script did not import. A script over a stored-length cap is named with the cap it broke, so the
- *  owner can find it in SillyTavern; the name is the file's, so it is clipped and quoted as plain text. */
-function scriptDropReason(candidate: unknown): string {
-  const broken = regexScriptLimitBreak(candidate);
-  if (broken === null) {
-    return "not a recognizable regex script (malformed — dropped)";
-  }
-  const raw = isPlainObject(candidate) ? (candidate["scriptName"] ?? candidate["name"]) : undefined;
-  const name = typeof raw === "string" ? `${JSON.stringify(clipImportText(raw))} ` : "";
-  return `script ${name}not imported: its ${LIMIT_SUBJECT[broken.limit]} is ${broken.actual} characters, over the ${broken.max} character limit`;
-}
-
 /** ST's presetManager stores extension fields on the preset itself under `extensions`; the regex extension's
- *  preset-scoped scripts ride `extensions.regex_scripts` (SillyTavern `extensions/regex/engine.js:126`). Each
- *  candidate parses through the ONE ST card-wire schema; an invalid one joins `dropped` by position, and any other
+ *  preset-scoped scripts ride `extensions.regex_scripts` (SillyTavern `extensions/regex/engine.js:126`), read by the
+ *  shared script-list reader, which names each refused script and each lost placement by position. Any other
  *  `extensions.*` key is reported by name. */
 function parsePresetExtensions(raw: Record<string, unknown>): {
   readonly regexScripts: RegexScriptCard[];
   readonly dropped: StDroppedField[];
 } {
-  const regexScripts: RegexScriptCard[] = [];
-  const dropped: StDroppedField[] = [];
   const ext = raw[ST_PRESET_EXTENSIONS_KEY];
   if (!isPlainObject(ext)) {
-    return { regexScripts, dropped };
+    return { regexScripts: [], dropped: [] };
   }
   const { regex_scripts: rawScripts, ...residue } = ext;
-  if (Array.isArray(rawScripts)) {
-    for (const [i, candidate] of rawScripts.entries()) {
-      const parsed = regexScriptCardSchema.safeParse(candidate);
-      if (parsed.success) {
-        regexScripts.push(parsed.data);
-      } else {
-        dropped.push({ field: `${ST_PRESET_EXTENSIONS_KEY}.regex_scripts[${i}]`, reason: scriptDropReason(candidate) });
-      }
-    }
-  }
+  const read = readStScriptList(Array.isArray(rawScripts) ? rawScripts : [], `${ST_PRESET_EXTENSIONS_KEY}.regex_scripts`);
+  const dropped: StDroppedField[] = [...read.notes];
   for (const key of Object.keys(residue)) {
     dropped.push({ field: `${ST_PRESET_EXTENSIONS_KEY}.${key}`, reason: "preset-scoped extension state — no orb seat" });
   }
-  return { regexScripts, dropped };
+  return { regexScripts: read.scripts, dropped };
 }
 
 /** Map an already-JSON-parsed SillyTavern chat-completion preset, or say why it does not map.

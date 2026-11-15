@@ -168,7 +168,7 @@ export interface ProfileCollected
       | "groups"
       | "orphanBundles"
       | "globalRegexScripts"
-      | "malformedGlobalRegexScripts"
+      | "globalRegexScriptNotes"
       | "databankFileCount"
       | "galleryImageCount"
     > {
@@ -193,6 +193,7 @@ export type ProfileWaveOutcomes = Pick<
   | "skippedBackgrounds"
   | "skippedPersonaAvatars"
   | "skippedCardTags"
+  | "cardNotes"
   | "appearanceKeysApplied"
   | "groupsImported"
   | "groupChatsImported"

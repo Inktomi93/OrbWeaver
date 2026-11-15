@@ -46,8 +46,11 @@ export type ExportRegexScripts = (args: { readonly ownerId: UserId }) => Promise
 /** One owned script as its portable file. A foreign or absent id answers `null`. */
 export type ExportRegexScript = (args: { readonly ownerId: UserId; readonly scriptId: RegexScriptId }) => Promise<PortableFile | null>;
 
-/** Import one `regex/*.json`. `created: false` means it matched an existing row. */
-export type ImportRegexScript = (args: { readonly ownerId: UserId; readonly bytes: Uint8Array }) => Promise<{ readonly created: boolean }>;
+/** Import one `regex/*.json`. `created: false` means it matched an existing row; `notes` names what the file lost. */
+export type ImportRegexScript = (args: { readonly ownerId: UserId; readonly bytes: Uint8Array }) => Promise<{
+  readonly created: boolean;
+  readonly notes: readonly string[];
+}>;
 
 /** The host-handoff regex copy takes these args. The copy returns unexecuted statements, so its signature stays
  *  with each consuming domain. */

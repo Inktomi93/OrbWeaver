@@ -25,7 +25,7 @@ import { JSON_MAX_DEPTH, nestsPastJsonMaxDepth, parseJsonText } from "@orb/kit/j
 import { readCardChunk, stripCardChunks } from "@orb/kit/png-card-chunk";
 import { z } from "zod";
 import { sha256Hex } from "#primitives/content-hash";
-import { cardFromJson, cardImportHash, extractLorebook, loreEntryColumns, loreEntryMetadata, selectBestCharacterBook } from "#primitives/serde/card";
+import { cardImportHash, extractLorebook, loreEntryColumns, loreEntryMetadata, readCardJson, selectBestCharacterBook } from "#primitives/serde/card";
 import { ImportCardError } from "../contract/errors.ts";
 import type { CardIdentityHashes, CurrentCardIdentity, ExportCurrentCard, FindCharacterByHash, ImportedCharacterMatch } from "../contract/identity.ts";
 import { carriedHandle, requestedHandle } from "./handle.ts";
@@ -51,6 +51,9 @@ interface ParsedCard {
   /** The asset background an orbweaver export carried, re-linked by its hash at create; null when none. Not
    *  part of the identity. */
   readonly background: ThemeBackground | null;
+  /** Each regex script the reader refused or placement it lost, as one line the import names. Beside the card, never
+   *  in it, so it is not part of the identity. */
+  readonly scriptNotes: readonly string[];
 }
 
 const DEFAULT_BOOK_NAME = "Imported World Book";
@@ -191,8 +194,10 @@ function fromText(text: string, fallbackName: string, artHash: string | null): P
   if (nestsPastJsonMaxDepth(parsed)) {
     throw new ImportCardError("card_invalid", `the card nests deeper than ${String(JSON_MAX_DEPTH)} levels`);
   }
+  const read = readCardJson(parsed, fallbackName);
   return {
-    card: cardFromJson(parsed, fallbackName),
+    card: read.card,
+    scriptNotes: read.scriptNotes.map(({ field, reason }) => `\`${field}\` — ${reason}`),
     tags: extractCardTags(parsed),
     book: extractBulkImportLorebook(parsed),
     attachedBooks: extractAttachedBooks(parsed),

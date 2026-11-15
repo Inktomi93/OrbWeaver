@@ -57,8 +57,8 @@ export type { OperatorJwks } from "../operator-jwks.ts";
 export { parseTrustedPrivateRanges } from "../private-ranges.ts";
 
 const DEFAULT_PORT = 8788;
-/** The level a server logs at when `LOG_LEVEL` is unset, which the release image leaves it. */
-export const DEFAULT_LOG_LEVEL = "info" satisfies LogLevel;
+// The level a server logs at when `LOG_LEVEL` is unset, which the release image leaves it.
+const DEFAULT_LOG_LEVEL = "info" satisfies LogLevel;
 const MIN_SESSION_SECRET_CHARS = 32;
 const RATE_LIMIT_WINDOW_MS_DEFAULT = 60_000;
 const RATE_LIMIT_AI_TURN_DEFAULT = 30;

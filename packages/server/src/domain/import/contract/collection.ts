@@ -170,8 +170,8 @@ export interface CollectResult {
    *  ST card-wire schema. The driver lifts them into the library + `global_regex_scripts` (orb's identical
    *  semantic). ZERO on the real corpus — the count line is what keeps this plane loud. */
   readonly globalRegexScripts: readonly RegexScriptCard[];
-  /** `extension_settings.regex` entries the schema refused — counted for the report, never silent. */
-  readonly malformedGlobalRegexScripts: number;
+  /** Each `extension_settings.regex` entry refused and each placement lost, by position, for the report. */
+  readonly globalRegexScriptNotes: readonly { readonly field: string; readonly reason: string }[];
   /** ST's per-character EXTRA lorebook bindings (`world_info_settings.world_info.charLore`): card filename
    *  STEM → book NAMES. The driver attaches them role `auxiliary` after the standalone-world wave. */
   readonly extraBooksByCardStem: ReadonlyMap<string, readonly string[]>;

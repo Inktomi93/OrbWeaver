@@ -193,15 +193,36 @@ const regexScriptCardFieldsSchema = regexScriptBehaviorFields.extend({
 
 /** SillyTavern's NUMERIC placement → orbweaver's target (SillyTavern `public/scripts/extensions/regex/engine.js`
  *  `regex_placement`: MD_DISPLAY 0 · USER_INPUT 1 · AI_OUTPUT 2 · SLASH_COMMAND 3 · WORLD_INFO 5 · REASONING 6).
- *  `0` is absent: no SillyTavern caller passes it, so a script holding it never ran there. `3` is absent: it is
- *  slash-command text and SillyTavern's typed narrator line, neither of which exists here (D107). The import
- *  summary names a script that loses a member this way. */
+ *  `0` is absent: it is SillyTavern's retired display member ({@link ST_RETIRED_DISPLAY_PLACEMENT}). `3` is absent: it is
+ *  slash-command text and SillyTavern's typed narrator line, neither of which exists here (D107). Every import door
+ *  names a script that loses a member this way ({@link stPlacementsWithoutTarget}), and a script left with no target
+ *  is imported switched off. */
 const ST_REGEX_TARGET_BY_NUMBER: Readonly<Record<number, RegexTarget>> = {
   1: "USER_INPUT",
   2: "AI_OUTPUT",
   5: "WORLD_INFO",
   6: "REASONING",
 };
+
+/** SillyTavern's retired display placement. Its loader drops it from a list that holds another member, or reads it
+ *  alone as every placement, and sets both of its display and prompt switches either way; the lift does the same, so
+ *  it is never a lost placement. */
+const ST_RETIRED_DISPLAY_PLACEMENT = 0;
+
+/** The numbered SillyTavern placements a card-wire script holds that have no target here, in its own order; empty
+ *  for a script in this app's own spelling. Every import door names them. */
+export function stPlacementsWithoutTarget(candidate: unknown): readonly number[] {
+  if (typeof candidate !== "object" || candidate === null || Array.isArray(candidate)) {
+    return [];
+  }
+  const obj = candidate as Record<string, unknown>;
+  if (!isStDialect(obj)) {
+    return [];
+  }
+  return obj.placement.filter(
+    (member): member is number => typeof member === "number" && member !== ST_RETIRED_DISPLAY_PLACEMENT && ST_REGEX_TARGET_BY_NUMBER[member] === undefined,
+  );
+}
 
 /** ST's older BOOLEAN spelling of `substituteRegex`: `true` substituted macros into the pattern raw, `false`
  *  did not. Any other value is the current enum form and passes through to the schema. */
@@ -234,14 +255,22 @@ function stDepth(minDepth: unknown, maxDepth: unknown): RegexDepth | undefined {
  *  calls pass neither; the author scope is this app's alone and is carried through. */
 function liftStScriptWire(obj: Record<string, unknown>, placement: readonly unknown[]): Record<string, unknown> {
   const { placement: _placement, markdownOnly, promptOnly, minDepth, maxDepth, scriptName, targets: _t, passes: _p, depth: _d, authors, ...rest } = obj;
-  const passes = stPasses(markdownOnly === true, promptOnly === true);
+  const retired = placement.includes(ST_RETIRED_DISPLAY_PLACEMENT);
+  const passes = retired ? stPasses(true, true) : stPasses(markdownOnly === true, promptOnly === true);
   const ephemeral = runsEphemeral(passes);
   const depth = ephemeral ? stDepth(minDepth, maxDepth) : undefined;
-  const targets = REGEX_TARGETS.filter((target) => placement.some((member) => typeof member === "number" && ST_REGEX_TARGET_BY_NUMBER[member] === target));
+  const members = placement.filter((member) => member !== ST_RETIRED_DISPLAY_PLACEMENT);
+  const targets =
+    retired && members.length === 0
+      ? [...REGEX_TARGETS]
+      : REGEX_TARGETS.filter((target) => members.some((member) => typeof member === "number" && ST_REGEX_TARGET_BY_NUMBER[member] === target));
   return {
     ...rest,
     name: typeof scriptName === "string" ? scriptName : rest["name"],
     ...(typeof rest["disabled"] === "boolean" ? { enabled: !rest["disabled"] } : {}),
+    // A script whose every placement has no target here runs nowhere: it is kept, so the owner can retarget it, but
+    // switched off, so the library never shows an enabled script that does nothing.
+    ...(targets.length === 0 ? { enabled: false } : {}),
     targets,
     passes,
     ...(depth === undefined ? {} : { depth }),
@@ -467,7 +496,9 @@ export function stRegexScriptFields(
   return {
     scriptName: script.name,
     disabled: !script.enabled,
-    placement: script.targets.flatMap((target) => ST_NUMBER_BY_TARGET.get(target) ?? []),
+    // A script on no pass has no SillyTavern spelling (neither switch reads as the save pass), so it writes no
+    // placement: SillyTavern runs it nowhere, and the import here reads the two axes back as they are.
+    placement: script.passes.length === 0 ? [] : script.targets.flatMap((target) => ST_NUMBER_BY_TARGET.get(target) ?? []),
     markdownOnly: script.passes.includes("display"),
     promptOnly: script.passes.includes("prompt"),
     minDepth: script.depth === undefined || script.depth.min === REGEX_DEPTH_FLOOR ? null : script.depth.min,
@@ -657,7 +688,8 @@ export const bulkAxesResultSchema = z.strictObject({
   cleared: z.array(typeIdSchema(ID_PREFIX.regexScript)).readonly(),
 }) satisfies z.ZodType<BulkAxesResult>;
 
-export const importScriptFileResultSchema = z.strictObject({ created: z.boolean() });
+/** `notes` names what the import left behind, such as a SillyTavern placement with no target here. */
+export const importScriptFileResultSchema = z.strictObject({ created: z.boolean(), notes: z.array(z.string()).readonly() });
 export type ImportScriptFileResult = z.output<typeof importScriptFileResultSchema>;
 
 export const regexScriptIdInputSchema = z.strictObject({ scriptId: typeIdSchema(ID_PREFIX.regexScript) });

@@ -100,6 +100,34 @@ test("every shape imports and runs on the host's edit, and only a script past a 
   expect(edited.content).toBe(`[1|2|3] N L ${"E".repeat(LONG_REPLACE)}`);
 });
 
+test("a card's and the global list's script past a length cap is named in the report with the cap it broke", async () => {
+  await using root = await harness();
+  const overCap = SCRIPTS.slice(4);
+  const card = { spec: "chara_card_v2", ["spec_version"]: "2.0", data: { name: "Gauge", description: "A gauge.", extensions: { ["regex_scripts"]: overCap } } };
+  const profileSettings = { ...JSON_OBJECT.parse(JSON.parse(settings({}))), ["extension_settings"]: { regex: overCap } };
+
+  const result = await finishRun(
+    root,
+    await admit(root, {
+      [ST_SETTINGS_FILE]: JSON.stringify(profileSettings),
+      "characters/Gauge.png": writeCardChunk(new Uint8Array(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))), JSON.stringify(card)),
+    }),
+  );
+  if (result.reportPath === undefined) {
+    throw new Error("the run wrote no report");
+  }
+  const report = await readFile(result.reportPath, "utf8");
+  const capLines = [
+    `script "find over the cap" not imported: its find pattern is ${MAX_FIND_REGEX_LENGTH + 1} characters, over the ${MAX_FIND_REGEX_LENGTH}`,
+    `script "replace over the cap" not imported: its replacement is ${MAX_REPLACE_LENGTH + 1} characters, over the ${MAX_REPLACE_LENGTH}`,
+  ];
+  // Once beside the card and once in the global list, each at its own position.
+  expect(capLines.map((line) => report.split(line).length - 1)).toEqual([2, 2]);
+  for (const field of ["extension_settings.regex[0]", "extension_settings.regex[1]", "data.extensions.regex_scripts[0]", "data.extensions.regex_scripts[1]"]) {
+    expect({ field, named: report.includes(`\`${field}\``) }).toEqual({ field, named: true });
+  }
+});
+
 // Capture groups of alternation up to the stored length cap: storable by length, refused only by the door's
 // measured compile.
 const COMPILE_HEAVY = `${"(a|b)".repeat(Math.floor((MAX_FIND_REGEX_LENGTH - 4) / 5))}lamp`;

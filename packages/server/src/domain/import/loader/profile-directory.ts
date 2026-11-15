@@ -130,7 +130,7 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<ProfileCo
   const orphanBundles: CollectResult["orphanBundles"] = [];
   // Global regex scripts CONCAT across dirs (the lift content-dedups repeats).
   const globalRegexScripts: RegexScriptCard[] = [];
-  let malformedGlobalRegexScripts = 0;
+  const globalRegexScriptNotes: { readonly field: string; readonly reason: string }[] = [];
   let databankFileCount = 0;
   let galleryImageCount = 0;
   const r: ProfileCollectRecords = {
@@ -177,7 +177,7 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<ProfileCo
     }
     orphanBundles.push(...result.orphanBundles);
     globalRegexScripts.push(...result.globalRegexScripts);
-    malformedGlobalRegexScripts += result.malformedGlobalRegexScripts;
+    globalRegexScriptNotes.push(...result.globalRegexScriptNotes);
     databankFileCount += result.databankFileCount;
     galleryImageCount += result.galleryImageCount;
     mergeRecords(r, result);
@@ -203,7 +203,7 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<ProfileCo
     groups,
     orphanBundles,
     globalRegexScripts,
-    malformedGlobalRegexScripts,
+    globalRegexScriptNotes,
     databankFileCount,
     galleryImageCount,
     skipped,
@@ -413,6 +413,7 @@ const NO_WAVES: ProfileWaveOutcomes = {
   skippedBackgrounds: [],
   skippedPersonaAvatars: [],
   skippedCardTags: [],
+  cardNotes: [],
   appearanceKeysApplied: [],
   groupsImported: 0,
   groupChatsImported: 0,
@@ -483,7 +484,7 @@ function reportFrom({ collected, scanned, changed, skippedCards, waves, found, d
     // The silent-gap sweep's counts: the FOUND halves are collect-time facts (real on a dryRun too); the
     // lifted/attached halves ride `waves` above and are zero on a dryRun, like every other write outcome.
     globalRegexScriptsFound: collected.globalRegexScripts.length,
-    malformedGlobalRegexScripts: collected.malformedGlobalRegexScripts,
+    globalRegexScriptNotes: collected.globalRegexScriptNotes,
     databankFileCount: collected.databankFileCount,
     galleryImageCount: collected.galleryImageCount,
   };
@@ -661,6 +662,8 @@ async function importOneBundle(
   /** The card's regex-script lift counts (D121-E) — summed into the report's card-lift accounting. */
   readonly scriptsLifted: number;
   readonly scriptsReused: number;
+  /** What the card did not land, as the Characters dialog names it. */
+  readonly notes: readonly string[];
 }> {
   let changed = 0;
   const cardResult = await service.importCharacter({ card: { bytes: bundle.cardBytes, filename: bundle.filename } });
@@ -668,7 +671,7 @@ async function importOneBundle(
     changed += 1;
   }
   const card = { characterId: cardResult.characterId, cardReused: !cardResult.created };
-  const scripts = { scriptsLifted: cardResult.regexScriptsLifted, scriptsReused: cardResult.regexScriptsReused };
+  const scripts = { scriptsLifted: cardResult.regexScriptsLifted, scriptsReused: cardResult.regexScriptsReused, notes: cardResult.skippedOverlays };
   if (bundle.chats.length === 0) {
     return { changed, ...card, chatsReused: 0, unresolvedPins: [], chatsPersonaHealed: 0, memoryChatIds: [], skippedChatRows: [], ...scripts };
   }
@@ -744,6 +747,8 @@ async function importCollectedBundles(
   readonly cardScriptsReused: number;
   /** Library tags that did NOT attach to an imported card, with the reason (per-tag isolation, never silent). */
   readonly skippedCardTags: ImportSkippedCardTag[];
+  /** What each imported card did not land, by card file. */
+  readonly cardNotes: ImportSkippedCard[];
 }> {
   let changed = 0;
   let cardsReused = 0;
@@ -756,6 +761,7 @@ async function importCollectedBundles(
   const unresolvedPins: ImportUnresolvedPinnedPersona[] = [];
   let cardScriptsLifted = 0;
   const skippedCardTags: ImportSkippedCardTag[] = [];
+  const cardNotes: ImportSkippedCard[] = [];
   let cardScriptsReused = 0;
   for (const { bundle, result: profile } of cardsWithProfile(profiles)) {
     if (deps.signal.aborted) {
@@ -775,6 +781,7 @@ async function importCollectedBundles(
       unresolvedPins.push(...result.unresolvedPins);
       cardScriptsLifted += result.scriptsLifted;
       cardScriptsReused += result.scriptsReused;
+      cardNotes.push(...result.notes.map((reason) => ({ file: bundle.filename, reason })));
       characterIdByCard.set(bundle, result.characterId);
       const tagNames = profile.tagsByEntityKey.get(bundle.filename);
       if (tagNames !== undefined && tagNames.length > 0) {
@@ -797,6 +804,7 @@ async function importCollectedBundles(
     cardScriptsLifted,
     cardScriptsReused,
     skippedCardTags,
+    cardNotes,
   };
 }
 
@@ -1009,6 +1017,7 @@ export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<I
       skippedGroups: groupResult.skippedGroups,
       skippedGroupMembers: groupResult.skippedMembers,
       skippedCardTags: bundleResult.skippedCardTags,
+      cardNotes: bundleResult.cardNotes,
       ambiguousSpeakerNames: groupResult.ambiguousSpeakerNames,
       seatedDisabledMembers: groupResult.seatedDisabledMembers,
       // Every wave's unresolved chat-bound persona picks, in run order: solo bundles, group rooms, orphans.
