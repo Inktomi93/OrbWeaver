@@ -125,13 +125,28 @@ function perToken(perMillion: number | null | undefined): number | undefined {
   return perMillion === null || perMillion === undefined ? undefined : perMillion / PER_MILLION;
 }
 
-function listedPriceOf(promptPerMillion: number | null | undefined, completionPerMillion: number | null | undefined): EndpointModel["listedPrice"] {
+const PER_THOUSAND = 1000;
+
+function perTokenOfThousand(perThousand: number | null | undefined): number | undefined {
+  return perThousand === null || perThousand === undefined ? undefined : perThousand / PER_THOUSAND;
+}
+
+function listedPriceOf(
+  promptPerMillion: number | null | undefined,
+  completionPerMillion: number | null | undefined,
+  cache: { readonly read?: number | undefined; readonly write?: number | undefined } = {},
+): EndpointModel["listedPrice"] {
   const prompt = perToken(promptPerMillion);
   const completion = perToken(completionPerMillion);
   if (prompt === undefined && completion === undefined) {
     return;
   }
-  return { ...(prompt === undefined ? {} : { prompt }), ...(completion === undefined ? {} : { completion }) };
+  return {
+    ...(prompt === undefined ? {} : { prompt }),
+    ...(completion === undefined ? {} : { completion }),
+    ...(cache.read === undefined ? {} : { cacheRead: cache.read }),
+    ...(cache.write === undefined ? {} : { cacheWrite: cache.write }),
+  };
 }
 
 /** What a turn may carry: the list's modality names where it states known ones, else its image and video flags. */
@@ -184,8 +199,13 @@ const nanoGptRowSchema = z.looseObject({
     })
     .optional()
     .catch(undefined),
-  /** USD per million tokens, as numbers. */
-  pricing: z.looseObject({ prompt: STATED_PRICE, completion: STATED_PRICE }).optional().catch(undefined),
+  /** USD per million tokens for `prompt` and `completion`; USD per thousand for the cache prices, absent when the model
+   *  has none (the API reference's `ModelsResponse`). The price tiers above a context threshold are not read, so a
+   *  long prompt's estimate uses the base price. */
+  pricing: z
+    .looseObject({ prompt: STATED_PRICE, completion: STATED_PRICE, cacheReadInputPer1kTokens: STATED_PRICE, cacheWriteInputPer1kTokens: STATED_PRICE })
+    .optional()
+    .catch(undefined),
   /** The effort words the model takes; the service refuses any other with a 400 before the turn runs. */
   reasoning_efforts: STATED_NAMES,
 });
@@ -234,7 +254,10 @@ function nanoGptModel(row: NanoGptRow): EndpointModel {
       structured: flags?.structured_output,
       thinks: flags?.reasoning === true ? true : undefined,
       thinking: flags?.reasoning === true ? nanoGptThinking(row) : undefined,
-      listedPrice: listedPriceOf(row.pricing?.prompt, row.pricing?.completion),
+      listedPrice: listedPriceOf(row.pricing?.prompt, row.pricing?.completion, {
+        read: perTokenOfThousand(row.pricing?.cacheReadInputPer1kTokens),
+        write: perTokenOfThousand(row.pricing?.cacheWriteInputPer1kTokens),
+      }),
       // A hosted list has no per-model probe: every fact it holds is in this read.
       probed: true,
     },

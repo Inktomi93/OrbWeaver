@@ -35,7 +35,7 @@ import { detectModelFamily } from "../capability/families.ts";
 import { applyEndpointPosture, applyServerToolChoice, clampToServedWindow, clampToTrainedWindow, markSettableWindow } from "../capability/floor.ts";
 import { advertisedFromAgentSdk, agentSdkRowFor } from "../capability/sources/advertised/agent-sdk.ts";
 import { advertisedFromGoogle } from "../capability/sources/advertised/google.ts";
-import { advertisedFromOpenAiCompat, advertisedStatesInput } from "../capability/sources/advertised/openai-compat.ts";
+import { advertisedFromOpenAiCompat, advertisedPricing, advertisedStatesInput } from "../capability/sources/advertised/openai-compat.ts";
 import { advertisedFromOpenRouter } from "../capability/sources/advertised/openrouter.ts";
 import { curatedKind, curatedRows } from "../capability/sources/curated/loader.ts";
 import { measuredRows } from "../capability/sources/measured/loader.ts";
@@ -501,7 +501,17 @@ function connectionCapability(
           advertisedInput,
           false,
         );
-  return { api, model, factsModel, features, capability, baseline, warnings: synthesized.warnings };
+  // A hosted list's price feeds the cost estimate only where neither the row nor the user declared one.
+  const pricing = features.pricing ?? advertisedPricing(entry);
+  return {
+    api,
+    model,
+    factsModel,
+    features: pricing === undefined ? features : { ...features, pricing },
+    capability,
+    baseline,
+    warnings: synthesized.warnings,
+  };
 }
 
 /** Model-supported tasks from the same capability fold as execution, without opening credentials on a cached read. */

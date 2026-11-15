@@ -15,6 +15,9 @@ const STATED_WINDOW = 262_144;
 const STATED_OUTPUT = 32_768;
 const PROMPT_PER_MILLION = 2;
 const COMPLETION_PER_MILLION = 10;
+// The API reference states cache prices per thousand tokens: 0.0001 is 0.1 per million.
+const CACHE_READ_PER_THOUSAND = 0.0001;
+const CACHE_READ_PER_MILLION = 0.1;
 
 // The docs' detailed-mode row shape under an id no curated row names, so every figure comes from the list, and a
 // row whose limits the list leaves null.
@@ -28,7 +31,13 @@ const DETAILED_LIST = {
       ["context_length"]: STATED_WINDOW,
       ["max_output_tokens"]: STATED_OUTPUT,
       capabilities: { vision: true, reasoning: true, ["tool_calling"]: true, ["parallel_tool_calls"]: false, ["structured_output"]: true },
-      pricing: { prompt: PROMPT_PER_MILLION, completion: COMPLETION_PER_MILLION, currency: "USD", unit: "per_million_tokens" },
+      pricing: {
+        prompt: PROMPT_PER_MILLION,
+        completion: COMPLETION_PER_MILLION,
+        cacheReadInputPer1kTokens: CACHE_READ_PER_THOUSAND,
+        currency: "USD",
+        unit: "per_million_tokens",
+      },
     },
     {
       id: UNSTATED_MODEL,
@@ -174,6 +183,73 @@ test("a thinker offers only the efforts its row lists, and one whose list has no
     effortLevels: ["low", "medium", "high", "xhigh", "max"],
     mandatory: true,
   });
+});
+
+const TOKENS_IN = 41;
+const TOKENS_OUT = 7;
+const TOKENS_CACHED = 20;
+const TOKENS_PER_MILLION = 1_000_000;
+
+// The list on its read, a one-word stream with usage on the chat route.
+function nanoGptListAndChat(): typeof fetch {
+  return (input, init) => {
+    const request = new Request(input, init);
+    if (request.method === "GET") {
+      return Promise.resolve(Response.json(DETAILED_LIST));
+    }
+    const usage = {
+      ["prompt_tokens"]: TOKENS_IN,
+      ["prompt_tokens_details"]: { ["cached_tokens"]: TOKENS_CACHED },
+      ["completion_tokens"]: TOKENS_OUT,
+      ["total_tokens"]: TOKENS_IN + TOKENS_OUT,
+    };
+    const frames = [
+      {
+        id: "c",
+        object: "chat.completion.chunk",
+        created: 1,
+        model: "m",
+        choices: [{ index: 0, delta: { role: "assistant", content: "Hi" }, ["finish_reason"]: null }],
+      },
+      { id: "c", object: "chat.completion.chunk", created: 1, model: "m", choices: [{ index: 0, delta: {}, ["finish_reason"]: "stop" }], usage },
+    ];
+    return Promise.resolve(
+      new Response(`${frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join("")}data: [DONE]\n\n`, {
+        headers: { "content-type": "text/event-stream" },
+      }),
+    );
+  };
+}
+
+async function turnUsage(root: ServerTestHarness, model: string): Promise<{ readonly costUsd: number | null; readonly costProvenance: string }> {
+  const principal = await root.principalFor(root.ownerId);
+  const credential = await root.services.credentials.add({ principal, provider: nanoGpt().id, key: RUNTIME_KEY });
+  const row = await root.services.connection.create({ principal, providerId: nanoGpt().id, credentialId: credential.id, baseUrl: null, model });
+  const signal = new AbortController().signal;
+  // The capability read warms the list the turn's resolve then reads.
+  await root.services.connection.capabilities({ principal, connectionId: row.id, signal });
+  const { resolved } = await root.app.runtime.resolve({ signal, principal, task: "chat", connectionId: row.id, cachedFacts: true });
+  const turn = await root.app.runtime.executor.runChatTurn({
+    api: "chat-completions",
+    connection: { ...resolved, task: "chat" },
+    signal,
+    params: {},
+    systemPrompt: { static: "You are a fixture.", dynamic: "" },
+    history: [{ role: "user", content: [{ type: "text", text: "Hello." }] }],
+  });
+  return { costUsd: turn.usage.costUsd, costProvenance: turn.usage.costProvenance };
+}
+
+// NanoGPT's Models page: `pricing.prompt` and `pricing.completion` are USD per million tokens. Its implicit caching
+// (Prompt Caching page) reports `cached_tokens`, which an estimate prices at the list's cache-read price.
+test("a turn on a model the list prices reports an estimated cost, and one whose price is null reports none", async () => {
+  await using root = await createRuntimeRoot({ providerFetch: nanoGptListAndChat() });
+  const priced = await turnUsage(root, STATED_MODEL);
+  expect(priced.costProvenance).toBe("estimated");
+  const promptUsd = (TOKENS_IN - TOKENS_CACHED) * PROMPT_PER_MILLION + TOKENS_CACHED * CACHE_READ_PER_MILLION;
+  expect(priced.costUsd).toBeCloseTo((promptUsd + TOKENS_OUT * COMPLETION_PER_MILLION) / TOKENS_PER_MILLION, 12);
+  const unpriced = await turnUsage(root, UNSTATED_MODEL);
+  expect(unpriced).toEqual({ costUsd: null, costProvenance: "unrecorded" });
 });
 
 test("an output cap above its window leaves the cap assumed while the window is reported", async () => {

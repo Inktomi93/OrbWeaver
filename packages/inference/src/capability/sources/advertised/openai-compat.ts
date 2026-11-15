@@ -119,6 +119,23 @@ export function advertisedFromOpenAiCompat(
   };
 }
 
+const TOKENS_PER_MILLION = 1_000_000;
+
+/** A hosted list's per-token price as the turn's cost estimate reads it, where the list states both halves. Beneath
+ *  the row's and the user's `pricing`, which a connection declares on purpose. */
+export function advertisedPricing(entry: Pick<EndpointModel, "listedPrice"> | undefined): EndpointFeatures["pricing"] {
+  const listed = entry?.listedPrice;
+  if (listed?.prompt === undefined || listed.completion === undefined) {
+    return;
+  }
+  return {
+    inputPerMTok: listed.prompt * TOKENS_PER_MILLION,
+    outputPerMTok: listed.completion * TOKENS_PER_MILLION,
+    ...(listed.cacheRead === undefined ? {} : { cacheReadPerMTok: listed.cacheRead * TOKENS_PER_MILLION }),
+    ...(listed.cacheWrite === undefined ? {} : { cacheWritePerMTok: listed.cacheWrite * TOKENS_PER_MILLION }),
+  };
+}
+
 /** Whether the advertised tier states what a turn may carry — the D292 bit the endpoint posture reads. */
 export function advertisedStatesInput(entry: Pick<EndpointModel, "input"> | undefined): boolean {
   return entry?.input !== undefined;
