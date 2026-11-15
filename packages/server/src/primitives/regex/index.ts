@@ -24,7 +24,7 @@ import type { RegexNotAppliedCause } from "@orb/contracts/chat";
 import type { ExecuteRegexScriptsArgs } from "@orb/kit/regex";
 import { executeRegexScripts, REGEX_OUTPUT_TOO_LONG, REGEX_SUBSTITUTION_TOO_LONG, skipsScript } from "@orb/kit/regex";
 
-export { FIND_COMPILE_LIMIT_MS, probeFindCompiles } from "./compile-probe.ts";
+export { probeFindCompiles } from "./compile-probe.ts";
 
 /** The wall time one entry (one text's scripts) may run before the script in flight is stopped. The real HUD
  *  preset's server-side scripts spend at most 8 ms on a 40,000-character reply. */
