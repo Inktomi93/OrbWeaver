@@ -6,6 +6,7 @@
 // @subject packages/client/src/features/preset/components/preset-import-dialog.tsx
 // @subject packages/client/src/features/preset/components/preset-library-welcome.tsx
 
+import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import { setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName, noticeToast, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -24,6 +25,7 @@ import {
   PRESET_USE_THIS_NAME,
   presetImportAddedSections,
   presetImportCarried,
+  presetImportClamped,
   presetImportLead,
   presetImportScripts,
   presetImportScriptsComing,
@@ -51,6 +53,10 @@ const BAND_ACTIONS = '[data-slot="list-pane-action"]';
 const FILE_NAME = "Harbour Tone.json";
 const PRESET_NAME = "Harbour Tone";
 const ST_AI_OUTPUT = 2;
+// The wire value of SillyTavern's absolute-depth injection, and a depth past the largest this app stores.
+const ST_ABSOLUTE_INJECTION = 1;
+const SENT_DEPTH = MAX_INJECTION_DEPTH * 2;
+const CLAMPED_FIELD = "prompts.main.injection_depth";
 const ST_SCRIPT = {
   trimStrings: [],
   placement: [ST_AI_OUTPUT],
@@ -66,11 +72,17 @@ const ST_SCRIPT = {
 // A small synthetic SillyTavern preset. SillyTavern wire text is snake_case by spec, so it is raw JSON: four prompts with two
 // switched on, two samplers, both limits, two regex scripts, and the settings this app has no equivalent for that the case
 // names. It carries an inner `name`, which the preset ignores in favour of the file's.
-function presetFile(unmapped: readonly string[]): string {
+function presetFile(unmapped: readonly string[], depth?: number): string {
   return JSON.stringify({
     name: "Inner name",
     prompts: [
-      { identifier: "main", name: "Main", content: "You narrate.", role: "system" },
+      {
+        identifier: "main",
+        name: "Main",
+        content: "You narrate.",
+        role: "system",
+        ...(depth === undefined ? {} : { ["injection_position"]: ST_ABSOLUTE_INJECTION, ["injection_depth"]: depth }),
+      },
       { identifier: "lore", name: "Lore", content: "The harbour is cold.", role: "system" },
       { identifier: "tone", name: "Tone", content: "Keep it spare.", role: "system" },
       { identifier: "extra", name: "Extra", content: "Rarely wanted.", role: "system" },
@@ -100,7 +112,7 @@ function presetFile(unmapped: readonly string[]): string {
   });
 }
 
-// What the file itself holds; the import adds prompts of its own on top, all switched on, which `addedNames` reads.
+// What the file itself holds, which the summary's lead counts. The import adds prompts of its own, which `addedNames` reads.
 const PRESET_COUNTS = { prompts: 4, enabled: 2, samplers: 2, limits: 2, scripts: 2 } as const;
 const ONE_UNMAPPED = ["wi_format"] as const;
 const MANY_UNMAPPED = [
@@ -180,12 +192,10 @@ test("the preview counts the prompts and those enabled, says samplers and limits
   const added = await addedNames(root, presetFile(ONE_UNMAPPED));
   await pickFile(page, welcomeDoor(page), presetFile(ONE_UNMAPPED));
   const dialog = page.getByRole("dialog", { name: PRESET_IMPORT_TITLE, exact: true });
-  // The positive control for the counts: the import adds prompts of its own, and they are in the totals and named on a line.
+  // The import adds prompts of its own: the lead counts only the file's, and a line of its own names the added ones.
   expect(added.length).toBeGreaterThan(0);
   await expect(dialog.getByText(presetImportAddedSections(added), { exact: true })).toBeVisible();
-  await expect(
-    dialog.getByText(presetImportLead(true, PRESET_NAME, PRESET_COUNTS.prompts + added.length, PRESET_COUNTS.enabled + added.length), { exact: true }),
-  ).toBeVisible();
+  await expect(dialog.getByText(presetImportLead(true, PRESET_NAME, PRESET_COUNTS.prompts, PRESET_COUNTS.enabled), { exact: true })).toBeVisible();
   await expect(dialog.getByText(presetImportCarried(PRESET_COUNTS.samplers, PRESET_COUNTS.limits), { exact: true })).toBeVisible();
   await expect(dialog.getByText(presetImportScriptsComing(PRESET_COUNTS.scripts), { exact: true })).toBeVisible();
   await expect(dialog.getByText(PRESET_IMPORT_DROPPED_HEADING, { exact: true })).toBeVisible();
@@ -197,6 +207,23 @@ test("the preview counts the prompts and those enabled, says samplers and limits
   await expect(dialog.getByText(FILE_NAME, { exact: true })).toBeVisible();
 });
 
+test("a value the import brings into range is listed as changed with what it landed as, and is not among the settings left out", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await serve(page, root);
+  await mount<typeof PresetImportDoorStory>(STORY, {});
+  await pickFile(page, welcomeDoor(page), presetFile(ONE_UNMAPPED, SENT_DEPTH));
+  const dialog = page.getByRole("dialog", { name: PRESET_IMPORT_TITLE, exact: true });
+  // The line follows the field's `code`, so it is found inside its row rather than as the row's whole text.
+  await expect(dialog.getByText(presetImportClamped(SENT_DEPTH, MAX_INJECTION_DEPTH))).toBeVisible();
+  const clamped = dialog.locator("code", { hasText: new RegExp(`^${RegExp.escape(CLAMPED_FIELD)}$`, "u") });
+  await expect(clamped).toHaveCount(1);
+  // The positive control: a setting with no equivalent is in the left-out region, and the clamped value is not.
+  const left = dialog.getByRole("region", { name: PRESET_IMPORT_DROPPED_REGION_NAME, exact: true });
+  await expect(left.locator("code", { hasText: /^wi_format$/u })).toBeVisible();
+  await expect(left.locator("code", { hasText: new RegExp(`^${RegExp.escape(CLAMPED_FIELD)}$`, "u") })).toHaveCount(0);
+});
+
 test("a landed preset says it is not in use and Use this preset activates it", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
   const caller = await root.internalCallerFor(root.ownerId);
@@ -206,7 +233,10 @@ test("a landed preset says it is not in use and Use this preset activates it", a
 
   const added = await addedNames(root, presetFile(ONE_UNMAPPED));
   await pickFile(page, welcomeDoor(page), presetFile(ONE_UNMAPPED));
-  await page.getByRole("dialog", { name: PRESET_IMPORT_TITLE, exact: true }).getByRole("button", { name: PRESET_IMPORT_NAME, exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: PRESET_IMPORT_TITLE, exact: true });
+  await dialog.getByRole("button", { name: PRESET_IMPORT_NAME, exact: true }).click();
+  // The dialog closes once the import has landed, so the library holds the row after it.
+  await expect(dialog).toBeHidden();
   const landed = (await caller.preset.list()).find(({ name }) => name === PRESET_NAME);
   if (landed === undefined) {
     throw new Error("the import landed no preset");
@@ -253,13 +283,10 @@ test("at 200% text the preview's sentences stay whole and the long list of left-
   await serve(page, root);
   await mount<typeof PresetImportDoorStory>(STORY, {});
   await setRootFontScale(page, FONT_SCALE_PROPERTY, 2);
-  const added = await addedNames(root, presetFile(MANY_UNMAPPED));
   // At 200% the welcome sits below the first screen, so the file arrives through the band's door.
   await pickFile(page, bandDoor(page), presetFile(MANY_UNMAPPED));
   const dialog = page.getByRole("dialog", { name: PRESET_IMPORT_TITLE, exact: true });
-  const lead = dialog.getByText(presetImportLead(true, PRESET_NAME, PRESET_COUNTS.prompts + added.length, PRESET_COUNTS.enabled + added.length), {
-    exact: true,
-  });
+  const lead = dialog.getByText(presetImportLead(true, PRESET_NAME, PRESET_COUNTS.prompts, PRESET_COUNTS.enabled), { exact: true });
   await lead.scrollIntoViewIfNeeded();
   await expect(lead).toBeInViewport({ ratio: 1 });
   const left = dialog.getByRole("region", { name: PRESET_IMPORT_DROPPED_REGION_NAME, exact: true });

@@ -123,6 +123,12 @@ export const PRESET_IMPORT_DROPPED_HEADING = "Settings this app has no equivalen
 export const PRESET_IMPORT_DROPPED_REGION_NAME = "Settings left out";
 export const PRESET_IMPORT_NOTHING_DROPPED = "Everything in the file came across.";
 
+/** The summary's group of values the import brought into range: its heading, and each value's line. */
+export const PRESET_IMPORT_CLAMPED_HEADING = "Values brought into range";
+export function presetImportClamped(sent: number, landedAs: number): string {
+  return `Sent ${String(sent)}, imported as ${String(landedAs)}.`;
+}
+
 /** A landed import's action, and the line it says about whether the preset is in use. */
 export const PRESET_USE_THIS_NAME = "Use this preset";
 export const PRESET_IMPORT_IN_USE = "Every chat uses your active preset, and this one is the active preset.";

@@ -16,6 +16,7 @@ import { useRef, useState } from "react";
 import { FormDialog, MutedLine } from "#components";
 import {
   PRESET_IMPORT_ALREADY_HELD,
+  PRESET_IMPORT_CLAMPED_HEADING,
   PRESET_IMPORT_DESCRIPTION,
   PRESET_IMPORT_DROPPED_HEADING,
   PRESET_IMPORT_DROPPED_REGION_NAME,
@@ -25,6 +26,7 @@ import {
   PRESET_IMPORT_TITLE,
   presetImportAddedSections,
   presetImportCarried,
+  presetImportClamped,
   presetImportLead,
   presetImportScriptsComing,
   presetImportScriptsRefused,
@@ -162,28 +164,51 @@ export function PresetImportDialog({ open, onOpenChange, onPreview, onImport, bu
 
 /** The pre-commit summary: the server's preview of what the import does. */
 function ImportSummary({ preview }: { readonly preview: ReadyPreview }): ReactElement {
-  const { format, name, inLibrary, sectionCount, enabledCount, samplerCount, limitCount, regexScripts, refusedScripts, addedSections } = preview;
+  const { format, name, inLibrary, sectionCount, enabledCount, samplerCount, limitCount, regexScripts, refusedScripts, addedSections, clamped } = preview;
+  // The lead counts the file's own prompts. The import switches on each prompt it adds, so they come off both totals and
+  // the line that names them carries the rest.
+  const ownPrompts = sectionCount - addedSections.length;
+  const ownEnabled = enabledCount - addedSections.length;
   return (
     <Section kicker="Ready to import">
       <Text cap="prose" prose={true} voice="label">
-        {presetImportLead(format === "sillyTavern", name, sectionCount, enabledCount)}
+        {presetImportLead(format === "sillyTavern", name, ownPrompts, ownEnabled)}
       </Text>
       <MutedLine>{presetImportCarried(samplerCount, limitCount)}</MutedLine>
       {inLibrary ? <MutedLine>{PRESET_IMPORT_ALREADY_HELD}</MutedLine> : null}
       {addedSections.length === 0 ? null : <MutedLine>{presetImportAddedSections(addedSections)}</MutedLine>}
       {regexScripts === 0 ? null : <MutedLine>{presetImportScriptsComing(regexScripts)}</MutedLine>}
       {refusedScripts.length === 0 ? null : <MutedLine>{presetImportScriptsRefused(refusedScripts.length)}</MutedLine>}
-      {format === "orbweaver" ? null : <LeftOut leftOut={preview.leftOut} />}
+      {format === "orbweaver" ? null : <Clamped clamped={clamped} />}
+      {format === "orbweaver" ? null : <LeftOut clamped={clamped.length > 0} leftOut={preview.leftOut} />}
     </Section>
+  );
+}
+
+/** The values the import brought into range: imported, so they are not among the settings left out. */
+function Clamped({ clamped }: { readonly clamped: ReadyPreview["clamped"] }): ReactElement | null {
+  if (clamped.length === 0) {
+    return null;
+  }
+  return (
+    <Stack gap="field">
+      <Text voice="gloss">{PRESET_IMPORT_CLAMPED_HEADING}</Text>
+      {clamped.map(({ field, sent, landedAs }) => (
+        <Text key={field} voice="gloss">
+          <code>{field}</code>: {presetImportClamped(sent, landedAs)}
+        </Text>
+      ))}
+    </Stack>
   );
 }
 
 /** The SillyTavern settings with no equivalent here (reported, never silently lost), under one heading. The list is the
  *  one part of the summary that grows with the file, so it scrolls in a region of its own that shows its scrollbar: the
  *  sentences above it are never cut by the dialog's own scroll. */
-function LeftOut({ leftOut }: { readonly leftOut: ReadyPreview["leftOut"] }): ReactElement {
+function LeftOut({ leftOut, clamped }: { readonly leftOut: ReadyPreview["leftOut"]; readonly clamped: boolean }): ReactElement | null {
   if (leftOut.length === 0) {
-    return <MutedLine>{PRESET_IMPORT_NOTHING_DROPPED}</MutedLine>;
+    // A value brought into range is a change, so "everything came across" is not said beside one.
+    return clamped ? null : <MutedLine>{PRESET_IMPORT_NOTHING_DROPPED}</MutedLine>;
   }
   return (
     <Stack gap="field">

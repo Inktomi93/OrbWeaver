@@ -3142,9 +3142,12 @@ const stPresetSchema = z.looseObject({
   prompt_order: z.array(z.object({ character_id: z.number(), order: z.array(stOrderEntrySchema) }).strip()).optional(),
 });
 
+/** A SillyTavern field the import reports. A field that was imported with its value brought into range carries
+ *  `clamped`, which a door reads instead of matching the reason's text; every other entry found no seat. */
 export interface StDroppedField {
   field: string;
   reason: string;
+  clamped?: { readonly sent: number; readonly landedAs: number };
 }
 
 interface StImportResult {
@@ -3192,6 +3195,7 @@ function clampForeignValue(value: number, [min, max]: readonly [number, number],
     dropped.push({
       field,
       reason: `SillyTavern sent ${value}; orb stores a whole number between ${min} and ${max}, so it was imported as ${clamped}.`,
+      clamped: { sent: value, landedAs: clamped },
     });
   }
   return clamped;

@@ -2,6 +2,7 @@
 // What the Presets page's preview says a SillyTavern preset holds is what the import then lands: the prompts and how many are on,
 // the samplers and the limits, the scripts, and the settings with no equivalent, which never include the preset's own `name`.
 import { buildPresetFile } from "@orb/contracts/preset";
+import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import { expect, test } from "@orb/testkit/node";
 import { harness } from "./_st-tree-door.ts";
 
@@ -123,4 +124,42 @@ test("an orbweaver export previews the same counts it lands with", async () => {
     regexScripts: 0,
     addedSections: [],
   });
+});
+
+// The wire value of SillyTavern's absolute-depth injection, and a depth past the largest this app stores.
+const ST_ABSOLUTE_INJECTION = 1;
+const SENT_DEPTH = MAX_INJECTION_DEPTH * 2;
+const CLAMPED_FIELD = "prompts.main.injection_depth";
+const CLAMPED_FILE = JSON.stringify({
+  prompts: [
+    {
+      identifier: "main",
+      name: "Main",
+      content: "You narrate.",
+      role: "system",
+      ["injection_position"]: ST_ABSOLUTE_INJECTION,
+      ["injection_depth"]: SENT_DEPTH,
+    },
+  ],
+  ["prompt_order"]: [{ ["character_id"]: 100_001, order: [{ identifier: "main", enabled: true }] }],
+});
+
+test("a value the import brings into range is reported as changed with what it landed as, never as left out", async () => {
+  await using root = await harness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const file = { fileText: CLAMPED_FILE, fileName: FILE_NAME };
+
+  const preview = await caller.preset.previewFile(file);
+  if (!preview.ok) {
+    throw new Error("the preview refused the file");
+  }
+  expect(preview.clamped).toEqual([{ field: CLAMPED_FIELD, sent: SENT_DEPTH, landedAs: MAX_INJECTION_DEPTH }]);
+  expect(preview.leftOut).toEqual([]);
+
+  const imported = await caller.preset.importFile(file);
+  if (!imported.ok || imported.presetId === undefined) {
+    throw new Error("the import landed no preset");
+  }
+  const landed = await caller.preset.get({ id: imported.presetId });
+  expect(landed.config.sections.find(({ id }) => id === "main")).toMatchObject({ inject: { depth: MAX_INJECTION_DEPTH } });
 });

@@ -75,6 +75,7 @@ type PresetFileRead =
       readonly bytes: Uint8Array;
       readonly name: string;
       readonly leftOut: Extract<PresetFilePreview, { ok: true }>["leftOut"];
+      readonly clamped: Extract<PresetFilePreview, { ok: true }>["clamped"];
       readonly regexScripts: readonly RegexScriptCard[];
       readonly addedSections: readonly string[];
     } & ReturnType<typeof configCounts>)
@@ -105,7 +106,7 @@ function readPresetFile({ fileText, fileName }: Pick<ImportPresetFileParams, "fi
       return orb;
     }
     const bytes = new TextEncoder().encode(fileText);
-    return { ok: true, format: "orbweaver", bytes, name: orb.name, ...configCounts(orb.config), leftOut: [], regexScripts: [], addedSections: [] };
+    return { ok: true, format: "orbweaver", bytes, name: orb.name, ...configCounts(orb.config), leftOut: [], clamped: [], regexScripts: [], addedSections: [] };
   }
   const st = parseStPresetJson(raw, { name: stemOf(fileName) });
   if (!st.ok) {
@@ -118,7 +119,9 @@ function readPresetFile({ fileText, fileName }: Pick<ImportPresetFileParams, "fi
     bytes: new TextEncoder().encode(JSON.stringify(file)),
     name,
     ...configCounts(file.config),
-    leftOut: unmapped.map(plainLeftOut),
+    // A value brought into range was imported, so it is reported as changed and never as left out.
+    leftOut: unmapped.filter(({ clamped }) => clamped === undefined).map(plainLeftOut),
+    clamped: unmapped.flatMap(({ field, clamped }) => (clamped === undefined ? [] : [{ field: clipImportText(field), ...clamped }])),
     regexScripts,
     addedSections,
   };
@@ -155,6 +158,7 @@ export function createImportFile(deps: {
       samplerCount: read.samplerCount,
       limitCount: read.limitCount,
       leftOut: read.leftOut,
+      clamped: read.clamped,
       regexScripts: read.regexScripts.length - refusedScripts.length,
       refusedScripts,
       // A reused preset already holds the sections, so the run adds none.
