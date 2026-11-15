@@ -72,9 +72,9 @@ export function createSaveGreetingTexts(
       return [...greetings];
     }
     const assembleContext = await ctx.gatherAssembleContext(
-      // A greeting seeds inside a write the request commits whole, so only shutdown may end its gather.
       {
         chatId: room.chatId,
+        // A greeting is a write the request commits whole, so only shutdown may end its gather.
         signal: ctx.backgroundSignal,
         runAsUserId: hostUserId,
         model: "",
@@ -89,7 +89,7 @@ export function createSaveGreetingTexts(
     const macroCtx = buildTurnMacroContext({ assembleCtx: assembleContext, model: "", chatId: room.chatId, random: deps.prng });
     return greetings.map((greeting) => ({
       ...greeting,
-      // Each greeting is its own single-text leg run, so each opens its own pass.
+      // One pass per greeting: each is its own single text, as an edit's re-apply is.
       text: ctx.openRegexPass().execute({
         text: greeting.text,
         scripts,

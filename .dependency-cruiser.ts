@@ -47,6 +47,7 @@ const ENTRY_DRIVERS = {
   "boot/index.ts": "the boot barrel the lifecycle reads re-exports the drivers below",
   "boot/migrate.ts": "runs the migrations, backups and integrity check, and resolves the migrations folder through node:module",
   "boot/migrate-data-layout.ts": "opens, snapshots and detaches the legacy database while the data layout moves",
+  "boot/report-regex-two-axis.ts": "reads the scripts migration 0020 rewrites, before and after boot/migrate.ts runs it",
 } as const satisfies Readonly<Record<string, string>>;
 const ENTRY_DRIVER_PATTERN = `${ENTRY_SOURCE}(?:${Object.keys(ENTRY_DRIVERS)
   .map((path) => RegExp.escape(path))
@@ -645,6 +646,7 @@ const TEST_CONSTANT_HOMES = {
     "TURN_ROOM_CLOSING_COPY and its siblings: the toast a refused turn raises for each room state, which the send refusal case reads",
   "packages/client/src/lib/display-pass-copy.ts":
     "displayScriptsStoppedTitle and its siblings: the one notice the display pass raises for a stopped regex script, which the display script cases read",
+  "packages/client/src/features/chat/lib/reply-frame-names.ts": "REPLY_LINK_CONFIRM_LABEL: the confirm a link clicked inside a framed reply opens",
   "packages/client/src/features/chat/lib/send-failure-copy.ts": "SEND_FAILED_TITLE: the toast a failed send raises for a reason the turn copy does not name",
   "packages/client/src/lib/card-import-copy.ts":
     "CARD_IMPORT_REFUSED_ONE and its siblings: the refusal sentence the character import dialog and the backup import both say for a picture that is not a card",
@@ -972,6 +974,12 @@ const PACKAGE_TEST_REACHES = {
   "tests/db/schema/chat-freeze-provenance.repo.int.test.ts": {
     "packages/server/src/entry/boot/index.ts":
       "runBootMigrations: the case proves boot backs up the pre-migration file before the provenance rebuild, and only the persistence tier may seed that schema",
+  },
+  "tests/db/schema/regex-two-axis.repo.int.test.ts": {
+    "packages/server/src/entry/boot/index.ts":
+      "runBootMigrations: the case proves boot names every script migration 0020 rewrites, and only the persistence tier may seed the old shape",
+    "packages/server/src/foundation/observability/index.ts": "createLogger: the boot lines are read off the logger's own ring",
+    "packages/server/src/foundation/env/record/index.ts": "DEFAULT_LOG_LEVEL: the level boot logs at, so the warn lines the case reads are written",
   },
   "tests/db/client/traced-client-spans.int.test.ts": {
     "packages/server/src/foundation/observability/index.ts":
@@ -2033,7 +2041,7 @@ const DOMAIN_AUTHORITY = [
     severity: "error",
     from: {
       pathNot:
-        "^packages/server/src/(domain/(admin/persistence/queries|automation/persistence/canon-reads|databank/persistence/scope|sessions/verbs/(validate|load-user-by-id|provision-identity)|chat/(persistence/(queries|participants-read)|verbs/(edit|read|participants)))|entry/(auth/seam|compose/chat))\\.ts$",
+        "^packages/server/src/(domain/(admin/persistence/queries|automation/persistence/canon-reads|databank/persistence/scope|sessions/verbs/(validate|load-user-by-id|provision-identity)|chat/(persistence/(queries|participants-read)|verbs/(edit|read|participants|start-chat)))|entry/(auth/seam|compose/chat))\\.ts$",
     },
     to: { path: "^packages/server/src/primitives/role-data/index\\.ts$" },
   },

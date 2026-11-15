@@ -7,9 +7,29 @@
 // @subject packages/server/src/domain/chat/verbs/participants.ts
 // @subject packages/server/src/domain/chat/verbs/edit.ts
 
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
+import { cardImportResultSchema } from "@orb/contracts/import";
+import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
+import { UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
 import type { CharacterId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
-import { harness, importThroughDialog } from "../../import/persistence/_st-tree-door.ts";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import { createServerHarness } from "@orb/testkit/node/composed";
+
+async function harness(): Promise<ServerTestHarness> {
+  return await createServerHarness({ env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" }, physicalPeer: () => "127.0.0.1" });
+}
+
+// One card file through the Characters dialog door. The owner's default content seeds after the first authed
+// request, so each import settles it before the case reads.
+async function importThroughDialog(root: ServerTestHarness, filename: string, text: string): Promise<void> {
+  const form = new FormData();
+  form.append(UPLOAD_FILE_FIELD, new File([new TextEncoder().encode(text)], filename));
+  const response = await root.http.request(PORTABILITY_ROUTES.importCards, { method: "POST", headers: { [CSRF_HEADER]: "1" }, body: form });
+  expect(response.status).toBe(200);
+  expect(cardImportResultSchema.parse(await response.json()).failed).toEqual([]);
+  await root.settleBackground();
+}
 
 const ST_AI_OUTPUT = 2;
 const TAIL = 10;

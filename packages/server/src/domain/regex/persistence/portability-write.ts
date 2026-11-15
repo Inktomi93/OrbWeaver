@@ -18,6 +18,7 @@ import type {
   ImportGlobalScripts,
   ImportPresetScripts,
   ImportRegexScript,
+  PlanPresetScripts,
   PortableRegexScript,
   RegexScriptRefusal,
   RegexScriptRow,
@@ -36,7 +37,7 @@ import { buildRegexScriptFile, parseRegexScriptFile, REGEX_SCRIPT_SCHEMA_KIND } 
 import type { CardLiftPlan } from "../contract/dedup.ts";
 import { REGEX_FIND_TOO_COSTLY } from "../contract/errors.ts";
 import type { RegexPortabilityContext } from "../contract/portability.ts";
-import { findDuplicate, planCardLift, splitScript } from "../substrate/dedup.ts";
+import { findDuplicate, planCardLift, planUploadLift, splitScript } from "../substrate/dedup.ts";
 import { ensureCharacterOwned, ensurePresetOwned } from "./ownership.ts";
 import { listOwnedScripts, loadOwnedScript, loadOwnedScriptsByIds, toRow } from "./queries.ts";
 
@@ -137,6 +138,13 @@ export function createImportPresetScripts(input: DbAssemblyInput<RegexPortabilit
     }
     return { created: plan.inserts.length, reused: plan.reused, refused };
   };
+}
+
+/** The preset lifts' dry run: the library read {@link createImportPresetScripts} plans against, and the run's own
+ *  order, so an equal script of an earlier preset reads as minted by the upload. */
+export function createPlanPresetScripts(input: DbAssemblyInput<Pick<RegexPortabilityContext, "db">>): PlanPresetScripts {
+  const ctx: Pick<RegexPortabilityContext, "db"> = { ...input, db: databaseForOwner(input.db) };
+  return async ({ ownerId, presets }) => planUploadLift((await listOwnedScripts(ctx.db, ownerId)).map(toRow), presets);
 }
 
 /**

@@ -1379,6 +1379,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     importWorldInfo,
     importCardScripts: regexCompose.importCardScripts,
     importPresetScripts: regexCompose.importPresetScripts,
+    planPresetScripts: regexCompose.planPresetScripts,
     importGlobalScripts: regexCompose.importGlobalScripts,
     exportRegexScripts: regexCompose.exportRegexScripts,
     importRegexScript: regexCompose.importRegexScript,

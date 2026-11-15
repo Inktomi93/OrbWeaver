@@ -28,15 +28,6 @@ export function presetVariableOptionRemoveTitle(ordinal: number): string {
 }
 export const PRESET_IMPORT_NAME = "Import preset";
 
-/** The built-in's fork choice: its second stage's title, the field it names the fork in, and the commits of both stages. */
-export const PRESET_FORK_NAME_TITLE = "Name the new fork";
-export const PRESET_FORK_NAME_FIELD_NAME = "New fork name";
-export const PRESET_FORK_START_NAME = "Start a new fork";
-export const PRESET_FORK_CREATE_NAME = "Create fork";
-export function presetForkKeepEditingName(forkName: string): string {
-  return `Keep editing ${forkName}`;
-}
-
 /** An import whose preset equals one the library holds: the dialog's preview line and the result line. */
 export const PRESET_IMPORT_ALREADY_HELD = "This preset is already in your library.";
 export const PRESET_IMPORT_LANDED = "Preset imported.";
@@ -49,6 +40,15 @@ export function presetImportRenamed(name: string, renamedFrom: string): string {
 /** The result line's count of the scripts a SillyTavern preset brought, attached to the preset. */
 export function presetImportScripts(attached: number, created: number): string {
   return `${String(attached)} regex script${attached === 1 ? "" : "s"} attached, ${String(created)} new to your library.`;
+}
+
+/** The built-in's fork choice: its second stage's title, the field it names the fork in, and the commits of both stages. */
+export const PRESET_FORK_NAME_TITLE = "Name the new fork";
+export const PRESET_FORK_NAME_FIELD_NAME = "New fork name";
+export const PRESET_FORK_START_NAME = "Start a new fork";
+export const PRESET_FORK_CREATE_NAME = "Create fork";
+export function presetForkKeepEditingName(forkName: string): string {
+  return `Keep editing ${forkName}`;
 }
 
 /** The editor header's activate command; the list's radiogroup names the same pick differently. */

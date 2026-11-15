@@ -5,8 +5,8 @@ import type { MessageKind, ParticipantKind, ParticipantRole, RoomStanding } from
 import { participantOf, standingOf } from "#message-author";
 import type { MessageRole } from "#message-role";
 
-// Pure regex-script executor, usable from both client and server. The server wraps it in its own onScriptFailure
-// and runs it inside a node:vm watchdog with a deadline and a pass budget (node:vm cannot live here; kit is browser-safe).
+// Pure regex-script executor, usable from both client and server. The server runs it inside its own node:vm
+// watchdog with a deadline and a pass budget (node:vm cannot live here; kit is browser-safe).
 // The executor reads a kit-local structural `RegexScriptInput` rather than the persisted `@orb/contracts` schema,
 // since kit must not import contracts; `RegexScriptRow satisfies RegexScriptInput` keeps them aligned.
 //
