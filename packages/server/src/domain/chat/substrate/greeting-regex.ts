@@ -10,10 +10,15 @@
 //
 // The tiers resolve under the host, as on a turn (D19): a hostless room, or a host who no longer consents, stores the
 // greeting as written. The save pass is not retroactive: a script attached later leaves a stored greeting alone.
+//
+// A greeting write must commit, so its gather never fails on retrieval: it skips recall and the databank when no
+// script the pass runs can read them, and reads a failed retrieval as empty when one can.
 
 import type { HostTierRegexAllow } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
+import type { RegexPassCall } from "@orb/kit/regex";
+import { regexCallReadsRetrieval } from "@orb/kit/regex";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../contract/context.ts";
 import type { ResolveForeignInputsOp } from "../contract/foreign.ts";
@@ -37,6 +42,8 @@ export interface GreetingRoom {
   readonly anchorPersonaId: PersonaId | null;
   readonly regexAllow: HostTierRegexAllow;
 }
+
+const GREETING_SAVE_CALL = { pass: "save", target: "AI_OUTPUT", edit: false } as const satisfies RegexPassCall;
 
 /** The greeting save pass for one room: each greeting's text with the host's save scripts applied, in order. */
 export type SaveGreetingTexts = <T extends GreetingText>(room: GreetingRoom, greetings: readonly T[]) => Promise<T[]>;
@@ -74,6 +81,7 @@ export function createSaveGreetingTexts(
     const assembleContext = await ctx.gatherAssembleContext(
       {
         chatId: room.chatId,
+        retrieval: regexCallReadsRetrieval(scripts, GREETING_SAVE_CALL) ? "degrade" : "none",
         // A greeting is a write the request commits whole, so only shutdown may end its gather.
         signal: ctx.backgroundSignal,
         runAsUserId: hostUserId,
@@ -93,7 +101,7 @@ export function createSaveGreetingTexts(
       text: ctx.openRegexPass().execute({
         text: greeting.text,
         scripts,
-        call: { pass: "save", target: "AI_OUTPUT", edit: false },
+        call: GREETING_SAVE_CALL,
         ctx: { ...macroCtx, char: greeting.characterName },
         onScriptFailure: (err, script) =>
           getLog(ctx.logger).warn(

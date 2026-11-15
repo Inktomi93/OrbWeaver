@@ -45,8 +45,8 @@ import { batchMany } from "@orb/db/query";
 import { assetIdsInContent, stripHiddenSpans } from "@orb/kit/content";
 import type { CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroFreeze, RandomSource } from "@orb/kit/macro";
-import type { RegexTarget } from "@orb/kit/regex";
-import { messageTargetOf } from "@orb/kit/regex";
+import type { RegexPassCall, RegexTarget } from "@orb/kit/regex";
+import { messageTargetOf, regexCallReadsRetrieval } from "@orb/kit/regex";
 import { stripSelfSpeakerLabel } from "@orb/kit/speaker-label";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { getLog } from "#foundation/observability";
@@ -313,10 +313,14 @@ async function applyRunOnEditRegex(
   if (scripts.length === 0) {
     return args.content;
   }
+  // An edit is the save pass with `edit` set: only a script that asked to run on edits runs.
+  const call: RegexPassCall = { pass: "save", target, edit: true };
   const assembleContext = await ctx.gatherAssembleContext(
-    // An edit's re-apply is a write the request commits whole, so only shutdown may end its gather.
+    // An edit's re-apply is a write the request commits whole, so only shutdown may end its gather, and retrieval
+    // runs only when a script can read it, where a failure reads empty.
     {
       chatId,
+      retrieval: regexCallReadsRetrieval(scripts, call) ? "degrade" : "none",
       signal: ctx.backgroundSignal,
       runAsUserId: hostUserId,
       model,
@@ -331,8 +335,7 @@ async function applyRunOnEditRegex(
   return ctx.openRegexPass().execute({
     text: args.content,
     scripts,
-    // An edit is the save pass with `edit` set: only a script that asked to run on edits runs.
-    call: { pass: "save", target, edit: true },
+    call,
     ctx: buildTurnMacroContext({ assembleCtx: assembleContext, model, chatId, random: deps.prng }),
     onScriptFailure: (err, script): void => {
       getLog(ctx.logger).warn({ err, target, findRegex: script.findRegex }, "chat: host-tier regex script failed on an edit re-apply (D53 watchdog)");
@@ -480,6 +483,8 @@ async function freezeSelectedVariant(
   const assembleContext = await ctx.gatherAssembleContext(
     {
       chatId: args.chatId,
+      // The freeze renders through the volatile-only registry, which registers no retrieval macro.
+      retrieval: "none",
       // A selection's bake is a write the request commits whole, so only shutdown may end its gather.
       signal: ctx.backgroundSignal,
       runAsUserId: hostUserId,

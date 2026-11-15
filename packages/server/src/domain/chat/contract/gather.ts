@@ -22,9 +22,18 @@ export interface SendRegexSink {
   memoryRecall?: MemoryRecallInputs | null;
 }
 
+const GATHER_RETRIEVALS = ["strict", "degrade", "none"] as const;
+
+/** How a gather runs memory recall and the databank read.
+ *  - `strict`: both run, and a failure other than a space refusal rejects the gather (a turn, a preview).
+ *  - `degrade`: both run, and any failure reads as an empty slot, so the write the gather serves commits.
+ *  - `none`: neither runs and nothing is embedded; for a write whose macros read neither slot. */
+type GatherRetrieval = (typeof GATHER_RETRIEVALS)[number];
+
 /** The per-call inputs `ctx.gatherAssembleContext` takes beside the foreign DTO. */
 export interface GatherAssembleArgs {
   readonly chatId: ChatId;
+  readonly retrieval: GatherRetrieval;
   /** Ends the recall and databank retrieval this gather runs. */
   readonly signal: AbortSignal;
   readonly runAsUserId: ConsentingHostId;

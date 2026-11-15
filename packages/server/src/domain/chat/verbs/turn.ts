@@ -824,6 +824,7 @@ async function buildTurnContext(
   const assembleContext = await ctx.gatherAssembleContext(
     {
       chatId: args.chatId,
+      retrieval: "strict",
       // The gather runs before the turn registers the Stop handle that cancels it, so only shutdown can end its
       // retrieval.
       signal: ctx.backgroundSignal,
