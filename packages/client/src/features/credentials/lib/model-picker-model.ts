@@ -11,6 +11,7 @@
 // IS the set the in-process runtime can run, so a typed id there names a model nothing can load.
 
 import type { ModelCatalogEntry, ModelCheck, ModelListing, ProviderDef } from "@orb/contracts/inference";
+import { TOOLS_PARAMETER } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { isSpaceChar, trimEndWhile } from "@orb/kit/strings";
 
@@ -104,28 +105,29 @@ export function hasVision(entry: Pick<PickerEntry, "inputModalities">): boolean 
 
 /** `true` when an entry advertises tool use (the Tools chip / filter). */
 export function hasTools(entry: Pick<PickerEntry, "supportedParameters">): boolean {
-  return entry.supportedParameters.includes("tools");
-}
-
-/** The chips are offered only for a catalog that states capabilities (OpenRouter's enriched list): a plain
- *  `/v1/models` list states none, and a chip that could only ever empty the list is a trap. */
-export function offersCapabilityChips(entries: readonly PickerEntry[]): boolean {
-  return entries.some((entry) => entry.inputModalities.length > 0 || entry.supportedParameters.length > 0);
+  return entry.supportedParameters.includes(TOOLS_PARAMETER);
 }
 
 /** The chip values, and the filter they apply. */
 export const VISION_CHIP = "vision";
 export const TOOLS_CHIP = "tools";
 
-/** Apply the Vision/Tools chip filter (AND across active chips) before the render cap. An empty chip set is a
- *  pass-through. */
-export function filterByChips<T extends PickerEntry>(entries: readonly T[], chips: readonly string[]): readonly T[] {
-  if (chips.length === 0) {
-    return entries;
-  }
-  const wantVision = chips.includes(VISION_CHIP);
-  const wantTools = chips.includes(TOOLS_CHIP);
-  return entries.filter((entry) => (!wantVision || hasVision(entry)) && (!wantTools || hasTools(entry)));
+const CHIP_TESTS = [
+  [VISION_CHIP, hasVision],
+  [TOOLS_CHIP, hasTools],
+] as const satisfies readonly (readonly [string, (entry: PickerEntry) => boolean])[];
+
+/** The chips this list offers: each one some entry satisfies and some does not. A chip every entry passes changes
+ *  nothing, and one no entry passes could only ever empty the list. */
+export function offeredChips(entries: readonly PickerEntry[]): readonly string[] {
+  return CHIP_TESTS.filter(([, test]) => entries.some(test) && !entries.every(test)).map(([chip]) => chip);
+}
+
+/** Apply the active chips the list offers (AND across them) before the render cap. An empty chip set is a
+ *  pass-through, and a chip the list no longer offers filters nothing. */
+export function filterByChips<T extends PickerEntry>(entries: readonly T[], chips: readonly string[], offered: readonly string[]): readonly T[] {
+  const tests = CHIP_TESTS.filter(([chip]) => chips.includes(chip) && offered.includes(chip)).map(([, test]) => test);
+  return tests.length === 0 ? entries : entries.filter((entry) => tests.every((test) => test(entry)));
 }
 
 // ── provider grouping (the section plan) ──────────────────────────────────────────────────────────────
