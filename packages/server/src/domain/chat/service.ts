@@ -93,7 +93,7 @@ export function createChatService(
       settleRetainedChatRebase: ctx.settleRetainedChatRebase,
       resolveRetainedChatAccountingScope: ctx.resolveRetainedChatAccountingScope,
       emitChatChanged: ctx.emitChatChanged,
-      applyRegexReplace: ctx.applyRegexReplace,
+      openRegexPass: ctx.openRegexPass,
       prng: ctx.prng,
       passageCounter: ctx.passageCounter,
       runChatTurn: ctx.runChatTurn,

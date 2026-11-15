@@ -7,11 +7,25 @@
 
 import type { Db } from "@orb/db";
 import type { RegexScriptId } from "@orb/kit/ids";
+import type { SubstituteFindRegex } from "@orb/kit/regex";
 import type { Clock } from "@orb/kit/time";
+
+/** One stored find pattern, as the executor will compile it. */
+export interface FindCompileProbe {
+  readonly findRegex: string;
+  readonly substituteRegex?: SubstituteFindRegex | undefined;
+}
+
+/** A pattern's verdict at the write door: admitted, or refused with a reason a summary prints after the name. */
+export type FindCompileVerdict = { readonly ok: true } | { readonly ok: false; readonly reason: string };
+
+/** The write door's compile-cost check (D53): one verdict per pattern, in order; never rejects. */
+export type ProbeFindCompilesOp = (patterns: readonly FindCompileProbe[]) => Promise<readonly FindCompileVerdict[]>;
 
 /** The DI bundle every portability op closes over (assembled at the entry composition root). */
 export interface RegexPortabilityContext {
   readonly db: Db;
   readonly now: Clock;
   readonly newScriptId: () => RegexScriptId;
+  readonly probeFindCompiles: ProbeFindCompilesOp;
 }

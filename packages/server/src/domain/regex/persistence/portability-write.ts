@@ -19,6 +19,7 @@ import type {
   ImportPresetScripts,
   ImportRegexScript,
   PortableRegexScript,
+  RegexScriptRefusal,
   RegexScriptRow,
 } from "@orb/contracts/regex";
 import { characterRegexScripts, characters, globalRegexScripts, presetRegexScripts, regexScripts } from "@orb/db";
@@ -27,15 +28,41 @@ import { batchMany } from "@orb/db/query";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { DomainOperationError } from "@orb/kit/errors";
-import type { UserId } from "@orb/kit/ids";
+import type { RegexScriptId, UserId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import { and, asc, eq } from "drizzle-orm";
 import { portableParseError } from "#primitives/serde/lib";
 import { buildRegexScriptFile, parseRegexScriptFile, REGEX_SCRIPT_SCHEMA_KIND } from "#primitives/serde/regex";
+import type { CardLiftPlan } from "../contract/dedup.ts";
+import { REGEX_FIND_TOO_COSTLY } from "../contract/errors.ts";
 import type { RegexPortabilityContext } from "../contract/portability.ts";
 import { findDuplicate, planCardLift, splitScript } from "../substrate/dedup.ts";
 import { ensureCharacterOwned, ensurePresetOwned } from "./ownership.ts";
 import { listOwnedScripts, loadOwnedScript, loadOwnedScriptsByIds, toRow } from "./queries.ts";
+
+/** The write door on a lift (D53): every row the plan would mint has its find pattern's compile measured, and a
+ *  refused one is neither minted nor attached. Reused rows are not measured again; they are already stored. */
+async function admitPlan(ctx: RegexPortabilityContext, plan: CardLiftPlan): Promise<{ readonly plan: CardLiftPlan; readonly refused: RegexScriptRefusal[] }> {
+  const verdicts = await ctx.probeFindCompiles(
+    plan.inserts.map(({ behavior }) => ({ findRegex: behavior.findRegex, substituteRegex: behavior.substituteRegex })),
+  );
+  const refusedIds = new Set<RegexScriptId>();
+  const refused: RegexScriptRefusal[] = [];
+  for (const [index, row] of plan.inserts.entries()) {
+    const verdict = verdicts[index];
+    if (verdict !== undefined && !verdict.ok) {
+      refusedIds.add(row.id);
+      refused.push({ name: row.name, reason: verdict.reason });
+    }
+  }
+  if (refused.length === 0) {
+    return { plan, refused };
+  }
+  return {
+    plan: { ...plan, inserts: plan.inserts.filter((row) => !refusedIds.has(row.id)), attachIds: plan.attachIds.filter((id) => !refusedIds.has(id)) },
+    refused,
+  };
+}
 
 /**
  * The card LIFT (the `importLorebook` twin). Reads the owner's library + the carried references THIS owner
@@ -55,12 +82,15 @@ export function createImportCardScripts(input: DbAssemblyInput<RegexPortabilityC
     await ensureCharacterOwned(ctx.db, ownerId, characterId);
     const [carriedRows, existing] = await Promise.all([loadOwnedScriptsByIds(ctx.db, ownerId, carried), listOwnedScripts(ctx.db, ownerId)]);
 
-    const plan = planCardLift({
-      existing: existing.map(toRow),
-      carriedIds: carriedRows.map((r) => r.id),
-      scripts,
-      mintId: ctx.newScriptId,
-    });
+    const { plan, refused } = await admitPlan(
+      ctx,
+      planCardLift({
+        existing: existing.map(toRow),
+        carriedIds: carriedRows.map((r) => r.id),
+        scripts,
+        mintId: ctx.newScriptId,
+      }),
+    );
 
     const at = ctx.now();
     const stmts: BatchStmt[] = [
@@ -74,7 +104,7 @@ export function createImportCardScripts(input: DbAssemblyInput<RegexPortabilityC
     if (stmts.length > 0) {
       await ctx.db.batch(batchMany(stmts));
     }
-    return { created: plan.inserts.length, reused: plan.reused };
+    return { created: plan.inserts.length, reused: plan.reused, refused };
   };
 }
 
@@ -91,7 +121,7 @@ export function createImportPresetScripts(input: DbAssemblyInput<RegexPortabilit
     // preset (nullable ownerId) un-attachable, which is correct — it is read-only by construction.
     await ensurePresetOwned(ctx.db, ownerId, presetId);
     const existing = await listOwnedScripts(ctx.db, ownerId);
-    const plan = planCardLift({ existing: existing.map(toRow), carriedIds: [], scripts, mintId: ctx.newScriptId });
+    const { plan, refused } = await admitPlan(ctx, planCardLift({ existing: existing.map(toRow), carriedIds: [], scripts, mintId: ctx.newScriptId }));
 
     const at = ctx.now();
     const stmts: BatchStmt[] = [
@@ -105,7 +135,7 @@ export function createImportPresetScripts(input: DbAssemblyInput<RegexPortabilit
     if (stmts.length > 0) {
       await ctx.db.batch(batchMany(stmts));
     }
-    return { created: plan.inserts.length, reused: plan.reused };
+    return { created: plan.inserts.length, reused: plan.reused, refused };
   };
 }
 
@@ -118,7 +148,7 @@ export function createImportGlobalScripts(input: DbAssemblyInput<RegexPortabilit
   const ctx: RegexPortabilityContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId, scripts }): Promise<ImportCardScriptsResult> => {
     const existing = await listOwnedScripts(ctx.db, ownerId);
-    const plan = planCardLift({ existing: existing.map(toRow), carriedIds: [], scripts, mintId: ctx.newScriptId });
+    const { plan, refused } = await admitPlan(ctx, planCardLift({ existing: existing.map(toRow), carriedIds: [], scripts, mintId: ctx.newScriptId }));
 
     const at = ctx.now();
     const stmts: BatchStmt[] = [
@@ -130,7 +160,7 @@ export function createImportGlobalScripts(input: DbAssemblyInput<RegexPortabilit
     if (stmts.length > 0) {
       await ctx.db.batch(batchMany(stmts));
     }
-    return { created: plan.inserts.length, reused: plan.reused };
+    return { created: plan.inserts.length, reused: plan.reused, refused };
   };
 }
 
@@ -224,6 +254,12 @@ export function createImportRegexScript(input: DbAssemblyInput<RegexPortabilityC
     const existing = await listOwnedScripts(ctx.db, ownerId);
     const match = findDuplicate(existing.map(toRow), candidate);
     const at = ctx.now();
+    if (match === null) {
+      const [verdict] = await ctx.probeFindCompiles([{ findRegex: candidate.behavior.findRegex, substituteRegex: candidate.behavior.substituteRegex }]);
+      if (verdict !== undefined && !verdict.ok) {
+        throw new DomainOperationError(REGEX_FIND_TOO_COSTLY, `script ${JSON.stringify(candidate.name)} not imported: ${verdict.reason}`);
+      }
+    }
     const id = match ?? ctx.newScriptId();
     const stmts: BatchStmt[] =
       match === null
