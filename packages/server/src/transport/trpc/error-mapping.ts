@@ -72,6 +72,8 @@
 // `trpc.unhandled` error trace firing for exactly the failures an operator most needs to see, and costs
 // nothing on the wire: they collapse to the same fixed sentence every other unclassified throw gets.
 
+import type { ProviderFailureReason } from "@orb/contracts/chat";
+import { PROVIDER_FAILURE_REASON_PREFIX } from "@orb/contracts/chat";
 import type { ProviderErrorKind } from "@orb/inference";
 import { ProviderError } from "@orb/inference";
 import type { DomainOperationDetail } from "@orb/kit/errors";
@@ -165,11 +167,6 @@ function assertNeverKind(kind: never): never {
   throw new Error(`providerWireArm: unhandled ProviderErrorKind ${JSON.stringify(kind)}`);
 }
 
-/** The `data.reason` prefix every provider failure rides, so a client can discriminate the whole class with
- *  one test and a specific kind by the full literal (`provider_rate_limit`). The vocabulary after the
- *  prefix is `PROVIDER_ERROR_KINDS` verbatim — a closed union in `@orb/inference`, never a free string. */
-const PROVIDER_REASON_PREFIX = "provider_";
-
 /** The mapped `TRPCError` for a provider failure, or `null` for a kind this boundary does not model. */
 function classifyProviderError(err: ProviderError): TRPCError | null {
   const arm = providerWireArm(err.kind);
@@ -253,7 +250,9 @@ export function domainReason(error: { cause?: unknown }): string | undefined {
   if (error.cause instanceof DomainOperationError || error.cause instanceof DomainForbiddenError) {
     return error.cause.code;
   }
-  return error.cause instanceof ProviderError ? `${PROVIDER_REASON_PREFIX}${error.cause.kind}` : undefined;
+  // The vocabulary after the prefix is `PROVIDER_ERROR_KINDS` verbatim, a closed union, never a free string. The client
+  // keys its Connections door on three of these reasons (`CONNECTION_FIXABLE_FAILURE_REASONS`): renaming a kind renames it.
+  return error.cause instanceof ProviderError ? (`${PROVIDER_FAILURE_REASON_PREFIX}${error.cause.kind}` satisfies ProviderFailureReason) : undefined;
 }
 
 /** The facts a coded refusal states beside its `reason` (`DomainOperationError.detail`), for a client that says them in
