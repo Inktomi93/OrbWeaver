@@ -574,14 +574,22 @@ export const createRegexScriptSchema = regexScriptBehaviorFields
 
 export type CreateRegexScriptInput = z.infer<typeof createRegexScriptSchema>;
 
-/** Patch one library script. Every field optional — omitted ⇒ unchanged (never "clear"). The BEHAVIOR is
+/** Patch one library script. Every field optional — omitted ⇒ unchanged. `null` on `depth` or `authors` clears it:
+ *  each one's "every position" or "every author" is the absent field, so an omitted key cannot say it. The BEHAVIOR is
  *  patched as a WHOLE (the blob is rewritten from the merge), so a partial behavior patch still carries the
  *  fields it is not changing; the verb merges over the stored body.
  *
  *  Descends from the UN-refined shape because zod refuses `.partial()` on a refined object — and that is
  *  the correct seam anyway: a patch is not a behavior, so the pairing rules are checked on the MERGED body
  *  (`updateScript` re-parses through `regexScriptBehaviorWriteSchema`), where they are actually true. */
-export const updateRegexScriptSchema = regexScriptBehaviorFields.extend({ name: z.string().max(REGEX_SCRIPT_NAME_MAX), enabled: z.boolean() }).partial();
+export const updateRegexScriptSchema = regexScriptBehaviorFields
+  .extend({
+    name: z.string().max(REGEX_SCRIPT_NAME_MAX),
+    enabled: z.boolean(),
+    depth: regexDepthSchema.nullable(),
+    authors: regexAuthorScopeSchema.nullable(),
+  })
+  .partial();
 
 export type UpdateRegexScriptInput = z.infer<typeof updateRegexScriptSchema>;
 

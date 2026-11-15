@@ -1,14 +1,17 @@
 // The regex member editor's two axes, run through the registered configuration content and the real update verb.
 // Each case names the defect it catches: a stored target cleared because its time does not read it, a pair that
-// cannot run offered as a choice, an author-scope pick that never reaches the stored row, and a move to when saved
-// that drops a set depth or author scope without asking.
+// cannot run offered as a choice, an author-scope pick that never reaches the stored row, an emptied ceiling or author
+// scope the stored row keeps, and a move to when saved that drops a set depth or author scope without asking.
 import { DIALOG_VERBS, REGEX_TARGET_LABELS } from "@orb/client/lib";
+import { REGEX_DEPTH_FLOOR } from "@orb/kit/regex";
 import { routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { removeActionName } from "@orb/ui/lib";
 import {
   REGEX_AUTHORS_ADD_NAME,
   REGEX_AUTHORS_ONLY_NAME,
+  REGEX_DEPTH_TO_NAME,
   REGEX_REPLACE_WITH_NAME,
   REGEX_SAVE_CLEARS_SCOPE_CONFIRM_NAME,
   REGEX_SAVE_CLEARS_SCOPE_TITLE,
@@ -96,6 +99,58 @@ test("picking the host in the only-from list stores a standing selector on the s
   await expect
     .poll(async () => (await caller.regex.listScripts()).find((row) => row.id === script.id)?.authors)
     .toEqual({ include: [{ by: "standing", standing: "host" }], exclude: [] });
+});
+
+test("emptying To stores no ceiling, so a range reaching back from the newest message returns to the whole chat", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  // The editor's default start: the newest message with the continued reply, so an empty To spells every position.
+  const script = await caller.regex.createScript({
+    input: { name: "Last two", findRegex: "x", replaceString: "y", targets: ["AI_OUTPUT"], passes: ["display"], depth: { min: REGEX_DEPTH_FLOOR, max: 2 } },
+  });
+  await routeTrpc(page, serveCorpusProcedures(caller, PROCEDURES));
+  await mount<typeof RegexMemberSaveStory>(STORY, { scriptId: script.id });
+  const stored = async (): Promise<Awaited<ReturnType<typeof caller.regex.listScripts>>[number] | undefined> =>
+    (await caller.regex.listScripts()).find((row) => row.id === script.id);
+
+  const to = page.getByRole("textbox", { name: REGEX_DEPTH_TO_NAME, exact: true });
+  await expect(to).toHaveValue("2");
+  // The positive control: a typed ceiling reaches the stored row.
+  await to.fill("3");
+  await to.press("Tab");
+  await expect.poll(async () => (await stored())?.depth).toEqual({ min: REGEX_DEPTH_FLOOR, max: 3 });
+
+  await to.fill("");
+  await to.press("Tab");
+  await expect.poll(async () => (await stored())?.depth).toBeUndefined();
+});
+
+test("removing the last author selector stores no author scope", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const script = await caller.regex.createScript({
+    input: {
+      name: "Host lines",
+      findRegex: "x",
+      replaceString: "y",
+      targets: ["USER_INPUT"],
+      passes: ["display"],
+      authors: { include: [{ by: "standing", standing: "host" }], exclude: [] },
+    },
+  });
+  await routeTrpc(page, serveCorpusProcedures(caller, PROCEDURES));
+  await mount<typeof RegexMemberSaveStory>(STORY, { scriptId: script.id });
+  const authors = async (): Promise<unknown> => (await caller.regex.listScripts()).find((row) => row.id === script.id)?.authors;
+
+  // The positive control: an edit that keeps the selector leaves it stored.
+  const replace = page.getByRole("textbox", { name: REGEX_REPLACE_WITH_NAME, exact: true });
+  await replace.fill("z");
+  await replace.press("Tab");
+  await expect.poll(async () => (await caller.regex.listScripts()).find((row) => row.id === script.id)?.replaceString).toBe("z");
+  expect(await authors()).toEqual({ include: [{ by: "standing", standing: "host" }], exclude: [] });
+
+  await page.getByRole("button", { name: removeActionName(REGEX_STANDING_HOST_NAME), exact: true }).click();
+  await expect.poll(authors).toBeUndefined();
 });
 
 test("moving a scoped display script to when saved keeps its scope stored until the clear is confirmed", async ({ mount, page }) => {
