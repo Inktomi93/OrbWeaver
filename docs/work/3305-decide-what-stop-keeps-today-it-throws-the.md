@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-15
 priority: P1
 area: chat
+lane: wt/agent-a7694db56bfbc1d14
 ---
 
 # Decide what Stop keeps: today it throws the whole streamed reply away without a word
