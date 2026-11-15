@@ -12,10 +12,10 @@
 import type { BulkAxesResult, RegexScriptBehavior } from "@orb/contracts/regex";
 import { regexScriptBehaviorWriteSchema } from "@orb/contracts/regex";
 import type { RegexScriptId } from "@orb/kit/ids";
-import { EPHEMERAL_REGEX_PASSES } from "@orb/kit/regex";
 import type { BulkSetScriptsAxesParams } from "#src/domain/regex/contract/params.ts";
 import type { RegexContext, RegexService } from "#src/domain/regex/contract/service.ts";
 import { loadOwnedScriptsByIds, setScriptsBehaviorBulk, toRow } from "#src/domain/regex/persistence/queries.ts";
+import { settleEphemeralScope } from "#src/domain/regex/substrate/ephemeral-scope.ts";
 
 export function createBulkSetAxes(ctx: RegexContext): RegexService["bulkSetScriptsAxes"] {
   return async ({ principal, scriptIds, targets, passes }: BulkSetScriptsAxesParams): Promise<BulkAxesResult> => {
@@ -24,21 +24,14 @@ export function createBulkSetAxes(ctx: RegexContext): RegexService["bulkSetScrip
     if (records.length === 0) {
       return { affected: 0, cleared: [] };
     }
-    const ephemeral = passes.some((pass) => (EPHEMERAL_REGEX_PASSES as readonly string[]).includes(pass));
     const cleared: RegexScriptId[] = [];
     const updates = records.map((record): { readonly id: RegexScriptId; readonly behavior: RegexScriptBehavior } => {
-      const { id: _id, name: _name, enabled: _enabled, updatedAt: _updatedAt, depth, authors, ...body } = toRow(record);
-      if (!ephemeral && (depth !== undefined || authors !== undefined)) {
+      const { id: _id, name: _name, enabled: _enabled, updatedAt: _updatedAt, ...body } = toRow(record);
+      const settled = settleEphemeralScope({ ...body, targets: [...targets], passes: [...passes] });
+      if (settled.cleared) {
         cleared.push(record.id);
       }
-      const behavior = regexScriptBehaviorWriteSchema.parse({
-        ...body,
-        targets,
-        passes,
-        ...(ephemeral && depth !== undefined ? { depth } : {}),
-        ...(ephemeral && authors !== undefined ? { authors } : {}),
-      });
-      return { id: record.id, behavior };
+      return { id: record.id, behavior: regexScriptBehaviorWriteSchema.parse(settled.behavior) };
     });
 
     // ONE clock read for the whole operation: every row's `updatedAt` and the audit's instant are the same.

@@ -1,15 +1,23 @@
 // verb: updateScript — patch an owned script. Owner-gated by `requireOwnedScript` (a foreign/absent id is one
 // answer: RegexNotFoundError). The BEHAVIOR blob is rewritten as a whole from the stored body ⊕ the patch,
 // so a partial patch never drops the fields it did not name; `name`/`enabled` are promoted columns and
-// patch independently. Omitted ⇒ unchanged (never "clear") — the library has no nullable authored field.
+// patch independently. Omitted ⇒ unchanged (never "clear") — the library has no nullable authored field. The
+// one exception is the shared ephemeral-scope rule: a body whose passes leave depth or authors nothing to apply to
+// drops them (`substrate/ephemeral-scope`).
 
-import { regexScriptBehaviorSchema } from "@orb/contracts/regex";
+import { regexScriptBehaviorSchema, regexScriptBehaviorWriteSchema } from "@orb/contracts/regex";
 import { regexScripts } from "@orb/db";
+import { DomainOperationError } from "@orb/kit/errors";
 import { and, eq } from "drizzle-orm";
 import type { UpdateScriptParams } from "#src/domain/regex/contract/params.ts";
 import type { RegexContext, RegexService } from "#src/domain/regex/contract/service.ts";
 import { requireOwnedScript } from "#src/domain/regex/persistence/ownership.ts";
 import { toRow } from "#src/domain/regex/persistence/queries.ts";
+import { settleEphemeralScope } from "#src/domain/regex/substrate/ephemeral-scope.ts";
+
+/** The code a patch carries when the merged script breaks a pairing rule (a save pass beside an ephemeral one, a
+ *  ceiling shallower than its floor). */
+const REGEX_SCRIPT_INCOHERENT = "regex_script_incoherent";
 
 export function createUpdate(ctx: RegexContext): RegexService["updateScript"] {
   return async ({ principal, scriptId, input }: UpdateScriptParams) => {
@@ -27,7 +35,13 @@ export function createUpdate(ctx: RegexContext): RegexService["updateScript"] {
         merged[key] = value;
       }
     }
-    const behavior = regexScriptBehaviorSchema.parse(merged);
+    // A move to the save pass leaves depth and an author scope nothing to apply to, so they go; then the merged
+    // body must pass the pairing rules a create passes at the wire.
+    const settled = regexScriptBehaviorWriteSchema.safeParse(settleEphemeralScope(regexScriptBehaviorSchema.parse(merged)).behavior);
+    if (!settled.success) {
+      throw new DomainOperationError(REGEX_SCRIPT_INCOHERENT, settled.error.issues.map(({ message }) => message).join("; "));
+    }
+    const behavior = settled.data;
     const name = patchName ?? record.name;
     const enabled = patchEnabled ?? record.enabled;
     const at = ctx.now();
