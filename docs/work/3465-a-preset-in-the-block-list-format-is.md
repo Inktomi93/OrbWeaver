@@ -1,24 +1,25 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-15
 priority: P2
 area: import
+lane: wt/agent-ae0fdd0e39a57d5b8
 ---
 
 # A preset in the block-list format is refused whole and the refusal does not say what it expected
 
 ## What
 
-A preset file whose scripts and prompts sit in a block list with string placements and per-script depth fields is refused by the single-file preset import with a message that names only the SillyTavern chat-completion shape. Every regex script in it is lost with it. Decide whether the app imports that format, or says in the refusal which format it found and which exports it accepts.
+A preset file that is not the SillyTavern chat-completion shape is refused by the single-file preset import with a message that names only that shape and its field names. Say plainly that the file format is not recognized and which exports the app accepts. Importing other preset formats is out of scope.
 
 ## Why
 
-A person who picks a large public preset gets a flat refusal for the whole file and no hint whether the file or the app is wrong.
+A person who picks the wrong export gets a message about field names and cannot tell whether the file or the app is wrong.
 
 ## Done when
 
-Either the import reads the block-list format with each script's target, passes, depth and flags carried over and a reason for each script it refuses, or the refusal names the format it found and the formats it accepts. A test feeds a small synthetic file of that shape through the import and sees the new behavior.
+The refusal says the format is not recognized and names the accepted exports, in words a reader with no knowledge of the file shape can act on. A test feeds a small synthetic file of another shape through the import and reads the refusal kind, not its copy.
 
 ## Evidence
 
