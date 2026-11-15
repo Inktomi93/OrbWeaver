@@ -104,8 +104,14 @@ export function createImportChatFile(
     const [room] = result.rooms;
     const title = room === undefined ? null : await requireProfile(ctx).ownedChatTitle({ ownerId: ctx.ownerId, chatId: room.chatId });
     // The ST interchange carries no overlay planes at all (no tags, no campaign — that is the whole reason
-    // the orb-native bundle exists), so this arm can never skip one. The EMPTY list still rides: an absent
-    // field would read as "not looked at" at the door that renders it.
-    return { ok: true, created: result.chatsImported > 0, title: title ?? room?.title ?? leaf, skippedOverlays: [], memoryChatIds: result.memoryChatIds };
+    // the orb-native bundle exists), so the only lines here are swipes refused as over-long. The EMPTY list still
+    // rides: an absent field would read as "not looked at" at the door that renders it.
+    return {
+      ok: true,
+      created: result.chatsImported > 0,
+      title: title ?? room?.title ?? leaf,
+      skippedOverlays: result.skippedChatRows.map((row) => row.reason),
+      memoryChatIds: result.memoryChatIds,
+    };
   };
 }

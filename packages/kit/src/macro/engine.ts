@@ -86,20 +86,34 @@ export function createMacroContext(options: ProcessMacroOptions, registry: Macro
   return ctx;
 }
 
-export function processMacros(text: string, options: ProcessMacroOptions, registry: MacroRegistry = globalMacroRegistry): string {
+/** A render and whether a budget cap cut it short. `degraded` is the one way to tell a render the engine skipped or
+ *  aborted (its text is empty or partial) from one whose macros legitimately produced little or nothing. */
+export interface MacroRenderOutcome {
+  readonly text: string;
+  readonly degraded: boolean;
+}
+
+/** {@link processMacros} with the degrade made visible: a caller that stores the result refuses a degraded render
+ *  instead of storing empty text in place of the input. */
+export function processMacrosOutcome(text: string, options: ProcessMacroOptions, registry: MacroRegistry = globalMacroRegistry): MacroRenderOutcome {
   // Input belt (see MAX_INPUT_BYTES): refuse a pathological input before parsing. Degrade-don't-throw —
   // the engine's posture on every cap — so a hostile field can never block the shared event loop.
   const inputBytes = utf8ByteLength(text);
   if (inputBytes === null) {
     options.onWarn?.("[Macro Engine] input contains an unpaired UTF-16 surrogate — rendering skipped");
-    return "";
+    return { text: "", degraded: true };
   }
   if (inputBytes > MAX_INPUT_BYTES) {
     options.onWarn?.(`[Macro Engine] input limit ${MAX_INPUT_BYTES} bytes exceeded — rendering skipped`);
-    return "";
+    return { text: "", degraded: true };
   }
   const ctx = createMacroContext(options, registry);
 
   const ast = parseMacros(text);
-  return ctx.evaluateAST(ast);
+  const rendered = ctx.evaluateAST(ast);
+  return { text: rendered, degraded: ctx.__budget?.tripped === true };
+}
+
+export function processMacros(text: string, options: ProcessMacroOptions, registry: MacroRegistry = globalMacroRegistry): string {
+  return processMacrosOutcome(text, options, registry).text;
 }

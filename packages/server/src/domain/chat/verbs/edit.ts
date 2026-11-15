@@ -490,12 +490,13 @@ async function freezeSelectedVariant(
     freezes,
     ...(stored.success && stored.data.length > 0 ? { frozenMacros: stored.data } : {}),
   });
-  if (frozen === args.variant.content) {
+  // A degraded freeze is empty or partial text: the alternate keeps its unbaked body rather than lose it.
+  if (frozen.degraded || frozen.text === args.variant.content) {
     return null;
   }
   return {
-    statement: freezeVariantContentStatement(ctx.db, { variantId: args.variant.id, content: frozen, rawContent: source, macroFreezes: freezes }),
-    content: frozen,
+    statement: freezeVariantContentStatement(ctx.db, { variantId: args.variant.id, content: frozen.text, rawContent: source, macroFreezes: freezes }),
+    content: frozen.text,
   };
 }
 

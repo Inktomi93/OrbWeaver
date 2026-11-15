@@ -13,6 +13,8 @@
 import {
   CHAT_NOT_HOST_OP_CODE,
   MEMORY_ITEM_STALE_OP_CODE,
+  MESSAGE_MACRO_BUDGET_OP_CODE,
+  MESSAGE_TOO_LONG_OP_CODE,
   TURN_ABORTED_OP_CODE,
   TURN_HOST_UNAVAILABLE_OP_CODE,
   TURN_LOCKED_OP_CODE,
@@ -20,6 +22,7 @@ import {
   USER_MACRO_UNKNOWN_PICK_OP_CODE,
 } from "@orb/contracts/chat";
 import { BACKGROUND_UNAVAILABLE_OP_CODE } from "@orb/contracts/theme";
+import type { DomainOperationDetail } from "@orb/kit/errors";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { ChatId } from "@orb/kit/ids";
 
@@ -204,6 +207,13 @@ export const CHAT_OP_CODES = {
    *  than labelled with the id, which would put an internal id into the summarizer and embedding input.
    *  Internal surface: the memory build and recall query, both behind their own doors. */
   transcriptSpeakerUnresolved: "transcript_speaker_unresolved",
+  /** A canon write whose content or reasoning is longer than `MESSAGE_TEXT_MAX_CHARS`. Refused before the batch,
+   *  so nothing is stored; the detail names the field, its length and the limit. Derived from the contract home. */
+  messageTooLong: MESSAGE_TOO_LONG_OP_CODE,
+  /** A send or commit whose draft the macro freeze could not render within the engine's byte budget. Refused before
+   *  the room is claimed or a row is written, because the degraded render is empty or partial text. Derived from the
+   *  contract home. */
+  messageMacroBudget: MESSAGE_MACRO_BUDGET_OP_CODE,
   /** D259 — `createInvite` with `allowSignup` under a sign-in mode that mints no signup invites. */
   inviteSignupUnavailable: "invite_signup_unavailable",
   /** D259 — `createInvite` with `allowSignup` and a missing or over-cap use count or expiry, or a target. */
@@ -216,8 +226,8 @@ export type ChatOpCode = (typeof CHAT_OP_CODES)[keyof typeof CHAT_OP_CODES];
 /** A coded chat operational failure — clients/tests key on `code` (one of {@link CHAT_OP_CODES}). */
 export class ChatOperationError extends DomainOperationError {
   declare readonly code: ChatOpCode;
-  constructor(code: ChatOpCode, message: string) {
-    super(code, message);
+  constructor(code: ChatOpCode, message: string, detail?: DomainOperationDetail) {
+    super(code, message, detail);
     this.name = this.constructor.name;
   }
 }

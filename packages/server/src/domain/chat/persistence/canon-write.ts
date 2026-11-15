@@ -24,7 +24,7 @@ import type {
   UserMacroDraws,
   VariantMetadata,
 } from "@orb/contracts/chat";
-import { DEFAULT_MESSAGE_KIND, parseVariantMetadata } from "@orb/contracts/chat";
+import { DEFAULT_MESSAGE_KIND, MESSAGE_TEXT_MAX_CHARS, parseVariantMetadata } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { CostDetails, NormalizedFinishReason, ProviderGenerationId, ProviderId, ResponseCache, TokenDetails } from "@orb/contracts/inference";
 import type { EffortLevel, UserIntent } from "@orb/contracts/preset";
@@ -210,7 +210,7 @@ function variantEconomics(v: CanonVariantInput): VariantEconomics {
   const connectionId = v.connectionId ?? null;
   return {
     content: v.content,
-    reasoning: v.reasoning ?? null,
+    reasoning: checkedText("reasoning", v.reasoning ?? null),
     model: v.model ?? null,
     provider: v.provider ?? null,
     connectionId,
@@ -256,19 +256,47 @@ function variantEconomics(v: CanonVariantInput): VariantEconomics {
 
 type CanonBodyColumns = Pick<typeof messageVariants.$inferSelect, "content" | "rawContent" | "macroFreezes">;
 
+// ── THE TEXT CAP ─────────────────────────────────────────────────────────────────────────────────────────
+// Every text column a builder below writes passes `checkedText`, so every live canon writer (a send, a reply, a
+// continue, an edit, a freeze, a narrator or image post, a greeting seed) meets one cap on the final stored bytes,
+// after every macro and regex pass. A refusal throws while the statements are built, so the batch never runs and
+// nothing is stored. The two writers outside this file: `import-write.ts` checks each imported row itself, and
+// `verbs/fork.ts` copies rows that already passed (its member strips only remove spans).
+type CappedTextColumn = keyof Pick<
+  typeof messageVariants.$inferSelect,
+  "content" | "rawContent" | "reasoning" | "preContinueContent" | "preContinueReasoning" | "lastContinuationContent" | "lastContinuationReasoning"
+>;
+
+/** The one refusal for a text over `MESSAGE_TEXT_MAX_CHARS`, shared by the builders here and the turn engine's
+ *  stream stop, so a caller meets the same code and detail whichever one fired. */
+export function messageTooLongError(column: CappedTextColumn, chars: number): ChatOperationError {
+  return new ChatOperationError(
+    CHAT_OP_CODES.messageTooLong,
+    `the message ${column} is ${String(chars)} characters; one message holds at most ${String(MESSAGE_TEXT_MAX_CHARS)}`,
+    { field: column, chars, limit: MESSAGE_TEXT_MAX_CHARS },
+  );
+}
+
+function checkedText<T extends string | null>(column: CappedTextColumn, text: T): T {
+  if (text !== null && text.length > MESSAGE_TEXT_MAX_CHARS) {
+    throw messageTooLongError(column, text.length);
+  }
+  return text;
+}
+
 /** Normalize the complete transformed body to rule 1 above. A caller that hands over a raw equal to the content,
  *  or an empty record, cannot violate the invariant from here. */
 function transformedBodyColumns(content: string, rawContent: string | null | undefined, macroFreezes: MacroFreezeRecord | null | undefined): CanonBodyColumns {
   return {
-    content,
-    rawContent: rawContent === null || rawContent === undefined || rawContent === content ? null : rawContent,
+    content: checkedText("content", content),
+    rawContent: rawContent === null || rawContent === undefined || rawContent === content ? null : checkedText("rawContent", rawContent),
     macroFreezes: macroFreezes === null || macroFreezes === undefined || macroFreezes.length === 0 ? null : macroFreezes,
   };
 }
 
 /** An authored replacement cannot retain provenance describing the previous body. */
 function authoredBodyColumns(content: string): CanonBodyColumns {
-  return { content, rawContent: null, macroFreezes: null };
+  return { content: checkedText("content", content), rawContent: null, macroFreezes: null };
 }
 
 /** `reasoning_parts` is NULL when there is nothing replayable — an empty list would make the column's "has
@@ -578,10 +606,10 @@ export function continueVariantStatements(
           // The merged body is not what this variant's freeze produced (a frozen greeting is continuable), so
           // its provenance is dropped rather than left describing a bake these bytes no longer contain.
           ...authoredBodyColumns(params.variant.content),
-          preContinueContent: params.preContinueContent,
-          preContinueReasoning: params.preContinueReasoning,
-          lastContinuationContent: params.lastContinuationContent,
-          lastContinuationReasoning: params.lastContinuationReasoning,
+          preContinueContent: checkedText("preContinueContent", params.preContinueContent),
+          preContinueReasoning: checkedText("preContinueReasoning", params.preContinueReasoning),
+          lastContinuationContent: checkedText("lastContinuationContent", params.lastContinuationContent),
+          lastContinuationReasoning: checkedText("lastContinuationReasoning", params.lastContinuationReasoning),
         })
         .where(eq(messageVariants.id, params.variantId)),
     ),
@@ -634,7 +662,7 @@ export function setVariantContentStatement(
       .update(messageVariants)
       .set({
         ...authoredBodyColumns(content),
-        reasoning,
+        reasoning: checkedText("reasoning", reasoning),
         ...(undoContinuation === undefined
           ? {}
           : {
@@ -740,7 +768,12 @@ export function editReasoningStatements(
   },
 ): BatchStmt[] {
   return [
-    batchStmt(db.update(messageVariants).set({ reasoning: params.reasoning }).where(eq(messageVariants.id, params.variantId))),
+    batchStmt(
+      db
+        .update(messageVariants)
+        .set({ reasoning: checkedText("reasoning", params.reasoning) })
+        .where(eq(messageVariants.id, params.variantId)),
+    ),
     batchStmt(db.update(messages).set({ editedAt: params.editedAt }).where(eq(messages.id, params.messageId))),
   ];
 }
