@@ -218,6 +218,9 @@ export function connectionLimitGuessLabel(guess: string): string {
 export const IMAGE_SWITCH_NAME = "Takes images";
 export const IMAGE_SWITCH_ASSUMED_GLOSS =
   "Our guess: yes, because the server doesn't report what this model takes. Turn it off if the model can't read images.";
+/** A hosted provider that reports nothing keeps images off until the user says the model reads them. */
+export const IMAGE_SWITCH_ASSUMED_OFF_GLOSS =
+  "Our guess: no, because the provider doesn't report what this model takes. Turn it on if the model can read images.";
 export const IMAGE_SWITCH_STATED_GLOSS = "What this server and model report. Changing it tells us what to believe; it does not change what the server does.";
 /** A set switch restates the answer it replaced, as the Advanced rows do. */
 export function imageSwitchSetGloss(was: boolean): string {

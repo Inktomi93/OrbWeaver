@@ -7,6 +7,8 @@
 //     `declared` block or whose server (the advertised tier) states an input list is taken at its word; a row
 //     that states none gets image + video with `modalitiesEstimated`, never a bare text-only floor (the engine
 //     refuses a part it cannot take; hiding the knob was #317).
+//   • A hosted route keeps the fail-closed text-only floor for a model nothing describes, marked
+//     `modalitiesEstimated`, so the editor and the add step can tell it from a model stated as text only.
 //   • `turnsEstimated` survives only on an endpoint row: every hosted route keeps the fail-closed turns floor.
 
 import type { Capability, GenerationCapability, ProviderDef } from "@orb/contracts/inference";
@@ -67,7 +69,10 @@ export function applyServerToolChoice(capability: Capability, toolChoice: Server
   return Object.keys(stated).length === 0 ? capability : { kind: "generation", generation: { ...capability.generation, tools: { ...tools, ...stated } } };
 }
 
-export function applyEndpointPosture(provider: ProviderDef, capability: Capability, modalitiesStated: boolean): Capability {
+/** `modalitiesStated` = the declaration or the server's list states the input; `rowsStateInput` = a hosted catalog's
+ *  advertised entry, a curated row or a measured row does. Only a hosted route reads the second, since an endpoint
+ *  row's posture follows its own server alone. */
+export function applyEndpointPosture(provider: ProviderDef, capability: Capability, modalitiesStated: boolean, rowsStateInput: boolean): Capability {
   if (capability.kind !== "generation") {
     return capability;
   }
@@ -75,7 +80,8 @@ export function applyEndpointPosture(provider: ProviderDef, capability: Capabili
     // The estimated-turns relaxation is for the user's own server: a hosted route nobody measured keeps the
     // fail-closed floor, because its SDK or API refuses what the floor folds (a mid-history system row on Gemini).
     const { turnsEstimated: _localOnly, ...hosted } = capability.generation;
-    return capability.generation.turnsEstimated === undefined ? capability : { kind: "generation", generation: hosted };
+    const unstated = !(modalitiesStated || rowsStateInput) && hosted.input.length <= 1;
+    return { kind: "generation", generation: unstated ? { ...hosted, modalitiesEstimated: true } : hosted };
   }
   let generation: GenerationCapability = capability.generation;
   const tools: GenerationCapability["tools"] = generation.tools;

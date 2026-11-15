@@ -7,7 +7,13 @@ import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { ImageInputSwitch } from "../lib/connection-capability-fact-model.ts";
-import { IMAGE_SWITCH_ASSUMED_GLOSS, IMAGE_SWITCH_NAME, IMAGE_SWITCH_STATED_GLOSS, imageSwitchSetGloss } from "../lib/credentials-names.ts";
+import {
+  IMAGE_SWITCH_ASSUMED_GLOSS,
+  IMAGE_SWITCH_ASSUMED_OFF_GLOSS,
+  IMAGE_SWITCH_NAME,
+  IMAGE_SWITCH_STATED_GLOSS,
+  imageSwitchSetGloss,
+} from "../lib/credentials-names.ts";
 
 export interface ConnectionImageSwitchProps {
   readonly answer: ImageInputSwitch;
@@ -17,10 +23,10 @@ export interface ConnectionImageSwitchProps {
   readonly onCheckedChange: (checked: boolean) => void;
 }
 
-function glossOf({ provenance, was }: ImageInputSwitch): string {
+function glossOf({ on, provenance, was }: ImageInputSwitch): string {
   switch (provenance) {
     case "assumed":
-      return IMAGE_SWITCH_ASSUMED_GLOSS;
+      return on ? IMAGE_SWITCH_ASSUMED_GLOSS : IMAGE_SWITCH_ASSUMED_OFF_GLOSS;
     case "set":
       return imageSwitchSetGloss(was);
     case "stated":

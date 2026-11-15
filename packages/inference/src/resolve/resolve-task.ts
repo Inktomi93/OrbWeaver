@@ -470,13 +470,19 @@ function connectionCapability(
   // D292: the row's own declaration or its server's advertisement states what a turn may carry; only a row
   // nobody described gets the permissive posture.
   const advertisedInput = advertisedStatesInput(entry);
+  // A hosted catalog (OpenRouter's) states input through the advertised tier, and a curated or measured row through its
+  // own; only the hosted posture reads them, to mark a model none of them describes.
+  const advertised = evidence.advertised;
+  const rowsStateInput =
+    (advertised !== undefined && "input" in advertised && advertised.input !== undefined) ||
+    [...(evidence.curated ?? []), ...(evidence.measured ?? [])].some((row) => row.generation?.input !== undefined);
   // The server-side floors, after synthesis: the endpoint posture, the server's tool-choice support, the trained
   // clamp, the window a route that sends none runs, and the window a route that sends one lets the preset set.
   const postured = (synthesizedCapability: Capability, inputStated: boolean, windowDeclared: boolean): Capability =>
     markSettableWindow(
       clampToServedWindow(
         clampToTrainedWindow(
-          applyServerToolChoice(applyEndpointPosture(behaved, synthesizedCapability, inputStated), entry?.toolChoice),
+          applyServerToolChoice(applyEndpointPosture(behaved, synthesizedCapability, inputStated, rowsStateInput), entry?.toolChoice),
           entry?.contextTrained,
         ),
         servedWindowOf(features, entry, windowDeclared),
