@@ -1,6 +1,6 @@
 // @subject packages/client/src/features/credentials/components/connection-limits-step.tsx
 // Adding a connection whose context window is a guess says so at that moment and takes the real numbers, typed as
-// people copy them, into the connection's own declaration, without dialing the server to learn them. A provider that
+// people copy them, into the connection's own declaration, without a per-model probe to learn them. A provider that
 // states its window goes straight on, and so does one whose only guess is the max output. A failed read or a refused
 // save still leaves a way on, a close while the read is out never leaves the next open on a stale step, and the
 // Advanced tier's override of the same limit reads and refuses them the same way.
@@ -190,7 +190,7 @@ async function addedConnection(caller: Caller, providerId: string): Promise<Awai
 
 test.use({ viewport: WIDE.viewport });
 
-test("a server that states no window asks for the real limits as it is added, reads them as typed, and asks only for the facts already held", async ({
+test("a server that states no window asks for the real limits as it is added, reads them as typed, and asks without probing the model", async ({
   mount,
   page,
 }) => {
@@ -200,8 +200,8 @@ test("a server that states no window asks for the real limits as it is added, re
   await saveProxy(page, caller);
   const step = limitsStep(page);
   await expect(step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.window, { exact: true })).toBeVisible();
-  // The step asks for the held facts; that such a read dials nothing is `tests/server/domain/connection/verbs/capabilities-cached-read.int.test.ts`.
-  expect(calls.inputs("connection.capabilities")).toContainEqual(expect.objectContaining({ cachedFacts: true }));
+  // The step asks for the list-only read; that it runs no per-model probe is `tests/server/domain/connection/verbs/capabilities-list-read.int.test.ts`.
+  expect(calls.inputs("connection.capabilities")).toContainEqual(expect.objectContaining({ listFacts: true }));
 
   await step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.window, { exact: true }).fill(TYPED.window);
   await step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.output, { exact: true }).fill(TYPED.output);
@@ -211,7 +211,7 @@ test("a server that states no window asks for the real limits as it is added, re
 
   const connection = await addedConnection(caller, PROXY_PROVIDER);
   expect(connection.declared?.generation).toMatchObject({ context: { window: REAL.window }, output: { maxTokens: { max: REAL.output } } });
-  const after = await caller.connection.capabilities({ connectionId: connection.id, cachedFacts: true });
+  const after = await caller.connection.capabilities({ connectionId: connection.id, listFacts: true });
   expect(after.capability).toMatchObject({ generation: { context: { window: REAL.window }, output: { maxTokens: { max: REAL.output } } } });
   expect(after.capability.kind === "generation" ? after.capability.generation.context.windowEstimated : null).toBeUndefined();
 });
@@ -324,7 +324,7 @@ test("a stated window beside a guessed max output adds with no limits step", asy
   await expect(finish(page)).toBeVisible();
   await expect(limitsStep(page)).toHaveCount(0);
   expect(calls.count("connection.capabilities")).toBeGreaterThan(0);
-  const view = await caller.connection.capabilities({ connectionId: (await addedConnection(caller, PROXY_PROVIDER)).id, cachedFacts: true });
+  const view = await caller.connection.capabilities({ connectionId: (await addedConnection(caller, PROXY_PROVIDER)).id, listFacts: true });
   // The premise: the window is stated and only the max output is a guess.
   expect(view.capability).toMatchObject({ generation: { output: { maxTokensEstimated: true } } });
   expect(view.capability.kind === "generation" ? view.capability.generation.context.windowEstimated : null).toBeUndefined();

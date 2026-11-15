@@ -64,7 +64,7 @@ async function captureAppearanceResults(
   if (detailedPlan === undefined || detailedPlan.appearanceRows.length === 0) {
     return [];
   }
-  const receipts = await captureAppearanceInvariantRows(session, opts, detailedPlan.appearanceRows);
+  const receipts = await captureAppearanceInvariantRows(session, opts, detailedPlan);
   const results = receipts.map((receipt) => {
     const policy = detailedPlan.appearanceRows.find((row) => row.id === receipt.rowId);
     if (policy === undefined) {

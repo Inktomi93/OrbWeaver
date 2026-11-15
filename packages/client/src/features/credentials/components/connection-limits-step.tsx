@@ -2,9 +2,10 @@
 // saved, and takes the real numbers there. It writes the connection's `declared` block through the same fact rows,
 // parser and `withDeclaredOverride` the Advanced tier uses, so the step adds no second home for a limit or its rules.
 //
-// The dialog moves here as soon as the row is created and the step reads the capability itself, with `cachedFacts`: a
-// read that dials would run the per-model probe that loads or wakes a local model, only to learn its limits. A row
-// with nothing to ask goes straight on, and a failed read offers the same way on as keeping the guess.
+// The dialog moves here as soon as the row is created and the step reads the capability itself, with `listFacts`: the
+// server's model list states what it states about the model, but the per-model probe that loads or wakes a local
+// model is never run just to learn its limits. A row with nothing to ask goes straight on, and a failed read offers
+// the same way on as keeping the guess. Both add dialogs mount this one step.
 
 import type { DeclaredCapability, ProviderId } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
@@ -71,7 +72,7 @@ export function ConnectionLimitsStep(props: ConnectionLimitsStepProps): ReactEle
 }
 
 function ConnectionLimitsBody(props: ConnectionLimitsStepProps): ReactElement | null {
-  const { data: view } = useSuspenseQuery(props.trpc.connection.capabilities.queryOptions({ connectionId: props.connectionId, cachedFacts: true }));
+  const { data: view } = useSuspenseQuery(props.trpc.connection.capabilities.queryOptions({ connectionId: props.connectionId, listFacts: true }));
   // Frozen at the first read: the save's own invalidation re-reads a capability whose limits are no longer guesses.
   const [limits] = useState(() => guessedLimits(view.capability, props.declared, view.baseline));
   const { onDone } = props;

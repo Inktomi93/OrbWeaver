@@ -10,14 +10,22 @@ export interface DetectCache {
   readonly detectedServer: ResolverContext["detectedServer"];
 }
 
+/** How far a facts read reaches a server: `held` only the facts already held (nothing is dialed), `list` the model
+ *  list and the reads that load no model (no per-model probe), `full` every warm a turn runs. */
+const FACTS_REACHES = ["held", "list", "full"] as const;
+export type FactsReach = (typeof FACTS_REACHES)[number];
+
 export type ResolveArgs = ResolveTaskParams & {
   readonly signal: AbortSignal;
   /** A validated, uncommitted edit. Resolution still verifies the persisted row and its owner. */
   readonly previewConnection?: UserConnection | undefined;
   /** Read only the server facts already held, in memory or in the persisted snapshot, and dial nothing. For a read-only
    *  question asked before the user commits (the change preview): a host that does not answer must not hold it. A fact
-   *  never persisted degrades to the stated and curated facts. */
+   *  never persisted degrades to the stated and curated facts. It outranks `listFacts`. */
   readonly cachedFacts?: boolean | undefined;
+  /** Fetch the model list and the reads that load no model, never a per-model probe. The add flow asks what a server
+   *  states about a model it was just given, and a probe could load or wake that model. */
+  readonly listFacts?: boolean | undefined;
 };
 
 /** Everything the resolver reads that is not a dep: the registry + the catalog mirrors + the warms. */
@@ -29,7 +37,13 @@ export interface ResolverContext {
   readonly endpointModels: (baseUrl: string, modelInfoApi: ModelInfoApi | undefined, tenant: string | null) => Mirror<EndpointModel[]>;
   readonly agentSdkCatalog: Mirror<AgentSdkModel[]>;
   readonly warmOpenRouter: () => Promise<void>;
-  readonly warmEndpoint: (connection: UserConnection, provider: ProviderDef, secret: string | null) => Promise<void>;
+  /** Fetch a row's model list. `modelProbes` also runs the connection's own model's per-model probes, which can load or wake it. */
+  readonly warmEndpoint: (
+    connection: UserConnection,
+    provider: ProviderDef,
+    secret: string | null,
+    options: { readonly modelProbes: boolean },
+  ) => Promise<void>;
   readonly warmAgentSdk: (identity: SpawnIdentity) => Promise<void>;
   /** The per-URL answer of a detecting row's server probe (`catalog:endpoint:<url>#detect`). */
   readonly detectedServer: (baseUrl: string) => Mirror<DetectedServer>;
