@@ -81,6 +81,23 @@ export const BUILTIN_PROVIDER_ROWS = [
     docsUrl: "https://platform.openai.com/docs",
   },
   {
+    id: "nanogpt",
+    label: "NanoGPT",
+    wire: "openai-compat",
+    dialect: "openai-compatible",
+    auth: "apiKey",
+    // The direct API host: the website host, nano-gpt.com, caps a request body near 4.5 MB and can list another
+    // catalog during a rollout (NanoGPT's API Hosts page).
+    baseUrl: "https://api.nano-gpt.com/api/v1",
+    apis: ["chat-completions"],
+    // Embedding and rerank models sit in their own lists, outside the models list, so the list read cannot type them.
+    serves: ["chat", "summarize", "structured"],
+    features: { effort: "reasoning_effort", modelInfoApi: "nanogpt" },
+    catalog: "url",
+    metered: true,
+    docsUrl: "https://docs.nano-gpt.com",
+  },
+  {
     id: "vllm",
     label: "vLLM",
     wire: "openai-compat",

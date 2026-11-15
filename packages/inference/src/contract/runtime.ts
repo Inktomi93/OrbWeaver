@@ -66,7 +66,11 @@ export type ReachabilityProbe = (args: {
 const endpointModelSchema = z
   .object({
     id: z.string(),
+    /** The display name a hosted list states beside the id. */
+    name: z.string().min(1).optional(),
     contextLength: z.number().nullable(),
+    /** USD per token, where a hosted list states the model's price. */
+    listedPrice: z.object({ prompt: z.number().nonnegative().optional(), completion: z.number().nonnegative().optional() }).strip().optional(),
     /** The smallest window the server runs a model at whose window it does not state, where the server's own
      *  defaults bound it. The advertised tier assumes it in place of the generic floor; never a reading. */
     contextFloor: z.number().int().positive().optional(),

@@ -135,8 +135,9 @@ export const OUTPUT_CAP_FIELDS = ["max_tokens", "max_completion_tokens"] as cons
 /** A server's native model-info API, read beside `/v1/models` for facts that list lacks: the window the
  *  server runs, an embedder's width, and what each model takes (tools, image input, its kind). `ollama` =
  *  `GET /api/version` + `GET /api/ps` + `POST /api/show`; `llama-cpp` = `GET /props` + the list's `meta`;
- *  `koboldcpp` = `GET /api/extra/version` + `GET /props`. The readers live in `@orb/inference`'s endpoint catalog. */
-export const MODEL_INFO_APIS = ["ollama", "llama-cpp", "koboldcpp"] as const;
+ *  `koboldcpp` = `GET /api/extra/version` + `GET /props`; `nanogpt` = the hosted list's own `?detailed=true` mode,
+ *  read in place of the bare list. The readers live in `@orb/inference`'s endpoint catalog. */
+export const MODEL_INFO_APIS = ["ollama", "llama-cpp", "koboldcpp", "nanogpt"] as const;
 export type ModelInfoApi = (typeof MODEL_INFO_APIS)[number];
 
 /** A server's native chat route, sent instead of `/v1/chat/completions` (D310). `ollama` = `POST /api/chat`,

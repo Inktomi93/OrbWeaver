@@ -58,6 +58,9 @@ async function boundedRead(args: EndpointFetchArgs, read: Omit<FetchJsonArgs, "f
 }
 
 export async function fetchEndpointModels(args: EndpointFetchArgs): Promise<EndpointModel[]> {
+  if (args.modelInfoApi === "nanogpt") {
+    return await fetchNanoGptModels(args);
+  }
   const listed = await boundedRead(args, {
     url: openAiPath(args.baseUrl, "/models"),
     headers: authHeaders(args.secret, args.headers),
@@ -84,6 +87,108 @@ export async function fetchEndpointModels(args: EndpointFetchArgs): Promise<Endp
     default:
       return assertNever(args.modelInfoApi, "model info api");
   }
+}
+
+// ── NanoGPT ──────────────────────────────────────────────────────────────────────────────────────────
+
+const STATED_LIMIT = z.number().int().positive().nullable().optional().catch(null);
+
+/** The detailed list's fields this reader keeps (docs.nano-gpt.com Models). Each fact parses alone and a value
+ *  of the wrong shape states nothing, so one odd row neither fails the list nor reads as a fact. */
+const nanoGptRowSchema = z.looseObject({
+  id: z.string().min(1),
+  name: z.string().min(1).optional().catch(undefined),
+  /** The window shared by input and output; `null` when the service does not know it. */
+  context_length: STATED_LIMIT,
+  max_output_tokens: STATED_LIMIT,
+  architecture: z
+    .looseObject({ input_modalities: z.array(z.string()).optional() })
+    .optional()
+    .catch(undefined),
+  capabilities: z
+    .looseObject({
+      vision: z.boolean().optional(),
+      video_input: z.boolean().optional(),
+      tool_calling: z.boolean().optional(),
+      parallel_tool_calls: z.boolean().optional(),
+      structured_output: z.boolean().optional(),
+      reasoning: z.boolean().optional(),
+    })
+    .optional()
+    .catch(undefined),
+  /** USD per million tokens, as numbers. */
+  pricing: z
+    .looseObject({ prompt: z.number().nonnegative().nullable().optional(), completion: z.number().nonnegative().nullable().optional() })
+    .optional()
+    .catch(undefined),
+});
+
+const NANOGPT_DETAILED_QUERY = "?detailed=true";
+const PER_MILLION = 1_000_000;
+
+/** The detailed `/models` read in place of the bare list, which carries ids only. A row states each limit the list
+ *  gives a number for; a `null` limit states nothing, so the capability keeps that limit marked assumed. */
+async function fetchNanoGptModels(args: EndpointFetchArgs): Promise<EndpointModel[]> {
+  const listed = await boundedRead(args, {
+    url: openAiPath(args.baseUrl, `/models${NANOGPT_DETAILED_QUERY}`),
+    headers: authHeaders(args.secret, args.headers),
+    label: "NanoGPT models",
+  });
+  const out: EndpointModel[] = [];
+  for (const raw of z.looseObject({ data: z.array(z.unknown()) }).parse(listed).data) {
+    const parsed = nanoGptRowSchema.safeParse(raw);
+    if (parsed.success) {
+      out.push(nanoGptModel(parsed.data));
+    }
+  }
+  return out;
+}
+
+function perToken(perMillion: number | null | undefined): number | undefined {
+  return perMillion === null || perMillion === undefined ? undefined : perMillion / PER_MILLION;
+}
+
+function nanoGptPrice(pricing: z.infer<typeof nanoGptRowSchema>["pricing"]): EndpointModel["listedPrice"] {
+  const prompt = perToken(pricing?.prompt);
+  const completion = perToken(pricing?.completion);
+  if (prompt === undefined && completion === undefined) {
+    return;
+  }
+  return { ...(prompt === undefined ? {} : { prompt }), ...(completion === undefined ? {} : { completion }) };
+}
+
+function nanoGptInput(row: z.infer<typeof nanoGptRowSchema>): Modality[] | undefined {
+  const listed = row.architecture?.input_modalities;
+  if (listed !== undefined) {
+    const { modalities } = parseModalities(listed);
+    if (modalities.length > 0) {
+      return [...modalities];
+    }
+  }
+  const flags = row.capabilities;
+  if (flags === undefined || (flags.vision === undefined && flags.video_input === undefined)) {
+    return;
+  }
+  return modalitiesOf({ vision: flags.vision, video: flags.video_input });
+}
+
+function nanoGptModel(row: z.infer<typeof nanoGptRowSchema>): EndpointModel {
+  const flags = row.capabilities;
+  return withStated(
+    { id: row.id, contextLength: row.context_length ?? null },
+    {
+      kind: "generation",
+      name: row.name,
+      maxCompletionTokens: row.max_output_tokens,
+      input: nanoGptInput(row),
+      tools: flags?.tool_calling === true ? { parallel: flags.parallel_tool_calls === true } : undefined,
+      structured: flags?.structured_output,
+      thinks: flags?.reasoning === true ? true : undefined,
+      listedPrice: nanoGptPrice(row.pricing),
+      // A hosted list has no per-model probe: every fact it holds is in this read.
+      probed: true,
+    },
+  );
 }
 
 // ── shared ───────────────────────────────────────────────────────────────────────────────────────────
@@ -752,6 +857,7 @@ export async function probeListedModel(args: EndpointFetchArgs, row: EndpointMod
 async function listedModelFacts(args: EndpointFetchArgs, row: EndpointModel): Promise<Partial<EndpointModel>> {
   switch (args.modelInfoApi) {
     case undefined:
+    case "nanogpt":
       return { probed: true };
     case "ollama":
       return await ollamaLateFacts(args, row);
