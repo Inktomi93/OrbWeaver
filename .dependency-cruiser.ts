@@ -486,6 +486,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/contracts/src/chat/bus.ts": "CHAT_WARNING_CODES and PROVIDER_ADJUSTMENT_KINDS: the warning vocabularies",
   "packages/contracts/src/chat/content-classes.ts": "CONTENT_CLASS_POLICY: the content-class projection table",
   "packages/contracts/src/chat/impersonation.ts": "impersonateStreamDeltaSchema: the impersonation delta parser",
+  "packages/contracts/src/inference/builtin-providers.ts":
+    "BUILTIN_PROVIDER_ROWS: the built-in row table whose literal ids key the sampler-source table, so a new row fails to compile there",
   "packages/contracts/src/import/persona-collision.ts": "PERSONA_COLLISION_CHOICES: the collision choice vocabulary",
   "packages/contracts/src/refinery/core.ts": "SCORE_MIN and SCORE_MAX: the score scale a custom score schema must keep",
   "packages/contracts/src/plugin/ui-host.ts": "PLUGIN_UI_CHAT_MESSAGES_LIMIT_MAX: the message read cap",
