@@ -59,6 +59,8 @@ const LIST = {
     row("lr/thinker", "full-context", { capabilities: { reasoning: true }, ["reasoning_hint"]: { mode: "default", efforts: EFFORTS } }),
     row("lr/always-thinks", "full-context", { capabilities: { reasoning: true }, ["reasoning_hint"]: { mode: "default", efforts: ALWAYS_THINKS } }),
     row("lr/painter", "base", { type: "image", ["input_modalities"]: ["text"] }),
+    row("lr/plain-samplers", "full-context", { ["supported_parameters"]: ["max_tokens", "tools", "temperature", "top_p"] }),
+    row("lr/min-p", "full-context", { ["supported_parameters"]: ["max_tokens", "tools", "temperature", "top_p", "min_p"] }),
     row("lr/hostile", "full-context", {
       ["context_window"]: "big",
       capabilities: { tools: "yes", vision: true },
@@ -152,4 +154,17 @@ test("a thinker offers only the efforts the service measured as working, and one
   });
   expect((await capabilityOf(root, "lr/thinker")).reasoning.mandatory).toBeUndefined();
   expect((await capabilityOf(root, "lr/always-thinks")).reasoning).toMatchObject({ effortLevels: ["low", "medium", "high", "max"], mandatory: true });
+});
+
+// The list's `supported_parameters` names the request fields a model takes; the chat route accepts any field silently,
+// so the list is the only word on which samplers a model honours.
+test("a model whose list row omits a sampler has that knob not honoured, and one that lists it has it", async () => {
+  await using root = await createRuntimeRoot({ providerFetch: host() });
+  const plain = (await capabilityOf(root, "lr/plain-samplers")).sampling;
+  expect({ temperature: plain.temperature !== undefined, topP: plain.topP !== undefined, minP: plain.minP }).toEqual({
+    temperature: true,
+    topP: true,
+    minP: undefined,
+  });
+  expect((await capabilityOf(root, "lr/min-p")).sampling.minP).toBeDefined();
 });

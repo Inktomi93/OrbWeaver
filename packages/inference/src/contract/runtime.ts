@@ -102,6 +102,9 @@ const endpointModelSchema = z
     rerankInputTokens: z.number().int().positive().optional(),
     /** What a chat turn may carry, where the server's native model info states it (D292). Absent ⇒ not stated. */
     input: z.array(modalitySchema).optional(),
+    /** The request fields a hosted list says the model takes (`supported_parameters`), in OpenRouter's vocabulary.
+     *  Absent ⇒ not stated. */
+    supportedParameters: z.array(z.string()).optional(),
     /** The server states the model takes `tools[]`; `parallel` only where it states that too. Absent ⇒ not stated. */
     tools: z.object({ parallel: z.boolean() }).strip().optional(),
     /** The server states the model thinks before it answers, so its thinking can be switched (Ollama's `thinking`

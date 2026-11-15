@@ -8,6 +8,7 @@
 import type { CapabilityOverride, EffortLevel, EmbeddingCapability, EndpointFeatures, ModelKind, RerankCapability } from "@orb/contracts/inference";
 import { DEFAULT_SAMPLER_KEYS, EFFORT_LEVELS, SAMPLING_RANGE_KNOBS } from "@orb/contracts/inference";
 import type { EndpointModel } from "#contract";
+import { samplingFromOr } from "./openrouter.ts";
 
 type GenerationPatch = NonNullable<CapabilityOverride["generation"]>;
 
@@ -103,6 +104,7 @@ export function advertisedFromOpenAiCompat(
     | "structured"
     | "prefill"
     | "serverDefaults"
+    | "supportedParameters"
     | "thinks"
     | "thinking"
   >,
@@ -125,6 +127,8 @@ export function advertisedFromOpenAiCompat(
     // The server rendered a trailing assistant row and left it open: a delivered prefill is continued.
     ...(entry.prefill === undefined ? {} : { turns: { assistantPrefill: entry.prefill === "deliver" } }),
     ...(samplingDefaults === undefined ? {} : { samplingDefaults }),
+    // A stated parameter list is the set of samplers the model honours; it replaces the tiers beneath.
+    ...(entry.supportedParameters === undefined ? {} : { sampling: samplingFromOr(new Set(entry.supportedParameters)) }),
   };
 }
 

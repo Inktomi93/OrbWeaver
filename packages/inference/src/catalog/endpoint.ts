@@ -359,6 +359,9 @@ const literouterRowSchema = z.looseObject({
   context_window: STATED_LIMIT,
   max_output_tokens: STATED_LIMIT,
   input_modalities: STATED_NAMES,
+  /** The request fields the model takes; the chat route accepts any field silently, so this is the only word on which
+   *  samplers it honours. */
+  supported_parameters: STATED_NAMES,
   capabilities: z
     .looseObject({ tools: STATED_FLAG, reasoning: STATED_FLAG, vision: STATED_FLAG, video: STATED_FLAG, structured_output: STATED_FLAG })
     .optional()
@@ -436,6 +439,7 @@ function literouterModel(row: LiteRouterRow): EndpointModel {
       thinks: thinks ? true : undefined,
       thinking: thinks ? literouterThinking(row) : undefined,
       listedPrice: listedPriceOf(row.price_usd_per_1m?.input, row.price_usd_per_1m?.output),
+      supportedParameters: row.supported_parameters,
       probed: true,
     },
   );
