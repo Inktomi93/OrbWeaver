@@ -151,6 +151,11 @@ export type NativeChatApi = (typeof NATIVE_CHAT_APIS)[number];
  *  bound holds on every wire rather than per backend. */
 export const SUMMARIZE_CONCURRENCY_MAX = 32;
 
+/** A key check path: `/`-led segments of plain path characters, so `new URL(path, base)` stays on the base URL's
+ *  origin. No empty segment (`//host` is another host), no `.` or `..` segment, and no backslash, `@`, `%`, query,
+ *  space or control character (the URL parser reads a backslash as `/` and drops a tab or newline). */
+const KEY_CHECK_PATH_RE = /^(?:\/(?!\.{1,2}(?:\/|$))[\w\-.~!$&'()*+,;=:]+)+\/?$/u;
+
 export const endpointFeaturesSchema = z
   .object({
     prefill: z.enum(PREFILL_MODES).optional(),
@@ -168,8 +173,10 @@ export const endpointFeaturesSchema = z
      *  skips the probe; the connection's identity and credential stay this row's. */
     detectServer: z.boolean().optional(),
     /** The key check's read, a path from the base URL's ORIGIN, for a service whose models list answers without a key;
-     *  absent ⇒ the models list under the base URL. */
-    keyCheckPath: z.string().startsWith("/").optional(),
+     *  absent ⇒ the models list under the base URL. A plain path only ({@link KEY_CHECK_PATH_RE}), because the read
+     *  carries the key. Any row may declare one (a server behind a proxy whose list needs no key); this parse and the
+     *  read's own origin check keep the key on the row's base URL origin. */
+    keyCheckPath: z.string().regex(KEY_CHECK_PATH_RE, "a key check path is a plain path from the base URL's origin, such as /v1/me").optional(),
     /** The service answers 403 for refusals that say nothing about the key (a model the plan lacks, a cooldown),
      *  so a 403 is a refusal shown in the service's words, never a credential verdict. Absent ⇒ a 403
      *  judges the key. */

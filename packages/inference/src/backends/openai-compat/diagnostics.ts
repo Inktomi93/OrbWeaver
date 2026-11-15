@@ -62,7 +62,15 @@ interface ReadArgs {
 
 function readUrl(connection: Resolved, baseUrl: string, path: ReadArgs["path"]): string {
   if (typeof path !== "string") {
-    return new URL(path.fromOrigin, baseUrl).toString();
+    // SECURITY: a declared path rides the key, so it never resolves off the base URL's origin, whatever the schema
+    // admitted (`//host`, `/\host` and a parser-dropped tab all name another host). The throw is our own request
+    // breaking before the wire, which the probe reads as `unchecked`: nothing is sent, healthy or struck.
+    const url = new URL(path.fromOrigin, baseUrl);
+    const origin = new URL(baseUrl).origin;
+    if (url.origin !== origin) {
+      throw new TypeError(`the key check path leaves ${origin}, so nothing was sent`);
+    }
+    return url.toString();
   }
   return connection.provider.dialect === "openrouter" ? `${baseUrl.replace(/\/$/u, "")}${path}` : openAiPath(baseUrl, path);
 }
