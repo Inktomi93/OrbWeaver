@@ -93,7 +93,10 @@ test("a kept correction lands in the injections list once, and leaves through it
   // A kept correction is an ordinary row: its collapsed face shows the player's words, and its panel holds Remove.
   await expect(page.getByText(CORRECTION, { exact: true })).toBeVisible();
   const ordinal = (await host.chat.listChatInjections({ chatId })).findIndex((row) => row.content === CORRECTION) + 1;
-  await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(injectionRowLabel(ordinal))} `, "u") }).click();
+  // The row is named by its ordinal alone; its words ride the row's description.
+  const injection = page.getByRole("button", { name: injectionRowLabel(ordinal), exact: true });
+  await expect(injection).toHaveAccessibleDescription(new RegExp(RegExp.escape(CORRECTION), "u"));
+  await injection.click();
   // Only an open row shows its panel, so the one Remove on the page is the kept correction's.
   const remove = page.getByRole("button", { name: CHAT_REMOVE_INJECTION_NAME, exact: true });
   await expect(remove).toHaveCount(1);

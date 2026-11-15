@@ -403,6 +403,7 @@ export function ListRow({
   const slots = listRowVariants({
     align,
     clickable: pressable,
+    disclosure: expand !== undefined,
     float: actionsFloat,
     qualified: titleQualifier !== undefined,
     rail,
