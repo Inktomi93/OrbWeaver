@@ -37,9 +37,12 @@
     border-radius: 0;
     color: var(--color-muted-foreground);
   }
-  .shell-rail-brand-button:hover {
-    background: var(--color-sidebar-accent);
-    color: var(--color-sidebar-accent-foreground);
+  /* Hover-capable only, like the rail buttons: a touch tap would leave the cell lit. */
+  @variant hover-capable {
+    .shell-rail-brand-button:hover {
+      background: var(--color-sidebar-accent);
+      color: var(--color-sidebar-accent-foreground);
+    }
   }
   /* The active cells paint the primary tone's roles; the rail stamps that tone (`SHELL_ACCENT_TONE`). */
   .shell-rail-brand-button[data-active] {

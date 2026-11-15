@@ -209,11 +209,6 @@
     .shell-grid[data-list-mode="docked"] .shell-panel[data-panel-side="list"] {
       view-transition-name: orb-section-content;
     }
-    /* A docked pane here is the screen, in flow, so it casts no glow float shadow (grid.css); one would land on the tab bar. */
-    .shell-grid[data-elevation="glow"] .shell-panel[data-panel-mode="docked"] {
-      box-shadow: none;
-    }
-
     /* The title the rule below sheds holds no floor either, so the actions get the band back. */
     .shell-grid[data-list-mode="docked"]
       .shell-panel[data-panel-side="list"]
