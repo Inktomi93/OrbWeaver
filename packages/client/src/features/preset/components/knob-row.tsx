@@ -85,6 +85,9 @@ export interface KnobRowProps {
   /** What the server does with this knob on this turn when it is not what the value suggests (a Mirostat branch that
    *  skips it). It outranks the provenance line: the value is moot until it changes. */
   readonly note?: string | undefined;
+  /** `max` is this connection's ceiling, not the knob's bound: the number box keeps a typed value past it, which the
+   *  send path caps, and the rail pins at its end. A drag still sets a value on the rail. */
+  readonly storesPastRail?: true | undefined;
 }
 
 /** The tracks a cluster of `KnobRow`s are cells of. ONE per cluster: the name track is content-sized, so
@@ -100,7 +103,7 @@ export function KnobGrid({ children }: { readonly children: ReactNode }): ReactE
 }
 
 export function KnobRow(props: KnobRowProps): ReactElement {
-  const { form, name, label, hint, min, max, step, largeStep, effective, quality, note } = props;
+  const { form, name, label, hint, min, max, step, largeStep, effective, quality, note, storesPastRail } = props;
   // ONE id per row for the provenance line. Both modalities point at it (§4.1's gloss belongs to the
   // VALUE), which is what stops a column of loose glosses from fusing into one run of text for a screen
   // reader — a gloss reads as this row's, or it does not reach the row at all (side-eye F-21).
@@ -137,6 +140,7 @@ export function KnobRow(props: KnobRowProps): ReactElement {
               min={min}
               onChange={(next): void => field.handleChange(next)}
               step={step}
+              storesPastRail={storesPastRail === true}
               value={value}
             />
             <KnobGloss glossId={glossId} text={gloss ?? null} />
@@ -164,7 +168,9 @@ function KnobControls({
   largeStep,
   describedBy,
   onChange,
+  storesPastRail,
 }: {
+  readonly storesPastRail: boolean;
   readonly value: number | undefined;
   readonly explicit: boolean;
   readonly ghost: KnobGhost | null;
@@ -176,6 +182,9 @@ function KnobControls({
   readonly describedBy: string | undefined;
   readonly onChange: (next: number | undefined) => void;
 }): ReactElement {
+  // A stored value past the rail shows the thumb at the rail's end; the rail never writes it back, so the box and the
+  // rail cannot fight over the stored number.
+  const railValue = value === undefined ? undefined : Math.min(value, max);
   return (
     <>
       <Slider
@@ -211,7 +220,7 @@ function KnobControls({
         // amber switch one cluster up. The ghost arm is untouched — it still paints NO fill at all, which
         // is what carries the inherited-vs-explicit distinction; the accent is now what says "you set this".
         tone={explicit ? "default" : "ghost"}
-        value={value ?? ghost?.value ?? min}
+        value={railValue ?? Math.min(ghost?.value ?? min, max)}
       />
 
       {/* The value cluster — ONE cell (see this function's note), end-justified so a folded row's number
@@ -242,7 +251,7 @@ function KnobControls({
           // role's job to announce (F-27), and `value` is what this box is — the exact datum, typed.
           aria-label={`${label} value`}
           format={PRESET_NUMBER_FORMAT}
-          max={max}
+          max={storesPastRail ? undefined : max}
           min={min}
           onValueChange={(next): void => onChange(next ?? undefined)}
           placeholder={ghost === null ? UNKNOWN_DEFAULT_PLACEHOLDER : String(ghost.value)}

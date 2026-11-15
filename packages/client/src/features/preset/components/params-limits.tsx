@@ -138,7 +138,7 @@ function OutputCluster({
               <KnobRow
                 effective={effective?.knobs["maxOutputTokens"]}
                 form={form}
-                hint={presetMaxOutputHint(outputGuessed ? groupThousands(outputMax) : String(outputMax), outputGuessed)}
+                hint={presetMaxOutputHint(groupThousands(outputMax), outputGuessed)}
                 label={PRESET_MAX_OUTPUT_LABEL}
                 largeStep={pageStep(1, outputMax)}
                 max={outputMax}
@@ -146,6 +146,7 @@ function OutputCluster({
                 name="params.maxOutputTokens"
                 note={maxOutputNote(limits.maxOutputTokens, outputMax, outputGuessed, effective?.knobs["maxOutputTokens"])}
                 step={1}
+                storesPastRail={true}
               />
               <KnobRow
                 effective={{ value: window, provenance: capability.context.settable === undefined ? "window" : SENT_WINDOW_PROVENANCE }}
@@ -161,10 +162,9 @@ function OutputCluster({
                 max={contextMax}
                 min={1}
                 name="params.maxContextTokens"
-                // A stored value past this connection's window (set on a wider one) is kept, and capped here rather
-                // than sent as typed.
                 note={maxContextNote(limits.maxContextTokens, contextMax, windowGuessed)}
                 step={1}
+                storesPastRail={true}
               />
             </>
           )}
@@ -254,8 +254,8 @@ function maxContextHint(
 }
 
 /** Max output tokens' visible line: a blank row names what it sends (the shared default, held under the model's cap as
- *  the funnel holds it); a stored value over a guessed cap keeps its number and says the turn is capped at the guess.
- *  `undefined` leaves the row's own clamp line. */
+ *  the funnel holds it); a stored value over the cap keeps its number and says the turn is capped, at a guess or at the
+ *  connection's stated limit. */
 function maxOutputNote(stored: number | undefined, outputMax: number, guessed: boolean, effective: EffectiveKnobRow | undefined): string | undefined {
   if (stored === undefined) {
     // The note speaks only for the app's default. A quality dial or a model default sets a blank row's value too, and
@@ -268,7 +268,7 @@ function maxOutputNote(stored: number | undefined, outputMax: number, guessed: b
     const sends = Math.min(typeof effective?.value === "number" ? effective.value : DEFAULT_MAX_OUTPUT_TOKENS, outputMax);
     return presetBlankOutputNote(groupThousands(sends), groupThousands(DEFAULT_MAX_OUTPUT_TOKENS));
   }
-  return guessed && stored > outputMax ? presetCappedByGuessNote(groupThousands(stored), groupThousands(outputMax)) : undefined;
+  return cappedNote(stored, outputMax, guessed);
 }
 
 /** The funnel rungs a blank Max output row lands on when only the app default stands: the default itself, or that
@@ -277,10 +277,18 @@ const BLANK_DEFAULT_RUNGS: ReadonlySet<string> = new Set(["floor", "clamped"] sa
 
 /** Max context tokens' visible line for a stored value past this connection's ceiling. */
 function maxContextNote(stored: number | undefined, contextMax: number, guessed: boolean): string | undefined {
-  if (stored === undefined || stored <= contextMax) {
+  return stored === undefined ? undefined : cappedNote(stored, contextMax, guessed);
+}
+
+/** A limit row's line for a stored value past this connection's ceiling. The value stays stored as typed and the send
+ *  path caps it, so the row says what is sent; a guessed ceiling says it is a guess. */
+function cappedNote(stored: number, ceiling: number, guessed: boolean): string | undefined {
+  if (stored <= ceiling) {
     return;
   }
-  return guessed ? presetCappedByGuessNote(groupThousands(stored), groupThousands(contextMax)) : presetCappedOnConnectionNote(groupThousands(contextMax));
+  return guessed
+    ? presetCappedByGuessNote(groupThousands(stored), groupThousands(ceiling))
+    : presetCappedOnConnectionNote(groupThousands(stored), groupThousands(ceiling));
 }
 
 /** `params.banEos`: on stores `true`, off clears the field (the server's own default lets the reply end). */

@@ -24,6 +24,7 @@ import {
   PRESET_VERBATIM_TAIL_LABEL,
   presetBlankOutputNote,
   presetCappedByGuessNote,
+  presetCappedOnConnectionNote,
   presetGuessedLimitsNotice,
   presetMaxContextHint,
   presetMaxOutputHint,
@@ -57,6 +58,8 @@ const LOW_CAP = 1024;
 const EDITED_TAIL = 7;
 // What the imported SillyTavern preset asks for: both above the guess.
 const IMPORTED = { context: 128_000, output: 29_828 } as const;
+// What a user types into Max output: above both the guess and the stated cap below.
+const TYPED_OUTPUT = 40_000;
 // Long enough for the editor's autosave to have written anything it would write.
 const PAST_AUTOSAVE_MS = DEFAULT_DEBOUNCE_MS * 3;
 const PHONE = { width: 390, height: 844 } as const;
@@ -105,9 +108,19 @@ async function importedPreset(caller: Caller): Promise<PresetId> {
 
 async function mountDeck(page: Page, mount: PlaywrightTestArgs["mount"], presetId: PresetId, caller: Caller): Promise<TrpcRecorder> {
   const calls = await routeTrpc(page, serveCorpusProcedures(caller, PROCEDURES));
-  await mount<typeof GuessedLimitsPresetStory>(STORY, { presetId });
-  await page.getByRole("tab", { name: PRESET_EDITOR_VIEW_LABELS.params, exact: true }).click();
+  await openDeck(page, mount, presetId);
   return calls;
+}
+
+/** The editor mounted fresh on the Params view, reading the preset as stored. */
+async function openDeck(page: Page, mount: PlaywrightTestArgs["mount"], presetId: PresetId): Promise<() => Promise<void>> {
+  const story = await mount<typeof GuessedLimitsPresetStory>(STORY, { presetId });
+  await page.getByRole("tab", { name: PRESET_EDITOR_VIEW_LABELS.params, exact: true }).click();
+  return () => story.unmount();
+}
+
+function valueBox(page: Page, label: string): Locator {
+  return page.getByRole("textbox", { name: `${label} value`, exact: true });
 }
 
 function hintOf(page: Page, label: string): Locator {
@@ -149,7 +162,7 @@ test("a stated ceiling keeps the model's own hint and draws no guess line or doo
   const preset = await caller.preset.create({ name: "Stated limits", kind: "generation" });
   await mountDeck(page, mount, preset.id, caller);
 
-  await expect(hintOf(page, PRESET_MAX_OUTPUT_LABEL)).toHaveAccessibleDescription(presetMaxOutputHint(String(STATED.output), false));
+  await expect(hintOf(page, PRESET_MAX_OUTPUT_LABEL)).toHaveAccessibleDescription(presetMaxOutputHint(groupThousands(STATED.output), false));
   await expect(page.getByRole("button", { name: PRESET_SET_REAL_LIMITS_NAME, exact: true })).toHaveCount(0);
 });
 
@@ -167,6 +180,9 @@ test("a blank Max output names the app default it sends, after the connection's 
     "placeholder",
     String(DEFAULT_MAX_OUTPUT_TOKENS),
   );
+  // The request sends that default itself, so a screen reader hears the number as the default, not as the model's pick.
+  const rail = page.getByRole("slider", { name: PRESET_MAX_OUTPUT_LABEL, exact: true });
+  await expect(rail).toHaveAttribute("aria-valuetext", `${String(DEFAULT_MAX_OUTPUT_TOKENS)}: default`);
 });
 
 test("a blank Max output under a model cap below the app default names the cap it sends", async ({ mount, page }) => {
@@ -214,6 +230,45 @@ test("an imported preset over a guessed ceiling keeps its stored values, and eac
   expect(calls.count("preset.update")).toBe(0);
   const stored = await caller.preset.get({ id: presetId });
   expect(stored.config.params).toMatchObject({ maxOutputTokens: IMPORTED.output, maxContextTokens: IMPORTED.context });
+});
+
+test("a Max output typed above a guessed ceiling is stored as typed, survives a fresh open, and the row says the guess caps it", async ({ mount, page }) => {
+  await using root = await createServerHarness({ startJobs: false });
+  const caller = await root.internalCallerFor(root.ownerId);
+  const { capability } = await chatConnection(caller, null);
+  const ceiling = capability.output.maxTokens.max;
+  expect(ceiling).toBeLessThan(TYPED_OUTPUT);
+  const preset = await caller.preset.create({ name: "Typed past the guess", kind: "generation" });
+  await routeTrpc(page, serveCorpusProcedures(caller, PROCEDURES));
+  const close = await openDeck(page, mount, preset.id);
+  const box = valueBox(page, PRESET_MAX_OUTPUT_LABEL);
+  await box.fill(String(TYPED_OUTPUT));
+  await box.blur();
+  await expect(box).toHaveValue(String(TYPED_OUTPUT));
+  await expect.poll(async () => (await caller.preset.get({ id: preset.id })).config.params.maxOutputTokens).toBe(TYPED_OUTPUT);
+  await absenceWindow(page, PAST_AUTOSAVE_MS);
+  expect((await caller.preset.get({ id: preset.id })).config.params.maxOutputTokens).toBe(TYPED_OUTPUT);
+
+  await close();
+  await openDeck(page, mount, preset.id);
+  await expect(valueBox(page, PRESET_MAX_OUTPUT_LABEL)).toHaveValue(String(TYPED_OUTPUT));
+  await expect(page.getByText(presetCappedByGuessNote(groupThousands(TYPED_OUTPUT), groupThousands(ceiling)), { exact: true })).toBeVisible();
+  await expect(page.getByRole("slider", { name: PRESET_MAX_OUTPUT_LABEL, exact: true })).toHaveAttribute("aria-valuenow", String(ceiling));
+});
+
+test("a Max output typed above a stated ceiling is stored as typed, and the row says the connection's limit caps it", async ({ mount, page }) => {
+  await using root = await createServerHarness({ startJobs: false });
+  const caller = await root.internalCallerFor(root.ownerId);
+  await chatConnection(caller, STATED);
+  expect(STATED.output).toBeLessThan(TYPED_OUTPUT);
+  const preset = await caller.preset.create({ name: "Typed past the stated cap", kind: "generation" });
+  await mountDeck(page, mount, preset.id, caller);
+  const box = valueBox(page, PRESET_MAX_OUTPUT_LABEL);
+  await box.fill(String(TYPED_OUTPUT));
+  await box.blur();
+  await expect.poll(async () => (await caller.preset.get({ id: preset.id })).config.params.maxOutputTokens).toBe(TYPED_OUTPUT);
+  await expect(box).toHaveValue(String(TYPED_OUTPUT));
+  await expect(page.getByText(presetCappedOnConnectionNote(groupThousands(TYPED_OUTPUT), groupThousands(STATED.output)), { exact: true })).toBeVisible();
 });
 
 test.describe("phone at enlarged text", () => {

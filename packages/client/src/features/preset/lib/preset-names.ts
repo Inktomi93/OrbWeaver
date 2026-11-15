@@ -40,8 +40,9 @@ export function presetForkKeepEditingName(forkName: string): string {
 /** The editor header's activate command; the list's radiogroup names the same pick differently. */
 export const PRESET_ACTIVATE_NAME = "Activate: use this preset for generation";
 
-/** The editor header's reset door, its name and tooltip alike. */
+/** The editor header's reset door: its accessible name, and the visible word it leads with. */
 export const PRESET_RESET_ARRANGEMENT_NAME = "Reset to starter arrangement";
+export const PRESET_RESET_ARRANGEMENT_LABEL = "Reset to starter";
 
 /** The reset door's confirm: its title and its confirm button. */
 export const PRESET_RESET_ARRANGEMENT_TITLE = "Reset to the starter arrangement?";
@@ -201,6 +202,22 @@ export const PRESET_VERBATIM_TAIL_LABEL = "Messages kept word-for-word";
 export const PRESET_MAX_OUTPUT_LABEL = "Max output tokens";
 export const PRESET_MAX_CONTEXT_LABEL = "Max context tokens";
 
+/** The readout's capability row for the model's reply cap, and the tag a limit no tier stated carries (the kind
+ *  floor's guess, not the model's own number). */
+export const PRESET_READOUT_OUTPUT_CAP_LABEL = "Output cap";
+export const PRESET_ESTIMATED_LIMIT_SUFFIX = "estimated";
+
+/** The Prompt rack's one line when entries above Chat History change between turns on a connection that caches. */
+export function presetCacheBustersLine(count: number): string {
+  return `${String(count)} ${count === 1 ? "entry" : "entries"} above Chat History change between turns, so this connection can't reuse its prompt cache past them.`;
+}
+export const PRESET_CACHE_BUSTERS_SHOW_NAME = "Show which";
+
+/** The editor's state when no model is set for chat: its title, what it means for the deck, and its one door. */
+export const PRESET_NO_CHAT_MODEL_TITLE = "No model is set for chat yet.";
+export const PRESET_NO_CHAT_MODEL_DETAIL = "The sampling, reasoning and output controls show once you choose a chat model, at that model's own limits.";
+export const PRESET_OPEN_CONNECTIONS_NAME = "Open Connections";
+
 /** The Output cluster's door to the chat connection's own limit settings, shown when its limits are a guess. */
 export const PRESET_SET_REAL_LIMITS_NAME = "Set this model's real limits";
 
@@ -247,9 +264,9 @@ export function presetBlankOutputNote(sends: string, appDefault: string): string
     : `Blank: replies stop at ${sends} tokens, this model's limit, below the app's default of ${appDefault}.`;
 }
 
-/** A stored context cap above a ceiling the connection reports. */
-export function presetCappedOnConnectionNote(ceiling: string): string {
-  return `capped at ${ceiling} on this connection`;
+/** A stored limit above a ceiling the connection reports: the value stays, and the turn is capped at that ceiling. */
+export function presetCappedOnConnectionNote(stored: string, ceiling: string): string {
+  return `Saved as ${stored}, but capped at ${ceiling}, this model's limit on this connection.`;
 }
 
 /** A stored limit above a guessed ceiling: the value stays, and the turn is capped at the guess. */

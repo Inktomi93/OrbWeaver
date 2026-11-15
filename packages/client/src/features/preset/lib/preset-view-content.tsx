@@ -18,6 +18,7 @@ import type { EffectiveProfileRow } from "./effective-knobs.ts";
 import type { PresetEditorValues } from "./preset-editor-values.ts";
 import type { PresetEditorView } from "./preset-nav.ts";
 import { openSectionInPrompt } from "./preset-nav.ts";
+import { cachesPrompts } from "./prompt-cache-warning.ts";
 
 export interface ViewContentProps {
   readonly form: AppFormInstance<PresetEditorValues>;
@@ -47,7 +48,15 @@ export function viewContent(id: PresetEditorView["id"], props: ViewContentProps)
     case "prompt":
       // No `capability` here any more: the one cluster that read it (Collapsing's floor line) moved to
       // Transforms with the rest of the wire-shaping tail (O-17★).
-      return <PresetStructureTabs form={form} onRevealSection={onRevealSection} presetId={presetId} tab="prompt" />;
+      return (
+        <PresetStructureTabs
+          form={form}
+          onRevealSection={onRevealSection}
+          presetId={presetId}
+          promptCaching={effective !== undefined && cachesPrompts(effective.cache)}
+          tab="prompt"
+        />
+      );
     case "actions":
       return (
         <ActionsView
