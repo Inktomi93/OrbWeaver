@@ -18,6 +18,10 @@ const googleModelInfoSchema = z
   })
   .strip();
 
+/** The `supportedParameters` member that says a model takes `tools[]`, OpenRouter's spelling, which a list stating
+ *  tool support in another field is written with too. */
+export const TOOLS_PARAMETER = "tools";
+
 // Strip mode: also reads stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 export const modelCatalogEntrySchema = z
   .object({

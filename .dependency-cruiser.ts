@@ -1064,6 +1064,10 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/chat/lib/continue-on-empty.ts": "resolveEmptySendAction: the feature-private empty-send dispatch",
     "packages/client/src/features/chat/lib/gen-duration.ts": "durationLabel and genDurationLabel: the feature-private duration formatting",
   },
+  "tests/client/features/chat/components/appearance-row-subjects.ct.tsx": {
+    "packages/client/src/lib/appearance-invariant-manifest.ts":
+      "APPEARANCE_HISTORICAL_ROWS: the subject selectors the rated matrix judges on the transcript; the lib door forwards only the bridge contract production reads",
+  },
   "tests/client/features/chat/components/chat-style-skins.ct.tsx": {
     "packages/client/src/lib/row-qualifiers.ts": "viewImageActionName: the portrait viewer opener accessible name",
     "packages/client/src/features/chat/lib/message-action-names.ts": "MESSAGE_EDIT_NAME: the row edit action and editor accessible name",

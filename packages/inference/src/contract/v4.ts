@@ -153,6 +153,9 @@ export interface DrainCallbacks {
   readonly onText?: ((text: string) => void) | undefined;
   readonly onReasoning?: ((text: string) => void) | undefined;
   readonly onImage?: ((image: GeneratedImage) => void) | undefined;
+  /** The service's own words from a stream error part's payload, scrubbed and sanitized by the wire that knows its
+   *  shape; absent or `undefined` ⇒ the failure names the error part only. */
+  readonly errorWords?: ((payload: unknown) => string | undefined) | undefined;
   readonly label: string;
 }
 

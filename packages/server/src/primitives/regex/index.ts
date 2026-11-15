@@ -23,7 +23,7 @@ import vm from "node:vm";
 import type { ExecuteRegexScriptsArgs } from "@orb/kit/regex";
 import { executeRegexScripts } from "@orb/kit/regex";
 
-export { FIND_COMPILE_LIMIT_MS, probeFindCompiles } from "./compile-probe.ts";
+export { probeFindCompiles } from "./compile-probe.ts";
 
 /** The wall time one entry (one text's scripts) may run before the script in flight is stopped. The real HUD
  *  preset's server-side scripts spend at most 8 ms on a 40,000-character reply. */
