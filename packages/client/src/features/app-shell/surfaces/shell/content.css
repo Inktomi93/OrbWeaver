@@ -1,8 +1,9 @@
 /* shell.css region: the content pane: the view transition, region fill and scrim. The index imports the regions in cascade order; a rule's winner across regions is
  * decided there, so a rule moves between regions only with its source position. */
 @layer shell {
-  /* The view transition (`withViewTransition`, lib/view-transition.ts) captures only the content pane: a root capture
-   * paints a still frame over the chrome's own FLIP and slide, and a duplicate name aborts to a hard cut. The
+  /* The view transition (`withViewTransition`, lib/view-transition.ts) captures only the screen's content: this pane, or
+   * on a phone the list when the list is the screen (mobile.css), never both at once. A root capture paints a still
+   * frame over the chrome's own FLIP and slide, and a duplicate name aborts to a hard cut. The
    * `::view-transition-*` pseudos are children of the document root, so they read the motion tokens directly. */
   :root {
     view-transition-name: none;

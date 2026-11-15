@@ -3,8 +3,8 @@
 // cannot drive them; this util is the one legal wrapper. Respects
 // `prefers-reduced-motion` once here so no call site re-derives the check.
 // WHAT the transition captures is NOT decided here — it is CSS, and it lives in ONE block in
-// `features/app-shell/surfaces/shell.css` ("THE VIEW TRANSITION IS SCOPED TO THE CONTENT PANE", #176):
-// the document root opts OUT of capture and `.shell-content` is the single named region, so a swap
+// `features/app-shell/surfaces/shell/content.css`: the document root opts OUT of capture and one region carries
+// the name at a time (`.shell-content`, or the phone's list when the list is the screen), so a swap
 // cross-fades content while the shell's chrome keeps its own FLIP/transform motion. Read that block
 // before adding a `view-transition-name` anywhere — a second name is a second captured region.
 // WHAT STAYS LIVE follows from the same ruling, and it is not the CSS default a caller assumes: chrome and

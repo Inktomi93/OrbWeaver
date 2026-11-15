@@ -13,7 +13,8 @@ export const drawerVariants = tv({
       data-ending-style:opacity-0
       data-starting-style:opacity-0
     `,
-    viewport: "fixed inset-0 inset-be-(--drawer-bottom-inset,0) z-(--z-modal)",
+    // Clipped, so a sheet that ends above the tab bar casts its float shadow and slides in above the bar, never over it.
+    viewport: "fixed inset-0 inset-be-(--drawer-bottom-inset,0) z-(--z-modal) overflow-clip",
     // The sheet takes arrival focus as a whole: that is announced, not painted, and the controls inside draw their own rings.
     popup: `
       absolute inset-x-0 inset-be-0 flex [transform:translateY(calc(var(--drawer-snap-point-offset)+var(--drawer-swipe-movement-y)))] flex-col rounded-t-card

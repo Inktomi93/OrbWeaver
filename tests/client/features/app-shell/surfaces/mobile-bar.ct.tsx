@@ -1,6 +1,6 @@
 // The rail on a phone is the mobile bar: tab labels ride the label step and fit the narrowest bar, the current
 // section always holds exactly one visible tab, Home is one affordance at every width, and the You tab speaks the
-// count of what its sheet hosts.
+// count of what its sheet hosts and is the one pressed tab while that sheet is open.
 
 import { YOU_TAB_LABEL } from "@orb/client/lib";
 import { seedShellState } from "@orb/testkit/browser/spec";
@@ -172,4 +172,70 @@ test.describe("the You tab", () => {
     await mountWith(rows.map((row) => ({ ...row, readAt: null, actionable: false })));
     await expect.poll(description).toContain(String(WAITING_ROWS));
   });
+
+  test("with its sheet open it is the one pressed tab while the section stays the page, and every close path gives the section its paint back", async ({
+    mount,
+    page,
+  }) => {
+    await seedShellState(page, { activeSection: "chats" });
+    await mount<typeof AppShellStory>(STORY, {});
+    const bar = rail(page);
+    // The open sheet is modal, so it hides the bar from the accessibility tree; the tabs are still painted and pressable.
+    const tab = (name: string): Locator => bar.getByRole("button", { name, exact: true, includeHidden: true });
+    const you = tab(YOU_TAB_LABEL);
+    const chats = tab(SECTION_LABELS.chats);
+    // A tab that is neither the page nor a door left open: the rest paint every unpressed tab wears.
+    const resting = tab(SECTION_LABELS.characters);
+    const sheet = page.getByRole("dialog");
+    await expect(chats).toHaveAttribute("aria-current", "page");
+    await expect(you).toHaveAttribute("aria-haspopup", "dialog");
+    await expect(you).toHaveAttribute("aria-expanded", "false");
+    const pressed = await paint(chats);
+    const rest = await paint(resting);
+    expect(pressed).not.toEqual(rest);
+
+    /** The section's paint and the door's state once the sheet has gone, however it went. */
+    const expectClosed = async (): Promise<void> => {
+      await expect(sheet).toBeHidden();
+      await expect(you).toHaveAttribute("aria-expanded", "false");
+      await expect(you).not.toHaveAttribute("data-modal-open");
+      await expect.poll(() => paint(chats)).toEqual(pressed);
+      await expect.poll(() => paint(you)).toEqual(rest);
+    };
+    const open = async (): Promise<void> => {
+      await you.tap();
+      await expect(sheet).toBeVisible();
+      await expect(you).toHaveAttribute("aria-expanded", "true");
+      await expect(you).toHaveAttribute("data-modal-open");
+      await expect(you).not.toHaveAttribute("aria-current");
+      await expect(chats).toHaveAttribute("aria-current", "page");
+      await expect.poll(() => paint(you)).toEqual(pressed);
+      await expect.poll(() => paint(chats)).toEqual(rest);
+    };
+
+    await open();
+    await you.tap();
+    await expectClosed();
+
+    await open();
+    await page.keyboard.press("Escape");
+    await expectClosed();
+
+    // A row that navigates closes the sheet too, and the section it opens takes the pressed paint.
+    await open();
+    await sheet.getByRole("button", { name: SECTION_LABELS.corpus, exact: true }).tap();
+    await expect(sheet).toBeHidden();
+    const corpus = tab(SECTION_LABELS.corpus);
+    await expect(corpus).toHaveAttribute("aria-current", "page");
+    await expect.poll(() => paint(corpus)).toEqual(pressed);
+    await expect.poll(() => paint(you)).toEqual(rest);
+  });
 });
+
+/** The two colours a tab paints, as the browser resolved them. */
+function paint(tab: Locator): Promise<{ readonly background: string; readonly ink: string }> {
+  return tab.evaluate((el) => {
+    const style = globalThis.getComputedStyle(el);
+    return { background: style.backgroundColor, ink: style.color };
+  });
+}
