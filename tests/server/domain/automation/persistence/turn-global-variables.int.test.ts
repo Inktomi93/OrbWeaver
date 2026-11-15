@@ -26,7 +26,7 @@ import type { ChatRoot } from "@orb/testkit/node/composed";
 import { connectDevice, seedCorpusConnections } from "@orb/testkit/node/composed";
 import { asc, eq } from "drizzle-orm";
 import { z } from "zod";
-import { SETTINGS_ADJUSTED_CODE } from "#contracts/chat/bus.ts";
+import { REGEX_SCRIPT_NOT_APPLIED_CODE, SETTINGS_ADJUSTED_CODE } from "#contracts/chat/bus.ts";
 import type { CoreWireReply } from "../../chat/engine/core-physical.ts";
 import { coreHeldReply, coreHttpRoom, coreProse } from "../../chat/engine/core-physical.ts";
 import { attachPersonaLore, invitePerson } from "../../chat/persona-cache-physical.ts";
@@ -47,11 +47,11 @@ async function planeRoom(content: string, replies: number): Promise<ChatRoot> {
 }
 
 /** The room's plain warning codes, collected from the live chat bus until the returned handle is disposed. The
- *  corpus provider's own settings-adjusted notices are not this file's subject. */
+ *  detail-bearing codes (the corpus provider's settings-adjusted notices, regex scripts) are not this file's subject. */
 function warningsOf(h: ChatRoot): { readonly codes: PlainChatWarningCode[] } & Disposable {
   const codes: PlainChatWarningCode[] = [];
   const unsubscribe = h.root.app.liveBuses.chat.subscribeAllChatEvents(({ event }) => {
-    if (event.type === "warning" && event.chatId === h.chatId && event.code !== SETTINGS_ADJUSTED_CODE) {
+    if (event.type === "warning" && event.chatId === h.chatId && event.code !== SETTINGS_ADJUSTED_CODE && event.code !== REGEX_SCRIPT_NOT_APPLIED_CODE) {
       codes.push(event.code);
     }
   });
