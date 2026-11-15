@@ -69,7 +69,13 @@ async function dialogListing(
     ...createShellAmbientReads(corpus, root.ownerId),
     ...serveCorpusProcedures(caller, SERVED),
     "connection.providersAvailable": () => offered.map((entry) => (entry.provider.id === provider.id ? { ...entry, available: true } : entry)),
-    "connection.draftCatalogModels": () => listing,
+    // The list answers only the pasted key on the chosen row, as a hosted list read under a key does.
+    "connection.draftCatalogModels": (input) => {
+      if (input.providerId !== provider.id || input.key !== PASTED_KEY) {
+        throw new Error(`the dialog listed ${input.providerId} under a key other than the pasted one`);
+      }
+      return listing;
+    },
   });
   await mount<typeof ConnectionsListStory>(STORY, {});
   await page.getByRole("button", { name: ADD_CONNECTION_NAME, exact: true }).click();

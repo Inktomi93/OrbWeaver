@@ -47,7 +47,7 @@ test.skipIf(KEY === undefined)(
       api: "chat-completions",
       connection,
       signal: new AbortController().signal,
-      params: { maxTokens: MAX_TOKENS },
+      params: { maxOutputTokens: MAX_TOKENS },
       systemPrompt: { static: "Answer in two words.", dynamic: "" },
       history: [{ role: "user", content: [{ type: "text", text: "Say hi." }] }],
     });
