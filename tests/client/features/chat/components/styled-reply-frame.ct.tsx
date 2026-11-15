@@ -10,6 +10,8 @@
 //
 // A hostile frame is played by evaluating in the frame's own document: `parent.postMessage` from there is exactly
 // what a reply's own script could send.
+
+import { PLAIN_REPLY_REASON } from "@orb/client/lib";
 import { CARD_FRAME_ROUTE, rendersTrustedHtml } from "@orb/contracts/chat";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
@@ -24,6 +26,7 @@ import { SCROLL_END_THRESHOLD_PX } from "@orb/ui/message-list";
 import type { FrameLocator, Locator, Page } from "@playwright/test";
 import { REPLY_LINK_CONFIRM_LABEL } from "#client/features/chat/lib/reply-frame-names.ts";
 import { REPLY_LINK_FIRST_WAIT_MS, REPLY_LINK_FREE_CANCELS } from "#client/features/chat/lib/reply-link-pace.ts";
+import { REPLY_CARRY_BUDGET_CHARS } from "#client/features/chat/lib/reply-parts.ts";
 import type { RoutedCardTextScaleStory, RoutedReplyBesideFieldStory } from "./_routed-card-text-scale-stories.tsx";
 import type { StyledReplyStreamStory } from "./_styled-reply-stream-stories.tsx";
 
@@ -421,6 +424,50 @@ test("a stylesheet before a choices split still styles the script's panel after 
   // Positive control: the run that holds the stylesheet styles its own panel.
   const location = page.locator(REPLY_FRAME).first().locator(SANDBOX).contentFrame().locator("#w6p-location");
   expect(await location.evaluate((node) => getComputedStyle(node).color)).toBe(BANNER_COLOR);
+});
+
+// The same panel twice across two splits: every run is styled, and each carries the repeated sheet once.
+const REPEATED_BODY = [
+  '<scene_header location="Camelot · Great Hall" />',
+  "",
+  ":::choices",
+  "1. Follow her",
+  ":::",
+  "",
+  '<scene_header location="The Gate" />',
+].join("\n");
+
+test("a panel repeated across splits styles every run", async ({ corpus, mount, page }) => {
+  const room = await openStyledRoom(REPEATED_BODY);
+  await using root = room.root;
+  await using _routes = await serveRoom(page, root, corpus);
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  await expect(page.locator(REPLY_FRAME)).toHaveCount(2);
+  for (const run of [0, 1]) {
+    const location = page.locator(REPLY_FRAME).nth(run).locator(SANDBOX).contentFrame().locator("#w6p-location");
+    expect(await location.evaluate((node) => getComputedStyle(node).color)).toBe(BANNER_COLOR);
+  }
+});
+
+// A stylesheet the reply's runs would carry past the budget: a fourteenth of it, carried by each of sixteen other runs.
+const HEAVY_CSS = `.w6p-heavy{content:"${"x".repeat(Math.ceil(REPLY_CARRY_BUDGET_CHARS / 14))}"}`;
+const OVER_BUDGET_BODY = [
+  '<scene_header location="Camelot · Great Hall" />',
+  `<style>${HEAVY_CSS}</style>`,
+  ...Array.from({ length: 16 }, (_, index) => `She rolls. [dice: d20 → ${String(index + 1)}]\n\nThe hall waits.`),
+].join("\n\n");
+
+test("a styled reply whose runs would carry too much CSS renders plain whole, with its reason, and frames nothing", async ({ corpus, mount, page }) => {
+  const room = await openStyledRoom(OVER_BUDGET_BODY);
+  await using root = room.root;
+  await using _routes = await serveRoom(page, root, corpus);
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  const row = page.locator(`[data-slot="message-row"][data-message-id="${room.messageId}"] ${BUBBLE}`);
+  await expect(row.locator(`[data-plain-reason="${PLAIN_REPLY_REASON.carriedStylesOverBudget}"]`)).toHaveCount(1);
+  // Positive control: the script ran on this row, so the plain path is the budget's doing.
+  await expect(row.getByText("Camelot · Great Hall", { exact: true })).toBeVisible();
+  await expect(page.locator(REPLY_FRAME)).toHaveCount(0);
+  expect(((await row.textContent()) ?? "").includes("w6p-heavy")).toBe(false);
 });
 
 test("on a row whose character renders plain text the same reply draws through the inert path with no style", async ({ corpus, mount, page }) => {

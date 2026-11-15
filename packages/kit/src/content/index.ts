@@ -1729,10 +1729,26 @@ export function rawTextElements(content: string): readonly RawTextElement[] {
   return readMarkup(content).rawText;
 }
 
-/** Each closed `<style>` element a Markdown renderer draws from `content` (see {@link liftRawTextBodies}), whole and in
- *  order: the stylesheets every other frame of the same reply carries too. A sample shown as code is not one. */
-export function frameStyleElements(content: string): readonly string[] {
-  return markdownRawTextElements(content).flatMap((element) => (element.name === "style" && element.closed ? [content.slice(element.start, element.end)] : []));
+/** One stylesheet a reply draws: its `media` attribute, when it has one, and its text. */
+export interface FrameStyleSheet {
+  readonly media: string | undefined;
+  readonly css: string;
+}
+
+// A `media` attribute in a style opener, quoted either way or bare. The opener is one tag the reader already bounded.
+const MEDIA_ATTRIBUTE_RE = /\smedia\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/i;
+
+/** Each closed `<style>` element a Markdown renderer draws from `content` (see {@link liftRawTextBodies}), in order:
+ *  the stylesheets every other frame of the same reply carries too. A sample shown as code is not one. Only the text
+ *  and the `media` attribute are kept, so a carried copy runs no handler and repeats no id. */
+export function frameStyleElements(content: string): readonly FrameStyleSheet[] {
+  return markdownRawTextElements(content).flatMap((element) => {
+    if (element.name !== "style" || !element.closed) {
+      return [];
+    }
+    const media = MEDIA_ATTRIBUTE_RE.exec(content.slice(element.start, element.bodyStart));
+    return [{ media: media === null ? undefined : (media[1] ?? media[2] ?? media[3]), css: content.slice(element.bodyStart, element.bodyEnd) }];
+  });
 }
 
 /** `content` with the text of each closed `<style>` and `<script>` element a Markdown renderer reads as one replaced by

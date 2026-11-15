@@ -24,6 +24,7 @@
 // A HANDLE THAT IS GONE (expired, or evicted under store pressure) loads the server's miss notice, which says so.
 // The frame then mints again once; a second miss renders the inert fallback, never the notice in place of the reply.
 
+import type { FrameStyleSheet } from "@orb/kit/content";
 import { FrameMarkdown, useFrameDocument } from "@orb/ui/frame-markdown";
 import { Stack } from "@orb/ui/layout";
 import { FILLS_MEASURE } from "@orb/ui/lib";
@@ -72,10 +73,13 @@ function bodySegment(segment: FrameReplySegment, index: number, colorQuotes: boo
   );
 }
 
-// The reply's other runs' stylesheets, in a box that takes no space: a style element applies wherever it sits.
-function runStyles(styles: string): ReactElement | null {
-  // biome-ignore lint/security/noDangerouslySetInnerHtml: the same reply's own style elements, for the sandboxed frame document only; this tree is rendered to a string, never mounted.
-  return styles === "" ? null : <div hidden={true} dangerouslySetInnerHTML={{ __html: styles }} />;
+// The reply's other runs' stylesheets, each a bare style element: one applies wherever it sits and needs no box, so
+// nothing the reply's CSS does to a box can show it. Only the text and `media` are carried (`frameStyleElements`).
+function runStyles(sheets: readonly FrameStyleSheet[], side: string): readonly ReactElement[] {
+  return sheets.map((sheet, index) => (
+    // biome-ignore lint/security/noDangerouslySetInnerHtml: the same reply's own stylesheet text, for the sandboxed frame document only; this tree is rendered to a string, never mounted.
+    <style key={`${side}-${String(index)}`} media={sheet.media} dangerouslySetInnerHTML={{ __html: sheet.css }} />
+  ));
 }
 
 // The frame document's body: the bubble slot the transcript's reading typography keys on, then each run in order,
@@ -83,9 +87,9 @@ function runStyles(styles: string): ReactElement | null {
 function replyBody(segments: readonly FrameReplySegment[], styles: ReplyRunStyles, colorQuotes: boolean): ReactElement {
   return (
     <div data-slot={BUBBLE_SLOT} data-frame-reply="">
-      {runStyles(styles.before)}
+      {runStyles(styles.before, "before")}
       <Stack gap="row">{segments.map((segment, index) => bodySegment(segment, index, colorQuotes))}</Stack>
-      {runStyles(styles.after)}
+      {runStyles(styles.after, "after")}
     </div>
   );
 }

@@ -1119,7 +1119,10 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/chat/lib/display-row.ts": "displayDepthsOf and roomStandingOf: the depth and seat inputs every row's display call reads",
   },
   "tests/client/features/chat/lib/reply-parts.test.ts": {
-    "packages/client/src/features/chat/lib/reply-parts.ts": "replyParts: the feature-private split of a styled reply into frame runs and native blocks",
+    "packages/client/src/features/chat/lib/reply-parts.ts": "replyLayout: the feature-private split of a styled reply into frame runs and native blocks",
+  },
+  "tests/client/features/chat/components/styled-reply-frame.ct.tsx": {
+    "packages/client/src/features/chat/lib/reply-parts.ts": "REPLY_CARRY_BUDGET_CHARS: the carry budget the over-budget reply is sized past",
   },
   "tests/ui/markdown/frame-lift.dom.test.ts": {
     "packages/ui/src/markdown/frame/frame-document-context.ts":
