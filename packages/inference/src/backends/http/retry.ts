@@ -54,12 +54,12 @@ function computeBackoffMs(attempt: number, err: ProviderError, opts: RetryOption
 /** Sleep that resolves on whichever fires first: the timer or the abort signal. Throws a
  *  `ProviderError(kind:"aborted")` when the signal interrupts, so the retry loop surfaces it as the turn
  *  error rather than silently waiting out the full backoff. */
-function abortableSleep(ms: number, signal: AbortSignal | undefined, scheduleTimeout: ScheduleOp): Promise<void> {
+function abortableSleep(ms: number, signal: AbortSignal, scheduleTimeout: ScheduleOp): Promise<void> {
   if (ms <= 0) {
     return Promise.resolve();
   }
   return new Promise<void>((resolve, reject): void => {
-    if (signal?.aborted === true) {
+    if (signal.aborted) {
       reject(new ProviderError({ kind: "aborted", retryable: false, message: "backoff aborted" }));
       return;
     }
@@ -68,10 +68,10 @@ function abortableSleep(ms: number, signal: AbortSignal | undefined, scheduleTim
       reject(new ProviderError({ kind: "aborted", retryable: false, message: "backoff aborted" }));
     };
     const cancelTimer = scheduleTimeout((): void => {
-      signal?.removeEventListener("abort", onAbort);
+      signal.removeEventListener("abort", onAbort);
       resolve();
     }, ms);
-    signal?.addEventListener("abort", onAbort, { once: true });
+    signal.addEventListener("abort", onAbort, { once: true });
   });
 }
 

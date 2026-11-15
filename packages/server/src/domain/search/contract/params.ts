@@ -10,6 +10,7 @@ export type { CorpusParams } from "@orb/contracts/search";
 
 export interface KnnParams {
   readonly ownerId: UserId;
+  readonly signal: AbortSignal;
   readonly query: string;
   readonly topN: number;
   readonly rerank?: boolean | undefined;
@@ -23,11 +24,12 @@ export type FindCharactersParams = KnnParams;
 // SearchService signature says WHICH verb its argument belongs to. A structural-identity lens (`ast respell`)
 // reports it by construction — it cannot see that an alias already IS the one home — so the answer is this
 // comment, never a rename or a hand-written body.
-export type DigestsParams = MemoryQueryOptions;
+export type DigestsParams = MemoryQueryOptions & { readonly signal: AbortSignal };
 
 /** Ranking is raw cosine distance — hub_score is deliberately not CSLS-applied on this cross-modal path. */
 export interface ImagesParams {
   readonly ownerId: UserId;
+  readonly signal: AbortSignal;
   readonly query: string;
   readonly topN: number;
   readonly lens: ImageLens;
@@ -36,6 +38,7 @@ export interface ImagesParams {
 
 export interface DiscoverParams {
   readonly ownerId: UserId;
+  readonly signal: AbortSignal;
   readonly queryText: string;
   readonly topN: number;
   readonly rerank?: boolean | undefined;
@@ -66,6 +69,7 @@ export interface SuggestParams {
  *  `over === "images"` (validated at the transport seam + re-checked in the dispatch). */
 export interface UnifiedSearchParams {
   readonly ownerId: UserId;
+  readonly signal: AbortSignal;
   readonly query: string;
   readonly topN: number;
   readonly over: SearchTarget;

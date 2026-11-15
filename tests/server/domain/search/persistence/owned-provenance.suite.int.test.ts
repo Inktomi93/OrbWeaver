@@ -136,7 +136,7 @@ test("real owned avatar producers retain provenance; a labeled foreign metadata 
         principal,
         input: createCharacterSchema.parse({ name: suffix, handle: suffix, description: "A genuine avatar-bearing card.", avatarAssetId: avatar.assetId }),
       });
-      await root.app.embeddings.indexAsset(avatar.assetId, { force: true });
+      await root.app.embeddings.indexAsset(avatar.assetId, { signal: new AbortController().signal, force: true });
     }
     await root.app.embeddings.embedAssets({ ownerId: principal.userId, force: false, signal: new AbortController().signal });
     const rows = await root.services.discovery.visualArchetypes(principal.userId, 1);
@@ -171,8 +171,8 @@ test("real host handoff into an unrecorded space preserves authorized sources wi
   });
   const query = { queryText: "ledger", mode: "mixB", minScore: 0 } as const;
   const sources = async (ownerId: UserId): Promise<CorpusSource[]> => {
-    const corpusHits = await root.services.search.corpus({ ownerId, ...query });
-    const discovered = await root.services.search.discover({ ownerId, queryText: query.queryText, topN: 10 });
+    const corpusHits = await root.services.search.corpus({ signal: new AbortController().signal, ownerId, ...query });
+    const discovered = await root.services.search.discover({ signal: new AbortController().signal, ownerId, queryText: query.queryText, topN: 10 });
     return [
       ...corpusHits.map((hit) => hit.source),
       ...discovered.standaloneSegments.map((hit) => hit.source),
@@ -212,5 +212,5 @@ test("real host handoff into an unrecorded space preserves authorized sources wi
     [...new Set(before.map((source) => `${source.kind}:${source.rowId}`))].toSorted(),
   );
   expect(after.map((source) => source.fingerprint)).toEqual(after.map(() => null));
-  expect(await root.services.search.corpus({ ownerId: owner.userId, ...query })).toEqual([]);
+  expect(await root.services.search.corpus({ signal: new AbortController().signal, ownerId: owner.userId, ...query })).toEqual([]);
 });

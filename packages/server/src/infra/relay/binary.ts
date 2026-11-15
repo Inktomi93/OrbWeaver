@@ -106,7 +106,7 @@ async function download(deps: CloudflaredBinaryDeps, asset: CloudflaredAsset, de
   try {
     const body = await fetchAsset(deps, asset, url);
     for await (const chunk of body) {
-      deps.signal?.throwIfAborted();
+      deps.signal.throwIfAborted();
       received += chunk.byteLength;
       if (received > asset.bytes) {
         throw mismatch(asset, deps.pin.version);
@@ -150,7 +150,7 @@ const EXECUTABLE_FROM: Record<CloudflaredPackaging, (deps: CloudflaredBinaryDeps
 export function createCloudflaredBinary(deps: CloudflaredBinaryDeps): CloudflaredBinary {
   return {
     ensure: async (): Promise<string> => {
-      deps.signal?.throwIfAborted();
+      deps.signal.throwIfAborted();
       const target = deps.target;
       if (!isTarget(target)) {
         throw refuse("relay_platform_unsupported", `cloudflared publishes no build for ${target}, so this machine cannot start a quick tunnel.`);
@@ -173,7 +173,7 @@ export function createCloudflaredBinary(deps: CloudflaredBinaryDeps): Cloudflare
         }
         await rename(partial, assetPath);
       }
-      deps.signal?.throwIfAborted();
+      deps.signal.throwIfAborted();
       return EXECUTABLE_FROM[asset.packaging](deps, assetPath, target);
     },
   };
@@ -183,11 +183,12 @@ export function createCloudflaredBinary(deps: CloudflaredBinaryDeps): Cloudflare
 export function tarExtractor(childEnv: RelayExecutionDeps["childEnv"]): ExtractTgz {
   return (archive, intoDir, signal) =>
     new Promise<void>((resolve, reject) => {
-      signal?.throwIfAborted();
+      signal.throwIfAborted();
       const child = spawn("tar", ["-xzf", archive, "-C", intoDir, TGZ_ENTRY], {
         stdio: "ignore",
         env: childEnv(),
-        ...(signal === undefined ? {} : { signal, killSignal: "SIGKILL" }),
+        signal,
+        killSignal: "SIGKILL",
       });
       let failure: Error | undefined;
       child.once("error", (error) => {

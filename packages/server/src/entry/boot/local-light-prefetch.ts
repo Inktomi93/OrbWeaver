@@ -29,6 +29,8 @@ export interface LocalLightPrefetchPlanDeps {
   readonly principals: readonly Principal[];
   /** `LOCAL_LIGHT_PREFETCH` — `false` short-circuits to an empty plan (nothing published, nothing logged). */
   readonly enabled: boolean;
+  /** The boot's own cancel: shutdown ends the plan's resolves. */
+  readonly signal: AbortSignal;
 }
 
 /** Resolve one task for one principal and report the local-light model it would use, or `null` when it lands
@@ -36,7 +38,7 @@ export interface LocalLightPrefetchPlanDeps {
  *  failure is logged and treated the same — the prefetch is an optimization and must never fail a boot. */
 async function localLightModelFor(deps: LocalLightPrefetchPlanDeps, principal: Principal, task: RoutableTask): Promise<LocalLightModel | null> {
   try {
-    const { resolved } = await deps.resolve({ task, principal });
+    const { resolved } = await deps.resolve({ task, principal, signal: deps.signal });
     if (resolved.provider.id !== LOCAL_LIGHT_PROVIDER_ID) {
       return null;
     }

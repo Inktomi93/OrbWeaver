@@ -27,7 +27,7 @@ import type { CostDetails, ProviderId, ResponseCache, TokenDetails } from "@orb/
 import type { AssetId, CharacterId, ChatId, ImageryCallId, ImageryGenerationId, ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { nulFreeText } from "../custom-types/index.ts";
+import { nulFreeText, stampColumn } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { assets } from "./assets.ts";
 import { characters } from "./character.ts";
@@ -89,7 +89,7 @@ export const imageryGenerations = sqliteTable(
     responseCache: text("response_cache", { mode: "json" }).$type<ResponseCache>(),
     // An edit/reference input was used (reserved — the Phase-7 edit seam). Default false.
     edited: integer("edited", { mode: "boolean" }).notNull().default(false),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
     // The provider call this picture came from, shared by every picture of one fanned-out call: the stats
     // rebuild counts one priced generation per call id. NULL only on rows written before the column existed.
     callId: nulFreeText("call_id").$type<ImageryCallId>(),

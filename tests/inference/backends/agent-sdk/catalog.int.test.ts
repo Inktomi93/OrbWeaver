@@ -29,14 +29,19 @@ test("native daemon discovery uses the caller's current saved credential and nor
   const key = await root.services.credentials.add({ principal, provider: "claude-sub", key: TOKEN });
   const foreign = await root.actor();
   await expect(
-    root.services.connection.draftCatalogModels({ principal: await root.principalFor(foreign.id), providerId: "claude-sub", credentialId: key.id }),
+    root.services.connection.draftCatalogModels({
+      signal: new AbortController().signal,
+      principal: await root.principalFor(foreign.id),
+      providerId: "claude-sub",
+      credentialId: key.id,
+    }),
   ).rejects.toMatchObject({ code: CONNECTION_OP_CODES.credentialForeign });
   expect(edge.children).toHaveLength(0);
-  const draft = { principal, providerId: "claude-sub", credentialId: key.id };
+  const draft = { signal: new AbortController().signal, principal, providerId: "claude-sub", credentialId: key.id };
   expect(await root.services.connection.draftCatalogModels(draft)).toMatchObject({ listed: true, models: [{ id: "sonnet", name: "Sonnet" }] });
   expect(edge.environments.map((env) => env[CLAUDE_OAUTH_TOKEN_ENV])).toEqual([TOKEN]);
   const row = await root.services.connection.create({ principal, providerId: "claude-sub", credentialId: key.id, baseUrl: null, model: "sonnet" });
-  const { resolved } = await root.app.runtime.resolve({ principal, task: "chat", connectionId: row.id });
+  const { resolved } = await root.app.runtime.resolve({ signal: new AbortController().signal, principal, task: "chat", connectionId: row.id });
   expect(resolved.model).toBe("claude-sonnet-4-5");
   expect(resolved.capability).toMatchObject({
     kind: "generation",
@@ -54,7 +59,12 @@ test("native catalog refusal scrubs a reflected saved token from the readable re
   const principal = await root.principalFor(root.ownerId);
   const key = await root.services.credentials.add({ principal, provider: "claude-sub", key: TOKEN });
   using warning = vi.spyOn(root.logger, "warn");
-  const listing = await root.services.connection.draftCatalogModels({ principal, providerId: "claude-sub", credentialId: key.id });
+  const listing = await root.services.connection.draftCatalogModels({
+    signal: new AbortController().signal,
+    principal,
+    providerId: "claude-sub",
+    credentialId: key.id,
+  });
   expect(listing.listed).toBe(false);
   if (listing.listed) {
     throw new Error("the controlled daemon refusal unexpectedly listed models");
@@ -75,7 +85,12 @@ test("native catalog error prose remains readable, markup-free, control-free and
   await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY, sdkSpawn: edge.spawn, startJobs: false });
   const principal = await root.principalFor(root.ownerId);
   const key = await root.services.credentials.add({ principal, provider: "claude-sub", key: TOKEN });
-  const listing = await root.services.connection.draftCatalogModels({ principal, providerId: "claude-sub", credentialId: key.id });
+  const listing = await root.services.connection.draftCatalogModels({
+    signal: new AbortController().signal,
+    principal,
+    providerId: "claude-sub",
+    credentialId: key.id,
+  });
   expect(listing.listed).toBe(false);
   if (listing.listed) {
     throw new Error("the controlled daemon refusal unexpectedly listed models");

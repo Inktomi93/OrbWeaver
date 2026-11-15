@@ -69,7 +69,7 @@ export async function seedCorpusSdkSessions(root: ServerTestHarness, wire: Retur
   const { principal, credential, connection } = await seedCorpusSdkActor(root);
   const caller = await root.internalCallerFor(principal.userId);
   const resolve = async (connectionId: UserConnectionId): Promise<Resolved<"chat">> => {
-    const { resolved } = await root.app.runtime.resolve({ principal, connectionId, task: "chat", cachedFacts: true });
+    const { resolved } = await root.app.runtime.resolve({ signal: new AbortController().signal, principal, connectionId, task: "chat", cachedFacts: true });
     if (resolved.task !== "chat") {
       throw new Error("native SDK corpus lost its actual chat task");
     }
@@ -84,6 +84,7 @@ export async function seedCorpusSdkSessions(root: ServerTestHarness, wire: Retur
     }));
     return await root.app.runtime.executor.runChatTurn(
       toChatRequest({
+        signal: new AbortController().signal,
         connection: await resolve(connectionId),
         chatId,
         params: {},
@@ -104,6 +105,7 @@ export async function seedCorpusSdkSessions(root: ServerTestHarness, wire: Retur
   const seeded = { result: await runCanon(room.chat.id), rows: await captured(room.chat.id) };
   const reused = {
     result: await root.app.runtime.executor.runChatTurn({
+      signal: new AbortController().signal,
       api: "agent-sdk",
       connection: await resolve(connection.id),
       chatId: room.chat.id,
@@ -141,12 +143,14 @@ export async function seedCorpusSdkSessions(root: ServerTestHarness, wire: Retur
   const beforeForeign = await captured(room.chat.id);
   const callsBefore = wire.children.length;
   const foreign = await seedCorpusAccount(root);
-  const refusal = await root.app.runtime.resolve({ principal: foreign, connectionId: connection.id, task: "chat", cachedFacts: true }).then(
-    () => {
-      throw new Error("foreign native SDK connection unexpectedly resolved");
-    },
-    (error: Error) => error,
-  );
+  const refusal = await root.app.runtime
+    .resolve({ signal: new AbortController().signal, principal: foreign, connectionId: connection.id, task: "chat", cachedFacts: true })
+    .then(
+      () => {
+        throw new Error("foreign native SDK connection unexpectedly resolved");
+      },
+      (error: Error) => error,
+    );
   const foreignCapture = { refusal, before: beforeForeign, after: await captured(room.chat.id), callsBefore, callsAfter: wire.children.length };
   const cancel = new AbortController();
   const cancelled = root.app.runtime.executor

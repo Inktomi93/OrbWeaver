@@ -400,6 +400,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/domain/automation/contract/analysis.ts":
     "ANALYSIS_PROTECT_TAIL: the newest rows a durable-write analysis route stays behind, which the lore route suite sizes its smallest settled span by",
   "packages/server/src/domain/admin/contract/errors.ts": "ADMIN_OP_CODES: the refusal codes admin and sessions suites assert",
+  "packages/inference/src/backends/http/abort-wait.ts":
+    "RESOLUTION_ABORTED_MESSAGE: the refusal a cancelled connection resolve throws, which tells it from a later call's abort",
   "packages/server/src/domain/credentials/contract/errors.ts": "CREDENTIALS_OP_CODES: the refusal codes credentials suites assert",
   "packages/server/src/domain/settings/contract/errors.ts": "SETTINGS_OP_CODES: the refusal codes settings suites assert",
   "packages/server/src/domain/settings/contract/keys.ts":

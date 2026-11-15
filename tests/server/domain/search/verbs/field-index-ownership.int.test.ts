@@ -65,6 +65,7 @@ test("a same-ID sibling's card writes and disposal cannot evict or replace a war
   expect((await suggest(second, SECOND_NAME)).map((row) => row.suggestion)).toEqual([SECOND_NAME.toLowerCase()]);
   using firstReads = vi.spyOn(first.db, "select");
   await second.services.character.update({
+    signal: new AbortController().signal,
     principal: await second.principalFor(second.ownerId),
     characterId: secondCard.id,
     input: { name: NEXT_NAME, description: NEXT_NAME },

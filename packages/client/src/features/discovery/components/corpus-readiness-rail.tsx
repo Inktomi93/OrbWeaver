@@ -104,7 +104,7 @@ export function CorpusReadinessRail({ stages, showRerun, queue }: CorpusReadines
           // what varies is how many lines the row spends, which is the honest thing to trade.
           <Stack paddingBlock="field" data-slot="readiness-stage" divider="between" gap="tight" key={stage.id} role="listitem">
             <Row align="center" wrap={true} gap="row" justify="between">
-              <Row className="min-inline-0" gap="field">
+              <Row minWidth="shrinks" gap="field">
                 <Icon {...(stage.done ? ({ tone: "primary" } as const) : ({ ink: "muted" } as const))} icon={stage.done ? Check : Circle} size="xs" />
                 <Text as="span" className="min-inline-0" voice="label">
                   {stage.label}

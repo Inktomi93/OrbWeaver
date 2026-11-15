@@ -49,7 +49,7 @@ export interface SafeFetchOptions {
   /** Total request deadline (connect + headers + redirects). Default 15_000 ms — S5. */
   readonly deadlineMs?: number;
   /** Caller cancellation, composed with the deadline. */
-  readonly signal?: AbortSignal;
+  readonly signal: AbortSignal;
 }
 
 /** The guarded fetch signature a caller takes as an injected op; the composition root binds the scoped egress. */
@@ -119,8 +119,8 @@ export interface ScopedEgress extends AsyncDisposable {
   readonly publishPrivateEndpointAllowlist: (entries: readonly string[]) => void;
   readonly resolvedEndpointAdmission: (baseUrl: string) => Promise<(typeof ENDPOINT_ADMISSIONS)[number]>;
   readonly safeFetch: (url: string | URL, options: SafeFetchOptions) => Promise<SafeFetchResult>;
-  readonly fetchImageBytes: (url: string, maxBytes?: number, signal?: AbortSignal) => Promise<Uint8Array | null>;
-  readonly fetchWebDocument: (url: string) => Promise<Uint8Array>;
+  readonly fetchImageBytes: (url: string, signal: AbortSignal, maxBytes?: number) => Promise<Uint8Array | null>;
+  readonly fetchWebDocument: (url: string, signal: AbortSignal) => Promise<Uint8Array>;
   readonly fetchPluginBundle: (url: string) => Promise<Uint8Array>;
   readonly fetchPinnedDownload: (url: string, limits: PinnedDownloadLimits) => Promise<Response>;
   readonly configuredEndpointFetch: typeof fetch;

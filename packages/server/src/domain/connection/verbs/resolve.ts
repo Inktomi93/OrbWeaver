@@ -26,19 +26,22 @@ const CHAT_ROLE: CapabilityTarget = { kind: "role", task: "chat" };
 
 /** The caller's own connection a capability target names: a role through the caller's bindings, a connection
  *  id only after the owner check that every id-taking verb here runs first (see `createCapabilities`). */
-async function resolveChatTarget(ctx: ConnectionContext, params: ResolveChatCapabilityParams): Promise<ResolveOutcome["resolved"]> {
+async function resolveChatTarget(
+  ctx: ConnectionContext,
+  params: ResolveChatCapabilityParams & { readonly signal: AbortSignal },
+): Promise<ResolveOutcome["resolved"]> {
   const target = params.target ?? CHAT_ROLE;
   if (target.kind === "role") {
-    return (await ctx.runtime.resolve({ task: target.task, principal: params.principal })).resolved;
+    return (await ctx.runtime.resolve({ task: target.task, principal: params.principal, signal: params.signal })).resolved;
   }
   if ((await fetchOwnedConnection(ctx.db, params.principal.userId, target.connectionId)) === null) {
     throw new ConnectionNotFoundError(target.connectionId);
   }
-  return (await ctx.runtime.resolve({ task: "chat", principal: params.principal, connectionId: target.connectionId })).resolved;
+  return (await ctx.runtime.resolve({ task: "chat", principal: params.principal, connectionId: target.connectionId, signal: params.signal })).resolved;
 }
 
 export function createResolveChatCapability(ctx: ConnectionContext): ConnectionService["resolveChatCapability"] {
-  return async (params: ResolveChatCapabilityParams): Promise<ResolvedConnectionView> => toResolvedView(await resolveChatTarget(ctx, params));
+  return async (params): Promise<ResolvedConnectionView> => toResolvedView(await resolveChatTarget(ctx, params));
 }
 
 export function createResolveChatCacheContext(ctx: ConnectionContext): ConnectionService["resolveChatCacheContext"] {
@@ -51,7 +54,8 @@ export function createResolveChatCacheContext(ctx: ConnectionContext): Connectio
 /** What each word tokenizes to on the targeted connection's server (the logit-bias editor's live display),
  *  through the runtime's cache. Only the token ids and pieces cross; never the credential. */
 export function createTokenizeWords(ctx: ConnectionContext): ConnectionService["tokenizeWords"] {
-  return async (params: TokenizeWordsParams): Promise<TokenizeResult> => ctx.runtime.catalogs.tokenize(await resolveChatTarget(ctx, params), params.words);
+  return async (params: TokenizeWordsParams): Promise<TokenizeResult> =>
+    ctx.runtime.catalogs.tokenize(await resolveChatTarget(ctx, params), params.words, params.signal);
 }
 
 export function createCapabilities(ctx: ConnectionContext): ConnectionService["capabilities"] {
@@ -68,7 +72,7 @@ export function createCapabilities(ctx: ConnectionContext): ConnectionService["c
     if ((await fetchOwnedConnection(ctx.db, params.principal.userId, params.connectionId)) === null) {
       throw new ConnectionNotFoundError(params.connectionId);
     }
-    const read = await ctx.runtime.capabilities.for({ connectionId: params.connectionId, principal: params.principal });
+    const read = await ctx.runtime.capabilities.for({ connectionId: params.connectionId, principal: params.principal, signal: params.signal });
     const cache = resolveCachePolicy({
       context: read.cacheContext,
       ...(read.capability.kind === "generation" ? { generation: read.capability.generation } : {}),

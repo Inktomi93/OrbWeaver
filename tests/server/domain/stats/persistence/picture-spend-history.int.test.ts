@@ -57,8 +57,15 @@ test("a captioned picture and a preview keep their spend and image averages thro
   const room = await policyRoom(root);
   wire.images.push(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)));
 
-  await root.services.imagery.extractPrompt({ caller: room.host, chatId: room.chat.id, mode: "character", subjectCharacterId: room.character.id });
+  await root.services.imagery.extractPrompt({
+    signal: new AbortController().signal,
+    caller: room.host,
+    chatId: room.chat.id,
+    mode: "character",
+    subjectCharacterId: room.character.id,
+  });
   const picture = await root.services.imagery.generatePicture({
+    signal: new AbortController().signal,
     caller: room.host,
     mode: CAPTION_MODE,
     subjectCharacterId: room.character.id,
@@ -93,7 +100,13 @@ test("one image call that returns two pictures shows two generations and one cal
   const room = await policyRoom(root);
   wire.images.push(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)), makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)));
 
-  const picture = await root.services.imagery.generatePicture({ caller: room.host, mode: CAPTION_MODE, subjectCharacterId: room.character.id, n: 2 });
+  const picture = await root.services.imagery.generatePicture({
+    signal: new AbortController().signal,
+    caller: room.host,
+    mode: CAPTION_MODE,
+    subjectCharacterId: room.character.id,
+    n: 2,
+  });
   expect(picture.images).toHaveLength(2);
 
   const live = await shown(root, room.host);
@@ -106,8 +119,14 @@ test("the spend ledger travels only in the whole-library bundle, and a restore a
   await using source = await signedInBox({ providerFetch: wire.execute, secretBoxKey: SECRET_BOX_KEY });
   const owner = await source.principalFor(source.ownerId);
   const room = await policyRoom(source, owner);
-  await source.services.chat.compact({ principal: owner, chatId: room.chat.id });
-  await source.services.imagery.extractPrompt({ caller: owner, chatId: room.chat.id, mode: "character", subjectCharacterId: room.character.id });
+  await source.services.chat.compact({ signal: new AbortController().signal, principal: owner, chatId: room.chat.id });
+  await source.services.imagery.extractPrompt({
+    signal: new AbortController().signal,
+    caller: owner,
+    chatId: room.chat.id,
+    mode: "character",
+    subjectCharacterId: room.character.id,
+  });
   const spent = await shown(source, owner);
   expect(spent.overview?.costUsd).toBeCloseTo(2 * PROMPT_CALL_USD, 12);
   // A partial pick never carries the ledger, and naming it in one is refused; the whole library carries it.
@@ -157,7 +176,7 @@ test("an owner whose only activity is an unpriced picture is healed when the tim
   const credential = await root.services.credentials.add({ principal: painter, provider: "custom-openai", key: HOST_KEY });
   await seedImageBinding(root, painter, credential.id);
   wire.images.push(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)));
-  await root.services.imagery.generatePicture({ caller: painter, mode: "free", prompt: "A loom at dusk." });
+  await root.services.imagery.generatePicture({ signal: new AbortController().signal, caller: painter, mode: "free", prompt: "A loom at dusk." });
   const live = await shown(root, painter);
   expect(live.overview).toMatchObject({ costUsd: null, userTurns: 0, assistantTurns: 0 });
   expect(live.imageModel).toMatchObject({ generations: 1, costUsd: null });

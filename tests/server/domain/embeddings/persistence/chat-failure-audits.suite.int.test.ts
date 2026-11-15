@@ -86,9 +86,9 @@ test("the actual role bundle reports a provider rejection only once", async ({ h
   await ownerCaller.connection.setBinding({ task: "summarize", connectionId: connection.connectionId });
   const roles = await harness.roleClientsFor(harness.ownerId);
   const inputs = [{ systemPrompt: "Answer briefly.", userPrompt: "A funding control." }];
-  await roles.summarize(inputs);
+  await roles.summarize(inputs, { signal: new AbortController().signal });
   fundingProvider.status(401);
-  await expect(roles.summarize(inputs)).toThrowProviderError("auth_failed");
+  await expect(roles.summarize(inputs, { signal: new AbortController().signal })).toThrowProviderError("auth_failed");
   expect((await ownerCaller.credentials.list()).find((row) => row.id === key.id)?.revokedReason).toBe("auth_failed");
   expect(
     await db
@@ -109,7 +109,7 @@ test("a real credential persistence failure is reported without replacing the pr
 }) => {
   const key = await ownerCaller.credentials.add({ provider: TEST_PROVIDER_ID, key: "database-funding-key", metadata: { auth: "endpoint" } });
   const connection = await fundingConnection({ ownerCaller, harness, task: "embed", credentialId: key.id });
-  await app.runtime.executor.embed({ connection, input: "a positive funding control" });
+  await app.runtime.executor.embed({ signal: new AbortController().signal, connection, input: "a positive funding control" });
   const client = fundingDriver.client;
   if (client === null) {
     throw new Error("the real libSQL constructor did not deliver its driver observation");
@@ -127,7 +127,7 @@ test("a real credential persistence failure is reported without replacing the pr
   fundingProvider.status(401);
   let received: Error | undefined;
   try {
-    await app.runtime.executor.embed({ connection, input: "a failed funding control" });
+    await app.runtime.executor.embed({ signal: new AbortController().signal, connection, input: "a failed funding control" });
   } catch (error) {
     if (!(error instanceof Error)) {
       throw error;
@@ -167,7 +167,7 @@ test("a real accounting settlement failure retains the provider cause and still 
   const secondary = new Error("the physical accounting settlement write failed");
   using writes = failStatements(client, SETTLEMENT_WRITE, secondary);
   fundingProvider.status(401);
-  const failure = await app.runtime.executor.embed({ connection, input: "the accounting passenger control" }).then(
+  const failure = await app.runtime.executor.embed({ signal: new AbortController().signal, connection, input: "the accounting passenger control" }).then(
     () => {
       throw new Error("the provider refusal unexpectedly succeeded");
     },
@@ -208,7 +208,7 @@ test("a real settlement failure after an accepted provider call is no evidence a
   }
   const secondary = new Error("the physical accounting settlement write failed");
   using writes = failStatements(client, SETTLEMENT_WRITE, secondary);
-  const failure = await app.runtime.executor.embed({ connection, input: "the plain settlement control" }).then(
+  const failure = await app.runtime.executor.embed({ signal: new AbortController().signal, connection, input: "the plain settlement control" }).then(
     () => {
       throw new Error("the failed settlement unexpectedly succeeded");
     },

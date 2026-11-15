@@ -42,7 +42,14 @@ test("each reply shape reaches the prompt normalized, and a reply with no keywor
   const { chat } = await root.services.chat.startChat({ principal: owner, characterIds: [subject.id], opening: "none" });
   await root.services.chat.commitMessage({ principal: owner, chatId: chat.id, content: "A scene to read.", timeZone: UTC_TIME_ZONE });
   const extract = (): ReturnType<typeof root.services.imagery.extractPrompt> =>
-    root.services.imagery.extractPrompt({ caller: owner, chatId: chat.id, mode: "character", subjectCharacterId: subject.id, timeZone: UTC_TIME_ZONE });
+    root.services.imagery.extractPrompt({
+      signal: new AbortController().signal,
+      caller: owner,
+      chatId: chat.id,
+      mode: "character",
+      subjectCharacterId: subject.id,
+      timeZone: UTC_TIME_ZONE,
+    });
 
   for (const [name, raw, prompt] of PROMPT_ROWS) {
     reply = raw;

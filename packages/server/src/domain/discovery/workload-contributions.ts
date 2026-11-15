@@ -91,11 +91,11 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
         }
         return { calls: await deps.discovery.countThemeNameCalls({ ...scope, k }), bound: "exact" };
       },
-      run: async (ctx, params, report, _signal): Promise<AnalyticsResult> => {
+      run: async (ctx, params, report, signal): Promise<AnalyticsResult> => {
         try {
           const k = await themeK(deps, requireWorkloadFunder(ctx.funderUserId), params.k);
           report({ message: `computing ${k} themes` });
-          const stats = await deps.discovery.computeThemes({ k, ...ctx, funderUserId: requireWorkloadFunder(ctx.funderUserId) });
+          const stats = await deps.discovery.computeThemes({ k, ...ctx, funderUserId: requireWorkloadFunder(ctx.funderUserId), signal });
           // THE INPUT PLANE IS MEMORY DIGESTS, NOT DISTILLED CARDS — and a digest-less run must SAY so
           //. It used to return a bare `{scanned: 0, written: 0}`, which the runs console renders
           // as "0 rows · 0 written" under a green Succeeded: a pass that could not run reported as one that

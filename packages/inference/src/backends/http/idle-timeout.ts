@@ -49,7 +49,7 @@ export function isIdleTrip(error: unknown): boolean {
  * detaches from the caller's signal). The caller's cancel is folded in — REASON-FLATTENED, never
  * `AbortSignal.any` (`./abort-flatten.ts`) — so the composed signal fires on either cause.
  */
-export function turnAbortSignal(external: AbortSignal | undefined, idleWindowMs: number | undefined, scheduleTimeout: ScheduleOp): IdleAbort {
+export function turnAbortSignal(external: AbortSignal, idleWindowMs: number | undefined, scheduleTimeout: ScheduleOp): IdleAbort {
   const idleMs = idleWindowMs ?? IDLE_TIMEOUT_MS;
   const controller = new AbortController();
   let cancelTimer: (() => void) | undefined;

@@ -24,7 +24,7 @@ for (const replace of [false, true]) {
     const key = await ownerCaller.credentials.add({ provider: TEST_PROVIDER_ID, key: firstKey, metadata: { auth: "endpoint" } });
     const connection = await fundingConnection({ ownerCaller, harness, task: "embed", credentialId: key.id });
     const held = fundingProvider.holdAuthenticationFailure();
-    const call = app.runtime.executor.embed({ connection, input: "a rotation control" });
+    const call = app.runtime.executor.embed({ signal: new AbortController().signal, connection, input: "a rotation control" });
     const rejected = expect(call).toThrowProviderError("auth_failed");
     await held.reached;
     try {
@@ -44,7 +44,9 @@ for (const replace of [false, true]) {
         .from(auditLogs)
         .where(and(eq(auditLogs.entityId, key.id), eq(auditLogs.action, "credential.markRevoked"))),
     ).toHaveLength(replace ? 0 : 1);
-    const repaired = replace ? await app.runtime.executor.embed({ connection, input: "the repaired credential works" }) : null;
+    const repaired = replace
+      ? await app.runtime.executor.embed({ signal: new AbortController().signal, connection, input: "the repaired credential works" })
+      : null;
     expect(repaired?.vectors[0]).toEqual(replace ? new Float32Array([1, 0, 0]) : undefined);
     expect(fundingProvider.authorizations).toEqual(replace ? [`Bearer ${firstKey}`, `Bearer ${replacementKey}`] : [`Bearer ${firstKey}`]);
   });
@@ -83,7 +85,9 @@ test("a removed dispatched credential reports a miss without inventing a success
   const key = await ownerCaller.credentials.add({ provider: TEST_PROVIDER_ID, key: "removed-dispatched-key", metadata: { auth: "endpoint" } });
   const connection = await fundingConnection({ ownerCaller, harness, task: "embed", credentialId: key.id });
   const held = fundingProvider.holdAuthenticationFailure();
-  const rejected = expect(app.runtime.executor.embed({ connection, input: "a removed credential control" })).toThrowProviderError("auth_failed");
+  const rejected = expect(
+    app.runtime.executor.embed({ signal: new AbortController().signal, connection, input: "a removed credential control" }),
+  ).toThrowProviderError("auth_failed");
   await held.reached;
   try {
     await ownerCaller.credentials.remove({ credentialId: key.id });

@@ -40,18 +40,30 @@ test("runtime operation capabilities retain stateful chat and concrete embedding
     model: LOCAL_LIGHT_SEED_ROWS[0].model,
     allowBackground: true,
   });
-  const resolved = (await app.runtime.resolve({ principal: ownerPrincipal, task: "chat", connectionId: stateful.id, cachedFacts: true })).resolved;
+  const resolved = (
+    await app.runtime.resolve({ signal: new AbortController().signal, principal: ownerPrincipal, task: "chat", connectionId: stateful.id, cachedFacts: true })
+  ).resolved;
   expect(supportsManagedCompaction(resolved)).toBe(true);
   const snapshot = createResolveEmbeddingConnection(app.runtime, async () => ownerPrincipal);
-  const remoteSnapshot = await snapshot(ownerPrincipal.userId, "embed", remote.id);
-  const localSnapshot = await snapshot(ownerPrincipal.userId, "embed", local.id);
+  const remoteSnapshot = await snapshot(ownerPrincipal.userId, "embed", { signal: new AbortController().signal, connectionId: remote.id });
+  const localSnapshot = await snapshot(ownerPrincipal.userId, "embed", { signal: new AbortController().signal, connectionId: local.id });
   expect(remoteSnapshot).toMatchObject({ api: ENCODER_IDENTITY_NO_API, wire: "openai-compat", execution: { widthProbeTimeoutMs: 4321, seedVectors: false } });
   expect(localSnapshot).toMatchObject({ api: ENCODER_IDENTITY_NO_API, wire: "local-light", execution: { widthProbeTimeoutMs: 600_000, seedVectors: true } });
   if (remoteSnapshot === null) {
     throw new Error("the saved encoder did not resolve");
   }
   expect(
-    supportsManagedCompaction((await app.runtime.resolve({ principal: ownerPrincipal, task: "embed", connectionId: remote.id, cachedFacts: true })).resolved),
+    supportsManagedCompaction(
+      (
+        await app.runtime.resolve({
+          signal: new AbortController().signal,
+          principal: ownerPrincipal,
+          task: "embed",
+          connectionId: remote.id,
+          cachedFacts: true,
+        })
+      ).resolved,
+    ),
   ).toBe(false);
 });
 
@@ -108,6 +120,7 @@ test("a shipped avatar stored on the local-light image encoder takes its package
   expect(encoded).toEqual([]);
 
   const seeded = await root.app.embeddings.store({
+    signal: new AbortController().signal,
     lens: "image-raw",
     ownerId: owner.userId,
     assetId,
@@ -121,7 +134,15 @@ test("a shipped avatar stored on the local-light image encoder takes its package
   // One trailing byte changes the content hash, so no packaged vector matches it.
   const changed = new Uint8Array(avatar.bytes.length + 1);
   changed.set(avatar.bytes);
-  const live = await root.app.embeddings.store({ lens: "image-raw", ownerId: owner.userId, assetId, content: changed, model: generation.space, force: true });
+  const live = await root.app.embeddings.store({
+    signal: new AbortController().signal,
+    lens: "image-raw",
+    ownerId: owner.userId,
+    assetId,
+    content: changed,
+    model: generation.space,
+    force: true,
+  });
   expect(live).toMatchObject({ outcome: "written", model: generation.space });
   expect(encoded).toEqual([1]);
 });
@@ -145,7 +166,10 @@ test("an endpoint encoder in the packaged vectors' own space embeds a shipped av
     model,
     allowBackground: true,
   });
-  const localSnapshot = await createResolveEmbeddingConnection(root.app.runtime, async () => owner)(owner.userId, "imageEmbed", local.id);
+  const localSnapshot = await createResolveEmbeddingConnection(root.app.runtime, async () => owner)(owner.userId, "imageEmbed", {
+    signal: new AbortController().signal,
+    connectionId: local.id,
+  });
   if (localSnapshot === null) {
     throw new Error("the local-light encoder did not resolve");
   }
@@ -174,6 +198,7 @@ test("an endpoint encoder in the packaged vectors' own space embeds a shipped av
   const sendsBefore = physical.requests.filter(isSend).length;
 
   const stored = await root.app.embeddings.store({
+    signal: new AbortController().signal,
     lens: "image-raw",
     ownerId: owner.userId,
     assetId,
@@ -199,13 +224,15 @@ test("an explicit connection id that no longer resolves answers null, while the 
     allowBackground: true,
     declared: { kind: "embedding", embedding: { dims: 3 }, features: { detectServer: false } },
   });
-  expect(await resolveConnection(owner.userId, "embed", encoder.id)).toMatchObject({ connectionId: encoder.id });
+  expect(await resolveConnection(owner.userId, "embed", { signal: new AbortController().signal, connectionId: encoder.id })).toMatchObject({
+    connectionId: encoder.id,
+  });
 
   await root.services.connection.remove({ principal: owner, connectionId: encoder.id });
 
-  expect(await resolveConnection(owner.userId, "embed", encoder.id)).toBeNull();
+  expect(await resolveConnection(owner.userId, "embed", { signal: new AbortController().signal, connectionId: encoder.id })).toBeNull();
   await root.services.connection.setBinding({ principal: owner, task: "embed", connectionId: null });
-  await expect(resolveConnection(owner.userId, "embed")).rejects.toBeInstanceOf(NoConnectionError);
+  await expect(resolveConnection(owner.userId, "embed", { signal: new AbortController().signal })).rejects.toBeInstanceOf(NoConnectionError);
 });
 
 test("an explicit connection id whose lookup fails for any reason but an unresolvable binding rethrows instead of answering null", async () => {
@@ -221,11 +248,13 @@ test("an explicit connection id whose lookup fails for any reason but an unresol
     allowBackground: true,
     declared: { kind: "embedding", embedding: { dims: 3 }, features: { detectServer: false } },
   });
-  expect(await resolveConnection(owner.userId, "embed", encoder.id)).toMatchObject({ connectionId: encoder.id });
+  expect(await resolveConnection(owner.userId, "embed", { signal: new AbortController().signal, connectionId: encoder.id })).toMatchObject({
+    connectionId: encoder.id,
+  });
 
   await using _fault = await withheldTable(root.db, userConnections);
 
-  await expect(resolveConnection(owner.userId, "embed", encoder.id)).rejects.toMatchObject({
+  await expect(resolveConnection(owner.userId, "embed", { signal: new AbortController().signal, connectionId: encoder.id })).rejects.toMatchObject({
     cause: expect.objectContaining({ message: expect.stringContaining("no such table") }),
   });
 });

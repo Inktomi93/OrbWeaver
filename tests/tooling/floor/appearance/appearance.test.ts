@@ -265,6 +265,8 @@ test("defaults resets the shim's saved axes and background selection but retains
   expect(appearanceOf(body)).toBe(account);
   expect(account.backgroundAssetHash).toBe("owned-hash");
   expect(appearanceBootHintPatch(args.appearance)).toEqual(appearanceBootHintPatch(defaults));
+  // The control: the account's own axes project differently, so the reset above is not a projection that drops every axis.
+  expect(appearanceBootHintPatch(args.appearance)).not.toEqual(appearanceBootHintPatch(account));
 });
 
 test("defaults composes with explicit patches in argv order and help distinguishes schema values from curated patches", () => {

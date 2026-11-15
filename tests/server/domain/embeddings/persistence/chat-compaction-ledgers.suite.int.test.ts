@@ -133,6 +133,7 @@ test("a real native SDK stream strikes its late auth failure only after terminal
   const prefix = Promise.withResolvers<void>();
   const text: string[] = [];
   const request = toChatRequest({
+    signal: new AbortController().signal,
     connection,
     chatId: chat.id,
     params: {},

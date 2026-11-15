@@ -20,7 +20,7 @@ interface AutoModeParams {
   readonly delayMs: number;
   /** Sleep, injected (tests pass a no-op; prod a real timer). */
   readonly delay: DelayOp;
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
   /** Resolve the next single speaker given the previous one. `null` ⇒ no eligible speaker → stop. */
   readonly nextSpeaker: (lastSpeaker: SpeakerRef | null) => Promise<SpeakerCandidate | null>;
   readonly runTurn: (speaker: SpeakerCandidate) => Promise<TurnOutcome>;
@@ -72,7 +72,7 @@ export async function runAutoMode(params: AutoModeParams): Promise<AutoModeResul
   let last: SpeakerRef | null = params.initialLastSpeaker ?? null;
   let turns = 0;
   const stop = (): AutoModeResult => ({ messages });
-  const aborted = (): boolean => params.signal?.aborted === true;
+  const aborted = (): boolean => params.signal.aborted;
 
   while (turns < params.maxTurns) {
     if (aborted()) {

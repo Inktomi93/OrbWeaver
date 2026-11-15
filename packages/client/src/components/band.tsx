@@ -161,7 +161,7 @@ export function Band({ label, chevron, icon, count, censusAlign = "trailing", ma
     // identical on all thirteen settings bands and all four collection bands and entering a library cannot shift its own
     // label by 2px (the `ListRow` reservation, for the same reason).
     <BandButton
-      className="min-inline-0"
+      minWidth="shrinks"
       justify="start"
       selection="rail"
       data-selected={current ? "" : undefined}

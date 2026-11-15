@@ -112,7 +112,7 @@ try {
         console.error("CLIENT_REQUEST_FAILED", new URL(request.url()).pathname, request.failure()?.errorText);
       });
       try {
-        await awaitDevClientReady(page, DEV_ORIGIN, deadline);
+        await awaitDevClientReady(page, DEV_ORIGIN, deadline - Date.now());
       } catch (error) {
         const observations = [...pending].map(([request, since]) => ({
           path: new URL(request.url()).pathname,

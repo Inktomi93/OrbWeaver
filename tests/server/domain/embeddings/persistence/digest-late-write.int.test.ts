@@ -56,6 +56,7 @@ test("a digest written for a generation retired while it embedded is refused, an
     const text = `[archive — hall]\nBlock ${blockIdx}`;
     return {
       lens: "digest",
+      signal: new AbortController().signal,
       ownerId: host.userId,
       chatId: chat.id,
       scopedCharacterId: witness.id,

@@ -7,6 +7,7 @@ import type { ComponentProps, ReactElement, ReactNode, Ref } from "react";
 import type { NonEmptyLabel } from "#lib";
 import { DIALOG_VERBS } from "#lib";
 import { CommitRow } from "./commit-row.tsx";
+import { ModalTitle } from "./modal-title.tsx";
 
 type DialogPopupProps = ComponentProps<typeof DialogPopup>;
 // The popup's look rides on named props of the composite, so the variant census reads the DialogPopup they land on.
@@ -30,7 +31,8 @@ type ContentDismiss<L extends string = string> =
     };
 
 export interface ContentDialogProps<L extends string = string> extends Omit<ComponentProps<typeof Dialog>, "children"> {
-  readonly title: ReactNode;
+  /** The title's whole text, which stays the dialog's name when its line cuts it. */
+  readonly title: string;
   readonly dismiss: ContentDismiss<L>;
   readonly children: ReactNode;
   readonly size?: DialogPopupProps["size"];
@@ -89,11 +91,11 @@ export function ContentDialog<L extends string>({
             grow={true}
             {...(headerActions === undefined && titleTruncate !== true
               ? { minWidth: "word" as const }
-              : { className: "min-inline-0", floor: "title" as const })}
+              : { minWidth: "shrinks" as const, floor: "title" as const })}
           >
             {headerLeading}
             <DialogTitle {...titleProps} truncate={titleTruncate}>
-              {title}
+              <ModalTitle title={title} truncate={titleTruncate ?? false} />
             </DialogTitle>
           </Row>
           {headerActions === undefined ? (

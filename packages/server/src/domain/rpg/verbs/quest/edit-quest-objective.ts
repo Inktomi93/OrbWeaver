@@ -11,9 +11,9 @@ import { writeHandState } from "#src/domain/rpg/snapshot-edit.ts";
 
 export function createEditQuestObjective(ctx: RpgContext): Pick<RpgService, "editQuestObjective"> {
   async function editQuestObjective(params: EditQuestObjectiveParams): Promise<void> {
-    const { game } = await resolveHost(ctx, params.principal, params.chatId);
+    const { game, admission } = await resolveHost(ctx, params.principal, params.chatId);
     const op = params.op;
-    const written = await writeHandState(ctx, game, (head) => {
+    const written = await writeHandState(ctx, { game, admission }, (head) => {
       const quest = head.state.quests.find((row) => row.id === params.questId);
       if (quest === undefined) {
         return { ok: false, reason: "quest not found" };

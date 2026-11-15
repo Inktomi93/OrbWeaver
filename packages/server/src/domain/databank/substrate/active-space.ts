@@ -6,6 +6,6 @@ import type { UserId } from "@orb/kit/ids";
 import type { DatabankContext } from "../contract/service.ts";
 import { NO_EMBED_SPACE_MODEL } from "../contract/service.ts";
 
-export async function activeSpaceModel(ctx: Pick<DatabankContext, "getActiveEmbedSpace">, ownerId: UserId): Promise<string> {
-  return (await ctx.getActiveEmbedSpace(ownerId))?.model ?? NO_EMBED_SPACE_MODEL;
+export async function activeSpaceModel(ctx: Pick<DatabankContext, "getActiveEmbedSpace">, ownerId: UserId, signal: AbortSignal): Promise<string> {
+  return (await ctx.getActiveEmbedSpace(ownerId, signal))?.model ?? NO_EMBED_SPACE_MODEL;
 }

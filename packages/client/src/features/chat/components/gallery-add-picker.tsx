@@ -6,7 +6,6 @@ import { blobUrl } from "@orb/contracts/assets";
 import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { DialogClose, DialogFooter } from "@orb/ui/dialog";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Images } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
@@ -16,13 +15,17 @@ import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { DialogFailure, PickerDialog } from "#components";
+import { CommitFooter, DialogFailure, PickerDialog } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
-import { DIALOG_VERBS } from "#lib";
 import { useAddToGallery, useGalleryCandidates } from "../hooks/use-character-gallery.ts";
 import { useGalleryFocus } from "../hooks/use-gallery-focus.ts";
-import { CHAT_GALLERY_ADD_PICKER_TITLE, CHAT_GALLERY_IMAGES_NAME, CHAT_GALLERY_UPLOAD_INSTEAD_NAME } from "../lib/chat-surface-names.ts";
+import {
+  CHAT_GALLERY_ADD_PICKER_TITLE,
+  CHAT_GALLERY_ADD_SELECTED_NAME,
+  CHAT_GALLERY_IMAGES_NAME,
+  CHAT_GALLERY_UPLOAD_INSTEAD_NAME,
+} from "../lib/chat-surface-names.ts";
 import { ownedImageName } from "../lib/gallery-image-name.ts";
 import { galleryThumbUrl } from "../lib/gallery-thumb.ts";
 import { GalleryLoadMore } from "./gallery-load-more.tsx";
@@ -199,22 +202,16 @@ function OwnedAssetPicker({ characterId, failure, isOwned, onConfirm, onUploadIn
         onLoadMore={focus.loadMore}
       />
       {failure === null ? null : <DialogFailure>{failure}</DialogFailure>}
-      {/* The count never breaks inside itself; at a phone's width the buttons wrap below it instead. */}
-      <DialogFooter>
-        <Text voice="gloss" push="inlineStart" whitespace="nowrap">
-          {selected.size} selected
-        </Text>
-        <DialogClose
-          render={
-            <Button variant="ghost" disabled={isOwned}>
-              {DIALOG_VERBS.cancel}
-            </Button>
-          }
-        />
-        <Button disabled={selected.size === 0 || isOwned} onClick={submit}>
-          Add selected
-        </Button>
-      </DialogFooter>
+      <CommitFooter
+        exitHeld={isOwned}
+        footerLead={
+          // The count never breaks inside itself; at a phone's width the buttons wrap below it instead.
+          <Text voice="gloss" push="inlineStart" whitespace="nowrap">
+            {selected.size} selected
+          </Text>
+        }
+        submit={{ label: CHAT_GALLERY_ADD_SELECTED_NAME, onSubmit: submit, disabled: selected.size === 0, loading: isOwned }}
+      />
     </Stack>
   );
 }

@@ -162,7 +162,7 @@ interface RunTurnPipelineArgs {
   readonly shape?: TurnSpeakerShape | undefined;
   /** Fans one streamed delta out. Fire-and-forget — not on the durable-await path. */
   readonly onDelta: (delta: ChatDeltaEvent) => void;
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
   /** Null means tool-use unwired (the byte-identical no-op). */
   readonly tools: ChatToolOps | null;
   /** Empty means no tools ride. */

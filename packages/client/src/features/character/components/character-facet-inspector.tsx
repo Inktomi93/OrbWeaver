@@ -18,7 +18,7 @@ import { Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
+import { ContextTabBody, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import type { AppFormInstance } from "#forms/editor";
 import { MESSAGE_ROLE_ITEMS } from "#lib";
@@ -58,7 +58,7 @@ export function CharacterFacetInspector({ characterId }: CharacterFacetInspector
     // because an ancestor flex chain gives it one, and `reserveKey`'s auto-height measuring Stack severs
     // that chain wherever the scroller sits UNDER the boundary; hoisted, the measuring wrapper sits INSIDE
     // the scroller, the chain is unbroken, and the scroller survives the read.
-    <Stack scroll="y">
+    <ContextTabBody kind="scroll">
       <QueryBoundary
         resetKeys={[characterId]}
         fallback={<SkeletonRows count={3} shape="datum" />}
@@ -67,7 +67,7 @@ export function CharacterFacetInspector({ characterId }: CharacterFacetInspector
       >
         <InspectorLoader form={resolved.form} facetId={selectedFacetId as CharacterFacetId} characterId={characterId} />
       </QueryBoundary>
-    </Stack>
+    </ContextTabBody>
   );
 }
 

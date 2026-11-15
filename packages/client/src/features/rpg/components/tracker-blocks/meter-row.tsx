@@ -165,7 +165,7 @@ function MeterLabel({
   readonly nameCarried: boolean;
 }): ReactElement {
   return (
-    <Row gap="field" align="center" className="min-inline-0">
+    <Row gap="field" align="center" minWidth="shrinks">
       {leading}
       {/* THE LABEL IS PROGRAMMATICALLY ASSOCIATED, OR IT IS LOOSE TEXT. In the EDITABLE arm both fields carry
           this label verbatim inside their accessible names (`<subject> HP value` / `<subject> HP max`), so the

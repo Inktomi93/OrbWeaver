@@ -80,7 +80,9 @@ export async function privateRoom(): Promise<PrivateRoom> {
     }),
   );
   const { h } = image;
-  const chatBinding = (await h.root.services.connection.listBindings({ principal: h.owner })).find(({ task }) => task === "chat")?.binding;
+  const chatBinding = (await h.root.services.connection.listBindings({ signal: new AbortController().signal, principal: h.owner })).find(
+    ({ task }) => task === "chat",
+  )?.binding;
   if (chatBinding?.connectionId === undefined || chatBinding.connectionId === null) {
     throw new Error("the native private fixture has no actual chat binding");
   }

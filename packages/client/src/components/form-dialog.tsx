@@ -1,7 +1,9 @@
 // The explicit-commit dialog family: a dialog that commits owns one footer, Cancel and a required submit, so a form with no way
 // out or no commit fails to compile. Cancel abandons pre-submit input, never a submitted write. A dialog with nothing to commit
 // is a `DismissDialog`; `RequiredFormDialog` is the one forced ask, which D330 rules. A registry modal that commits
-// takes the same form and footer from `ModalHost`, through `CommitForm` and `CommitFooter`.
+// takes the same form and footer from `ModalHost`, through `CommitForm` and `CommitFooter`. A `DismissDialog` stage that commits draws
+// `CommitFooter` too, so every commit footer in a feature is this one: a second stage's exit is a Back, a stage with nothing to commit
+// draws none, and the submit is whatever the stage's state makes it.
 
 import { Button } from "@orb/ui/button";
 import type { DialogPopupProps } from "@orb/ui/dialog";
@@ -12,7 +14,9 @@ import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { useId, useRef, useState } from "react";
 import type { DialogSubmit, NonEmptyLabel } from "#lib";
 import { DIALOG_VERBS, testId } from "#lib";
+import type { CommitExit } from "./commit-row.tsx";
 import { CommitRow } from "./commit-row.tsx";
+import { ModalTitle } from "./modal-title.tsx";
 
 /** A registered test-id key (the registry is the API — never a new literal). */
 type TestKey = Parameters<typeof testId>[0];
@@ -26,7 +30,8 @@ export interface FormDialogRootProps {
 }
 
 interface DialogFrameProps {
-  readonly title: ReactNode;
+  /** The title's whole text, which stays the dialog's name when a short window cuts it to one line. */
+  readonly title: string;
   /** Land focus on the title: a body filled by one tall control would otherwise open scrolled past the heading. */
   readonly arriveOnTitle?: boolean;
   /** Supporting copy under the title (DialogDescription IS a `<p>` — plain text/fragment only). Omit for a title-only dialog. */
@@ -122,7 +127,7 @@ function DialogFrame({
           stays visible on a phone. */}
       <DialogBody grow={true} gap="block">
         <DialogTitle clearsClose={closeButton} focusTarget={arriveOnTitle} id={titleId} {...(arriveOnTitle ? { ref: titleRef, tabIndex: -1 } : {})}>
-          {title}
+          <ModalTitle title={title} />
         </DialogTitle>
         {description === undefined ? null : <DialogDescription>{description}</DialogDescription>}
         {children}
@@ -142,15 +147,27 @@ function DialogFrame({
   );
 }
 
-function SubmitButton<L extends string>({ submit, formId }: { readonly submit: DialogSubmit<L>; readonly formId: string }): ReactElement {
+const isBlocked = (submit: Pick<DialogSubmit, "disabled" | "loading">): boolean => (submit.disabled ?? false) || (submit.loading ?? false);
+
+// With a form the button submits it natively, so Enter and the press take one path through the form's own handler. A stage whose act
+// is not a form presses the submit directly.
+function SubmitButton<L extends string>({ submit, formId }: { readonly submit: DialogSubmit<L>; readonly formId: string | undefined }): ReactElement {
   return (
     <Button
       {...(submit.testKey === undefined ? {} : { "data-testid": testId(submit.testKey) })}
       disabled={submit.disabled ?? false}
-      form={formId}
       tone="primary"
       loading={submit.loading ?? false}
-      type="submit"
+      {...(formId === undefined
+        ? {
+            type: "button" as const,
+            onClick: (): void => {
+              if (!isBlocked(submit)) {
+                submit.onSubmit();
+              }
+            },
+          }
+        : { form: formId, type: "submit" as const })}
     >
       {submit.label}
     </Button>
@@ -171,20 +188,27 @@ export function FormDialogPopup<L extends string>({ submit, footerLead, children
   );
 }
 
-/** A commit dialog's footer: the lead controls, then Cancel and the submit that names the dialog's form. */
-export function CommitFooter<L extends string>({
-  formId,
-  submit,
-  footerLead,
-}: {
-  readonly formId: string;
+interface CommitFooterProps<L extends string = string> {
+  /** The form the submit submits; that form's submit handler runs `submit.onSubmit`. Omit for a stage whose act is not a form. */
+  readonly formId?: string;
   readonly submit: DialogSubmit<L>;
+  /** Controls beside the commit that do not commit, such as a selection's count, led into the footer before the exit. */
   readonly footerLead?: ReactNode;
-}): ReactElement {
+  /** @defaultValue "cancel" */
+  readonly exit?: CommitExit;
+  /** The dialog refuses to close while its write is in flight, so the exit shows that it is held. @defaultValue false */
+  readonly exitHeld?: boolean;
+}
+
+/**
+ * A commit dialog's footer: the lead controls, then the exit and the submit. `FormDialogPopup` and `ModalHost` draw it under their form; a
+ * stage of a `DismissDialog` whose reads suspend inside the frame draws it as the stage's own commit.
+ */
+export function CommitFooter<L extends string>({ formId, submit, footerLead, exit = "cancel", exitHeld = false }: CommitFooterProps<L>): ReactElement {
   return (
     <DialogFooter>
       {footerLead}
-      <CommitRow surface="dialog">
+      <CommitRow exit={exit} exitHeld={exitHeld} surface="dialog">
         <SubmitButton formId={formId} submit={submit} />
       </CommitRow>
     </DialogFooter>
@@ -262,7 +286,7 @@ export function CommitForm<L extends string>({
   readonly titleId: string;
   readonly children: ReactNode;
 }): ReactElement {
-  const blocked = (submit.disabled ?? false) || (submit.loading ?? false);
+  const blocked = isBlocked(submit);
   return (
     <form
       aria-labelledby={titleId}

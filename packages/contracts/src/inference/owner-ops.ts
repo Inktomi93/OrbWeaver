@@ -39,10 +39,11 @@ export interface ResolveChatCapabilityParams {
 /** The caller's own connection for a role or a connection id, with the cache context. Takes the acting Principal
  *  and an optional target (owner-checked by the connection domain), and no caller-supplied user id, so the op
  *  can only answer for the caller's own connections. */
-export type ResolveChatCapabilityOp = (params: ResolveChatCapabilityParams) => Promise<ResolvedCacheConnectionView>;
+export type ResolveChatCapabilityOp<Signal> = (params: ResolveChatCapabilityParams & { readonly signal: Signal }) => Promise<ResolvedCacheConnectionView>;
 
-/** Can the funder's task run under this fold, and if not, why. */
-export type TaskAvailabilityOp = (params: ResolveTaskParams) => Promise<SendAvailability>;
+/** Can the funder's task run under this fold, and if not, why. `Signal` stops a wait on a waking server; a type
+ *  parameter because this package cannot name `AbortSignal`. */
+export type TaskAvailabilityOp<Signal> = (params: ResolveTaskParams & { readonly signal: Signal }) => Promise<SendAvailability>;
 
 /** The caller's persisted binding for one routable task, credential-free. */
 export type GetBoundConnectionOp = (params: GetBoundConnectionParams) => Promise<BoundConnectionView | null>;

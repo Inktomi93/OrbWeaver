@@ -141,7 +141,11 @@ async function sendStep(room: Room, step: Extract<Step, { kind: "send" }>): Prom
 
 async function impersonateStep(room: Room, step: Extract<Step, { kind: "impersonate" }>): Promise<string> {
   let text = "";
-  for await (const { delta } of room.h.root.services.chat.impersonateStream({ principal: room[step.who], chatId: room.h.chatId })) {
+  for await (const { delta } of room.h.root.services.chat.impersonateStream({
+    signal: new AbortController().signal,
+    principal: room[step.who],
+    chatId: room.h.chatId,
+  })) {
     text += delta;
   }
   expect(text).not.toBe("");

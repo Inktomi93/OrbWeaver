@@ -62,7 +62,7 @@ async function root(random: () => number): ReturnType<typeof createChatRoot> {
 
 /** The next-turn prompt the host's assembly preview builds, as bytes, so two polls compare whole. */
 async function preview(h: Awaited<ReturnType<typeof root>>): Promise<string> {
-  return JSON.stringify((await h.root.services.chat.previewAssembly({ principal: h.owner, chatId: h.chatId })).prompt);
+  return JSON.stringify((await h.root.services.chat.previewAssembly({ signal: new AbortController().signal, principal: h.owner, chatId: h.chatId })).prompt);
 }
 
 /** A live PRNG whose draws differ call to call, so any preview that rides it renders differently per poll. */

@@ -36,12 +36,17 @@ test("a whitespace-only document fails its ingest while a document with text lan
     documentId: Parameters<typeof root.app.databankIngest.ingestDocument>[0]["documentId"],
   ): ReturnType<typeof root.app.databankIngest.ingestDocument> => root.app.databankIngest.ingestDocument({ documentId, signal: new AbortController().signal });
 
-  const written = await root.services.databank.createFromText({ principal: owner, name: "text.txt", text: "A lantern marks the northern pass." });
+  const written = await root.services.databank.createFromText({
+    signal: new AbortController().signal,
+    principal: owner,
+    name: "text.txt",
+    text: "A lantern marks the northern pass.",
+  });
   const landed = await ingest(written.document.id);
   expect(landed.failed).toEqual([]);
   expect(landed.chunksUpserted).toBe(1);
 
-  const blank = await root.services.databank.createFromText({ principal: owner, name: "blank.txt", text: " \n\t \n " });
+  const blank = await root.services.databank.createFromText({ signal: new AbortController().signal, principal: owner, name: "blank.txt", text: " \n\t \n " });
   const refused = await ingest(blank.document.id);
   expect(refused.chunksUpserted).toBe(0);
   expect(refused.failed).toHaveLength(1);

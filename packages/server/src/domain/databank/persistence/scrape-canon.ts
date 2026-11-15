@@ -43,7 +43,7 @@ export async function finalizeScrape(ctx: DatabankContext, write: ScrapeWrite): 
   const existing = await findByImportHash(ctx.db, ownerId, importHash);
   if (existing !== undefined) {
     await attachIngestDestination(ctx, principal, destination, importHash);
-    const counts = await ctx.countChunks({ documentIds: [existing.id], model: await activeSpaceModel(ctx, ownerId) });
+    const counts = await ctx.countChunks({ documentIds: [existing.id], model: await activeSpaceModel(ctx, ownerId, write.signal) });
     return { document: toDocumentView(existing, counts.get(existing.id) ?? 0), outcome: "duplicate", ingest: "skipped" };
   }
 
@@ -80,7 +80,7 @@ export async function finalizeScrape(ctx: DatabankContext, write: ScrapeWrite): 
     if (winner === undefined) {
       throw new Error("Atomic ingestion did not produce a document.");
     }
-    const counts = await ctx.countChunks({ documentIds: [winner.id], model: await activeSpaceModel(ctx, ownerId) });
+    const counts = await ctx.countChunks({ documentIds: [winner.id], model: await activeSpaceModel(ctx, ownerId, write.signal) });
     return { document: toDocumentView(winner, counts.get(winner.id) ?? 0), outcome: "duplicate", ingest: "skipped" };
   }
 

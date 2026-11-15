@@ -73,7 +73,7 @@ export function ListPage({
         {skipTo === undefined ? null : <SkipToFirstRow containerRef={ref}>{skipTo}</SkipToFirstRow>}
         {lead}
         <Row align="center" wrap={true} gap="field">
-          <Row align="center" className="min-inline-0" floor="field" grow={true} cap="fit">
+          <Row align="center" minWidth="shrinks" floor="field" grow={true} cap="fit">
             <ListSearch>{search}</ListSearch>
           </Row>
           {/* The aside wraps as one cluster at the row's end, so the search keeps its floor and a control never strands alone. */}

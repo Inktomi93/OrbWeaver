@@ -33,16 +33,14 @@ import type { FlattenedAbort } from "#src/contract/http.ts";
  * classifier). An already-aborted `external` aborts synchronously, so a call entered post-cancel never
  * reaches the wire. Returns the detach function for the fold's listener.
  */
-export function foldAbortInto(controller: AbortController, external: AbortSignal | undefined): () => void {
+export function foldAbortInto(controller: AbortController, external: AbortSignal): () => void {
   const onAbort = (): void => controller.abort();
-  if (external !== undefined) {
-    if (external.aborted) {
-      controller.abort();
-    } else {
-      external.addEventListener("abort", onAbort, { once: true });
-    }
+  if (external.aborted) {
+    controller.abort();
+  } else {
+    external.addEventListener("abort", onAbort, { once: true });
   }
-  return (): void => external?.removeEventListener("abort", onAbort);
+  return (): void => external.removeEventListener("abort", onAbort);
 }
 
 /** {@link foldAbortInto} over a fresh controller — the whole primitive for a caller that only needs a
@@ -55,7 +53,7 @@ export function flattenAbortSignal(external: AbortSignal): FlattenedAbort {
 
 /** A per-request deadline composed with the caller's cancel: fires on either, reason-flattened. `dispose()`
  *  on settle also clears the deadline's timer. */
-export function deadlineSignal(external: AbortSignal | undefined, deadlineMs: number, scheduleTimeout: ScheduleOp): FlattenedAbort {
+export function deadlineSignal(external: AbortSignal, deadlineMs: number, scheduleTimeout: ScheduleOp): FlattenedAbort {
   const controller = new AbortController();
   const detach = foldAbortInto(controller, external);
   const cancelTimer = scheduleTimeout(() => {

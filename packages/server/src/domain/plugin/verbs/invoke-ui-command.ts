@@ -131,7 +131,7 @@ export function createInvokeUiCommand(ctx: PluginContext, registry: PluginRegist
       // ONE `{ args }` object (the single-arg host→guest seam). The ROOM is not in the bag: it is the
       // invocation's chat SCOPE, which the guest reads through `chat.current()`'s opaque handle — one mint, one
       // accessor (see `registerCommand`'s contract).
-      const returned = await resident.invoke(command.onRun, serializeCommandInput(params, typedValues), chat);
+      const returned = await resident.invoke(command.onRun, serializeCommandInput(params, typedValues), chat, params.signal);
       if (composerDraft !== undefined) {
         replacement = pluginComposerDraftSchema.parse(returned);
         await revalidateDraftStanding(ctx, registry, params, resident);

@@ -66,7 +66,7 @@ function generationObservationFenceStatement(
   facts: readonly GenerationObservationFact[],
   predicate?: SQL,
 ): BatchStmt {
-  return retainedChatFenceStatement(ctx.db, retainedParent(parent, facts, predicate));
+  return retainedChatFenceStatement(ctx.db, retainedParent(parent, facts, predicate), ctx.now());
 }
 
 function removalPredicate(scope: GenerationObservationRemovalScope): SQL {
@@ -138,7 +138,7 @@ export function generationObservationRemovalStatements(
   if (scope.chatIds.length === 0) {
     return [];
   }
-  const statements: BatchStmt[] = [retainedChatFenceStatement(ctx.db, removalFenceSelection(scope, groups))];
+  const statements: BatchStmt[] = [retainedChatFenceStatement(ctx.db, removalFenceSelection(scope, groups), ctx.now())];
   for (const group of groups) {
     statements.push(...generationObservationTransferStatements(ctx, group.parent, group.facts).slice(1));
   }

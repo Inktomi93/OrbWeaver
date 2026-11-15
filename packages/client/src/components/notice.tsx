@@ -56,7 +56,7 @@ export function Notice({ tone, title, detail = NO_DETAIL, action, dismiss, alert
     <Card {...rest} tone={tone} variant="soft">
       <Row align="start" data-slot="notice" gap="field">
         <Icon icon={NOTICE_GLYPH[tone]} size="sm" tone={tone} />
-        <Stack className="min-inline-0" gap="tight" grow={true} {...(alert ? { role: "alert" } : {})}>
+        <Stack minWidth="shrinks" gap="tight" grow={true} {...(alert ? { role: "alert" } : {})}>
           <Text cap="prose" data-slot="notice-title" prose={true} voice="label" wrap="anywhere">
             {title}
           </Text>

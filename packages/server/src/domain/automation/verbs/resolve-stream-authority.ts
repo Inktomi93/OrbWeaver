@@ -3,9 +3,9 @@
 // rule fire/error/disable events are the host's hidden hand (host only). So this is a MEMBER gate, not the
 // host gate the rule-lifecycle verbs use: a NON-present member collapses to a leak-free AutomationChatNotFound
 // (→ NOT_FOUND — a stranger never learns a foreign chat exists, never receives its events), while a present
-// member resolves an authority tier the subscription tail projects by (`host` sees everything, `member` sees
+// member resolves an authority tier the subscription tail projects by (`host-only` sees everything, `member-visible` sees
 // only the chips). `can()` is the ONE host oracle (D17 — automation never compares `role === 'host'`); a
-// present-but-not-host member is the `member` tier (a caught `can()` refusal), NOT a leak (they ARE a known
+// present-but-not-host member is the `member-visible` tier (a caught `can()` refusal), NOT a leak (they ARE a known
 // participant). This is the injected-op-caller-gate class realized fail-closed: the chatId is the untrusted
 // input, the present-membership read is the chokepoint, and it runs BEFORE any bus tail attaches.
 
@@ -21,17 +21,17 @@ export function createResolveStreamAuthority(ctx: AutomationContext): Automation
     if (role === undefined) {
       throw new AutomationChatNotFoundError(chatId);
     }
-    // the `member` tier is the refusal's result: `decideChat` in
+    // the `member-visible` tier is the refusal's result: `decideChat` in
     // `admin/guard.ts` throws only `DomainForbiddenError` for the role `loadCallerRole` captured, and
     // `transport/trpc/stream/sources/automation.ts` reads the tier to filter the hidden-hand events. Ends if
     // `can()` gains a throw that is not a refusal.
     try {
       ctx.can(principal, "host", { kind: "chat", membership: { role } });
-      return "host";
+      return "host-only";
     } catch {
       // A present member who is not host — a KNOWN participant, so their stream is legitimate (they receive
-      // the room-visible chips), just narrowed to the `member` tier. NOT a leak: they already see the chat.
-      return "member";
+      // the room-visible chips), just narrowed to the `member-visible` tier. NOT a leak: they already see the chat.
+      return "member-visible";
     }
   };
 }

@@ -61,6 +61,7 @@ test("the composed pruner resolves the present host's persisted generation and d
     const text = `[archive — hall]\nArchive block ${blockIdx} for ${scopedCharacterId}`;
     receipts.push(
       await root.app.embeddings.store({
+        signal: new AbortController().signal,
         lens: "digest",
         ownerId: host.userId,
         chatId: chat.id,

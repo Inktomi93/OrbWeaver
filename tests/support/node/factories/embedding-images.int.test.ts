@@ -64,12 +64,12 @@ test("real eight-pixel input records the producer's skip and spends no caption o
   const bytes = makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset));
   const stored = await root.app.assets.store({ principal, bytes, mime: "image/png", kind: "avatar" });
   await root.settleBackground();
-  const capture = await seedIndexedAssetRows(root, [stored.assetId, { force: true }]);
+  const capture = await seedIndexedAssetRows(root, [stored.assetId, { signal: new AbortController().signal, force: true }]);
   expect(capture.result).toBeNull();
   expect(capture.vectors).toEqual([]);
   expect(capture.analysis).toBeUndefined();
   expect(capture.skip).toMatchObject({ assetId: stored.assetId, reason: "below-dimension-floor", width: 8, height: 8 });
-  const repeated = await seedIndexedAssetRows(root, [stored.assetId, { force: false }]);
+  const repeated = await seedIndexedAssetRows(root, [stored.assetId, { signal: new AbortController().signal, force: false }]);
   expect(repeated).toEqual(capture);
   expect(wire.requests.filter((request) => request.startsWith("POST "))).toEqual(before);
 });

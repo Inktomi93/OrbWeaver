@@ -31,9 +31,11 @@ for (const width of [390, 1280]) {
       const title = dialog.getByRole("heading", { name: LONG_TITLE, exact: true });
       const close = dialog.getByRole("button", { name: DIALOG_VERBS.close, exact: true });
       await expect(close).toBeVisible();
-      const geometry = await title.evaluate((heading) => ({
-        clipped: heading.scrollWidth > heading.clientWidth,
-        overflow: getComputedStyle(heading).textOverflow,
+      // The words are the part the line cuts, and while they are cut the title is the control that opens them whole.
+      await expect(title.getByRole("button", { name: LONG_TITLE, exact: true })).toBeVisible();
+      const geometry = await title.locator('[data-slot="dialog-title-text"]').evaluate((words) => ({
+        clipped: words.scrollWidth > words.clientWidth,
+        overflow: getComputedStyle(words).textOverflow,
       }));
       expect(geometry).toEqual({ clipped: true, overflow: "ellipsis" });
       const [titleBox, closeBox, popupBox] = await Promise.all([title.boundingBox(), close.boundingBox(), dialog.boundingBox()]);

@@ -10,6 +10,7 @@
 import { STREAM_INACTIVITY_TIMEOUT_MS } from "@orb/contracts/stream";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import { initTRPC, TRPCError } from "@trpc/server";
+import type * as TRPCCore from "@trpc/server/unstable-core-do-not-import";
 import { requireAdmin } from "#domain/admin";
 import { getLog, securityEvent, setSpanAttrs, span } from "#foundation/observability";
 import type { Context } from "./context.ts";
@@ -171,6 +172,12 @@ const rateLimitMiddleware = t.middleware(async ({ ctx, path, next }) => {
 });
 
 export const publicProcedure = t.procedure.use(tracingMiddleware).use(domainErrorMiddleware).use(rateLimitMiddleware);
+
+/** A procedure's cancel as a required signal. tRPC types it optional: the HTTP and socket adapters always pass the
+ *  request's own, and only a server-side `createCaller` that names none passes nothing, so no client exists to cancel. */
+export function procedureSignal(signal: TRPCCore.ProcedureResolverOptions<unknown, unknown, unknown, unknown>["signal"]): AbortSignal {
+  return signal ?? new AbortController().signal;
+}
 
 // authedProcedure: a resolved identity is required (ctx.auth === null → 401), plus the CSRF mitigation —
 // a cookie-authenticated mutation must carry the custom header. The gate keys on Principal.via: a

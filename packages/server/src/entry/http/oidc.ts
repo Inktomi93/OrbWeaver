@@ -42,7 +42,9 @@ export async function createConfiguredOidc(deps: ConfiguredOidcDeps): Promise<Oi
     execution(url, {
       ...options,
       ...(body === undefined ? {} : { body: body instanceof Uint8Array ? new Uint8Array(body) : body }),
-      ...(signal === undefined ? {} : { signal }),
+      // openid-client forwards a signal only when its caller set one, and discovery sets none; the endpoint
+      // fetch keeps its own deadline.
+      signal: signal ?? new AbortController().signal,
     });
   const keys = construction.use(createJwksReader(execution, deps.logger));
   // biome-ignore lint/nursery/useDisposables: construction.move transfers GC to the returned async owner; local disposal would stop it before route use.

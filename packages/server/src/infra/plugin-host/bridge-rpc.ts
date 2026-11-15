@@ -501,7 +501,7 @@ export async function dispatchBridgeCall(
       return undefined;
     case "imagery.generatePicture":
       exact(args, 2, operation);
-      return await bridge.imagery.generatePicture(chatAt(args, 0, operation), parsedAt(generateImageActionArgsSchema, args, 1, operation));
+      return await bridge.imagery.generatePicture(chatAt(args, 0, operation), parsedAt(generateImageActionArgsSchema, args, 1, operation), liveness);
     case "variables.get":
       exact(args, 1, operation);
       return await bridge.variables.get(stringAt(args, 0, operation));
@@ -524,7 +524,7 @@ export async function dispatchBridgeCall(
       return await netEgress.fetchAsset(stringAt(args, 0, operation), liveness);
     case "search.documents":
       exact(args, 2, operation);
-      return await bridge.search.documents(stringAt(args, 0, operation), args[1] === undefined ? undefined : numberAt(args, 1, operation));
+      return await bridge.search.documents(stringAt(args, 0, operation), args[1] === undefined ? undefined : numberAt(args, 1, operation), liveness);
     case "storage.get":
       exact(args, 1, operation);
       return await bridge.storage.get(stringAt(args, 0, operation));
@@ -578,7 +578,7 @@ export async function dispatchBridgeCall(
       return undefined;
     case "databank.ingest":
       exact(args, 1, operation);
-      return await bridge.databank.ingest(parsedAt(databankTextDocumentSchema, args, 0, operation));
+      return await bridge.databank.ingest(parsedAt(databankTextDocumentSchema, args, 0, operation), liveness);
     case "character.ingest":
       exact(args, 1, operation);
       return await bridge.character.ingest(recordAt(args, 0, operation));

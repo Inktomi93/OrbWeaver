@@ -27,7 +27,7 @@ import { NOTIFICATION_TYPES } from "@orb/contracts/notifications";
 import type { NotificationId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { nulFreeText } from "../custom-types/index.ts";
+import { nulFreeText, stampColumn } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { users } from "./users.ts";
 
@@ -61,7 +61,7 @@ export const notifications = sqliteTable(
     readAt: integer("read_at"),
     // null = not dismissed; set when the recipient dismisses it. nullable timestamp (no default).
     dismissedAt: integer("dismissed_at"),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     // Per-recipient monotonic uniqueness — the cursor key + the inbox-ordering index in one.

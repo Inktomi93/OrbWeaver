@@ -85,8 +85,12 @@ function analysisSkipCause(
 }
 
 /** Whether an avatar analysis on this owner's summarize role would reach a model (one vision call). */
-export async function avatarAnalysisCallsModel(roleClients: RoleClients, availability: AvatarAnalysisAvailability): Promise<boolean> {
-  return analysisSkipCause(await roleClients.resolved("structured"), availability) === null;
+export async function avatarAnalysisCallsModel(
+  roleClients: RoleClients<AbortSignal>,
+  availability: AvatarAnalysisAvailability,
+  signal: AbortSignal,
+): Promise<boolean> {
+  return analysisSkipCause(await roleClients.resolved("structured", signal), availability) === null;
 }
 
 /**
@@ -98,15 +102,15 @@ export async function avatarAnalysisCallsModel(roleClients: RoleClients, availab
  * when no preset context is available — the `caption` posture stands alone.
  */
 export async function analyzeAvatarImage(
-  roleClients: RoleClients,
+  roleClients: RoleClients<AbortSignal>,
   bytes: Uint8Array,
   presetParams: RolePresetParams | undefined,
-  sinks: { readonly logger: Logger; readonly availability: AvatarAnalysisAvailability },
+  env: { readonly logger: Logger; readonly availability: AvatarAnalysisAvailability; readonly signal: AbortSignal },
 ): Promise<AvatarAnalysis> {
-  const { logger, availability } = sinks;
+  const { logger, availability, signal } = env;
   // The CAPTION lens is a `structured` call WITH an image input (inference program §7.5-1): it names its task
   // and reads the vision requirement off the resolved capability — `acceptsImageInput(cap)`.
-  const resolved = await roleClients.resolved("structured");
+  const resolved = await roleClients.resolved("structured", signal);
   const skipCause = analysisSkipCause(resolved, availability);
   if (resolved === null) {
     return skipped(NO_CAPTION_MODEL);
@@ -131,6 +135,7 @@ export async function analyzeAvatarImage(
     const result = await roleClients.structured([{ systemPrompt: ANALYSIS_SYSTEM_PROMPT, userPrompt, images: [bytes] }], {
       responseFormat: ANALYSIS_RESPONSE_FORMAT,
       ...posture,
+      signal,
     });
     return result.items[0]?.text ?? "";
   };

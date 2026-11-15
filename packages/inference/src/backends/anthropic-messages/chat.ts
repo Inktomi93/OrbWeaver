@@ -457,7 +457,7 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
       }),
     classify,
     {
-      ...(req.signal !== undefined ? { signal: req.signal } : {}),
+      signal: req.signal,
       now: deps.now,
       scheduleTimeout: deps.scheduleTimeout,
       random: deps.random,

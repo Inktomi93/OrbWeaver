@@ -1,5 +1,6 @@
 import process from "node:process";
 import { setImmediate as nextTurn, setTimeout as sleep } from "node:timers/promises";
+import { createFrozenClock } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
 import { SNAP_BASES_MS } from "../../../../tooling/src/snap/lib/budgets.ts";
@@ -14,6 +15,7 @@ type WatchdogState = Parameters<typeof runSessionCallWithinBudget>[0];
 
 /** A recovery clock too short to wait for anything — the terminal arms below need the outer wait to expire. */
 const INSTANT_RECOVERY_BASE_MS = 1;
+const NAVIGATE_MS = 7;
 
 function watchdogState(): WatchdogState {
   return { name: "non-page-hang", recover: () => Promise.resolve(), recoveryBaseMs: INSTANT_RECOVERY_BASE_MS };
@@ -51,14 +53,16 @@ test("a timed-out call names the phase it stopped in and the time each earlier p
 });
 
 test("a mark from a call's work after its ledger closed reaches no ledger, so a one-shot run records nothing", () => {
+  const clock = createFrozenClock();
   const describeClosed = ((): CallPhaseLedger["describe"] => {
-    using ledger = openCallPhaseLedger(Date.now());
+    using ledger = openCallPhaseLedger(clock.now(), clock.now);
     markCallPhase("navigate");
     return ledger.describe;
   })();
+  clock.advance(NAVIGATE_MS);
   // The timed-out work keeps running through recovery and marks on; the closed ledger must not grow.
   markCallPhase("settle");
-  expect(describeClosed(Date.now())).toMatch(/^in flight: navigate \d+ms$/u);
+  expect(describeClosed(clock.now())).toBe(`in flight: navigate ${String(NAVIGATE_MS)}ms`);
 });
 
 test("a rejection after a terminal timeout is owned instead of becoming unhandled", async () => {

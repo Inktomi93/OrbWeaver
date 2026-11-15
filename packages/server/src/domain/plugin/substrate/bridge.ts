@@ -34,7 +34,15 @@
 // BEFORE the first `await` — the membrane admits up to 32 concurrent host calls per instance, and a
 // check-then-await-then-record would let a burst of 32 all observe the pre-burst count and pass.
 
-import type { PluginBridge, PluginCharacterView, PluginMessageView, PluginSearchHit, PluginWorldBookView, PluginWorldEntryView } from "@orb/contracts/plugin";
+import type {
+  PluginBridge,
+  PluginCharacterView,
+  PluginInvocationLiveness,
+  PluginMessageView,
+  PluginSearchHit,
+  PluginWorldBookView,
+  PluginWorldEntryView,
+} from "@orb/contracts/plugin";
 import { PLUGIN_CASCADE_DEPTH_MAX, PLUGIN_LORE_ENTRIES_PER_BOOK_MAX, PluginInstallerDisabledError, PluginPubsubDepthError } from "@orb/contracts/plugin";
 import { DomainConflictError, DomainForbiddenError } from "@orb/kit/errors";
 import type { AssetId, PluginId, SandboxWireId, UserId } from "@orb/kit/ids";
@@ -51,6 +59,17 @@ function pluginEntryPrefix(pluginId: PluginId | null): string {
 
 function pluginEntryTitle(pluginId: PluginId | null, entryKey: string): string {
   return `${pluginEntryPrefix(pluginId)}${entryKey}`;
+}
+
+/** Run a host op under the guest invocation's liveness, so an ended invocation aborts the provider calls the op makes. */
+async function underLiveness<T>(liveness: PluginInvocationLiveness, run: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const controller = new AbortController();
+  const unsubscribe = liveness.onAbort(() => controller.abort());
+  try {
+    return await run(controller.signal);
+  } finally {
+    unsubscribe();
+  }
 }
 
 /** Adapt the injected `PluginHostOps` into the membrane's `PluginBridge` for one installing user. `listMessages`
@@ -208,9 +227,10 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
       generatePicture: (
         chatId,
         args,
+        liveness,
       ): Promise<{
         readonly assetId: SandboxWireId<AssetId>;
-      }> => ops.imagery.generatePicture({ authorUserId: installerUserId, chatId, args }),
+      }> => underLiveness(liveness, (signal) => ops.imagery.generatePicture({ authorUserId: installerUserId, chatId, args, signal })),
     },
     variables: {
       get: (key) => ops.variables.get(installerUserId, key),
@@ -239,9 +259,9 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
     // makes a cross-owner search structurally impossible (the `assets`/`databank` owner-closure pattern).
     // Query embedding may spend the installer's hosted credential, so claim this plugin's hourly slot first.
     search: {
-      documents: (queryText, limit): Promise<readonly PluginSearchHit[]> => {
+      documents: (queryText, limit, liveness): Promise<readonly PluginSearchHit[]> => {
         belts.searchQuery.admit(requirePluginId("search.query"));
-        return ops.search.documents({ installerUserId, queryText, ...(limit !== undefined ? { limit } : {}) });
+        return underLiveness(liveness, (signal) => ops.search.documents({ installerUserId, queryText, ...(limit !== undefined ? { limit } : {}), signal }));
       },
     },
     // Plugin-PRIVATE KV — closed over BOTH the pluginId AND the installer (owner), so a cross-plugin OR
@@ -287,13 +307,9 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
       quiet: async (prompt, opts, liveness): Promise<{ readonly text: string }> => {
         const id = requirePluginId("llm.quiet");
         belts.quietLlm.admit(id);
-        const controller = new AbortController();
-        const unsubscribe = liveness.onAbort(() => controller.abort());
-        try {
-          return await ops.llm.quiet({ installerUserId, pluginId: id, prompt, signal: controller.signal, ...(opts !== undefined ? { opts } : {}) });
-        } finally {
-          unsubscribe();
-        }
+        return await underLiveness(liveness, (signal) =>
+          ops.llm.quiet({ installerUserId, pluginId: id, prompt, signal, ...(opts !== undefined ? { opts } : {}) }),
+        );
       },
     },
     // POSTURE 2 — stash the act as an ask instead of performing it. The membrane calls this on exactly the
@@ -356,7 +372,7 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
     // wall; a transient snippet's fixed grant profile omits both capabilities, so neither closure is reachable
     // from a snippet regardless.
     databank: {
-      ingest: (doc) => ops.databank.ingest({ installerUserId, name: doc.name, text: doc.text }),
+      ingest: (doc, liveness) => underLiveness(liveness, (signal) => ops.databank.ingest({ installerUserId, name: doc.name, text: doc.text, signal })),
     },
     character: {
       // `pluginId` rides along for PROVENANCE only — the ingest/ingestAsset ops key no per-plugin

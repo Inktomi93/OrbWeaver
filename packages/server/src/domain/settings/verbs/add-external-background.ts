@@ -29,12 +29,12 @@ function deriveName(url: string): string {
 }
 
 export function createAddExternalBackground(ctx: SettingsContext): SettingsService["addExternalBackground"] {
-  return async ({ principal, url }: AddExternalBackgroundParams): Promise<BackgroundLibraryEntry> => {
+  return async ({ principal, url, signal }: AddExternalBackgroundParams): Promise<BackgroundLibraryEntry> => {
     const trimmed = url.trim();
     if (trimmed.length === 0) {
       throw new DomainOperationError("background_url_empty", "A background image URL is required.");
     }
-    const result = await ctx.materializeBackground(principal, trimmed);
+    const result = await ctx.materializeBackground(principal, trimmed, signal);
     if (!result.ok) {
       throw new DomainOperationError(BACKGROUND_UNAVAILABLE_OP_CODE, backgroundMaterializeMessage(result.reason));
     }

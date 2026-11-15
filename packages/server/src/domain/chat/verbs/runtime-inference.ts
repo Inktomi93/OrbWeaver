@@ -22,15 +22,15 @@ function createTaskWindowReaders(deps: {
 }): { readonly summarize: ChatContext["summarizerContextTokens"]; readonly embed: ChatContext["embedContextTokens"] } {
   // `resolved()` reads null for every reason the task cannot run; the availability verdict names the first one,
   // so the funder is told what to fix instead of always "nothing is bound".
-  const refusalFor = async (funderUserId: UserId, task: "summarize" | "embed"): Promise<NoConnectionError> => {
-    const verdict = await deps.availability({ task, principal: await deps.resolveHostPrincipal(funderUserId) });
+  const refusalFor = async (funderUserId: UserId, task: "summarize" | "embed", signal: AbortSignal): Promise<NoConnectionError> => {
+    const verdict = await deps.availability({ task, principal: await deps.resolveHostPrincipal(funderUserId), signal });
     return unavailableRefusal(task, verdict.available ? "no-connection" : verdict.cause);
   };
   return {
-    summarize: async (funderUserId): Promise<number> => {
-      const resolved = await (await deps.roleClientsFor(funderUserId)).resolved("summarize");
+    summarize: async (funderUserId, signal): Promise<number> => {
+      const resolved = await (await deps.roleClientsFor(funderUserId)).resolved("summarize", signal);
       if (resolved === null) {
-        throw await refusalFor(funderUserId, "summarize");
+        throw await refusalFor(funderUserId, "summarize", signal);
       }
       if (resolved.capability.kind !== "generation") {
         throw unavailableRefusal("summarize", "requirement-unmet");
@@ -38,10 +38,10 @@ function createTaskWindowReaders(deps: {
       const preset = await deps.resolveUtilityPresetParams(funderUserId);
       return windowForPreset(resolved.capability.generation, preset?.maxContextTokens).context.window;
     },
-    embed: async (funderUserId): Promise<number> => {
-      const resolved = await (await deps.roleClientsFor(funderUserId)).resolved("embed");
+    embed: async (funderUserId, signal): Promise<number> => {
+      const resolved = await (await deps.roleClientsFor(funderUserId)).resolved("embed", signal);
       if (resolved === null) {
-        throw await refusalFor(funderUserId, "embed");
+        throw await refusalFor(funderUserId, "embed", signal);
       }
       if (resolved.capability.kind !== "embedding") {
         throw unavailableRefusal("embed", "requirement-unmet");
@@ -59,9 +59,10 @@ function createTaskWindowReaders(deps: {
  */
 async function speakerArbiterFor(
   roles: Pick<RoleClientsWithSignal, "resolved" | "structured">,
+  signal: AbortSignal,
   maxContextTokens?: number | undefined,
 ): ReturnType<ChatContext["resolveSpeakerArbiter"]> {
-  const view = await roles.resolved("structured");
+  const view = await roles.resolved("structured", signal);
   if (view?.capability.kind !== "generation" || !carriesStructured(view)) {
     return null;
   }
@@ -73,11 +74,11 @@ async function speakerArbiterFor(
 
 /** Bind chat's capability and availability rules to the runtime's injected ports. */
 export function createChatInferenceOps(deps: ChatInferenceDeps): ChatInferenceOps {
-  const resolveChatFor = async (funderUserId: UserId, signal?: AbortSignal, actor?: BindingActor): Promise<Resolved<"chat">> => {
+  const resolveChatFor = async (funderUserId: UserId, signal: AbortSignal, actor?: BindingActor): Promise<Resolved<"chat">> => {
     const { resolved } = await deps.connection.resolve({
       task: "chat",
       principal: await deps.resolveHostPrincipal(funderUserId),
-      ...(signal === undefined ? {} : { signal }),
+      signal,
       ...(actor === undefined ? {} : { actor }),
     });
     return resolved as Resolved<"chat">;
@@ -90,28 +91,33 @@ export function createChatInferenceOps(deps: ChatInferenceDeps): ChatInferenceOp
   });
   return {
     resolveChat: (params) => resolveChatFor(params.funderUserId, params.signal),
-    resolveConnection: ({ funderUserId, actor }) => resolveChatFor(funderUserId, undefined, actor),
-    checkSendAvailability: async ({ funderUserId }) => deps.connection.availability({ task: "chat", principal: await deps.resolveHostPrincipal(funderUserId) }),
+    resolveConnection: ({ funderUserId, actor, signal }) => resolveChatFor(funderUserId, signal, actor),
+    checkSendAvailability: async ({ funderUserId, signal }) =>
+      deps.connection.availability({ task: "chat", principal: await deps.resolveHostPrincipal(funderUserId), signal }),
     getNextTurnConnection: async ({ funderUserId }): ReturnType<ChatInferenceOps["getNextTurnConnection"]> => {
       const row = await deps.connection.getBoundConnection({ task: "chat", principal: await deps.resolveHostPrincipal(funderUserId) });
       return row === null ? { state: "unset" } : { state: "configured", connectionLabel: row.label, providerLabel: row.providerLabel };
     },
     summarizerContextTokens: taskWindows.summarize,
     embedContextTokens: taskWindows.embed,
-    summarizeAvailability: async (funderUserId) =>
-      deps.connection.availability({ task: "summarize", principal: await deps.resolveHostPrincipal(funderUserId) }),
+    summarizeAvailability: async (funderUserId, signal) =>
+      deps.connection.availability({ task: "summarize", principal: await deps.resolveHostPrincipal(funderUserId), signal }),
     summarize: async (funderUserId, ...args) => (await deps.roleClientsFor(funderUserId)).summarize(...args),
-    resolveSpeakerReranker: async (funderUserId): ReturnType<ChatInferenceOps["resolveSpeakerReranker"]> => {
+    resolveSpeakerReranker: async (funderUserId, signal): ReturnType<ChatInferenceOps["resolveSpeakerReranker"]> => {
       const roles = await deps.roleClientsFor(funderUserId);
-      const view = await roles.resolved("rerank");
+      const view = await roles.resolved("rerank", signal);
       if (view === null) {
         return null;
       }
       const capability = view.capability.kind === "rerank" ? view.capability.rerank : RERANK_FLOOR;
       return { capability, rerank: (query, documents, opts) => roles.rerank(query, documents, opts) };
     },
-    resolveSpeakerArbiter: async (funderUserId, chatId): ReturnType<ChatInferenceOps["resolveSpeakerArbiter"]> => {
-      const arbiter = await speakerArbiterFor(await deps.roleClientsFor(funderUserId), (await deps.resolveUtilityPresetParams(funderUserId))?.maxContextTokens);
+    resolveSpeakerArbiter: async (funderUserId, chatId, signal): ReturnType<ChatInferenceOps["resolveSpeakerArbiter"]> => {
+      const arbiter = await speakerArbiterFor(
+        await deps.roleClientsFor(funderUserId),
+        signal,
+        (await deps.resolveUtilityPresetParams(funderUserId))?.maxContextTokens,
+      );
       if (arbiter === null) {
         return null;
       }

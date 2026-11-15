@@ -109,10 +109,10 @@ async function chatCalls(ctx: ChatContext, chatId: ChatId, resolveMemoryConfig: 
  *  builds no digests at all. */
 export async function estimateMemoryBackfillCalls(
   ctx: ChatContext,
-  args: { readonly ownerId: UserId | null; readonly funderUserId: UserId; readonly importWindow: ImportWindow | null },
+  args: { readonly ownerId: UserId | null; readonly funderUserId: UserId; readonly importWindow: ImportWindow | null; readonly signal: AbortSignal },
   resolveMemoryConfig: ResolveBackfillMemoryConfig,
 ): Promise<number> {
-  if (!(await digestsDerivable(ctx, args.funderUserId))) {
+  if (!(await digestsDerivable(ctx, args.funderUserId, args.signal))) {
     return 0;
   }
   let calls = 0;

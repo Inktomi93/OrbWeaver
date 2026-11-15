@@ -9,8 +9,8 @@ import type { BeginGenerationObservation } from "./generation-observation.ts";
 
 /** The connection domain's turn-time reads, as chat reaches them. */
 export interface ChatConnectionOps {
-  readonly resolve: (params: ResolveTaskParams) => Promise<ResolveOutcome>;
-  readonly availability: TaskAvailabilityOp;
+  readonly resolve: (params: ResolveTaskParams & { readonly signal: AbortSignal }) => Promise<ResolveOutcome>;
+  readonly availability: TaskAvailabilityOp<AbortSignal>;
   readonly getBoundConnection: GetBoundConnectionOp;
 }
 

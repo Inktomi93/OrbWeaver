@@ -10,7 +10,7 @@ const withPeer = registerCancellationRoom();
 test("an empty room streams its opening user draft without creating a message or variant", async () => {
   await using h = await textRoom(["Hi there"], { group: { output: "per-speaker", policy: "list" } });
   const deltas: string[] = [];
-  for await (const { delta } of h.root.services.chat.impersonateStream({ principal: h.owner, chatId: h.chatId })) {
+  for await (const { delta } of h.root.services.chat.impersonateStream({ signal: new AbortController().signal, principal: h.owner, chatId: h.chatId })) {
     deltas.push(delta);
   }
   expect(deltas.length).toBeGreaterThan(0);
@@ -21,7 +21,7 @@ test("an empty room streams its opening user draft without creating a message or
 
 test("the public Stop operation reaches an active user draft and closes its actual provider stream", async () => {
   await withPeer("stream", async ({ h, peer, events }) => {
-    const params = { principal: h.owner, chatId: h.chatId };
+    const params = { signal: new AbortController().signal, principal: h.owner, chatId: h.chatId };
     const iter = h.root.services.chat.impersonateStream(params)[Symbol.asyncIterator]();
     const finish = iter.return?.bind(iter);
     if (finish === undefined) {

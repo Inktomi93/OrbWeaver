@@ -62,12 +62,14 @@ function add(
   rows.push({ kind, source, hash: hash(content), model: result.model, dim: vector.length, vector: [...vector] });
   process.stdout.write(`${kind} ${source} ${result.model} ${vector.length}\n`);
 }
+// A one-shot build script: nothing above it cancels, so its model calls share one signal that never aborts.
+const signal = new AbortController().signal;
 try {
   const ownerId = await built.sessions.ensureUser(SEED_AUTHOR);
   const author = await createHostPrincipalResolver(built.sessions)(ownerId);
   await built.services.settings.updateAppSettings({ principal: author, partial: { corpusAutoindex: false } });
   const roles = built.runtime.roleClientsFor(author);
-  const encoder = await roles.resolved("embed");
+  const encoder = await roles.resolved("embed", signal);
   const user = await built.sessions.loadUserById(ownerId);
   if (encoder === null || user === null) {
     throw new Error("The isolated seed account has no local encoder");
@@ -85,11 +87,16 @@ try {
       scenario: card.input.scenario ?? null,
       greetings: card.input.greetings ?? [],
     });
-    add("card-text", card.input.handle, text, await roles.embed(text));
+    add("card-text", card.input.handle, text, await roles.embed(text, { signal }));
   }
   const avatars = [...DEFAULT_CHARACTER_CARDS.map((card) => card.input.handle), castId<CharacterHandle>("persona-you")];
   // Image embedding runs through the executor, as every production image embed does.
-  const { resolved: imageEncoder } = await built.runtime.resolve({ task: "imageEmbed", principal: author, connectionId: encoder.connectionId });
+  const { resolved: imageEncoder } = await built.runtime.resolve({
+    signal,
+    task: "imageEmbed",
+    principal: author,
+    connectionId: encoder.connectionId,
+  });
   if (imageEncoder.task !== "imageEmbed") {
     throw new Error("The local encoder did not resolve as an image embedder");
   }
@@ -102,7 +109,11 @@ try {
       "image-raw",
       handle,
       avatar.bytes,
-      await built.runtime.executor.imageEmbed({ connection: { ...imageEncoder, task: imageEncoder.task }, input: { kind: "image", input: avatar.bytes } }),
+      await built.runtime.executor.imageEmbed({
+        signal,
+        connection: { ...imageEncoder, task: imageEncoder.task },
+        input: { kind: "image", input: avatar.bytes },
+      }),
     );
   }
   await writeFile(output, `${JSON.stringify(rows)}\n`);

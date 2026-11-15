@@ -33,7 +33,7 @@ export function EditorPage({ kind = "form", inset = "none", gap, padding, focusT
         cap={kind === "form" ? "columnWide" : "column"}
         width="full"
         centred={true}
-        className="min-inline-0"
+        minWidth="shrinks"
       />
     </Surface>
   );

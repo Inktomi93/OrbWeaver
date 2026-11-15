@@ -31,10 +31,10 @@ import {
 // The role tasks the bound bundle calls directly; image embedding runs through the pinned generation above.
 type BoundTask = RoleClientTask & keyof RoleClientsWithSignal;
 const BOUND_EXECUTE: Record<BoundTask, (roles: RoleClientsWithSignal) => ReturnType<RoleClientsWithSignal[BoundTask]>> = {
-  embed: (roles) => roles.embed("funding control"),
-  rerank: (roles) => roles.rerank("control", [{ id: "document", text: "control" }]),
-  summarize: (roles) => roles.summarize(INPUTS),
-  structured: (roles) => roles.structured(INPUTS, { responseFormat: FORMAT }),
+  embed: (roles) => roles.embed("funding control", { signal: new AbortController().signal }),
+  rerank: (roles) => roles.rerank("control", [{ id: "document", text: "control" }], { signal: new AbortController().signal }),
+  summarize: (roles) => roles.summarize(INPUTS, { signal: new AbortController().signal }),
+  structured: (roles) => roles.structured(INPUTS, { signal: new AbortController().signal, responseFormat: FORMAT }),
 };
 
 for (const task of BACKGROUND_TASKS) {
@@ -61,7 +61,9 @@ for (const task of ["embed", "imageEmbed"] as const) {
     expect(snapshot.connectionId).toBe(captured.connectionId);
     const settledCalls = [...fundingProvider.calls];
     const run = (): ReturnType<typeof snapshot.embed> | ReturnType<typeof snapshot.imageEmbed> =>
-      task === "embed" ? snapshot.embed("funding control") : snapshot.imageEmbed({ kind: "text", input: "funding control" });
+      task === "embed"
+        ? snapshot.embed("funding control", { signal: new AbortController().signal })
+        : snapshot.imageEmbed({ kind: "text", input: "funding control" }, { signal: new AbortController().signal });
     expect((await run()).vectors[0]).toEqual(new Float32Array([1, 0, 0]));
     expect(fundingProvider.calls).toEqual([...settledCalls, EMBEDDING_PATH]);
     const beforeRefusal = [...fundingProvider.calls];
@@ -78,11 +80,11 @@ test("a pinned encoder refuses a credential revoked after resolution", async ({ 
   const captured = await fundingConnection({ ownerCaller, harness, task: "embed", credentialId: key.id });
   const snapshot = (await pinGeneration(harness, "embed", captured.connectionId)).connection;
   const settledCalls = [...fundingProvider.calls];
-  expect((await snapshot.embed("before revoke")).vectors[0]).toEqual(new Float32Array([1, 0, 0]));
+  expect((await snapshot.embed("before revoke", { signal: new AbortController().signal })).vectors[0]).toEqual(new Float32Array([1, 0, 0]));
   expect(fundingProvider.calls).toEqual([...settledCalls, EMBEDDING_PATH]);
   const beforeAccounting = await db.select().from(embeddingCalls).where(eq(embeddingCalls.connectionId, captured.connectionId));
   await ownerCaller.credentials.markRevokedByUser({ credentialId: key.id });
-  await expect(snapshot.embed("after revoke")).rejects.toBeInstanceOf(DomainNoCredentialError);
+  await expect(snapshot.embed("after revoke", { signal: new AbortController().signal })).rejects.toBeInstanceOf(DomainNoCredentialError);
   expect(fundingProvider.calls).toEqual([...settledCalls, EMBEDDING_PATH]);
   expect(await db.select().from(embeddingCalls).where(eq(embeddingCalls.connectionId, captured.connectionId))).toEqual(beforeAccounting);
 });
@@ -117,14 +119,14 @@ test("a pinned encoder whose real connection was removed refuses without a provi
   const snapshot = (await pinGeneration(harness, "embed", captured.connectionId)).connection;
   const settledCalls = [...fundingProvider.calls];
   const settledAccounting = await db.select().from(embeddingCalls).where(eq(embeddingCalls.ownerId, harness.ownerId));
-  await snapshot.embed("before removal");
+  await snapshot.embed("before removal", { signal: new AbortController().signal });
   expect(fundingProvider.calls).toEqual([...settledCalls, EMBEDDING_PATH]);
   const beforeRemoval = await db.select().from(embeddingCalls).where(eq(embeddingCalls.ownerId, harness.ownerId));
   expect(beforeRemoval).toHaveLength(settledAccounting.length + 1);
   await ownerCaller.connection.remove({ connectionId: captured.connectionId });
   const priorAccounting = await db.select().from(embeddingCalls).where(eq(embeddingCalls.ownerId, harness.ownerId));
   expect(priorAccounting).toEqual(beforeRemoval.map((row) => ({ ...row, connectionId: null })));
-  await expect(snapshot.embed("after removal")).toThrowProviderError("invalid");
+  await expect(snapshot.embed("after removal", { signal: new AbortController().signal })).toThrowProviderError("invalid");
   expect(fundingProvider.calls).toEqual([...settledCalls, EMBEDDING_PATH]);
   expect(await db.select().from(embeddingCalls).where(eq(embeddingCalls.ownerId, harness.ownerId))).toEqual(priorAccounting);
 });
@@ -184,6 +186,7 @@ test("a foreign and then missing real connection have one refusal without provid
   const foreign = await otherCaller.connection.create({ providerId: TEST_PROVIDER_ID, model: FUNDING_MODEL, credentialId: null, baseUrl: TEST_BASE_URL });
   const other = await otherCaller.sessions.me();
   const admitted = await app.runtime.resolve({
+    signal: new AbortController().signal,
     task: "chat",
     principal: await harness.principalFor(other.userId),
     connectionId: foreign.id,
@@ -193,7 +196,7 @@ test("a foreign and then missing real connection have one refusal without provid
   const principal = await harness.principalFor(harness.ownerId);
   const requests = [...fundingProvider.requests];
   const before = await db.select().from(embeddingCalls);
-  const denied = await app.runtime.resolve({ task: "chat", principal, connectionId: foreign.id, cachedFacts: true }).then(
+  const denied = await app.runtime.resolve({ signal: new AbortController().signal, task: "chat", principal, connectionId: foreign.id, cachedFacts: true }).then(
     () => {
       throw new Error("the foreign connection unexpectedly resolved");
     },
@@ -207,7 +210,9 @@ test("a foreign and then missing real connection have one refusal without provid
   expect(denied).toBeInstanceOf(NoConnectionError);
   expect(fundingProvider.requests).toEqual(requests);
   await otherCaller.connection.remove({ connectionId: foreign.id });
-  await expect(app.runtime.resolve({ task: "chat", principal, connectionId: foreign.id, cachedFacts: true })).rejects.toMatchObject({
+  await expect(
+    app.runtime.resolve({ signal: new AbortController().signal, task: "chat", principal, connectionId: foreign.id, cachedFacts: true }),
+  ).rejects.toMatchObject({
     name: denied.name,
     kind: denied.kind,
     message: denied.message,

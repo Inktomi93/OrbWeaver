@@ -19,10 +19,11 @@ export const accordionVariants = tv({
     // the app's `[anim]` flagger convicted this panel OVER BUDGET on every fold). The panel only
     // ever animates `height` (the ratified #953/#1069 lifecycle allowance, guide §4.2 item 3) —
     // naming it keeps the sanctioned motion and drops everything `all` swept in by accident.
-    // The fold hides content on the block axis only: `overflow-y-clip` leaves the inline axis visible (`hidden` would pull it
-    // to a clip too), so the focus ring of a control flush with the panel's inline edge is not cut.
+    // The fold hides content on the block axis only, and a field step past the panel's edge, where an inline hint trigger bleeds
+    // (`orb-fold-clip` in styles/primitives.css). The inline axis stays visible, so the focus ring of a control flush with the
+    // panel's inline edge is not cut.
     panel: `
-      overflow-y-clip text-body leading-body text-muted-foreground transition-[height] duration-(--motion-layout) ease-out-expo block-(--accordion-panel-height)
+      text-body leading-body text-muted-foreground transition-[height] duration-(--motion-layout) ease-out-expo block-(--accordion-panel-height) orb-fold-clip
       data-ending-style:block-0
       data-starting-style:block-0
     `,

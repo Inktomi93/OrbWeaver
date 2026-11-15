@@ -17,7 +17,8 @@ import { hostedRoom } from "./hosted-room.fixtures.ts";
 const TAB_STORY = "tests/client/features/chat/components/_chat-forks-stories/ChatContextTabStory";
 const REPLY_STORY = "tests/client/features/chat/components/_ghost-macro-stories/StreamingReplyStory";
 const PHONE = { width: 390, height: 844 } as const;
-const TRIGGER = '[data-slot="collapsible-trigger"]';
+// A disclosure row's trigger is its body.
+const TRIGGER = '[data-slot="collapsible-trigger"], [data-slot="list-row-body"]';
 const TAB_PROCEDURES = [
   "sessions.me",
   "settings.getUserSettings",

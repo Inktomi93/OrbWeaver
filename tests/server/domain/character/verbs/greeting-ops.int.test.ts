@@ -78,11 +78,11 @@ test("the real greeting gate precedes template/funding reads; each completion re
     principal: actor,
     input: { section: "seeds", patch: { defaultPresetId: preset.id, summarizePreset: { kind: "preset", presetId: preset.id } } },
   });
-  await expect(services.character.generateGreeting({ principal: neighbor, characterId: card.id, steer: "private" })).rejects.toBeInstanceOf(
-    CharacterNotFoundError,
-  );
+  await expect(
+    services.character.generateGreeting({ signal: new AbortController().signal, principal: neighbor, characterId: card.id, steer: "private" }),
+  ).rejects.toBeInstanceOf(CharacterNotFoundError);
   expect(requests).toHaveLength(0);
-  expect(await services.character.generateGreeting({ principal: actor, characterId: card.id, steer: "first" })).toEqual({
+  expect(await services.character.generateGreeting({ signal: new AbortController().signal, principal: actor, characterId: card.id, steer: "first" })).toEqual({
     text: "Owned greeting.",
   });
   expect(await requests[0]?.json()).toMatchObject({
@@ -92,7 +92,7 @@ test("the real greeting gate precedes template/funding reads; each completion re
   });
   await services.connection.update({ principal: actor, connectionId, patch: { model: "owned-second" } });
   await services.preset.update({ userId: owner.id, id: preset.id, config: { ...preset.config, params: { temperature: 0.83 } } });
-  await services.character.generateGreeting({ principal: actor, characterId: card.id, steer: "second" });
+  await services.character.generateGreeting({ signal: new AbortController().signal, principal: actor, characterId: card.id, steer: "second" });
   expect(await requests[1]?.json()).toMatchObject({ model: "owned-second", temperature: 0.83 });
   expect(await services.character.getCard({ principal: actor, characterId: card.id })).toMatchObject({ greetings: card.greetings });
 });
@@ -123,9 +123,9 @@ test("a foreign preset degrades to the shipped template, but a real preset datab
   const neighbor = await principal(harness, stranger.id);
   await services.settings.updateUserSettingsSection({ principal: neighbor, input: { section: "seeds", patch: { defaultPresetId: foreign.id } } });
   // The shipped template is what a caller with no default preset receives; a foreign default must degrade to it.
-  await services.character.generateGreeting({ principal: actor, characterId: card.id, steer: "hi" });
+  await services.character.generateGreeting({ signal: new AbortController().signal, principal: actor, characterId: card.id, steer: "hi" });
   await services.settings.updateUserSettingsSection({ principal: actor, input: { section: "seeds", patch: { defaultPresetId: foreign.id } } });
-  await services.character.generateGreeting({ principal: actor, characterId: card.id, steer: "hi" });
+  await services.character.generateGreeting({ signal: new AbortController().signal, principal: actor, characterId: card.id, steer: "hi" });
   expect(requests).toHaveLength(2);
   const [shipped, degraded] = await Promise.all(requests.map((request) => request.clone().json()));
   expect(JSON.stringify(degraded)).not.toContain("FOREIGN TEMPLATE");
@@ -134,7 +134,11 @@ test("a foreign preset degrades to the shipped template, but a real preset datab
   const owned = await services.preset.create({ userId: owner.id, name: "Owned", kind: "prompt" });
   await services.settings.updateUserSettingsSection({ principal: actor, input: { section: "seeds", patch: { defaultPresetId: owned.id } } });
   await using _withheld = await withheldTable(db, presets);
-  await expect(services.character.generateGreeting({ principal: neighbor, characterId: card.id, steer: "hi" })).rejects.toBeInstanceOf(CharacterNotFoundError);
-  await expect(services.character.generateGreeting({ principal: actor, characterId: card.id, steer: "hi" })).rejects.toThrow(/presets/u);
+  await expect(
+    services.character.generateGreeting({ signal: new AbortController().signal, principal: neighbor, characterId: card.id, steer: "hi" }),
+  ).rejects.toBeInstanceOf(CharacterNotFoundError);
+  await expect(
+    services.character.generateGreeting({ signal: new AbortController().signal, principal: actor, characterId: card.id, steer: "hi" }),
+  ).rejects.toThrow(/presets/u);
   expect(requests).toHaveLength(0);
 });

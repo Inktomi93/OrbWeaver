@@ -441,7 +441,12 @@ test("an owner's persona, world book, global databank document and settings valu
     input: createPersonaSchema.parse({ name: "Backup Persona", description: "Travels in the backup." }),
   });
   await source.services.worldInfo.createBook({ principal: owner, input: { name: "Backup World" } });
-  const { document } = await source.services.databank.createFromText({ principal: owner, name: "Field Notes", text: "The kingdom's dusk lasts nine hours." });
+  const { document } = await source.services.databank.createFromText({
+    signal: new AbortController().signal,
+    principal: owner,
+    name: "Field Notes",
+    text: "The kingdom's dusk lasts nine hours.",
+  });
   await source.services.databank.attachGlobal({ principal: owner, documentId: document.id });
   // A value off its default, so a restored read proves the value travelled and not only the section.
   await source.services.settings.updateUserSettingsSection({ principal: owner, input: { section: "chat", patch: { continueOnSend: false } } });

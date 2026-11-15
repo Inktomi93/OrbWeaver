@@ -44,7 +44,7 @@ type RoleTask = Exclude<Task, "chat">;
 
 interface TaskRequestCommon<T extends RoleTask> {
   readonly connection: Resolved<T>;
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 /** Text embedding. Empty/whitespace inputs filter to `null` in the result. */
@@ -125,25 +125,25 @@ export interface ImageGenerateResult {
  *  caller's `AbortSignal`. */
 export interface SummarizeCallOptions extends RolePresetParams {
   readonly onObservedResult?: GenerationObservationCallback | undefined;
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 /** A rerank call's options: the instruction an instruction-aware reranker reads, and the caller's `AbortSignal`. */
 export interface RerankCallOptions {
   readonly instruction?: string | undefined;
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 export interface StructuredCallOptions extends SummarizeCallOptions {
   readonly responseFormat: ResponseFormat;
 }
 
-/** The bound `RoleClients` bundle `roleClientsFor(funder, actor?)` mints — the isomorphic contract with the
- *  server's two additions: every call takes an `AbortSignal`, and `resolved(task)` hands back the FULL
- *  `Resolved` (a `ResolvedTaskView` structurally), which stays inside the server. */
-export interface RoleClientsWithSignal extends Omit<RoleClients, "rerank" | "summarize" | "structured" | "resolved"> {
-  readonly rerank: (query: RerankQuery, documents: RerankDocument[], opts?: RerankCallOptions) => Promise<RerankResult>;
-  readonly summarize: (inputs: readonly SummarizeInput[], opts?: SummarizeCallOptions) => Promise<SummarizeResult>;
+/** The bound `RoleClients` bundle `roleClientsFor(funder, actor?)` mints — the isomorphic contract bound to
+ *  `AbortSignal`, plus the observation callback, and `resolved(task)` hands back the FULL `Resolved` (a
+ *  `ResolvedTaskView` structurally), which stays inside the server. */
+export interface RoleClientsWithSignal extends Omit<RoleClients<AbortSignal>, "rerank" | "summarize" | "structured" | "resolved"> {
+  readonly rerank: (query: RerankQuery, documents: RerankDocument[], opts: RerankCallOptions) => Promise<RerankResult>;
+  readonly summarize: (inputs: readonly SummarizeInput[], opts: SummarizeCallOptions) => Promise<SummarizeResult>;
   readonly structured: (inputs: readonly SummarizeInput[], opts: StructuredCallOptions) => Promise<SummarizeResult>;
-  readonly resolved: (task: RoleClientTask) => Promise<Resolved | null>;
+  readonly resolved: (task: RoleClientTask, signal: AbortSignal) => Promise<Resolved | null>;
 }
