@@ -95,14 +95,16 @@ export function planUploadLift(
   lifts: readonly (readonly RegexScriptCard[])[],
   refusals: readonly (readonly (string | null)[])[],
 ): ScriptPlan[][] {
-  const held = new Set(existing.map(rowKey));
+  // Keyed as `planCardLift` keys the rows it reuses, so a later row with the same content wins in both.
+  const held = new Map(existing.map((row) => [rowKey(row), row.enabled]));
   const minted = new Set<string>();
   return lifts.map((scripts, lift) =>
     scripts.map((script, index): ScriptPlan => {
       const split = splitScript(script);
       const key = regexScriptContentKey(split.name, split.behavior);
-      if (held.has(key)) {
-        return { reuse: "library" };
+      const heldEnabled = held.get(key);
+      if (heldEnabled !== undefined) {
+        return { reuse: "library", enabled: heldEnabled };
       }
       const refused = refusals[lift]?.[index] ?? null;
       if (refused !== null) {

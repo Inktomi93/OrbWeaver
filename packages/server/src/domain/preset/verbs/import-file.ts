@@ -11,7 +11,8 @@
 import { clipImportText } from "@orb/contracts/import";
 import type { ImportPresets, PresetFilePreview, PresetImportFile, PresetImportOutcome } from "@orb/contracts/preset";
 import { PRESET_SCHEMA_KIND, parsePresetFile } from "@orb/contracts/preset";
-import type { ImportPresetScripts, PlanPresetScripts, RegexScriptCard, RegexScriptRefusal } from "@orb/contracts/regex";
+import type { ImportPresetScripts, PlanPresetScripts, RegexScriptCard, RegexScriptRefusal, ScriptPlan } from "@orb/contracts/regex";
+import { regexScriptCardContentKey } from "@orb/contracts/regex";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import { isPlainObject } from "@orb/kit/guards";
 import { parseJsonText } from "@orb/kit/json";
@@ -107,6 +108,20 @@ function clippedRefusal(name: string, reason: string): RegexScriptRefusal {
   return { name: clipImportText(name), reason: clipImportText(reason) };
 }
 
+// How many rows the lift attaches switched off. It attaches one row per content key: a reused library row keeps its
+// own switch, a new row takes the file's, and a repeat of an earlier script attaches that script's row.
+function attachedOff(scripts: readonly RegexScriptCard[], plan: readonly ScriptPlan[]): number {
+  const switches = new Map<string, boolean>();
+  for (const [i, script] of scripts.entries()) {
+    const verdict = plan[i];
+    const key = regexScriptCardContentKey(script);
+    if (!(switches.has(key) || (verdict !== undefined && "refused" in verdict))) {
+      switches.set(key, verdict !== undefined && "enabled" in verdict ? verdict.enabled : script.enabled);
+    }
+  }
+  return [...switches.values()].filter((enabled) => !enabled).length;
+}
+
 /** Both ops are INJECTED (verb-to-verb value imports are the banned edge — `domain-no-cross-verb`): service.ts
  *  builds `createImportPresets(ctx)` once and hands it here with the regex domain's script lift. */
 export function createImportFile(deps: {
@@ -135,7 +150,7 @@ export function createImportFile(deps: {
       sectionCount: read.sectionCount,
       leftOut: read.leftOut,
       regexScripts: attached.length,
-      regexScriptsOff: attached.filter(({ enabled }) => !enabled).length,
+      regexScriptsOff: attachedOff(read.regexScripts, plan),
       refusedScripts: [...liftRefused, ...read.refusedScripts.map(({ name, reason }) => clippedRefusal(name, reason))],
       // A reused preset already holds the sections, so the run adds none.
       addedSections: answer.reuse === "library" ? [] : read.addedSections,
