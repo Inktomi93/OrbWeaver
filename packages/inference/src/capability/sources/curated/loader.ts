@@ -15,6 +15,7 @@ import { anthropicRows } from "./anthropic.ts";
 import { deepseekRows } from "./deepseek.ts";
 import { embeddersRows } from "./embedders.ts";
 import { googleRows } from "./google.ts";
+import { hostedRouterRows } from "./hosted-routers.ts";
 import { localLightExecutionRows, localLightRows } from "./local-light.ts";
 import { customEndpointRows, localServerRows } from "./local-servers.ts";
 import { metaRows } from "./meta.ts";
@@ -27,6 +28,8 @@ import { xaiRows } from "./xai.ts";
 const CURATED: readonly CompiledRow[] = [
   // A Custom endpoint's default sampler set: first, so any family row that states a set replaces it.
   ...compileRows("curated/local-servers.ts", customEndpointRows),
+  // A hosted router's documented sampler set, first for the same reason.
+  ...compileRows("curated/hosted-routers.ts", hostedRouterRows),
   ...compileRows("curated/anthropic.ts", anthropicRows),
   ...compileRows("curated/openai.ts", openaiRows),
   ...compileRows("curated/google.ts", googleRows),

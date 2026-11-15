@@ -99,6 +99,8 @@ export const BUILTIN_PROVIDER_ROWS = [
       modelInfoApi: "nanogpt",
       // The Rerank page: `POST /api/v1/rerank` answers `{ results: [{ index, relevance_score }] }`.
       rerankPath: "/rerank",
+      // The chat-completion page spells the Mirostat switch `mirostat_mode`.
+      samplerKeys: { mirostatMode: "mirostat_mode" },
       // The models list answers without a key, so the key check reads the personalized list, which answers 200 to
       // a good key and 401 to a wrong or missing one (NanoGPT's Personalized Models page; seen live).
       keyCheckPath: "/api/personalized/v1/models",
