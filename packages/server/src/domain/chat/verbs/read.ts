@@ -60,6 +60,7 @@ import {
   NO_HISTORY_FLOOR,
   projectViewForMember,
   REGEX_VIEWER_SOURCE,
+  resolveHostDisplayScripts,
   TURN_HOST_UNAVAILABLE_OP_CODE,
 } from "@orb/contracts/chat";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
@@ -1230,10 +1231,14 @@ const DISPLAY_PASS = "display" satisfies RegexPass;
  *  A display script runs where it is attached, resolved exactly as the turn resolves its prompt-side union
  *  (`resolveHostTierRegexEntries`: global, preset, each seat, the room, under the host, with the room's levers
  *  and its master), then the viewer's own globals last, so a viewer can always counter-style what the room
- *  draws. The room's tiers are the host's library, so a non-host member receives them only when the host opted
- *  the room in (`metadata.hostDisplayScripts`); otherwise a member cannot learn what the host owns. A host's
- *  own globals are already the room's global tier, so the viewer tier is not added again for the host: the
- *  room's levers govern them there. `chatId: null` (a surface outside any room) reads the viewer's globals. */
+ *  draws. SECURITY: the room's tiers are the host's library. A non-host member receives them while the room
+ *  shares them, which is the default (owner ruling): `resolveHostDisplayScripts` reads an absent setting as
+ *  shared and only the host's explicit off as withheld. Sharing hands a member the patterns and replacement text
+ *  of the host's display scripts attached to this room's tiers, and nothing from a tier the room's levers turn
+ *  off or from a script attached elsewhere. Off, a member receives none of them. Membership is read per call, so
+ *  a departed member reads nothing. A host's own globals are already the room's global tier, so the viewer tier
+ *  is not added again for the host: the room's levers govern them there. `chatId: null` (a surface outside any
+ *  room) reads the viewer's globals. */
 function createListDisplayScripts(ctx: ChatContext, deps: ReadDeps): ChatService["listDisplayScripts"] {
   return async ({ principal, chatId }: ListDisplayScriptsParams): Promise<RegexDisplayEntry[]> => {
     const viewer = principal.userId;
@@ -1242,7 +1247,7 @@ function createListDisplayScripts(ctx: ChatContext, deps: ReadDeps): ChatService
     if (chatId !== null) {
       const membership = await requireParticipant(ctx, principal, chatId);
       viewerIsHost = hostUserIdOf([{ role: membership.role, userId: viewer }]) === viewer;
-      if (viewerIsHost || membership.chat.metadata.hostDisplayScripts === true) {
+      if (viewerIsHost || resolveHostDisplayScripts(membership.chat.metadata.hostDisplayScripts)) {
         room = await roomDisplayEntries(ctx, deps, chatId, membership.chat.anchorPersonaId);
       }
     }

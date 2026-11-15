@@ -362,14 +362,14 @@ function createSetChatDocumentVisibility(ctx: ChatContext, emit: EmitChatEvent, 
   };
 }
 
-/** `setHostDisplayScripts` — host-only. Writes the D121-E display-tier room OPTION into
- *  `chatMetadata.hostDisplayScripts`.
+/** `setHostDisplayScripts` — host-only. Writes whether the room shares its host's display scripts with members
+ *  into `chatMetadata.hostDisplayScripts`, always as an explicit boolean, so a host's off is told from a room
+ *  that never touched the switch.
  *
- *  WHAT IT GOVERNS, precisely: with it ON, the HOST's display-tier (DISPLAY-placement, `enabled`) regex
- *  scripts render for EVERY viewer in this room — a host staging shared visual effects on the transcript.
- *  With it OFF (the default,
- *  and the byte-identical path) display regex is strictly per-user: a viewer only ever sees their own.
- *  Either way a viewer's OWN scripts still apply, and apply LAST, so a viewer can always counter-style.
+ *  WHAT IT GOVERNS, precisely: shared (the default, an absent key), the room's display tiers resolved under the
+ *  host render for every viewer in this room. Off, a member receives none of the host's display scripts and
+ *  sees only their own. Either way a viewer's OWN scripts still apply, and apply LAST, so a viewer can always
+ *  counter-style.
  *
  *  RENDER-ONLY, both arms. Nothing here touches canon, the composer, an edit textarea, or any wire payload
  *  — the toggle is read by the CLIENT's message-render context, never by assembly or the engine. That is

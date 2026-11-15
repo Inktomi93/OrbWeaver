@@ -78,11 +78,10 @@ export interface ChatDetail {
    *  unset (the turn engine falls to its default). Exposed so the host's room-settings control can display +
    *  edit the current value; the WRITE is `chat.setToolRecurseLimit` (host-gated). */
   readonly toolRecurseLimit: number | null;
-  /** D121-E — the host's display-tier room OPTION (`metadata.hostDisplayScripts`). `true` ⇒ the HOST's
-   *  display-tier regex scripts render for every viewer here; `false` (the default) ⇒ display regex is
-   *  strictly per-user. Exposed so the host's room-settings switch can show its state; the WRITE is
-   *  `chat.setHostDisplayScripts` (host-gated). Room-public — a member reads it too, because it explains
-   *  why their transcript looks the way it does. */
+  /** Whether the room shares its host's display scripts with members, resolved (`resolveHostDisplayScripts` over
+   *  `metadata.hostDisplayScripts`): `true` unless the host switched sharing off, so a room whose host never
+   *  touched the switch reads `true`. The write is `chat.setHostDisplayScripts` (host-gated). Room-public: a
+   *  member reads it too, because it explains why their transcript looks the way it does. */
   readonly hostDisplayScripts: boolean;
   /** B1 — this room's OWN offer-choices posture (`metadata.offerChoices`), or `null` when the room has never
    *  been pinned and therefore INHERITS the viewer-host's per-user default. The RAW tri-state, deliberately
