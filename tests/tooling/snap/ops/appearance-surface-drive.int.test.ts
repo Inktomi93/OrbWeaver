@@ -194,8 +194,8 @@ test("an ancestor-hidden candidate with nothing rendered behind it refuses as UN
 
 // @instrument-proof: #2437 — a population=0 miss must name the WHOLE row's subject census. The
 // hover-pointer twin reported `bubble` population 0 and stopped there; the cause was that EVERY subject of
-// the row was 0 (each one is scoped through the same relational `:has(... :not([data-sticky]) ...)` row,
-// and the arm had turned every visible header sticky), which the one-subject message could not say. A lane
+// the row was 0 (each one is scoped through the same relational `:has(... :not([data-pinned]) ...)` row,
+// and every header carried the attribute that fence excludes), which the one-subject message could not say. A lane
 // spent an afternoon re-deriving by hand what the instrument already had in the page.
 const CENSUS_ROW: RuntimeAppearanceHistoricalRow = {
   id: "hover-pointer",

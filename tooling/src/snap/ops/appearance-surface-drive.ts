@@ -155,9 +155,9 @@ function browserSubjectPopulations(selectors: readonly string[]): readonly numbe
 
 /** WHY A MISS NAMES THE WHOLE ROW'S POPULATIONS (#2437). `population=0` on ONE subject says the selector
  *  found nothing and stops there — and this row's selectors are RELATIONAL (`:has()` over a message row,
- *  `:not([data-sticky])` over its header), so the zero can come from any conjunct: no message row at all, no
- *  action cluster in this arm, or — the case that actually fired — every visible header gone sticky, which
- *  deletes the population without deleting a single node. Reading the SIBLING subjects' counts beside it is
+ *  `:not([data-pinned])` over its header), so the zero can come from any conjunct: no message row at all, no
+ *  action cluster in this arm, or every header carrying the attribute the fence excludes, which deletes the
+ *  population without deleting a single node. Reading the SIBLING subjects' counts beside it is
  *  what tells those apart, and re-deriving them by hand cost a lane an afternoon. A count here is evidence
  *  about the surface, never a verdict; the refusal is still the same refusal. */
 async function subjectPopulationReport(page: Page, row: RuntimeAppearanceHistoricalRow): Promise<string> {
