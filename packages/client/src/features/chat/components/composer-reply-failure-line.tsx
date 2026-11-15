@@ -1,10 +1,9 @@
 // The line under the composer after this client's message landed and its reply failed: it says so, gives the reason,
 // and offers the next step. It is the failure's one statement, so the send raises no toast beside it.
 // The host reads the server's own sentence and, for a failure fixed in the connection settings, the door there. A
-// member reads only that the host's connection failed: the connection is the host's to fix, and its detail is the
-// host's account state.
+// member reads the member rule of `provider-failure-reason.ts` and no door: the connection is the host's to fix.
 
-import { CONNECTION_FIXABLE_FAILURE_REASONS, PROVIDER_FAILURE_REASON_PREFIX } from "@orb/contracts/chat";
+import { CONNECTION_FIXABLE_FAILURE_REASONS } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { InlineAction } from "@orb/ui/inline-action";
 import { Container } from "@orb/ui/layout";
@@ -14,8 +13,9 @@ import type { ReactElement } from "react";
 import { roomRosterOptions, useTRPC } from "#data";
 import { openConfigTo } from "#state";
 import { Track } from "../lib/chat-track.tsx";
+import { providerFailureReason } from "../lib/provider-failure-reason.ts";
 import type { ReplyFailure } from "../lib/reply-failure.ts";
-import { HOST_CONNECTION_FAILED_COPY, OPEN_CONNECTIONS_NAME, REPLY_FAILED_LEAD, RETRY_REPLY_NAME } from "../lib/send-failure-copy.ts";
+import { OPEN_CONNECTIONS_NAME, REPLY_FAILED_LEAD, RETRY_REPLY_NAME } from "../lib/send-failure-copy.ts";
 
 const CONNECTION_FIXABLE: ReadonlySet<string> = new Set(CONNECTION_FIXABLE_FAILURE_REASONS);
 
@@ -36,8 +36,7 @@ export function ComposerReplyFailureLine({ chatId, failure, onRetry, id }: Compo
   }
   // An unknown viewer reads as a member: the host's connection detail is never shown on a guess.
   const viewerIsHost = chat.data?.viewerIsHost === true;
-  const providerFailed = failure.reason.startsWith(PROVIDER_FAILURE_REASON_PREFIX);
-  const reason = providerFailed && !viewerIsHost ? HOST_CONNECTION_FAILED_COPY : failure.message;
+  const reason = providerFailureReason(failure, viewerIsHost) ?? failure.message;
   const offersConnections = viewerIsHost && CONNECTION_FIXABLE.has(failure.reason);
   return (
     // The next-turn line's own track and fill: the two lines take the same place under the composer.

@@ -8,7 +8,6 @@
 // the room exists from the creation click, so a send is a send. Two whole failure classes go with it: the
 // scope-key flip mid-send (the "first send doesn't clear the composer" bug) and the double-mint on a retry.
 
-import { PROVIDER_FAILURE_REASON_PREFIX } from "@orb/contracts/chat";
 import type { AssetId, ChatId } from "@orb/kit/ids";
 import { useQueryClient } from "@tanstack/react-query";
 import type { inferInput } from "@trpc/tanstack-react-query";
@@ -17,6 +16,7 @@ import type { Trpc } from "#data";
 import { createEntityMutation, roomRosterOptions, UploadRefusedError, useInvalidation, useTRPC, useUploadAsset } from "#data";
 import { notify, trpcErrorCode, trpcErrorMessage, trpcErrorReason, turnMutationToast, viewerTimeZone } from "#lib";
 import { holdRoomForSend, subscribeUserMessageCommitted } from "#state";
+import { providerFailureReason } from "../lib/provider-failure-reason.ts";
 import { clearReplyFailure, recordReplyFailure } from "../lib/reply-failure.ts";
 import { SEND_FAILED_TITLE } from "../lib/send-failure-copy.ts";
 
@@ -32,8 +32,9 @@ const useSendMutation = createEntityMutation<inferInput<Trpc["chat"]["send"]>, u
 
 // A failure after the message landed is the reply's: the composer's line states it, never a "couldn't send" toast over a
 // message the room shows. A stale abort stays silent there too, since the bus owns that notice. A send the room never
-// took keeps the turn toast, with the provider's reason beneath it when the provider failed.
-function stateSendFailure(chatId: ChatId, error: unknown, landed: boolean): void {
+// took keeps the turn toast, with the provider's reason beneath it when the provider failed, in the words the viewer may
+// read: `viewerIsHost` is the room's cached roster answer, and an unread roster reads as a member.
+function stateSendFailure(chatId: ChatId, error: unknown, landed: boolean, viewerIsHost: boolean): void {
   const title = turnMutationToast(error, SEND_FAILED_TITLE);
   if (title === null) {
     return;
@@ -42,7 +43,7 @@ function stateSendFailure(chatId: ChatId, error: unknown, landed: boolean): void
     recordReplyFailure(chatId, error);
     return;
   }
-  const description = trpcErrorReason(error).startsWith(PROVIDER_FAILURE_REASON_PREFIX) ? trpcErrorMessage(error) : null;
+  const description = providerFailureReason({ reason: trpcErrorReason(error), message: trpcErrorMessage(error) }, viewerIsHost);
   notify.error(description === null ? title : { title, description });
 }
 
@@ -114,7 +115,8 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
           },
         );
       } else {
-        stateSendFailure(opts.chatId, error, landed);
+        const roster = queryClient.getQueryData(roomRosterOptions(trpc, { chatId: opts.chatId }).queryKey);
+        stateSendFailure(opts.chatId, error, landed, roster?.viewerIsHost === true);
       }
       throw error;
     } finally {

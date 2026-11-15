@@ -1,11 +1,11 @@
 // A send whose message landed and whose reply then failed says so on the composer's line, with the server's reason and
 // the next step, and raises no toast beside it. A send the room never took keeps its toast, with the provider's reason
-// under it. A member is told the host's connection failed and is never sent to Connections.
+// under it. A member is told the host's connection failed, on the line and in the toast, and is never sent to Connections.
 // @subject packages/client/src/features/chat/components/composer-reply-failure-line.tsx
 // @subject packages/client/src/features/chat/hooks/use-send-message.ts
 
 import { CONNECTION_FIXABLE_FAILURE_REASONS, PROVIDER_FAILURE_REASON_PREFIX } from "@orb/contracts/chat";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, UserId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import type { TrpcRecorder } from "@orb/testkit/ct";
@@ -31,19 +31,31 @@ import {
 } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import { CHAT_MESSAGE_INPUT_NAME, CHAT_SEND_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
-import { OPEN_CONNECTIONS_NAME, RETRY_REPLY_NAME, SEND_FAILED_TITLE } from "#client/features/chat/lib/send-failure-copy.ts";
+import { HOST_CONNECTION_FAILED_COPY, OPEN_CONNECTIONS_NAME, RETRY_REPLY_NAME, SEND_FAILED_TITLE } from "#client/features/chat/lib/send-failure-copy.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
 const LINE = '[data-slot="composer-reply-failure"]';
 const TOAST = '[data-slot="toast-root"]';
 const DRAFT = "Open the door.";
-const REJECTED_KEY = { status: 401, reason: "provider_auth_failed" } as const;
-const UNSERVED_MODEL = { status: 404, reason: "provider_model_unavailable" } as const;
 
 type Harness = Awaited<ReturnType<typeof createCorpusHarness>>;
 type Caller = Awaited<ReturnType<Harness["internalCallerFor"]>>;
-type Refusal = typeof REJECTED_KEY | typeof UNSERVED_MODEL;
+type FixableReason = (typeof CONNECTION_FIXABLE_FAILURE_REASONS)[number];
+
+/** The provider HTTP status the server classifies as `reason`. The switch covers every fixable reason, so a new one needs its status here. */
+function refusalStatus(reason: FixableReason): number {
+  switch (reason) {
+    case "provider_auth_failed":
+      return 401;
+    case "provider_billing":
+      return 402;
+    case "provider_model_unavailable":
+      return 404;
+  }
+}
+
+const REJECTED_KEY = CONNECTION_FIXABLE_FAILURE_REASONS[0];
 
 interface FailingProvider {
   readonly fetch: typeof fetch;
@@ -51,8 +63,8 @@ interface FailingProvider {
   holdUntil: (open: Promise<void>) => void;
 }
 
-/** The provider edge: every chat completion answers `refusal`'s status; the room's recall still embeds. */
-function failingProvider(refusal: Refusal): FailingProvider {
+/** The provider edge: every chat completion is refused as `reason`; the room's recall still embeds. */
+function failingProvider(reason: FixableReason): FailingProvider {
   const embeddings = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
@@ -66,7 +78,7 @@ function failingProvider(refusal: Refusal): FailingProvider {
       const request = new Request(input, init);
       if (request.method === "POST" && new URL(request.url).pathname.endsWith("/chat/completions")) {
         await gate;
-        return Response.json({ error: { message: "upstream refusal" } }, { status: refusal.status });
+        return Response.json({ error: { message: "upstream refusal" } }, { status: refusalStatus(reason) });
       }
       return await embeddings.execute(request);
     },
@@ -160,8 +172,8 @@ async function send(page: Page): Promise<void> {
   await page.getByRole("button", { name: CHAT_SEND_NAME, exact: true }).click();
 }
 
-for (const refusal of [REJECTED_KEY, UNSERVED_MODEL]) {
-  test(`a reply that fails with ${refusal.reason} after the message landed says why on the composer line, offers Connections, and raises no toast`, async ({
+for (const refusal of CONNECTION_FIXABLE_FAILURE_REASONS) {
+  test(`a reply that fails with ${refusal} after the message landed says why on the composer line, offers Connections, and raises no toast`, async ({
     mount,
     page,
   }) => {
@@ -175,8 +187,7 @@ for (const refusal of [REJECTED_KEY, UNSERVED_MODEL]) {
 
     const line = page.locator(LINE);
     await expect(line).toBeVisible();
-    await expect(line).toHaveAttribute("data-reason", refusal.reason);
-    expect(CONNECTION_FIXABLE_FAILURE_REASONS).toContain(refusal.reason);
+    await expect(line).toHaveAttribute("data-reason", refusal);
     await expect(line).toContainText(reason);
     await expect(line.getByRole("button", { name: OPEN_CONNECTIONS_NAME, exact: true })).toBeVisible();
     await expect(page.locator(TOAST)).toHaveCount(0);
@@ -184,7 +195,7 @@ for (const refusal of [REJECTED_KEY, UNSERVED_MODEL]) {
     // The retry is the composer's own generate on the saved message; failing again, it keeps the line.
     await line.getByRole("button", { name: RETRY_REPLY_NAME, exact: true }).click();
     await expect.poll(() => rpc.inputs("chat.generate")).toMatchObject([{ chatId }]);
-    await expect(page.locator(LINE)).toHaveAttribute("data-reason", refusal.reason);
+    await expect(page.locator(LINE)).toHaveAttribute("data-reason", refusal);
     await expect(page.locator(TOAST)).toHaveCount(0);
   });
 }
@@ -202,26 +213,33 @@ test("a send whose message the client never saw land keeps the failed-send toast
   await expect(page.locator(LINE)).toHaveCount(0);
 });
 
-test("a member whose reply fails on the host's connection is told so, without the host's detail or a Connections door", async ({ corpus, mount, page }) => {
-  const provider = failingProvider(REJECTED_KEY);
-  await using root = await createCorpusHarness(undefined, { providerFetch: provider.fetch });
-  const { host, chatId } = await failingRoom(root);
-  const memberId = corpus.memberIdentities?.sharedMember.viewer.userId;
+/** The failing room shared with the corpus member, with the host online so the member's turn runs at once (an
+ *  offline host's room queues it, and nothing fails). Returns the member's caller and the host's own reason. */
+async function memberRoom(
+  root: Harness,
+  memberId: UserId | undefined,
+): Promise<{ readonly member: Caller; readonly chatId: ChatId; readonly hostReason: string } & Disposable> {
   if (memberId === undefined) {
     throw new Error("The corpus has no member identity");
   }
+  const { host, chatId } = await failingRoom(root);
   await host.settings.updateAppSettings({ partial: { localMultiUser: true } });
   // The multi-human capability binds when a caller is built, so both callers follow the setting.
   const sharing = await root.internalCallerFor(root.ownerId);
   const member = await root.internalCallerFor(memberId);
   await member.invites.redeemInvite({ token: (await sharing.invites.createInvite({ chatId, input: {} })).token });
   const hostReason = await serverReason(sharing, chatId);
-  // A member's turn runs at once only while the host is online; otherwise it waits for the host and nothing fails.
-  using hostOnline = new DisposableStack();
   const hostDevice = new AbortController();
-  hostOnline.defer(() => hostDevice.abort());
   await connectDevice(root, root.ownerId, hostDevice.signal);
-  await openRoom(page, root, { viewer: member, chatId, provider, bus: true });
+  return { member, chatId, hostReason, [Symbol.dispose]: () => hostDevice.abort() };
+}
+
+test("a member whose reply fails on the host's connection is told so, without the host's detail or a Connections door", async ({ corpus, mount, page }) => {
+  const provider = failingProvider(REJECTED_KEY);
+  await using root = await createCorpusHarness(undefined, { providerFetch: provider.fetch });
+  using shared = await memberRoom(root, corpus.memberIdentities?.sharedMember.viewer.userId);
+  const chatId = shared.chatId;
+  await openRoom(page, root, { viewer: shared.member, chatId, provider, bus: true });
   await mount<typeof ChatRoomShellStory>(STORY, { chatId, socket: true });
   await send(page);
 
@@ -230,7 +248,21 @@ test("a member whose reply fails on the host's connection is told so, without th
   await expect(line).toHaveAttribute("data-reason", new RegExp(`^${PROVIDER_FAILURE_REASON_PREFIX}`, "u"));
   await expect(line.getByRole("button", { name: RETRY_REPLY_NAME, exact: true })).toBeVisible();
   // The host's own reason names the host's settings; the member reads neither it nor the door to them.
-  await expect(line).not.toContainText(hostReason);
+  await expect(line).not.toContainText(shared.hostReason);
   await expect(line.getByRole("button", { name: OPEN_CONNECTIONS_NAME, exact: true })).toHaveCount(0);
   await expect(page.locator(TOAST)).toHaveCount(0);
+});
+
+test("a member whose send the client never saw land reads the failed-send toast without the host's detail", async ({ corpus, mount, page }) => {
+  const provider = failingProvider(REJECTED_KEY);
+  await using root = await createCorpusHarness(undefined, { providerFetch: provider.fetch });
+  using shared = await memberRoom(root, corpus.memberIdentities?.sharedMember.viewer.userId);
+  const chatId = shared.chatId;
+  await openRoom(page, root, { viewer: shared.member, chatId, provider, bus: false });
+  await mount<typeof ChatRoomShellStory>(STORY, { chatId });
+  await send(page);
+
+  await expect(noticeToast(page, { title: SEND_FAILED_TITLE, description: HOST_CONNECTION_FAILED_COPY })).toBeVisible();
+  await expect(page.locator(TOAST)).not.toContainText(shared.hostReason);
+  await expect(page.locator(LINE)).toHaveCount(0);
 });

@@ -657,10 +657,11 @@ async function commitGeneration(args: {
    *  grant reads. It is also what the wire-history fence reads to let the model see its own picture next
    *  turn — one row, two jobs, both load-bearing. */
   readonly inlineReplyAssetIds: readonly AssetId[];
-  /** Set when the caller's Stop cut this generation and what streamed is kept as the reply. */
-  readonly stopped?: StoppedTurn | undefined;
+  /** Set when the caller's Stop ended this turn and the reply is kept. */
+  readonly kept?: KeptReply | undefined;
 }): Promise<MessageView> {
-  const { ctx, deps, prep, persist, target, nextSeq, genStartedAt, genFinishedAt, stopped } = args;
+  const { ctx, deps, prep, persist, target, nextSeq, genStartedAt, genFinishedAt, kept } = args;
+  const stopped = kept?.kind === "cut" ? kept.stopped : undefined;
   const facts = await args.observations.load();
   const observed = observedResult(
     args.result,
@@ -733,7 +734,7 @@ async function commitGeneration(args: {
 
     // THE WRITE FENCE — the LAST thing before the batch, and re-run on the seq-retry. Everything
     // above is in-memory statement building; this is where the turn stops being reversible.
-    await assertTurnMayCommit(ctx, deps, prep, stopped !== undefined);
+    await assertTurnMayCommit(ctx, deps, prep, kept !== undefined);
     await args.observations.commit(statements, facts, retainedStats.predicate);
     return loadView();
   };
@@ -766,7 +767,7 @@ async function commitGeneration(args: {
   // Decided here, not in the stream scrub: a turn commits one body, and it is the transformed text members actually read.
   // A scrub sees every delta, sees bytes a receive transform may still rewrite, and sees turns that never commit.
   // A kept stopped reply ends where the Stop cut it, so a tag left open there is the cut, not a lost tail.
-  const cutOff = stopped !== undefined || (view.finishReason !== null && CUT_OFF_FINISH_REASONS.has(view.finishReason));
+  const cutOff = kept?.kind === "cut" || (view.finishReason !== null && CUT_OFF_FINISH_REASONS.has(view.finishReason));
   if (concealsBrokenHiddenTag(view.content, cutOff)) {
     await deps.emit({ type: "warning", chatId: prep.chatId, code: HIDDEN_TAG_BROKEN_CODE });
   }
@@ -1769,11 +1770,26 @@ interface StoppedCommitWindow {
   readonly genStartedAt: number;
 }
 
+/** A reply whose stream finished before the caller's Stop reached the commit, with its stored pictures. */
+interface FinishedGeneration {
+  readonly result: Awaited<ReturnType<typeof runTurnPipeline>>;
+  readonly inlineReplyAssetIds: readonly AssetId[];
+  readonly genFinishedAt: number;
+}
+
+/**
+ * What the caller's Stop keeps. `cut` is the text a Stop cut mid-stream: no finish arrived, so it stores as
+ * stopped with the cut call estimated. `finished` is a reply the provider had already finished when the Stop
+ * landed: it stores the provider's own finish and measured spend, because that is what happened to the text.
+ */
+type KeptReply = { readonly kind: "cut"; readonly stopped: StoppedTurn } | ({ readonly kind: "finished" } & FinishedGeneration);
+
 /**
  * THE CALLER'S STOP KEEPS WHAT STREAMED (owner ruling). The text so far commits as the reply through the same
- * write a finished reply takes (the message cap, the lock-holder fence, stats, the paid observations), marked
- * stopped on its terminal reason. Then the turn closes as the abort it is: `messageCommitted` first, so every
- * member's live stream and durable replay carry the row before `turnAborted{reason:"user"}` closes the slot.
+ * write a finished reply takes (the message cap, the lock-holder fence, stats, the paid observations): a cut
+ * reply marked stopped on its terminal reason, a reply that finished before the Stop under its own finish.
+ * Then the turn closes as the abort it is: `messageCommitted` first, so every member's live stream and durable
+ * replay carry the row before `turnAborted{reason:"user"}` closes the slot.
  *
  * WHAT A STOPPED REPLY DOES NOT START, each a ruling:
  *  • no rpg state round and no game write: its staged writes clear as on any abort; a continue that completes
@@ -1782,7 +1798,8 @@ interface StoppedCommitWindow {
  *    real message.
  *  • no post-turn memory build or managed compaction: a Stop ends the generation work it asked for. The kept
  *    row is ordinary canon, so the next build reads it like any other.
- *  • no pictures: storing one runs under the turn's signal, which the Stop already ended.
+ *  • no pictures it has not stored: storing one runs under the turn's signal, which the Stop already ended.
+ *    A finished reply links the pictures stored before the Stop, since its body already names them.
  *
  * A commit the write refuses settles as that refusal: a lost lock is the stale abort, anything else throws.
  */
@@ -1795,13 +1812,16 @@ async function keepStoppedReply(args: {
   readonly observations: GenerationObservationSession;
   readonly announcedTurnId: ChatTurnId;
   readonly turnId: ChatTurnId;
-  readonly stopped: StoppedTurn;
+  readonly kept: KeptReply;
   readonly window: StoppedCommitWindow;
 }): Promise<TurnOutcome> {
-  const { ctx, deps, prep, stopped, announcedTurnId, turnId } = args;
+  const { ctx, deps, prep, kept, announcedTurnId, turnId } = args;
   const intent = KIND_TO_INTENT[prep.kind];
   const automationDepth = turnCascadeDepth(prep);
-  await emitCapabilityDropWarnings(deps.emit, prep.chatId, stopped.result);
+  // A finished reply's warnings went out before the Stop landed.
+  if (kept.kind === "cut") {
+    await emitCapabilityDropWarnings(deps.emit, prep.chatId, kept.stopped.result);
+  }
   let view: MessageView;
   try {
     view = await commitGeneration({
@@ -1812,12 +1832,12 @@ async function keepStoppedReply(args: {
       prep,
       persist: args.persist,
       target: args.target,
-      result: stopped.result,
-      inlineReplyAssetIds: [],
+      result: kept.kind === "cut" ? kept.stopped.result : kept.result,
+      inlineReplyAssetIds: kept.kind === "cut" ? [] : kept.inlineReplyAssetIds,
       nextSeq: args.window.nextSeq,
       genStartedAt: args.window.genStartedAt,
-      genFinishedAt: ctx.now(),
-      stopped,
+      genFinishedAt: kept.kind === "cut" ? ctx.now() : kept.genFinishedAt,
+      kept,
     });
   } catch (commitErr) {
     const reason: TurnAbortReason = commitErr instanceof ChatOperationError && commitErr.code === CHAT_OP_CODES.aborted ? "stale" : "error";
@@ -1832,6 +1852,16 @@ async function keepStoppedReply(args: {
   fireRpgTurnAborted(ctx, prep.chatId, turnId, STOPPED_TERMINAL_REASON);
   await ctx.emitChatChanged(prep.chatId);
   return { messages: [view], aborted: true, abortReason: STOPPED_TERMINAL_REASON };
+}
+
+/** The reply a caller's Stop keeps, or null when no prose had streamed. A stop raised mid-stream carries its cut
+ *  text; any other failure under the Stop (the commit fence, picture storage, the recovery pass) landed after the
+ *  stream finished, so the finished reply is the one kept. */
+function keptReplyOf(failure: unknown, finished: FinishedGeneration | null): KeptReply | null {
+  if (failure instanceof StoppedTurn) {
+    return failure.result.content.trim().length > 0 ? { kind: "cut", stopped: failure } : null;
+  }
+  return finished !== null && finished.result.content.trim().length > 0 ? { kind: "finished", ...finished } : null;
 }
 
 /** The post-start abort, classified once: a fault row first, then the caller's Stop keeps what streamed, and every
@@ -1849,6 +1879,8 @@ async function settleAbortedTurn(args: {
   readonly abortDepth: number;
   readonly failure: unknown;
   readonly window: StoppedCommitWindow | null;
+  /** The reply as it stood when its stream finished; null while it still streams. */
+  readonly finished: FinishedGeneration | null;
 }): Promise<TurnOutcome> {
   const { ctx, deps, prep, failure, announcedTurnId, turnId } = args;
   const intent = KIND_TO_INTENT[prep.kind];
@@ -1857,8 +1889,9 @@ async function settleAbortedTurn(args: {
   // those are awaited/injected and can themselves fail, and the row explaining WHY the turn died must not
   // be hostage to them. Itself throw-safe (see `captureTurnFault`).
   captureTurnFault(ctx, prep, failure, reason);
-  if (reason === "user" && failure instanceof StoppedTurn && failure.result.content.trim().length > 0 && args.window !== null) {
-    return await keepStoppedReply({ ...args, stopped: failure, window: args.window });
+  const kept = reason === "user" ? keptReplyOf(failure, args.finished) : null;
+  if (kept !== null && args.window !== null) {
+    return await keepStoppedReply({ ...args, kept, window: args.window });
   }
   // Carry the aborting turn's OWN cascade depth: this abort commits no reply
   // slot, so the automation fact-resolver cannot read this back through `getTurnOrigin` — it must ride the
@@ -1922,6 +1955,8 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
   const streamCap = createStreamCap(prep.signal, persist, target);
   // Set once generation starts: the seq and window a kept stopped reply commits under.
   let generating: StoppedCommitWindow | null = null;
+  // Set once the stream finished: the reply a Stop landing before the commit keeps.
+  let finished: FinishedGeneration | null = null;
   try {
     // PRE-TURN managed-compaction arm (the wedge-state fix): a chat whose context ALREADY overflows the window
     // makes the model fail, and the post-turn arm never runs on a failed turn — so compact BEFORE dispatch when
@@ -2029,12 +2064,14 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
     });
     await deltaTail;
     const genFinishedAt = ctx.now();
+    finished = { result, inlineReplyAssetIds: [], genFinishedAt };
     await emitCapabilityDropWarnings(deps.emit, prep.chatId, result);
     await emitTrimmedNoSummary(deps, prep.chatId, pre, result);
     // §6.7 — the model's own pictures become canon HERE: stored under the host, spliced into the body as
     // `![alt](asset:<id>)` spans, and handed to the commit as the ids it must link `inline-reply`. It runs
     // AHEAD of the prose-less refusal below because those spans ARE the body of a picture-only reply.
     const absorbed = await absorbInlineReplyImages(ctx, deps, prep, result);
+    finished = { result: absorbed.result, inlineReplyAssetIds: absorbed.assetIds, genFinishedAt };
     // VER-1b — refuse a prose-less generation BEFORE any canon write (see `assertGeneratedContent`). Placed
     // after the drop warnings on purpose: those name WHY the prose is missing (tools dropped, image dropped),
     // and everything below this line is about a reply that does not exist.
@@ -2189,6 +2226,7 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
       abortDepth,
       failure: streamCap.failure(err),
       window: generating,
+      finished,
     });
   }
 }
