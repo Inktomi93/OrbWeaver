@@ -288,11 +288,12 @@ test.for(STRIKES)("$name fails the turn as $kind once, and strikes the key: $str
       history: [USER_LINE],
     }),
   );
-  expect(settled.error?.kind).toBe(kind);
-  expect(recorded).toHaveLength(1);
+  // The stored key is this case's subject, so it is read first: a broken seam goes red here, not on the kind.
   const [credential, ...others] = await (await root.internalCallerFor(root.ownerId)).credentials.list();
   expect(others).toEqual([]);
   expect(credential?.revokedReason ?? null).toBe(struck ? "auth_failed" : null);
+  expect(settled.error?.kind).toBe(kind);
+  expect(recorded).toHaveLength(1);
 });
 
 // Each hazard reaches the wire as a `\u` escape, so only the decoded words carry it.
