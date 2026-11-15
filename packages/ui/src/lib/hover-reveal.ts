@@ -30,9 +30,19 @@ export const HOVER_DIM = {
 } as const;
 
 /** A rest-visible marker whose fact the revealed cluster also carries (a starred row's ★): it yields while the
- *  ListRow (`group/row`) is hovered or holds focus, so the row never paints the state twice. Visibility, not
- *  display, so the title line never reflows under the pointer; a coarse pointer has no hover and keeps it. */
-export const HOVER_YIELD = "group-hover/row:invisible group-focus-within/row:invisible";
+ *  ListRow (`group/row`) is hovered or holds keyboard focus, so the row never paints the state twice. Visibility, not
+ *  display, so the title line never reflows under the pointer; where the primary input cannot hover, a tap leaves it. */
+export const HOVER_YIELD = "hover-capable:group-hover/row:invisible group-has-focus-visible/row:invisible";
+
+/** The two halves of a swap between two spans in one grid cell, keyed on the nearest `group` (a ListRow root is one):
+ *  `hide` on the span that yields, `show` on the one that takes its place. Both halves ride one condition, or the line
+ *  goes blank. Hover swaps only where the primary input can hover, since a tap sets `:hover` and `:focus-within` on a
+ *  phone, where the swap was never meant to exist. Keyboard focus (`:focus-visible` inside the group) swaps at every
+ *  pointer, because a keyboard user has no hover; a pointer-caused focus does not match it. */
+export const HOVER_SWAP = {
+  hide: "hover-capable:group-hover:invisible group-has-focus-visible:invisible",
+  show: "hover-capable:group-hover:visible group-has-focus-visible:visible",
+} as const;
 
 /** A visible cluster that is inert where the primary input can hover until its `group` row is hovered or holds focus, so a
  *  pass of the pointer over the row does not land on it. Without hover the cluster stays live. */

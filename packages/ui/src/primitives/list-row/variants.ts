@@ -1,4 +1,4 @@
-import { CAPTION, DISABLED_STATE, FOCUS_RING_INSET, OPEN_TURN, PUSH, RECEDED, SELECTION_RAIL, TITLE_FLOOR, TITLE_STEP, tv } from "#lib";
+import { CAPTION, DISABLED_STATE, FOCUS_RING_INSET, HOVER_SWAP, OPEN_TURN, PUSH, RECEDED, SELECTION_RAIL, TITLE_FLOOR, TITLE_STEP, tv } from "#lib";
 
 // `body` is the ONE clickable/selected/disabled surface (a `group` parent so title/subtitle can flip
 // color off `data-selected`); `actions` is a plain sibling slot that never inherits those states.
@@ -105,11 +105,7 @@ export const listRowVariants = tv({
     fullTitle: "sr-only",
     // Hover/focus-within swap of the subtitle in the SAME line, so a wide metadata span never contends with
     // the trailing `actions` buttons for width.
-    subtitleReveal: `
-      invisible col-start-1 row-start-1 truncate text-start font-mono ${CAPTION}
-      group-focus-within:visible
-      group-hover:visible
-    `,
+    subtitleReveal: `invisible col-start-1 row-start-1 truncate text-start font-mono ${CAPTION} ${HOVER_SWAP.show}`,
     // `shrink-0`: controls keep their intrinsic width and are never squeezed below the tap-target floor.
     // `max-inline-full` + `flex-wrap`: a cluster wider than its row (rem-sized controls at enlarged text) takes the row's width and wraps its controls onto
     // further lines, instead of ending past the row. The controls are the slot's own children: a wrapper the caller puts around them does not wrap for it.
