@@ -9,7 +9,7 @@
 // closes the installed-asset URLs injected into that document.
 //
 // DEGRADE TO NOTHING, NEVER TO A FLOOR. This is the one place where the plugin frame deliberately diverges from
-// `useCardFrameSrc`: a failed CARD mint falls back to the srcdoc floor, which is strictly TIGHTER and still
+// `useCardFrame`: a failed CARD mint falls back to the srcdoc floor, which is strictly TIGHTER and still
 // paints the card. A plugin frame has no such floor — the srcdoc arm is script-DEAD (it inherits the app's
 // `script-src 'self'`), and a script-dead plugin frame is a blank box pretending to be a surface. So a failed
 // mint resolves to `undefined` and the caller renders NOTHING (§4.9's "a crashed, slow, refused or state-less
@@ -82,7 +82,7 @@ function revokeFrameInBackground(url: string): void {
  *
  * The state carries the BODY it resolved for, not a bare URL — that is what lets the stale case be answered
  * during RENDER (`resolved.body !== body ⇒ undefined`) instead of by a synchronous `setState` inside the effect,
- * which is a cascading render and which React's own lint bans. The `useCardFrameSrc` shape, for the same reason.
+ * which is a cascading render and which React's own lint bans. The `useCardFrame` mint's shape, for the same reason.
  */
 export function usePluginFrameSrc(request: PluginFrameRequest | undefined): string | undefined {
   const [resolved, setResolved] = useState<{ readonly body: string; readonly url: string | undefined } | undefined>(undefined);

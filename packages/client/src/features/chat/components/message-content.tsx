@@ -27,6 +27,7 @@ import { CardBlock } from "./card-block.tsx";
 import { FormingChip } from "./forming-chip.tsx";
 import { MessageChoicesBlock } from "./message-choices-block.tsx";
 import { MessageMediaBlock } from "./message-media-block.tsx";
+import { PlainContentNotice } from "./plain-content-notice.tsx";
 import { ReplyFrame } from "./reply-frame.tsx";
 
 /** A stable empty CHARACTER-NAME list — a fresh `[]` per render would be a new identity for no reason. */
@@ -61,7 +62,7 @@ function renderBlock(block: MessageContentBlock, key: string, render: RowRenderP
     // frame says a card is here, the badge says it is plain, and the hint says what turns it on — the same
     // refuse-VISIBLY posture MessageMedia's click-to-load gate has always had.
     case "html-card":
-      return <CardBlock key={key} block={block} allowExternal={allowExternal} cardOrigin={cardOrigin} />;
+      return <CardBlock key={key} block={block} allowExternal={allowExternal} cardOrigin={cardOrigin} plain={render.plain} />;
     // The CYOA choice set — clickable send-affordances: a click sends the option as the
     // user's next turn through the room's choice-send capability (provider-less mounts render the
     // same buttons disabled). The block contract is untouched.
@@ -201,6 +202,23 @@ function FramedReply({
   );
 }
 
+// A display script styled this row and its tier is the inert one, so the reader sees its template drawn plain: the
+// notice says which setting holds it there. A plugin rewrite on a sandboxed row is not a trust block and gets none.
+function styledPlainNotice(settledStyled: boolean, render: RowRenderPolicy): ReactElement | null {
+  return settledStyled && render.plain !== undefined ? <PlainContentNotice key="plain-notice" subject={render.plain} placement="reply" /> : null;
+}
+
+function withNotice(body: ReactElement, notice: ReactElement | null): ReactElement {
+  return notice === null ? (
+    body
+  ) : (
+    <Stack gap="row">
+      {body}
+      {notice}
+    </Stack>
+  );
+}
+
 export interface MessageContentProps {
   readonly content: string;
   readonly render: RowRenderPolicy;
@@ -274,9 +292,10 @@ export function MessageContent({
   // allowlist, with the template's `<style>` and `<script>` elements removed, so their content never prints as prose.
   const segmentRender: RowRenderPolicy = styled ? { ...render, trust: "untrusted" } : render;
   const segmentText = (text: string): string => (styled ? stripStyleElements(text) : text);
+  const plainNotice = styledPlainNotice(styled && !pending, render);
   const [onlySpan] = spans;
   if (spans.length === 1 && onlySpan !== undefined && onlySpan.speaker === null) {
-    return (
+    return withNotice(
       <MessageSegment
         text={segmentText(onlySpan.text)}
         render={segmentRender}
@@ -284,7 +303,8 @@ export function MessageContent({
         cardOrigin={cardOrigin}
         pending={pending}
         observeBody={observeBody}
-      />
+      />,
+      plainNotice,
     );
   }
 
@@ -302,6 +322,7 @@ export function MessageContent({
           </ThemeScope>
         );
       })}
+      {plainNotice}
     </Stack>
   );
 }

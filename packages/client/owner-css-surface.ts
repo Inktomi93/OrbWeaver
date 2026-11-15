@@ -552,6 +552,8 @@ export const OWNER_CSS_SLOTS = [
   "picker-cell-meta",
   "picture-button-drop",
   "picture-button-mark",
+  "plain-notice",
+  "plain-notice-action",
   "plugin-command-args",
   "plugin-detail-stage",
   "plugin-flank",

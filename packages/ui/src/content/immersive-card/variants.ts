@@ -39,6 +39,16 @@ export const inertCardVariants = tv({
     header: `${ROW_STRIP} border-be border-dashed border-border py-row ps-block pe-row`,
     title: "flex-1 truncate text-label leading-label font-medium text-muted-foreground",
     body: "p-block",
-    hint: `border-bs border-dashed border-border px-block py-row ${CAPTION}`,
+  },
+});
+
+/** The plain-content notice's seat: the inert card's dashed footer band, or a dashed rule under a reply's plain prose. */
+export const plainNoticeVariants = tv({
+  base: `${ROW_STRIP} flex-wrap border-bs border-dashed border-border`,
+  variants: {
+    placement: {
+      card: "px-block py-row",
+      reply: "pbs-row",
+    },
   },
 });

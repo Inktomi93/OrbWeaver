@@ -207,7 +207,7 @@ export function SandboxFrame({
 }: SandboxFrameProps): ReactElement {
   const frameRef = useRef<HTMLIFrameElement>(null);
   // The measurement is stored WITH the delivery it belongs to, so a re-mint (new `src`) is answered during
-  // render instead of by a cascading `setState` — the same shape `useCardFrameSrc` uses for its handle.
+  // render instead of by a cascading `setState` — the same shape `useCardFrame` uses for its handle.
   const [measured, setMeasured] = useState<{ readonly delivery: string; readonly height: CardFrameHeight } | undefined>(undefined);
   // Set once the frame's scripts are stopped (`onScriptsStopped`), with the height it had: it stays on the floor.
   const [stopped, setStopped] = useState<{ readonly px: number | undefined } | undefined>(undefined);
@@ -222,21 +222,21 @@ export function SandboxFrame({
   //      which is what keeps an INTERACTIVE card (#111 leg 3 — it can `postMessage` anything, including to
   //      its siblings, measured) from resizing any frame but its own.
   //   2. PAYLOAD — `foldCardFrameHeight` coerces, clamps to floor..cap and rations resizes (kit, tested).
-  // Listener registration follows the delivery, because a re-mint replaces the frame's window.
+  // Listener registration follows the delivery, because a re-mint replaces the frame's window. A `fill` frame's parent
+  // owns its height, so it folds no height; its links and its miss notice pass the same checks as any frame's.
   useEffect(() => {
-    if (fill) {
-      return;
-    }
     const onMessage = (event: MessageEvent): void => {
       const frameWindow = frameRef.current?.contentWindow;
       if (event.source === null || event.source !== frameWindow) {
         return;
       }
       const nowMs = performance.now();
-      setMeasured((current) => {
-        const height = foldCardFrameHeight(current?.delivery === deliveryKey ? current.height : undefined, event.data, holds, nowMs);
-        return height === undefined ? current : { delivery: deliveryKey, height };
-      });
+      if (!fill) {
+        setMeasured((current) => {
+          const height = foldCardFrameHeight(current?.delivery === deliveryKey ? current.height : undefined, event.data, holds, nowMs);
+          return height === undefined ? current : { delivery: deliveryKey, height };
+        });
+      }
       const link = readCardFrameLink(event.data);
       // A link counts only from a click IN THIS FRAME: the click activated the page (activation reaches every
       // ancestor of the frame it lands in) and focused this iframe. Activation alone is page-wide and lasts seconds,

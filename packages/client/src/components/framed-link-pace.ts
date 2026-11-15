@@ -1,4 +1,4 @@
-// How fast a framed reply's links may raise the link confirm after the reader cancels it (D354).
+// How fast a routed frame's links may raise the link confirm after the reader cancels it (D354).
 //
 // The host cannot tell a reader's click from a script in the frame: both arrive as the same message from the frame's
 // window, while the page holds a live activation and the frame holds focus. After a Cancel the focus gate keeps focus
@@ -8,16 +8,16 @@
 // the wait raises its confirm when the wait ends. An Open, or a remount, starts the count again.
 
 /** Consecutive Cancels after which a frame's next link still raises the confirm at once. */
-export const REPLY_LINK_FREE_CANCELS = 2;
-/** The wait after the first Cancel past {@link REPLY_LINK_FREE_CANCELS}; each further Cancel doubles it. */
-export const REPLY_LINK_FIRST_WAIT_MS = 2000;
+export const FRAMED_LINK_FREE_CANCELS = 2;
+/** The wait after the first Cancel past {@link FRAMED_LINK_FREE_CANCELS}; each further Cancel doubles it. */
+export const FRAMED_LINK_FIRST_WAIT_MS = 2000;
 /** The longest a frame's next link waits, however many times the reader cancelled. */
-const REPLY_LINK_MAX_WAIT_MS = 30_000;
+const FRAMED_LINK_MAX_WAIT_MS = 30_000;
 
 /** How long a frame's next link waits after `cancels` consecutive Cancels. */
-export function replyLinkWaitMs(cancels: number): number {
-  if (cancels <= REPLY_LINK_FREE_CANCELS) {
+export function framedLinkWaitMs(cancels: number): number {
+  if (cancels <= FRAMED_LINK_FREE_CANCELS) {
     return 0;
   }
-  return Math.min(REPLY_LINK_MAX_WAIT_MS, REPLY_LINK_FIRST_WAIT_MS * 2 ** (cancels - REPLY_LINK_FREE_CANCELS - 1));
+  return Math.min(FRAMED_LINK_MAX_WAIT_MS, FRAMED_LINK_FIRST_WAIT_MS * 2 ** (cancels - FRAMED_LINK_FREE_CANCELS - 1));
 }

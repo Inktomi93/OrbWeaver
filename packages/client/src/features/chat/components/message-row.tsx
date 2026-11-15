@@ -258,6 +258,7 @@ export function MessageRow({
     participants,
     lenientHtmlCards,
     colorQuotedSpeech,
+    viewerIsHost,
   });
   // Edit mode lives in the external draft store, not local useState — a windowed row unmounts on
   // scroll and would silently drop mid-edit state.
