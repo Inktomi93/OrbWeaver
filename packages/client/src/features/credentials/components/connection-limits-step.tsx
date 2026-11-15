@@ -1,7 +1,8 @@
-// The add dialog's limits step: a new connection whose context window or image input is the fold's guess says so the
-// moment it is saved, and takes the real answers there. It writes the connection's `declared` block through the same
-// fact rows, parser and `withDeclaredOverride` the Advanced tier uses, so the step adds no second home for a limit, the
-// image answer or their rules. The image switch opens on the guess and writes only when the user changes it.
+// The add dialog's limits step: a new connection whose context window is the fold's guess says so the moment it is
+// saved, and takes the real answers there, with the image answer beside them when that is a guess too. It writes the
+// connection's `declared` block through the same fact rows, parser and `withDeclaredOverride` the Advanced tier uses,
+// so the step adds no second home for a limit, the image answer or their rules. The image switch opens on the guess and
+// writes only when the user changes it.
 //
 // The dialog moves here as soon as the row is created and the step reads the capability itself, with `listFacts`: the
 // server's model list states what it states about the model, but the per-model probe that loads or wakes a local
@@ -76,15 +77,15 @@ export function ConnectionLimitsStep(props: ConnectionLimitsStepProps): ReactEle
 function ConnectionLimitsBody(props: ConnectionLimitsStepProps): ReactElement | null {
   const { data: view } = useSuspenseQuery(props.trpc.connection.capabilities.queryOptions({ connectionId: props.connectionId, listFacts: true }));
   // Frozen at the first read: the save's own invalidation re-reads a capability whose answers are no longer guesses.
+  // A guessed window raises the step; an assumed image answer rides along but never raises it alone, since every add on
+  // a server that reports no inputs would otherwise stop here.
   const [asks] = useState(() => {
-    const image = imageInputSwitch(view.capability, props.declared, view.baseline);
-    return {
-      limits: guessedLimits(view.capability, props.declared, view.baseline),
-      image: image?.provenance === "assumed" ? image : undefined,
-    };
+    const limits = guessedLimits(view.capability, props.declared, view.baseline);
+    const image = limits.length === 0 ? undefined : imageInputSwitch(view.capability, props.declared, view.baseline);
+    return { limits, image: image?.provenance === "assumed" ? image : undefined };
   });
   const { onDone } = props;
-  const nothingToAsk = asks.limits.length === 0 && asks.image === undefined;
+  const nothingToAsk = asks.limits.length === 0;
   useEffect(() => {
     if (nothingToAsk) {
       onDone();
@@ -128,18 +129,16 @@ function LimitsForm({
 
   return (
     <Stack gap="block" data-slot="connection-limits-step">
-      {limits.length === 0 ? null : (
-        <Stack gap="tight">
-          {connectionLimitsLead(
-            limits.some(({ kind }) => kind === "output"),
-            providerId,
-          ).map((line) => (
-            <Text cap="prose" key={line} prose={true} voice="gloss">
-              {line}
-            </Text>
-          ))}
-        </Stack>
-      )}
+      <Stack gap="tight">
+        {connectionLimitsLead(
+          limits.some(({ kind }) => kind === "output"),
+          providerId,
+        ).map((line) => (
+          <Text cap="prose" key={line} prose={true} voice="gloss">
+            {line}
+          </Text>
+        ))}
+      </Stack>
       {limits.map(({ kind, row }, index) => (
         <Field
           description={connectionLimitGuessLabel(tokens(Number(row.draft)))}

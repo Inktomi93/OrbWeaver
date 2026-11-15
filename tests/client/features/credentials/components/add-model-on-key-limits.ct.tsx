@@ -1,7 +1,7 @@
 // @subject packages/client/src/features/credentials/components/add-model-on-key-dialog.tsx
 // Adding another model on a saved key asks for the real limits when the model's window is a guess, through the same step
 // the new-connection dialog shows, and stores what is typed as that new connection's own declaration. A model whose
-// provider states its window asks no limit, only the image guess, and closing at the step never leaves the next open on it.
+// provider states its window goes straight on, and closing at the step never leaves the next open on it.
 
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { TrpcRecorder } from "@orb/testkit/ct";
@@ -18,7 +18,6 @@ import {
   CONNECTION_LIMITS_KEEP_NAME,
   CONNECTION_LIMITS_SAVE_NAME,
   CONNECTION_LIMITS_TITLE,
-  IMAGE_SWITCH_NAME,
 } from "#client/features/credentials/lib/credentials-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ConnectionLimitsStory } from "./_connection-limits-stories.tsx";
@@ -149,17 +148,13 @@ test("a model whose window the key's list does not state asks for the real limit
   expect((await addedConnection(caller, SEED_MODEL)).declared?.generation).toBeUndefined();
 });
 
-test("a model whose window the key's list states asks no limit, only for the image guess", async ({ mount, page }) => {
+test("a model whose window the key's list states adds with no limits step", async ({ mount, page }) => {
   await using root = await freshRoot();
   const caller = await root.internalCallerFor(root.ownerId);
   const calls = await mountSavedKey({ page, mount }, caller);
   const dialog = await openAndPick(page, STATED_MODEL);
   await dialog.getByRole("button", { name: ADD_CONNECTION_NAME, exact: true }).click();
 
-  const step = limitsStep(page);
-  await expect(step.getByRole("switch", { name: IMAGE_SWITCH_NAME, exact: true })).toBeVisible();
-  await expect(step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.window, { exact: true })).toHaveCount(0);
-  await step.getByRole("button", { name: CONNECTION_LIMITS_KEEP_NAME, exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   // The step's own read ran and found nothing to ask, and the row it read states the provider's window.
   expect(calls.inputs("connection.capabilities")).toContainEqual(expect.objectContaining({ listFacts: true }));

@@ -1,11 +1,12 @@
 // @subject packages/client/src/features/credentials/components/connection-limits-step.tsx
 // Adding a connection whose context window is a guess says so at that moment and takes the real numbers, typed as
 // people copy them, into the connection's own declaration, without a per-model probe to learn them. A provider that
-// states its window and its inputs goes straight on. A model whose image input is a guess gets the one "Takes images"
-// switch there, opening on the guess and writing only an answer the user changes, and the connection editor's switch
-// states the same stored fact in all three states: stated, assumed and set. A failed read or a refused save still
-// leaves a way on, a close while the read is out never leaves the next open on a stale step, and the Advanced tier's
-// override of the same limit reads and refuses them the same way.
+// states its window goes straight on, and so does one whose only guess is the max output, even when its image input is
+// a guess. A step raised for a guessed window carries the one "Takes images" switch when that answer is a guess too,
+// opening on the guess and writing only an answer the user changes, and the connection editor's switch states the same
+// stored fact in all three states: stated, assumed and set. A failed read or a refused save still leaves a way on, a
+// close while the read is out never leaves the next open on a stale step, and the Advanced tier's override of the same
+// limit reads and refuses them the same way.
 
 import { DIALOG_VERBS } from "@orb/client/lib";
 import { providerDisplayLabel } from "@orb/contracts/inference";
@@ -35,6 +36,7 @@ import {
   IMAGE_SWITCH_NAME,
   IMAGE_SWITCH_STATED_GLOSS,
   imageSwitchSetGloss,
+  MODEL_FIELD_NAME,
 } from "#client/features/credentials/lib/credentials-names.ts";
 import type { ConnectionLimitsStory } from "./_connection-limits-stories.tsx";
 
@@ -163,7 +165,7 @@ async function pickProvider(page: Page, caller: Caller, providerId: string): Pro
 async function saveProxy(page: Page, caller: Caller, model: string = PROXY_MODEL): Promise<void> {
   const dialog = await pickProvider(page, caller, PROXY_PROVIDER);
   await dialog.getByLabel("Server URL", { exact: true }).fill(PROXY_URL);
-  await dialog.getByLabel("Model", { exact: true }).fill(model);
+  await dialog.getByLabel(MODEL_FIELD_NAME, { exact: true }).fill(model);
   await dialog.getByRole("button", { name: ADD_CONNECTION_NAME, exact: true }).click();
 }
 
@@ -322,21 +324,17 @@ test("a guessed window beside a stated max output asks only for the window", asy
   await expect(step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.output, { exact: true })).toHaveCount(0);
 });
 
-test("a stated window beside a guessed max output asks for no limit, only for the image guess", async ({ mount, page }) => {
+test("a stated window beside a guessed max output adds with no limits step", async ({ mount, page }) => {
   await using root = await freshRoot();
   const caller = await root.internalCallerFor(root.ownerId);
   const calls = await mountList({ page, mount }, caller, WIDE_PROPS);
   await saveProxy(page, caller, WINDOW_KNOWN_MODEL);
-  const step = limitsStep(page);
-  await expect(step.getByRole("switch", { name: IMAGE_SWITCH_NAME, exact: true })).toBeVisible();
-  await expect(step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.window, { exact: true })).toHaveCount(0);
-  await expect(step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.output, { exact: true })).toHaveCount(0);
-  await step.getByRole("button", { name: CONNECTION_LIMITS_KEEP_NAME, exact: true }).click();
   await expect(finish(page)).toBeVisible();
+  await expect(limitsStep(page)).toHaveCount(0);
   expect(calls.count("connection.capabilities")).toBeGreaterThan(0);
   const view = await caller.connection.capabilities({ connectionId: (await addedConnection(caller, PROXY_PROVIDER)).id, listFacts: true });
-  // The premise: the window is stated and only the max output is a guess.
-  expect(view.capability).toMatchObject({ generation: { output: { maxTokensEstimated: true } } });
+  // The premise: the window is stated and only the max output is a guess, beside an image answer that is a guess too.
+  expect(view.capability).toMatchObject({ generation: { output: { maxTokensEstimated: true }, modalitiesEstimated: true } });
   expect(view.capability.kind === "generation" ? view.capability.generation.context.windowEstimated : null).toBeUndefined();
 });
 
@@ -493,7 +491,7 @@ test("a model whose provider states its inputs shows the stated answer, and the 
 test.describe("phone at enlarged text", () => {
   test.use({ viewport: PHONE, hasTouch: true, isMobile: true });
   for (const factor of ENLARGED_SCALES) {
-    test(`at ${String(factor * 100)}% text every limits row and both ways on stay readable and pressable`, async ({ mount, page }) => {
+    test(`at ${String(factor * 100)}% text every limits row, the image switch and both ways on stay readable and pressable`, async ({ mount, page }) => {
       await using root = await freshRoot();
       const caller = await root.internalCallerFor(root.ownerId);
       await mountList({ page, mount }, caller, { width: PHONE.width, appearance: appearanceSettingsSchema.parse({}) });
@@ -503,6 +501,7 @@ test.describe("phone at enlarged text", () => {
       for (const subject of [
         step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.window, { exact: true }),
         step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.output, { exact: true }),
+        step.getByRole("switch", { name: IMAGE_SWITCH_NAME, exact: true }),
         step.getByRole("button", { name: CONNECTION_LIMITS_KEEP_NAME, exact: true }),
         step.getByRole("button", { name: CONNECTION_LIMITS_SAVE_NAME, exact: true }),
       ]) {

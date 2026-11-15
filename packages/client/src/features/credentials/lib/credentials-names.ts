@@ -181,8 +181,8 @@ export function promptCacheRetentionName(connection: string): string {
   return `${PROMPT_CACHE_RETENTION_FIELD_LABEL} on ${connection}`;
 }
 
-/** The add dialog's limits step, shown when a new connection's context window or image input is a guess: its title, what
- *  it says, the field for each guessed limit (named as the Advanced rows name them), the image switch, and its two ways on. */
+/** The add dialog's limits step, shown when a new connection's context window is a guess: its title, what it says, the
+ *  field for each guessed limit (named as the Advanced rows name them), the image switch, and its two ways on. */
 export const CONNECTION_LIMITS_TITLE = "How much can this model take?";
 export const CONNECTION_LIMITS_DESCRIPTION = "This server doesn't say, so what follows is a guess. A window guessed too low cuts your chats short.";
 // Where to find the real numbers, for a provider that keeps them somewhere other than the model's page: one line,

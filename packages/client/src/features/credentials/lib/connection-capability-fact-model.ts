@@ -186,7 +186,7 @@ export function capabilityFactRows(capability: Capability, declared: DeclaredCap
 
 /** Where an image answer comes from: the server or catalog stated it, the fold assumed it, or the user set it. */
 const IMAGE_INPUT_PROVENANCES = ["stated", "assumed", "set"] as const;
-export type ImageInputProvenance = (typeof IMAGE_INPUT_PROVENANCES)[number];
+type ImageInputProvenance = (typeof IMAGE_INPUT_PROVENANCES)[number];
 
 /** "Takes images" as one switch over the `takes` fact: the image member of `generation.input`, nothing more. */
 export interface ImageInputSwitch {
