@@ -1,4 +1,4 @@
-// One run of a styled reply drawn in ONE routed card frame (D294): a display script's own markup made this row
+// One run of a styled reply drawn in ONE routed card frame (D354): a display script's own markup made this row
 // styled, and the row's tier is the sandboxed one, so the reply renders with its own CSS behind the frame's
 // boundary. Nothing styled reaches the main document.
 //

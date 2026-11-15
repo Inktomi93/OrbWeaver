@@ -1,5 +1,5 @@
 // The markdown seal for a FRAME DOCUMENT ONLY: the transcript's own elements, plugins and root classes, with raw
-// HTML kept and NOT sanitized, because the sandboxed card frame (D294, `@orb/kit/card-frame`) is the boundary
+// HTML kept and NOT sanitized, because the sandboxed card frame (D354, `@orb/kit/card-frame`) is the boundary
 // its output is served behind. Its output must never enter the main document.
 //
 // Two controls keep it there: it throws outside `FrameDocumentContext`, which only `useFrameDocument`

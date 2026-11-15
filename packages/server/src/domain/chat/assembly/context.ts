@@ -826,7 +826,13 @@ async function runSendAuthorTransforms(
 ): Promise<string> {
   const { draft, input, base, hostScripts, out } = args;
   const freezes: MacroFreeze[] = [];
-  let text = freezeVolatileMacros(input.sendDraft ?? draft, base, { random: input.prng, registry: input.freezeMacroRegistry, freezes });
+  const frozen = freezeVolatileMacros(input.sendDraft ?? draft, base, { random: input.prng, registry: input.freezeMacroRegistry, freezes });
+  // A freeze the macro budget cut short is empty or partial text; committing it would store that in place of
+  // what the user typed, so the send is refused before anything is written.
+  if (frozen.degraded) {
+    throw new ChatOperationError(CHAT_OP_CODES.messageMacroBudget, "the message is too large for the macro pass and was not sent");
+  }
+  let text = frozen.text;
   // The D50 `user_input` PromptTransform point: AFTER the macro pass,
   // BEFORE the USER_INPUT regex. Rewrites the draft the WI haystack + the persisted row both see (author-
   // side transform order — D51). Null op / zero registrants ⇒ byte-identical.

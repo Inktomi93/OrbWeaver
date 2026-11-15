@@ -205,7 +205,7 @@ export function MessageContent({
   const characterNames = narratorVoiced && speakerThemes !== undefined ? [...speakerThemes.keys()] : NO_CHARACTER_NAMES;
   const spans = parseSpeakerSpans(resolvedContent, characterNames);
 
-  // D294: a display script's own markup styled this row and the row's tier is the sandboxed one, so the reply
+  // D354: a display script's own markup styled this row and the row's tier is the sandboxed one, so the reply
   // draws in a card frame. A plugin that rewrote the text has changed what the scripts produced, so the row keeps
   // today's path; markup the model wrote alone never styles a row.
   if (render.cardTier === "tierB" && display.styled && resolvedContent === display.text) {

@@ -220,7 +220,7 @@ export interface ContentSpansToBlocksOptions {
    *  (§4.3: model output → `tierB`; ONE trust authority, `render-trust`). Default `tierB` (the fail-closed
    *  sandbox arm — never default a card into the main DOM). */
   readonly cardTrust?: CardTrust | undefined;
-  /** Keep `unknown-directive` spans as text (D294). An attribute-carrying self-closing tag is a command shape in a
+  /** Keep `unknown-directive` spans as text (D354). An attribute-carrying self-closing tag is a command shape in a
    *  transcript, but inside a styled reply's frame document it is the reply's own markup: an SVG `<path/>` or
    *  `<circle/>`, an `<img/>`. A `hidden` span stays hidden either way; it is the class that carries secrets. */
   readonly keepUnknownDirectives?: boolean | undefined;
