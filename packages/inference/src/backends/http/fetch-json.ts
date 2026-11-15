@@ -27,7 +27,7 @@ import { ProviderError } from "#contract";
 import type { FetchJsonArgs, FetchJsonResult } from "#src/contract/http.ts";
 import { redactSecretsFromText, secretScrubOverhang } from "../wire/openai-body.ts";
 import { classifyHttpStatus } from "./error-classify.ts";
-import { sanitizeApiError } from "./sanitize.ts";
+import { decodedJsonText, sanitizeApiError } from "./sanitize.ts";
 
 /** How long a server may take to answer a read that loads nothing (its identity, its model list, its sleep state)
  *  before it reads as not answering: the reachability probe's `down`, and the bound on a catalog warm's dials. */
@@ -73,12 +73,12 @@ async function readCapped(res: Response, limit: number): Promise<string> {
   return out.slice(0, limit);
 }
 
-/** The reflected upstream error body, made safe for a `ProviderError.message`: over-read → by-value scrub
- *  → slice to the read bound → sanitize (which applies the 500-char cap every provider message obeys).
- *  The order is the two laws in this file's header; do not reorder. */
+/** The reflected upstream error body, made safe for a `ProviderError.message`: over-read → decode a JSON body's
+ *  escapes → by-value scrub → slice to the read bound → sanitize (which applies the 500-char cap every provider
+ *  message obeys). The order is the laws in this file's header and `sanitize.ts`'s; do not reorder. */
 async function safeErrorBody(res: Response, secrets: ProviderScrubSet): Promise<string> {
   const raw = await readCapped(res, ERROR_BODY_LIMIT + secretScrubOverhang(secrets));
-  return sanitizeApiError(redactSecretsFromText(raw, secrets).slice(0, ERROR_BODY_LIMIT));
+  return sanitizeApiError(redactSecretsFromText(decodedJsonText(raw), secrets).slice(0, ERROR_BODY_LIMIT));
 }
 
 /** HOST-PIN (#25): a 3xx, or the opaque redirect `redirect: "manual"` yields, is never followed. */

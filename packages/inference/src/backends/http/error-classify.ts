@@ -17,7 +17,7 @@ import { ProviderError, SCHEMA_REJECTED_DETAIL } from "#contract";
 import type { ErrorClassification, HttpErrorDiagnostic, SchemaRejectionContext } from "#src/contract/http.ts";
 import { redactSecretsFromText } from "../wire/openai-body.ts";
 import { isIdleTrip } from "./idle-timeout.ts";
-import { NO_PROVIDER_SECRETS, sanitizeApiError } from "./sanitize.ts";
+import { decodedJsonText, NO_PROVIDER_SECRETS, sanitizeApiError } from "./sanitize.ts";
 
 // Transport-name patterns on the hot error-classification path.
 const TRANSIENT_TRANSPORT_RE = /timeout|connection|network|overload/i;
@@ -134,6 +134,19 @@ function parseBody(body: unknown): unknown {
   return typeof body === "string" && body.includes("reasons") ? parseJsonText(body) : undefined;
 }
 
+/**
+ * The reflected upstream body as data: a JSON string parsed, an already-parsed object as given, `undefined` when the
+ * chain carries none or it is not JSON. RAW upstream content: a caller that shows a field of it scrubs and sanitizes
+ * that field after reading it.
+ */
+export function upstreamBody(error: unknown): unknown {
+  if (!isRecord(error)) {
+    return;
+  }
+  const body = readBody(error);
+  return typeof body === "string" ? parseJsonText(body) : body;
+}
+
 function isModerationBlock(error: unknown): boolean {
   if (!isRecord(error)) {
     return false;
@@ -173,7 +186,7 @@ function classifyHttpError(error: unknown): ErrorClassification & { status: numb
  * `secrets` is REQUIRED and branded for the same reason {@link providerErrorFromHttp}'s is (#1599) — the
  * peeled `body` is the reflected upstream body, the single most secret-prone string on this boundary.
  *
- * ORDER (#1809): SCRUB, then sanitize — never the reverse. See {@link sanitizeApiError}'s file header.
+ * ORDER (#1809): DECODE, SCRUB, then sanitize — never the reverse. See {@link sanitizeApiError}'s file header.
  */
 export function extractHttpErrorDiagnostic(error: unknown, secrets: ProviderScrubSet): HttpErrorDiagnostic {
   if (!isRecord(error)) {
@@ -182,7 +195,7 @@ export function extractHttpErrorDiagnostic(error: unknown, secrets: ProviderScru
   const out: { body?: string; cause?: string } = {};
   const body = readBody(error);
   if (typeof body === "string" && body.length > 0) {
-    out.body = sanitizeApiError(redactSecretsFromText(body, secrets));
+    out.body = sanitizeApiError(redactSecretsFromText(decodedJsonText(body), secrets));
   }
   const cause = error["cause"];
   if (cause !== undefined && cause !== null) {
