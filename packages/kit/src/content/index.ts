@@ -540,11 +540,11 @@ function matchText(line: Line): string {
 /** §4.8 element-majority: enough non-empty lines and MORE than half of them carry a tag. */
 function isElementMajorityHtml(texts: readonly string[], minLines: number): boolean {
   const nonEmpty = texts.filter((l) => l.trim().length > 0);
-  if (nonEmpty.length < minLines) {
-    return false;
-  }
-  const tagged = nonEmpty.filter((l) => TAGGED_LINE_RE.test(l)).length;
-  return tagged * 2 > nonEmpty.length;
+  return isElementMajorityCount(nonEmpty.length, nonEmpty.filter((l) => TAGGED_LINE_RE.test(l)).length, minLines);
+}
+
+function isElementMajorityCount(nonEmpty: number, tagged: number, minLines: number): boolean {
+  return nonEmpty >= minLines && tagged * 2 > nonEmpty;
 }
 
 /** §4.8 derived stub title: first `<h1-3>`/`<title>` text, else null (the stub renders `[card]`). */
@@ -705,26 +705,53 @@ function tryLenientMarkupFence(content: string, lines: readonly Line[], i: numbe
   return { pieces: [{ kind: "span", span }, ...tailPiece(content, lines, closeIdx, false)], next: closeIdx + 1 };
 }
 
-// A lenient run from line `i`: the index past its last line (a blank or code-fence line ends it, unless it is a
-// raw-text element's text), and the lines the majority counts, which leave that text out.
-function lenientRun(
-  lines: readonly Line[],
-  i: number,
-  covering: (offset: number) => RawTextElement | undefined,
-): { readonly next: number; readonly counted: readonly string[] } {
-  const counted: string[] = [];
+/** One lenient run, read once: its first line, the index past its last line, and for each of its lines the counts of
+ *  non-empty and tagged lines from that line to the run's end, which the majority test reads. */
+interface LenientRun {
+  readonly from: number;
+  readonly end: number;
+  readonly nonEmpty: readonly number[];
+  readonly tagged: readonly number[];
+}
+
+// The lenient run from line `i`. A blank or code-fence line ends it, unless it is a raw-text element's text, and that
+// text is left out of the counts. A run started from any of its later lines ends at the same line and counts a suffix
+// of the same lines, so the run is read once and every opening line inside it reads its counts from the memo: a run
+// that fails the majority test is not rescanned for each opener in it.
+function lenientRunFrom(env: ScanEnv, i: number, covering: (offset: number) => RawTextElement | undefined): LenientRun {
+  const held = env.lenientRun.current;
+  if (held !== undefined && held.from <= i && i < held.end) {
+    return held;
+  }
+  const flags: { readonly nonEmpty: boolean; readonly tagged: boolean }[] = [];
   let j = i;
-  for (let line = lines[j]; line !== undefined; line = lines[j]) {
+  for (let line = env.lines[j]; line !== undefined; line = env.lines[j]) {
     const t = matchText(line);
-    if (covering(line.start) === undefined) {
-      if (t.trim().length === 0 || t.startsWith(CODE_FENCE_MARK)) {
-        break;
-      }
-      counted.push(line.text);
+    const inside = covering(line.start) !== undefined;
+    if (!inside && (t.trim().length === 0 || t.startsWith(CODE_FENCE_MARK))) {
+      break;
     }
+    const counted = !inside && line.text.trim().length > 0;
+    flags.push({ nonEmpty: counted, tagged: counted && TAGGED_LINE_RE.test(line.text) });
     j += 1;
   }
-  return { next: j, counted };
+  const run: LenientRun = {
+    from: i,
+    end: j,
+    nonEmpty: suffixCounts(flags.map((flag) => flag.nonEmpty)),
+    tagged: suffixCounts(flags.map((flag) => flag.tagged)),
+  };
+  env.lenientRun.current = run;
+  return run;
+}
+
+// For each index, how many of the flags from it to the end are set; one entry more, the empty suffix's zero.
+function suffixCounts(flags: readonly boolean[]): readonly number[] {
+  const counts = Array.from({ length: flags.length + 1 }, () => 0);
+  for (let k = flags.length - 1; k >= 0; k -= 1) {
+    counts[k] = (counts[k + 1] ?? 0) + (flags[k] === true ? 1 : 0);
+  }
+  return counts;
 }
 
 /** §4.8 naked-HTML arm: a contiguous ≥N-line element-majority run opening with a block-level tag. A `<style>` or
@@ -741,9 +768,10 @@ function tryLenientBlock(env: ScanEnv, i: number): BlockResult | null {
   if (covering(first.start) !== undefined) {
     return null;
   }
-  const { next: j, counted } = lenientRun(lines, i, covering);
+  const run = lenientRunFrom(env, i, covering);
+  const j = run.end;
   const last = lines[j - 1];
-  if (last === undefined || !isElementMajorityHtml(counted, LENIENT_HTML_MIN_LINES)) {
+  if (last === undefined || !isElementMajorityCount(run.nonEmpty[i - run.from] ?? 0, run.tagged[i - run.from] ?? 0, LENIENT_HTML_MIN_LINES)) {
     return null;
   }
   const runLines = sliceTexts(lines, i, j);
@@ -768,6 +796,8 @@ interface ScanEnv {
   readonly committed: boolean;
   /** The body's `<style>` and `<script>` elements; read only when the lenient arm is on, the one step that needs them. */
   readonly rawText: readonly RawTextElement[];
+  /** The last lenient run read (`lenientRunFrom`), so its later opening lines do not read it again. */
+  readonly lenientRun: { current: LenientRun | undefined };
 }
 
 // The index of the first element in `rawText` that ends after `offset`. Elements are in order, so a binary search: a
@@ -1068,6 +1098,7 @@ export function tokenizeContent(content: string, options?: TokenizeContentOption
     lenient,
     committed: options?.committed === true,
     rawText: lenient ? rawTextElements(content) : [],
+    lenientRun: { current: undefined },
   };
   const expanded = expandPieces(content, structuralPass(env));
   const spans: ContentSpan[] = [];
