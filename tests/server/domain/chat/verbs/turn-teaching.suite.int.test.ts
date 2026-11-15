@@ -240,7 +240,13 @@ test("a USER_INPUT regex that strips the stamp leaves nothing for the note to an
   await using h = await turnRpgRoom(replies(1));
   const script = await h.root.services.regex.createScript({
     principal: h.owner,
-    input: createRegexScriptSchema.parse({ name: "Strip dice", findRegex: "/\\[dice:[^\\]]*\\]/g", replaceString: "", placement: ["USER_INPUT"] }),
+    input: createRegexScriptSchema.parse({
+      name: "Strip dice",
+      findRegex: "/\\[dice:[^\\]]*\\]/g",
+      replaceString: "",
+      targets: ["USER_INPUT"],
+      passes: ["save"],
+    }),
   });
   await h.root.services.regex.attachGlobal({ principal: h.owner, scriptId: script.id });
   const wire = await newestWire(h, async () => {

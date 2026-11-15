@@ -289,7 +289,8 @@ test("a USER_INPUT regex reads the block text only and cannot touch a picture re
       name: "Strip refs",
       findRegex: "/!\\[[^\\]]*\\]\\([^)]*\\)|picture|ledger/g",
       replaceString: "x",
-      placement: ["USER_INPUT"],
+      targets: ["USER_INPUT"],
+      passes: ["save"],
     }),
   });
   await box.root.services.regex.attachGlobal({ principal: box.host, scriptId: script.id });
@@ -342,7 +343,7 @@ const MARKDOWN = (md: string): SendContentBlock => ({ kind: "markdown", md });
 async function hostRegex(box: Box, findRegex: string, replaceString: string): Promise<void> {
   const script = await box.root.services.regex.createScript({
     principal: box.host,
-    input: createRegexScriptSchema.parse({ name: "Host regex", findRegex, replaceString, placement: ["USER_INPUT"] }),
+    input: createRegexScriptSchema.parse({ name: "Host regex", findRegex, replaceString, targets: ["USER_INPUT"], passes: ["save"] }),
   });
   await box.root.services.regex.attachGlobal({ principal: box.host, scriptId: script.id });
 }

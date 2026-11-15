@@ -1,168 +1,119 @@
-// The LIST-hub preset import — the ONE band import dialog (redesign §16.1 / G6), two arms behind one door.
-// Pick a `.json` with `FileDropzone`; the FORMAT is SNIFFED from the parsed JSON's `schemaKind`, never asked
-// of the user (a second dialog, or a format picker, would be a second home for one job):
-//
-//   · `orb.preset`  → the ORB-NATIVE arm: the file text goes to `preset.importFile`, the thin door over the
-//     bundle's own `ImportPresets` op. The dialog states its rule before the commit: an import never edits
-//     an owned preset, so an equal preset is reused and a different one under a taken name lands beside it
-//     under a free name (D290). The server strict-parses and reports a bad file as an OUTCOME, so its error lands in this dialog.
-//   · anything else → the SillyTavern arm: parsed client-side by `tryImportStChatCompletionPreset` (the
-//     TYPED outcome — #1580: the reader's "I never claimed this" and "I claimed it and refused it" are two
-//     different answers to the owner, and one Error could not carry the difference), with the dropped-field
-//     report, then created via `preset.create`.
-//
-// Neither arm re-derives serde: the orb arm ships the file's own bytes to the one import verb, and the ST
-// arm is the landed browser-side mapper.
+// The LIST-hub preset import — the ONE band import dialog (redesign §16.1 / G6), one door for both formats a preset
+// file arrives in: an orbweaver preset export or a SillyTavern Chat Completion preset. The dialog parses nothing. On
+// pick it sends the file to `preset.previewFile`, which reads it with the import's own parse and dry-runs the import,
+// and it shows that answer; on confirm the same file goes to `preset.importFile`. So the summary states what the run
+// does (the prompts and how many are on, the samplers and limits, a SillyTavern preset's own regex scripts included,
+// with how many arrive switched off and, beside that count, each note the import made about one script), and a bad
+// file's reason is the server's sentence. A script the file itself switched off is counted, not named: the preview
+// carries no note for it.
 
-import type { StDroppedField, StImportOutcome, StImportResult } from "@orb/contracts/preset";
-import { PRESET_SCHEMA_KIND, tryImportStChatCompletionPreset } from "@orb/contracts/preset";
-import { isPlainObject } from "@orb/kit/guards";
+import type { PresetFilePreview } from "@orb/contracts/preset";
+import { ST_PRESET_SCRIPT_LIST_FIELD } from "@orb/contracts/preset";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { Icon, TriangleAlert } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
+import { ScrollArea } from "@orb/ui/scroll-area";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { FormDialog, MutedLine } from "#components";
-import { PRESET_IMPORT_NAME, PRESET_IMPORT_TITLE } from "../lib/preset-names.ts";
+import {
+  PRESET_IMPORT_ALREADY_HELD,
+  PRESET_IMPORT_CLAMPED_HEADING,
+  PRESET_IMPORT_DESCRIPTION,
+  PRESET_IMPORT_DROPPED_HEADING,
+  PRESET_IMPORT_DROPPED_REGION_NAME,
+  PRESET_IMPORT_NAME,
+  PRESET_IMPORT_NOTHING_DROPPED,
+  PRESET_IMPORT_PICK_ANOTHER,
+  PRESET_IMPORT_TITLE,
+  presetImportAddedSections,
+  presetImportCarried,
+  presetImportClamped,
+  presetImportLead,
+  presetImportScriptsComing,
+  presetImportScriptsRefused,
+} from "../lib/preset-names.ts";
 
-/** The `.json` extension, stripped off the picked filename to seed the preset name (ST arm only — an
- *  orb.preset file carries its own name). */
-const JSON_EXT = /\.json$/i;
-
-/** A parsed-and-ready import, by arm: the orb file's raw text + its declared name, or the ST mapper's
- *  validated config + friendly base name + dropped-field report. */
-type ParsedImport =
-  | { readonly arm: "orb"; readonly name: string; readonly fileText: string }
-  | { readonly arm: "st"; readonly name: string; readonly result: StImportResult };
-
-/** Read `schemaKind` off an unknown parse without narrowing the whole file — the envelope is the server's
- *  to validate; this only picks the arm. */
-function isOrbPresetFile(parsed: unknown): boolean {
-  return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) && (parsed as Record<string, unknown>)["schemaKind"] === PRESET_SCHEMA_KIND;
+/** The file the import sends, as the user picked it. */
+export interface PresetFileInput {
+  readonly fileText: string;
+  readonly fileName: string;
 }
 
-/** The door's sentence for each of the ST reader's TWO refusals (#1580). Split because they are different
- *  answers to the owner: the reader that claimed nothing leaves both arms ruled out (F-10 — the ST parser
- *  must not speak for the whole door, since a malformed orb file lands in that same arm), while the reader
- *  that claimed the file and then refused it must SAY it recognised the format, or the copy denies the very
- *  thing the quoted reason names (#1390's defect, one level deeper). */
-function stRefusalMessage(outcome: Extract<StImportOutcome, { ok: false }>): string {
-  return outcome.recognised
-    ? `Recognised as a SillyTavern preset, refused: ${outcome.reason}`
-    : `orbweaver couldn't import this file. It isn't an orbweaver preset export, and the SillyTavern reader stopped: ${outcome.reason}`;
-}
+type ReadyPreview = Extract<PresetFilePreview, { ok: true }>;
 
-/** A thrown value's own sentence — the detail every failure arm below quotes rather than paraphrases. */
+/** A thrown value's own sentence — the detail the read failure quotes rather than paraphrases. */
 function reasonOf(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);
-}
-
-/** The name an `orb.preset` file declares, which the dialog names in its summary. Falls back to
- *  the verb's own default for a nameless file, so the copy can't promise a name the server won't use. */
-function orbFileName(parsed: unknown): string {
-  const raw = isPlainObject(parsed) ? parsed["name"] : undefined;
-  return typeof raw === "string" && raw.trim().length > 0 ? raw : "Imported preset";
 }
 
 export interface PresetImportDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
-  /** Create an ST-imported preset — the surface wires `preset.create` and opens the result. */
-  readonly onImportSt: (input: { name: string; config: StImportResult["config"] }) => void;
-  /** Send an orb-native file to `preset.importFile`. Resolves to the server's error message, or null when
-   *  the import landed (the verb reports a malformed file as an outcome, never a throw). */
-  readonly onImportOrb: (fileText: string) => Promise<string | null>;
+  /** What importing the file does, from `preset.previewFile`. */
+  readonly onPreview: (file: PresetFileInput) => Promise<PresetFilePreview>;
+  /** Send the file to `preset.importFile`. Resolves to the server's error message, or null when the import landed
+   *  (the verb reports a malformed file as an outcome, never a throw). */
+  readonly onImport: (file: PresetFileInput) => Promise<string | null>;
   readonly busy: boolean;
 }
 
-/** The preset import dialog: drop → sniff the format → summarize (dropped fields / the merge semantic) → commit. */
-export function PresetImportDialog({ open, onOpenChange, onImportSt, onImportOrb, busy }: PresetImportDialogProps): ReactElement {
-  const [parsed, setParsed] = useState<ParsedImport | null>(null);
+/** The preset import dialog: drop → the server's preview of the import → commit. */
+export function PresetImportDialog({ open, onOpenChange, onPreview, onImport, busy }: PresetImportDialogProps): ReactElement {
+  const [picked, setPicked] = useState<{ readonly file: PresetFileInput; readonly preview: ReadyPreview } | null>(null);
+  /** The picked file's name from the moment it is picked, so the zone names it while its preview is still on the way. */
+  const [chosenName, setChosenName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   /** Which file selection owns this dialog — bumped per pick, checked before any write (see `onFile`). */
   const pickToken = useRef(0);
 
   const reset = (): void => {
-    setParsed(null);
+    setPicked(null);
+    setChosenName(null);
     setError(null);
   };
 
-  const onFile = (file: File): void => {
+  const onFile = (chosen: File): void => {
     reset();
-    // EVERY PICK GETS A TOKEN, AND ONLY THE CURRENT ONE MAY WRITE (#1502). `file.text()` is a promise per
-    // selection with no cancellation: pick a large file, change your mind and pick a small one, and the two
-    // reads race — LAST TO RESOLVE wins, which is not the same thing as LAST PICKED. The dialog would then
-    // summarize (and, on confirm, IMPORT) a file the user had already replaced, with the dropzone showing
-    // the other one. The token is a ref rather than state because the comparison happens inside a resolved
-    // promise, where a state read would be the stale capture that causes this class in the first place.
+    setChosenName(chosen.name);
+    // EVERY PICK GETS A TOKEN, AND ONLY THE CURRENT ONE MAY WRITE (#1502). The read and the preview are promises per
+    // selection with no cancellation: pick a large file, change your mind and pick a small one, and the two race —
+    // LAST TO RESOLVE wins, which is not the same thing as LAST PICKED. The dialog would then summarize (and, on
+    // confirm, IMPORT) a file the user had already replaced. The token is a ref rather than state because the
+    // comparison happens inside a resolved promise, where a state read would be the stale capture.
     const token = pickToken.current + 1;
     pickToken.current = token;
-    // the read failure lands in the `.catch` below as
-    // `setError("That file couldn't be read…")`, which the dialog renders; that handler returns silently only for
-    // a superseded pick, whose error state a later pick owns. Ends if the handler stops writing setError for the current pick.
-    void file
+    void chosen
       .text()
-      .then((text) => {
+      .then(async (fileText) => {
+        const file = { fileText, fileName: chosen.name };
+        const preview = await onPreview(file);
         if (pickToken.current !== token) {
           return; // a later pick already owns this dialog
         }
-        let json: unknown;
-        // NOT-JSON IS THE ONLY TRUE "NEITHER" (#1390). Nothing was read, so nothing matched, and the
-        // sniffer's fall-through problem F-10 named does not arise: there is no parser voice to mistake for
-        // the door's verdict yet.
-        try {
-          json = JSON.parse(text);
-        } catch (cause: unknown) {
-          setError(
-            `That file isn't valid JSON, so neither an orbweaver preset export nor a SillyTavern Chat Completion preset could be read from it. (${reasonOf(cause)})`,
-          );
-          return;
+        if (preview.ok) {
+          setPicked({ file, preview });
+        } else {
+          setError(preview.error);
         }
-        if (isOrbPresetFile(json)) {
-          setParsed({ arm: "orb", name: orbFileName(json), fileText: text });
-          return;
-        }
-        // THE ST READER'S REFUSAL IS ATTRIBUTED, NOT RESTATED AS A VERDICT (#1390, keeping F-10's repair) —
-        // and since #1580 the door can tell the reader's TWO refusals apart, because the reader answers with
-        // a typed outcome instead of one Error for both. F-10's requirement is that the ST parser must not
-        // speak for the WHOLE door (a malformed orb file lands here too); that is met per arm:
-        //   recognised: false — the reader claimed nothing, so the honest sentence names BOTH arms as ruled
-        //     out and quotes the ST reader as the ST reader.
-        //   recognised: true  — the reader claimed the file and then refused it (#1363's intact belt). Here
-        //     "the reader stopped" would read as "this is not a SillyTavern preset", which is the ONE thing
-        //     that did not happen, so the copy says what it was recognised AS before quoting the refusal.
-        const outcome = tryImportStChatCompletionPreset(json);
-        if (!outcome.ok) {
-          setError(stRefusalMessage(outcome));
-          return;
-        }
-        const base = file.name.replace(JSON_EXT, "");
-        setParsed({ arm: "st", name: base === "" ? "Imported preset" : base, result: outcome.result });
       })
       .catch((cause: unknown) => {
         if (pickToken.current !== token) {
           return; // a superseded pick's failure is not this dialog's story
         }
-        // The only thing left that can reject here is the READ itself — the two parse verdicts above own
-        // their own arms, so this one no longer has to speak for them.
         setError(`That file couldn't be read. (${reasonOf(cause)})`);
       });
   };
 
   const onConfirm = (): void => {
-    if (parsed === null) {
-      return;
-    }
-    if (parsed.arm === "st") {
-      onImportSt({ name: parsed.name, config: parsed.result.config });
+    if (picked === null) {
       return;
     }
     setError(null);
-    onImportOrb(parsed.fileText)
+    onImport(picked.file)
       .then((failure) => {
-        // A rejected file keeps the dialog open with the SERVER'S reason — the strict parse lives there,
-        // and re-deriving a client-side verdict would be the second parser this door exists to avoid.
+        // A rejected file keeps the dialog open with the SERVER'S reason — the parse lives there.
         setError(failure);
       })
       .catch(() => setError("Import failed: try the file again."));
@@ -172,8 +123,8 @@ export function PresetImportDialog({ open, onOpenChange, onImportSt, onImportOrb
     <FormDialog
       closeButton={true}
       // The outcome, not the mechanism: what a user needs before committing is what happens to their library.
-      // An import never edits an owned preset (D290). The per-arm summary below repeats no part of this line.
-      description="Pick an orbweaver preset export or a SillyTavern Chat Completion preset (.json). An orbweaver export equal to a preset you have is already in your library; a different one with a name you use is added under a new name. Anything else is created as a new preset."
+      // An import never edits an owned preset (D290). The summary below repeats no part of this line.
+      description={PRESET_IMPORT_DESCRIPTION}
       onOpenChange={(next): void => {
         if (!next) {
           reset();
@@ -181,15 +132,16 @@ export function PresetImportDialog({ open, onOpenChange, onImportSt, onImportOrb
         onOpenChange(next);
       }}
       open={open}
-      submit={{ label: PRESET_IMPORT_NAME, disabled: parsed === null || busy, onSubmit: onConfirm }}
+      submit={{ label: PRESET_IMPORT_NAME, disabled: picked === null || busy, onSubmit: onConfirm }}
       title={PRESET_IMPORT_TITLE}
     >
       <Stack gap="block">
-        {/* NO `hint` (side-eye F-10): "orbweaver preset exports and SillyTavern Chat Completion presets"
-            was the dialog description's first clause, printed a second time two lines below it. */}
+        {/* NO `hint` before a pick (side-eye F-10): "orbweaver preset exports and SillyTavern Chat Completion presets"
+            was the dialog description's first clause, printed a second time two lines below it. After a pick the
+            zone names the file, so the person can tell which file the summary below describes. */}
         <FileDropzone
           accept="application/json,.json"
-          subject="a preset .json"
+          {...(chosenName === null ? { subject: "a preset .json" } : { instructions: chosenName, hint: PRESET_IMPORT_PICK_ANOTHER })}
           onFilesSelected={(result): void => {
             const first = result.accepted[0];
             if (first !== undefined) {
@@ -207,51 +159,97 @@ export function PresetImportDialog({ open, onOpenChange, onImportSt, onImportOrb
           </Row>
         ) : null}
 
-        {parsed === null ? null : <ImportSummary parsed={parsed} />}
+        {picked === null ? null : <ImportSummary preview={picked.preview} />}
       </Stack>
     </FormDialog>
   );
 }
 
-/** The pre-commit summary, per sniffed arm. */
-function ImportSummary({ parsed }: { readonly parsed: ParsedImport }): ReactElement {
-  if (parsed.arm === "orb") {
-    return <OrbSummary name={parsed.name} />;
-  }
-  return <StImportSummary name={parsed.name} result={parsed.result} />;
-}
-
-/** The orb-native summary — it names the file's preset; the rule for a name already in use is stated once, above. */
-function OrbSummary({ name }: { readonly name: string }): ReactElement {
+/** The pre-commit summary: the server's preview of what the import does. */
+function ImportSummary({ preview }: { readonly preview: ReadyPreview }): ReactElement {
+  const {
+    format,
+    name,
+    inLibrary,
+    sectionCount,
+    enabledCount,
+    samplerCount,
+    limitCount,
+    regexScripts,
+    regexScriptsOff,
+    refusedScripts,
+    addedSections,
+    clamped,
+  } = preview;
+  // A note about one script sits with the script count, in its own words; the field path is the file's, not the reader's.
+  const scriptNotes = preview.leftOut.filter(({ field }) => field.startsWith(`${ST_PRESET_SCRIPT_LIST_FIELD}[`));
+  const leftOut = preview.leftOut.filter((entry) => !scriptNotes.includes(entry));
+  // The lead counts the file's own prompts. The import switches on each prompt it adds, so they come off both totals and
+  // the line that names them carries the rest.
+  const ownPrompts = sectionCount - addedSections.length;
+  const ownEnabled = enabledCount - addedSections.length;
   return (
     <Section kicker="Ready to import">
       <Text cap="prose" prose={true} voice="label">
-        orbweaver preset export: "{name}".
+        {presetImportLead(format === "sillyTavern", name, ownPrompts, ownEnabled)}
       </Text>
+      <MutedLine>{presetImportCarried(samplerCount, limitCount)}</MutedLine>
+      {inLibrary ? <MutedLine>{PRESET_IMPORT_ALREADY_HELD}</MutedLine> : null}
+      {addedSections.length === 0 ? null : <MutedLine>{presetImportAddedSections(addedSections)}</MutedLine>}
+      {regexScripts === 0 ? null : <MutedLine>{presetImportScriptsComing(regexScripts, regexScriptsOff)}</MutedLine>}
+      {scriptNotes.length === 0 ? null : (
+        <Stack data-slot="preset-import-script-notes" gap="tight">
+          {scriptNotes.map(({ field, reason }) => (
+            <Text key={field} voice="gloss">
+              {reason}
+            </Text>
+          ))}
+        </Stack>
+      )}
+      {refusedScripts.length === 0 ? null : <MutedLine>{presetImportScriptsRefused(refusedScripts.length)}</MutedLine>}
+      {format === "orbweaver" ? null : <Clamped clamped={clamped} />}
+      {format === "orbweaver" ? null : <LeftOut clamped={clamped.length > 0} leftOut={leftOut} />}
     </Section>
   );
 }
 
-/** The post-parse ST summary: section count + the ST fields with no orb home (reported, never silently lost). */
-function StImportSummary({ name, result }: { readonly name: string; readonly result: StImportResult }): ReactElement {
-  const { sectionCount, dropped } = result;
+/** The values the import brought into range: imported, so they are not among the settings left out. */
+function Clamped({ clamped }: { readonly clamped: ReadyPreview["clamped"] }): ReactElement | null {
+  if (clamped.length === 0) {
+    return null;
+  }
   return (
-    <Section kicker="Ready to import">
-      <Text cap="prose" prose={true} voice="label">
-        SillyTavern preset: {sectionCount} section{sectionCount === 1 ? "" : "s"}, created as a new preset named "{name}".
-      </Text>
-      {dropped.length === 0 ? (
-        <MutedLine>Everything mapped: nothing was dropped.</MutedLine>
-      ) : (
+    <Stack gap="field">
+      <Text voice="gloss">{PRESET_IMPORT_CLAMPED_HEADING}</Text>
+      {clamped.map(({ field, sent, landedAs }) => (
+        <Text key={field} voice="gloss">
+          <code>{field}</code>: {presetImportClamped(sent, landedAs)}
+        </Text>
+      ))}
+    </Stack>
+  );
+}
+
+/** The SillyTavern settings with no equivalent here (reported, never silently lost), under one heading. The list is the
+ *  one part of the summary that grows with the file, so it scrolls in a region of its own that shows its scrollbar: the
+ *  sentences above it are never cut by the dialog's own scroll. */
+function LeftOut({ leftOut, clamped }: { readonly leftOut: ReadyPreview["leftOut"]; readonly clamped: boolean }): ReactElement | null {
+  if (leftOut.length === 0) {
+    // A value brought into range is a change, so "everything came across" is not said beside one.
+    return clamped ? null : <MutedLine>{PRESET_IMPORT_NOTHING_DROPPED}</MutedLine>;
+  }
+  return (
+    <Stack gap="field">
+      <Text voice="gloss">{PRESET_IMPORT_DROPPED_HEADING}</Text>
+      <ScrollArea maxHeight="scrollSm" viewportProps={{ role: "region", "aria-label": PRESET_IMPORT_DROPPED_REGION_NAME }} wrapContent={true}>
         <Stack gap="field">
-          <Text voice="gloss">These SillyTavern fields have no orbweaver home and were left out:</Text>
-          {dropped.map((field: StDroppedField) => (
+          {leftOut.map((field) => (
             <Text key={field.field} voice="gloss">
               <code>{field.field}</code>: {field.reason}
             </Text>
           ))}
         </Stack>
-      )}
-    </Section>
+      </ScrollArea>
+    </Stack>
   );
 }

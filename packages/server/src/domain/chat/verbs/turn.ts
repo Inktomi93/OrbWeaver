@@ -87,7 +87,7 @@ import type {
   SwipeParams,
   UndoContinueParams,
 } from "../contract/params.ts";
-import type { DrainDeferredTurnsScope, DrainReport, TurnEngine, TurnOutcome, TurnPrep } from "../contract/results.ts";
+import type { DrainDeferredTurnsScope, DrainReport, RegexNoticeEpisode, TurnEngine, TurnOutcome, TurnPrep } from "../contract/results.ts";
 import { KIND_TO_INTENT } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireHost, requireParticipant } from "../guard.ts";
@@ -127,6 +127,7 @@ import { createViewerTextScrub, projectViewReturnForViewer, stripMessagesForView
 import { ownedCitedAssetIds } from "../substrate/owned-citations.ts";
 import { classifyParticipant, isArbiterEligible } from "../substrate/participant-actor.ts";
 import { hostConsentOf, humanSeatPersonasOf, lorePersonaIdsOf, seatsMultipleHumans } from "../substrate/participants-humans.ts";
+import { createRegexNoticeEpisode } from "../substrate/regex-notice-episode.ts";
 import { mintClaimExempt, mintRoomAdmission } from "../substrate/room-tokens.ts";
 import { projectRpgTranscript } from "../substrate/rpg-transcript.ts";
 import { userMessageDelta } from "../substrate/stats-delta.ts";
@@ -416,6 +417,8 @@ interface BuiltTurnContext {
   /** The round-level recall inputs staged for the engine's per-speaker witnessed re-run (D6); `null` when
    *  there is no character to key on (memory off / an empty roster) ⇒ the engine keeps round-level `memory`. */
   readonly memoryRecall: MemoryRecallInputs | null;
+  /** The round's record of host regex scripts its passes did not apply (see `TurnPrep.regexNotices`). */
+  readonly regexNotices: RegexNoticeEpisode;
   /** The host's resolved turn-behavior arm — the custom stops the prep threads onto the request
    *  + the auto-continue/auto-swipe knobs the send post-round hook gates on. Defaulted to all-off. */
   readonly chatBehavior: ChatBehaviorInputs;
@@ -471,6 +474,7 @@ type SharedTurnPrepFields = Pick<
   | "extraStopSequences"
   | "memoryConfig"
   | "memoryRecall"
+  | "regexNotices"
   | "attachedToolNames"
   | "terminalTools"
   | "cardKeepLastX"
@@ -501,6 +505,7 @@ function sharedTurnPrepFields(env: {
     attachmentQuality: built.chatBehavior.attachmentQuality,
     memoryConfig: built.memoryConfig,
     ...(built.memoryRecall !== null ? { memoryRecall: built.memoryRecall } : {}),
+    regexNotices: built.regexNotices,
     attachedToolNames: built.attachedToolNames,
     terminalTools: built.terminalTools,
     cardKeepLastX: built.cardKeepLastX,
@@ -814,6 +819,7 @@ async function buildTurnContext(
   // The gather sink: the caller's SEND sink when present (so `sendUserText` still surfaces), else a private
   // one — either way `gatherMemory` stages `memoryRecall` here for the engine's per-speaker witnessed re-run.
   const sink: SendRegexSink = out ?? {};
+  const regexNotices = createRegexNoticeEpisode();
   const globalVariables = await stageTurnGlobalVariables(ctx, args);
   const assembleContext = await ctx.gatherAssembleContext(
     {
@@ -834,6 +840,7 @@ async function buildTurnContext(
       prng: deps.prng,
       choicePicks: "random",
       timeZone: args.timeZone,
+      regexNotices,
       ...(args.pendingUserText !== undefined ? { pendingUserText: args.pendingUserText } : {}),
       ...(args.sendDraft !== undefined ? { sendDraft: args.sendDraft } : {}),
       ...(args.guided !== undefined ? { guided: args.guided } : {}),
@@ -856,6 +863,7 @@ async function buildTurnContext(
     chainAssembleContext: reminder.chain,
     memoryConfig: foreign.memoryConfig,
     memoryRecall: sink.memoryRecall ?? null,
+    regexNotices,
     chatBehavior: foreign.chatBehavior ?? DEFAULT_CHAT_BEHAVIOR,
     // R2 — the wire attach set is the UNION over the teaching contributions' `toolNames` (teach and attach
     // travel together). Today every contributor pins `[]`, so this is byte-identical to the old
@@ -2117,6 +2125,7 @@ interface TurnBase {
   /** The round-level recall inputs for the engine's per-speaker witnessed re-run (D6); threaded onto each
    *  auxiliary prep. `null` ⇒ no per-speaker recall (round-level `memory` stands). */
   readonly memoryRecall: MemoryRecallInputs | null;
+  readonly regexNotices: RegexNoticeEpisode;
   /** The host's resolved turn-behavior arm — the custom stops each auxiliary prep threads onto
    *  the request. Defaulted to all-off. */
   readonly chatBehavior: ChatBehaviorInputs;
@@ -2193,6 +2202,7 @@ async function resolveTurnBase(
     assembleContext,
     memoryConfig,
     memoryRecall,
+    regexNotices,
     chatBehavior,
     attachedToolNames,
     terminalTools,
@@ -2231,6 +2241,7 @@ async function resolveTurnBase(
     assembleContext,
     memoryConfig,
     memoryRecall,
+    regexNotices,
     chatBehavior,
     attachedToolNames,
     terminalTools,

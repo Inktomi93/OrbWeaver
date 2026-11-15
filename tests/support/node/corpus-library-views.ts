@@ -20,7 +20,6 @@ import {
   worldBooks,
   worldEntries,
 } from "@orb/db";
-import { deriveRegexTierFlags } from "@orb/kit/regex";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { CorpusLibraryRelations, CorpusRegexLibrary, CorpusWorldInfoLibrary } from "../iso/corpus.ts";
 import type { seedCorpusActors } from "./corpus-actors.ts";
@@ -77,8 +76,8 @@ interface RegexViews {
   readonly before: TrpcCapture<"regex.listForChat">;
   readonly ordered: TrpcCapture<"regex.applyScopeOrder">;
   readonly after: TrpcCapture<"regex.listForChat">;
-  readonly displayOff: TrpcCapture<"regex.listRoomDisplayScripts">;
-  readonly displayOn: TrpcCapture<"regex.listRoomDisplayScripts">;
+  readonly displayOff: TrpcCapture<"regex.listDisplayScripts">;
+  readonly displayOn: TrpcCapture<"regex.listDisplayScripts">;
   readonly exported: TrpcCapture<"regex.exportScript">;
   readonly imported: TrpcCapture<"regex.importScriptFile">;
   readonly repeated: TrpcCapture<"regex.importScriptFile">;
@@ -338,7 +337,6 @@ export async function seedWorldInfoLibraryViews(root: ServerTestHarness, library
 export async function seedRegexLibraryViews(root: ServerTestHarness, library: Library, caller: Caller, other: Caller): Promise<RegexViews> {
   const principal = await root.principalFor(root.ownerId);
   const scripts: Awaited<ReturnType<typeof seedRegexScriptRows>>[] = [];
-  const placement = ["DISPLAY"] as const;
   for (const [index, replacement] of ["archivist", "witness"].entries()) {
     scripts.push(
       await seedRegexScriptRows(root, {
@@ -347,8 +345,8 @@ export async function seedRegexLibraryViews(root: ServerTestHarness, library: Li
           name: `Native display ledger ${index}`,
           findRegex: "ledger",
           replaceString: replacement,
-          placement,
-          ...deriveRegexTierFlags(placement),
+          targets: ["USER_INPUT", "AI_OUTPUT", "REASONING"],
+          passes: ["display"],
         }),
       }),
     );
@@ -369,10 +367,11 @@ export async function seedRegexLibraryViews(root: ServerTestHarness, library: Li
     caller.regex.applyScopeOrder,
   );
   const after = await read<"regex.listForChat">({ chatId: library.room.chat.id }, caller.regex.listForChat);
-  const displayOff = await read<"regex.listRoomDisplayScripts">({ chatId: library.room.chat.id }, caller.regex.listRoomDisplayScripts);
-  await caller.chat.setHostDisplayScripts({ chatId: library.room.chat.id, enabled: true });
-  const displayOn = await read<"regex.listRoomDisplayScripts">({ chatId: library.room.chat.id }, caller.regex.listRoomDisplayScripts);
-  await caller.chat.setHostDisplayScripts({ chatId: library.room.chat.id, enabled: false });
+  // The host's display set with the room's regex master on, then off: the same read, two answers.
+  const displayOn = await read<"regex.listDisplayScripts">({ chatId: library.room.chat.id }, caller.regex.listDisplayScripts);
+  await caller.chat.setRegexAllow({ chatId: library.room.chat.id, lever: { kind: "master", enabled: false } });
+  const displayOff = await read<"regex.listDisplayScripts">({ chatId: library.room.chat.id }, caller.regex.listDisplayScripts);
+  await caller.chat.setRegexAllow({ chatId: library.room.chat.id, lever: { kind: "master", enabled: true } });
   const exported = await read<"regex.exportScript">({ scriptId: first.id }, caller.regex.exportScript);
   const imported = await read<"regex.importScriptFile">({ fileText: exported.output.fileText }, other.regex.importScriptFile);
   const repeated = await read<"regex.importScriptFile">({ fileText: exported.output.fileText }, other.regex.importScriptFile);

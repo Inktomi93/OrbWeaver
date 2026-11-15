@@ -8,6 +8,7 @@ import type { MacroRegistry, RandomSource } from "@orb/kit/macro";
 import type { IanaTimeZone } from "@orb/kit/time";
 import type { ChoicePickMode, TurnMacroContextArgs } from "./assembly-macros.ts";
 import type { MemoryRecallInputs } from "./memory.ts";
+import type { RegexNoticeEpisode } from "./results.ts";
 
 /** The SEND USER_INPUT regex out-param sink — `buildAssembleContext` writes the post-regex user text
  *  here so the verb persists that. Threaded straight through to the pure core. */
@@ -76,4 +77,6 @@ export interface GatherAssembleArgs {
   /** The zone `{{date}}`/`{{time}}`/`{{weekday}}` read in: the viewer's reported zone, or the caller's ruled
    *  one for a turn with no viewer. Absent ⇒ UTC. */
   readonly timeZone?: IanaTimeZone | undefined;
+  /** The turn's record of host scripts a pass did not apply. A turn passes its own; a preview build passes none. */
+  readonly regexNotices?: RegexNoticeEpisode | undefined;
 }

@@ -185,6 +185,26 @@ const regexTierGroupViewSchema = z.strictObject({
   rows: z.array(regexTierRowViewSchema).readonly(),
 }) satisfies z.ZodType<RegexTierGroupView>;
 const effectiveRegexEntrySchema = z.strictObject({ scriptId: regexScriptSchema.shape.id, runsAt: z.number() }) satisfies z.ZodType<EffectiveRegexEntry>;
+/** Where a display-pass script comes from when it is not one of the room's tiers: the viewer's own library. */
+export const REGEX_VIEWER_SOURCE = "viewer";
+
+/** Where one display-pass script comes from: a tier of the room it renders in, or the viewer's own globals. */
+export type RegexDisplaySource = RegexTierKey | typeof REGEX_VIEWER_SOURCE;
+
+/** One script a viewer's transcript renders through on the display pass, in the order it is applied. */
+export interface RegexDisplayEntry {
+  readonly script: RegexScriptRow;
+  readonly from: RegexDisplaySource;
+}
+
+/** The display read's input: the room the transcript is in, or null for a surface outside any room. */
+export const regexDisplayInputSchema = z.strictObject({ chatId: typeIdSchema(ID_PREFIX.chat).nullable() });
+
+export const regexDisplayEntrySchema = z.strictObject({
+  script: regexScriptViewSchema,
+  from: z.union([regexTierKeySchema, z.literal(REGEX_VIEWER_SOURCE)]),
+}) satisfies z.ZodType<RegexDisplayEntry>;
+
 export const effectiveRegexViewSchema = z.strictObject({
   enabled: z.boolean(),
   tiers: z.array(regexTierGroupViewSchema).readonly(),

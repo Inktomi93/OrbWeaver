@@ -54,6 +54,8 @@ export {
   EyeOff,
   // B6 — the message row's "add a reaction" door (both pointer arms).
   FaceSlightlySmilingPlus,
+  // The Presets import door: a page with an arrow going in, where `Upload` reads as export or share.
+  FileInput,
   FileText,
   FlaskConical,
   Gauge,

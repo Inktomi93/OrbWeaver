@@ -3,13 +3,13 @@
 // its total policy record. The runtime seats live in `domain/chat`; these are the shared vocabulary every
 // other chat seam derives its role/kind fields from (no inline re-spell).
 //
-// WHY MESSAGE_KIND lives HERE and not in its own file (the `content-classes.ts` two-file split is NOT the
-// precedent to copy): that split exists because its AXIS is in kit (`ContentSpanKind` — the tokenizer must
-// read it and the cake forbids kit→contracts) while only the POLICY could home in contracts. The message-kind
-// axis has no kit reachability, so tuple + schema + policy are ONE home, beside the sibling role axis they are
-// orthogonal to.
+// The participant-kind and message-kind TUPLES live in `@orb/kit/message-author`, because the regex executor scopes a
+// script by them and kit cannot import contracts; their schemas and the message-kind policy live here, the
+// `content-classes.ts` split.
 
 import type { CharacterId } from "@orb/kit/ids";
+import type { MessageKind as KitMessageKind, ParticipantKind as KitParticipantKind } from "@orb/kit/message-author";
+import { MESSAGE_KINDS as KIT_MESSAGE_KINDS, PARTICIPANT_KINDS as KIT_PARTICIPANT_KINDS } from "@orb/kit/message-author";
 import type { MessageRole } from "@orb/kit/message-role";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { z } from "zod";
@@ -19,8 +19,8 @@ import { z } from "zod";
 // proposes, never acts, unseatable) were purged with the agent-principal build; docs/work/0048 tracks the rebuild —
 // no `chat.seatAgent`/`requestAgentSeat` verb exists today. The rebuild grafts both kinds back onto this
 // tuple if the agent-principal design set returns.
-export const PARTICIPANT_KINDS = ["human", "character"] as const;
-export type ParticipantKind = (typeof PARTICIPANT_KINDS)[number];
+export const PARTICIPANT_KINDS = KIT_PARTICIPANT_KINDS;
+export type ParticipantKind = KitParticipantKind;
 export const participantKindSchema = z.enum(PARTICIPANT_KINDS) satisfies z.ZodType<ParticipantKind>;
 
 // `kind` carries TWO facts: the identity table (userId vs characterId) AND who DRIVES the seat.
@@ -72,8 +72,8 @@ export const messageRoleSchema = z.enum(MESSAGE_ROLES) satisfies z.ZodType<Messa
 // own output voice, so a narrator row delivers `assistant` on every wire. Kind also does not replace the D55
 // synthetic group character: that identity keeps the `__group__` memory scoping, the attribution chrome and
 // the host-owned mint. Kind is purpose; attribution remains voice.
-export const MESSAGE_KINDS = ["standard", "narrator", "comment"] as const;
-export type MessageKind = (typeof MESSAGE_KINDS)[number];
+export const MESSAGE_KINDS = KIT_MESSAGE_KINDS;
+export type MessageKind = KitMessageKind;
 /** Schema twin of {@link MESSAGE_KINDS}, which drives the `messages.kind` enum + CHECK. */
 export const messageKindSchema = z.enum(MESSAGE_KINDS) satisfies z.ZodType<MessageKind>;
 
@@ -140,3 +140,11 @@ export const MESSAGE_KIND_POLICY: Readonly<Record<MessageKind, MessageKindPolicy
 /** The kinds a memory build ingests — DERIVED from {@link MESSAGE_KIND_POLICY}, never re-spelled, so the
  *  policy row is the only place the answer lives (the memory canon load reads this). */
 export const MEMORY_INGEST_KINDS: readonly MessageKind[] = MESSAGE_KINDS.filter((k) => MESSAGE_KIND_POLICY[k].memory === "ingest");
+
+// Whether each prompt arm puts a row in the prompt. A mapped record over the arms, so a new arm fails tsc here until it
+// says; `system-channel` is delivered like `conversation`, so it is a different label, not a drop.
+const PROMPT_ARM_ENTERS = { conversation: true, "system-channel": true, never: false } as const satisfies Record<MessageKindPolicy["prompt"], boolean>;
+
+/** The kinds a prompt carries, derived from {@link MESSAGE_KIND_POLICY}: the prompt build drops every other kind, and
+ *  the transcript's display depth counts only these, so a depth-scoped script counts the rows the model sees. */
+export const PROMPT_KINDS: readonly MessageKind[] = MESSAGE_KINDS.filter((k) => PROMPT_ARM_ENTERS[MESSAGE_KIND_POLICY[k].prompt]);

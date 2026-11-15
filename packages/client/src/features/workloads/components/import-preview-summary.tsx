@@ -8,11 +8,11 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Progress } from "@orb/ui/progress";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { RETRY_NAME } from "#lib";
 import type { ImportPreviewState } from "../hooks/use-library-import.ts";
 import { IMPORT_PREVIEW_HIDE_NAMES, IMPORT_PREVIEW_REPORT_NAME, IMPORT_PREVIEW_SHOW_NAMES, importPreviewProfileLabel } from "../lib/import-library-names.ts";
-import { counted, KIND_NOUNS, previewKindLine, previewProfiles } from "../lib/portability-model.ts";
+import { counted, KIND_NOUNS, previewKindLine, previewPresetDetailLines, previewProfiles } from "../lib/portability-model.ts";
 
 function namesLine(names: readonly string[], total: number): string {
   const unlisted = total - names.length;
@@ -55,12 +55,22 @@ function ScopeNames({
     <>
       {kinds.map((kind) => {
         const { total, items } = preview.kinds[kind];
-        const names = items.filter((item) => inScope(scope, item.source.profile)).map((item) => item.name);
+        const listed = items.filter((item) => inScope(scope, item.source.profile));
+        const names = listed.map((item) => item.name);
         // A capped list's unlisted tail belongs to no profile, so a profile's line holds only what it names.
         return names.length === 0 ? null : (
-          <Text key={kind} voice="gloss" cap="prose" prose={true} wrap="anywhere">
-            {`${KIND_NOUNS[kind][1]}: ${namesLine(names, scope === undefined ? total : names.length)}`}
-          </Text>
+          <Fragment key={kind}>
+            <Text voice="gloss" cap="prose" prose={true} wrap="anywhere">
+              {`${KIND_NOUNS[kind][1]}: ${namesLine(names, scope === undefined ? total : names.length)}`}
+            </Text>
+            {listed.flatMap((item) =>
+              previewPresetDetailLines(item).map((line) => (
+                <Text key={`${item.sourceDigest}-${line}`} voice="gloss" cap="prose" prose={true} wrap="anywhere">
+                  {line}
+                </Text>
+              )),
+            )}
+          </Fragment>
         );
       })}
       {skipGroups(preview.skipped.items.filter((skip) => inScope(scope, skip.source.profile))).map(({ reason, sources }) => (

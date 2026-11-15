@@ -38,7 +38,7 @@ async function prepareList(page: Page, root: Root, corpus: Corpus, list: BulkLis
           input: createCharacterSchema.parse({ handle: name.toLowerCase().replaceAll(" ", "-"), name, description: "A character for the bulk bar." }),
         })
       : caller.regex.createScript({
-          input: createRegexScriptSchema.parse({ name, findRegex: "witness", replaceString: "", placement: ["AI_OUTPUT"], enabled: false }),
+          input: createRegexScriptSchema.parse({ name, findRegex: "witness", replaceString: "", targets: ["AI_OUTPUT"], passes: ["save"], enabled: false }),
         }));
   }
   await routeTrpc(page, {

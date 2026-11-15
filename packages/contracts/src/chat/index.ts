@@ -106,6 +106,8 @@ export type {
   ChatBusEvent,
   ChatContentPart,
   ChatDeltaEvent,
+  ChatRegexNotAppliedOverflowWarning,
+  ChatRegexNotAppliedWarning,
   ChatSettingsAdjustedWarning,
   ChatWarning,
   ChatWarningCode,
@@ -122,6 +124,8 @@ export type {
   ProviderFailureReason,
   ProviderWaitBusEvent,
   ProviderWaitPhase,
+  RegexNotAppliedCause,
+  RegexServerPass,
   RoomEntityKind,
   TurnAbortReason,
   TurnInitiator,
@@ -140,6 +144,9 @@ export {
   PROMPT_TRANSFORM_ABORT_REASON_MAX,
   PROMPT_TRANSFORM_POINTS,
   PROVIDER_FAILURE_REASON_PREFIX,
+  REGEX_NOT_APPLIED_NAMED_MAX,
+  REGEX_NOT_APPLIED_OVERFLOW_CODE,
+  REGEX_SCRIPT_NOT_APPLIED_CODE,
   ROOM_ENTITY_KINDS,
   TURN_ABORTED_OP_CODE,
   TURN_HOST_UNAVAILABLE_OP_CODE,
@@ -284,6 +291,7 @@ export {
   narratorPolicyOf,
   openingPolicySchema,
   resolveCharactersCanReact,
+  resolveHostDisplayScripts,
   resolveOfferChoices,
   resolveReactionsEnabled,
   roomOverridesSchema,
@@ -314,13 +322,14 @@ export type {
   ResolveSeatDecoOp,
   ResolveSeatDecosOp,
   ResolveViewerVisibility,
+  RoomTierForMemberOp,
   SignupMinterCheckOp,
   StoreSegmentParams,
   TurnRetrievalEvents,
   UnregisterPromptTransformOp,
   ViewerVisibility,
 } from "./owner-ops.ts";
-export type { MessageKind, MessageKindPolicy, ParticipantKind, SpeakerRef } from "./participants.ts";
+export type { MessageKind, ParticipantKind, SpeakerRef } from "./participants.ts";
 // B7 — the narrator-voice predicate, promoted from the client (the server's segment-anchor validation and
 // the client picker must gate the plain-label span grammar identically).
 export {
@@ -334,6 +343,7 @@ export {
   messageKindSchema,
   messageRoleSchema,
   PARTICIPANT_KINDS,
+  PROMPT_KINDS,
   participantKindSchema,
   speakerKey,
 } from "./participants.ts";
@@ -377,6 +387,8 @@ export type {
   CharacterRegexSlice,
   EffectiveRegexEntry,
   EffectiveRegexView,
+  RegexDisplayEntry,
+  RegexDisplaySource,
   RegexTierGroupView,
   RegexTierKey,
   RegexTierRowView,
@@ -389,6 +401,9 @@ export {
   isRegexEnabledInChat,
   isRegexTierAllowed,
   parseCharacterRegexTierKey,
+  REGEX_VIEWER_SOURCE,
+  regexDisplayEntrySchema,
+  regexDisplayInputSchema,
   regexTierAllowSchema,
   regexTierKeySchema,
 } from "./regex-tiers.ts";

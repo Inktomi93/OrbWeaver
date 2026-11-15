@@ -12,6 +12,7 @@ import {
   messageViewSchema,
   participantViewSchema,
   redeemInviteResultSchema,
+  resolveHostDisplayScripts,
   TALKATIVENESS_DEFAULT,
 } from "@orb/contracts/chat";
 import { viewerViewSchema } from "@orb/contracts/identity";
@@ -97,7 +98,7 @@ export function makeChatDetail(overrides: Partial<ChatDetailWire> = {}): ChatDet
       group: DEFAULT_GROUP_CONFIG,
       roomOverrides: DEFAULT_ROOM_OVERRIDES,
       toolRecurseLimit: null,
-      hostDisplayScripts: false,
+      hostDisplayScripts: resolveHostDisplayScripts(undefined),
       offerChoices: null,
       charactersCanReact: null,
       reactionsEnabled: null,

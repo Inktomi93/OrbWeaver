@@ -7,7 +7,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import { createRegexScriptSchema, MAX_REPLACE_LENGTH } from "@orb/contracts/regex";
-import { deriveRegexTierFlags, MAX_FIND_REGEX_LENGTH } from "@orb/kit/regex";
+import { MAX_FIND_REGEX_LENGTH } from "@orb/kit/regex";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, readRoomCanon, seedCharacter, seedGlobalRegexScript, seedRegexScript, seedTranscript } from "@orb/testkit/node/composed";
@@ -16,7 +16,8 @@ import { vi } from "vitest";
 // The caps these limits replaced, so the first case proves a script past them is now storable.
 const PRIOR_FIND_CAP = 2048;
 const PRIOR_REPLACE_CAP = 10_000;
-const PLACEMENT = ["AI_OUTPUT"] as const;
+// The save pass over replies, which an edit re-applies.
+const AXES = { targets: ["AI_OUTPUT"], passes: ["save"] } as const;
 // One optional character class pads the pattern: it matches the empty string and compiles in microseconds at any
 // length, so these cases test the length caps, not the compile door.
 const CLASS_OPEN = "[";
@@ -36,7 +37,7 @@ async function editedWith(
 ): Promise<string> {
   const row = await seedRegexScript(root, {
     principal: host,
-    input: createRegexScriptSchema.parse({ name: "limits", ...script, placement: PLACEMENT, runOnEdit: true, ...deriveRegexTierFlags(PLACEMENT) }),
+    input: createRegexScriptSchema.parse({ name: "limits", ...script, ...AXES, runOnEdit: true }),
   });
   await seedGlobalRegexScript(root, { principal: host, scriptId: row.id });
   const speaker = await seedCharacter(root, { principal: host, input: createCharacterSchema.parse({ handle: "narrator", name: "Narrator", description: "" }) });
@@ -66,7 +67,7 @@ test("a script at each new cap stores, and one past either cap is refused at the
   await using root = await createServerHarness();
   const caller = await root.internalCallerFor(root.ownerId);
   const at = { findRegex: paddedPattern("lamp", MAX_FIND_REGEX_LENGTH), replaceString: "L".repeat(MAX_REPLACE_LENGTH) };
-  const base = { name: "limits", placement: [...PLACEMENT], ...deriveRegexTierFlags(PLACEMENT) };
+  const base = { name: "limits", targets: [...AXES.targets], passes: [...AXES.passes] };
 
   await expect(caller.regex.createScript({ input: { ...base, ...at } })).resolves.toMatchObject({ findRegex: at.findRegex });
   // The schema's own length refusal, named by its zod issue code.
@@ -90,7 +91,7 @@ test("a catastrophic find pattern at the full find cap is stopped on the edit re
     expect(runaway).toHaveLength(MAX_FIND_REGEX_LENGTH);
     expect(edited).toBe(text);
     const [payload] = warnSpy.mock.calls[0] ?? [];
-    expect(payload).toMatchObject({ placement: "AI_OUTPUT", findRegex: runaway, err: expect.objectContaining({ code: "ERR_SCRIPT_EXECUTION_TIMEOUT" }) });
+    expect(payload).toMatchObject({ target: "AI_OUTPUT", findRegex: runaway, err: expect.objectContaining({ code: "ERR_SCRIPT_EXECUTION_TIMEOUT" }) });
   } finally {
     warnSpy.mockRestore();
   }

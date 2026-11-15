@@ -29,7 +29,7 @@ export const useSetRoomOverrides = createEntityMutation<inferInput<Trpc["chat"][
   errorToast: "Couldn't save the chat overrides.",
 });
 
-/** `chat.setHostDisplayScripts` (D121-E) — the host's per-room display-tier broadcast option. */
+/** `chat.setHostDisplayScripts` (D121-E) — the host's per-room display-tier sharing switch, on until switched off. */
 export const useSetHostDisplayScripts = createEntityMutation<inferInput<Trpc["chat"]["setHostDisplayScripts"]>, unknown>({
   options: (trpc) => trpc.chat.setHostDisplayScripts.mutationOptions(),
   // `busDriven` on the OPEN chat: the verb emits `chatUpdated` (→ chatReads covers getChat, where the flag

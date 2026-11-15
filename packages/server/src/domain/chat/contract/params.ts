@@ -28,7 +28,19 @@ import type { UserIntent, UserMacroValues } from "@orb/contracts/preset";
 import type { RpgGameTemplate } from "@orb/contracts/rpg";
 import type { MessageWindowCursor, MessageWindowTarget } from "@orb/contracts/search";
 import type { ThemeBackground } from "@orb/contracts/theme";
-import type { AssetId, CharacterId, ChatInjectionId, ChatInviteId, ChatTurnId, MessageId, MessageVariantId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
+import type {
+  AssetId,
+  CharacterId,
+  ChatId,
+  ChatInjectionId,
+  ChatInviteId,
+  ChatTurnId,
+  MessageId,
+  MessageVariantId,
+  PersonaId,
+  PresetId,
+  UserId,
+} from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
 
 // Every verb's *Params, declared once. Pure types (no z.object): the cross-boundary wire input schemas live
@@ -536,10 +548,10 @@ export interface SetChatBackgroundParams extends ChatScopedParams {
   readonly signal: AbortSignal;
 }
 
-/** `setHostDisplayScripts` — host-only write of the D121-E display-tier room OPTION
- *  (`chatMetadata.hostDisplayScripts`). `true` ⇒ the HOST's display-tier regex scripts render for every
- *  viewer in this room (each viewer's own still apply on top); `false`/absent ⇒ the per-user default, where
- *  a viewer only ever sees their own. RENDER-only on both arms — never canon, never the wire. */
+/** `setHostDisplayScripts` — host-only write of whether the room shares its host's display scripts with members
+ *  (`chatMetadata.hostDisplayScripts`). `true` ⇒ the room's display tiers render for every viewer here (each
+ *  viewer's own still apply on top), which is also what an absent key means; `false` ⇒ a member sees only their
+ *  own. RENDER-only on both sides — never canon, never the wire. */
 export interface SetHostDisplayScriptsParams extends ChatScopedParams {
   readonly enabled: boolean;
 }
@@ -566,6 +578,12 @@ export interface SetRegexAllowParams extends ChatScopedParams {
 
 /** `listEffectiveRegex` — the host's read of what regex runs in this room, in run order, by tier. */
 export type ListEffectiveRegexParams = ChatScopedParams;
+
+/** `listDisplayScripts` — the display-pass set one viewer's transcript renders through; `chatId: null` is a
+ *  surface outside any room, where only the viewer's own globals apply. */
+export interface ListDisplayScriptsParams extends ChatActorParams {
+  readonly chatId: ChatId | null;
+}
 
 /** `setOfferChoices` — host-only write of the B1 offer-choices POSTURE (`chatMetadata.offerChoices`).
  *  `enabled` is what this ROOM is pinned to; there is no "clear back to inherit" arm, because the host's

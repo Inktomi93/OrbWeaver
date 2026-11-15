@@ -14,6 +14,7 @@ import type {
   MacroFreezeRecord,
   MacroSlice,
   MemoryRecallSlice,
+  RegexServerPass,
   RoomOverrides,
   SpeakerRef,
   TurnGlobalVariables,
@@ -28,6 +29,7 @@ import { composeRewriteSteer, GUIDED_GAME_STEERS } from "@orb/kit/guided";
 import type { CharacterId, ChatId, PersonaId, UserId, WorldEntryId } from "@orb/kit/ids";
 import type { MacroContext, MacroFreeze, MacroRegistry, RandomSource } from "@orb/kit/macro";
 import { globalMacroRegistry } from "@orb/kit/macro";
+import type { RoomStanding } from "@orb/kit/message-author";
 import type { RegexScriptInput } from "@orb/kit/regex";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { EntryPosition, MatchEntryKeysOptions, TestKeyRegex } from "@orb/kit/world-info";
@@ -39,6 +41,7 @@ import type { ChatContext } from "../contract/context.ts";
 import type { RegexPassOp } from "../contract/engine-context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { ResolvedPersonas } from "../contract/foreign.ts";
+import type { RegexNoticeEpisode } from "../contract/results.ts";
 import { BEFORE_HISTORY_DEPTH, renderInjection } from "./injections.ts";
 import { buildTurnMacroContext, freezeVolatileMacros, renderMacros, resolveGuidedActionText } from "./macros.ts";
 import { hasActiveMarker } from "./sections.ts";
@@ -49,9 +52,18 @@ interface MatchedKey {
   matchedLatestUserMessage: boolean;
 }
 
-/** Logs a ReDoS-watchdog/bad-regex failure; the pass proceeds fail-open on the text as-is. */
-function onHostRegexFailure(placement: "WORLD_INFO" | "USER_INPUT", logger: Logger): (err: unknown, script: RegexScriptInput) => void {
-  return (err, script) => getLog(logger).warn({ err, placement, findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)");
+/** Logs a ReDoS-watchdog/bad-regex failure and records it on the turn's episode; the pass proceeds fail-open on the
+ *  text as-is. A preview build passes no episode, so it records nothing. */
+function onHostRegexFailure(
+  target: "WORLD_INFO" | "USER_INPUT",
+  logger: Logger,
+  notices: { readonly episode: RegexNoticeEpisode | undefined; readonly scripts: readonly RegexScriptRow[] },
+): (err: unknown, script: RegexScriptInput) => void {
+  const pass: RegexServerPass = target === "USER_INPUT" ? "user_input" : "world_info";
+  return (err, script): void => {
+    getLog(logger).warn({ err, target, findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)");
+    notices.episode?.note(pass, err, script, notices.scripts);
+  };
 }
 
 /** Logs a bad user-authored world-info REGEX KEY (a V3 `use_regex` entry); the matcher falls back to a
@@ -136,7 +148,8 @@ function wrapWiFormat(content: string, wiFormat: string, ctx: AssembleContext, r
 
 interface WiConversionArgs {
   readonly logger: Logger;
-  readonly regexScripts: readonly RegexScriptInput[];
+  readonly regexScripts: readonly RegexScriptRow[];
+  readonly regexNotices: RegexNoticeEpisode | undefined;
   /** The WORLD_INFO leg's watchdog pass (D53): every fired entry runs its scripts under it and shares its budget. */
   readonly regexPass: RegexPassOp;
   /** The injected node:vm ReDoS watchdog for a `use_regex` entry's key `.test` — a catastrophic
@@ -262,9 +275,11 @@ function classifyWiEntry(entry: AssembleWorldEntry, env: WiConvEnv): InjectionCa
   const afterRegex = env.args.regexPass.execute({
     text: resolved,
     scripts: env.args.regexScripts,
-    placement: "WORLD_INFO",
+    // World info is read only as the prompt is built, so this is the prompt pass. An at-depth entry is placed
+    // in the history at its inject depth and is filtered by that depth; any other entry carries none.
+    call: { pass: "prompt", target: "WORLD_INFO", depth: entry.inject?.depth },
     ctx: env.regexCtx,
-    onScriptFailure: onHostRegexFailure("WORLD_INFO", env.args.logger),
+    onScriptFailure: onHostRegexFailure("WORLD_INFO", env.args.logger, { episode: env.args.regexNotices, scripts: env.args.regexScripts }),
   });
   // Guard against wrapping an empty entry into a dangling scaffold under a custom wiFormat template.
   if (afterRegex.trim().length === 0) {
@@ -405,6 +420,10 @@ interface BuildAssembleContextInput {
   /** Effective host-tier regex set (global ∪ preset ∪ character ∪ room), resolved by the verb/root; applied
    *  at SEND (USER_INPUT) and copied onto the returned AssembleContext for RECEIVE. */
   readonly hostTierRegexScripts?: readonly RegexScriptRow[] | undefined;
+  /** The room's seat standings the host-tier scripts' author scopes read, copied onto the returned context. */
+  readonly hostTierRegexRoom?: RoomStanding | undefined;
+  /** The turn's record of host scripts the USER_INPUT and WORLD_INFO passes did not apply. Absent on a preview build. */
+  readonly regexNotices?: RegexNoticeEpisode | undefined;
   /** The per-turn user-macro RENDER registry (WAVE MU) — every section/WI/persona/note render resolves
    *  user macros against it; absent ⇒ the process `globalMacroRegistry` (byte-identical). NEVER placed on
    *  the returned serializable `AssembleContext` — it rides the build INPUT + `TurnPrep` only. */
@@ -866,9 +885,9 @@ async function runSendAuthorTransforms(
     text = ctx.openRegexPass().execute({
       text,
       scripts: hostScripts,
-      placement: "USER_INPUT",
+      call: { pass: "save", target: "USER_INPUT", edit: false },
       ctx: sendMacroCtx,
-      onScriptFailure: onHostRegexFailure("USER_INPUT", ctx.logger),
+      onScriptFailure: onHostRegexFailure("USER_INPUT", ctx.logger, { episode: input.regexNotices, scripts: hostScripts }),
     });
   }
   if (out !== undefined) {
@@ -958,6 +977,7 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
       // in the settings' default placement set, so those silently never fired. `assemble-gather` folds the
       // preset scripts INTO the union, so this is a strict widening on every real turn.
       regexScripts: hostScripts,
+      regexNotices: input.regexNotices,
       regexPass: ctx.openRegexPass(),
       testRegexKey: ctx.testRegexKey,
       wiFormat,
@@ -1021,6 +1041,7 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
     ...(authorsNote.authorsNoteSource !== undefined ? { authorsNoteSource: authorsNote.authorsNoteSource } : {}),
     // Carries the resolved host-tier regex set onto the immutable ctx so RECEIVE applies the same set SEND used.
     ...(input.hostTierRegexScripts !== undefined ? { hostTierRegexScripts: input.hostTierRegexScripts } : {}),
+    ...(input.hostTierRegexRoom !== undefined ? { hostTierRegexRoom: input.hostTierRegexRoom } : {}),
     wiTrace: {
       // WORLD-INFO entries only — the kept candidates that carry a `worldEntry`, which is exactly
       // `activated`. It used to count every kept injection, and `chatInjections` holds all six candidate

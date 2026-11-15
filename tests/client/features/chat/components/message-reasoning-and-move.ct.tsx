@@ -43,7 +43,7 @@ const PROCEDURES = [
   "plugin.listDisplayTransforms",
   "plugin.listSurfaces",
   "regex.listScripts",
-  "regex.listRoomDisplayScripts",
+  "regex.listDisplayScripts",
   "rpg.getGame",
   "rpg.listTurnToolCalls",
 ] as const;

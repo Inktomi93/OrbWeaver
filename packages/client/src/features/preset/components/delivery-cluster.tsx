@@ -98,7 +98,7 @@ export function DeliveryCluster({
           )}
           <Grid cols="pair" gap="field">
             {role === null ? (
-              <Text voice="gloss">The transcript carries each message's own speaker. This section has no single role.</Text>
+              <Text voice="gloss">The transcript carries each message's own speaker. This prompt has no single role.</Text>
             ) : (
               <Field label={roleLabel} name="delivery-role">
                 <Select

@@ -115,7 +115,7 @@ sections apart and `Global` here would be two words for one scope):
 | **Everywhere** · **This chat** | the Documents rack's own scope chips in the SAME tab (`packages/client/src/features/chat/lib/chat-documents-model.ts` — `SOURCE_LABELS.global` / `.chat`) |
 | **Attach a script** | the world book grammar it is modelled on: `Attach a world book` (`packages/client/src/features/chat/components/chat-books-section.tsx:91`, dialog title `add-chat-book-dialog.tsx:86`) |
 | **Detach from this chat** | shipped verbatim in both racks (`chat-books-section.tsx:122`, `chat-documents-section.tsx:287`) |
-| **Show my display scripts to everyone** | shipped — the D121-E host broadcast switch, moved into this section from `Host controls › Appearance` |
+| **Share this room's display scripts with everyone** | shipped — the D121-E host sharing switch under the On screen roster, on unless the host switches it off (`packages/client/src/features/chat/components/host-display-scripts-control.tsx`) |
 | **Open your script library** | shipped — the neighbouring hand-off (`packages/client/src/components/regex-script-picker.tsx:225`, `packages/client/src/features/character/components/character-facet-inspector.tsx:175`); `Open in library` below is its per-ROW sibling, not a second spelling of it |
 
 | Concept | The user-facing word | Code spelling (when different) | Status |

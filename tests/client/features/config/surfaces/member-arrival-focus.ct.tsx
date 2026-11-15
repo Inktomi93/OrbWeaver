@@ -23,6 +23,8 @@ const SERVED = [
   "rosterPreset.get",
   "automation.listRulePresets",
   "regex.listGlobal",
+  // A display or prompt script's editor lists the owner's personas among the authors it can scope to.
+  "persona.list",
 ] as const;
 const MEMBERS = [
   { group: "regex", editor: '[data-slot="regex-member-editor"]' },
@@ -52,7 +54,7 @@ test("Back from a regex member's editor returns focus to the row it was opened f
   const caller = await root.internalCallerFor(root.ownerId);
   for (const name of ["Return witness one", "Return witness two"]) {
     await caller.regex.createScript({
-      input: createRegexScriptSchema.parse({ name, findRegex: "witness", replaceString: "", placement: ["AI_OUTPUT"], enabled: false }),
+      input: createRegexScriptSchema.parse({ name, findRegex: "witness", replaceString: "", targets: ["AI_OUTPUT"], passes: ["save"], enabled: false }),
     });
   }
   await routeTrpc(page, serveCorpusProcedures(caller, SERVED));
