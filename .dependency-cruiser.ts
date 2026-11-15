@@ -1121,6 +1121,9 @@ const PACKAGE_TEST_REACHES = {
   "tests/client/features/chat/lib/reply-parts.test.ts": {
     "packages/client/src/features/chat/lib/reply-parts.ts": "replyLayout: the feature-private split of a styled reply into frame runs and native blocks",
   },
+  "tests/client/features/chat/lib/split-paragraphs.test.ts": {
+    "packages/client/src/features/chat/lib/split-paragraphs.ts": "splitIntoTrainParagraphs: the feature-private split of a reply into Tide's bubbles",
+  },
   "tests/client/features/chat/components/styled-reply-frame.ct.tsx": {
     "packages/client/src/features/chat/lib/reply-parts.ts": "REPLY_CARRY_BUDGET_CHARS: the carry budget the over-budget reply is sized past",
   },

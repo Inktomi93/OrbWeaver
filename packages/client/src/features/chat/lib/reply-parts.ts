@@ -6,7 +6,7 @@
 
 import type { CardTrust, MessageContentBlock } from "@orb/contracts/chat";
 import type { FrameStyleSheet } from "@orb/kit/content";
-import { frameStyleElements, rawTextElements, tokenizeContent } from "@orb/kit/content";
+import { frameStyleElements, paragraphBreaks, tokenizeContent } from "@orb/kit/content";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import type { PlainReplyReason } from "#lib";
 import { PLAIN_REPLY_REASON } from "#lib";
@@ -56,32 +56,15 @@ export interface ReplySpan {
   readonly tokens: ThemeScopeTokens | undefined;
 }
 
-// A blank line ends a markdown paragraph, so splitting there never cuts one in two.
-const PARAGRAPH_BREAK_SOURCE = String.raw`\n[ \t]*\n`;
-
 function carriesDice(markdown: string): boolean {
   return tokenizeContent(markdown, { committed: true }).some((span) => span.kind === "dice");
 }
 
-// The paragraphs of `markdown`. A blank line inside a `<style>` or `<script>` element is its text, not a paragraph
-// break: splitting there would put the rest of a stylesheet in a run of its own, as prose.
+// The paragraphs of `markdown`, cut only at its paragraph breaks: a blank line inside a `<style>` element or a code
+// block is that unit's text, and splitting there would put the rest of it in a run of its own, as prose.
 function paragraphs(markdown: string): readonly string[] {
-  const elements = rawTextElements(markdown);
-  const parts: string[] = [];
-  let from = 0;
-  let element = 0;
-  for (const found of markdown.matchAll(new RegExp(PARAGRAPH_BREAK_SOURCE, "gu"))) {
-    while ((elements[element]?.end ?? Number.POSITIVE_INFINITY) <= found.index) {
-      element += 1;
-    }
-    if ((elements[element]?.start ?? Number.POSITIVE_INFINITY) < found.index) {
-      continue;
-    }
-    parts.push(markdown.slice(from, found.index));
-    from = found.index + found[0].length;
-  }
-  parts.push(markdown.slice(from));
-  return parts;
+  const breaks = paragraphBreaks(markdown);
+  return [...breaks, { start: markdown.length, end: markdown.length }].map((cut, index) => markdown.slice(breaks[index - 1]?.end ?? 0, cut.start));
 }
 
 /** Split one markdown block at its paragraphs only when one of them carries a dice stamp. */

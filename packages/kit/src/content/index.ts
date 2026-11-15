@@ -2554,6 +2554,88 @@ export function scanStyledHold(content: string): StyledHoldSegment[] {
   return segments;
 }
 
+/** A stretch of a text: offsets of its first character and just past its last. */
+export interface TextRange {
+  readonly start: number;
+  readonly end: number;
+}
+
+// The span kinds a train keeps in one paragraph: each is one block of its own, or a secret no break may cut open.
+const UNBROKEN_SPAN_KINDS: ReadonlySet<ContentSpanKind> = new Set<ContentSpanKind>(["card", "choices", "hidden", "unknown-directive"]);
+
+// The stretches a paragraph break must not cut, ascending and disjoint: each element that closes, read as Markdown
+// reads them (`readMarkup`); each `:::card`, choice set, hidden span and unknown directive the grammar reads
+// (`tokenizeContent`); and each hidden span the strip removes, wherever it sits. A lenient card run ends at a blank
+// line, so it holds no break to keep; a `<style>` or `<script>` element's lines are no blank lines (`blankRuns`).
+function unbrokenRanges(content: string, markup: MarkupRead): readonly TextRange[] {
+  const ranges: TextRange[] = [...markup.closes].map(([start, end]) => ({ start, end })).concat(hiddenSpanRanges(content));
+  let cursor = 0;
+  for (const span of tokenizeContent(content, { committed: true })) {
+    const length = contentSpanRaw(span).length;
+    if (UNBROKEN_SPAN_KINDS.has(span.kind)) {
+      ranges.push({ start: cursor, end: cursor + length });
+    }
+    cursor += length;
+  }
+  return mergedRuns(ranges);
+}
+
+// A run of blank lines, from the newline that ends the line before it to the start of the line after it.
+interface BlankRun {
+  readonly range: TextRange;
+  /** The run sits inside a code block: a fence's, or between two lines of indented code. */
+  readonly inCode: boolean;
+}
+
+// The blank-line runs of `content` in order, each with whether it sits in a code block, read with the Markdown reading.
+// A line inside a `<style>` or `<script>` element, closed or not, is that element's text: never blank, and it opens
+// nothing.
+function blankRuns(content: string, rawText: readonly RawTextElement[]): readonly BlankRun[] {
+  const read = codeLineReader(true);
+  const covering = rawTextCursor(rawText);
+  const runs: BlankRun[] = [];
+  let previous: { readonly end: number; readonly code: boolean } | undefined;
+  let inRun = false;
+  let fencedBlank = false;
+  for (const line of splitLines(content)) {
+    const covered = covering(line.start) !== undefined;
+    const kind = read(matchText(line), covered);
+    if (!covered && matchText(line).trim() === "") {
+      inRun = true;
+      fencedBlank ||= kind !== "text";
+      continue;
+    }
+    if (inRun && previous !== undefined) {
+      const indentedCode = previous.code && kind === "code";
+      runs.push({ range: { start: previous.end, end: line.start }, inCode: fencedBlank || indentedCode });
+    }
+    inRun = false;
+    fencedBlank = false;
+    previous = { end: line.end, code: kind === "code" };
+  }
+  return runs;
+}
+
+/** Where a reply may split into paragraphs: each run of blank lines that ends a Markdown paragraph, never one inside a
+ *  `<style>` or `<script>` element, an element that closes, a code block, a card, a choice set or a hidden span. A
+ *  range runs from the newline that ends the paragraph before it to the start of the paragraph after it, so the text
+ *  between two ranges is one paragraph as written. */
+export function paragraphBreaks(content: string): readonly TextRange[] {
+  const markup = readMarkup(content, MARKDOWN_READING);
+  const unbroken = unbrokenRanges(content, markup);
+  const breaks: TextRange[] = [];
+  let next = 0;
+  for (const { range, inCode } of blankRuns(content, markup.rawText)) {
+    while ((unbroken[next]?.end ?? Number.POSITIVE_INFINITY) <= range.start) {
+      next += 1;
+    }
+    if (!inCode && (unbroken[next]?.start ?? Number.POSITIVE_INFINITY) >= range.end) {
+      breaks.push(range);
+    }
+  }
+  return breaks;
+}
+
 /** The deterministic card WIRE STUB (§3.5): same bytes every assembly (cache-stable), compact, honest —
  *  `[card: <title>]`, or `[card]` when the card carries no title. ONE home so the turn wire, compaction /
  *  summarize reads, and any future consumer collapse identically. */

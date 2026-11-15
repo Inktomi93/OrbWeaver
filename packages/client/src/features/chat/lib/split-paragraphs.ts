@@ -21,21 +21,33 @@
 // break between two pills IS the rule — the pill boundary already says what the `---` says — so a
 // standalone thematic break carries no content of its own here and is dropped. It is dropped ONLY on this
 // path: the single-bubble render still shows the author's rule exactly as written.
+//
+// THE SPLIT IS THE KIT'S PARAGRAPH BREAKS (`paragraphBreaks`), never a bare blank-line split: a blank line inside a
+// stylesheet, a code block, an element, a card, a choice set or a hidden span is part of that unit, and cutting there
+// would print the rest of it in a bubble of its own.
 
-const PARAGRAPH_BREAK = /\n{2,}/u;
+import { paragraphBreaks } from "@orb/kit/content";
 
 /** A paragraph that is nothing but a CommonMark thematic break (`---`, `***`, `___`, optionally spaced) —
  *  the pill it would get renders as an empty box, because an `<hr>` has no text. */
 const THEMATIC_BREAK_ONLY = /^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/u;
 
-/** Split `content` into non-empty, trimmed paragraphs for Tide's bubble train, dropping standalone
- *  thematic breaks. Returns `null` — "don't train this" — only when what is left cannot BE a train: a
- *  single paragraph (nothing to chain) or none at all. */
+// Blank lines that open the text. A paragraph keeps its first line's indent, which can make it a code block.
+const LEADING_BLANK_LINES = /^(?:[ \t]*\n)+/u;
+
+/** Split `content` into non-empty paragraphs for Tide's bubble train, dropping standalone thematic breaks.
+ *  Returns `null` — "don't train this" — only when what is left cannot BE a train: a single paragraph (nothing to
+ *  chain) or none at all. */
 export function splitIntoTrainParagraphs(content: string): readonly string[] | null {
-  const paragraphs = content
-    .split(PARAGRAPH_BREAK)
-    .map((paragraph) => paragraph.trim())
-    .filter((paragraph) => paragraph.length > 0 && !THEMATIC_BREAK_ONLY.test(paragraph));
+  const breaks = paragraphBreaks(content);
+  const paragraphs = [...breaks, { start: content.length, end: content.length }]
+    .map((cut, index) =>
+      content
+        .slice(breaks[index - 1]?.end ?? 0, cut.start)
+        .replace(LEADING_BLANK_LINES, "")
+        .trimEnd(),
+    )
+    .filter((paragraph) => paragraph.trim().length > 0 && !THEMATIC_BREAK_ONLY.test(paragraph));
   if (paragraphs.length <= 1) {
     return null;
   }
