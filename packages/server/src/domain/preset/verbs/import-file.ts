@@ -35,6 +35,7 @@ type PresetFileRead =
       readonly sectionCount: number;
       readonly leftOut: Extract<PresetFilePreview, { ok: true }>["leftOut"];
       readonly regexScripts: readonly RegexScriptCard[];
+      readonly addedSections: readonly string[];
     }
   | { readonly ok: false; readonly error: string };
 
@@ -63,13 +64,13 @@ function readPresetFile({ fileText, fileName }: Pick<ImportPresetFileParams, "fi
       return orb;
     }
     const bytes = new TextEncoder().encode(fileText);
-    return { ok: true, format: "orbweaver", bytes, name: orb.name, sectionCount: orb.config.sections.length, leftOut: [], regexScripts: [] };
+    return { ok: true, format: "orbweaver", bytes, name: orb.name, sectionCount: orb.config.sections.length, leftOut: [], regexScripts: [], addedSections: [] };
   }
   const st = parseStPresetJson(raw, { name: stemOf(fileName) });
   if (!st.ok) {
     return { ok: false, error: stRefusal(st.recognised, st.reason) };
   }
-  const { name, file, unmapped, regexScripts } = st.parsed;
+  const { name, file, unmapped, regexScripts, addedSections } = st.parsed;
   return {
     ok: true,
     format: "sillyTavern",
@@ -78,6 +79,7 @@ function readPresetFile({ fileText, fileName }: Pick<ImportPresetFileParams, "fi
     sectionCount: file.config.sections.length,
     leftOut: unmapped.map(({ field, reason }) => ({ field: clipImportText(field), reason })),
     regexScripts,
+    addedSections,
   };
 }
 
@@ -111,6 +113,8 @@ export function createImportFile(deps: {
       leftOut: read.leftOut,
       regexScripts: read.regexScripts.length - refusedScripts.length,
       refusedScripts,
+      // A reused preset already holds the sections, so the run adds none.
+      addedSections: answer.reuse === "library" ? [] : read.addedSections,
     };
   }
 
@@ -119,7 +123,8 @@ export function createImportFile(deps: {
     if (!read.ok) {
       return read;
     }
-    const outcome = soleResult(await deps.importPresets({ ownerId: params.userId, files: [read.bytes], dryRun: false, signal: NEVER_ABORTED }));
+    const landed = soleResult(await deps.importPresets({ ownerId: params.userId, files: [read.bytes], dryRun: false, signal: NEVER_ABORTED }));
+    const outcome = landed.ok && landed.created === true && read.addedSections.length > 0 ? { ...landed, addedSections: read.addedSections } : landed;
     // A reused equal preset takes the scripts too: the lift reuses equal script rows and its attach is idempotent,
     // so a second import of one file writes nothing.
     if (!outcome.ok || outcome.presetId === undefined || read.regexScripts.length === 0) {

@@ -26,6 +26,7 @@ import {
   PRESET_IMPORT_ALREADY_HELD,
   PRESET_IMPORT_LANDED,
   PRESET_IMPORT_TITLE,
+  presetImportAddedSections,
   presetImportRenamed,
   presetImportScripts,
 } from "../lib/preset-names.ts";
@@ -45,7 +46,12 @@ function importedSentence(outcome: Extract<PresetImportOutcome, { ok: true }>): 
     landed = presetImportRenamed(outcome.name ?? renamedFrom, renamedFrom);
   }
   const scripts = outcome.regexScripts;
-  return scripts === undefined ? landed : `${landed} ${presetImportScripts(scripts.created + scripts.reused, scripts.created)}`;
+  const added = outcome.addedSections ?? [];
+  return [
+    landed,
+    ...(scripts === undefined ? [] : [presetImportScripts(scripts.created + scripts.reused, scripts.created)]),
+    ...(added.length === 0 ? [] : [presetImportAddedSections(added)]),
+  ].join(" ");
 }
 
 export function usePresetListHeader(): ListPaneHeaderView {

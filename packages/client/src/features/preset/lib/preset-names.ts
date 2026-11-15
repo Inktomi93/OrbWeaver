@@ -42,6 +42,11 @@ export function presetImportScripts(attached: number, created: number): string {
   return `${String(attached)} regex script${attached === 1 ? "" : "s"} attached, ${String(created)} new to your library.`;
 }
 
+/** The line naming the sections a SillyTavern preset gains for orbweaver's own slots, in the preview and the result. */
+export function presetImportAddedSections(names: readonly string[]): string {
+  return `Added for orbweaver's own slots: ${names.join(", ")}.`;
+}
+
 /** The built-in's fork choice: its second stage's title, the field it names the fork in, and the commits of both stages. */
 export const PRESET_FORK_NAME_TITLE = "Name the new fork";
 export const PRESET_FORK_NAME_FIELD_NAME = "New fork name";

@@ -172,7 +172,15 @@ function presetItem(profile: LabeledProfile, preset: CollectedPreset, owned: Imp
   const leftOut = preset.parsed.unmapped
     .slice(0, IMPORT_PREVIEW_LIST_MAX)
     .map(({ field, reason }) => ({ field: clipImportText(field), reason: clipImportText(reason) }));
-  return { ...base, ...(regexScripts.length > 0 ? { regexScripts } : {}), ...(leftOut.length > 0 ? { leftOut } : {}) };
+  // Only a preset the run creates gains the sections; a reused one holds them already.
+  const lands = owned.presets.get(preset)?.reuse === null;
+  const addedSections = lands ? preset.parsed.addedSections.map(clipImportText) : [];
+  return {
+    ...base,
+    ...(regexScripts.length > 0 ? { regexScripts } : {}),
+    ...(leftOut.length > 0 ? { leftOut } : {}),
+    ...(addedSections.length > 0 ? { addedSections } : {}),
+  };
 }
 
 /** The items one profile directory holds. `importable` holds the groups the run seats, each against its own profile. */

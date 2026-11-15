@@ -127,6 +127,11 @@ test("the SillyTavern folder's dry run names each preset script the run adds or 
   expect(before.find((item) => item.name === "Amber (OpenAI)")?.leftOut?.map(({ field }) => field)).toEqual(["extensions.regex_scripts[2]"]);
   expect(before.find((item) => item.name === "Birch (OpenAI)")?.leftOut).toBeUndefined();
   expect(await caller.regex.listScripts()).toHaveLength(1);
+  // The folder names the sections it adds for orbweaver's own slots exactly as the Presets page does for the same file.
+  const single = await caller.preset.previewFile({ fileText: PRESET_FILE, fileName: "Amber.json" });
+  const added = single.ok ? single.addedSections : [];
+  expect(added).toHaveLength(4);
+  expect(before.find((item) => item.name === "Amber (OpenAI)")?.addedSections).toEqual(added);
 
   const result = await finishRun(root, await admit(root, files));
   if (result.reportPath === undefined) {
@@ -137,6 +142,15 @@ test("the SillyTavern folder's dry run names each preset script the run adds or 
   expect(unmappedFieldsOf(await readFile(result.reportPath, "utf8"), "Amber (OpenAI)")).toEqual(["extensions.regex_scripts[2]"]);
 
   const after = await presetsOf();
+  const landed = (await caller.preset.list()).find(({ name }) => name === "Amber (OpenAI)");
+  if (landed === undefined) {
+    throw new Error("the folder run landed no Amber preset");
+  }
+  const sections = (await caller.preset.get({ id: landed.id })).config.sections.map(({ name }) => name);
+  expect(sections).toEqual(expect.arrayContaining([...added]));
+  // A second run reuses the preset it made, so it adds no section.
+  expect(after.find((item) => item.name === "Amber (OpenAI)")).toMatchObject({ inLibrary: true });
+  expect(after.find((item) => item.name === "Amber (OpenAI)")?.addedSections).toBeUndefined();
   expect(scriptsOf(after, "Amber (OpenAI)")).toEqual([
     { name: "Saved whistle", inLibrary: true },
     { name: "Panel kettle", inLibrary: true },

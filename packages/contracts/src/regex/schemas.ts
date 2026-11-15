@@ -63,10 +63,10 @@ const MAX_TRIM_STRINGS = 100;
 const MAX_AUTHOR_SELECTORS = 64;
 
 /** The target list: strict, so a stored behavior re-parses to itself. */
-export const regexTargetListSchema = z.array(z.enum(REGEX_TARGETS)).max(REGEX_TARGETS.length) satisfies z.ZodType<RegexTarget[]>;
+const regexTargetListSchema = z.array(z.enum(REGEX_TARGETS)).max(REGEX_TARGETS.length) satisfies z.ZodType<RegexTarget[]>;
 
 /** The pass list: strict, so a stored behavior re-parses to itself. */
-export const regexPassListSchema = z.array(z.enum(REGEX_PASSES)).max(REGEX_PASSES.length) satisfies z.ZodType<RegexPass[]>;
+const regexPassListSchema = z.array(z.enum(REGEX_PASSES)).max(REGEX_PASSES.length) satisfies z.ZodType<RegexPass[]>;
 
 // Strip mode: also reads imported files and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 // The two bounds live in ONE nested object so they cannot half-exist.

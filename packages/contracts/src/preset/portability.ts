@@ -12,6 +12,8 @@ const [imported, refused] = portableImportOutcomeSchema.options;
 
 /** A script the write door refused, by its clipped name and the door's reason. */
 const refusedScriptSchema = z.strictObject({ name: importTextSchema, reason: importTextSchema });
+/** The names of the sections a SillyTavern preset gained for orb's own slots (memory, databank and the rest). */
+const addedSectionsSchema = z.array(z.string()).readonly();
 export const presetImportOutcomeSchema = z.discriminatedUnion("ok", [
   imported.omit({ notes: true }).extend({
     presetId: typeIdSchema(ID_PREFIX.preset).exactOptional(),
@@ -22,12 +24,14 @@ export const presetImportOutcomeSchema = z.discriminatedUnion("ok", [
     regexScripts: z
       .strictObject({ created: z.int().nonnegative(), reused: z.int().nonnegative(), refused: z.array(refusedScriptSchema).readonly() })
       .exactOptional(),
+    addedSections: addedSectionsSchema.exactOptional(),
   }),
   refused.omit({ notes: true }).extend({
     presetId: z.never().exactOptional(),
     name: z.never().exactOptional(),
     renamedFrom: z.never().exactOptional(),
     regexScripts: z.never().exactOptional(),
+    addedSections: z.never().exactOptional(),
   }),
 ]);
 export type PresetImportOutcome = z.output<typeof presetImportOutcomeSchema>;
@@ -38,7 +42,8 @@ const PRESET_FILE_FORMATS = ["orbweaver", "sillyTavern"] as const;
 /** What importing one preset file does, from the run's own parse and a dry run of its write. `name` is the name the
  *  file asks for, clipped; `inLibrary` says the run reuses an equal preset the owner holds. `leftOut` names each
  *  field with no seat, a malformed regex script by its position, `regexScripts` counts the scripts the run
- *  attaches to the preset, and `refusedScripts` names each one the write door refuses. */
+ *  attaches to the preset, `refusedScripts` names each one the write door refuses, and `addedSections` names the
+ *  sections the run adds for orb's own slots. */
 export const presetFilePreviewSchema = z.discriminatedUnion("ok", [
   z.strictObject({
     ok: z.literal(true),
@@ -49,6 +54,7 @@ export const presetFilePreviewSchema = z.discriminatedUnion("ok", [
     leftOut: z.array(z.strictObject({ field: importTextSchema, reason: z.string() })).readonly(),
     regexScripts: z.int().nonnegative(),
     refusedScripts: z.array(refusedScriptSchema).readonly(),
+    addedSections: addedSectionsSchema,
   }),
   z.strictObject({ ok: z.literal(false), error: z.string() }),
 ]);

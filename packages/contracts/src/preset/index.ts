@@ -3013,8 +3013,7 @@ const ST_TOP_A_DEFAULT = 0;
 const ST_MIN_P_DEFAULT = 0;
 const ST_DISABLED_NUMERIC = 0; // ST top_k 0 / seed -1 / max 0 = disabled/unset
 
-/** ST canonical prompt identifier → MarkerType. Identifiers not here are custom prompts (→ literals). */
-const ST_IDENTIFIER_TO_MARKER: Record<string, MarkerType> = {
+const ST_MARKERS = {
   main: "main_prompt",
   jailbreak: "post_history",
   charDescription: "char_description",
@@ -3025,7 +3024,83 @@ const ST_IDENTIFIER_TO_MARKER: Record<string, MarkerType> = {
   chatHistory: "chat_history",
   worldInfoBefore: "world_info_before",
   worldInfoAfter: "world_info_after",
-};
+} as const satisfies Record<string, MarkerType>;
+/** ST canonical prompt identifier → MarkerType. Identifiers not here are custom prompts (→ literals). */
+const ST_IDENTIFIER_TO_MARKER: Readonly<Record<string, MarkerType>> = ST_MARKERS;
+
+/** The templated slots no SillyTavern prompt identifier maps to, which only orb fills. */
+type OrbOnlySlot = Exclude<TemplatedMarker, (typeof ST_MARKERS)[keyof typeof ST_MARKERS]>;
+const ST_MAPPED_MARKERS: ReadonlySet<MarkerType> = new Set(Object.values(ST_MARKERS));
+const ORB_ONLY_SLOTS = TEMPLATED_MARKERS.filter((marker): marker is OrbOnlySlot => !ST_MAPPED_MARKERS.has(marker));
+
+type MarkerSection = Extract<PromptSection, { type: "marker" }>;
+const isPivotSection = (section: PromptSection): boolean => section.type === "marker" && section.marker === "chat_history";
+
+/** The summary slot as an import seats it. The shipped default holds no summary section, since the assembler adds an
+ *  implicit one just before the pivot (`assembly/assemble.ts` withImplicitCompactSummary), so the import seats it there. */
+const IMPORTED_SUMMARY_SECTION = {
+  type: "marker",
+  id: mintPromptSectionId("compact-summary"),
+  name: "Summary",
+  marker: "compact_summary",
+  role: "system",
+  enabled: true,
+} as const satisfies MarkerSection;
+
+/** Each orb-only slot's section, in the shipped default's order, and whether it sits before the pivot there. A slot
+ *  the default does not seat, other than the summary, has no section to add and is left out. */
+interface SlotSeat {
+  readonly section: MarkerSection;
+  readonly beforePivot: boolean;
+}
+
+function orbSlotSeats(): readonly SlotSeat[] {
+  const seeded = DEFAULT_PROMPT_CONFIG.sections;
+  const pivot = seeded.findIndex(isPivotSection);
+  const seats = ORB_ONLY_SLOTS.flatMap((slot): (SlotSeat & { readonly index: number })[] => {
+    const index = seeded.findIndex((candidate) => candidate.type === "marker" && candidate.marker === slot);
+    const seed = seeded[index];
+    if (seed?.type === "marker") {
+      return [{ section: seed, beforePivot: index < pivot, index }];
+    }
+    return slot === IMPORTED_SUMMARY_SECTION.marker ? [{ section: IMPORTED_SUMMARY_SECTION, beforePivot: true, index: pivot }] : [];
+  });
+  return seats.sort((a, b) => a.index - b.index).map(({ section, beforePivot }) => ({ section, beforePivot }));
+}
+const ORB_SLOT_SECTIONS = orbSlotSeats();
+
+/** The first key from `base` no section already holds, so the slot's id is the same on every import of one file. */
+function freeSectionId(base: PromptSectionId, taken: ReadonlySet<string>): PromptSectionId {
+  let id = base;
+  for (let n = 2; taken.has(id); n += 1) {
+    id = mintPromptSectionId(`${base}-${String(n)}`);
+  }
+  return id;
+}
+
+/**
+ * The author's sections with a section for each orb-only slot (memory, databank, the summary, the guided instruction),
+ * so retrieval reaches the prompt on an imported preset. The author's entries keep their order: only `chat_history`
+ * anchors, the summary directly before it and the rest directly after it in the shipped default's order; a file with
+ * no `chat_history` gets them all at the end. Each is a real section, visible, switchable and movable in the editor,
+ * and carries no template, so the slot's built-in default renders.
+ */
+function withOrbSlots(sections: readonly PromptSection[]): { readonly sections: PromptSection[]; readonly added: readonly string[] } {
+  const taken = new Set<string>(sections.map((section) => section.id));
+  const seat = (section: MarkerSection): MarkerSection => {
+    const id = freeSectionId(section.id, taken);
+    taken.add(id);
+    return { ...section, id };
+  };
+  const before = ORB_SLOT_SECTIONS.filter((slot) => slot.beforePivot).map((slot) => seat(slot.section));
+  const after = ORB_SLOT_SECTIONS.filter((slot) => !slot.beforePivot).map((slot) => seat(slot.section));
+  const pivot = sections.findIndex(isPivotSection);
+  const placed =
+    pivot < 0
+      ? [...sections, ...before, ...after]
+      : [...sections.slice(0, pivot), ...before, ...sections.slice(pivot, pivot + 1), ...after, ...sections.slice(pivot + 1)];
+  return { sections: placed, added: [...before, ...after].map((section) => section.name) };
+}
 
 const PLAIN_MARKER_SET: ReadonlySet<string> = new Set(PLAIN_MARKERS);
 const OVERRIDABLE_MARKERS: ReadonlySet<MarkerType> = new Set<MarkerType>(["main_prompt", "post_history"]);
@@ -3077,6 +3152,8 @@ interface StImportResult {
   dropped: StDroppedField[];
   /** How many sections the import produced (markers + literals). */
   sectionCount: number;
+  /** The names of the sections the import added for orb's own slots, which the file has no prompt for. */
+  addedSections: readonly string[];
 }
 
 type StPrompt = z.infer<typeof stPromptSchema>;
@@ -3615,7 +3692,8 @@ function unkeyedRefusal(identifier: string): StImportOutcome {
 }
 
 /** The mapped config's validated outcome once every section is keyed. */
-function stConfigOutcome(rawObj: Record<string, unknown>, sections: PromptSection[], dropped: StDroppedField[], options: StImportOptions): StImportOutcome {
+function stConfigOutcome(rawObj: Record<string, unknown>, authored: PromptSection[], dropped: StDroppedField[], options: StImportOptions): StImportOutcome {
+  const { sections, added } = withOrbSlots(authored);
   const seats = mapSeats(rawObj);
   // `.catch({})` keeps a stray field from sinking the whole blob.
   const params = userIntentSchema.catch({}).parse(seats.params);
@@ -3651,7 +3729,7 @@ function stConfigOutcome(rawObj: Record<string, unknown>, sections: PromptSectio
 
   // The count DESCRIBES THE RETURNED CONFIG, never the array that was built: when the two could disagree,
   // the disagreement was invisible and made the silent-default failure above look like a success.
-  return { ok: true, result: { config, dropped, sectionCount: config.sections.length } };
+  return { ok: true, result: { config, dropped, sectionCount: config.sections.length, addedSections: added } };
 }
 
 // ── orb native preset file (the lossless full-preset export) ───────────────────────────────────────
