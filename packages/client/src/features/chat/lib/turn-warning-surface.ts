@@ -3,9 +3,11 @@
 //
 // A skipped host regex script names its script by id only, so the surface looks the id up in the host's own library
 // before it speaks: the notice names it, and the stop store marks it on the room's roster by id and pattern. An id
-// the library no longer holds is named as such and marks nothing.
+// the library no longer holds is named as such and marks nothing. A turn's scripts past the server's naming cap arrive
+// as one count with no id, which adds to the same notice; the bus's seq guard keeps a replayed one from adding twice.
 
 import type { ChatRegexNotAppliedWarning, ChatWarning } from "@orb/contracts/chat";
+import { REGEX_NOT_APPLIED_OVERFLOW_CODE, REGEX_SCRIPT_NOT_APPLIED_CODE } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { RegexScriptId } from "@orb/kit/ids";
 import type { ChatBusDeps } from "#data";
@@ -42,13 +44,18 @@ export function createWarningSurface(deps: WarningSurfaceDeps): WarningCallbacks
   };
   // Each skipped script's latest report this session, by id, in the order first reported.
   const skipped = new Map<RegexScriptId, { readonly name: string | null } & Pick<ChatRegexNotAppliedWarning, "cause" | "pass">>();
+  // The scripts this session's turns reported past the naming cap.
+  let more = 0;
+  const raiseRegexNotice = (): void => {
+    deps.warn({ ...regexNotAppliedNotice([...skipped.values()], more), action: deps.openThisChat });
+  };
   const raiseSkipped = async (warning: ChatRegexNotAppliedWarning): Promise<void> => {
     const script = await deps.scriptOf(warning.scriptId);
     if (script !== null) {
       noteServerStoppedScript(script, warning.cause, warning.pass);
     }
     skipped.set(warning.scriptId, { name: script?.name ?? null, cause: warning.cause, pass: warning.pass });
-    deps.warn({ ...regexNotAppliedNotice([...skipped.values()]), action: deps.openThisChat });
+    raiseRegexNotice();
   };
   return {
     onTurnStarted: (chatId, turn): void => cadence.turnStarted(chatId, `${turn.provider}\u0000${turn.model}`),
@@ -57,7 +64,12 @@ export function createWarningSurface(deps: WarningSurfaceDeps): WarningCallbacks
       if (now === null) {
         return;
       }
-      if (now.code === "regex_script_not_applied") {
+      if (now.code === REGEX_NOT_APPLIED_OVERFLOW_CODE) {
+        more += now.count;
+        raiseRegexNotice();
+        return;
+      }
+      if (now.code === REGEX_SCRIPT_NOT_APPLIED_CODE) {
         // `scriptOf` settles to null on a failed read, so a rejection here is this module's own defect.
         raiseSkipped(now).catch(globalThis.reportError);
         return;

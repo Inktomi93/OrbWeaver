@@ -44,6 +44,9 @@ function cadenceOf(code: ChatWarningCode): Cadence {
     case "reply_image_failed":
     case "global_variable_dropped":
     case "hidden_tag_broken":
+    // A count with no script id has no session key. A replayed frame never reaches the cadence: the bus's seq guard
+    // drops a frame at or under the room's high-water mark (`data/bus/use-chat-bus.ts`), and a live-only frame is new.
+    case "regex_not_applied_overflow":
       return "each";
     default:
       return assertNeverCode(code);

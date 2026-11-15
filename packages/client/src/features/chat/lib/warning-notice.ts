@@ -45,6 +45,9 @@ export function warningNotice(warning: ChatWarning): NotifyNotice {
   if (warning.code === "settings_adjusted") {
     return settingsAdjustedNotice(warning);
   }
+  if (warning.code === "regex_not_applied_overflow") {
+    return regexNotAppliedNotice([], warning.count);
+  }
   return warning.code === "regex_script_not_applied"
     ? regexNotAppliedNotice([{ name: null, cause: warning.cause, pass: warning.pass }])
     : plainNotice(warning.code);
@@ -65,7 +68,7 @@ export function regexNotAppliedNotice(
   return {
     id: REGEX_NOT_APPLIED_NOTICE_ID,
     title: regexNotAppliedTitle(skipped.length + more),
-    description: latest === undefined ? "" : regexNotAppliedDescription(latest, skipped.length + more, more),
+    description: regexNotAppliedDescription(latest, skipped.length + more, more),
   };
 }
 

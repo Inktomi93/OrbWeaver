@@ -69,11 +69,16 @@ export function regexNotAppliedTitle(count: number): string {
   return count === 1 ? "A regex script was not applied" : `${String(count)} regex scripts were not applied`;
 }
 
+/** The notice's description. `latest` is `undefined` when every script was reported past a turn's naming cap, as a
+ *  count alone. */
 export function regexNotAppliedDescription(
-  latest: { readonly name: string | null; readonly cause: RegexNotAppliedCause; readonly pass: RegexServerPass },
+  latest: { readonly name: string | null; readonly cause: RegexNotAppliedCause; readonly pass: RegexServerPass } | undefined,
   count: number,
   more: number,
 ): string {
+  if (latest === undefined) {
+    return `${more === 1 ? "A script was" : `${String(more)} scripts were`} not applied on the server, so that text went on without ${more === 1 ? "it" : "them"}. ${REGEX_STOP_NEXT_STEP}`;
+  }
   const name = latest.name === null ? REGEX_UNKNOWN_SCRIPT_NAME : `"${latest.name}"`;
   const who = count === 1 ? name : `The latest, ${name},`;
   const rest = more === 0 ? "" : ` ${String(more)} more ${more === 1 ? "script was" : "scripts were"} not applied in the same turns.`;

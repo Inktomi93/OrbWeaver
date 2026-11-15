@@ -37,7 +37,6 @@ export interface DisplayPassRun {
   readonly budgetMs: number;
 }
 
-/** Main thread to Worker: run each script over the text the one before it left, and report what each one did. */
 /** One script of a preview: what runs, and the subject a stop names. */
 export interface RegexPreviewEntry extends StopSubject {
   readonly script: RegexScriptInput;
@@ -58,6 +57,7 @@ export interface RegexPreviewRequest {
   readonly macroCtx: ProcessMacroOptions;
 }
 
+/** Main thread to Worker: run each script over the text the one before it left, and report what each one did. */
 export interface RegexPreviewRun {
   readonly kind: "preview";
   readonly jobId: number;
