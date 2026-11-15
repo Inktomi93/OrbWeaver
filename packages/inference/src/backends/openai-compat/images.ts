@@ -254,7 +254,9 @@ async function runChatModalities(req: ImageGenerateRequest, deps: ImagesDeps, ca
 
 // SECURITY: the image host receives the row's key, and only `builtinImageBaseUrl` names one, so a plugin, admin or
 // Custom connection, even one on the same chat base URL, stays on its own base URL. The SDK joins a fixed path under
-// this base, so no URL it builds leaves the base's origin; egress refuses a cross-origin redirect that carries the key.
+// this base, so no URL it builds leaves the base's origin. A redirect is followed (`configuredEndpointFetchFor` in
+// packages/server/src/infra/network/egress.ts): the fetch drops `Authorization` on a cross-origin hop, so the bearer key
+// stays, but a row's own credential header in `transport.headers` would be forwarded to the redirect's host.
 function imageConnection(connection: ImageGenerateRequest["connection"]): ImageGenerateRequest["connection"] {
   const imageBase = builtinImageBaseUrl(connection.providerId);
   return imageBase === undefined ? connection : { ...connection, baseUrl: imageBase };

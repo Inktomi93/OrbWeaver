@@ -184,6 +184,19 @@ export function judgesTheKey(failure: ProviderError, forbiddenIsNotCredentialVer
   return credentialCodeSchema.safeParse(failure.detail).success;
 }
 
+const refusalBodySchema = z.looseObject({ error: z.union([z.string(), z.looseObject({ message: z.string() })]) });
+
+/** The service's own words from a refusal body: `error` as a string, or its `message`. Shown, never read. They are
+ *  pulled from the PARSED body, so the scrub and the sanitizer run on the decoded words a reader sees. */
+export function refusalWords(body: unknown, secrets: ProviderScrubSet): string | undefined {
+  const parsed = refusalBodySchema.safeParse(body);
+  if (!parsed.success) {
+    return;
+  }
+  const words = sanitizeApiError(redactSecretsFromText(typeof parsed.data.error === "string" ? parsed.data.error : parsed.data.error.message, secrets));
+  return words === "" ? undefined : words;
+}
+
 function isModerationBlock(error: unknown): boolean {
   if (!isRecord(error)) {
     return false;
@@ -341,7 +354,10 @@ export function providerErrorFromHttp(error: unknown, prefix: string, secrets: P
   // policy waits until then. The SDK's `APICallError` carries the failed response's headers.
   const headers = isRecord(error) ? error["responseHeaders"] : undefined;
   const resetsAt = kind === "rate_limit" && now !== undefined && isStringRecord(headers) ? retryAfterResetsAt(headers, now()) : undefined;
-  const safe = sanitizeApiError(redactSecretsFromText(errorMessage(error), secrets));
+  // A refused credential's message is the body's own words where the SDK kept only the status text (a bare-string
+  // `error`, as LiteRouter sends), so a 403 the executor reads as a refusal still says what the service said.
+  const words = kind === "auth_failed" ? refusalWords(upstreamBody(error), secrets) : undefined;
+  const safe = words ?? sanitizeApiError(redactSecretsFromText(errorMessage(error), secrets));
   // Credential-bearing HTTP boundaries must never retain the raw thrown object: SDK/fetch errors can
   // carry reflected bodies, headers and nested causes as enumerable fields that a later logger serializes.
   // Keep the classified status and sanitized message, but replace that opaque graph with a safe cause.
