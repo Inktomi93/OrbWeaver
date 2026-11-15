@@ -4,9 +4,11 @@ import { authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
+import { roomStandingOf } from "@orb/kit/message-author";
 import { devices } from "@playwright/test";
 import { z } from "zod";
 import { CHAT_MEMBERS_ENTRY_PREFIX } from "#client/features/chat/lib/chat-surface-names.ts";
+import { bodyDisplayRow, displayDepthsOf } from "#client/features/chat/lib/display-row.ts";
 import { CHAT_INVITE_PEOPLE_NAME } from "#client/features/chat/lib/members-names.ts";
 import { renderMessageForDisplay } from "#client/lib/message-render.ts";
 import { loginLocal } from "./support/actors.ts";
@@ -40,18 +42,20 @@ test("a second corpus human opens shared history without gaining host or admin c
   if (last === undefined) {
     throw new Error("Shared corpus room has no visible history");
   }
+  // The page is the room's newest, so the row's depth counts from its tail as the transcript's does.
+  const depths = displayDepthsOf(
+    history.messages.map((view) => ({ kind: "message" as const, view })),
+    { later: false, settling: false },
+  );
   const rendered = renderMessageForDisplay(
     last.content,
     {
       characterNamesById: new Map<CharacterId, RowCharacterName>(),
       personaNamesById: new Map<PersonaId, RowPersonaName>(),
-      displayScripts: [
-        ...(await member.trpc.regex.listRoomDisplayScripts.query({ chatId: room.id })),
-        ...(await member.trpc.regex.listScripts.query(undefined)),
-      ],
+      displayScripts: (await member.trpc.regex.listDisplayScripts.query({ chatId: room.id })).map(({ script }) => script),
+      room: roomStandingOf(detail.participants),
     },
-    last.characterId,
-    last.personaId,
+    bodyDisplayRow(last, depths.rows.get(last.id)),
   );
   const project = BROWSER_PROJECTS.find(({ name }) => name === info.project.name);
   if (project === undefined) {

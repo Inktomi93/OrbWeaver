@@ -23,8 +23,8 @@ import type { ScriptRecord } from "../contract/rows.ts";
 
 const LIMIT_ONE = 1;
 
-/** The degrade target for a corrupt behavior blob: parses, runs nothing (no placement ⇒ every leg skips it). */
-const INERT_BEHAVIOR: RegexScriptBehavior = regexScriptBehaviorSchema.parse({ findRegex: "", replaceString: "", placement: [] });
+/** The degrade target for a corrupt behavior blob: parses, runs nothing (no target and no pass ⇒ every pass skips it). */
+const INERT_BEHAVIOR: RegexScriptBehavior = regexScriptBehaviorSchema.parse({ findRegex: "", replaceString: "", targets: [], passes: [] });
 
 const behaviorParser = regexScriptBehaviorSchema.catch(INERT_BEHAVIOR);
 
@@ -187,6 +187,16 @@ export async function listPresetScripts(db: Db, ownerId: UserId, presetId: Prese
     .where(and(eq(presetRegexScripts.presetId, presetId), eq(regexScripts.ownerId, ownerId)))
     .orderBy(asc(presetRegexScripts.position), asc(regexScripts.createdAt));
   return rows.map((r) => r.script);
+}
+
+/** Every script attached to any of the owner's presets, each preset's in its run order. */
+export async function listOwnedPresetAttachments(db: Db, ownerId: UserId): Promise<{ readonly presetId: PresetId; readonly script: ScriptRecord }[]> {
+  return await db
+    .select({ presetId: presetRegexScripts.presetId, script: regexScripts })
+    .from(presetRegexScripts)
+    .innerJoin(regexScripts, eq(presetRegexScripts.regexScriptId, regexScripts.id))
+    .where(eq(regexScripts.ownerId, ownerId))
+    .orderBy(asc(presetRegexScripts.presetId), asc(presetRegexScripts.position), asc(regexScripts.createdAt));
 }
 
 // ── The REVERSE rosters: "who attaches THIS script" (`listScriptUsage`) ───────────────────────────────

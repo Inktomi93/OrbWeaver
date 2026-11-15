@@ -52,7 +52,7 @@ export function AssemblyPreview({ preview, onSelectBlock }: AssemblyPreviewProps
       ))}
 
       {preview.setup.length === 0 && preview.post.length === 0 && preview.splices.length === 0 ? (
-        <MutedLine>Nothing to preview yet. Enable some sections in Compose.</MutedLine>
+        <MutedLine>Nothing to preview yet. Enable some prompts in the Prompt view.</MutedLine>
       ) : null}
     </Stack>
   );

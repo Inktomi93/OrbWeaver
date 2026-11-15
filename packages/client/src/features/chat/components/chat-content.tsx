@@ -8,14 +8,18 @@
 // there is no promotion left to survive and the key is simply the id.
 
 import type { TurnAbortReason } from "@orb/contracts/chat";
+import type { RegexScriptRow } from "@orb/contracts/regex";
+import type { RegexScriptId } from "@orb/kit/ids";
+import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { ChatBusDeps } from "#data";
-import { useChatBusDeps } from "#data";
-import type { ChatSurfaceContribution, ContributorRegistry, NotifyAction, NotifyNotice, ToolRenderer } from "#lib";
+import { useChatBusDeps, useTRPC } from "#data";
+import type { ChatContextTabId, ChatSurfaceContribution, ContributorRegistry, NotifyAction, NotifyNotice, ToolRenderer } from "#lib";
 import { MODEL_ROLES_PATH, notify, RERANK_ROLE_DOOR, turnAbortNotice, UTILITY_ROLE_DOOR } from "#lib";
-import { isLanding, openConfigTo, openNewChatPicker, useActiveChatHandle } from "#state";
+import { isLanding, openConfigTo, openNewChatPicker, revealContextPanel, useActiveChatHandle } from "#state";
 import { leaveGoneRoom } from "../lib/gone-room-draft.ts";
+import { REGEX_STOP_OPEN_ROOM_NAME } from "../lib/regex-stop-copy.ts";
 import { OPEN_CONNECTIONS_NAME } from "../lib/send-failure-copy.ts";
 import { createWarningSurface } from "../lib/turn-warning-surface.ts";
 import { ChatLandingSurface } from "../surfaces/chat-landing-surface.tsx";
@@ -62,6 +66,15 @@ const OPEN_RERANK_MODEL: NotifyAction = {
   },
 };
 
+// A skipped regex script is listed with its reason in the room's This chat tab, under Regex.
+const SETTINGS_TAB: ChatContextTabId = "settings";
+const OPEN_THIS_CHAT: NotifyAction = {
+  label: REGEX_STOP_OPEN_ROOM_NAME,
+  onClick: (): void => {
+    revealContextPanel(SETTINGS_TAB);
+  },
+};
+
 // The honest-degrade seam: a domain `warning` bus event surfaces through the injected callbacks — `data/` may
 // not import `features/`, so the cadence and the code→copy mapper are wired HERE, in the feature. It's a WARN
 // notice: the turn still produced a result, but something the user asked for did not happen.
@@ -72,6 +85,14 @@ function warnNotice(notice: NotifyNotice): void {
 export function ChatContent({ surfaceContributors, toolRenderers }: ChatContentProps): ReactElement {
   const handle = useActiveChatHandle();
   const baseBusDeps = useChatBusDeps();
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  // A skipped script's warning names it by id: the host's library names it, and an unreadable library names nothing.
+  const scriptOf = (scriptId: RegexScriptId): Promise<RegexScriptRow | null> =>
+    queryClient.query(trpc.regex.listScripts.queryOptions()).then(
+      (rows) => rows.find((row) => row.id === scriptId) ?? null,
+      () => null,
+    );
   // One cadence per mounted Chats body: it remembers the last turn's drops per connection across room switches.
   const [warningSurface] = useState(() =>
     createWarningSurface({
@@ -79,6 +100,8 @@ export function ChatContent({ surfaceContributors, toolRenderers }: ChatContentP
       openConnections: OPEN_CONNECTIONS,
       openUtilityModel: OPEN_UTILITY_MODEL,
       openRerankModel: OPEN_RERANK_MODEL,
+      openThisChat: OPEN_THIS_CHAT,
+      scriptOf,
     }),
   );
   // `leaveGoneRoom` is a no-op unless the deleted chat IS the active one, so wiring it here is the

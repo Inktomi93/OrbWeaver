@@ -33,8 +33,8 @@ export function createPortableImports(deps: PortableImportDeps): PortableImports
     },
     regex: async (ownerId, file): Promise<PortableImportOutcome> => {
       try {
-        const { created } = await deps.regex({ ownerId, bytes: file.bytes });
-        return { ok: true, created };
+        const { created, notes } = await deps.regex({ ownerId, bytes: file.bytes });
+        return { ok: true, created, ...(notes.length > 0 ? { notes } : {}) };
       } catch (err) {
         return errorOutcome(err);
       }

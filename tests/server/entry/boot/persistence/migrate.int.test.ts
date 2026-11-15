@@ -4,7 +4,7 @@ import { mkdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Db } from "@orb/db";
-import { backupBeforeMigrate, checkBaseline, createDb, hasPendingMigrations, listBackupFiles, messageVariants, runMigrations } from "@orb/db";
+import { backupBeforeMigrate, checkBaseline, createDb, listBackupFiles, messageVariants, pendingMigrations, runMigrations } from "@orb/db";
 import { isBackupFileName, KEEP_DAILY_BACKUPS, KEEP_RECENT_BACKUPS } from "@orb/db/backup-names";
 import { MS_PER_DAY, MS_PER_SECOND } from "@orb/kit/time";
 import { runBootMigrations } from "@orb/server/entry/boot";
@@ -56,7 +56,7 @@ test("a fresh boot migrates to the shipped chain with a backup in the backup dir
   const db = opened.db;
   await boot(db, where);
   expect((await checkBaseline(db, SHIPPED_MIGRATIONS)).status).toBe("current");
-  expect(await hasPendingMigrations(db, SHIPPED_MIGRATIONS)).toBe(false);
+  expect(await pendingMigrations(db, SHIPPED_MIGRATIONS)).toEqual([]);
   expect(await db.get(sql`PRAGMA foreign_keys`)).toEqual({ ["foreign_keys"]: 1 });
   const first = backupsIn(where.backupDir);
   expect(first).toHaveLength(1);
@@ -72,9 +72,9 @@ test("the pre-migration backup restores a commit still in the WAL, from before t
   const where = layoutIn(importStagingDir);
   using chain = await previousChainDb(where, previous.path);
   const db = chain.db;
-  expect(await hasPendingMigrations(db, SHIPPED_MIGRATIONS)).toBe(true);
+  expect(await pendingMigrations(db, SHIPPED_MIGRATIONS)).not.toEqual([]);
   await boot(db, where);
-  expect(await hasPendingMigrations(db, SHIPPED_MIGRATIONS)).toBe(false);
+  expect(await pendingMigrations(db, SHIPPED_MIGRATIONS)).toEqual([]);
 
   const [name, ...others] = backupsIn(where.backupDir);
   expect(others).toEqual([]);
@@ -83,7 +83,7 @@ test("the pre-migration backup restores a commit still in the WAL, from before t
   expect(await backup.get(sql`PRAGMA integrity_check`)).toEqual({ ["integrity_check"]: "ok" });
   expect(await contents(backup)).toEqual([CONTENT]);
   // The copy predates the boot's migration, so restoring it is a real rollback.
-  expect(await hasPendingMigrations(backup, SHIPPED_MIGRATIONS)).toBe(true);
+  expect(await pendingMigrations(backup, SHIPPED_MIGRATIONS)).not.toEqual([]);
 });
 
 test("a backup that cannot be taken aborts the boot before the migration, and the retry with room migrates", async ({ importStagingDir }) => {
@@ -95,12 +95,12 @@ test("a backup that cannot be taken aborts the boot before the migration, and th
   writeFileSync(join(where.dir, "blocker"), "not a directory");
   const blocked = join(where.dir, "blocker", "backups");
   await expect(boot(db, where, { backupDir: blocked })).rejects.toMatchObject({ code: "ENOTDIR" });
-  expect(await hasPendingMigrations(db, SHIPPED_MIGRATIONS)).toBe(true);
+  expect(await pendingMigrations(db, SHIPPED_MIGRATIONS)).not.toEqual([]);
   expect(await contents(db)).toEqual([CONTENT]);
 
   // Control: the same database with room for the copy gets past the same step.
   await boot(db, where);
-  expect(await hasPendingMigrations(db, SHIPPED_MIGRATIONS)).toBe(false);
+  expect(await pendingMigrations(db, SHIPPED_MIGRATIONS)).toEqual([]);
   expect(backupsIn(where.backupDir)).toHaveLength(1);
 });
 
@@ -120,7 +120,7 @@ test("debris at the backup's own path is replaced by a real snapshot instead of 
 
   await boot(db, where);
 
-  expect(await hasPendingMigrations(db, SHIPPED_MIGRATIONS)).toBe(false);
+  expect(await pendingMigrations(db, SHIPPED_MIGRATIONS)).toEqual([]);
   expect(backupsIn(where.backupDir)).toEqual([name]);
   using opened = ownDb(await createDb(pathToFileURL(debris).href));
   const replaced = opened.db;

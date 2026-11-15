@@ -43,6 +43,7 @@ export { OverflowActions, OverflowMenuForms } from "./overflow-actions.tsx";
 export { PanelEdgeControl } from "./panel-edge-control.tsx";
 export { PickerDialog } from "./picker-dialog.tsx";
 export { QueryBoundary } from "./query-boundary.tsx";
+export { RegexAxesGlyphs } from "./regex-axes-glyphs.tsx";
 export { RegexScopeOrder } from "./regex-scope-order.tsx";
 export { RegexScriptPicker } from "./regex-script-picker.tsx";
 export { useReindexConfirm } from "./reindex-confirm.tsx";

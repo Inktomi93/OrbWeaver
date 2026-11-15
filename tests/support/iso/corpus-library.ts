@@ -1,4 +1,5 @@
 // Finite owner library projections preserve native scopes and named stages; private rows and files never enter.
+import { regexDisplayEntrySchema } from "@orb/contracts/chat";
 import { regexScriptUsageSchema, regexScriptViewSchema } from "@orb/contracts/regex";
 import {
   bookAttachmentTargetsSchema,
@@ -60,8 +61,8 @@ export const regexLibrarySchema = z.strictObject({
   reads: z.strictObject({
     before: regexScriptViewSchema.array(),
     after: regexScriptViewSchema.array(),
-    displayOff: regexScriptViewSchema.array(),
-    displayOn: regexScriptViewSchema.array(),
+    displayOff: regexDisplayEntrySchema.array(),
+    displayOn: regexDisplayEntrySchema.array(),
     list: regexScriptViewSchema.array(),
     usage: regexScriptUsageSchema,
     global: regexScriptViewSchema.array(),
@@ -136,8 +137,8 @@ export interface CorpusRegexLibrary extends Omit<z.output<typeof regexLibrarySch
   readonly reads: {
     readonly before: CorpusRead<"regex.listForChat">;
     readonly after: CorpusRead<"regex.listForChat">;
-    readonly displayOff: CorpusRead<"regex.listRoomDisplayScripts">;
-    readonly displayOn: CorpusRead<"regex.listRoomDisplayScripts">;
+    readonly displayOff: CorpusRead<"regex.listDisplayScripts">;
+    readonly displayOn: CorpusRead<"regex.listDisplayScripts">;
     readonly list: CorpusRead<"regex.listScripts">;
     readonly usage: CorpusRead<"regex.listScriptUsage">;
     readonly global: CorpusRead<"regex.listGlobal">;

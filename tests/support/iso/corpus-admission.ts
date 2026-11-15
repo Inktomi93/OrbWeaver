@@ -110,8 +110,8 @@ const WORLD_PATHS = {
 const REGEX_PATHS = {
   before: "regex.listForChat",
   after: "regex.listForChat",
-  displayOff: "regex.listRoomDisplayScripts",
-  displayOn: "regex.listRoomDisplayScripts",
+  displayOff: "regex.listDisplayScripts",
+  displayOn: "regex.listDisplayScripts",
   list: "regex.listScripts",
   usage: "regex.listScriptUsage",
   global: "regex.listGlobal",

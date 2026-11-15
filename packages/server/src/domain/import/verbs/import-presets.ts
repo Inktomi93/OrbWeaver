@@ -15,13 +15,13 @@ import type { CollectedPreset } from "../contract/collection.ts";
 import type { ImportPresetNote, ImportPresetsResult, ImportSkippedCard } from "../contract/results.ts";
 import type { ImportContext, ImportService } from "../contract/service.ts";
 import { requireProfile } from "../guard.ts";
-import { presetBytes } from "../substrate/landing-bytes.ts";
+import { presetImportFile } from "../substrate/landing-bytes.ts";
 
 /** One preset's lossiness note — emitted for EVERY imported preset, empty `fields` included, so the operator
  *  can tell "this landed whole" apart from "this was never looked at". */
 function noteFor(
   p: CollectedPreset,
-  landed: { readonly name: string; readonly renamedFrom: string | null },
+  landed: { readonly name: string; readonly renamedFrom: string | null; readonly created: boolean },
   scripts: ImportCardScriptsResult,
 ): ImportPresetNote {
   return {
@@ -31,13 +31,15 @@ function noteFor(
     // A script refused at the write door is named in the preset's own note, beside the fields that did not map.
     fields: [
       ...p.parsed.unmapped,
-      ...scripts.refused.map((refusal) => ({
+      ...[...scripts.refused, ...p.parsed.refusedScripts].map((refusal) => ({
         field: SCRIPTS_FIELD,
         reason: `script ${JSON.stringify(clipImportText(refusal.name))} not imported: ${refusal.reason}`,
       })),
     ],
     scriptsLifted: scripts.created,
     scriptsReused: scripts.reused,
+    // A reused preset already holds the sections, so the run added none.
+    addedSections: landed.created ? p.parsed.addedSections : [],
   };
 }
 
@@ -106,7 +108,7 @@ export function createImportPresets(ctx: ImportContext): Pick<ImportService, "im
     let presetsCreated = 0;
     const skippedPresets: ImportSkippedCard[] = [];
     const notes: ImportPresetNote[] = [];
-    const outcomes = await importPresets({ ownerId: ctx.ownerId, files: input.presets.map(presetBytes), dryRun: false, signal: input.signal });
+    const outcomes = await importPresets({ ownerId: ctx.ownerId, files: input.presets.map(presetImportFile), dryRun: false, signal: input.signal });
     for (const [i, p] of input.presets.entries()) {
       const outcome = outcomes[i];
       // An aborted batch stops short; the presets after it were never attempted.
@@ -123,7 +125,7 @@ export function createImportPresets(ctx: ImportContext): Pick<ImportService, "im
         presetsCreated += 1;
       }
       const scripts = await liftPresetScripts({ ctx, p, presetId: outcome.presetId, skippedPresets });
-      notes.push(noteFor(p, { name: outcome.name ?? p.parsed.name, renamedFrom: outcome.renamedFrom ?? null }, scripts));
+      notes.push(noteFor(p, { name: outcome.name ?? p.parsed.name, renamedFrom: outcome.renamedFrom ?? null, created: outcome.created === true }, scripts));
     }
     return { presetsImported, presetsCreated, skippedPresets, notes };
   }

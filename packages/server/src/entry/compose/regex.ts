@@ -12,11 +12,14 @@
 import type { ResolveRegexSources } from "@orb/contracts/chat";
 import type {
   ExportCardScripts,
+  ExportPresetScripts,
   ExportRegexScripts,
   ImportCardScripts,
   ImportGlobalScripts,
   ImportPresetScripts,
   ImportRegexScript,
+  ListPresetScriptKeys,
+  PlanPresetScripts,
 } from "@orb/contracts/regex";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { IdSource } from "@orb/kit/ids";
@@ -24,15 +27,18 @@ import { ID_PREFIX } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import { can } from "#domain/admin";
 import type { ChatServiceDeps } from "#domain/chat";
-import { createResolveRoomDisplayPolicy, createWiredChatGuards, loadPresentHostUserId } from "#domain/chat";
+import { createRoomTierForMember, createWiredChatGuards, loadPresentHostUserId } from "#domain/chat";
 import type { RegexService } from "#domain/regex";
 import {
   createExportCardScripts,
+  createExportPresetScripts,
   createExportRegexScripts,
   createImportCardScripts,
   createImportGlobalScripts,
   createImportPresetScripts,
   createImportRegexScript,
+  createListPresetScriptKeys,
+  createPlanPresetScripts,
   createRegexService,
   createResolveRegexSources,
 } from "#domain/regex";
@@ -67,6 +73,12 @@ export interface RegexComposeResult {
   readonly importCardScripts: ImportCardScripts;
   /** The ST profile import's PRESET-scoped lift (`extensions.regex_scripts` on a chat-completion preset). */
   readonly importPresetScripts: ImportPresetScripts;
+  /** The folder dry run's answer for those preset lifts. */
+  readonly planPresetScripts: PlanPresetScripts;
+  /** A preset import's read of the scripts each owned preset holds, for its identity. */
+  readonly listPresetScriptKeys: ListPresetScriptKeys;
+  /** A preset export's read of each preset's attached scripts. */
+  readonly exportPresetScripts: ExportPresetScripts;
   /** The ST profile import's GLOBAL lift (`extension_settings.regex` → `global_regex_scripts`). */
   readonly importGlobalScripts: ImportGlobalScripts;
   /** Injected into `ExportContext` — the card RE-EMBED. */
@@ -81,6 +93,7 @@ export function buildRegex(deps: RegexComposeDeps): RegexComposeResult {
   const chatGuards = createWiredChatGuards({ db, can });
   const newScriptId = minter(ID_PREFIX.regexScript, deps.idSource);
 
+  const fanRegexScriptRooms = createFanRegexScriptRooms(db, deps.emitChatEventLive, deps.logger);
   const regex = createRegexService({
     db,
     now,
@@ -89,27 +102,30 @@ export function buildRegex(deps: RegexComposeDeps): RegexComposeResult {
     requireChatHost: chatGuards.requireHost,
     requireChatMember: chatGuards.requireParticipant,
     resolveChatHost: (chatId) => loadPresentHostUserId(db, chatId),
-    resolveRoomDisplayPolicy: createResolveRoomDisplayPolicy({ db }),
+    roomTierForMember: createRoomTierForMember({ db }),
     // The SHARED leak-safe reverse-room read — regex's original, promoted to `compose/visible-rooms.ts`
     // when databank and preset became its second and third consumers.
     resolveVisibleRooms: createVisibleRoomsReader(db),
     emitUserEvent: deps.emitUserEvent,
     // Regex owns room-junction reach; chat owns the live fan policy, bound together by the graph seam.
     emitRoomRegexChanged: createEmitRoomRegexChanged(deps.emitChatEventLive),
-    fanRegexScriptRooms: createFanRegexScriptRooms(db, deps.emitChatEventLive, deps.logger),
+    fanRegexScriptRooms,
     // The DELETE arm of the same reach: `chat_regex_scripts` CASCADEs with the library row, so the
     // two remove verbs snapshot through this BEFORE their delete and fan the confirmed set after.
     captureRoomReachForDelete: createDeleteReachCapture(db, deps.emitChatEventLive, deps.logger).regex,
     probeFindCompiles,
   });
 
-  const portabilityCtx = { db, now, newScriptId, probeFindCompiles };
+  const portabilityCtx = { db, now, newScriptId, probeFindCompiles, fanRegexScriptRooms };
 
   return {
     regex,
     resolveRegexSources: createResolveRegexSources({ db }),
     importCardScripts: createImportCardScripts(portabilityCtx),
     importPresetScripts: createImportPresetScripts(portabilityCtx),
+    planPresetScripts: createPlanPresetScripts({ db, probeFindCompiles }),
+    listPresetScriptKeys: createListPresetScriptKeys({ db }),
+    exportPresetScripts: createExportPresetScripts({ db }),
     importGlobalScripts: createImportGlobalScripts(portabilityCtx),
     exportCardScripts: createExportCardScripts({ db }),
     exportRegexScripts: createExportRegexScripts({ db }),

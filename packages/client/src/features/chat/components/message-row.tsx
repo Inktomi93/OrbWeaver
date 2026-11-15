@@ -10,6 +10,7 @@ import { isNarratorVoiced } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
+import type { RoomStanding } from "@orb/kit/message-author";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Row, Stack } from "@orb/ui/layout";
 import { useCoarsePointer } from "@orb/ui/lib";
@@ -98,9 +99,13 @@ export interface MessageRowProps {
    *  (D166). Absent ⇒ the ordinary variant strip. */
   readonly greeting?: GreetingBinding | undefined;
   readonly autoFixMarkdown?: boolean | undefined;
-  /** D121-E/F1: the VIEWER's own enabled DISPLAY-placement scripts, resolved ONCE by the list surface
-   *  (never per row — one query, N rows). Absent ⇒ the display leg is a no-op, exactly as before. */
+  /** The transcript's display scripts, resolved once by the list surface (one read for every row). `undefined`
+   *  while that read loads, which holds the settled row rather than drawing its raw text. */
   readonly displayScripts?: readonly RegexScriptRow[] | undefined;
+  /** The room's present human seats (`roomStandingOf`), read by a display script scoped by its author's standing. */
+  readonly roomStanding: RoomStanding;
+  /** This row's display depth (`displayDepthsOf`): 0 is the newest, undefined for a row the count skips. */
+  readonly displayDepth: number | undefined;
   /** The `appearance.colorQuotedSpeech` pref, folded into this row's render policy. Absent ⇒ ON. */
   readonly colorQuotedSpeech?: boolean | undefined;
   /** Phase 4b §B.5.5 — the reasoning-disclosure glyph pref, threaded to the SETTLED reasoning block exactly
@@ -174,6 +179,8 @@ export function MessageRow({
   greeting,
   autoFixMarkdown,
   displayScripts,
+  roomStanding,
+  displayDepth,
   colorQuotedSpeech,
   showLLMReasoningIcon = false,
   metadataVisibility = NO_METADATA_VISIBLE,
@@ -268,6 +275,7 @@ export function MessageRow({
     anchorPersonaId,
     autoFixMarkdown,
     displayScripts,
+    room: roomStanding,
   });
   const displayedMessage = toolBoundaryDisplayMessage(message, editing);
   const speakerThemes = speakerThemesByName(participants);
@@ -283,6 +291,7 @@ export function MessageRow({
     renderContext,
     speakerThemes,
     narratorVoiced: isNarratorVoiced(message.kind),
+    displayDepth,
     viewerIsHost,
     neighbours,
   });
@@ -425,7 +434,7 @@ export function MessageRow({
                   lastRow,
                   headerOverlaid: !shape.ownLine,
                   content,
-                  reasoning: renderRowReasoning({ editing, message, renderContext, showLLMReasoningIcon, viewerIsHost, viewerUserId }),
+                  reasoning: renderRowReasoning({ editing, message, renderContext, showLLMReasoningIcon, viewerIsHost, viewerUserId, displayDepth }),
                   trainParagraphs: trainParagraphsFor(displayedMessage, editing, skin.bubbleLayout === "trains"),
                   skin,
                   decoration,
@@ -435,6 +444,7 @@ export function MessageRow({
                   renderContext,
                   speakerThemes,
                   narratorVoiced: isNarratorVoiced(message.kind),
+                  displayDepth,
                   editing,
                   // The art pane lies over the editor at enlarged text; while editing it is plain paint, so the chip stays the one opener and the editor's controls take the press.
                   artView: editing ? null : artViewFor(viewArt, attribution, artControl),

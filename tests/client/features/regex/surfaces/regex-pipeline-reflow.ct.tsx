@@ -21,7 +21,9 @@ for (const scale of [PLATFORM_TEXT_SCALES[1], PLATFORM_TEXT_SCALES[2]]) {
     await using root = await createCorpusHarness();
     const caller = await root.internalCallerFor(root.ownerId);
     // A script that no scope attaches is not in the always-on set, so its stage carries the long appended-arm marker.
-    const script = await caller.regex.createScript({ input: { name: "Pipeline witness", findRegex: "witness", replaceString: "", placement: ["AI_OUTPUT"] } });
+    const script = await caller.regex.createScript({
+      input: { name: "Pipeline witness", findRegex: "witness", replaceString: "", targets: ["AI_OUTPUT"], passes: ["save"] },
+    });
     await routeTrpc(page, serveCorpusProcedures(caller, [...SECTION_PROCEDURES, "regex.listScripts", "regex.listGlobal", "regex.updateScript"]));
     await mount<typeof RegexMemberSaveStory>(STORY, { scriptId: script.id });
     // Positive control: the stage is drawn with its marker, so the bound below is measured on the band that overflowed.

@@ -14,6 +14,7 @@ import { createTurnEngine } from "./engine/engine.ts";
 import { buildTurnMemory } from "./memory/generate/turn.ts";
 import { loadWitnessHorizons } from "./memory/persistence/queries.ts";
 import { recallMemory } from "./memory/recall/recall.ts";
+import { createSaveGreetingTexts } from "./substrate/greeting-regex.ts";
 import { createHandoffBarrier } from "./substrate/handoff-barrier.ts";
 import { createAdmittedChatOperations } from "./verbs/admission.ts";
 import { createChatLifecycle } from "./verbs/chat-lifecycle.ts";
@@ -128,6 +129,8 @@ export function createChatService(
   );
 
   const { loadParticipantViews, loadParticipantViewsBatch } = createLoadParticipantViews(ctx);
+  // ONE greeting save pass for the three greeting writes: founding, an in-window join and a step to an alternate.
+  const saveGreetingTexts = createSaveGreetingTexts(ctx, { resolveForeignInputs: deps.resolveForeignInputs, prng: deps.prng });
 
   // The turn collaborators, shared by the human verbs (createTurn) AND the non-human `requestTurn` seam
   // (createRequestTurn) — ONE engine + one active-turns Set, so an autonomous turn locks/aborts/budgets on the
@@ -153,6 +156,7 @@ export function createChatService(
     resolveForeignInputs: deps.resolveForeignInputs,
     claimChat,
     activeTurns: deps.activeTurns,
+    saveGreetingTexts,
     // The D129-F freeze-at-selection bake draws from the SAME service PRNG a turn's freeze does — a greeting
     // alternate baked at selection is the same kind of draw as one baked at the first user turn.
     prng: deps.prng,
@@ -172,9 +176,9 @@ export function createChatService(
     getNextTurnConnection: deps.getNextTurnConnection,
     resolveForeignInputs: deps.resolveForeignInputs,
   });
-  const startChat = createStartChat(ctx, { emit: deps.emit, prepareCreationEvent: deps.prepareCreationEvent, loadParticipantViews });
+  const startChat = createStartChat(ctx, { emit: deps.emit, prepareCreationEvent: deps.prepareCreationEvent, loadParticipantViews, saveGreetingTexts });
   const chatLifecycle = createChatLifecycle(ctx, { emit: deps.emit, emitLive: deps.emitLive, activeTurns: deps.activeTurns, claimChat, admission });
-  const participants = createParticipants(ctx, { emit: deps.emitChecked, claimChat });
+  const participants = createParticipants(ctx, { emit: deps.emitChecked, claimChat, saveGreetingTexts });
   const admitted = createAdmittedChatOperations(ctx, {
     barrier: admission,
     operations: { ...turn, ...imageGen, compact, acceptHostHandoff: participants.acceptHostHandoff },

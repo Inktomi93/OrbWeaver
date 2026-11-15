@@ -3,7 +3,7 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
-import type { ImportPreview, ImportPreviewKind, PersonaCollisionChoices } from "@orb/contracts/import";
+import type { CardImportResult, ImportPreview, ImportPreviewKind, PersonaCollisionChoices } from "@orb/contracts/import";
 import {
   cardImportResultSchema,
   encodePersonaCollisionChoices,
@@ -75,12 +75,14 @@ export function cardPngUnderOtherArt(root: ServerTestHarness, name: string): Uin
 }
 
 /** One card file through the Characters dialog door. */
-export async function importThroughDialog(root: ServerTestHarness, filename: string, bytes: Bytes): Promise<void> {
+export async function importThroughDialog(root: ServerTestHarness, filename: string, bytes: Bytes): Promise<CardImportResult> {
   const form = new FormData();
   form.append(UPLOAD_FILE_FIELD, new File([typeof bytes === "string" ? ENCODER.encode(bytes) : new Uint8Array(bytes)], filename));
   const response = await root.http.request(PORTABILITY_ROUTES.importCards, { method: "POST", headers: CSRF_HEADERS, body: form });
   expect(response.status).toBe(200);
-  expect(cardImportResultSchema.parse(await response.json()).failed).toEqual([]);
+  const result = cardImportResultSchema.parse(await response.json());
+  expect(result.failed).toEqual([]);
+  return result;
 }
 
 export function settings(personas: Readonly<Record<string, string>>): string {

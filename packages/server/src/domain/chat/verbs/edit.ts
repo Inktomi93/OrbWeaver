@@ -45,7 +45,8 @@ import { batchMany } from "@orb/db/query";
 import { assetIdsInContent, stripHiddenSpans } from "@orb/kit/content";
 import type { CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroFreeze, RandomSource } from "@orb/kit/macro";
-import type { RegexPlacement } from "@orb/kit/regex";
+import type { RegexTarget } from "@orb/kit/regex";
+import { messageTargetOf } from "@orb/kit/regex";
 import { stripSelfSpeakerLabel } from "@orb/kit/speaker-label";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { getLog } from "#foundation/observability";
@@ -73,6 +74,7 @@ import type {
   SetMessageHiddenParams,
   SetSeededGreetingParams,
 } from "../contract/params.ts";
+import type { RegexNoticeEpisode } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireAuthorOrHost, requireHost, requireParticipant } from "../guard.ts";
 import {
@@ -119,11 +121,13 @@ import { runtimeVariablesUpdateStatement } from "../persistence/runtime-variable
 import { buildTurnMacroContext, freezeVolatileMacros } from "../substrate/assembly-access.ts";
 import { assertAuthorOrHost, isBelowHistoryFloor, permitsHost } from "../substrate/auth/index.ts";
 import { continuationToolsAreUndone } from "../substrate/content-signatures.ts";
+import type { SaveGreetingTexts } from "../substrate/greeting-regex.ts";
 import { projectViewReturnForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { ownedCitedAssetIds } from "../substrate/owned-citations.ts";
 import { classifyParticipant } from "../substrate/participant-actor.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { hostConsentOf, humanSeatPersonasOf } from "../substrate/participants-humans.ts";
+import { createRegexNoticeEpisode } from "../substrate/regex-notice-episode.ts";
 import { regexAllowOf, resolveHostTierRegexScripts } from "../substrate/regex-tier.ts";
 import { foldChain } from "../substrate/runtime-variables.ts";
 import {
@@ -149,6 +153,8 @@ interface EditDeps {
    *  runOnEdit regex macro context. A selection that has a stored freeze record consumes NO draw at all (it
    *  replays), so the bake draws only for the first freeze of a never-frozen alternate. */
   readonly prng: RandomSource;
+  /** The greeting save pass a step to a card alternate runs through, as the seeded greeting did. */
+  readonly saveGreetingTexts: SaveGreetingTexts;
 }
 
 /** The canon-edit slice of `ChatService` this grouped file owns. */
@@ -231,13 +237,10 @@ async function purifyEditedContent(
   return stripSelfSpeakerLabel(args.content, card?.name ?? "");
 }
 
-/** The receive-tier placement an edited slot's role re-runs: an assistant edit re-applies AI_OUTPUT, a user
- *  edit USER_INPUT. A system slot has no edit-tier leg. */
-function editPlacementFor(role: MessageView["role"]): RegexPlacement | null {
-  if (role === "assistant") {
-    return "AI_OUTPUT";
-  }
-  return role === "user" ? "USER_INPUT" : null;
+/** The target an edited slot's save pass re-runs, its role's (`messageTargetOf`). A system slot has none: no
+ *  save pass wrote it, so an edit re-applies nothing to it. */
+function editTargetFor(role: MessageView["role"]): RegexTarget | null {
+  return role === "system" ? null : messageTargetOf({ role });
 }
 
 /**
@@ -264,10 +267,12 @@ async function applyRunOnEditRegex(
     readonly regexAllow: HostTierRegexAllow;
     /** The editor's zone, for a `{{time}}` in a script's replacement. */
     readonly timeZone: IanaTimeZone | undefined;
+    /** This edit's record of host scripts the re-apply did not apply; the verb drains it after the write. */
+    readonly regexNotices: RegexNoticeEpisode;
   },
 ): Promise<string> {
-  const placement = editPlacementFor(args.slot.role);
-  if (placement === null) {
+  const target = editTargetFor(args.slot.role);
+  if (target === null) {
     return args.content;
   }
   // A hostless room, or a disabled host standing as a departed one: a member's edit runs none of that host's
@@ -326,10 +331,13 @@ async function applyRunOnEditRegex(
   return ctx.openRegexPass().execute({
     text: args.content,
     scripts,
-    placement,
+    // An edit is the save pass with `edit` set: only a script that asked to run on edits runs.
+    call: { pass: "save", target, edit: true },
     ctx: buildTurnMacroContext({ assembleCtx: assembleContext, model, chatId, random: deps.prng }),
-    onScriptFailure: (err, script) =>
-      getLog(ctx.logger).warn({ err, placement, findRegex: script.findRegex }, "chat: host-tier regex script failed on an edit re-apply (D53 watchdog)"),
+    onScriptFailure: (err, script): void => {
+      getLog(ctx.logger).warn({ err, target, findRegex: script.findRegex }, "chat: host-tier regex script failed on an edit re-apply (D53 watchdog)");
+      args.regexNotices.note("edit_reapply", err, script, scripts);
+    },
   });
 }
 
@@ -594,6 +602,7 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ClaimingVerb<"edit
     const participants = await loadParticipants(ctx.db, chatId);
     const hostUserId = hostUserIdOf(participants);
     const purified = await purifyEditedContent(ctx, { hostUserId, slot, content });
+    const regexNotices = createRegexNoticeEpisode();
     const clean = await applyRunOnEditRegex(ctx, deps, {
       chatId,
       slot,
@@ -604,6 +613,7 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ClaimingVerb<"edit
       content: purified,
       regexAllow: regexAllowOf(membership.chat.metadata),
       timeZone,
+      regexNotices,
     });
     const now = ctx.now();
     const statsDeltas: StatsDelta[] = [];
@@ -641,6 +651,10 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ClaimingVerb<"edit
     await commitRetainedCanonStats(ctx, claimed, statements, { deltas: statsDeltas, sources: [slot], contributions: [slot.contributions] });
     const view = await reloadSlot(ctx, chatId, messageId);
     await deps.emit({ type: "messageEdited", chatId, messageId, view });
+    // Host-only on every delivery path (`stripChatEventForMember`), so a member's own edit tells only the host.
+    for (const notice of regexNotices.take()) {
+      await deps.emit({ type: "warning", chatId, ...notice });
+    }
     return await projectEditReturn(ctx, view, membership);
   };
 }
@@ -667,7 +681,7 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ClaimingVerb<"edit
  * Card-authored text steps in place. Any other body survives as a swipe beside the selected card alternate.
  * Choosing an alternate is not an edit: the row keeps the edit stamp it already held, never a new one.
  */
-function createSetSeededGreeting(ctx: ChatContext, emit: EmitDurableChatEventOp): ClaimingVerb<"setSeededGreeting"> {
+function createSetSeededGreeting(ctx: ChatContext, emit: EmitDurableChatEventOp, saveGreetingTexts: SaveGreetingTexts): ClaimingVerb<"setSeededGreeting"> {
   return async ({ principal, chatId, messageId, greetingIndex }: SetSeededGreetingParams, claim: ClaimRoom) => {
     const membership = await requireHost(ctx, principal, chatId);
     const slot = await loadRetainedSlotInChat(ctx, chatId, messageId);
@@ -684,12 +698,20 @@ function createSetSeededGreeting(ctx: ChatContext, emit: EmitDurableChatEventOp)
     }
     const card = await ctx.getCard({ ownerId: hostUserId, characterId: slot.characterId });
     const greetings = card?.greetings ?? [];
-    const alternate = greetings[greetingIndex]?.text;
-    if (alternate === undefined) {
+    if (greetings[greetingIndex] === undefined) {
       throw new ChatOperationError(CHAT_OP_CODES.greetingAlternateNotFound, `chat ${chatId}: greeting ${String(greetingIndex)} is not on this card`);
     }
+    // Every alternate goes through the save pass from the card's text, so the one shown is compared and stepped as
+    // stored, and the pass never runs again over text it already wrote.
+    const room = { chatId, participants, anchorPersonaId: membership.chat.anchorPersonaId, regexAllow: regexAllowOf(membership.chat.metadata) };
+    const saved = await saveGreetingTexts(
+      room,
+      greetings.map((greeting) => ({ characterId: slot.characterId, characterName: card?.name ?? "", text: greeting.text })),
+    );
+    const alternate = saved[greetingIndex]?.text ?? "";
     const now = ctx.now();
-    const cardWroteCurrent = greetings.some((greeting) => greeting.text === slot.content);
+    // A greeting seeded before its scripts existed holds the card's own text, which steps in place as well.
+    const cardWroteCurrent = saved.some((greeting) => greeting.text === slot.content) || greetings.some((greeting) => greeting.text === slot.content);
     const mutation = cardWroteCurrent
       ? {
           statements: editMessageContentStatements(ctx.db, {
@@ -1400,7 +1422,7 @@ export function createEdit(ctx: ChatContext, deps: EditDeps): EditVerbs {
   return {
     selectVariant: claim(createSelectVariant(ctx, deps)),
     editMessage: claim(createEditMessage(ctx, deps)),
-    setSeededGreeting: claim(createSetSeededGreeting(ctx, emit)),
+    setSeededGreeting: claim(createSetSeededGreeting(ctx, emit, deps.saveGreetingTexts)),
     applyProseRewrite: claim(createApplyProseRewrite(ctx, emit)),
     setMessageHidden: claim(createSetMessageHidden(ctx, emit)),
     editToolCall: claim(createEditToolCall(ctx, emit)),

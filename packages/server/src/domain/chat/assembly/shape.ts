@@ -23,14 +23,13 @@ import type {
   CueRole,
   GroupConfig,
   MessageKind,
-  MessageKindPolicy,
   MessageView,
   ShapeBreakpointDecision,
   ShapeFoldReason,
   ShapeRowSource,
   ShapeTraceRow,
 } from "@orb/contracts/chat";
-import { MESSAGE_KIND_POLICY } from "@orb/contracts/chat";
+import { PROMPT_KINDS } from "@orb/contracts/chat";
 import type { RoleHandling, SystemRowPlacement } from "@orb/contracts/inference";
 import { clampRoleHandling, SYSTEM_ROW_PLACEMENT, TURNS_FLOOR } from "@orb/contracts/inference";
 import type { NamesBehavior } from "@orb/contracts/preset";
@@ -72,7 +71,7 @@ interface CanonRow {
   kind?: MessageKind | undefined;
   /** A character's line the scoped fold re-roled to `user`; its speaker already rides inline. */
   folded?: true;
-  /** A depth-scoped `PROMPT_HISTORY` script can still rewrite this row on a later turn (`assembly/history-regex`),
+  /** A depth-scoped prompt-pass script can still rewrite this row on a later turn (`assembly/history-regex`),
    *  so the cache never pins it. */
   depthVolatile?: true | undefined;
 }
@@ -802,8 +801,9 @@ function userShapeRow(m: MessageView, ctx: AssembleContext, macroNames: HistoryM
 
 /**
  * THE PROMPT-POLICY DISPATCH (D217) — does a row of this DECLARED purpose enter the assembled prompt at
- * all? Total over `MESSAGE_KIND_POLICY[kind].prompt` with an `assertNever` tail (spine §5.5), so a fourth kind
- * cannot build until it declares what the prompt does with it. Until this landed, `comment: {prompt:"never"}`
+ * all? It reads {@link PROMPT_KINDS}, which `@orb/contracts/chat` derives from `MESSAGE_KIND_POLICY[kind].prompt`
+ * through a record total over the prompt arms, so a fourth kind or arm cannot build until it declares what the prompt
+ * does with it. Until this landed, `comment: {prompt:"never"}`
  * was a policy row nothing enforced — the record described a behavior no code performed.
  *
  *   • `conversation`   — an ordinary history row.
@@ -823,24 +823,7 @@ function userShapeRow(m: MessageView, ctx: AssembleContext, macroNames: HistoryM
  * planes, two gates; collapsing them would ship ST's assembly-dropped rows into every prompt.
  */
 function entersPrompt(kind: MessageKind): boolean {
-  // The local is ANNOTATED rather than inferred: biome's type service cannot see through the cross-package
-  // `Readonly<Record<MessageKind, …>>` index and narrows the switch subject to `never`, which makes it call
-  // every arm below unreachable (`noUnnecessaryConditions`). tsc is fine either way; the annotation is what
-  // keeps both readers agreeing, and it is the same shape the policy record declares.
-  const policy: MessageKindPolicy["prompt"] = MESSAGE_KIND_POLICY[kind].prompt;
-  switch (policy) {
-    case "conversation":
-    case "system-channel":
-      return true;
-    case "never":
-      return false;
-    default:
-      return assertNeverPromptPolicy(policy);
-  }
-}
-
-function assertNeverPromptPolicy(policy: never): never {
-  throw new Error(`toShapeCanon: unhandled MESSAGE_KIND_POLICY prompt arm ${JSON.stringify(policy)}`);
+  return PROMPT_KINDS.includes(kind);
 }
 
 /**
@@ -867,11 +850,16 @@ export function toShapeCanon(
     }
   });
   const coveredThroughSeq = compactionCoveredThroughSeq(ctx);
-  const rows: CanonRow[] = canon
-    .filter((m) => !(m.excludedFromPrompt || m.role === "system" || isCoveredByCompaction(m.seq, coveredThroughSeq)) && entersPrompt(m.kind))
-    .map((m) => (m.role === "assistant" ? assistantShapeRow(m, ctx, macroNames, nameById) : userShapeRow(m, ctx, macroNames)));
+  const entering = canon.filter(
+    (m) => !(m.excludedFromPrompt || m.role === "system" || isCoveredByCompaction(m.seq, coveredThroughSeq)) && entersPrompt(m.kind),
+  );
+  const rows: CanonRow[] = entering.map((m) => (m.role === "assistant" ? assistantShapeRow(m, ctx, macroNames, nameById) : userShapeRow(m, ctx, macroNames)));
   // MACROS FIRST, THEN REGEX (D121-E): every row above resolved its own stamps through
   // `renderHistoryMacros`; the leg rewrites that resolved text and returns copies — `rows` itself is what
   // gets discarded, and the `messages` rows it was read from were never touched.
-  return promptHistory === null ? rows : applyPromptHistoryRegex(rows, promptHistory);
+  if (promptHistory === null) {
+    return rows;
+  }
+  const stamps = entering.map(({ role, kind, authorUserId, characterId, personaId }) => ({ role, kind, authorUserId, characterId, personaId }));
+  return applyPromptHistoryRegex(rows, stamps, promptHistory);
 }

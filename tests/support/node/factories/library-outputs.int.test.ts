@@ -124,12 +124,11 @@ test("regex output captures preserve execution order, host opt-in, portable reus
   expect(views.ordered.output).toEqual({ reordered: 2 });
   expect(views.displayOff.output).toEqual([]);
   expect(views.displayOn.output).toHaveLength(views.after.output.length);
-  expect(views.displayOn.output).toEqual(expect.arrayContaining([...views.after.output]));
+  expect(views.displayOn.output.map(({ script }) => script)).toEqual(expect.arrayContaining([...views.after.output]));
   expect(views.list.output.find((script) => script.id === views.first.id)).toMatchObject({
     enabled: true,
-    placement: ["DISPLAY"],
-    markdownOnly: true,
-    promptOnly: false,
+    targets: ["USER_INPUT", "AI_OUTPUT", "REASONING"],
+    passes: ["display"],
     updatedAt: root.clock.now(),
   });
   expect(views.global.output.map((script) => script.id)).toContain(views.first.id);
@@ -138,8 +137,8 @@ test("regex output captures preserve execution order, host opt-in, portable reus
   expect(views.usage.output.presets).toContainEqual({ id: library.preset.id, name: library.preset.name });
   expect(views.usage.output.characters).toContainEqual({ id: library.character.id, name: library.character.name });
   expect(views.usage.output.rooms.map((room) => room.id)).toContain(library.room.chat.id);
-  expect(views.imported.output).toEqual({ created: true });
-  expect(views.repeated.output).toEqual({ created: false });
+  expect(views.imported.output).toEqual({ created: true, notes: [] });
+  expect(views.repeated.output).toEqual({ created: false, notes: [] });
   expect(views.bulk.output).toEqual({ affected: 1 });
   expect(views.detached.output).toEqual({ detached: true });
   expect(views.detachedAgain.output).toEqual({ detached: false });

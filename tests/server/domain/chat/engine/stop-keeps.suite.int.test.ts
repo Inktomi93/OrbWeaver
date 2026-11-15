@@ -8,7 +8,6 @@
 import type { ChatBusEvent, MessageView, TurnAbortReason } from "@orb/contracts/chat";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { streamConnectInputSchema } from "@orb/contracts/stream";
-import { deriveRegexTierFlags } from "@orb/kit/regex";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL, readRoomCanon } from "@orb/testkit/node/composed";
@@ -133,14 +132,13 @@ test("a Stop before any text keeps no reply, while the user's own line stays", a
 test("the save pass rewrites a kept reply exactly as it rewrites a finished one", async () => {
   const partial = corePartialReply([textFrame(KEPT)]);
   await using h = await coreHttpRoom([partial.respond]);
-  const placements = ["AI_OUTPUT" as const];
   const script = await h.caller.regex.createScript({
     input: createRegexScriptSchema.parse({
       name: "lamp",
       findRegex: "lantern",
       replaceString: "lamp",
-      placement: placements,
-      ...deriveRegexTierFlags(placements),
+      targets: ["AI_OUTPUT"],
+      passes: ["save"],
     }),
   });
   await h.caller.regex.attachGlobal({ scriptId: script.id });

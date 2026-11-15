@@ -16,6 +16,7 @@ import type { ChatIdentity, MessageKind } from "@orb/contracts/chat";
 import { buildIdentityAvatarMaps, buildIdentityNameContext, identityKey } from "@orb/contracts/chat";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
+import { roomStandingOf } from "@orb/kit/message-author";
 import { CurrentStack } from "@orb/ui/current";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Stack } from "@orb/ui/layout";
@@ -52,6 +53,7 @@ import { CHAT_EMPTY_THREAD_TITLE, CHAT_TRANSCRIPT_NAME } from "../lib/chat-surfa
 import { Track } from "../lib/chat-track.tsx";
 import { resolveContextBoundaryMessageId } from "../lib/context-boundary.ts";
 import { contextFitLabel } from "../lib/context-room.ts";
+import { displayDepthsOf } from "../lib/display-row.ts";
 import { isGreetingWindowOpen, resolveGreetingBinding } from "../lib/greeting-window.ts";
 import { liveCardRowIds } from "../lib/live-card-rows.ts";
 import { resolveMessageRenderContext } from "../lib/message-render-context.ts";
@@ -225,6 +227,7 @@ function ChatThread({
   const lenientHtmlCards = isGame && gameQuery.data?.publicConfig.immersiveHtml === true;
   const messageAppearance = useMessageAppearance();
   const displayScripts = useDisplayScripts(chatId);
+  const roomStanding = roomStandingOf(chatDetail.participants);
   const behaviorPrefs = useChatBehaviorPrefs();
   const phase = useTurnPhase(chatId);
   // The live turn's voiced speaker, resolved through the SAME resolveRowAttribution the settled row
@@ -245,12 +248,15 @@ function ChatThread({
     characterAvatarsById,
     kind: ghostKind,
   });
-  // Macros only: the ghost renders untransformed by the viewer's display scripts, so none ride this context.
+  // The settled rows' display set rides the ghost too, so a reply streams as it will settle and its committed
+  // row reads the ghost's last display-pass answer from the cache instead of blinking at commit.
   const ghostRenderContext = resolveMessageRenderContext({
     participants,
     characterNamesById,
     personaNamesById,
     anchorPersonaId: chatDetail.anchorPersonaId,
+    displayScripts,
+    room: roomStanding,
   });
   // The ghost's CARD TIER, resolved through the ONE trust authority with the SAME inputs `MessageRow` will
   // use once this turn settles — so a card that mounts mid-stream (at its fence CLOSE, §4.5) does not change
@@ -274,6 +280,7 @@ function ChatThread({
   // Stepping a greeting is a host verb, and a member cannot read the host's cards: only the host reads them.
   const greetingAlternates = useGreetingAlternates(seatedCharacterIds, greetingWindowOpen && chatDetail.viewerIsHost);
   const items = useMessageItems(messages, chatId);
+  const displayDepths = displayDepthsOf(items, edges);
   const liveCardRows = liveCardRowIds(items, (view) =>
     resolveRowRenderPolicy({ role: view.role, authorUserId: view.authorUserId, characterId: view.characterId, viewerUserId, participants, lenientHtmlCards }),
   );
@@ -348,6 +355,8 @@ function ChatThread({
         attribution={ghostAttribution}
         speakerCharacterId={ghostSpeakerCharacterId}
         renderContext={ghostRenderContext}
+        messageKind={ghostKind}
+        displayDepth={displayDepths.ghost}
         avatarSize={messageAppearance.avatarSize}
         avatarShape={messageAppearance.avatarShape}
         avatarAspect={messageAppearance.avatarAspect}
@@ -385,6 +394,8 @@ function ChatThread({
         showInChatAvatars={messageAppearance.showInChatAvatars}
         autoFixMarkdown={messageAppearance.autoFixMarkdown}
         displayScripts={displayScripts}
+        roomStanding={roomStanding}
+        displayDepth={displayDepths.rows.get(item.view.id)}
         colorQuotedSpeech={messageAppearance.colorQuotedSpeech}
         showLLMReasoningIcon={messageAppearance.showLLMReasoningIcon}
         metadataVisibility={messageAppearance.metadataVisibility}

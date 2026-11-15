@@ -21,7 +21,7 @@ const ROOM_READS = [
   "plugin.listDisplayTransforms",
   "plugin.listSurfaces",
   "regex.listScripts",
-  "regex.listRoomDisplayScripts",
+  "regex.listDisplayScripts",
 ] as const;
 
 test("Tide retains zoom for identical snapshots and closes obsolete media on message replacement", async ({

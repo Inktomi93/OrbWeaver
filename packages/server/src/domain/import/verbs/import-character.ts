@@ -230,7 +230,7 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
         png ? "No character data found in this PNG (no ccv3/chara card chunk)" : "This file isn't a V2/V3 character card (unreadable JSON)",
       );
     }
-    const { card: characterCard, tags, book, attachedBooks, attachedRegexScripts } = parsed;
+    const { card: characterCard, tags, book, attachedBooks, attachedRegexScripts, scriptNotes } = parsed;
 
     const importHash = parsedCardImportHash(parsed);
     const carried: CarriedContent = {
@@ -243,7 +243,14 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
     const existing = await resolveExisting({ ctx, parsed, bytes, png, importHash });
     if (existing !== null) {
       const attached = await attachAllPlanes(ctx, existing, tags, carried);
-      return { characterId: existing, created: false, name: await heldName(ctx, existing, characterCard.name), importHash, ...attached };
+      return {
+        characterId: existing,
+        created: false,
+        name: await heldName(ctx, existing, characterCard.name),
+        importHash,
+        ...attached,
+        skippedOverlays: [...scriptNotes, ...attached.skippedOverlays],
+      };
     }
 
     // Content-addressed store: a byte-identical re-import resolves to the same asset id.
@@ -266,6 +273,6 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
     const characterId = ref.characterId;
     const attached = await attachAllPlanes(ctx, characterId, tags, carried);
 
-    return { characterId, created: true, name: baseInput.name, importHash, ...attached };
+    return { characterId, created: true, name: baseInput.name, importHash, ...attached, skippedOverlays: [...scriptNotes, ...attached.skippedOverlays] };
   };
 }

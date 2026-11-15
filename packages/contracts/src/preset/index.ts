@@ -20,7 +20,7 @@ import type { UserMacroDef, UserMacroInputValue } from "@orb/kit/macro";
 import { MACRO_ARG_TYPES, MACRO_NAME_RE, USER_MACRO_INPUT_KINDS } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
-import type { RegexPlacement } from "@orb/kit/regex";
+import type { RegexPass, RegexTarget } from "@orb/kit/regex";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { z } from "zod";
 import type { EffortLevel as ModelEffortLevel, SamplerKnob } from "#inference";
@@ -45,6 +45,7 @@ import { SAMPLING_RANGE_KNOBS } from "../inference/capability/generation.ts";
 import type { ResolvedWarning } from "../inference/warnings.ts";
 import { emittedWarningSchema } from "../inference/warnings.ts";
 import { PRESET_SCHEMA_KIND } from "../portability/envelope.ts";
+import type { RegexScriptCard, StRegexScriptFields } from "../regex/schemas.ts";
 import type { VersionedParseFailure } from "../versioned-config/index.ts";
 import { versionedParseFailureSchema } from "../versioned-config/index.ts";
 import { PRESET_COMPACTION_SLOT_ID, PRESET_PROSE_SLOTS } from "./prose.ts";
@@ -2568,14 +2569,14 @@ export const ASSEMBLE_POST_PROCESS_ORDER = ["collapseNewlines"] as const satisfi
 export type PromptPipelineStep =
   | { readonly kind: "native-reasoning" }
   | { readonly kind: "reasoning-parse" }
-  | { readonly kind: "regex"; readonly placement: RegexPlacement }
+  | { readonly kind: "regex"; readonly pass: RegexPass; readonly targets: readonly RegexTarget[] }
   | { readonly kind: "post-process"; readonly flag: PostProcessFlag };
 
 /** A step's STABLE identity — the key a total label map is keyed by and the token an order pin compares.
  *  Never a rendered string (the copy is the client's), and never an index (the index IS the drift). */
 export function pipelineStepKey(step: PromptPipelineStep): string {
   if (step.kind === "regex") {
-    return `regex:${step.placement}`;
+    return `regex:${step.pass}:${step.targets.join("+")}`;
   }
   if (step.kind === "post-process") {
     return `post-process:${step.flag}`;
@@ -2583,28 +2584,27 @@ export function pipelineStepKey(step: PromptPipelineStep): string {
   return step.kind;
 }
 
-/** THE PROMPT-SIDE LANE. `USER_INPUT` rewrites the draft before it is persisted, `WORLD_INFO` rewrites each
- *  entry as it is rendered, the ASSEMBLE collapse runs on the joined system halves at the end of BUILD, and
- *  only then does `PROMPT_HISTORY` rewrite the assembled transcript on its way to the wire — the one
- *  prompt-side stage whose output never becomes canon. */
+/** THE PROMPT-SIDE LANE. The save pass rewrites the draft before it is persisted, the prompt pass rewrites each
+ *  world-info entry as it is rendered, the ASSEMBLE collapse runs on the joined system halves at the end of BUILD,
+ *  and only then does the prompt pass rewrite the assembled transcript on its way to the wire, the stage whose
+ *  output never becomes canon. */
 export const PROMPT_LANE_STEPS: readonly PromptPipelineStep[] = [
-  { kind: "regex", placement: "USER_INPUT" },
-  { kind: "regex", placement: "WORLD_INFO" },
+  { kind: "regex", pass: "save", targets: ["USER_INPUT"] },
+  { kind: "regex", pass: "prompt", targets: ["WORLD_INFO"] },
   ...ASSEMBLE_POST_PROCESS_ORDER.map((flag): PromptPipelineStep => ({ kind: "post-process", flag })),
-  { kind: "regex", placement: "PROMPT_HISTORY" },
+  { kind: "regex", pass: "prompt", targets: ["USER_INPUT", "AI_OUTPUT"] },
 ];
 
-/** THE REPLY-SIDE LANE, in the order `applyReceiveTransforms` runs it: the inline-reasoning demux, the
- *  `AI_OUTPUT` pass over the content, the post-process block, then the `REASONING` pass over the demuxed
- *  channel — and last, client-side, the `DISPLAY` pass, which changes what you read and never touches the
- *  wire. */
+/** THE REPLY-SIDE LANE, in the order `applyReceiveTransforms` runs it: the inline-reasoning demux, the save
+ *  pass over the content, the post-process block, then the save pass over the demuxed reasoning, and last,
+ *  client-side, the display pass, which changes what you read and never touches the wire. */
 export const REPLY_LANE_STEPS: readonly PromptPipelineStep[] = [
   { kind: "native-reasoning" },
   { kind: "reasoning-parse" },
-  { kind: "regex", placement: "AI_OUTPUT" },
+  { kind: "regex", pass: "save", targets: ["AI_OUTPUT"] },
   ...RECEIVE_POST_PROCESS_ORDER.map((flag): PromptPipelineStep => ({ kind: "post-process", flag })),
-  { kind: "regex", placement: "REASONING" },
-  { kind: "regex", placement: "DISPLAY" },
+  { kind: "regex", pass: "save", targets: ["REASONING"] },
+  { kind: "regex", pass: "display", targets: ["USER_INPUT", "AI_OUTPUT", "REASONING"] },
 ];
 
 /** One PROSE slot whose pre-substitution token IS its payload slot — the `FormatCarrierToken` sibling for the
@@ -3014,8 +3014,7 @@ const ST_TOP_A_DEFAULT = 0;
 const ST_MIN_P_DEFAULT = 0;
 const ST_DISABLED_NUMERIC = 0; // ST top_k 0 / seed -1 / max 0 = disabled/unset
 
-/** ST canonical prompt identifier → MarkerType. Identifiers not here are custom prompts (→ literals). */
-const ST_IDENTIFIER_TO_MARKER: Record<string, MarkerType> = {
+const ST_MARKERS = {
   main: "main_prompt",
   jailbreak: "post_history",
   charDescription: "char_description",
@@ -3026,7 +3025,83 @@ const ST_IDENTIFIER_TO_MARKER: Record<string, MarkerType> = {
   chatHistory: "chat_history",
   worldInfoBefore: "world_info_before",
   worldInfoAfter: "world_info_after",
-};
+} as const satisfies Record<string, MarkerType>;
+/** ST canonical prompt identifier → MarkerType. Identifiers not here are custom prompts (→ literals). */
+const ST_IDENTIFIER_TO_MARKER: Readonly<Record<string, MarkerType>> = ST_MARKERS;
+
+/** The templated slots no SillyTavern prompt identifier maps to, which only orb fills. */
+type OrbOnlySlot = Exclude<TemplatedMarker, (typeof ST_MARKERS)[keyof typeof ST_MARKERS]>;
+const ST_MAPPED_MARKERS: ReadonlySet<MarkerType> = new Set(Object.values(ST_MARKERS));
+const ORB_ONLY_SLOTS = TEMPLATED_MARKERS.filter((marker): marker is OrbOnlySlot => !ST_MAPPED_MARKERS.has(marker));
+
+type MarkerSection = Extract<PromptSection, { type: "marker" }>;
+const isPivotSection = (section: PromptSection): boolean => section.type === "marker" && section.marker === "chat_history";
+
+/** The summary slot as an import seats it. The shipped default holds no summary section, since the assembler adds an
+ *  implicit one just before the pivot (`assembly/assemble.ts` withImplicitCompactSummary), so the import seats it there. */
+const IMPORTED_SUMMARY_SECTION = {
+  type: "marker",
+  id: mintPromptSectionId("compact-summary"),
+  name: "Summary",
+  marker: "compact_summary",
+  role: "system",
+  enabled: true,
+} as const satisfies MarkerSection;
+
+/** Each orb-only slot's section, in the shipped default's order, and whether it sits before the pivot there. A slot
+ *  the default does not seat, other than the summary, has no section to add and is left out. */
+interface SlotSeat {
+  readonly section: MarkerSection;
+  readonly beforePivot: boolean;
+}
+
+function orbSlotSeats(): readonly SlotSeat[] {
+  const seeded = DEFAULT_PROMPT_CONFIG.sections;
+  const pivot = seeded.findIndex(isPivotSection);
+  const seats = ORB_ONLY_SLOTS.flatMap((slot): (SlotSeat & { readonly index: number })[] => {
+    const index = seeded.findIndex((candidate) => candidate.type === "marker" && candidate.marker === slot);
+    const seed = seeded[index];
+    if (seed?.type === "marker") {
+      return [{ section: seed, beforePivot: index < pivot, index }];
+    }
+    return slot === IMPORTED_SUMMARY_SECTION.marker ? [{ section: IMPORTED_SUMMARY_SECTION, beforePivot: true, index: pivot }] : [];
+  });
+  return seats.sort((a, b) => a.index - b.index).map(({ section, beforePivot }) => ({ section, beforePivot }));
+}
+const ORB_SLOT_SECTIONS = orbSlotSeats();
+
+/** The first key from `base` no section already holds, so the slot's id is the same on every import of one file. */
+function freeSectionId(base: PromptSectionId, taken: ReadonlySet<string>): PromptSectionId {
+  let id = base;
+  for (let n = 2; taken.has(id); n += 1) {
+    id = mintPromptSectionId(`${base}-${String(n)}`);
+  }
+  return id;
+}
+
+/**
+ * The author's sections with a section for each orb-only slot (memory, databank, the summary, the guided instruction),
+ * so retrieval reaches the prompt on an imported preset. The author's entries keep their order: only `chat_history`
+ * anchors, the summary directly before it and the rest directly after it in the shipped default's order; a file with
+ * no `chat_history` gets them all at the end. Each is a real section, visible, switchable and movable in the editor,
+ * and carries no template, so the slot's built-in default renders.
+ */
+function withOrbSlots(sections: readonly PromptSection[]): { readonly sections: PromptSection[]; readonly added: readonly string[] } {
+  const taken = new Set<string>(sections.map((section) => section.id));
+  const seat = (section: MarkerSection): MarkerSection => {
+    const id = freeSectionId(section.id, taken);
+    taken.add(id);
+    return { ...section, id };
+  };
+  const before = ORB_SLOT_SECTIONS.filter((slot) => slot.beforePivot).map((slot) => seat(slot.section));
+  const after = ORB_SLOT_SECTIONS.filter((slot) => !slot.beforePivot).map((slot) => seat(slot.section));
+  const pivot = sections.findIndex(isPivotSection);
+  const placed =
+    pivot < 0
+      ? [...sections, ...before, ...after]
+      : [...sections.slice(0, pivot), ...before, ...sections.slice(pivot, pivot + 1), ...after, ...sections.slice(pivot + 1)];
+  return { sections: placed, added: [...before, ...after].map((section) => section.name) };
+}
 
 const PLAIN_MARKER_SET: ReadonlySet<string> = new Set(PLAIN_MARKERS);
 const OVERRIDABLE_MARKERS: ReadonlySet<MarkerType> = new Set<MarkerType>(["main_prompt", "post_history"]);
@@ -3068,16 +3143,21 @@ const stPresetSchema = z.looseObject({
   prompt_order: z.array(z.object({ character_id: z.number(), order: z.array(stOrderEntrySchema) }).strip()).optional(),
 });
 
+/** A SillyTavern field the import reports. A field that was imported with its value brought into range carries
+ *  `clamped`, which a door reads instead of matching the reason's text; every other entry found no seat. */
 export interface StDroppedField {
   field: string;
   reason: string;
+  clamped?: { readonly sent: number; readonly landedAs: number };
 }
 
-export interface StImportResult {
+interface StImportResult {
   config: PromptConfig;
   dropped: StDroppedField[];
   /** How many sections the import produced (markers + literals). */
   sectionCount: number;
+  /** The names of the sections the import added for orb's own slots, which the file has no prompt for. */
+  addedSections: readonly string[];
 }
 
 type StPrompt = z.infer<typeof stPromptSchema>;
@@ -3115,7 +3195,8 @@ function clampForeignValue(value: number, [min, max]: readonly [number, number],
   if (clamped !== value) {
     dropped.push({
       field,
-      reason: `SillyTavern sent ${value}; orb stores a whole number between ${min} and ${max}, so it was imported as ${clamped}.`,
+      reason: `The file sets ${value}. This app keeps whole numbers from ${min} to ${max}, so it was imported as ${clamped}.`,
+      clamped: { sent: value, landedAs: clamped },
     });
   }
   return clamped;
@@ -3213,7 +3294,10 @@ const ST_CONTINUE_POSTFIX: Record<string, ContinuePostfix> = {
 
 // Top-level ST fields with no neo home — reported (when present + meaningful) so the user knows.
 const DROPPABLE_FIELDS: readonly StDroppedField[] = [
-  { field: "group_nudge_prompt", reason: "group nudge is room-owned, not preset-owned" },
+  {
+    field: "group_nudge_prompt",
+    reason: "SillyTavern uses it to nudge the next speaker in a group chat. Here nudges are set per chat, so it was not imported.",
+  },
   // `new_chat_prompt` is NOT here: its orb seat EXISTS —
   // `formatStrings.newChatMarker`, the history-START boundary the assembler reads
   // (`assembly/context.ts` newChatMarkerCandidate / G9) — so `collectFormatStrings` maps it.
@@ -3222,55 +3306,99 @@ const DROPPABLE_FIELDS: readonly StDroppedField[] = [
   // every SOLO chat, a different behavior than the author recorded, not a translation.
   {
     field: "new_group_chat_prompt",
-    reason: "orb's one history-START boundary (newChatMarker) is room-agnostic and maps from new_chat_prompt; a group-only boundary has no conditional seat",
+    reason:
+      "SillyTavern uses it to open a new group chat. Here one opening line, from the new chat prompt, serves every chat, so a group-only line was not imported.",
   },
-  { field: "new_example_chat_prompt", reason: "no example-chat injection slot" },
-  { field: "bias_preset_selected", reason: "no logit-bias presets" },
-  { field: "assistant_prefill", reason: "response prefill unsupported across providers" },
-  { field: "assistant_impersonation", reason: "no impersonation prefill" },
-  { field: "wrap_in_quotes", reason: "no quote-wrapping knob" },
-  { field: "function_calling", reason: "no tool-calling in chat presets" },
-  { field: "enable_web_search", reason: "no web-search knob" },
+  {
+    field: "new_example_chat_prompt",
+    reason: "SillyTavern uses it to mark where example dialogue starts. This app has no separate line for that, so it was not imported.",
+  },
+  {
+    field: "bias_preset_selected",
+    reason: "SillyTavern uses it to pick a saved logit bias preset. This app has no saved logit bias presets, so it was not imported.",
+  },
+  { field: "assistant_prefill", reason: "SillyTavern starts the reply with this text. Not every provider supports that, so it was not imported." },
+  {
+    field: "assistant_impersonation",
+    reason: "SillyTavern starts an impersonated reply with this text. This app has no such prefill, so it was not imported.",
+  },
+  { field: "wrap_in_quotes", reason: "SillyTavern uses it to wrap your message in quotes. This app has no such setting, so it was not imported." },
+  {
+    field: "function_calling",
+    reason: "SillyTavern uses it to let the model call tools. Chat presets here do not switch tool calling on, so it was not imported.",
+  },
+  { field: "enable_web_search", reason: "SillyTavern uses it to turn on web search. This app has no such setting, so it was not imported." },
 ];
 
-const finiteNumber = (v: unknown): number | undefined => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
-const setNum = (out: Record<string, unknown>, k: string, v: number | undefined): void => {
-  if (v !== undefined) {
-    out[k] = v;
-  }
-};
+/** The reason for a populated top-level field the mapper neither maps nor lists. */
+const UNUSED_FIELD_REASON = "This app does not use this SillyTavern setting, so it was not imported.";
 
-/** Where the mapped ST fields land: the sampling intent, the format strings, and the two prompt-config knobs. */
+/** Where the mapped ST fields land: the sampling intent, the format strings, the two prompt-config knobs, and what
+ *  a field lost on the way in. */
 interface StSeats {
   readonly params: Record<string, unknown>;
   readonly formatStrings: Record<string, string>;
+  readonly dropped: StDroppedField[];
   namesBehavior?: NamesBehavior;
   continuePostfix?: ContinuePostfix;
 }
 
-type StSeatReader = (value: unknown, seats: StSeats) => void;
+type StSeatReader = (value: unknown, seats: StSeats, field: string) => void;
 
-const intoParam =
-  (key: string): StSeatReader =>
-  (value, seats): void => {
-    setNum(seats.params, key, finiteNumber(value));
+type NumericKnob = keyof typeof generationKnobSchemas;
+
+/** Judge one foreign number against the stored knob's own schema, alone, so no field can sink another: a value in
+ *  range lands as sent; one past the range, or a fraction where a whole number is stored, lands at the nearest stored
+ *  value and is reported as clamped; a whole number past the safe integers, or one the schema still refuses at its
+ *  bound (an exclusive one), is left out. */
+function judgeKnob(key: NumericKnob, value: number, field: string, seats: StSeats): void {
+  const stored = generationKnobSchemas[key].unwrap();
+  const whole = stored.format === "safeint";
+  // Clamping such a value to the largest safe integer would store a number the file never meant.
+  if (whole && !Number.isSafeInteger(Math.round(value))) {
+    seats.dropped.push({ field, reason: `SillyTavern sent ${value}, past the largest whole number this app stores, so it was left out.` });
+    return;
+  }
+  const landed = Math.min(
+    Math.max(whole ? Math.round(value) : value, stored.minValue ?? Number.NEGATIVE_INFINITY),
+    stored.maxValue ?? Number.POSITIVE_INFINITY,
+  );
+  if (!stored.safeParse(landed).success) {
+    seats.dropped.push({ field, reason: `SillyTavern sent ${value}, which this app cannot store here, so it was left out.` });
+    return;
+  }
+  seats.params[key] = landed;
+  if (landed !== value) {
+    seats.dropped.push({
+      field,
+      reason: `SillyTavern sent ${value}; it was imported as ${landed}, the nearest value this app stores.`,
+      clamped: { sent: value, landedAs: landed },
+    });
+  }
+}
+
+/** A sampler or limit. Absent or null carries nothing, and so does a value SillyTavern itself reads as off (`isOff`);
+ *  a value that is not a finite number is left out and named. */
+const intoKnob =
+  (key: NumericKnob, isOff: (n: number) => boolean = (): boolean => false): StSeatReader =>
+  (value, seats, field): void => {
+    if (value === undefined || value === null) {
+      return;
+    }
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      seats.dropped.push({ field, reason: "it is not a number, so it was left out." });
+      return;
+    }
+    if (!isOff(value)) {
+      judgeKnob(key, value, field, seats);
+    }
   };
 
-/** A numeric knob ST disables at or below `floor`. */
-const intoParamAbove =
-  (key: string, floor: number): StSeatReader =>
-  (value, seats): void => {
-    const n = finiteNumber(value);
-    setNum(seats.params, key, n !== undefined && n > floor ? n : undefined);
-  };
-
-/** A numeric knob whose ST default means "off", so only another value is carried. */
-const intoParamUnless =
-  (key: string, off: number): StSeatReader =>
-  (value, seats): void => {
-    const n = finiteNumber(value);
-    setNum(seats.params, key, n === off ? undefined : n);
-  };
+/** ST disables the knob at or below this. */
+const offAtOrBelow =
+  (floor: number) =>
+  (n: number): boolean =>
+    n <= floor;
 
 /** A prompt-string slot. A blank slot is omitted so the assembler falls back to `DEFAULT_FORMAT_STRINGS`, and each is
  *  bounded to the schema max so a hostile import cannot smuggle an oversized nudge. */
@@ -3286,21 +3414,19 @@ const intoFormatString =
 // reads its keys, so a field the mapper reads is never reported as lost and a listed field always has a reader.
 // `new_chat_prompt` lands on `formatStrings.newChatMarker`, the history-start boundary the assembler reads.
 const ST_FIELD_SEATS: Readonly<Record<string, StSeatReader>> = {
-  temperature: intoParam("temperature"),
-  top_p: intoParam("topP"),
-  top_k: intoParamAbove("topK", ST_DISABLED_NUMERIC),
-  frequency_penalty: intoParam("frequencyPenalty"),
-  presence_penalty: intoParam("presencePenalty"),
-  repetition_penalty: intoParam("repetitionPenalty"),
-  min_p: intoParamUnless("minP", ST_MIN_P_DEFAULT),
-  top_a: intoParamUnless("topA", ST_TOP_A_DEFAULT),
-  openai_max_tokens: intoParamAbove("maxOutputTokens", ST_DISABLED_NUMERIC),
-  openai_max_context: intoParamAbove("maxContextTokens", ST_DISABLED_NUMERIC),
+  temperature: intoKnob("temperature"),
+  top_p: intoKnob("topP"),
+  top_k: intoKnob("topK", offAtOrBelow(ST_DISABLED_NUMERIC)),
+  frequency_penalty: intoKnob("frequencyPenalty"),
+  presence_penalty: intoKnob("presencePenalty"),
+  repetition_penalty: intoKnob("repetitionPenalty"),
+  // A default that means "off" is "no preference", so only another value is carried.
+  min_p: intoKnob("minP", (n) => n === ST_MIN_P_DEFAULT),
+  top_a: intoKnob("topA", (n) => n === ST_TOP_A_DEFAULT),
+  openai_max_tokens: intoKnob("maxOutputTokens", offAtOrBelow(ST_DISABLED_NUMERIC)),
+  openai_max_context: intoKnob("maxContextTokens", offAtOrBelow(ST_DISABLED_NUMERIC)),
   // ST -1 is random, so only a seed of 0 or more is carried.
-  seed: (value, seats): void => {
-    const n = finiteNumber(value);
-    setNum(seats.params, "seed", n !== undefined && n >= ST_DISABLED_NUMERIC ? n : undefined);
-  },
+  seed: intoKnob("seed", (n) => n < ST_DISABLED_NUMERIC),
   reasoning_effort: (value, seats): void => {
     if (typeof value === "string" && (EFFORT_LEVELS as readonly string[]).includes(value)) {
       seats.params["effort"] = value;
@@ -3336,9 +3462,9 @@ const ST_FIELD_SEATS: Readonly<Record<string, StSeatReader>> = {
 
 /** Map every top-level ST field the mapper has a seat for. */
 function mapSeats(raw: Record<string, unknown>): StSeats {
-  const seats: StSeats = { params: {}, formatStrings: {} };
+  const seats: StSeats = { params: {}, formatStrings: {}, dropped: [] };
   for (const [field, read] of Object.entries(ST_FIELD_SEATS)) {
-    read(raw[field], seats);
+    read(raw[field], seats, field);
   }
   return seats;
 }
@@ -3412,7 +3538,7 @@ function collectDroppableFields(rawObj: Record<string, unknown>, handled: readon
   }
   for (const [field, value] of Object.entries(rawObj)) {
     if (!(MAPPED_FIELDS.has(field) || DROPPABLE_FIELD_NAMES.has(field) || handled.includes(field)) && isPopulatedValue(value)) {
-      out.push({ field, reason: "not a field orb recognises — no orb seat" });
+      out.push({ field, reason: UNUSED_FIELD_REASON });
     }
   }
   return out;
@@ -3490,15 +3616,24 @@ function stReasoningParse(powerUser: Record<string, unknown>): PromptConfig["rea
 // `power_user` keys that are GENERATION-adjacent (so they would belong on a preset) but have no orb seat at
 // all. Reported on the LIVE preset's dropped list so the operator sees them exactly where they'd have landed.
 const DROPPABLE_POWER_USER_FIELDS: readonly StDroppedField[] = [
-  { field: "token_padding", reason: "ST reserves context headroom for its own tokenizer's inaccuracy; orb budgets from provider-reported usage" },
-  { field: "tokenizer", reason: "the ST tokenizer set is reaffirmed OUT (D49) — orb counts through the provider" },
-  { field: "custom_stopping_strings_macro", reason: "macro substitution INSIDE stop strings — orb's stop list is literal (the strings themselves DO import)" },
-  { field: "auto_continue", reason: "ST's auto-continue-until-length loop — no orb counterpart" },
+  {
+    field: "token_padding",
+    reason: "SillyTavern pads its token count to allow for its own counting error. This app counts from what the provider reports, so it was not imported.",
+  },
+  { field: "tokenizer", reason: "SillyTavern uses it to choose which tokenizer counts tokens. This app counts through the provider, so it was not imported." },
+  {
+    field: "custom_stopping_strings_macro",
+    reason: "SillyTavern expands macros inside stop strings. Here stop strings are literal text, so the macros were not imported. The strings themselves were.",
+  },
+  {
+    field: "auto_continue",
+    reason: "SillyTavern keeps continuing a reply until it reaches the length limit. This app has no such loop, so it was not imported.",
+  },
   // BY DESIGN, not deferred (owner ruling, reaffirmed: "we are never running text-complete") —
   // these three are text-completion prompt-format state, and orb has no text-completion mode to spend them in.
-  { field: "context", reason: "text-completion context template — text-completion is out of product scope (owner ruling, reaffirmed 2026-08-15)" },
-  { field: "instruct", reason: "text-completion instruct template — text-completion is out of product scope (owner ruling, reaffirmed 2026-08-15)" },
-  { field: "sysprompt", reason: "text-completion system-prompt template — text-completion is out of product scope (owner ruling, reaffirmed 2026-08-15)" },
+  { field: "context", reason: "SillyTavern's context template for text completion. This app does not use text completion, so it was not imported." },
+  { field: "instruct", reason: "SillyTavern's instruct template for text completion. This app does not use text completion, so it was not imported." },
+  { field: "sysprompt", reason: "SillyTavern's system prompt template for text completion. This app does not use text completion, so it was not imported." },
 ];
 
 /** A value worth reporting as dropped: a non-empty string, a `true`, a non-zero number, or a non-empty object or
@@ -3581,7 +3716,7 @@ function stSchemaRejection(
   return {
     ok: false,
     recognised: true,
-    reason: `This SillyTavern preset mapped to a config orb cannot store (${outcome.failure})${detail}, so nothing was imported — importing it would have silently replaced it with orb's default preset.`,
+    reason: `This SillyTavern preset has a value this app cannot store${detail}, so nothing was imported. Importing it would have replaced it with the default preset without telling you.`,
   };
 }
 
@@ -3616,11 +3751,12 @@ function unkeyedRefusal(identifier: string): StImportOutcome {
 }
 
 /** The mapped config's validated outcome once every section is keyed. */
-function stConfigOutcome(rawObj: Record<string, unknown>, sections: PromptSection[], dropped: StDroppedField[], options: StImportOptions): StImportOutcome {
+function stConfigOutcome(rawObj: Record<string, unknown>, authored: PromptSection[], dropped: StDroppedField[], options: StImportOptions): StImportOutcome {
+  const { sections, added } = withOrbSlots(authored);
   const seats = mapSeats(rawObj);
-  // `.catch({})` keeps a stray field from sinking the whole blob.
-  const params = userIntentSchema.catch({}).parse(seats.params);
-  dropped.push(...collectDroppableFields(rawObj, options.handledFields ?? []));
+  // Each param was judged alone against its own schema, so the whole set is never parsed (and dropped) as one.
+  const { params } = seats;
+  dropped.push(...seats.dropped, ...collectDroppableFields(rawObj, options.handledFields ?? []));
 
   const { namesBehavior, continuePostfix } = seats;
   const formatStrings = Object.keys(seats.formatStrings).length > 0 ? seats.formatStrings : undefined;
@@ -3652,13 +3788,17 @@ function stConfigOutcome(rawObj: Record<string, unknown>, sections: PromptSectio
 
   // The count DESCRIBES THE RETURNED CONFIG, never the array that was built: when the two could disagree,
   // the disagreement was invisible and made the silent-default failure above look like a success.
-  return { ok: true, result: { config, dropped, sectionCount: config.sections.length } };
+  return { ok: true, result: { config, dropped, sectionCount: config.sections.length, addedSections: added } };
 }
 
 // ── orb native preset file (the lossless full-preset export) ───────────────────────────────────────
 // `PRESET_SCHEMA_KIND` is the ONE accepted kind — orb-native backup only. There is no legacy-kind accept:
 // the previous codebase never launched, so no foreign preset file exists to import.
 export { PRESET_SCHEMA_KIND } from "../portability/envelope.ts";
+
+/** The kind every owned preset is born with: a new or copied preset, a fork of the system default, and every
+ *  import. `kind` is a free-text label the library row's subtitle prints, and nothing branches on it. */
+export const OWNED_PRESET_KIND = "generation";
 
 export interface PresetFile {
   schemaKind: typeof PRESET_SCHEMA_KIND;
@@ -3668,15 +3808,19 @@ export interface PresetFile {
   schemaVersion: number;
   name: string;
   config: PromptConfig;
+  /** The preset's attached regex scripts in its run order, on the card wire in both spellings. A file written before
+   *  the export carried them has none, and its import compares the preset by its config alone. */
+  regexScripts?: readonly (RegexScriptCard & StRegexScriptFields)[];
 }
 
-/** Build the export payload for a preset (name + its full config). */
-export function buildPresetFile(name: string, config: PromptConfig): PresetFile {
+/** Build the export payload for a preset: its name, its full config and, from an export, its attached scripts. */
+export function buildPresetFile(name: string, config: PromptConfig, regexScripts?: readonly (RegexScriptCard & StRegexScriptFields)[]): PresetFile {
   return {
     schemaKind: PRESET_SCHEMA_KIND,
     schemaVersion: PROMPT_CONFIG_SCHEMA_VERSION,
     name,
     config,
+    ...(regexScripts === undefined ? {} : { regexScripts }),
   };
 }
 
@@ -3734,8 +3878,14 @@ export function parsePresetFile(raw: unknown): ParsePresetResult {
   return { ok: true, name, config: result.data };
 }
 
-export type { CopyPresetToUser, ExportPresets, ImportPresets, PresetReadable } from "./owner-ops.ts";
-export { type PresetImportOutcome, presetImportOutcomeSchema } from "./portability.ts";
+export type { CopyPresetToUser, ExportPresets, ImportPresets, PresetImportFile, PresetReadable } from "./owner-ops.ts";
+export {
+  type PresetFilePreview,
+  type PresetImportOutcome,
+  presetFilePreviewSchema,
+  presetImportOutcomeSchema,
+  ST_PRESET_SCRIPT_LIST_FIELD,
+} from "./portability.ts";
 
 // Wire outputs validate already-produced configuration; storage parsing retains its lenient degradation.
 export const userIntentViewSchema = userIntentSchema.extend({

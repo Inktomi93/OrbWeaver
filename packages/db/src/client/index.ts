@@ -394,7 +394,7 @@ export async function assertReferentialIntegrity(db: Db): Promise<void> {
 // compared against `.at(-1)` alone. Post-launch that read is a trap: a db sitting at `0000` with a freshly
 // committed `0001` is BEHIND, not diverged, and `.at(-1)` reports it `regenerated` — which the
 // boot refuses, so no forward migration could ever be applied. A db whose newest
-// applied migration IS one of the shipped entries is `current` on this axis; `hasPendingMigrations` owns
+// applied migration IS one of the shipped entries is `current` on this axis; `pendingMigrations` owns
 // the orthogonal "is there anything left to apply" question and drizzle's migrator applies it.
 //
 // `regenerated` therefore now means: this db applied a migration that is in no shipped entry — an applied
@@ -450,7 +450,7 @@ function readJournalEntries(migrationsFolder: string): readonly { readonly when:
     return { when: entry["when"], tag: entry["tag"] };
   });
   // ORDER IS AN ASSUMPTION EVERY CONSUMER MAKES — `shippedMigrationChain` takes `.at(-1)`
-  // as "the newest" and `hasPendingMigrations` walks the list in apply order. Drizzle generates the file in
+  // as "the newest" and `pendingMigrations` walks the list in apply order. Drizzle generates the file in
   // apply order, so this asserts an invariant rather than imposing one; stating it means a generator that
   // ever stopped sorting is a loud error instead of a chain tip computed off the wrong migration.
   for (let i = 1; i < entries.length; i += 1) {
@@ -462,18 +462,13 @@ function readJournalEntries(migrationsFolder: string): readonly { readonly when:
 }
 
 /**
- * Would {@link runMigrations} actually APPLY something? Mirrors drizzle's migrator selection exactly: it
- * applies every journal entry whose `when` is newer than the newest `created_at` in `__drizzle_migrations`
- * (and all of them when that table is absent/empty). Read-only.
+ * The tag of every journal entry {@link runMigrations} would still apply to this db, in apply order. Mirrors
+ * drizzle's migrator selection exactly: every journal entry whose `when` is newer than the newest `created_at` in
+ * `__drizzle_migrations` (and all of them when that table is absent/empty). Read-only.
  *
  * The boot step gates the pre-migration backup on this: a no-op boot (every dev-stack restart) must NOT
  * copy the db aside, while the backup-before-change guarantee is unchanged for boots that change anything.
  */
-export async function hasPendingMigrations(db: Db, migrationsFolder: string): Promise<boolean> {
-  return (await pendingMigrations(db, migrationsFolder)).length > 0;
-}
-
-/** The tag of every journal entry {@link runMigrations} would still apply to this db, in apply order. Read-only. */
 export async function pendingMigrations(db: Db, migrationsFolder: string): Promise<readonly string[]> {
   const entries = readJournalEntries(migrationsFolder);
   const applied = await readAppliedBaseline(db);

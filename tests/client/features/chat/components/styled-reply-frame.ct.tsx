@@ -63,7 +63,11 @@ async function openStyledRoom(body: string): Promise<StyledRoom> {
   await using construction = new AsyncDisposableStack();
   const root = construction.use(await createCorpusHarness());
   const caller = await root.internalCallerFor(root.ownerId);
-  await caller.regex.createScript({ input: { name: "Scene banner", findRegex: BANNER_FIND, replaceString: BANNER_TEMPLATE, placement: ["DISPLAY"] } });
+  const banner = await caller.regex.createScript({
+    input: { name: "Scene banner", findRegex: BANNER_FIND, replaceString: BANNER_TEMPLATE, targets: ["AI_OUTPUT"], passes: ["display"] },
+  });
+  // A library script runs only where it is attached; globally, it reaches every room the viewer opens.
+  await caller.regex.attachGlobal({ scriptId: banner.id });
   for (const row of (await caller.chat.listChats({ limit: 100 })).items) {
     const detail = await caller.chat.getChat({ chatId: row.id });
     const trusted = new Set(

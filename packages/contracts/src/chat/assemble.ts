@@ -9,6 +9,7 @@ import type { CharacterId, MessageId, MessageVariantId, UserId, WorldEntryId } f
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { InjectionPlacement } from "@orb/kit/injection";
 import type { MacroSourceRef, VarOp } from "@orb/kit/macro";
+import type { RoomStanding } from "@orb/kit/message-author";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { PersonaDescriptionPlacement } from "@orb/kit/persona";
 import type { EntryKeyMode, EntryPosition } from "@orb/kit/world-info";
@@ -805,6 +806,9 @@ export interface AssembleContext {
   /** The effective HOST-TIER regex set — the library rows resolved from the global/preset/character/chat scope
    *  junctions under the frozen `runAsUserId` (D19, never the caller). Absent ⇒ no host-tier regex. */
   hostTierRegexScripts?: readonly RegexScriptRow[] | undefined;
+  /** The room's present human seats and their standing, which a host-tier script's author scope reads on the
+   *  prompt pass. Absent ⇒ no seat holds a standing. */
+  hostTierRegexRoom?: RoomStanding | undefined;
   /** WI-conversion trace, copied into `AssembleTrace` for the section-preview panel. `activated` is the
    *  budget-survived, actually-fired WI entries by identity (id + keyword list) — NOT `matchedKeys` (keyword
    *  strings, not entry identity). The engine's live-turn `worldInfoActivated` bus emit derives its id list

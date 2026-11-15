@@ -42,6 +42,7 @@ import type {
 } from "@orb/contracts/chat";
 import { characterRegexTierKey, isRegexEnabledInChat, isRegexTierAllowed } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
+import type { RegexPass } from "@orb/kit/regex";
 import type { HostTierRegexSources, RegexTierLabels } from "../contract/regex.ts";
 
 /** The room's REGEX LEVERS, lifted off the parsed metadata blob for the pure resolver below — which
@@ -147,6 +148,19 @@ export function resolveRegexTiers(sources: HostTierRegexSources, labels: RegexTi
  *  turn and the room's Regex section can never disagree about what runs — one resolver, two readers.
  *  `executeRegexScripts` still does the enabled/placement/flag filtering. */
 export function resolveHostTierRegexScripts(sources: HostTierRegexSources): RegexScriptRow[] {
+  return resolveHostTierRegexEntries(sources).map((entry) => entry.script);
+}
+
+const DISPLAY_PASS = "display" satisfies RegexPass;
+
+/** Whether a resolved script draws on the display pass: the one filter a viewer's display set applies after the
+ *  tiers resolve. The display read and the member room-tier read share it. */
+export function drawsOnDisplay(script: RegexScriptRow): boolean {
+  return script.enabled && script.passes.includes(DISPLAY_PASS);
+}
+
+/** The same effective run order with the tier each row ran from, which the display read reports per script. */
+export function resolveHostTierRegexEntries(sources: HostTierRegexSources): { readonly script: RegexScriptRow; readonly from: RegexTierKey }[] {
   // THE ROW COMES FROM THE OCCURRENCE THAT CLAIMED THE RANK — the tier whose `runsAt` is non-null — not from
   // the first occurrence in source order. The two differ exactly when the earliest tier holding the script is
   // switched OFF: taking the first occurrence there would run the disallowed tier's copy of the row, which is
@@ -154,7 +168,7 @@ export function resolveHostTierRegexScripts(sources: HostTierRegexSources): Rege
   // The TURN names nothing — it consumes the effective half only, so it hands the resolver the one honest
   // label it has (`null` ⇒ unnamed) rather than a preset name it would never render.
   return resolveRegexTiers(sources, { preset: null })
-    .tiers.flatMap((tier) => tier.rows.filter((row) => row.runsAt !== null))
-    .sort((a, b) => (a.runsAt ?? 0) - (b.runsAt ?? 0))
-    .map((row) => row.script);
+    .tiers.flatMap((tier) => tier.rows.flatMap((row) => (row.runsAt === null ? [] : [{ script: row.script, from: tier.scope, runsAt: row.runsAt }])))
+    .sort((a, b) => a.runsAt - b.runsAt)
+    .map(({ script, from }) => ({ script, from }));
 }

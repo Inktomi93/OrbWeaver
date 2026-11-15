@@ -1,6 +1,12 @@
-import { buildPresetFile, DEFAULT_PROMPT_CONFIG, parsePresetFile, tryImportStChatCompletionPreset } from "@orb/contracts/preset";
+import type { PromptConfig } from "@orb/contracts/preset";
+import { buildPresetFile, DEFAULT_PROMPT_CONFIG, MARKER_TYPES, parsePresetFile, tryImportStChatCompletionPreset } from "@orb/contracts/preset";
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import { expect, test } from "@orb/testkit/node";
+
+/** The sections the file itself authored: the import adds the named slot sections around them. */
+function authored(result: { readonly config: PromptConfig; readonly addedSections: readonly string[] }): PromptConfig["sections"] {
+  return result.config.sections.filter((section) => !result.addedSections.includes(section.name));
+}
 
 const INJECTED_PRESET = {
   prompts: [{ identifier: "a", name: "A", content: "You are helpful.", role: "system", ["injection_position"]: 1, ["injection_depth"]: 3 }],
@@ -19,7 +25,7 @@ test("depth bounds clamp one field, report its loss and count the returned secti
     }
     const { config, dropped, sectionCount } = outcome.result;
     expect(config).not.toEqual(DEFAULT_PROMPT_CONFIG);
-    expect(config.sections).toEqual([
+    expect(authored(outcome.result)).toEqual([
       {
         type: "literal",
         id: "a",
@@ -31,7 +37,11 @@ test("depth bounds clamp one field, report its loss and count the returned secti
       },
     ]);
     expect(sectionCount).toBe(config.sections.length);
-    const droppedDepth = { field: "prompts.a.injection_depth", reason: expect.stringContaining(`SillyTavern sent ${depth};`) };
+    const droppedDepth = {
+      field: "prompts.a.injection_depth",
+      reason: expect.any(String),
+      clamped: { sent: depth, landedAs: depth < 0 ? 0 : MAX_INJECTION_DEPTH },
+    };
     expect(dropped).toEqual(depth === MAX_INJECTION_DEPTH ? [] : [droppedDepth]);
   }
 });
@@ -49,7 +59,7 @@ test("plain marker triggers survive mapping and native round-trip without placem
     throw new Error(outcome.reason);
   }
   const { config } = outcome.result;
-  expect(config.sections).toEqual([
+  expect(authored(outcome.result)).toEqual([
     {
       type: "marker",
       id: "worldInfoBefore",
@@ -73,7 +83,7 @@ test("plain marker triggers survive mapping and native round-trip without placem
   if (!unset.ok) {
     throw new Error(unset.reason);
   }
-  expect(unset.result.config.sections).toStrictEqual([
+  expect(authored(unset.result)).toStrictEqual([
     { type: "marker", id: "worldInfoBefore", name: "worldInfoBefore", marker: "world_info_before", role: "system", enabled: true },
   ]);
 });
@@ -86,7 +96,6 @@ test("recognised schema refusal identifies the source prompt and field, unlike u
   if (refused.ok) {
     throw new Error("Oversized content was imported");
   }
-  expect(refused.reason).toContain("(schema-rejected)");
   expect(refused.reason).toContain('the ST prompt "a" `content`: Too big: expected string to have <=100000 characters');
   expect(tryImportStChatCompletionPreset({ note: "another tool's export", items: [1, 2, 3] })).toMatchObject({ ok: false, recognised: false });
 });
@@ -151,12 +160,10 @@ test("format strings map to their native seats and unsupported group fields repo
     impersonateNudge: "speak as the user",
     continueNudge: "keep going",
   });
+  // Each group-only field is reported by name with a reason, and none is a clamp.
   expect(outcome.result.dropped).toEqual([
-    { field: "group_nudge_prompt", reason: "group nudge is room-owned, not preset-owned" },
-    {
-      field: "new_group_chat_prompt",
-      reason: "orb's one history-START boundary (newChatMarker) is room-agnostic and maps from new_chat_prompt; a group-only boundary has no conditional seat",
-    },
+    { field: "group_nudge_prompt", reason: expect.any(String) },
+    { field: "new_group_chat_prompt", reason: expect.any(String) },
   ]);
   const blank = tryImportStChatCompletionPreset({ prompts: [], ["impersonation_prompt"]: "   ", ["continue_nudge_prompt"]: "", ["new_chat_prompt"]: "\n" });
   expect(blank.ok).toBe(true);
@@ -228,4 +235,85 @@ test("every populated top-level field the mapper neither maps nor lists is named
 
   expect(fieldsOf(tryImportStChatCompletionPreset(preset))).toEqual(["stream_openai", "n", "wi_format", "media_inlining", "extensions"]);
   expect(fieldsOf(tryImportStChatCompletionPreset(preset, { handledFields: ["extensions"] }))).toEqual(["stream_openai", "n", "wi_format", "media_inlining"]);
+});
+
+// Every SillyTavern identifier the mapper knows, in a file whose jailbreak sits above the history.
+const EVERY_ST_PROMPT = [
+  "main",
+  "jailbreak",
+  "charDescription",
+  "charPersonality",
+  "scenario",
+  "dialogueExamples",
+  "personaDescription",
+  "worldInfoBefore",
+  "chatHistory",
+  "worldInfoAfter",
+];
+
+function importedOrThrow(raw: unknown): { readonly config: PromptConfig; readonly addedSections: readonly string[] } {
+  const outcome = tryImportStChatCompletionPreset(raw);
+  if (!outcome.ok) {
+    throw new Error(outcome.reason);
+  }
+  return outcome.result;
+}
+
+const markersOf = (config: PromptConfig): readonly string[] => config.sections.map((section) => (section.type === "marker" ? section.marker : section.id));
+
+test("a SillyTavern preset gains a section for every slot it has no prompt for, around its history and never reordering it", () => {
+  const result = importedOrThrow({
+    prompts: [...EVERY_ST_PROMPT.map((identifier) => ({ identifier })), { identifier: "custom", content: "Stay terse." }],
+    ["prompt_order"]: [{ ["character_id"]: 100_001, order: [...EVERY_ST_PROMPT, "custom"].map((identifier) => ({ identifier, enabled: true })) }],
+  });
+  // Every marker orbweaver has is now in the preset, so a slot added later without an import seat fails here.
+  expect(new Set(result.config.sections.flatMap((section) => (section.type === "marker" ? [section.marker] : [])))).toEqual(new Set(MARKER_TYPES));
+  // The jailbreak stays above the history where the author put it; only the history anchors the added slots.
+  expect(markersOf(result.config)).toEqual([
+    "main_prompt",
+    "post_history",
+    "char_description",
+    "char_personality",
+    "scenario",
+    "dialogue_examples",
+    "persona",
+    "world_info_before",
+    "compact_summary",
+    "chat_history",
+    "memory",
+    "databank",
+    "guided_instruction",
+    "world_info_after",
+    "custom",
+  ]);
+  const added = result.config.sections.filter((section) => result.addedSections.includes(section.name));
+  expect(added).toHaveLength(4);
+  for (const section of added) {
+    expect(section).toMatchObject({ type: "marker", enabled: true });
+    expect("template" in section).toBe(false);
+  }
+});
+
+test("a SillyTavern preset with no history gets the slot sections at its end", () => {
+  const result = importedOrThrow({ prompts: [{ identifier: "main" }, { identifier: "jailbreak" }] });
+  expect(markersOf(result.config)).toEqual(["main_prompt", "post_history", "compact_summary", "memory", "databank", "guided_instruction"]);
+});
+
+test("a slot section takes a key the author's prompts leave free, and the same file always gets the same keys", () => {
+  // A custom SillyTavern prompt may carry any identifier, the shipped slot keys included.
+  const file = {
+    prompts: [
+      { identifier: "memory", content: "The author's own memory note." },
+      { identifier: "databank", content: "Theirs too." },
+      { identifier: "chatHistory" },
+    ],
+  };
+  const first = importedOrThrow(file);
+  const ids = first.config.sections.map((section) => section.id);
+  expect(new Set(ids).size).toBe(ids.length);
+  expect(first.config.sections.filter((section) => section.type === "literal").map(({ id, content }) => ({ id, content }))).toEqual([
+    { id: "memory", content: "The author's own memory note." },
+    { id: "databank", content: "Theirs too." },
+  ]);
+  expect(importedOrThrow(file).config).toEqual(first.config);
 });

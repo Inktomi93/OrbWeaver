@@ -23,7 +23,11 @@ export function createBulkSetGlobal(ctx: RegexContext): RegexService["bulkSetScr
     const targets = scriptIds.filter((scriptId) => owned.has(scriptId));
     const at = ctx.now();
 
-    const affected = global ? await attachMissing(ctx, ownerId, targets, at) : (await detachGlobalBulk(ctx.db, targets)).length;
+    // The host's tiers draw for the room's members: an attach fans after its rows land, a detach reads its
+    // rooms before they go.
+    const announce = global ? null : await ctx.captureRoomReachForDelete(targets);
+    const changed = global ? await attachMissing(ctx, ownerId, targets, at) : await detachGlobalBulk(ctx.db, targets);
+    const affected = changed.length;
     if (affected > 0) {
       await ctx.audit(
         {
@@ -36,15 +40,20 @@ export function createBulkSetGlobal(ctx: RegexContext): RegexService["bulkSetScr
       );
       ctx.emitUserEvent(ownerId, { type: "regexChanged" });
     }
+    if (announce === null) {
+      await Promise.all(changed.map((scriptId) => ctx.fanRegexScriptRooms(scriptId)));
+    } else {
+      announce(changed);
+    }
     return { affected };
   };
 }
 
-/** Append the targets that are not already in the tier, and answer how many that was. */
-async function attachMissing(ctx: RegexContext, ownerId: UserId, targets: readonly RegexScriptId[], at: number): Promise<number> {
+/** Append the targets that are not already in the tier, and answer which those were. */
+async function attachMissing(ctx: RegexContext, ownerId: UserId, targets: readonly RegexScriptId[], at: number): Promise<readonly RegexScriptId[]> {
   const current = await listGlobalScripts(ctx.db, ownerId);
   const already = new Set<RegexScriptId>(current.map((record) => record.id));
   const missing = targets.filter((scriptId) => !already.has(scriptId));
   await attachGlobalBulk(ctx.db, missing, current.length, at);
-  return missing.length;
+  return missing;
 }

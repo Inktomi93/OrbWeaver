@@ -33,7 +33,9 @@ export function createToastNotify(toastManager: ToastManager): Notify {
     const resolved = toNotice(notice);
     const { title, description, action } = resolved;
     // The user has acted on the notice, so the action dismisses it — after the handler runs, once, here for every caller.
+    // A named notice passes its id through: Base UI updates a showing toast with that id in place.
     const id = toastManager.add({
+      ...(resolved.id === undefined ? {} : { id: resolved.id }),
       actionProps:
         action === undefined
           ? undefined

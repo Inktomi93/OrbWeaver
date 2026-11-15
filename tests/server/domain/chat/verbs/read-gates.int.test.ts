@@ -120,6 +120,7 @@ const READ_GATES = {
   setHostDisplayScripts: "elsewhere",
   setRegexAllow: "elsewhere",
   listEffectiveRegex: "elsewhere",
+  listDisplayScripts: "elsewhere",
   setOfferChoices: "elsewhere",
   setCharactersCanReact: "elsewhere",
   setReactionsEnabled: "elsewhere",

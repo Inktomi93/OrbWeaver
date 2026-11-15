@@ -22,7 +22,6 @@ export {
   closeDb,
   createDb,
   detachWal,
-  hasPendingMigrations,
   listBackupFiles,
   optimizeDb,
   pendingMigrations,
@@ -31,5 +30,7 @@ export {
   runMigrations,
 } from "./client/index.ts";
 export { localPath } from "./client/local-path.ts";
+export type { RegexTwoAxisChangedScript } from "./client/regex-two-axis-report.ts";
+export { REGEX_TWO_AXIS_MIGRATION, readRegexTwoAxisChanges } from "./client/regex-two-axis-report.ts";
 // Every drizzle table + the relations (the db-row producers).
 export * from "./schema/index.ts";

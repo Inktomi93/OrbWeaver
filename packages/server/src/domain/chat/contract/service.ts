@@ -32,6 +32,7 @@ import type {
   MessageWindow,
   NextTurnConnectionView,
   ParticipantData,
+  RegexDisplayEntry,
   RoomOverrides,
   RoomSendAvailability,
   SetGroupConfigOp,
@@ -84,6 +85,7 @@ import type {
   KickParticipantParams,
   ListChatInjectionsParams,
   ListChatsParams,
+  ListDisplayScriptsParams,
   ListEffectiveRegexParams,
   ListForksParams,
   ListInvitesParams,
@@ -374,6 +376,10 @@ export interface ChatService {
    *  above the room's own are the host's LIBRARY and a member has no parameter on them. A member reads the
    *  room's own tier through `regex.listForChat` (member-gated, room-public) instead. */
   readonly listEffectiveRegex: (params: ListEffectiveRegexParams) => Promise<EffectiveRegexView>;
+  /** The display-pass set ONE viewer's transcript renders through, in order, each with where it comes from: the
+   *  room's resolved tiers (for the host, or for a member when the host opted the room in), then the viewer's
+   *  own globals. Member-gated; `chatId: null` reads the viewer's own globals alone. */
+  readonly listDisplayScripts: (params: ListDisplayScriptsParams) => Promise<RegexDisplayEntry[]>;
 
   /** B1 — the per-room offer-choices posture (`chatMetadata.offerChoices`), host-only. Returns the stored
    *  value. Unlike its display-scripts neighbour this one reaches the PROMPT: on, the turn teaches the model
