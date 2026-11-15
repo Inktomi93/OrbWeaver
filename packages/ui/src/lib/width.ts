@@ -2,9 +2,12 @@
 // `controlMd` and `checkbox` hold the width of the control a slot stands in for; `avatarMd`, `avatarLg`, `avatarHero` and `ripplePortrait` the picture a box stands in for or a column sits
 // under; the rest are the named column widths. `lane` is a lane's width once the container can seat it beside another lane, and the whole
 // width until then. `flankFit` is the width a room needs to seat its plugin column beside the transcript's reading floor.
+// `spansFiller` leaves a content-sized box as it is until it holds a {@link FILLS_MEASURE} box, then spans its parent.
 export const WIDTH = {
   full: "inline-full",
   fit: "inline-fit",
+  // The attribute is spelled out because the class scanner reads literals; it is FILLS_MEASURE's.
+  spansFiller: "has-[[data-fills-measure]]:inline-full",
   control: "inline-(--size-control-sm)",
   controlMd: "inline-(--size-control-md)",
   checkbox: "inline-(--size-checkbox)",
@@ -19,6 +22,13 @@ export const WIDTH = {
   flankFit: "inline-(--dimension-room-flank-fit)",
   numberInline: "inline-(--width-number-inline)",
 } as const;
+
+/**
+ * The attributes a box stamps when it takes the whole measure it sits in, the way a long reply's text does. Its own
+ * content cannot size it: a frame's document is opaque to this one's layout, so a content-sized ancestor would fall
+ * back to the frame's intrinsic width. Each such ancestor wears `WIDTH.spansFiller`.
+ */
+export const FILLS_MEASURE = { "data-fills-measure": "" } as const;
 
 /** The widest a box grows, by meaning: `fit` is the parent's own width (a wrapping row in a flex row never pushes the pane wider), `reading`, `prose`, `code` and `column` are the measures, and the rest are the named caps a surface sets once. A feature picks the meaning, never a width. */
 export const CAP = {

@@ -153,6 +153,7 @@ export function PluginFrame({
         // every word.
         title={pluginSurfaceName(pluginName, title)}
         onHostMessage={onHostMessage}
+        ungatedFocus={true}
       />
     </PluginSurfaceShell>
   );

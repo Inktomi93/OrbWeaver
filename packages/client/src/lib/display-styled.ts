@@ -25,6 +25,13 @@ function templateDrawsMarkup(script: RegexScriptInput): boolean {
   return HTML_TAG_RE.test(script.replaceString.replace(REPLACEMENT_TOKEN_RE, ""));
 }
 
+/** Whether a streaming reply holds its own markup (D354): any display script in force may turn the reply's tagged
+ *  regions into panels, or hide or delete them, once it settles. While the room's scripts are still loading
+ *  (`undefined`) it holds, as a settled row does. */
+export function displayHoldsStreamedMarkup(scripts: readonly RegexScriptInput[] | undefined): boolean {
+  return scripts === undefined || scripts.some((script) => script.enabled);
+}
+
 /** Run the display scripts in order, reporting whether a markup-drawing template replaced anything. */
 export function executeDisplayScripts(args: ExecuteRegexScriptsArgs): StyledDisplayText {
   const applyReplace = args.applyReplace ?? ((subject, regex, replacer): string => subject.replace(regex, replacer));

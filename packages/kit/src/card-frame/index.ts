@@ -103,6 +103,8 @@ import { FONT_SCALE_PERCENT } from "#font-scale";
 import { isPlainObject } from "#guards";
 import { isSafeColor } from "#safe-color";
 
+export * from "./focus.ts";
+
 /** Where the policy is delivered. `document` = a `Content-Security-Policy` RESPONSE HEADER (the routed arm —
  *  can express `sandbox` + `frame-ancestors`, and is not intersected with the embedder's policy).
  *  `meta` = an in-document `<meta http-equiv>` (the srcdoc floor — those two directives are ignored there,
@@ -241,7 +243,7 @@ const CARD_FRAME_MAX_HEIGHT_PX = 720;
  *  hostile document cannot report an unbounded height. Measured in a routed reply frame: a long scene drawn by
  *  the public Sola V4 preset's display scripts (six trackers, drawers closed) stands 16,792px tall at a 320px
  *  phone width and 300% text, and 1,623px on a desktop at 100%; the cap sits an order of magnitude above it.
- *  Grow-only folding still bounds the measure loop to one downward step per mount. */
+ *  The resize ration in {@link foldCardFrameHeight} bounds the measure loop. */
 const REPLY_FRAME_MAX_HEIGHT_PX = 200_000;
 
 /** The height bound a frame folds its self-reports against: one card, or one whole reply. */
@@ -292,22 +294,89 @@ export function readCardFrameLink(data: unknown): string | undefined {
   return typeof raw === "string" && FRAME_LINK_RE.test(raw) && !holdsControlOrSpace(raw) ? raw : undefined;
 }
 
+/** How long after its first report a reply frame resizes freely, while its document loads its fonts and images. */
+export const REPLY_FRAME_SETTLE_MS = 1000;
+/** After that, how many resizes, up or down, a reply frame may apply at once. A reply's own drawers open and close, and
+ *  a reply that cannot resize leaves the reader a blank tail under a closed drawer or clips an opened one. */
+export const REPLY_FRAME_RESIZE_BURST = 4;
+/** One resize credit per this many ms, up to the burst: a reader toggles a drawer far slower, and a document that resizes
+ *  every frame relayouts the transcript at most this often once the burst is spent. */
+export const REPLY_FRAME_RESIZE_REFILL_MS = 500;
+
 /**
- * Fold one `message` payload into the frame's applied height. Returns `current` UNCHANGED for anything that
- * is not a valid growth — a foreign/garbage payload, a non-finite or non-numeric height, and any report
- * SMALLER than one already applied.
+ * A frame's applied height. A reply frame also carries its resize credit (`credit`, counted from `at` on the caller's
+ * clock), when its first report came (`since`), and the latest height it asked for while it had no credit
+ * (`pendingPx`), which {@link settleCardFrameHeight} applies once a credit is back.
+ */
+export interface CardFrameHeight {
+  readonly px: number;
+  readonly credit: number;
+  readonly at: number;
+  readonly since: number;
+  readonly pendingPx: number | undefined;
+}
+
+function refilled(height: CardFrameHeight, nowMs: number): CardFrameHeight {
+  const gained = Math.floor((nowMs - height.at) / REPLY_FRAME_RESIZE_REFILL_MS);
+  if (gained <= 0) {
+    return height;
+  }
+  const credit = Math.min(REPLY_FRAME_RESIZE_BURST, height.credit + gained);
+  return { ...height, credit, at: credit === REPLY_FRAME_RESIZE_BURST ? nowMs : height.at + gained * REPLY_FRAME_RESIZE_REFILL_MS };
+}
+
+// A reply frame's request for `requested` px: free while it settles, then one credit per change; with no credit the
+// request waits as `pendingPx`, the latest replacing any earlier one.
+function resizeReply(current: CardFrameHeight, requested: number, nowMs: number): CardFrameHeight {
+  if (nowMs - current.since < REPLY_FRAME_SETTLE_MS) {
+    return requested === current.px && current.pendingPx === undefined ? current : { ...current, px: requested, pendingPx: undefined };
+  }
+  const height = refilled(current, nowMs);
+  if (requested === height.px) {
+    return height.pendingPx === undefined ? height : { ...height, pendingPx: undefined };
+  }
+  if (height.credit < 1) {
+    return { ...height, pendingPx: requested };
+  }
+  return { ...height, px: requested, credit: height.credit - 1, pendingPx: undefined };
+}
+
+/** Apply a reply frame's waiting height if a credit has come back; unchanged otherwise. The caller calls it after
+ *  {@link cardFrameSettleDelayMs}, so the last height a document asks for always lands and never stays clipped. */
+export function settleCardFrameHeight(current: CardFrameHeight, nowMs: number): CardFrameHeight {
+  return current.pendingPx === undefined ? current : resizeReply({ ...current, pendingPx: undefined }, current.pendingPx, nowMs);
+}
+
+/** How long until a reply frame's waiting height can land, or `undefined` when none waits. */
+export function cardFrameSettleDelayMs(current: CardFrameHeight, nowMs: number): number | undefined {
+  return current.pendingPx === undefined ? undefined : Math.max(0, current.at + REPLY_FRAME_RESIZE_REFILL_MS - nowMs);
+}
+
+/**
+ * Fold one `message` payload into the frame's applied height. Returns `current` UNCHANGED for anything that is not
+ * a valid change: a foreign or garbage payload, a non-finite or non-numeric height, and a shrink the frame has no
+ * credit for. The first report sets the height whatever it is.
  *
  * The caller still owes the sender check (`event.source === iframe.contentWindow`); this half owns the
  * payload. Window identity is the only usable authentication: every sandboxed frame's `event.origin` is the
  * string `"null"`, so origin cannot tell OUR frame from any other opaque sender.
  *
- * MONOTONIC after the first report, deliberately: frame height feeds back into content height (`vh` units,
- * percentage heights, media queries), so a card — hostile or merely fluid — can otherwise drive an endless
- * measure/resize/measure loop that relayouts the whole transcript. Grow-only bounds that to ONE downward
- * step per mount, which is exactly the step the height channel needs (the void closes on the first measurement); a later
- * shrink just leaves whitespace inside the frame.
+ * RESIZES ARE RATIONED, deliberately: frame height feeds back into content height (`vh` units, percentage heights,
+ * media queries), and every applied change relayouts the whole transcript, so a document, hostile or merely fluid, can
+ * otherwise drive an endless measure/resize/measure loop. A card is grow-only: one downward step per mount, which closes
+ * the void on the first measurement, and its growth stops at the card cap, so a card can cause a bounded number of
+ * relayouts per mount. A reply resizes freely for {@link REPLY_FRAME_SETTLE_MS} after its first report, then spends one
+ * credit per change, up or down, from a small burst that refills ({@link REPLY_FRAME_RESIZE_BURST}). A change asked for
+ * with no credit waits and lands when one comes back ({@link settleCardFrameHeight}), so a drawer closes promptly, real
+ * content is never left clipped, and a document that resizes every frame relayouts the transcript at most once per
+ * refill.
  */
-export function foldCardFrameHeight(current: number | undefined, data: unknown, cap: CardFrameHeightCap = "card"): number | undefined {
+export function foldCardFrameHeight(
+  current: CardFrameHeight | undefined,
+  data: unknown,
+  cap: CardFrameHeightCap = "card",
+  nowMs = 0,
+): CardFrameHeight | undefined {
   if (!isPlainObject(data)) {
     return current;
   }
@@ -318,10 +387,13 @@ export function foldCardFrameHeight(current: number | undefined, data: unknown, 
   // Ceil, not round: a fractional content height rounded DOWN clips its own last device pixel and the frame
   // grows a scrollbar over one subpixel.
   const clamped = Math.min(CARD_FRAME_HEIGHT_CAPS[cap], Math.max(CARD_FRAME_MIN_HEIGHT_PX, Math.ceil(raw)));
-  if (current !== undefined && clamped <= current) {
-    return current;
+  if (current === undefined) {
+    return { px: clamped, credit: REPLY_FRAME_RESIZE_BURST, at: nowMs, since: nowMs, pendingPx: undefined };
   }
-  return clamped;
+  if (cap === "card") {
+    return clamped > current.px ? { ...current, px: clamped } : current;
+  }
+  return resizeReply(current, clamped, nowMs);
 }
 
 /** The card frame's ONE variable axis pair — both decided by the SERVER (a client may select which

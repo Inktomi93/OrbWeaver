@@ -20,10 +20,23 @@ import { LIVE_TOKEN_ROOT_ATTRIBUTE } from "#lib";
 // The frame's own rules over the app's: the reply sits inside its bubble, so the frame paints no second surface,
 // and the bubble slot keeps only its reading typography; the body's root carries `data-frame-reply`
 // (`packages/client/src/features/chat/components/reply-frame.tsx`). The app shell clips its root; a frame must not,
-// so markup wider than a phone column at a large text scale scrolls sideways instead of being cut off. Unlayered and
-// last, so it outranks the app's rules.
-const FRAME_REPLY_CSS =
-  "html,body{background:transparent;overflow:visible;}[data-frame-reply]{background:none;border:0;box-shadow:none;padding:0;margin:0;inline-size:auto;max-inline-size:none;min-block-size:0;}";
+// so markup wider than a phone column at a large text scale scrolls sideways instead of being cut off. The app's
+// document floor (`body { min-block-size: 100dvh }`) matches the frame's body too, where `100dvh` is the frame's own
+// height: kept, the reported content height could never fall below the height the frame was given, so the root takes
+// its content's height only. A markdown table wider than the reply scrolls in its own box, whose scrollbar a phone and a
+// headless browser hide: an edge shade on each side that still hides columns is the cue, drawn with backgrounds only
+// (a shade fixed to the box under a cover that scrolls with the table), because no script of ours runs in the frame to
+// track the scroll. Unlayered and last, so it outranks the app's rules.
+const FRAME_REPLY_CSS = [
+  "html,body{background:transparent;overflow:visible;min-block-size:0;block-size:auto;}",
+  "[data-frame-reply]{background:none;border:0;box-shadow:none;padding:0;margin:0;inline-size:auto;max-inline-size:none;min-block-size:0;}",
+  '[data-frame-reply] [data-streamdown="table-wrapper"]>:has(>[data-streamdown="table"]){background:',
+  "linear-gradient(to right,var(--color-background) 40%,transparent) left/2rem 100% no-repeat local,",
+  "linear-gradient(to left,var(--color-background) 40%,transparent) right/2rem 100% no-repeat local,",
+  "radial-gradient(farthest-side at 0 50%,color-mix(in oklab,currentColor 35%,transparent),transparent) left/0.75rem 100% no-repeat scroll,",
+  "radial-gradient(farthest-side at 100% 50%,color-mix(in oklab,currentColor 35%,transparent),transparent) right/0.75rem 100% no-repeat scroll,",
+  "var(--color-background);}",
+].join("");
 
 // What the mint needs besides the markup: the page's look at the reply's place.
 interface FrameReplyLook {

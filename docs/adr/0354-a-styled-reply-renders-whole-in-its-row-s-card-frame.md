@@ -28,7 +28,7 @@ The frame document holds:
 
 The frame's `style-src` stays `'unsafe-inline'` only.
 
-The frame mints under the row's card origin, so the interactive posture applies to it as to a card. It grows to its content up to the reply height cap.
+The frame mints under the row's card origin, so the interactive posture applies to it as to a card. Its height follows its content up to the reply cap. After it settles, each change spends a credit from a small burst that refills (`foldCardFrameHeight` in `@orb/kit/card-frame`), and a change with no credit lands when one returns. So a drawer closes at once, no content stays clipped, and a document whose height feeds back on itself relayouts the transcript at a bounded rate. The frame's document drops the app's `min-block-size: 100dvh` body floor, which would hold the frame at its given height. The run takes the transcript's full measure in every state (`FILLS_MEASURE` in `@orb/ui/lib`), because the frame's document cannot size the bubble around it.
 
 **Links.** The pinned frame script hands a click on a link inside the reply body to the host. The host accepts a link only when all of these hold:
 
@@ -38,9 +38,11 @@ The frame mints under the row's card origin, so the interactive posture applies 
 - the address is http, https or mailto;
 - the address is off the app's own origin.
 
-It opens the link only through a confirm. An open confirm keeps its address, and Open opens exactly that address. A Cancel mutes the frame's links until it remounts.
+It opens the link only through a confirm. An open confirm keeps its address, and Open opens exactly that address. A Cancel closes the confirm and returns focus to the reply, so the frame's script raises nothing until the reader presses into the frame again (D294). The host cannot tell that press from a scripted request on it, so repeated requests are paced, not muted (`reply-link-pace.ts`): the first two consecutive Cancels cost nothing, and each further one makes the frame's next request wait twice as long, from 2 s up to 30 s. The newest request inside the wait raises its confirm when the wait ends. An Open or a remount resets the count.
 
-**Inert path.** The reply renders through the inert allowlist on a Tier A row, while it streams, while the mint is pending, and when the mint is refused.
+**Before the frame draws.** The row shows the reply the way a streaming card forms (`scanStyledHold` in `@orb/kit/content`): prose through the inert allowlist, and each HTML block as a forming chip that carries none of its bytes. A block opens on CommonMark's block shapes, because provenance does not survive later scripts, and holds to the close of the element it opens, blank lines included: a region a script styles, hides or deletes never shows while it forms. While the frame is on the way, this splits the display output; the routed frame loads hidden and replaces it at its first height report. While the reply streams, no display script runs, so it splits the model's own text whenever a display script is in force, and inline tags drop with their words kept.
+
+**Inert path.** The reply renders through the inert allowlist on a Tier A row, when a plugin rewrote its text, when the mint is refused, when a handle is lost twice, and when its scripts were stopped for taking focus (D294). Its `<style>` and `<script>` elements are removed with their content first, because the allowlist drops those tags but keeps their content as text.
 
 **A lost handle.** The server's miss document carries `data-frame-missing`, and the pinned script reports it. A frame whose handle expired or was evicted mints again once, then renders the inert path.
 
@@ -61,6 +63,9 @@ An account's own mints evict its own oldest handles first.
 - `packages/client/src/lib/display-styled.ts`
 - `packages/client/src/features/chat/lib/reply-parts.ts`
 - `packages/client/src/features/chat/components/reply-frame.tsx`
+- `packages/client/src/features/chat/lib/reply-link-pace.ts`
+- `packages/client/src/features/chat/components/ghost-message-row.tsx`
+- `@orb/kit/content`
 - `packages/ui/src/content/sandbox-frame/frame-reply.ts`
 - `packages/ui/src/markdown/frame/`
 - `@orb/kit/card-frame`
@@ -70,7 +75,7 @@ An account's own mints evict its own oldest handles first.
 
 ## Consequences
 
-A preset's panels, inline colours and keyframes draw as their author built them, on a Tier B row. A framed reply's prose takes the transcript's type and tokens.
+A preset's panels, inline colours and keyframes draw as their author built them, on a Tier B row. A preset is not a theme, so no contrast floor or audit judges the colours it draws inside its frame. A framed reply's prose takes the transcript's type and tokens.
 
 One gap remains: the app's font files do not load in the frame. An opaque-origin request meets `Cross-Origin-Resource-Policy: same-origin`, so framed prose falls back to the system face. Loading them is not yet built.
 
@@ -83,3 +88,5 @@ One gap remains: the app's font files do not load in the frame. An opaque-origin
 - **The whole app stylesheet in every frame.** Untrimmed, a frame carries 388,191 chars of CSS against 58,319 trimmed.
 - **A stylesheet store keyed by content hash.** With trimming it saves under 1 MiB per viewer, at the cost of a second store and route.
 - **The srcdoc floor for a reply.** It runs no script, so it can neither measure the reply nor hand over a link.
+- **The inert render while the frame is pending.** The allowlist keeps a `<style>` element's content as text, so a room open would show the template's CSS until the frame draws.
+- **Muting a frame's links after a Cancel.** It reads as a dead control, and the pace bounds a scripted frame as well.

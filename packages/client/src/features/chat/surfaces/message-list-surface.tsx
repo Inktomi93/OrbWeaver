@@ -31,7 +31,7 @@ import { QueryBoundary } from "#components";
 import type { ChatBusDeps, Trpc } from "#data";
 import { roomRosterOptions, SkeletonRows, useChatBus, useDisplayScripts, useGatedQuery, usePrefetchDisplayScripts, useSuspenseQuery, useTRPC } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
-import { RenderProfiler, resolveRowRenderPolicy, trpcErrorCode, useFocusOnMount } from "#lib";
+import { displayHoldsStreamedMarkup, RenderProfiler, resolveRowRenderPolicy, trpcErrorCode, useFocusOnMount } from "#lib";
 import { isLiveTurnPhase, useTurnPhase, useTurnSpeakerCharacterId } from "#state";
 import { ArtViewerProvider } from "../components/art-viewer-provider.tsx";
 import { GhostMessageRow } from "../components/ghost-message-row.tsx";
@@ -366,6 +366,7 @@ function ChatThread({
         colorQuotedSpeech={messageAppearance.colorQuotedSpeech}
         cardTier={ghostCardTier}
         generationCredit={resolveGenerationCredit(messageAppearance.metadataVisibility)}
+        holdsMarkup={displayHoldsStreamedMarkup(displayScripts)}
         smoothStream={behaviorPrefs.smoothStream}
         smoothStreamCps={behaviorPrefs.smoothStreamCps}
         reasoningAutoCollapse={behaviorPrefs.reasoningAutoCollapse}

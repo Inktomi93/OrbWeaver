@@ -29,18 +29,15 @@
 
 import type { CardTrust } from "@orb/contracts/chat";
 import type { GhostContentSegment } from "@orb/kit/content";
-import { scanGhostContent } from "@orb/kit/content";
+import { scanGhostContent, scanStyledHold, stripTags } from "@orb/kit/content";
 import { holdTornSpeaker } from "@orb/kit/fix-markdown";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { holdTornMacro } from "@orb/kit/macro";
 import type { MessageKind } from "@orb/kit/message-author";
 import { speakerTagsToPlain, stripLeadingSpeakerName } from "@orb/kit/speaker-label";
-import { Card } from "@orb/ui/card";
 import { Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
-import { Skeleton } from "@orb/ui/skeleton";
 import { TypingDots, useSmoothText } from "@orb/ui/stream";
-import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { MessageRenderContext } from "#lib";
@@ -56,8 +53,10 @@ import { bodyDisplayRow, ghostStamps, reasoningDisplayRow } from "../lib/display
 import { messageBoxFacts } from "../lib/message-box-facts.ts";
 import type { RowSkin } from "../lib/message-row-variants.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
+import { FORMING_CARD_UNTITLED, REPLY_PANEL_FORMING_TITLE } from "../lib/reply-frame-names.ts";
 import { gutterRailFor } from "../lib/row-placement.ts";
 import { CardBlock } from "./card-block.tsx";
+import { FormingChip } from "./forming-chip.tsx";
 import { GhostActionsFootprint } from "./message-actions-cluster.tsx";
 import { artViewFor, renderRowAvatar } from "./message-row-avatar.tsx";
 import { renderSingleBubble } from "./message-row-bubble.tsx";
@@ -70,38 +69,26 @@ import { ReasoningBlock } from "./reasoning-block.tsx";
 // default). The pref (`UserSettings.chat.smoothStreamCps`) overrides it via the `smoothStreamCps` prop.
 const DEFAULT_SMOOTH_STREAM_CPS = 80;
 
-// The §4.5 FORMING-CARD placeholder (parity-plus P4, ghost arm only): once a `:::card` OPEN line completes
-// in the ghost text, the accumulating raw HTML is suppressed behind a pretty building-state chip (skeleton
-// shimmer + the title) — NO iframe, NO partial HTML, for exactly as long as the body is still arriving. The
-// chip is replaced by the real card at FENCE CLOSE (see the header), not at message commit. A card whose
-// close never arrives stays a chip and drops with the ghost row on abort (no false card).
-function FormingCardChip({ title }: { readonly title: string | null }): ReactElement {
-  return (
-    // DENSITY S6: the chip is the placeholder ISLAND for the card it becomes, so it stays a box — but a
-    // `<Card>`, whose padding + `--radius-base` the room's instrument tier resolves. It was the largest
-    // radius step (D6 reserved that for the floating bubble it streams inside).
-    <Card aria-busy={true}>
-      <Stack gap="row" data-slot="forming-card-chip">
-        <Text voice="gloss">✦ {title !== null && title !== "" ? title : "Immersive card"}: forming…</Text>
-        <Skeleton width="full" height="controlMd" />
-        <Skeleton variant="text" height="control" />
-      </Stack>
-    </Card>
-  );
+interface GhostSegmentOptions {
+  readonly isTail: boolean;
+  readonly streaming: boolean;
+  readonly colorQuotes: boolean;
+  readonly cardTier: CardTrust;
+  /** A display script in force may reshape this reply's markup once it settles, so the stream holds it (D354). */
+  readonly holdsMarkup: boolean;
 }
 
 /** One ghost segment → its element. The KEY is `index-kind`, the settled path's precedent
  *  (`message-content.tsx`): stable for an unchanged body, so a closed card's iframe is never remounted by
  *  the prose that keeps streaming BELOW it — a remount would reload the srcdoc and re-run the card's paint
  *  on every token. Kept honest by the "prose after a closed card never reloads the iframe" CT. */
-function ghostSegment(
-  segment: GhostContentSegment,
-  index: number,
-  opts: { readonly isTail: boolean; readonly streaming: boolean; readonly colorQuotes: boolean; readonly cardTier: CardTrust },
-): ReactElement {
+function ghostSegment(segment: GhostContentSegment, index: number, opts: GhostSegmentOptions): ReactElement {
   const key = `${index}-${segment.kind}`;
   if (segment.kind === "forming-card") {
-    return <FormingCardChip key={key} title={segment.title} />;
+    // Once a `:::card` OPEN line completes, the accumulating raw HTML is suppressed behind the chip for exactly as long
+    // as the body is still arriving; the real card replaces it at FENCE CLOSE (see the header), not at commit. A card
+    // whose close never arrives stays a chip and drops with the ghost row on abort (no false card).
+    return <FormingChip key={key} title={segment.title !== null && segment.title !== "" ? segment.title : FORMING_CARD_UNTITLED} />;
   }
   if (segment.kind === "card") {
     // FLOOR, deliberately (see the file header): tier from the ONE resolver; external media OFF and no
@@ -114,11 +101,35 @@ function ghostSegment(
       />
     );
   }
-  // Only the TAIL segment is live (the caret + incomplete-markdown repair); earlier segments are settled text.
+  return opts.holdsMarkup ? heldGhostText(segment.text, key, opts) : ghostMarkdown(segment.text, key, opts);
+}
+
+// Only the TAIL segment is live (the caret + incomplete-markdown repair); earlier segments are settled text.
+function ghostMarkdown(text: string, key: string, opts: GhostSegmentOptions): ReactElement {
   return (
     <Markdown key={key} trust="untrusted" mode={opts.streaming && opts.isTail ? "streaming" : "static"} colorQuotes={opts.colorQuotes}>
-      {segment.text}
+      {text}
     </Markdown>
+  );
+}
+
+// The viewer's display scripts draw markup, so this reply may settle styled (D354). The ghost runs no display script,
+// so what streams is the model's own text, and its own tags are what those scripts turn into panels: each HTML block
+// (a lone tag line, a block-level tag) streams as the forming chip with none of its bytes, and the prose streams with
+// its inline tags removed and their words kept, so no tag, attribute or CSS prints before the settled row draws.
+function heldGhostText(text: string, key: string, opts: GhostSegmentOptions): ReactElement {
+  const held = scanStyledHold(text);
+  return (
+    <Stack key={key} gap="row">
+      {held.map((part, index) => {
+        const partKey = `${key}-${String(index)}-${part.kind}`;
+        return part.kind === "forming-markup" ? (
+          <FormingChip key={partKey} title={REPLY_PANEL_FORMING_TITLE} />
+        ) : (
+          ghostMarkdown(stripTags(part.text), partKey, { ...opts, isTail: opts.isTail && index === held.length - 1 })
+        );
+      })}
+    </Stack>
   );
 }
 
@@ -133,12 +144,14 @@ function GhostBubbleBody({
   streaming,
   colorQuotes,
   cardTier,
+  holdsMarkup,
   providerWaiting,
 }: {
   readonly held: string;
   readonly streaming: boolean;
   readonly colorQuotes: boolean;
   readonly cardTier: CardTrust;
+  readonly holdsMarkup: boolean;
   readonly providerWaiting: boolean;
 }): ReactElement {
   if (held.length === 0) {
@@ -152,7 +165,9 @@ function GhostBubbleBody({
   return (
     <div data-slot="ghost-stream-body" data-streaming={streaming ? "" : undefined}>
       <Stack gap="row">
-        {segments.map((segment, index) => ghostSegment(segment, index, { isTail: index === segments.length - 1, streaming, colorQuotes, cardTier }))}
+        {segments.map((segment, index) =>
+          ghostSegment(segment, index, { isTail: index === segments.length - 1, streaming, colorQuotes, cardTier, holdsMarkup }),
+        )}
       </Stack>
     </div>
   );
@@ -170,6 +185,7 @@ function GhostBubbleContent(props: {
   readonly streaming: boolean;
   readonly colorQuotedSpeech: boolean;
   readonly cardTier: CardTrust;
+  readonly holdsMarkup: boolean;
   readonly providerWaiting: boolean;
 }): ReactElement {
   return (
@@ -189,6 +205,7 @@ function GhostBubbleContent(props: {
         streaming={props.streaming}
         colorQuotes={props.colorQuotedSpeech}
         cardTier={props.cardTier}
+        holdsMarkup={props.holdsMarkup}
         providerWaiting={props.providerWaiting}
       />
     </>
@@ -256,6 +273,9 @@ export interface GhostMessageRowProps {
   /** The settled row's `showModelIcon` gate: the credit glyph its action cluster will carry, reserved here so
    *  commit does not widen the card. Absent ⇒ no credit. */
   readonly generationCredit?: boolean | undefined;
+  /** The viewer's display scripts draw markup, so the reply may settle styled (D354): the stream holds its own HTML
+   *  blocks as forming chips and drops its inline tags. Absent ⇒ the stream renders as any reply does. */
+  readonly holdsMarkup?: boolean | undefined;
 }
 
 export function GhostMessageRow({
@@ -281,6 +301,7 @@ export function GhostMessageRow({
   enterMotion = false,
   stickyAttribution = false,
   generationCredit = false,
+  holdsMarkup = false,
 }: GhostMessageRowProps): ReactElement {
   const arrival = useEnterMotion(enterMotion);
   const viewArt = useArtViewer();
@@ -380,6 +401,7 @@ export function GhostMessageRow({
         streaming={streaming}
         colorQuotedSpeech={colorQuotedSpeech}
         cardTier={cardTier}
+        holdsMarkup={holdsMarkup}
         providerWaiting={providerWaiting}
       />
     ),

@@ -6,6 +6,7 @@
 // so a <speaker> NAME position never sees an unresolved {{char}}/{{user}}.
 
 import type { MessageContentBlock } from "@orb/contracts/chat";
+import { scanStyledHold, stripStyleElements } from "@orb/kit/content";
 import { parseSpeakerSpans } from "@orb/kit/speaker-label";
 import { Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
@@ -17,11 +18,13 @@ import { usePluginDisplayText } from "#data";
 import type { DisplayRowCall, MessageRenderContext, RowRenderPolicy } from "#lib";
 import { useDisplayText } from "../hooks/use-display-text.ts";
 import { toContentBlocks } from "../lib/content-blocks.ts";
+import { REPLY_PANEL_FORMING_TITLE } from "../lib/reply-frame-names.ts";
 import type { FrameReplySegment, ReplySpan } from "../lib/reply-parts.ts";
 import { replyParts } from "../lib/reply-parts.ts";
 import { colorForCharacter } from "../lib/speaker-color.ts";
 import type { CardOrigin } from "./card-block.tsx";
 import { CardBlock } from "./card-block.tsx";
+import { FormingChip } from "./forming-chip.tsx";
 import { MessageChoicesBlock } from "./message-choices-block.tsx";
 import { MessageMediaBlock } from "./message-media-block.tsx";
 import { ReplyFrame } from "./reply-frame.tsx";
@@ -108,10 +111,11 @@ function tinted(node: ReactElement, tokens: ThemeScopeTokens | undefined, key: s
   );
 }
 
-// A frame run through the INERT path: what shows until the frame is routed, and whenever it cannot be. Its prose
-// renders under the untrusted allowlist, the same path the streaming ghost draws, so no inline style and no
-// `<style>` element survives. Each markdown run is projected again with today's reading policy, so a directive
-// the frame keeps as markup stays hidden here.
+// A frame run through the INERT path: what shows whenever the frame cannot draw it. Its prose renders under the
+// untrusted allowlist, the same path the streaming ghost draws, so no inline style survives; `<style>` and `<script>`
+// elements are removed with their content first, because the allowlist drops the tag and keeps its content as prose.
+// Each markdown run is projected again with today's reading policy, so a directive the frame keeps as markup stays
+// hidden here.
 function renderRunNatively(
   segments: readonly FrameReplySegment[],
   rowRender: RowRenderPolicy,
@@ -126,7 +130,34 @@ function renderRunNatively(
         if (segment.kind === "card") {
           return renderBlock({ kind: "html-card", html: segment.html, trust: render.cardTier }, key, render, cardOrigin);
         }
-        return tinted(<MessageSegment key={key} text={segment.markdown} render={render} keyPrefix={key} cardOrigin={cardOrigin} />, segment.tokens, key);
+        return tinted(
+          <MessageSegment key={key} text={stripStyleElements(segment.markdown)} render={render} keyPrefix={key} cardOrigin={cardOrigin} />,
+          segment.tokens,
+          key,
+        );
+      })}
+    </Stack>
+  );
+}
+
+// A frame run while its frame is on the way: the prose through the inert path, and each HTML block and card a forming
+// chip with none of its bytes (`scanStyledHold`), the way a streaming card forms (§4.5). Nothing a template drew paints.
+function renderRunHeld(segments: readonly FrameReplySegment[], rowRender: RowRenderPolicy, keyPrefix: string): ReactElement {
+  const render: RowRenderPolicy = { ...rowRender, trust: "untrusted" };
+  const chip = (key: string): ReactElement => <FormingChip key={key} title={REPLY_PANEL_FORMING_TITLE} />;
+  return (
+    <Stack gap="row">
+      {segments.flatMap((segment, index) => {
+        const key = `${keyPrefix}${index}-${segment.kind}`;
+        if (segment.kind === "card") {
+          return [chip(key)];
+        }
+        return scanStyledHold(segment.markdown).map((part, partIndex) => {
+          const partKey = `${key}-${partIndex}-${part.kind}`;
+          return part.kind === "forming-markup"
+            ? chip(partKey)
+            : tinted(<MessageSegment key={partKey} text={part.text} render={render} keyPrefix={partKey} cardOrigin={undefined} />, segment.tokens, partKey);
+        });
       })}
     </Stack>
   );
@@ -161,6 +192,7 @@ function FramedReply({
             colorQuotes={render.colorQuotes}
             cardOrigin={cardOrigin}
             speakerName={speakerName}
+            held={renderRunHeld(part.segments, render, `${key}-`)}
             fallback={renderRunNatively(part.segments, render, cardOrigin, `${key}-`)}
           />
         );
@@ -238,9 +270,22 @@ export function MessageContent({
     );
   }
 
+  // A styled row the frame does not draw (a Tier A row, or a plugin rewrote its text) renders through the inert
+  // allowlist, with the template's `<style>` and `<script>` elements removed, so their content never prints as prose.
+  const segmentRender: RowRenderPolicy = styled ? { ...render, trust: "untrusted" } : render;
+  const segmentText = (text: string): string => (styled ? stripStyleElements(text) : text);
   const [onlySpan] = spans;
   if (spans.length === 1 && onlySpan !== undefined && onlySpan.speaker === null) {
-    return <MessageSegment text={onlySpan.text} render={render} keyPrefix="" cardOrigin={cardOrigin} pending={pending} observeBody={observeBody} />;
+    return (
+      <MessageSegment
+        text={segmentText(onlySpan.text)}
+        render={segmentRender}
+        keyPrefix=""
+        cardOrigin={cardOrigin}
+        pending={pending}
+        observeBody={observeBody}
+      />
+    );
   }
 
   return (
@@ -248,12 +293,12 @@ export function MessageContent({
       {spans.map((span, index) => {
         const key = `${index}-${span.speaker ?? "narrator"}`;
         if (span.speaker === null) {
-          return <MessageSegment key={key} text={span.text} render={render} keyPrefix={`${key}-`} cardOrigin={cardOrigin} />;
+          return <MessageSegment key={key} text={segmentText(span.text)} render={segmentRender} keyPrefix={`${key}-`} cardOrigin={cardOrigin} />;
         }
         const spanTokens = speakerThemes?.get(span.speaker) ?? colorForCharacter(span.speaker);
         return (
           <ThemeScope key={key} tokens={spanTokens}>
-            <MessageSegment text={span.text} render={render} keyPrefix={`${key}-`} cardOrigin={cardOrigin} />
+            <MessageSegment text={segmentText(span.text)} render={segmentRender} keyPrefix={`${key}-`} cardOrigin={cardOrigin} />
           </ThemeScope>
         );
       })}

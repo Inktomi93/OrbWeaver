@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import type { CardFrameHeight } from "@orb/kit/card-frame";
 import {
   buildCardFrameCsp,
   buildCardFrameDocument,
@@ -7,13 +8,18 @@ import {
   CARD_FRAME_SANDBOX,
   CARD_FRAME_STYLE_TOKEN,
   CARD_FRAME_THEME_TOKEN_LIMITS,
+  cardFrameSettleDelayMs,
   clampCardFrameFontFamily,
   clampCardFrameRootAttributes,
   clampCardFrameStyleTokens,
   clampCardFrameThemeTokens,
   foldCardFrameHeight,
+  REPLY_FRAME_RESIZE_BURST,
+  REPLY_FRAME_RESIZE_REFILL_MS,
+  REPLY_FRAME_SETTLE_MS,
   readCardFrameLink,
   readCardFrameMissing,
+  settleCardFrameHeight,
 } from "@orb/kit/card-frame";
 import { expect, test } from "@orb/testkit/node";
 
@@ -207,13 +213,101 @@ test("a framed link reaches the host only as an absolute http, https or mailto a
 });
 
 test("a reply frame folds its height against its own cap, far above a card's", () => {
-  const card = foldCardFrameHeight(undefined, { orbCardFrameHeight: Number.MAX_SAFE_INTEGER });
-  const reply = foldCardFrameHeight(undefined, { orbCardFrameHeight: Number.MAX_SAFE_INTEGER }, "reply");
+  const card = foldCardFrameHeight(undefined, { orbCardFrameHeight: Number.MAX_SAFE_INTEGER })?.px;
+  const reply = foldCardFrameHeight(undefined, { orbCardFrameHeight: Number.MAX_SAFE_INTEGER }, "reply")?.px;
   expect(card).toBeDefined();
   expect(reply).toBeGreaterThan(card ?? Number.POSITIVE_INFINITY);
   const tall = (card ?? 0) * 10;
-  expect(foldCardFrameHeight(undefined, { orbCardFrameHeight: tall }, "reply")).toBe(tall);
-  expect(foldCardFrameHeight(tall, { orbCardFrameHeight: tall - 1 }, "reply")).toBe(tall);
+  expect(foldCardFrameHeight(undefined, { orbCardFrameHeight: tall }, "reply")?.px).toBe(tall);
+});
+
+// Each report in order, at its time on the caller's clock; the heights the frame applies after each.
+function applied(cap: "card" | "reply", reports: readonly (readonly [px: number, atMs: number])[]): readonly (number | undefined)[] {
+  let height: CardFrameHeight | undefined;
+  return reports.map(([px, atMs]) => {
+    height = foldCardFrameHeight(height, { orbCardFrameHeight: px }, cap, atMs);
+    return height?.px;
+  });
+}
+
+test("a card frame never shrinks after its first report, which may be smaller than any seed", () => {
+  expect(
+    applied("card", [
+      [300, 0],
+      [200, 10_000],
+      [400, 10_001],
+      [100, 60_000],
+    ]),
+  ).toEqual([300, 300, 400, 400]);
+});
+
+test("a reply frame follows its content down as well as up while it settles", () => {
+  expect(
+    applied("reply", [
+      [900, 0],
+      [400, 1],
+      [800, 2],
+      [300, 3],
+    ]),
+  ).toEqual([900, 400, 800, 300]);
+});
+
+// A reply frame driven the way a hostile document can drive it, past its settle window: one report per 60 Hz frame for
+// a minute, with the frame's own clock settling every waiting height the moment its credit allows, as the host does.
+// Returns how many times the applied height changed after the settle window, and the height it ends on.
+function drivenReply(heightAt: (frame: number) => number): { readonly changes: number; readonly last: number | undefined } {
+  const frameMs = 1000 / 60;
+  let height: CardFrameHeight | undefined;
+  let changes = 0;
+  for (let frame = 0; frame < 3600; frame += 1) {
+    const nowMs = frame * frameMs;
+    const before = height?.px;
+    height = foldCardFrameHeight(height, { orbCardFrameHeight: heightAt(frame) }, "reply", nowMs);
+    const delay = height === undefined ? undefined : cardFrameSettleDelayMs(height, nowMs);
+    if (height !== undefined && delay === 0) {
+      height = settleCardFrameHeight(height, nowMs);
+    }
+    changes += nowMs >= REPLY_FRAME_SETTLE_MS && height?.px !== before ? 1 : 0;
+  }
+  return { changes, last: height?.px };
+}
+
+const MINUTE_MS = 60_000;
+// The most changes a reply frame may apply in a minute after it settles: its burst, then one per refill.
+const MINUTE_RESIZE_BOUND = REPLY_FRAME_RESIZE_BURST + Math.ceil(MINUTE_MS / REPLY_FRAME_RESIZE_REFILL_MS);
+
+test.each<readonly [string, (frame: number) => number]>([
+  ["alternates every frame", (frame): number => (frame % 2 === 0 ? 900 : 400)],
+  ["grows every frame and drops back every two seconds", (frame): number => 100 + (frame % 120) * 50],
+  ["grows every frame without end", (frame): number => 100 + frame],
+])("a reply frame whose document %s relayouts the transcript a bounded number of times", (_name, heightAt) => {
+  expect(drivenReply(heightAt).changes).toBeLessThanOrEqual(MINUTE_RESIZE_BOUND);
+});
+
+test("a reply frame lands the last height its document asks for once a credit is back, so nothing is left clipped", () => {
+  let height = foldCardFrameHeight(undefined, { orbCardFrameHeight: 300 }, "reply", 0);
+  let nowMs = REPLY_FRAME_SETTLE_MS;
+  for (let step = 0; step < REPLY_FRAME_RESIZE_BURST + 3; step += 1) {
+    height = foldCardFrameHeight(height, { orbCardFrameHeight: 400 + step }, "reply", nowMs);
+  }
+  // The burst is spent: the latest request waits, and the settle delay says when it can land.
+  const last = 400 + REPLY_FRAME_RESIZE_BURST + 2;
+  expect(height?.pendingPx).toBe(last);
+  const delay = height === undefined ? undefined : cardFrameSettleDelayMs(height, nowMs);
+  expect(delay).toBeGreaterThan(0);
+  nowMs += delay ?? 0;
+  expect(height === undefined ? undefined : settleCardFrameHeight(height, nowMs).px).toBe(last);
+});
+
+test("a reply frame's drawer closes at once after it settles, and its spent burst refills with time", () => {
+  const spend: (readonly [number, number])[] = [[900, 0]];
+  for (let step = 0; step < REPLY_FRAME_RESIZE_BURST; step += 1) {
+    spend.push([900 - (step + 1) * 10, REPLY_FRAME_SETTLE_MS + step]);
+  }
+  const heights = applied("reply", spend);
+  expect(heights.at(-1)).toBe(900 - REPLY_FRAME_RESIZE_BURST * 10);
+  const later = REPLY_FRAME_SETTLE_MS + REPLY_FRAME_RESIZE_BURST + REPLY_FRAME_RESIZE_REFILL_MS;
+  expect(applied("reply", [...spend, [500, later]]).at(-1)).toBe(500);
 });
 
 test("a framed reply mirrors only plain data channels on its root, and its styles stay inline only", () => {

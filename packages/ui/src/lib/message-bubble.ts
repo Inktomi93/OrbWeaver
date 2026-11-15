@@ -1,9 +1,11 @@
 import type { MessageRole } from "@orb/kit/message-role";
+import { WIDTH } from "./width.ts";
 
 /** The bubble box: the elevated radius and the island inset, fit to its text (a short reply hugs its words instead of
- *  stretching the column) and capped at `--reading-bubble-cap` for a long one. The cap is its own token because the
- *  reading floor is a min-width and the transcript measure belongs to the column, not the bubble. */
-export const MESSAGE_BUBBLE_BOX = "rounded-card px-block py-row inline-fit max-inline-(--reading-bubble-cap) min-inline-0";
+ *  stretching the column) and capped at `--reading-bubble-cap` for a long one. A box that fills the measure (a reply's
+ *  frame) spans it as a long reply does. The cap is its own token because the reading floor is a min-width and the
+ *  transcript measure belongs to the column, not the bubble. */
+export const MESSAGE_BUBBLE_BOX = `rounded-card px-block py-row inline-fit ${WIDTH.spansFiller} max-inline-(--reading-bubble-cap) min-inline-0`;
 
 /** The per-role fill and its paired ink, and the tone host each fill is (D336): a tint inside mixes over the bubble. Every token is a ThemeScope-overridable custom property. */
 export const MESSAGE_BUBBLE_GROUND = {

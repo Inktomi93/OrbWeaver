@@ -14,6 +14,20 @@ function Transcript({ chatId }: { readonly chatId: ChatId }): ReactElement {
   );
 }
 
+/** The real transcript beside an app text field the reader types in, so a frame that takes focus has keys to take. */
+export function RoutedReplyBesideFieldStory({ chatId }: { readonly chatId: ChatId }): ReactElement {
+  return (
+    <CtClientProviders>
+      <CtAppearanceChannels settings={{ fontScale: 1 }}>
+        <Stack className="h-screen">
+          <input aria-label="Outside the frame" />
+          <Transcript chatId={chatId} />
+        </Stack>
+      </CtAppearanceChannels>
+    </CtClientProviders>
+  );
+}
+
 /** The real transcript under the production appearance writer, so a card in it mints through the routed frame path. */
 export function RoutedCardTextScaleStory({ chatId, fontScale }: { readonly chatId: ChatId; readonly fontScale: number }): ReactElement {
   return (
