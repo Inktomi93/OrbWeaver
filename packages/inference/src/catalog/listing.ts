@@ -12,6 +12,7 @@
 
 import type { ResolvedSecret } from "@orb/contracts/credentials";
 import type { ModelCatalogEntry, ModelListing, ProviderDef } from "@orb/contracts/inference";
+import { TOOLS_PARAMETER } from "@orb/contracts/inference";
 import { agentSdkCatalogEntry } from "../backends/agent-sdk/index.ts";
 import { listAnthropicModels } from "../backends/anthropic-messages/index.ts";
 import { resolvedScrubSet } from "../backends/http/sanitize.ts";
@@ -19,7 +20,7 @@ import { bareCatalogEntry, failedListing, listingOf } from "../backends/wire/mod
 import { curatedIdsFor, curatedKind, curatedRows } from "../capability/sources/curated/loader.ts";
 import type { CatalogListingDeps } from "../contract/catalog.ts";
 import { assertNever, ProviderError } from "../contract/errors.ts";
-import type { CatalogDraft } from "../contract/runtime.ts";
+import type { CatalogDraft, EndpointModel } from "../contract/runtime.ts";
 import { fetchEndpointModels } from "./endpoint.ts";
 import { listGoogleModels } from "./google.ts";
 
@@ -41,6 +42,19 @@ export function builtinCatalog(provider: ProviderDef): ModelCatalogEntry[] {
 
 function builtinListing(provider: ProviderDef): ModelListing {
   return listingOf(builtinCatalog(provider));
+}
+
+/** An endpoint list row as a catalog entry: the facts its reader stated, every other field unknown. Stated tool support
+ *  rides `supportedParameters` as OpenRouter's entries carry it, so the picker reads one seat. */
+function endpointCatalogEntry(row: EndpointModel): ModelCatalogEntry {
+  return {
+    ...bareCatalogEntry(row),
+    ...(row.listedPrice?.prompt === undefined ? {} : { promptPrice: row.listedPrice.prompt }),
+    ...(row.listedPrice?.completion === undefined ? {} : { completionPrice: row.listedPrice.completion }),
+    ...(row.input === undefined ? {} : { inputModalities: [...row.input] }),
+    ...(row.tools === undefined ? {} : { supportedParameters: [TOOLS_PARAMETER] }),
+    ...(row.maxCompletionTokens === undefined ? {} : { maxCompletionTokens: row.maxCompletionTokens }),
+  };
 }
 
 /** A wire whose list authenticates only through a branded `ResolvedSecret` cannot take a raw draft key. */
@@ -116,7 +130,7 @@ export function createCatalogListing(deps: CatalogListingDeps): (draft: CatalogD
           deps.warn({ providerId: provider.id }, message);
         },
       });
-      return listingOf(rows.map((row) => bareCatalogEntry(row)));
+      return listingOf(rows.map(endpointCatalogEntry));
       // a failed dial is returned as `failedListing(err, secrets)`, i.e. `{ listed: false, reason }` with the scrubbed reason (backends/wire/model-listing.ts); the model picker (client credentials/lib/model-picker-model.ts) turns it into its failed arm with the reason and a retry, and the pane offers a typed id. Ends if callers require a successful catalog.
     } catch (err) {
       return failedListing(err, secrets);

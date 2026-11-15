@@ -135,8 +135,10 @@ export const OUTPUT_CAP_FIELDS = ["max_tokens", "max_completion_tokens"] as cons
 /** A server's native model-info API, read beside `/v1/models` for facts that list lacks: the window the
  *  server runs, an embedder's width, and what each model takes (tools, image input, its kind). `ollama` =
  *  `GET /api/version` + `GET /api/ps` + `POST /api/show`; `llama-cpp` = `GET /props` + the list's `meta`;
- *  `koboldcpp` = `GET /api/extra/version` + `GET /props`. The readers live in `@orb/inference`'s endpoint catalog. */
-export const MODEL_INFO_APIS = ["ollama", "llama-cpp", "koboldcpp"] as const;
+ *  `koboldcpp` = `GET /api/extra/version` + `GET /props`; `nanogpt` = the hosted list's own `?detailed=true` mode,
+ *  read in place of the bare list; `literouter` = the hosted list's own per-model fields, read from the same list. The
+ *  readers live in `@orb/inference`'s endpoint catalog. */
+export const MODEL_INFO_APIS = ["ollama", "llama-cpp", "koboldcpp", "nanogpt", "literouter"] as const;
 export type ModelInfoApi = (typeof MODEL_INFO_APIS)[number];
 
 /** A server's native chat route, sent instead of `/v1/chat/completions` (D310). `ollama` = `POST /api/chat`,
@@ -148,6 +150,11 @@ export type NativeChatApi = (typeof NATIVE_CHAT_APIS)[number];
 /** The most side-generation items a connection runs at once. An agent-sdk item is its own Claude subprocess, so the
  *  bound holds on every wire rather than per backend. */
 export const SUMMARIZE_CONCURRENCY_MAX = 32;
+
+/** A key check path: `/`-led segments of plain path characters, so `new URL(path, base)` stays on the base URL's
+ *  origin. No empty segment (`//host` is another host), no `.` or `..` segment, and no backslash, `@`, `%`, query,
+ *  space or control character (the URL parser reads a backslash as `/` and drops a tab or newline). */
+const KEY_CHECK_PATH_RE = /^(?:\/(?!\.{1,2}(?:\/|$))[\w\-.~!$&'()*+,;=:]+)+\/?$/u;
 
 export const endpointFeaturesSchema = z
   .object({
@@ -165,6 +172,15 @@ export const endpointFeaturesSchema = z
      *  matching built-in row's features and model-info API in place of this row's. A declared `modelInfoApi`
      *  skips the probe; the connection's identity and credential stay this row's. */
     detectServer: z.boolean().optional(),
+    /** The key check's read, a path from the base URL's ORIGIN, for a service whose models list answers without a key;
+     *  absent ⇒ the models list under the base URL. A plain path only ({@link KEY_CHECK_PATH_RE}), because the read
+     *  carries the key. Any row may declare one (a server behind a proxy whose list needs no key); this parse and the
+     *  read's own origin check keep the key on the row's base URL origin. */
+    keyCheckPath: z.string().regex(KEY_CHECK_PATH_RE, "a key check path is a plain path from the base URL's origin, such as /v1/me").optional(),
+    /** The service answers 403 for refusals that say nothing about the key (a model the plan lacks, a cooldown),
+     *  so a 403 is a refusal shown in the service's words unless its body's structured `error.code` names the key
+     *  (`invalid_api_key`, `missing_api_key`). Absent ⇒ every 403 judges the key. */
+    forbiddenIsNotCredentialVerdict: z.boolean().optional(),
     /** A rerank endpoint path relative to `baseUrl` (vLLM `/rerank`); absent ⇒ the wire serves no rerank. */
     rerankPath: z.string().optional(),
     /** The sleep/wake pair a server exposes (vLLM `/is_sleeping` + `/wake_up`). Set ⇒ a sleeping server reads

@@ -31,7 +31,7 @@ import {
   hasMultiModelVendor,
   isExactMatch,
   modelPickerView,
-  offersCapabilityChips,
+  offeredChips,
   pickerEntryOf,
   resolveRecentEntries,
   TOOLS_CHIP,
@@ -210,18 +210,7 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
           ref={searchRef}
           value={term}
         />
-        {view.showChips ? (
-          <Row align="center" gap="field" padding="row">
-            <ToggleGroup aria-label="Filter models" multiple={true} onValueChange={setChips} value={[...chips]}>
-              <Toggle size="sm" value={VISION_CHIP}>
-                {MODEL_VISION_LABEL}
-              </Toggle>
-              <Toggle size="sm" value={TOOLS_CHIP}>
-                {MODEL_TOOLS_LABEL}
-              </Toggle>
-            </ToggleGroup>
-          </Row>
-        ) : null}
+        <ModelChips chips={chips} offered={view.offeredChips} onChipsChange={setChips} />
         <CommandList label={`Models on ${listOwner}`} listSize="grow" onPointerMove={onPointerMove}>
           {models === null ? (
             <CommandLoading label={`Loading ${listOwner} models…`}>
@@ -275,6 +264,34 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
   );
 }
 
+const CHIP_LABELS: Readonly<Record<string, string>> = { [VISION_CHIP]: MODEL_VISION_LABEL, [TOOLS_CHIP]: MODEL_TOOLS_LABEL };
+
+/** The capability chips this list offers, each one that splits the list; none renders no row. */
+function ModelChips({
+  chips,
+  offered,
+  onChipsChange,
+}: {
+  readonly chips: readonly string[];
+  readonly offered: readonly string[];
+  readonly onChipsChange: (chips: string[]) => void;
+}): ReactElement | null {
+  if (offered.length === 0) {
+    return null;
+  }
+  return (
+    <Row align="center" gap="field" padding="row">
+      <ToggleGroup aria-label="Filter models" multiple={true} onValueChange={onChipsChange} value={[...chips]}>
+        {offered.map((chip) => (
+          <Toggle key={chip} size="sm" value={chip}>
+            {CHIP_LABELS[chip]}
+          </Toggle>
+        ))}
+      </ToggleGroup>
+    </Row>
+  );
+}
+
 /** The "Use … as typed" row. Its place is held whenever a typed id is allowed, so the first keystroke that offers
  *  it does not grow the dialog, which is centered, so the whole list would move. */
 function TypedRow({ typed, onPick }: { readonly typed: string | null; readonly onPick: (id: string) => void }): ReactElement {
@@ -307,25 +324,25 @@ function usePickerView(args: {
   readonly groups: ReturnType<typeof groupModelEntries<PickerEntry>>["groups"];
   readonly overflow: number;
   readonly recentEntries: readonly PickerEntry[];
-  readonly showChips: boolean;
+  readonly offeredChips: readonly string[];
 } {
   const models = args.models ?? NO_MODELS;
   const pool = models.map(pickerEntryOf);
-  const showChips = offersCapabilityChips(pool);
+  const offered = offeredChips(pool);
   // The search runs over the SOURCE's own array, never one derived here: the index is cached on the array's
   // identity, and the React Compiler does not keep a derived pool across renders, so a derived array rebuilt the
   // index on every keystroke. The chip filter applies to the matches instead, with no result cap before it.
   const deferredQuery = useDeferredValue(args.term);
   const matched = useFuzzySearch(models, deferredQuery, { fields: ["name", "id"], limit: models.length });
   const searched = deferredQuery.trim() === "" ? pool : matched.map(pickerEntryOf);
-  const chipFiltered = showChips ? filterByChips(searched, args.chips) : searched;
+  const chipFiltered = filterByChips(searched, args.chips, offered);
   const recentEntries = resolveRecentEntries(args.recentIds, new Map(pool.map((entry) => [entry.id, entry] as const)), args.term.trim() === "");
   const inRecent = new Set(recentEntries.map((entry) => entry.id));
   const grouped = groupModelEntries(
     chipFiltered.filter((entry) => !inRecent.has(entry.id)),
     { unprefixedHeading: args.listOwner, query: deferredQuery, pinnedIds: args.pinnedIds, sectioned: !args.closedList && hasMultiModelVendor(pool) },
   );
-  return { groups: grouped.groups, overflow: grouped.overflow, recentEntries, showChips };
+  return { groups: grouped.groups, overflow: grouped.overflow, recentEntries, offeredChips: offered };
 }
 
 /** The status line under the list: what is picked, in words, or the field's error when nothing is. */
