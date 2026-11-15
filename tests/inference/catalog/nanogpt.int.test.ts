@@ -402,6 +402,8 @@ test("a NanoGPT key lists its embedding and rerank models as those kinds beside 
     { url: `${API_ROOT}/models?detailed=true`, authorization: auth },
     { url: `${API_ROOT}/embedding-models`, authorization: auth },
     { url: `${API_ROOT}/rerank-models`, authorization: auth },
+    // The public list judges no key, so the row's key check reads it under the draft key.
+    { url: new URL(BUILTIN_PROVIDERS.find((row) => row.id === "nanogpt")?.features?.keyCheckPath ?? "", API_ROOT).href, authorization: auth },
   ]);
   expect(listedEntry(listing, EMBED_MODEL)).toMatchObject({ kind: "embedding", name: "Stated Embedder" });
   expect(listedEntry(listing, RERANK_MODEL)).toMatchObject({ kind: "rerank", name: "Stated Reranker" });

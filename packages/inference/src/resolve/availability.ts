@@ -1,13 +1,14 @@
 // The pre-send verdict (#54): "would this task run RIGHT NOW without firing a turn?" Deterministic-only —
 // a configured hosted row reads available and is never pre-flighted (a bad key still fails at send with
-// the provider error). The causes, in the order they are decided: `no-connection` · `key-rejected` (the bound
-// row's key is struck or gone) · `unavailable` (the
+// the provider error). The causes, in the order they are decided: `no-connection` · a revoked-key cause (the bound
+// row's key is revoked, named by why) · `unavailable` (the
 // wire's backend is not wired) · `runtime-missing` (the agent-sdk wire with no `claude` executable) ·
 // `requirement-unmet` · `background-refused` · `model-load-failed` (a local-light row whose model's latest
 // load failed) · `endpoint-unreachable` (an `auth: endpoint` row whose reachability probe says down — a
 // SLEEPING server on a row whose folded `features.sleep` is set reads AVAILABLE, it wakes on the turn;
 // without it, sleeping IS down).
 
+import { revokedKeyCause } from "@orb/contracts/credentials";
 import type { SendAvailability } from "@orb/contracts/inference";
 import { canFund } from "@orb/contracts/inference";
 import { DomainNoCredentialError } from "@orb/kit/errors";
@@ -23,7 +24,6 @@ import { isResolveRefusal, NoConnectionError, resolveTask } from "./resolve-task
 /** What the endpoint probe can say about a row's server — the axis, homed ONCE (§7.5). */
 const UNAVAILABLE_RUNTIME: SendAvailability = { available: false, cause: "runtime-missing" };
 const AVAILABLE: SendAvailability = { available: true };
-const KEY_REJECTED: SendAvailability = { available: false, cause: "key-rejected" };
 
 /** Whether a local-light model's latest load failed — the backend's own record, read without a probe. */
 type LocalLightLoadFailed = (modelId: ModelId) => boolean;
@@ -45,10 +45,10 @@ async function resolveOrCause(ctx: ResolverContext, args: ResolveArgs): Promise<
   try {
     return (await resolveTask(ctx, args)).resolved;
   } catch (err) {
-    // A struck or missing key is this row's own state, not a failed read: the readout names it, and one dead key
-    // never fails the list it sits in.
+    // A revoked key is this row's own state, not a failed read: the readout names why, and one dead key never fails
+    // the list it sits in.
     if (err instanceof DomainNoCredentialError) {
-      return KEY_REJECTED;
+      return { available: false, cause: revokedKeyCause(err.revokedReason) };
     }
     if (!isResolveRefusal(err)) {
       throw err;

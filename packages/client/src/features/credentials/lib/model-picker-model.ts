@@ -14,7 +14,7 @@ import type { ModelCatalogEntry, ModelCheck, ModelListing, ProviderDef } from "@
 import { TOOLS_PARAMETER } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { isSpaceChar, trimEndWhile } from "@orb/kit/strings";
-import { keyRefusedNotice } from "./credentials-names.ts";
+import { KEY_REFUSED_MODEL_NOTICE } from "./credentials-names.ts";
 
 /** Where the picker's models come from, as the caller last saw it. `unlisted` is a source with no list to
  *  offer (nothing fetched yet, or no catalog door for this draft); `failed` is a list read that errored.
@@ -22,7 +22,7 @@ import { keyRefusedNotice } from "./credentials-names.ts";
  *  it from `ModelPickerProps["source"]`, and a new arm is a `tsc` error at each of them. */
 type ModelCatalogSource =
   | { readonly status: "loading" }
-  | { readonly status: "listed"; readonly models: readonly ModelCatalogEntry[] }
+  | { readonly status: "listed"; readonly models: readonly ModelCatalogEntry[]; readonly keyUnchecked?: true }
   | { readonly status: "failed"; readonly reason: string; readonly retry: (() => void) | null; readonly keyRefused?: true }
   | { readonly status: "unlisted"; readonly reason: string };
 
@@ -440,10 +440,10 @@ export function modelPickerView(source: ModelCatalogSource, args: { readonly lis
         ? emptyListView(`${args.listOwner} listed no models.`, args.typedAllowed, null)
         : { models: source.models, notice: null, warns: false, typingOffered: false, retry: null };
     case "failed":
-      // A refused key is no evidence about the list, and listing again under it is refused again: the notice names the
-      // fix and nothing else.
+      // A refused key is no evidence about the list, and listing again under it is refused again. The key field states the
+      // refusal and its fix; this field says only why it has no list.
       return source.keyRefused === true
-        ? { models: null, notice: keyRefusedNotice(args.listOwner), warns: true, typingOffered: args.typedAllowed, retry: null }
+        ? { models: null, notice: KEY_REFUSED_MODEL_NOTICE, warns: true, typingOffered: args.typedAllowed, retry: null }
         : emptyListView(`Couldn't list ${args.listOwner}'s models: ${clauseOf(source.reason)}.`, args.typedAllowed, source.retry);
     case "unlisted":
       return { models: null, notice: source.reason, warns: !args.typedAllowed, typingOffered: args.typedAllowed, retry: null };
@@ -460,7 +460,7 @@ export function failedCatalogSource(error: unknown, retry: (() => void) | null):
  *  the typed field and the retry beside it. */
 export function modelListSource(result: ModelListing, retry: (() => void) | null): ModelCatalogSource {
   if (result.listed) {
-    return { status: "listed", models: result.models };
+    return result.keyUnchecked === true ? { status: "listed", models: result.models, keyUnchecked: true } : { status: "listed", models: result.models };
   }
   return result.keyRefused === true
     ? { status: "failed", reason: result.reason, retry: null, keyRefused: true }

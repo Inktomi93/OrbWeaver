@@ -24,6 +24,7 @@
 // which is the only thing they need in order to decide — and it omitted the one fact that stops a user
 // keeping a dead row out of fear: the CREDENTIAL survives, because a key is its own row (§5.3).
 
+import type { CredRevokedReason } from "@orb/contracts/credentials";
 import { providerDisplayLabel } from "@orb/contracts/inference";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -40,14 +41,14 @@ import { useEffect, useRef, useState } from "react";
 import { QueryBoundary, RowActionsMenu, useFirstBootRows, useReindexConfirm } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQueries, useTRPC } from "#data";
-import { connectionSummary } from "#lib";
+import { connectionSummary, REVOKED_KEY_COPY } from "#lib";
 import { clearConnectionEditorRequest, configSettingControlId, useRequestedConnectionEditor } from "#state";
 import { useRemoveConnection, useUseForEverything } from "../hooks/use-connections-mutations.ts";
 import { addModelActionGloss, addModelActionLabel, addModelScope } from "../lib/add-model-on-key-form-model.ts";
 import { ADD_CONNECTION_NAME, backgroundStateLabel, CAN_SERVE_LABEL, connectionRailGroupName, USED_FOR_LABEL } from "../lib/connections-copy.ts";
 import { boundRoleLabels, connectionRoleLabels, joinRoleLabels, sweepRebindsEmbedder, sweepRoleLabels } from "../lib/connections-model.ts";
 import { ADD_CONNECTION_SETTING, CONNECTIONS_LIST_SUBCATEGORY } from "../lib/connections-nav.ts";
-import { CONNECTION_KEY_REJECTED_BADGE, CONNECTIONS_EMPTY_TITLE } from "../lib/credentials-names.ts";
+import { CONNECTIONS_EMPTY_TITLE } from "../lib/credentials-names.ts";
 import { AddConnectionDialog } from "./add-connection-dialog.tsx";
 import { AddModelOnKeyDialog } from "./add-model-on-key-dialog.tsx";
 import { ConnectionEditor } from "./connection-editor.tsx";
@@ -344,7 +345,7 @@ function ConnectionRow({
         heldRoles={boundRoles}
         name={name}
         providerUnavailable={providerUnavailable}
-        keyRejected={credentials.some((credential) => credential.id === connection.credentialId && credential.revokedAt !== null)}
+        revokedReason={credentials.find((credential) => credential.id === connection.credentialId && credential.revokedAt !== null)?.revokedReason ?? null}
       />
       {reindex.dialog}
       {provider === null || addModel === null ? null : (
@@ -371,15 +372,15 @@ function ConnectionBadges({
   name,
   heldRoles,
   providerUnavailable,
-  keyRejected,
+  revokedReason,
 }: {
   readonly connection: ConnectionListItem;
   /** The row's one-line identity, which names each rail group apart from the other rows'. */
   readonly name: string;
   readonly heldRoles: readonly string[];
   readonly providerUnavailable: boolean;
-  /** The row's key is revoked, so no turn runs on it until the key is replaced. */
-  readonly keyRejected: boolean;
+  /** Why the row's key is revoked, so no turn runs on it; `null` while the key is live. */
+  readonly revokedReason: CredRevokedReason | null;
 }): ReactElement {
   const canServe = connectionRoleLabels(connection.tasks);
   return (
@@ -410,11 +411,11 @@ function ConnectionBadges({
             Provider unavailable
           </Badge>
         ) : null}
-        {keyRejected ? (
+        {revokedReason === null ? null : (
           <Badge tone="warning" size="sm" whitespace="normal">
-            {CONNECTION_KEY_REJECTED_BADGE}
+            {REVOKED_KEY_COPY[revokedReason].badge}
           </Badge>
-        ) : null}
+        )}
         {connection.modelCheck === "unlisted" ? (
           <Badge tone="warning" size="sm" whitespace="normal">
             Model not in list

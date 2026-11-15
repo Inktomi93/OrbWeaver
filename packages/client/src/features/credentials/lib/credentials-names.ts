@@ -106,12 +106,6 @@ export const CLEAR_REVOKED_NAME = "Clear revoked";
 /** The verb on a saved key's revoke button and its confirm. */
 export const KEY_REVOKE_VERB = "Revoke";
 
-/** A saved key's subtitle cause when the user revoked it. */
-export const KEY_REVOKED_BY_YOU = "Revoked by you";
-
-/** A connection row's status badge while its key is revoked; the key's own row in Saved keys carries Replace. */
-export const CONNECTION_KEY_REJECTED_BADGE = "Key rejected: replace it in Saved keys";
-
 /** The row's identity as every one of its actions names it: `OpenRouter "work"`, feeding
  *  `Replace the <provider> "<label>" key` / `Revoke the <provider> "<label>" key` verbatim. ONE spelling —
  *  a title in a second form would put the visible label and the accessible name out of agreement, which is
@@ -239,9 +233,15 @@ export function connectionLimitsFailureLabel(reason: string): string {
   return `The limits weren't saved: ${reason}`;
 }
 
-/** The model field's notice when the provider refused the key the list was read under. */
+/** The key field's notice when the provider refused the key the list was read under. */
 export function keyRefusedNotice(listOwner: string): string {
   return `${listOwner} refused this key. Get a new key from your ${listOwner} account and paste it here.`;
+}
+/** The model field's notice while the key it would list under is refused. */
+export const KEY_REFUSED_MODEL_NOTICE = "No models to list until the key is accepted.";
+/** The key field's notice when the provider's key check gave no verdict: the add still saves. */
+export function keyUncheckedNotice(listOwner: string): string {
+  return `${listOwner} didn't answer the key check, so this key is unchecked. It will be saved, and the first chat says if it's wrong.`;
 }
 /** A save refused because the provider refused the draft's key: a connection on it would fail its first turn. */
 export const KEY_REFUSED_SAVE_REASON = "the provider refused this key. Paste a new key, then add the connection";

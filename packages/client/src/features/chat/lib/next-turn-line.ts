@@ -3,6 +3,7 @@
 // fail for the viewer; a room that can reply is a state with no sentence (the chat page names no model). A room whose own read
 // failed cannot reply either: nothing sent into it would show, so the send gate refuses it under its own cause.
 
+import { CRED_REVOKED_REASONS, REVOKED_KEY_CAUSES } from "@orb/contracts/credentials";
 import type { ResolvedConnectionView } from "@orb/contracts/inference";
 import type { SendRefusalCause, SendRefusalKey } from "#lib";
 import { ADD_CONNECTION_DOOR, ADD_CONNECTION_PATH, CHAT_ROLE_DOOR, MODEL_ROLES_PATH, ROOM_READ_FAILED_CAUSE } from "#lib";
@@ -77,11 +78,11 @@ function lacksChatConnection({ rows }: CreditConnections): boolean {
 /**
  * The composer's refusal key for a refused send: the host-side `no-chat-connection` split of `no-connection`
  * on the same predicate the line's door uses, so the tooltips and the line point at the same fix. A member reads
- * a struck key on the host's connection as the host's to fix, never as a key of their own.
+ * a revoked key on the host's connection as the host's to fix, never as a key of their own, whatever revoked it.
  */
 export function sendRefusalKey(cause: SendRefusalCause, viewerIsHost: boolean | undefined, connections: CreditConnections): SendRefusalKey {
-  if (cause === "key-rejected") {
-    return viewerIsHost === false ? "host-key-rejected" : cause;
+  if (CRED_REVOKED_REASONS.some((reason) => REVOKED_KEY_CAUSES[reason] === cause)) {
+    return viewerIsHost === false ? "host-key-revoked" : cause;
   }
   if (cause !== "no-connection") {
     return cause;
