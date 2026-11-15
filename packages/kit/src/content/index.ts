@@ -2015,11 +2015,17 @@ function shownAsWritten(
   return textElementEnd(content, tag.index, TEXT_ELEMENT_CLOSE_SOURCES[name], state.textClose);
 }
 
-// Just past the close of the text element opening at `lt`, or the text's length when it has none or none arrives.
+// Just past the close of the text element opening at `lt`. One with no close, or whose close never arrives, is read
+// past its opener only: HTML would show what follows as the element's text, and the strip must still find a style
+// element there, or its stylesheet prints on the inert row.
 function textElementEnd(content: string, lt: number, close: string | undefined, nextClose: Map<string, number>): number {
   const open = tagEndFrom(content, lt, false);
-  if (open === -1 || close === undefined) {
+  // An opener whose `>` never arrives has no tag after it either.
+  if (open === -1) {
     return content.length;
+  }
+  if (close === undefined) {
+    return open + 1;
   }
   let found = nextClose.get(close) ?? -1;
   if (found !== Number.POSITIVE_INFINITY && found <= open) {
@@ -2029,7 +2035,7 @@ function textElementEnd(content: string, lt: number, close: string | undefined, 
     nextClose.set(close, found);
   }
   const gt = found === Number.POSITIVE_INFINITY ? -1 : content.indexOf(">", found);
-  return gt === -1 ? content.length : gt + 1;
+  return gt === -1 ? open + 1 : gt + 1;
 }
 
 /** A stretch of text already read as one unit: a raw-text element or a removed tag. */
@@ -2059,56 +2065,240 @@ function markdownCodeCursor(content: string, reading: MarkdownReading): (offset:
 
 // CommonMark's code blocks. A fence opens on up to three spaces then three or more ticks (whose info holds no tick) or
 // tildes, and closes on a run of the same mark at least as long with only spaces after it; an unclosed one runs to
-// the end. With `indented`, a line indented four spaces or a tab after a blank line, or after another such line, is
-// code too. Lines are read in order and only outside HTML blocks, whose lines Markdown reads as HTML.
+// the end. With `indented`, a line indented four columns that no paragraph line comes before is code too, and an HTML
+// block's lines are HTML, never code, to the block's end.
+//
+// Both are read inside the line's containers, block quotes and list items, as CommonMark reads them: a quote's `>` and
+// an item's content column come off first, so indented code in an item sits four columns past its content, and a line
+// that leaves its item closes the fence or HTML block the item held. Where this read is coarser than CommonMark's (an
+// item that opens empty, a marker line that cannot interrupt a paragraph, a heading or rule), it errs toward text: a
+// style element read as one where the renderer shows code stays inside that code, while one read as code where the
+// renderer builds it would print its stylesheet.
 const CODE_FENCE_OPEN_RE = /^ {0,3}(`{3,}(?=[^`]*$)|~{3,})/;
 const CODE_FENCE_CLOSE_RE = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
 const INDENTED_CODE_RE = /^(?: {0,3}\t| {4})/;
+const QUOTE_MARKER_RE = /^ {0,3}> ?/;
+const LIST_MARKER_RE = /^ {0,3}(?:[-+*]|\d{1,9}[.)])(?=[ \t]|$)/;
+const TAB_STOP = 4;
+// Past this many spaces after a marker, the item's content is the marker plus one space, and the rest is indented code.
+const MARKER_GAP_MAX = 4;
+// Every line is read through each open container, so the depth bounds the cost of a line. A reply nests a few deep.
+const CONTAINER_DEPTH_MAX = 32;
 
 const CODE_LINES = ["fence-open", "fence-close", "code", "text"] as const;
 type CodeLine = (typeof CODE_LINES)[number];
 
-function codeLineReader(indented: boolean): (text: string) => CodeLine {
-  let fence: string | undefined;
-  // The line before was blank, code, or there was none: an indented line here starts or continues code.
-  let afterBreak = true;
-  return (text) => {
-    if (fence !== undefined) {
-      const close = CODE_FENCE_CLOSE_RE.exec(text)?.[1];
-      if (close === undefined || close.charAt(0) !== fence.charAt(0) || close.length < fence.length) {
-        return "code";
+/** An open block quote or list item; `column` is an item's content column within its parent, undefined for a quote. */
+interface BlockContainer {
+  readonly column: number | undefined;
+}
+
+// `line` with each tab spaced out to the next stop, as CommonMark measures columns, so a container's prefix and an
+// indent are read in spaces alone.
+function expandTabs(line: string): string {
+  if (!line.includes("\t")) {
+    return line;
+  }
+  let expanded = "";
+  for (const char of line) {
+    expanded += char === "\t" ? " ".repeat(TAB_STOP - (expanded.length % TAB_STOP)) : char;
+  }
+  return expanded;
+}
+
+// The number of leading spaces of a line `expandTabs` has read.
+function indentColumns(text: string): number {
+  return LEADING_SPACES_RE.exec(text)?.[0].length ?? 0;
+}
+
+const LEADING_SPACES_RE = /^ */;
+
+// How many of the open containers `text` continues, and the text left inside the last one it does.
+function continueContainers(open: readonly BlockContainer[], text: string): { readonly matched: number; readonly rest: string } {
+  let rest = text;
+  let matched = 0;
+  for (const container of open) {
+    if (container.column === undefined) {
+      const quote = QUOTE_MARKER_RE.exec(rest)?.[0];
+      if (quote === undefined) {
+        break;
       }
-      fence = undefined;
-      afterBreak = true;
-      return "fence-close";
+      rest = rest.slice(quote.length);
+    } else if (rest.trim() !== "") {
+      if (indentColumns(rest) < container.column) {
+        break;
+      }
+      rest = rest.slice(container.column);
     }
-    fence = CODE_FENCE_OPEN_RE.exec(text)?.[1];
-    if (fence !== undefined) {
-      return "fence-open";
+    matched += 1;
+  }
+  return { matched, rest };
+}
+
+// The quotes and items `text` opens, pushed onto `open`, and the text left inside the last; `emptyItem` when the last
+// is a list item with nothing after its marker. Past `CONTAINER_DEPTH_MAX` open containers a marker opens none and
+// is read as text, which reads the line as no code.
+function openContainers(open: BlockContainer[], text: string): { readonly emptyItem: boolean; readonly rest: string } {
+  let rest = text;
+  let item = false;
+  for (;;) {
+    if (open.length >= CONTAINER_DEPTH_MAX) {
+      return { emptyItem: false, rest };
     }
-    const blank = text.trim() === "";
-    const code = indented && !blank && afterBreak && INDENTED_CODE_RE.test(text);
-    afterBreak = blank || code;
-    return code ? "code" : "text";
+    const quote = QUOTE_MARKER_RE.exec(rest)?.[0];
+    const marker = quote === undefined ? LIST_MARKER_RE.exec(rest)?.[0] : undefined;
+    if (quote !== undefined) {
+      open.push({ column: undefined });
+      rest = rest.slice(quote.length);
+    } else if (marker === undefined) {
+      return { emptyItem: item && rest.trim() === "", rest };
+    } else {
+      const after = rest.slice(marker.length);
+      const gap = indentColumns(after);
+      const pad = after.trim() === "" || gap > MARKER_GAP_MAX ? 1 : gap;
+      open.push({ column: marker.length + pad });
+      rest = after.slice(pad);
+    }
+    item = marker !== undefined;
+  }
+}
+
+// A line that opens no block of its own, so after paragraph text it is that paragraph's lazy continuation.
+function continuesParagraph(text: string): boolean {
+  const opensBlock = CODE_FENCE_OPEN_RE.test(text) || QUOTE_MARKER_RE.test(text) || LIST_MARKER_RE.test(text) || htmlBlockEnd(text, true) !== undefined;
+  return text.trim() !== "" && !opensBlock;
+}
+
+function closesFence(fence: string, text: string): boolean {
+  const close = CODE_FENCE_CLOSE_RE.exec(text)?.[1];
+  return close !== undefined && close.charAt(0) === fence.charAt(0) && close.length >= fence.length;
+}
+
+// The line that ends an HTML block that closes at a blank line, not at a close it waits for.
+const ENDS_AT_BLANK = /^[ \t]*$/;
+
+// The HTML block kinds that end on the line holding a close of their own, each opener with that close. A `pre`,
+// `script`, `style` or `textarea` block ends at the close of any of the four, as CommonMark has it.
+const HTML_BLOCK_ENDS: readonly (readonly [RegExp, RegExp])[] = [
+  [RAW_TEXT_BLOCK_RE, /<\/(?:pre|script|style|textarea)>/i],
+  [/^ {0,3}<!--/, /-->/],
+  [/^ {0,3}<\?/, /\?>/],
+  [/^ {0,3}<![A-Za-z]/, />/],
+  [/^ {0,3}<!\[CDATA\[/, /\]\]>/],
+];
+
+// The line test that ends the HTML block `text` opens, or undefined when it opens none. CommonMark's kinds: those of
+// `HTML_BLOCK_ENDS`, then a block-level tag, or a lone complete tag that interrupts no paragraph, to a blank line.
+function htmlBlockEnd(text: string, interruptsParagraph: boolean): RegExp | undefined {
+  const own = HTML_BLOCK_ENDS.find(([open]) => open.test(text))?.[1];
+  if (own !== undefined) {
+    return own;
+  }
+  const lone = !interruptsParagraph && indentColumns(text) < TAB_STOP && isLoneTagLine(text);
+  return BLOCK_TAG_LINE_RE.test(text) || lone ? ENDS_AT_BLANK : undefined;
+}
+
+// The end of the HTML block `text` opens and its own line does not end, or undefined.
+function htmlBlockClose(text: string, interruptsParagraph: boolean): RegExp | undefined {
+  const close = htmlBlockEnd(text, interruptsParagraph);
+  if (close === undefined || close === ENDS_AT_BLANK) {
+    return close;
+  }
+  // Searched past the opener's `<` and the character after it, so no opener reads as its own close.
+  return close.test(text.slice(text.indexOf("<") + 2)) ? undefined : close;
+}
+
+// `codeLineReader`'s state between lines.
+interface CodeLineState {
+  readonly indented: boolean;
+  fence: string | undefined;
+  /** The open HTML block's end (`htmlBlockClose`); read only with indented code, the one reading a block can hide. */
+  html: RegExp | undefined;
+  readonly open: BlockContainer[];
+  /** The line before was paragraph text, so this one may continue it: leaving its containers, it stays in them. */
+  paragraph: boolean;
+  /** This line may start indented code: the line before was no paragraph's and opened no empty list item. After an
+   *  empty item the renderer reads an indented line as code or as the item's text by what came before the list, which
+   *  this read does not follow, so it reads text. */
+  codeMayStart: boolean;
+}
+
+// A reader of lines in order. A `covered` line sits inside a unit `readMarkup` read whole (an element's text, a
+// comment): it opens nothing and only ends an HTML block whose close it holds.
+function codeLineReader(indented: boolean): (text: string, covered: boolean) => CodeLine {
+  const state: CodeLineState = { indented, fence: undefined, html: undefined, open: [], paragraph: false, codeMayStart: true };
+  return (text, covered) => {
+    if (!covered) {
+      return readCodeLineKind(state, expandTabs(text));
+    }
+    if (state.html !== undefined && state.html !== ENDS_AT_BLANK && state.html.test(text)) {
+      state.html = undefined;
+    }
+    return "text";
   };
+}
+
+// One line inside an open HTML block: true when it is the block's, false when it leaves the block's container.
+function readHtmlBlockLine(state: CodeLineState, inside: string, contained: boolean): boolean {
+  if (state.html === undefined) {
+    return false;
+  }
+  if (!contained) {
+    state.html = undefined;
+    return false;
+  }
+  state.html = state.html.test(inside) ? undefined : state.html;
+  state.codeMayStart = true;
+  return true;
+}
+
+function readCodeLineKind(state: CodeLineState, text: string): CodeLine {
+  const { matched, rest: inside } = continueContainers(state.open, text);
+  if (readHtmlBlockLine(state, inside, matched === state.open.length)) {
+    return "text";
+  }
+  if (state.fence !== undefined && matched === state.open.length) {
+    if (!closesFence(state.fence, inside)) {
+      return "code";
+    }
+    state.fence = undefined;
+    return "fence-close";
+  }
+  // A line that leaves a container after paragraph text continues that paragraph.
+  if (matched < state.open.length && state.paragraph && continuesParagraph(inside)) {
+    return "text";
+  }
+  // A container this line leaves closes, and with it any fence it held (the fence is read afresh below).
+  state.open.length = matched;
+  const { emptyItem, rest } = openContainers(state.open, inside);
+  state.fence = CODE_FENCE_OPEN_RE.exec(rest)?.[1];
+  if (state.fence !== undefined) {
+    state.paragraph = false;
+    state.codeMayStart = true;
+    return "fence-open";
+  }
+  const blank = rest.trim() === "";
+  const code = state.indented && !blank && state.codeMayStart && INDENTED_CODE_RE.test(rest);
+  state.html = state.indented && !code && !blank ? htmlBlockClose(rest, state.paragraph) : undefined;
+  state.paragraph = !(blank || code || state.html !== undefined);
+  state.codeMayStart = !(state.paragraph || emptyItem);
+  return code ? "code" : "text";
 }
 
 // Code block state for `markdownCodeCursor`, read line by line in rising order.
 interface CodeBlockRead {
   readonly lines: readonly Line[];
   next: number;
-  readonly read: (text: string) => CodeLine;
+  readonly read: (text: string, covered: boolean) => CodeLine;
   /** Text before this offset holds no tick that opens a span: it was read as code. */
   codeTo: number;
 }
 
-// One line into the code block state: its kind, with an element's line read as text it never feeds the reader.
+// One line into the code block state: its kind, with a line inside a unit read whole read as text, opening nothing.
 function readCodeLine(blocks: CodeBlockRead, line: Line, covering: ReadSpan | undefined): CodeLine {
   blocks.next += 1;
-  if (covering !== undefined && line.start > covering.start && line.start < covering.end) {
-    return "text";
-  }
-  const kind = blocks.read(matchText(line));
+  const covered = covering !== undefined && line.start > covering.start && line.start < covering.end;
+  const kind = blocks.read(matchText(line), covered);
   blocks.codeTo = kind === "text" ? blocks.codeTo : line.end + 1;
   return kind;
 }
@@ -2346,7 +2536,7 @@ export function scanStyledHold(content: string): StyledHoldSegment[] {
       continue;
     }
     const text = matchText(line);
-    const code = codeLine(text) !== "text";
+    const code = codeLine(text, false) !== "text";
     if (code || !opensMarkupBlock(content, line, inParagraph)) {
       inParagraph = !code && text.trim() !== "";
       i += 1;

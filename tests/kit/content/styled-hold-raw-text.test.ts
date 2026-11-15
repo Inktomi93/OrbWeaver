@@ -138,15 +138,26 @@ test.each([
 test.each([
   ["behind a backslash escape", "\\<script>VISIBLE</script>"],
   ["inside a textarea", "<textarea><style>CSS</style></textarea>"],
-  ["after an escaped opener, inside the textarea it does not swallow", "\\<style><textarea></style><script>s</script>"],
   ["inside a title", "<title><script>s</script></title>"],
-  ["after plaintext", "<plaintext><style>x</style>"],
   ["in a tilde code block", "~~~\n<style>.x{}</style>\n~~~"],
   ["in a longer tick fence a shorter one does not close", "````\n```\n<style>.x{}</style>\n````"],
   ["in an indented code block", "Sample:\n\n    <style>.x{}</style>"],
 ])("the frame reads no element %s", (_name, body) => {
   expect(liftRawTextBodies(body, "\u{E000}").bodies).toEqual([]);
   expect(frameStyleElements(body)).toEqual([]);
+});
+
+// HTML would show what follows an unclosed text element as that element's text; the strip must still take a style
+// element out of it, or its stylesheet prints on the inert row.
+test.each([
+  ["textarea", "<textarea>\n\n<style>.tacss{color:red}</style>\n\nAfter.", ".tacss{color:red}"],
+  ["iframe", "Intro <iframe src=x>\n\n<style>.ifcss{color:red}</style>\n\nAfter.", ".ifcss{color:red}"],
+  ["title", "<title>T\n\n<style>.titlecss{}</style>", ".titlecss{}"],
+  ["plaintext", "<plaintext><style>.plaincss{}</style>", ".plaincss{}"],
+  ["textarea after an escaped opener", "\\<style><textarea></style><script>run()</script>", "run()"],
+])("an unclosed %s hides no later element from the strip or the lift", (_name, body, source) => {
+  expect(liftRawTextBodies(body, "\u{E000}").bodies).toEqual([source]);
+  expect(stripStyleElements(body)).not.toContain(source);
 });
 
 test.each([
@@ -171,6 +182,9 @@ test.each([
   ["many blank lines inside one style after text", `He waits. <style>${"\n\n<div>".repeat(60_000)}`],
   ["many code block marker lines between styles", "```\n<style>a{}</style>\n".repeat(20_000)],
   ["many tick runs before one style", `${"`a``b".repeat(50_000)}<style>x{}</style>`],
+  ["many unclosed text elements before one style", `${"<textarea>".repeat(60_000)}<style>x{}</style>`],
+  ["list markers nested deep, then blank lines", `${"- ".repeat(20_000)}x${"\n".repeat(20_000)}<style>x{}</style>`],
+  ["list markers nested deep, then wide indents", `${"1. ".repeat(15_000)}x\n${`${" ".repeat(45_000)}z\n`.repeat(5)}<style>x{}</style>`],
 ])("%s is read in linear time", (_name, body) => {
   const started = performance.now();
   scanStyledHold(body);
