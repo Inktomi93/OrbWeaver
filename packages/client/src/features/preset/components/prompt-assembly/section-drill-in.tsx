@@ -261,12 +261,12 @@ function PlacementFields({ form, section, index, inChat, zones }: ZonedClusterPr
         <Field
           hint={
             zones.missingPivot
-              ? "There is no chat-history marker yet, so there is no conversation to splice into. Add one on the rack."
+              ? "There is no chat-history marker yet, so there is no conversation to splice into. Add one from the Add menu."
               : // The option labels are bare names (F-26); THIS is where both arms are spelled out in full.
                 // The owner-ruled vocabulary line (08-03): BOTH namings stay, and this sentence is where the
                 // reader learns they are one axis — Relative/In-Chat is the PLACEMENT you pick here, setup/post
                 // is the WIRE zone the assembled payload records for the same choice.
-                "How this section is delivered. RELATIVE renders it into the system block, ordered among the other prompts. IN CHAT splices it into the conversation at a depth. Picking one MOVES the section across the chat-history pivot. These are the placement names for the wire zones the assembled prompt records. Relative is setup, In Chat is post."
+                "How this prompt is delivered. RELATIVE renders it into the system block, ordered among the other prompts. IN CHAT splices it into the conversation at a depth. Picking one MOVES the prompt across the chat-history pivot. These are the placement names for the wire zones the assembled prompt records. Relative is setup, In Chat is post."
           }
           label="Zone"
           name="section-zone"
@@ -350,7 +350,7 @@ function TriggerFields({ form, section, index }: SectionEditProps): ReactElement
         value={everyGeneration ? [] : [...trigger]}
       />
       <Text voice="gloss">
-        {everyGeneration ? "Nothing selected: this section fires on every generation." : "Only the selected generation types carry this section."}
+        {everyGeneration ? "Nothing selected: this prompt fires on every generation." : "Only the selected generation types carry this prompt."}
       </Text>
     </Stack>
   );
@@ -399,7 +399,7 @@ function SectionActionsMenu({ form, section, index, onBack }: SectionEditProps &
   const structural = isStructuralSection(section);
   const ids = useIds();
   const onDelete = (): void => {
-    form.removeFieldValue("sections", index).catch(() => notify.error("Couldn't remove the section."));
+    form.removeFieldValue("sections", index).catch(() => notify.error("Couldn't remove the prompt."));
     onBack();
   };
   return (
@@ -419,7 +419,7 @@ function SectionActionsMenu({ form, section, index, onBack }: SectionEditProps &
           <RowActionsMenu
             destructive={{
               title: PRESET_DELETE_SECTION_TITLE,
-              description: "This removes the section from the preset's prompt arrangement. This can't be undone.",
+              description: "This removes the prompt from the preset. This can't be undone.",
               onConfirm: onDelete,
             }}
             label={PRESET_SECTION_ACTIONS_NAME}
@@ -440,7 +440,7 @@ function SectionActionsMenu({ form, section, index, onBack }: SectionEditProps &
  *  store driver persists it (D78 §3) — no call-site flush. */
 function duplicate(form: AssemblyForm, section: PromptSection, index: number, mint: () => PromptSectionId): void {
   const clone: PromptSection = { ...section, id: mint() };
-  form.insertFieldValue("sections", index + 1, clone).catch(() => notify.error("Couldn't duplicate the section."));
+  form.insertFieldValue("sections", index + 1, clone).catch(() => notify.error("Couldn't duplicate the prompt."));
 }
 
 /** Move-to-zone — the sanctioned no-pointer / zone-jump echo of the drag (§16 row 17): crossing the pivot

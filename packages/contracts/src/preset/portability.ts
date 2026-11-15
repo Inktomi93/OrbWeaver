@@ -40,10 +40,14 @@ export type PresetImportOutcome = z.output<typeof presetImportOutcomeSchema>;
 const PRESET_FILE_FORMATS = ["orbweaver", "sillyTavern"] as const;
 
 /** What importing one preset file does, from the run's own parse and a dry run of its write. `name` is the name the
- *  file asks for, clipped; `inLibrary` says the run reuses an equal preset the owner holds. `leftOut` names each
- *  field with no seat, a malformed regex script by its position, `regexScripts` counts the scripts the run
- *  attaches to the preset, `refusedScripts` names each one the write door refuses, and `addedSections` names the
- *  sections the run adds for orb's own slots. */
+ *  file asks for, clipped; `inLibrary` says the run reuses an equal preset the owner holds. `sectionCount` counts
+ *  the prompts the preset lands with and `enabledCount` those switched on; `samplerCount` and `limitCount` count the
+ *  sampler values and the context and output limits the preset lands with. `leftOut` names each field with no
+ *  seat and says why in plain words, a malformed regex script by its position, `clamped` names each value the
+ *  import brought into range, with what the file sent and what the preset landed with (those are imported, so never
+ *  in `leftOut`), `regexScripts` counts the scripts
+ *  the run attaches to the preset, `refusedScripts` names each one the write door refuses, and `addedSections` names
+ *  the sections the run adds for orb's own slots. */
 export const presetFilePreviewSchema = z.discriminatedUnion("ok", [
   z.strictObject({
     ok: z.literal(true),
@@ -51,7 +55,11 @@ export const presetFilePreviewSchema = z.discriminatedUnion("ok", [
     name: importTextSchema,
     inLibrary: z.boolean(),
     sectionCount: z.int().nonnegative(),
+    enabledCount: z.int().nonnegative(),
+    samplerCount: z.int().nonnegative(),
+    limitCount: z.int().nonnegative(),
     leftOut: z.array(z.strictObject({ field: importTextSchema, reason: z.string() })).readonly(),
+    clamped: z.array(z.strictObject({ field: importTextSchema, sent: z.number(), landedAs: z.number() })).readonly(),
     regexScripts: z.int().nonnegative(),
     refusedScripts: z.array(refusedScriptSchema).readonly(),
     addedSections: addedSectionsSchema,
