@@ -15,11 +15,11 @@ import type { CardImportIdentity, ExportCardFields, ExportWorldEntry } from "@or
 import {
   buildCardV3,
   cardContentHash,
-  cardFromJson,
   cardImportHash,
   extractLorebook,
   loreEntryColumns,
   loreEntryMetadata,
+  readCardJson,
   selectBestCharacterBook,
   UNTITLED_LORE_ENTRY_TITLE,
 } from "@orb/server/primitives/serde/card";
@@ -31,7 +31,7 @@ import { z } from "zod";
 const FALLBACK = "From the filename";
 
 /** A card as a file carries it: written out as JSON text and read back through the decoder the import doors use. */
-const importCard = (card: unknown, fallbackName: string): CharacterCard => cardFromJson(present(parseJsonText(JSON.stringify(card))), fallbackName);
+const importCard = (card: unknown, fallbackName: string): CharacterCard => readCardJson(present(parseJsonText(JSON.stringify(card))), fallbackName).card;
 
 const json = (text: string): Record<string, unknown> => z.record(z.string(), z.unknown()).parse(JSON.parse(text));
 
@@ -89,7 +89,7 @@ const worldEntry = (over: Partial<ExportWorldEntry> = {}): ExportWorldEntry => (
   ...over,
 });
 
-describe("cardFromJson reads each wire spec into the canonical card", () => {
+describe("readCardJson reads each wire spec into the canonical card", () => {
   test("a V3 card flattens: first_mes leads the greetings, typed promotions land, residue keeps only unknown keys", () => {
     const card = importCard(
       wireCard(
@@ -495,13 +495,13 @@ describe("cardImportHash is the import identity", () => {
   test("own __proto__ keys in the leftover fields are kept, and the import identity is the one stored before", () => {
     const extensions = '{"__proto__":{"a":1},"keep":{"__proto__":{"b":2},"c":3}}';
     const text = `{"spec":"chara_card_v3","spec_version":"3.0","data":{"name":"Harbor","description":"a port","creator_notes":"v1","__proto__":{"d":4},"extensions":${extensions}}}`;
-    const card = cardFromJson(present(parseJsonText(text)), "Harbor");
+    const card = readCardJson(present(parseJsonText(text)), "Harbor").card;
     expect(JSON.stringify(card.extensions)).toBe(extensions);
     expect(cardImportHash(identity({ card }))).toBe(PROTO_CARD_IMPORT_HASH);
   });
 
   test("a card file that is one JSON list keeps its items as leftover fields, and the import identity is the one stored before", () => {
-    const card = cardFromJson(present(parseJsonText('["a",{"b":1}]')), "Harbor");
+    const card = readCardJson(present(parseJsonText('["a",{"b":1}]')), "Harbor").card;
     expect(JSON.stringify(card.residualData)).toBe('{"0":"a","1":{"b":1}}');
     expect(cardImportHash({ card, book: null, artHash: null })).toBe(LIST_CARD_IMPORT_HASH);
   });
