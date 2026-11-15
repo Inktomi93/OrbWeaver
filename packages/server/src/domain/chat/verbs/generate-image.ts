@@ -8,7 +8,7 @@
 // Imagery is caller-blind — it returns blocks + warnings; chat holds the message-write authority. Reuses the
 // persist/emit pattern of `turn.ts` `persistUserMessage` (the D26 canon-write dance + the durable-first bus emit).
 
-import type { ChatWarningCode, MessageView } from "@orb/contracts/chat";
+import type { MessageView, PlainChatWarningCode } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import type { ChatContext, PostNarratorMessageDeps } from "../contract/context.ts";
 import type { EmitDurableChatEventOp } from "../contract/engine-context.ts";
@@ -34,10 +34,10 @@ const GENERATED_IMAGE_ALT = "generated image";
  *  `image_edit_dropped` = the whole edit strip; `image_count_dropped` and `image_size_dropped` = that knob. The code is spelled identically across the two vocabularies —
  *  a match against this compile-checked `ChatWarningCode` subset yields the chat code (no re-spell).
  *
- *  The subset EXCLUDES `settings_adjusted`, and that exclusion is load-bearing rather than tidy: that
- *  code's bus member REQUIRES its structured `adjustment`, which the imagery vocabulary has no notion of — so
- *  a bare `{ code }` emit below is only well-typed while the subset cannot contain it. */
-type ImageryChatWarningCode = Exclude<ChatWarningCode, "settings_adjusted">;
+ *  The subset is the plain codes only: a detail-bearing code's bus member requires its structured fields, which the
+ *  imagery vocabulary has no notion of, so a bare `{ code }` emit below is only well-typed while the subset cannot
+ *  contain one. */
+type ImageryChatWarningCode = PlainChatWarningCode;
 const IMAGERY_WARNING_CODES: readonly ImageryChatWarningCode[] = ["image_edit_dropped", "image_count_dropped", "image_size_dropped"];
 
 function toChatWarningCode(imageryCode: string): ImageryChatWarningCode | null {

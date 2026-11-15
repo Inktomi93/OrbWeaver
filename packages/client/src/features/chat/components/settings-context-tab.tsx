@@ -280,8 +280,9 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
           sibling of Injections and World books it was designed as
           (owner-approved 2026-09-05). It sits with the member-readable racks and NOT in the host band for the
           Documents/World books reason: the room's own tier is member-READABLE (`regex.listForChat` is
-          `requireChatMember` — the attached scripts are room-public prompt content), so a member sees the
-          rows and simply gets no switches, no attach and no detach (the §8.1 permission-OMIT at row level).
+          `requireChatMember`), but a member reads only the enabled display scripts the host shares, and none
+          while sharing is off; the host's prompt scripts are the host's library and stay off the member's read. A
+          member gets those rows and no switches, no attach and no detach (the §8.1 permission-OMIT at row level).
           The host's HALF is host-gated in the verb, not here: `chat.listEffectiveRegex` refuses a member,
           which is why the body reads two different procs by role.
 

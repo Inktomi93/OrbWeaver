@@ -97,6 +97,7 @@ import {
 import { captureParticipantRow, characterEverSeatedInChat, characterSeatedInAnotherChat, loadParticipants } from "../persistence/participants-read.ts";
 import { loadHasUserMessage, loadMaxMessageSeq } from "../persistence/queries.ts";
 import { assertSeatableCharacters } from "../persistence/seat-characters.ts";
+import type { SaveGreetingTexts } from "../substrate/greeting-regex.ts";
 import { viewerHoldsHost } from "../substrate/member-visibility.ts";
 import { assertForcedCharacterMember, classifyParticipant } from "../substrate/participant-actor.ts";
 import { REMOVED_CHARACTER_LABEL } from "../substrate/participant-name.ts";
@@ -111,6 +112,8 @@ type EmitChatEvent = (event: DurableChatBusEvent, claimStatement?: StatementToke
 /** The extra collaborators the roster bundle needs beyond `ChatContext`. */
 interface ParticipantDeps {
   readonly emit: EmitChatEvent;
+  /** The greeting save pass an in-window join greeting runs through before it is stored. */
+  readonly saveGreetingTexts: SaveGreetingTexts;
   /** The husk→real transition (R0 SS4.2). Every MUTATING roster/config verb here claims the room
    *  BEFORE it writes -- tuning a room is 'doing something with it' (D166), so it stops being an
    *  abandonable husk. The five membership-lifecycle verbs deliberately abstain (see the NAMES note in
@@ -198,7 +201,7 @@ export function createParticipants(ctx: ChatContext, deps: ParticipantDeps): Par
     setMemberPersonaLore: createSetMemberPersonaLore(ctx, emit, claimChat),
     setToolRecurseLimit: createSetToolRecurseLimit(ctx, emit, claimChat),
     getGroupConfigForChat: createGetGroupConfigForChat(ctx),
-    addCharacterToChat: createAddCharacterToChat(ctx, emit, claimChat),
+    addCharacterToChat: createAddCharacterToChat(ctx, emit, claimChat, deps.saveGreetingTexts),
     removeCharacterFromChat: createRemoveCharacterFromChat(ctx, emit, claimChat),
     setSeatKnobs: createSetSeatKnobs(ctx, emit, claimChat),
     kick: createKick(ctx, emit),
@@ -359,14 +362,14 @@ function createSetChatDocumentVisibility(ctx: ChatContext, emit: EmitChatEvent, 
   };
 }
 
-/** `setHostDisplayScripts` — host-only. Writes the D121-E display-tier room OPTION into
- *  `chatMetadata.hostDisplayScripts`.
+/** `setHostDisplayScripts` — host-only. Writes whether the room shares its host's display scripts with members
+ *  into `chatMetadata.hostDisplayScripts`, always as an explicit boolean, so a host's off is told from a room
+ *  that never touched the switch.
  *
- *  WHAT IT GOVERNS, precisely: with it ON, the HOST's display-tier (DISPLAY-placement, `enabled`) regex
- *  scripts render for EVERY viewer in this room — a host staging shared visual effects on the transcript.
- *  With it OFF (the default,
- *  and the byte-identical path) display regex is strictly per-user: a viewer only ever sees their own.
- *  Either way a viewer's OWN scripts still apply, and apply LAST, so a viewer can always counter-style.
+ *  WHAT IT GOVERNS, precisely: shared (the default, an absent key), the room's display tiers resolved under the
+ *  host render for every viewer in this room. Off, a member receives none of the host's display scripts and
+ *  sees only their own. Either way a viewer's OWN scripts still apply, and apply LAST, so a viewer can always
+ *  counter-style.
  *
  *  RENDER-ONLY, both arms. Nothing here touches canon, the composer, an edit textarea, or any wire payload
  *  — the toggle is read by the CLIENT's message-render context, never by assembly or the engine. That is
@@ -668,11 +671,13 @@ function createGetGroupConfigForChat(ctx: ChatContext): ChatService["getGroupCon
 async function seedJoinGreeting(
   ctx: ChatContext,
   args: { readonly chatId: ChatId; readonly characterId: CharacterId; readonly card: CharacterCard; readonly ownerId: UserId },
+  savePass: (texts: readonly { characterId: CharacterId; characterName: string; text: string }[]) => Promise<{ text: string }[]>,
 ): Promise<MessageView | null> {
   if (await loadHasUserMessage(ctx.db, args.chatId)) {
     return null;
   }
-  const text = args.card.greetings[0]?.text ?? "";
+  const [saved] = await savePass([{ characterId: args.characterId, characterName: args.card.name, text: args.card.greetings[0]?.text ?? "" }]);
+  const text = saved?.text ?? "";
   const now = ctx.now();
   const seed = buildGreetingSeed(ctx, {
     chatId: args.chatId,
@@ -756,7 +761,12 @@ async function seatWithAdmission(
  *  floor against a double-add (two present rows → double arbitration weight + multi-row knob updates). It is the
  *  floor RP1's `applyToChat` re-apply idempotency stands on (saved-rosters §7). Matches `kick`'s idempotent
  *  idiom (and the D60 design's still-unbuilt agent seat verb) — a re-add is a no-op, never a coded refusal. */
-function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["addCharacterToChat"] {
+function createAddCharacterToChat(
+  ctx: ChatContext,
+  emit: EmitChatEvent,
+  claimChat: ClaimChatOp,
+  saveGreetingTexts: SaveGreetingTexts,
+): ChatService["addCharacterToChat"] {
   return async ({ principal, chatId, characterId }: AddCharacterToChatParams) => {
     const { chat, admission } = await requireHost(ctx, principal, chatId);
     // The character must be the host's own card (owner-scoped read — foreign or synthetic == missing, leak-free).
@@ -817,7 +827,13 @@ function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent, claimCh
     await emit({ type: "chatUpdated", chatId });
     // F6 — the in-window join greeting. AFTER the seat exists (the greeting is voiced BY a present member) and
     // after `chatUpdated`, so a client applying the commit already knows the speaker.
-    const greeting = await seedJoinGreeting(ctx, { chatId, characterId, card, ownerId: principal.userId });
+    const room = {
+      chatId,
+      participants: await loadParticipants(ctx.db, chatId),
+      anchorPersonaId: chat.anchorPersonaId,
+      regexAllow: regexAllowOf(chat.metadata),
+    };
+    const greeting = await seedJoinGreeting(ctx, { chatId, characterId, card, ownerId: principal.userId }, (texts) => saveGreetingTexts(room, texts));
     if (greeting !== null) {
       await emit({ type: "messageCommitted", chatId, messageId: greeting.id, view: greeting });
     }

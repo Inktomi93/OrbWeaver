@@ -15,8 +15,7 @@ import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG, THINK_PREFIX_DEFAULT, THINK_SUFFIX_DEFAULT } from "@orb/contracts/preset";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
-import type { RegexPlacement } from "@orb/kit/regex";
-import { deriveRegexHistoryDepth, deriveRegexTierFlags } from "@orb/kit/regex";
+import type { RegexPass, RegexTarget } from "@orb/kit/regex";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { appendedBy } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
@@ -46,18 +45,29 @@ const LOG_FIELDS = z.record(z.string(), z.unknown());
 // on a host so loaded that a deadline's wall time buys a fraction of its CPU.
 const RUNAWAY_LIBRARY = 20;
 
+// Each server leg, as the two axes that put a script on it and the field its failure log names it by: a save or
+// world-info leg logs its target, the history leg its pass.
+const LEGS = {
+  ["USER_INPUT"]: { targets: ["USER_INPUT"], passes: ["save"], logged: "USER_INPUT" },
+  ["AI_OUTPUT"]: { targets: ["AI_OUTPUT"], passes: ["save"], logged: "AI_OUTPUT" },
+  ["REASONING"]: { targets: ["REASONING"], passes: ["save"], logged: "REASONING" },
+  ["WORLD_INFO"]: { targets: ["WORLD_INFO"], passes: ["prompt"], logged: "WORLD_INFO" },
+  ["PROMPT_HISTORY"]: { targets: ["USER_INPUT", "AI_OUTPUT"], passes: ["prompt"], logged: "prompt" },
+} as const satisfies Record<string, { readonly targets: readonly RegexTarget[]; readonly passes: readonly RegexPass[]; readonly logged: string }>;
+type Leg = keyof typeof LEGS;
+
 interface Room extends AsyncDisposable {
   readonly h: ChatRoot;
   readonly host: Principal;
   readonly bodies: string[];
-  readonly timeouts: () => readonly { readonly placement: unknown; readonly message: unknown }[];
+  readonly timeouts: () => readonly { readonly leg: unknown; readonly message: unknown }[];
   /** Every script the watchdog stopped or the budget skipped, by the code it was reported with. */
   readonly stops: () => readonly unknown[];
 }
 
-/** A room whose host attached the runaway script and the follower, both global, on `placement`. */
+/** A room whose host attached the runaway script and the follower, both global, on `leg`. */
 async function openRoom(
-  placement: RegexPlacement,
+  leg: Leg,
   reply: string,
   options: { readonly promptConfig?: PromptConfig; readonly transcript?: readonly string[]; readonly runaways?: number } = {},
 ): Promise<Room> {
@@ -81,36 +91,33 @@ async function openRoom(
       ...(options.transcript === undefined ? {} : { transcript: options.transcript.map((content) => ({ role: "assistant" as const, content })) }),
     }),
   );
-  const placements = [placement];
-  const historyDepth = deriveRegexHistoryDepth(placements, undefined);
   const runaways = Array.from({ length: options.runaways ?? 1 }, (_, k) => [`runaway ${String(k)}`, { findRegex: RUNAWAY, replaceString: "X" }] as const);
   for (const [name, script] of [...runaways, ["follower", FOLLOWER] as const]) {
     const row = await h.caller.regex.createScript({
       input: createRegexScriptSchema.parse({
         name,
         ...script,
-        placement: placements,
-        ...deriveRegexTierFlags(placements),
-        ...(historyDepth === undefined ? {} : { historyDepth }),
+        targets: [...LEGS[leg].targets],
+        passes: [...LEGS[leg].passes],
       }),
     });
     await h.caller.regex.attachGlobal({ scriptId: row.id });
   }
   const warn = vi.spyOn(h.root.logger, "warn").mockImplementation(() => undefined);
   construction.defer(() => warn.mockRestore());
-  const reported = (): { placement: unknown; message: unknown; code: unknown; findRegex: unknown }[] =>
+  const reported = (): { leg: unknown; message: unknown; code: unknown; findRegex: unknown }[] =>
     warn.mock.calls.map(([payload, message]) => {
       const fields = LOG_FIELDS.safeParse(payload).data ?? {};
       const err = fields["err"];
       return {
-        placement: fields["placement"],
+        leg: fields["target"] ?? fields["pass"],
         message,
         code: typeof err === "object" && err !== null && "code" in err ? err.code : undefined,
         findRegex: fields["findRegex"],
       };
     });
-  const timeouts = (): { placement: unknown; message: unknown }[] =>
-    reported().flatMap((r) => (r.code === WATCHDOG_TIMEOUT && r.findRegex === RUNAWAY ? [{ placement: r.placement, message: r.message }] : []));
+  const timeouts = (): { leg: unknown; message: unknown }[] =>
+    reported().flatMap((r) => (r.code === WATCHDOG_TIMEOUT && r.findRegex === RUNAWAY ? [{ leg: r.leg, message: r.message }] : []));
   const stops = (): unknown[] => reported().flatMap((r) => (r.code === WATCHDOG_TIMEOUT || r.code === REGEX_PASS_BUDGET_SPENT ? [r.code] : []));
   const lifetime = construction.move();
   return { h, host: h.owner, bodies, timeouts, stops, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
@@ -126,7 +133,7 @@ test("USER_INPUT: the composer draft keeps its text when the runaway is cut off,
   const outcome = await send(room, NEAR_MISS);
 
   expect(outcome.messages.find((message) => message.role === "user")?.content).toBe(FOLLOWED);
-  expect(room.timeouts().map((t) => t.placement)).toEqual(["USER_INPUT"]);
+  expect(room.timeouts().map((t) => t.leg)).toEqual([LEGS.USER_INPUT.logged]);
 });
 
 test("AI_OUTPUT: the committed reply keeps its text when the runaway is cut off, and the next script runs", async () => {
@@ -135,7 +142,7 @@ test("AI_OUTPUT: the committed reply keeps its text when the runaway is cut off,
   const outcome = await send(room, "Go on.");
 
   expect(outcome.messages.find((message) => message.role === "assistant")?.content).toBe(FOLLOWED);
-  expect(room.timeouts().map((t) => t.placement)).toEqual(["AI_OUTPUT"]);
+  expect(room.timeouts().map((t) => t.leg)).toEqual([LEGS.AI_OUTPUT.logged]);
 });
 
 test("REASONING: the committed reasoning keeps its text when the runaway is cut off, and the next script runs", async () => {
@@ -148,7 +155,7 @@ test("REASONING: the committed reasoning keeps its text when the runaway is cut 
   const outcome = await send(room, "Go on.");
 
   expect(outcome.messages.find((message) => message.role === "assistant")?.reasoning).toBe(FOLLOWED);
-  expect(room.timeouts().map((t) => t.placement)).toEqual(["REASONING"]);
+  expect(room.timeouts().map((t) => t.leg)).toEqual([LEGS.REASONING.logged]);
 });
 
 test("WORLD_INFO: a fired entry reaches the prompt with its text when the runaway is cut off, and the next script runs", async () => {
@@ -160,7 +167,7 @@ test("WORLD_INFO: a fired entry reaches the prompt with its text when the runawa
   const { newest } = await appendedBy(room.bodies, () => send(room, "Light the lamp."));
 
   expect(newest).toContain(FOLLOWED);
-  expect(room.timeouts().map((t) => t.placement)).toEqual(["WORLD_INFO"]);
+  expect(room.timeouts().map((t) => t.leg)).toEqual([LEGS.WORLD_INFO.logged]);
 });
 
 test("PROMPT_HISTORY: the runaway is cut off once and evicted for the build, however many rows it would have run on", async () => {
@@ -169,7 +176,7 @@ test("PROMPT_HISTORY: the runaway is cut off once and evicted for the build, how
   const { newest } = await appendedBy(room.bodies, () => send(room, "Go on."));
 
   expect(newest.split(FOLLOWED)).toHaveLength(4);
-  expect(room.timeouts().map((t) => t.placement)).toEqual(["PROMPT_HISTORY"]);
+  expect(room.timeouts().map((t) => t.leg)).toEqual([LEGS.PROMPT_HISTORY.logged]);
 });
 
 test("a preview build runs the history leg under the same watchdog the turn does", async () => {
@@ -178,30 +185,26 @@ test("a preview build runs the history leg under the same watchdog the turn does
   const fit = await room.h.caller.chat.previewContextFit({ chatId: room.h.chatId });
 
   expect(fit).toBeDefined();
-  expect(room.timeouts()).toEqual([{ placement: "PROMPT_HISTORY", message: expect.stringContaining("preview build") }]);
+  expect(room.timeouts()).toEqual([{ leg: LEGS.PROMPT_HISTORY.logged, message: expect.stringContaining("preview build") }]);
 });
 
 // A library of runaways costs one pass budget, not scripts times the deadline: a few are stopped at the row deadline,
 // then the budget is spent and every script after them, the follower included, is skipped and reported as such.
 const BUDGET_LEGS = [
-  { placement: "USER_INPUT", act: (room: Room): Promise<unknown> => send(room, NEAR_MISS), reply: "Noted." },
-  { placement: "AI_OUTPUT", act: (room: Room): Promise<unknown> => send(room, "Go on."), reply: NEAR_MISS },
-] as const satisfies readonly { readonly placement: RegexPlacement; readonly act: (room: Room) => Promise<unknown>; readonly reply: string }[];
+  { leg: "USER_INPUT", act: (room: Room): Promise<unknown> => send(room, NEAR_MISS), reply: "Noted." },
+  { leg: "AI_OUTPUT", act: (room: Room): Promise<unknown> => send(room, "Go on."), reply: NEAR_MISS },
+] as const satisfies readonly { readonly leg: Leg; readonly act: (room: Room) => Promise<unknown>; readonly reply: string }[];
 
-test.for(BUDGET_LEGS)(
-  "$placement: a library of runaways stops at the pass budget, each script named",
-  { tags: ["slow"] },
-  async ({ placement, act, reply }) => {
-    await using room = await openRoom(placement, reply, { runaways: RUNAWAY_LIBRARY });
+test.for(BUDGET_LEGS)("$leg: a library of runaways stops at the pass budget, each script named", { tags: ["slow"] }, async ({ leg, act, reply }) => {
+  await using room = await openRoom(leg, reply, { runaways: RUNAWAY_LIBRARY });
 
-    await act(room);
+  await act(room);
 
-    const stops = room.stops();
-    expect(stops).toHaveLength(RUNAWAY_LIBRARY + 1);
-    expect(stops).toContain(WATCHDOG_TIMEOUT);
-    expect(stops.at(-1)).toBe(REGEX_PASS_BUDGET_SPENT);
-  },
-);
+  const stops = room.stops();
+  expect(stops).toHaveLength(RUNAWAY_LIBRARY + 1);
+  expect(stops).toContain(WATCHDOG_TIMEOUT);
+  expect(stops.at(-1)).toBe(REGEX_PASS_BUDGET_SPENT);
+});
 
 test("PROMPT_HISTORY: a library of runaways over many rows stops at the history budget, each script named once", { tags: ["slow"] }, async () => {
   await using room = await openRoom("PROMPT_HISTORY", "Noted.", { runaways: RUNAWAY_LIBRARY, transcript: [NEAR_MISS, NEAR_MISS, NEAR_MISS] });

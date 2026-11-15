@@ -32,7 +32,7 @@ async function seedScripts(root: Root, total: number | null): Promise<void> {
   const caller = await root.internalCallerFor(root.ownerId);
   const create = (name: string): Promise<unknown> =>
     caller.regex.createScript({
-      input: createRegexScriptSchema.parse({ name, findRegex: "witness", replaceString: "", placement: ["AI_OUTPUT"], enabled: false }),
+      input: createRegexScriptSchema.parse({ name, findRegex: "witness", replaceString: "", targets: ["AI_OUTPUT"], passes: ["save"], enabled: false }),
     });
   for (const name of SCRIPTS) {
     await create(name);

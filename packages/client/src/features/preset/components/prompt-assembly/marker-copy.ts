@@ -71,7 +71,7 @@ export const MARKER_COPY: Record<MarkerType, MarkerCopy> = {
   },
   ["char_description"]: {
     label: "Character description",
-    oneLiner: "The active character's description, wrapped by this section's framing.",
+    oneLiner: "The active character's description, wrapped by this prompt's framing.",
     subtitle: "from the character card",
     glyph: BookOpen,
   },

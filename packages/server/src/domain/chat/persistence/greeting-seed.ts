@@ -7,6 +7,8 @@
 //   • `verbs/participants.ts` — a character ADDED while the greeting window is still open (F6,
 //     D166), at the canon head.
 //
+// The text arrives through the greeting save pass (`substrate/greeting-regex.ts`) and is stored as handed in.
+//
 // FLAG[greeting-macro]: the text is seeded RAW. Identity macros stay per-view (resolved at read against the
 // character + the chat anchor persona); volatile macros bake at the first user turn
 // (`freezeGreetingVolatiles`, verbs/turn.ts) — which is also the instant the greeting WINDOW closes, so a

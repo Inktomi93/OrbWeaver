@@ -2,12 +2,13 @@
 // stop a frame's scripts.
 // @subject packages/kit/src/card-frame/focus.ts
 
-import type { FrameFocusEntry, FramePressEvidence, FramePressSignal, FrameRefusalRun } from "@orb/kit/card-frame";
+import type { FrameFocusEntry, FrameHostReturnEvent, FramePressEvidence, FramePressSignal, FrameRefusalRun } from "@orb/kit/card-frame";
 import {
   admitsFrameFocus,
   FRAME_FOCUS_GRAB_GAP_MS,
   FRAME_FOCUS_GRAB_LOOP_BOUND,
   FRAME_PRESS_SIGNALS,
+  foldFrameHostReturn,
   foldFramePressSignal,
   foldFrameRefusal,
   learnsUnmarkedPress,
@@ -70,6 +71,43 @@ test.each<readonly [FramePressSignal, boolean, boolean, FramePressSignal]>([
   ["marked", false, true, "marked"],
 ])("a %s engine, after an entry pressed=%s learning-unmarked=%s, is %s", (signal, pressed, learnsUnmarked, next) => {
   expect(foldFramePressSignal(signal, { pressed, learnsUnmarked })).toBe(next);
+});
+
+// Two frames, by name: the host's mark only compares identity.
+type Frame = "first" | "second";
+
+// Folds `events` from no mark and says, for each, whether it was read as the host's own move.
+function hostMoves(events: readonly FrameHostReturnEvent<Frame>[]): readonly boolean[] {
+  let mark: Frame | undefined;
+  return events.map((event) => {
+    const next = foldFrameHostReturn(mark, event);
+    mark = next.mark;
+    return next.hostMove;
+  });
+}
+
+test("the host's return into a frame explains the one entry it causes, and no later one", () => {
+  expect(
+    hostMoves([
+      { kind: "returned", frame: "first" },
+      { kind: "entry", frame: "first" },
+      { kind: "entry", frame: "first" },
+    ]),
+  ).toEqual([false, true, false]);
+});
+
+test("a return mark is dropped once focus lands in the app, so the frame's later focus() is judged", () => {
+  expect(hostMoves([{ kind: "returned", frame: "first" }, { kind: "app-focus" }, { kind: "entry", frame: "first" }])).toEqual([false, false, false]);
+});
+
+test("a return mark for one frame explains nothing about another", () => {
+  expect(
+    hostMoves([
+      { kind: "returned", frame: "first" },
+      { kind: "entry", frame: "second" },
+      { kind: "entry", frame: "first" },
+    ]),
+  ).toEqual([false, false, true]);
 });
 
 // Folds refusals at `times` and says whether the run ever stopped the frame.

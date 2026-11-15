@@ -49,6 +49,7 @@ import { generationOf, preservesCacheBlockEnds, resolveCarryReasoning, supportsM
 import type { CharacterId, ChatId, MessageId, PersonaId, WorldEntryId } from "@orb/kit/ids";
 import type { MacroRegistry, RandomSource, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { globalMacroRegistry } from "@orb/kit/macro";
+import { NO_SEATS } from "@orb/kit/message-author";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { cleanPerSpeakerReply } from "@orb/kit/speaker-label";
 import type { Clock } from "@orb/kit/time";
@@ -75,6 +76,7 @@ import type {
   DeliveredCue,
   HistoryMacroNames,
   OrderedReplyImage,
+  RegexNoticeEpisode,
   ReplyPartReceipt,
   TurnEconomics,
   TurnRequest,
@@ -121,6 +123,9 @@ interface RunTurnPipelineArgs {
   /** The turn PRNG (`ChatContext.prng`) the turn-stage macro context draws from. */
   readonly random: RandomSource;
   readonly openRegexPass: OpenRegexPassOp;
+  /** The turn's record of host scripts a pass did not apply; the engine drains it. Absent on a run that tells the
+   *  room nothing (an unpersisted draft). */
+  readonly regexNotices?: RegexNoticeEpisode | undefined;
   /** Resolves a parsed message-image ref → a model-fetchable URL + its media kind, or null to drop it. */
   readonly resolveImageUrl: ResolveTurnImageUrlOp;
   readonly loadContentSignatures?: () => Promise<ReadonlyMap<MessageId, ContentSignatures>>;
@@ -552,11 +557,15 @@ function promptHistoryEnv(ctx: AssembleContext, args: RunTurnPipelineArgs): Prom
       registry: args.macroRegistry,
     }),
     openRegexPass: args.openRegexPass,
-    onScriptFailure: (scriptErr, script) =>
+    onScriptFailure: (scriptErr, script): void => {
       getLog(args.logger).warn(
-        { err: scriptErr, placement: "PROMPT_HISTORY", findRegex: script.findRegex },
+        { err: scriptErr, pass: "prompt", findRegex: script.findRegex },
         "chat: host-tier regex script failed on the prompt-history leg — evicted for this build (D53 watchdog)",
-      ),
+      );
+      args.regexNotices?.note("prompt_history", scriptErr, script, scripts);
+    },
+    room: ctx.hostTierRegexRoom ?? NO_SEATS,
+    continuing: args.kind === "continue",
   };
 }
 
@@ -567,7 +576,7 @@ function applyReceiveTransforms(
   reduced: { content: string; reasoning: string | null },
   args: RunTurnPipelineArgs,
   // THE ROUND'S SHAPED CTX, not `args.assembleContext` — the identity a host regex script's `{{char}}`
-  // resolves against. `PROMPT_HISTORY` (see `promptHistoryEnv`) has always used the shaped ctx, so a script
+  // resolves against. The prompt pass (see `promptHistoryEnv`) has always used the shaped ctx, so a script
   // library that spelled `{{char}}` got the SPEAKING character on the prompt leg and the room's PRIMARY on
   // the reply leg: on a merged round voiced by Bran, one turn's `{{char}}` meant Bran going out and Aria
   // coming back. Both legs transform ONE round, the round's speaker is available to both, and the receive
@@ -608,10 +617,12 @@ function applyReceiveTransforms(
     content = args.openRegexPass().execute({
       text: content,
       scripts,
-      placement: "AI_OUTPUT",
+      call: { pass: "save", target: "AI_OUTPUT", edit: false },
       ctx: macroCtx,
-      onScriptFailure: (scriptErr, script) =>
-        getLog(args.logger).warn({ err: scriptErr, placement: "AI_OUTPUT", findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)"),
+      onScriptFailure: (scriptErr, script): void => {
+        getLog(args.logger).warn({ err: scriptErr, target: "AI_OUTPUT", findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)");
+        args.regexNotices?.note("ai_output", scriptErr, script, scripts);
+      },
     });
   }
 
@@ -622,10 +633,12 @@ function applyReceiveTransforms(
     reasoning = args.openRegexPass().execute({
       text: reasoning,
       scripts,
-      placement: "REASONING",
+      call: { pass: "save", target: "REASONING", edit: false },
       ctx: macroCtx,
-      onScriptFailure: (scriptErr, script) =>
-        getLog(args.logger).warn({ err: scriptErr, placement: "REASONING", findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)"),
+      onScriptFailure: (scriptErr, script): void => {
+        getLog(args.logger).warn({ err: scriptErr, target: "REASONING", findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)");
+        args.regexNotices?.note("reasoning", scriptErr, script, scripts);
+      },
     });
   }
 

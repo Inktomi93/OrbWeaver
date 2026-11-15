@@ -1,10 +1,10 @@
-// THE PIPELINE DEBUGGER (REGX2) — "what will my scripts do to this text, on this leg, in what order".
+// THE PIPELINE DEBUGGER (REGX2) — "what will my scripts do to this text, at this time, in what order".
 //
 // IT IS THE TESTER'S SIBLING, NOT ITS REPLACEMENT, and the difference is deliberate: "Try it" above
 // neutralises the run gates so a switched-off draft still previews (ST's test mode does the same), and this
 // panel HONOURS every gate and names the one that skipped each script. One asks what the pattern does; the
 // other asks what will actually happen. Unifying them would destroy whichever question lost. Both go through
-// ONE engine call (`../lib/regex-preview.ts`'s `runInstrumentedRegex`); the ordering model is
+// ONE engine call (`runInstrumentedRegex`, in the display-pass Worker); the ordering model is
 // `../lib/regex-pipeline.ts`, whose header carries the union-order law.
 //
 // NO NEW PANE, BY THE ANATOMY: the Configuration workspace has three slots (rows · the mounted member editor
@@ -13,12 +13,13 @@
 // you are looking at — and the subject is marked in place in the run.
 //
 // WHAT IT REFUSES TO IMPLY. It shows the always-on (global) tier plus this script; it cannot know the preset,
-// the characters or the room, and it cannot honour `historyDepth` because a loose sample has no position in an
-// assembled history. Both are said in the panel's own words rather than left for the reader to discover.
+// the characters or the room, and it cannot honour depth or the author scope because a loose sample has no position
+// in a chat and no author. Both are said in the panel's own words rather than left for the reader to discover.
 
 import type { CreateRegexScriptInput } from "@orb/contracts/regex";
-import type { RegexPlacement } from "@orb/kit/regex";
-import { HISTORY_DEPTH_PLACEMENT, REGEX_PLACEMENTS } from "@orb/kit/regex";
+import type { RegexScriptId } from "@orb/kit/ids";
+import type { RegexPass, RegexSkipReason, RegexTarget } from "@orb/kit/regex";
+import { REGEX_PASSES, REGEX_TARGETS, regexPassReadsTarget } from "@orb/kit/regex";
 import { Badge } from "@orb/ui/badge";
 import { Field } from "@orb/ui/field";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -28,61 +29,96 @@ import { Textarea } from "@orb/ui/textarea";
 import type { ChangeEvent, ReactElement } from "react";
 import { useState } from "react";
 import { useSuspenseQuery, useTRPC } from "#data";
-import { REGEX_PLACEMENT_LABELS, regexScriptTitle } from "#lib";
-import { REGEX_TEXT_AFTER_STREAM_NAME, REGEX_TEXT_GOING_IN_NAME } from "../lib/regex-names.ts";
-// `REGEX_SKIP_REASONS` is imported as a TYPE: the tuple is only ever read in a `typeof` position here (the
-// mapped `SKIP_COPY` Record), so a value import would pull it into the bundle for nothing.
-import type { REGEX_SKIP_REASONS, RegexPipelineStage } from "../lib/regex-pipeline.ts";
-import { runRegexPipeline } from "../lib/regex-pipeline.ts";
+import { REGEX_PASS_LABELS, REGEX_TARGET_LABELS, regexScriptTitle } from "#lib";
+import { useRegexPreview } from "../hooks/use-regex-preview.ts";
+import {
+  REGEX_PIPELINE_TEXT_NAME,
+  REGEX_PIPELINE_WHEN_NAME,
+  REGEX_PREVIEW_RUNNING,
+  REGEX_PREVIEW_STOPPED,
+  REGEX_PREVIEW_UNAVAILABLE,
+  REGEX_TEXT_AFTER_EVERY_SCRIPT_NAME,
+  REGEX_TEXT_GOING_IN_NAME,
+} from "../lib/regex-names.ts";
+import type { RegexPipelinePair, RegexPipelineStage } from "../lib/regex-pipeline.ts";
+import { planRegexPipeline, regexPipelineCall, regexPipelinePair, regexPipelineRun } from "../lib/regex-pipeline.ts";
 import { REGEX_PREVIEW_CHAR, REGEX_PREVIEW_DEFAULT_SAMPLE, REGEX_PREVIEW_MAX_INPUT, REGEX_PREVIEW_USER } from "../lib/regex-preview.ts";
+import { regexUnreadReasons } from "../lib/regex-when.ts";
 
 const SAMPLE_ROWS = 3;
 const OUTPUT_ROWS = 4;
 const ONE_MATCH = 1;
 
-/** The leg selector's visible label AND its trigger's accessible name — see the control. */
-const STREAM_LABEL = "Stream";
-
-/** The leg options, in the pipeline's own order and the SHARED vocabulary (side-eye F-23 — one pipeline, one
- *  set of names, so the chips in `Runs on` above and this selector can be read against each other). */
-const LEG_ITEMS: readonly { readonly value: string; readonly label: string }[] = REGEX_PLACEMENTS.map((value) => ({
+/** The text options. Each is offered: picking one the time does not read moves the time to one that does. */
+const TEXT_ITEMS: readonly { readonly value: RegexTarget; readonly label: string }[] = REGEX_TARGETS.map((value) => ({
   value,
-  label: REGEX_PLACEMENT_LABELS[value],
+  label: REGEX_TARGET_LABELS[value],
 }));
 
-/** WHY a script sat out, in words, keyed by the executor's own gate. A mapped Record over the TUPLE (never
- *  a switch in JSX, and never a re-declared union): a new gate in `@orb/kit/regex` that reaches the model's
- *  ladder fails tsc HERE instead of rendering a blank reason. */
-const SKIP_COPY: Record<(typeof REGEX_SKIP_REASONS)[number], string> = {
+/** The time options, each disabled with its reason while it does not read the chosen text. */
+function whenItems(
+  target: RegexTarget,
+): readonly { readonly value: RegexPass; readonly label: string; readonly disabled: boolean; readonly description?: string }[] {
+  return REGEX_PASSES.map((value) =>
+    regexPassReadsTarget(value, target)
+      ? { value, label: REGEX_PASS_LABELS[value], disabled: false }
+      : { value, label: REGEX_PASS_LABELS[value], disabled: true, description: regexUnreadReasons([target]) },
+  );
+}
+
+/** The pair the panel opens on: a time the script runs at and a text that time reads, so the first frame shows
+ *  the script working rather than a list of skips. */
+function openingPair(script: CreateRegexScriptInput): RegexPipelinePair {
+  const pass = script.passes[0] ?? REGEX_PASSES[0];
+  return regexPipelinePair(pass, script.targets.find((candidate) => regexPassReadsTarget(pass, candidate)) ?? REGEX_TARGETS[0]);
+}
+
+/** WHY a script sat out, in words, keyed by the executor's own gate (`@orb/kit/regex` `regexSkipReason`). A mapped
+ *  Record over the kit's union, so a new gate fails tsc HERE instead of rendering a blank reason. The run never
+ *  passes an edit, a depth or a room, so the last three are named for completeness only. */
+const SKIP_COPY: Record<RegexSkipReason, string> = {
   disabled: "switched off",
-  "not-on-this-leg": "doesn’t run on this stream",
-  "display-only": "display-only: it never touches the prompt",
-  "prompt-only": "prompt-only: it never touches the rendered transcript",
+  "not-on-this-pass": "doesn’t run at this time",
+  "not-on-this-target": "doesn’t change this text",
+  "not-on-edit": "doesn’t run when a message is edited",
+  "out-of-depth": "outside its depth range",
+  "not-this-author": "not for this author",
 };
 
 /** What one stage did, in one line. The match count is READ off the production replacer, so "no matches"
  *  means the shipped engine found none. */
 function stageStatus(stage: RegexPipelineStage): string {
-  if (stage.skipped !== null) {
-    return `Skipped: ${SKIP_COPY[stage.skipped]}.`;
+  switch (stage.status) {
+    case "skipped":
+      return `Skipped: ${SKIP_COPY[stage.skipped]}.`;
+    case "stopped":
+      return REGEX_PREVIEW_STOPPED;
+    case "unavailable":
+      return REGEX_PREVIEW_UNAVAILABLE;
+    case "ran":
+      if (stage.error !== null) {
+        return `This pattern can’t run: ${stage.error}`;
+      }
+      if (stage.matchCount === 0) {
+        return "No matches: the text passes through unchanged.";
+      }
+      return stage.matchCount === ONE_MATCH ? "1 match" : `${String(stage.matchCount)} matches`;
   }
-  if (stage.error !== null) {
-    return `This pattern can’t run: ${stage.error}`;
-  }
-  if (stage.matchCount === 0) {
-    return "No matches: the text passes through unchanged.";
-  }
-  return stage.matchCount === ONE_MATCH ? "1 match" : `${String(stage.matchCount)} matches`;
 }
 
-/** The status line's tone — a failed compile is destructive, a skip is a warning, and a stage that simply ran
- *  keeps the gloss. Colour is load-bearing here: both non-default arms CONTRADICT the run, and a grey
+/** The status line's tone — a failed compile or a stop is destructive, a skip is a warning, and a stage that simply
+ *  ran keeps the gloss. Colour is load-bearing here: every non-default arm CONTRADICTS the run, and a grey
  *  "Skipped" reads as a caption. */
 function statusTone(stage: RegexPipelineStage): "destructive" | "warning" | undefined {
-  if (stage.error !== null) {
-    return "destructive";
+  switch (stage.status) {
+    case "skipped":
+      return "warning";
+    case "stopped":
+    case "unavailable":
+      return "destructive";
+    case "ran":
+      return stage.error === null ? undefined : "destructive";
   }
-  return stage.skipped === null ? undefined : "warning";
 }
 
 export interface RegexPipelinePanelProps {
@@ -90,43 +126,55 @@ export interface RegexPipelinePanelProps {
   readonly script: CreateRegexScriptInput;
   /** This script's row id (`null` for a draft that has none yet) — decides whether it is found in the
    *  global tier or appended after it. */
-  readonly scriptId: string | null;
+  readonly scriptId: RegexScriptId | null;
 }
 
-/** The debugger: a sample and a leg in, the ordered run out. */
+/** The debugger: a sample, a text and a time in, the ordered run out. */
 export function RegexPipelinePanel({ script, scriptId }: RegexPipelinePanelProps): ReactElement {
   const trpc = useTRPC();
   // The GLOBAL tier in its authored junction order — the same read the row list and the context pane make,
   // sharing their cache. It is the only slice a library surface can resolve (see the module header).
   const { data: globals } = useSuspenseQuery(trpc.regex.listGlobal.queryOptions());
   const [sample, setSample] = useState<string>(REGEX_PREVIEW_DEFAULT_SAMPLE);
-  // Opens on a leg the subject actually runs on, so the first frame shows something rather than a full list
-  // of "doesn't run on this stream". Falls back to the first leg for a script with no placement at all.
-  const [leg, setLeg] = useState<RegexPlacement>(script.placement[0] ?? REGEX_PLACEMENTS[0]);
-
-  const run = runRegexPipeline({ globals, subject: script, subjectId: scriptId, sample, placement: leg });
-  const ran = run.stages.filter((stage) => stage.skipped === null && stage.matchCount > 0).length;
+  const [pair, setPair] = useState(() => openingPair(script));
+  const plan = planRegexPipeline({ globals, subject: script, subjectId: scriptId, sample, call: regexPipelineCall(pair) });
+  // Before the first answer no stage is drawn; after it, the last run stays on screen while the next one runs.
+  const { answer: run, pending } = useRegexPreview(plan, regexPipelineRun);
+  const ran = run?.stages.filter((stage) => stage.status === "ran" && stage.matchCount > 0).length ?? 0;
 
   return (
     <Section heading="In the pipeline">
       <Stack gap="field">
         <Text voice="gloss">
-          Every always-on script that runs on one stream, in order, with what each one changes. Macros resolve against sample values ({REGEX_PREVIEW_CHAR} for
-          the character, {REGEX_PREVIEW_USER} for you), not against a live chat.
+          Every always-on script that changes one text at one time, in order, with what each one changes. Macros resolve against sample values (
+          {REGEX_PREVIEW_CHAR} for the character, {REGEX_PREVIEW_USER} for you), not against a live chat.
         </Text>
 
-        <Row align="end" gap="field">
-          <Field label={STREAM_LABEL}>
-            {/* ONE string for the field's visible label and the trigger's accessible name (the editor's own
-                `Macros in the find pattern` pattern): jsx-a11y cannot see the Base UI Field association, and
-                two hand-written copies are two chances for a screen reader to hear something else. */}
-            <Select
-              aria-label={STREAM_LABEL}
-              items={LEG_ITEMS}
-              onValueChange={(next): void => {
-                setLeg(next as RegexPlacement);
+        <Row align="end" gap="field" wrap={true}>
+          {/* ONE string for each field's visible label and its trigger's accessible name: jsx-a11y cannot see
+              the Base UI Field association. */}
+          <Field label={REGEX_PIPELINE_TEXT_NAME}>
+            <Select<RegexTarget>
+              aria-label={REGEX_PIPELINE_TEXT_NAME}
+              items={TEXT_ITEMS}
+              onValueChange={(next: RegexTarget | null): void => {
+                if (next !== null) {
+                  setPair(regexPipelinePair(pair.pass, next));
+                }
               }}
-              value={leg}
+              value={pair.target}
+            />
+          </Field>
+          <Field label={REGEX_PIPELINE_WHEN_NAME}>
+            <Select<RegexPass>
+              aria-label={REGEX_PIPELINE_WHEN_NAME}
+              items={whenItems(pair.target)}
+              onValueChange={(next: RegexPass | null): void => {
+                if (next !== null) {
+                  setPair(regexPipelinePair(next, pair.target));
+                }
+              }}
+              value={pair.pass}
             />
           </Field>
         </Row>
@@ -134,7 +182,7 @@ export function RegexPipelinePanel({ script, scriptId }: RegexPipelinePanelProps
         {/* "Text going in", never a second "Sample text": the tester one section up already owns that name,
             and two controls with the same accessible name on one pane is the exact defect side-eye X-1 found
             (the two "Display only"s, 320px apart). The pair here also READS as a pipeline — text going in,
-            text after the whole stream. */}
+            text after every script. */}
         <Field label={REGEX_TEXT_GOING_IN_NAME}>
           <Textarea
             maxLength={REGEX_PREVIEW_MAX_INPUT}
@@ -146,21 +194,25 @@ export function RegexPipelinePanel({ script, scriptId }: RegexPipelinePanelProps
           />
         </Field>
 
-        {run.stages.map((stage, index) => (
+        {run?.stages.map((stage, index) => (
           <PipelineStageRow index={index} key={stage.key} stage={stage} />
         ))}
 
-        <Field
-          description={ran === 0 ? "Nothing bit this sample on this stream." : `${String(ran)} script${ran === ONE_MATCH ? "" : "s"} changed the text.`}
-          label={REGEX_TEXT_AFTER_STREAM_NAME}
-        >
-          <Textarea readOnly={true} rows={OUTPUT_ROWS} value={run.output} />
+        <Field description={runSummary(ran, pending)} label={REGEX_TEXT_AFTER_EVERY_SCRIPT_NAME}>
+          <Textarea readOnly={true} rows={OUTPUT_ROWS} value={run?.output ?? sample} />
         </Field>
 
-        <PipelineCaveats leg={leg} script={script} subjectIsGlobal={run.subjectIsGlobal} />
+        <PipelineCaveats pass={pair.pass} script={script} subjectIsGlobal={plan.subjectIsGlobal} />
       </Stack>
     </Section>
   );
+}
+
+function runSummary(ran: number, running: boolean): string {
+  if (running) {
+    return REGEX_PREVIEW_RUNNING;
+  }
+  return ran === 0 ? "Nothing changed this sample at this time." : `${String(ran)} script${ran === ONE_MATCH ? "" : "s"} changed the text.`;
 }
 
 /** ONE stage: its position, its name, what it did, and — only when it changed something — what it produced.
@@ -222,14 +274,17 @@ function SubjectMarker({ appended }: { readonly appended: boolean }): ReactEleme
  *  a missing feature: none of these facts exists outside a room. */
 function PipelineCaveats({
   script,
-  leg,
+  pass,
   subjectIsGlobal,
 }: {
   readonly script: CreateRegexScriptInput;
-  readonly leg: RegexPlacement;
+  readonly pass: RegexPass;
   readonly subjectIsGlobal: boolean;
 }): ReactElement {
-  const scoped = leg === HISTORY_DEPTH_PLACEMENT && script.historyDepth !== undefined && (script.historyDepth.min > 0 || script.historyDepth.max !== null);
+  // Depth and the author scope exist only beside a display or prompt pass; a save reads neither.
+  const ephemeral = pass !== "save";
+  const depthScoped = ephemeral && script.depth !== undefined;
+  const authorScoped = ephemeral && script.authors !== undefined && (script.authors.include.length > 0 || script.authors.exclude.length > 0);
   return (
     <Stack gap="tight">
       <Text voice="gloss">
@@ -239,15 +294,23 @@ function PipelineCaveats({
       {subjectIsGlobal ? null : (
         <Text voice="gloss">This script isn’t in the always-on set, so it is shown last: every scope that can attach it runs after the always-on tier.</Text>
       )}
-      {scoped ? (
+      {depthScoped || authorScoped ? (
         // Deliberately NOT the tester's wording one section up: two identically-phrased warnings on one pane
-        // read as one warning rendered twice. The tester's line is about the SCRIPT ("the result ignores your
-        // depth range"); this one is about the RUN — every stage below was applied to one loose string, which
-        // has no position for a depth bound to bite on.
+        // read as one warning rendered twice. The tester's line is about the SCRIPT; this one is about the RUN —
+        // every stage below was applied to one loose string, which has no place in a chat and no author.
         <Text tone="warning" voice="gloss">
-          Nothing here has a position in a chat history, so this script’s depth range is not applied. The run treats the sample as any message.
+          {scopeCaveat(depthScoped, authorScoped)}
         </Text>
       ) : null}
     </Stack>
   );
+}
+
+function scopeCaveat(depthScoped: boolean, authorScoped: boolean): string {
+  if (depthScoped && authorScoped) {
+    return "The sample has no place in a chat and no author, so this script’s depth range and its whose-messages lists are not applied.";
+  }
+  return depthScoped
+    ? "The sample has no place in a chat, so this script’s depth range is not applied. The run treats it as any message."
+    : "The sample has no author, so this script’s whose-messages lists are not applied. The run treats it as anyone’s message.";
 }

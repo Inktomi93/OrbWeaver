@@ -6,7 +6,8 @@
 import type { ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { ResolveChatCapabilityOp } from "@orb/contracts/inference";
-import type { EffectivePreset, PresetDetail, PresetImportOutcome, PresetSummary, PresetUsageView } from "@orb/contracts/preset";
+import type { EffectivePreset, PresetDetail, PresetFilePreview, PresetImportOutcome, PresetSummary, PresetUsageView } from "@orb/contracts/preset";
+import type { ExportPresetScripts, ImportPresetScripts, ListPresetScriptKeys, PlanPresetScripts } from "@orb/contracts/regex";
 import type { LoadUserSettings } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
@@ -60,6 +61,15 @@ export interface PresetContext {
   readonly resolveChatCapability: ResolveChatCapabilityOp<AbortSignal>;
   /** The caller's backward bindings for one preset — the CONTEXT panel's "used by" block. */
   readonly resolvePresetUsage: ResolvePresetUsageOp;
+  /** The regex domain's preset script lift, the one the profile folder's import uses, for a SillyTavern preset's
+   *  own scripts on the single-file door. */
+  readonly importPresetScripts: ImportPresetScripts;
+  /** That lift's dry run, so the single-file preview names what the run does with each script. */
+  readonly planPresetScripts: PlanPresetScripts;
+  /** The scripts each owned preset holds, which are part of a preset's import identity. */
+  readonly listPresetScriptKeys: ListPresetScriptKeys;
+  /** Each owned preset's attached scripts, which a preset export carries. */
+  readonly exportPresetScripts: ExportPresetScripts;
 }
 
 export type PresetAssemblyContext = DbAssemblyInput<PresetContext>;
@@ -90,8 +100,13 @@ export interface PresetService {
    *  whose rpg GM voice redirects to it. Gated like `get` (readable-by-this-caller or `PresetNotFoundError`);
    *  the rooms are membership-filtered by the injected resolver, never listed raw. A read — no audit. */
   readonly listUsage: (params: ListPresetUsageParams) => Promise<PresetUsageView>;
-  /** Import ONE orb-native preset file — a batch of one through the SAME `ImportPresets` op the
-   *  whole-profile bundle uses (additive: an equal preset is reused, a same-named different one lands beside it).
-   *  Never throws for a malformed file; the outcome carries the error. */
+  /** Import ONE preset file, an `orb.preset` export or a SillyTavern preset with its own regex scripts — a batch of
+   *  one through the SAME `ImportPresets` op the whole-profile bundle uses (additive: an equal preset is reused, a
+   *  same-named different one lands beside it). Never throws for a malformed file; the outcome carries the error. */
   readonly importFile: (params: ImportPresetFileParams) => Promise<PresetImportOutcome>;
+  /** One readable preset as its portable file, the bytes the backup writes for it, its attached scripts included.
+   *  Throws `PresetNotFoundError` for a preset this caller can't read. */
+  readonly exportFile: (params: GetPresetParams) => Promise<{ readonly filename: string; readonly fileText: string }>;
+  /** What {@link PresetService.importFile} does with the same file, from its own read and a dry run of its write. */
+  readonly previewFile: (params: ImportPresetFileParams) => Promise<PresetFilePreview>;
 }

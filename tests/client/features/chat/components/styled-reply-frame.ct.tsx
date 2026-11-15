@@ -28,6 +28,7 @@ import type { RoutedCardTextScaleStory, RoutedReplyBesideFieldStory } from "./_r
 import type { StyledReplyStreamStory } from "./_styled-reply-stream-stories.tsx";
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
+type Caller = Awaited<ReturnType<Root["internalCallerFor"]>>;
 
 const STORY = "tests/client/features/chat/components/_routed-card-text-scale-stories/RoutedCardTextScaleStory";
 const REPLY_FRAME = '[data-slot="reply-frame"]';
@@ -112,12 +113,19 @@ interface StyledRoom {
   readonly messageId: MessageId;
 }
 
+/** Create a display script on the model's replies and attach it globally: a library script runs only where it is
+ *  attached, and globally it reaches every room the viewer opens. */
+async function addDisplayScript(caller: Caller, name: string, findRegex: string, replaceString: string): Promise<void> {
+  const script = await caller.regex.createScript({ input: { name, findRegex, replaceString, targets: ["AI_OUTPUT"], passes: ["display"] } });
+  await caller.regex.attachGlobal({ scriptId: script.id });
+}
+
 /** A corpus room whose latest reply is spoken by a character that renders trusted HTML, plus the viewer's banner script. */
 async function openStyledRoom(body: string): Promise<StyledRoom> {
   await using construction = new AsyncDisposableStack();
   const root = construction.use(await createCorpusHarness());
   const caller = await root.internalCallerFor(root.ownerId);
-  await caller.regex.createScript({ input: { name: "Scene banner", findRegex: BANNER_FIND, replaceString: BANNER_TEMPLATE, placement: ["DISPLAY"] } });
+  await addDisplayScript(caller, "Scene banner", BANNER_FIND, BANNER_TEMPLATE);
   for (const row of (await caller.chat.listChats({ limit: 100 })).items) {
     const detail = await caller.chat.getChat({ chatId: row.id });
     const trusted = new Set(
@@ -606,9 +614,7 @@ async function openLoggerRoom(grabOnLoad: boolean): Promise<StyledRoom> {
   const room = await openStyledRoom(`${STYLED_BODY}\n\n${LOGGER_TAG}`);
   construction.use(room.root);
   const caller = await room.root.internalCallerFor(room.root.ownerId);
-  await caller.regex.createScript({
-    input: { name: "Key logger", findRegex: LOGGER_FIND, replaceString: loggerTemplate(grabOnLoad), placement: ["DISPLAY"] },
-  });
+  await addDisplayScript(caller, "Key logger", LOGGER_FIND, loggerTemplate(grabOnLoad));
   construction.move();
   return room;
 }
@@ -715,7 +721,7 @@ async function openPinnedRoom(): Promise<StyledRoom> {
   const room = await openStyledRoom(body);
   construction.use(room.root);
   const caller = await room.root.internalCallerFor(room.root.ownerId);
-  await caller.regex.createScript({ input: { name: "Tall panel", findRegex: TALL_PANEL_FIND, replaceString: TALL_PANEL_TEMPLATE, placement: ["DISPLAY"] } });
+  await addDisplayScript(caller, "Tall panel", TALL_PANEL_FIND, TALL_PANEL_TEMPLATE);
   for (let copy = 0; copy < PINNED_ROOM_COPIES; copy += 1) {
     await caller.chat.duplicateMessage({ chatId: room.chatId, messageId: room.messageId });
   }
@@ -824,7 +830,7 @@ test("a block a display script deletes and a details panel with a style block ne
   for (const script of await caller.regex.listScripts()) {
     await caller.regex.removeScript({ scriptId: script.id });
   }
-  await caller.regex.createScript({ input: { name: "Director notes", findRegex: DIRECTOR_FIND, replaceString: "", placement: ["DISPLAY"] } });
+  await addDisplayScript(caller, "Director notes", DIRECTOR_FIND, "");
   await using _routes = await serveRoom(page, root, corpus);
   const ghost = '[data-slot="ghost-message-row"] [data-slot="ghost-stream-body"]';
   await watchForSource(page, ghost, [...SOURCE_MARKERS, ...DIRECTOR_SPOILERS]);

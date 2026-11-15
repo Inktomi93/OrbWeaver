@@ -62,7 +62,7 @@
 // and the fork copy (a non-host forker of a deception game must not launder a member→host reasoning leak).
 
 import type { ChatBusEvent, ChatDeltaEvent, DurableChatBusEvent, MemberCardView, MessageView } from "@orb/contracts/chat";
-import { HIDDEN_TAG_BROKEN_CODE, projectViewForMember } from "@orb/contracts/chat";
+import { HIDDEN_TAG_BROKEN_CODE, projectViewForMember, REGEX_NOT_APPLIED_OVERFLOW_CODE, REGEX_SCRIPT_NOT_APPLIED_CODE } from "@orb/contracts/chat";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
 import { isHostRole } from "@orb/contracts/identity";
 import type { HiddenSpanStreamScrubber } from "@orb/kit/content";
@@ -206,8 +206,8 @@ function isViewCarrying(event: ChatBusEvent): event is ViewCarryingEvent {
 /** Strip a bus event's canon payload for a non-host subscriber (§3.6). A VIEW-carrying event has its `view`
  *  body-stripped (+ reasoning-stripped when `reasoningHostOnly`); a `reasoningStreamDone` event is DROPPED
  *  entirely (returns `null`) on a deception game — it is a member-visible signal that a (now-withheld) reasoning
- *  channel finished, so it must not reach a member of a deception game. All other events (lifecycle, warnings)
- *  pass through. DELTAs are handled separately by the mid-stream scrubber (`scrubDeltaEventForMember`); this is
+ *  channel finished, so it must not reach a member of a deception game. The two host-only warnings are dropped;
+ *  every other event (lifecycle, warnings) passes through. DELTAs are handled separately by the mid-stream scrubber (`scrubDeltaEventForMember`); this is
  *  the AT-COMMIT / durable-view arm. `reasoningHostOnly` is the caller-resolved per-chat verdict (default `false`
  *  ⇒ body-only, the pre-P3 behavior). A `null` return means WITHHOLD (the durable replay / live fan-out skips it). */
 export function stripChatEventForMember(event: ChatBusEvent, reasoningHostOnly = false): ChatBusEvent | null {
@@ -217,6 +217,12 @@ export function stripChatEventForMember(event: ChatBusEvent, reasoningHostOnly =
   // SECURITY: this warning says a span exists, which is the fact a member must not reason about. Live fan-out and the
   // durable replay both land here, so one arm covers publication, replay and a late join.
   if (event.type === "warning" && event.code === HIDDEN_TAG_BROKEN_CODE) {
+    return null;
+  }
+  // SECURITY: a host's script list is the host's, and a server leg runs only host-owned scripts, so this warning names
+  // a script no member is entitled to know exists. Withheld on the same one arm for the same three paths, with the
+  // overflow count that stands for the scripts past the per-turn cap.
+  if (event.type === "warning" && (event.code === REGEX_SCRIPT_NOT_APPLIED_CODE || event.code === REGEX_NOT_APPLIED_OVERFLOW_CODE)) {
     return null;
   }
   if (!isViewCarrying(event)) {

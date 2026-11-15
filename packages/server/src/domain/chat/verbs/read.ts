@@ -45,6 +45,7 @@ import type {
   MessageView,
   NextTurnConnectionView,
   ParticipantData,
+  RegexDisplayEntry,
   RoomSendAvailability,
   ShapeTrace,
   TeachingIdentity,
@@ -58,6 +59,8 @@ import {
   DEFAULT_GROUP_CONFIG,
   NO_HISTORY_FLOOR,
   projectViewForMember,
+  REGEX_VIEWER_SOURCE,
+  resolveHostDisplayScripts,
   TURN_HOST_UNAVAILABLE_OP_CODE,
 } from "@orb/contracts/chat";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
@@ -81,6 +84,7 @@ import { projectBodyForPreview } from "@orb/kit/content";
 import type { CharacterId, ChatId, ConsentingHostId, MessageId, ModelId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry, RowMacroNameContext } from "@orb/kit/macro";
 import { globalMacroRegistry, resolveRowMacros } from "@orb/kit/macro";
+import { NO_SEATS } from "@orb/kit/message-author";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { estimateTokens } from "@orb/kit/tokens";
@@ -101,6 +105,7 @@ import type {
   GetShapeTraceParams,
   GetVariantWireParams,
   ListChatsParams,
+  ListDisplayScriptsParams,
   ListEffectiveRegexParams,
   ListForksParams,
   ListMessagesParams,
@@ -177,7 +182,7 @@ import {
   presentAndEnabledHumanUserIdsOf,
   seatsMultipleHumans,
 } from "../substrate/participants-humans.ts";
-import { regexAllowOf, resolveRegexTiers } from "../substrate/regex-tier.ts";
+import { drawsOnDisplay, regexAllowOf, resolveHostTierRegexEntries, resolveRegexTiers } from "../substrate/regex-tier.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
 import { eventViewMessageId, withViewPosition } from "../substrate/view-position.ts";
 import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
@@ -223,6 +228,7 @@ type ReadVerbs = Pick<
   | "getVariantWire"
   | "previewContextFit"
   | "listEffectiveRegex"
+  | "listDisplayScripts"
   | "listMessages"
   | "listMessageVariants"
   | "listParticipants"
@@ -1216,6 +1222,55 @@ function createListEffectiveRegex(ctx: ChatContext, deps: ReadDeps): ChatService
   };
 }
 
+/** `listDisplayScripts` — the display-pass set one viewer's transcript renders through (D121-E as amended by
+ *  the two-axis ruling).
+ *
+ *  A display script runs where it is attached, resolved exactly as the turn resolves its prompt-side union
+ *  (`resolveHostTierRegexEntries`: global, preset, each seat, the room, under the host, with the room's levers
+ *  and its master), then the viewer's own globals last, so a viewer can always counter-style what the room
+ *  draws. SECURITY: the room's tiers are the host's library. A non-host member receives them while the room
+ *  shares them, which is the default (owner ruling): `resolveHostDisplayScripts` reads an absent setting as
+ *  shared and only the host's explicit off as withheld. Sharing hands a member the patterns and replacement text
+ *  of the host's display scripts attached to this room's tiers, and nothing from a tier the room's levers turn
+ *  off or from a script attached elsewhere. Off, a member receives none of them. Membership is read per call, so
+ *  a departed member reads nothing. A host's own globals are already the room's global tier, so the viewer tier
+ *  is not added again for the host: the room's levers govern them there. `chatId: null` (a surface outside any
+ *  room) reads the viewer's globals. */
+function createListDisplayScripts(ctx: ChatContext, deps: ReadDeps): ChatService["listDisplayScripts"] {
+  return async ({ principal, chatId }: ListDisplayScriptsParams): Promise<RegexDisplayEntry[]> => {
+    const viewer = principal.userId;
+    let room: RegexDisplayEntry[] = [];
+    let viewerIsHost = false;
+    if (chatId !== null) {
+      const membership = await requireParticipant(ctx, principal, chatId);
+      viewerIsHost = hostUserIdOf([{ role: membership.role, userId: viewer }]) === viewer;
+      if (viewerIsHost || resolveHostDisplayScripts(membership.chat.metadata.hostDisplayScripts)) {
+        room = await roomDisplayEntries(ctx, deps, chatId, membership.chat.anchorPersonaId);
+      }
+    }
+    const own = viewerIsHost ? [] : (await ctx.resolveRegexSources({ ownerId: viewer, presetId: null, characterIds: [], chatId: null })).hostGlobal;
+    const seen = new Set(room.map((entry) => entry.script.id));
+    const entries = [...room, ...own.filter((script) => !seen.has(script.id)).map((script): RegexDisplayEntry => ({ script, from: REGEX_VIEWER_SOURCE }))];
+    return entries.filter(({ script }) => drawsOnDisplay(script));
+  };
+}
+
+/** The room's resolved tiers in run order, through the preview preamble the room's Regex section reads, so the
+ *  display set and the section name the same preset and seats. A hostless room has no tiers to draw. */
+async function roomDisplayEntries(ctx: ChatContext, deps: ReadDeps, chatId: ChatId, anchorPersonaId: PersonaId | null): Promise<RegexDisplayEntry[]> {
+  if (hostUserIdOf(await loadParticipants(ctx.db, chatId)) === null) {
+    return [];
+  }
+  const inputs = await resolveRoomInputs(ctx, deps, chatId, { anchorPersonaId });
+  const sources = await ctx.resolveRegexSources({
+    ownerId: inputs.hostUserId,
+    presetId: inputs.foreign.presetId ?? null,
+    characterIds: inputs.characterIds,
+    chatId,
+  });
+  return resolveHostTierRegexEntries({ ...sources, allow: regexAllowOf(inputs.metadata) });
+}
+
 /** The EPHEMERAL `PROMPT_HISTORY` leg's env for a PREVIEW build — the same seams a real turn supplies
  *  (`engine/pipeline::promptHistoryEnv`), so what the host reads in `previewAssembly`/`getShapeTrace`/
  *  `previewContextFit` is what the wire would carry. A preview that skipped the leg would show the host a
@@ -1232,9 +1287,12 @@ function previewPromptHistoryEnv(ctx: ChatContext, assembleContext: AssembleCont
     openRegexPass: ctx.openRegexPass,
     onScriptFailure: (err, script) =>
       getLog(ctx.logger).warn(
-        { err, placement: "PROMPT_HISTORY", findRegex: script.findRegex },
+        { err, pass: "prompt", findRegex: script.findRegex },
         "chat: prompt-history regex script failed in a preview build (D53 watchdog)",
       ),
+    room: assembleContext.hostTierRegexRoom ?? NO_SEATS,
+    // A preview shows the next fresh turn, never a continue.
+    continuing: false,
   };
 }
 
@@ -1862,6 +1920,7 @@ export function createRead(ctx: ChatContext, deps: ReadDeps): ReadVerbs {
     getVariantWire: createGetVariantWire(ctx),
     previewContextFit: createPreviewContextFit(ctx, deps),
     listEffectiveRegex: createListEffectiveRegex(ctx, deps),
+    listDisplayScripts: createListDisplayScripts(ctx, deps),
     listMessages: createListMessages(ctx, deps),
     listMessageVariants: createListMessageVariants(ctx),
     listParticipants: createListParticipants(ctx, deps),

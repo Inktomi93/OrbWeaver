@@ -7,17 +7,16 @@
 
 import type { MessageContentBlock } from "@orb/contracts/chat";
 import { scanStyledHold, stripStyleElements } from "@orb/kit/content";
-import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { parseSpeakerSpans } from "@orb/kit/speaker-label";
 import { Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
-import type { ReactElement } from "react";
+import type { ReactElement, RefCallback } from "react";
 import type { PluginDisplayRow } from "#data";
 import { usePluginDisplayText } from "#data";
-import type { MessageRenderContext, RowRenderPolicy } from "#lib";
-import { renderStyledMessageForDisplay } from "#lib";
+import type { DisplayRowCall, MessageRenderContext, RowRenderPolicy } from "#lib";
+import { useDisplayText } from "../hooks/use-display-text.ts";
 import { toContentBlocks } from "../lib/content-blocks.ts";
 import { REPLY_PANEL_FORMING_TITLE } from "../lib/reply-frame-names.ts";
 import type { FrameReplySegment, ReplySpan } from "../lib/reply-parts.ts";
@@ -78,9 +77,14 @@ interface MessageSegmentProps {
   readonly render: RowRenderPolicy;
   readonly keyPrefix: string;
   readonly cardOrigin: CardOrigin | undefined;
+  /** The display pass's hold, set only on the body's outer element: while its scripts have not answered the
+   *  body is laid out but not shown (`data-display-pending`, which the client stylesheet hides). */
+  readonly pending?: boolean | undefined;
+  /** Observes the body's outer element, so the display-pass queue runs it first while it is on screen. */
+  readonly observeBody?: RefCallback<HTMLElement> | undefined;
 }
 
-function MessageSegment({ text, render, keyPrefix, cardOrigin }: MessageSegmentProps): ReactElement {
+function MessageSegment({ text, render, keyPrefix, cardOrigin, pending, observeBody }: MessageSegmentProps): ReactElement {
   // §4.3 trust routing: ONE trust authority (`render-trust`) resolves BOTH the markdown trust and the card
   // TIER — this renderer only dispatches. The tier mapping was INVERTED here until 2026-08-04 (trusted rows
   // were sent to tierA, whose allowlist forbids `<style>`, so every trusted card rendered as unstyled HTML
@@ -90,7 +94,11 @@ function MessageSegment({ text, render, keyPrefix, cardOrigin }: MessageSegmentP
   // never re-tokenizes — and, with the index+kind keys below stable for an unchanged body, never reloads a
   // card's srcdoc.
   const blocks = toContentBlocks(text, { cardTrust: render.cardTier, lenientHtml: render.lenientCards });
-  return <Stack gap="row">{blocks.map((block, index) => renderBlock(block, `${keyPrefix}${index}-${block.kind}`, render, cardOrigin))}</Stack>;
+  return (
+    <Stack gap="row" ref={observeBody} data-display-pending={pending === true ? "" : undefined}>
+      {blocks.map((block, index) => renderBlock(block, `${keyPrefix}${index}-${block.kind}`, render, cardOrigin))}
+    </Stack>
+  );
 }
 
 function tinted(node: ReactElement, tokens: ThemeScopeTokens | undefined, key: string): ReactElement {
@@ -161,7 +169,9 @@ function FramedReply({
   render,
   cardOrigin,
   speakerName,
+  observeBody,
 }: {
+  readonly observeBody: RefCallback<HTMLElement> | undefined;
   readonly spans: readonly ReplySpan[];
   readonly render: RowRenderPolicy;
   readonly cardOrigin: CardOrigin | undefined;
@@ -169,7 +179,7 @@ function FramedReply({
 }): ReactElement {
   const parts = replyParts(spans, { lenientHtml: render.lenientCards });
   return (
-    <Stack gap="row" data-slot="message-content-framed">
+    <Stack gap="row" data-slot="message-content-framed" ref={observeBody}>
       {parts.map((part, index) => {
         const key = `${index}-${part.kind}`;
         if (part.kind === "native") {
@@ -196,10 +206,9 @@ export interface MessageContentProps {
   readonly render: RowRenderPolicy;
   /** Absent means no roster/persona threaded yet, so content renders unchanged. */
   readonly renderContext?: MessageRenderContext | undefined;
-  /** Retargets `{{char}}` to this character; ignored when renderContext is absent. */
-  readonly rowCharacterId?: CharacterId | null | undefined;
-  /** Retargets `{{user}}`/`{{persona}}` to this persona; ignored when renderContext is absent. */
-  readonly rowPersonaId?: PersonaId | null | undefined;
+  /** The row this body belongs to, read off its own data: the display call's target, author stamps and depth. The
+   *  stamps also retarget `{{char}}`, `{{user}}` and `{{persona}}`. Ignored when renderContext is absent. */
+  readonly display: DisplayRowCall;
   /** NAME -\> that character's tint (`speakerThemesByName`); absent ⇒ every span uses the hash fallback.
    *  Its KEYS are also the present character-name set the plain-label span grammar keys on. */
   readonly speakerThemes?: ReadonlyMap<string, ThemeScopeTokens> | undefined;
@@ -216,36 +225,40 @@ export interface MessageContentProps {
    *  Absent (a ghost row, a preview, a story mount) ⇒ no transform runs, byte-identical. Present ⇒ the viewer's
    *  OWN plugins may annotate the rendered text, after macros and after DISPLAY regex, before markdown. */
   readonly pluginDisplayRow?: PluginDisplayRow | undefined;
+  /** This body's place in the display-pass queue: a higher value runs first. The row's sequence number. */
+  readonly displayOrder?: number | undefined;
 }
 
 export function MessageContent({
   content,
   render,
   renderContext,
-  rowCharacterId,
-  rowPersonaId,
+  display,
   speakerThemes,
   narratorVoiced = false,
   cardOrigin,
   pluginDisplayRow,
+  displayOrder,
 }: MessageContentProps): ReactElement {
-  const display =
-    renderContext === undefined ? { text: content, styled: false } : renderStyledMessageForDisplay(content, renderContext, rowCharacterId, rowPersonaId);
+  const { text: displayed, styled, pending, observeBody } = useDisplayText(content, renderContext, { ...display, order: displayOrder });
   // The LAST step before markup (§5.5/§5.29): the viewer's own plugins annotate what the house pipeline
   // produced. Inert without a row or without a registered transform — same string in, same string out.
-  const resolvedContent = usePluginDisplayText(display.text, pluginDisplayRow);
+  const resolvedContent = usePluginDisplayText(displayed, pluginDisplayRow);
   const characterNames = narratorVoiced && speakerThemes !== undefined ? [...speakerThemes.keys()] : NO_CHARACTER_NAMES;
   const spans = parseSpeakerSpans(resolvedContent, characterNames);
 
   // D354: a display script's own markup styled this row and the row's tier is the sandboxed one, so the reply
   // draws in a card frame. A plugin that rewrote the text has changed what the scripts produced, so the row keeps
-  // today's path; markup the model wrote alone never styles a row.
-  if (render.cardTier === "tierB" && display.styled && resolvedContent === display.text) {
+  // today's path; markup the model wrote alone never styles a row. A row still waiting on its scripts is never
+  // framed: it stays on the held inert path below until its answer lands.
+  if (render.cardTier === "tierB" && styled && !pending && resolvedContent === displayed) {
     // The frame's accessible name is the row's own speaker: its character, or the persona that wrote it.
-    const characterName = rowCharacterId === null || rowCharacterId === undefined ? undefined : renderContext?.characterNamesById.get(rowCharacterId)?.name;
-    const personaName = rowPersonaId === null || rowPersonaId === undefined ? undefined : renderContext?.personaNamesById.get(rowPersonaId)?.name;
+    const { characterId, personaId } = display.row;
+    const characterName = characterId === null ? undefined : renderContext?.characterNamesById.get(characterId)?.name;
+    const personaName = personaId === null ? undefined : renderContext?.personaNamesById.get(personaId)?.name;
     return (
       <FramedReply
+        observeBody={observeBody}
         spans={spans.map((span) => ({
           text: span.text,
           tokens: span.speaker === null ? undefined : (speakerThemes?.get(span.speaker) ?? colorForCharacter(span.speaker)),
@@ -259,15 +272,24 @@ export function MessageContent({
 
   // A styled row the frame does not draw (a Tier A row, or a plugin rewrote its text) renders through the inert
   // allowlist, with the template's `<style>` and `<script>` elements removed, so their content never prints as prose.
-  const segmentRender: RowRenderPolicy = display.styled ? { ...render, trust: "untrusted" } : render;
-  const segmentText = (text: string): string => (display.styled ? stripStyleElements(text) : text);
+  const segmentRender: RowRenderPolicy = styled ? { ...render, trust: "untrusted" } : render;
+  const segmentText = (text: string): string => (styled ? stripStyleElements(text) : text);
   const [onlySpan] = spans;
   if (spans.length === 1 && onlySpan !== undefined && onlySpan.speaker === null) {
-    return <MessageSegment text={segmentText(onlySpan.text)} render={segmentRender} keyPrefix="" cardOrigin={cardOrigin} />;
+    return (
+      <MessageSegment
+        text={segmentText(onlySpan.text)}
+        render={segmentRender}
+        keyPrefix=""
+        cardOrigin={cardOrigin}
+        pending={pending}
+        observeBody={observeBody}
+      />
+    );
   }
 
   return (
-    <Stack gap="block" data-slot="message-content-spans">
+    <Stack gap="block" data-slot="message-content-spans" ref={observeBody} data-display-pending={pending ? "" : undefined}>
       {spans.map((span, index) => {
         const key = `${index}-${span.speaker ?? "narrator"}`;
         if (span.speaker === null) {

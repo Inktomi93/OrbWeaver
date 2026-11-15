@@ -4,14 +4,15 @@
 
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
-import { Icon, Plus, SlidersHorizontal } from "@orb/ui/icons";
-import { Stack } from "@orb/ui/layout";
+import { FileInput, Icon, Plus, SlidersHorizontal } from "@orb/ui/icons";
+import { Row, Stack } from "@orb/ui/layout";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { LIST_OFF_SCREEN_HINT, selectPresetFromList, usePresetSearchQuery, useSectionListMode } from "#state";
 import { useNewPreset } from "../hooks/use-new-preset.ts";
-import { NEW_PRESET_NAME } from "../lib/preset-names.ts";
+import { usePresetImport } from "../hooks/use-preset-import.tsx";
+import { NEW_PRESET_NAME, PRESET_IMPORT_TITLE } from "../lib/preset-names.ts";
 import { filterPresetsByName, presetSearchNeedle } from "../lib/preset-search.ts";
 
 /** What this pane teaches whatever the panes are doing — the instruction, and the boundary with Connections
@@ -76,10 +77,11 @@ const NO_MATCHES =
  *
  *  ONE EMPTY-STATE VOICE ACROSS THE LIBRARY PANES. Chats, Databank and Plugin pages teach at the shared
  *  title step and end on a primary door; Presets does the same, so its title takes the default step and
- *  its door is New preset, the verb the list band also offers. */
+ *  its door is New preset, the verb the list band also offers, with Import a preset beside it. */
 export function PresetLibraryWelcome(): ReactElement {
   const listMode = useSectionListMode("presets");
   const creating = useNewPreset(selectPresetFromList);
+  const importer = usePresetImport();
   const trpc = useTRPC();
   // The SAME cache the list pane and the band's census read (a non-suspending `useQuery` — this pane must
   // not suspend on a fact that only changes its wording), through the SAME predicate (`filterPresetsByName`),
@@ -99,10 +101,19 @@ export function PresetLibraryWelcome(): ReactElement {
       {/* `my-auto` centres only while the block fits: `justify-center` on a column the block overflows pushed its top above the pane, over the topbar. */}
       <EmptyState
         action={
-          <Button disabled={creating.pending} onClick={creating.create}>
-            <Icon icon={Plus} size="sm" />
-            {NEW_PRESET_NAME}
-          </Button>
+          // Both doors have their words: someone who arrives with a preset file is told only how to start over by "New
+          // preset" alone. Import recedes (ghost), New stays the one primary.
+          <Row align="center" wrap={true} cap="fit" gap="field" justify="center">
+            <Button disabled={creating.pending} onClick={creating.create}>
+              <Icon icon={Plus} size="sm" />
+              {NEW_PRESET_NAME}
+            </Button>
+            <Button variant="ghost" ink="muted" onClick={importer.open}>
+              <Icon icon={FileInput} size="sm" />
+              {PRESET_IMPORT_TITLE}
+            </Button>
+            {importer.dialog}
+          </Row>
         }
         push="blockCentre"
         description={listMode === "collapsed" ? `${teaching}${LIST_OFF_SCREEN_HINT}` : teaching}

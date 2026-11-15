@@ -18,7 +18,7 @@ const ROOM_READS = [
   "plugin.listDisplayTransforms",
   "plugin.listSurfaces",
   "regex.listScripts",
-  "regex.listRoomDisplayScripts",
+  "regex.listDisplayScripts",
 ] as const;
 
 test.use({ viewport: SHORT_VIEWPORT });

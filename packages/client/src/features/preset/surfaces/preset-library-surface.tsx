@@ -13,11 +13,11 @@
 // rename state; `PresetRenameDialog` is the editor header's now, and `preset.update {id, name}` has one
 // caller. The row's own omission carries the reasoning.
 //
-// EXPORT (G6) is client-side: the cached `preset.get` row through `buildPresetFile` — the SAME contract
-// serde the whole-profile bundle's export arm writes (`domain/preset/verbs/export.ts`). No second
-// serialization and no export endpoint of its own; the single-preset door is a thin arm over the one seam.
+// EXPORT (G6) reads `preset.exportFile`, the server's own file for one preset: the bytes the whole-library backup
+// writes for it (`packages/server/src/domain/preset/verbs/export.ts`), its attached regex scripts included, which the
+// client cannot read in one place.
 
-import { buildPresetFile } from "@orb/contracts/preset";
+import { OWNED_PRESET_KIND } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -28,7 +28,7 @@ import type { ReactElement, RefObject } from "react";
 import { useDeferredValue, useRef } from "react";
 import { LibraryListRows, LibrarySurfaceShell, ListPage, useRowDeleteFocus } from "#components";
 import { useInvalidation, useSuspenseQueries, useTRPC, useTRPCClient } from "#data";
-import { CLEAR_SEARCH_NAME, downloadJson, NO_MATCHES_TITLE, notify, rowQualifiers, slugifyFilename, timeLib, useFocusListArrival } from "#lib";
+import { CLEAR_SEARCH_NAME, downloadTextFile, NO_MATCHES_TITLE, notify, rowQualifiers, timeLib, useFocusListArrival } from "#lib";
 import {
   getSelectedPresetId,
   presetSectionSelection,
@@ -40,14 +40,7 @@ import {
 } from "#state";
 import { PresetLibraryRow } from "../components/preset-library-row.tsx";
 import { useCreatePreset, useRemovePreset, useSetDefaultPreset } from "../hooks/use-preset-mutations.ts";
-import {
-  NEW_PRESET_KIND,
-  NEW_PRESET_NAME,
-  PRESET_ACTIVE_RADIOGROUP_NAME,
-  PRESET_LIBRARY_READ_LABEL,
-  PRESET_LIST_NAME,
-  PRESET_SEARCH_NAME,
-} from "../lib/preset-names.ts";
+import { NEW_PRESET_NAME, PRESET_ACTIVE_RADIOGROUP_NAME, PRESET_LIBRARY_READ_LABEL, PRESET_LIST_NAME, PRESET_SEARCH_NAME } from "../lib/preset-names.ts";
 import { filterPresetsByName, presetSearchNeedle } from "../lib/preset-search.ts";
 
 export interface PresetLibrarySurfaceProps {
@@ -138,7 +131,7 @@ function PresetList({
   // The band owns the pane's create PRIMARY; this is the EMPTY-STATE's own action, which must stay (an
   // empty library that only says "no presets yet" is a dead end).
   const onCreate = (): void => {
-    create.mutate({ name: NEW_PRESET_NAME, kind: NEW_PRESET_KIND }, { onSuccess: (created): void => onSelectPreset(created.id) });
+    create.mutate({ name: NEW_PRESET_NAME, kind: OWNED_PRESET_KIND }, { onSuccess: (created): void => onSelectPreset(created.id) });
   };
 
   // §16 row 3: the ONE activation writer this pane has (the row toggle) — the kebab's echo of it is GONE
@@ -155,12 +148,12 @@ function PresetList({
     setDefault.mutate({ section: "seeds", patch: { defaultPresetId: preset.isSystemDefault ? null : id } });
   };
 
-  // G6 export: the CACHED detail row → `buildPresetFile` → a browser download. Same bytes as the bundle arm.
+  // G6 export: the server's file for the preset, the same bytes the backup writes, as a browser download.
   const onExport = (id: PresetId): void => {
-    client.preset.get
+    client.preset.exportFile
       .query({ id })
-      .then((detail) => {
-        downloadJson(`${slugifyFilename(detail.name, "preset")}.json`, buildPresetFile(detail.name, detail.config));
+      .then(({ filename, fileText }) => {
+        downloadTextFile(filename, fileText);
       })
       .catch(() => notify.error("Couldn't export the preset."));
   };
@@ -171,7 +164,7 @@ function PresetList({
       .query({ id })
       .then((detail) => {
         create.mutate(
-          { name: `Copy of ${source?.name ?? "preset"}`, kind: NEW_PRESET_KIND, config: detail.config },
+          { name: `Copy of ${source?.name ?? "preset"}`, kind: OWNED_PRESET_KIND, config: detail.config },
           { onSuccess: (created): void => onSelectPreset(created.id) },
         );
       })

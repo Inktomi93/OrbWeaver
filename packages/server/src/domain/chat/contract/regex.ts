@@ -12,6 +12,7 @@
 import type { CharacterRegexSlice, HostTierRegexAllow } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { ProcessMacroOptions } from "@orb/kit/macro";
+import type { RoomStanding } from "@orb/kit/message-author";
 import type { RegexScriptInput } from "@orb/kit/regex";
 import type { OpenRegexPassOp } from "./engine-context.ts";
 
@@ -78,4 +79,8 @@ export interface PromptHistoryRegexEnv {
   /** Per-failure report. The caller logs it; the leg additionally EVICTS the script for the rest of the
    *  pass (its header states why history length must never multiply a watchdog trip). */
   readonly onScriptFailure: (err: unknown, script: RegexScriptInput) => void;
+  /** The room's seat standings an author scope reads. */
+  readonly room: RoomStanding;
+  /** A continue extends the newest row, which then sits at depth -1 rather than 0. */
+  readonly continuing: boolean;
 }

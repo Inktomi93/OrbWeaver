@@ -42,7 +42,7 @@ async function exportedBackup(root: ServerTestHarness): Promise<readonly BackupE
   const caller = await root.internalCallerFor(root.ownerId);
   await caller.settings.createTheme(createThemeInputSchema.parse({ name: "Batch night", override: {} }));
   await caller.regex.createScript({
-    input: createRegexScriptSchema.parse({ name: "Batch tidy", findRegex: "a", replaceString: "b", placement: ["AI_OUTPUT"] }),
+    input: createRegexScriptSchema.parse({ name: "Batch tidy", findRegex: "a", replaceString: "b", targets: ["AI_OUTPUT"], passes: ["save"] }),
   });
   const art = new FormData();
   art.set(UPLOAD_FILE_FIELD, new File([new Uint8Array(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)))], "aria.png", { type: "image/png" }));

@@ -1,10 +1,10 @@
 import { alternation } from "./syntax.ts";
 
-const SERDE_CARD_MAPPERS = alternation(["cardContentHash", "cardFromJson", "buildCardV3"]);
+const SERDE_CARD_MAPPERS = alternation(["cardContentHash", "readCardJson", "buildCardV3"]);
 
 const SERDE_CARD_HOME = "packages/server/src/primitives/serde/card/index.ts";
 
-const SERDE_CARD_MESSAGE = `A second declaration of a serde-core card mapper; each of cardContentHash, cardFromJson and buildCardV3 is declared once, in ${SERDE_CARD_HOME}. Import it from #primitives/serde/card.`;
+const SERDE_CARD_MESSAGE = `A second declaration of a serde-core card mapper; each of cardContentHash, readCardJson and buildCardV3 is declared once, in ${SERDE_CARD_HOME}. Import it from #primitives/serde/card.`;
 
 export const SERVER_HARD_RESTRICTIONS = [
   {

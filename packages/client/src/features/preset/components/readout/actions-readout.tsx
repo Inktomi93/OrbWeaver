@@ -133,7 +133,7 @@ function MarkerDeliveryPath({ sections }: { readonly sections: readonly PromptSe
         </Row>
         <Text voice="gloss">
           No Guided instruction marker is placed, so a steer has nowhere to land. Every guided template resolves and is then dropped. Add the marker from the
-          rack's Add menu in the Prompt view.
+          Add menu in the Prompt view.
         </Text>
       </Section>
     );
@@ -160,7 +160,7 @@ function MarkerDeliveryPath({ sections }: { readonly sections: readonly PromptSe
       <Text voice="gloss">
         {marker.enabled
           ? "Clicking the name opens that row in Prompt."
-          : "The marker is switched OFF. A steer resolves and is then dropped. Turn it back on from its rack row."}
+          : "The marker is switched OFF. A steer resolves and is then dropped. Turn it back on from its row in the Prompt view."}
       </Text>
     </Section>
   );

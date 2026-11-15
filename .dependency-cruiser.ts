@@ -47,6 +47,7 @@ const ENTRY_DRIVERS = {
   "boot/index.ts": "the boot barrel the lifecycle reads re-exports the drivers below",
   "boot/migrate.ts": "runs the migrations, backups and integrity check, and resolves the migrations folder through node:module",
   "boot/migrate-data-layout.ts": "opens, snapshots and detaches the legacy database while the data layout moves",
+  "boot/report-regex-two-axis.ts": "reads the scripts migration 0020 rewrites, before and after boot/migrate.ts runs it",
 } as const satisfies Readonly<Record<string, string>>;
 const ENTRY_DRIVER_PATTERN = `${ENTRY_SOURCE}(?:${Object.keys(ENTRY_DRIVERS)
   .map((path) => RegExp.escape(path))
@@ -210,6 +211,13 @@ const SUBPATH_LEAF_IMPORTERS = [
   "packages/client/src/features/credentials/lib/connection-editor-model.ts",
   "packages/client/src/features/credentials/lib/connections-model.ts",
   "packages/ui/src/primitives/icons/orb-web.ts",
+  // The lib barrel deliberately omits the display pipeline that runs scripts on the calling thread; only the
+  // Worker-backed display hook reads it.
+  "packages/client/src/features/chat/hooks/use-display-text.ts",
+  // The editor preview's read of the same Worker runner.
+  "packages/client/src/features/regex/hooks/use-regex-preview.ts",
+  // The display row's call shape, a type of the same pipeline the lib barrel omits.
+  "packages/client/src/features/chat/lib/display-row.ts",
   // The lib barrel deliberately omits these development-only leaves.
   "packages/client/src/features/app-shell/lib/bug-report-capture.ts",
   "packages/client/src/features/chat/components/message-row.tsx",
@@ -579,6 +587,8 @@ const TEST_CONSTANT_HOMES = {
     "characterRefusalCopy: the copy a coded character refusal raises, which a notice case reads its expected toast from",
   "packages/client/src/features/chat/lib/warning-notice.ts":
     "warningNotice: the notice each chat warning code raises, which a notice case reads its expected toast from",
+  "packages/client/src/features/chat/lib/regex-stop-copy.ts":
+    "the On screen roster's marks and reasons for a script this browser stopped or a server pass skipped",
   "packages/client/src/features/config/lib/config-copy.ts": "CONFIG_SECTION_LABEL: the settings section labels",
   "packages/client/src/features/notifications/lib/notifications-copy.ts":
     "DEFERRED_TURN_HOST_UNAVAILABLE_COPY: the notice a dropped queued reply raises when its host is unavailable, which the inbox case reads its expected row from",
@@ -642,6 +652,8 @@ const TEST_CONSTANT_HOMES = {
     "AVATAR_UPLOAD_FAILED and its siblings: the lines the shared avatar upload control prints for a failed upload and a refused write",
   "packages/client/src/lib/turn-refusal-copy.ts":
     "TURN_ROOM_CLOSING_COPY and its siblings: the toast a refused turn raises for each room state, which the send refusal case reads",
+  "packages/client/src/lib/display-pass-copy.ts":
+    "displayScriptsStoppedTitle and its siblings: the one notice the display pass raises for a stopped regex script, which the display script cases read",
   "packages/client/src/features/chat/lib/reply-frame-names.ts": "REPLY_LINK_CONFIRM_LABEL: the confirm a link clicked inside a framed reply opens",
   "packages/client/src/features/chat/lib/reply-link-pace.ts":
     "REPLY_LINK_FREE_CANCELS and REPLY_LINK_FIRST_WAIT_MS: the pace at which a framed reply's links raise the confirm again after Cancels",
@@ -973,6 +985,11 @@ const PACKAGE_TEST_REACHES = {
     "packages/server/src/entry/boot/index.ts":
       "runBootMigrations: the case proves boot backs up the pre-migration file before the provenance rebuild, and only the persistence tier may seed that schema",
   },
+  "tests/db/schema/regex-two-axis.repo.int.test.ts": {
+    "packages/server/src/entry/boot/index.ts":
+      "runBootMigrations: the case proves boot names every script migration 0020 rewrites, and only the persistence tier may seed the old shape",
+    "packages/server/src/foundation/observability/index.ts": "createLogger: the boot lines are read off the logger's own ring",
+  },
   "tests/db/client/traced-client-spans.int.test.ts": {
     "packages/server/src/foundation/observability/index.ts":
       "wrapLibSqlClient: the client wrapper createDb takes, proven through native close; the raw queries it traces are persistence-tier reads",
@@ -1001,6 +1018,10 @@ const PACKAGE_TEST_REACHES = {
   "tests/client/lib/bug-report-bundle.dom.test.ts": {
     "packages/client/src/lib/bug-report-bundle.ts":
       "sliceMotionEvidence: the motion slices the dev bug-report capture builds, whose only caller is that capture and which no door forwards",
+  },
+  "tests/client/lib/display-styled.dom.test.ts": {
+    "packages/client/src/lib/message-render.ts":
+      "renderStyledMessageForDisplay: the display pass on the calling thread, the same per-script step the Worker runs; its browser door is useDisplayText, so the lib door forwards only its types",
   },
   "tests/client/features/character/components/_tag-row-stories.tsx": {
     "packages/client/src/features/character/components/character-tags-row.tsx":
@@ -1081,6 +1102,9 @@ const PACKAGE_TEST_REACHES = {
   },
   "tests/client/features/chat/lib/move-neighbours.test.ts": {
     "packages/client/src/features/chat/lib/move-neighbours.ts": "moveNeighboursAt and moveReasons: the pure edge and generating gates the move arrows read",
+  },
+  "tests/client/features/chat/lib/display-row.test.ts": {
+    "packages/client/src/features/chat/lib/display-row.ts": "displayDepthsOf and roomStandingOf: the depth and seat inputs every row's display call reads",
   },
   "tests/client/features/chat/components/platform-pinned-band-height.suite.ct.tsx": {
     "packages/client/src/features/chat/lib/message-row-variants.ts": "MESSAGE_ROW_SKINS: the styles whose pinned band height the suite holds",
@@ -1729,6 +1753,24 @@ const CLIENT_BOUNDARIES = [
     from: { path: `${CLIENT}features/plugin/lib/ui-guest/ui-guest\\.worker\\.ts$` },
     to: { path: [`${CLIENT}lib/index\\.ts$`, "\\.tsx$"], reachable: true },
   },
+  {
+    name: "display-pass-worker-no-react",
+    comment: "React refresh reads window at load; the display-pass Worker cannot reach React modules through any chain.",
+    severity: "error",
+    from: { path: `${CLIENT}lib/display-pass\\.worker\\.ts$` },
+    to: { path: [`${CLIENT}lib/index\\.ts$`, "\\.tsx$"], reachable: true },
+  },
+  {
+    name: "display-scripts-off-main-thread",
+    comment:
+      "message-render.ts, display-styled.ts and regex-instrumented.ts run regex scripts on the calling thread; a browser surface reads the display pipeline through useDisplayText and the editor's preview through runRegexPreview, which run them in the display-pass Worker.",
+    severity: "error",
+    from: { path: CLIENT, pathNot: [`${CLIENT}lib/`, `${CLIENT}features/chat/hooks/use-display-text\\.ts$`] },
+    to: {
+      path: [`${CLIENT}lib/message-render\\.ts$`, `${CLIENT}lib/display-styled\\.ts$`, `${CLIENT}lib/regex-instrumented\\.ts$`],
+      dependencyTypesNot: ["type-only"],
+    },
+  },
 ] satisfies IForbiddenRuleType[];
 
 const SERVER_AUTHORITY = [
@@ -2019,7 +2061,7 @@ const DOMAIN_AUTHORITY = [
     severity: "error",
     from: {
       pathNot:
-        "^packages/server/src/(domain/(admin/persistence/queries|automation/persistence/canon-reads|databank/persistence/scope|sessions/verbs/(validate|load-user-by-id|provision-identity)|chat/(persistence/(queries|participants-read)|verbs/(edit|read|participants)))|entry/(auth/seam|compose/chat))\\.ts$",
+        "^packages/server/src/(domain/(admin/persistence/queries|automation/persistence/canon-reads|databank/persistence/scope|sessions/verbs/(validate|load-user-by-id|provision-identity)|chat/(persistence/(queries|participants-read)|verbs/(edit|read|participants|start-chat)))|entry/(auth/seam|compose/chat))\\.ts$",
     },
     to: { path: "^packages/server/src/primitives/role-data/index\\.ts$" },
   },

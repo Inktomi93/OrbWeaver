@@ -19,7 +19,8 @@ const ctx = { char: "", user: "", persona: "", scenario: "", env: {} };
 for (const probe of compileProbeRequestSchema.parse(workerData).patterns) {
   const script: RegexScriptInput = {
     enabled: true,
-    placement: ["AI_OUTPUT"],
+    targets: ["AI_OUTPUT"],
+    passes: ["save"],
     findRegex: probe.findRegex,
     replaceString: "",
     substituteRegex: probe.substituteRegex,
@@ -30,7 +31,7 @@ for (const probe of compileProbeRequestSchema.parse(workerData).patterns) {
   openRegexPass(Number.POSITIVE_INFINITY).execute({
     text: COMPILE_PROBE_SUBJECT,
     scripts: [script],
-    placement: "AI_OUTPUT",
+    call: { pass: "save", target: "AI_OUTPUT", edit: false },
     ctx,
     onScriptFailure: () => undefined,
   });
