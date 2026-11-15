@@ -6,6 +6,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
+import { OWNER_RULES_EMPTY_LINE } from "#client/features/automation/lib/automation-names.ts";
 import { RULE_WRITE_OWN_NAME } from "#client/features/automation/lib/rule-copy.ts";
 
 const STORY = "tests/support/browser/ct-settings-composition-stories/SettingsCompositionStory";
@@ -49,14 +50,13 @@ test("an empty library-rules section seats its doors one section step under its 
   await routeTrpc(page, serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings", "automation.getOwnerBudgets", "automation.listOwnerRules"]));
   await mount<typeof SettingsCompositionStory>(STORY, { sectionId: "automation-library-rules", width: WIDTH });
   const door = page.getByRole("button", { name: RULE_WRITE_OWN_NAME, exact: true });
+  const sentence = page.getByText(OWNER_RULES_EMPTY_LINE, { exact: true });
   await expect(door).toBeVisible();
+  await expect(sentence).toBeVisible();
   const section = await resolvedLength(page, `var(${TOKENS["spacing.section"].cssVar})`, door);
-  const gap = await door.evaluate((node) => {
-    const top = node.getBoundingClientRect().top;
-    const above = [...node.ownerDocument.querySelectorAll('p[data-voice="gloss"]')]
-      .map((sentence) => sentence.getBoundingClientRect().bottom)
-      .filter((bottom) => bottom <= top);
-    return top - Math.max(...above);
-  });
-  expect(gap).toBe(section);
+  const [doorBox, sentenceBox] = await Promise.all([door.boundingBox(), sentence.boundingBox()]);
+  if (doorBox === null || sentenceBox === null) {
+    throw new Error("The empty sentence and its doors must paint");
+  }
+  expect(doorBox.y - (sentenceBox.y + sentenceBox.height)).toBeCloseTo(section, 0);
 });

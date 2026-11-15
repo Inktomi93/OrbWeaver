@@ -108,9 +108,11 @@ export function ruleSlotFollowsRoleLabel(role: string): string {
 export const RULE_CREATE_FAILED_TOAST = "Couldn't create that rule. Your draft is kept.";
 export const RULE_SAVE_FAILED_TOAST = "Couldn't save that rule. Your draft is kept.";
 
-/** The library-wide section's fire cap field and its opening line. */
+/** The library-wide section's fire cap field, its opening line and the line it shows with no rules. */
 export const OWNER_RULE_RATE_FIELD_NAME = "Runs per hour";
 export const OWNER_RULES_INTRO = "These rules watch your library and act on their own. No chat has to be open.";
+export const OWNER_RULES_EMPTY_LINE =
+  "Nothing is watching your library yet. Add a rule (illustrate a character when its card changes, for instance) and it starts off until you enable it.";
 
 /** What failed to load, said by the rule tool field's catalog read. */
 export const RULE_TOOL_CATALOG_READ_LABEL = "your tool catalog";
