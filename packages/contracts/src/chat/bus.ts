@@ -222,7 +222,21 @@ export type RegexNotAppliedCause = (typeof REGEX_NOT_APPLIED_CAUSES)[number];
 const REGEX_SERVER_PASSES = ["user_input", "ai_output", "reasoning", "world_info", "prompt_history", "edit_reapply"] as const;
 export type RegexServerPass = (typeof REGEX_SERVER_PASSES)[number];
 
-export const CHAT_WARNING_CODES = [...PLAIN_CHAT_WARNING_CODES, SETTINGS_ADJUSTED_CODE, REGEX_SCRIPT_NOT_APPLIED_CODE] as const;
+/** The most {@link REGEX_SCRIPT_NOT_APPLIED_CODE} warnings one turn or edit writes, the first in pass order. Each is a
+ *  durable row any member's turn can cause, so a host library of broken scripts must not grow the room's log per
+ *  script. */
+export const REGEX_NOT_APPLIED_NAMED_MAX = 8;
+
+/** The script-and-cause notices one turn or edit raised past {@link REGEX_NOT_APPLIED_NAMED_MAX}, as one count. HOST-ONLY
+ *  on the same arm and for the same reason as {@link REGEX_SCRIPT_NOT_APPLIED_CODE}; it carries no id or cause. */
+export const REGEX_NOT_APPLIED_OVERFLOW_CODE = "regex_not_applied_overflow";
+
+export const CHAT_WARNING_CODES = [
+  ...PLAIN_CHAT_WARNING_CODES,
+  SETTINGS_ADJUSTED_CODE,
+  REGEX_SCRIPT_NOT_APPLIED_CODE,
+  REGEX_NOT_APPLIED_OVERFLOW_CODE,
+] as const;
 export type ChatWarningCode = (typeof CHAT_WARNING_CODES)[number];
 
 // The provider ran the turn in a compatibility mode: it substituted its own value where this model spells a setting
@@ -266,7 +280,7 @@ type ProviderAdjustmentKind = (typeof PROVIDER_ADJUSTMENT_KINDS)[number];
  *      clean on the D16 anchor allowlist), while `bus-payload-allowlist` refuses an unmodelled shape kind.
  *  The doubling is therefore ENFORCED rather than trusted: `index.test-d.ts` pins that the bus's `warning`
  *  members and this type are the same set, so a field added to one and not the other fails `tsc`. */
-export type ChatWarning = { code: PlainChatWarningCode } | ChatSettingsAdjustedWarning | ChatRegexNotAppliedWarning;
+export type ChatWarning = { code: PlainChatWarningCode } | ChatSettingsAdjustedWarning | ChatRegexNotAppliedWarning | ChatRegexNotAppliedOverflowWarning;
 
 /** The regex arm on its own, named for the same reason as {@link ChatSettingsAdjustedWarning}. One warning per
  *  script and cause per turn or edit; `pass` is where it was first seen. */
@@ -275,6 +289,13 @@ export interface ChatRegexNotAppliedWarning {
   scriptId: RegexScriptId;
   cause: RegexNotAppliedCause;
   pass: RegexServerPass;
+}
+
+/** The overflow arm on its own, named for the same reason. `count` is a positive integer: the distinct
+ *  script-and-cause notices the turn or edit left unnamed. */
+export interface ChatRegexNotAppliedOverflowWarning {
+  code: typeof REGEX_NOT_APPLIED_OVERFLOW_CODE;
+  count: number;
 }
 
 /** The detail-bearing arm on its own — a NAMED type rather than an `Extract<ChatWarning, …>` at each reader,
@@ -620,6 +641,8 @@ export type ChatBusEvent =
     }
   // Host-only (see {@link REGEX_SCRIPT_NOT_APPLIED_CODE}): ids and enum literals, no name and no pattern text.
   | { type: "warning"; chatId: ChatId; code: "regex_script_not_applied"; scriptId: RegexScriptId; cause: RegexNotAppliedCause; pass: RegexServerPass }
+  // Host-only (see {@link REGEX_NOT_APPLIED_OVERFLOW_CODE}): one count, nothing else.
+  | { type: "warning"; chatId: ChatId; code: "regex_not_applied_overflow"; count: number }
   // ── World-info ACTIVATION (which entries FIRED during this turn's assembly — distinct from the
   //    attachment changes in WiBusEvent; ST WORLD_INFO_ACTIVATED — the "what lore fired" automation hook) ──
   //    `automationDepth` is the cascade depth of the GENERATING turn (the same plain scalar `turnAborted`
