@@ -64,6 +64,24 @@ const connectionAttributionProvenanceSchema = z.enum(CONNECTION_ATTRIBUTION_PROV
  *  callers) references, homed HERE so the wire ceiling and the backstop never drift. */
 export const CHAT_MESSAGE_LIST_MAX_LIMIT = 100;
 
+/** The most characters (UTF-16 code units, `String.length`) one stored variant's content or reasoning may hold.
+ *  Every canon writer refuses a longer text with {@link MESSAGE_TOO_LONG_OP_CODE} and never truncates it.
+ *
+ *  @remarks Sized from the owner's library of 101,434 variants: the largest content is 264,216 characters, the
+ *  99.9th percentile 15,071, the median 2,298, the largest AI reply 66,889 and the largest reasoning 20,517. Every
+ *  row over 50,000 is a user message in an imported SillyTavern chat. A real row over the cap moves this number;
+ *  it never shortens the row. */
+export const MESSAGE_TEXT_MAX_CHARS = 4_000_000;
+
+/** The `DomainOperationError.code` a canon write refuses an over-{@link MESSAGE_TEXT_MAX_CHARS} text with; the
+ *  server's `CHAT_OP_CODES.messageTooLong` derives this literal. */
+export const MESSAGE_TOO_LONG_OP_CODE = "message_too_long" as const;
+
+/** The `DomainOperationError.code` a send or commit refuses with when the macro pass over its draft exceeds the
+ *  macro engine's byte budget, which would otherwise render the typed text as empty; the server's
+ *  `CHAT_OP_CODES.messageMacroBudget` derives this literal. */
+export const MESSAGE_MACRO_BUDGET_OP_CODE = "message_macro_budget" as const;
+
 /** The PER-WIRE opaque provenance a `reasoning` part carries so the next leg of a tool loop — or a
  *  `carryReasoning: "conversation"` replay of a prior turn (§8.8) — can hand the model back its own verified
  *  thinking. CLOSED by wire, never an open bag: each arm is exactly what that provider's SDK reads off a

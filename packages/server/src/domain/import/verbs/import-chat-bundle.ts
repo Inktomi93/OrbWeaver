@@ -56,6 +56,7 @@ import type { ImportContext, ImportProfileDeps, ImportService } from "../contrac
 import { requireProfile } from "../guard.ts";
 import { findImportedCharacter } from "../substrate/card.ts";
 import { carriedHandle, resolveSeat } from "../substrate/handle.ts";
+import { skippedChatRowsOf } from "../substrate/report.ts";
 
 /** The seats a bundle could re-link against, in preference order: its own seat list, then the directory it
  *  sat in, each with the identity of the card exported beside it when the bundle carries one. */
@@ -513,6 +514,9 @@ async function writeBundle(args: {
     // silently declaring success while leaving every carried overlay dark.
     return { ok: false, error: "chat import resolved no canonical identity for the bundle" };
   }
-  const skippedOverlays = await restoreOverlays({ profile, ownerId: ctx.ownerId, bundle, remap, characterIds });
+  const skippedOverlays = [
+    ...skippedChatRowsOf(result.refusedRows).map((row) => row.reason),
+    ...(await restoreOverlays({ profile, ownerId: ctx.ownerId, bundle, remap, characterIds })),
+  ];
   return { ok: true, created: result.chatsImported > 0, title: await titleOf(remap.chatId), skippedOverlays, memoryChatIds: result.realConversationsWritten };
 }

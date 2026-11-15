@@ -29,6 +29,7 @@ import type {
   ImportAmbiguousSpeakerName,
   ImportGroupsResult,
   ImportSeatedDisabledMember,
+  ImportSkippedCard,
   ImportSkippedGroup,
   ImportSkippedGroupMember,
   ImportUnresolvedPinnedPersona,
@@ -38,6 +39,7 @@ import { requireProfile } from "../guard.ts";
 import { buildGroupChatInput, disambiguateChatTitles, unresolvedPinnedPersonas } from "../substrate/chat-input.ts";
 import type { GroupRefusal } from "../substrate/group.ts";
 import { groupRefusal, resolveMembers } from "../substrate/group.ts";
+import { skippedChatRowsOf } from "../substrate/report.ts";
 
 /** The room-behavior blob an imported ST group is born with. Only what ST actually states travels: its
  *  `generation_mode` (append ⇒ the whole cast in one narrated message) and `allow_self_responses`. Everything
@@ -145,6 +147,7 @@ interface GroupWrite {
   readonly chatsReused: number;
   readonly memoryChatIds: readonly ChatId[];
   readonly chatsPersonaHealed: number;
+  readonly skippedChatRows: readonly ImportSkippedCard[];
 }
 
 type GroupOutcome = ({ readonly ok: true } & GroupWrite) | { readonly ok: false; readonly reason: string };
@@ -155,7 +158,7 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
     // Proven non-empty by `refusalFor` before this runs; the fallback keeps the read total.
     const primary = seated[0];
     if (primary === undefined) {
-      return { chatsImported: 0, chatsReused: 0, memoryChatIds: [], chatsPersonaHealed: 0 };
+      return { chatsImported: 0, chatsReused: 0, memoryChatIds: [], chatsPersonaHealed: 0, skippedChatRows: [] };
     }
     const characterIds = seated.slice(1).map((s) => s.characterId);
     const metadata = metadataFor(group);
@@ -185,6 +188,7 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
       chatsReused: counts.chatsSkipped,
       memoryChatIds: counts.realConversationsWritten,
       chatsPersonaHealed: counts.chatsPersonaHealed,
+      skippedChatRows: skippedChatRowsOf(counts.refusedRows),
     };
   }
 
@@ -221,6 +225,7 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
     // facts about the ST snapshot, not about whether this room happened to import.
     const ambiguousSpeakerNames: ImportAmbiguousSpeakerName[] = [];
     const seatedDisabledMembers: ImportSeatedDisabledMember[] = [];
+    const skippedChatRows: ImportSkippedCard[] = [];
 
     const seatings = input.profiles.flatMap((scope) => scope.groups.map((entry) => ({ group: entry, cards: scope })));
     for (const { group, cards } of seatings) {
@@ -245,6 +250,7 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
       groupChatsReused += outcome.chatsReused;
       memoryChatIds.push(...outcome.memoryChatIds);
       chatsPersonaHealed += outcome.chatsPersonaHealed;
+      skippedChatRows.push(...outcome.skippedChatRows);
     }
 
     return {
@@ -259,6 +265,7 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
       chatsPersonaHealed,
       ambiguousSpeakerNames,
       seatedDisabledMembers,
+      skippedChatRows,
     };
   }
   return { importGroupChats };
