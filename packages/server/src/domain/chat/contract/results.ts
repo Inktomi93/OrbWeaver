@@ -4,10 +4,12 @@ import type {
   AssemblySectionRow,
   AssemblySource,
   ChatContentPart,
+  ChatRegexNotAppliedWarning,
   CueRole,
   GroupConfig,
   ParticipantData,
   ReactAsCharacterResult,
+  RegexServerPass,
   SpeakerRef,
   TextSignature,
   TokenProvenance,
@@ -33,6 +35,7 @@ import type {
   TokenDetails,
 } from "@orb/contracts/inference";
 import type { EffortLevel, PromptSectionId, ReasoningTagPair, UserIntent } from "@orb/contracts/preset";
+import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type {
   ChatHistoryMessage,
@@ -48,6 +51,7 @@ import type {
 import type { AssetId, CharacterId, ChatId, ChatTurnId, ConsentingHostId, MessageId, ModelId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
+import type { RegexScriptInput } from "@orb/kit/regex";
 import type { MemoryConfig, MemoryRecallInputs } from "./memory.ts";
 import type { ReactAsCharacterParams } from "./params.ts";
 import type { ChatDetailData } from "./views.ts";
@@ -338,6 +342,23 @@ export interface InlineReplyImageProjection {
   readonly offsets: readonly number[];
 }
 
+/** One host script a pass did not apply, as the host-only `regex_script_not_applied` warning carries it. */
+export type RegexNotice = Omit<ChatRegexNotAppliedWarning, "code">;
+
+/**
+ * A turn's (or one edit's) record of the host scripts its passes did not apply (D53). Each script and cause is
+ * recorded once for the episode's life, however many rows, entries or speakers report it; the pass is where it was
+ * first seen. A turn's round shares one episode across its speakers. A preview build carries none, so it records
+ * nothing.
+ */
+export interface RegexNoticeEpisode {
+  /** Record one `onScriptFailure`. `scripts` is the list the pass was given: the script is named by finding its
+   *  stored row in that list by identity, never by its pattern. */
+  readonly note: (pass: RegexServerPass, err: unknown, script: RegexScriptInput, scripts: readonly RegexScriptRow[]) => void;
+  /** The notices recorded since the last take, in the order they were first seen. */
+  readonly take: () => readonly RegexNotice[];
+}
+
 /**
  * The immutable per-turn context (RESOLVE+GATHER produce it; BUILD+SHAPE take it + a speaker and return a
  * prompt, never mutating it). A per-speaker round re-derives SHAPE off this immutable prep — no shared-ctx
@@ -377,6 +398,10 @@ export interface TurnPrep {
    *  recall (merged/narrator/solo, memory off, or an empty roster) ⇒ the round-level `assembleContext.memory` stands
    *  byte-identically. Shared across the round's speakers (the recent-window + name-map are speaker-invariant). */
   readonly memoryRecall?: MemoryRecallInputs | null | undefined;
+  /** The round's record of host regex scripts its passes did not apply, shared across its speakers like
+   *  `memoryRecall`: USER_INPUT and WORLD_INFO recorded at the gather, the reply and history legs at each speaker's
+   *  pipeline. The engine drains it into host-only warnings. Absent ⇒ nothing to tell. */
+  readonly regexNotices?: RegexNoticeEpisode | undefined;
   /** The per-turn user-macro RENDER registry (WAVE MU delivery) — handler CLOSURES capturing this turn's
    *  resolved input bindings, so it is SERVER-ONLY and rides HERE, NEVER on the serializable
    *  `assembleContext` (a client-imported contract shape). Absent ⇒ the preset authored no user macros ⇒

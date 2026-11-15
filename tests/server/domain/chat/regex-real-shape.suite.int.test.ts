@@ -9,8 +9,10 @@
 // @subject packages/server/src/domain/chat/assembly/history-regex.ts
 // @subject packages/server/src/domain/chat/engine/pipeline.ts
 // @subject packages/server/src/domain/chat/verbs/edit.ts
+// @subject packages/server/src/domain/chat/substrate/regex-notice-episode.ts
 
 import process from "node:process";
+import { REGEX_SCRIPT_NOT_APPLIED_CODE } from "@orb/contracts/chat";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG, THINK_PREFIX_DEFAULT, THINK_SUFFIX_DEFAULT } from "@orb/contracts/preset";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
@@ -261,20 +263,30 @@ interface Outcome {
   readonly keptProse: boolean;
   readonly blockLeft: boolean;
   readonly notApplied: readonly unknown[];
+  /** The room's durable record of scripts named to the host as not applied. */
+  readonly roomWarnings: readonly unknown[];
 }
 
-// Every script ran: the prose is there, each script's block is gone, and none was reported as stopped or skipped.
-const WHOLE: Outcome = { keptProse: true, blockLeft: false, notApplied: [] };
+// Every script ran: the prose is there, each script's block is gone, and none was reported as stopped or skipped,
+// in the log or to the room.
+const WHOLE: Outcome = { keptProse: true, blockLeft: false, notApplied: [], roomWarnings: [] };
 
-function outcomeOf(room: Room, out: string, salt: string): Outcome {
-  return { keptProse: out.includes(PROSE), blockLeft: out.includes(`<${salt}`) || out.includes(`[${salt}`), notApplied: room.notApplied() };
+// A turn drains its warnings before it commits, and an edit before it returns, so the leg's result is past them.
+async function outcomeOf(room: Room, out: string, salt: string): Promise<Outcome> {
+  const replay = await room.h.root.services.chat.replayChatEvents({ principal: room.h.owner, chatId: room.h.chatId });
+  return {
+    keptProse: out.includes(PROSE),
+    blockLeft: out.includes(`<${salt}`) || out.includes(`[${salt}`),
+    notApplied: room.notApplied(),
+    roomWarnings: replay.flatMap(({ event }) => (event.type === "warning" && event.code === REGEX_SCRIPT_NOT_APPLIED_CODE ? [event] : [])),
+  };
 }
 
 test.for(LEGS)("$placement: the real-shaped set runs whole, cold and warm", { tags: ["slow"] }, async (leg) => {
   await using room = await leg.open(leg.salt);
 
-  const cold = outcomeOf(room, await leg.run(room, leg.salt), leg.salt);
-  const warm = outcomeOf(room, await leg.run(room, leg.salt), leg.salt);
+  const cold = await outcomeOf(room, await leg.run(room, leg.salt), leg.salt);
+  const warm = await outcomeOf(room, await leg.run(room, leg.salt), leg.salt);
 
   expect([cold, warm]).toEqual([WHOLE, WHOLE]);
 });
@@ -286,7 +298,7 @@ test("PROMPT_HISTORY: every one of the rows reaches the leg", { tags: ["slow"] }
 
   expect(prompt).toContain("Row 0. ");
   expect(prompt).toContain(`Row ${String(HISTORY_ROWS - 1)}. `);
-  expect(outcomeOf(room, prompt, "pr")).toEqual(WHOLE);
+  expect(await outcomeOf(room, prompt, "pr")).toEqual(WHOLE);
 });
 
 test("the edit re-apply: the real-shaped set runs whole, cold and warm", { tags: ["slow"] }, async () => {
@@ -298,7 +310,7 @@ test("the edit re-apply: the real-shaped set runs whole, cold and warm", { tags:
   }
 
   const edit = async (): Promise<Outcome> =>
-    outcomeOf(
+    await outcomeOf(
       room,
       (await room.h.root.services.chat.editMessage({ principal: room.h.owner, chatId: room.h.chatId, messageId: slot.id, content: longText(salt) })).content,
       salt,

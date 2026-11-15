@@ -36,6 +36,7 @@ import {
   DEFAULT_MESSAGE_KIND,
   HIDDEN_TAG_BROKEN_CODE,
   INLINE_REPLY_ORIGIN,
+  REGEX_SCRIPT_NOT_APPLIED_CODE,
   VARIANT_METADATA_REASONING_MS_KEY,
 } from "@orb/contracts/chat";
 import type { NormalizedFinishReason, ProviderId } from "@orb/contracts/inference";
@@ -1649,6 +1650,15 @@ async function emitRetrievalWarningsOnce(deps: EngineDeps, chatId: ChatId, episo
   }
 }
 
+/** Tell the host which of their regex scripts this round's passes did not apply, each script and cause once; a
+ *  later speaker of the same round adds only what is new. Drained before the turn's terminal, so the warning lands
+ *  with the turn it belongs to. Host-only on every delivery path (`stripChatEventForMember`). */
+async function emitRegexNotices(deps: EngineDeps, prep: TurnPrep): Promise<void> {
+  for (const notice of prep.regexNotices?.take() ?? []) {
+    await deps.emit({ type: "warning", chatId: prep.chatId, code: REGEX_SCRIPT_NOT_APPLIED_CODE, ...notice });
+  }
+}
+
 /** What the PRE-START half resolved: the loaded write target (null for a new slot). */
 interface PreStartResolution {
   readonly target: NonNullable<Awaited<ReturnType<typeof loadSlotTarget>>> | null;
@@ -1682,6 +1692,8 @@ async function runPreStart(ctx: EngineContext, prep: TurnPrep, persist: TurnPers
  *  Depth rides `TurnPrep.automationDepth` so an automation-initiated refusal is a depth ≥ 1 `turnAborted`
  *  fact and the cascade guard suppresses non-opted retry rules exactly as it does for a real abort. */
 async function closePreStartRefusal(deps: EngineDeps, prep: TurnPrep): Promise<void> {
+  // A send's USER_INPUT pass ran before this refusal, and its row is already canon.
+  await emitRegexNotices(deps, prep);
   if (prep.acceptedTurnId === undefined) {
     return;
   }
@@ -1791,6 +1803,7 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
       now: ctx.now,
       random: ctx.prng,
       openRegexPass: ctx.openRegexPass,
+      regexNotices: prep.regexNotices,
       resolveImageUrl: (ref): Promise<ResolvedMediaRef | null> =>
         ctx.resolveImageUrl({ chatId: prep.chatId, ref, quality: prep.attachmentQuality, signal: prep.signal }),
       loadContentSignatures: (): Promise<ReadonlyMap<MessageId, ContentSignatures>> => loadCanonContentSignatures(ctx.db, prep.chatId),
@@ -1858,6 +1871,7 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
     await deltaTail;
     const genFinishedAt = ctx.now();
     await emitCapabilityDropWarnings(deps.emit, prep.chatId, result);
+    await emitRegexNotices(deps, prep);
     await emitTrimmedNoSummary(deps, prep.chatId, pre, result);
     // §6.7 — the model's own pictures become canon HERE: stored under the host, spliced into the body as
     // `![alt](asset:<id>)` spans, and handed to the commit as the ids it must link `inline-reply`. It runs
@@ -2011,6 +2025,8 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
     // those are awaited/injected and can themselves fail, and the row explaining WHY the turn died must not
     // be hostage to them. Itself throw-safe (see `captureTurnFault`).
     captureTurnFault(ctx, prep, failure, reason);
+    // The passes that ran before the abort still skipped what they skipped, and the user row may already be canon.
+    await emitRegexNotices(deps, prep);
     // Carry the aborting turn's OWN cascade depth: an aborted turn commits no reply
     // slot, so the automation fact-resolver cannot read this back through `getTurnOrigin` — it must ride the
     // event. A depth ≥ 1 abort (this turn was itself automation-initiated) makes the `turnAborted` fact depth

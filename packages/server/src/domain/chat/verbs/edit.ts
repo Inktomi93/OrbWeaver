@@ -36,7 +36,7 @@
 // the host's own payload. Strip the return; emit the truth.
 
 import type { ClaimChatOp, HostTierRegexAllow, MessageView, ReattributeScope, RoomClaim } from "@orb/contracts/chat";
-import { isReattributableReply, isSeededGreetingRow, macroFreezeRecordSchema, parseVariantMetadata } from "@orb/contracts/chat";
+import { isReattributableReply, isSeededGreetingRow, macroFreezeRecordSchema, parseVariantMetadata, REGEX_SCRIPT_NOT_APPLIED_CODE } from "@orb/contracts/chat";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
 import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
 import type { StatsDelta } from "@orb/contracts/stats";
@@ -73,6 +73,7 @@ import type {
   SetMessageHiddenParams,
   SetSeededGreetingParams,
 } from "../contract/params.ts";
+import type { RegexNoticeEpisode } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireAuthorOrHost, requireHost, requireParticipant } from "../guard.ts";
 import {
@@ -124,6 +125,7 @@ import { ownedCitedAssetIds } from "../substrate/owned-citations.ts";
 import { classifyParticipant } from "../substrate/participant-actor.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { hostConsentOf, humanSeatPersonasOf } from "../substrate/participants-humans.ts";
+import { createRegexNoticeEpisode } from "../substrate/regex-notice-episode.ts";
 import { regexAllowOf, resolveHostTierRegexScripts } from "../substrate/regex-tier.ts";
 import { foldChain } from "../substrate/runtime-variables.ts";
 import {
@@ -264,6 +266,8 @@ async function applyRunOnEditRegex(
     readonly regexAllow: HostTierRegexAllow;
     /** The editor's zone, for a `{{time}}` in a script's replacement. */
     readonly timeZone: IanaTimeZone | undefined;
+    /** This edit's record of host scripts the re-apply did not apply; the verb drains it after the write. */
+    readonly regexNotices: RegexNoticeEpisode;
   },
 ): Promise<string> {
   const placement = editPlacementFor(args.slot.role);
@@ -328,8 +332,10 @@ async function applyRunOnEditRegex(
     scripts,
     placement,
     ctx: buildTurnMacroContext({ assembleCtx: assembleContext, model, chatId, random: deps.prng }),
-    onScriptFailure: (err, script) =>
-      getLog(ctx.logger).warn({ err, placement, findRegex: script.findRegex }, "chat: host-tier regex script failed on an edit re-apply (D53 watchdog)"),
+    onScriptFailure: (err, script): void => {
+      getLog(ctx.logger).warn({ err, placement, findRegex: script.findRegex }, "chat: host-tier regex script failed on an edit re-apply (D53 watchdog)");
+      args.regexNotices.note("edit_reapply", err, script, scripts);
+    },
   });
 }
 
@@ -594,6 +600,7 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ClaimingVerb<"edit
     const participants = await loadParticipants(ctx.db, chatId);
     const hostUserId = hostUserIdOf(participants);
     const purified = await purifyEditedContent(ctx, { hostUserId, slot, content });
+    const regexNotices = createRegexNoticeEpisode();
     const clean = await applyRunOnEditRegex(ctx, deps, {
       chatId,
       slot,
@@ -604,6 +611,7 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ClaimingVerb<"edit
       content: purified,
       regexAllow: regexAllowOf(membership.chat.metadata),
       timeZone,
+      regexNotices,
     });
     const now = ctx.now();
     const statsDeltas: StatsDelta[] = [];
@@ -641,6 +649,10 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ClaimingVerb<"edit
     await commitRetainedCanonStats(ctx, claimed, statements, { deltas: statsDeltas, sources: [slot], contributions: [slot.contributions] });
     const view = await reloadSlot(ctx, chatId, messageId);
     await deps.emit({ type: "messageEdited", chatId, messageId, view });
+    // Host-only on every delivery path (`stripChatEventForMember`), so a member's own edit tells only the host.
+    for (const notice of regexNotices.take()) {
+      await deps.emit({ type: "warning", chatId, code: REGEX_SCRIPT_NOT_APPLIED_CODE, ...notice });
+    }
     return await projectEditReturn(ctx, view, membership);
   };
 }

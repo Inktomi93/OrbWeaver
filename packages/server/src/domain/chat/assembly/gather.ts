@@ -435,6 +435,7 @@ export async function gatherAssembleContext(
       ...(args.globalVariables !== undefined ? { globalVariables: args.globalVariables } : {}),
       injectionTokenBudget: foreign.injectionTokenBudget,
       hostTierRegexScripts,
+      regexNotices: args.regexNotices,
       model,
       generationType: args.generationType ?? "normal",
       nowMs: ctx.now(),

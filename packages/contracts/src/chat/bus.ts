@@ -214,12 +214,12 @@ export const REGEX_SCRIPT_NOT_APPLIED_CODE = "regex_script_not_applied";
  *  pass's CPU budget was spent. `substitution_too_long`: raw macro substitution added too much to the find pattern.
  *  `output_too_long`: the replacement would have grown the text past the pass's output bound. `did_not_compile`: the
  *  find pattern would not compile, or failed in a way none of the others name. */
-export const REGEX_NOT_APPLIED_CAUSES = ["row_deadline", "pass_budget", "substitution_too_long", "output_too_long", "did_not_compile"] as const;
+const REGEX_NOT_APPLIED_CAUSES = ["row_deadline", "pass_budget", "substitution_too_long", "output_too_long", "did_not_compile"] as const;
 export type RegexNotAppliedCause = (typeof REGEX_NOT_APPLIED_CAUSES)[number];
 
 /** The server pass a script was skipped on: the four persist-time legs, the prompt-history leg, and the re-apply an
  *  edit runs. */
-export const REGEX_SERVER_PASSES = ["user_input", "ai_output", "reasoning", "world_info", "prompt_history", "edit_reapply"] as const;
+const REGEX_SERVER_PASSES = ["user_input", "ai_output", "reasoning", "world_info", "prompt_history", "edit_reapply"] as const;
 export type RegexServerPass = (typeof REGEX_SERVER_PASSES)[number];
 
 export const CHAT_WARNING_CODES = [...PLAIN_CHAT_WARNING_CODES, SETTINGS_ADJUSTED_CODE, REGEX_SCRIPT_NOT_APPLIED_CODE] as const;
