@@ -35,7 +35,7 @@ export function ModalTitle(props: ModalTitleProps): ReactElement {
   return (
     // A modal's title can sit at the window's top edge, where a text-height control's centred hit band would run off screen; so the cut
     // title's control stands at the touch floor's block size on a coarse pointer.
-    <TitleReveal control={<InlineAction className="min-inline-0" grow={true} step="label" touchFloor="block" type="button" />} whole={props.title}>
+    <TitleReveal control={<InlineAction minWidth="shrinks" grow={true} step="label" touchFloor="block" type="button" />} whole={props.title}>
       <TitleWords {...props} />
     </TitleReveal>
   );
