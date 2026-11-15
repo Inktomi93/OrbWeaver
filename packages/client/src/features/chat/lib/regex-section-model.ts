@@ -174,6 +174,8 @@ const REGEX_SCRIPT_ENABLED_SETTING = "Enabled everywhere";
 const REGEX_TIER_ALLOW_SETTING = "Allow scripts from";
 /** The room's master switch, its visible label and its accessible name. */
 export const REGEX_MASTER_SETTING = "Run regex in this chat";
+/** The host's sharing switch under the On screen roster, its visible label and its accessible name. */
+export const REGEX_SHARE_DISPLAY_SETTING = "Share this room's display scripts with everyone";
 
 /** The mark a switched-off script's row carries, in the tier groups and the On screen roster. */
 export const REGEX_OFF_MARK = "Off";

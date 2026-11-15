@@ -4,7 +4,7 @@
 // THE SERVER RESOLVES IT; THE CLIENT NEVER RE-UNIONS IT. A display script runs where it is attached: the room's
 // tiers (global, preset, each seat, the room) resolved under the host exactly as the turn resolves its prompt side,
 // then the viewer's own globals last, so a viewer can always counter-style what the room draws. A non-host member
-// receives the room's tiers only while the host shares them (`chat.setHostDisplayScripts`); otherwise their own
+// receives the room's tiers unless the host switches sharing off (`chat.setHostDisplayScripts`), and then their own
 // globals alone. Each entry names where it came from (`from`), which the room's `On screen` roster shows.
 //
 // RENDER-ONLY. The set never reaches the composer, an edit textarea, the wire or canon: the display pass runs on

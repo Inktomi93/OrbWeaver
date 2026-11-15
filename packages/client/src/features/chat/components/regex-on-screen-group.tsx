@@ -3,11 +3,14 @@
 //
 // THE LIST IS THE SERVER'S (`regex.listDisplayScripts`, through `#data`'s `useDisplayEntries`). A display script
 // runs where it is attached: the room's tiers under the host, then the viewer's own globals last. A member gets
-// the room's tiers only while the host shares them, so the gloss says which case this viewer is in, and each row
-// says whose script it is. The tier groups above list the same scripts for their prompt pass; this roster is the
-// one that answers "why does my screen look like this".
+// the room's tiers unless the host switches sharing off; a room whose host never touched the switch shares. The gloss
+// says which case this viewer is in, and each row says whose script it is. A member's row shows every field it is
+// sent, the pattern included: the member's browser needs the pattern to run the script, so hiding it here would hide
+// nothing. The tier groups above list the same scripts for their prompt pass; this roster is the one that answers
+// "why does my screen look like this".
 //
-// THE HOST'S SHARING SWITCH LIVES HERE (§2, §3), host-only: a member's group omits it (§8.1 permission-OMIT).
+// THE HOST'S SHARING SWITCH LIVES HERE (§2, §3), host-only: a member's group omits it (§8.1 permission-OMIT). It
+// reads on until the host switches it off.
 //
 // ONLY YOUR OWN ROWS CARRY A SWITCH. A row from the room is the host's library row for a member: you cannot flip
 // someone else's library flag, and a control that looked operable and was not is the affordance lie the sibling
@@ -108,14 +111,16 @@ export function RegexOnScreenGroup({ chatId, isHost, labels, switchedOff }: Rege
   );
 }
 
-/** What the roster is, for this viewer. A member's case turns on whether the host shares the room's scripts. */
+/** What the roster is, for this viewer, and whether the room's scripts reach the members. */
 function rosterGloss(isHost: boolean, shared: boolean): string {
   if (isHost) {
-    return "What changes your screen here, in the order it runs: the scripts attached to this room. Members see them only while you share them below.";
+    return shared
+      ? "What changes your screen here, in the order it runs: the scripts attached to this room. Everyone in the room sees them too, with their patterns, unless you switch sharing off below."
+      : "What changes your screen here, in the order it runs: the scripts attached to this room. Sharing is off, so they change only your screen.";
   }
   return shared
     ? "What changes your screen here, in the order it runs: the host's scripts for this room, then your own Everywhere scripts."
-    : "What changes your screen here: your own Everywhere scripts. The host isn't sharing this room's scripts.";
+    : "What changes your screen here: your own Everywhere scripts. The host switched off sharing this room's scripts.";
 }
 
 /** The tier names, with each character tier the entries carry named from the roster by its own seat id. */

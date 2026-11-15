@@ -2,7 +2,8 @@
 // @subject packages/client/src/data/use-display-scripts.ts
 // The room's On screen roster, through the context tab's Regex section over the composed corpus server. Each case
 // names the defect it catches: a display script listed where it is not attached, a member shown the host's scripts
-// the host is not sharing, the room's scripts not running before the viewer's own, a script the room's tier lever or
+// after the host switched sharing off, a room that never touched sharing not sharing, the host's switch reading off
+// in that room or not stopping it, the room's scripts not running before the viewer's own, a script the room's tier lever or
 // master holds off missing from the roster or not saying which switch holds it, and a row whose source words are cut
 // off by its pattern.
 import type { RegexTierKey } from "@orb/contracts/chat";
@@ -14,7 +15,13 @@ import { routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
-import { REGEX_OFF_MARK, regexRosterOffReason, regexTierKicker, regexTierLever } from "#client/features/chat/lib/regex-section-model.ts";
+import {
+  REGEX_OFF_MARK,
+  REGEX_SHARE_DISPLAY_SETTING,
+  regexRosterOffReason,
+  regexTierKicker,
+  regexTierLever,
+} from "#client/features/chat/lib/regex-section-model.ts";
 import type { ChatContextTabStory } from "./_chat-forks-stories.tsx";
 
 const TAB_STORY = "tests/client/features/chat/components/_chat-forks-stories/ChatContextTabStory";
@@ -22,6 +29,7 @@ const TAB_PROCEDURES = [
   "sessions.me",
   "settings.getUserSettings",
   "chat.getChat",
+  "chat.setHostDisplayScripts",
   "chat.listForks",
   "chat.listChatInjections",
   "databank.listActiveForChat",
@@ -114,11 +122,12 @@ test("the host's roster lists a display script attached to the room and not one 
   await expect.poll(() => rosterTitles(page)).toEqual(served);
 });
 
-test("a member whose host is not sharing sees only their own Everywhere scripts", async ({ corpus, mount, page, corpusMedia }) => {
+test("a member whose host switched sharing off sees only their own Everywhere scripts", async ({ corpus, mount, page, corpusMedia }) => {
   await using root = await createCorpusHarness();
   const { chatId, host, viewer } = await memberRoom(root, corpus.memberIdentities);
   const hostTint = await host.regex.createScript({ input: displayScript("Host tint") });
   await host.regex.attachToChat({ chatId, scriptId: hostTint.id });
+  await host.chat.setHostDisplayScripts({ chatId, enabled: false });
   const own = await viewer.regex.createScript({ input: displayScript("My tint") });
   await viewer.regex.attachGlobal({ scriptId: own.id });
   await corpusMedia();
@@ -132,12 +141,16 @@ test("a member whose host is not sharing sees only their own Everywhere scripts"
   expect(await rosterTitles(page)).not.toContain(hostTint.name);
 });
 
-test("a member whose host shares sees the room's scripts first, and only their own row carries a switch", async ({ corpus, mount, page, corpusMedia }) => {
+test("a member whose host never touched sharing sees the room's scripts first, and only their own row carries a switch", async ({
+  corpus,
+  mount,
+  page,
+  corpusMedia,
+}) => {
   await using root = await createCorpusHarness();
   const { chatId, host, viewer } = await memberRoom(root, corpus.memberIdentities);
   const hostTint = await host.regex.createScript({ input: displayScript("Host tint") });
   await host.regex.attachToChat({ chatId, scriptId: hostTint.id });
-  await host.chat.setHostDisplayScripts({ chatId, enabled: true });
   const own = await viewer.regex.createScript({ input: displayScript("My tint") });
   await viewer.regex.attachGlobal({ scriptId: own.id });
   await corpusMedia();
@@ -150,6 +163,32 @@ test("a member whose host shares sees the room's scripts first, and only their o
   await expect.poll(() => rosterTitles(page)).toEqual(titles);
   await expect(rosterRow(page, own.name).getByRole("switch")).toHaveCount(1);
   await expect(rosterRow(page, hostTint.name).getByRole("switch")).toHaveCount(0);
+});
+
+test("the host's sharing switch reads on in a room that never touched it, and switching it off takes the room's scripts off a member's screen", async ({
+  corpus,
+  mount,
+  page,
+  corpusMedia,
+}) => {
+  await using root = await createCorpusHarness();
+  const { chatId, host, viewer } = await memberRoom(root, corpus.memberIdentities);
+  const hostTint = await host.regex.createScript({ input: displayScript("Host tint") });
+  await host.regex.attachToChat({ chatId, scriptId: hostTint.id });
+  const memberSees = async (): Promise<readonly string[]> => (await viewer.regex.listDisplayScripts({ chatId })).map((entry) => entry.script.id);
+  // The positive control: the untouched room shares, so the member's read carries the host's script.
+  expect(await memberSees()).toContain(hostTint.id);
+  await corpusMedia();
+  await mount<typeof ChatContextTabStory>(TAB_STORY, await serveAs(root, page, host, chatId));
+  await page.getByRole("button", { name: /^Regex/u }).click();
+
+  const share = page.getByRole("switch", { name: REGEX_SHARE_DISPLAY_SETTING, exact: true });
+  await expect(share).toBeChecked();
+  // The switch reads back through the room's bus event, which this mount has no socket for, so the case reads the
+  // stored flag and the member's read instead of the redrawn switch.
+  await share.click();
+  await expect.poll(async () => (await host.chat.getChat({ chatId })).hostDisplayScripts).toBe(false);
+  expect(await memberSees()).not.toContain(hostTint.id);
 });
 
 for (const { label, lever, off } of [
