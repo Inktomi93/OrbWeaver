@@ -9,7 +9,7 @@
 //     branded ids, enum literals, plain scalars, and `MessageView` — credentials/secrets/baseUrls are
 //     TYPE-LEVEL UNREPRESENTABLE (no member declares a field to carry one).
 
-import type { CharacterId, ChatId, ChatTurnId, MessageId, MessageVariantId, PersonaId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatTurnId, MessageId, MessageVariantId, PersonaId, RegexScriptId, WorldEntryId } from "@orb/kit/ids";
 import type { ChatApi, EffortLevel, ProviderId } from "#inference";
 import type { WiBusEvent } from "#world-info";
 import { WARNING_CODE } from "../inference/warnings.ts";
@@ -203,7 +203,26 @@ export type PlainChatWarningCode = (typeof PLAIN_CHAT_WARNING_CODES)[number];
  *  thing that differs is DATA (which knob, which value), not copy structure. The detail rides
  *  `adjustment` (+ `knob`/`appliedBudget`/`appliedEffort`); the client renders one notice per class. */
 export const SETTINGS_ADJUSTED_CODE = "settings_adjusted";
-export const CHAT_WARNING_CODES = [...PLAIN_CHAT_WARNING_CODES, SETTINGS_ADJUSTED_CODE] as const;
+
+/** A host regex script a server pass did not apply (D53). HOST-ONLY: a script's existence and name are its owner's,
+ *  and every server leg runs the host's scripts, so `stripChatEventForMember` withholds it from a member on the live
+ *  fan, the durable replay and a late join. It names the script by id only. A script name is free text, and an
+ *  imported one is hostile, so the host's client reads it from the host's own script library. */
+export const REGEX_SCRIPT_NOT_APPLIED_CODE = "regex_script_not_applied";
+
+/** Why a pass did not apply a script. `row_deadline`: stopped at the per-text deadline. `pass_budget`: not run, the
+ *  pass's CPU budget was spent. `substitution_too_long`: raw macro substitution added too much to the find pattern.
+ *  `output_too_long`: the replacement would have grown the text past the pass's output bound. `did_not_compile`: the
+ *  find pattern would not compile, or failed in a way none of the others name. */
+export const REGEX_NOT_APPLIED_CAUSES = ["row_deadline", "pass_budget", "substitution_too_long", "output_too_long", "did_not_compile"] as const;
+export type RegexNotAppliedCause = (typeof REGEX_NOT_APPLIED_CAUSES)[number];
+
+/** The server pass a script was skipped on: the four persist-time legs, the prompt-history leg, and the re-apply an
+ *  edit runs. */
+export const REGEX_SERVER_PASSES = ["user_input", "ai_output", "reasoning", "world_info", "prompt_history", "edit_reapply"] as const;
+export type RegexServerPass = (typeof REGEX_SERVER_PASSES)[number];
+
+export const CHAT_WARNING_CODES = [...PLAIN_CHAT_WARNING_CODES, SETTINGS_ADJUSTED_CODE, REGEX_SCRIPT_NOT_APPLIED_CODE] as const;
 export type ChatWarningCode = (typeof CHAT_WARNING_CODES)[number];
 
 // The provider ran the turn in a compatibility mode: it substituted its own value where this model spells a setting
@@ -247,7 +266,16 @@ type ProviderAdjustmentKind = (typeof PROVIDER_ADJUSTMENT_KINDS)[number];
  *      clean on the D16 anchor allowlist), while `bus-payload-allowlist` refuses an unmodelled shape kind.
  *  The doubling is therefore ENFORCED rather than trusted: `index.test-d.ts` pins that the bus's `warning`
  *  members and this type are the same set, so a field added to one and not the other fails `tsc`. */
-export type ChatWarning = { code: PlainChatWarningCode } | ChatSettingsAdjustedWarning;
+export type ChatWarning = { code: PlainChatWarningCode } | ChatSettingsAdjustedWarning | ChatRegexNotAppliedWarning;
+
+/** The regex arm on its own, named for the same reason as {@link ChatSettingsAdjustedWarning}. One warning per
+ *  script and cause per turn or edit; `pass` is where it was first seen. */
+export interface ChatRegexNotAppliedWarning {
+  code: typeof REGEX_SCRIPT_NOT_APPLIED_CODE;
+  scriptId: RegexScriptId;
+  cause: RegexNotAppliedCause;
+  pass: RegexServerPass;
+}
 
 /** The detail-bearing arm on its own — a NAMED type rather than an `Extract<ChatWarning, …>` at each reader,
  *  for the same measured reason the code tuple is split: biome does not evaluate a conditional type, so a copy
@@ -590,6 +618,8 @@ export type ChatBusEvent =
       /** The reasoning effort that actually ran (`reasoning_mandatory_clamp`). */
       appliedEffort?: EffortLevel | undefined;
     }
+  // Host-only (see {@link REGEX_SCRIPT_NOT_APPLIED_CODE}): ids and enum literals, no name and no pattern text.
+  | { type: "warning"; chatId: ChatId; code: "regex_script_not_applied"; scriptId: RegexScriptId; cause: RegexNotAppliedCause; pass: RegexServerPass }
   // ── World-info ACTIVATION (which entries FIRED during this turn's assembly — distinct from the
   //    attachment changes in WiBusEvent; ST WORLD_INFO_ACTIVATED — the "what lore fired" automation hook) ──
   //    `automationDepth` is the cascade depth of the GENERATING turn (the same plain scalar `turnAborted`
