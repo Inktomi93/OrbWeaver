@@ -7,7 +7,7 @@
 import type { MessageView } from "@orb/contracts/chat";
 import { CHAT_MESSAGE_LIST_MAX_LIMIT } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, MessageId, UserId } from "@orb/kit/ids";
-import { noticeToast, routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { holdServed, noticeToast, routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
@@ -37,11 +37,6 @@ const BODY_TARGETS: CreateInput["targets"] = ["AI_OUTPUT", "USER_INPUT"];
 async function addDisplayScript(owner: Owner, { targets = BODY_TARGETS, ...script }: Script): Promise<void> {
   const created = await owner.regex.createScript({ input: { ...script, targets: [...targets], passes: ["display"] } });
   await owner.regex.attachGlobal({ scriptId: created.id });
-}
-
-/** A row the transcript counts toward depth: it would reach the model. */
-function counted(message: MessageView): boolean {
-  return message.role !== "system" && !message.excludedFromPrompt;
 }
 
 /** The newest rows the room's transcript paints on mount, newest last. */
@@ -117,8 +112,10 @@ test("a runaway display script is stopped: the row shows its own text, one notic
   await expect(page.locator('[data-slot="ghost-message-row"] [data-slot="ghost-stream-body"]')).toContainText("The room answers.");
 });
 
-// Every shape the browser's nested-quantifier refusal turned away, each a panel script a preset ships. The
-// last two stack three quantifiers, which the kit's own stack count refuses until the guards lane removes it.
+// Every shape a pattern filter once refused, each a panel script a preset ships: the browser's nested-quantifier
+// check took the first ones, the kit's stack count the last two. No shape is refused now; the Worker deadline is the guard.
+/** A banner panel whose pattern also takes the blank lines on either side of it. */
+const BANNER_FIND = String.raw`(?:\n*)?<banner>([\s\S]*?)?</banner>(?:\n*)?`;
 const REFUSED_SHAPES = [
   { shape: "+)?", findRegex: String.raw`<hp>(\d+)?</hp>`, replaceString: "HP $1", text: "<hp>42</hp>", drawn: "HP 42" },
   { shape: "+)*", findRegex: String.raw`<scene>((?:[^<]+)*)</scene>`, replaceString: "SCENE $1", text: "<scene>The docks</scene>", drawn: "SCENE The docks" },
@@ -135,13 +132,26 @@ const REFUSED_SHAPES = [
   },
   {
     shape: "three stacks: *)? *? *)?",
-    findRegex: String.raw`(?:\n*)?<banner>([\s\S]*?)?</banner>(?:\n*)?`,
+    findRegex: BANNER_FIND,
     // The pattern eats the blank lines around the panel, so its replacement puts the paragraph break back.
     replaceString: "\n\nBANNER $1",
     text: "<banner>Night falls</banner>",
     drawn: "BANNER Night falls",
   },
 ] as const;
+
+test("a script that eats the blank lines around its panel joins the paragraphs either side, as its pattern says", async ({ mount, page, corpusMedia }) => {
+  await using root = await createCorpusHarness();
+  const { chatId, characterId } = await soloRoom(root);
+  const owner = await root.internalCallerFor(root.ownerId);
+  await addDisplayScript(owner, { name: "Banner", findRegex: BANNER_FIND, replaceString: "BANNER $1" });
+  const messageId = await rewriteNewest(owner, chatId, "Before the panel.\n\n<banner>Night falls</banner>");
+  await serveRoom(page, root, owner);
+  await corpusMedia();
+  await mount<typeof StreamingReplyStory>(STORY, { chatId, speakerCharacterId: characterId, streamedText: "", streamLabel: STREAM_LABEL });
+
+  await expect(page.locator(`[data-message-id="${messageId}"]`).getByText("Before the panel.BANNER Night falls", { exact: true })).toBeVisible();
+});
 
 for (const { shape, findRegex, replaceString, text, drawn } of REFUSED_SHAPES) {
   test(`a display script shaped ${shape} draws on the settled row`, async ({ mount, page, corpusMedia }) => {
@@ -220,6 +230,31 @@ test("a settled row is held unseen until its display pass lands, and the transcr
   expect((lineBox?.y ?? Number.NaN) + (lineBox?.height ?? Number.NaN)).toBeLessThanOrEqual((portBox?.y ?? Number.NaN) + (portBox?.height ?? Number.NaN) + 1);
 });
 
+test("a settled row is held unseen while the room's display scripts are still loading, then draws once", async ({ mount, page, corpusMedia }) => {
+  await using root = await createCorpusHarness();
+  const { chatId, characterId } = await soloRoom(root);
+  const owner = await root.internalCallerFor(root.ownerId);
+  await addDisplayScript(owner, { name: "Day panel", findRegex: String.raw`<hud>([\s\S]*?)</hud>`, replaceString: "HUD $1" });
+  const messageId = await rewriteNewest(owner, chatId, "<hud>Day 3</hud>");
+  const scripts = holdServed();
+  await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
+  await routeTrpc(page, {
+    ...serveCorpusProcedures(owner, PROCEDURES),
+    ...serveCorpusProcedures(owner, ["regex.listDisplayScripts"], () => scripts),
+  });
+  await corpusMedia();
+  await mount<typeof StreamingReplyStory>(STORY, { chatId, speakerCharacterId: characterId, streamedText: "", streamLabel: STREAM_LABEL });
+
+  await scripts.requested;
+  const held = rowOf(page, messageId).locator("[data-display-pending]");
+  await expect(held).toBeAttached();
+  await expect(held).toBeHidden();
+  scripts.release();
+
+  await expect(rowOf(page, messageId).getByText("HUD Day 3", { exact: true })).toBeVisible();
+  await expect(rowOf(page, messageId).locator("[data-display-pending]")).toHaveCount(0);
+});
+
 // ── Scoping: each row's own target, author stamps, depth and the room's seats decide which scripts draw on it ──
 
 /** The marker every scoped script finds; a row a script skips still shows it. */
@@ -275,12 +310,12 @@ test("a reasoning-scoped script draws on the reasoning block and not on the repl
 test("a depth-limited script draws only within its depth", async ({ mount, page, corpusMedia }) => {
   await using root = await createCorpusHarness();
   const owner = await root.internalCallerFor(root.ownerId);
+  // The room's two newest rows are ordinary chat lines shown to the model, so their depths are 0 and 1.
   const room = await findRoom(owner, (tail) => {
-    const rows = tail.filter(counted);
-    const newest = rows.at(-1);
-    const next = rows.at(-2);
-    // The newest painted row must be the newest counted one, or depth 0 is a row this case does not rewrite.
-    return newest === undefined || next === undefined || tail.at(-1)?.id !== newest.id ? null : [newest, next];
+    const pair = tail.slice(-2);
+    const ordinary = pair.every((m) => (m.role === "user" || m.role === "assistant") && m.kind === "standard" && !m.excludedFromPrompt);
+    const [next, newest] = pair;
+    return pair.length < 2 || !ordinary || newest === undefined || next === undefined ? null : [newest, next];
   });
   const [newest, next] = room.rows;
   if (newest === undefined || next === undefined) {

@@ -99,8 +99,8 @@ export interface MessageRowProps {
    *  (D166). Absent ⇒ the ordinary variant strip. */
   readonly greeting?: GreetingBinding | undefined;
   readonly autoFixMarkdown?: boolean | undefined;
-  /** D121-E/F1: the VIEWER's own enabled DISPLAY-placement scripts, resolved ONCE by the list surface
-   *  (never per row — one query, N rows). Absent ⇒ the display leg is a no-op, exactly as before. */
+  /** The transcript's display scripts, resolved once by the list surface (one read for every row). `undefined`
+   *  while that read loads, which holds the settled row rather than drawing its raw text. */
   readonly displayScripts?: readonly RegexScriptRow[] | undefined;
   /** The room's present human seats (`roomStandingOf`), read by a display script scoped by its author's standing. */
   readonly roomStanding: RoomStanding;

@@ -5,14 +5,14 @@
 // THE ENGINE IS THE PRODUCTION ENGINE, and that is the whole point of a tester. This module calls
 // `executeRegexScripts` from `@orb/kit/regex` — the same function the display pass calls in
 // `message-render.ts` and the same one the server's save and prompt passes call — so the pattern parsing
-// (`/…/flags` vs bare, the forced `g`), the complexity cap, the macro pass on the replacement template, the
+// (`/…/flags` vs bare, the forced `g`), the length cap, the macro pass on the replacement template, the
 // `{{match}}`/`$N`/`$<name>` splice and the `trimStrings` filter are all the shipped behaviour, never a
 // lookalike re-implementation. A tester that agrees with a second engine is a tester that lies.
 //
 // WHAT THE SEAMS BUY US, without leaving that path: `applyReplace` (the seam the SERVER uses to inject its
 // node:vm watchdog) hands us the REAL compiled `RegExp` and wraps the real replacer, so the effective flags
 // and the match count are READ off the production compile rather than re-derived; `onScriptFailure` (the
-// seam the server wires to its logger) is where an invalid or over-complex pattern surfaces, with the
+// seam the server wires to its logger) is where an invalid or over-long pattern surfaces, with the
 // executor's own message.
 //
 // THE TESTER NEUTRALISES THE RUN GATES; THE PIPELINE DEBUGGER HONOURS THEM. That difference is the point of
@@ -21,10 +21,10 @@
 // the same fields), while `regex-pipeline.ts` answers "what WILL actually happen at this time" and would be
 // worthless if it ignored them. Both go through ONE engine call — `runInstrumentedRegex`, below.
 //
-// THE CLIENT/SERVER SPLIT IS REAL AND IS NOT HIDDEN (D75): the server wraps `applyReplace` in a
-// node:vm-sandboxed replace with a 50 ms watchdog; a browser has no such lever, so — exactly like the
-// display pass it shares a process with — this preview runs UNWATCHED. That is why the sample is capped:
-// the pattern is unbounded and user-authored, so the haystack it is handed is not.
+// THIS PREVIEW RUNS ON THE MAIN THREAD, UNWATCHED (D75). The server runs its passes under a node:vm deadline and
+// the transcript's display pass runs in the display-pass Worker, which the page can terminate; this panel does
+// neither. The sample cap bounds an ordinary pattern but not a catastrophic one, which can backtrack for seconds
+// on a short near-miss, so a runaway pattern typed here can freeze the tab until the panel moves to the Worker.
 
 import type { CreateRegexScriptInput } from "@orb/contracts/regex";
 import type { ProcessMacroOptions } from "@orb/kit/macro";
@@ -74,7 +74,7 @@ export interface RegexPreview {
   /** The flags the executor really compiled with (`gm` for a bare pattern; the slash form's own flags plus a
    *  forced `g`). `null` when the pattern never compiled. */
   readonly flags: string | null;
-  /** The executor's own failure message (invalid syntax, or the complexity cap), else `null`. */
+  /** The executor's own failure message (invalid syntax, the length cap, or an output bound), else `null`. */
   readonly error: string | null;
 }
 

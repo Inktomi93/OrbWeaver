@@ -21,7 +21,7 @@
 import type { RegexDisplayEntry, RegexDisplaySource, RegexTierKey } from "@orb/contracts/chat";
 import { parseCharacterRegexTierKey, REGEX_VIEWER_SOURCE } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
-import type { CharacterId, ChatId, RegexScriptId } from "@orb/kit/ids";
+import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { BookOpen, Icon } from "@orb/ui/icons";
 import { InlineToken } from "@orb/ui/inline-token";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -35,7 +35,7 @@ import { roomRosterOptions, useDisplayEntries, useInvalidation, useSuspenseQuery
 import { ROW_MORE_LEAD, regexScriptTitle, rowActionSubject, rowQualifiers, timeLib } from "#lib";
 import { openConfigTo, selectCollectionMember } from "#state";
 import { useSetRegexScriptEnabled } from "../hooks/use-chat-regex-mutations.ts";
-import { useStoppedDisplayScripts } from "../hooks/use-display-text.ts";
+import { useIsDisplayScriptStopped } from "../hooks/use-display-text.ts";
 import { REGEX_OFF_MARK, REGEX_ON_SCREEN_LIST, regexScriptEverywhereSwitchName, regexTierKicker } from "../lib/regex-section-model.ts";
 import { HostDisplayScriptsControl } from "./host-display-scripts-control.tsx";
 
@@ -65,7 +65,7 @@ export function RegexOnScreenGroup({ chatId, isHost, labels, switchedOff }: Rege
   const entries = useDisplayEntries(chatId);
   const { data: owned } = useSuspenseQuery(trpc.regex.listScripts.queryOptions());
   const { data: chat } = useSuspenseQuery(roomRosterOptions(trpc, { chatId }));
-  const stopped = new Set<RegexScriptId>(useStoppedDisplayScripts().map((script) => script.id));
+  const isStopped = useIsDisplayScriptStopped();
   const ownedIds = new Set(owned.map((script) => script.id));
   const rows: readonly RegexDisplayEntry[] = [...entries, ...switchedOff];
   const names = withSeatNames(labels, rows, chat.participants);
@@ -89,7 +89,7 @@ export function RegexOnScreenGroup({ chatId, isHost, labels, switchedOff }: Rege
                 qualifier={qualifiers[index]}
                 script={row.script}
                 source={sourceWords(row.from, isHost, names)}
-                stopped={stopped.has(row.script.id)}
+                stopped={isStopped(row.script)}
               />
             </Stack>
           ))}

@@ -25,9 +25,9 @@ import {
   REGEX_MESSAGE_KIND_LABELS,
   REGEX_OFFERED_MESSAGE_KINDS,
   REGEX_PARTICIPANT_LABELS,
-  REGEX_STANDING_LABELS,
   REGEX_STANDING_NOTE,
   regexSelectorKey,
+  regexStandingLabel,
   withoutSelector,
   withSelector,
 } from "../lib/regex-authors.ts";
@@ -142,7 +142,7 @@ function AddMenu({
   const personas = useQuery(trpc.persona.list.queryOptions()).data ?? [];
   const fixed: readonly { readonly selector: RegexAuthorSelector; readonly name: string }[] = [
     ...PARTICIPANT_KINDS.map((participant) => ({ selector: { by: "participant", participant } as const, name: REGEX_PARTICIPANT_LABELS[participant] })),
-    ...PARTICIPANT_ROLES.map((standing) => ({ selector: { by: "standing", standing } as const, name: REGEX_STANDING_LABELS[standing] })),
+    ...PARTICIPANT_ROLES.map((standing) => ({ selector: { by: "standing", standing } as const, name: regexStandingLabel(standing) })),
     ...REGEX_OFFERED_MESSAGE_KINDS.map((kind) => ({ selector: { by: "kind", kind } as const, name: REGEX_MESSAGE_KIND_LABELS[kind] })),
   ];
   const openFixed = fixed.filter((item) => !chosen.has(regexSelectorKey(item.selector)));
@@ -186,7 +186,7 @@ function AuthorRow({ selector, onRemove }: { readonly selector: RegexAuthorSelec
     case "participant":
       return <NamedAuthorRow name={REGEX_PARTICIPANT_LABELS[selector.participant]} onRemove={onRemove} />;
     case "standing":
-      return <NamedAuthorRow name={REGEX_STANDING_LABELS[selector.standing]} onRemove={onRemove} />;
+      return <NamedAuthorRow name={regexStandingLabel(selector.standing)} onRemove={onRemove} />;
     case "kind":
       return <NamedAuthorRow name={REGEX_MESSAGE_KIND_LABELS[selector.kind]} onRemove={onRemove} />;
     case "character":

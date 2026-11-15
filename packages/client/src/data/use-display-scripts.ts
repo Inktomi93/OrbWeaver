@@ -38,16 +38,17 @@ function scriptsOf(entries: readonly RegexDisplayEntry[]): readonly RegexScriptR
 }
 
 /**
- * The scripts a transcript renders through, in run order. Pass `null` for a surface outside any room (a
+ * The scripts a transcript renders through, in run order, or `undefined` while the read is still loading, which a
+ * settled row holds on rather than drawing its raw markup first. Pass `null` for a surface outside any room (a
  * draft-greeting preview), which reads the viewer's own globals.
  *
- * A read that has not landed, or that failed, renders through nothing: the display pass is optional, and the
- * stored text is what shows. The roster below is the surface that reports the failure.
+ * A read that failed renders through nothing: the display pass is optional, and the stored text is what shows. The
+ * roster below is the surface that reports the failure.
  */
-export function useDisplayScripts(chatId: ChatId | null): readonly RegexScriptRow[] {
+export function useDisplayScripts(chatId: ChatId | null): readonly RegexScriptRow[] | undefined {
   const trpc = useTRPC();
-  const { data } = useQuery({ ...displayScriptQuery(trpc, chatId), placeholderData: NO_ENTRIES, select: scriptsOf });
-  return data ?? NO_ENTRIES;
+  const { data, isError } = useQuery({ ...displayScriptQuery(trpc, chatId), select: scriptsOf });
+  return isError ? NO_ENTRIES : data;
 }
 
 /** The same set with each script's source, for the room's `On screen` roster. It suspends, and a refused read (a

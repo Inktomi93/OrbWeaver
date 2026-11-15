@@ -53,6 +53,29 @@ export function importPreviewProfileLabel(profile: string): string {
   return `Profile ${profile}`;
 }
 
+/** What a run does with one of a preset's own regex scripts: add it, reuse the owner's copy, or reuse the copy an
+ *  earlier preset of the same import adds. */
+export const IMPORT_PREVIEW_SCRIPT_VERDICTS = {
+  added: "new",
+  inLibrary: "already in your library",
+  repeat: "added by an earlier preset here",
+} as const;
+
+/** A preset's names-panel line for its own regex scripts, each already carrying its verdict. */
+export function importPreviewPresetScriptsLine(preset: string, scripts: readonly string[]): string {
+  return `${preset}, regex scripts: ${scripts.join(", ")}`;
+}
+
+/** One script on that line, with its verdict. */
+export function importPreviewScriptEntry(name: string, verdict: string): string {
+  return `${name} (${verdict})`;
+}
+
+/** A preset's names-panel line for the fields the run does not keep, each with why. */
+export function importPreviewPresetLeftOutLine(preset: string, fields: readonly { readonly field: string; readonly reason: string }[]): string {
+  return `${preset}, left out: ${fields.map(({ field, reason }) => `${field} (${reason})`).join("; ")}`;
+}
+
 /** The count line's note for entries of a folder sent in several uploads that could not be checked against the other
  *  uploads: some may already be there, or be counted twice. */
 export function importPreviewUncomparedNote(count: number): string {
