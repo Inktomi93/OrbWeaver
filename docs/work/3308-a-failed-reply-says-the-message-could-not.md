@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-15
 priority: P1
 area: chat
+lane: wt/agent-a7694db56bfbc1d14
 ---
 
 # A failed reply says the message could not be sent while the message is already in the room

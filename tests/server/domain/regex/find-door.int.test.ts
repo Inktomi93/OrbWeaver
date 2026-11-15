@@ -9,7 +9,7 @@ import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { deriveRegexTierFlags, MAX_FIND_REGEX_LENGTH } from "@orb/kit/regex";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
-import { FIND_COMPILE_LIMIT_MS } from "#server/primitives/regex/index.ts";
+import { FIND_COMPILE_LIMIT_MS } from "#server/primitives/regex/compile-probe.ts";
 
 const PLACEMENT = ["AI_OUTPUT"] as const;
 const UNIT = "(a|b)";

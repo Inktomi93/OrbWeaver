@@ -19,7 +19,7 @@ import { COMMAND_MODAL_TITLE, COMMAND_PALETTE_NAME } from "#client/features/chat
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import { BAND_NEW_LABEL } from "#client/lib/list-band-names.ts";
 import type { AppShellModalStory, AppShellNestedScopeStory, AppShellStory } from "./_app-shell-stories.tsx";
-import { expectLandscapeRegime, routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
+import { dialogTitleWords, expectLandscapeRegime, routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const MODAL_STORY = `${SHELL_STORIES}/AppShellModalStory`;
@@ -129,8 +129,9 @@ const FIELD_IN_VIEW_RATIO = 0.98;
 async function expectTitleCloseAndFieldOnScreen(dialog: Locator, title: string): Promise<void> {
   const heading = dialog.getByRole("heading", { name: title, exact: true });
   await expect(heading).toBeInViewport({ ratio: 1 });
-  await expect(heading).toHaveCSS("white-space", "nowrap");
-  await expect(heading).toHaveCSS("text-overflow", "ellipsis");
+  const words = dialogTitleWords(dialog, title);
+  await expect(words).toHaveCSS("white-space", "nowrap");
+  await expect(words).toHaveCSS("text-overflow", "ellipsis");
   await expect.poll(() => dialog.getByRole("button", { name: DIALOG_VERBS.close, exact: true }).evaluate(takesPressAtCentre)).toBe(true);
   // A centred popup lands on a half pixel, which the viewport test rounds against the field.
   await expect(dialog.getByRole("combobox")).toBeInViewport({ ratio: FIELD_IN_VIEW_RATIO });
@@ -488,8 +489,9 @@ test.describe("on the corpus owner's own settings", () => {
       await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId: "command" });
       const heading = page.getByRole("dialog").getByRole("heading", { name: COMMAND_MODAL_TITLE, exact: true });
       await expect(heading).toBeVisible();
-      await expect(heading).toHaveCSS("white-space", "normal");
-      await expect(heading).toHaveCSS("text-overflow", "clip");
+      const words = dialogTitleWords(page.getByRole("dialog"), COMMAND_MODAL_TITLE);
+      await expect(words).toHaveCSS("white-space", "normal");
+      await expect(words).toHaveCSS("text-overflow", "clip");
     });
   }
 

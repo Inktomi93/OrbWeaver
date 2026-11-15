@@ -234,7 +234,6 @@ export type {
 export {
   RPG_HAND_PATCH_PLANES,
   RPG_OP_SHAPED_PLANES,
-  RPG_PLOT_ACTS_MAX,
   rpgActorIdentityLockBase,
   rpgActorLockBase,
   rpgActorVolatileLockBase,

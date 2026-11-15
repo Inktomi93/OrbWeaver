@@ -76,7 +76,12 @@ export const PHONE = { width: 390, height: 844 } as const;
  */
 export async function expectLandscapeRegime(dialog: Locator, title: string, landscape: boolean): Promise<void> {
   await expect(dialog.locator('[data-slot="dialog-header"]')).toHaveCSS("position", landscape ? "sticky" : "static");
-  await expect(dialog.getByRole("heading", { name: title, exact: true })).toHaveCSS("text-overflow", landscape ? "ellipsis" : "clip");
+  await expect(dialogTitleWords(dialog, title)).toHaveCSS("text-overflow", landscape ? "ellipsis" : "clip");
+}
+
+/** The words of a dialog's title: the box a landscape phone cuts to one line, inside the heading that keeps the whole name. */
+export function dialogTitleWords(dialog: Locator, title: string): Locator {
+  return dialog.getByRole("heading", { name: title, exact: true }).locator('[data-slot="dialog-title-text"]');
 }
 
 const TOUCH_DRAG_STEPS = 8;
