@@ -49,6 +49,46 @@ type TextProse = HeadingProse | { prose: boolean; as: "span" };
 
 export type TextProps = TextProse & TextOwnProps & ToneInkSelection & TextCue & TextCap & TextPaint;
 
+type TextVoice = NonNullable<TextAxes["voice"]>;
+
+// WHICH VOICES READ IN LINES, and so take the prose measure as a paragraph. The body voice (no voice), `gloss`, `quiet`, `lead` and
+// `reading` are sentences; `reading` takes the prose measure, not the transcript's wider `reading` one, because the design audit judges
+// every `reading` paragraph against `--reading-measure-prose` (tooling/src/ui-audit/lib/checks-typography.ts). `label` is a sentence
+// when it is a paragraph (a roll-up line under a consent notice). Machine text (`code`, `datumMono`, `datum`) wraps at its own box:
+// a payload, a prompt or a readout set at a sentence's measure breaks its lines where the data does not. The caps, credit and display
+// voices name or state; a paragraph of one is a heading-like line, and its measure is its caller's.
+const PARAGRAPH_MEASURE = {
+  label: "prose",
+  gloss: "prose",
+  quiet: "prose",
+  lead: "prose",
+  reading: "prose",
+  code: undefined,
+  datumMono: undefined,
+  datum: undefined,
+  kicker: undefined,
+  interactiveKicker: undefined,
+  credit: undefined,
+  hero: undefined,
+  masthead: undefined,
+  focal: undefined,
+  promoted: undefined,
+  monogram: undefined,
+} as const satisfies Record<TextVoice, "prose" | undefined>;
+
+// A paragraph with no measure runs the whole row, so a prose `p` takes the prose measure unless the caller bounds it another way: a named
+// cap or width, a run that grows into the rest of a line, a truncated line, or a centre or end alignment, where a capped box would sit off
+// the axis its text is aligned to.
+function paragraphCap(as: TextElement, run: Pick<TextAxes, "cap" | "width" | "grow" | "truncate" | "textAlign" | "voice">): TextAxes["cap"] {
+  if (run.cap !== undefined || as !== "p") {
+    return run.cap;
+  }
+  const measure = run.voice === undefined ? "prose" : PARAGRAPH_MEASURE[run.voice];
+  const bounded = run.width !== undefined || run.grow !== undefined || (run.truncate !== undefined && run.truncate !== false);
+  const offStart = run.textAlign === "center" || run.textAlign === "end";
+  return bounded || offStart ? undefined : measure;
+}
+
 /**
  * Token-driven typographic scale over the body intrinsics (p/span/div) — there is no Base UI text primitive.
  *
@@ -136,7 +176,7 @@ export function Text({
           scroll,
           maxHeight,
           passThrough,
-          cap,
+          cap: paragraphCap(as, { cap, width, grow, truncate, textAlign, voice }),
           width,
           textAlign,
           inset,

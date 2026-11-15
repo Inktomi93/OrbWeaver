@@ -128,18 +128,19 @@ const PADDING_INLINE_END = {
   gutter: "pe-gutter",
 } as const;
 // The inline inset a box gives up below the `cq-28` container step (a phone-width pane), on both sides. It only ever steps down,
-// so `tight` is a member here and a full ramp is not.
+// so `tight` is a member here and a full ramp is not. Each step writes its held inset token, as the wide arms do, so a phone at
+// enlarged text keeps the width between the sides for the text.
 const PADDING_INLINE_NARROW = {
-  tight: "@max-cq-28:px-tight",
-  row: "@max-cq-28:px-row",
-  block: "@max-cq-28:px-block",
+  tight: "@max-cq-28:px-inset-tight",
+  row: "@max-cq-28:px-inset-row",
+  block: "@max-cq-28:px-inset-block",
   avatarReach: AVATAR_REACH_PADDING,
 } as const;
 // The same, on the inline-end edge alone: a box whose start edge holds what sits beside it keeps that inset at every width.
 const PADDING_INLINE_END_NARROW = {
-  tight: "@max-cq-28:pe-tight",
-  row: "@max-cq-28:pe-row",
-  block: "@max-cq-28:pe-block",
+  tight: "@max-cq-28:pe-inset-tight",
+  row: "@max-cq-28:pe-inset-row",
+  block: "@max-cq-28:pe-inset-block",
 } as const;
 // The gap a box gives up below the same step, as `paddingInlineNarrow` gives up its inset. It only steps down to none, a small atom or a
 // related-control gap, so the larger steps are no member, except `avatarReach`: a transcript chip needs a touch reach clear of its bubble,
@@ -589,6 +590,7 @@ export const gridVariants = tv({
     scrollInset: { section: "scroll-px-inset-section" },
     cap: CAP,
     width: WIDTH,
+    minWidth: { shrinks: MIN_WIDTH.shrinks },
     paddingInline: PADDING_INLINE,
     reach: REACH,
     cols: {
@@ -852,6 +854,7 @@ export const containerVariants = tv({
     cap: CAP,
     scroll: SCROLL,
     width: WIDTH,
+    minWidth: { shrinks: MIN_WIDTH.shrinks },
     centred: CENTRED,
     grow: GROW,
     height: { fill: HEIGHT.fill },

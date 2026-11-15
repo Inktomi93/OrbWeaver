@@ -184,7 +184,7 @@ interface GoalLineProps {
 /** A free-text objective with an optional `n/m` clock; done ⇒ struck through (§3.2). */
 export function GoalLine({ text, done = false, clock, onEditText }: GoalLineProps): ReactElement {
   return (
-    <Row justify="between" align="baseline" gap="block" className="min-inline-0" grow={true} data-slot="goal-line">
+    <Row justify="between" align="baseline" gap="block" minWidth="shrinks" grow={true} data-slot="goal-line">
       {onEditText === undefined ? (
         <Text as="span" ink={done ? "muted" : undefined} strike={done} truncate={true} voice="label">
           {text}

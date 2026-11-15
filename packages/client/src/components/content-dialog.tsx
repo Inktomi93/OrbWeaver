@@ -91,7 +91,7 @@ export function ContentDialog<L extends string>({
             grow={true}
             {...(headerActions === undefined && titleTruncate !== true
               ? { minWidth: "word" as const }
-              : { className: "min-inline-0", floor: "title" as const })}
+              : { minWidth: "shrinks" as const, floor: "title" as const })}
           >
             {headerLeading}
             <DialogTitle {...titleProps} truncate={titleTruncate}>

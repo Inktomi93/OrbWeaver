@@ -238,7 +238,7 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
                 viewingBack={lanes.score.viewingBack}
               />
             </Stack>
-            <Stack className="min-inline-0" grow={true} gap="row">
+            <Stack minWidth="shrinks" grow={true} gap="row">
               <RewriteLane
                 behind={lanes.rewrite.behind}
                 decided={decided}

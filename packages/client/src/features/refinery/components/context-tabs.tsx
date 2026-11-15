@@ -227,7 +227,7 @@ function SetupRow({ k, v, action, onAction }: { k: string; v: string; action?: s
   return (
     <Card>
       <Row align="center" gap="row" padding="row">
-        <Stack className="min-inline-0" grow={true} gap="tight">
+        <Stack minWidth="shrinks" grow={true} gap="tight">
           <Text voice="kicker">{k}</Text>
           <Text voice="label">{v}</Text>
         </Stack>

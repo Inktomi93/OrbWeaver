@@ -195,11 +195,11 @@ function WhoHead({ state }: { readonly state: PlayingPersonaState }): ReactEleme
   const avatarSrc = current === null || current.avatarHash === null ? {} : { src: blobUrl(current.avatarHash) };
   return (
     <Stack gap="field" data-slot="persona-who-head">
-      <Row gap="row" align="center" className="min-inline-0">
+      <Row gap="row" align="center" minWidth="shrinks">
         <Avatar fallbackDelay={0} hueSeed={current?.id ?? "none"} size="md" {...avatarSrc}>
           {current === null ? <Icon icon={CircleUser} size="md" /> : initialsFor(current.name)}
         </Avatar>
-        <Stack className="min-inline-0" grow={true}>
+        <Stack minWidth="shrinks" grow={true}>
           <Text truncate={true} voice="gloss">
             {headGloss(state)}
           </Text>

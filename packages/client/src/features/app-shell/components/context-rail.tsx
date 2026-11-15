@@ -104,12 +104,13 @@ export function ContextRail({ ariaLabel, tabs, activeTab, owns, onSelect }: Cont
       data-owns={owns}
       data-overflow-start={overflow.start}
       data-overflow-end={overflow.end}
-      className="shrink-0 min-inline-0"
+      className="shrink-0"
+      minWidth="shrinks"
       divider="bottom"
       // The state rail holding the selection wears the raised fill; the receded rail wears the pane's own surface.
       ground={ownership === "owning" ? "raised" : undefined}
     >
-      <Row align="center" gap="row" className="relative min-inline-0" paddingBlockEnd="row" paddingBlockStart="field" paddingInline="row">
+      <Row align="center" gap="row" className="relative" minWidth="shrinks" paddingBlockEnd="row" paddingBlockStart="field" paddingInline="row">
         {/* Its own root, so the header strip's tab map and indicator never see a state cell. */}
         <Tabs
           value={owns ? activeTab : null}
@@ -216,7 +217,7 @@ export function ContextHeaderTabs({
   // (a plain heading, no tablist) beside the trailing controls, and the bracket's panel names the tab.
   if (tabs.length <= 1) {
     return (
-      <Row data-slot="context-tab-strip" align="center" className="min-inline-0" self="stretch" grow={true} paddingInline="block">
+      <Row data-slot="context-tab-strip" align="center" minWidth="shrinks" self="stretch" grow={true} paddingInline="block">
         <Text as="span" voice="label" data-slot="context-header-title" truncate={true}>
           {paneLabel ?? ariaLabel}
         </Text>
@@ -228,7 +229,8 @@ export function ContextHeaderTabs({
       data-slot="context-tab-strip"
       data-overflow-start={overflow.start}
       data-overflow-end={overflow.end}
-      className="relative min-inline-0"
+      className="relative"
+      minWidth="shrinks"
       self="stretch"
       grow={true}
     >

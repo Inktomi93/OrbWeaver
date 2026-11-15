@@ -46,7 +46,7 @@ export function CharacterContextBand({ characterId }: CharacterContextBandProps)
   return (
     <QueryBoundary
       fallback={
-        <Row gap="block" align="center" aria-busy={true} className="min-inline-0">
+        <Row gap="block" align="center" aria-busy={true} minWidth="shrinks">
           <Skeleton className="shrink-0" width="avatarLg" height="avatarLg" data-slot="character-context-band-pending" variant="portrait" />
           <Skeleton cap="paneSm" width="full" height="control" />
         </Row>
@@ -65,11 +65,11 @@ function CharacterContextBandBody({ characterId }: CharacterContextBandProps): R
   const { data: chats } = useQuery(trpc.chat.listChats.queryOptions({ characterId, limit: CENSUS_PAGE }));
   const tokens = totalTokenCount(characterCardFormFromDetail(detail), RESTING_GREETING);
   return (
-    <Row gap="block" align="center" data-slot="character-context-band" className="min-inline-0">
+    <Row gap="block" align="center" data-slot="character-context-band" minWidth="shrinks">
       <Avatar size="lg" alt={detail.name} hueSeed={detail.id} className="shrink-0" {...(detail.avatarHash === null ? {} : { src: blobUrl(detail.avatarHash) })}>
         {initialsFor(detail.name)}
       </Avatar>
-      <Stack gap="field" className="min-inline-0" grow={true}>
+      <Stack gap="field" minWidth="shrinks" grow={true}>
         {/* A real heading — the pane's own h2, like the LIST band's — so the character is a landmark a rotor
             can jump to; the title step + semibold are the level's own. */}
         <Heading level={2} data-slot="character-context-band-name" className="text-balance" clamp={2}>
@@ -81,7 +81,7 @@ function CharacterContextBandBody({ characterId }: CharacterContextBandProps): R
         {/* THE CHIP ROW DOES NOT WRAP — IT SCROLLS. A narrow pane would wrap the chips 2+1 and leave a
             ragged void beside the orphan; only a set that folds EVENLY folds, everything else keeps its whole
             item and scrolls (`context-rail.tsx` `track="cells"`, the house ruling). */}
-        <Row gap="field" align="center" className="overflow-x-auto min-inline-0">
+        <Row gap="field" align="center" className="overflow-x-auto" minWidth="shrinks">
           <OwnLookMark themeOverride={detail.themeOverride} />
           {/* No chip until the read lands: a pending or failed read has no count, and 0 would be a false one. */}
           {chats === undefined ? null : (

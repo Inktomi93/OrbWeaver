@@ -31,7 +31,7 @@ export interface TeacherProps {
 export function TeacherBand({ state }: TeacherProps): ReactElement {
   const title = state.member === null ? state.teach.title : state.member.title;
   return (
-    <Stack gap="tight" className="min-inline-0">
+    <Stack gap="tight" minWidth="shrinks">
       <Text as="span" voice="kicker" truncate={true}>
         {title}
       </Text>
@@ -81,7 +81,7 @@ function TeacherValueBlock({ value }: { readonly value: ConfigTeachValue }): Rea
   }
   return (
     <Stack gap="tight" data-slot="teacher-value">
-      <Stack gap="tight" className="min-inline-0">
+      <Stack gap="tight" minWidth="shrinks">
         <Text as="span" voice="label">
           Current {value.current}
         </Text>
@@ -112,7 +112,7 @@ function TeacherRoster({ roster }: { readonly roster: readonly ConfigRosterEntry
     <ContextTabBody kind="blocks" data-slot="teacher-roster">
       {roster.map((entry) => (
         <Stack key={entry.id} data-modified={entry.modified ? "" : undefined} data-setting={entry.id} data-slot="teacher-roster-entry" gap="tight">
-          <Row align="baseline" gap="field" className="min-inline-0">
+          <Row align="baseline" gap="field" minWidth="shrinks">
             <Text as="span" voice="label" truncate={true}>
               {entry.label}
             </Text>

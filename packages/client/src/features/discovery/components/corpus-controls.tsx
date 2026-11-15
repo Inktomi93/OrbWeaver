@@ -29,7 +29,7 @@ export function ParamSelect({
 }): ReactElement {
   return (
     // A flex item of a wrapping row: without the shrink, the select's nowrap value sets its minimum and outgrows a phone pane at enlarged text.
-    <Stack className="min-inline-0" gap="field">
+    <Stack minWidth="shrinks" gap="field">
       <Text voice="kicker">{label}</Text>
       <Select
         items={items}

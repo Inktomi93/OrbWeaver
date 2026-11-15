@@ -194,8 +194,8 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
   });
 
   return (
-    <Stack className="min-inline-0" minHeight="shrinks" width="full" grow="content" gap="glyph" data-slot="composer-guided-cluster">
-      <Row align="center" justify="between" gap="glyph" className="shrink-0 min-inline-0" data-slot="composer-utilities" ref={seatRow}>
+    <Stack minWidth="shrinks" minHeight="shrinks" width="full" grow="content" gap="glyph" data-slot="composer-guided-cluster">
+      <Row align="center" justify="between" gap="glyph" className="shrink-0" minWidth="shrinks" data-slot="composer-utilities" ref={seatRow}>
         <Row aria-label="Composer tools" align="center" gap="glyph" className="shrink-0" role="group" ref={seatTools}>
           <ComposerGuidedUtilityMenu
             moved={movedActions}
@@ -237,7 +237,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
             />
             {guided.stopImpersonation === null ? null : <ImpersonateStopButton onStop={guided.stopImpersonation} />}
           </Row>
-          <Row aria-label={COMPOSER_THEM_GROUP_NAME} className="shrink-0 min-inline-0" data-slot="composer-them-actions" gap="glyph" role="group">
+          <Row aria-label={COMPOSER_THEM_GROUP_NAME} className="shrink-0" minWidth="shrinks" data-slot="composer-them-actions" gap="glyph" role="group">
             <Row className="shrink-0" inert={level > 0} outOfFlow={level > 0} ref={seatSwipe}>
               <GuidedIconButton
                 icon={{ glyph: RotateCcw, fills: false }}
@@ -280,7 +280,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
       <Row
         align="center"
         gap="glyph"
-        className="min-inline-0"
+        minWidth="shrinks"
         minHeight="controlMd"
         grow="content"
         data-field-wrapped={fieldWrapped ? "" : undefined}

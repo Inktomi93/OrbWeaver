@@ -27,7 +27,7 @@ import type { ReactElement, ReactNode } from "react";
 /** One label/control row inside a `SettingRowGroup` on a non-config surface. */
 export function SettingTrackRow({ children }: { readonly children: ReactNode }): ReactElement {
   return (
-    <Grid gapInline="block" className="col-span-full grid-cols-subgrid min-inline-0" data-slot="setting-track-row">
+    <Grid gapInline="block" className="col-span-full grid-cols-subgrid" minWidth="shrinks" data-slot="setting-track-row">
       {children}
     </Grid>
   );

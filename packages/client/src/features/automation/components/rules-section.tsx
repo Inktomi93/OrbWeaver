@@ -63,7 +63,7 @@ function RulesSkeleton({ count }: RulesSkeletonProps): ReactElement {
           // at the same `min-h-(--size-control-sm)` pointer-conditional floor, the same three-line name column.
           <Card padding="none" key={index}>
             <Row align="center" minHeight="control" gap="field" padding="block">
-              <Stack className="min-inline-0" grow={true} gap="tight">
+              <Stack minWidth="shrinks" grow={true} gap="tight">
                 <Skeleton height="lineLabel" variant="text" />
                 <Skeleton width="full" height="lineLabel" />
                 <Skeleton width="half" height="lineLabel" />

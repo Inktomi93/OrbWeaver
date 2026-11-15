@@ -207,10 +207,10 @@ export function ConnectionRoleSlot({
       <Stack aria-busy={shownCheck !== null} gap="tight">
         {/* One placement for every role: the picker ends the heading row, and below one container width the picker sits under the heading. */}
         <Row align="center" alignBelow="stretch-cq-32" gap="field" justify="between" stackBelow="cq-32">
-          <Row align="center" className="min-inline-0" gap="field">
+          <Row align="center" minWidth="shrinks" gap="field">
             <IndicatorDot aria-label={ROLE_STATUS_LABELS[dot]} role="img" tone={DOT_SKIN[dot].tone} variant={DOT_SKIN[dot].variant} />
             {/* The hint is a sibling of the heading, never inside it, or its name joins the group's name. The heading wraps inside its own box, so its last word never runs under the hint's touch target; in a narrow slot a heading that cannot share its line with the hint leaves the hint the line under it. */}
-            <Row align="center" className="min-inline-0" gap="tight" wrap="cq-20">
+            <Row align="center" minWidth="shrinks" gap="tight" wrap="cq-20">
               <Text className="min-inline-0" id={headingId} voice="label" wrap="word">
                 {row.heading}
               </Text>

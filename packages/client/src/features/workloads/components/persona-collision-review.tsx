@@ -71,7 +71,7 @@ function DescriptionBlock({ label, text, id }: { readonly label: string; readonl
 /** An option's label: its name, then what choosing it does, in the same tap target. */
 function OptionLabel({ title, consequence }: { readonly title: string; readonly consequence: string }): ReactElement {
   return (
-    <Stack gap="tight" className="min-inline-0">
+    <Stack gap="tight" minWidth="shrinks">
       <Text as="span" voice="label">
         {title}
       </Text>

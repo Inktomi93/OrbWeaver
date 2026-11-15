@@ -1,7 +1,7 @@
 // What a flex child asks of its row. `GROW` takes the room that is left (`true`) or grows from the content's own size (`content`), and `wide` and `contentNarrow` do so only above or below the `cq-28` step, where a phone-width pane stacks them;
 // `double` takes twice the share of a `true` sibling. `FLOOR` is the width it starts from, so a wrapping header gives the title or
-// the filter its own line before it squeezes. The `min-inline-0` that lets a child shrink below its content stays the caller's
-// class, because only some children want that.
+// the filter its own line before it squeezes. Shrinking below its content is a separate choice, `MIN_WIDTH.shrinks`, because only some
+// children want that.
 export const GROW = {
   true: "flex-1",
   false: "",

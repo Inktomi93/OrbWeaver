@@ -1,4 +1,4 @@
-import { CAPTION, DISABLED_STATE, FOCUS_RING_INSET, PUSH, RECEDED, SELECTION_RAIL, TITLE_FLOOR, TITLE_STEP, tv } from "#lib";
+import { CAPTION, DISABLED_STATE, FOCUS_RING_INSET, OPEN_TURN, PUSH, RECEDED, SELECTION_RAIL, TITLE_FLOOR, TITLE_STEP, tv } from "#lib";
 
 // `body` is the ONE clickable/selected/disabled surface (a `group` parent so title/subtitle can flip
 // color off `data-selected`); `actions` is a plain sibling slot that never inherits those states.
@@ -87,6 +87,13 @@ export const listRowVariants = tv({
     // Truncation is the `subtitleWrap` variant's default arm below (a one-line dense row), never baked in:
     // a GLOSS subtitle (a sentence of teaching copy) has to be allowed to wrap.
     subtitle: `block text-start ${CAPTION}`,
+    // The row's state under its subtitle: a verdict, a last-run line, a one-line excerpt of what the row holds. The caller clamps it.
+    detail: "flex flex-col gap-tight text-start min-inline-0",
+    // A disclosure row's turn, at the body's inline end.
+    chevron: `shrink-0 text-muted-foreground ${OPEN_TURN}`,
+    // What a disclosure row opens takes a full line under the body and its actions, at the row's own inline step.
+    panel: "basis-full min-inline-0",
+    panelBody: "px-row pbe-row",
     // The subtitle ⇄ reveal SWAP STACK: ONE grid cell holding both spans (`col-start-1 row-start-1`), so the
     // line's box is `max(subtitle, reveal)` and is IDENTICAL at rest and on hover. The swap itself is
     // VISIBILITY, never display — a hover-keyed `display` swap removes a box from layout under a stationary
@@ -160,6 +167,11 @@ export const listRowVariants = tv({
     receded: {
       true: { root: RECEDED },
       false: {},
+    },
+    // A set state marked on the row's leading edge (an override that differs from the default), Card's own rail arm.
+    rail: {
+      none: {},
+      primary: { root: "border-s-rule border-s-primary" },
     },
     // A cluster that is HIDDEN at rest must not spend the row's width on nothing: two ghost icon controls
     // reserve ~76px, which starves the title/subtitle in a 307px LIST pane (side-eye P1-2b). `float` lifts
