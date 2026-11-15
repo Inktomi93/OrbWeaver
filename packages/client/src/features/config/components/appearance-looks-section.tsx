@@ -38,6 +38,7 @@
 // stay as a note beside the grid (`ThemeImportLeftovers`), because the success toast leaves.
 
 import type { Theme } from "@orb/contracts/theme";
+import { IMPORT_FILE_TEXT_MAX_CHARS } from "@orb/contracts/uploads";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { FileTrigger } from "@orb/ui/file-trigger";
@@ -50,7 +51,7 @@ import type { ReactElement } from "react";
 import { useId, useRef, useState } from "react";
 import { ConfigTeachScope, QueryBoundary, returnFocusToRow, SettingRow, SettingRowGroup, Tip, useFirstBootRows, useRowDeleteFocus } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { downloadTextFile, notify, useFocusOnSwap } from "#lib";
+import { downloadTextFile, notify, readTextWithin, useFocusOnSwap } from "#lib";
 import { useCreateTheme, useDuplicateTheme, useImportThemeFile, useRemoveTheme, useSelectTheme } from "../hooks/use-theme-mutations.ts";
 import { APPEARANCE_LOOKS_SUBCATEGORY } from "../lib/appearance-looks-nav.ts";
 import { CONFIG_BACK_TO_LOOKS_NAME, CONFIG_IMPORT_THEME_FILE_NAME, CONFIG_THEME_GROUP_NAME, newThemeName } from "../lib/config-control-names.ts";
@@ -197,7 +198,7 @@ function LooksBody(): ReactElement {
     // The note describes the last import, so starting a new one clears it whatever the outcome: a refusal leaves none behind either.
     setLeftovers(null);
     try {
-      const landed = await importTheme.mutateAsync({ fileText: await file.text(), filename: file.name });
+      const landed = await importTheme.mutateAsync({ fileText: await readTextWithin(file, IMPORT_FILE_TEXT_MAX_CHARS.theme), filename: file.name });
       notify.success(importedThemeMessage(landed));
       // The toast leaves; the note stays beside the grid until the next import starts.
       if (landed.unmapped.length > 0) {

@@ -19,18 +19,22 @@ import {
   promptConfigWriteSchema,
   resolveEffectivePresetInputSchema,
 } from "@orb/contracts/preset";
+import { IMPORT_FILE_TEXT_MAX_CHARS } from "@orb/contracts/uploads";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { strictTwin } from "@orb/kit/zod-schema";
 import { z } from "zod";
 import { authedProcedure, procedureSignal, t } from "../trpc.ts";
 
-/** Upload bound for one `orb.preset` file. A preset blob is sections + knobs + templates — generous next to
- *  the schema's own per-field caps (100k-char section bodies × 500 sections is the real ceiling), and a bound
- *  the untrusted-input boundary needs so a hostile paste can't stream unbounded text at the parser. */
-const MAX_PRESET_FILE_CHARS = 8_000_000;
+// The upload bound for one preset file is `IMPORT_FILE_TEXT_MAX_CHARS.preset`, shared with the client's pre-send check.
+// A preset blob is sections + knobs + templates — generous next to the schema's own per-field caps (100k-char section
+// bodies × 500 sections is the real ceiling), and a bound the untrusted-input boundary needs so a hostile paste can't
+// stream unbounded text at the parser.
 // A file name is a picked file's own name, which every desktop file system caps at 255.
 const MAX_PRESET_FILE_NAME_CHARS = 255;
-const presetFileInputSchema = z.strictObject({ fileText: z.string().max(MAX_PRESET_FILE_CHARS), fileName: z.string().max(MAX_PRESET_FILE_NAME_CHARS) });
+const presetFileInputSchema = z.strictObject({
+  fileText: z.string().max(IMPORT_FILE_TEXT_MAX_CHARS.preset),
+  fileName: z.string().max(MAX_PRESET_FILE_NAME_CHARS),
+});
 
 export const presetRouter = t.router({
   create: authedProcedure

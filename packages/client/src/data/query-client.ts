@@ -8,7 +8,7 @@
 import type { Query } from "@tanstack/react-query";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import type { BackgroundJob } from "#lib";
-import { BACKGROUND_JOB_LOGS, notify, trpcErrorCode } from "#lib";
+import { BACKGROUND_JOB_LOGS, isFinalRefusal, notify, trpcErrorCode } from "#lib";
 import { recoverIfStaleSession } from "./stale-session.ts";
 
 // Per-query/mutation meta — the sanctioned v5 carrier for global-handler config.
@@ -40,9 +40,10 @@ const QUERY_RETRIES = 2;
 /** Answers a retry cannot change: refused input, and an entity that is not there (deleted, reaped or never existed). Both settle at once. */
 const FINAL_ANSWER_CODES: ReadonlySet<string | undefined> = new Set(["BAD_REQUEST", "NOT_FOUND"]);
 
-/** The default query retry: a final answer is not repeated, and other failures keep the shared schedule. */
+/** The default query retry: a final answer, and an edge refusal that repeating cannot change, are not repeated; other
+ *  failures, including an unreachable server and a rate limit, keep the shared schedule. */
 function retryUnlessRefused(failureCount: number, error: unknown): boolean {
-  return !FINAL_ANSWER_CODES.has(trpcErrorCode(error)) && failureCount < QUERY_RETRIES;
+  return !(FINAL_ANSWER_CODES.has(trpcErrorCode(error)) || isFinalRefusal(error)) && failureCount < QUERY_RETRIES;
 }
 
 function toastFromMeta(meta: AppMeta | undefined, error: unknown): void {

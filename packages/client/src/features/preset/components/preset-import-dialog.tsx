@@ -9,14 +9,15 @@
 
 import type { PresetFilePreview } from "@orb/contracts/preset";
 import { ST_PRESET_SCRIPT_LIST_FIELD } from "@orb/contracts/preset";
+import { IMPORT_FILE_TEXT_MAX_CHARS } from "@orb/contracts/uploads";
 import { FileDropzone } from "@orb/ui/file-dropzone";
-import { Icon, TriangleAlert } from "@orb/ui/icons";
-import { Row, Section, Stack } from "@orb/ui/layout";
+import { Section, Stack } from "@orb/ui/layout";
 import { ScrollArea } from "@orb/ui/scroll-area";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { FormDialog, MutedLine } from "#components";
+import { DialogFailure, FormDialog, MutedLine } from "#components";
+import { readTextWithin, requestRefusalOf } from "#lib";
 import {
   PRESET_IMPORT_ALREADY_HELD,
   PRESET_IMPORT_CLAMPED_HEADING,
@@ -84,8 +85,7 @@ export function PresetImportDialog({ open, onOpenChange, onPreview, onImport, bu
     // comparison happens inside a resolved promise, where a state read would be the stale capture.
     const token = pickToken.current + 1;
     pickToken.current = token;
-    void chosen
-      .text()
+    void readTextWithin(chosen, IMPORT_FILE_TEXT_MAX_CHARS.preset)
       .then(async (fileText) => {
         const file = { fileText, fileName: chosen.name };
         const preview = await onPreview(file);
@@ -102,7 +102,8 @@ export function PresetImportDialog({ open, onOpenChange, onPreview, onImport, bu
         if (pickToken.current !== token) {
           return; // a superseded pick's failure is not this dialog's story
         }
-        setError(`That file couldn't be read. (${reasonOf(cause)})`);
+        // A refused request states its own reason (too large, signed out); only a file the browser could not read needs the frame.
+        setError(requestRefusalOf(cause)?.message ?? `That file couldn't be read. (${reasonOf(cause)})`);
       });
   };
 
@@ -116,7 +117,7 @@ export function PresetImportDialog({ open, onOpenChange, onPreview, onImport, bu
         // A rejected file keeps the dialog open with the SERVER'S reason — the parse lives there.
         setError(failure);
       })
-      .catch(() => setError("Import failed: try the file again."));
+      .catch((cause: unknown) => setError(requestRefusalOf(cause)?.message ?? "Import failed: try the file again."));
   };
 
   return (
@@ -150,14 +151,7 @@ export function PresetImportDialog({ open, onOpenChange, onPreview, onImport, bu
           }}
         />
 
-        {error !== null ? (
-          <Row align="start" gap="field">
-            <Icon icon={TriangleAlert} size="sm" tone="destructive" />
-            <Text cap="prose" prose={true} voice="label">
-              {error}
-            </Text>
-          </Row>
-        ) : null}
+        {error !== null ? <DialogFailure>{error}</DialogFailure> : null}
 
         {picked === null ? null : <ImportSummary preview={picked.preview} />}
       </Stack>

@@ -21,7 +21,7 @@ test("depth bounds clamp one field, report its loss and count the returned secti
     });
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) {
-      throw new Error(outcome.reason);
+      throw new Error(JSON.stringify(outcome));
     }
     const { config, dropped, sectionCount } = outcome.result;
     expect(config).not.toEqual(DEFAULT_PROMPT_CONFIG);
@@ -56,7 +56,7 @@ test("plain marker triggers survive mapping and native round-trip without placem
   });
   expect(outcome.ok).toBe(true);
   if (!outcome.ok) {
-    throw new Error(outcome.reason);
+    throw new Error(JSON.stringify(outcome));
   }
   const { config } = outcome.result;
   expect(authored(outcome.result)).toEqual([
@@ -81,7 +81,7 @@ test("plain marker triggers survive mapping and native round-trip without placem
   const unset = tryImportStChatCompletionPreset({ prompts: [{ identifier: "worldInfoBefore" }] });
   expect(unset.ok).toBe(true);
   if (!unset.ok) {
-    throw new Error(unset.reason);
+    throw new Error(JSON.stringify(unset));
   }
   expect(authored(unset.result)).toStrictEqual([
     { type: "marker", id: "worldInfoBefore", name: "worldInfoBefore", marker: "world_info_before", role: "system", enabled: true },
@@ -93,7 +93,7 @@ test("recognised schema refusal identifies the source prompt and field, unlike u
   expect(tryImportStChatCompletionPreset(valid).ok).toBe(true);
   const refused = tryImportStChatCompletionPreset({ ...valid, prompts: [{ ...valid.prompts[0], identifier: "a", content: "x".repeat(100_001) }] });
   expect(refused).toMatchObject({ ok: false, recognised: true });
-  if (refused.ok) {
+  if (refused.ok || !refused.recognised) {
     throw new Error("Oversized content was imported");
   }
   expect(refused.reason).toContain('the ST prompt "a" `content`: Too big: expected string to have <=100000 characters');
@@ -153,7 +153,7 @@ test("format strings map to their native seats and unsupported group fields repo
   });
   expect(outcome.ok).toBe(true);
   if (!outcome.ok) {
-    throw new Error(outcome.reason);
+    throw new Error(JSON.stringify(outcome));
   }
   expect(outcome.result.config.formatStrings).toEqual({
     newChatMarker: "[Start a new Chat]",
@@ -168,7 +168,7 @@ test("format strings map to their native seats and unsupported group fields repo
   const blank = tryImportStChatCompletionPreset({ prompts: [], ["impersonation_prompt"]: "   ", ["continue_nudge_prompt"]: "", ["new_chat_prompt"]: "\n" });
   expect(blank.ok).toBe(true);
   if (!blank.ok) {
-    throw new Error(blank.reason);
+    throw new Error(JSON.stringify(blank));
   }
   expect(blank.result.config.formatStrings).toBeUndefined();
   expect(blank.result.dropped).toEqual([]);
@@ -200,7 +200,7 @@ test("every field the mapper has a seat for maps with no report, and each one ch
   const configOf = (preset: Readonly<Record<string, unknown>>): { readonly config: unknown; readonly dropped: readonly string[] } => {
     const outcome = tryImportStChatCompletionPreset({ prompts: [], ...preset });
     if (!outcome.ok) {
-      throw new Error(outcome.reason);
+      throw new Error(JSON.stringify(outcome));
     }
     return { config: outcome.result.config, dropped: outcome.result.dropped.map(({ field }) => field) };
   };
@@ -228,7 +228,7 @@ test("every populated top-level field the mapper neither maps nor lists is named
   };
   const fieldsOf = (outcome: ReturnType<typeof tryImportStChatCompletionPreset>): readonly string[] => {
     if (!outcome.ok) {
-      throw new Error(outcome.reason);
+      throw new Error(JSON.stringify(outcome));
     }
     return outcome.result.dropped.map(({ field }) => field);
   };
@@ -254,7 +254,7 @@ const EVERY_ST_PROMPT = [
 function importedOrThrow(raw: unknown): { readonly config: PromptConfig; readonly addedSections: readonly string[] } {
   const outcome = tryImportStChatCompletionPreset(raw);
   if (!outcome.ok) {
-    throw new Error(outcome.reason);
+    throw new Error(JSON.stringify(outcome));
   }
   return outcome.result;
 }

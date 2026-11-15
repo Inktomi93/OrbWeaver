@@ -1,6 +1,7 @@
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { SectionPatchVars, Trpc } from "#data";
 import { createEntityMutation } from "#data";
+import { refusalOr } from "#lib";
 
 // The persona CRUD mutations — one createEntityMutation instance per verb. Every verb emits
 // personasChanged, invalidated by the always-on user-bus subscription, so all four are busDriven (a
@@ -65,7 +66,7 @@ export const useImportPersonaFile = createEntityMutation<inferInput<Trpc["person
   options: (trpc) => trpc.persona.import.mutationOptions(),
   busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (list + get).
   // The server's REFUSAL REASON is rendered by the caller (it needs the words); this is the last-resort copy.
-  errorToast: "Couldn't restore the persona.",
+  errorToast: refusalOr("Couldn't restore the persona."),
 });
 
 export const useSetPersonaPrefs = createEntityMutation<SectionPatchVars<"persona">, unknown>({
