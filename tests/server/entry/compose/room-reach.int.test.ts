@@ -87,6 +87,39 @@ test("a script's room hears every tier write that changes what the host's tiers 
   expect(await heard(() => rename("detached"))).toEqual([]);
 });
 
+test("a SillyTavern preset imported with its scripts reaches every room its owner sits in, and a re-import reaches them again", async ({
+  app,
+  ownerCaller,
+  otherCaller,
+}): Promise<void> => {
+  const room = (await ownerCaller.chat.startChat({ characterIds: [] })).chat;
+  await otherCaller.chat.startChat({ characterIds: [] });
+  // SillyTavern wire text is snake_case and integer placements by spec, so the preset is raw JSON.
+  const fileText = JSON.stringify({
+    prompts: [{ identifier: "main", name: "Main", content: "You narrate.", role: "system" }],
+    ["prompt_order"]: [{ ["character_id"]: 100_001, order: [{ identifier: "main", enabled: true }] }],
+    extensions: {
+      ["regex_scripts"]: [
+        { id: "c0ffee00-0000-4000-8000-000000000041", scriptName: "Panel", findRegex: "<p>", replaceString: "<b>p</b>", placement: [2], markdownOnly: true },
+      ],
+    },
+  });
+  const rooms: unknown[] = [];
+  onTestFinished(
+    app.liveBuses.chat.subscribeAllChatEvents((frame) => {
+      if (frame.event.type === "roomEntityChanged" && frame.event.entity === "regex") {
+        rooms.push(frame.event.chatId);
+      }
+    }),
+  );
+
+  expect(await ownerCaller.preset.importFile({ fileText, fileName: "Panels.json" })).toMatchObject({ ok: true, regexScripts: { created: 1 } });
+  expect(rooms).toEqual([room.id]);
+  rooms.length = 0;
+  expect(await ownerCaller.preset.importFile({ fileText, fileName: "Panels.json" })).toMatchObject({ ok: true, regexScripts: { created: 0, reused: 1 } });
+  expect(rooms).toEqual([room.id]);
+});
+
 test("global document reach credits a present member rather than only the host, then drops that departed member", async ({
   app,
   ownerCaller,

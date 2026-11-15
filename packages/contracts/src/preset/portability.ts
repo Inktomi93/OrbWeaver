@@ -9,13 +9,19 @@ import { importTextSchema } from "../import/preview.ts";
  *  and that row was reused. `name` is the name the preset landed under; `renamedFrom` is the file's own
  *  name when a different same-named preset forced a collision suffix. */
 const [imported, refused] = portableImportOutcomeSchema.options;
+
+/** A script the write door refused, by its clipped name and the door's reason. */
+const refusedScriptSchema = z.strictObject({ name: importTextSchema, reason: importTextSchema });
 export const presetImportOutcomeSchema = z.discriminatedUnion("ok", [
   imported.omit({ notes: true }).extend({
     presetId: typeIdSchema(ID_PREFIX.preset).exactOptional(),
     name: z.string().exactOptional(),
     renamedFrom: z.string().nullable().exactOptional(),
-    /** The scripts a SillyTavern preset carried, attached to the preset: new library rows and equal ones reused. */
-    regexScripts: z.strictObject({ created: z.int().nonnegative(), reused: z.int().nonnegative() }).exactOptional(),
+    /** The scripts a SillyTavern preset carried, attached to the preset: new library rows, equal ones reused, and
+     *  each one the write door refused. */
+    regexScripts: z
+      .strictObject({ created: z.int().nonnegative(), reused: z.int().nonnegative(), refused: z.array(refusedScriptSchema).readonly() })
+      .exactOptional(),
   }),
   refused.omit({ notes: true }).extend({
     presetId: z.never().exactOptional(),
@@ -31,8 +37,8 @@ const PRESET_FILE_FORMATS = ["orbweaver", "sillyTavern"] as const;
 
 /** What importing one preset file does, from the run's own parse and a dry run of its write. `name` is the name the
  *  file asks for, clipped; `inLibrary` says the run reuses an equal preset the owner holds. `leftOut` names each
- *  field with no seat, a refused regex script by its position, and `regexScripts` counts the scripts the run
- *  attaches to the preset. */
+ *  field with no seat, a malformed regex script by its position, `regexScripts` counts the scripts the run
+ *  attaches to the preset, and `refusedScripts` names each one the write door refuses. */
 export const presetFilePreviewSchema = z.discriminatedUnion("ok", [
   z.strictObject({
     ok: z.literal(true),
@@ -42,6 +48,7 @@ export const presetFilePreviewSchema = z.discriminatedUnion("ok", [
     sectionCount: z.int().nonnegative(),
     leftOut: z.array(z.strictObject({ field: importTextSchema, reason: z.string() })).readonly(),
     regexScripts: z.int().nonnegative(),
+    refusedScripts: z.array(refusedScriptSchema).readonly(),
   }),
   z.strictObject({ ok: z.literal(false), error: z.string() }),
 ]);

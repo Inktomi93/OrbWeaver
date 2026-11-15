@@ -81,10 +81,18 @@ const importPreviewItemSchema = z.strictObject({
   /** A persona whose avatar file is missing or unreadable: it imports, without art. Absent otherwise. */
   withoutArt: z.literal(true).optional(),
   /** A preset's own regex scripts, in its order, flagged as an entry is: `inLibrary` when an owned script holds it,
-   *  `repeat` when an earlier script of this upload lands it, neither when the run adds it. Absent on another kind,
-   *  on a preset with none, and on one the run does not land. Each upload judges its own; the merge flags none. */
+   *  `repeat` when an earlier script of this upload lands it, `refused` with the write door's reason when the run
+   *  refuses it, none of them when the run adds it. Absent on another kind, on a preset with none, and on one the run
+   *  does not land. Each upload judges its own; the merge flags none. */
   regexScripts: z
-    .array(z.strictObject({ name: previewText, inLibrary: z.literal(true).optional(), repeat: z.literal(true).optional() }))
+    .array(
+      z.strictObject({
+        name: previewText,
+        inLibrary: z.literal(true).optional(),
+        repeat: z.literal(true).optional(),
+        refused: previewText.optional(),
+      }),
+    )
     .max(IMPORT_PREVIEW_LIST_MAX)
     .readonly()
     .optional(),

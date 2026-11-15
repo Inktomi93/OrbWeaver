@@ -23,16 +23,17 @@ export type ImportCardScripts = (args: ImportCardScriptsArgs) => Promise<ImportC
 
 export type ImportPresetScripts = (args: ImportPresetScriptsArgs) => Promise<ImportCardScriptsResult>;
 
-/** What a dry run answers for one script a lift carries: why the lift mints no row for it (an owned row holds it, or
- *  an earlier script of the same run mints it), `null` when it mints one. */
-export type ScriptReuse = ImportReuse | null;
+/** What a dry run answers for one script a lift carries: `reuse` says why the lift mints no row for it (an owned row
+ *  holds it, or an earlier script of the same run mints it) and is `null` when it mints one; `refused` is the write
+ *  door's reason when it would mint one and the door refuses it. */
+export type ScriptPlan = { readonly reuse: ImportReuse | null } | { readonly refused: string };
 
 /** The preset lifts of a folder run, dry: per preset in run order, per script, what {@link ImportPresetScripts} does
  *  with it. Read-only. */
 export type PlanPresetScripts = (args: {
   readonly ownerId: UserId;
   readonly presets: readonly (readonly RegexScriptCard[])[];
-}) => Promise<readonly (readonly ScriptReuse[])[]>;
+}) => Promise<readonly (readonly ScriptPlan[])[]>;
 
 export type ImportGlobalScripts = (args: ImportGlobalScriptsArgs) => Promise<ImportCardScriptsResult>;
 

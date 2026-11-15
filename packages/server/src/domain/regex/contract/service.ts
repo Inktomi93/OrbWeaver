@@ -20,7 +20,7 @@ import type {
 } from "@orb/contracts/regex";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
-import type { ChatId, RegexScriptId } from "@orb/kit/ids";
+import type { ChatId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { AuditWiring } from "#foundation/observability";
 import type {
@@ -82,7 +82,7 @@ export interface RegexContext {
    *  tier: its own junction, a seated character's, or the host's global and preset tiers. Those rooms are not
    *  knowable from the verb's arguments, so regex persistence reads them; chat's injected refresh policy
    *  isolates failures so the lookup cannot fault the committed write. */
-  readonly fanRegexScriptRooms: (scriptId: RegexScriptId) => Promise<void>;
+  readonly fanRegexScriptRooms: RegexPortabilityContext["fanRegexScriptRooms"];
   /** The DELETE half of the same reach. `chat_regex_scripts` CASCADEs with the library row, so
    *  `fanRegexScriptRooms` after a delete resolves ∅ and every OTHER member of the room keeps reading a rack
    *  that still lists the gone script. Call this BEFORE the delete to snapshot the reach, then call the

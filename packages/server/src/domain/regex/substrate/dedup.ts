@@ -15,7 +15,7 @@
 // what makes a same-install re-import produce exactly zero duplicate rows even when a script was EDITED
 // after the export. The content rule is the FOREIGN-card fallback, where no reference can resolve.
 
-import type { PortableRegexScript, RegexScriptBehavior, RegexScriptCard, RegexScriptRow, ScriptReuse } from "@orb/contracts/regex";
+import type { PortableRegexScript, RegexScriptBehavior, RegexScriptCard, RegexScriptRow, ScriptPlan } from "@orb/contracts/regex";
 import { regexScriptBehaviorSchema } from "@orb/contracts/regex";
 import type { RegexScriptId } from "@orb/kit/ids";
 import type { CardLiftInput, CardLiftPlan, PlannedInsert, SplitScript } from "../contract/dedup.ts";
@@ -94,25 +94,35 @@ export function planCardLift({ existing, carriedIds, scripts, mintId }: CardLift
 }
 
 /**
- * The dry-run answer for a run of by-value lifts in their run order (a folder's presets): per script, `"library"`
- * when an owned row holds it, `"upload"` when an earlier script of the run mints it, `null` when the run mints it.
- * The same key {@link planCardLift} matches by, so a preview never claims a row the lift would not mint.
+ * The dry-run answer for a run of by-value lifts in their run order (a folder's presets): per script, `library` when
+ * an owned row holds it, `upload` when an earlier script of the run mints it, the write door's reason when the run
+ * would mint it and the door refuses it, and a mint otherwise. `refusals` holds the door's verdict per script, in the
+ * same shape as `lifts`. The same key {@link planCardLift} matches by, and a refused script mints nothing a later
+ * one could reuse, as in the run, so a preview never claims a row the lift would not mint.
  */
-export function planUploadLift(existing: readonly RegexScriptRow[], lifts: readonly (readonly RegexScriptCard[])[]): ScriptReuse[][] {
+export function planUploadLift(
+  existing: readonly RegexScriptRow[],
+  lifts: readonly (readonly RegexScriptCard[])[],
+  refusals: readonly (readonly (string | null)[])[],
+): ScriptPlan[][] {
   const held = new Set(existing.map(rowKey));
   const minted = new Set<string>();
-  return lifts.map((scripts) =>
-    scripts.map((script) => {
+  return lifts.map((scripts, lift) =>
+    scripts.map((script, index): ScriptPlan => {
       const split = splitScript(script);
       const key = dedupKey(split.name, split.behavior);
       if (held.has(key)) {
-        return "library";
+        return { reuse: "library" };
+      }
+      const refused = refusals[lift]?.[index] ?? null;
+      if (refused !== null) {
+        return { refused };
       }
       if (minted.has(key)) {
-        return "upload";
+        return { reuse: "upload" };
       }
       minted.add(key);
-      return null;
+      return { reuse: null };
     }),
   );
 }

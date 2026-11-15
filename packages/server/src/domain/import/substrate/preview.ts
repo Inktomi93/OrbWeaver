@@ -160,8 +160,14 @@ function presetItem(profile: LabeledProfile, preset: CollectedPreset, owned: Imp
   const plan = owned.presetScripts.get(preset) ?? [];
   const regexScripts = preset.parsed.regexScripts.slice(0, Math.min(plan.length, IMPORT_PREVIEW_LIST_MAX)).map((script, i) => {
     const named = { name: clipImportText(script.name) };
-    const reuse = plan[i] ?? null;
-    return reuse === null ? named : { ...named, ...REUSE_FLAGS[reuse] };
+    const verdict = plan[i];
+    if (verdict === undefined) {
+      return named;
+    }
+    if ("refused" in verdict) {
+      return { ...named, refused: clipImportText(verdict.refused) };
+    }
+    return verdict.reuse === null ? named : { ...named, ...REUSE_FLAGS[verdict.reuse] };
   });
   const leftOut = preset.parsed.unmapped
     .slice(0, IMPORT_PREVIEW_LIST_MAX)
