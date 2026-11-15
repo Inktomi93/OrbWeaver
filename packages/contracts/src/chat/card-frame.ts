@@ -150,5 +150,3 @@ export const cardFrameMintResponseSchema = z.strictObject({
    *  selector, and `strictObject` refuses a smuggled posture key outright. */
   granted: z.strictObject({ externalMedia: z.boolean(), inlineData: z.boolean(), interactive: z.boolean() }),
 });
-/** Type twin of `cardFrameMintResponseSchema`. */
-export type CardFrameMintResponse = z.infer<typeof cardFrameMintResponseSchema>;

@@ -13,9 +13,14 @@ import { applyDisplayScript } from "./message-render.ts";
 import { runInstrumentedRegex } from "./regex-instrumented.ts";
 
 // The main thread installs the platform polyfills before it loads the app, but a Worker is its own global, and
-// the kit macro engine reads Temporal, which Safari 18 lacks. A failed install still runs the job: a script
-// whose macro needs a missing builtin throws inside the executor, which skips that one script.
-const polyfilled = import("./platform-polyfills.ts").catch(() => undefined);
+// the kit macro engine reads Temporal, which Safari 18 lacks. An install whose module or chunk fails to load (a
+// `TypeError`) still runs the job: a script whose macro needs a missing builtin throws inside the executor, which skips
+// that one script. Any other fault rejects the job, which reports it as the Worker's error event.
+const polyfilled = import("./platform-polyfills.ts").catch((error: unknown) => {
+  if (!(error instanceof TypeError)) {
+    throw error;
+  }
+});
 
 function reply(message: DisplayPassReply): void {
   globalThis.postMessage(message);

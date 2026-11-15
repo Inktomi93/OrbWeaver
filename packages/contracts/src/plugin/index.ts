@@ -29,7 +29,7 @@ export {
   PluginPubsubDepthError,
   PluginSuggestedError,
 } from "./errors.ts";
-export type { PluginFrameCall, PluginFrameMintRequest, PluginFrameMintResponse } from "./frame.ts";
+export type { PluginFrameCall, PluginFrameMintRequest } from "./frame.ts";
 export {
   PLUGIN_FRAME_CALL_REFUSED,
   PLUGIN_FRAME_CALLS_IN_FLIGHT_MAX,

@@ -28,11 +28,8 @@ const UNNAMED_FRAME_TITLE = "Embedded card";
 
 // Whether a vetted framed link points off the app's own origin. An address the URL parser refuses leaves nothing.
 function leavesApp(link: string): boolean {
-  try {
-    return new URL(link).origin !== location.origin;
-  } catch {
-    return false;
-  }
+  const url = URL.parse(link);
+  return url !== null && url.origin !== location.origin;
 }
 
 interface SandboxFramePropsBase {

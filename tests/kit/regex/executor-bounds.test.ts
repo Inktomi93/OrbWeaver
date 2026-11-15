@@ -1,11 +1,19 @@
 // The executor bounds what a script may add, on every pass, the browser's display pass included: raw substitution may
 // add only a name's worth of pattern source, and a replacement may not grow the text past the pass's output bound. Each
-// refusal names its own code through `onScriptFailure`, leaves the text as it was, and the next script still runs.
+// refusal names its own code through `onScriptFailure`, leaves the text as it was, and the next script still runs. The
+// stored-pattern compile check answers the same bounds as a pattern that does not compile.
 // @subject packages/kit/src/regex/index.ts
 
 import { NO_SEATS } from "@orb/kit/message-author";
 import type { RegexPassCall, RegexScriptInput } from "@orb/kit/regex";
-import { executeRegexScripts, REGEX_OUTPUT_TOO_LONG, REGEX_SUBSTITUTION_TOO_LONG, SubstituteFindRegex } from "@orb/kit/regex";
+import {
+  executeRegexScripts,
+  findPatternCompiles,
+  MAX_FIND_REGEX_LENGTH,
+  REGEX_OUTPUT_TOO_LONG,
+  REGEX_SUBSTITUTION_TOO_LONG,
+  SubstituteFindRegex,
+} from "@orb/kit/regex";
 import { expect, test } from "@orb/testkit/node";
 
 // The display pass over a reply.
@@ -83,4 +91,10 @@ test("raw substitution of a prose field into the find pattern is refused; a subs
 
   expect(codes).toEqual([REGEX_SUBSTITUTION_TOO_LONG]);
   expect(out).toBe("she looked up at the rain.");
+});
+
+test("a stored pattern past the length bound or one the parser refuses does not compile; one at the bound does", () => {
+  expect(findPatternCompiles({ findRegex: `/${"a".repeat(MAX_FIND_REGEX_LENGTH)}/` })).toBe(true);
+  expect(findPatternCompiles({ findRegex: `/${"a".repeat(MAX_FIND_REGEX_LENGTH + 1)}/` })).toBe(false);
+  expect(findPatternCompiles({ findRegex: "/(unclosed/" })).toBe(false);
 });
