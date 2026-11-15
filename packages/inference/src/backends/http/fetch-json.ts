@@ -177,4 +177,23 @@ export function serverRootOf(baseUrl: string): string {
   return baseUrl.replace(TRAILING_SLASH_RE, "").replace(V1_SUFFIX_RE, "");
 }
 
+/**
+ * `url`, a request built from `baseUrl` and a row's declared path, once it is checked to stay on the base URL's origin.
+ *
+ * @remarks SECURITY: a declared path rides the row's key, and joining strings lets a path extend the host
+ * (`http://box.local` + `.evil.example/collect`). The features parse admits only a plain path; this check holds for a
+ * stored or folded row that parse never saw. A refused URL sends nothing and fails the task as `invalid`.
+ */
+export function onBaseOrigin(baseUrl: string, url: string, label: string): string {
+  const origin = URL.parse(baseUrl)?.origin;
+  if (origin === undefined || URL.parse(url)?.origin !== origin) {
+    throw new ProviderError({
+      kind: "invalid",
+      retryable: false,
+      message: `${label}: the row's declared path leaves the base URL's host, so nothing was sent`,
+    });
+  }
+  return url;
+}
+
 export type { FetchJsonArgs, FetchJsonResult } from "#src/contract/http.ts";

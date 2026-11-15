@@ -120,8 +120,8 @@ test.for(OFF_ORIGIN_PATHS)("a key check path with $shape sends nothing past the 
   await using root = await createRuntimeRoot(anyHost(seen));
   const connection = await wireConnection(root, { task: "chat", providerId: "nanogpt", model: "vendor/chat-model" });
   const signal = new AbortController().signal;
-  // The stored schema refuses these paths (`key-check-path.contract.test.ts`). The resolved features are re-spelled
-  // here so the case proves the runtime guard on its own.
+  // The stored schema refuses these paths (`tests/contracts/inference/declared-path.contract.test.ts`). The resolved
+  // features are re-spelled here so the case proves the runtime guard on its own.
   const hostile = await root.app.runtime.diagnostics.probe({ connection: { ...connection, features: { ...connection.features, keyCheckPath: path } }, signal });
   expect(seen).toEqual([]);
   expect(hostile.status).toBe("unchecked");
