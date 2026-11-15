@@ -640,6 +640,7 @@ const TEST_CONSTANT_HOMES = {
     "AVATAR_UPLOAD_FAILED and its siblings: the lines the shared avatar upload control prints for a failed upload and a refused write",
   "packages/client/src/lib/turn-refusal-copy.ts":
     "TURN_ROOM_CLOSING_COPY and its siblings: the toast a refused turn raises for each room state, which the send refusal case reads",
+  "packages/client/src/features/chat/lib/reply-frame-names.ts": "REPLY_LINK_CONFIRM_LABEL: the confirm a link clicked inside a framed reply opens",
   "packages/client/src/features/chat/lib/send-failure-copy.ts": "SEND_FAILED_TITLE: the toast a failed send raises for a reason the turn copy does not name",
   "packages/client/src/lib/card-import-copy.ts":
     "CARD_IMPORT_REFUSED_ONE and its siblings: the refusal sentence the character import dialog and the backup import both say for a picture that is not a card",
