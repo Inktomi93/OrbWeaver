@@ -151,7 +151,7 @@ export async function seedCorpusRpgMembers(root: ServerTestHarness, source: Recu
     root.services.rpg.patchActor({ principal: member, chatId, targetRef: actorRef, ops: [{ op: "addItem", item: { name: "Unconsented key" } }] }),
   );
   const sheetRefusal = await captureRefusal(root.services.rpg.patchSheet({ principal: member, chatId, actorRef, patch: { level: 99 } }));
-  const resyncRefusal = await captureRefusal(root.services.rpg.resyncFromStory({ principal: member, chatId }));
+  const resyncRefusal = await captureRefusal(root.services.rpg.resyncFromStory({ signal: new AbortController().signal, principal: member, chatId }));
   const forkRefusal = await captureRefusal(root.services.chat.forkChat({ principal: member, chatId, title: "Refused member observatory fork" }));
   const fullRefusal = await captureRefusal(root.services.rpg.createGame({ principal, chatId, mode: "full" }));
   const detachRefusal = await captureRefusal(root.services.rpg.detachDanglingPointer({ principal, chatId }));

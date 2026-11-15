@@ -155,7 +155,7 @@ function SpanRowBody({ annotation, actions, label, children }: RowBodyProps & { 
     <>
       {/* `@cq-32:` — the same container step the group's track set uses. Ungated, `col-span-2` in the ONE-column
           narrow arm mints an implicit second column instead of stacking. */}
-      <Stack className="min-inline-0 @cq-32:col-span-2" data-slot="setting-row-lead" gap="tight">
+      <Stack className="@cq-32:col-span-2" minWidth="shrinks" data-slot="setting-row-lead" gap="tight">
         <Text as="span" flow="clusterField" voice="label">
           {label}
           {annotation === null ? null : <HintTrigger hint={annotation.hint} onClick={annotation.onHintClick} subject={label} />}
@@ -178,7 +178,7 @@ function SpanRowBody({ annotation, actions, label, children }: RowBodyProps & { 
           a one-column grid (MEASURED: its control column collapsed to 58px and the input inside to 0). */}
       <ConfigRowAnnotationProvider value={null}>
         <FieldLayout align="block" orientation="horizontal">
-          <Stack className="col-span-full min-inline-0" data-slot="setting-row-body" gap="field">
+          <Stack className="col-span-full" minWidth="shrinks" data-slot="setting-row-body" gap="field">
             {children}
           </Stack>
         </FieldLayout>
@@ -201,7 +201,7 @@ function FieldRowBody({ annotation, actions, details, children }: RowBodyProps &
         // `track`-aligned Field outside a real subgrid, where `grid-cols-subgrid` degrades to `none`: its
         // control column measured 58px and the number input inside it 0px.)
         <ConfigRowAnnotationProvider value={null}>
-          <Grid gapInline="block" gapBlock="field" className="col-span-full grid-cols-subgrid min-inline-0" data-slot="setting-row-details">
+          <Grid gapInline="block" gapBlock="field" className="col-span-full grid-cols-subgrid" minWidth="shrinks" data-slot="setting-row-details">
             {details}
           </Grid>
         </ConfigRowAnnotationProvider>

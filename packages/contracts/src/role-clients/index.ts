@@ -89,8 +89,9 @@ export interface SummarizeInput {
 /** The options a `structured` call takes: the role's preset sampling (`RolePresetParams`) plus the required schema (D79), carried however the
  *  structured plan picks for the bound model. Structured generation is a distinct task from prose summarization:
  *  the caller names it, nothing sniffs it. */
-export interface StructuredOptions extends RolePresetParams {
+export interface StructuredOptions<Signal> extends RolePresetParams {
   responseFormat: ResponseFormat;
+  signal: Signal;
 }
 
 /** The tasks a `RoleClients` bundle serves — the derive roles; chat/generateImage reach the executor
@@ -108,22 +109,25 @@ export interface ResolvedTaskView {
 /** The per-FUNDER role-client bundle `roleClientsFor(funder, actor?)` mints: every callable resolves its task
  *  through the binding fold AT CALL TIME (a re-pointed binding governs the very next call), names its task at
  *  the call site, and never exposes a credential or a provider id. `resolved(task)` is the one read of WHAT a
- *  task resolves to — `null` when the fold ends in `no-connection`. */
-export interface RoleClients {
+ *  task resolves to — `null` when the fold ends in `no-connection`.
+ *
+ *  `Signal` is the caller's cancel, required on every call. It is a type parameter because this isomorphic
+ *  package cannot name `AbortSignal`; the server binds it, and it has no default so no consumer can drop it. */
+export interface RoleClients<Signal> {
   /** Text-embedding. Single string or array — result vectors are index-aligned. `inputType` is the
    *  asymmetric-retrieval hint ("query" vs "document"); symmetric embedders ignore it. */
-  embed: (input: string | readonly string[], opts?: { inputType?: "query" | "document"; instruction?: string }) => Promise<EmbedResult>;
+  embed: (input: string | readonly string[], opts: { inputType?: "query" | "document"; instruction?: string; signal: Signal }) => Promise<EmbedResult>;
   /** Cross-encoder rerank. Documents carry caller ids; hits preserve them. `opts.instruction` is the
    *  per-task `<Instruct>` for instruction-aware rerankers; text-only families ignore it. */
-  rerank: (query: RerankQuery, documents: RerankDocument[], opts?: { instruction?: string }) => Promise<RerankResult>;
+  rerank: (query: RerankQuery, documents: RerankDocument[], opts: { instruction?: string; signal: Signal }) => Promise<RerankResult>;
   /** Batched PROSE summarization. Returns one item per input; pass non-empty user prompts only. */
-  summarize: (inputs: readonly SummarizeInput[], opts?: RolePresetParams) => Promise<SummarizeResult>;
+  summarize: (inputs: readonly SummarizeInput[], opts: RolePresetParams & { signal: Signal }) => Promise<SummarizeResult>;
   /** Batched SCHEMA-CONSTRAINED generation — the one-shot structured primitive; `responseFormat` REQUIRED. */
-  structured: (inputs: readonly SummarizeInput[], opts: StructuredOptions) => Promise<SummarizeResult>;
+  structured: (inputs: readonly SummarizeInput[], opts: StructuredOptions<Signal>) => Promise<SummarizeResult>;
   /** What `task` resolves to for this bundle's funder right now, or `null` (`no-connection`). */
-  resolved: (task: RoleClientTask) => Promise<ResolvedTaskView | null>;
+  resolved: (task: RoleClientTask, signal: Signal) => Promise<ResolvedTaskView | null>;
 }
 
 /** The per-owner role-client bundle read: every domain that embeds, reranks or summarizes on a user's behalf asks
  *  for the bundle bound to that user's connections. */
-export type RoleClientsFor = (ownerId: UserId) => Promise<RoleClients>;
+export type RoleClientsFor<Signal> = (ownerId: UserId) => Promise<RoleClients<Signal>>;

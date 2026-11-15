@@ -49,12 +49,12 @@ test("a failed retirement of the least recently used runtime refuses only that r
       QUEUE_LIMIT,
       shared,
     );
-    const first = await pool.acquire(failing);
+    const first = await pool.acquire(failing, { signal: new AbortController().signal });
     first.ready();
     first.release();
 
-    await expect(pool.acquire(bystander)).resolves.toMatchObject({ cold: true });
-    await expect(pool.acquire(failing)).rejects.toBe(fault);
+    await expect(pool.acquire(bystander, { signal: new AbortController().signal })).resolves.toMatchObject({ cold: true });
+    await expect(pool.acquire(failing, { signal: new AbortController().signal })).rejects.toBe(fault);
   };
 
   await expect(scope()).rejects.toMatchObject({ errors: [fault] });
@@ -64,7 +64,7 @@ test("an owner with its share of the Workers in use leaves one for another owner
   await using pool = new WarmRuntimePool<Target, string>(WORKERS, retired, QUEUE_LIMIT, shared);
   const share = pluginOwnerShare(WORKERS);
   const [overShare, ...held] = targetsOf("member", share + 1);
-  const leases = await Promise.all(held.map((target) => pool.acquire(target)));
+  const leases = await Promise.all(held.map((target) => pool.acquire(target, { signal: new AbortController().signal })));
   for (const lease of leases) {
     lease.ready();
   }
@@ -73,8 +73,8 @@ test("an owner with its share of the Workers in use leaves one for another owner
   if (overShare === undefined) {
     throw new Error("the member has a call past its share");
   }
-  const waiting = pool.acquire(overShare);
-  const other = pool.acquire({ owner: "other", plugin: "ping" });
+  const waiting = pool.acquire(overShare, { signal: new AbortController().signal });
+  const other = pool.acquire({ owner: "other", plugin: "ping" }, { signal: new AbortController().signal });
   expect(await granted(other)).toBe(true);
   expect(await granted(waiting)).toBe(false);
 
@@ -89,9 +89,9 @@ test("a call waiting on its own runtime's start never holds another owner's call
   if (starting === undefined) {
     throw new Error("the member has a plugin");
   }
-  const cold = await pool.acquire(starting);
-  const second = pool.acquire(starting);
-  const other = pool.acquire({ owner: "other", plugin: "ping" });
+  const cold = await pool.acquire(starting, { signal: new AbortController().signal });
+  const second = pool.acquire(starting, { signal: new AbortController().signal });
+  const other = pool.acquire({ owner: "other", plugin: "ping" }, { signal: new AbortController().signal });
   expect(await granted(other)).toBe(true);
   expect(await granted(second)).toBe(false);
 
@@ -104,11 +104,11 @@ test("an owner alone uses every Worker at once, warm, with no wait", async () =>
   const targets = targetsOf("member", WORKERS);
   // Every Worker holds one of the member's runtimes, warm and idle.
   for (const target of targets) {
-    const lease = await pool.acquire(target);
+    const lease = await pool.acquire(target, { signal: new AbortController().signal });
     lease.ready();
     lease.release();
   }
-  const inUse = targets.map((target) => pool.acquire(target));
+  const inUse = targets.map((target) => pool.acquire(target, { signal: new AbortController().signal }));
   expect(await Promise.all(inUse.map((request) => granted(request)))).toEqual(targets.map(() => true));
   expect((await Promise.all(inUse)).map((lease) => lease.cold)).toEqual(targets.map(() => false));
 });
@@ -116,7 +116,7 @@ test("an owner alone uses every Worker at once, warm, with no wait", async () =>
 test("a second owner's first call while a sole owner holds every Worker waits for one to free, then is served before the first owner's next", async () => {
   await using pool = new WarmRuntimePool<Target, string>(WORKERS, retired, QUEUE_LIMIT, alone);
   const [later, ...held] = targetsOf("member", WORKERS + 1);
-  const leases = await Promise.all(held.map((target) => pool.acquire(target)));
+  const leases = await Promise.all(held.map((target) => pool.acquire(target, { signal: new AbortController().signal })));
   for (const lease of leases) {
     lease.ready();
   }
@@ -126,8 +126,8 @@ test("a second owner's first call while a sole owner holds every Worker waits fo
 
   // Nothing is free and nothing can be taken back, so the newcomer waits; once it is queued, the share binds. The
   // member's next call is queued first, so serving in arrival order alone would hand it the first free Worker.
-  const next = pool.acquire(later);
-  const newcomer = pool.acquire({ owner: "newcomer", plugin: "first" });
+  const next = pool.acquire(later, { signal: new AbortController().signal });
+  const newcomer = pool.acquire({ owner: "newcomer", plugin: "first" }, { signal: new AbortController().signal });
   expect(await granted(newcomer)).toBe(false);
   expect(await granted(next)).toBe(false);
 
@@ -154,12 +154,12 @@ test("one owner's waiting calls, even a sole owner's, leave a place in the reque
   const waits: Promise<string>[] = [];
   {
     await using pool = new WarmRuntimePool<Target, string>(ONE_RUNTIME, retired, PLUGIN_RUNTIME_REQUEST_QUEUE_MAX, alone);
-    const lease = await pool.acquire(held);
+    const lease = await pool.acquire(held, { signal: new AbortController().signal });
     lease.ready();
-    waits.push(...queued.map((target) => outcome(pool.acquire(target))));
-    await expect(pool.acquire(overShare)).rejects.toBeInstanceOf(DomainConflictError);
+    waits.push(...queued.map((target) => outcome(pool.acquire(target, { signal: new AbortController().signal }))));
+    await expect(pool.acquire(overShare, { signal: new AbortController().signal })).rejects.toBeInstanceOf(DomainConflictError);
     // The other owner's call is queued, not refused: it waits like any call for the one Worker.
-    const other = outcome(pool.acquire({ owner: "other", plugin: "ping" }));
+    const other = outcome(pool.acquire({ owner: "other", plugin: "ping" }, { signal: new AbortController().signal }));
     waits.push(other);
     expect(await granted(other)).toBe(false);
   }

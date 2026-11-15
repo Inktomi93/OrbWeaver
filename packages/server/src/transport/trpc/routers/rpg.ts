@@ -60,7 +60,7 @@ import {
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { strictTwin } from "@orb/kit/zod-schema";
 import { z } from "zod";
-import { authedProcedure, t } from "../trpc.ts";
+import { authedProcedure, procedureSignal, t } from "../trpc.ts";
 
 export const rpgRouter = t.router({
   // ── writes (host-gated shared planes + member own-row writes; authz INSIDE each verb) ──────────────────
@@ -149,7 +149,7 @@ export const rpgRouter = t.router({
   resyncFromStory: authedProcedure
     .output(resyncResultSchema)
     .input(rpgReadGameInputSchema)
-    .mutation(({ ctx, input }) => ctx.services.rpg.resyncFromStory({ principal: ctx.auth, ...input })),
+    .mutation(({ ctx, input, signal }) => ctx.services.rpg.resyncFromStory({ principal: ctx.auth, ...input, signal: procedureSignal(signal) })),
   // populateFromCharacter — HOST-gated (a stamped-id write + model-call boundary): read ONE character's card +
   // the room's opening line and fill the BORN state (the identity sheet's hand-only title/level, the starting
   // inventory + purse, background-implied quests). The host authority gate lives INSIDE the verb
@@ -158,7 +158,7 @@ export const rpgRouter = t.router({
   populateFromCharacter: authedProcedure
     .output(populateResultSchema)
     .input(strictTwin(rpgPopulateFromCharacterInputSchema))
-    .mutation(({ ctx, input }) => ctx.services.rpg.populateFromCharacter({ principal: ctx.auth, ...input })),
+    .mutation(({ ctx, input, signal }) => ctx.services.rpg.populateFromCharacter({ principal: ctx.auth, ...input, signal: procedureSignal(signal) })),
 
   // ── reads (member-gated; getConfigView host-gated — the leak-free NOT_FOUND collapse INSIDE the verb) ──
   getGame: authedProcedure

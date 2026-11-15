@@ -320,7 +320,7 @@ async function storeChunk(ctx: EmbeddingsContext, p: DocumentChunkStoreParams): 
 export function createStore(ctx: EmbeddingsContext): EmbeddingsService["store"] {
   const inFlight = new Map<string, Promise<StoreResult>>();
   const storeEntity = async (params: CardTextStoreParams | ImageRawStoreParams | ImageCaptionedStoreParams): Promise<StoreResult> => {
-    params.signal?.throwIfAborted();
+    params.signal.throwIfAborted();
     const task = params.lens === "card-text" ? "embed" : "imageEmbed";
     const via = params.lens === "image-captioned" ? params.via : task;
     const generation = await resolveTargetGeneration(ctx, params.ownerId, task, via);

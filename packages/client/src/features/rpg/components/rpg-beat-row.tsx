@@ -186,7 +186,7 @@ function BeatBodyEditor({
               // Sub-floor disclosure by ruling: the box is the rendered Button's own (`render` merges the trigger class onto it): an inline Button carries its ::after touch floor, and a control min-h here would inflate the beat row's compact rest state.
               size="text"
               render={
-                <InlineAction variant="ghost" step="label" inset="control" textAlign="start" whitespace="normal" cap="fit" className="min-inline-0">
+                <InlineAction variant="ghost" step="label" inset="control" textAlign="start" whitespace="normal" cap="fit" minWidth="shrinks">
                   <Text as="span" voice="label" className="min-inline-0" wrap="word">
                     {restText}
                   </Text>

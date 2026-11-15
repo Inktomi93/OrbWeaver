@@ -67,15 +67,25 @@ test("admin authority does not widen card ownership; foreign and synthetic refus
   const beforeVectors = await root.db.select().from(characterEmbeddings);
 
   await expect(
-    root.services.admin.embedCharacterCard({ principal: await root.principalFor(ordinary.id), characterId: ordinaryCard.id }),
+    root.services.admin.embedCharacterCard({
+      signal: new AbortController().signal,
+      principal: await root.principalFor(ordinary.id),
+      characterId: ordinaryCard.id,
+    }),
   ).rejects.toBeInstanceOf(DomainForbiddenError);
-  await expect(root.services.admin.embedCharacterCard({ principal: await root.principalFor(delegate.id), characterId: card.id })).rejects.toBeInstanceOf(
-    DomainNotFoundError,
-  );
-  await expect.soft(root.services.admin.embedCharacterCard({ principal: owner, characterId: ordinaryCard.id })).rejects.toBeInstanceOf(DomainNotFoundError);
-  await expect(root.services.admin.embedCharacterCard({ principal: owner, characterId: synthetic.characterId })).rejects.toBeInstanceOf(DomainNotFoundError);
+  await expect(
+    root.services.admin.embedCharacterCard({ signal: new AbortController().signal, principal: await root.principalFor(delegate.id), characterId: card.id }),
+  ).rejects.toBeInstanceOf(DomainNotFoundError);
   await expect
-    .soft(root.services.admin.embedCharacterCard({ principal: await root.principalFor(root.ownerId), characterId: card.id }))
+    .soft(root.services.admin.embedCharacterCard({ signal: new AbortController().signal, principal: owner, characterId: ordinaryCard.id }))
+    .rejects.toBeInstanceOf(DomainNotFoundError);
+  await expect(
+    root.services.admin.embedCharacterCard({ signal: new AbortController().signal, principal: owner, characterId: synthetic.characterId }),
+  ).rejects.toBeInstanceOf(DomainNotFoundError);
+  await expect
+    .soft(
+      root.services.admin.embedCharacterCard({ signal: new AbortController().signal, principal: await root.principalFor(root.ownerId), characterId: card.id }),
+    )
     .rejects.toBeInstanceOf(DomainNotFoundError);
   expect(fundingProvider.requestBodies).toEqual(beforeRefusalBodies);
   expect(fundingProvider.requests).toEqual(beforeRequests);
@@ -87,7 +97,7 @@ test("admin authority does not widen card ownership; foreign and synthetic refus
   expect(text).toContain(card.description);
   const beforeBodies = fundingProvider.requestBodies.length;
   const beforeAuthorizations = fundingProvider.authorizations.length;
-  await root.services.admin.embedCharacterCard({ principal: owner, characterId: card.id });
+  await root.services.admin.embedCharacterCard({ signal: new AbortController().signal, principal: owner, characterId: card.id });
   expect(fundingProvider.requestBodies.slice(beforeBodies).map((body) => JSON.parse(body))).toEqual([
     expect.objectContaining({ model: FUNDING_MODEL, input: [text] }),
   ]);
@@ -125,7 +135,7 @@ test("the inline admin producer follows the owner's changed binding and persists
   await caller.connection.setBinding({ task: "embed", connectionId: first.connectionId });
   await root.settleBackground();
   const text = await root.services.character.loadCardText(card.id);
-  const params = { principal, characterId: card.id };
+  const params = { signal: new AbortController().signal, principal, characterId: card.id };
   const beforeFirst = fundingProvider.requestBodies.length;
   await root.services.admin.embedCharacterCard(params);
   expect(fundingProvider.requestBodies.slice(beforeFirst).map((body) => JSON.parse(body))).toEqual([

@@ -32,18 +32,29 @@ test("a kind that calls no model answers null, never zero, and a kind that does 
   });
   await root.settleBackground();
 
-  expect(await root.services.workloads.estimateModelCalls({ caller: owner, mode: "singular", input: STATS })).toEqual({ calls: null, bound: "exact" });
-  expect(await root.services.workloads.estimateModelCalls({ caller: owner, mode: "singular", input: DISTILL })).toEqual({ calls: 1, bound: "exact" });
+  expect(await root.services.workloads.estimateModelCalls({ signal: new AbortController().signal, caller: owner, mode: "singular", input: STATS })).toEqual({
+    calls: null,
+    bound: "exact",
+  });
+  expect(await root.services.workloads.estimateModelCalls({ signal: new AbortController().signal, caller: owner, mode: "singular", input: DISTILL })).toEqual({
+    calls: 1,
+    bound: "exact",
+  });
 });
 
 test("a mode the kind does not run is refused, the same kind's supported mode is not, and the refusal comes before any count", async () => {
   await using root = await createServerHarness({ startJobs: false });
   const owner = await root.principalFor(root.ownerId);
 
-  await expect(root.services.workloads.estimateModelCalls({ caller: owner, mode: "singular", input: CATALOG })).rejects.toMatchObject({
+  await expect(
+    root.services.workloads.estimateModelCalls({ signal: new AbortController().signal, caller: owner, mode: "singular", input: CATALOG }),
+  ).rejects.toMatchObject({
     code: "unsupported_mode",
   });
-  expect(await root.services.workloads.estimateModelCalls({ caller: owner, mode: "bulk", input: CATALOG })).toEqual({ calls: null, bound: "exact" });
+  expect(await root.services.workloads.estimateModelCalls({ signal: new AbortController().signal, caller: owner, mode: "bulk", input: CATALOG })).toEqual({
+    calls: null,
+    bound: "exact",
+  });
 });
 
 test("a retry estimate answers a stranger and a missing id with the same not-found, and the row's owner with its answer", async ({ ids }) => {
@@ -52,12 +63,19 @@ test("a retry estimate answers a stranger and a missing id with the same not-fou
   const stranger = await root.principalFor((await root.actor()).id);
   const row = await root.services.workloads.start({ caller: owner, ownerId: owner.userId, mode: "singular", input: STATS });
 
-  expect(await root.services.workloads.estimateRetryModelCalls({ caller: owner, id: row.id })).toEqual({ calls: null, bound: "exact" });
+  expect(await root.services.workloads.estimateRetryModelCalls({ signal: new AbortController().signal, caller: owner, id: row.id })).toEqual({
+    calls: null,
+    bound: "exact",
+  });
   const missing = mintTypeId(ID_PREFIX.workload, ids.next);
   for (const id of [row.id, missing]) {
-    await expect(root.services.workloads.estimateRetryModelCalls({ caller: stranger, id })).rejects.toBeInstanceOf(DomainNotFoundError);
+    await expect(root.services.workloads.estimateRetryModelCalls({ signal: new AbortController().signal, caller: stranger, id })).rejects.toBeInstanceOf(
+      DomainNotFoundError,
+    );
   }
-  await expect(root.services.workloads.estimateRetryModelCalls({ caller: owner, id: missing })).rejects.toBeInstanceOf(DomainNotFoundError);
+  await expect(root.services.workloads.estimateRetryModelCalls({ signal: new AbortController().signal, caller: owner, id: missing })).rejects.toBeInstanceOf(
+    DomainNotFoundError,
+  );
 });
 
 test("a bulk create-kind run through the door mints for its named target, on the estimate and the start, and refuses without one", async () => {
@@ -147,7 +165,13 @@ test("a chained estimate refuses a bulk run and a stage the caller could not sta
   expect(await room.caller.workloads.estimateModelCalls({ input: THEMES, mode: "bulk" })).toMatchObject({ bound: "exact" });
   await expect(room.caller.workloads.estimateModelCalls({ input: THEMES, mode: "bulk", after: [MEMORY] })).rejects.toMatchObject({ code: "BAD_REQUEST" });
   await expect(
-    room.root.services.workloads.estimateModelCalls({ caller: room.owner, input: THEMES, mode: "singular", after: [CATALOG] }),
+    room.root.services.workloads.estimateModelCalls({
+      signal: new AbortController().signal,
+      caller: room.owner,
+      input: THEMES,
+      mode: "singular",
+      after: [CATALOG],
+    }),
   ).rejects.toMatchObject({
     code: "unsupported_mode",
   });

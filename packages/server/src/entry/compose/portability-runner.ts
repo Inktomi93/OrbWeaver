@@ -123,7 +123,8 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
 
   const enqueueImportIndex = createEnqueueImportIndex(workloads);
   const reconcileImportStats: ImportWorkloadDeps["reconcileImportStats"] = async ({ ownerId }) => {
-    await reconcileStats(db, { ownerId, now, idSource: deps.idSource });
+    // Runs after the import's rows landed; the owner's rollups must cover all of them, so no cancel may stop it.
+    await reconcileStats(db, { ownerId, now, idSource: deps.idSource, signal: new AbortController().signal });
   };
   const findPersonaByName = createFindOwnedPersonaByName(db);
   /** The ST profile importer's cross-domain slice — the ONE spelling, shared by both consumers. */

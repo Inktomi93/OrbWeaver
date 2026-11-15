@@ -273,7 +273,7 @@ async function chatRequestFor(root: ServerTestHarness, wire: Wire, options: Chat
     onEvent: (event: ChatEvent): void => {
       sink.events.push(event);
     },
-    ...(options.signal !== undefined ? { signal: options.signal } : {}),
+    signal: options.signal ?? new AbortController().signal,
   };
   const history = [{ role: "user" as const, content: [{ type: "text" as const, text: "Say something." }] }];
   if (wire === "agent-sdk") {
@@ -388,6 +388,7 @@ export async function driveStructuredMalformed(wire: Wire): Promise<unknown> {
     }),
     inputs: [{ systemPrompt: "Answer in JSON.", userPrompt: "What is the answer?" }],
     responseFormat: CONFORMANCE_RESPONSE_FORMAT,
+    signal: new AbortController().signal,
   };
   return await root.app.runtime.executor.structured(request);
 }
@@ -428,7 +429,7 @@ async function driveEmbed(wire: Wire, signal?: AbortSignal): Promise<unknown> {
         : { capability: { kind: "embedding" as const, embedding: { ...EMBEDDING_FLOOR, dims: EMBED_DIMS, input: ["text" as const] } } }),
     }),
     input: ["conformance"],
-    ...(signal !== undefined ? { signal } : {}),
+    signal: signal ?? new AbortController().signal,
   };
   return await root.app.runtime.executor.embed(request);
 }

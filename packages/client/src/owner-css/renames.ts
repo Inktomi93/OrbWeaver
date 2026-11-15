@@ -61,6 +61,10 @@ export const OWNER_CSS_RENAMES: readonly OwnerCssRename[] = [
   { kind: "slot", name: "provenance-error", to: null, see: "query-error" },
   // Every dialog's failure line is one shared owner now, so a one-to-one rename would restyle every dialog's failure.
   { kind: "slot", name: "confirm-dialog-failure", to: null, see: "dialog-failure" },
+  // The journal mark and pack list rows became shared list rows, so a one-to-one rename would restyle every list row.
+  { kind: "slot", name: "rpg-mark-row", to: null, see: "list-row-root" },
+  { kind: "slot", name: "rpg-mark-trigger", to: null, see: "list-row-subtitle" },
+  { kind: "slot", name: "rpg-pack-row", to: null, see: "list-row-root" },
   // Every status box is one shared notice now, so a one-to-one rename would restyle every notice.
   { kind: "slot", name: "prompt-cache-warning", to: null, see: "notice" },
   // Every inline empty line of a list is one shared owner now, so a one-to-one rename would restyle every such line.

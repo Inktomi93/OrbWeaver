@@ -12,7 +12,7 @@ import { requireOwnedMeta, toDocumentView } from "../persistence/queries.ts";
 import { activeSpaceModel } from "../substrate/active-space.ts";
 
 export function createRename(ctx: DatabankContext): DatabankService["rename"] {
-  return async ({ principal, id, name }: RenameDocumentParams): Promise<DocumentView> => {
+  return async ({ principal, id, name, signal }: RenameDocumentParams): Promise<DocumentView> => {
     const ownerId = principal.userId;
     const at = ctx.now();
     const updated = await ctx.db
@@ -32,7 +32,7 @@ export function createRename(ctx: DatabankContext): DatabankService["rename"] {
     // full reach is resolvable after the write.
     await ctx.fanDatabankRoomsForDocument(id);
     ctx.emitUserEvent(ownerId, { type: "databankChanged", documentId: id });
-    const counts = await ctx.countChunks({ documentIds: [id], model: await activeSpaceModel(ctx, ownerId) });
+    const counts = await ctx.countChunks({ documentIds: [id], model: await activeSpaceModel(ctx, ownerId, signal) });
     return toDocumentView(await requireOwnedMeta(ctx.db, ownerId, id), counts.get(id) ?? 0);
   };
 }

@@ -219,7 +219,11 @@ export function createResolveEffective(ctx: PresetContext): Pick<PresetService, 
     if (row === undefined) {
       throw new PresetNotFoundError(params.id);
     }
-    const resolved = await ctx.resolveChatCapability({ principal: params.principal, ...(params.target !== undefined ? { target: params.target } : {}) });
+    const resolved = await ctx.resolveChatCapability({
+      principal: params.principal,
+      signal: params.signal,
+      ...(params.target !== undefined ? { target: params.target } : {}),
+    });
     const { model } = resolved;
     const capability = requireGenerationCapability(resolved.capability);
     const intent = parsePromptConfig(row.config).params;

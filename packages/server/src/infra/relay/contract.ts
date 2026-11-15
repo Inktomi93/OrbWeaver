@@ -35,11 +35,11 @@ export interface CloudflaredPin {
 export type RelayAssetFetch = (url: string, limits: { readonly maxBytes: number; readonly deadlineMs: number }) => Promise<Response>;
 
 /** Unpacks the single `cloudflared` entry of a verified tgz into `intoDir`. Called only after the archive's hash matched. */
-export type ExtractTgz = (archive: string, intoDir: string, signal?: AbortSignal) => Promise<void>;
+export type ExtractTgz = (archive: string, intoDir: string, signal: AbortSignal) => Promise<void>;
 
 /** What the binary verifier reads: the pin, this process's target, its private directory and the two I/O seams. */
 export interface CloudflaredBinaryDeps {
-  readonly signal?: AbortSignal;
+  readonly signal: AbortSignal;
   readonly pin: CloudflaredPin;
   /** `${process.platform}-${process.arch}`; a pair outside {@link CLOUDFLARED_TARGETS} refuses. */
   readonly target: string;

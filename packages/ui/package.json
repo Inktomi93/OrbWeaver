@@ -64,6 +64,7 @@
     "./log-viewer": "./src/primitives/log-viewer/index.ts",
     "./macro-textarea": "./src/primitives/macro-textarea/index.ts",
     "./markdown": "./src/markdown/index.ts",
+    "./frame-markdown": "./src/markdown/frame/index.ts",
     "./media-grid": "./src/primitives/media-grid/index.ts",
     "./media-tile-grid": "./src/primitives/media-tile-grid/index.ts",
     "./menu": "./src/primitives/menu/index.ts",

@@ -7,6 +7,7 @@ import type { ImageryContext } from "./service.ts";
 
 interface GenerateImageResolveParams extends Pick<ResolveTaskParams, "principal" | "actor"> {
   readonly task: "generateImage";
+  readonly signal: AbortSignal;
 }
 
 export interface ImageProviderDeps {

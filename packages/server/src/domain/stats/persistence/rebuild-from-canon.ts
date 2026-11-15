@@ -99,7 +99,7 @@ export async function reconcileStats(db: Db, opts: ReconcileOpts): Promise<Recon
  *  character deleted since. Such an owner re-runs an empty (cheap) timeline rebuild each boot. A generated
  *  picture never leaves that state, because its provenance row retains its asset from every delete path.
  *  A shutdown during boot aborts it between owners through `signal`. Returns the owners rebuilt. */
-export async function reconcileOwnersMissingTimeline(db: Db, now: () => number, idSource: IdSource, signal?: AbortSignal): Promise<number> {
+export async function reconcileOwnersMissingTimeline(db: Db, now: () => number, idSource: IdSource, signal: AbortSignal): Promise<number> {
   const owners = await db.all<{ ownerId: unknown }>(sql`
     SELECT o.owner_id AS ownerId FROM owner_stats o
     WHERE (o.user_turns + o.assistant_turns + o.system_turns + o.chats > 0
@@ -120,14 +120,9 @@ export async function reconcileOwnersMissingTimeline(db: Db, now: () => number, 
  *  that raced the scan is never overwritten by the older fold: the replace rolls back and the fold runs again. A
  *  writer that outpaces every attempt leaves the live rollups as they were and refuses with a retry-later answer,
  *  never a total folded from canon that has since moved. */
-async function untilCanonStable<T>(
-  db: Db,
-  ownerId: UserId,
-  signal: AbortSignal | undefined,
-  build: (fence: (stmts: BatchStmt[]) => void) => Promise<T>,
-): Promise<T> {
+async function untilCanonStable<T>(db: Db, ownerId: UserId, signal: AbortSignal, build: (fence: (stmts: BatchStmt[]) => void) => Promise<T>): Promise<T> {
   for (let attempt = 0; attempt < STATS_REBUILD_ATTEMPTS; attempt++) {
-    signal?.throwIfAborted();
+    signal.throwIfAborted();
     const before = await ownerCanonSnapshot(db, ownerId);
     try {
       return await build((stmts) => stmts.unshift(canonUnchangedStatement(db, ownerId, before)));

@@ -6,7 +6,7 @@ import type { ChatContext } from "./context.ts";
 
 export interface ChatMemorySearchDeps {
   readonly resolveHostUserId: (chatId: ChatId) => Promise<UserId | null>;
-  readonly digests: SearchDigestHitsOp;
+  readonly digests: SearchDigestHitsOp<AbortSignal>;
   readonly withRetrievalDegrade: RetrievalDegrade;
 }
 export type ChatMemorySearchOps = Pick<ChatContext, "searchDigests">;

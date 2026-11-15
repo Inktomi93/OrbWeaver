@@ -238,7 +238,7 @@ function PairFace({
   readonly badge: string | undefined;
 }): ReactElement {
   return (
-    <Row align="center" className="min-inline-0" width="full" gap="field" justify="between">
+    <Row align="center" minWidth="shrinks" width="full" gap="field" justify="between">
       <Text as="span" textAlign="start" truncate={true}>
         {left} ↔ {right}
       </Text>

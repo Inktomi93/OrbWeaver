@@ -53,20 +53,20 @@ export function createScopedTimers(execution: TimerScheduler): ScopedTimers {
 }
 
 /** Wait on an injected timer; cancellation tears down the timer and its signal listener together. */
-export function waitForTimer(ms: number, schedule: ScheduleOp, signal?: AbortSignal): Promise<void> {
-  if (signal?.aborted === true) {
+export function waitForTimer(ms: number, schedule: ScheduleOp, signal: AbortSignal): Promise<void> {
+  if (signal.aborted) {
     return Promise.reject(toError(signal.reason));
   }
   return new Promise((resolve, reject) => {
     const onAbort = (): void => {
       cancel();
-      signal?.removeEventListener("abort", onAbort);
-      reject(toError(signal?.reason));
+      signal.removeEventListener("abort", onAbort);
+      reject(toError(signal.reason));
     };
     const cancel = schedule(() => {
-      signal?.removeEventListener("abort", onAbort);
+      signal.removeEventListener("abort", onAbort);
       resolve();
     }, ms);
-    signal?.addEventListener("abort", onAbort, { once: true });
+    signal.addEventListener("abort", onAbort, { once: true });
   });
 }

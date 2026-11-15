@@ -81,7 +81,9 @@ test("a solo send returns the owned user and primary character reply with durabl
   if (character === undefined) {
     throw new Error("the solo room created no primary character");
   }
-  const connectionId = (await h.root.services.connection.listBindings({ principal: h.owner })).find(({ task }) => task === "chat")?.binding?.connectionId;
+  const connectionId = (await h.root.services.connection.listBindings({ signal: new AbortController().signal, principal: h.owner })).find(
+    ({ task }) => task === "chat",
+  )?.binding?.connectionId;
   if (connectionId === undefined || connectionId === null) {
     throw new Error("the solo room has no saved chat connection");
   }

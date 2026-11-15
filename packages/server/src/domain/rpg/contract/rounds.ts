@@ -46,7 +46,7 @@ export interface RpgRoundsDeps {
   readonly rpgChatOps: RpgRoundsChatOps;
   /** The runtime fold, for the READ-side delivery verdicts and the two HOST doors. The in-turn state ROUNDS
    *  re-resolve nothing: they ride the character turn's already-resolved connection. */
-  readonly connection: { readonly resolve: (params: ResolveTaskParams) => Promise<ResolveOutcome> };
+  readonly connection: { readonly resolve: (params: ResolveTaskParams & { readonly signal: AbortSignal }) => Promise<ResolveOutcome> };
   readonly executor: Pick<ProviderExecutor, "runChatTurn">;
   /** The host's REAL `Principal` by userId (D19). */
   readonly resolveHostPrincipal: (userId: UserId) => Promise<Principal>;
@@ -84,7 +84,7 @@ export interface ExtractCtx {
    *  `undefined` on the two HOST doors (`resyncFromStory` / `populateFromCharacter`): those are verb-initiated,
    *  and the tRPC request's signal is not threaded down to verbs on this tree — a doorway, not a gap in this
    *  seam. The field is REQUIRED so a new arm cannot forget to answer the question. */
-  readonly signal: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 /** A built structured state round: the shape, the tools it stands for, what goes on the wire, and its prompt. */

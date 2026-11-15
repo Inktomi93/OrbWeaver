@@ -100,7 +100,7 @@ function renderRowIdentity(args: {
       stackBelow={stackStamp ? "cq-28" : undefined}
       alignBelow={stampAlignment(stackStamp, mirrored)}
       reverse={mirrored}
-      className="min-inline-0"
+      minWidth="shrinks"
       wrap={stackStamp ? "untilCq28" : true}
       gapNarrow={stackStamp ? "none" : undefined}
     >
@@ -111,7 +111,7 @@ function renderRowIdentity(args: {
         // `[data-slot="message-attribution"]`). The settled row was the arm that never took it, and the
         // name is the one datum whose size moves independently (`--appearance-reading-name-scale`, globals.css:795),
         // so centring it puts a scaled name off the line its own row sits on.
-        <Row gap="field" align="baseline" className="min-inline-0" data-slot="message-attribution">
+        <Row gap="field" align="baseline" minWidth="shrinks" data-slot="message-attribution">
           {renderAttributionName(attribution)}
         </Row>
       )}
@@ -123,7 +123,7 @@ function renderRowIdentity(args: {
   }
   // No wrap: a chip pushed onto a line of its own separates the face from its name, so the cluster shrinks and the name wraps in its own box.
   return (
-    <Row gap="field" align="center" reverse={mirrored} className="min-inline-0">
+    <Row gap="field" align="center" reverse={mirrored} minWidth="shrinks">
       {chip}
       {cluster}
     </Row>
@@ -235,9 +235,9 @@ export function renderGhostNameRow(args: {
   return (
     <NameRowFrame
       identity={
-        <Row gap="field" align="center" className="min-inline-0">
+        <Row gap="field" align="center" minWidth="shrinks">
           {args.chip}
-          <Row gap="field" align="baseline" className="min-inline-0" data-slot="message-attribution">
+          <Row gap="field" align="baseline" minWidth="shrinks" data-slot="message-attribution">
             {renderAttributionName(attribution)}
           </Row>
         </Row>

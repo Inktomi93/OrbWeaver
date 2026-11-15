@@ -19,7 +19,7 @@ test.for(LEGACY_IMPORT_ARMS)("$title: the first compaction window starts at the 
     await plantLegacyZeroCanon(h.root, chatId);
   }
   const seqs = await importedSeqs(h, chatId);
-  const result = await h.root.services.chat.compact({ principal: h.owner, chatId });
+  const result = await h.root.services.chat.compact({ signal: new AbortController().signal, principal: h.owner, chatId });
   expect(result).toEqual({ summary: SUMMARY, compactedAtSeq: seqs.at(-1), updated: true });
   const completions = h.requests.filter((request) => request.method === "POST" && new URL(request.url).pathname.endsWith("/chat/completions"));
   expect(completions).toHaveLength(1);

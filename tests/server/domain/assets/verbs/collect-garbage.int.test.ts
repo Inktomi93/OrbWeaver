@@ -95,6 +95,7 @@ async function plantEveryReference(box: GcBox): Promise<Record<string, StoredRef
   await attach(box, room, refs["message_assets.asset_id"]);
 
   await root.services.databank.upload({
+    signal: new AbortController().signal,
     principal,
     bytes: new TextEncoder().encode("The keeper's ledger survives every sweep."),
     mime: "text/plain",
@@ -169,7 +170,13 @@ async function plantEveryReference(box: GcBox): Promise<Record<string, StoredRef
   });
   await root.services.connection.setBinding({ principal, task: "generateImage", connectionId: imageConnection.id });
   box.images.push(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)));
-  const picture = await root.services.imagery.generatePicture({ caller: principal, mode: "free", prompt: "The orbital ledger at dusk.", n: 1 });
+  const picture = await root.services.imagery.generatePicture({
+    signal: new AbortController().signal,
+    caller: principal,
+    mode: "free",
+    prompt: "The orbital ledger at dusk.",
+    n: 1,
+  });
   const generated = picture.images[0];
   if (generated === undefined) {
     throw new Error("the scripted image generation returned no picture");
@@ -206,13 +213,19 @@ async function plantEveryReference(box: GcBox): Promise<Record<string, StoredRef
     input: createCharacterSchema.parse({ handle: "gc-card-background", name: "Carded", description: "" }),
   });
   await root.services.character.update({
+    signal: new AbortController().signal,
     principal,
     characterId: carded.id,
     input: { backgroundOverride: backgroundSource(refs["characters.background_override"]) },
   });
 
   refs["chats.metadata.background"] = await store(box, "background");
-  await root.services.chat.setChatBackground({ principal, chatId: room, background: backgroundSource(refs["chats.metadata.background"]) });
+  await root.services.chat.setChatBackground({
+    signal: new AbortController().signal,
+    principal,
+    chatId: room,
+    background: backgroundSource(refs["chats.metadata.background"]),
+  });
 
   // A fork copies the canon body; deleting the source leaves the fork's body as the image's only reference.
   refs["message body (fork of a deleted chat)"] = await store(box, "attachment");

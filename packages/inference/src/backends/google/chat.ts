@@ -96,7 +96,7 @@ export async function runGoogleChat(req: GoogleChatRequest, deps: GoogleBackendD
     },
     classify,
     {
-      ...(req.signal === undefined ? {} : { signal: req.signal }),
+      signal: req.signal,
       now: deps.now,
       scheduleTimeout: deps.scheduleTimeout,
       random: deps.random,

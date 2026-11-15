@@ -208,11 +208,15 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     }
     return row.baseUrl;
   };
+  // A mirror warm or a listed-model probe is shared by every caller coalesced onto it, so no one caller's cancel may
+  // end it: each caller races its own signal against the shared answer (`backends/http/abort-wait.ts`), and each
+  // dial keeps its own deadline.
+  const sharedWarmSignal = (): AbortSignal => new AbortController().signal;
   // The OpenRouter catalog is keyless: nothing secret rides the dial, so nothing is scrubbed from its reason. A
   // catalog that lost its embeddings or rerank list comes back `partial`, which the mirror serves to the read that
   // asked and never holds or stores.
   const warmOpenRouterCatalog = (): Promise<MirrorWarm<ModelCatalogEntry[]>> =>
-    openRouterCatalog.warm(() => fetchOpenRouterCatalog({ fetch: fetchImpl, baseUrl: openRouterBaseUrl() }), NO_PROVIDER_SECRETS);
+    openRouterCatalog.warm(() => fetchOpenRouterCatalog({ fetch: fetchImpl, baseUrl: openRouterBaseUrl(), signal: sharedWarmSignal() }), NO_PROVIDER_SECRETS);
   const warmOpenRouter = async (): Promise<void> => {
     await warmOpenRouterCatalog();
   };
@@ -249,6 +253,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
       secret,
       headers: connection.transport?.headers,
       secrets,
+      signal: sharedWarmSignal(),
       modelInfoApi,
       probeModel: connection.model,
       warn: (message) => {
@@ -258,10 +263,10 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     // The Anthropic list needs its `anthropic-version` header, which only the provider's own lister sends.
     const fetchRows = (): Promise<EndpointModel[]> => {
       if (provider.wire === "google-generative-ai") {
-        return fetchGoogleModels({ baseUrl, secret, secrets, label: "Google models" }, fetchImpl);
+        return fetchGoogleModels({ baseUrl, secret, secrets, label: "Google models", signal: endpointArgs.signal }, fetchImpl);
       }
       if (provider.wire === "anthropic-messages") {
-        return fetchAnthropicModels({ baseUrl, secret, secrets, label: "Anthropic models" }, fetchImpl);
+        return fetchAnthropicModels({ baseUrl, secret, secrets, label: "Anthropic models", signal: endpointArgs.signal }, fetchImpl);
       }
       return fetchEndpointModels(endpointArgs);
     };
@@ -279,7 +284,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     return agentSdkBackend === undefined
       ? Promise.resolve({ ok: false, reason: "The Claude runtime is not installed.", partial: null })
       : agentSdkCatalog.warm(
-          async () => ({ complete: await agentSdkBackend.catalog(identity) }),
+          async () => ({ complete: await agentSdkBackend.catalog(identity, sharedWarmSignal()) }),
           resolvedScrubSet({ credential: identity.credential, transport: null }),
         );
   };
@@ -295,7 +300,14 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     return (
       await detectedServer(baseUrl).warm(
         async () => ({
-          complete: await detectServer({ fetch: fetchImpl, baseUrl, secret, headers: connection.transport?.headers, scheduleTimeout: deps.scheduleTimeout }),
+          complete: await detectServer({
+            fetch: fetchImpl,
+            baseUrl,
+            secret,
+            headers: connection.transport?.headers,
+            scheduleTimeout: deps.scheduleTimeout,
+            signal: sharedWarmSignal(),
+          }),
         }),
         secrets,
       )
@@ -360,7 +372,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     embeddingExecution,
     modelTasks: (connection, options) => modelTasks(ctx, connection, options),
     capabilities: {
-      for: async ({ connectionId, principal, cachedFacts }): Promise<CapabilityRead> => {
+      for: async ({ connectionId, principal, signal, cachedFacts }): Promise<CapabilityRead> => {
         const connection = await ownedConnection(connectionId, principal.userId);
         const provider = requireProvider(registry.get(connection.providerId, connection.ownerId), connection.providerId);
         // The same discovered kind the resolve below reads, so the task it picks is one the row serves.
@@ -375,7 +387,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
             message: `connection "${connection.label}" (${provider.id}, ${kind}) serves no task`,
           });
         }
-        const outcome = await resolveTaskWithBaseline(ctx, { task, principal, connectionId, ...(cachedFacts === true ? { cachedFacts } : {}) });
+        const outcome = await resolveTaskWithBaseline(ctx, { task, principal, connectionId, signal, ...(cachedFacts === true ? { cachedFacts } : {}) });
         const detected = behaveAs(ctx, provider, connection);
         return {
           capability: outcome.resolved.capability,
@@ -416,9 +428,11 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
       },
       invalidateEndpoint,
       passageCounter: (resolved) => passageCounterFor(fetchImpl, resolved),
-      tokenize: async (resolved, words): Promise<TokenizeResult> => {
+      tokenize: async (resolved, words, signal): Promise<TokenizeResult> => {
         const target = tokenTargetOf(resolved);
-        return target === null ? { available: false, words: [] } : { available: true, words: [...(await built.openAiCompat.tokens.lookup(target, words))] };
+        return target === null
+          ? { available: false, words: [] }
+          : { available: true, words: [...(await built.openAiCompat.tokens.lookup(target, words, signal))] };
       },
     },
     diagnostics,

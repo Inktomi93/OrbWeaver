@@ -187,7 +187,7 @@ export interface TurnRetrievalEvents {
 export type PublishChatChangedOp = (userId: UserId, chatId: ChatId | undefined) => void;
 
 /** Register a prompt transform; idempotent by id, so a re-register replaces the prior one. */
-export type RegisterPromptTransformOp = (transform: PromptTransform) => void;
+export type RegisterPromptTransformOp<Signal> = (transform: PromptTransform<Signal>) => void;
 
 /** Deregister a prompt transform by id; a no-op for an unknown id. */
 export type UnregisterPromptTransformOp = (id: string) => void;

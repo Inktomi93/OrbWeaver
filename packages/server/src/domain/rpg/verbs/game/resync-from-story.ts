@@ -93,7 +93,7 @@ export function createResyncFromStory(ctx: RpgContext): Pick<RpgService, "resync
     // the deep window. The op is ERRORS-AS-DATA — a round that could not RUN (unresolvable connection / no
     // structured writer / a failed model call) comes back `{ok:false, reason}` and is handed STRAIGHT to the
     // host. It used to come back as an empty delta, indistinguishable from a story with nothing to re-derive.
-    const round = await ctx.runResyncExtraction({ chatId: game.chatId, hostUserId, baseState });
+    const round = await ctx.runResyncExtraction({ chatId: game.chatId, hostUserId, baseState, signal: params.signal });
     if (!round.ok) {
       return round;
     }

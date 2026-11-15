@@ -33,13 +33,18 @@ test("saved custom stopping strings reach the actual native stop set on a declar
   expect(bodies).toMatchObject([{ stop: ["<END>", "\nUser:"] }]);
 });
 
-type DraftParams = Omit<Parameters<ChatRoot["root"]["services"]["chat"]["impersonateStream"]>[0], "principal" | "chatId">;
+type DraftParams = Omit<Parameters<ChatRoot["root"]["services"]["chat"]["impersonateStream"]>[0], "principal" | "chatId" | "signal">;
 
 /** Drain one impersonation draft and return its text with the requests it sent. */
 async function drainDraft(h: ChatRoot, params: DraftParams = {}): Promise<WireOf<string>> {
   return await wireOf(h, async () => {
     let text = "";
-    for await (const { delta } of h.root.services.chat.impersonateStream({ principal: h.owner, chatId: h.chatId, ...params })) {
+    for await (const { delta } of h.root.services.chat.impersonateStream({
+      principal: h.owner,
+      chatId: h.chatId,
+      signal: new AbortController().signal,
+      ...params,
+    })) {
       text += delta;
     }
     return text;

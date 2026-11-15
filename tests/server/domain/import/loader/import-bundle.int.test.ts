@@ -236,7 +236,12 @@ test("a restored chat binds to the existing character its card deduped onto, und
   expect(card.status).toBe(200);
   const firstCard = new Uint8Array(await card.arrayBuffer());
   // Renaming the handle is not a content edit, so the next export still dedups onto the first restore.
-  await source.services.character.update({ principal: owner, characterId: created.id, input: { handle: castId<CharacterHandle>("gatekeeper") } });
+  await source.services.character.update({
+    signal: new AbortController().signal,
+    principal: owner,
+    characterId: created.id,
+    input: { handle: castId<CharacterHandle>("gatekeeper") },
+  });
   const lines = [{ role: "user", content: "How many gates tonight?" }] as const;
   await seedTranscript(source, { ownerId: source.ownerId, characterHandles: [castId<CharacterHandle>("gatekeeper")], lines });
   const bundle = await exportLibrary(source, ["character", "chat"]);
@@ -349,6 +354,7 @@ test("a seat's card identity resolves only inside the importing account", { tags
   // Positive control: the same bundle binds for the owner who holds that card, by identity alone once the
   // owner's copy no longer carries the seat's handle.
   await root.services.character.update({
+    signal: new AbortController().signal,
     principal: await root.principalFor(root.ownerId),
     characterId: keeper.id,
     input: { handle: castId<CharacterHandle>("keeper-elsewhere") },
@@ -401,7 +407,12 @@ test("a restored card keeps its import identity through the next export and rest
     throw new Error("the restore landed no archivist");
   }
   // A star is the owner's mark on the library, not card content.
-  await target.services.character.update({ principal: await target.principalFor(target.ownerId), characterId: restored.id, input: { starred: true } });
+  await target.services.character.update({
+    signal: new AbortController().signal,
+    principal: await target.principalFor(target.ownerId),
+    characterId: restored.id,
+    input: { starred: true },
+  });
   const targetBundle = await exportLibrary(target);
 
   await using third = await signedInBox({ ids: createSeededIds(THIRD_BOX_ID_CURSOR) });
@@ -621,7 +632,13 @@ async function generateOnePicture(root: ServerTestHarness): Promise<AssetId> {
     },
   });
   await root.services.connection.setBinding({ principal: owner, task: "generateImage", connectionId: connection.id });
-  const picture = await root.services.imagery.generatePicture({ caller: owner, mode: "free", prompt: "A keeper at the ledger.", n: 1 });
+  const picture = await root.services.imagery.generatePicture({
+    signal: new AbortController().signal,
+    caller: owner,
+    mode: "free",
+    prompt: "A keeper at the ledger.",
+    n: 1,
+  });
   const [image] = picture.images;
   if (image === undefined) {
     throw new Error("the image generation returned no picture");
@@ -680,7 +697,7 @@ test("databank documents and imagery history restore onto bytes the owner holds 
   pictures.push(makeAssetBytes(source.idSource.typeId(ID_PREFIX.asset)));
   const owner = await source.principalFor(source.ownerId);
   const documentBytes = new TextEncoder().encode(DOCUMENT_TEXT);
-  await source.services.databank.upload({ principal: owner, bytes: documentBytes, mime: TEXT_MIME, name: "Ledger" });
+  await source.services.databank.upload({ signal: new AbortController().signal, principal: owner, bytes: documentBytes, mime: TEXT_MIME, name: "Ledger" });
   const [sourceDocument] = await source.services.assets.listOwned({ principal: owner, kind: "document", limit: 1 });
   const generated = await generateOnePicture(source);
   const image = await source.services.assets.assetCasRefById(generated);
@@ -733,7 +750,12 @@ test("a card's background travels in its export and re-links by content, never o
     input: createCharacterSchema.parse({ handle: CHOSEN_HANDLE, name: CHARACTER_NAME, description: "A keeper tends the orbital ledger." }),
   });
   const background = themeBackgroundSchema.parse({ kind: "asset", assetId: plate.assetId, assetHash: plate.assetHash, mime: plate.mime });
-  await source.services.character.update({ principal: owner, characterId: keeper.id, input: { backgroundOverride: background } });
+  await source.services.character.update({
+    signal: new AbortController().signal,
+    principal: owner,
+    characterId: keeper.id,
+    input: { backgroundOverride: background },
+  });
   const card = await source.http.request(exportCharacterPath(keeper.id));
   expect(card.status).toBe(200);
   const cardBytes = new Uint8Array(await card.arrayBuffer());

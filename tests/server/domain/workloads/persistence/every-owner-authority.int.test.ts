@@ -43,7 +43,10 @@ test("only actual NULL-owner execution carries every-owner authority, independen
     expect(storedGenerations.get(vector.generationId)).toBe(storedCharacters.get(vector.characterId));
   }
   for (const principal of [owner, member]) {
-    expect(await root.services.discovery.computeDuplicatePairs({ ownerId: principal.userId })).toMatchObject({ charactersScanned: 2, pairsWritten: 1 });
+    expect(await root.services.discovery.computeDuplicatePairs({ signal: new AbortController().signal, ownerId: principal.userId })).toMatchObject({
+      charactersScanned: 2,
+      pairsWritten: 1,
+    });
   }
   const run = vi.spyOn(root.app.workloadContributions.csls, "run");
   const input = { kind: "csls", params: {} } satisfies StartWorkloadInput;
@@ -145,15 +148,24 @@ test("exact estimates remain count-only and owner/mode admission refuses ordinar
   const job = await root.services.workloads.get({ caller: owner, id: ref.id });
   expect(job).toMatchObject({ ownerId: owner.userId, status: "succeeded", result: { scanned: estimate.calls, written: estimate.calls } });
   expect(await root.db.select({ id: characterSummaries.characterId }).from(characterSummaries)).toEqual([{ id: owned.id }]);
-  expect(await root.services.workloads.estimateRetryModelCalls({ caller: owner, id: ref.id })).toEqual(estimate);
-  await expect(root.services.workloads.estimateRetryModelCalls({ caller: member, id: ref.id })).rejects.toThrow(DomainNotFoundError);
+  expect(await root.services.workloads.estimateRetryModelCalls({ signal: new AbortController().signal, caller: owner, id: ref.id })).toEqual(estimate);
+  await expect(root.services.workloads.estimateRetryModelCalls({ signal: new AbortController().signal, caller: member, id: ref.id })).rejects.toThrow(
+    DomainNotFoundError,
+  );
 
   const bulk = await root.services.workloads.start({ caller: owner, mode: "bulk", ownerId: owner.userId, input });
-  expect(await root.services.workloads.estimateRetryModelCalls({ caller: owner, id: bulk.id })).toEqual({ calls: 2, bound: "exact" });
+  expect(await root.services.workloads.estimateRetryModelCalls({ signal: new AbortController().signal, caller: owner, id: bulk.id })).toEqual({
+    calls: 2,
+    bound: "exact",
+  });
   expect(await root.services.workloads.get({ caller: admin, id: bulk.id })).toMatchObject({ ownerId: null, mode: "bulk" });
-  await expect(root.services.workloads.estimateRetryModelCalls({ caller: admin, id: bulk.id })).rejects.toBeInstanceOf(DomainNotFoundError);
+  await expect(root.services.workloads.estimateRetryModelCalls({ signal: new AbortController().signal, caller: admin, id: bulk.id })).rejects.toBeInstanceOf(
+    DomainNotFoundError,
+  );
   await expect(root.services.workloads.retry({ caller: admin, id: bulk.id })).rejects.toBeInstanceOf(DomainNotFoundError);
-  await expect(root.services.workloads.estimateRetryModelCalls({ caller: member, id: bulk.id })).rejects.toThrow(DomainNotFoundError);
+  await expect(root.services.workloads.estimateRetryModelCalls({ signal: new AbortController().signal, caller: member, id: bulk.id })).rejects.toThrow(
+    DomainNotFoundError,
+  );
 });
 
 test("an admitted owner binding funds the actual bulk distill independently of its synthetic actor", async () => {

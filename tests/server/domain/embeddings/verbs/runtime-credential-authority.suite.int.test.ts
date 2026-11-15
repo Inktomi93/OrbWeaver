@@ -12,12 +12,21 @@ test("a current credential linkage cannot silently reroute a captured execution"
   const first = await ownerCaller.credentials.add({ provider: TEST_PROVIDER_ID, key: "first-funding-key", metadata: { auth: "endpoint" } });
   const second = await ownerCaller.credentials.add({ provider: TEST_PROVIDER_ID, key: "second-funding-key", metadata: { auth: "endpoint" } });
   const captured = await fundingConnection({ ownerCaller, harness, task: "summarize", credentialId: first.id });
-  const request = { connection: captured, inputs: [{ systemPrompt: "Answer briefly.", userPrompt: "A funding control." }] };
+  const request = {
+    signal: new AbortController().signal,
+    connection: captured,
+    inputs: [{ systemPrompt: "Answer briefly.", userPrompt: "A funding control." }],
+  };
   await app.runtime.executor.summarize(request);
   await ownerCaller.connection.update({ connectionId: captured.connectionId, patch: { credentialId: second.id } });
   await expect(app.runtime.executor.summarize(request)).toThrowProviderError("invalid");
   expect(fundingProvider.calls).toHaveLength(1);
-  const fresh = await app.runtime.resolve({ task: "summarize", principal: await harness.principalFor(harness.ownerId), connectionId: captured.connectionId });
+  const fresh = await app.runtime.resolve({
+    signal: new AbortController().signal,
+    task: "summarize",
+    principal: await harness.principalFor(harness.ownerId),
+    connectionId: captured.connectionId,
+  });
   await app.runtime.executor.summarize({ ...request, connection: { ...fresh.resolved, task: "summarize" } });
   expect(fundingProvider.calls).toHaveLength(2);
   await ownerCaller.credentials.remove({ credentialId: second.id });
@@ -30,13 +39,16 @@ test("in-place key replacement before the next pinned call uses the current decr
   const after = "after-replacement-funding-key";
   const key = await ownerCaller.credentials.add({ provider: TEST_PROVIDER_ID, key: before, metadata: { auth: "endpoint" } });
   const connection = await fundingConnection({ ownerCaller, harness, task: "embed", credentialId: key.id });
-  const snapshot = await createResolveEmbeddingConnection(app.runtime, harness.principalFor)(harness.ownerId, "embed", connection.connectionId);
+  const snapshot = await createResolveEmbeddingConnection(app.runtime, harness.principalFor)(harness.ownerId, "embed", {
+    signal: new AbortController().signal,
+    connectionId: connection.connectionId,
+  });
   if (snapshot === null) {
     throw new Error("the saved encoder did not resolve");
   }
-  await snapshot.embed("a replacement control");
+  await snapshot.embed("a replacement control", { signal: new AbortController().signal });
   await ownerCaller.credentials.replace({ credentialId: key.id, key: after });
-  await snapshot.embed("a replacement control");
+  await snapshot.embed("a replacement control", { signal: new AbortController().signal });
   expect(fundingProvider.authorizations).toEqual([`Bearer ${before}`, `Bearer ${after}`]);
   expect(fundingProvider.calls).toHaveLength(2);
   expect((await ownerCaller.credentials.list()).find((row) => row.id === key.id)?.revokedAt).toBeNull();
@@ -65,6 +77,7 @@ test("the chat executor reports an auth rejection on a foreground-only connectio
   const key = await ownerCaller.credentials.add({ provider: TEST_PROVIDER_ID, key: "chat-funding-key", metadata: { auth: "endpoint" } });
   const connection = await fundingConnection({ ownerCaller, harness, task: "chat", credentialId: key.id, allowBackground: false });
   const request = toChatRequest({
+    signal: new AbortController().signal,
     connection,
     params: {},
     systemPrompt: { static: "Answer briefly.", dynamic: "" },

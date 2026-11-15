@@ -46,7 +46,6 @@ import { assetIdsInContent, stripHiddenSpans } from "@orb/kit/content";
 import type { CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroFreeze, RandomSource } from "@orb/kit/macro";
 import type { RegexPlacement } from "@orb/kit/regex";
-import { executeRegexScripts } from "@orb/kit/regex";
 import { stripSelfSpeakerLabel } from "@orb/kit/speaker-label";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { getLog } from "#foundation/observability";
@@ -310,15 +309,25 @@ async function applyRunOnEditRegex(
     return args.content;
   }
   const assembleContext = await ctx.gatherAssembleContext(
-    { chatId, runAsUserId: hostUserId, model, characterIds, personaIds, timeZone: args.timeZone, prng: deps.prng, choicePicks: "stable" },
+    // An edit's re-apply is a write the request commits whole, so only shutdown may end its gather.
+    {
+      chatId,
+      signal: ctx.backgroundSignal,
+      runAsUserId: hostUserId,
+      model,
+      characterIds,
+      personaIds,
+      timeZone: args.timeZone,
+      prng: deps.prng,
+      choicePicks: "stable",
+    },
     foreign,
   );
-  return executeRegexScripts({
+  return ctx.openRegexPass().execute({
     text: args.content,
     scripts,
     placement,
     ctx: buildTurnMacroContext({ assembleCtx: assembleContext, model, chatId, random: deps.prng }),
-    applyReplace: ctx.applyRegexReplace,
     onScriptFailure: (err, script) =>
       getLog(ctx.logger).warn({ err, placement, findRegex: script.findRegex }, "chat: host-tier regex script failed on an edit re-apply (D53 watchdog)"),
   });
@@ -463,6 +472,8 @@ async function freezeSelectedVariant(
   const assembleContext = await ctx.gatherAssembleContext(
     {
       chatId: args.chatId,
+      // A selection's bake is a write the request commits whole, so only shutdown may end its gather.
+      signal: ctx.backgroundSignal,
       runAsUserId: hostUserId,
       model,
       characterIds,

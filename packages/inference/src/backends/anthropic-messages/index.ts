@@ -54,7 +54,7 @@ function dialOf(req: ListModelsRequest): ModelsDial {
     secret: connection.credential.secret,
     secrets: resolvedScrubSet(connection),
     label: `${connection.providerId} models`,
-    ...(req.signal !== undefined ? { signal: req.signal } : {}),
+    signal: req.signal,
   };
 }
 
@@ -65,7 +65,7 @@ export async function fetchAnthropicModels(dial: ModelsDial, fetchImpl: typeof f
     headers: headersOf(dial.secret),
     secrets: dial.secrets,
     label: dial.label,
-    ...(dial.signal !== undefined ? { signal: dial.signal } : {}),
+    signal: dial.signal,
   });
   return modelsSchema.parse(result.json).data.map((row) => bareCatalogEntry({ id: row.id, name: row.display_name }));
 }

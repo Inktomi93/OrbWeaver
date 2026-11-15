@@ -32,6 +32,7 @@ interface ActorParams {
 /** `tokenizeWords` — the words a logit-bias editor holds, tokenized on the same target `resolveChatCapability` reads. */
 export interface TokenizeWordsParams extends ResolveChatCapabilityParams {
   readonly words: readonly string[];
+  readonly signal: AbortSignal;
 }
 
 export interface ListConnectionsParams extends ActorParams {}
@@ -42,6 +43,7 @@ export interface GetConnectionParams extends ActorParams {
 
 /** A capability read; `cachedFacts` folds only what is already held and dials nothing (no per-model probe). */
 export interface ConnectionCapabilitiesParams extends GetConnectionParams {
+  readonly signal: AbortSignal;
   readonly cachedFacts?: boolean | undefined;
 }
 
@@ -86,6 +88,7 @@ export type BindingActorInput =
 
 export interface ListBindingsParams extends ActorParams {
   readonly actor?: BindingActorInput | undefined;
+  readonly signal: AbortSignal;
 }
 
 /** `setBinding` — point ONE routable task at a connection (or clear it with `null`). */
@@ -104,6 +107,7 @@ export type EmbedSpaceChange =
 
 export interface PreviewEmbedSpaceChangeParams extends ActorParams {
   readonly change: EmbedSpaceChange;
+  readonly signal: AbortSignal;
 }
 
 /** `useForEverything` — write every compatible `user` binding for a row at once (§5.3a, the 90% case). */
@@ -113,6 +117,7 @@ export interface UseForEverythingParams extends ActorParams {
 
 export interface CatalogModelsParams extends ActorParams {
   readonly connectionId: UserConnectionId;
+  readonly signal: AbortSignal;
 }
 
 /** `draftCatalogModels` — the add dialog's model list BEFORE the row exists: the provider it is authoring, the
@@ -121,6 +126,7 @@ export interface CatalogModelsParams extends ActorParams {
  *  `create`, so a draft that lists is a draft that saves. A saved key opens under THIS provider id, the one it
  *  was sealed for. */
 export interface DraftCatalogModelsParams extends ActorParams {
+  readonly signal: AbortSignal;
   readonly providerId: LookupText<ProviderId>;
   readonly credentialId?: UserCredentialId | undefined;
   readonly key?: string | undefined;
@@ -134,7 +140,7 @@ export interface RefreshCatalogParams {
 
 export interface ConnectionDiagnosticParams extends ActorParams {
   readonly connectionId: UserConnectionId;
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 export interface GenerationCostParams extends ConnectionDiagnosticParams {

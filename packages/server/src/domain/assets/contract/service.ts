@@ -104,7 +104,7 @@ export interface AssetsService {
   /** Targeted reap of a known id set with no grace — caller must have already deleted these assets' references. */
   readonly reapIfOrphan: (assetIds: readonly AssetId[]) => Promise<void>;
   /** Read-only integrity report: dangling rows, corrupt blobs, orphan blobs. Mutates nothing. */
-  readonly fsck: (options?: FsckOptions) => Promise<FsckResult>;
+  readonly fsck: (options: FsckOptions) => Promise<FsckResult>;
   /** Disaster recovery: re-derive index rows for orphan blobs by walking + hashing the per-user tree. */
   readonly rebuildFromTree: (options: RebuildOptions) => Promise<RebuildResult>;
 }

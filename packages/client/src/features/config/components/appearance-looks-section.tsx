@@ -266,7 +266,7 @@ function LooksBody(): ReactElement {
                   {themes.map((theme) => (
                     // The ⋯ is a SIBLING of the radio root (never nested interaction), positioned over the
                     // cell's own top-leading corner \u2014 the check indicator owns the trailing one.
-                    <Row className="relative min-inline-0" key={theme.id}>
+                    <Row className="relative" minWidth="shrinks" key={theme.id}>
                       <RadioGroupPickerItem
                         art={<ThemeMiniSurface theme={theme} />}
                         width="full"

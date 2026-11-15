@@ -40,7 +40,13 @@ const connections = await Promise.all(
       allowBackground: true,
       declared: declaredCapabilitySchema.parse({ kind: "generation", generation: { input: ["text", "image"] } }),
     });
-    const { resolved } = await harness.app.runtime.resolve({ task: "summarize", connectionId: connection.id, principal, cachedFacts: true });
+    const { resolved } = await harness.app.runtime.resolve({
+      signal: new AbortController().signal,
+      task: "summarize",
+      connectionId: connection.id,
+      principal,
+      cachedFacts: true,
+    });
     return { ...resolved, task: "summarize" as const };
   }),
 );
@@ -48,7 +54,11 @@ await harness.settleBackground();
 const errors = await Promise.all(
   connections.map(async (connection, index) => {
     try {
-      await harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: input.prompts[index] ?? "" }] });
+      await harness.app.runtime.executor.summarize({
+        signal: new AbortController().signal,
+        connection,
+        inputs: [{ systemPrompt: "", userPrompt: input.prompts[index] ?? "" }],
+      });
       throw new Error("diagnostic refusal control unexpectedly succeeded");
     } catch (error) {
       return error instanceof Error ? error.message : String(error);

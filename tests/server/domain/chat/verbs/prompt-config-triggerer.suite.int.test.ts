@@ -34,7 +34,12 @@ test("an explicit owned send persona stamps that human while canon stays anchore
       const rows = (await readRoomCanon(h.root, h.owner, h.chatId)).filter(({ role }) => role === "user");
       expect(rows).toMatchObject([{ authorUserId: h.owner.userId, personaId: override.id }]);
       let draft = "";
-      for await (const { delta } of h.root.services.chat.impersonateStream({ principal: h.owner, chatId: h.chatId, personaId: override.id })) {
+      for await (const { delta } of h.root.services.chat.impersonateStream({
+        signal: new AbortController().signal,
+        principal: h.owner,
+        chatId: h.chatId,
+        personaId: override.id,
+      })) {
         draft += delta;
       }
       expect(draft).toBe("draft");
@@ -60,7 +65,12 @@ test("an explicit null send stamp stays null and its draft voice floors without 
       const rows = (await readRoomCanon(h.root, h.owner, h.chatId)).filter(({ role }) => role === "user");
       expect(rows).toMatchObject([{ authorUserId: h.owner.userId, personaId: null }]);
       let draft = "";
-      for await (const { delta } of h.root.services.chat.impersonateStream({ principal: h.owner, chatId: h.chatId, personaId: null })) {
+      for await (const { delta } of h.root.services.chat.impersonateStream({
+        signal: new AbortController().signal,
+        principal: h.owner,
+        chatId: h.chatId,
+        personaId: null,
+      })) {
         draft += delta;
       }
       expect(draft).toBe("draft");

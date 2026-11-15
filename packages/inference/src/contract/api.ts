@@ -67,6 +67,7 @@ export interface InferenceRuntime {
     readonly for: (args: {
       readonly connectionId: UserConnection["id"];
       readonly principal: Principal;
+      readonly signal: AbortSignal;
       readonly cachedFacts?: boolean | undefined;
     }) => Promise<CapabilityRead>;
   };
@@ -95,8 +96,8 @@ export interface InferenceRuntime {
     /** What each word tokenizes to on a resolved connection's server, through the same cache a turn reads (the
      *  logit-bias editor's live display). A row with no tokenize endpoint answers `available: false`, no words. */
     /** An uncached passage counter for the resolved model, or null when its server exposes no tokenizer. */
-    readonly passageCounter: (resolved: ResolveOutcome["resolved"]) => ((text: string, signal?: AbortSignal) => Promise<number>) | null;
-    readonly tokenize: (resolved: ResolveOutcome["resolved"], words: readonly string[]) => Promise<TokenizeResult>;
+    readonly passageCounter: (resolved: ResolveOutcome["resolved"]) => ((text: string, signal: AbortSignal) => Promise<number>) | null;
+    readonly tokenize: (resolved: ResolveOutcome["resolved"], words: readonly string[], signal: AbortSignal) => Promise<TokenizeResult>;
   };
   readonly diagnostics: ProviderDiagnostics;
   readonly providers: {

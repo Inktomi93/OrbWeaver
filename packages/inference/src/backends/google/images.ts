@@ -58,7 +58,7 @@ export async function runGoogleGenerateImage(req: ImageGenerateRequest, deps: Go
             ...(req.size === undefined ? {} : { imageConfig: { aspectRatio: aspectRatioOf(req.size.width, req.size.height) } }),
           },
         },
-        ...(req.signal === undefined ? {} : { abortSignal: req.signal }),
+        abortSignal: req.signal,
       });
     warnings.push(...sdkWarnings(result.warnings));
     if (result.finishReason.unified === "content-filter") {

@@ -20,6 +20,7 @@
 
 import type { AttachedBookRef } from "@orb/contracts/character";
 import { deriveCharacterHandle, pluginImportedFrom } from "@orb/contracts/character";
+import { clipImportText } from "@orb/contracts/import";
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { CharacterHandle, CharacterId, RegexScriptId } from "@orb/kit/ids";
@@ -153,6 +154,8 @@ async function attachCarriedContent(
     });
     regexScriptsLifted = lift.created;
     regexScriptsReused = lift.reused;
+    // A script refused at the write door is named beside the card's other planes that did not land.
+    skippedOverlays.push(...lift.refused.map((refusal) => `regex script ${JSON.stringify(clipImportText(refusal.name))} not imported: ${refusal.reason}`));
   }
 
   return { regexScriptsLifted, regexScriptsReused, skippedOverlays };

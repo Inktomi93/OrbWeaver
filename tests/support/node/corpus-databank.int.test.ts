@@ -119,7 +119,13 @@ test("native upload and scraper envelopes use the same retained SQL metadata as 
   const principal = await root.principalFor(root.ownerId);
   await seedCorpusConnections(root, principal);
   const caller = await root.internalCallerFor(root.ownerId);
-  const uploadParams = { principal, bytes: new TextEncoder().encode("Upload café 🪐."), mime: "text/plain", name: "Upload witness" };
+  const uploadParams = {
+    principal,
+    bytes: new TextEncoder().encode("Upload café 🪐."),
+    mime: "text/plain",
+    name: "Upload witness",
+    signal: new AbortController().signal,
+  };
   const uploaded = await seedCreatedDocumentRows(root, { kind: "upload", params: uploadParams });
   const duplicate = await seedCreatedDocumentRows(root, { kind: "upload", params: uploadParams });
   expect(duplicate.result).toEqual({ document: uploaded.result.document, outcome: "duplicate", ingest: "skipped" });

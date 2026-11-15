@@ -132,7 +132,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
   // that corner clear; shell.css's flank distance reads the same clearance.
   const thread = (
     <Stack
-      className="min-inline-0"
+      minWidth="shrinks"
       minHeight="roomThread"
       paddingInlineEnd={flank.occupiesRow ? undefined : "clearance"}
       grow={true}

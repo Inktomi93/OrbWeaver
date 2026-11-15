@@ -150,7 +150,7 @@ export interface ChatRequestBase {
   readonly posture?: ChatPosture | undefined;
   /** Split system prompt: a stable static prefix + a volatile dynamic tail (cache placement). */
   readonly systemPrompt: { readonly static: string; readonly dynamic: string };
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
   readonly onEvent?: ((event: ChatEvent) => void) | undefined;
 }
 
@@ -243,7 +243,7 @@ export interface StructuredChatInput {
   readonly systemPrompt: string;
   readonly userPrompt: string;
   readonly responseFormat: ResponseFormat;
-  readonly signal: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 /**
@@ -258,7 +258,7 @@ export interface ForcedToolRoundInput {
   readonly systemPrompt: string;
   readonly history: readonly ChatHistoryMessage[];
   readonly tools: readonly WireTool[];
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 export type AgentSdkChatRequest = ChatRequest & { readonly api: "agent-sdk" };

@@ -237,7 +237,7 @@ export function AmbientStrip({ location, date, timeOfDay, weather, onEditField, 
             // content-sized value/input, so 2+ pairs share a row rather than one-per-line (the owner
             // density ruling). `min-w-0` lets a long location value truncate/shrink instead of
             // forcing a full-width row.
-            <Row key={key} gap="field" align="baseline" className="min-inline-0">
+            <Row key={key} gap="field" align="baseline" minWidth="shrinks">
               <Text as="span" ink="muted" className="shrink-0" voice="label">
                 {label}
               </Text>

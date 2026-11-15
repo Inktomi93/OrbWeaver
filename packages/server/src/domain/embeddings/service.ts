@@ -41,10 +41,11 @@ export function createEmbeddingsService(input: DbAssemblyInput<EmbeddingsContext
   const store = createStore(ctx);
   const indexAsset = createImageIndexer(ctx, {
     store,
-    analyze: async (ownerId, bytes): Promise<AvatarAnalysis> =>
+    analyze: async (ownerId, bytes, signal): Promise<AvatarAnalysis> =>
       analyzeAvatarImage(await ctx.roleClientsFor(ownerId), bytes, await ctx.resolveUtilityPresetParams(ownerId), {
         logger: input.logger,
         availability: ctx.latches.avatarAnalysis,
+        signal,
       }),
   });
   return {
@@ -62,7 +63,8 @@ export function createEmbeddingsService(input: DbAssemblyInput<EmbeddingsContext
     embedCorpus: createEmbedCorpus(ctx, { store }),
     embedAssets: createEmbedAssets(ctx, { indexAsset }),
     countAssetAnalysisCalls: createImageAnalysisCounter(ctx, {
-      analysisCallsModel: async (ownerId): Promise<boolean> => avatarAnalysisCallsModel(await ctx.roleClientsFor(ownerId), ctx.latches.avatarAnalysis),
+      analysisCallsModel: async (ownerId, signal): Promise<boolean> =>
+        avatarAnalysisCallsModel(await ctx.roleClientsFor(ownerId), ctx.latches.avatarAnalysis, signal),
     }),
     purgeMemoryVectors: createPurgeMemoryVectors(ctx),
     pruneDocumentChunks: createPruneDocumentChunks(ctx),

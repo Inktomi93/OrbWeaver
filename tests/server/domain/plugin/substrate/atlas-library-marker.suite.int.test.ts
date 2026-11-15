@@ -4,9 +4,11 @@
 // @subject packages/showcase-plugins/bundles/card-atlas/main.ts
 
 import { spawn } from "node:child_process";
+import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import { PLUGIN_CARD_DATA_FIND_MAX, pluginCardStateKey } from "@orb/contracts/plugin";
 import type { CharacterId, PluginId } from "@orb/kit/ids";
+import type { JsonValue } from "@orb/kit/json";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, guestRunner, installGuest, requireShowcaseBundle, seedCorpusActors } from "@orb/testkit/node/composed";
@@ -64,6 +66,14 @@ function card(name: string, extensions: Readonly<Record<string, unknown>> = {}):
     ["data", data],
   ];
   return Object.fromEntries(cardEntries);
+}
+
+function deepList(levels: number): JsonValue {
+  let value: JsonValue = DEEP_MARK;
+  for (let level = 0; level < levels; level += 1) {
+    value = [value];
+  }
+  return value;
 }
 
 function nameOf(listing: HubListing): string {
@@ -235,16 +245,17 @@ test("a card too deep for the JSON functions stays readable and costs no other c
   const enabled = await enableAtlas(root, owner);
   const atlas = atlasDriver(enabled);
   await atlas.add(WYVERN, 0);
-  const descriptor = root.app.portability.find((candidate) => candidate.kind === "character");
-  if (descriptor === undefined) {
-    throw new Error("the real graph omitted its character import operation");
-  }
-  const deep = JSON.stringify(card("Deep vendor", { vendor: DEEP_MARK })).replace(
-    JSON.stringify(DEEP_MARK),
-    `${"[".repeat(DEEP_LEVELS)}${"]".repeat(DEEP_LEVELS)}`,
-  );
-
-  expect(await descriptor.importFile(owner.userId, { filename: "deep.json", bytes: new TextEncoder().encode(deep) })).toMatchObject({ ok: true });
+  // The file import refuses a card this deep, but `character.create` takes extensions at any depth, so such a row can exist.
+  await root.services.character.create({
+    principal: owner,
+    input: createCharacterSchema.parse({
+      handle: "deep-vendor",
+      name: "Deep vendor",
+      description: "",
+      greetings: [],
+      extensions: { vendor: deepList(DEEP_LEVELS) },
+    }),
+  });
 
   expect(await atlas.tiles(WYVERN)).toEqual(["Yarrow: in your library"]);
   await expect(enabled.caller.character.get({ characterId: await libraryId(enabled.caller, "Deep vendor") })).resolves.toMatchObject({ name: "Deep vendor" });

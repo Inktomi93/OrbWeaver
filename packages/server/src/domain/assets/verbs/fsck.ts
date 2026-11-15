@@ -21,14 +21,14 @@ async function checkOwnerRows(
   db: Db,
   cas: Cas,
   ownerId: UserId,
-  signal: AbortSignal | undefined,
+  signal: AbortSignal,
 ): Promise<{ scannedRows: number; danglingRows: number; corruptBlobs: number }> {
   const rows = await loadOwnerAssetRows(db, ownerId);
   let scannedRows = 0;
   let danglingRows = 0;
   let corruptBlobs = 0;
   for (const row of rows) {
-    signal?.throwIfAborted();
+    signal.throwIfAborted();
     scannedRows++;
     if (!(await cas.exists(ownerId, row.hash))) {
       danglingRows++;
@@ -43,7 +43,7 @@ async function checkOwnerRows(
 
 export function createFsck(ctx: AssetsContext): AssetsService["fsck"] {
   return async (options) => {
-    const signal = options?.signal;
+    const { signal } = options;
     let scannedRows = 0;
     let danglingRows = 0;
     let corruptBlobs = 0;
@@ -61,7 +61,7 @@ export function createFsck(ctx: AssetsContext): AssetsService["fsck"] {
       const ownerId = owner;
       const rowHashes = new Set((await loadOwnerAssetRows(ctx.db, ownerId)).map((r) => r.hash));
       for await (const hash of ctx.cas.listHashes(ownerId)) {
-        signal?.throwIfAborted();
+        signal.throwIfAborted();
         scannedBlobs++;
         if (!rowHashes.has(hash)) {
           orphanBlobs++;

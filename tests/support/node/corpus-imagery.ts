@@ -57,13 +57,13 @@ export async function seedCorpusImagery(root: ServerTestHarness, foreignUserId: 
   await caller.connection.setBinding({ task: "generateImage", connectionId: connection.id });
   // A request with a customized count never reads or seeds the reuse rows, so the reuse cohorts use the default count.
   const params = { caller: principal, chatId: room.chat.id, subjectCharacterId: character.id, mode: "character" } as const;
-  const first = await seedImageryGenerationsRows(root, { ...params, reuse: "never" });
-  const tied = await seedImageryGenerationsRows(root, { ...params, reuse: "never" });
-  const equalReuse = await seedImageryGenerationsRows(root, { ...params, reuse: "prefer" });
+  const first = await seedImageryGenerationsRows(root, { signal: new AbortController().signal, ...params, reuse: "never" });
+  const tied = await seedImageryGenerationsRows(root, { signal: new AbortController().signal, ...params, reuse: "never" });
+  const equalReuse = await seedImageryGenerationsRows(root, { signal: new AbortController().signal, ...params, reuse: "prefer" });
   root.timers.advance(1);
   await root.settleBackground();
-  const newest = await seedImageryGenerationsRows(root, { ...params, reuse: "never" });
-  const newerReuse = await seedImageryGenerationsRows(root, { ...params, reuse: "prefer" });
+  const newest = await seedImageryGenerationsRows(root, { signal: new AbortController().signal, ...params, reuse: "never" });
+  const newerReuse = await seedImageryGenerationsRows(root, { signal: new AbortController().signal, ...params, reuse: "prefer" });
   const descriptor = root.app.portability.find((entity) => entity.kind === "imagery");
   const callId = newest.generations[0]?.callId;
   if (descriptor === undefined || callId === null || callId === undefined) {

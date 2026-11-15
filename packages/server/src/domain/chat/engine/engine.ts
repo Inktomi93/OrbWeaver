@@ -741,7 +741,7 @@ async function commitGeneration(args: {
  * live, so the same-process half of the race is closed outright.
  */
 async function assertTurnMayCommit(ctx: EngineContext, deps: EngineDeps, prep: TurnPrep): Promise<void> {
-  prep.signal?.throwIfAborted();
+  prep.signal.throwIfAborted();
   if (prep.lockFree === true) {
     return;
   }
@@ -1289,12 +1289,12 @@ class StaleLockAbort extends Error {
  *  and a fault mislabelled `"user"` is invisible twice over (it returns clean AND never reaches the fault
  *  surfaces). A future provider-side cancellation that is NOT ours becomes classifiable by adding a TYPED
  *  cause (the {@link StaleLockAbort} shape), never by re-reading a name. */
-function abortReasonFor(err: unknown, signal: AbortSignal | undefined): TurnAbortReason {
+function abortReasonFor(err: unknown, signal: AbortSignal): TurnAbortReason {
   const failure = err instanceof GenerationObservationPersistenceError ? err.cause : err;
   if (failure instanceof ChatOperationError && failure.code === CHAT_OP_CODES.aborted) {
     return "stale";
   }
-  if (signal?.aborted === true) {
+  if (signal.aborted) {
     return signal.reason instanceof StaleLockAbort ? "stale" : "user";
   }
   return "error";
@@ -1463,7 +1463,7 @@ async function absorbInlineReplyImages(
   for (const image of result.replyImages) {
     // The HOST owns the bytes (§6.7): `GET /api/blob/:hash` is owner-gated (D21), so a picture stored under a
     // member funder would render for that member alone in a shared room.
-    const stored = await ctx.storeInlineReplyImage(prep.runAsUserId, image);
+    const stored = await ctx.storeInlineReplyImage(prep.runAsUserId, image, prep.signal);
     if (stored === null) {
       refused += 1;
       continue;
@@ -1618,6 +1618,7 @@ async function resolveSpeakerMemory(deps: EngineDeps, prep: TurnPrep): Promise<A
   const recalled = await deps.recallMemory({
     scope: { chatId: prep.chatId, scopedCharacterId: speakerCharId, isGroup: true },
     groupCharacterId: recall.groupCharacterId,
+    signal: prep.signal,
     witnessing,
     config: recall.config,
     recent: recall.recent,
@@ -1787,7 +1788,7 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
       attachmentQuality: prep.attachmentQuality,
       now: ctx.now,
       random: ctx.prng,
-      applyRegexReplace: ctx.applyRegexReplace,
+      openRegexPass: ctx.openRegexPass,
       resolveImageUrl: (ref): Promise<ResolvedMediaRef | null> =>
         ctx.resolveImageUrl({ chatId: prep.chatId, ref, quality: prep.attachmentQuality, signal: prep.signal }),
       loadContentSignatures: (): Promise<ReadonlyMap<MessageId, ContentSignatures>> => loadCanonContentSignatures(ctx.db, prep.chatId),
@@ -2038,7 +2039,7 @@ const LOCK_HEARTBEAT_DIVISOR = 3;
  *  (`driveRound` only yields gracefully on the pre-acquire `locked`); a lost lock mid-turn is a hard fault. */
 async function runInLockWithHeartbeat(ctx: EngineContext, deps: OwnedEngineDeps, prep: TurnPrep): Promise<TurnOutcome> {
   const heartbeatController = new AbortController();
-  const composedSignal = prep.signal !== undefined ? AbortSignal.any([prep.signal, heartbeatController.signal]) : heartbeatController.signal;
+  const composedSignal = AbortSignal.any([prep.signal, heartbeatController.signal]);
   let lockLost = false;
   const { promise: lockLostBarrier, reject: rejectLockLost } = Promise.withResolvers<never>();
   const tick = async (): Promise<void> => {
@@ -2136,7 +2137,7 @@ async function generateTextUnpersisted(ctx: EngineContext, prep: TurnPrep, onTex
       attachmentQuality: prep.attachmentQuality,
       now: ctx.now,
       random: ctx.prng,
-      applyRegexReplace: ctx.applyRegexReplace,
+      openRegexPass: ctx.openRegexPass,
       resolveImageUrl: (ref) => ctx.resolveImageUrl({ chatId: prep.chatId, ref, quality: prep.attachmentQuality, signal: prep.signal }),
       loadContentSignatures: (): Promise<ReadonlyMap<MessageId, ContentSignatures>> => loadCanonContentSignatures(ctx.db, prep.chatId),
       // §8.8: the `conversation` carry source, LAZY — the pipeline calls it only on that rung.

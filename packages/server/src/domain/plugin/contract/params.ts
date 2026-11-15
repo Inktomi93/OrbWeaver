@@ -321,6 +321,7 @@ export interface GetFrameAssetParams {
  *  the state update, never a direct result. */
 export interface InvokeUiActionParams {
   readonly caller: Principal;
+  readonly signal: AbortSignal;
   readonly pluginId: PluginId;
   readonly surfaceId: string;
   readonly actionId: string;
@@ -355,6 +356,7 @@ export interface ListMacrosParams {
  *  is not a back door around the chat-read admission. */
 export interface InvokeUiCommandParams {
   readonly caller: Principal;
+  readonly signal: AbortSignal;
   readonly pluginId: PluginId;
   readonly name: string;
   readonly args: string;

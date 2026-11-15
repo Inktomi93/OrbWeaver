@@ -40,31 +40,31 @@ export function buildPluginPromptTransform(
     readonly slug: string;
     readonly order: number;
     readonly isInstallerHost: (chatId: ChatId) => Promise<boolean>;
-    readonly invoke: (handler: PluginHandlerRef, argsJson: string, signal?: AbortSignal) => Promise<string>;
+    readonly invoke: (handler: PluginHandlerRef, argsJson: string, signal: AbortSignal) => Promise<string>;
     readonly logger: Logger;
   },
-): PromptTransform {
+): PromptTransform<AbortSignal> {
   return {
     id: deps.id,
     point: reg.point,
     order: deps.order,
     // A thrown guest handler is logged by the resident `invoke`, and a deadline overrun by the abort listener below.
     logsOwnFailures: true,
-    apply: async (draft, env, signal?: AbortSignal): Promise<string> => {
+    apply: async (draft, env, signal): Promise<string> => {
       // The registry skips its own generic warning for a deadline overrun, so this is the one line for it. The
       // listener goes on BEFORE the host read: the deadline can fire during that await.
       let reported = false;
       const reportDeadline = (): void => {
-        if (!reported && signal?.reason === DEADLINE_ABORT_REASON) {
+        if (!reported && signal.reason === DEADLINE_ABORT_REASON) {
           reported = true;
           logPluginFailure(deps.slug, "prompt-deadline", `prompt transform '${reg.name}' exceeded its deadline`, deps.logger);
         }
       };
-      signal?.addEventListener("abort", reportDeadline, { once: true });
+      signal.addEventListener("abort", reportDeadline, { once: true });
       if (!(await deps.isInstallerHost(env.chatId))) {
         return draft;
       }
-      if (signal?.aborted === true) {
+      if (signal.aborted) {
         reportDeadline();
         return draft;
       }

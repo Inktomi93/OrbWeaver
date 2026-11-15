@@ -583,10 +583,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // materializeBackground: built after `assets` + `effectiveConfig` exist (the assets-character
   // seam), but settings/character/chat compose BEFORE `assets`, so they deref this late-bound holder at request
   // time (the `spriteSheetOps` pattern). Invoked only when a user pastes an external background URL.
-  let materializeBackgroundOp: MaterializeBackgroundOp = () => {
+  let materializeBackgroundOp: MaterializeBackgroundOp<AbortSignal> = () => {
     throw new Error("compose: materializeBackground invoked before assets wiring");
   };
-  const materializeBackground: MaterializeBackgroundOp = (principal, url) => materializeBackgroundOp(principal, url);
+  const materializeBackground: MaterializeBackgroundOp<AbortSignal> = (principal, url, signal) => materializeBackgroundOp(principal, url, signal);
   // The initial settings reload runs before search-discovery; its trigger takes that warmed value as its
   // baseline, so boot must not treat it as an off-to-on transition or read an unbound trigger.
   let refreshAutoindex = (): void => undefined;
@@ -867,6 +867,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     emitUserEvent: liveBuses.user.publishUserEvent,
     supervise: background.supervise,
     scheduleTimeout: timers.timeout,
+    backgroundSignal: background.signal,
     idSource,
     db,
     now,
@@ -1262,6 +1263,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // ── automation + plugin (the automation-plugin seam) — built LAST of the domain services (both close over
   // chat/world-info/imagery/notifications + resolveOwnerPrincipal; plugin reuses automation's op objects).
   const automationPlugin = await buildAutomationPlugin({
+    backgroundSignal: background.signal,
     env: deps.env,
     logger: deps.logger,
     traces: deps.rings.traces,

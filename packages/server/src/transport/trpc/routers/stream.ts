@@ -31,7 +31,7 @@ import type { SubscriptionErrorFrame } from "../contract/subscriptions.ts";
 import { roomSourceFor } from "../stream/room-sources.ts";
 import { runSocket } from "../stream/socket.ts";
 import { withSubscriptionErrors } from "../subscriptions.ts";
-import { authedProcedure, t } from "../trpc.ts";
+import { authedProcedure, procedureSignal, t } from "../trpc.ts";
 
 /** End presence with the stream, whichever way it ended. Outside `runSocket`, so a throw in its setup counts. */
 async function* releasingOnEnd<T>(stream: AsyncGenerator<T>, release: () => void): AsyncGenerator<T> {
@@ -55,7 +55,7 @@ export const streamRouter = t.router({
       // sessionless admission arms. That stamp is what a logout evicts by, per SESSION (F4): the frozen
       // Principal below cannot say which device this is, and it deliberately never will (D135).
       const cell = ctx.sockets.adopt(ctx.auth.userId, input.socketId, ctx.sessionId);
-      const sig = signal ?? new AbortController().signal;
+      const sig = procedureSignal(signal);
       // Presence + the host-return drain, in the RESOLVER for the same reason as the adopt: they must happen
       // when the connection is ACCEPTED, not on the consumer's first pull. That is also exactly where the
       // deleted `notifications.notifications` handler ran them, so the ref-count edge is unchanged in timing —

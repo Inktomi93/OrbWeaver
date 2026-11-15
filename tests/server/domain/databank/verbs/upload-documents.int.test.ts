@@ -129,10 +129,10 @@ function mimeOf(filename: string): string {
 test.for(DOCUMENTS)("an uploaded $filename reads back as its normalized text", async ({ filename, bytes, text }) => {
   await using root = await createServerHarness();
   const principal = await root.principalFor(root.ownerId);
-  const uploaded = await root.services.databank.upload({ principal, bytes, mime: mimeOf(filename), name: filename });
+  const uploaded = await root.services.databank.upload({ signal: new AbortController().signal, principal, bytes, mime: mimeOf(filename), name: filename });
   expect(uploaded).toMatchObject({ outcome: "created", document: { name: filename } });
   expect(uploaded).not.toHaveProperty("warning");
-  const read = await root.services.databank.get({ principal, id: uploaded.document.id, includeText: true });
+  const read = await root.services.databank.get({ signal: new AbortController().signal, principal, id: uploaded.document.id, includeText: true });
   expect(read.extractedText).toBe(text);
   // The bank counts characters in SQL; every fixture text is in the BMP, so its UTF-16 length is that count.
   expect(read.charCount).toBe(text.length);
@@ -179,23 +179,39 @@ test.for(PDF_JOINS)("a pdf with $label reads back as the page draws it", async (
   await using root = await createServerHarness();
   const principal = await root.principalFor(root.ownerId);
   const filename = "joins.pdf";
-  const uploaded = await root.services.databank.upload({ principal, bytes: buildPdf([stream]), mime: mimeOf(filename), name: filename });
-  expect((await root.services.databank.get({ principal, id: uploaded.document.id, includeText: true })).extractedText).toBe(text);
+  const uploaded = await root.services.databank.upload({
+    signal: new AbortController().signal,
+    principal,
+    bytes: buildPdf([stream]),
+    mime: mimeOf(filename),
+    name: filename,
+  });
+  expect(
+    (await root.services.databank.get({ signal: new AbortController().signal, principal, id: uploaded.document.id, includeText: true })).extractedText,
+  ).toBe(text);
 });
 
 test("a document type extraction does not do is refused before any parse and stores no document", async () => {
   await using root = await createServerHarness();
   const principal = await root.principalFor(root.ownerId);
-  const unsupported = { principal, bytes: strToU8("id,name\n1,lantern\n"), mime: "text/csv", name: "ledger.csv" };
+  const unsupported = { signal: new AbortController().signal, principal, bytes: strToU8("id,name\n1,lantern\n"), mime: "text/csv", name: "ledger.csv" };
   const refusal = root.services.databank.upload(unsupported);
   await expect(refusal).rejects.toBeInstanceOf(UnsupportedDocTypeError);
   await expect(refusal).rejects.toMatchObject({ code: EXTRACTION_OP_CODES.unsupportedType, mime: unsupported.mime });
-  expect((await root.services.databank.list({ principal })).items).toEqual([]);
+  expect((await root.services.databank.list({ signal: new AbortController().signal, principal })).items).toEqual([]);
 
   // The same root takes a supported document, so the refusal above is the extraction's answer, not a dead upload path.
-  const supported = await root.services.databank.upload({ principal, bytes: strToU8("The keeper's ledger."), mime: "text/plain", name: "ledger.txt" });
+  const supported = await root.services.databank.upload({
+    signal: new AbortController().signal,
+    principal,
+    bytes: strToU8("The keeper's ledger."),
+    mime: "text/plain",
+    name: "ledger.txt",
+  });
   expect(supported).toMatchObject({ outcome: "created" });
-  expect((await root.services.databank.list({ principal })).items.map((item) => item.id)).toEqual([supported.document.id]);
+  expect((await root.services.databank.list({ signal: new AbortController().signal, principal })).items.map((item) => item.id)).toEqual([
+    supported.document.id,
+  ]);
 });
 
 // Bytes that pass the store's signature check (`%PDF`, `PK\x03\x04`) and still are not a document: a pdf with no
@@ -210,8 +226,8 @@ const CORRUPT: readonly Pick<DocumentCase, "filename" | "bytes">[] = [
 test.for(CORRUPT)("a corrupt $filename fails extraction and stores no document", async ({ filename, bytes }) => {
   await using root = await createServerHarness();
   const principal = await root.principalFor(root.ownerId);
-  const refusal = root.services.databank.upload({ principal, bytes, mime: mimeOf(filename), name: filename });
+  const refusal = root.services.databank.upload({ signal: new AbortController().signal, principal, bytes, mime: mimeOf(filename), name: filename });
   await expect(refusal).rejects.toBeInstanceOf(ExtractionFailedError);
   await expect(refusal).rejects.toMatchObject({ code: EXTRACTION_OP_CODES.failed });
-  expect((await root.services.databank.list({ principal })).items).toEqual([]);
+  expect((await root.services.databank.list({ signal: new AbortController().signal, principal })).items).toEqual([]);
 });

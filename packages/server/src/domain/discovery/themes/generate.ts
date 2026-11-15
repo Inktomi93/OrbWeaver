@@ -147,7 +147,11 @@ function nameWorthy(draft: ClusterDraft): boolean {
   return draft.memberDigestIds.length >= MIN_NAME_SIZE;
 }
 
-async function nameDrafts(drafts: readonly ClusterDraft[], rc: RoleClients, sampleOpts: RolePresetParams): Promise<(string | null)[]> {
+async function nameDrafts(
+  drafts: readonly ClusterDraft[],
+  rc: RoleClients<AbortSignal>,
+  sampleOpts: RolePresetParams & { readonly signal: AbortSignal },
+): Promise<(string | null)[]> {
   const names = new Array<string | null>(drafts.length).fill(null);
   const targets: number[] = [];
   const inputs: SummarizeInput[] = [];
@@ -230,7 +234,7 @@ export async function computeThemes(db: Db, deps: ComputeThemesDeps, opts: Compu
   // The funder's Utility-role preset over the `theme_name` posture (§7.5-3 arm ii); prose `summarize`.
   const rc = await deps.roleClientsFor(opts.funderUserId);
   const sampleOpts = resolveSideGenSampling(SIDE_GEN_POSTURES.theme_name, await deps.resolveUtilityPresetParams(opts.funderUserId));
-  const names = await nameDrafts(drafts, rc, sampleOpts);
+  const names = await nameDrafts(drafts, rc, { ...sampleOpts, signal: opts.signal });
   const computedAt = deps.now();
 
   const clusterRows: ClusterRow[] = [];
@@ -256,10 +260,13 @@ export async function computeThemes(db: Db, deps: ComputeThemesDeps, opts: Compu
     }
   }
 
+  // The last cancel point: once the replace commits, the stamp pass below completes it.
+  opts.signal.throwIfAborted();
   await replaceAll(db, clusterRows, assignRows, opts.ownerId);
   // Stamps `msgMidAt` on the fresh assignments (written null in the replace batch) — tier-0 via the exact
-  // segment span, tier-k via the injected memory tier-grid (deps.tier0RangeOf).
-  await backfillMsgMidAt(db, deps.tier0RangeOf, opts);
+  // segment span, tier-k via the injected memory tier-grid (deps.tier0RangeOf). The replace has committed themes
+  // whose timeline reads skip an unstamped row, so no cancel may stop this pass partway.
+  await backfillMsgMidAt(db, deps.tier0RangeOf, opts, new AbortController().signal);
   return {
     clustersWritten: clusterRows.length,
     digestsAssigned: assignRows.length,

@@ -165,7 +165,12 @@ async function livedInLibrary(root: ServerTestHarness, pictures: Uint8Array[]): 
   });
   await root.services.regex.attachToCharacter({ principal: owner, characterId: warden.id, scriptId: script.id });
   await root.services.worldInfo.createBook({ principal: owner, input: { name: "Loose Notes" } });
-  await root.services.databank.createFromText({ principal: owner, name: "Field Notes", text: "The bridge was built in spring." });
+  await root.services.databank.createFromText({
+    signal: new AbortController().signal,
+    principal: owner,
+    name: "Field Notes",
+    text: "The bridge was built in spring.",
+  });
   await root.services.assets.addToGallery({ principal: owner, assetId: art.assetId });
   await generatePicture(root, owner, pictures);
   const { chat } = await root.services.chat.startChat({ principal: owner, characterIds: [warden.id], anchorPersonaId: persona.id, opening: "none" });
@@ -197,7 +202,7 @@ async function generatePicture(root: ServerTestHarness, owner: Principal, pictur
   });
   await root.services.connection.setBinding({ principal: owner, task: "generateImage", connectionId: connection.id });
   pictures.push(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)));
-  await root.services.imagery.generatePicture({ caller: owner, mode: "free", prompt: "The bridge at dusk.", n: 1 });
+  await root.services.imagery.generatePicture({ signal: new AbortController().signal, caller: owner, mode: "free", prompt: "The bridge at dusk.", n: 1 });
 }
 
 /** How many times `run` asks the exporter for a character card and for a room. */
@@ -245,7 +250,12 @@ test("a character edited after the backup keeps the edit, and the backup's versi
   const bundle = await exportLibrary(root);
   const { files } = await readLibraryExport(root);
   const edited = "A warden who has seen the bridge fall.";
-  await root.services.character.update({ principal: await root.principalFor(root.ownerId), characterId: wardenId, input: { description: edited } });
+  await root.services.character.update({
+    signal: new AbortController().signal,
+    principal: await root.principalFor(root.ownerId),
+    characterId: wardenId,
+    input: { description: edited },
+  });
   const before = await rowCounts(root);
 
   // The edited card and the room it seats are the two files that write; every other file is already held.

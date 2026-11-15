@@ -50,7 +50,11 @@ function catalogHost(down: ReadonlySet<ListName>): typeof fetch {
 
 /** The add dialog's model-list read for OpenRouter, through the production connection verb. */
 async function draftList(root: ServerTestHarness): Promise<ModelListing> {
-  return await root.services.connection.draftCatalogModels({ principal: await root.principalFor(root.ownerId), providerId: openRouter().id });
+  return await root.services.connection.draftCatalogModels({
+    signal: new AbortController().signal,
+    principal: await root.principalFor(root.ownerId),
+    providerId: openRouter().id,
+  });
 }
 
 function listedIds(listing: ModelListing): readonly string[] {

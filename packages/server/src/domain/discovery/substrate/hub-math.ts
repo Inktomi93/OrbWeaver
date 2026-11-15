@@ -22,14 +22,14 @@ const OFFER_COST = 16;
 type Pace = (units: number) => Promise<void>;
 
 /** Yields once `HUB_YIELD_WORK_BUDGET` units have been spent, and refuses to continue after an abort. */
-function createPacer(signal: AbortSignal | undefined): Pace {
+function createPacer(signal: AbortSignal): Pace {
   let spent = 0;
   return async (units) => {
     spent += units;
     if (spent >= HUB_YIELD_WORK_BUDGET) {
       spent = 0;
       await yieldToEventLoop();
-      signal?.throwIfAborted();
+      signal.throwIfAborted();
     }
   };
 }
@@ -76,7 +76,7 @@ function topKMean(at: (j: number) => number, n: number, skip: number, k: number)
  */
 export async function computeGroupHubs(
   vecs: readonly Float32Array[],
-  opts: { readonly k?: number | undefined; readonly denseMax?: number | undefined; readonly signal?: AbortSignal | undefined } = {},
+  opts: { readonly k?: number | undefined; readonly denseMax?: number | undefined; readonly signal: AbortSignal },
 ): Promise<number[]> {
   const n = vecs.length;
   const k = opts.k ?? CSLS_K;
