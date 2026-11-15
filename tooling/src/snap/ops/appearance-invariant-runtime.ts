@@ -15,6 +15,7 @@ import { buildNavScript } from "../../floor/instrument/nav.ts";
 import type { AppearanceCheckContext, AppearanceMutationIsolationEvidence } from "../contract/appearance-check-context.ts";
 import type { AppearanceCascadeExpectation, AppearanceInvariantReceipt, AppearanceMergeExpectation } from "../contract/appearance-invariants.ts";
 import type { ContrastEvidence } from "../contract/contrast.ts";
+import type { SnapDetailedPlan } from "../contract/run.ts";
 import type { Args } from "../contract/types.ts";
 import { HOVER_REVEAL_MS, STEP_SETTLE_MS } from "../lib/budgets.ts";
 import { driveOppositeDensity } from "./appearance-density-persistence.ts";
@@ -233,13 +234,14 @@ async function captureRowSnapshots(
   page: Page,
   row: RuntimeAppearanceHistoricalRow,
   coarsePointer: boolean,
+  chatRoom: string | null,
 ): Promise<{
   readonly before?: AppearanceDomSnapshot;
   readonly current: AppearanceDomSnapshot;
   readonly mutationIsolation?: AppearanceMutationIsolationEvidence;
 }> {
   await resetCheckpoint(page);
-  await driveSurface(page, row);
+  await driveSurface(page, row, chatRoom);
   // The anchor sits between the drive and the evidence reset, exactly where the drive's own unverified
   // scroll used to (#2402): AFTER it, the surface has demonstrably stopped moving (the anchor only returns
   // once the subject held its position across a settle), so no scroll-induced motion lands in the measured
@@ -272,10 +274,15 @@ async function captureRowSnapshots(
   return before === undefined ? { current } : { before, current };
 }
 
-async function captureAppearanceInvariantRow(session: ProbeSession, opts: Args, row: RuntimeAppearanceHistoricalRow): Promise<AppearanceInvariantReceipt> {
+async function captureAppearanceInvariantRow(
+  session: ProbeSession,
+  opts: Args,
+  row: RuntimeAppearanceHistoricalRow,
+  chatRoom: string | null,
+): Promise<AppearanceInvariantReceipt> {
   const page = session.page;
   try {
-    const snapshots = await captureRowSnapshots(page, row, session.environmentContract.applied.hasTouch);
+    const snapshots = await captureRowSnapshots(page, row, session.environmentContract.applied.hasTouch, chatRoom);
     const environment = await readBrowserEnvironment(page, session.environmentContract);
     const settings = session.contexts[0]?.settingsEvidence;
     if (settings === undefined) {
@@ -320,12 +327,14 @@ async function captureAppearanceInvariantRow(session: ProbeSession, opts: Args, 
 export async function captureAppearanceInvariantRows(
   session: ProbeSession,
   opts: Args,
-  rows: readonly RuntimeAppearanceHistoricalRow[],
+  plan: SnapDetailedPlan,
 ): Promise<readonly AppearanceInvariantReceipt[]> {
   const receipts: AppearanceInvariantReceipt[] = [];
-  const ordered = rows.toSorted((left, right) => Number(right.id === "opposite-os-app-prepaint") - Number(left.id === "opposite-os-app-prepaint"));
+  const ordered = plan.appearanceRows.toSorted(
+    (left, right) => Number(right.id === "opposite-os-app-prepaint") - Number(left.id === "opposite-os-app-prepaint"),
+  );
   for (const row of ordered) {
-    receipts.push(await captureAppearanceInvariantRow(session, opts, row));
+    receipts.push(await captureAppearanceInvariantRow(session, opts, row, plan.chatRoom));
   }
   return receipts;
 }
