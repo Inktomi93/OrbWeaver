@@ -72,6 +72,7 @@ async function chatTurn(providerId: HostedRow, reply: () => Response, effort?: "
   const turn = await root.app.runtime.executor.runChatTurn({
     api: "chat-completions",
     connection,
+    signal: new AbortController().signal,
     // The delta callback is a chat room's stream, so the turn names one.
     chatId: await seedRecallRoom(await root.internalCallerFor(root.ownerId)),
     params: effort === undefined ? {} : { effort },
@@ -133,6 +134,7 @@ test.for(REFUSALS)("a $providerId $status answer fails the turn as $kind without
     return await root.app.runtime.executor.runChatTurn({
       api: "chat-completions",
       connection,
+      signal: new AbortController().signal,
       params: {},
       systemPrompt: { static: "You are a fixture.", dynamic: "" },
       history: [USER_LINE],

@@ -76,7 +76,7 @@ async function connectionCapability(root: ServerTestHarness, model: string): Pro
   const principal = await root.principalFor(root.ownerId);
   const credential = await root.services.credentials.add({ principal, provider: nanoGpt().id, key: RUNTIME_KEY });
   const row = await root.services.connection.create({ principal, providerId: nanoGpt().id, credentialId: credential.id, baseUrl: null, model });
-  return (await root.services.connection.capabilities({ principal, connectionId: row.id })).capability;
+  return (await root.services.connection.capabilities({ principal, connectionId: row.id, signal: new AbortController().signal })).capability;
 }
 
 test("the add dialog reads the detailed list under the typed key and lists each model's stated facts", async () => {
@@ -86,6 +86,7 @@ test("the add dialog reads the detailed list under the typed key and lists each 
     principal: await root.principalFor(root.ownerId),
     providerId: nanoGpt().id,
     key: RUNTIME_KEY,
+    signal: new AbortController().signal,
   });
   expect(seen).toEqual([{ url: "https://api.nano-gpt.com/api/v1/models?detailed=true", authorization: `Bearer ${RUNTIME_KEY}` }]);
   expect(listedEntry(listing, STATED_MODEL)).toMatchObject({
