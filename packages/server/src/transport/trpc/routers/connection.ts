@@ -114,17 +114,17 @@ export const connectionRouter = t.router({
       }),
     ),
 
-  // `cachedFacts` reads what the runtime already holds and dials nothing: the add dialog's read right after a save,
-  // which must not load or wake a local model only to learn its limits.
+  // `listFacts` fetches the server's model list and the reads that load no model, never a per-model probe: the add
+  // dialog's read right after a save, which must not load or wake a local model only to learn its limits.
   capabilities: authedProcedure
-    .input(z.strictObject({ connectionId, cachedFacts: z.literal(true).optional() }))
+    .input(z.strictObject({ connectionId, listFacts: z.literal(true).optional() }))
     .output(strictTwin(connectionCapabilityViewSchema))
     .query(({ ctx, input, signal }) =>
       ctx.services.connection.capabilities({
         principal: ctx.auth,
         connectionId: input.connectionId,
         signal: procedureSignal(signal),
-        ...(input.cachedFacts === undefined ? {} : { cachedFacts: input.cachedFacts }),
+        ...(input.listFacts === undefined ? {} : { listFacts: input.listFacts }),
       }),
     ),
 

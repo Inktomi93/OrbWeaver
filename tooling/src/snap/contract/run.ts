@@ -34,6 +34,8 @@ interface SnapScenarioRunEvidence {
 
 export interface SnapDetailedPlan {
   readonly appearanceRows: readonly RuntimeAppearanceHistoricalRow[];
+  /** The chat id the transcript rows open: the matrix's own provisioned room, or null for the list's top row. */
+  readonly chatRoom: string | null;
 }
 
 export interface SnapDetailedResult {

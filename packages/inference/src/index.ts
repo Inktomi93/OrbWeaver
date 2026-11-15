@@ -238,7 +238,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     modelProbes.set(row, run);
     return run;
   };
-  const warmEndpoint = async (connection: UserConnection, provider: ProviderDef, secret: string | null): Promise<void> => {
+  const warmEndpoint: ResolverContext["warmEndpoint"] = async (connection, provider, secret, { modelProbes: probing }) => {
     const baseUrl = provider.baseUrl ?? connection.baseUrl;
     if (baseUrl === null) {
       return;
@@ -255,7 +255,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
       secrets,
       signal: sharedWarmSignal(),
       modelInfoApi,
-      probeModel: connection.model,
+      ...(probing ? { probeModel: connection.model } : {}),
       warn: (message) => {
         deps.log.warn({ providerId: provider.id }, message);
       },
@@ -272,8 +272,8 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     };
     const mirror = endpointModels(baseUrl, modelInfoApi, tenant);
     const warm = await mirror.warm(async () => ({ complete: await fetchRows() }), secrets);
-    // A list warmed for another model on this server carries none of this model's own probes.
-    if (warm.ok && provider.wire === "openai-compat") {
+    // A list warmed for another model on this server, or without probes, carries none of this model's own.
+    if (warm.ok && probing && provider.wire === "openai-compat") {
       await probeUnprobedModel(mirror, endpointArgs, connection.model);
     }
   };
@@ -372,11 +372,11 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     embeddingExecution,
     modelTasks: (connection, options) => modelTasks(ctx, connection, options),
     capabilities: {
-      for: async ({ connectionId, principal, signal, cachedFacts }): Promise<CapabilityRead> => {
+      for: async ({ connectionId, principal, signal, listFacts }): Promise<CapabilityRead> => {
         const connection = await ownedConnection(connectionId, principal.userId);
         const provider = requireProvider(registry.get(connection.providerId, connection.ownerId), connection.providerId);
         // The same discovered kind the resolve below reads, so the task it picks is one the row serves.
-        const kind = (await discoveredKind(ctx, connection, { cachedFacts })) ?? DEFAULT_MODEL_KIND;
+        const kind = (await discoveredKind(ctx, connection, listFacts === true ? "list" : "full")) ?? DEFAULT_MODEL_KIND;
         const facts = behaveAs(ctx, provider, connection);
         const tasks = connectionTasks(facts, kind);
         const task = tasks[0];
@@ -387,7 +387,13 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
             message: `connection "${connection.label}" (${provider.id}, ${kind}) serves no task`,
           });
         }
-        const outcome = await resolveTaskWithBaseline(ctx, { task, principal, connectionId, signal, ...(cachedFacts === true ? { cachedFacts } : {}) });
+        const outcome = await resolveTaskWithBaseline(ctx, {
+          task,
+          principal,
+          connectionId,
+          signal,
+          ...(listFacts === true ? { listFacts } : {}),
+        });
         const detected = behaveAs(ctx, provider, connection);
         return {
           capability: outcome.resolved.capability,

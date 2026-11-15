@@ -6,14 +6,19 @@
 //
 // A failed or empty catalog is the picker's typed arm, never an error boundary for the dialog: the read dials
 // the provider (or the user's own box), and a model can still be named by id where policy permits it.
+//
+// A save goes on to the add dialog's limits step, the same component and read, so a model whose window is a guess is
+// asked for its real limits here as it is there. The dialog is a `DismissDialog` whose two stages draw their own footers.
 
 import type { ProviderDef } from "@orb/contracts/inference";
 import { providerDisplayLabel } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
+import { Stack } from "@orb/ui/layout";
 import { useQueryClient } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { FormDialogPopup, FormDialogRoot, QueryBoundary } from "#components";
+import { useId, useState } from "react";
+import { CommitFooter, DismissDialog, QueryBoundary } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { peekQueryData, useSuspenseQuery } from "#data";
 import { touchedFieldError } from "#forms/editor";
@@ -22,10 +27,11 @@ import { pushRecentModel } from "#state";
 import { useAddModelOnKeyForm } from "../hooks/use-add-model-on-key-form.ts";
 import { useCreateConnection } from "../hooks/use-connections-mutations.ts";
 import { useSignInCheckAfterSave } from "../hooks/use-sign-in-check.ts";
-import { CONNECTION_FORM_COPY, modelIdExample } from "../lib/add-connection-form-model.ts";
+import { ADD_DIALOG_COPY, CONNECTION_FORM_COPY, modelIdExample } from "../lib/add-connection-form-model.ts";
 import type { AddModelOnKeyFormValues, addModelScope } from "../lib/add-model-on-key-form-model.ts";
 import { addModelActionGloss, addModelActionLabel } from "../lib/add-model-on-key-form-model.ts";
 import { failedCatalogSource, modelCheckOf, modelListSource, typedModelAllowed } from "../lib/model-picker-model.ts";
+import { ConnectionLimitsStep } from "./connection-limits-step.tsx";
 import type { ModelPickerProps } from "./model-picker.tsx";
 import { ModelPicker } from "./model-picker.tsx";
 
@@ -44,18 +50,52 @@ export interface AddModelOnKeyDialogProps {
   readonly invalidation: Invalidation;
 }
 
+type CreatedConnection = inferOutput<Trpc["connection"]["create"]>;
+
+/** What the dialog is doing: picking the model, or asking for the real limits of the row just saved. */
+type AddModelStep = { readonly kind: "add" } | { readonly kind: "limits"; readonly created: CreatedConnection };
+
+const ADD_MODEL_STEP: AddModelStep = { kind: "add" };
+
 export function AddModelOnKeyDialog({ open, onOpenChange, connection, provider, scope, trpc, invalidation }: AddModelOnKeyDialogProps): ReactElement {
+  const [step, setStep] = useState<AddModelStep>(ADD_MODEL_STEP);
+  // Every close starts the next open at the model picker.
+  const changeOpen = (next: boolean): void => {
+    if (!next) {
+      setStep(ADD_MODEL_STEP);
+    }
+    onOpenChange(next);
+  };
+  const limits = step.kind === "limits";
   return (
-    <FormDialogRoot onOpenChange={onOpenChange} open={open}>
-      <AddModelOnKeyBody
-        connection={connection}
-        invalidation={invalidation}
-        onDone={(): void => onOpenChange(false)}
-        provider={provider}
-        scope={scope}
-        trpc={trpc}
-      />
-    </FormDialogRoot>
+    <DismissDialog
+      closeButton={true}
+      description={limits ? ADD_DIALOG_COPY.limits.description : addModelActionGloss(scope, providerDisplayLabel(provider))}
+      onOpenChange={changeOpen}
+      open={open}
+      size="wide"
+      title={limits ? ADD_DIALOG_COPY.limits.title : addModelActionLabel(scope)}
+    >
+      {step.kind === "limits" ? (
+        <ConnectionLimitsStep
+          connectionId={step.created.id}
+          declared={step.created.declared}
+          invalidation={invalidation}
+          onDone={(): void => changeOpen(false)}
+          providerId={step.created.providerId}
+          trpc={trpc}
+        />
+      ) : (
+        <AddModelOnKeyBody
+          connection={connection}
+          invalidation={invalidation}
+          onSaved={(created): void => setStep({ kind: "limits", created })}
+          provider={provider}
+          scope={scope}
+          trpc={trpc}
+        />
+      )}
+    </DismissDialog>
   );
 }
 
@@ -65,16 +105,18 @@ function AddModelOnKeyBody({
   scope,
   trpc,
   invalidation,
-  onDone,
+  onSaved,
 }: {
   readonly connection: ConnectionListItem;
   readonly provider: ProviderDef;
   readonly scope: AddModelScope;
   readonly trpc: Trpc;
   readonly invalidation: Invalidation;
-  readonly onDone: () => void;
+  /** Called once the row exists; the dialog goes on to ask for its limits where they are a guess. */
+  readonly onSaved: (created: CreatedConnection) => void;
 }): ReactElement {
   const queryClient = useQueryClient();
+  const formId = useId();
   const providerLabel = providerDisplayLabel(provider);
   const createConnection = useCreateConnection({ trpc, invalidation, failureShownInline: "the add-model dialog's own error toast" });
   const checkSignIn = useSignInCheckAfterSave({ trpc, invalidation });
@@ -101,7 +143,7 @@ function AddModelOnKeyBody({
     if (modelCheck === "listed") {
       pushRecentModel(provider.id, values.model.trim());
     }
-    onDone();
+    onSaved(created);
     return values;
   };
 
@@ -113,14 +155,17 @@ function AddModelOnKeyBody({
   };
 
   return (
-    <form.Subscribe selector={(state): readonly [boolean, boolean] => [state.canSubmit, state.isSubmitting] as const}>
-      {([canSubmit, isSubmitting]): ReactElement => (
-        <FormDialogPopup
-          description={addModelActionGloss(scope, providerLabel)}
-          size="wide"
-          submit={{ label: CONNECTION_FORM_COPY.submit, disabled: !canSubmit || isSubmitting, loading: isSubmitting, onSubmit: submit }}
-          title={addModelActionLabel(scope)}
-        >
+    <>
+      <form
+        aria-label={addModelActionLabel(scope)}
+        id={formId}
+        noValidate={true}
+        onSubmit={(event): void => {
+          event.preventDefault();
+          submit();
+        }}
+      >
+        <Stack gap="block">
           <form.AppField name="model">
             {(field): ReactElement => {
               const picker: Omit<ModelPickerProps, "source"> = {
@@ -154,9 +199,17 @@ function AddModelOnKeyBody({
               <field.SwitchField label={CONNECTION_FORM_COPY.backgroundLabel} description={CONNECTION_FORM_COPY.backgroundDescription} />
             )}
           </form.AppField>
-        </FormDialogPopup>
-      )}
-    </form.Subscribe>
+        </Stack>
+      </form>
+      <form.Subscribe selector={(state): readonly [boolean, boolean] => [state.canSubmit, state.isSubmitting] as const}>
+        {([canSubmit, isSubmitting]): ReactElement => (
+          <CommitFooter
+            formId={formId}
+            submit={{ label: CONNECTION_FORM_COPY.submit, disabled: !canSubmit || isSubmitting, loading: isSubmitting, onSubmit: submit }}
+          />
+        )}
+      </form.Subscribe>
+    </>
   );
 }
 

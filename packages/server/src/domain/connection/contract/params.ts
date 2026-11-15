@@ -41,10 +41,10 @@ export interface GetConnectionParams extends ActorParams {
   readonly connectionId: UserConnectionId;
 }
 
-/** A capability read; `cachedFacts` folds only what is already held and dials nothing (no per-model probe). */
+/** A capability read; `listFacts` fetches the server's model list and the reads that load no model, never a per-model probe. */
 export interface ConnectionCapabilitiesParams extends GetConnectionParams {
   readonly signal: AbortSignal;
-  readonly cachedFacts?: boolean | undefined;
+  readonly listFacts?: boolean | undefined;
 }
 
 /** The writable fields of a connection row (everything but id / owner / timestamps). */
