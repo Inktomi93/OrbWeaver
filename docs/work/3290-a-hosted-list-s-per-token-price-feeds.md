@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-11-15
 priority: P3
 area: inference
+lane: wt/agent-a5487884af20f9847
 ---
 
 # A hosted list's per-token price feeds the cost estimate

@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-15
 priority: P3
 area: connection
+lane: wt/agent-aaaef4a406560836a
 ---
 
 # The NanoGPT key check reads a coded 403 the way a chat turn does

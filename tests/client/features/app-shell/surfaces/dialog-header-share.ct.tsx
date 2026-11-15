@@ -13,6 +13,7 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
 import { DOCUMENT_UPLOAD_FAILURE } from "#client/features/databank/lib/databank-upload-copy.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { AppShellModalAsDrawerStory, AppShellModalStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { MODAL_SHELL_READS, routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -102,7 +103,7 @@ for (const { name, viewport } of PHONE_WINDOWS) {
         const headerBox = await header.boundingBox();
         expect(headerBox?.height ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(viewport.height * HEADER_WINDOW_SHARE);
         // The share is kept by giving up insets, never the close control: it is still drawn, at its full block size.
-        const closeBox = await header.getByRole("button").boundingBox();
+        const closeBox = await header.getByRole("button", { name: DIALOG_VERBS.close, exact: true }).boundingBox();
         expect(closeBox?.height ?? 0).toBeGreaterThan(0);
         expect(closeBox?.y ?? Number.NEGATIVE_INFINITY).toBeGreaterThanOrEqual(headerBox?.y ?? 0);
         // A long title wraps or gives Close its own line; it never pushes Close past the window's edge, and Close keeps its square target.
@@ -165,7 +166,10 @@ test.describe("a landscape phone at the default text", () => {
   test("the sheet's header keeps its inset above the close control", async ({ corpus, mount, page }) => {
     await refuseInAddDocument(page, corpus, (story) => mount<typeof AppShellModalAsDrawerStory>(story, { modalId: "addDocument" }), PRESENTATIONS.drawer);
     const header = page.locator(PRESENTATIONS.drawer.popup).locator(HEADER);
-    const [headerBox, closeBox] = await Promise.all([header.boundingBox(), header.getByRole("button").boundingBox()]);
+    const [headerBox, closeBox] = await Promise.all([
+      header.boundingBox(),
+      header.getByRole("button", { name: DIALOG_VERBS.close, exact: true }).boundingBox(),
+    ]);
     expect((closeBox?.y ?? 0) - (headerBox?.y ?? 0)).toBeGreaterThan(0);
     // The header and the commit row stay pinned at this size: the sheet is not tiny, and the screen is wider than 30rem.
     await expect(header).toHaveCSS("position", "sticky");
@@ -183,7 +187,11 @@ test.describe("a portrait phone at the default text", () => {
     const title = header.getByRole("heading", { name: YOU_TAB_LABEL, exact: true });
     await expect(header).toHaveCSS("position", "sticky");
     await expect(title).not.toHaveCSS("text-overflow", "ellipsis");
-    const [headerBox, closeBox, titleBox] = await Promise.all([header.boundingBox(), header.getByRole("button").boundingBox(), title.boundingBox()]);
+    const [headerBox, closeBox, titleBox] = await Promise.all([
+      header.boundingBox(),
+      header.getByRole("button", { name: DIALOG_VERBS.close, exact: true }).boundingBox(),
+      title.boundingBox(),
+    ]);
     expect((closeBox?.y ?? 0) - (headerBox?.y ?? 0)).toBeGreaterThan(0);
     // One line: Close sits beside the title, not under it.
     expect(closeBox?.y ?? Number.POSITIVE_INFINITY).toBeLessThan((titleBox?.y ?? 0) + (titleBox?.height ?? 0));
