@@ -2,7 +2,7 @@
 kind: bug
 status: open
 updated: 2026-11-15
-priority: P2
+priority: P1
 area: chat
 ---
 
