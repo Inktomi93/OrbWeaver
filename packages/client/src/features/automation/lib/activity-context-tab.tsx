@@ -13,7 +13,7 @@
 
 import { History } from "@orb/ui/icons";
 import type { ReactNode } from "react";
-import { QueryBoundary } from "#components";
+import { ContextTabBody, QueryBoundary } from "#components";
 import { SkeletonRows } from "#data";
 import type { CommittedChatContext, ContextTabDef } from "#lib";
 import { RoomActivityLog } from "../components/room-activity-log.tsx";
@@ -30,8 +30,10 @@ export const automationActivityTab: ContextTabDef<CommittedChatContext> = {
   body: (s): ReactNode => (
     // RESERVED (#1098) — a context-tab body that settles into a run-activity list; the sentence it replaced
     // was one line where the log is many, so the tab resized under the reader the moment the read landed.
-    <QueryBoundary resetKeys={[s.chatId]} fallback={<SkeletonRows count={4} />} reserveKey="automation.activityTab">
-      <RoomActivityLog chatId={s.chatId} />
-    </QueryBoundary>
+    <ContextTabBody kind="blocks">
+      <QueryBoundary resetKeys={[s.chatId]} fallback={<SkeletonRows count={4} />} reserveKey="automation.activityTab">
+        <RoomActivityLog chatId={s.chatId} />
+      </QueryBoundary>
+    </ContextTabBody>
   ),
 };

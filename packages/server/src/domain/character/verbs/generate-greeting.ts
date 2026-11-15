@@ -12,7 +12,7 @@ import { cardOf, loadOwnedCharacterRow } from "../persistence/queries.ts";
 import { buildGreetingPrompt, composeGreetingSteer } from "../substrate/greeting-studio.ts";
 
 export function createGenerateGreeting(ctx: CharacterContext): CharacterService["generateGreeting"] {
-  return async ({ principal, characterId, steer, transforms, timeZone }: GenerateGreetingParams) => {
+  return async ({ principal, characterId, steer, transforms, timeZone, signal }: GenerateGreetingParams) => {
     const row = await loadOwnedCharacterRow(ctx.db, principal.userId, characterId);
     if (row === undefined) {
       throw new CharacterNotFoundError(characterId);
@@ -24,6 +24,6 @@ export function createGenerateGreeting(ctx: CharacterContext): CharacterService[
       steer: composeGreetingSteer(transforms, steer, prose),
       clock: { timeZone, nowMs: ctx.now() },
     });
-    return ctx.generateGreetingText({ caller: principal, prompt });
+    return ctx.generateGreetingText({ caller: principal, prompt, signal });
   };
 }

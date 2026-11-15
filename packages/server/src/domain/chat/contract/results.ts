@@ -154,7 +154,7 @@ export interface TurnRequest {
   /** The structured-output request for this turn (D79) — set by the request-builder gate only when the model
    *  supports it; the runChatTurn translator maps it onto the wire arm's `responseFormat`. */
   readonly responseFormat?: ResponseFormat | undefined;
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 /** ONE rendered contribution to a turn's context, attributed to its BUDGET SOURCE — the per-section product
@@ -443,7 +443,7 @@ export interface TurnPrep {
    *  the signal SETTLED is `turnAborted(reason:"user"|"stale")` and returns the aborted outcome; with the
    *  signal un-settled it is a fault — `turnAborted(reason:"error")` and a rethrow — however the error is
    *  NAMED. Absent ⇒ nothing can cancel this turn, so every post-start throw is a fault. */
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 /**

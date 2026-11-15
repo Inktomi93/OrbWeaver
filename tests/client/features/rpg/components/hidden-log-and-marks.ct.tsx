@@ -133,6 +133,11 @@ test("a hand-made mark says nothing about how it was made", async ({ mount, page
   await mount<typeof RpgContextTabStory>(TAB_STORY, { chatId, tab: "rpg.journal" });
 
   await page.getByText(RPG_JOURNAL_SCOPE_LABELS.marks, { exact: true }).click();
-  await expect(page.locator('[data-slot="rpg-mark-row"]')).toHaveCount(1);
-  await expect(page.locator('[data-slot="rpg-mark-trigger"]')).toHaveCount(0);
+  const marks = page.locator('[data-slot="list-row-subtitle"]');
+  await expect(marks).toHaveCount(1);
+  const scent = await marks.textContent();
+  // Positive control: the scent is read; it is the date alone, with no way-it-was-made after it.
+  expect(scent ?? "").not.toBe("");
+  // A mark made another way names it after the date, past the scent's separator.
+  expect(scent).not.toContain(" · ");
 });

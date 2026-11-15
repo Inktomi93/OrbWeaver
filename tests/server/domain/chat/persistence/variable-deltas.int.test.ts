@@ -38,6 +38,7 @@ test("a real card's setvar lands once and survives the following empty-delta tur
   });
   expect(await h.root.services.chat.getRuntimeVariables({ principal: h.owner, chatId: h.chatId })).toEqual({ [HP]: "1" });
   await h.root.services.character.update({
+    signal: new AbortController().signal,
     principal: h.owner,
     characterId: character.id,
     input: { description: "A keeper with no variable-writing template." },

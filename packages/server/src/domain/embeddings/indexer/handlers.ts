@@ -25,7 +25,7 @@ export async function onCharacterUpdated(ctx: EmbeddingsIndexerContext, event: C
   if (ownerId === null) {
     return;
   }
-  const embedModel = await requireTaskModel(ctx, ownerId);
+  const embedModel = await requireTaskModel(ctx, ownerId, ctx.backgroundSignal);
   if (embedModel === null) {
     getLog(ctx.logger).debug({ characterId: event.characterId, ownerId }, "embeddings indexer: the owner has no embed connection — skipped");
     return;
@@ -36,6 +36,7 @@ export async function onCharacterUpdated(ctx: EmbeddingsIndexerContext, event: C
     characterId: event.characterId,
     content: text,
     model: embedModel,
+    signal: ctx.backgroundSignal,
   });
   // A content edit whose projected embed text is nonetheless unchanged short-circuits to `noop`; surface it
   // at debug so an absent embed is explainable.
@@ -46,5 +47,5 @@ export async function onCharacterUpdated(ctx: EmbeddingsIndexerContext, event: C
 
 /** An asset event uses the same preparation and in-flight work as the catch-up sweep. */
 export async function onAssetCreated(ctx: EmbeddingsIndexerContext, event: AssetCreatedEvent): Promise<void> {
-  await ctx.indexAsset(event.assetId);
+  await ctx.indexAsset(event.assetId, { signal: ctx.backgroundSignal });
 }

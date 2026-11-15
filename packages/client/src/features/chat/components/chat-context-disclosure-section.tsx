@@ -40,7 +40,9 @@ export function DisclosureSection({ sectionId, kicker, defaultOpen, keepMounted 
         hiddenAt={hiddenAt}
         kicker={
           <CollapsibleTrigger size="control">
-            <Text as="span" voice="interactiveKicker">
+            {/* The trigger and the kicker row are both sized to their content, so only `anywhere` lets a caps word wider than a phone
+                pane at enlarged text break instead of pushing the row past the pane's edge. */}
+            <Text as="span" voice="interactiveKicker" wrap="anywhere">
               {kicker}
             </Text>
           </CollapsibleTrigger>

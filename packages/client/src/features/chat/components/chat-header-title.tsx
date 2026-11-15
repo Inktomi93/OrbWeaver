@@ -68,7 +68,8 @@ function TitleGroup({ children, width }: { readonly children: ReactNode; readonl
     <Row
       gap="row"
       align="baseline"
-      className="shell-topbar-title-group min-inline-0"
+      className="shell-topbar-title-group"
+      minWidth="shrinks"
       {...(width === undefined ? {} : { style: { width }, "data-editing": "" })}
     >
       {children}
@@ -111,7 +112,8 @@ export function ChatHeaderTitle({ chatId, label, roomName, createdAt, canRename 
               type="button"
               step="label"
               aria-label={chatTitleButtonName(label, roomName, timeLib.formatDate(createdAt))}
-              className="shell-topbar-title-group min-inline-0"
+              className="shell-topbar-title-group"
+              minWidth="shrinks"
             />
           }
           frame={(title): ReactElement => <TitleGroup>{title}</TitleGroup>}
@@ -135,7 +137,8 @@ export function ChatHeaderTitle({ chatId, label, roomName, createdAt, canRename 
               size="sm"
               // The date is visible inside the button, so the name carries it after the title (WCAG 2.5.3).
               aria-label={cut ? chatTitleButtonName(label, roomName, date) : renameChatButtonName(label, roomName, date)}
-              className="shell-topbar-title-group min-inline-0"
+              className="shell-topbar-title-group"
+              minWidth="shrinks"
               justify="start"
               ref={(node: HTMLButtonElement | null): void => {
                 titleControl.current = node;

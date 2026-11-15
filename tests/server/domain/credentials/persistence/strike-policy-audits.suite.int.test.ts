@@ -40,7 +40,9 @@ test("a genuinely keyless provider rejection cannot strike an unrelated owned ke
   const connection = await fundingConnection({ ownerCaller, harness, task: "embed" });
   expect(credentialExecutionEvidenceOf(connection.credential)).toEqual({ credentialId: null, executionWitness: null });
   fundingProvider.status(401);
-  await expect(app.runtime.executor.embed({ connection, input: "the keyless rejection control" })).toThrowProviderError("auth_failed");
+  await expect(app.runtime.executor.embed({ signal: new AbortController().signal, connection, input: "the keyless rejection control" })).toThrowProviderError(
+    "auth_failed",
+  );
   expect((await ownerCaller.credentials.list()).find((row) => row.id === spare.id)?.revokedAt).toBeNull();
   expect(
     await db

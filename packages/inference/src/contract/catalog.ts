@@ -12,6 +12,7 @@ export interface DetectArgs {
   readonly baseUrl: string;
   readonly secret: string | null;
   readonly headers?: Readonly<Record<string, string>> | undefined;
+  readonly signal: AbortSignal;
 }
 
 export interface EndpointFetchArgs {
@@ -21,7 +22,7 @@ export interface EndpointFetchArgs {
   readonly secret: string | null;
   readonly headers?: Readonly<Record<string, string>> | undefined;
   readonly secrets: ProviderScrubSet;
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
   /** The row's folded `features.modelInfoApi`. */
   readonly modelInfoApi?: ModelInfoApi | undefined;
   /** Where a failed native read is reported; it never fails the list. */

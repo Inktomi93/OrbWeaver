@@ -42,7 +42,7 @@ import { Separator } from "@orb/ui/separator";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId } from "react";
-import { QueryBoundary } from "#components";
+import { ContextTabBody, QueryBoundary } from "#components";
 import { QueryErrorState, useSuspenseQueries, useTRPC } from "#data";
 import { deriveChatTitle, timeLib } from "#lib";
 import { CHARACTER_NEVER_SPOKE_TEXT } from "../lib/character-names.ts";
@@ -63,16 +63,19 @@ export interface CharacterOverviewCardProps {
  *  last spoke — with the pick-a-field hint demoted to the footer. */
 export function CharacterOverviewCard({ characterId }: CharacterOverviewCardProps): ReactElement {
   // Both reads settle together under the card's own boundary: a pending or failed chats read must not print
-  // "Never" for when you two last spoke, and a failed read says so with the way to re-read it.
+  // "Never" for when you two last spoke, and a failed read says so with the way to re-read it. The boundary sits inside the column, so
+  // the pending and failed arms take the inset the card does.
   return (
-    <QueryBoundary
-      resetKeys={[characterId]}
-      key={characterId}
-      fallback={<Text voice="quiet">Loading…</Text>}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="this character" onRetry={retry} />}
-    >
-      <OverviewBody characterId={characterId} />
-    </QueryBoundary>
+    <ContextTabBody data-slot="character-overview">
+      <QueryBoundary
+        resetKeys={[characterId]}
+        key={characterId}
+        fallback={<Text voice="quiet">Loading…</Text>}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="this character" onRetry={retry} />}
+      >
+        <OverviewBody characterId={characterId} />
+      </QueryBoundary>
+    </ContextTabBody>
   );
 }
 
@@ -92,7 +95,7 @@ function OverviewBody({ characterId }: CharacterOverviewCardProps): ReactElement
   const tagNames = data.tags.filter((tag) => !tag.isHiddenOnCard).map((tag) => tag.name);
 
   return (
-    <Stack gap="section" scroll="y" data-slot="character-overview">
+    <>
       {/* THE INSTRUCTION LEADS THE PANE (side-eye 2026-09-02 nit 27, #1139). This line explains what the pane
           DOES — pick a field over there, read it here — and it sat BELOW Origin, Activity and Tags, i.e.
           after everything it introduces, where a reader who needed it had already scrolled past the answer.
@@ -147,7 +150,7 @@ function OverviewBody({ characterId }: CharacterOverviewCardProps): ReactElement
           <OverviewRow label="Applied" value={String(tagNames.length)} gloss={nameGloss(tagNames)} mono={true} />
         </Stack>
       )}
-    </Stack>
+    </>
   );
 }
 

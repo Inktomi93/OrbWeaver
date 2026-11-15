@@ -59,8 +59,14 @@ export interface PluginAssetReadOps {
   readonly read: (req: { readonly installerUserId: UserId; readonly assetId: SandboxWireId<AssetId> }) => Promise<PluginAssetView | null>;
 }
 
-export interface PluginDocumentReads {
-  readonly documents: (req: { readonly installerUserId: UserId; readonly queryText: string; readonly limit?: number }) => Promise<readonly PluginSearchHit[]>;
+/** `Signal` is the invocation's cancel: the search embeds the query and may rerank, both provider calls. */
+export interface PluginDocumentReads<Signal> {
+  readonly documents: (req: {
+    readonly installerUserId: UserId;
+    readonly queryText: string;
+    readonly limit?: number;
+    readonly signal: Signal;
+  }) => Promise<readonly PluginSearchHit[]>;
 }
 
 export interface PluginNotificationDelivery {

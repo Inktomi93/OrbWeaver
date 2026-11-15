@@ -143,7 +143,7 @@ export function ChatListSurface({ onSelect, onNewChat }: ChatListSurfaceProps): 
       search={
         // One reset contract for both filters: the clear glyph sits inside the field's inline end, over a
         // constant reserve, so the value never reflows when it appears.
-        <Row align="center" className="relative min-inline-0" grow={true}>
+        <Row align="center" className="relative" minWidth="shrinks" grow={true}>
           <Input
             aria-label={SEARCH_LABEL}
             className="min-inline-0"

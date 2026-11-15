@@ -15,7 +15,7 @@ import type { Resolved } from "./resolved.ts";
  *  user's claude-sub row). */
 export interface DiagnosticRequestCommon {
   readonly connection: Resolved;
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 export interface GenerationCostRequest extends DiagnosticRequestCommon {
@@ -32,7 +32,7 @@ type CatalogTarget = Pick<Resolved, "wire" | "ownerId" | "providerId" | "provide
  *  list is `{ listed: false, reason }` — the pane offers a typed id and says why. */
 export interface ListModelsRequest {
   readonly connection: CatalogTarget;
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 /** One model-list dial. The key is a plain string: a saved connection's decrypted key, or a key typed into a
@@ -42,7 +42,7 @@ export interface ModelsDial {
   readonly secret: string | null;
   readonly secrets: ProviderScrubSet;
   readonly label: string;
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 export interface ProviderDiagnostics {

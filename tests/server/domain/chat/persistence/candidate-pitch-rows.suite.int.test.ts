@@ -27,6 +27,7 @@ test("the real owned distillation writer supplies the native candidate pitch", a
     throw new Error("missing actual bryn card");
   }
   const distilled = await seedCharacterDistillationsRows(room.h.root, {
+    signal: new AbortController().signal,
     ownerId: room.h.owner.userId,
     funderUserId: room.h.owner.userId,
     characterId: bryn.id,

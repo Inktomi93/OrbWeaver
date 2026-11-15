@@ -117,7 +117,7 @@ async function bindReranker(harness: Awaited<ReturnType<typeof createServerHarne
   const binding = await harness.services.connection.setBinding({ principal, task: "rerank", connectionId: connection.id });
   expect(binding.connectionId).toBe(connection.id);
   const clients = await harness.roleClientsFor(principal.userId);
-  const resolved = await clients.resolved("rerank");
+  const resolved = await clients.resolved("rerank", new AbortController().signal);
   expect(resolved?.connectionId).toBe(connection.id);
   if (resolved?.capability.kind !== "rerank" || resolved.capability.rerank.onnx?.head !== "sentence-transformers") {
     throw new Error("the persisted model did not resolve its native sentence-transformers serving");
@@ -142,7 +142,7 @@ test("independent roots run native tokenizer/cache/head scoring without sessions
     }),
   );
   for (const { clients } of [firstModel, secondModel]) {
-    const result = await clients.rerank("query", DOCUMENTS);
+    const result = await clients.rerank("query", DOCUMENTS, { signal: new AbortController().signal });
     expect(result.hits.map((hit) => hit.id)).toEqual(["positive", "negative"]);
     expect(result.hits[0]?.score).toBeCloseTo(2.719_510_879, 5);
     expect(result.hits[1]?.score).toBeCloseTo(-0.030_789_157, 5);
@@ -157,7 +157,7 @@ test("independent roots run native tokenizer/cache/head scoring without sessions
   }
   await first[Symbol.asyncDispose]();
   await expect(access(first.modelCacheDir)).rejects.toMatchObject({ code: "ENOENT" });
-  const again = await secondModel.clients.rerank("query", DOCUMENTS);
+  const again = await secondModel.clients.rerank("query", DOCUMENTS, { signal: new AbortController().signal });
   expect(again.hits[0]?.score).toBeCloseTo(2.719_510_879, 5);
   expect((await readFile(join(second.modelCacheDir, "kernel-execution.jsonl"), "utf8")).match(/"model-forward"/g)).toHaveLength(2);
 });
@@ -211,7 +211,7 @@ test("root disposal joins a synchronous native kernel after its close deadline b
     joining.resolve();
     return completion;
   });
-  const result = firstModel.clients.rerank("query", DOCUMENTS).catch((error: Error) => error);
+  const result = firstModel.clients.rerank("query", DOCUMENTS, { signal: new AbortController().signal }).catch((error: Error) => error);
   let disposed = false;
   let disposal: Promise<void> | undefined;
   {
@@ -231,7 +231,7 @@ test("root disposal joins a synchronous native kernel after its close deadline b
     });
     timers.advance(await bounded.promise);
     expect(await Promise.race([joining.promise.then(() => "joining"), disposal.then(() => "disposed")])).toBe("joining");
-    expect((await secondModel.clients.rerank("query", DOCUMENTS)).hits[0]?.score).toBeCloseTo(2.719_510_879, 5);
+    expect((await secondModel.clients.rerank("query", DOCUMENTS, { signal: new AbortController().signal })).hits[0]?.score).toBeCloseTo(2.719_510_879, 5);
     expect(disposed).toBe(false);
     expect(physicallySettled).toBe(false);
     expect(await first.db.all(sql`select 1 as live`)).toEqual([{ live: 1 }]);
@@ -243,7 +243,7 @@ test("root disposal joins a synchronous native kernel after its close deadline b
   await expect(first.db.all(sql`select 1`)).rejects.toMatchObject({ cause: { code: "CLIENT_CLOSED" } });
   await expect(access(first.modelCacheDir)).rejects.toMatchObject({ code: "ENOENT" });
   expect(first.timers.pending()).toBe(0);
-  expect((await secondModel.clients.rerank("query", DOCUMENTS)).hits[0]?.score).toBeCloseTo(2.719_510_879, 5);
+  expect((await secondModel.clients.rerank("query", DOCUMENTS, { signal: new AbortController().signal })).hits[0]?.score).toBeCloseTo(2.719_510_879, 5);
 });
 
 test("the actual native Hub and missing head-file reads hit the worker-owned refusal hook before external execution", async () => {
@@ -256,7 +256,9 @@ test("the actual native Hub and missing head-file reads hit the worker-owned ref
     if (kernel === hubKernel) {
       await stageHead(directory);
     }
-    await expect(clients.rerank("query", DOCUMENTS)).rejects.toThrow("reference kernel: unscripted Hub execution refused");
+    await expect(clients.rerank("query", DOCUMENTS, { signal: new AbortController().signal })).rejects.toThrow(
+      "reference kernel: unscripted Hub execution refused",
+    );
     const recorded = await readFile(join(harness.modelCacheDir, "kernel-execution.jsonl"), "utf8");
     expect(recorded).toContain('"edge":"hub-fetch"');
     expect(recorded).toContain(kernel === hubKernel ? "config.json" : "1_Pooling/config.json");
@@ -268,7 +270,9 @@ test("the actual native Hub and missing head-file reads hit the worker-owned ref
 test("an unscripted root refuses model execution before loading its native module", async () => {
   await using harness = await createServerHarness();
   const { clients } = await bindReranker(harness);
-  await expect(clients.rerank("query", DOCUMENTS)).rejects.toThrow("server harness: unscripted external model execution");
+  await expect(clients.rerank("query", DOCUMENTS, { signal: new AbortController().signal })).rejects.toThrow(
+    "server harness: unscripted external model execution",
+  );
 });
 
 test.each([
@@ -291,7 +295,7 @@ test.each([
   await stageTokenizer(directory, metadataDirectory);
   await stageHead(directory);
   await writeFile(join(directory, file), JSON.stringify(body));
-  await expect(clients.rerank("query", DOCUMENTS)).rejects.toThrow(refusal);
+  await expect(clients.rerank("query", DOCUMENTS, { signal: new AbortController().signal })).rejects.toThrow(refusal);
   const events = await readFile(join(root.modelCacheDir, "kernel-execution.jsonl"), "utf8");
   expect(events).not.toContain('"model-forward"');
   expect(events).not.toContain('"hub-fetch"');
@@ -309,7 +313,7 @@ test("a well-formed head wider than its encoder is refused, and the encoder is d
     JSON.stringify({ ["in_features"]: 4, ["out_features"]: 3, ["activation_function"]: "torch.nn.modules.activation.GELU" }),
   );
   await writeFile(join(directory, "2_Dense/model.safetensors"), safetensors({ "linear.weight": new Array<number>(12).fill(0.5) }));
-  await expect(clients.rerank("query", DOCUMENTS)).rejects.toThrow("does not feed the 4-wide scoring head");
+  await expect(clients.rerank("query", DOCUMENTS, { signal: new AbortController().signal })).rejects.toThrow("does not feed the 4-wide scoring head");
   const events = await readFile(join(root.modelCacheDir, "kernel-execution.jsonl"), "utf8");
   expect(kernelEdges(events, "model-dispose")).toBe(1);
   expect(events).not.toContain('"model-forward"');
@@ -321,7 +325,9 @@ test("a head that fails before its encoder finishes loading still disposes that 
   await using root = await createServerHarness({ modelKernelModule: kernel.href, allowRemoteModels: true });
   const { clients, directory, metadataDirectory } = await bindReranker(root);
   await stageTokenizer(directory, metadataDirectory);
-  await expect(clients.rerank("query", DOCUMENTS)).rejects.toThrow("reference kernel: unscripted Hub execution refused");
+  await expect(clients.rerank("query", DOCUMENTS, { signal: new AbortController().signal })).rejects.toThrow(
+    "reference kernel: unscripted Hub execution refused",
+  );
   const kernelLog = join(root.modelCacheDir, "kernel-execution.jsonl");
   await expect.poll(async () => kernelEdges(await readFile(kernelLog, "utf8"), "model-load")).toBe(1);
   await expect.poll(async () => kernelEdges(await readFile(kernelLog, "utf8"), "model-dispose")).toBe(1);
@@ -347,6 +353,6 @@ test("fractional safetensors offsets cannot be truncated into a valid-looking sc
   malformed.set(header, 8);
   malformed.set(tensor.subarray(8 + length), 8 + header.length);
   await writeFile(join(directory, "2_Dense/model.safetensors"), malformed);
-  await expect(clients.rerank("query", DOCUMENTS)).rejects.toThrow("malformed metadata");
+  await expect(clients.rerank("query", DOCUMENTS, { signal: new AbortController().signal })).rejects.toThrow("malformed metadata");
   expect(await readFile(join(root.modelCacheDir, "kernel-execution.jsonl"), "utf8")).not.toContain('"model-forward"');
 });

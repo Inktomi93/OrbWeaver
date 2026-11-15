@@ -132,7 +132,7 @@ function MemberCard({ card, onManage }: { readonly card: MemberCardView; readonl
   return (
     <Stack gap="block" scroll="y">
       <Row gap="row" align="center">
-        <Stack gap="field" className="min-inline-0">
+        <Stack gap="field" minWidth="shrinks">
           <Row gap="field" align="center">
             <Badge size="sm">
               <Icon icon={Lock} size="xs" />
@@ -302,7 +302,7 @@ function HiddenTierNote({ label, description }: { readonly label: string; readon
       <Separator />
       <Row gap="field" align="center">
         <Icon icon={EyeOff} size="sm" ink="muted" />
-        <Stack gap="field" className="min-inline-0">
+        <Stack gap="field" minWidth="shrinks">
           <Text as="span" voice="label">
             {label} hidden
           </Text>

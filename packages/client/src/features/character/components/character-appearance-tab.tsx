@@ -34,7 +34,16 @@ import { ThemeScope } from "@orb/ui/theme-scope";
 import { ThemePreviewPane, ThemeSwatchStrip } from "@orb/ui/theme-swatch";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { BackgroundSourceField, CORNER_RADIUS_NAME, DestructiveAction, FONT_FIELD_NAME, QueryBoundary, SettingRowGroup, SettingTrackRow } from "#components";
+import {
+  BackgroundSourceField,
+  CORNER_RADIUS_NAME,
+  ContextTabBody,
+  DestructiveAction,
+  FONT_FIELD_NAME,
+  QueryBoundary,
+  SettingRowGroup,
+  SettingTrackRow,
+} from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { AutosaveStatus } from "#forms/editor";
@@ -82,14 +91,16 @@ export function CharacterLookTab({ characterId }: CharacterAppearanceTabProps): 
   return (
     // RESERVED (#1098) — the Look tab settles into eleven colour rows plus the background field; a single
     // quiet line in their place resized the whole CONTEXT panel every time the card read landed.
-    <QueryBoundary
-      resetKeys={[characterId]}
-      fallback={<SkeletonRows count={5} />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="appearance" onRetry={retry} />}
-      reserveKey="character.context.look"
-    >
-      <LookTabBody characterId={characterId} />
-    </QueryBoundary>
+    <ContextTabBody>
+      <QueryBoundary
+        resetKeys={[characterId]}
+        fallback={<SkeletonRows count={5} />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="appearance" onRetry={retry} />}
+        reserveKey="character.context.look"
+      >
+        <LookTabBody characterId={characterId} />
+      </QueryBoundary>
+    </ContextTabBody>
   );
 }
 
@@ -381,7 +392,7 @@ function StartFromThemeField({ onPick }: { readonly onPick: (theme: Theme) => vo
       <MenuPopup>
         {rows.map((theme) => (
           <MenuItem key={theme.id} onClick={(): void => onPick(theme)}>
-            <Row align="center" gap="field" className="min-inline-0">
+            <Row align="center" gap="field" minWidth="shrinks">
               <ThemeSwatchStrip tokens={theme.override} />
               <Text ink="inherit" as="span" truncate={true}>
                 {theme.name}

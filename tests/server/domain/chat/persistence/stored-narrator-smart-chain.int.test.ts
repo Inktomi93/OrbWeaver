@@ -26,16 +26,17 @@ test.for(SCENES)("$title", async (scene) => {
     .set({ metadata: sql`json_set(${chats.metadata}, '$.group.policy', 'smart', '$.group.smartPicker', 'utility')` })
     .where(eq(chats.id, h.chatId));
   const principal = h.owner;
-  const bindings = await h.root.services.connection.listBindings({ principal });
+  const bindings = await h.root.services.connection.listBindings({ signal: new AbortController().signal, principal });
   const connectionId = bindings.find(({ task }) => task === "chat")?.binding?.connectionId;
   if (connectionId === undefined || connectionId === null) {
     throw new Error("the real narrator has no chat binding");
   }
   await h.root.services.connection.update({ principal, connectionId, patch: { promptCache: { ...SHIPPED_PROMPT_CACHE, enabled: false } } });
   await h.root.services.connection.setBinding({ principal, task: "summarize", connectionId: scene.utility ? connectionId : null });
-  expect((await h.root.services.connection.listBindings({ principal })).find(({ task }) => task === "summarize")?.binding?.connectionId).toBe(
-    scene.utility ? connectionId : null,
-  );
+  expect(
+    (await h.root.services.connection.listBindings({ signal: new AbortController().signal, principal })).find(({ task }) => task === "summarize")?.binding
+      ?.connectionId,
+  ).toBe(scene.utility ? connectionId : null);
   expect(await h.root.services.chat.getGroupConfigForChat({ principal, chatId: h.chatId })).toMatchObject({ output: "narrator", policy: "natural" });
   const events: ChatBusEvent[] = [];
   using subscriptions = new DisposableStack();

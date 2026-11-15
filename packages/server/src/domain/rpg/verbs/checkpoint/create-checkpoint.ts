@@ -11,18 +11,19 @@ import { buildBookmarkSnapshotStatement, resolveSnapshotForTurn } from "#src/dom
 
 export function createCreateCheckpoint(ctx: RpgContext): Pick<RpgService, "createCheckpoint"> {
   async function createCheckpoint(params: CreateCheckpointParams): Promise<RpgCheckpointId> {
-    const { game } = await resolveHost(ctx, params.principal, params.chatId);
+    const { game, admission } = await resolveHost(ctx, params.principal, params.chatId);
     return await ctx.handWrites.run(game.id, async () => {
       const head = await resolveSnapshotForTurn(ctx.db, { id: game.id, chatId: game.chatId });
       if (head === undefined) {
         throw new DomainNotFoundError("snapshot", game.id);
       }
-      await ctx.claimChat(params.chatId);
+      const claim = await ctx.claimChat(admission);
       const id = ctx.ids.checkpoint();
       const snapshotId = ctx.ids.snapshot();
       const now = ctx.now();
       await insertCheckpoint(
         ctx.db,
+        claim,
         { id, gameId: game.id, snapshotId, label: params.label, trigger: "manual", createdAt: now },
         buildBookmarkSnapshotStatement(ctx.db, head, { id: snapshotId, gameId: game.id, now }),
       );

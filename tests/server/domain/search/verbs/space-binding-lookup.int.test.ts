@@ -26,7 +26,7 @@ test("an unbound encoder is the no-space refusal, and a failed binding lookup su
   });
   const caller = await root.internalCallerFor(root.ownerId);
   await caller.connection.setBinding({ task: "embed", connectionId: null });
-  const query = { ownerId: root.ownerId, ...SEARCH_INPUT } as const;
+  const query = { signal: new AbortController().signal, ownerId: root.ownerId, ...SEARCH_INPUT } as const;
 
   // The control: the same wiring with no binding is the refusal the degrade answers with the ruled empty result.
   const unavailable = vi.fn();
@@ -74,10 +74,13 @@ test("an encoder row whose kind drifted after it was bound reads as no space, no
   await root.services.connection.update({ principal, connectionId: encoder.id, patch: { declared: { kind: "generation" } } });
 
   const unavailable = vi.fn();
-  const result = await withRetrievalDegrade(() => root.services.search.search({ ownerId: root.ownerId, ...SEARCH_INPUT }), {
-    empty: null,
-    onIndexUnavailable: unavailable,
-  });
+  const result = await withRetrievalDegrade(
+    () => root.services.search.search({ signal: new AbortController().signal, ownerId: root.ownerId, ...SEARCH_INPUT }),
+    {
+      empty: null,
+      onIndexUnavailable: unavailable,
+    },
+  );
   expect(result).toBeNull();
   expect(unavailable).toHaveBeenCalledOnce();
 });

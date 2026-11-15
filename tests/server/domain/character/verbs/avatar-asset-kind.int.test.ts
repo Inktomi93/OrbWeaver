@@ -72,7 +72,12 @@ test("updating a character's avatar to a document asset is refused with its code
   });
 
   await expect(
-    harness.services.character.update({ principal: owner, characterId: card.id, input: updateCharacterSchema.parse({ avatarAssetId: document }) }),
+    harness.services.character.update({
+      signal: new AbortController().signal,
+      principal: owner,
+      characterId: card.id,
+      input: updateCharacterSchema.parse({ avatarAssetId: document }),
+    }),
   ).rejects.toMatchObject({ code: ASSET_UPLOAD_REFUSAL_CODES.notAnImage });
   expect((await harness.services.character.get({ principal: owner, characterId: card.id })).avatarAssetId).toBe(picture);
 });

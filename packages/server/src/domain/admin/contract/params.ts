@@ -63,4 +63,5 @@ export interface RevokeUserSessionsParams extends AdminActorParams {
 
 export interface EmbedCharacterCardParams extends AdminActorParams {
   readonly characterId: CharacterId;
+  readonly signal: AbortSignal;
 }

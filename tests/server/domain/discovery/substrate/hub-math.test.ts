@@ -39,11 +39,11 @@ test("a large group gives the event loop a turn for every work budget it spends,
 
   let dense: number[] = [];
   const denseTurns = await turnsDuring(async () => {
-    dense = await computeGroupHubs(group, { denseMax: group.length });
+    dense = await computeGroupHubs(group, { signal: new AbortController().signal, denseMax: group.length });
   });
   let streaming: number[] = [];
   const streamingTurns = await turnsDuring(async () => {
-    streaming = await computeGroupHubs(group, { denseMax: 0 });
+    streaming = await computeGroupHubs(group, { signal: new AbortController().signal, denseMax: 0 });
   });
 
   expect(denseTurns).toBeGreaterThanOrEqual(minimumTurns);
@@ -64,10 +64,10 @@ test("a single row longer than one work budget still yields inside the row, with
 
   let streaming: number[] = [];
   const turns = await turnsDuring(async () => {
-    streaming = await computeGroupHubs(group, { denseMax: 0 });
+    streaming = await computeGroupHubs(group, { signal: new AbortController().signal, denseMax: 0 });
   });
   expect(turns).toBeGreaterThanOrEqual(minimumTurns);
-  expect(streaming).toEqual(await computeGroupHubs(group, { denseMax: group.length }));
+  expect(streaming).toEqual(await computeGroupHubs(group, { signal: new AbortController().signal, denseMax: group.length }));
 }, 60_000);
 
 test("a cancelled run stops at the next yield instead of finishing the group", async () => {

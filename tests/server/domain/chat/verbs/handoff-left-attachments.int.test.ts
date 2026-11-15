@@ -62,13 +62,13 @@ function expectOnlyNewHostAttachments(turn: SentTurn): void {
 }
 
 async function rename(h: ChatRoot, owner: Awaited<ReturnType<typeof invitePerson>>, id: DocumentId, name: string): Promise<void> {
-  await h.root.services.databank.rename({ principal: owner, id, name });
+  await h.root.services.databank.rename({ signal: new AbortController().signal, principal: owner, id, name });
 }
 
 /** The rooms the owner's own document is attached to, as the owner's library reads them: the junction itself,
  *  which the room's panel no longer shows once the document's owner stops hosting. */
 async function attachedRooms(h: ChatRoot, owner: Awaited<ReturnType<typeof invitePerson>>, id: DocumentId): Promise<readonly string[]> {
-  return (await h.root.services.databank.listAttachments({ principal: owner, id })).chats.map((room) => room.id);
+  return (await h.root.services.databank.listAttachments({ signal: new AbortController().signal, principal: owner, id })).chats.map((room) => room.id);
 }
 
 test("a handoff without copies detaches the former host's room book, script and document, and their later edits never reach the new host's turn", async () => {

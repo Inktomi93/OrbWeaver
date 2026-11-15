@@ -23,6 +23,6 @@ export interface AdminSessionPolicyDeps {
 export interface AdminCardEmbedDeps {
   readonly getCard: GetCharacterCardOp;
   readonly loadCardText: LoadCharacterCardTextOp;
-  readonly store: (input: CardTextStoreInput) => Promise<StoreResult>;
+  readonly store: (input: CardTextStoreInput & { readonly signal: AbortSignal }) => Promise<StoreResult>;
   readonly roleClientsFor: (funderUserId: UserId) => Promise<Pick<RoleClientsWithSignal, "resolved">>;
 }

@@ -21,6 +21,8 @@ import { ownedTableRule } from "./owned-table.ts";
 import { PRINCIPAL_RULES } from "./principal.ts";
 import { queryStateLadderRule } from "./query-state-ladder.ts";
 import { rawIdRule } from "./raw-id.ts";
+import { roleComparisonRule } from "./role-comparison.ts";
+import { roomTokenMintRule } from "./room-token-mint.ts";
 import {
   AMBIENT_GLOBAL_RESTRICTIONS,
   IDENTITY_WRITER_RESTRICTIONS,
@@ -45,6 +47,7 @@ import {
   noSpreadCorpusCaptureRule,
   noUnseededTypeIdRule,
 } from "./test-derivation.ts";
+import { noSubjectDerivedExpectedRule } from "./test-expected.ts";
 import type { ExportedLabel } from "./test-labels.ts";
 import { handCopiedLabelRule } from "./test-labels.ts";
 import { ownedRootAliasRule } from "./test-owners.ts";
@@ -271,6 +274,7 @@ export function createOrbPlugin(options: {
       ...Object.fromEntries(OWNED_TABLE_RESTRICTIONS.map((row) => [row.id, ownedTableRule(row)] as const)),
       "destructive-needs-confirm": destructiveNeedsConfirmRule,
       "confirmed-action-mint": confirmedActionMintRule(CONFIRMED_ACTION_MINT_HOMES),
+      "room-token-mint": roomTokenMintRule,
       "surface-consumes-container": surfaceConsumesContainerRule,
       "anchor-provides-container": anchorProvidesContainerRule,
       "no-raw-intrinsic-paint": rawIntrinsicPaintRule(options.shellClasses),
@@ -309,6 +313,7 @@ export function createOrbPlugin(options: {
       "dialog-failure-via-owner": dialogFailureViaOwnerRule,
       "no-raw-id": rawIdRule,
       "closed-vocabulary": closedVocabularyRule,
+      "no-role-comparison": roleComparisonRule,
       "no-query-state-ladder": queryStateLadderRule,
       "no-optional-alternatives": optionalAlternativesRule,
       "wire-json-parsed-at-consumer": wireJsonRule,
@@ -332,6 +337,7 @@ export function createOrbPlugin(options: {
       "no-bare-throw-assertion": noBareThrowAssertionRule,
       "no-unseeded-type-id": noUnseededTypeIdRule,
       "no-filtered-case-table": noFilteredCaseTableRule,
+      "no-subject-derived-expected": noSubjectDerivedExpectedRule,
       "no-spread-corpus-capture": noSpreadCorpusCaptureRule,
       "no-tail-recorder-read": noTailRecorderReadRule,
       "owned-root-alias": ownedRootAliasRule,

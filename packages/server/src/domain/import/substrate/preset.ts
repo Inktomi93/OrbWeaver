@@ -21,9 +21,10 @@
 // preset literally called `Default.json`; qualifying the name keeps SillyTavern's apart from an owner's own
 // preset of that name instead of numbering it "Default 2".
 
+import { clipImportText } from "@orb/contracts/import";
 import { buildPresetFile, tryImportStChatCompletionPreset } from "@orb/contracts/preset";
-import type { RegexScriptCard } from "@orb/contracts/regex";
-import { regexScriptCardSchema } from "@orb/contracts/regex";
+import type { RegexScriptCard, RegexScriptLimitBreak } from "@orb/contracts/regex";
+import { regexScriptCardSchema, regexScriptLimitBreak } from "@orb/contracts/regex";
 import { isPlainObject } from "@orb/kit/guards";
 import { parseJsonText } from "@orb/kit/json";
 import type { ParsedStPreset } from "../contract/collection.ts";
@@ -49,6 +50,20 @@ function stPresetName(stem: string): string {
  *  blob imports rather than being dropped, under a name that can never merge onto a file preset. */
 const ST_ACTIVE_PRESET_NAME = `${FAMILY_LABEL} (active)`;
 
+const LIMIT_SUBJECT: Readonly<Record<RegexScriptLimitBreak["limit"], string>> = { "find-length": "find pattern", "replace-length": "replacement" };
+
+/** Why a preset script did not import. A script over a stored-length cap is named with the cap it broke, so the
+ *  owner can find it in SillyTavern; the name is the file's, so it is clipped and quoted as plain text. */
+function scriptDropReason(candidate: unknown): string {
+  const broken = regexScriptLimitBreak(candidate);
+  if (broken === null) {
+    return "not a recognizable regex script (malformed — dropped)";
+  }
+  const raw = isPlainObject(candidate) ? (candidate["scriptName"] ?? candidate["name"]) : undefined;
+  const name = typeof raw === "string" ? `${JSON.stringify(clipImportText(raw))} ` : "";
+  return `script ${name}not imported: its ${LIMIT_SUBJECT[broken.limit]} is ${broken.actual} characters, over the ${broken.max} character limit`;
+}
+
 /** ST's presetManager stores EXTENSION FIELDS on the preset itself under `extensions` — the regex
  *  extension's preset-scoped scripts ride `extensions.regex_scripts` (SillyTavern
  *  `extensions/regex/engine.js:126` — `readPresetExtensionField({ path: 'regex_scripts' })`). Each candidate
@@ -73,7 +88,7 @@ function parsePresetExtensions(raw: Record<string, unknown>): {
       if (parsed.success) {
         regexScripts.push(parsed.data);
       } else {
-        dropped.push({ field: `${ST_PRESET_EXTENSIONS_KEY}.regex_scripts[${i}]`, reason: "not a recognizable regex script (malformed — dropped)" });
+        dropped.push({ field: `${ST_PRESET_EXTENSIONS_KEY}.regex_scripts[${i}]`, reason: scriptDropReason(candidate) });
       }
     }
   }

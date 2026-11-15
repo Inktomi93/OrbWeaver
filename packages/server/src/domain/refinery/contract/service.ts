@@ -81,7 +81,7 @@ export interface RefineryContext {
   readonly newRefinerySessionId: () => RefinerySessionId;
   readonly newRefineryRunId: () => RefineryRunId;
   readonly newRefinerySchemaId: () => RefinerySchemaId;
-  readonly roleClientsFor: RoleClientsFor;
+  readonly roleClientsFor: RoleClientsFor<AbortSignal>;
   /** Names why a `structured` call reads unbound: nothing bound, or background consent withheld. */
   readonly resolveStructuredBinding: ResolveStructuredBinding;
   readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;
@@ -106,7 +106,7 @@ export interface RefineryContext {
   /** The `characters.refinery` merge-stamp (F6) — score runs stamp `score`, analyze runs `analysis`. */
   readonly stampRefinerySignals: StampRefinerySignalsOp;
   /** The refinery-owned planner's answer for a projected draft on the owner's bound `structured` connection. */
-  readonly planSchema: (ownerId: UserId, schema: WireReady) => Promise<RefinerySchemaPlan>;
+  readonly planSchema: (ownerId: UserId, schema: WireReady, signal: AbortSignal) => Promise<RefinerySchemaPlan>;
   /** `character.snapshot` — the pre-apply reversibility belt ("auto: before refinery apply", §4.13). */
   readonly snapshotCharacter: SnapshotCharacterOp;
   /** The apply path's own retraction: un-does the belt-13 snapshot above when the conditional
@@ -114,7 +114,7 @@ export interface RefineryContext {
    *  prelude, so a refused apply must leave none behind. */
   readonly deleteSnapshot: DeleteSnapshotOp;
   /** `character.update` — the ONE canon write of an apply; the full character belt runs inside it. */
-  readonly updateCharacter: UpdateCharacterOp;
+  readonly updateCharacter: UpdateCharacterOp<AbortSignal>;
   /** `character.get` — the detail read for the zero-write apply arm (every accept dropped): a no-op
    *  `update({})` would still run character's whole write path for nothing. */
   readonly getCharacter: GetCharacterOp;
@@ -136,7 +136,7 @@ export type ScoreSweep = (opts: ScoreSweepOptions) => Promise<RefineryScoreSweep
  *  reads the library, asks the model, and stamps. */
 export interface RefineryWorkloadDeps {
   readonly logger: Logger;
-  readonly roleClientsFor: RoleClientsFor;
+  readonly roleClientsFor: RoleClientsFor<AbortSignal>;
   readonly resolveStructuredBinding: ResolveStructuredBinding;
   readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;
   readonly resolveUserProse: ResolveUserProse;
@@ -168,6 +168,7 @@ export type ExecuteStage = (args: {
   /** True on `iterate`'s rewrite half — the `refinery.refine.system` slot + the latest analyze feedback
    *  ride the prompt (the extension's refinement discipline, study §1.2). */
   readonly isRefinement: boolean;
+  readonly signal: AbortSignal;
   /** Operate-back (§16.1): analyze THIS rewrite run instead of the latest. Analyze-only. */
   readonly rewriteRunId?: RefineryRunId | undefined;
 }) => Promise<RefineryRun>;

@@ -108,7 +108,10 @@ export function createExtractQuiet(input: DbAssemblyInput<ExtractQuietDeps>): Ex
     // The funder's Utility-role preset over the `extract_quiet` posture (temp 0.4, 320 out — near-deterministic
     // keyword extraction): this runs on the funder's summarize connection.
     const posture = resolveSideGenSampling(SIDE_GEN_POSTURES.extract_quiet, await deps.resolveUtilityPresetParams(p.funderUserId));
-    const res = await deps.summarize(p.funderUserId, [{ systemPrompt: instruction, userPrompt: `Recent conversation:\n${scene}` }], posture);
+    const res = await deps.summarize(p.funderUserId, [{ systemPrompt: instruction, userPrompt: `Recent conversation:\n${scene}` }], {
+      ...posture,
+      signal: p.signal,
+    });
     const item = res.items[0];
     return { text: (item?.text ?? "").trim(), costUsd: item?.usage.costUsd ?? null };
   };

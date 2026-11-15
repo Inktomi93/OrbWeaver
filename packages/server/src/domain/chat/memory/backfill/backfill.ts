@@ -37,6 +37,7 @@ import { resolveGroupBucketCharacterId } from "#src/domain/chat/substrate/group-
 import { classifyParticipant } from "#src/domain/chat/substrate/participant-actor.ts";
 import { hostUserIdOf } from "#src/domain/chat/substrate/participants-host.ts";
 import { hostConsentOf } from "#src/domain/chat/substrate/participants-humans.ts";
+import type { SummarizeFunder } from "../generate/digests.ts";
 import {
   collectConsolidationTier,
   logBuild,
@@ -202,7 +203,7 @@ async function resolveDigestFunder(ctx: ChatContext, args: MemorySweepArgs): Pro
     return null;
   }
   const { funderUserId } = args;
-  if (await digestsDerivable(ctx, funderUserId)) {
+  if (await digestsDerivable(ctx, funderUserId, args.signal)) {
     return funderUserId;
   }
   getLog(ctx.logger).warn({ funderUserId }, "memory backfill: no summarize connection is bound, so digests are skipped this pass (segments still embed)");
@@ -260,7 +261,7 @@ function orderedInputs(flat: readonly { readonly input: SummarizeInput }[], orde
  *  pack into vLLM's continuous batches with less ragged-batch padding; feeding all at once keeps the batcher
  *  saturated instead of ramping a tiny batch per bucket). Returns each plan's texts, index-aligned to its
  *  pending order (the summarize surface's own per-item isolation still contains a poison block). */
-async function summarizeAllPending(ctx: ChatContext, funderUserId: UserId, plans: readonly DigestPlan[]): Promise<(string | null)[][]> {
+async function summarizeAllPending(ctx: ChatContext, funder: SummarizeFunder, plans: readonly DigestPlan[]): Promise<(string | null)[][]> {
   const flat: { readonly planIdx: number; readonly input: SummarizeInput }[] = [];
   for (let pi = 0; pi < plans.length; pi += 1) {
     for (const item of plans[pi]?.pending ?? []) {
@@ -268,7 +269,7 @@ async function summarizeAllPending(ctx: ChatContext, funderUserId: UserId, plans
     }
   }
   const order = flat.map((_, i) => i).sort((a, b) => inputLen(flat[a]?.input) - inputLen(flat[b]?.input));
-  const sortedTexts = await summarizeDigestBatch(ctx, funderUserId, orderedInputs(flat, order));
+  const sortedTexts = await summarizeDigestBatch(ctx, funder, orderedInputs(flat, order));
   const flatTexts: (string | null)[] = new Array<string | null>(flat.length).fill(null);
   order.forEach((origIdx, k) => {
     flatTexts[origIdx] = sortedTexts[k] ?? null;
@@ -387,7 +388,7 @@ async function summarizeAndStoreTier(ctx: ChatContext, collected: readonly Colle
     }
   });
   const order = flat.map((_, i) => i).sort((a, b) => inputLen(flat[a]?.input) - inputLen(flat[b]?.input));
-  const sortedTexts = await summarizeConsolidationBatch(ctx, state.funderUserId, orderedInputs(flat, order));
+  const sortedTexts = await summarizeConsolidationBatch(ctx, { funderUserId: state.funderUserId, signal: state.signal }, orderedInputs(flat, order));
   const flatTexts: (string | null)[] = new Array<string | null>(flat.length).fill(null);
   order.forEach((origIdx, k) => {
     flatTexts[origIdx] = sortedTexts[k] ?? null;
@@ -525,7 +526,7 @@ export async function backfillMemory(
     };
   }
   args.onProgress?.("summarizing");
-  const perPlanTexts = await summarizeAllPending(ctx, args.funderUserId, sweep.plans);
+  const perPlanTexts = await summarizeAllPending(ctx, { funderUserId: args.funderUserId, signal: args.signal }, sweep.plans);
   args.onProgress?.("writing digests");
   const committed = await commitAllPlans(ctx, sweep.plans, perPlanTexts, { signal: args.signal, funderUserId: args.funderUserId });
   const failed = sweep.failed + segments.failed + committed.failed;

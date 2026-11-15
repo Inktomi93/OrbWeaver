@@ -368,7 +368,11 @@ test("a real impersonate draft uses its requesting human while ordinary canon re
     async () => {
       await send(room.h, room.bob, "hello");
       let draft = "";
-      for await (const { delta } of room.h.root.services.chat.impersonateStream({ principal: room.bob, chatId: room.h.chatId })) {
+      for await (const { delta } of room.h.root.services.chat.impersonateStream({
+        signal: new AbortController().signal,
+        principal: room.bob,
+        chatId: room.h.chatId,
+      })) {
         draft += delta;
       }
       expect(draft).toBe("r2");

@@ -25,8 +25,8 @@ import { countOwnedDocuments, countStaleExtractionDocuments } from "../persisten
 import { activeSpaceModel } from "../substrate/active-space.ts";
 
 export function createBankHealth(ctx: DatabankContext): DatabankService["bankHealth"] {
-  return async ({ principal }: BankHealthParams): Promise<BankHealthView> => {
-    const chunkCounts = await ctx.chunkCountsByOwner({ ownerId: principal.userId, model: await activeSpaceModel(ctx, principal.userId) });
+  return async ({ principal, signal }: BankHealthParams): Promise<BankHealthView> => {
+    const chunkCounts = await ctx.chunkCountsByOwner({ ownerId: principal.userId, model: await activeSpaceModel(ctx, principal.userId, signal) });
     const chunkedIds = [...chunkCounts.keys()];
     const nowMs = ctx.now();
     // In this substrate a chunk row exists only after a successful embed, so the two sums are the same

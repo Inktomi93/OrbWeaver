@@ -71,12 +71,12 @@ function FamilyPlate({ family, name }: { readonly family: VisualFamily; readonly
           shape="rounded"
           size="md"
         />
-        <Stack className="min-inline-0" grow={true} gap="tight">
+        <Stack minWidth="shrinks" grow={true} gap="tight">
           <Tooltip describesTrigger={false}>
             <TooltipTrigger
               render={
                 <Button
-                  className="min-inline-0"
+                  minWidth="shrinks"
                   cap="fit"
                   justify="start"
                   variant="ghost"

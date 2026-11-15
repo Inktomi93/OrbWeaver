@@ -18,6 +18,7 @@ async function turnSpanEvents(requestId: string): Promise<SpanEvents> {
   const connection = await wireConnection(root, { task: "chat", providerId: "anthropic", model: MODEL, baseUrl: null, key: "sk-ant-not-a-real-key" });
   const runTurn = (): Promise<unknown> =>
     root.app.runtime.executor.runChatTurn({
+      signal: new AbortController().signal,
       api: "anthropic-messages",
       connection,
       params: { effort: "high" },

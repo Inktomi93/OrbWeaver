@@ -36,7 +36,7 @@ export function sideGenChatRequest(args: {
   readonly responseFormat?: ResponseFormat | undefined;
   readonly reasoningTags?: ReasoningTagPair | undefined;
   readonly chatId?: ChatId | undefined;
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }): ChatRequest {
   const { connection, item } = args;
   const api = connection.api;
@@ -52,7 +52,7 @@ export function sideGenChatRequest(args: {
     systemPrompt: { static: item.systemPrompt, dynamic: "" },
     ...(args.chatId !== undefined ? { chatId: args.chatId } : {}),
     ...(args.responseFormat !== undefined ? { responseFormat: args.responseFormat } : {}),
-    ...(args.signal !== undefined ? { signal: args.signal } : {}),
+    signal: args.signal,
   } as const;
   if (api === "agent-sdk") {
     return { ...common, api, prompt: item.userPrompt, ...(images.length > 0 ? { promptImages: images } : {}) };

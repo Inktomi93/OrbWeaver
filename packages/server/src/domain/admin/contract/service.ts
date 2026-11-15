@@ -74,7 +74,7 @@ export type AdminSessionWiring = Omit<SessionAdminPort, keyof SessionStatementWi
 /** The inline-embed slice admin needs — composed at the root from `character` and `embeddings`. Resolves
  *  `false` when the caller doesn't own the character, it's gone, or it has no embeddable text. */
 interface EmbedProducerPort {
-  readonly embedCharacterCard: (principal: Principal, characterId: CharacterId) => Promise<boolean>;
+  readonly embedCharacterCard: (principal: Principal, characterId: CharacterId, signal: AbortSignal) => Promise<boolean>;
 }
 
 /** The process restart the composition root owns (`entry/lifecycle.ts`), injected because a domain may neither close

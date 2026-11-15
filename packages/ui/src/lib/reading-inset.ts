@@ -7,10 +7,10 @@
 export const READING_INSET = {
   plate: {
     inset: { paddingInline: "section", paddingBlock: "row", paddingBlockStart: undefined, paddingInlineNarrow: undefined, paddingInlineEndNarrow: "block" },
-    reach: "-mx-inset-section px-inset-section @max-cq-28:-me-block @max-cq-28:pe-block",
+    reach: "-mx-inset-section px-inset-section @max-cq-28:-me-inset-block @max-cq-28:pe-inset-block",
   },
   page: {
     inset: { paddingInline: "gutter", paddingBlock: undefined, paddingBlockStart: "row", paddingInlineNarrow: "tight", paddingInlineEndNarrow: undefined },
-    reach: "-mx-gutter px-gutter @max-cq-28:-mx-tight @max-cq-28:px-tight",
+    reach: "-mx-gutter px-gutter @max-cq-28:-mx-inset-tight @max-cq-28:px-inset-tight",
   },
 } as const;

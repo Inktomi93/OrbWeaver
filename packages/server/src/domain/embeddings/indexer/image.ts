@@ -14,12 +14,12 @@ import { imageBelowFloor } from "../substrate/image-admission.ts";
 
 interface ImageIndexerDeps {
   readonly store: EmbeddingsService["store"];
-  readonly analyze: (ownerId: UserId, bytes: Uint8Array) => Promise<AvatarAnalysis>;
+  readonly analyze: (ownerId: UserId, bytes: Uint8Array, signal: AbortSignal) => Promise<AvatarAnalysis>;
 }
 
 interface ImageAnalysisCounterDeps {
   /** Whether this owner's analysis would reach a model at all; the analysis skips without a call when it would not. */
-  readonly analysisCallsModel: (ownerId: UserId) => Promise<boolean>;
+  readonly analysisCallsModel: (ownerId: UserId, signal: AbortSignal) => Promise<boolean>;
 }
 
 interface ImageSweepSpace extends PinnedImageSpace {
@@ -63,7 +63,7 @@ async function indexAsset(
   ctx: EmbeddingsContext,
   deps: ImageIndexerDeps,
   assetId: AssetId,
-  options: { readonly force: boolean; readonly embedderChanged: boolean; readonly signal: AbortSignal | undefined; readonly resolved: ImageSweepSpace },
+  options: { readonly force: boolean; readonly embedderChanged: boolean; readonly signal: AbortSignal; readonly resolved: ImageSweepSpace },
 ): Promise<StoreResult | null> {
   const { force, embedderChanged, signal, resolved } = options;
   const bytes = await loadAdmittedAsset(ctx, assetId, force);
@@ -95,7 +95,7 @@ async function indexAsset(
           signal,
         });
   const retained = force && !embedderChanged ? undefined : await readImageAnalysis(ctx.db, ownerId, assetId, hash);
-  const analysis = retained ?? (await deps.analyze(ownerId, bytes));
+  const analysis = retained ?? (await deps.analyze(ownerId, bytes, signal));
   if (analysis.caption.trim().length === 0) {
     return raw;
   }
@@ -150,7 +150,7 @@ async function loadAdmittedAsset(ctx: EmbeddingsContext, assetId: AssetId, force
 /** Shared preparation for events and catch-up sweeps; caption work coalesces before it starts. */
 export function createImageIndexer(ctx: EmbeddingsContext, deps: ImageIndexerDeps): EmbeddingsService["indexAsset"] {
   const inFlight = new Map<string, Promise<StoreResult | null>>();
-  return async (assetId, options = {}) => {
+  return async (assetId, options) => {
     const resolved = await indexableImageSpace(ctx, assetId);
     if (resolved === null) {
       return null;
@@ -183,10 +183,10 @@ export function createImageIndexer(ctx: EmbeddingsContext, deps: ImageIndexerDep
  * analysis row records, so a re-upload under the same id is found without reading its bytes.
  */
 export function createImageAnalysisCounter(ctx: EmbeddingsContext, deps: ImageAnalysisCounterDeps): EmbeddingsService["countAssetAnalysisCalls"] {
-  return async ({ ownerId, force, embedderChanged }) => {
+  return async ({ ownerId, force, embedderChanged, signal }) => {
     const callsModel = new Map<UserId, boolean>();
     const ownerCallsModel = async (owner: UserId): Promise<boolean> => {
-      const reaches = callsModel.get(owner) ?? (await deps.analysisCallsModel(owner));
+      const reaches = callsModel.get(owner) ?? (await deps.analysisCallsModel(owner, signal));
       callsModel.set(owner, reaches);
       return reaches;
     };

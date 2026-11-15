@@ -246,7 +246,7 @@ export function createActivate(
       try {
         return await ctx.host.invoke(instance, handler, argsJson, chat, signal, phase, cascadeDepth);
       } catch (err) {
-        if (!isHostAdmissionRefusal(err) && signal?.reason !== DEADLINE_ABORT_REASON) {
+        if (!isHostAdmissionRefusal(err) && signal.reason !== DEADLINE_ABORT_REASON) {
           ctx.host.logFailure(instance, pluginFailureLine(slug, invokeFailureKind(err), errorMessage(err)));
         }
         throw err;
@@ -273,8 +273,9 @@ export function createActivate(
       });
     const invoke: PluginInvokeHandler = (handler, argsJson, chat, signal) => invokeAt(handler, argsJson, chat, signal, 0);
     // A delivery, a pubsub event or a trigger fact, runs at the cascade depth its cause carried, so what its own command
-    // causes reaches a handler one level deeper.
-    const deliver: PluginCascadeInvoke = (handler, argsJson, chat, depth) => invokeAt(handler, argsJson, chat, undefined, depth);
+    // causes reaches a handler one level deeper. It is detached from the emit or fact that caused it, so nothing above
+    // can cancel it; the invocation budget bounds the handler.
+    const deliver: PluginCascadeInvoke = (handler, argsJson, chat, depth) => invokeAt(handler, argsJson, chat, new AbortController().signal, depth);
     // A query's re-entry: the same call with no crash-policy write, because a query writes nothing. Its clean run
     // must not reset the count a write path built, or a plugin that crashes on every tool call stays enabled. It runs
     // in the display phase, so the guest's own host calls may only read too.

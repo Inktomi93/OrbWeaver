@@ -2,16 +2,29 @@ import { createHash } from "node:crypto";
 import {
   buildCardFrameCsp,
   buildCardFrameDocument,
+  CARD_FRAME_MISSING_ATTRIBUTE,
   CARD_FRAME_SAFE_FLOOR,
   CARD_FRAME_SANDBOX,
   CARD_FRAME_STYLE_TOKEN,
+  CARD_FRAME_THEME_TOKEN_LIMITS,
   clampCardFrameFontFamily,
+  clampCardFrameRootAttributes,
   clampCardFrameStyleTokens,
   clampCardFrameThemeTokens,
+  foldCardFrameHeight,
+  readCardFrameLink,
+  readCardFrameMissing,
 } from "@orb/kit/card-frame";
 import { expect, test } from "@orb/testkit/node";
 
-const CONTENT = { html: "<p>card</p>", css: undefined, themeTokens: undefined, styleTokens: undefined, fontFamily: undefined } as const;
+const CONTENT = {
+  html: "<p>card</p>",
+  css: undefined,
+  themeTokens: undefined,
+  styleTokens: undefined,
+  fontFamily: undefined,
+  rootAttributes: undefined,
+} as const;
 const MEDIA_DIRECTIVES = ["img-src", "media-src"];
 const POSTURES = ["static", "interactive"] as const;
 // The reviewed grant, spelled out on purpose: it is the contract under test, so a widened constant must fail here
@@ -144,4 +157,76 @@ test("hostile theme, style and font values are dropped per field while the safe 
   });
   expect(clampCardFrameFontFamily(HOSTILE_FONT_FAMILY)).toBeUndefined();
   expect(clampCardFrameFontFamily("Geist, sans-serif")).toBe("Geist, sans-serif");
+});
+
+test("the theme slice carries a whole resolved token set: colours, plain lengths and font lists, never a URL or a break-out", () => {
+  const resolved = {
+    "--any-colour": "oklch(0.72 0.175 52)",
+    "--any-length": "0.5rem",
+    "--any-font-list": "Geist, ui-sans-serif, system-ui, sans-serif",
+    "--shadow-card": "0 1px 2px oklch(0 0 0 / 0.2)",
+    "--image": "url(https://evil.test/x.png)",
+    "--break": "1px; } body { background: red",
+  };
+  expect(clampCardFrameThemeTokens(resolved)).toEqual({
+    "--any-colour": "oklch(0.72 0.175 52)",
+    "--any-length": "0.5rem",
+    "--any-font-list": "Geist, ui-sans-serif, system-ui, sans-serif",
+  });
+});
+
+test("the theme slice keeps to the token limits the mint parses with, so a clamped set is never refused whole", () => {
+  const { count, nameChars } = CARD_FRAME_THEME_TOKEN_LIMITS;
+  const longName = `--${"n".repeat(nameChars - 1)}`;
+  const many = Object.fromEntries(Array.from({ length: count + 1 }, (_, index) => [`--t${index}`, "#336699"]));
+  expect(clampCardFrameThemeTokens({ [longName]: "#336699", "--ok": "#336699" })).toEqual({ "--ok": "#336699" });
+  expect(Object.keys(clampCardFrameThemeTokens(many))).toHaveLength(count);
+});
+
+test("a frame reports a missing handle only from a document whose root carries the miss attribute", () => {
+  const missing = buildCardFrameDocument({ ...CONTENT, rootAttributes: { [CARD_FRAME_MISSING_ATTRIBUTE]: "" } });
+  expect(missing).toContain(`<html ${CARD_FRAME_MISSING_ATTRIBUTE}="">`);
+  // The pinned script reads the attribute by the same name the server writes.
+  expect(missing).toContain(`hasAttribute("${CARD_FRAME_MISSING_ATTRIBUTE}")`);
+  expect(readCardFrameMissing({ orbCardFrameMissing: true })).toBe(true);
+  for (const garbage of [null, true, { orbCardFrameMissing: "true" }, { orbCardFrameHeight: 40 }]) {
+    expect(readCardFrameMissing(garbage), JSON.stringify(garbage)).toBe(false);
+  }
+});
+
+test("a framed link reaches the host only as an absolute http, https or mailto address", () => {
+  expect(readCardFrameLink({ orbCardFrameLink: "https://example.test/a?b=1#c" })).toBe("https://example.test/a?b=1#c");
+  expect(readCardFrameLink({ orbCardFrameLink: "http://example.test/" })).toBe("http://example.test/");
+  expect(readCardFrameLink({ orbCardFrameLink: "mailto:someone@example.test" })).toBe("mailto:someone@example.test");
+  for (const refused of ["javascript:alert(1)", "data:text/html,x", "blob:https://example.test/1", "/relative/path", "", "not a url"]) {
+    expect(readCardFrameLink({ orbCardFrameLink: refused }), refused).toBeUndefined();
+  }
+  for (const garbage of [null, "https://example.test/", { orbCardFrameLink: 7 }, { orbCardFrameHeight: 40 }]) {
+    expect(readCardFrameLink(garbage), JSON.stringify(garbage)).toBeUndefined();
+  }
+});
+
+test("a reply frame folds its height against its own cap, far above a card's", () => {
+  const card = foldCardFrameHeight(undefined, { orbCardFrameHeight: Number.MAX_SAFE_INTEGER });
+  const reply = foldCardFrameHeight(undefined, { orbCardFrameHeight: Number.MAX_SAFE_INTEGER }, "reply");
+  expect(card).toBeDefined();
+  expect(reply).toBeGreaterThan(card ?? Number.POSITIVE_INFINITY);
+  const tall = (card ?? 0) * 10;
+  expect(foldCardFrameHeight(undefined, { orbCardFrameHeight: tall }, "reply")).toBe(tall);
+  expect(foldCardFrameHeight(tall, { orbCardFrameHeight: tall - 1 }, "reply")).toBe(tall);
+});
+
+test("a framed reply mirrors only plain data channels on its root, and its styles stay inline only", () => {
+  const document = buildCardFrameDocument({
+    ...CONTENT,
+    rootAttributes: { "data-theme": "dusk", "data-skin": "moonlit", onload: "x", "data-evil": '"><script>', "data-UPPER": "x" },
+  });
+  expect(document).toContain('<html data-theme="dusk" data-skin="moonlit">');
+  for (const smuggled of ["onload", "data-evil", "data-UPPER", "<link"]) {
+    expect(document, smuggled).not.toContain(smuggled);
+  }
+  for (const delivery of ["document", "meta"] as const) {
+    expect(directives(buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, delivery, "static")).get("style-src"), delivery).toBe("'unsafe-inline'");
+  }
+  expect(clampCardFrameRootAttributes(null)).toEqual({});
 });

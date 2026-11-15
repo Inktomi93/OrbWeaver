@@ -14,7 +14,7 @@
 // `role === 'host'` verdict lives in admin's `can()`, never here (Spine-Identity-and-Auth invariant 6). `can` is injected on `ChatContext`
 // (wired at the entry composition root) — chat NEVER imports admin (`domain-no-cross-feature`).
 
-import type { HistoryFloorSeq, RequireHostOp, RequireParticipantOp } from "@orb/contracts/chat";
+import type { HistoryFloorSeq, RequireHostOp, RequireParticipantOp, RoomAdmission } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
@@ -27,6 +27,7 @@ import { loadHandoffResumption } from "./persistence/handoff-resume.ts";
 import { loadMemberChat, loadPendingHandoff } from "./persistence/queries.ts";
 import { assertAuthorOrHost, assertHost, assertParticipant, resolveHistoryFloorSeq } from "./substrate/auth/index.ts";
 import { hostSeatOf } from "./substrate/participants-host.ts";
+import { mintRoomAdmission } from "./substrate/room-tokens.ts";
 
 /** The chokepoint's deps: the DB read (`loadMemberChat`) + the injected `can()` decision seam. */
 type GuardCtx = Pick<ChatContext, "db" | "can">;
@@ -38,7 +39,7 @@ type MemberChat = NonNullable<Awaited<ReturnType<typeof loadMemberChat>>>;
 
 /** The gated membership every chat surface receives: the loaded row PLUS the caller's resolved D16 canon
  *  read floor. Stamped once, HERE, so no read path re-derives (or forgets) the policy. */
-type GatedMembership = MemberChat & { readonly historyFloorSeq: HistoryFloorSeq };
+type GatedMembership = MemberChat & { readonly historyFloorSeq: HistoryFloorSeq; readonly admission: RoomAdmission };
 
 /**
  * Present-membership gate — read/stream/post/turn-run (→ `member`). Loads the caller's PRESENT
@@ -57,7 +58,7 @@ export async function requireParticipant(ctx: GuardCtx, principal: Principal, ch
   // Route the read-floor through the ONE seam (spine §6). A present member always reads in v1 — this is the
   // seam where a future `observer` participant kind denies; the verdict lives in `can()`, never here.
   ctx.can(principal, "read", { kind: "chat", membership: { role: membership.role } });
-  return { ...membership, historyFloorSeq: resolveHistoryFloorSeq(membership) };
+  return { ...membership, historyFloorSeq: resolveHistoryFloorSeq(membership), admission: mintRoomAdmission(chatId) };
 }
 
 /**
@@ -73,19 +74,19 @@ export async function requireHost(ctx: GuardCtx, principal: Principal, chatId: C
 
 /** The same nominee/resumption authority gates both admission and the actual transfer. */
 export async function requireHandoffAcceptance(ctx: GuardCtx, principal: Principal, chatId: ChatId): Promise<HandoffAcceptance> {
-  await requireParticipant(ctx, principal, chatId);
+  const { admission } = await requireParticipant(ctx, principal, chatId);
   const resumable = await loadHandoffResumption(ctx.db, chatId);
   if (resumable !== null) {
     if (resumable.acceptedByUserId !== principal.userId) {
       throw new ChatOperationError(CHAT_OP_CODES.notTurnOwner, `chat ${chatId}: only the accepted host may resume the host handoff`);
     }
-    return { kind: "resume", resumption: resumable };
+    return { kind: "resume", resumption: resumable, admission };
   }
   const { pendingHostUserId, offer } = await loadPendingHandoff(ctx.db, chatId);
   if (pendingHostUserId === null || pendingHostUserId !== principal.userId) {
     throw new ChatOperationError(CHAT_OP_CODES.notTurnOwner, `chat ${chatId}: only the nominated member may accept the host handoff`);
   }
-  return { kind: "pending", offer };
+  return { kind: "pending", offer, admission };
 }
 
 /**

@@ -64,7 +64,7 @@ export function createProviderExecutor(args: {
   const execute = async <T extends Task, Result>(
     captured: Resolved<T>,
     task: T,
-    signal: AbortSignal | undefined,
+    signal: AbortSignal,
     run: (connection: Resolved<T>) => Promise<Result>,
   ): Promise<Result> => {
     const current = await args.readOwnedConnection(captured.connectionId, captured.ownerId);
@@ -89,7 +89,7 @@ export function createProviderExecutor(args: {
     } catch (err) {
       const failure = providerFailureOf(err);
       // A settled caller-owned cancellation is not evidence against the key (the chat abort classification).
-      if (failure !== null && signal?.aborted !== true && args.onAuthFailed !== undefined) {
+      if (failure !== null && !signal.aborted && args.onAuthFailed !== undefined) {
         try {
           await args.onAuthFailed({
             ownerId: connection.ownerId,

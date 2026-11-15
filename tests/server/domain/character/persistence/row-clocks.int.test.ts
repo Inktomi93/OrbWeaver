@@ -18,7 +18,7 @@ test("same-owner duplication is born at the current injected instant, not the so
     input: createCharacterSchema.parse({ handle: "duplicate-clock", name: "Clock", description: "Original" }),
   });
   harness.clock.advance(12_345);
-  await harness.services.character.update({ principal, characterId: source.row.id, input: { description: "Edited" } });
+  await harness.services.character.update({ signal: new AbortController().signal, principal, characterId: source.row.id, input: { description: "Edited" } });
   const before = await harness.db.select().from(characters).where(eq(characters.id, source.row.id));
   harness.clock.advance(23_456);
   const at = harness.clock.now();

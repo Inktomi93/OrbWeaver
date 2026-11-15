@@ -176,7 +176,7 @@ async function analyzeAvatarOn(root: ServerTestHarness, provider: ReturnType<typ
   }
   const stored = await root.app.assets.store({ principal, ...avatar, kind: "avatar" });
   await root.settleBackground();
-  await root.app.embeddings.indexAsset(stored.assetId, { force: true });
+  await root.app.embeddings.indexAsset(stored.assetId, { signal: new AbortController().signal, force: true });
   return provider.analysisCalls();
 }
 

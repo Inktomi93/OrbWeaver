@@ -46,10 +46,24 @@ test("member previews use the host's live Utility binding, preset and instructio
   await using root = await createServerHarness({ startJobs: false, providerFetch: wire.execute, secretBoxKey: Buffer.alloc(32, 3) });
   const room = await policyRoom(root);
   const preview = (): ReturnType<ServerTestHarness["services"]["imagery"]["extractPrompt"]> =>
-    root.services.imagery.extractPrompt({ caller: room.member, chatId: room.chat.id, mode: "character_multimodal", subjectCharacterId: room.character.id });
+    root.services.imagery.extractPrompt({
+      signal: new AbortController().signal,
+      caller: room.member,
+      chatId: room.chat.id,
+      mode: "character_multimodal",
+      subjectCharacterId: room.character.id,
+    });
   const defaults = await root.services.settings.loadUserSettings(room.host.userId);
   expect(
-    (await root.services.imagery.extractPrompt({ caller: room.member, chatId: room.chat.id, mode: "character", subjectCharacterId: room.character.id })).source,
+    (
+      await root.services.imagery.extractPrompt({
+        signal: new AbortController().signal,
+        caller: room.member,
+        chatId: room.chat.id,
+        mode: "character",
+        subjectCharacterId: room.character.id,
+      })
+    ).source,
   ).toBe("extracted");
   expect(await wire.requests[0]?.clone().json()).toMatchObject({
     model: HOST_MODEL,
@@ -99,7 +113,15 @@ test("member previews use the host's live Utility binding, preset and instructio
   await root.services.connection.update({ principal: room.host, connectionId: room.utility.id, patch: { model: LIVE_MODEL } });
   await root.services.preset.update({ userId: room.host.userId, id: preset.id, config: { ...preset.config, params: { temperature: 0.4 } } });
   expect(
-    (await root.services.imagery.extractPrompt({ caller: room.member, chatId: room.chat.id, mode: "character", subjectCharacterId: room.character.id })).source,
+    (
+      await root.services.imagery.extractPrompt({
+        signal: new AbortController().signal,
+        caller: room.member,
+        chatId: room.chat.id,
+        mode: "character",
+        subjectCharacterId: room.character.id,
+      })
+    ).source,
   ).toBe("extracted");
   expect(await wire.requests[3]?.clone().json()).toMatchObject({ model: LIVE_MODEL, temperature: 0.4 });
   expect(await wire.requests[3]?.clone().text()).toContain(HOST_TEMPLATE);
@@ -345,7 +367,7 @@ test("a count, size or negative skips the reuse gate under default reuse, and th
   for (let index = 0; index < 5; index += 1) {
     wire.images.push(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)));
   }
-  const portrait = { caller: room.host, mode: CAPTION_MODE, subjectCharacterId: room.character.id } as const;
+  const portrait = { signal: new AbortController().signal, caller: room.host, mode: CAPTION_MODE, subjectCharacterId: room.character.id } as const;
   const plain = await root.services.imagery.generatePicture(portrait);
   expect(plain.reused).toBe(false);
   expect((await root.services.imagery.generatePicture(portrait)).reused).toBe(true);
@@ -412,9 +434,15 @@ test("imagery retains a real dropped-edit warning and a real native dropped-coun
     declared: { kind: "generation", generation: { context: { window: 32_000 }, output: { modalities: ["image"] } } },
   });
   await root.services.connection.setBinding({ principal, task: "generateImage", connectionId: connection.id });
-  const { resolved } = await root.services.connection.resolve({ principal, task: "generateImage" });
+  const { resolved } = await root.services.connection.resolve({ principal, task: "generateImage", signal: new AbortController().signal });
   const nativeConnection: Resolved<"generateImage"> = { ...resolved, task: "generateImage" };
-  const native = await root.app.runtime.executor.generateImage({ connection: nativeConnection, prompt: "The orbital loom.", n: 2, edit: { image: pixels } });
+  const native = await root.app.runtime.executor.generateImage({
+    signal: new AbortController().signal,
+    connection: nativeConnection,
+    prompt: "The orbital loom.",
+    n: 2,
+    edit: { image: pixels },
+  });
   expect(native.warnings.map(({ code }) => code)).toEqual([WARNING_CODE.imageCountDropped, WARNING_CODE.imageEditDropped]);
   const avatar = await root.services.assets.store({
     principal,
@@ -428,6 +456,7 @@ test("imagery retains a real dropped-edit warning and a real native dropped-coun
     input: createCharacterSchema.parse({ handle: "warning-subject", name: "Warning subject", description: "A traveller.", avatarAssetId: avatar.assetId }),
   });
   const filtered = await root.services.imagery.generatePicture({
+    signal: new AbortController().signal,
     caller: principal,
     mode: "character",
     subjectCharacterId: subject.id,

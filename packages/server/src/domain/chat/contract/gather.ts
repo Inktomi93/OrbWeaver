@@ -24,6 +24,8 @@ export interface SendRegexSink {
 /** The per-call inputs `ctx.gatherAssembleContext` takes beside the foreign DTO. */
 export interface GatherAssembleArgs {
   readonly chatId: ChatId;
+  /** Ends the recall and databank retrieval this gather runs. */
+  readonly signal: AbortSignal;
   readonly runAsUserId: ConsentingHostId;
   readonly model: TurnMacroContextArgs["model"];
   readonly characterIds: readonly CharacterId[];

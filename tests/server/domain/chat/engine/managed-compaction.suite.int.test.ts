@@ -149,11 +149,14 @@ test("tiny native per-call token deltas cannot blind cumulative managed fit usag
 
 test("the public manual lever at unchanged durable coverage generates nothing and reports updated:false", async () => {
   await using fixture = await sdkEngineRoom({ history: 8 });
-  const first = await fixture.h.root.services.chat.compact({ principal: fixture.h.owner, chatId: fixture.h.chatId });
+  const first = await fixture.h.root.services.chat.compact({ signal: new AbortController().signal, principal: fixture.h.owner, chatId: fixture.h.chatId });
   expect(first.updated).toBe(true);
   expect(first.compactedAtSeq).toBe(await fixture.seqOfRow(8));
   const calls = fixture.receipts.length;
-  expect(await fixture.h.root.services.chat.compact({ principal: fixture.h.owner, chatId: fixture.h.chatId })).toEqual({ ...first, updated: false });
+  expect(await fixture.h.root.services.chat.compact({ signal: new AbortController().signal, principal: fixture.h.owner, chatId: fixture.h.chatId })).toEqual({
+    ...first,
+    updated: false,
+  });
   expect(fixture.receipts).toHaveLength(calls);
 });
 

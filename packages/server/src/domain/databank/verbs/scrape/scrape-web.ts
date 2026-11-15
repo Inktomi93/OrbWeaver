@@ -31,10 +31,10 @@ function fallbackName(url: string): string {
 }
 
 export function createScrapeWeb(ctx: DatabankContext): DatabankService["scrapeWeb"] {
-  return async ({ principal, url, destination }: ScrapeWebParams): Promise<UploadResult> => {
+  return async ({ principal, url, destination, signal }: ScrapeWebParams): Promise<UploadResult> => {
     let bytes: Uint8Array;
     try {
-      bytes = await ctx.fetchUrl(url);
+      bytes = await ctx.fetchUrl(url, signal);
     } catch (err) {
       // The refusal is a client error the transport does not log, and it carries the cause only as `cause`, so a
       // broken fetch (DNS, reset, timeout, upstream status) is recorded here. A firewall block already wrote its
@@ -48,6 +48,7 @@ export function createScrapeWeb(ctx: DatabankContext): DatabankService["scrapeWe
 
     return finalizeScrape(ctx, {
       principal,
+      signal,
       destination,
       bytes,
       origin: "web",

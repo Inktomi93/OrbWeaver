@@ -10,9 +10,9 @@ import { resolveForgeCall, runForgeTurn } from "../substrate/schema-forge.ts";
 const askSchema = z.string().min(1).max(REFINERY_SCHEMA_DESCRIPTION_MAX);
 
 export function createGenerateSchema(ctx: RefineryContext): RefineryService["generateSchema"] {
-  return async ({ principal, description, stage, arm }) => {
+  return async ({ principal, description, stage, arm, signal }) => {
     const ask = askSchema.parse(description);
-    const call = await resolveForgeCall(ctx, principal.userId);
+    const call = await resolveForgeCall(ctx, principal.userId, signal);
     return runForgeTurn({
       stage,
       arm: arm ?? REFINERY_FORGE_ARM_DEFAULT,

@@ -123,7 +123,7 @@ test("the cheap tool round's user message ends on the state-tool cue; the folded
     await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Reach the registered beat." });
     await h.root.settleBackground();
     if (mode === "cheap") {
-      await h.root.services.rpg.resyncFromStory({ principal: h.owner, chatId: h.chatId });
+      await h.root.services.rpg.resyncFromStory({ signal: new AbortController().signal, principal: h.owner, chatId: h.chatId });
     }
   }
   expect(wire.cheap).toHaveLength(2);

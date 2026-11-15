@@ -73,7 +73,7 @@ import {
   pluginUpdateCheckSchema,
   pluginUrlPreviewSchema,
 } from "#domain/plugin";
-import { adminProcedure, authedProcedure, t } from "../trpc.ts";
+import { adminProcedure, authedProcedure, procedureSignal, t } from "../trpc.ts";
 
 const pluginIdSchema = typeIdSchema(ID_PREFIX.plugin);
 // Lax like the chat router's chatId (leak-free gating is the service's `resolveChatAuthority`, not a strict
@@ -322,9 +322,10 @@ export const pluginRouter = t.router({
       }),
     )
     .output(pluginUiOutcomeSchema)
-    .mutation(({ ctx, input }) =>
+    .mutation(({ ctx, input, signal }) =>
       ctx.services.plugin.invokeUiAction({
         caller: ctx.auth,
+        signal: procedureSignal(signal),
         pluginId: input.pluginId,
         surfaceId: input.surfaceId,
         actionId: input.actionId,
@@ -414,9 +415,10 @@ export const pluginRouter = t.router({
       }),
     )
     .output(pluginUiOutcomeSchema)
-    .mutation(({ ctx, input }) =>
+    .mutation(({ ctx, input, signal }) =>
       ctx.services.plugin.invokeUiCommand({
         caller: ctx.auth,
+        signal: procedureSignal(signal),
         pluginId: input.pluginId,
         name: input.name,
         args: input.args,

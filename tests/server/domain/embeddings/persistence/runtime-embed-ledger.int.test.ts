@@ -38,14 +38,24 @@ test("a cleared real embedding binding refuses implicit resolution while its own
   const principal = await root.principalFor(root.ownerId);
   await root.services.connection.setBinding({ principal, task: "embed", connectionId: connection.connectionId });
   await root.settleBackground();
-  const implicit = await root.app.runtime.resolve({ principal, task: "embed", cachedFacts: true });
-  const explicit = await root.app.runtime.resolve({ principal, task: "embed", connectionId: connection.connectionId, cachedFacts: true });
+  const implicit = await root.app.runtime.resolve({ principal, task: "embed", cachedFacts: true, signal: new AbortController().signal });
+  const explicit = await root.app.runtime.resolve({
+    signal: new AbortController().signal,
+    principal,
+    task: "embed",
+    connectionId: connection.connectionId,
+    cachedFacts: true,
+  });
   expect(implicit.resolved.connectionId).toBe(connection.connectionId);
   expect(explicit.resolved.connectionId).toBe(implicit.resolved.connectionId);
   if (implicit.resolved.task !== "embed") {
     throw new Error("the real binding did not resolve its embedding task");
   }
-  const result = await root.app.runtime.executor.embed({ connection: { ...implicit.resolved, task: implicit.resolved.task }, input: witness });
+  const result = await root.app.runtime.executor.embed({
+    signal: new AbortController().signal,
+    connection: { ...implicit.resolved, task: implicit.resolved.task },
+    input: witness,
+  });
   expect(result.vectors[0]).toEqual(new Float32Array([1, 0, 0]));
   expect(requests.some((request) => request.includes("/embeddings") && request.includes(witness))).toBe(true);
   await root.services.connection.setBinding({ principal, task: "embed", connectionId: null });
@@ -55,10 +65,20 @@ test("a cleared real embedding binding refuses implicit resolution while its own
   expect(beforeAccounting).toEqual(
     expect.arrayContaining([expect.objectContaining({ ownerId: root.ownerId, connectionId: connection.connectionId, task: "embed" })]),
   );
-  await expect(root.app.runtime.resolve({ principal, task: "embed", cachedFacts: true })).rejects.toBeInstanceOf(NoConnectionError);
-  expect((await root.app.runtime.resolve({ principal, task: "embed", connectionId: connection.connectionId, cachedFacts: true })).resolved.connectionId).toBe(
-    connection.connectionId,
+  await expect(root.app.runtime.resolve({ principal, task: "embed", cachedFacts: true, signal: new AbortController().signal })).rejects.toBeInstanceOf(
+    NoConnectionError,
   );
+  expect(
+    (
+      await root.app.runtime.resolve({
+        signal: new AbortController().signal,
+        principal,
+        task: "embed",
+        connectionId: connection.connectionId,
+        cachedFacts: true,
+      })
+    ).resolved.connectionId,
+  ).toBe(connection.connectionId);
   expect(requests).toEqual(beforeRequests);
   expect(await root.db.select().from(embeddingCalls)).toEqual(beforeAccounting);
 });
@@ -96,7 +116,7 @@ test("a pre-cancelled local-light embedding crosses real accounting without load
   expect(embedded).toEqual([]);
   expect(await root.db.select().from(embeddingCalls)).toEqual([]);
 
-  await root.app.runtime.executor.embed({ connection, input: ["live"] });
+  await root.app.runtime.executor.embed({ signal: new AbortController().signal, connection, input: ["live"] });
   await root.settleBackground();
   expect(embedded).toEqual(["live"]);
   expect(await root.db.select().from(embeddingCalls)).toHaveLength(1);

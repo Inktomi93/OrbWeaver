@@ -1,8 +1,8 @@
 import type { StoreAvatarAsset } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
 import type { ImportDirectory, ImportFsPort, ImportKindCounts, ImportPreview } from "@orb/contracts/import";
-import { IMPORT_PREVIEW_KINDS } from "@orb/contracts/import";
-import type { ImportGlobalScripts, RegexScriptCard } from "@orb/contracts/regex";
+import { clipImportText, IMPORT_PREVIEW_KINDS } from "@orb/contracts/import";
+import type { ImportCardScriptsResult, ImportGlobalScripts, RegexScriptCard } from "@orb/contracts/regex";
 import type { BackgroundLibraryEntry } from "@orb/contracts/settings";
 import { ASSET_UPLOAD_MAX_BYTES, IMPORT_TREE_MAX_FILE_BYTES, IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import type { AttachOwnedBooksByName } from "@orb/contracts/world-info";
@@ -499,6 +499,13 @@ function liftGlobalScripts(lift: ImportGlobalScripts, ownerId: UserId, scripts: 
   return lift({ ownerId, scripts });
 }
 
+/** The report's one line for the global plane's scripts refused at the write door, each named; null when none. */
+function refusedScriptsLine(refused: ImportCardScriptsResult["refused"]): string | null {
+  return refused.length === 0
+    ? null
+    : refused.map((refusal) => `script ${JSON.stringify(clipImportText(refusal.name))} not imported: ${refusal.reason}`).join("; ");
+}
+
 /** One character's world name-links, attached through the injected world-info op. `primary` is the card's
  *  own `extensions.world`; `extras` are the profile's `charLore` bindings for this card; `landed` is the
  *  worlds wave's name → row map. Missing names come back per character for the report. */
@@ -908,6 +915,7 @@ export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<I
       globalRegexScriptsLifted = lift.created;
       globalRegexScriptsReused = lift.reused;
       changed += lift.created;
+      globalRegexSkippedReason = refusedScriptsLine(lift.refused);
     } else {
       globalRegexSkippedReason = "global regex-script import is not wired into this composition";
     }

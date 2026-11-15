@@ -10,6 +10,9 @@ const REGEX_ENTITY_KINDS = ["regex_script", "character", "preset"] as const;
 export type RegexEntityKind = (typeof REGEX_ENTITY_KINDS)[number];
 type RegexEntity = { [Kind in RegexEntityKind]: [kind: Kind, id: TypeIdOf<Kind>] }[RegexEntityKind];
 
+/** A write refused because its find pattern costs more to compile than the write door admits (D53). */
+export const REGEX_FIND_TOO_COSTLY = "regex_find_too_costly";
+
 export class RegexNotFoundError extends DomainNotFoundError {
   public readonly entityKind: RegexEntityKind;
   public readonly entityId: RegexEntity[1];

@@ -354,6 +354,7 @@ export async function fundingConnection<T extends Task>(args: {
     declared,
   });
   const { resolved } = await args.harness.app.runtime.resolve({
+    signal: new AbortController().signal,
     task,
     connectionId: row.id,
     principal: await args.harness.principalFor(args.harness.ownerId),
@@ -382,14 +383,30 @@ export async function pinGeneration(
   return generation;
 }
 export const EXECUTE: Record<BackgroundTask, Execute> = {
-  embed: (runtime, connection) => runtime.executor.embed({ connection: { ...connection, task: "embed" }, input: "funding control" }),
+  embed: (runtime, connection) =>
+    runtime.executor.embed({ signal: new AbortController().signal, connection: { ...connection, task: "embed" }, input: "funding control" }),
   imageEmbed: (runtime, connection) =>
-    runtime.executor.imageEmbed({ connection: { ...connection, task: "imageEmbed" }, input: { kind: "text", input: "funding control" } }),
+    runtime.executor.imageEmbed({
+      signal: new AbortController().signal,
+      connection: { ...connection, task: "imageEmbed" },
+      input: { kind: "text", input: "funding control" },
+    }),
   rerank: (runtime, connection) =>
-    runtime.executor.rerank({ connection: { ...connection, task: "rerank" }, query: "control", documents: [{ id: "document", text: "control" }] }),
-  summarize: (runtime, connection) => runtime.executor.summarize({ connection: { ...connection, task: "summarize" }, inputs: INPUTS }),
+    runtime.executor.rerank({
+      signal: new AbortController().signal,
+      connection: { ...connection, task: "rerank" },
+      query: "control",
+      documents: [{ id: "document", text: "control" }],
+    }),
+  summarize: (runtime, connection) =>
+    runtime.executor.summarize({ signal: new AbortController().signal, connection: { ...connection, task: "summarize" }, inputs: INPUTS }),
   structured: (runtime, connection) =>
-    runtime.executor.structured({ connection: { ...connection, task: "structured" }, inputs: INPUTS, responseFormat: FORMAT }),
+    runtime.executor.structured({
+      signal: new AbortController().signal,
+      connection: { ...connection, task: "structured" },
+      inputs: INPUTS,
+      responseFormat: FORMAT,
+    }),
 };
 
 export const BACKGROUND_TASKS = TASKS.filter((task): task is BackgroundTask => taskDef(task).spend === "background");

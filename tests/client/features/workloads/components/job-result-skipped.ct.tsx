@@ -93,7 +93,12 @@ test("a finished databank reindex counts the documents it skipped for a disabled
   await using root = await createServerHarness(ROOT_OPTIONS);
   const admin = await root.principalFor(root.ownerId);
   const gone = await root.principalFor((await root.actor()).id);
-  await root.services.databank.createFromText({ principal: gone, name: "lamps.txt", text: "The ledger room keeps its lamps lit through the long watch." });
+  await root.services.databank.createFromText({
+    principal: gone,
+    name: "lamps.txt",
+    text: "The ledger room keeps its lamps lit through the long watch.",
+    signal: new AbortController().signal,
+  });
   await root.services.admin.setEnabled({ principal: admin, userId: gone.userId, enabled: false });
   const started = await root.services.workloads.start({ caller: admin, ownerId: admin.userId, mode: "bulk", input: DOCUMENT_REINDEX });
   expect(await runToEnd(root, started.id)).toMatchObject({ documents: 0, skipped: 1 });

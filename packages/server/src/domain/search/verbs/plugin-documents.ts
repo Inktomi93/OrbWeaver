@@ -4,13 +4,14 @@ import type { SearchService } from "../contract/service.ts";
 
 /** Bind retrieval to the installer before reducing its guest-visible result. */
 
-export function createPluginDocumentSearch(documents: SearchService["documents"]): PluginDocumentReads["documents"] {
-  return async ({ installerUserId, queryText, limit }) => {
+export function createPluginDocumentSearch(documents: SearchService["documents"]): PluginDocumentReads<AbortSignal>["documents"] {
+  return async ({ installerUserId, queryText, limit, signal }) => {
     const hits = await documents({
       scope: { ownerId: installerUserId },
       ownerId: installerUserId,
       queryText,
       ...(limit !== undefined ? { k: limit } : {}),
+      signal,
     });
     return hits.map((hit) => ({
       documentId: hit.documentId,

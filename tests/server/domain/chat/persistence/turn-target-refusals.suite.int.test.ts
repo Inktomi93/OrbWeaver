@@ -97,7 +97,9 @@ test("a member sending with ANOTHER user's personaId is refused not_persona_owne
   await expect(f.h.root.services.chat.send({ principal: f.member, chatId: f.h.chatId, content: "hi", personaId: persona.id })).rejects.toMatchObject({
     code: CHAT_OP_CODES.notPersonaOwner,
   });
-  await expect(drain(f.h.root.services.chat.impersonateStream({ principal: f.member, chatId: f.h.chatId, personaId: persona.id }))).rejects.toMatchObject({
+  await expect(
+    drain(f.h.root.services.chat.impersonateStream({ signal: new AbortController().signal, principal: f.member, chatId: f.h.chatId, personaId: persona.id })),
+  ).rejects.toMatchObject({
     code: CHAT_OP_CODES.notPersonaOwner,
   });
   expect(await canon(f.h)).toEqual(before);

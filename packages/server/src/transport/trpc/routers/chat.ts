@@ -73,7 +73,7 @@ import { z } from "zod";
 import { toolRecurseLimitSchema } from "#domain/chat";
 import { chatDetailSchema, chatLineageViewSchema, chatListPageSchema, forkResultSchema, participantViewSchema, startChatResultSchema } from "../role-output.ts";
 import { withSubscriptionErrors } from "../subscriptions.ts";
-import { authedProcedure, t } from "../trpc.ts";
+import { authedProcedure, procedureSignal, t } from "../trpc.ts";
 
 // `getMemberCard` (D22) — read ONE roster character's card, field-clamped to the room's `memberCardVisibility`.
 // Member-gated + roster-scoped INSIDE the verb (`requireParticipant` + a present-character-seat check on
@@ -617,7 +617,7 @@ export const chatRouter = t.router({
   checkSendAvailability: authedProcedure
     .output(roomSendAvailabilitySchema)
     .input(chatIdInputSchema)
-    .query(({ ctx, input }) => ctx.services.chat.checkSendAvailability({ principal: ctx.auth, chatId: input.chatId })),
+    .query(({ ctx, input, signal }) => ctx.services.chat.checkSendAvailability({ principal: ctx.auth, chatId: input.chatId, signal: procedureSignal(signal) })),
   getNextTurnConnection: authedProcedure
     .output(nextTurnConnectionViewSchema)
     .input(chatIdInputSchema)
@@ -700,7 +700,7 @@ export const chatRouter = t.router({
     }
     const { lastEventId: _resume, ...params } = input;
     return withSubscriptionErrors(
-      trackedImpersonationDeltas(ctx.services.chat.impersonateStream({ principal: ctx.auth, ...params, signal: signal ?? new AbortController().signal })),
+      trackedImpersonationDeltas(ctx.services.chat.impersonateStream({ principal: ctx.auth, ...params, signal: procedureSignal(signal) })),
       ctx.logger,
     );
   }),
@@ -774,7 +774,7 @@ export const chatRouter = t.router({
   setChatBackground: authedProcedure
     .output(strictTwin(themeBackgroundSchema))
     .input(strictTwin(setChatBackgroundSchema))
-    .mutation(({ ctx, input }) => ctx.services.chat.setChatBackground({ principal: ctx.auth, ...input })),
+    .mutation(({ ctx, input, signal }) => ctx.services.chat.setChatBackground({ principal: ctx.auth, ...input, signal: procedureSignal(signal) })),
 
   // D121-E display-tier room OPTION — host-gated in the verb (a member's call is a refusal, not a no-op).
   setHostDisplayScripts: authedProcedure
@@ -867,16 +867,16 @@ export const chatRouter = t.router({
   previewAssembly: authedProcedure
     .output(assemblyPreviewSchema)
     .input(previewAssemblySchema)
-    .query(({ ctx, input }) => ctx.services.chat.previewAssembly({ principal: ctx.auth, ...input })),
+    .query(({ ctx, input, signal }) => ctx.services.chat.previewAssembly({ principal: ctx.auth, ...input, signal: procedureSignal(signal) })),
   previewActionTemplates: authedProcedure
     .output(actionTemplatesPreviewSchema)
     .input(previewActionTemplatesSchema)
-    .query(({ ctx, input }) => ctx.services.chat.previewActionTemplates({ principal: ctx.auth, ...input })),
+    .query(({ ctx, input, signal }) => ctx.services.chat.previewActionTemplates({ principal: ctx.auth, ...input, signal: procedureSignal(signal) })),
   // The content-free SHAPE trace — a host/admin inspector read (`requireHost` INSIDE the verb).
   getShapeTrace: authedProcedure
     .output(shapeTraceSchema)
     .input(getShapeTraceSchema)
-    .query(({ ctx, input }) => ctx.services.chat.getShapeTrace({ principal: ctx.auth, ...input })),
+    .query(({ ctx, input, signal }) => ctx.services.chat.getShapeTrace({ principal: ctx.auth, ...input, signal: procedureSignal(signal) })),
   // The per-variant WIRE RECORD — a host/admin inspector read (`requireHost` INSIDE the verb).
   getVariantWire: authedProcedure
     .output(variantWireViewSchema)
@@ -885,7 +885,7 @@ export const chatRouter = t.router({
   previewContextFit: authedProcedure
     .output(contextFitAnswerSchema)
     .input(previewContextFitSchema)
-    .query(({ ctx, input }) => ctx.services.chat.previewContextFit({ principal: ctx.auth, ...input })),
+    .query(({ ctx, input, signal }) => ctx.services.chat.previewContextFit({ principal: ctx.auth, ...input, signal: procedureSignal(signal) })),
   setChatInjection: authedProcedure
     .output(chatInjectionViewSchema)
     .input(setChatInjectionSchema)
@@ -980,7 +980,7 @@ export const chatRouter = t.router({
   generateImage: authedProcedure
     .output(messageViewSchema)
     .input(strictTwin(generatePictureRequestSchema.and(z.strictObject({ chatId: typeIdSchema(ID_PREFIX.chat), timeZone: reportedTimeZoneSchema }))))
-    .mutation(({ ctx, input }) => ctx.services.chat.generateImage({ ...input, principal: ctx.auth })),
+    .mutation(({ ctx, input, signal }) => ctx.services.chat.generateImage({ ...input, principal: ctx.auth, signal: procedureSignal(signal) })),
 });
 
 // Wrap the domain's bare impersonation `{ delta }` yields in `tracked()` envelopes (the shape

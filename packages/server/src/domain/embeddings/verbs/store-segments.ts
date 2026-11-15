@@ -35,11 +35,11 @@ interface PlacedSegment {
 
 /** Every input placed in its owner's target generation for this batch — resolved once per owner, in the order the
  *  owners first appear, read by the gate and the receipts. */
-async function placeSegments(ctx: EmbeddingsContext, params: readonly SegmentStoreParams[], signal?: AbortSignal): Promise<readonly PlacedSegment[]> {
+async function placeSegments(ctx: EmbeddingsContext, params: readonly SegmentStoreParams[], signal: AbortSignal): Promise<readonly PlacedSegment[]> {
   const resolved = new Map<UserId, PinnedGeneration>();
   const placed: PlacedSegment[] = [];
   for (const [index, p] of params.entries()) {
-    signal?.throwIfAborted();
+    signal.throwIfAborted();
     let generation = resolved.get(p.ownerId);
     if (generation === undefined) {
       generation = await resolveTargetGeneration(ctx, p.ownerId, "embed");
@@ -93,7 +93,7 @@ function vectorFor(ctx: EmbeddingsContext, vector: Float32Array | null | undefin
  *  class the space-tag derivation (`embedSpaceOf`) exists to make impossible. */
 async function flood(
   pending: readonly PlacedSegment[],
-  signal: AbortSignal | undefined,
+  signal: AbortSignal,
 ): Promise<Map<number, { readonly model: string; readonly vector: Float32Array | null }>> {
   const byOwner = new Map<UserId, PlacedSegment[]>();
   for (const item of pending) {
@@ -106,7 +106,7 @@ async function flood(
   }
   const out = new Map<number, { readonly model: string; readonly vector: Float32Array | null }>();
   for (const items of byOwner.values()) {
-    signal?.throwIfAborted();
+    signal.throwIfAborted();
     const result = await items[0]?.generation.connection.embed(
       items.map((p) => p.params.text),
       { signal },
@@ -122,13 +122,13 @@ async function flood(
 }
 
 export function createStoreSegments(ctx: EmbeddingsContext): EmbeddingsService["storeSegments"] {
-  return async (params: readonly SegmentStoreParams[], signal?: AbortSignal): Promise<readonly StoreResult[]> => {
-    signal?.throwIfAborted();
+  return async (params: readonly SegmentStoreParams[], signal: AbortSignal): Promise<readonly StoreResult[]> => {
+    signal.throwIfAborted();
     const placed = await placeSegments(ctx, params, signal);
-    signal?.throwIfAborted();
+    signal.throwIfAborted();
     const results: StoreResult[] = placed.map(({ params: p, generation }) => ({ outcome: "noop", model: p.model, ...receiptOf(generation) }));
     const pending = await gate(ctx, placed);
-    signal?.throwIfAborted();
+    signal.throwIfAborted();
     if (pending.length === 0) {
       return results;
     }
@@ -137,7 +137,7 @@ export function createStoreSegments(ctx: EmbeddingsContext): EmbeddingsService["
 
     // The row writes stay SEQUENTIAL — they are db upserts, and the engine is already done by here.
     for (const [i, item] of pending.entries()) {
-      signal?.throwIfAborted();
+      signal.throwIfAborted();
       const p = item.params;
       const embedded = embeddedByIndex.get(i) ?? { model: p.model, vector: null };
       const landed = await upsertChatSegment(ctx.db, {

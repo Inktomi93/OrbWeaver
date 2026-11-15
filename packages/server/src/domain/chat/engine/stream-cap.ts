@@ -25,7 +25,7 @@ interface StoredText {
 }
 
 /** `target` is the turn's slot target; only a continue's stored body counts toward the reply. */
-export function createStreamCap(turnSignal: AbortSignal | undefined, persist: TurnPersist, target: StoredText | null): StreamCap {
+export function createStreamCap(turnSignal: AbortSignal, persist: TurnPersist, target: StoredText | null): StreamCap {
   const stop = new AbortController();
   const extended = persist.mode === "continue" ? target : null;
   let content = extended?.content.length ?? 0;
@@ -47,7 +47,7 @@ export function createStreamCap(turnSignal: AbortSignal | undefined, persist: Tu
     return !stop.signal.aborted;
   };
   return {
-    signal: turnSignal === undefined ? stop.signal : AbortSignal.any([turnSignal, stop.signal]),
+    signal: AbortSignal.any([turnSignal, stop.signal]),
     guard:
       (onDelta) =>
       (delta): void => {

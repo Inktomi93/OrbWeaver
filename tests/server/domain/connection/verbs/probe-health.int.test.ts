@@ -30,7 +30,7 @@ async function probeAt(root: ServerTestHarness, baseUrl: string): ReturnType<Ser
     model: "probed-model",
     declared: { kind: "generation", features: { detectServer: false }, generation: makeGenerationCapability() },
   });
-  return await root.services.connection.probe({ principal, connectionId: row.id });
+  return await root.services.connection.probe({ signal: new AbortController().signal, principal, connectionId: row.id });
 }
 
 test("a refused connection reads unreachable, with no HTTP status", async () => {

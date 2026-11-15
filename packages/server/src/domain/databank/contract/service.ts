@@ -96,7 +96,7 @@ type ActiveEmbedSpace = Pick<MemoryEmbedSpace, "model">;
 export const NO_EMBED_SPACE_MODEL = "";
 
 /** The `store` op databank drives: one document chunk, with the ingest pass's abort. */
-type EmbedDocumentChunkOp = (params: DocumentChunkStoreInput & { readonly signal?: AbortSignal | undefined }) => Promise<StoreResult>;
+type EmbedDocumentChunkOp = (params: DocumentChunkStoreInput & { readonly signal: AbortSignal }) => Promise<StoreResult>;
 
 /** The DI bundle every databank verb + the ingest subsystem close over (assembled at `entry/compose`). */
 export interface DatabankContext {
@@ -183,7 +183,8 @@ export interface DatabankContext {
    *  branching on why it failed (it asks infra only whether the firewall already recorded the block, so one refusal
    *  leaves one log record). The scraper adds ZERO guard logic of its own. */
   readonly fetchUrl: ScopedEgress["fetchWebDocument"];
-  readonly getActiveEmbedSpace: (ownerId: UserId) => Promise<ActiveEmbedSpace | null>;
+  /** Resolving the live space can wake the owner's encoder, so the read takes the caller's signal. */
+  readonly getActiveEmbedSpace: (ownerId: UserId, signal: AbortSignal) => Promise<ActiveEmbedSpace | null>;
   readonly getDatabankSettings: GetDatabankSettingsOp;
   readonly enqueueIngest: EnqueueIngestOp;
   readonly enqueueReindex: EnqueueReindexOp;
@@ -205,7 +206,7 @@ export interface DatabankContext {
   /** The `search.documents` lens (DB6) — the ONE retrieval capability databank consumes for the chat GATHER
    *  (cluster boundary: databank never re-implements cosine). Scope resolves inside the lens via the resolver
    *  databank itself injected into search; here databank is the CONSUMER (chat → databank → search). */
-  readonly searchDocuments: SearchDocumentsOp;
+  readonly searchDocuments: SearchDocumentsOp<AbortSignal>;
 }
 
 export type DatabankAssemblyContext = DbAssemblyInput<DatabankContext>;
@@ -217,7 +218,7 @@ export interface DatabankService {
    *  extraction fails the upload atomically (nothing persisted — `extractedText` is NOT NULL canon). */
   readonly upload: (params: UploadDocumentParams) => Promise<UploadResult>;
   /** origin 'text' — no bytes, no extraction; straight to canon + enqueue ingest. */
-  readonly createFromText: CreateDocumentFromText;
+  readonly createFromText: CreateDocumentFromText<AbortSignal>;
   /** origin 'web' (DB7): fetch the page over the ANY_HOST safeFetch guard → html extraction → the §2 canon
    *  pipeline. A refused/failed fetch throws a leak-free `ScrapeFailedError` (BAD_REQUEST); never retried. */
   readonly scrapeWeb: (params: ScrapeWebParams) => Promise<UploadResult>;

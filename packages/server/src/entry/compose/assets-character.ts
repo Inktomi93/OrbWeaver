@@ -99,7 +99,7 @@ export interface AssetsCharacterComposeDeps {
   /** The per-FUNDER role-client binder (§8.5b) — the greeting studio spends the CALLER's own `summarize` row. */
   readonly roleClientsFor: GreetingCompletionDeps["roleClientsFor"];
   /** The keystone's late-bound materializeBackground holder (character + seeders reference it at request time). */
-  readonly materializeBackground: MaterializeBackgroundOp;
+  readonly materializeBackground: MaterializeBackgroundOp<AbortSignal>;
   /** LIVE effective per-image byte cap (the background materialize belt reads it per download). */
   readonly maxImageBytes: NonNullable<BackgroundStoreDeps["maxBytes"]>;
   /** LIVE effective image-variant quality (item 6) — folded into the variant cache key so a retune regenerates. */
@@ -135,7 +135,7 @@ export interface AssetsCharacterComposeResult {
   /** The per-user SCENE-PLATE seeder — boot + the first-authed-request hook run `ensureSeeded`; the card and
    *  card pack dresses through its `resolvePlate`. */
   readonly backgroundSeeder: DefaultBackgroundSeeder;
-  readonly materializeBackgroundOp: MaterializeBackgroundOp;
+  readonly materializeBackgroundOp: MaterializeBackgroundOp<AbortSignal>;
   /** Does `ownerId` own `characterId`? The same read `assetsCtx.assertCharacterOwned` gates the gallery add on. */
   readonly characterOwned: CharacterOwnedOp;
 }
@@ -194,7 +194,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     maxBytes: () => deps.maxImageBytes(),
   });
 
-  const statsWiring = createStatsBatchWiring(deps.idSource);
+  const statsWiring = createStatsBatchWiring(deps.idSource, deps.now);
   const character = createCharacterService({
     logger: deps.logger,
     db,

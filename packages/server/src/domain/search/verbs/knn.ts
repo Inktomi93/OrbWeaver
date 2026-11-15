@@ -16,7 +16,7 @@ import { requirePositiveTopN } from "../substrate/top-n.ts";
 
 export function createKnn(ctx: SearchContext): SearchService["knn"] {
   return async (params: KnnParams): Promise<SearchHit[]> => {
-    const { ownerId, query, topN } = params;
+    const { ownerId, query, topN, signal } = params;
     const rc = await ctx.roleClientsFor(ownerId);
     // The same two refusals `discover`/`digests` make, in the verb `findCharacters` delegates its whole
     // retrieval to. A blank query is not a scan with no results — the embedder is asked for a vector for
@@ -26,8 +26,8 @@ export function createKnn(ctx: SearchContext): SearchService["knn"] {
     }
     requirePositiveTopN(topN, "knn");
 
-    return await withActiveQuerySpace(ctx, ownerId, "embed", async (space) => {
-      const embedded = await space.connection.embed(query, { inputType: "query" });
+    return await withActiveQuerySpace(ctx, { ownerId, task: "embed", signal }, async (space) => {
+      const embedded = await space.connection.embed(query, { inputType: "query", signal });
       const queryVector = embedded.vectors[0];
       if (queryVector === null || queryVector === undefined) {
         throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
@@ -57,7 +57,10 @@ export function createKnn(ctx: SearchContext): SearchService["knn"] {
           ),
         );
 
-      const ordered = params.rerank === true ? await applyRerank(query, rerankPoolByScores(ranked, RERANK_POOL_FACTOR * topN), rc.rerank, topN) : ranked;
+      const ordered =
+        params.rerank === true
+          ? await applyRerank(query, rerankPoolByScores(ranked, RERANK_POOL_FACTOR * topN), (q, docs) => rc.rerank(q, docs, { signal }), topN)
+          : ranked;
 
       return ordered.slice(0, topN).map((c) => ({ characterId: c.characterId, score: c.score, relevance: relevanceOf(c.distance) }));
     });

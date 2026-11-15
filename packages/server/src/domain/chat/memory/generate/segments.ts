@@ -39,7 +39,7 @@ interface GenerateSegmentsArgs {
   /** Fallback vector owner when no explicit owner or pinned embedding space is supplied. */
   readonly funderUserId: UserId;
   readonly config?: MemoryConfig | null | undefined;
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
   readonly embedOwnerId?: UserId | undefined;
 }
 
@@ -82,7 +82,7 @@ export async function collectSegments(ctx: ChatContext, args: GenerateSegmentsAr
   const canon = await loadCanonThroughSeq(ctx.db, args.chatId, cutoff);
   const macroNames = await loadTranscriptNames(ctx.db, canon);
   const blocks = sliceBlocks(canon, cfg.blockSize);
-  const embedContextTokens = await ctx.embedContextTokens(embedSpace.ownerId);
+  const embedContextTokens = await ctx.embedContextTokens(embedSpace.ownerId, args.signal);
 
   const pending: StoreSegmentParams[] = [];
   const chunkCounts: { blockIdx: number; chunkCount: number }[] = [];
@@ -90,7 +90,7 @@ export async function collectSegments(ctx: ChatContext, args: GenerateSegmentsAr
   let skipped = 0;
   let skippedOverWindow = 0;
   for (const block of blocks) {
-    args.signal?.throwIfAborted();
+    args.signal.throwIfAborted();
     const chunks = chunkBlockForEmbedWindow(block.rows, macroNames, embedContextTokens);
     if (chunks === null) {
       // THE PATHOLOGICAL CEILING (the surviving skip arm). Not truncated, not partially stored: skipped WHOLE
@@ -152,7 +152,7 @@ export async function collectSegments(ctx: ChatContext, args: GenerateSegmentsAr
  * and writes the rows. Returns the pass counts. Callers with the whole corpus in hand (the backfill) pass
  * every chat's chunks at once; the live path passes one chat's.
  */
-export async function storeSegments(ctx: ChatContext, collected: CollectedSegments, signal?: AbortSignal): Promise<SegmentPassCounts> {
+export async function storeSegments(ctx: ChatContext, collected: CollectedSegments, signal: AbortSignal): Promise<SegmentPassCounts> {
   if (collected.pending.length > 0) {
     const receipts = await ctx.embeddingsStoreSegments(collected.pending, signal);
     if (receipts.length !== collected.pending.length) {

@@ -694,6 +694,17 @@ const PLAIN_TEXT_COLUMN_SYNTAX = [
   },
 ];
 
+// A row stamp comes from the injected clock: `stampColumn` (`packages/db/src/custom-types/index.ts`) makes the insert
+// state it. A wall-clock SQL expression in a schema file, inline or hoisted into a const, would stamp a row by SQLite time.
+const WALL_CLOCK_SQL = String.raw`/unixepoch|current_timestamp|current_time|current_date|datetime\(\s*'now'/i`;
+const STAMP_DEFAULT_SYNTAX = [
+  {
+    selector: `TemplateElement[value.raw=${WALL_CLOCK_SQL}], Literal[value=${WALL_CLOCK_SQL}]`,
+    message:
+      'A row stamp is stampColumn from "../custom-types/index.ts", which each insert states from the injected clock; a schema file spells no wall-clock SQL.',
+  },
+];
+
 // dependency-cruiser sees only literal import edges, so a computed specifier or a host loader reaches any db door
 // unseen (D335). `node:module` itself is a dependency-cruiser rule; these are the loaders no import names.
 const MODULE_LOADER_SYNTAX = [
@@ -712,40 +723,40 @@ const MODULE_LOADER_SYNTAX = [
   },
 ];
 
-// What a privilege role means is encoded once, in `@orb/contracts/identity` (`isHostRole`, `userRoleSatisfies`), the
-// file every reader shares, `can()` included (Spine-Identity-and-Auth.md invariant 6). These selectors refuse, in the
-// server and the client, a role literal (`host`, `member`, `owner`, `admin`) tested against an operand named for a role:
-// a `role`, `globalRole` or `viewerRole` field (optional chains too), a variable such as `derivedRole`, or a decoded
-// `participantRoleValue(...)`. The forms: an equality on either side, a `switch` case, an array literal's `includes` and an
-// `in` over an object literal. A message role (`user`, `assistant`) is not a privilege role and is not seen.
-const ROLE_LITERAL = "/^(host|member|owner|admin)$/";
-const ROLE_OPERAND = (side: string): string =>
-  [
-    `[${side}.property.name=/[rR]ole$/]`,
-    `[${side}.expression.property.name=/[rR]ole$/]`,
-    `[${side}.name=/[rR]ole$/]`,
-    `[${side}.callee.name=/[rR]oleValue$/]`,
-  ].join(", ");
-const ROLE_COMPARISON_MESSAGE =
-  "Test a privilege role through isHostRole or userRoleSatisfies from @orb/contracts/identity, the one encoding can() decides with (Spine-Identity-and-Auth.md invariant 6).";
-const ROLE_COMPARISON_SYNTAX = [
-  {
-    selector: `BinaryExpression[operator=/^[!=]==$/]:matches(${ROLE_OPERAND("left")}, ${ROLE_OPERAND("right")}):matches([left.value=${ROLE_LITERAL}], [right.value=${ROLE_LITERAL}])`,
-    message: ROLE_COMPARISON_MESSAGE,
-  },
-  {
-    selector: `SwitchStatement:matches(${ROLE_OPERAND("discriminant")}) > SwitchCase[test.value=${ROLE_LITERAL}]`,
-    message: ROLE_COMPARISON_MESSAGE,
-  },
-  {
-    selector: `CallExpression[callee.property.name='includes'][callee.object.type='ArrayExpression']:matches(${ROLE_OPERAND("arguments.0")}):matches([callee.object.elements.0.value=${ROLE_LITERAL}], [callee.object.elements.1.value=${ROLE_LITERAL}], [callee.object.elements.2.value=${ROLE_LITERAL}])`,
-    message: ROLE_COMPARISON_MESSAGE,
-  },
-  {
-    selector: `BinaryExpression[operator='in'][right.type='ObjectExpression']:matches(${ROLE_OPERAND("left")}):matches([right.properties.0.key.name=${ROLE_LITERAL}], [right.properties.0.key.value=${ROLE_LITERAL}])`,
-    message: ROLE_COMPARISON_MESSAGE,
-  },
-];
+// What a role means is encoded once, in the identity contracts (Spine-Identity-and-Auth.md invariant 6); every other
+// package source asks them through `orb/no-role-comparison`.
+const ROLE_MEANING_HOME = homes("packages/contracts/src/identity/index.ts");
+// The account role chip: its label, its tone and whether it shows beside the handle. That is a view field, the data
+// projection class of D121 clause (A)(2), and a client display read is never an authorization (D121 clause A).
+const ROLE_DISPLAY_HOME = homes("packages/client/src/components/user-role-status.ts");
+
+// An optional cancel is one a caller can drop without a word, and a dropped cancel never reaches the provider call or
+// the workload. A signal is required on every member and parameter; a caller with nothing above it creates one and
+// says why. The signal is `AbortSignal`, bare or as `globalThis.AbortSignal`, or the `Signal` type parameter the
+// isomorphic packages bind it through. Refused: an optional member or parameter, a union with `undefined` or `null`, a
+// defaulted parameter, a local alias (a field typed by it escapes every other arm), `Partial<>` over a bag that holds
+// a signal, and an optional inline bag that holds one. A bag behind a named type is out of a selector's reach.
+// The union arm reads direct members through the sibling combinator, so a nullable function type whose parameter is a
+// signal is not a finding.
+const ABORT_SIGNAL_NAME = ":matches([typeName.name='AbortSignal'], [typeName.right.name='AbortSignal'])";
+const SIGNAL_TYPE = "TSTypeReference:matches([typeName.name='AbortSignal'], [typeName.right.name='AbortSignal'], [typeName.name='Signal'])";
+const OPTIONAL_SLOT = ":matches(TSPropertySignature[optional=true], PropertyDefinition[optional=true], Identifier[optional=true]) > TSTypeAnnotation";
+const SIGNAL_MEMBER = "TSPropertySignature[key.name='signal']";
+const EMPTY_MEMBER = ":matches(TSUndefinedKeyword, TSNullKeyword)";
+const OPTIONAL_SIGNAL_SYNTAX = {
+  selector: [
+    `${OPTIONAL_SLOT} > ${SIGNAL_TYPE}`,
+    `TSUnionType > ${SIGNAL_TYPE} ~ ${EMPTY_MEMBER}`,
+    `TSUnionType > ${EMPTY_MEMBER} ~ ${SIGNAL_TYPE}`,
+    `AssignmentPattern > Identifier > TSTypeAnnotation > ${SIGNAL_TYPE}`,
+    `TSTypeAliasDeclaration > TSTypeReference.typeAnnotation${ABORT_SIGNAL_NAME}`,
+    `TSTypeReference[typeName.name='Partial'] ${SIGNAL_MEMBER}`,
+    `${OPTIONAL_SLOT} > TSTypeLiteral > ${SIGNAL_MEMBER}`,
+    `${OPTIONAL_SLOT} > TSIntersectionType > TSTypeLiteral > ${SIGNAL_MEMBER}`,
+  ].join(", "),
+  message:
+    "Require the AbortSignal: thread the caller's real signal, and where none exists above, create one with a comment that says why (docs/law/Spine-TypeScript-and-Patterns.md).",
+};
 
 const SERVER_BASE_SYNTAX = [
   {
@@ -753,7 +764,7 @@ const SERVER_BASE_SYNTAX = [
     message: "D61 B5a: the rejected third-party CORS proxy cannot be spelled in server or inference literals; use the guarded network owner directly.",
   },
   ...MODULE_LOADER_SYNTAX,
-  ...ROLE_COMPARISON_SYNTAX,
+  OPTIONAL_SIGNAL_SYNTAX,
 ];
 // A child process or Worker launched without `env` inherits the whole process environment, so a reserved agent-SDK
 // key or secret the boot scrub missed reaches it (D8's credential firewall). Every launch in server and inference
@@ -887,7 +898,7 @@ const TRACK_STAMP_SYNTAX = {
 // Flat config replaces rule options, so each authored override carries the invariant.
 const restrictedSyntax = (...restrictions: object[]): Linter.RuleEntry => ["error", INVISIBLE_CONTROL_SYNTAX, ...restrictions];
 
-const CLIENT_SYNTAX = [CLIENT_QUERY_KEY_SYNTAX, CLIENT_FORM_NAME_SYNTAX, EMPTY_ARIA_NAME_SYNTAX, RAW_FONT_SIZE_SYNTAX, CLOCK_SYNTAX, ...ROLE_COMPARISON_SYNTAX];
+const CLIENT_SYNTAX = [CLIENT_QUERY_KEY_SYNTAX, CLIENT_FORM_NAME_SYNTAX, EMPTY_ARIA_NAME_SYNTAX, RAW_FONT_SIZE_SYNTAX, CLOCK_SYNTAX];
 
 function rootSources(...refs: string[]): string[] {
   return refs.map((ref) => {
@@ -2002,6 +2013,8 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       rules: { "orb/trpc-output-declared-keys": "error" },
     },
     { files: ["packages/*/src/**/*.{ts,tsx}"], rules: { "orb/no-unsafe-cast": "error", "orb/narrowed-json-brand": "error" } },
+    // No exempt file: a room token minted or cast anywhere would vouch for a gate or a claim in every verb (D166).
+    { files: ["packages/*/src/**/*.{ts,tsx}"], rules: { "orb/room-token-mint": "error" } },
     { files: ["packages/server/src/**/*.{ts,tsx}"], rules: { "orb/viewer-visibility-parameter-checked": "error" } },
     { files: ["packages/*/src/**/*.{ts,tsx}"], rules: { "orb/wire-object-declares-mode": "error" } },
     { files: ["packages/client/src/**/*.{ts,tsx}"], rules: { "orb/mutation-vars-derived": "error", "orb/trpc-error-code-via-helper": "error" } },
@@ -2089,7 +2102,11 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     {
       files: ["packages/client/src/features/**/*.{ts,tsx}", "packages/client/src/components/**/*.{ts,tsx}"],
       // The composites themselves: each types the way out a raw dialog could lose.
-      ignores: homes("packages/client/src/components/content-dialog.tsx", "packages/client/src/components/form-dialog.tsx"),
+      ignores: homes(
+        "packages/client/src/components/commit-row.tsx",
+        "packages/client/src/components/content-dialog.tsx",
+        "packages/client/src/components/form-dialog.tsx",
+      ),
       rules: { "orb/dialog-via-composite": "error" },
     },
     {
@@ -2335,6 +2352,11 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       rules: { "orb/closed-vocabulary": "error" },
     },
     {
+      files: ["packages/*/src/**/*.{ts,tsx}"],
+      ignores: [...ROLE_MEANING_HOME, ...ROLE_DISPLAY_HOME],
+      rules: { "orb/no-role-comparison": "error" },
+    },
+    {
       files: AUTHORED_SRC,
       rules: { "orb/no-raw-id": "error", "orb/no-inline-union-alias": "error" },
     },
@@ -2451,16 +2473,20 @@ export default [
   { files: SERVER_CLOCK_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SOURCE_SYNTAX, SERVER_STREAM_SYNTAX) } },
   { files: STREAM_ROUTER_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SOURCE_SYNTAX, CLOCK_SYNTAX) } },
   { files: rootSources("@db"), rules: { "no-restricted-syntax": restrictedSyntax(...MODULE_LOADER_SYNTAX, CLOCK_SYNTAX) } },
-  { files: DB_SCHEMA_SOURCES, rules: { "no-restricted-syntax": restrictedSyntax(...MODULE_LOADER_SYNTAX, CLOCK_SYNTAX, ...PLAIN_TEXT_COLUMN_SYNTAX) } },
+  {
+    files: DB_SCHEMA_SOURCES,
+    rules: { "no-restricted-syntax": restrictedSyntax(...MODULE_LOADER_SYNTAX, CLOCK_SYNTAX, ...PLAIN_TEXT_COLUMN_SYNTAX, ...STAMP_DEFAULT_SYNTAX) },
+  },
   {
     files: rootSources("@kit", "@default-content", "@showcase", "@plugin-toolchain"),
     ignores: KIT_CLOCK_HOME,
-    rules: { "no-restricted-syntax": restrictedSyntax(CLOCK_SYNTAX) },
+    rules: { "no-restricted-syntax": restrictedSyntax(CLOCK_SYNTAX, OPTIONAL_SIGNAL_SYNTAX) },
   },
+  { files: KIT_CLOCK_HOME, rules: { "no-restricted-syntax": restrictedSyntax(OPTIONAL_SIGNAL_SYNTAX) } },
   {
     files: rootSources("@contracts"),
     rules: {
-      "no-restricted-syntax": restrictedSyntax(CLOCK_SYNTAX, {
+      "no-restricted-syntax": restrictedSyntax(CLOCK_SYNTAX, OPTIONAL_SIGNAL_SYNTAX, {
         selector:
           "Property:matches([key.name=/^(url|uri|email|baseUrl|sourceUrl|provenanceUrl)$/], [key.value=/^(url|uri|email|baseUrl|sourceUrl|provenanceUrl)$/]) CallExpression[callee.object.name='z'][callee.property.name='string']",
         message: "Use a Zod format for an address. Use its owning text schema for preserved metadata or diagnostic text.",
@@ -2612,9 +2638,10 @@ export default [
     files: ["tests/**/*.{ts,tsx}"],
     plugins: { orb: localPlugin },
     rules: {
-      "orb/ct-negative-only-case": ["error", { absence: false }],
+      "orb/ct-negative-only-case": ["error", { absence: false, literal: true }],
       "orb/no-bare-throw-assertion": "error",
       "orb/no-filtered-case-table": "error",
+      "orb/no-subject-derived-expected": "error",
       "orb/no-tail-recorder-read": "error",
       "orb/owned-root-alias": "error",
     },
@@ -2622,7 +2649,7 @@ export default [
   {
     files: ["tests/**/*.ct.tsx", "tests/e2e/**/*.spec.ts"],
     plugins: { orb: localPlugin },
-    rules: { "orb/ct-negative-only-case": ["error", { absence: true }] },
+    rules: { "orb/ct-negative-only-case": ["error", { absence: true, literal: true }] },
   },
   {
     // Spine-Testing §9 governs product tests; a tooling suite's literal is its tool's input.
@@ -2737,6 +2764,7 @@ export default [
         LOAD_EMULATION_CAST_RESTRICTION,
         ...OWNED_DB_RESTRICTIONS,
         ...EMPTY_POPULATION_RESTRICTIONS,
+        ...TEST_DETERMINISM_SYNTAX,
       ),
     },
   },

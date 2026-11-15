@@ -11,7 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary } from "#components";
+import { ContextTabBody, QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import type { CorpusDestination } from "#lib";
@@ -58,13 +58,15 @@ const K_ITEMS: SelectItems = [
 
 export function CorpusArchetypesTab(): ReactElement {
   return (
-    <QueryBoundary
-      resetKeys={[]}
-      fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label={CORPUS_READ_LABELS.archetypes} onRetry={retry} />}
-    >
-      <ArchetypesBody />
-    </QueryBoundary>
+    <ContextTabBody>
+      <QueryBoundary
+        resetKeys={[]}
+        fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label={CORPUS_READ_LABELS.archetypes} onRetry={retry} />}
+      >
+        <ArchetypesBody />
+      </QueryBoundary>
+    </ContextTabBody>
   );
 }
 
@@ -277,7 +279,7 @@ function ClusterCard({ cluster, name }: { readonly cluster: ArchetypeCard; reado
               A `wrap`-sized ghost Button per name, not a link list: the same control the gem shelf and
               quick-picks use for "a grid cell whose subject is a character", so the hover/focus/press
               vocabulary is the one this section already teaches. */}
-          <Row className="min-inline-0" floor="field" wrap={true} grow={true} gap="tight">
+          <Row minWidth="shrinks" floor="field" wrap={true} grow={true} gap="tight">
             {cluster.members.slice(0, CLUSTER_PREVIEW_MEMBERS).map((member) => (
               <Button variant="ghost" key={member.characterId} onClick={(): void => selectCorpusCharacter(member.characterId)} size="sm" wrap={true}>
                 <Text as="span" ink="muted" voice="label">

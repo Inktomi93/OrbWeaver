@@ -43,6 +43,7 @@ test.for(["/srv/orb", "./elsewhere"])("DATA_DIR %s re-roots every derived slot a
 
 test("an empty DATA_DIR counts as unset", () => {
   expect(resolveDataLayout({ ["DATA_DIR"]: "" })).toEqual(resolveDataLayout({}));
+  expect(resolveDataLayout({ ["DATA_DIR"]: "" }).root).toBe(DEFAULT_DATA_DIR);
 });
 
 // Every input key has a row, so a key added to the resolver's input fails tsc here until a case names how it behaves.

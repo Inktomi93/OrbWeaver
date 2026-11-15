@@ -265,7 +265,7 @@ export function StatusLine({ status, subject, edit }: { readonly status: string;
     // THE ROW CARRIES THE COARSE TOUCH FLOOR, not the value (the fragment's own header states why): a
     // text-height value's touch pseudo overflows into whatever is stacked near it, such as the `+ condition`
     // control one row down. Floored, each row's pseudo fits inside its own band.
-    <Row gap="field" align="center" touchFloor="block" className="min-inline-0">
+    <Row gap="field" align="center" touchFloor="block" minWidth="shrinks">
       <TrackerValue
         ariaLabel={trackerFieldName(RPG_STATUS_LINE_LABEL, subject)}
         display={status}

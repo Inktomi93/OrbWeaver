@@ -17,7 +17,7 @@ test("a curated null clears the tools block for the model it names and no other"
       model,
       declared: { kind: "generation", features: { detectServer: false } },
     });
-    const { resolved } = await root.services.connection.resolve({ principal, task: "chat", connectionId: row.id });
+    const { resolved } = await root.services.connection.resolve({ signal: new AbortController().signal, principal, task: "chat", connectionId: row.id });
     if (resolved.capability.kind !== "generation") {
       throw new Error("the connection resolved no generation capability");
     }

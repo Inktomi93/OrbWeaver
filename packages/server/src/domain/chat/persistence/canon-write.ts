@@ -17,6 +17,7 @@ import type {
   MessageAssetOrigin,
   MessageKind,
   MessageView,
+  RoomClaim,
   TokenProvenance,
   ToolCallRecord,
   TurnInitiator,
@@ -48,12 +49,13 @@ export function isRetainedParentFenceViolation(error: unknown): boolean {
   return violation?.kind === "not-null" && violation.statementIndex === 0;
 }
 
-/** First write: an admitted existing chat id survives unchanged; a declined selection rolls the batch back. */
-export function retainedChatFenceStatement(db: Db, selection: SQL): BatchStmt {
+/** First write: an admitted existing chat id survives unchanged; a declined selection rolls the batch back. The
+ *  stamps are the insert's required values only: the conflict arm keeps the existing row, so they are never stored. */
+export function retainedChatFenceStatement(db: Db, selection: SQL, now: number): BatchStmt {
   return batchStmt(
     db
       .insert(chats)
-      .values({ id: sql`(${selection})` })
+      .values({ id: sql`(${selection})`, createdAt: now, updatedAt: now })
       .onConflictDoUpdate({ target: chats.id, set: { id: sql`excluded.id` } }),
   );
 }
@@ -477,10 +479,10 @@ const MAX_CANON_APPEND_ATTEMPTS = 8;
  */
 export async function commitCanonAppend<T>(
   db: Db,
-  chatId: ChatId,
+  claim: RoomClaim,
   build: (seq: number) => { readonly statements: readonly BatchStmt[]; readonly result: T },
 ): Promise<T> {
-  return await retryLostCanonHead(db, chatId, async (seq) => {
+  return await retryLostCanonHead(db, claim, async (seq) => {
     const { statements, result } = build(seq);
     await db.batch(batchMany(statements));
     return result;
@@ -491,9 +493,11 @@ export async function commitCanonAppend<T>(
  * The head-allocation retry itself, for an append whose commit carries more than a plain batch (the retained-canon
  * stats fence). `attempt` is called with the allocated seq and must build its statements and ids afresh; it is
  * re-called only when it fails on a UNIQUE violation the canon head explains (a sibling took this seq). Any other
- * failure, including a UNIQUE violation the head does NOT explain, propagates, so a caller bug stays loud.
+ * failure, including a UNIQUE violation the head does NOT explain, propagates, so a caller bug stays loud. Both append
+ * doors take the room's claim, because an append is canon the claim's stats replay must not already have counted.
  */
-export async function retryLostCanonHead<T>(db: Db, chatId: ChatId, attempt: (seq: number) => Promise<T>): Promise<T> {
+export async function retryLostCanonHead<T>(db: Db, claim: RoomClaim, attempt: (seq: number) => Promise<T>): Promise<T> {
+  const { chatId } = claim;
   for (let tries = 0; tries < MAX_CANON_APPEND_ATTEMPTS; tries += 1) {
     const seq = (await loadMaxMessageSeq(db, chatId)) + 1;
     try {
@@ -682,9 +686,10 @@ export function prepareContinueRestore(
     readonly role: ParticipantRole;
     readonly snapshot: ContinueSnapshot;
     readonly restored: Parameters<typeof setVariantContentStatement>[2];
+    readonly now: number;
   },
 ): ContinueRestorePlan {
-  const { chatId, messageId, userId, role, snapshot, restored } = args;
+  const { chatId, messageId, userId, role, snapshot, restored, now } = args;
   const selection = sql`select ${messages.chatId} from ${messages}
     inner join ${messageVariants} on ${messageVariants.id} = ${messages.selectedVariantId}
     where ${messages.chatId} = ${chatId} and ${messages.id} = ${messageId}
@@ -700,7 +705,7 @@ export function prepareContinueRestore(
           and ${chatParticipants.leftSeq} is null and ${chatParticipants.role} = ${role})`;
   return {
     selection,
-    statements: [retainedChatFenceStatement(db, selection), setVariantContentStatement(db, snapshot.variantId, restored)],
+    statements: [retainedChatFenceStatement(db, selection, now), setVariantContentStatement(db, snapshot.variantId, restored)],
   };
 }
 

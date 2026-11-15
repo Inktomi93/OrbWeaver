@@ -89,7 +89,9 @@ function recording(): CoreWireReply {
 beforeAll(async (): Promise<() => Promise<void>> => {
   await using construction = new AsyncDisposableStack();
   const h = construction.use(await coreDispatchRoom((request) => nextReply()(request), { server: { pluginSpawn: spawn } }));
-  const bound = (await h.root.services.connection.listBindings({ principal: h.owner })).find(({ task }) => task === "chat")?.binding?.connectionId;
+  const bound = (await h.root.services.connection.listBindings({ signal: new AbortController().signal, principal: h.owner })).find(
+    ({ task }) => task === "chat",
+  )?.binding?.connectionId;
   if (bound === undefined || bound === null) {
     throw new Error("the core room has no actual chat binding");
   }

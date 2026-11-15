@@ -34,6 +34,7 @@ async function send(
   await using root = await createRuntimeRoot({ providerFetch: server.execute });
   const connection = await wireConnection(root, { ...row, task: "chat", providerId: row.providerId ?? "custom-openai", model: row.model ?? "shaping-model" });
   const turn = await root.app.runtime.executor.runChatTurn({
+    signal: new AbortController().signal,
     api: "chat-completions",
     connection,
     params: options.params ?? {},

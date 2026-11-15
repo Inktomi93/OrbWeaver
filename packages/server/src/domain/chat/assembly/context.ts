@@ -29,7 +29,6 @@ import type { CharacterId, ChatId, PersonaId, UserId, WorldEntryId } from "@orb/
 import type { MacroContext, MacroFreeze, MacroRegistry, RandomSource } from "@orb/kit/macro";
 import { globalMacroRegistry } from "@orb/kit/macro";
 import type { RegexScriptInput } from "@orb/kit/regex";
-import { executeRegexScripts } from "@orb/kit/regex";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { EntryPosition, MatchEntryKeysOptions, TestKeyRegex } from "@orb/kit/world-info";
 import { buildKeywordHaystack, matchEntryKeys } from "@orb/kit/world-info";
@@ -37,7 +36,7 @@ import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { MacroRenderEnv, TurnMacroContextArgs } from "../contract/assembly-macros.ts";
 import type { ChatContext } from "../contract/context.ts";
-import type { ApplyRegexReplaceOp } from "../contract/engine-context.ts";
+import type { RegexPassOp } from "../contract/engine-context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { ResolvedPersonas } from "../contract/foreign.ts";
 import { BEFORE_HISTORY_DEPTH, renderInjection } from "./injections.ts";
@@ -138,8 +137,8 @@ function wrapWiFormat(content: string, wiFormat: string, ctx: AssembleContext, r
 interface WiConversionArgs {
   readonly logger: Logger;
   readonly regexScripts: readonly RegexScriptInput[];
-  /** The injected node:vm ReDoS watchdog (D53) — the WORLD_INFO regex pass runs its `text.replace` under it. */
-  readonly applyReplace: ApplyRegexReplaceOp;
+  /** The WORLD_INFO leg's watchdog pass (D53): every fired entry runs its scripts under it and shares its budget. */
+  readonly regexPass: RegexPassOp;
   /** The injected node:vm ReDoS watchdog for a `use_regex` entry's key `.test` — a catastrophic
    *  user-authored key is interrupted instead of hanging the keyword scan. */
   readonly testRegexKey: TestKeyRegex;
@@ -260,12 +259,11 @@ function classifyWiEntry(entry: AssembleWorldEntry, env: WiConvEnv): InjectionCa
     recordKeyHits(entry, hits, env);
   }
   const resolved = renderMacros(entry.content, env.ctx, macroPersonaOf(entry, env.ctx), env.render);
-  const afterRegex = executeRegexScripts({
+  const afterRegex = env.args.regexPass.execute({
     text: resolved,
     scripts: env.args.regexScripts,
     placement: "WORLD_INFO",
     ctx: env.regexCtx,
-    applyReplace: env.args.applyReplace,
     onScriptFailure: onHostRegexFailure("WORLD_INFO", env.args.logger),
   });
   // Guard against wrapping an empty entry into a dangling scaffold under a custom wiFormat template.
@@ -865,12 +863,11 @@ async function runSendAuthorTransforms(
       onWarn: onMacroWarn(ctx.logger),
       registry: input.macroRegistry,
     });
-    text = executeRegexScripts({
+    text = ctx.openRegexPass().execute({
       text,
       scripts: hostScripts,
       placement: "USER_INPUT",
       ctx: sendMacroCtx,
-      applyReplace: ctx.applyRegexReplace,
       onScriptFailure: onHostRegexFailure("USER_INPUT", ctx.logger),
     });
   }
@@ -961,7 +958,7 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
       // in the settings' default placement set, so those silently never fired. `assemble-gather` folds the
       // preset scripts INTO the union, so this is a strict widening on every real turn.
       regexScripts: hostScripts,
-      applyReplace: ctx.applyRegexReplace,
+      regexPass: ctx.openRegexPass(),
       testRegexKey: ctx.testRegexKey,
       wiFormat,
       recentMessages: input.recentMessages,

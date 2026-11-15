@@ -119,16 +119,16 @@ const TREE = {
   [`${S}/domain/stats/contract/ops.ts`]:
     'import type { CharacterService } from "#domain/character";\nexport interface StatsDeps {\n  readonly character: CharacterService;\n}',
 
-  // The tool registry: definition data moves, the handler signature and the resolved set stay.
+  // The tool registry: definition data moves, the resolved set stays.
   [`${S}/domain/tool-use/contract/params.ts`]: [
     'export type ToolSource = "builtin" | "plugin";',
-    "export interface ToolExecutionContext {\n  readonly principal: string;\n  readonly signal?: AbortSignal;\n}",
-    "export type ToolHandler<A> = (args: A, exec: ToolExecutionContext) => Promise<string>;",
+    "export interface ResolvedToolSet {\n  readonly names: readonly string[];\n}",
     "export interface ToolDefinition<A = unknown> {",
     "  readonly name: string;",
     "  readonly description: string;",
     "  readonly source: ToolSource;",
-    "  readonly handler: ToolHandler<A>;",
+    "  readonly args: A;",
+    "  readonly reach: ResolvedToolSet;",
     "}",
   ].join("\n"),
   [`${S}/domain/tool-use/index.ts`]: 'export type { ToolDefinition } from "./contract/params.ts";',
@@ -214,7 +214,7 @@ test("a consumer plans only the ops it calls, never the whole service", { timeou
   expect(tools.map(seen)).toEqual([
     { kind: "split", form: "import", members: ["ToolDefinition"], type: null, cluster: "tool-use:ToolDefinition", clusterGroup: "tool-registry" },
   ]);
-  expect(tools[0]?.note).toContain("data to contracts: ToolSource; stays by ruling: ToolHandler");
+  expect(tools[0]?.note).toContain("data to contracts: ToolSource; stays by ruling: ResolvedToolSet");
 });
 
 test("a chain owned by a contracts alias derives from that alias in every domain", { timeout: 120_000 }, async ({ plantedTree }) => {

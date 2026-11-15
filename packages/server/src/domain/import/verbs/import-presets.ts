@@ -7,6 +7,8 @@
 // what makes a re-run of a whole-profile import a clean no-op. Restating either here would be the banned parallel
 // path — the same reason the chat wave delegates to `bulkImportChats` rather than touching @orb/db.
 
+import { clipImportText } from "@orb/contracts/import";
+import type { ImportCardScriptsResult } from "@orb/contracts/regex";
 import type { Cancellation } from "@orb/kit/guards";
 import type { PresetId } from "@orb/kit/ids";
 import type { CollectedPreset } from "../contract/collection.ts";
@@ -20,19 +22,28 @@ import { presetBytes } from "../substrate/landing-bytes.ts";
 function noteFor(
   p: CollectedPreset,
   landed: { readonly name: string; readonly renamedFrom: string | null },
-  scripts: { readonly created: number; readonly reused: number },
+  scripts: ImportCardScriptsResult,
 ): ImportPresetNote {
   return {
     name: landed.name,
     renamedFrom: landed.renamedFrom,
     sourceFile: p.sourceFile,
-    fields: p.parsed.unmapped,
+    // A script refused at the write door is named in the preset's own note, beside the fields that did not map.
+    fields: [
+      ...p.parsed.unmapped,
+      ...scripts.refused.map((refusal) => ({
+        field: SCRIPTS_FIELD,
+        reason: `script ${JSON.stringify(clipImportText(refusal.name))} not imported: ${refusal.reason}`,
+      })),
+    ],
     scriptsLifted: scripts.created,
     scriptsReused: scripts.reused,
   };
 }
 
-const NO_SCRIPTS = { created: 0, reused: 0 } as const;
+const NO_SCRIPTS: ImportCardScriptsResult = { created: 0, reused: 0, refused: [] };
+// Where a preset carries its scripts on the SillyTavern wire, which is where its note names a refused one.
+const SCRIPTS_FIELD = "extensions.regex_scripts";
 
 /** Lift one imported preset's OWN regex scripts (ST presetManager extension field), attached to exactly the
  *  row the import op wrote. An unwired lift op or an outcome missing its row id is a RECORDED skip
@@ -43,7 +54,7 @@ async function liftPresetScripts(args: {
   readonly p: CollectedPreset;
   readonly presetId: PresetId | undefined;
   readonly skippedPresets: ImportSkippedCard[];
-}): Promise<{ readonly created: number; readonly reused: number }> {
+}): Promise<ImportCardScriptsResult> {
   const { ctx, p, presetId, skippedPresets } = args;
   const profile = requireProfile(ctx);
   if (p.parsed.regexScripts.length === 0) {

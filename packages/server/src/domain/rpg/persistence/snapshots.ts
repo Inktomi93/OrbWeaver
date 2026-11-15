@@ -39,6 +39,7 @@
 // resolution, distinct from the membership auth chokepoint (that rides the injected `chat.getMembership` op,
 // W1b). No `now` ambient clock: every write takes `target.now` injected (determinism, §6.2).
 
+import type { RoomClaim } from "@orb/contracts/chat";
 import type { RpgSnapshotState } from "@orb/contracts/rpg";
 import {
   RPG_SNAPSHOT_KIND,
@@ -580,10 +581,11 @@ export async function writeStagedSnapshotAndJournal(
  *  NOTHING is posted to the message plane — that is the whole point of the arm. */
 export async function writeHandSnapshot(
   db: Db,
-  state: RpgSnapshotState,
-  fieldLocks: RpgSnapshotState["fieldLocks"],
+  _claim: RoomClaim,
+  image: { readonly state: RpgSnapshotState; readonly fieldLocks: RpgSnapshotState["fieldLocks"] },
   target: HandSnapshotTarget,
 ): Promise<RpgSnapshotRow> {
+  const { state, fieldLocks } = image;
   const asOfMessageId = await findTailMessageId(db, target.chatId);
   return insertSnapshot(db, snapshotInsertFrom(state, { fieldLocks, committed: COMMITTED, arm: handArmKeys(asOfMessageId) }, target));
 }
@@ -596,12 +598,12 @@ export async function writeHandSnapshot(
  *  Rides the same write-boundary backstop as `writeStagedSnapshotAndJournal`: validate the state against the full
  *  contract schema BEFORE the durable insert, so a resync can never poison a row (errors-as-data — the verb
  *  drops on `{ok:false}`). */
-export async function writeResyncedSnapshot(db: Db, state: RpgSnapshotState, target: HandSnapshotTarget): Promise<WriteStagedSnapshotResult> {
+export async function writeResyncedSnapshot(db: Db, claim: RoomClaim, state: RpgSnapshotState, target: HandSnapshotTarget): Promise<WriteStagedSnapshotResult> {
   const parsed = rpgSnapshotStateSchema.safeParse(state);
   if (!parsed.success) {
     return { ok: false, reason: parsed.error.message };
   }
-  const row = await writeHandSnapshot(db, state, state.fieldLocks, target);
+  const row = await writeHandSnapshot(db, claim, { state, fieldLocks: state.fieldLocks }, target);
   return { ok: true, row };
 }
 
@@ -680,6 +682,7 @@ export async function findLastAssistantSelectedVariant(db: Db, chatId: ChatId, u
  *  variant. Homed here (the snapshot query surface) so W1b's verb composes it, never re-issues the update. */
 export async function updateSnapshotState(
   db: Db,
+  _claim: RoomClaim,
   variantId: MessageVariantId,
   patch: Partial<
     Pick<

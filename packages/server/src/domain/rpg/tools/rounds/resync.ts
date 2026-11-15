@@ -83,6 +83,7 @@ async function resyncViaToolRound(
     readonly baseState: RpgSnapshotState;
     readonly inputs: PromptInputs;
     readonly userPrompt: string;
+    readonly signal: AbortSignal;
   },
 ): Promise<ResyncRoundResult> {
   const { chatId, conn, inputs, userPrompt } = args;
@@ -107,6 +108,7 @@ async function resyncViaToolRound(
         systemPrompt: toolRoundSystem(inputs),
         history: [{ role: "user", content: [{ type: "text", text: userPrompt }] }],
         tools,
+        signal: args.signal,
       }),
     );
     logToolRoundUsage({ logger: deps.logger, chatId, api: conn.api, pass: "resync", result });
@@ -150,11 +152,18 @@ async function resyncViaStructuredRound(
     readonly userPrompt: string;
     readonly round: StructuredRound;
     readonly priorCalls: readonly RpgToolCall[];
+    readonly signal: AbortSignal;
   },
 ): Promise<ResyncRoundResult> {
   const { chatId, conn, round } = args;
-  // A HOST DOOR has no cancellation to inherit (see `resyncViaStructured`).
-  const result = await requestStructuredCalls(deps, { conn, chatId, signal: undefined, userPrompt: args.userPrompt, round, events: RESYNC_EVENTS });
+  const result = await requestStructuredCalls(deps, {
+    conn,
+    chatId,
+    signal: args.signal,
+    userPrompt: args.userPrompt,
+    round,
+    events: RESYNC_EVENTS,
+  });
   if (result.kind !== "calls") {
     return { ok: false, reason: `${RESYNC_FAILED_REASON} ${result.kind === "failed" ? errorMessage(result.err) : ""}`.trimEnd() };
   }
@@ -231,7 +240,7 @@ async function fitResyncPrompt(
  *  (capability-absent ⇒ a legible refusal), runs the establish-EVERYTHING extraction over the deep window. */
 export function buildRunResyncExtraction(input: RpgRoundsAssemblyDeps): RpgContext["runResyncExtraction"] {
   const deps = createRpgRoundsContext(input);
-  return async ({ chatId, hostUserId, baseState }) => {
+  return async ({ chatId, hostUserId, baseState, signal }) => {
     // Resolve the ROOM connection AS THE HOST — fresh, at the verb (the `resolveStateDelivery` host-resolve
     // precedent). The host principal is minted from the room-host userId the VERB resolved by role, never a
     // caller-supplied id (the injected-op caller-gate class). A misconfigured/incoherent backend REFUSES the
@@ -240,7 +249,7 @@ export function buildRunResyncExtraction(input: RpgRoundsAssemblyDeps): RpgConte
     const host = await deps.resolveHostPrincipal(hostUserId);
     let conn: Resolved<"chat">;
     try {
-      conn = await roomWindowed(deps, chatId, (await deps.connection.resolve({ task: "chat", principal: host })).resolved as Resolved<"chat">);
+      conn = await roomWindowed(deps, chatId, (await deps.connection.resolve({ task: "chat", principal: host, signal })).resolved as Resolved<"chat">);
     } catch (err) {
       if (isResolveRefusal(err)) {
         deps.logger.warn({ event: "rpg.resync.unresolvable", chatId }, "rpg resync: the host's chat connection did not resolve — no rebuild");
@@ -273,7 +282,7 @@ export function buildRunResyncExtraction(input: RpgRoundsAssemblyDeps): RpgConte
       return fitted;
     }
     const userPrompt = fitted.userPrompt;
-    const args = { chatId, conn, baseState, inputs, userPrompt };
+    const args = { chatId, conn, baseState, inputs, userPrompt, signal };
     const observed = withGenerationObservation(deps, {
       chatId,
       turnId: deps.idSource.typeId(ID_PREFIX.chatTurn),
@@ -294,6 +303,7 @@ async function resyncViaStructured(
     readonly baseState: RpgSnapshotState;
     readonly inputs: PromptInputs;
     readonly userPrompt: string;
+    readonly signal: AbortSignal;
   },
 ): Promise<{ readonly ok: true; readonly delta: RpgStateDelta } | { readonly ok: false; readonly reason: string }> {
   const { chatId, conn, baseState, inputs, userPrompt } = args;
@@ -304,9 +314,7 @@ async function resyncViaStructured(
     systemPrompt: extractionSystem(inputs),
     userPrompt,
     schema: constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refs),
-    // A HOST DOOR has no cancellation to inherit: it is verb-initiated, and the tRPC request's signal is not
-    // threaded down to verbs on this tree. Stated, not defaulted — a future arm must answer the question.
-    signal: undefined,
+    signal: args.signal,
   };
   let text: string;
   try {

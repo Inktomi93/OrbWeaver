@@ -4,7 +4,7 @@ import type { GeneratePictureOp } from "../contract/context.ts";
 /** Chat's `generatePicture` op over imagery's orchestrator: forwards the request and maps imagery's
  * `GeneratedPicture` onto chat's chat-local structural result (chat cannot import imagery's types). */
 
-export function createGeneratePictureOp(generatePicture: GeneratePicture): GeneratePictureOp {
+export function createGeneratePictureOp(generatePicture: GeneratePicture<AbortSignal>): GeneratePictureOp {
   return async (p): ReturnType<GeneratePictureOp> => {
     const picture = await generatePicture({
       caller: p.caller,
@@ -17,6 +17,7 @@ export function createGeneratePictureOp(generatePicture: GeneratePicture): Gener
       ...(p.negative !== undefined ? { negative: p.negative } : {}),
       ...(p.gallery !== undefined ? { gallery: p.gallery } : {}),
       ...(p.timeZone !== undefined ? { timeZone: p.timeZone } : {}),
+      signal: p.signal,
     });
     return {
       images: picture.images.map((img) => ({ assetId: img.assetId })),

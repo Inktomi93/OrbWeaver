@@ -85,7 +85,8 @@ async function requestGitHttp(request: GitHttpRequest, fetchImpl: ScopedEgress["
     method,
     ...(request.headers === undefined ? {} : { headers: request.headers }),
     ...(body === undefined ? {} : { body }),
-    ...(request.signal === undefined ? {} : { signal: request.signal }),
+    // isomorphic-git forwards a signal only when its caller set one; the fetch keeps its own deadline.
+    signal: request.signal ?? new AbortController().signal,
     maxBytes: GIT_HTTP_MAX_BYTES,
   });
   const bytes = await response.bytes();

@@ -4,5 +4,5 @@ import type { EmbeddingsContext } from "./service.ts";
 
 export type LiveEmbedSpace = Pick<MemoryEmbedSpace, "model">;
 export interface LiveEmbedSpaceDeps {
-  readonly roleClientsFor: (...args: Parameters<EmbeddingsContext["roleClientsFor"]>) => Promise<Pick<RoleClients, "resolved">>;
+  readonly roleClientsFor: (...args: Parameters<EmbeddingsContext["roleClientsFor"]>) => Promise<Pick<RoleClients<AbortSignal>, "resolved">>;
 }

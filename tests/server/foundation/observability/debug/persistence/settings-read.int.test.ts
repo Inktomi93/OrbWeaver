@@ -66,7 +66,12 @@ test("the settings probe preserves key order and stored values while rejecting a
       systemPrompt: "Stored private prompt",
     }),
   });
-  await root.services.character.update({ principal: owner, characterId: created.view.id, input: { trustHtml: false, interactiveHtml: false } });
+  await root.services.character.update({
+    signal: new AbortController().signal,
+    principal: owner,
+    characterId: created.view.id,
+    input: { trustHtml: false, interactiveHtml: false },
+  });
   const character = await root.db.select().from(characters).where(eq(characters.id, created.view.id)).get();
   if (character === undefined) {
     throw new Error("the production character update left no canonical row");

@@ -104,7 +104,7 @@ export function ChatHeaderSurface({ chatId }: ChatHeaderSurfaceProps): ReactElem
 
   if (!resolved) {
     return (
-      <Row gap="row" align="center" aria-busy={true} className="shell-chat-header-lead min-inline-0" grow="fill">
+      <Row gap="row" align="center" aria-busy={true} className="shell-chat-header-lead" minWidth="shrinks" grow="fill">
         {/* The identity's own footprint, capped on the container scale (never a raw width): it grows with
             the lead and stops where a title would. */}
         <Skeleton cap="paneSm" width="full" height="control" data-slot="chat-header-pending" />
@@ -113,10 +113,10 @@ export function ChatHeaderSurface({ chatId }: ChatHeaderSurfaceProps): ReactElem
   }
 
   return (
-    <Row gap="row" align="center" className="min-inline-0">
+    <Row gap="row" align="center" minWidth="shrinks">
       {/* The identity lead (avatars + title) steps aside on a phone, where the screen title names the room and
           only the chips stay. */}
-      <Row gap="row" align="center" className="shell-chat-header-lead min-inline-0">
+      <Row gap="row" align="center" className="shell-chat-header-lead" minWidth="shrinks">
         <CharacterAvatars characters={characters} />
         <ChatHeaderTitle chatId={chatId} label={participantsLabel} roomName={roomName} createdAt={createdAt} canRename={viewerIsHost} />
       </Row>

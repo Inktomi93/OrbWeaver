@@ -74,6 +74,7 @@ export interface ResolveEffectiveParams {
   readonly id: PresetId;
   /** Which of the caller's connections to project against; absent ⇒ the chat role. */
   readonly target?: CapabilityTarget | undefined;
+  readonly signal: AbortSignal;
 }
 
 /** Read one readable preset's BACKWARD bindings. Carries the whole `Principal` for the same reason

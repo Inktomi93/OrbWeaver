@@ -351,7 +351,7 @@ async function selectKeys(
     return { keys: bridge, queryEmbedded: false, queryText: null, candidateCount: bridge.length, scored: null };
   }
   const query = buildRecallQuery(cfg, scope, args.recent ?? [], args.names ?? new Map<CharacterId, string>());
-  const { hits, indexUnavailable } = await retrieve(ctx, { ...query, candidates: bridge }, args.warningEpisode);
+  const { hits, indexUnavailable } = await retrieve(ctx, { ...query, candidates: bridge, signal: args.signal }, args.warningEpisode);
   if (indexUnavailable) {
     return {
       keys: [],

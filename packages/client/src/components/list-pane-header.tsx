@@ -145,7 +145,7 @@ export function ListPaneHeader({ title, accent, count, back, actions }: ListPane
           {accent === undefined ? (
             <PaneTitleText accent={accent} title={title} />
           ) : (
-            <TitleReveal control={<InlineAction className="min-inline-0" step="label" type="button" />} whole={`${title} · ${accent}`}>
+            <TitleReveal control={<InlineAction minWidth="shrinks" step="label" type="button" />} whole={`${title} · ${accent}`}>
               <PaneTitleText accent={accent} title={title} />
             </TitleReveal>
           )}
