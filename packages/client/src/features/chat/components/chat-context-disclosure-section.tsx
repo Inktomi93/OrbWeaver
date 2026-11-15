@@ -18,7 +18,7 @@ interface DisclosureSectionProps {
   /** Expanded until this host answers for this section (`chat-context-section-open-store.ts`). */
   readonly defaultOpen: boolean;
   /** Keep the body in the DOM (hidden) while closed. Needed by the SILENT-CONTRIBUTOR COLLAPSE: the
-   *  `has-[…:empty]:hidden` selector below asks whether the graft's wrapper has element children, and an
+   *  `:empty` `has-` selector below asks whether the graft's wrapper has element children, and an
    *  unmounted wrapper answers "no wrapper", which would spend a kicker on a contributor that renders
    *  nothing — the exact orphan heading that collapse exists to prevent. */
   readonly keepMounted?: boolean;

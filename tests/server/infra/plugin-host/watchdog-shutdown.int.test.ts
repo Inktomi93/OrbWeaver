@@ -83,7 +83,8 @@ test("stopping the server stops its watchdog and broker over their channels: eac
   timeout: NATIVE_TIMEOUT_MS,
 }, async () => {
   const captured = capturingSpawn();
-  await using root = await createServerHarness({ pluginSpawn: captured.spawn });
+  // The watchdog prints its runtime line only above a silent log level; the line is this case's proof that its stderr was captured.
+  await using root = await createServerHarness({ pluginSpawn: captured.spawn, logLevel: "info" });
   const { watchdog, broker } = await serveOnce(root, captured, "stop-clean");
   expect(running(broker)).toBe(true);
 

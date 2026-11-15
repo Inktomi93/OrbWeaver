@@ -267,7 +267,7 @@ const CORE_COLOR_NAMES = new Set(["current", "inherit", "transparent", "black", 
 const CORE_PALETTE_STEP = /^[a-z]+-\d{2,3}$/u;
 const COLOR_TOKEN_NAMES = new Set(scaleOf("color"));
 
-// A colon inside a value (`ring-(length:--border-width-rule)`, `has-[a:b]:flex`) belongs to the value, not to a modifier.
+// A colon inside a value (`ring-(length:--border-width-rule)`, or a `has-` selector whose brackets hold one) belongs to the value, not to a modifier.
 function modifiersEnd(className: string): number {
   let depth = 0;
   let end = 0;

@@ -183,6 +183,10 @@ async function superviseOneBroker(): Promise<string> {
       resolve(reason);
     };
     const report = (heartbeat: BrokerHeartbeat): void => {
+      // The two lines below are diagnostics, not failures, so a silent log level keeps them off stderr.
+      if (logLevel === "silent") {
+        return;
+      }
       if (heartbeat.peakPhysicalWorkers > reportedPeakPhysicalWorkers) {
         reportedPeakPhysicalWorkers = heartbeat.peakPhysicalWorkers;
         process.stderr.write(`plugin broker watchdog: residency ${JSON.stringify({ peakPhysicalWorkers: heartbeat.peakPhysicalWorkers, workerMaximum })}\n`);

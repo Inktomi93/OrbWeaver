@@ -453,7 +453,7 @@ function HostControls({
 
             SO A GRAFT'S PANEL IS `keepMounted` (#830). Every section here is now a disclosure, and a CLOSED
             Base UI panel is REMOVED from the DOM — which would take the graft-body wrapper with it and leave
-            `has-[…:empty]` nothing to match, i.e. an orphan "Plugin controls" kicker on every room. Kept
+            the `:empty` `has-` selector nothing to match, i.e. an orphan "Plugin controls" kicker on every room. Kept
             mounted (hidden, zero height) the wrapper is still there to be asked, and the collapse still
             hides the whole Section, trigger included. Grafted sections start CLOSED unless explicitly
             opted into discovery: a contribution's body

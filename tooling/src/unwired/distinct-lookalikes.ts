@@ -226,7 +226,6 @@ export const DISTINCT_LOOKALIKES = [
       "packages/contracts/src/chat/owner-ops.ts#ChatScopedParams",
       "packages/server/src/domain/databank/contract/params.ts#ListActiveForChatParams",
       "packages/server/src/domain/regex/contract/params.ts#ListForChatParams",
-      "packages/server/src/domain/regex/contract/params.ts#ListRoomDisplayScriptsParams",
       "packages/server/src/domain/rpg/contract/params.ts#DetachDanglingPointerParams",
       "packages/server/src/domain/rpg/contract/params.ts#ListCheckpointsParams",
       "packages/server/src/domain/rpg/contract/params.ts#ReadGameParams",
@@ -299,7 +298,6 @@ export const DISTINCT_LOOKALIKES = [
       "packages/contracts/src/automation/index.ts#ListRulesParams",
       "packages/contracts/src/chat/owner-ops.ts#ChatScopedParams",
       "packages/server/src/domain/regex/contract/params.ts#ListForChatParams",
-      "packages/server/src/domain/regex/contract/params.ts#ListRoomDisplayScriptsParams",
       "packages/server/src/domain/rpg/contract/params.ts#DetachDanglingPointerParams",
       "packages/server/src/domain/rpg/contract/params.ts#ListCheckpointsParams",
       "packages/server/src/domain/rpg/contract/params.ts#ReadGameParams",
@@ -365,18 +363,6 @@ export const DISTINCT_LOOKALIKES = [
   },
   {
     shape: "packages/server/src/domain/regex/contract/params.ts#ListForChatParams",
-    distinctFrom: [
-      "packages/contracts/src/automation/index.ts#ListRulesParams",
-      "packages/contracts/src/chat/owner-ops.ts#ChatScopedParams",
-      "packages/server/src/domain/rpg/contract/params.ts#DetachDanglingPointerParams",
-      "packages/server/src/domain/rpg/contract/params.ts#ListCheckpointsParams",
-      "packages/server/src/domain/rpg/contract/params.ts#ReadGameParams",
-      "packages/server/src/domain/rpg/contract/params.ts#ResyncFromStoryParams",
-    ],
-    reason: "A shape-only {principal, chatId} look-alike: each verb owns its params, and no flow links them.",
-  },
-  {
-    shape: "packages/server/src/domain/regex/contract/params.ts#ListRoomDisplayScriptsParams",
     distinctFrom: [
       "packages/contracts/src/automation/index.ts#ListRulesParams",
       "packages/contracts/src/chat/owner-ops.ts#ChatScopedParams",

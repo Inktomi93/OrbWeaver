@@ -23,7 +23,7 @@ export interface MacroSpan {
 
 /** How one call delivered its args to the handler. The first `given` args are the call's own; padded declared
  *  defaults follow them. When `raw` (the `?` flag or a lazy registration) the call's own args arrive unresolved;
- *  otherwise the engine already resolved them. A block's body is always resolved by the engine. @internal */
+ *  otherwise the engine already resolved them. A block's body is always resolved by the engine. */
 export interface ArgDelivery {
   readonly raw: boolean;
   readonly given: number;

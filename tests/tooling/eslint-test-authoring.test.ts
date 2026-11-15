@@ -202,7 +202,7 @@ test.for([
   ["a label function's other arm", `await expect(control).toHaveAccessibleName("Hide details");`, SPEC, 1, "contextToggleLabel"],
   ["a label function called", `await page.getByRole("button", { name: contextToggleLabel(true) }).click();`, SPEC, 0, ""],
   ["a rpg code in an assertion", `expect(refusal).toMatchObject({ code: "rpg_state_corrupt" });`, SERVER_TEST, 1, "RPG_OP_CODES.stateCorrupt"],
-  ["a chat code in a comparison", `expect(code).toBe("not_host");`, SERVER_TEST, 1, "CHAT_OP_CODES.notHost"],
+  ["a chat code in a comparison", `expect(code).toBe("not_host");`, SERVER_TEST, 1, "CHAT_NOT_HOST_OP_CODE"],
   ["a code read from its object", "expect(refusal).toMatchObject({ code: RPG_OP_CODES.stateCorrupt });", SERVER_TEST, 0, ""],
   ["a code used as an object key", "const byCode = { rpg_state_corrupt: 1 };", SERVER_TEST, 0, ""],
   ["a code in a type", `type Code = "rpg_state_corrupt";`, SERVER_TEST, 0, ""],
