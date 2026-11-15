@@ -15,6 +15,7 @@ import {
 } from "@orb/contracts/import";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import { exportCharacterPath, PORTABILITY_ROUTES } from "@orb/contracts/portability";
+import { ST_PRESET_SCRIPT_LIST_FIELD } from "@orb/contracts/preset";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { StreamFrame } from "@orb/contracts/stream";
 import type { WorkloadRowAnyKind } from "@orb/contracts/workloads";
@@ -708,10 +709,11 @@ const HEAVY = {
   replaceString: "",
 };
 
-function stPresetWithScripts(scripts: readonly unknown[], text: string): string {
+function stPresetWithScripts(scripts: readonly unknown[], text: string, unmapped: Readonly<Record<string, string>> = {}): string {
   return JSON.stringify({
     prompts: [{ identifier: "main", name: "Main", content: text, role: "system" }],
     ["prompt_order"]: [{ ["character_id"]: 100_001, order: [{ identifier: "main", enabled: true }] }],
+    ...unmapped,
     extensions: { ["regex_scripts"]: scripts },
   });
 }
@@ -725,9 +727,12 @@ test("the names panel lists each preset's regex scripts with what the run does w
   const caller = await root.internalCallerFor(root.ownerId);
   const folder = testInfo.outputPath("profile");
   await mkdir(join(folder, "OpenAI Settings"), { recursive: true });
-  // Amber brings a new script, one the library holds, one the write door refuses, and one that is not a script; Birch
-  // brings Amber's new one again.
-  await writeFile(join(folder, "OpenAI Settings", "Amber.json"), stPresetWithScripts([WHISTLE, KETTLE, HEAVY, "not a script"], "You narrate."));
+  // Amber brings a new script, one the library holds, one the write door refuses, one that is not a script, and a setting
+  // with no equivalent; Birch brings Amber's new one again.
+  await writeFile(
+    join(folder, "OpenAI Settings", "Amber.json"),
+    stPresetWithScripts([WHISTLE, KETTLE, HEAVY, "not a script"], "You narrate.", { ["wi_format"]: "{0}" }),
+  );
   await writeFile(join(folder, "OpenAI Settings", "Birch.json"), stPresetWithScripts([WHISTLE], "You keep the bells."));
   await writeFile(join(folder, ST_SETTINGS_FILE), JSON.stringify({}));
   await caller.regex.importScriptFile({ fileText: JSON.stringify(KETTLE) });
@@ -745,8 +750,12 @@ test("the names panel lists each preset's regex scripts with what the run does w
   const birch = preview.kinds.presets.items.find((item) => item.name === "Birch (OpenAI)");
   const heavyReason = amber?.regexScripts?.find((script) => script.name === "Heavy")?.refused ?? "";
   expect(heavyReason).toMatch(/ms to compile/u);
+  // The entry that is not a script has no name, so the run names it by its place in the file's list.
+  const notScript = `${ST_PRESET_SCRIPT_LIST_FIELD}[3]`;
+  const notScriptReason = amber?.regexScripts?.find((script) => script.name === notScript)?.refused ?? "";
+  expect(notScriptReason).not.toBe("");
   expect([amber?.regexScripts, birch?.regexScripts]).toEqual([
-    [{ name: "Whistle" }, { name: "Kettle", inLibrary: true }, { name: "Heavy", refused: heavyReason }],
+    [{ name: "Whistle" }, { name: "Kettle", inLibrary: true }, { name: "Heavy", refused: heavyReason }, { name: notScript, refused: notScriptReason }],
     [{ name: "Whistle", repeat: true }],
   ]);
   const leftOut = nonEmpty([...(amber?.leftOut ?? [])]);
@@ -758,6 +767,7 @@ test("the names panel lists each preset's regex scripts with what the run does w
         importPreviewScriptEntry("Whistle", IMPORT_PREVIEW_SCRIPT_VERDICTS.added),
         importPreviewScriptEntry("Kettle", IMPORT_PREVIEW_SCRIPT_VERDICTS.inLibrary),
         importPreviewScriptEntry("Heavy", importPreviewScriptRefused(heavyReason)),
+        importPreviewScriptEntry(notScript, importPreviewScriptRefused(notScriptReason)),
       ]),
       { exact: true },
     ),

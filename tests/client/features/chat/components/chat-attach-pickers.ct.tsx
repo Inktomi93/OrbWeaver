@@ -169,7 +169,9 @@ test("the script picker's commit attaches every ticked script in the order ticke
   await using root = await createCorpusHarness();
   const { chatId, host } = await hostRoom(root);
   const make = (name: string): ReturnType<Caller["regex"]["createScript"]> =>
-    host.regex.createScript({ input: createRegexScriptSchema.parse({ name, findRegex: "x", replaceString: "y", placement: [] }) });
+    host.regex.createScript({
+      input: createRegexScriptSchema.parse({ name, findRegex: "x", replaceString: "y", targets: ["AI_OUTPUT"], passes: ["display"] }),
+    });
   const second = await make("Second ticked");
   const first = await make("First ticked");
   await openTab(root, page, host, serveCorpusProcedures(host, ["regex.listScripts", "regex.attachToChat"]));

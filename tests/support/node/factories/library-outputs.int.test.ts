@@ -137,8 +137,8 @@ test("regex output captures preserve execution order, host opt-in, portable reus
   expect(views.usage.output.presets).toContainEqual({ id: library.preset.id, name: library.preset.name });
   expect(views.usage.output.characters).toContainEqual({ id: library.character.id, name: library.character.name });
   expect(views.usage.output.rooms.map((room) => room.id)).toContain(library.room.chat.id);
-  expect(views.imported.output).toEqual({ created: true });
-  expect(views.repeated.output).toEqual({ created: false });
+  expect(views.imported.output).toEqual({ created: true, notes: [] });
+  expect(views.repeated.output).toEqual({ created: false, notes: [] });
   expect(views.bulk.output).toEqual({ affected: 1 });
   expect(views.detached.output).toEqual({ detached: true });
   expect(views.detachedAgain.output).toEqual({ detached: false });

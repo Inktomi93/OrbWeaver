@@ -178,9 +178,11 @@ function DisplayScriptRow({
   const name = regexScriptTitle(script);
   const subject = rowActionSubject(name, qualifier);
   const pattern = script.findRegex.trim() === "" ? "no pattern yet" : script.findRegex.trim();
+  const off = !script.enabled || offReason !== null;
   return (
     <ListRow
-      markers={<RowMarks off={!script.enabled || offReason !== null} stop={stop} />}
+      // Only a row with a mark passes one: an empty markers box still takes its gap from the title line.
+      {...(off || stop !== undefined ? { markers: <RowMarks off={off} stop={stop} /> } : {})}
       {...(isYours
         ? {
             actions: (
@@ -220,10 +222,7 @@ function DisplayScriptRow({
 }
 
 /** The title-line marks; a stop's reason is the row's detail, in words. */
-function RowMarks({ off, stop }: { readonly off: boolean; readonly stop: StoppedDisplayScript | undefined }): ReactElement | null {
-  if (!off && stop === undefined) {
-    return null;
-  }
+function RowMarks({ off, stop }: { readonly off: boolean; readonly stop: StoppedDisplayScript | undefined }): ReactElement {
   return (
     <Row align="center" gap="tight">
       {off ? <InlineToken>{REGEX_OFF_MARK}</InlineToken> : null}
