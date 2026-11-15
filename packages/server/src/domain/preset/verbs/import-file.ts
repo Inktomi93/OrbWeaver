@@ -30,26 +30,11 @@ const NOT_JSON = "That file isn't valid JSON, so neither an orbweaver preset exp
 /** The context and output limits a preset stores beside its samplers. */
 const LIMIT_PARAMS = ["maxContextTokens", "maxOutputTokens"] as const satisfies readonly (keyof PromptConfig["params"])[];
 
-// The serde's unmapped-field reasons are written for the profile folder's report and name this app's internals. This
-// door says the same facts in plain words. A refused regex script's reason already names its script and its limit.
-const NO_EQUIVALENT = "This app has no equivalent.";
-const REFUSED_SCRIPT_FIELD = /^extensions\.regex_scripts\[/u;
-const PLAIN_REASONS: Readonly<Record<string, string>> = {
-  ["group_nudge_prompt"]: "Group nudges are set per chat here, not in a preset.",
-  ["new_group_chat_prompt"]: "There is one start-of-chat line here, taken from the new chat prompt, so a group-only one has no place.",
-  ["new_example_chat_prompt"]: "There is no example-chat line here.",
-  ["bias_preset_selected"]: "There are no saved logit bias presets here.",
-  ["assistant_prefill"]: "Response prefill isn't supported across providers.",
-  ["assistant_impersonation"]: "There is no impersonation prefill here.",
-  ["wrap_in_quotes"]: "There is no quote-wrapping setting here.",
-  ["function_calling"]: "Chat presets don't switch tool calling on.",
-  ["enable_web_search"]: "There is no web-search setting here.",
-};
-
 type LeftOut = Extract<PresetFilePreview, { ok: true }>["leftOut"][number];
 
-function plainLeftOut({ field, reason }: LeftOut): LeftOut {
-  return { field: clipImportText(field), reason: REFUSED_SCRIPT_FIELD.test(field) ? reason : (PLAIN_REASONS[field] ?? NO_EQUIVALENT) };
+// The reasons are written in plain words where the mapper and the serde produce them; the file's own field names are clipped.
+function clippedLeftOut({ field, reason }: LeftOut): LeftOut {
+  return { field: clipImportText(field), reason };
 }
 
 /** What the preset lands with, counted off the config the import writes. */
@@ -138,7 +123,7 @@ function readPresetFile({ fileText, fileName }: Pick<ImportPresetFileParams, "fi
     name,
     ...configCounts(file.config),
     // A value brought into range was imported, so it is reported as changed and never as left out.
-    leftOut: unmapped.filter(({ clamped }) => clamped === undefined).map(plainLeftOut),
+    leftOut: unmapped.filter(({ clamped }) => clamped === undefined).map(clippedLeftOut),
     clamped: unmapped.flatMap(({ field, clamped }) => (clamped === undefined ? [] : [{ field: clipImportText(field), ...clamped }])),
     regexScripts,
     refusedScripts,

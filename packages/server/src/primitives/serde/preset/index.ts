@@ -60,7 +60,10 @@ function parsePresetExtensions(raw: Record<string, unknown>): {
   const read = readStScriptList(Array.isArray(rawScripts) ? rawScripts : [], `${ST_PRESET_EXTENSIONS_KEY}.regex_scripts`, "scoped");
   const dropped: StDroppedField[] = [...read.notes];
   for (const key of Object.keys(residue)) {
-    dropped.push({ field: `${ST_PRESET_EXTENSIONS_KEY}.${key}`, reason: "preset-scoped extension state — no orb seat" });
+    dropped.push({
+      field: `${ST_PRESET_EXTENSIONS_KEY}.${key}`,
+      reason: "Extension data saved with this preset. This app does not use it, so it was not imported.",
+    });
   }
   return { regexScripts: read.scripts, refusedScripts: read.refused.map(({ name, reason }) => ({ name, reason })), dropped };
 }
