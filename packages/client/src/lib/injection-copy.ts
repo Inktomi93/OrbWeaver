@@ -5,7 +5,7 @@
 import type { RoomUnavailableCause } from "@orb/contracts/chat";
 import { TURN_HOST_UNAVAILABLE_OP_CODE } from "@orb/contracts/chat";
 import type { ChatControlMode } from "./contribution-contracts.ts";
-import { HOST_UNAVAILABLE_COPY } from "./turn-refusal-copy.ts";
+import { HOST_KEY_REJECTED_COPY, HOST_UNAVAILABLE_COPY, KEY_REJECTED_COPY } from "./turn-refusal-copy.ts";
 
 export const ASSISTANT_PREFILL_WARNING = "Assistant role at depth 0 is a response prefill. Unsupported across providers. Use depth ≥ 1, or role system/user.";
 
@@ -199,13 +199,6 @@ export type SendRefusalCause = RoomUnavailableCause | typeof ROOM_READ_FAILED_CA
  *  for a host with no connection that can serve chat, where the Model roles picker has nothing to offer. The
  *  `host-` keys are a member's reading of a cause on the host's account. */
 export type SendRefusalKey = SendRefusalCause | "no-chat-connection" | "host-no-chat-connection" | "host-key-rejected";
-
-/** The host's reading of a struck or missing key on their bound chat connection. */
-export const KEY_REJECTED_COPY = "Your connection's key was rejected. Replace it, or pick another connection, in Settings → Connections.";
-
-/** A member's reading of the same cause: the key is the host's, so a member is told neither of it nor of a fix only
- *  the host can make. */
-export const HOST_KEY_REJECTED_COPY = "The host's chat connection can't be used right now. Ask them to check it before sending.";
 
 const SEND_UNAVAILABLE_REASON: Record<SendRefusalKey, string> = {
   // No connection is BOUND to your Chat role (§7.2). A saved connection binds nothing on its own, so the copy

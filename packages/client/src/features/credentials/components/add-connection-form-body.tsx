@@ -22,7 +22,6 @@ import {
   acceptsKey,
   CONNECTION_FORM_COPY,
   draftModelReason,
-  KEY_REFUSED_SAVE_REASON,
   keyStorageBlocks,
   listingKeyFor,
   listsInDialog,
@@ -35,6 +34,7 @@ import {
 } from "../lib/add-connection-form-model.ts";
 import { endpointAuthorityOf } from "../lib/connection-editor-model.ts";
 import { CONNECTION_PROVIDER_FIELD_NAME } from "../lib/connections-copy.ts";
+import { KEY_REFUSED_SAVE_REASON } from "../lib/credentials-names.ts";
 import { failedCatalogSource, modelCheckOf, modelListSource } from "../lib/model-picker-model.ts";
 import { AddConnectionFailure } from "./add-connection-failure.tsx";
 import type { HeldKey } from "./add-connection-provider-fields.tsx";

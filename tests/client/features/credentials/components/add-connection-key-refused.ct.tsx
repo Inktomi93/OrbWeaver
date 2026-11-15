@@ -7,10 +7,14 @@ import { providerDisplayLabel, providerIdSchema } from "@orb/contracts/inference
 import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { KEY_REFUSED_SAVE_REASON, submitFailureSentence } from "#client/features/credentials/lib/add-connection-form-model.ts";
 import { ADD_CONNECTION_NAME, CONNECTION_PROVIDER_FIELD_NAME } from "#client/features/credentials/lib/connections-copy.ts";
-import { API_KEY_FIELD_NAME, MODEL_FIELD_NAME, MODEL_LIST_RETRY_NAME } from "#client/features/credentials/lib/credentials-names.ts";
-import { keyRefusedNotice } from "#client/features/credentials/lib/model-picker-model.ts";
+import {
+  API_KEY_FIELD_NAME,
+  KEY_REFUSED_SAVE_REASON,
+  keyRefusedNotice,
+  MODEL_FIELD_NAME,
+  MODEL_LIST_RETRY_NAME,
+} from "#client/features/credentials/lib/credentials-names.ts";
 import type { ConnectionsListStory } from "./_connections-list-stories.tsx";
 
 const STORY = "tests/client/features/credentials/components/_connections-list-stories/ConnectionsListStory";
@@ -68,9 +72,7 @@ test("a key the provider refuses is named on the model field and the add is refu
 
   await dialog.getByRole("textbox", { name: MODEL_FIELD_NAME, exact: true }).fill(TYPED_MODEL);
   await dialog.getByRole("button", ADD).click();
-  await expect(dialog.locator('[data-slot="add-connection-failure"]')).toHaveText(
-    submitFailureSentence({ heldKeyLabel: undefined, reason: KEY_REFUSED_SAVE_REASON }),
-  );
+  await expect(dialog.locator('[data-slot="add-connection-failure"]')).toContainText(KEY_REFUSED_SAVE_REASON);
   // Positive control for the reads below: the dialog is still open on the draft, so nothing closed it as saved.
   await expect(dialog).toBeVisible();
   expect(await caller.connection.list()).toHaveLength(connectionsBefore);

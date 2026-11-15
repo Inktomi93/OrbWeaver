@@ -10,10 +10,6 @@ import { clauseOf, MODEL_REQUIRED_MESSAGE } from "./model-picker-model.ts";
 
 /** A selected credential disappeared or was revoked while authoring. */
 export const SAVED_KEY_UNAVAILABLE = "This saved key is no longer available. Choose another key or paste a new one.";
-
-/** A save refused because the provider refused the draft's key: a connection on it would fail its first turn. */
-export const KEY_REFUSED_SAVE_REASON = "the provider refused this key. Paste a new key, then add the connection";
-
 /** The command the Claude-subscription step asks the user to run (§5.3a: "a copyable `claude setup-token`"). */
 export const CLAUDE_SETUP_TOKEN_COMMAND = "claude setup-token";
 

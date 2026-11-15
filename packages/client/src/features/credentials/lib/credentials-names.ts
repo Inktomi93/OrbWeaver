@@ -212,3 +212,10 @@ export const CONNECTION_LIMITS_READ_LABEL = "this connection's limits";
 export function connectionLimitsFailureLabel(reason: string): string {
   return `The limits weren't saved: ${reason}`;
 }
+
+/** The model field's notice when the provider refused the key the list was read under. */
+export function keyRefusedNotice(listOwner: string): string {
+  return `${listOwner} refused this key. Get a new key from your ${listOwner} account and paste it here.`;
+}
+/** A save refused because the provider refused the draft's key: a connection on it would fail its first turn. */
+export const KEY_REFUSED_SAVE_REASON = "the provider refused this key. Paste a new key, then add the connection";
