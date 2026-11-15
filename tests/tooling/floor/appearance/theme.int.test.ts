@@ -13,6 +13,7 @@ import type { Server } from "node:http";
 import { createServer } from "node:http";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import { expect, test } from "@orb/testkit/tooling";
 import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import { afterAll, beforeAll, vi } from "vitest";
@@ -53,7 +54,8 @@ const EMPTY_ORB_CONSOLE = "<script>globalThis.__orb={consoleErrors:()=>({records
 // snap's theme-stamp gate refused it: the fixture, not the gate, was the thing that had drifted from the app.
 const PAGE_HTML = `<!doctype html><html><body><main>stub</main>${EMPTY_ORB_CONSOLE}<script>
 const BLOCK_OWNERS = ${JSON.stringify(BLOCK_OWNING_SEEDS)};
-fetch("/api/trpc/persona.list,settings.getUserSettings?batch=1&input=%7B%7D")
+const headers = { ${JSON.stringify(CSRF_HEADER)}: "1" };
+fetch("/api/trpc/persona.list,settings.getUserSettings?batch=1&input=%7B%7D", { headers })
   .then((r) => r.json())
   .then(async (body) => {
     const config = body[1].result.data.config;
@@ -63,7 +65,7 @@ fetch("/api/trpc/persona.list,settings.getUserSettings?batch=1&input=%7B%7D")
     document.documentElement.dataset.sibling = String(body[0].result.data.rows);
     if (selected) {
       const input = encodeURIComponent(JSON.stringify({ 0: { id: selected } }));
-      const rows = await fetch("/api/trpc/settings.getTheme?batch=1&input=" + input).then((r) => r.json());
+      const rows = await fetch("/api/trpc/settings.getTheme?batch=1&input=" + input, { headers }).then((r) => r.json());
       const row = rows[0].result.data;
       const stamp = row && row.isSeed ? String(row.name).toLowerCase() : null;
       if (stamp && BLOCK_OWNERS.includes(stamp)) {
@@ -82,6 +84,7 @@ let listThemeReads = 0;
  *  `listThemeReads` on purpose: that counter is the receipt that the SHIM resolved the name by asking the
  *  app, and a page that also read `listThemes` would silently launder it. */
 let getThemeReads = 0;
+let csrfRefusals = 0;
 
 beforeAll(async () => {
   server = createServer((req, res) => {
@@ -89,6 +92,13 @@ beforeAll(async () => {
     if (req.method !== "GET") {
       mutations += 1;
       res.writeHead(405).end();
+      return;
+    }
+    // The real mount refuses a tRPC GET without the CSRF header, owner fallback included, so the stub does too:
+    // a shim read that drops the header must fail here exactly as it fails against a stage.
+    if (url.startsWith("/api/trpc/") && req.headers[CSRF_HEADER] === undefined) {
+      csrfRefusals += 1;
+      res.writeHead(403).end();
       return;
     }
     if (url.startsWith("/api/trpc/settings.getTheme")) {
@@ -162,8 +172,14 @@ test("--theme <name> flips the SELECTION the page reads, resolved against the ac
   const light = await runSnap(["--theme", "Light", "--eval", READ_STATE]);
   expect(light.status, light.stdout + light.stderr).toBe(0);
   expect(light.stdout).toContain(`\\"selected\\":\\"${LIGHT_ID}\\"`);
-  // The name was resolved by ASKING the app, not by re-spelling a sentinel id in the probe kit.
+  // The name was resolved by ASKING the app, not by re-spelling a sentinel id in the probe kit, with a read
+  // the mount accepts: the stub refuses a header-less one (control below), so no refusal means it was headed.
   expect(listThemeReads).toBeGreaterThan(0);
+  expect(light.stderr).not.toContain("THEME SHIM WARNING");
+  expect(csrfRefusals).toBe(0);
+  const headerless = await fetch(`${base}/api/trpc/settings.listThemes?batch=1&input=%7B%7D`);
+  expect(headerless.status).toBe(403);
+  expect(csrfRefusals).toBe(1);
   // A sibling procedure of the same batch, and the appearance axis nobody named, are untouched.
   expect(light.stdout).toContain('\\"sibling\\":\\"2\\"');
   expect(light.stdout).toContain('\\"density\\":\\"comfortable\\"');

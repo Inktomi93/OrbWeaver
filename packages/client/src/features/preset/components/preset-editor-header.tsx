@@ -33,6 +33,7 @@ import {
   PRESET_ACTIVE_STATUS,
   PRESET_RENAME_NAME,
   PRESET_RESET_ARRANGEMENT_CONFIRM,
+  PRESET_RESET_ARRANGEMENT_LABEL,
   PRESET_RESET_ARRANGEMENT_NAME,
   PRESET_RESET_ARRANGEMENT_TITLE,
   PRESET_SECTIONS_NAME,
@@ -130,9 +131,8 @@ export function PresetEditorHeader({
                       the editor could not act on.
                       Why an icon door and NOT the title itself: heading navigation must find the thing being
                       edited, so the heading's accessible name says what it IS, and a control's name would have
-                      to say what it DOES; making one element carry both means one of them lies. The icon-door
-                      anatomy (`aria-label` and the tooltip from ONE string, so the two cannot drift) is what the
-                      Reset door beside it already speaks. */}
+                      to say what it DOES; making one element carry both means one of them lies. The icon door's
+                      `aria-label` and tooltip come from ONE string, so the two cannot drift. */}
                   {isSystemDefault ? null : (
                     <Tip text={PRESET_RENAME_NAME}>
                       <Button aria-label={PRESET_RENAME_NAME} variant="ghost" onClick={(): void => setRenameOpen(true)} square={true} type="button">
@@ -190,16 +190,16 @@ export function PresetEditorHeader({
                   {/* NO ⋯ OVER A SINGLE COMMAND (side-eye F-18). The overflow held exactly one item, so it
                       bought nothing and cost discoverability twice over: `⋯` signals "there is more here" (there
                       isn't) and signals nothing about WHAT, so the only way to learn the surface offers a reset
-                      was to open a menu on the chance. The command is now its own control, wearing its own
-                      glyph, with the O-3 icon-door anatomy this feature already speaks — `aria-label` and the
-                      native `title` from ONE string, so the tooltip and the accessible name cannot drift. If a
-                      second header command ever lands, the kebab comes back with two items in it. */}
+                      was to open a menu on the chance. The command is now its own control. If a second header
+                      command ever lands, the kebab comes back with two items in it. */}
+                  {/* THE WHOLE-PRESET RESET WEARS ITS WORD. Every knob row's reset is the same bare ↺, so the glyph alone
+                      could not tell a one-knob reset from this one; the icon set has no separate reset-all glyph, so the
+                      scope is said in words, as Activate beside it is. */}
                   {isSystemDefault ? null : (
-                    <Tip text={PRESET_RESET_ARRANGEMENT_NAME}>
-                      <Button aria-label={PRESET_RESET_ARRANGEMENT_NAME} variant="ghost" onClick={(): void => setResetOpen(true)} square={true} type="button">
-                        <Icon icon={RotateCcw} size="sm" />
-                      </Button>
-                    </Tip>
+                    <Button aria-label={PRESET_RESET_ARRANGEMENT_NAME} variant="ghost" onClick={(): void => setResetOpen(true)} size="sm" type="button">
+                      <Icon icon={RotateCcw} size="sm" />
+                      {PRESET_RESET_ARRANGEMENT_LABEL}
+                    </Button>
                   )}
                 </>
               }

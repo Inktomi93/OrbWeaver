@@ -147,6 +147,8 @@ const MOUNT_HELPER_FILES = {
   "^tests/client/lib/use-focus-on-mount-names\\.ts$": "the control and surface names the arrival-focus stories author and their spec reads",
   "^tests/client/features/auth/components/pending-join-fixtures\\.ts$": "the pending-join story's parsed fixtures",
   "^tests/client/features/chat/components/_chat-room-shell-names\\.ts$": "the room name the chat room shell story authors and the pagination suite reads",
+  "^tests/client/features/preset/components/_guessed-limits-probe\\.ts$":
+    "the navigation probe names the guessed-limits preset story authors and its spec reads the door's request by",
   "^tests/ui/content/theme-scope/contrast-cases\\.ts$": "the tone-mark accents the tone-mark story renders and its spec judges",
   "^tests/ui/primitives/list-row/state-attribute-cases\\.ts$": "the selected row title the state-attribute story authors and its spec reads",
   "^tests/ui/primitives/toast/one-alert-names\\.ts$": "the control name and notice title the one-alert story authors and its spec locates them by",

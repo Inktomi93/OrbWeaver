@@ -227,6 +227,7 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
             onActivate={onActivate}
             onRename={(name): void => update.mutate({ id: presetId, name })}
             capability={capability}
+            chatConnectionId={target?.connectionId}
             editorConnection={
               target === undefined
                 ? undefined
@@ -269,6 +270,7 @@ interface PresetEditorBodyProps {
   /** Commit a new name (#483) — the header owns the door + its dialog; this is the write. */
   readonly onRename: (name: string) => void;
   readonly capability: GenerationCapability | undefined;
+  readonly chatConnectionId: ViewContentProps["chatConnectionId"];
   readonly editorConnection: string | undefined;
   readonly samplerSpelling: ViewContentProps["samplerSpelling"];
   readonly effective: EffectiveProfileRow | undefined;
@@ -289,6 +291,7 @@ function PresetEditorBody({
   onActivate,
   onRename,
   capability,
+  chatConnectionId,
   editorConnection,
   samplerSpelling,
   effective,
@@ -318,6 +321,7 @@ function PresetEditorBody({
   const viewProps: ViewContentProps = {
     form: boundForm,
     capability,
+    chatConnectionId,
     effective,
     presetId,
     attachable: !isSystemDefault,
