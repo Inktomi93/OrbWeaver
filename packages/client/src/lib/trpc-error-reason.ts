@@ -12,6 +12,13 @@ export function trpcErrorReason(error: unknown): string {
   return typeof data === "object" && data !== null && "reason" in data && typeof data.reason === "string" ? (data as { reason: string }).reason : "";
 }
 
+/** The server's sentence on a tRPC error, else `null`. The transport formatter only lets through copy written for the
+ *  reader (a mapped refusal's message or the fixed fault sentence), so a surface may print it as the reason. */
+export function trpcErrorMessage(error: unknown): string | null {
+  const message = typeof error === "object" && error !== null && "message" in error ? error.message : null;
+  return typeof message === "string" && message.trim() !== "" ? message : null;
+}
+
 /** The tRPC error code (`CONFLICT`, `BAD_REQUEST`, …) off `data.code`, else `undefined` for any other value. */
 export function trpcErrorCode(error: unknown): string | undefined {
   const data = errorData(error);
