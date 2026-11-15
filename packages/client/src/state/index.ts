@@ -83,8 +83,11 @@ export { clearChatMoment, consumeChatMoment, useChatMoment } from "./chat-moment
 export { consumeReturnFocus, useReturnedChat } from "./chat-return-store.ts";
 export {
   chatStream,
+  heldGhostMessageId,
   isLiveTurnPhase,
   subscribeUserMessageCommitted,
+  useGhostSpeakerCharacterId,
+  useHeldGhost,
   useRecallState,
   useSwipeTargetMessageId,
   useTurnCommittedMessageId,

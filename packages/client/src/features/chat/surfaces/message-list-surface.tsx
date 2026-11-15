@@ -32,7 +32,7 @@ import type { ChatBusDeps, Trpc } from "#data";
 import { roomRosterOptions, SkeletonRows, useChatBus, useDisplayScripts, useGatedQuery, usePrefetchDisplayScripts, useSuspenseQuery, useTRPC } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { displayHoldsStreamedMarkup, RenderProfiler, resolveRowRenderPolicy, trpcErrorCode, useFocusOnMount } from "#lib";
-import { isLiveTurnPhase, useTurnPhase, useTurnSpeakerCharacterId } from "#state";
+import { isLiveTurnPhase, useGhostSpeakerCharacterId, useTurnPhase } from "#state";
 import { ArtViewerProvider } from "../components/art-viewer-provider.tsx";
 import { GhostMessageRow } from "../components/ghost-message-row.tsx";
 import { JumpToLatestPill } from "../components/jump-to-latest-pill.tsx";
@@ -232,7 +232,7 @@ function ChatThread({
   const phase = useTurnPhase(chatId);
   // The live turn's voiced speaker, resolved through the SAME resolveRowAttribution the settled row
   // uses, so the ghost's immersive decoration matches what the canonical row will show once it settles.
-  const ghostSpeakerCharacterId = useTurnSpeakerCharacterId(chatId);
+  const ghostSpeakerCharacterId = useGhostSpeakerCharacterId(chatId);
   // THE ONE PLACE THE ROOM DIAL IS STILL THE HONEST SOURCE (D129): the GHOST is an in-flight turn with no
   // committed row, so there is no declared kind to read — the kind this round WILL be born with is exactly
   // what the dial says. Every settled row reads its own `message.kind` instead. The ghost must resolve
@@ -279,7 +279,7 @@ function ChatThread({
   const seatedCharacterIds = [...participants.keys()];
   // Stepping a greeting is a host verb, and a member cannot read the host's cards: only the host reads them.
   const greetingAlternates = useGreetingAlternates(seatedCharacterIds, greetingWindowOpen && chatDetail.viewerIsHost);
-  const items = useMessageItems(messages, chatId);
+  const items = useMessageItems(messages, chatId, !edges.later);
   const displayDepths = displayDepthsOf(items, edges);
   const liveCardRows = liveCardRowIds(items, (view) =>
     resolveRowRenderPolicy({ role: view.role, authorUserId: view.authorUserId, characterId: view.characterId, viewerUserId, participants, lenientHtmlCards }),

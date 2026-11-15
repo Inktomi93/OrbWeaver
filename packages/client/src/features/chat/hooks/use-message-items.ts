@@ -13,7 +13,8 @@
 import type { MessageView } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { useEffect, useState } from "react";
-import { isLiveTurnPhase, useSwipeTargetMessageId, useTurnCommittedMessageId, useTurnPhase } from "#state";
+import { releaseGhostHandover } from "#data";
+import { isLiveTurnPhase, useHeldGhost, useSwipeTargetMessageId, useTurnCommittedMessageId, useTurnPhase } from "#state";
 import type { ArrivalDiff } from "../lib/new-arrivals.ts";
 import { initialArrivals, NO_ARRIVALS, nextArrivals } from "../lib/new-arrivals.ts";
 
@@ -43,7 +44,9 @@ export function lastUserRowIndex(items: readonly ChatRowProjection<"role">[]): n
   return -1;
 }
 
-export function useMessageItems(messages: readonly MessageView[], chatId: ChatId | null): readonly ChatRowItem[] {
+/** `atTail` says the rows reach the room's newest message; a held ghost paints only there (an anchored window on
+ *  older rows has no place for the reply that ends the room). */
+export function useMessageItems(messages: readonly MessageView[], chatId: ChatId | null, atTail: boolean): readonly ChatRowItem[] {
   const phase = useTurnPhase(chatId);
   // A live SWIPE reroll's target: the committed row the new variant replaces IN PLACE. Non-null only for a
   // `swipe` intent (continue/send/generate append or extend, never replace) — a lifecycle-only selector, so
@@ -51,13 +54,24 @@ export function useMessageItems(messages: readonly MessageView[], chatId: ChatId
   const swipeTargetId = useSwipeTargetMessageId(chatId);
   // THE GHOST HANDOVER: the canon row this live turn already committed (null until its `messageCommitted`
   // lands). Lifecycle-only, like the target selector — never re-renders the list on a delta.
-  const committedId = useTurnCommittedMessageId(chatId);
+  // A closed turn's ghost that still waits for its committed row: the terminal closed the slot at once, while this
+  // list hears of the row through the query cache's later notification. Holding the ghost until then keeps the reply
+  // on screen through the hand-over instead of painting frames with neither row.
+  const held = useHeldGhost(chatId);
+  const committed = useTurnCommittedMessageId(chatId) ?? held?.committedMessageId ?? null;
   // Every canon row is a message the reader sees — D124 killed the content-less rpg "state anchor" slot this
   // list used to filter out, so there is nothing to hide.
   const base: ChatRowItem[] = messages.map((view) => ({ kind: "message", view }));
+  const committedShown = committed !== null && base.some((item) => item.kind === "message" && item.view.id === committed);
+  // Released after the render that shows the row, so a later delete of that row cannot bring the ghost back.
+  const releasable = held !== null && committedShown ? held.committedMessageId : null;
+  useEffect(() => {
+    if (chatId !== null && releasable !== null) {
+      releaseGhostHandover(chatId, releasable);
+    }
+  }, [chatId, releasable]);
 
-  const live = isLiveTurnPhase(phase);
-  if (!live) {
+  if (!isLiveTurnPhase(phase) && (held === null || !atTail)) {
     return base;
   }
   // The turn's own row is IN CANON — the seam applied that commit's `view` carrier into this very list
@@ -68,7 +82,7 @@ export function useMessageItems(messages: readonly MessageView[], chatId: ChatId
   // committed row BESIDE the still-mounted ghost for the commit→complete window. Tested against the LIST,
   // not the flag: if the patch could not land (no cached page) the ghost holds until the refetch brings the
   // row, which is the old behavior — never a blank.
-  if (committedId !== null && base.some((item) => item.kind === "message" && item.view.id === committedId)) {
+  if (committedShown) {
     return base;
   }
   // Swipe: the ghost OCCUPIES the target message's slot (keyed by that message id, so ghost→canonical is a
