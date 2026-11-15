@@ -30,7 +30,6 @@ import {
   CONNECTION_LIMIT_FIELD_NAMES,
   CONNECTION_LIMITS_KEEP_NAME,
   CONNECTION_LIMITS_READ_LABEL,
-  CONNECTION_LIMITS_SAVE_NAME,
   connectionLimitGuessLabel,
   connectionLimitsFailureLabel,
   connectionLimitsLead,
@@ -171,7 +170,7 @@ function LimitsForm({
           </Button>
         }
         submit={{
-          label: CONNECTION_LIMITS_SAVE_NAME,
+          label: DIALOG_VERBS.save,
           onSubmit: save,
           disabled: invalid || (declaring.length === 0 && imageChange === undefined),
           loading: update.isPending,

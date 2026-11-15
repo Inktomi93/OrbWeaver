@@ -207,7 +207,6 @@ export function connectionLimitsLead(asksOutput: boolean, providerId: string): r
   ];
 }
 export const CONNECTION_LIMIT_FIELD_NAMES = { window: "Context window, in tokens", output: "Max output, in tokens" } as const;
-export const CONNECTION_LIMITS_SAVE_NAME = "Save";
 export const CONNECTION_LIMITS_KEEP_NAME = "Keep the guess";
 /** What one limit field says about the value now in use; `guess` is that number as the field prints it. */
 export function connectionLimitGuessLabel(guess: string): string {

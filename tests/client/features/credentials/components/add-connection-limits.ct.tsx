@@ -24,7 +24,6 @@ import {
   CONNECTION_EDITOR_TIER_TITLES,
   CONNECTION_LIMIT_FIELD_NAMES,
   CONNECTION_LIMITS_KEEP_NAME,
-  CONNECTION_LIMITS_SAVE_NAME,
   CONNECTION_LIMITS_TITLE,
   FACT_COUNT_INVALID,
   FACT_NAMES,
@@ -226,7 +225,7 @@ test("a server that states no window asks for the real limits as it is added, re
 
   await step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.window, { exact: true }).fill(TYPED.window);
   await step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.output, { exact: true }).fill(TYPED.output);
-  await step.getByRole("button", { name: CONNECTION_LIMITS_SAVE_NAME, exact: true }).click();
+  await step.getByRole("button", { name: DIALOG_VERBS.save, exact: true }).click();
   // The first chat model goes on to the first-model step, as an add without the limits step does.
   await expect(finish(page)).toBeVisible();
 
@@ -244,7 +243,7 @@ test("text that names no whole count is refused with what to type, and Save wait
   await saveProxy(page, caller);
   const step = limitsStep(page);
   const window = step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.window, { exact: true });
-  const save = step.getByRole("button", { name: CONNECTION_LIMITS_SAVE_NAME, exact: true });
+  const save = step.getByRole("button", { name: DIALOG_VERBS.save, exact: true });
   await window.fill(NONSENSE);
   await expect(step.getByText(FACT_COUNT_INVALID, { exact: true })).toBeVisible();
   await expect(save).toBeDisabled();
@@ -272,7 +271,7 @@ test("a refused save stays on the step with the reason inline, and the guess can
   await saveProxy(page, caller);
   const step = limitsStep(page);
   await step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.window, { exact: true }).fill(TYPED.window);
-  await step.getByRole("button", { name: CONNECTION_LIMITS_SAVE_NAME, exact: true }).click();
+  await step.getByRole("button", { name: DIALOG_VERBS.save, exact: true }).click();
   await update.requested;
   update.fail();
   await expect(step.getByRole("alert")).toBeVisible();
@@ -422,7 +421,7 @@ test("a model whose inputs nobody reports shows the image switch on as a guess, 
   await expect(step.getByText(IMAGE_SWITCH_ASSUMED_GLOSS, { exact: true })).toBeVisible();
   // A screen reader hears the guess with the switch, not only a sighted reader beside it.
   await expect(images).toHaveAccessibleDescription(IMAGE_SWITCH_ASSUMED_GLOSS);
-  const save = step.getByRole("button", { name: CONNECTION_LIMITS_SAVE_NAME, exact: true });
+  const save = step.getByRole("button", { name: DIALOG_VERBS.save, exact: true });
   // Untouched, the switch declares nothing, so there is nothing to save.
   await expect(save).toBeDisabled();
 
@@ -448,7 +447,7 @@ test("a window typed with the image switch left on writes the window and no inpu
   const step = limitsStep(page);
   await expect(step.getByRole("switch", { name: IMAGE_SWITCH_NAME, exact: true })).toBeChecked();
   await step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.window, { exact: true }).fill(TYPED.window);
-  await step.getByRole("button", { name: CONNECTION_LIMITS_SAVE_NAME, exact: true }).click();
+  await step.getByRole("button", { name: DIALOG_VERBS.save, exact: true }).click();
   await expect(finish(page)).toBeVisible();
   const declared = (await addedConnection(caller, PROXY_PROVIDER)).declared;
   expect(declared?.generation?.context).toMatchObject({ window: REAL.window });
@@ -542,7 +541,7 @@ test.describe("phone at enlarged text", () => {
         step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.output, { exact: true }),
         step.getByRole("switch", { name: IMAGE_SWITCH_NAME, exact: true }),
         step.getByRole("button", { name: CONNECTION_LIMITS_KEEP_NAME, exact: true }),
-        step.getByRole("button", { name: CONNECTION_LIMITS_SAVE_NAME, exact: true }),
+        step.getByRole("button", { name: DIALOG_VERBS.save, exact: true }),
       ]) {
         await subject.scrollIntoViewIfNeeded();
         await expect(subject).toBeVisible();

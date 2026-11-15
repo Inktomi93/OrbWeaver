@@ -16,7 +16,6 @@ import {
   ADD_MODEL_ACTION_LABELS,
   CONNECTION_LIMIT_FIELD_NAMES,
   CONNECTION_LIMITS_KEEP_NAME,
-  CONNECTION_LIMITS_SAVE_NAME,
   CONNECTION_LIMITS_TITLE,
 } from "#client/features/credentials/lib/credentials-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
@@ -139,7 +138,7 @@ test("a model whose window the key's list does not state asks for the real limit
   await expect(step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.window, { exact: true })).toBeVisible();
   expect(calls.inputs("connection.capabilities")).toContainEqual(expect.objectContaining({ listFacts: true }));
   await step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.window, { exact: true }).fill(TYPED.window);
-  await step.getByRole("button", { name: CONNECTION_LIMITS_SAVE_NAME, exact: true }).click();
+  await step.getByRole("button", { name: DIALOG_VERBS.save, exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
   const added = await addedConnection(caller, ID_ONLY_MODEL);
