@@ -741,6 +741,7 @@ async function buildPreviewContext(
   const gathered = await ctx.gatherAssembleContext(
     {
       chatId,
+      retrieval: "strict",
       signal: opts.signal,
       runAsUserId: inputs.hostUserId,
       model: inputs.model,

@@ -45,7 +45,8 @@ function cadenceOf(code: ChatWarningCode): Cadence {
     case "global_variable_dropped":
     case "hidden_tag_broken":
     // A count with no script id has no session key. A replayed frame never reaches the cadence: the bus's seq guard
-    // drops a frame at or under the room's high-water mark (`data/bus/use-chat-bus.ts`), and a live-only frame is new.
+    // drops a frame at or under the room's high-water mark (`data/bus/use-chat-bus.ts`). A later turn's repeat of the
+    // count is new here, and the warning surface (`turn-warning-surface.ts`) keeps it from raising the notice again.
     case "regex_not_applied_overflow":
       return "each";
     default:

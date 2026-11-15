@@ -642,8 +642,10 @@ export function createDefaultRegistry(): MacroRegistry {
   const registry = new SimpleMacroRegistry();
   const vol = { volatile: true } as const;
   const volChat = { volatile: true, requires: "chat" } as const;
-  const recursiveChar = { analysis: { cacheDependent: true }, requires: "char" } as const;
+  // Card prose renders its own macros, so a `{{memory}}` its author wrote is invisible to a static read.
+  const recursiveChar = { analysis: { cacheDependent: true, retrievalDependent: true }, requires: "char" } as const;
   const recursiveChat = { analysis: { cacheDependent: true }, requires: "chat" } as const;
+  const retrievalChat = { analysis: { cacheDependent: true, retrievalDependent: true }, requires: "chat" } as const;
 
   registry.register("char", (_args, ctx) => ctx.char, { requires: "char" });
   registry.register("user", (_args, ctx) => ctx.user, { requires: "char" });
@@ -758,14 +760,14 @@ export function createDefaultRegistry(): MacroRegistry {
   registry.register(
     "memory",
     storyField((ctx) => ctx.memory),
-    recursiveChat,
+    retrievalChat,
   );
   // Renders empty until domain/databank.gatherRetrieval stages `ctx.databank`; born now so preset
   // section templates can place it.
   registry.register(
     "databank",
     charField((ctx) => ctx.databank),
-    recursiveChat,
+    retrievalChat,
   );
   // SECURITY (D353): the value is the guided template the assembler already rendered, so its macros have run.
   // Evaluating it again would run what that render produced, such as a member's `{{setvar}}` that

@@ -1,4 +1,4 @@
-// Static macro analysis for prompt-prefix cache safety and user-macro volatility. This follows the
+// Static macro analysis for prompt-prefix cache safety, user-macro volatility and retrieval reads. This follows the
 // evaluator's execution contract from registry metadata: unknown inline calls keep raw arguments inert,
 // unknown blocks render evaluated children, eager arguments execute even when their value is discarded,
 // lazy arguments execute only when the handler declares that it resolves them, and block handlers
@@ -15,7 +15,9 @@ interface AnalysisResult {
   readonly mutatesState: boolean;
 }
 
-const DEPENDENCY_AXES = ["cache", "volatile"] as const;
+// `retrieval` asks whether a render can read the turn's memory or databank at all, so a read whose value is
+// discarded or held in a variable still counts, and anything the analysis cannot see counts as a read.
+const DEPENDENCY_AXES = ["cache", "volatile", "retrieval"] as const;
 type DependencyAxis = (typeof DEPENDENCY_AXES)[number];
 
 interface AnalysisContext {
@@ -124,7 +126,7 @@ function analyzeArguments(node: MacroCallNode | MacroBlockNode, context: Analysi
     }
     const nested = analyzeAst(parseMacros(arg), context);
     results.push({
-      dependsOnTurn: consumed.has(index) && nested.dependsOnTurn,
+      dependsOnTurn: (consumed.has(index) || context.axis === "retrieval") && nested.dependsOnTurn,
       // State writes survive even when the handler discards the resulting value. Eager delivery always
       // evaluates every arg; a lazy handler declares the raw args it resolves itself.
       mutatesState: nested.mutatesState,
@@ -158,6 +160,9 @@ function analyzeIf(node: Exclude<MacroNode, { type: "text" }>, context: Analysis
     return mergeResults([argumentsResult, analyzeAst(selected, context)]);
   }
   const branches = analyzeAst(node.children, context);
+  if (context.axis === "retrieval") {
+    return mergeResults([argumentsResult, branches]);
+  }
   // A predicate that needs MacroContext can select different rendered bytes even when neither branch
   // contains a registered volatile macro. Retain both branches conservatively for their possible writes.
   return { dependsOnTurn: true, mutatesState: argumentsResult.mutatesState || branches.mutatesState };
@@ -182,6 +187,9 @@ function nodeSource(ast: MacroAST): string {
 function declaredDependency(node: Exclude<MacroNode, { type: "text" }>, context: AnalysisContext): boolean {
   const options = context.registry.getOptions(node.name);
   const analysis = options?.analysis;
+  if (context.axis === "retrieval") {
+    return analysis?.retrievalDependent === true;
+  }
   if (context.axis === "volatile") {
     const declared = node.type === "block" ? (analysis?.blockVolatileDependent ?? analysis?.volatileDependent) : analysis?.volatileDependent;
     return declared ?? options?.volatile === true;
@@ -240,8 +248,9 @@ function analyzeKnown(node: Exclude<MacroNode, { type: "text" }>, context: Analy
 
   const body = analyzeAst(node.children, context);
   const bodyContributes = (analysis?.blockBody ?? "all") === "all";
+  const bodyCounts = bodyContributes || context.axis === "retrieval";
   return {
-    dependsOnTurn: dependency || argumentsResult.dependsOnTurn || expandedResult.dependsOnTurn || (bodyContributes && body.dependsOnTurn),
+    dependsOnTurn: dependency || argumentsResult.dependsOnTurn || expandedResult.dependsOnTurn || (bodyCounts && body.dependsOnTurn),
     // Universal block delivery evaluates the body before invoking the handler, including handlers that
     // discard the resulting content. Handler-controlled blocks retain writes only when evaluation occurs.
     mutatesState:
@@ -265,6 +274,12 @@ function analyzeAst(ast: MacroAST, context: AnalysisContext): AnalysisResult {
 export function macroTextInvalidatesCache(text: string, registry: MacroRegistry): boolean {
   const result = analyzeAst(parseMacros(text), { registry, axis: "cache", expansionDepth: 1, activeExpansions: new Set() });
   return result.dependsOnTurn || result.mutatesState;
+}
+
+/** Whether rendering `text` can read the turn's memory recall or databank retrieval. A read the analysis cannot rule
+ *  out, such as card prose that renders its own macros, counts as a read. */
+export function macroTextReadsRetrieval(text: string, registry: MacroRegistry): boolean {
+  return analyzeAst(parseMacros(text), { registry, axis: "retrieval", expansionDepth: 1, activeExpansions: new Set() }).dependsOnTurn;
 }
 
 /** The evaluator-aware volatile scan used while deriving user-macro registration metadata. */

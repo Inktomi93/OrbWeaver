@@ -437,6 +437,9 @@ export interface MacroAnalysisOptions {
   readonly volatileDependent?: boolean;
   /** Block-call override for `volatileDependent`. */
   readonly blockVolatileDependent?: boolean;
+  /** The handler can read the turn's memory recall or databank retrieval: it reads one directly, or it renders
+   *  text the analysis cannot see (card prose) that may call one. */
+  readonly retrievalDependent?: boolean;
   /** Which inline arguments can contribute to the handler's result. */
   readonly arguments?: "all" | "none" | readonly number[];
   /** Block-call override for `arguments`, used when a delivered body displaces a declared binding. */
