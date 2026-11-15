@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-15
 priority: P1
 area: connections
+lane: wt/agent-aaaef4a406560836a
 ---
 
 # A connection whose key the provider rejected breaks the whole Connections page

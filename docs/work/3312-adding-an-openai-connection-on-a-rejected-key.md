@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-15
 priority: P2
 area: connections
+lane: wt/agent-aaaef4a406560836a
 ---
 
 # Adding an OpenAI connection on a rejected key shows raw JSON and saves anyway
