@@ -51,6 +51,11 @@ export function presetImportScripts(attached: number, created: number): string {
   return `${String(attached)} regex script${attached === 1 ? "" : "s"} attached, ${String(created)} new to your library.`;
 }
 
+/** The line naming the sections a SillyTavern preset gains for orbweaver's own slots, in the preview and the result. */
+export function presetImportAddedSections(names: readonly string[]): string {
+  return `Added for orbweaver's own slots: ${names.join(", ")}.`;
+}
+
 /** The result line's count of scripts the write door left out, so "attached" never reads as every script the file held. */
 export function presetImportScriptsRefused(refused: number): string {
   return `${String(refused)} more ${refused === 1 ? "was" : "were"} left out: too costly to run.`;

@@ -22,6 +22,7 @@ import {
   PRESET_IMPORT_LANDED,
   PRESET_IMPORT_NOT_IN_USE,
   PRESET_USE_THIS_NAME,
+  presetImportAddedSections,
   presetImportRenamed,
   presetImportScripts,
   presetImportScriptsRefused,
@@ -41,11 +42,13 @@ function importedSentence(outcome: Landed): string {
     landed = presetImportRenamed(outcome.name ?? renamedFrom, renamedFrom);
   }
   const scripts = outcome.regexScripts;
-  if (scripts === undefined) {
-    return landed;
-  }
-  const attached = `${landed} ${presetImportScripts(scripts.created + scripts.reused, scripts.created)}`;
-  return scripts.refused.length === 0 ? attached : `${attached} ${presetImportScriptsRefused(scripts.refused.length)}`;
+  const added = outcome.addedSections ?? [];
+  return [
+    landed,
+    ...(scripts === undefined ? [] : [presetImportScripts(scripts.created + scripts.reused, scripts.created)]),
+    ...(scripts === undefined || scripts.refused.length === 0 ? [] : [presetImportScriptsRefused(scripts.refused.length)]),
+    ...(added.length === 0 ? [] : [presetImportAddedSections(added)]),
+  ].join(" ");
 }
 
 export interface PresetImport {

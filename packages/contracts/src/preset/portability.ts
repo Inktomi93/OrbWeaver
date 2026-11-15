@@ -9,6 +9,9 @@ import { importTextSchema } from "../import/preview.ts";
  *  and that row was reused. `name` is the name the preset landed under; `renamedFrom` is the file's own
  *  name when a different same-named preset forced a collision suffix. */
 const [imported, refused] = portableImportOutcomeSchema.options;
+
+/** The names of the sections a SillyTavern preset gained for orb's own slots (memory, databank and the rest). */
+const addedSectionsSchema = z.array(z.string()).readonly();
 export const presetImportOutcomeSchema = z.discriminatedUnion("ok", [
   imported.omit({ notes: true }).extend({
     presetId: typeIdSchema(ID_PREFIX.preset).exactOptional(),
@@ -23,12 +26,14 @@ export const presetImportOutcomeSchema = z.discriminatedUnion("ok", [
         refused: z.array(z.strictObject({ name: importTextSchema, reason: z.string() })).readonly(),
       })
       .exactOptional(),
+    addedSections: addedSectionsSchema.exactOptional(),
   }),
   refused.omit({ notes: true }).extend({
     presetId: z.never().exactOptional(),
     name: z.never().exactOptional(),
     renamedFrom: z.never().exactOptional(),
     regexScripts: z.never().exactOptional(),
+    addedSections: z.never().exactOptional(),
   }),
 ]);
 export type PresetImportOutcome = z.output<typeof presetImportOutcomeSchema>;
@@ -41,7 +46,7 @@ const PRESET_FILE_FORMATS = ["orbweaver", "sillyTavern"] as const;
  *  the prompts the preset lands with and `enabledCount` those switched on; `samplerCount` and `limitCount` count the
  *  sampler values and the context and output limits the preset lands with. `leftOut` names each field with no
  *  seat and says why in plain words, a refused regex script by its position, and `regexScripts` counts the scripts
- *  the run attaches to the preset. */
+ *  the run attaches to the preset. `addedSections` names the sections the run adds for orb's own slots, when it adds any. */
 export const presetFilePreviewSchema = z.discriminatedUnion("ok", [
   z.strictObject({
     ok: z.literal(true),
@@ -54,6 +59,7 @@ export const presetFilePreviewSchema = z.discriminatedUnion("ok", [
     limitCount: z.int().nonnegative(),
     leftOut: z.array(z.strictObject({ field: importTextSchema, reason: z.string() })).readonly(),
     regexScripts: z.int().nonnegative(),
+    addedSections: addedSectionsSchema.exactOptional(),
   }),
   z.strictObject({ ok: z.literal(false), error: z.string() }),
 ]);

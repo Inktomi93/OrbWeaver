@@ -23,6 +23,7 @@ import {
   PRESET_IMPORT_NOTHING_DROPPED,
   PRESET_IMPORT_PICK_ANOTHER,
   PRESET_IMPORT_TITLE,
+  presetImportAddedSections,
   presetImportCarried,
   presetImportLead,
   presetImportScriptsComing,
@@ -160,7 +161,7 @@ export function PresetImportDialog({ open, onOpenChange, onPreview, onImport, bu
 
 /** The pre-commit summary: the server's preview of what the import does. */
 function ImportSummary({ preview }: { readonly preview: ReadyPreview }): ReactElement {
-  const { format, name, inLibrary, sectionCount, enabledCount, samplerCount, limitCount, regexScripts } = preview;
+  const { format, name, inLibrary, sectionCount, enabledCount, samplerCount, limitCount, regexScripts, addedSections = [] } = preview;
   return (
     <Section kicker="Ready to import">
       <Text cap="prose" prose={true} voice="label">
@@ -168,6 +169,7 @@ function ImportSummary({ preview }: { readonly preview: ReadyPreview }): ReactEl
       </Text>
       <MutedLine>{presetImportCarried(samplerCount, limitCount)}</MutedLine>
       {inLibrary ? <MutedLine>{PRESET_IMPORT_ALREADY_HELD}</MutedLine> : null}
+      {addedSections.length === 0 ? null : <MutedLine>{presetImportAddedSections(addedSections)}</MutedLine>}
       {regexScripts === 0 ? null : <MutedLine>{presetImportScriptsComing(regexScripts)}</MutedLine>}
       {format === "orbweaver" ? null : <LeftOut leftOut={preview.leftOut} />}
     </Section>
