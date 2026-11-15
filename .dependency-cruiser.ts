@@ -483,6 +483,7 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/entry/compose/portability.ts":
     "LIFECYCLE_DOORS, NON_PORTABLE_CANON and PORTABLE_CANON_TABLES: the D329 portability registries their suites check",
   "packages/server/src/entry/contract/portability.ts": "NON_PORTABLE_CLASSES and the registry value shapes: the D329 portability vocabulary",
+  "packages/server/src/primitives/regex/compile-probe.ts": "FIND_COMPILE_LIMIT_MS: the compile cost limit the write door's refusal names",
   "packages/contracts/src/chat/bus.ts": "CHAT_WARNING_CODES and PROVIDER_ADJUSTMENT_KINDS: the warning vocabularies",
   "packages/contracts/src/chat/content-classes.ts": "CONTENT_CLASS_POLICY: the content-class projection table",
   "packages/contracts/src/chat/impersonation.ts": "impersonateStreamDeltaSchema: the impersonation delta parser",
@@ -493,6 +494,7 @@ const TEST_CONSTANT_HOMES = {
   "packages/contracts/src/prose-slot/index.ts": "proseOverrideFromLegacy: the legacy text lift",
   "packages/contracts/src/rpg/actor.ts":
     "rpgActorIdentitySchema, rpgActorVolatileSchema, rpgInventoryItemSchema and rpgRelationshipSchema: the actor part parsers",
+  "packages/contracts/src/rpg/snapshot.ts": "RPG_PLOT_ACTS_MAX: the plot act maximum the stored plot and the scene patch share",
   "packages/contracts/src/rpg/structured-round.ts": "RPG_STATE_CHANGES_FIELD: the structured round's state field",
   "packages/contracts/src/rpg/trace.ts": "rpgTraceEventSchema: the trace event parser",
   "packages/contracts/src/rpg/tracker.ts": "rpgTrackerValueSchema: the tracker value parser",
