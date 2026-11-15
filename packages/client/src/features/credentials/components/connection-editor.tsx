@@ -20,7 +20,7 @@ import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery } from "#data";
 import { ALLOW_BACKGROUND_SETTING, allowBackgroundSwitchName, embedRefusalOf, embedRefusalText } from "#lib";
 import { isClaudeSubscription } from "../lib/add-connection-form-model.ts";
-import { capabilityFactRows, VECTOR_WIDTH_FACT_PATH } from "../lib/connection-capability-fact-model.ts";
+import { capabilityFactRows, imageInputSwitch, VECTOR_WIDTH_FACT_PATH, withImageInput } from "../lib/connection-capability-fact-model.ts";
 import {
   credentialReadout,
   declaredOverrideCount,
@@ -45,6 +45,7 @@ import { TopEmbedderNote } from "./connection-editor-refusal.tsx";
 import { ConnectionEditorHeader, ConnectionEditorUnavailable } from "./connection-editor-unavailable.tsx";
 import { ConnectionExtrasBlock } from "./connection-extras-editor.tsx";
 import { FactRowList, QuirksBlock } from "./connection-fact-rows.tsx";
+import { ConnectionImageSwitch } from "./connection-image-switch.tsx";
 import { ConnectionInspector } from "./connection-inspector.tsx";
 import { ConnectionPromptCache } from "./connection-prompt-cache.tsx";
 import { ConnectionReachability } from "./connection-reachability.tsx";
@@ -157,6 +158,7 @@ function AvailableConnectionEditorBody({
   const quirkFeatures = detected === undefined ? provider.features : { ...provider.features, ...detected.features };
   const quirkLabel = detected === undefined ? providerLabel : providerDisplayLabel(detected);
   const declared = connection.declared;
+  const imageSwitch = imageInputSwitch(capabilityView.capability, declared, capabilityView.baseline);
   const busy = update.isPending;
 
   // A patch to an identity field of the user's embedder can rebuild their index, so the server is asked first; any other
@@ -268,6 +270,14 @@ function AvailableConnectionEditorBody({
               <Text voice="gloss">This connection is greyed out in Model roles for a role it can't serve, with the reason.</Text>
             </Stack>
             <PurposeNotes notes={purposeNotes(capabilityView.capability, provider.auth === "endpoint")} />
+            {imageSwitch === undefined ? null : (
+              <ConnectionImageSwitch
+                answer={imageSwitch}
+                checked={imageSwitch.on}
+                disabled={busy}
+                onCheckedChange={(checked): void => patch({ declared: withImageInput(declared, imageSwitch, checked) }, imageSwitch.row.path)}
+              />
+            )}
             <Row align="start" gap="field" justify="between">
               <Stack minWidth="shrinks" grow="fill" gap="tight">
                 <Text voice="label">{ALLOW_BACKGROUND_SETTING}</Text>

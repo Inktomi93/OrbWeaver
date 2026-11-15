@@ -174,10 +174,10 @@ export function promptCacheRetentionName(connection: string): string {
   return `${PROMPT_CACHE_RETENTION_FIELD_LABEL} on ${connection}`;
 }
 
-/** The add dialog's limits step, shown when a new connection's context window is a guess: its title, what it says, the
- *  field for each guessed limit (named as the Advanced rows name them), and its two ways on. */
+/** The add dialog's limits step, shown when a new connection's context window or image input is a guess: its title, what
+ *  it says, the field for each guessed limit (named as the Advanced rows name them), the image switch, and its two ways on. */
 export const CONNECTION_LIMITS_TITLE = "How much can this model take?";
-export const CONNECTION_LIMITS_DESCRIPTION = "This server doesn't say, so these limits are a guess. A guess that is too low cuts your chats short.";
+export const CONNECTION_LIMITS_DESCRIPTION = "This server doesn't say, so what follows is a guess. A window guessed too low cuts your chats short.";
 // Where to find the real numbers, for a provider that keeps them somewhere other than the model's page: one line,
 // keyed by provider id, that replaces the general where-to-look line.
 const CONNECTION_LIMITS_WHERE_BY_PROVIDER: ReadonlyMap<string, string> = new Map();
@@ -193,11 +193,21 @@ export function connectionLimitsLead(asksOutput: boolean, providerId: string): r
   ];
 }
 export const CONNECTION_LIMIT_FIELD_NAMES = { window: "Context window, in tokens", output: "Max output, in tokens" } as const;
-export const CONNECTION_LIMITS_SAVE_NAME = "Save these limits";
+export const CONNECTION_LIMITS_SAVE_NAME = "Save";
 export const CONNECTION_LIMITS_KEEP_NAME = "Keep the guess";
 /** What one limit field says about the value now in use; `guess` is that number as the field prints it. */
 export function connectionLimitGuessLabel(guess: string): string {
   return `Our guess: ${guess}.`;
+}
+/** The one switch for image input, in the limits step and the connection editor. It states the same stored fact as the
+ *  Advanced `takes` row, so its gloss says where the answer comes from in that row's own words. */
+export const IMAGE_SWITCH_NAME = "Takes images";
+export const IMAGE_SWITCH_ASSUMED_GLOSS =
+  "Our guess: yes, because the server doesn't report what this model takes. Turn it off if the model can't read images.";
+export const IMAGE_SWITCH_STATED_GLOSS = "What this server and model report. Changing it tells us what to believe; it does not change what the server does.";
+/** A set switch restates the answer it replaced, as the Advanced rows do. */
+export function imageSwitchSetGloss(was: boolean): string {
+  return `Your setting: it was ${was ? "yes" : "no"}.`;
 }
 /** What the limits step's read failure names as the thing that did not load. */
 export const CONNECTION_LIMITS_READ_LABEL = "this connection's limits";

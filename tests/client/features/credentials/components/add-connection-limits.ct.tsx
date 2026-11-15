@@ -1,9 +1,11 @@
 // @subject packages/client/src/features/credentials/components/connection-limits-step.tsx
 // Adding a connection whose context window is a guess says so at that moment and takes the real numbers, typed as
 // people copy them, into the connection's own declaration, without a per-model probe to learn them. A provider that
-// states its window goes straight on, and so does one whose only guess is the max output. A failed read or a refused
-// save still leaves a way on, a close while the read is out never leaves the next open on a stale step, and the
-// Advanced tier's override of the same limit reads and refuses them the same way.
+// states its window and its inputs goes straight on. A model whose image input is a guess gets the one "Takes images"
+// switch there, opening on the guess and writing only an answer the user changes, and the connection editor's switch
+// states the same stored fact in all three states: stated, assumed and set. A failed read or a refused save still
+// leaves a way on, a close while the read is out never leaves the next open on a stale step, and the Advanced tier's
+// override of the same limit reads and refuses them the same way.
 
 import { DIALOG_VERBS } from "@orb/client/lib";
 import { providerDisplayLabel } from "@orb/contracts/inference";
@@ -29,6 +31,10 @@ import {
   factOverrideName,
   factSaveName,
   factYourValueName,
+  IMAGE_SWITCH_ASSUMED_GLOSS,
+  IMAGE_SWITCH_NAME,
+  IMAGE_SWITCH_STATED_GLOSS,
+  imageSwitchSetGloss,
 } from "#client/features/credentials/lib/credentials-names.ts";
 import type { ConnectionLimitsStory } from "./_connection-limits-stories.tsx";
 
@@ -316,13 +322,17 @@ test("a guessed window beside a stated max output asks only for the window", asy
   await expect(step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.output, { exact: true })).toHaveCount(0);
 });
 
-test("a stated window beside a guessed max output adds with no limits step", async ({ mount, page }) => {
+test("a stated window beside a guessed max output asks for no limit, only for the image guess", async ({ mount, page }) => {
   await using root = await freshRoot();
   const caller = await root.internalCallerFor(root.ownerId);
   const calls = await mountList({ page, mount }, caller, WIDE_PROPS);
   await saveProxy(page, caller, WINDOW_KNOWN_MODEL);
+  const step = limitsStep(page);
+  await expect(step.getByRole("switch", { name: IMAGE_SWITCH_NAME, exact: true })).toBeVisible();
+  await expect(step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.window, { exact: true })).toHaveCount(0);
+  await expect(step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.output, { exact: true })).toHaveCount(0);
+  await step.getByRole("button", { name: CONNECTION_LIMITS_KEEP_NAME, exact: true }).click();
   await expect(finish(page)).toBeVisible();
-  await expect(limitsStep(page)).toHaveCount(0);
   expect(calls.count("connection.capabilities")).toBeGreaterThan(0);
   const view = await caller.connection.capabilities({ connectionId: (await addedConnection(caller, PROXY_PROVIDER)).id, listFacts: true });
   // The premise: the window is stated and only the max output is a guess.
@@ -355,6 +365,129 @@ test("the Advanced override reads a window the way the step does and refuses zer
   await expect
     .poll(async () => (await caller.connection.get({ connectionId: connection.id })).declared?.generation?.context?.window)
     .toBe(ADVANCED_TYPED.stored);
+});
+
+/** The "takes" fact's row in the Advanced tier, which the image switch and the list state as one fact. */
+function takesRow(page: Page): Locator {
+  return page.locator(`[data-slot="connection-editor-tier"][data-tier="${CONNECTION_EDITOR_TIER_TITLES.advanced}"]`).locator('[data-fact="generation.input"]');
+}
+
+function storedInput(declared: Awaited<ReturnType<Caller["connection"]["get"]>>["declared"]): readonly string[] | undefined {
+  return declared?.generation?.input;
+}
+
+test("a model whose inputs nobody reports shows the image switch on as a guess, and turning it off stores the no", async ({ mount, page }) => {
+  await using root = await freshRoot();
+  const caller = await root.internalCallerFor(root.ownerId);
+  await mountList({ page, mount }, caller, WIDE_PROPS);
+  await saveProxy(page, caller);
+  const step = limitsStep(page);
+  const images = step.getByRole("switch", { name: IMAGE_SWITCH_NAME, exact: true });
+  await expect(images).toBeChecked();
+  await expect(step.getByText(IMAGE_SWITCH_ASSUMED_GLOSS, { exact: true })).toBeVisible();
+  const save = step.getByRole("button", { name: CONNECTION_LIMITS_SAVE_NAME, exact: true });
+  // Untouched, the switch declares nothing, so there is nothing to save.
+  await expect(save).toBeDisabled();
+
+  await images.click();
+  await expect(save).toBeEnabled();
+  await save.click();
+  await expect(finish(page)).toBeVisible();
+
+  const connection = await addedConnection(caller, PROXY_PROVIDER);
+  expect(storedInput(connection.declared)).not.toContain("image");
+  expect(storedInput(connection.declared)).toContain("text");
+  // The window box was left empty, so the guess stays on the window.
+  expect(connection.declared?.generation?.context).toBeUndefined();
+  const after = await caller.connection.capabilities({ connectionId: connection.id, listFacts: true });
+  expect(after.capability.kind === "generation" ? after.capability.generation.input : null).not.toContain("image");
+});
+
+test("a window typed with the image switch left on writes the window and no input", async ({ mount, page }) => {
+  await using root = await freshRoot();
+  const caller = await root.internalCallerFor(root.ownerId);
+  await mountList({ page, mount }, caller, WIDE_PROPS);
+  await saveProxy(page, caller);
+  const step = limitsStep(page);
+  await expect(step.getByRole("switch", { name: IMAGE_SWITCH_NAME, exact: true })).toBeChecked();
+  await step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.window, { exact: true }).fill(TYPED.window);
+  await step.getByRole("button", { name: CONNECTION_LIMITS_SAVE_NAME, exact: true }).click();
+  await expect(finish(page)).toBeVisible();
+  const declared = (await addedConnection(caller, PROXY_PROVIDER)).declared;
+  expect(declared?.generation?.context).toMatchObject({ window: REAL.window });
+  expect(storedInput(declared)).toBeUndefined();
+});
+
+test("the editor's image switch reads a stored no, agrees with the takes row, and turning it on stores the yes", async ({ mount, page }) => {
+  await using root = await freshRoot();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const connection = await caller.connection.create({
+    providerId: PROXY_PROVIDER,
+    credentialId: null,
+    baseUrl: PROXY_URL,
+    model: PROXY_MODEL,
+    label: "Requested proxy",
+    declared: { kind: "generation", generation: { input: ["text"] } },
+  });
+  await mountList({ page, mount }, caller, { ...WIDE_PROPS, requested: connection.id });
+  const images = page.getByRole("switch", { name: IMAGE_SWITCH_NAME, exact: true });
+  await expect(images).not.toBeChecked();
+  await expect(page.getByText(imageSwitchSetGloss(true), { exact: true })).toBeVisible();
+  // The row's value is exactly the stored list, so the two controls cannot read different answers.
+  await expect(takesRow(page).getByText(/^text$/u)).toBeVisible();
+
+  await images.click();
+  await expect.poll(async () => storedInput((await caller.connection.get({ connectionId: connection.id })).declared)).toContain("image");
+  await expect(images).toBeChecked();
+  await expect(takesRow(page).getByText("text, image", { exact: true })).toBeVisible();
+});
+
+test("the editor reads an assumed image answer as the guess and a stored yes as the user's own", async ({ mount, page }) => {
+  await using root = await freshRoot();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const connection = await caller.connection.create({
+    providerId: PROXY_PROVIDER,
+    credentialId: null,
+    baseUrl: PROXY_URL,
+    model: PROXY_MODEL,
+    label: "Requested proxy",
+  });
+  await mountList({ page, mount }, caller, { ...WIDE_PROPS, requested: connection.id });
+  const images = page.getByRole("switch", { name: IMAGE_SWITCH_NAME, exact: true });
+  await expect(images).toBeChecked();
+  await expect(page.getByText(IMAGE_SWITCH_ASSUMED_GLOSS, { exact: true })).toBeVisible();
+  await expect(takesRow(page).getByText("text, image, video (assumed)", { exact: true })).toBeVisible();
+
+  // Confirming the guess is an explicit answer: the same switch turned off and on writes the yes.
+  await images.click();
+  await expect(images).not.toBeChecked();
+  await images.click();
+  await expect(images).toBeChecked();
+  await expect(page.getByText(imageSwitchSetGloss(true), { exact: true })).toBeVisible();
+  expect(storedInput((await caller.connection.get({ connectionId: connection.id })).declared)).toContain("image");
+});
+
+test("a model whose provider states its inputs shows the stated answer, and the user's yes replaces it", async ({ mount, page }) => {
+  await using root = await freshRoot();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const credential = await caller.credentials.add({ provider: ROUTER_PROVIDER, key: ROUTER_KEY });
+  const connection = await caller.connection.create({
+    providerId: ROUTER_PROVIDER,
+    credentialId: credential.id,
+    baseUrl: null,
+    // Its catalog row states a text-only input, and a curated row for the model would state otherwise.
+    model: ROUTER_NO_WINDOW_MODEL.id,
+    label: "Requested router",
+  });
+  await mountList({ page, mount }, caller, { ...WIDE_PROPS, requested: connection.id });
+  const images = page.getByRole("switch", { name: IMAGE_SWITCH_NAME, exact: true });
+  await expect(images).not.toBeChecked();
+  await expect(page.getByText(IMAGE_SWITCH_STATED_GLOSS, { exact: true })).toBeVisible();
+
+  await images.click();
+  await expect(images).toBeChecked();
+  await expect(page.getByText(imageSwitchSetGloss(false), { exact: true })).toBeVisible();
+  expect(storedInput((await caller.connection.get({ connectionId: connection.id })).declared)).toContain("image");
 });
 
 test.describe("phone at enlarged text", () => {
