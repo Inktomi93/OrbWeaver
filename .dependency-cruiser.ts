@@ -1010,6 +1010,10 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/lib/bug-report-bundle.ts":
       "sliceMotionEvidence: the motion slices the dev bug-report capture builds, whose only caller is that capture and which no door forwards",
   },
+  "tests/client/lib/display-styled.dom.test.ts": {
+    "packages/client/src/lib/message-render.ts":
+      "renderStyledMessageForDisplay: the display pass on the calling thread, the same per-script step the Worker runs; its browser door is useDisplayText, so the lib door forwards only its types",
+  },
   "tests/client/features/character/components/_tag-row-stories.tsx": {
     "packages/client/src/features/character/components/character-tags-row.tsx":
       "CharacterTagsRow: the editor's tag row, which no door forwards and only the hero band renders",

@@ -188,15 +188,10 @@ function displayedAnswer(input: {
     : { landed: true, text: finishDisplayPass(scripted.text, ctx), styled: scripted.styled };
 }
 
-/** The display scripts stopped this session, in the order they were stopped. The room's On screen regex roster
- *  marks each one stopped. */
-export function useStoppedDisplayScripts(): readonly StoppedDisplayScript[] {
-  return useSyncExternalStore(stoppedDisplayScripts.subscribe, stoppedDisplayScripts.getSnapshot);
-}
-
 /** Whether the display pass has stopped a script as it is now: an edit to its pattern clears the mark, because the
- *  pass runs the edited script again. */
+ *  pass runs the edited script again. The room's On screen regex roster reads it. */
 export function useIsDisplayScriptStopped(): (script: Pick<RegexScriptRow, "id" | "findRegex">) => boolean {
-  const stopped = new Set(useStoppedDisplayScripts().map(displayScriptStopKey));
+  const stoppedThisSession: readonly StoppedDisplayScript[] = useSyncExternalStore(stoppedDisplayScripts.subscribe, stoppedDisplayScripts.getSnapshot);
+  const stopped = new Set(stoppedThisSession.map(displayScriptStopKey));
   return (script) => stopped.has(displayScriptStopKey(script));
 }
