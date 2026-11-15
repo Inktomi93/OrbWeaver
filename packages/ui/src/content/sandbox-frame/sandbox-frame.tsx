@@ -207,7 +207,7 @@ export function SandboxFrame({
 }: SandboxFrameProps): ReactElement {
   const frameRef = useRef<HTMLIFrameElement>(null);
   // The measurement is stored WITH the delivery it belongs to, so a re-mint (new `src`) is answered during
-  // render instead of by a cascading `setState` — the same shape `useCardFrameSrc` uses for its handle.
+  // render instead of by a cascading `setState` — the same shape `useCardFrame` uses for its handle.
   const [measured, setMeasured] = useState<{ readonly delivery: string; readonly height: CardFrameHeight } | undefined>(undefined);
   // Set once the frame's scripts are stopped (`onScriptsStopped`), with the height it had: it stays on the floor.
   const [stopped, setStopped] = useState<{ readonly px: number | undefined } | undefined>(undefined);

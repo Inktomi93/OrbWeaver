@@ -13,7 +13,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { MutedLine, QueryBoundary, ViewerDialog } from "#components";
-import { QueryErrorState, roomRosterOptions, roomTailOptions, SkeletonRows, useCardFrameSrc, useSuspenseQueries, useTRPC } from "#data";
+import { QueryErrorState, roomRosterOptions, roomTailOptions, SkeletonRows, useCardFrame, useSuspenseQueries, useTRPC } from "#data";
 import type { ArchivedCard } from "../lib/archived-cards.ts";
 import { cardLabel, collectArchivedCards } from "../lib/archived-cards.ts";
 import { RPG_JOURNAL_SCOPE_LABELS, RPG_SCENE_CARDS_READ_LABEL, RPG_SCENE_NO_CARDS_LINE } from "../lib/rpg-names.ts";
@@ -50,10 +50,13 @@ export function RpgCardLightbox({
 
 /** The lightbox's card body. A COMPONENT because the routed card-frame handle is minted with a hook — and
  *  the card carries the ORIGIN ROW's render policy on BOTH axes: the archive is a second lens on the same
- *  authored content, so its sandbox CSP must be the transcript's, never a laxer default. */
+ *  authored content, so its sandbox CSP must be the transcript's, never a laxer default.
+ *
+ *  A lost handle mints once more and then draws the floor, as the transcript's card does. It takes no forming chip
+ *  (the chat feature's, which this feature may not import), so the floor draws while the mint answers. */
 function ArchivedCardBody({ card, chatId }: { readonly card: ArchivedCard; readonly chatId: ChatId | undefined }): ReactElement {
   const { themeTokens, styleTokens, fontFamily } = useSandboxTheme();
-  const frameSrc = useCardFrameSrc(
+  const frame = useCardFrame(
     chatId === undefined ? undefined : { chatId, characterId: card.characterId, html: card.html, css: undefined, themeTokens, styleTokens, fontFamily },
   );
   return (
@@ -62,7 +65,8 @@ function ArchivedCardBody({ card, chatId }: { readonly card: ArchivedCard; reado
       {...(card.title === null ? {} : { title: card.title })}
       origin={card.origin}
       allowExternalMedia={card.allowExternalMedia}
-      {...(frameSrc === undefined ? {} : { frameSrc })}
+      {...(frame.mint.state === "routed" ? { frameSrc: frame.mint.url } : {})}
+      onMissing={frame.onMissing}
     />
   );
 }

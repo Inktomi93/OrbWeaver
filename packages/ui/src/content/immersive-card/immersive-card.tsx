@@ -1,5 +1,5 @@
 import type { CardSpanOrigin } from "@orb/kit/content";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { cn } from "#lib";
 import { Button } from "#primitives/button";
@@ -31,6 +31,12 @@ export interface ImmersiveCardProps {
   /** The ROUTED card-frame URL minted for these exact bytes (`SandboxFrame.src`). Absent ⇒ the srcdoc floor.
    *  Resolved by the CLIENT feature, never here: `@orb/ui` performs no I/O, and the mint is a server call. */
   readonly frameSrc?: string | undefined;
+  /** What stands in the body while the routed frame is on the way: before `frameSrc` arrives, and after it until the
+   *  frame reports its first height (`SandboxFrame.pending`). Absent ⇒ no wait: the srcdoc floor draws at once, and a
+   *  routed frame shows from its first byte. The caller passes it only while its mint is pending or routed. */
+  readonly pending?: ReactNode;
+  /** `SandboxFrame.onMissing`: the routed frame loaded the server's miss notice. */
+  readonly onMissing?: (() => void) | undefined;
   readonly heightPx?: number | undefined;
   readonly className?: string | undefined;
 }
@@ -48,6 +54,8 @@ interface CardBodyProps {
   readonly heightPx: number;
   readonly allowExternalMedia: boolean;
   readonly frameSrc: string | undefined;
+  readonly pending: ReactNode;
+  readonly onMissing: (() => void) | undefined;
 }
 
 /** The card's content pane: the sandboxed render, or (view-raw) the exact stored source as a code echo. */
@@ -63,6 +71,8 @@ function CardBody({
   heightPx,
   allowExternalMedia,
   frameSrc,
+  pending,
+  onMissing,
 }: CardBodyProps): ReactElement {
   const slots = immersiveCardVariants();
   if (showRaw) {
@@ -76,6 +86,11 @@ function CardBody({
       </pre>
     );
   }
+  // The mint is still answering: the stand-in holds the body, never the floor, which would draw at the default height
+  // and then be replaced by the routed frame.
+  if (frameSrc === undefined && pending !== undefined) {
+    return <>{pending}</>;
+  }
   return (
     <SandboxFrame
       html={html}
@@ -86,7 +101,10 @@ function CardBody({
       title={label}
       allowExternalMedia={allowExternalMedia}
       {...(frameSrc === undefined ? {} : { src: frameSrc })}
-      {...(fill ? { fill: true } : { heightPx })}
+      {...(onMissing === undefined ? {} : { onMissing })}
+      // The lightbox's parent owns its height, so it takes no veil (`SandboxFrame` types `pending` out of `fill`): it
+      // opens on a card the inline arm already drew, with the same handle.
+      {...(fill ? { fill: true } : { heightPx, ...(pending === undefined ? {} : { pending }) })}
       className={fill ? "flex-1 rounded-card border border-border bg-card inline-full min-block-0" : "rounded-none border-0 bg-card inline-full"}
     />
   );
@@ -110,6 +128,8 @@ export function ImmersiveCard({
   origin,
   allowExternalMedia = false,
   frameSrc,
+  pending,
+  onMissing,
   heightPx = DEFAULT_HEIGHT_PX,
   className,
 }: ImmersiveCardProps): ReactElement {
@@ -121,7 +141,7 @@ export function ImmersiveCard({
   // The sandboxed iframe can't resolve the app's `var(--token)` cascade, so the base body rule is fed
   // CONCRETE theme-resolved surface/text/font values (recolors live on a theme switch).
   const { themeTokens, styleTokens, fontFamily } = useSandboxTheme();
-  const bodyProps = { showRaw, html, css, themeTokens, styleTokens, fontFamily, label, heightPx, allowExternalMedia, frameSrc };
+  const bodyProps = { showRaw, html, css, themeTokens, styleTokens, fontFamily, label, heightPx, allowExternalMedia, frameSrc, pending, onMissing };
 
   const rawLabel = showRaw ? IMMERSIVE_CARD_LABELS.renderedCard : IMMERSIVE_CARD_LABELS.rawSource;
   // Each icon-only control keeps its pointer hint as a Tooltip; the text repeats the aria-label, so the seal does not
