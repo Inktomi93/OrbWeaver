@@ -21,6 +21,7 @@ import type { MacroRegistry } from "@orb/kit/macro";
 import { roomStandingOf } from "@orb/kit/message-author";
 import { LIVE_WINDOW_FULL_HISTORY_CUTOFF } from "@orb/kit/recall";
 import { humanizeDuration } from "@orb/kit/time";
+import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../contract/context.ts";
 import type { ForeignInputs } from "../contract/foreign.ts";
 import type { GatherAssembleArgs, SendRegexSink } from "../contract/gather.ts";
@@ -285,6 +286,91 @@ function resolveLiveWindowCutoffSeq(canon: readonly MessageView[]): number | und
   return canon.find((m) => m.id === boundaryId)?.seq ?? LIVE_WINDOW_FULL_HISTORY_CUTOFF; // stale boundary → conservative drop-all
 }
 
+// A gather that read no memory: no recall ran, so there is no trace to explain.
+const NO_MEMORY = { text: "", trace: null } as const satisfies Awaited<ReturnType<typeof gatherMemory>>;
+
+type RetrievalSlot = "memory" | "databank";
+
+// How one retrieval slot's outcome reaches the build. A `degrade` gather serves a write that must commit, so a
+// failed slot reads empty; shutdown still ends it, because the abort is not a retrieval failure.
+function retrievalSettler(
+  ctx: ChatContext,
+  args: Pick<GatherAssembleArgs, "retrieval" | "signal" | "chatId">,
+): <T>(slot: RetrievalSlot, run: Promise<T>, empty: T) => Promise<T> {
+  if (args.retrieval !== "degrade") {
+    return async (_slot, run) => await run;
+  }
+  return async (slot, run, empty) => {
+    try {
+      return await run;
+    } catch (err) {
+      if (args.signal.aborted) {
+        throw err;
+      }
+      getLog(ctx.logger).warn({ err, slot, chatId: args.chatId }, "chat: retrieval failed on a save pass; the slot reads empty");
+      return empty;
+    }
+  };
+}
+
+// The two retrieval slots, run as the caller's {@link GatherAssembleArgs.retrieval} says.
+async function gatherRetrievalSlots(
+  bound: { readonly ctx: ChatContext; readonly memoryOps: GatherMemoryOps },
+  args: GatherAssembleArgs,
+  inputs: {
+    readonly foreign: ForeignInputs;
+    readonly canon: readonly MessageView[];
+    readonly eligible: readonly CanonRow[];
+    readonly recallRecent: readonly MsgRow[];
+    readonly warningEpisode: TurnRetrievalWarningEpisode;
+  },
+  out: SendRegexSink | undefined,
+): Promise<readonly [Awaited<ReturnType<typeof gatherMemory>>, string | undefined]> {
+  if (args.retrieval === "none") {
+    return [NO_MEMORY, undefined];
+  }
+  const { ctx, memoryOps } = bound;
+  const { chatId, runAsUserId, characterIds, signal } = args;
+  const { foreign, warningEpisode } = inputs;
+  const settle = retrievalSettler(ctx, args);
+  const names = await loadRecallNames(ctx, memoryOps, inputs.recallRecent);
+  return await Promise.all([
+    settle(
+      "memory",
+      gatherMemory(
+        ctx,
+        memoryOps,
+        {
+          chatId,
+          runAsUserId,
+          characterIds,
+          foreign,
+          recent: inputs.recallRecent,
+          names,
+          liveWindowCutoffSeq: resolveLiveWindowCutoffSeq(inputs.canon),
+          warningEpisode,
+          signal,
+        },
+        out,
+      ),
+      NO_MEMORY,
+    ),
+    settle(
+      "databank",
+      gatherDatabank(ctx, {
+        chatId,
+        hostUserId: runAsUserId,
+        pendingUserText: args.pendingUserText,
+        eligibleContent: inputs.eligible.map((m) => m.content),
+        foreign,
+        warningEpisode,
+        signal,
+      }),
+      undefined,
+    ),
+  ]);
+}
+
 /**
  * Gather the chat-internal assemble inputs, merge with the foreign DTO, and produce the immutable per-turn
  * `AssembleContext` via the pure `buildAssembleContext`. `out`, when supplied with a SEND turn, receives
@@ -296,7 +382,7 @@ export async function gatherAssembleContext(
   foreign: ForeignInputs,
   out?: SendRegexSink,
 ): Promise<AssembleContext> {
-  const { ctx, memoryOps } = bound;
+  const { ctx } = bound;
   const { chatId, runAsUserId, model, characterIds, personaIds } = args;
 
   const [chatRow, canon, injectionRows, storedVariables, variableDeltas, seats] = await Promise.all([
@@ -346,33 +432,7 @@ export async function gatherAssembleContext(
   // hold an episode with no engine consumer" limit the rerank degrade already carries, and such a room has no
   // speaker to run a turn for.
   const warningEpisode = createTurnRetrievalWarningEpisode();
-  const [memory, databank] = await Promise.all([
-    gatherMemory(
-      ctx,
-      memoryOps,
-      {
-        chatId,
-        runAsUserId,
-        characterIds,
-        foreign,
-        recent: recallRecent,
-        names: await loadRecallNames(ctx, memoryOps, recallRecent),
-        liveWindowCutoffSeq: resolveLiveWindowCutoffSeq(canon),
-        warningEpisode,
-        signal: args.signal,
-      },
-      out,
-    ),
-    gatherDatabank(ctx, {
-      chatId,
-      hostUserId: runAsUserId,
-      pendingUserText: args.pendingUserText,
-      eligibleContent: eligible.map((m) => m.content),
-      foreign,
-      warningEpisode,
-      signal: args.signal,
-    }),
-  ]);
+  const [memory, databank] = await gatherRetrievalSlots(bound, args, { foreign, canon, eligible, recallRecent, warningEpisode }, out);
 
   // The host-tier regex union (global ∪ preset ∪ character ∪ room), deterministically ordered/deduped. D121-E:
   // the four slices are LIBRARY ROWS dereferenced from their scope junctions by the injected regex op; no

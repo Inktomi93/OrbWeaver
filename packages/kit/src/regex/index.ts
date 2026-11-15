@@ -1,6 +1,6 @@
 import type { CharacterId, PersonaId, UserId } from "#ids";
 import type { ProcessMacroOptions } from "#macro";
-import { processMacros } from "#macro";
+import { globalMacroRegistry, macroTextReadsRetrieval, processMacros } from "#macro";
 import type { MessageKind, ParticipantKind, ParticipantRole, RoomStanding } from "#message-author";
 import { participantOf, standingOf } from "#message-author";
 import type { MessageRole } from "#message-role";
@@ -509,6 +509,22 @@ export function regexPassReadsTarget(pass: RegexPass, target: RegexTarget): bool
  *  ({@link regexPassReadsTarget}). An import switches off a script that does not. */
 export function regexBehaviorReachesText(behavior: { readonly targets: readonly RegexTarget[]; readonly passes: readonly RegexPass[] }): boolean {
   return behavior.passes.some((pass) => behavior.targets.some((target) => regexPassReadsTarget(pass, target)));
+}
+
+// Every script text the executor renders macros in: the replacement, each trim string, and the find pattern
+// unless its substitution mode is off (`compilePattern`).
+function macroRenderedTexts(script: RegexScriptInput): readonly string[] {
+  const find = (script.substituteRegex ?? SubstituteFindRegex.none) === SubstituteFindRegex.none ? [] : [script.findRegex];
+  return [script.replaceString, ...(script.trimStrings ?? []), ...find];
+}
+
+/** Whether running `scripts` on `call` can read the turn's memory recall or databank retrieval: a script the call
+ *  runs renders a macro that reads one, or text the analysis cannot see. Judged against the registry the executor
+ *  renders with, so a caller that skips retrieval on a false answer renders the same bytes. */
+export function regexCallReadsRetrieval(scripts: readonly RegexScriptInput[], call: RegexPassCall): boolean {
+  return scripts.some(
+    (script) => regexSkipReason(script, call) === null && macroRenderedTexts(script).some((text) => macroTextReadsRetrieval(text, globalMacroRegistry)),
+  );
 }
 
 /**

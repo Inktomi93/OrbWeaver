@@ -134,10 +134,12 @@ test("a member's edit runs none of a disabled host's scripts and embeds nothing,
   const { root, host, member, chatId, embeds } = room;
   const script = await seedRegexScript(root, {
     principal: host,
+    // The trim string reads the databank, so an edit's save pass gathers retrieval on the host's encoder.
     input: createRegexScriptSchema.parse({
       name: "lamp to lantern",
       findRegex: "lamp",
       replaceString: "lantern",
+      trimStrings: ["{{databank}}"],
       targets: ["USER_INPUT"],
       passes: ["save"],
       runOnEdit: true,

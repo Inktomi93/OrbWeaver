@@ -4,7 +4,8 @@
 // A skipped host regex script names its script by id only, so the surface looks the id up in the host's own library
 // before it speaks: the notice names it, and the stop store marks it on the room's roster by id and pattern. An id
 // the library no longer holds is named as such and marks nothing. A turn's scripts past the server's naming cap arrive
-// as one count with no id, which adds to the same notice; the bus's seq guard keeps a replayed one from adding twice.
+// as one count with no id, so a later turn reports the same count again under a new seq: the notice shows the latest
+// turn's count, never a sum, and a count raises it again only when it is above the last one shown.
 
 import type { ChatRegexNotAppliedWarning, ChatWarning } from "@orb/contracts/chat";
 import { REGEX_NOT_APPLIED_OVERFLOW_CODE, REGEX_SCRIPT_NOT_APPLIED_CODE } from "@orb/contracts/chat";
@@ -44,9 +45,11 @@ export function createWarningSurface(deps: WarningSurfaceDeps): WarningCallbacks
   };
   // Each skipped script's latest report this session, by id, in the order first reported.
   const skipped = new Map<RegexScriptId, { readonly name: string | null } & Pick<ChatRegexNotAppliedWarning, "cause" | "pass">>();
-  // The scripts this session's turns reported past the naming cap.
+  // The latest turn's count of scripts past the naming cap, and the count the notice last showed.
   let more = 0;
+  let shownMore = 0;
   const raiseRegexNotice = (): void => {
+    shownMore = more;
     deps.warn({ ...regexNotAppliedNotice([...skipped.values()], more), action: deps.openThisChat });
   };
   const raiseSkipped = async (warning: ChatRegexNotAppliedWarning): Promise<void> => {
@@ -65,8 +68,10 @@ export function createWarningSurface(deps: WarningSurfaceDeps): WarningCallbacks
         return;
       }
       if (now.code === REGEX_NOT_APPLIED_OVERFLOW_CODE) {
-        more += now.count;
-        raiseRegexNotice();
+        more = now.count;
+        if (more > shownMore) {
+          raiseRegexNotice();
+        }
         return;
       }
       if (now.code === REGEX_SCRIPT_NOT_APPLIED_CODE) {
