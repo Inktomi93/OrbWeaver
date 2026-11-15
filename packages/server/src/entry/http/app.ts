@@ -106,6 +106,7 @@ export function createHttpApp(deps: HttpAppDeps): ReturnType<typeof createApp> {
   const { built, authConfig, now, db } = deps;
   const { supervise, newOpaqueId } = built;
   let seedQueue: Promise<void> = Promise.resolve();
+  let seedRuns = 0;
   return createApp({
     logger: deps.logger,
     rings: deps.rings,
@@ -156,14 +157,17 @@ export function createHttpApp(deps: HttpAppDeps): ReturnType<typeof createApp> {
       // Seeding is one queue for the process, across users and seeders, because every seeder draws from the
       // injected id source: concurrent seeders let I/O timing decide which row gets which id, and a seeded
       // replay could not reproduce its own fixture. Each step keeps its own span and failure report, so one
-      // failed seeder still leaves the next one running.
-      const run = seedQueue.then(() => seedUser(built, principal, attrs, deps));
+      // failed seeder still leaves the next one running. The trace keys count runs instead of drawing an id: this
+      // hook fires on every authed request, and a request-time draw would race the queued seed's own ids.
+      seedRuns += 1;
+      const runKey = `seed-user:${principal.userId}:${String(seedRuns)}`;
+      const run = seedQueue.then(() => seedUser(built, principal, runKey, deps));
       // The supervise below reports this run's failure; the queue only orders, so a failed run never stalls the next.
       seedQueue = run.then(
         () => undefined,
         () => undefined,
       );
-      supervise(`seed-user:${principal.userId}:${newOpaqueId()}`, "seed.user", attrs, () => run);
+      supervise(runKey, "seed.user", attrs, () => run);
     },
     oidcProviderName: deps.oidcProviderName,
     ...(authConfig.mode === "local" ? buildLocalAuthDeps(built, deps.sessionSecret, deps.onOwnerClaimed) : {}),
@@ -173,20 +177,18 @@ export function createHttpApp(deps: HttpAppDeps): ReturnType<typeof createApp> {
 
 /** One user's seeders in order. Cards dress through scene plates, so their seed follows the background seed. */
 async function seedUser(
-  built: Pick<HttpAppDeps["built"], "backgroundSeeder" | "contentSeeder" | "examplePluginSeeder" | "distributedPluginApplier" | "newOpaqueId">,
+  built: Pick<HttpAppDeps["built"], "backgroundSeeder" | "contentSeeder" | "examplePluginSeeder" | "distributedPluginApplier">,
   principal: Principal,
-  attrs: { readonly userId: UserId },
+  runKey: string,
   observed: { readonly logger: Logger; readonly rings: ObservabilityRings },
 ): Promise<void> {
-  const { newOpaqueId } = built;
+  const attrs = { userId: principal.userId };
   const { superviseSettled } = createDetachedSupervision(observed.logger, observed.rings.traces);
-  await superviseSettled(`seed-user:${principal.userId}:content:${newOpaqueId()}`, "seed.user.content", attrs, () =>
+  await superviseSettled(`${runKey}:content`, "seed.user.content", attrs, () =>
     built.backgroundSeeder.ensureSeeded(principal).then((): Promise<void> => built.contentSeeder.ensureSeeded(principal)),
   );
-  await superviseSettled(`seed-user:${principal.userId}:example-plugin:${newOpaqueId()}`, "seed.user.example-plugin", attrs, () =>
-    built.examplePluginSeeder.ensureSeeded(principal),
-  );
-  await superviseSettled(`seed-user:${principal.userId}:distributed-plugins:${newOpaqueId()}`, "seed.user.distributed-plugins", attrs, () =>
+  await superviseSettled(`${runKey}:example-plugin`, "seed.user.example-plugin", attrs, () => built.examplePluginSeeder.ensureSeeded(principal));
+  await superviseSettled(`${runKey}:distributed-plugins`, "seed.user.distributed-plugins", attrs, () =>
     built.distributedPluginApplier.ensureApplied(principal),
   );
 }
