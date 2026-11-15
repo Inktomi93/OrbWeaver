@@ -178,8 +178,8 @@ export const endpointFeaturesSchema = z
      *  read's own origin check keep the key on the row's base URL origin. */
     keyCheckPath: z.string().regex(KEY_CHECK_PATH_RE, "a key check path is a plain path from the base URL's origin, such as /v1/me").optional(),
     /** The service answers 403 for refusals that say nothing about the key (a model the plan lacks, a cooldown),
-     *  so a 403 is a refusal shown in the service's words, never a credential verdict. Absent ⇒ a 403
-     *  judges the key. */
+     *  so a 403 is a refusal shown in the service's words unless its body's structured `error.code` names the key
+     *  (`invalid_api_key`, `missing_api_key`). Absent ⇒ every 403 judges the key. */
     forbiddenIsNotCredentialVerdict: z.boolean().optional(),
     /** A rerank endpoint path relative to `baseUrl` (vLLM `/rerank`); absent ⇒ the wire serves no rerank. */
     rerankPath: z.string().optional(),

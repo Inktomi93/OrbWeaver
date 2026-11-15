@@ -204,8 +204,10 @@ async function fetchNanoGptModels(args: EndpointFetchArgs): Promise<EndpointMode
   return rows.filter((row) => row.architecture?.output_modalities?.includes(TEXT_OUTPUT) ?? true).map(nanoGptModel);
 }
 
-// The levels a thinker's list names, and whether `none` turns its thinking off. The list states no default, so a
-// stated thinker is taken to think when a request names no effort.
+// The levels a thinker's list names, and whether `none` turns its thinking off (NanoGPT's DeepSeek Harness page: "its
+// `reasoning_efforts` list for the reasoning levels. NanoGPT's `none` effort maps to the Off level"). The docs say a
+// plain id may start with reasoning off but the list states no per-model default, so `default: true` is this
+// reader's assumption, not a stated fact.
 function nanoGptThinking(row: NanoGptRow): EndpointModel["thinking"] {
   const efforts = row.reasoning_efforts;
   if (efforts === undefined) {

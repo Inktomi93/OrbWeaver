@@ -99,7 +99,7 @@ export const BUILTIN_PROVIDER_ROWS = [
       // a good key and 401 to a wrong or missing one (NanoGPT's Personalized Models page; seen live).
       keyCheckPath: "/api/personalized/v1/models",
       // NanoGPT's Error Handling page: 401 is a missing or wrong key, while 403 is "authenticated but not
-      // permitted", a model or feature the account may not use.
+      // permitted", a model or feature the account may not use; its key codes sit on 401 (Feedback, OAuth PKCE pages).
       forbiddenIsNotCredentialVerdict: true,
     },
     catalog: "url",

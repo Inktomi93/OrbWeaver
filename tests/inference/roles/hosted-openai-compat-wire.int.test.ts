@@ -107,6 +107,79 @@ test("a NanoGPT turn sends the chosen effort as reasoning_effort and streams the
   ]);
 });
 
+// NanoGPT's Streaming Protocol page: "Tool calls stream via `delta.tool_calls[]`. Accumulate `function.arguments`
+// across frames for the same `tool_calls[index]`."
+const LOOKUP_TOOL = { name: "lookup", description: "Look a city up.", parameters: { type: "object", properties: { city: { type: "string" } } } };
+const LOOKUP_ARGUMENTS = '{"city":"Paris"}';
+
+test("a NanoGPT tool call streamed in argument pieces comes back as one call with the whole arguments", async () => {
+  const recorded: RecordedRequest[] = [];
+  const usage = { ["prompt_tokens"]: TOKENS_IN, ["completion_tokens"]: TOKENS_OUT, ["total_tokens"]: TOKENS_IN + TOKENS_OUT };
+  const call = (fn: Record<string, string>, head: Record<string, string> = {}): Record<string, unknown> => ({
+    ["tool_calls"]: [{ index: 0, ...head, function: fn }],
+  });
+  using server = scriptedResponses(
+    [
+      (): Response =>
+        eventResponse([
+          chunk({ role: "assistant", ...call({ name: LOOKUP_TOOL.name, arguments: "" }, { id: "call_1", type: "function" }) }, null),
+          chunk(call({ arguments: LOOKUP_ARGUMENTS.slice(0, 8) }), null),
+          chunk(call({ arguments: LOOKUP_ARGUMENTS.slice(8) }), null),
+          chunk({}, "tool_calls", usage),
+        ]),
+    ],
+    recorded,
+  );
+  await using root = await createRuntimeRoot({ providerFetch: server.execute });
+  const connection = await wireConnection(root, { task: "chat", providerId: "nanogpt", model: "vendor/chat-model", capability: EFFORT_CAPABILITY });
+  const turn = await root.app.runtime.executor.runChatTurn({
+    api: "chat-completions",
+    connection,
+    signal: new AbortController().signal,
+    params: {},
+    systemPrompt: { static: "You are a fixture.", dynamic: "" },
+    history: [USER_LINE],
+    tools: [LOOKUP_TOOL],
+  });
+  expect(recorded[0]?.body["tools"]).toMatchObject([{ type: "function", function: { name: LOOKUP_TOOL.name } }]);
+  expect(turn.toolCalls?.map(({ toolCallId, name, arguments: args }) => ({ toolCallId, name, args }))).toEqual([
+    { toolCallId: "call_1", name: LOOKUP_TOOL.name, args: LOOKUP_ARGUMENTS },
+  ]);
+});
+
+// NanoGPT's Error Handling page, verbatim: a mid-stream failure is a chunk with `finish_reason: "error"` and an
+// `error` object, then `[DONE]`; "treat it as a failed request".
+const MID_STREAM_ERROR = {
+  id: "chatcmpl_fixture",
+  object: "chat.completion.chunk",
+  choices: [{ index: 0, delta: {}, ["finish_reason"]: "error" }],
+  error: { status: 503, message: "Service temporarily unavailable. Please try again later.", code: "service_unavailable" },
+};
+
+test("a NanoGPT error frame after streamed text fails the turn in the service's words", async () => {
+  const frames = [chunk({ role: "assistant", content: "Hel" }, null).data, MID_STREAM_ERROR];
+  const reply = (): Response =>
+    new Response(`${frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join("")}data: [DONE]\n\n`, {
+      headers: { "content-type": "text/event-stream" },
+    });
+  const recorded: RecordedRequest[] = [];
+  const settled = await settledProviderError(async () => {
+    using server = scriptedResponses([reply], recorded);
+    await using root = await createRuntimeRoot({ providerFetch: server.execute });
+    const connection = await wireConnection(root, { task: "chat", providerId: "nanogpt", model: "vendor/chat-model", capability: EFFORT_CAPABILITY });
+    return await root.app.runtime.executor.runChatTurn({
+      api: "chat-completions",
+      connection,
+      signal: new AbortController().signal,
+      params: {},
+      systemPrompt: { static: "You are a fixture.", dynamic: "" },
+      history: [USER_LINE],
+    });
+  });
+  expect(settled.error?.message).toContain(MID_STREAM_ERROR.error.message);
+  expect(recorded).toHaveLength(1);
+});
+
 // Error bodies as each service answers them live: NanoGPT's nested object for a missing or wrong key, its bare
 // string plus convenience fields for an empty balance, and its nested refusal of an effort the model does not list;
 // LiteRouter's bare string for a wrong key.
@@ -204,7 +277,7 @@ test("a LiteRouter stream that names its reasoning twice and repeats its stop on
 });
 
 // What a refusal does to the stored key. LiteRouter's 403s (live bodies) and NanoGPT's (its Error Handling page)
-// are refusals, never a verdict on the key; their 401s and every other row's 403 still strike it.
+// are refusals unless the body's structured code names the key; their 401s and every other row's 403 strike it.
 const LITEROUTER_MISSPELLED = "[LiteRouter] Model 'vendor/chat-model' is not available or misspelled";
 const LITEROUTER_COOLDOWN =
   "[LiteRouter] Rate limit exceeded for your tier (7 seconds between messages). You can upgrade your tier to reduce the cooldown period.";
@@ -358,23 +431,6 @@ test.for(HOSTED_ROWS)("a %s 403 shows its decoded words with no markup, control 
   expect(message).not.toMatch(/\p{Cc}/u);
   expect(message).not.toMatch(/\p{Bidi_Control}/u);
   expect(message).not.toContain(ESCAPED_HAZARD_WORDS.keyTail);
-});
-
-test("a LiteRouter 403 shows the service's own words, which name the cooldown", async () => {
-  using server = scriptedResponses([errorReply(403, { error: LITEROUTER_COOLDOWN })]);
-  await using root = await createRuntimeRoot({ providerFetch: server.execute });
-  const connection = await wireConnection(root, { task: "chat", providerId: "literouter", model: "vendor/chat-model", capability: EFFORT_CAPABILITY });
-  const settled = await settledProviderError(() =>
-    root.app.runtime.executor.runChatTurn({
-      api: "chat-completions",
-      connection,
-      signal: new AbortController().signal,
-      params: {},
-      systemPrompt: { static: "You are a fixture.", dynamic: "" },
-      history: [USER_LINE],
-    }),
-  );
-  expect(settled.error?.message).toContain(LITEROUTER_COOLDOWN);
 });
 
 test("a NanoGPT 429 is retried before anything streams, and a limit that holds fails the turn as rate_limit", async () => {

@@ -585,6 +585,8 @@ async function streamOnce(args: StreamOnceArgs): Promise<StreamDrain> {
     args.onResponse(response?.headers);
     return await drainStream(stream, {
       label,
+      // The SDK hands over a chunk's `error` object as the part's payload; it carries `message` as a refusal body does.
+      errorWords: (payload) => refusalWords({ error: payload }, resolvedScrubSet(req.connection)),
       onPart: idle.reset,
       onText: (text): void => {
         commit();
