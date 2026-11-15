@@ -17,6 +17,8 @@
 // cap applies to already-scrubbed bytes. The reverse composition is a leak, not a style choice.
 // Safe in this order because nothing the scrub emits is mangled by this function: the redaction markers
 // (`█ ■ ◆ ● ¤ § ¶ ※`) are neither C0 controls nor markup, and `Bearer █` survives the whitespace collapse.
+// DECODE BEFORE BOTH: both passes judge the text a reader will see, so a JSON body's `\u` escapes are decoded
+// first (`decodedJsonText`), and words pulled out of a parsed body are scrubbed and sanitized after the parse.
 //
 // NOTE (orbweaver vs neo): neo branded the RESULT `SanitizedErrorMessage` because its `ChatError.message`
 // was typed to that brand. Orbweaver's `ProviderError.message` is a plain `string` (contract/errors.ts),
@@ -46,6 +48,7 @@
 // unrelated occurrence of those digits. Over-redaction inside a credential-named subtree is deliberate:
 // the key name declares the semantics, exactly as it does for a custom auth header.
 
+import { parseJsonText } from "@orb/kit/json";
 import { replaceAngleSpans } from "@orb/kit/strings";
 import type { ProviderScrubSet } from "#contract";
 import type { ScrubSource } from "#src/contract/http.ts";
@@ -54,14 +57,15 @@ import { secretHeaderValues } from "../wire/openai-body.ts";
 const DEFAULT_SANITIZE_MAX_LEN = 500;
 
 /**
- * Strip C0 control chars + DEL (preserving `\n`/`\t`) and HTML/XML tags from an upstream error string,
- * collapse whitespace, and cap the length (a truncation marker is appended past the cap). Idempotent on
- * already-clean text (the passes are no-ops), so a classifier may call it on every message — including
- * known-safe literals — without measurable cost.
+ * Strip control chars (C0, DEL and C1, preserving `\n`/`\t`), bidi format controls and HTML/XML tags from an
+ * upstream error string, collapse whitespace, and cap the length (a truncation marker is appended past the cap).
+ * Idempotent on already-clean text (the passes are no-ops), so a classifier may call it on every message —
+ * including known-safe literals — without measurable cost.
  */
 export function sanitizeApiError(raw: string, maxLen: number = DEFAULT_SANITIZE_MAX_LEN): string {
-  // Strip C0 control chars (0x00–0x1F) + DEL (0x7F), preserving tab (0x09), newline (0x0A) and carriage return (0x0D).
-  let cleaned = raw.replace(/[[\p{ASCII}&&\p{Cc}]--[\t\n\r]]/gv, "");
+  // Controls (C1 holds the 8-bit terminal introducers) and bidi overrides, which reorder what a reader sees of the
+  // message around them; tab, newline and carriage return stay for the whitespace collapse below.
+  let cleaned = raw.replace(/[[\p{Cc}\p{Bidi_Control}]--[\t\n\r]]/gv, "");
   // Replace each HTML/XML tag with a single space so adjacent tag-wrapped tokens don't fuse
   // ("<h1>Foo</h1><p>Bar</p>" → "Foo Bar", not "FooBar"); an upstream HTML error page would otherwise
   // leak a wall of markup into our logs.
@@ -72,6 +76,17 @@ export function sanitizeApiError(raw: string, maxLen: number = DEFAULT_SANITIZE_
     cleaned = `${cleaned.slice(0, maxLen)}… [truncated]`;
   }
   return cleaned;
+}
+
+/**
+ * A JSON body re-spelled with its `\u` escapes decoded, or the text as given when it is not whole JSON. Run it
+ * before the scrub and the sanitizer: an escape hides a markup tag, a control, a bidi override or a credential
+ * from both, and a reader of the message sees the decoded text. `JSON.stringify` spells a decoded control as an
+ * escape again, so the result carries no raw control a decode created.
+ */
+export function decodedJsonText(text: string): string {
+  const parsed = parseJsonText(text);
+  return parsed === undefined ? text : JSON.stringify(parsed);
 }
 
 const NO_SECRET_LITERALS: readonly string[] = Object.freeze([]);

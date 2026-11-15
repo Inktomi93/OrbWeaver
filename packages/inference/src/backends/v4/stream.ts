@@ -189,7 +189,7 @@ function applyContentPart(acc: Accumulator, part: LanguageModelV4StreamPart, cal
   }
 }
 
-function applyControlPart(acc: Accumulator, part: LanguageModelV4StreamPart, label: string): void {
+function applyControlPart(acc: Accumulator, part: LanguageModelV4StreamPart, callbacks: DrainCallbacks): void {
   if (part.type === "stream-start") {
     acc.warnings.push(...part.warnings);
   } else if (part.type === "response-metadata") {
@@ -201,9 +201,12 @@ function applyControlPart(acc: Accumulator, part: LanguageModelV4StreamPart, lab
     acc.usage = part.usage;
     acc.providerMetadata = part.providerMetadata;
   } else if (part.type === "error") {
-    throw part.error instanceof Error
-      ? part.error
-      : new ProviderError({ kind: "server", retryable: true, message: `${label}: the stream carried an error part`, cause: part.error });
+    if (part.error instanceof Error) {
+      throw part.error;
+    }
+    const words = callbacks.errorWords?.(part.error);
+    const message = words === undefined ? "the stream carried an error part" : `the stream failed: ${words}`;
+    throw new ProviderError({ kind: "server", retryable: true, message: `${callbacks.label}: ${message}`, cause: part.error });
   }
 }
 
@@ -294,7 +297,7 @@ export async function drainStream(stream: ReadableStream<LanguageModelV4StreamPa
         callbacks.onRaw?.(value.rawValue);
       }
       applyContentPart(acc, value, callbacks);
-      applyControlPart(acc, value, callbacks.label);
+      applyControlPart(acc, value, callbacks);
     }
   } finally {
     reader.releaseLock();
