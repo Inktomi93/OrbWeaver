@@ -12,6 +12,7 @@
 import { readFile } from "node:fs/promises";
 import process from "node:process";
 import { setImmediate } from "node:timers/promises";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { stRegexScriptFields } from "@orb/contracts/regex";
 import { scanStyledHold, stripStyleElements, stripTags } from "@orb/kit/content";
@@ -23,6 +24,7 @@ import { NO_SEATS } from "@orb/kit/message-author";
 import type { ExecuteRegexScriptsArgs, RegexPassCall, RegexRowStamps } from "@orb/kit/regex";
 import { executeRegexScripts, regexSkipReason } from "@orb/kit/regex";
 import { expect, test } from "@orb/testkit/node";
+import { createServerHarness } from "@orb/testkit/node/composed";
 import { toContentBlocks } from "#client/features/chat/lib/content-blocks.ts";
 import { replyParts } from "#client/features/chat/lib/reply-parts.ts";
 import { DISPLAY_OUTPUT_MAX_CHARS, DISPLAY_ROW_BUDGET_MS, DISPLAY_SCRIPT_DEADLINE_MS } from "#client/lib/display-pass-protocol.ts";
@@ -30,7 +32,6 @@ import type { DisplayPass, DisplayRowCall, MessageRenderContext } from "#client/
 import { applyDisplayScript, prepareDisplayPass, renderStyledMessageForDisplay } from "#client/lib/message-render.ts";
 import { openRegexPass, REGEX_TEXT_PASS_BUDGET_MS, regexHistoryPassBudgetMs, regexNotAppliedCause } from "#server/primitives/regex/index.ts";
 import { textRoom, wireOf, wireText } from "../../chat/scenario-physical.ts";
-import { harness } from "./_st-tree-door.ts";
 
 // biome-ignore lint/style/noProcessEnv: a path the person running the check names, not application configuration.
 const PRESET_PATH = process.env["ORB_PRESET_PROBE_FILE"];
@@ -231,7 +232,13 @@ function noteWholePresetRefused(probe: Probe, why: string): void {
 
 /** The single-file door, on a fresh root: preview, import, then the landed rows paired with the file's scripts. */
 async function importPhase(probe: Probe, fileText: string): Promise<Landed> {
-  await using root = await harness();
+  // Not `_st-tree-door.ts`'s `harness`: its import chain reaches a helper that spells a Node-only fetch option, which the
+  // DOM compiler world this file sits in refuses.
+  await using root = await createServerHarness({
+    env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
+    physicalPeer: () => "127.0.0.1",
+    startJobs: false,
+  });
   const caller = await root.internalCallerFor(root.ownerId);
   const preview = await caller.preset.previewFile({ fileText, fileName: FILE_NAME });
   const imported = await caller.preset.importFile({ fileText, fileName: FILE_NAME });
