@@ -1,4 +1,4 @@
-// A styled reply split into the runs one card frame draws and the blocks that stay native (D294). A frame
+// A styled reply split into the runs one card frame draws and the blocks that stay native (D354). A frame
 // document is static markup, so anything that needs the app stays outside it and splits the run: a media block
 // (an owned image is session-gated and cannot load inside an opaque-origin frame), a `:::choices` set (its
 // buttons send the next turn) and a paragraph carrying a dice stamp (its chip is a live control).

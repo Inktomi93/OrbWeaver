@@ -296,7 +296,7 @@ const LAYER_DIRECTION = [
   }),
 );
 
-// The markdown render that keeps raw HTML unsanitized feeds only a frame document (D294); any other importer could
+// The markdown render that keeps raw HTML unsanitized feeds only a frame document (D354); any other importer could
 // put its output in the main document.
 const UI_FRAME_MARKDOWN_FRAME_ONLY: IForbiddenRuleType = {
   name: "ui-frame-markdown-frame-only",

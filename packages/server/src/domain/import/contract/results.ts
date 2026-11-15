@@ -63,6 +63,8 @@ export interface ImportChatsResult {
    *  write op's `chatsPersonaHealed`). NOT counted as `changed`: healing an existing room writes no new canon,
    *  exactly as a merged preset or a replaced world book is not new canon. */
   readonly chatsPersonaHealed: number;
+  /** Swipes the write refused as over-long, one entry each; the rest of each chat imported. */
+  readonly skippedChatRows: readonly ImportSkippedCard[];
 }
 
 /** The ST preset wave's tally. The two counts are deliberately DISTINCT: `presetsImported` is every preset the
@@ -114,6 +116,8 @@ export interface ImportGroupsResult {
   /** Members ST had disabled that the room seats MUTED — the flag TRAVELLED through
    *  the bulk-import wire's knob channel. */
   readonly seatedDisabledMembers: readonly ImportSeatedDisabledMember[];
+  /** The solo wave's {@link ImportChatsResult.skippedChatRows} twin for group transcripts. */
+  readonly skippedChatRows: readonly ImportSkippedCard[];
 }
 
 export interface ImportPersonasResult {
@@ -324,6 +328,8 @@ export interface ImportReport {
   /** A persona's avatar file the store refused (not a picture, over the cap), with why; the persona imported without art. */
   readonly skippedPersonaAvatars: readonly ImportSkippedCard[];
   readonly skippedChats: readonly string[];
+  /** Swipes the solo, group and orphan waves refused as over-long; each chat still imported without them. */
+  readonly skippedChatRows: readonly ImportSkippedCard[];
   readonly orphanChatDirs: readonly string[];
   readonly skippedCharacters: readonly string[];
   /** Top-level ST profile entries the importer does not process (assets/backgrounds/presets/themes/…). */

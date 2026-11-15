@@ -1,9 +1,19 @@
+import type { BulkImportRefusedRow } from "@orb/contracts/chat";
+import { MESSAGE_TEXT_MAX_CHARS } from "@orb/contracts/chat";
 import type { ImportPreviewKind } from "@orb/contracts/import";
 import { IMPORT_PREVIEW_KINDS, ST_PROFILE_UNHANDLED_REASONS, ST_SETTINGS_UNHANDLED_REASONS } from "@orb/contracts/import";
-import type { ImportReport } from "../contract/results.ts";
+import type { ImportReport, ImportSkippedCard } from "../contract/results.ts";
 
 function unhandledReason(name: string): string | undefined {
   return ST_PROFILE_UNHANDLED_REASONS.get(name) ?? ST_SETTINGS_UNHANDLED_REASONS.get(name);
+}
+
+/** One report entry per variant the chat write refused as over-long, keyed by the chat's source name. */
+export function skippedChatRowsOf(rows: readonly BulkImportRefusedRow[]): ImportSkippedCard[] {
+  return rows.map((row) => ({
+    file: row.chat,
+    reason: `message ${String(row.messageIndex + 1)}, swipe ${String(row.variantIdx + 1)}: its ${row.field} is ${String(row.chars)} characters, over the ${String(MESSAGE_TEXT_MAX_CHARS)}-character limit, so that swipe was not imported`,
+  }));
 }
 
 /** One "not imported" line: the plane name + its one-line reason when known, else bare. */
@@ -192,6 +202,10 @@ export function formatImportReport(report: ImportReport, generatedAt: number): s
     section(
       "Chats skipped (oversized)",
       report.skippedChats.map((f) => `\`${f}\``),
+    ),
+    section(
+      "Chat swipes NOT imported (over the message length limit; the rest of the chat imported)",
+      report.skippedChatRows.map((r) => `\`${r.file}\` — ${r.reason}`),
     ),
     section(
       "Orphan chat directories (no matching card — a placeholder character is minted; see the next section)",
