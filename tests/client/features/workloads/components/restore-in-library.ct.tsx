@@ -61,7 +61,11 @@ test("a backup restored onto its own library says every file is already in your 
     .locator('input[type="file"]')
     .first()
     .setInputFiles({ name: "backup.zip", mimeType: "application/zip", buffer: Buffer.from(bundle) });
+  // The route above answers only after the import workload has run to its end, so the summary is awaited from that answer,
+  // on the workload's own deadline, not from the press.
+  const answered = page.waitForResponse((response) => response.url().endsWith(PORTABILITY_ROUTES.importBundle), { timeout: WORKLOAD_DEADLINE_MS });
   await page.getByRole("button", { name: IMPORT_CONFIRM_NAMES.file, exact: true }).click();
+  await answered;
 
   const held = summarizeBundleCounts({ imported: 0, inLibrary: files.size, skipped: 0, mergedKeys: [], failed: 0, notes: [], memoryScope: null });
   await expect(page.getByTestId(testId("importReport")).getByText(summaryCaption(held), { exact: true })).toBeVisible();
