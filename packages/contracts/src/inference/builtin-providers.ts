@@ -98,6 +98,20 @@ export const BUILTIN_PROVIDER_ROWS = [
     docsUrl: "https://docs.nano-gpt.com",
   },
   {
+    id: "literouter",
+    label: "LiteRouter",
+    wire: "openai-compat",
+    dialect: "openai-compatible",
+    auth: "apiKey",
+    baseUrl: "https://api.literouter.com/v1",
+    apis: ["chat-completions"],
+    // Image models answer on a separate host, image.literouter.com, and the docs name no embedding route.
+    serves: ["chat", "summarize", "structured"],
+    catalog: "url",
+    metered: true,
+    docsUrl: "https://docs.literouter.com",
+  },
+  {
     id: "vllm",
     label: "vLLM",
     wire: "openai-compat",

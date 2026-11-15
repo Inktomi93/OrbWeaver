@@ -11,11 +11,12 @@ import type { SseEvent } from "../conformance/transport.fixtures.ts";
 import { eventResponse, scriptedResponses } from "../conformance/transport.fixtures.ts";
 import { createRuntimeRoot, generationCapability, observeRuntimeTimers, RUNTIME_KEY, wireConnection } from "./runtime.fixtures.ts";
 
-const HOSTED_ROWS = ["nanogpt"] as const;
+const HOSTED_ROWS = ["nanogpt", "literouter"] as const;
 type HostedRow = (typeof HOSTED_ROWS)[number];
 
 const CHAT_URLS: Record<HostedRow, string> = {
   nanogpt: "https://api.nano-gpt.com/api/v1/chat/completions",
+  literouter: "https://api.literouter.com/v1/chat/completions",
 };
 
 const TOKENS_IN = 41;
@@ -105,7 +106,8 @@ test("a NanoGPT turn sends the chosen effort as reasoning_effort and streams the
   ]);
 });
 
-// Error bodies as each service answers them: NanoGPT's nested object (live 401) and its older bare-string 402.
+// Error bodies as each service answers them: NanoGPT's nested object (live 401), its older bare-string 402, and
+// LiteRouter's bare string (live 401).
 const REFUSALS: readonly {
   readonly providerId: HostedRow;
   readonly status: number;
@@ -119,6 +121,7 @@ const REFUSALS: readonly {
     kind: "auth_failed",
   },
   { providerId: "nanogpt", status: 402, body: { error: "Insufficient balance", requiredBalance: 0.0035, status: 402 }, kind: "billing" },
+  { providerId: "literouter", status: 401, body: { error: "[LiteRouter] Invalid or missing API key" }, kind: "auth_failed" },
 ];
 
 test.for(REFUSALS)("a $providerId $status answer fails the turn as $kind without a retry", async ({ providerId, status, body, kind }) => {
