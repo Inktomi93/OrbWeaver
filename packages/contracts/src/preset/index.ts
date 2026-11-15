@@ -3659,6 +3659,10 @@ function stConfigOutcome(rawObj: Record<string, unknown>, sections: PromptSectio
 // the previous codebase never launched, so no foreign preset file exists to import.
 export { PRESET_SCHEMA_KIND } from "../portability/envelope.ts";
 
+/** The kind every owned preset is born with: a new or copied preset, a fork of the system default, and every
+ *  import. `kind` is a free-text label the library row's subtitle prints, and nothing branches on it. */
+export const OWNED_PRESET_KIND = "generation";
+
 export interface PresetFile {
   schemaKind: typeof PRESET_SCHEMA_KIND;
   /** The PromptConfig schema version at export time — `parsePresetFile` uses it as the lift-walk

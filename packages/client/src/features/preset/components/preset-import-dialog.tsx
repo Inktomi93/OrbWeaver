@@ -12,7 +12,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { FormDialog, MutedLine } from "#components";
-import { PRESET_IMPORT_NAME, PRESET_IMPORT_TITLE } from "../lib/preset-names.ts";
+import { PRESET_IMPORT_ALREADY_HELD, PRESET_IMPORT_NAME, PRESET_IMPORT_TITLE } from "../lib/preset-names.ts";
 
 /** The file the import sends, as the user picked it. */
 export interface PresetFileInput {
@@ -149,7 +149,7 @@ function ImportSummary({ preview }: { readonly preview: ReadyPreview }): ReactEl
           ? `orbweaver preset export: "${name}".`
           : `SillyTavern preset "${name}": ${sectionCount} section${sectionCount === 1 ? "" : "s"}.`}
       </Text>
-      {inLibrary ? <MutedLine>This preset is already in your library.</MutedLine> : null}
+      {inLibrary ? <MutedLine>{PRESET_IMPORT_ALREADY_HELD}</MutedLine> : null}
       {regexScripts === 0 ? null : (
         <MutedLine>
           {regexScripts === 1

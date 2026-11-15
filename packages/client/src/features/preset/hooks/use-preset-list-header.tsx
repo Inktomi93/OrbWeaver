@@ -8,6 +8,7 @@
 // the ONE // The hook supplies view data; the shell owns the band renderer. Actions and overlays retain their existing behavior.
 
 import type { PresetImportOutcome } from "@orb/contracts/preset";
+import { OWNED_PRESET_KIND } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
 import { Icon, Plus, Upload } from "@orb/ui/icons";
 import { useState } from "react";
@@ -15,33 +16,36 @@ import { Tip } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { ListPaneHeaderView } from "#lib";
 import { BAND_NEW_LABEL, notify } from "#lib";
-import { selectPresetFromList } from "#state";
+import { selectPresetFromList, setPresetSearchQuery, usePresetSearchQuery } from "#state";
 import type { PresetFileInput } from "../components/preset-import-dialog.tsx";
 import { PresetImportDialog } from "../components/preset-import-dialog.tsx";
 import { usePresetCensus } from "../hooks/use-preset-census.ts";
 import { useCreatePreset, useImportPresetFile, usePreviewPresetFile } from "../hooks/use-preset-mutations.ts";
-import { NEW_PRESET_KIND, NEW_PRESET_NAME, PRESET_IMPORT_TITLE } from "../lib/preset-names.ts";
+import {
+  NEW_PRESET_NAME,
+  PRESET_IMPORT_ALREADY_HELD,
+  PRESET_IMPORT_LANDED,
+  PRESET_IMPORT_TITLE,
+  presetImportRenamed,
+  presetImportScripts,
+} from "../lib/preset-names.ts";
+import { filterPresetsByName, presetSearchNeedle } from "../lib/preset-search.ts";
 import { PRESETS_SECTION_LABEL } from "../lib/presets-section-label.ts";
 
 /** ONE string for the import door's accessible name AND its hover tooltip (O-3). */
 const IMPORT_LABEL = PRESET_IMPORT_TITLE;
 
-/** The toast for a landed import: what the library gained, and the scripts that came with a SillyTavern preset. */
+/** The result line for a landed import: what the library gained, and the scripts that came with a SillyTavern preset. */
 function importedSentence(outcome: Extract<PresetImportOutcome, { ok: true }>): string {
-  const reused = outcome.created !== true;
   const renamedFrom = outcome.renamedFrom ?? null;
-  let landed = "Preset imported.";
-  if (reused) {
-    landed = "That preset is already in your library.";
+  let landed = PRESET_IMPORT_LANDED;
+  if (outcome.created !== true) {
+    landed = PRESET_IMPORT_ALREADY_HELD;
   } else if (renamedFrom !== null) {
-    landed = `Imported as “${outcome.name ?? renamedFrom}”: you already have a different “${renamedFrom}”.`;
+    landed = presetImportRenamed(outcome.name ?? renamedFrom, renamedFrom);
   }
   const scripts = outcome.regexScripts;
-  if (scripts === undefined) {
-    return reused ? `${landed} Nothing was added.` : landed;
-  }
-  const count = scripts.created + scripts.reused;
-  return `${landed} ${count} regex script${count === 1 ? "" : "s"} attached, ${scripts.created} new to your library.`;
+  return scripts === undefined ? landed : `${landed} ${presetImportScripts(scripts.created + scripts.reused, scripts.created)}`;
 }
 
 export function usePresetListHeader(): ListPaneHeaderView {
@@ -56,9 +60,10 @@ export function usePresetListHeader(): ListPaneHeaderView {
   const importFile = useImportPresetFile({ trpc, invalidation });
   const previewFile = usePreviewPresetFile({ trpc, invalidation });
   const [importOpen, setImportOpen] = useState(false);
+  const searchQuery = usePresetSearchQuery();
 
   const onCreate = (): void => {
-    create.mutate({ name: NEW_PRESET_NAME, kind: NEW_PRESET_KIND }, { onSuccess: (created): void => selectPresetFromList(created.id) });
+    create.mutate({ name: NEW_PRESET_NAME, kind: OWNED_PRESET_KIND }, { onSuccess: (created): void => selectPresetFromList(created.id) });
   };
 
   /** Resolves to the server's error message, or null once the row landed; the landed preset opens. */
@@ -68,6 +73,10 @@ export function usePresetListHeader(): ListPaneHeaderView {
       return outcome.error;
     }
     setImportOpen(false);
+    // The landed preset opens, and a search that would hide its row clears, so the import never reads as nothing.
+    if (outcome.name !== undefined && filterPresetsByName([{ name: outcome.name }], presetSearchNeedle(searchQuery)).length === 0) {
+      setPresetSearchQuery("");
+    }
     if (outcome.presetId !== undefined) {
       selectPresetFromList(outcome.presetId);
     }

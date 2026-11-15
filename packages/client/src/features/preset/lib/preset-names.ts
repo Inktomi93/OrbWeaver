@@ -28,6 +28,20 @@ export function presetVariableOptionRemoveTitle(ordinal: number): string {
 }
 export const PRESET_IMPORT_NAME = "Import preset";
 
+/** An import whose preset equals one the library holds: the dialog's preview line and the result line. */
+export const PRESET_IMPORT_ALREADY_HELD = "This preset is already in your library.";
+export const PRESET_IMPORT_LANDED = "Preset imported.";
+
+/** The result line when a different preset already holds the file's name. */
+export function presetImportRenamed(name: string, renamedFrom: string): string {
+  return `Imported as “${name}”: you already have a different “${renamedFrom}”.`;
+}
+
+/** The result line's count of the scripts a SillyTavern preset brought, attached to the preset. */
+export function presetImportScripts(attached: number, created: number): string {
+  return `${String(attached)} regex script${attached === 1 ? "" : "s"} attached, ${String(created)} new to your library.`;
+}
+
 /** The editor header's activate command; the list's radiogroup names the same pick differently. */
 export const PRESET_ACTIVATE_NAME = "Activate: use this preset for generation";
 
@@ -46,7 +60,6 @@ export const PRESET_ACTIVE_RADIOGROUP_NAME = "Active preset for generation";
 
 /** The label every door that creates a blank preset wears, and the name the new row takes. */
 export const NEW_PRESET_NAME = "New preset";
-export const NEW_PRESET_KIND = "generation";
 
 /** The section drill-in's name field. */
 export const PRESET_SECTION_NAME_FIELD_NAME = "Name";
