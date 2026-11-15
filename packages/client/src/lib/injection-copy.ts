@@ -196,8 +196,16 @@ export const ROOM_READ_FAILED_CAUSE = "room-read-failed";
 export type SendRefusalCause = RoomUnavailableCause | typeof ROOM_READ_FAILED_CAUSE;
 
 /** A composer refusal reason: a gate cause, or `no-chat-connection`, the host-side split of `no-connection`
- *  for a host with no connection that can serve chat, where the Model roles picker has nothing to offer. */
-export type SendRefusalKey = SendRefusalCause | "no-chat-connection" | "host-no-chat-connection";
+ *  for a host with no connection that can serve chat, where the Model roles picker has nothing to offer. The
+ *  `host-` keys are a member's reading of a cause on the host's account. */
+export type SendRefusalKey = SendRefusalCause | "no-chat-connection" | "host-no-chat-connection" | "host-key-rejected";
+
+/** The host's reading of a struck or missing key on their bound chat connection. */
+export const KEY_REJECTED_COPY = "Your connection's key was rejected. Replace it, or pick another connection, in Settings → Connections.";
+
+/** A member's reading of the same cause: the key is the host's, so a member is told neither of it nor of a fix only
+ *  the host can make. */
+export const HOST_KEY_REJECTED_COPY = "The host's chat connection can't be used right now. Ask them to check it before sending.";
 
 const SEND_UNAVAILABLE_REASON: Record<SendRefusalKey, string> = {
   // No connection is BOUND to your Chat role (§7.2). A saved connection binds nothing on its own, so the copy
@@ -206,7 +214,8 @@ const SEND_UNAVAILABLE_REASON: Record<SendRefusalKey, string> = {
   "no-chat-connection": `None of your connections can chat yet: add one under ${ADD_CONNECTION_PATH.trail} to send.`,
   "host-no-chat-connection": "The host has no chat connection set. Ask them to choose one before sending.",
   // The bound row's key is struck (the provider or the user revoked it) or gone.
-  "key-rejected": "Your connection's key was rejected. Replace it, or pick another connection, in Settings → Connections.",
+  "key-rejected": KEY_REJECTED_COPY,
+  "host-key-rejected": HOST_KEY_REJECTED_COPY,
   // The bound endpoint row's server did not answer its reachability probe (or a wake timed out).
   "endpoint-unreachable": "Can't reach your model's server. It may be down.",
   // A `claude-sub` row on a deployment where the Claude runtime does not resolve (§5.3a).

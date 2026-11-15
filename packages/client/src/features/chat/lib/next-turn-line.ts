@@ -76,9 +76,13 @@ function lacksChatConnection({ rows }: CreditConnections): boolean {
 
 /**
  * The composer's refusal key for a refused send: the host-side `no-chat-connection` split of `no-connection`
- * on the same predicate the line's door uses, so the tooltips and the line point at the same fix.
+ * on the same predicate the line's door uses, so the tooltips and the line point at the same fix. A member reads
+ * a struck key on the host's connection as the host's to fix, never as a key of their own.
  */
 export function sendRefusalKey(cause: SendRefusalCause, viewerIsHost: boolean | undefined, connections: CreditConnections): SendRefusalKey {
+  if (cause === "key-rejected") {
+    return viewerIsHost === false ? "host-key-rejected" : cause;
+  }
   if (cause !== "no-connection") {
     return cause;
   }
