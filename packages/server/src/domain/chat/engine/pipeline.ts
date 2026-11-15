@@ -76,6 +76,7 @@ import type {
   DeliveredCue,
   HistoryMacroNames,
   OrderedReplyImage,
+  RegexNoticeEpisode,
   ReplyPartReceipt,
   TurnEconomics,
   TurnRequest,
@@ -122,6 +123,9 @@ interface RunTurnPipelineArgs {
   /** The turn PRNG (`ChatContext.prng`) the turn-stage macro context draws from. */
   readonly random: RandomSource;
   readonly openRegexPass: OpenRegexPassOp;
+  /** The turn's record of host scripts a pass did not apply; the engine drains it. Absent on a run that tells the
+   *  room nothing (an unpersisted draft). */
+  readonly regexNotices?: RegexNoticeEpisode | undefined;
   /** Resolves a parsed message-image ref → a model-fetchable URL + its media kind, or null to drop it. */
   readonly resolveImageUrl: ResolveTurnImageUrlOp;
   readonly loadContentSignatures?: () => Promise<ReadonlyMap<MessageId, ContentSignatures>>;
@@ -472,11 +476,13 @@ function promptHistoryEnv(ctx: AssembleContext, args: RunTurnPipelineArgs): Prom
       registry: args.macroRegistry,
     }),
     openRegexPass: args.openRegexPass,
-    onScriptFailure: (scriptErr, script) =>
+    onScriptFailure: (scriptErr, script): void => {
       getLog(args.logger).warn(
         { err: scriptErr, pass: "prompt", findRegex: script.findRegex },
         "chat: host-tier regex script failed on the prompt-history leg — evicted for this build (D53 watchdog)",
-      ),
+      );
+      args.regexNotices?.note("prompt_history", scriptErr, script, scripts);
+    },
     room: ctx.hostTierRegexRoom ?? NO_SEATS,
     continuing: args.kind === "continue",
   };
@@ -532,8 +538,10 @@ function applyReceiveTransforms(
       scripts,
       call: { pass: "save", target: "AI_OUTPUT", edit: false },
       ctx: macroCtx,
-      onScriptFailure: (scriptErr, script) =>
-        getLog(args.logger).warn({ err: scriptErr, target: "AI_OUTPUT", findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)"),
+      onScriptFailure: (scriptErr, script): void => {
+        getLog(args.logger).warn({ err: scriptErr, target: "AI_OUTPUT", findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)");
+        args.regexNotices?.note("ai_output", scriptErr, script, scripts);
+      },
     });
   }
 
@@ -546,8 +554,10 @@ function applyReceiveTransforms(
       scripts,
       call: { pass: "save", target: "REASONING", edit: false },
       ctx: macroCtx,
-      onScriptFailure: (scriptErr, script) =>
-        getLog(args.logger).warn({ err: scriptErr, target: "REASONING", findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)"),
+      onScriptFailure: (scriptErr, script): void => {
+        getLog(args.logger).warn({ err: scriptErr, target: "REASONING", findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)");
+        args.regexNotices?.note("reasoning", scriptErr, script, scripts);
+      },
     });
   }
 

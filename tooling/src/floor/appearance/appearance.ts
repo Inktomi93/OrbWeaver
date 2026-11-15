@@ -11,8 +11,9 @@
 // were different WITHOUT writing the owner's settings row.
 //
 // THE MECHANISM (verified against the live wire): the client's tRPC link is `httpBatchLink` with
-// NO transformer (packages/client/src/data/trpc.ts), so `settings.getUserSettings` answers on a plain GET at
-// `/api/trpc/<proc>[,<proc>…]?batch=1&input=…` with `[{"result":{"data":{…,"config":{…,"appearance":{…}}}}}]`
+// NO transformer (packages/client/src/data/trpc.ts), so `settings.getUserSettings` answers at
+// `/api/trpc/<proc>[,<proc>…]?batch=1` (a JSON POST from the app; the shim matches the path, not the method)
+// with `[{"result":{"data":{…,"config":{…,"appearance":{…}}}}}]`
 // — one array element per procedure, IN PATH ORDER. So the shim intercepts the request, fetches the REAL
 // response, deep-merges the patch into `result.data.config` of the element that belongs to
 // `settings.getUserSettings`, and fulfills. Nothing is written: the db row, the server, and every other
@@ -31,6 +32,7 @@
 // ThemeScope commit from `orb:appearance-boot`. Intercepting the query alone would therefore measure a
 // stale first frame. `installSettingsShim` seeds exactly those carried axes before navigation;
 // `appearance.test.ts` keeps this copied browser boundary set-equal to the live manifest.
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { BrowserContext, Route } from "@playwright/test";
 import { isPlainObject } from "../browser/page-validate.ts";
@@ -299,7 +301,8 @@ function themeResolver(request: ThemeRequest): (route: Route, context: BrowserCo
     let entries: readonly ThemeEntry[] | null = null;
     // the catch passes the read failure to warn (stderr) and resolves no catalog, so the run reports the unresolved theme instead of measuring another one. Ends if the catch stops calling warn with the failure.
     try {
-      const response = await context.request.get(url);
+      // The mount refuses a tRPC GET without the CSRF header on every credential path, owner fallback included.
+      const response = await context.request.get(url, { headers: { [CSRF_HEADER]: "1" } });
       entries = response.ok() ? readThemeList((await response.json()) as unknown) : null;
       if (entries === null) {
         warn(themeWarning(`${LIST_THEMES_PROCEDURE} answered ${response.status()} with no theme list`));

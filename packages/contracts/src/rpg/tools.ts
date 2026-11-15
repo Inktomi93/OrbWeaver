@@ -21,6 +21,7 @@ import { z } from "zod";
 import { rpgWeatherLabelSchema, rpgWeatherTypeSchema, TIME_OF_DAY } from "./ambient.ts";
 import type { RpgJournalType } from "./enums.ts";
 import { rpgJournalTypeSchema, rpgRelationshipKindSchema } from "./enums.ts";
+import { RPG_PLOT_ACTS_MAX } from "./snapshot.ts";
 
 /** The tool-name tuple for the implemented lite extraction contract. */
 export const RPG_LITE_TOOL_NAMES = [
@@ -172,7 +173,7 @@ export type UpdateInventoryArgs = z.infer<typeof updateInventoryArgsSchema>;
 // acts up to `act`) so the model never manages a nested list. Omit = keep (MA-4).
 const plotPatchSchema = z
   .object({
-    act: z.int().min(1).optional(),
+    act: z.int().min(1).max(RPG_PLOT_ACTS_MAX).optional(),
     title: z.string().optional(),
     actTitle: z.string().optional(),
     actSummary: z.string().optional(),

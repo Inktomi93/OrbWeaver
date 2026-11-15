@@ -440,6 +440,7 @@ export async function gatherAssembleContext(
       injectionTokenBudget: foreign.injectionTokenBudget,
       hostTierRegexScripts,
       hostTierRegexRoom: roomStandingOf(standingSeatsOf(seats)),
+      regexNotices: args.regexNotices,
       model,
       generationType: args.generationType ?? "normal",
       nowMs: ctx.now(),
