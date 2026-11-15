@@ -22,7 +22,6 @@ export {
   closeDb,
   createDb,
   detachWal,
-  hasPendingMigrations,
   listBackupFiles,
   optimizeDb,
   pendingMigrations,

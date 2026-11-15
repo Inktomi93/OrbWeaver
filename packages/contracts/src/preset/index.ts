@@ -3333,44 +3333,66 @@ const DROPPABLE_FIELDS: readonly StDroppedField[] = [
 /** The reason for a populated top-level field the mapper neither maps nor lists. */
 const UNUSED_FIELD_REASON = "This app does not use this SillyTavern setting, so it was not imported.";
 
-const finiteNumber = (v: unknown): number | undefined => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
-const setNum = (out: Record<string, unknown>, k: string, v: number | undefined): void => {
-  if (v !== undefined) {
-    out[k] = v;
-  }
-};
-
-/** Where the mapped ST fields land: the sampling intent, the format strings, and the two prompt-config knobs. */
+/** Where the mapped ST fields land: the sampling intent, the format strings, the two prompt-config knobs, and what
+ *  a field lost on the way in. */
 interface StSeats {
   readonly params: Record<string, unknown>;
   readonly formatStrings: Record<string, string>;
+  readonly dropped: StDroppedField[];
   namesBehavior?: NamesBehavior;
   continuePostfix?: ContinuePostfix;
 }
 
-type StSeatReader = (value: unknown, seats: StSeats) => void;
+type StSeatReader = (value: unknown, seats: StSeats, field: string) => void;
 
-const intoParam =
-  (key: string): StSeatReader =>
-  (value, seats): void => {
-    setNum(seats.params, key, finiteNumber(value));
+type NumericKnob = keyof typeof generationKnobSchemas;
+
+/** Judge one foreign number against the stored knob's own schema, alone, so no field can sink another: a value in
+ *  range lands as sent; one past the range, or a fraction where a whole number is stored, lands at the nearest stored
+ *  value and is reported as clamped; one the schema still refuses at its bound (an exclusive one) is left out. */
+function judgeKnob(key: NumericKnob, value: number, field: string, seats: StSeats): void {
+  const stored = generationKnobSchemas[key].unwrap();
+  const whole = stored.format === "safeint";
+  const landed = Math.min(
+    Math.max(whole ? Math.round(value) : value, stored.minValue ?? Number.NEGATIVE_INFINITY),
+    stored.maxValue ?? Number.POSITIVE_INFINITY,
+  );
+  if (!stored.safeParse(landed).success) {
+    seats.dropped.push({ field, reason: `SillyTavern sent ${value}, which this app cannot store here, so it was left out.` });
+    return;
+  }
+  seats.params[key] = landed;
+  if (landed !== value) {
+    seats.dropped.push({
+      field,
+      reason: `SillyTavern sent ${value}; it was imported as ${landed}, the nearest value this app stores.`,
+      clamped: { sent: value, landedAs: landed },
+    });
+  }
+}
+
+/** A sampler or limit. Absent or null carries nothing, and so does a value SillyTavern itself reads as off (`isOff`);
+ *  a value that is not a finite number is left out and named. */
+const intoKnob =
+  (key: NumericKnob, isOff: (n: number) => boolean = (): boolean => false): StSeatReader =>
+  (value, seats, field): void => {
+    if (value === undefined || value === null) {
+      return;
+    }
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      seats.dropped.push({ field, reason: "it is not a number, so it was left out." });
+      return;
+    }
+    if (!isOff(value)) {
+      judgeKnob(key, value, field, seats);
+    }
   };
 
-/** A numeric knob ST disables at or below `floor`. */
-const intoParamAbove =
-  (key: string, floor: number): StSeatReader =>
-  (value, seats): void => {
-    const n = finiteNumber(value);
-    setNum(seats.params, key, n !== undefined && n > floor ? n : undefined);
-  };
-
-/** A numeric knob whose ST default means "off", so only another value is carried. */
-const intoParamUnless =
-  (key: string, off: number): StSeatReader =>
-  (value, seats): void => {
-    const n = finiteNumber(value);
-    setNum(seats.params, key, n === off ? undefined : n);
-  };
+/** ST disables the knob at or below this. */
+const offAtOrBelow =
+  (floor: number) =>
+  (n: number): boolean =>
+    n <= floor;
 
 /** A prompt-string slot. A blank slot is omitted so the assembler falls back to `DEFAULT_FORMAT_STRINGS`, and each is
  *  bounded to the schema max so a hostile import cannot smuggle an oversized nudge. */
@@ -3386,21 +3408,19 @@ const intoFormatString =
 // reads its keys, so a field the mapper reads is never reported as lost and a listed field always has a reader.
 // `new_chat_prompt` lands on `formatStrings.newChatMarker`, the history-start boundary the assembler reads.
 const ST_FIELD_SEATS: Readonly<Record<string, StSeatReader>> = {
-  temperature: intoParam("temperature"),
-  top_p: intoParam("topP"),
-  top_k: intoParamAbove("topK", ST_DISABLED_NUMERIC),
-  frequency_penalty: intoParam("frequencyPenalty"),
-  presence_penalty: intoParam("presencePenalty"),
-  repetition_penalty: intoParam("repetitionPenalty"),
-  min_p: intoParamUnless("minP", ST_MIN_P_DEFAULT),
-  top_a: intoParamUnless("topA", ST_TOP_A_DEFAULT),
-  openai_max_tokens: intoParamAbove("maxOutputTokens", ST_DISABLED_NUMERIC),
-  openai_max_context: intoParamAbove("maxContextTokens", ST_DISABLED_NUMERIC),
+  temperature: intoKnob("temperature"),
+  top_p: intoKnob("topP"),
+  top_k: intoKnob("topK", offAtOrBelow(ST_DISABLED_NUMERIC)),
+  frequency_penalty: intoKnob("frequencyPenalty"),
+  presence_penalty: intoKnob("presencePenalty"),
+  repetition_penalty: intoKnob("repetitionPenalty"),
+  // A default that means "off" is "no preference", so only another value is carried.
+  min_p: intoKnob("minP", (n) => n === ST_MIN_P_DEFAULT),
+  top_a: intoKnob("topA", (n) => n === ST_TOP_A_DEFAULT),
+  openai_max_tokens: intoKnob("maxOutputTokens", offAtOrBelow(ST_DISABLED_NUMERIC)),
+  openai_max_context: intoKnob("maxContextTokens", offAtOrBelow(ST_DISABLED_NUMERIC)),
   // ST -1 is random, so only a seed of 0 or more is carried.
-  seed: (value, seats): void => {
-    const n = finiteNumber(value);
-    setNum(seats.params, "seed", n !== undefined && n >= ST_DISABLED_NUMERIC ? n : undefined);
-  },
+  seed: intoKnob("seed", (n) => n < ST_DISABLED_NUMERIC),
   reasoning_effort: (value, seats): void => {
     if (typeof value === "string" && (EFFORT_LEVELS as readonly string[]).includes(value)) {
       seats.params["effort"] = value;
@@ -3436,9 +3456,9 @@ const ST_FIELD_SEATS: Readonly<Record<string, StSeatReader>> = {
 
 /** Map every top-level ST field the mapper has a seat for. */
 function mapSeats(raw: Record<string, unknown>): StSeats {
-  const seats: StSeats = { params: {}, formatStrings: {} };
+  const seats: StSeats = { params: {}, formatStrings: {}, dropped: [] };
   for (const [field, read] of Object.entries(ST_FIELD_SEATS)) {
-    read(raw[field], seats);
+    read(raw[field], seats, field);
   }
   return seats;
 }
@@ -3728,9 +3748,9 @@ function unkeyedRefusal(identifier: string): StImportOutcome {
 function stConfigOutcome(rawObj: Record<string, unknown>, authored: PromptSection[], dropped: StDroppedField[], options: StImportOptions): StImportOutcome {
   const { sections, added } = withOrbSlots(authored);
   const seats = mapSeats(rawObj);
-  // `.catch({})` keeps a stray field from sinking the whole blob.
-  const params = userIntentSchema.catch({}).parse(seats.params);
-  dropped.push(...collectDroppableFields(rawObj, options.handledFields ?? []));
+  // Each param was judged alone against its own schema, so the whole set is never parsed (and dropped) as one.
+  const { params } = seats;
+  dropped.push(...seats.dropped, ...collectDroppableFields(rawObj, options.handledFields ?? []));
 
   const { namesBehavior, continuePostfix } = seats;
   const formatStrings = Object.keys(seats.formatStrings).length > 0 ? seats.formatStrings : undefined;

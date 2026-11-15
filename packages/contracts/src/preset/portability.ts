@@ -46,7 +46,9 @@ const PRESET_FILE_FORMATS = ["orbweaver", "sillyTavern"] as const;
  *  seat and says why in plain words, a malformed regex script by its position, `clamped` names each value the
  *  import brought into range, with what the file sent and what the preset landed with (those are imported, so never
  *  in `leftOut`), `regexScripts` counts the scripts
- *  the run attaches to the preset, `refusedScripts` names each one the write door refuses, and `addedSections` names
+ *  the run attaches to the preset and `regexScriptsOff` how many of those the file brings in switched off (its own
+ *  `disabled`, or one the import switches off and names in `leftOut`; a reused library row keeps its own switch),
+ *  `refusedScripts` names each one the write door refuses, and `addedSections` names
  *  the sections the run adds for orb's own slots. */
 export const presetFilePreviewSchema = z.discriminatedUnion("ok", [
   z.strictObject({
@@ -61,6 +63,7 @@ export const presetFilePreviewSchema = z.discriminatedUnion("ok", [
     leftOut: z.array(z.strictObject({ field: importTextSchema, reason: z.string() })).readonly(),
     clamped: z.array(z.strictObject({ field: importTextSchema, sent: z.number(), landedAs: z.number() })).readonly(),
     regexScripts: z.int().nonnegative(),
+    regexScriptsOff: z.int().nonnegative(),
     refusedScripts: z.array(refusedScriptSchema).readonly(),
     addedSections: addedSectionsSchema,
   }),

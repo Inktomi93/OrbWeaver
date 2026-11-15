@@ -1,4 +1,4 @@
-// The one home for the character-card serde core: the tolerant in-adapter (cardFromJson), the strict
+// The one home for the character-card serde core: the tolerant in-adapter (readCardJson), the strict
 // out-emitter (buildCardV3 + the character_book entry mapper exportBookEntry), and the card content hash
 // (cardContentHash). Co-located so the round-trip is a one-file invariant. Server-only pure: no DB, no
 // logger, no fs — it maps an already-JSON-parsed card object into/out of the canonical contracts/character
@@ -9,7 +9,7 @@
 // is the import verb's: the row takes the art when it has none.
 //
 // Character-Card V2 AND V3 are read first-class into the ONE canonical model: V3 is a strict SUPERSET of V2,
-// so the shared `data.*` reads cover both, and cardFromJson captures the source `spec` so buildCardV3
+// so the shared `data.*` reads cover both, and readCardJson captures the source `spec` so buildCardV3
 // round-trips it (V2→V2, V3→V3). V3-native content is now DECOMPOSED into typed columns: `nickname`/`source`/
 // `creation_date`/`modification_date` are first-class card fields (read here, emitted by buildCardV3).
 // `creator_notes_multilingual` has NO typed column: it rides the `residualData` passthrough verbatim and only
@@ -212,7 +212,7 @@ const PROMOTED_DATA_KEYS = new Set([
   "creator_notes",
   "character_version",
   "alternate_greetings",
-  // Folded into the `greetings` array (`groupOnly:true` entries) by cardFromJson — kept out of `residualData`
+  // Folded into the `greetings` array (`groupOnly:true` entries) by readCardJson — kept out of `residualData`
   // so it doesn't double-ride the residual passthrough AND re-emit on export (V3 promotion Phase B).
   "group_only_greetings",
   // V3-additive `data.*` fields with a typed column now (were residual until the card-import expansion). Kept
@@ -317,17 +317,11 @@ function detectSpec(raw: RawCard): CardSpec | null {
 
 /**
  * Normalize an already-JSON-parsed card object (any spec: V1/Pygmalion/V2/V3) into the canonical
- * `CharacterCard`. The tolerant in half of the serde — `parseCardPng`/`parseCardJson` wrap it with
- * chunk/byte decoding. `avatarAssetId`/`refinery` are not on the card wire, so both are null; tags and
- * the embedded lorebook are external junctions and are not carried here.
- */
-export function cardFromJson(raw: JsonValue, fallbackName: string): CharacterCard {
-  return readCardJson(raw, fallbackName).card;
-}
-
-/**
- * The card, and beside it a note for each regex script the reader refused or each placement it lost. The notes are
- * never part of the card, so a card's import identity ({@link cardImportHash}) is the same with or without a refused
+ * `CharacterCard`: the tolerant in half of the serde. `avatarAssetId`/`refinery` are not on the card wire, so both
+ * are null; tags and the embedded lorebook are external junctions and are not carried here.
+ *
+ * Beside the card, a note for each regex script the reader refused or each placement it lost. The notes are never
+ * part of the card, so a card's import identity ({@link cardImportHash}) is the same with or without a refused
  * script.
  */
 export function readCardJson(raw: JsonValue, fallbackName: string): { readonly card: CharacterCard; readonly scriptNotes: readonly StScriptNote[] } {

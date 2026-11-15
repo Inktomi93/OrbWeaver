@@ -1,7 +1,7 @@
 // domain/import/substrate/card — pure bytes/string in → ParsedCard out (or null on unreadable). Composes
-// png-card-chunk (PNG tEXt/zTXt decode) + #primitives/serde/card (cardFromJson). Adds import-specific bits the serde
+// png-card-chunk (PNG tEXt/zTXt decode) + #primitives/serde/card (readCardJson). Adds import-specific bits the serde
 // core doesn't own: the whole-file importHash (dedup oracle over raw bytes, distinct from cardContentHash),
-// the flatten-to-create-input validation seam, and card tag extraction (cardFromJson drops data.tags).
+// the flatten-to-create-input validation seam, and card tag extraction (readCardJson drops data.tags).
 //
 // Pure: no DB, no fs, no logger. Text that is not JSON returns null; a card the import refuses for what it holds
 // (nesting past JSON_MAX_DEPTH, an embedded book the column refuses) throws ImportCardError; any other throw is a defect.

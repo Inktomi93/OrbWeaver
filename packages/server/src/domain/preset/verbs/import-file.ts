@@ -153,6 +153,10 @@ export function createImportFile(deps: {
     const answer = soleResult(await deps.importPresets({ ownerId: params.userId, files: [read.file], dryRun: true, signal: NEVER_ABORTED }));
     const [plan = []] = await deps.planPresetScripts({ ownerId: params.userId, presets: [read.regexScripts] });
     const liftRefused = plan.flatMap((verdict, i) => ("refused" in verdict ? [clippedRefusal(read.regexScripts[i]?.name ?? "", verdict.refused)] : []));
+    const attached = read.regexScripts.filter((_, i) => {
+      const verdict = plan[i];
+      return verdict === undefined || !("refused" in verdict);
+    });
     return {
       ok: true,
       format: read.format,
@@ -164,7 +168,8 @@ export function createImportFile(deps: {
       limitCount: read.limitCount,
       leftOut: read.leftOut,
       clamped: read.clamped,
-      regexScripts: read.regexScripts.length - liftRefused.length,
+      regexScripts: attached.length,
+      regexScriptsOff: attached.filter(({ enabled }) => !enabled).length,
       refusedScripts: [...liftRefused, ...read.refusedScripts.map(({ name, reason }) => clippedRefusal(name, reason))],
       // A reused preset already holds the sections, so the run adds none.
       addedSections: answer.reuse === "library" ? [] : read.addedSections,
