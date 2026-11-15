@@ -154,7 +154,10 @@ export { createRegistryContext } from "./create-registry-context.tsx";
 export { IS_DEV } from "./dev-flag.ts";
 export type { DialogSubmit } from "./dialog-submit.ts";
 export { DIALOG_PENDING_VERBS, DIALOG_VERBS } from "./dialog-verbs.ts";
-export { downloadJson, downloadTextFile, downloadUrl, slugifyFilename } from "./download-json.ts";
+export type { RegexPreviewEntry, RegexPreviewOutcome, RegexPreviewRequest } from "./display-pass-protocol.ts";
+export type { StoppedDisplayScript } from "./display-script-stops.ts";
+export { noteServerStoppedScript } from "./display-script-stops.ts";
+export { downloadJson, downloadTextFile, downloadUrl } from "./download-json.ts";
 export type { EditSession } from "./edit-session.ts";
 export { resolveCommit } from "./edit-session.ts";
 export {
@@ -246,8 +249,7 @@ export { BAND_NEW_LABEL } from "./list-band-names.ts";
 export type { ListPaneHeaderProps, ListPaneHeaderView } from "./list-pane-header-view.ts";
 export { LIST_PANE_TITLE_ID } from "./list-pane-title-id.ts";
 export {} from "./log-clock.ts";
-export type { MessageRenderContext } from "./message-render.ts";
-export { renderMessageForDisplay, renderStyledMessageForDisplay } from "./message-render.ts";
+export type { DisplayRowCall, MessageRenderContext } from "./message-render.ts";
 export { MESSAGE_ROLE_ITEMS, MESSAGE_ROLE_LABELS } from "./message-role-labels.ts";
 export type { NonEmptyLabel } from "./non-empty-label.ts";
 export type { NotifyAction, NotifyNotice } from "./notify.ts";
@@ -273,15 +275,22 @@ export type { CatalogMacro, MacroCatalog, MacroPlane } from "./prompt-macros.ts"
 export { BUILTIN_MACRO_SUGGESTIONS, MACRO_CATEGORY_WORDS, macroCatalog, macroSourceLabel, pluginMacroPlanes, presetNamesPlane } from "./prompt-macros.ts";
 export { PRIMARY_NAV_NAME, YOU_TAB_LABEL } from "./rail-names.ts";
 export {
-  REGEX_PLACEMENT_GLYPHS,
-  REGEX_PLACEMENT_ITEMS,
-  REGEX_PLACEMENT_LABELS,
-  regexPlacementStages,
-  regexPlacementStep,
+  REGEX_PASS_GLYPHS,
+  REGEX_PASS_LABELS,
+  REGEX_TARGET_GLYPHS,
+  REGEX_TARGET_ITEMS,
+  REGEX_TARGET_LABELS,
+  regexPassesRead,
+  regexPassStages,
   regexRowScent,
+  regexRunsNowhere,
   regexScriptScent,
   regexScriptTitle,
-} from "./regex-placement-labels.ts";
+  regexStepLabel,
+  regexTargetStages,
+  regexUnreadTargetName,
+  regexUnreadTargets,
+} from "./regex-script-labels.ts";
 export type { ContributorRegistry, Registry } from "./registry.ts";
 export { createContributorRegistry, createRegistry } from "./registry.ts";
 export type {

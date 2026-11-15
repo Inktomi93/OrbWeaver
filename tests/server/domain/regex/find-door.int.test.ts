@@ -6,12 +6,13 @@
 // @subject packages/server/src/domain/regex/substrate/find-door.ts
 // @subject packages/server/src/domain/regex/persistence/portability-write.ts
 import { createRegexScriptSchema } from "@orb/contracts/regex";
-import { deriveRegexTierFlags, MAX_FIND_REGEX_LENGTH } from "@orb/kit/regex";
+import { MAX_FIND_REGEX_LENGTH } from "@orb/kit/regex";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { FIND_COMPILE_LIMIT_MS } from "#server/primitives/regex/compile-probe.ts";
 
-const PLACEMENT = ["AI_OUTPUT"] as const;
+// The save pass over replies.
+const AXES = { targets: ["AI_OUTPUT"], passes: ["save"] } as const;
 const UNIT = "(a|b)";
 const HEAD = "lamp";
 // Capture groups of alternation up to the stored length cap: V8 spends most of a second compiling it, and no
@@ -21,7 +22,7 @@ const COMPILE_HEAVY = `${UNIT.repeat(Math.floor((MAX_FIND_REGEX_LENGTH - HEAD.le
 const PANEL = "/<hud>\\s*\\[Time: ([^\\]]*?)\\]\\s*([\\s\\S]*?)<\\/hud>/g";
 
 function scriptInput(name: string, findRegex: string): ReturnType<typeof createRegexScriptSchema.parse> {
-  return createRegexScriptSchema.parse({ name, findRegex, replaceString: "x", placement: PLACEMENT, ...deriveRegexTierFlags(PLACEMENT) });
+  return createRegexScriptSchema.parse({ name, findRegex, replaceString: "x", targets: [...AXES.targets], passes: [...AXES.passes] });
 }
 
 const REFUSAL = new RegExp(`^script "heavy" not saved: its find pattern costs \\d+ ms to compile and first run, over the ${FIND_COMPILE_LIMIT_MS} ms limit$`);

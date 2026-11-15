@@ -9,6 +9,7 @@ import { pluginChildNodes } from "@orb/contracts/plugin";
 import { streamAttachInputSchema } from "@orb/contracts/stream";
 import type { AssetId, CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
+import { roomStandingOf } from "@orb/kit/message-author";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
 import { controlledPanel, settledBox, usesProgrammaticScroll } from "@orb/testkit/browser/spec";
@@ -54,6 +55,7 @@ import {
   WIRE_STATIC_PREFIX_HEADING,
 } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMPOSER_CLEAR_INPUT_NAME, COMPOSER_CORRECTIONS_NAME, COMPOSER_IMAGINE_NAME } from "#client/features/chat/lib/composer-menu-names.ts";
+import { bodyDisplayRow, displayDepthsOf } from "#client/features/chat/lib/display-row.ts";
 import {
   MESSAGE_ACTIONS_MENU_NAME,
   MESSAGE_COPY_NAME,
@@ -2036,15 +2038,28 @@ async function runChatMessageOperations(input: SurfaceFlow): Promise<MessageOper
   return messageOperations;
 }
 
-/** The text the transcript paints for plain authored prose: the production display pipeline over the viewer's own
- *  library scripts. The disposable room broadcasts none, which this asserts rather than composing the two tiers. */
-async function displayedText(flow: Journey, chatId: ChatId, text: string): Promise<string> {
-  expect(await flow.client.regex.listRoomDisplayScripts.query({ chatId })).toEqual([]);
-  return renderMessageForDisplay(text, {
-    characterNamesById: new Map<CharacterId, RowCharacterName>(),
-    personaNamesById: new Map<PersonaId, RowPersonaName>(),
-    displayScripts: await flow.client.regex.listScripts.query(),
-  });
+/** The text the transcript paints for a row of plain authored prose: the production display pipeline over the display
+ *  set the server resolves for this viewer in this room, with the row's own stamps, its depth in `canon` and the
+ *  room's standing. */
+async function displayedText(flow: Journey, message: MessageView, canon: readonly MessageView[]): Promise<string> {
+  const [scripts, chat] = await Promise.all([
+    flow.client.regex.listDisplayScripts.query({ chatId: message.chatId }),
+    flow.client.chat.getChat.query({ chatId: message.chatId }),
+  ]);
+  const depths = displayDepthsOf(
+    canon.map((view) => ({ kind: "message" as const, view })),
+    { later: false, settling: false },
+  );
+  return renderMessageForDisplay(
+    message.content,
+    {
+      characterNamesById: new Map<CharacterId, RowCharacterName>(),
+      personaNamesById: new Map<PersonaId, RowPersonaName>(),
+      displayScripts: scripts.map(({ script }) => script),
+      room: roomStandingOf(chat.participants),
+    },
+    bodyDisplayRow(message, depths.rows.get(message.id)),
+  );
 }
 
 async function disposableRoom(
@@ -2113,13 +2128,12 @@ export async function walkChatGeneration(input: SurfaceFlow): Promise<void> {
           await expect(textbox).toHaveValue("");
         },
       });
-      const completed = (await readCanon(flow, room.id)).find(
-        (message) => message.role === "assistant" && message.content === flow.run.generation.completionText,
-      );
+      const canon = await readCanon(flow, room.id);
+      const completed = canon.find((message) => message.role === "assistant" && message.content === flow.run.generation.completionText);
       if (completed === undefined) {
         throw new Error("The completed native turn has no durable assistant message");
       }
-      await expect(messageRow(flow.page, completed.id)).toContainText(await displayedText(flow, room.id, flow.run.generation.completionText));
+      await expect(messageRow(flow.page, completed.id)).toContainText(await displayedText(flow, completed, canon));
       observe(
         flow,
         "generation/completion",

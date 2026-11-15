@@ -54,7 +54,14 @@ for (const regime of [
         const caller = await root.internalCallerFor(root.ownerId);
         if (collection.group === "regex") {
           await caller.regex.createScript({
-            input: createRegexScriptSchema.parse({ name: MEMBER, findRegex: "witness", replaceString: "", placement: ["AI_OUTPUT"], enabled: false }),
+            input: createRegexScriptSchema.parse({
+              name: MEMBER,
+              findRegex: "witness",
+              replaceString: "",
+              targets: ["AI_OUTPUT"],
+              passes: ["save"],
+              enabled: false,
+            }),
           });
         } else {
           await caller.worldInfo.createBook({ input: { name: MEMBER } });

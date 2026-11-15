@@ -22,7 +22,7 @@ import process from "node:process";
 import vm from "node:vm";
 import type { RegexNotAppliedCause } from "@orb/contracts/chat";
 import type { ExecuteRegexScriptsArgs } from "@orb/kit/regex";
-import { executeRegexScripts, REGEX_OUTPUT_TOO_LONG, REGEX_SUBSTITUTION_TOO_LONG, skipsScript } from "@orb/kit/regex";
+import { executeRegexScripts, REGEX_OUTPUT_TOO_LONG, REGEX_SUBSTITUTION_TOO_LONG, regexSkipReason } from "@orb/kit/regex";
 
 export { probeFindCompiles } from "./compile-probe.ts";
 
@@ -123,7 +123,7 @@ function runScripts(state: EntryState): void {
 // and reporting it would tell the host a script was not applied on a pass it never runs on.
 function reportBudgetSpent(state: EntryState, budgetMs: number): void {
   for (const skipped of state.args.scripts.slice(state.next)) {
-    if (!skipsScript(skipped, state.args.placement, state.args.depth)) {
+    if (regexSkipReason(skipped, state.args.call) === null) {
       state.args.onScriptFailure?.(new RegexPassBudgetSpentError(`regex pass budget of ${budgetMs} ms CPU spent; script not run`), skipped);
     }
   }

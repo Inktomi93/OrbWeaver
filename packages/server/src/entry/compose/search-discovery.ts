@@ -115,6 +115,10 @@ export interface SearchDiscoveryComposeDeps {
    *  projection of the generation funnel. `connection` composes BEFORE this seam at the keystone, so it is a
    *  plain dep, not a forward-ref. */
   readonly resolveChatCapability: PresetAssemblyContext["resolveChatCapability"];
+  readonly importPresetScripts: PresetAssemblyContext["importPresetScripts"];
+  readonly planPresetScripts: PresetAssemblyContext["planPresetScripts"];
+  readonly listPresetScriptKeys: PresetAssemblyContext["listPresetScriptKeys"];
+  readonly exportPresetScripts: PresetAssemblyContext["exportPresetScripts"];
   /** The LATE-BOUND workload contribution registry (assembled after chat, at the keystone) — the workloads
    *  verbs deref it per call as their per-kind params validator. */
   readonly getContributions: WorkloadServiceContext["getContributions"];
@@ -270,6 +274,10 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     audit,
     emitUserEvent: deps.emitUserEvent,
     resolveChatCapability: deps.resolveChatCapability,
+    importPresetScripts: deps.importPresetScripts,
+    planPresetScripts: deps.planPresetScripts,
+    listPresetScriptKeys: deps.listPresetScriptKeys,
+    exportPresetScripts: deps.exportPresetScripts,
     // The CONTEXT panel's backward-bindings read: preset's rule over settings', rpg's and chat's facts.
     resolvePresetUsage: createResolvePresetUsage({
       loadUserSettings: deps.settings.loadUserSettings,

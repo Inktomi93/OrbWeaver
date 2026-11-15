@@ -216,8 +216,8 @@ interface ResolveRegexSourcesArgs {
   readonly presetId: PresetId | null;
   /** The present characters, in roster order. */
   readonly characterIds: readonly CharacterId[];
-  /** The room. Room-public scope, not owner-filtered. */
-  readonly chatId: ChatId;
+  /** The room, or null for a read outside any room (its chat slice is then empty). */
+  readonly chatId: ChatId | null;
 }
 
 /** The four resolved slices, each ordered by its junction position. The consumer unions and dedupes them. */

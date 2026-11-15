@@ -132,7 +132,7 @@ export const TEMPLATE_KIND_DELIVERY: Record<TemplateKind, TemplateDelivery> = {
   group: {
     kind: "static",
     channel: "The group room",
-    body: "Applied by the assembler in a room with several characters or several humans. The co-speaker card headings into the card walk, the person heading over each other human's persona in the persona section, the round and narrator nudges as the round's trailing user turn.",
+    body: "Applied by the assembler in a room with several characters or several humans. The co-speaker card headings into the card walk, the person heading over each other human's persona in the persona prompt, the round and narrator nudges as the round's trailing user turn.",
   },
   teach: {
     kind: "static",

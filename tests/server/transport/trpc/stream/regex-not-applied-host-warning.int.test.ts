@@ -14,8 +14,7 @@ import type { CreateRegexScriptInput } from "@orb/contracts/regex";
 import { createRegexScriptSchema, MAX_REPLACE_LENGTH } from "@orb/contracts/regex";
 import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
 import type { RegexScriptId } from "@orb/kit/ids";
-import type { RegexPlacement } from "@orb/kit/regex";
-import { deriveRegexHistoryDepth, deriveRegexTierFlags, SubstituteFindRegex } from "@orb/kit/regex";
+import { SubstituteFindRegex } from "@orb/kit/regex";
 import { expect, test } from "@orb/testkit/node";
 import type { Device, Guest, Room } from "./_held-room.ts";
 import { ended, memberWatching, openDevice, openRoom } from "./_held-room.ts";
@@ -38,19 +37,26 @@ const PAST_THE_CAP = 3;
 
 type Script = Pick<CreateRegexScriptInput, "name" | "findRegex"> & Partial<Pick<CreateRegexScriptInput, "replaceString" | "substituteRegex" | "runOnEdit">>;
 
-/** Store and attach `scripts` globally for `principal`, on `placements`; answers their ids in order. */
-async function globalScripts(room: Room, principal: Guest, placements: readonly RegexPlacement[], scripts: readonly Script[]): Promise<RegexScriptId[]> {
+type Axes = Pick<CreateRegexScriptInput, "targets" | "passes">;
+
+// The server legs these cases drive: the saved send, the saved reply, world info and the prompt's history walk.
+const SAVED_SEND: Axes = { targets: ["USER_INPUT"], passes: ["save"] };
+const SAVED_REPLY: Axes = { targets: ["AI_OUTPUT"], passes: ["save"] };
+const WORLD_INFO: Axes = { targets: ["WORLD_INFO"], passes: ["prompt"] };
+const PROMPT_HISTORY: Axes = { targets: ["AI_OUTPUT"], passes: ["prompt"] };
+// Every prompt leg at once: the history walk over both message kinds, and each fired world-info entry.
+const EVERY_PROMPT_LEG: Axes = { targets: ["USER_INPUT", "AI_OUTPUT", "WORLD_INFO"], passes: ["prompt"] };
+
+/** Store and attach `scripts` globally for `principal`, on `axes`; answers their ids in order. */
+async function globalScripts(room: Room, principal: Guest, axes: Axes, scripts: readonly Script[]): Promise<RegexScriptId[]> {
   const caller = await room.root.internalCallerFor(principal.userId);
-  const historyDepth = deriveRegexHistoryDepth([...placements], undefined);
   const ids: RegexScriptId[] = [];
   for (const script of scripts) {
     const row = await caller.regex.createScript({
       input: createRegexScriptSchema.parse({
         replaceString: "",
         ...script,
-        placement: placements,
-        ...deriveRegexTierFlags([...placements]),
-        ...(historyDepth === undefined ? {} : { historyDepth }),
+        ...axes,
       }),
     });
     await caller.regex.attachGlobal({ scriptId: row.id });
@@ -105,28 +111,18 @@ test("each cause tells the host once per script, live and on replay, and no memb
   }
   // A card prose field of compile-heavy pattern text: a raw find that pulls it in is refused before it compiles.
   await hostCaller.character.update({ characterId: card.id, input: { description: "(a|b)".repeat(600) } });
-  const [broken, prose, amplifier] = await globalScripts(
-    room,
-    room.host,
-    ["AI_OUTPUT"],
-    [
-      { name: "does not compile", findRegex: UNCLOSED },
-      { name: "prose field", findRegex: "/{{description}}/", substituteRegex: SubstituteFindRegex.raw },
-      // One whole-reply splice, repeated to the stored replacement cap: past the output bound.
-      { name: "amplifier", findRegex: "/([\\s\\S]+)/", replaceString: "$1".repeat(MAX_REPLACE_LENGTH / 2) },
-    ],
-  );
+  const [broken, prose, amplifier] = await globalScripts(room, room.host, SAVED_REPLY, [
+    { name: "does not compile", findRegex: UNCLOSED },
+    { name: "prose field", findRegex: "/{{description}}/", substituteRegex: SubstituteFindRegex.raw },
+    // One whole-reply splice, repeated to the stored replacement cap: past the output bound.
+    { name: "amplifier", findRegex: "/([\\s\\S]+)/", replaceString: "$1".repeat(MAX_REPLACE_LENGTH / 2) },
+  ]);
   // One runaway and one follower over every entry: stopped at the deadline until the shared budget is spent, then
   // both skipped, each named once per cause however many entries report it.
-  const [runaway, follower] = await globalScripts(
-    room,
-    room.host,
-    ["WORLD_INFO"],
-    [
-      { name: "entry runaway", findRegex: RUNAWAY, replaceString: "X" },
-      { name: "entry follower", findRegex: "/!/", replaceString: "?" },
-    ],
-  );
+  const [runaway, follower] = await globalScripts(room, room.host, WORLD_INFO, [
+    { name: "entry runaway", findRegex: RUNAWAY, replaceString: "X" },
+    { name: "entry follower", findRegex: "/!/", replaceString: "?" },
+  ]);
   await lampEntries(room, BUDGET_SPENDING_ENTRIES, NEAR_MISS);
   const host = await hostDevice(room);
   const { device: member, guest } = await memberWatching(room, "regex-warned-member");
@@ -162,9 +158,9 @@ test("each cause tells the host once per script, live and on replay, and no memb
   }
 });
 
-test("one script broken on three legs and several fired entries is named once", { tags: ["slow"] }, async () => {
+test("one script broken on every prompt leg and several fired entries is named once", { tags: ["slow"] }, async () => {
   await using room = await openRoom();
-  const [broken] = await globalScripts(room, room.host, ["USER_INPUT", "AI_OUTPUT", "WORLD_INFO"], [{ name: "broken everywhere", findRegex: UNCLOSED }]);
+  const [broken] = await globalScripts(room, room.host, EVERY_PROMPT_LEG, [{ name: "broken everywhere", findRegex: UNCLOSED }]);
   await lampEntries(room, 3, "The lamp is lit.");
   const { device: member, guest } = await memberWatching(room, "dedupe-member");
   try {
@@ -172,8 +168,9 @@ test("one script broken on three legs and several fired entries is named once", 
     await room.root.services.chat.send({ principal: guest, chatId: room.chatId, content: LAMP_LINE });
     await member.waitFor(ended);
 
+    // One warning, named at the leg that saw it first: the prompt reads world info before it walks the history.
     expect(await replayedWarnings(room, room.host)).toEqual([
-      { type: "warning", chatId: room.chatId, code: REGEX_SCRIPT_NOT_APPLIED_CODE, scriptId: broken, cause: "did_not_compile", pass: "user_input" },
+      { type: "warning", chatId: room.chatId, code: REGEX_SCRIPT_NOT_APPLIED_CODE, scriptId: broken, cause: "did_not_compile", pass: "world_info" },
     ]);
   } finally {
     await member.close();
@@ -185,7 +182,7 @@ test("past the named cap the host gets the first scripts and one count, and no m
   const ids = await globalScripts(
     room,
     room.host,
-    ["AI_OUTPUT"],
+    SAVED_REPLY,
     Array.from({ length: REGEX_NOT_APPLIED_NAMED_MAX + PAST_THE_CAP }, (_, k) => ({ name: `broken ${String(k)}`, findRegex: UNCLOSED })),
   );
   const host = await hostDevice(room);
@@ -227,7 +224,7 @@ test("a history pass that stops every script tells the host once per script, and
   const ids = await globalScripts(
     room,
     room.host,
-    ["PROMPT_HISTORY"],
+    PROMPT_HISTORY,
     Array.from({ length: HISTORY_RUNAWAYS }, (_, k) => ({ name: `history runaway ${String(k)}`, findRegex: RUNAWAY, replaceString: "X" })),
   );
   const { device: member, guest } = await memberWatching(room, "history-member");
@@ -252,7 +249,7 @@ test("a history pass that stops every script tells the host once per script, and
 
 test("a member's edit whose re-apply skips a host script tells the host alone", { tags: ["slow"] }, async () => {
   await using room = await openRoom();
-  const [broken] = await globalScripts(room, room.host, ["USER_INPUT"], [{ name: "edit broken", findRegex: UNCLOSED, runOnEdit: true }]);
+  const [broken] = await globalScripts(room, room.host, SAVED_SEND, [{ name: "edit broken", findRegex: UNCLOSED, runOnEdit: true }]);
   const { device: member, guest } = await memberWatching(room, "editing-member");
   try {
     room.answerWith("Noted.");
@@ -279,16 +276,11 @@ test("a seated member's own scripts run on no server leg and raise nothing, and 
   await using room = await openRoom();
   const { device: member, guest } = await memberWatching(room, "scripted-member");
   try {
-    const [rewrite] = await globalScripts(
-      room,
-      guest,
-      ["USER_INPUT"],
-      [
-        { name: "member rewrite", findRegex: "/Begin/", replaceString: "MEMBER" },
-        { name: "member broken", findRegex: UNCLOSED },
-      ],
-    );
-    await globalScripts(room, guest, ["AI_OUTPUT"], [{ name: "member reply runaway", findRegex: RUNAWAY, replaceString: "X" }]);
+    const [rewrite] = await globalScripts(room, guest, SAVED_SEND, [
+      { name: "member rewrite", findRegex: "/Begin/", replaceString: "MEMBER" },
+      { name: "member broken", findRegex: UNCLOSED },
+    ]);
+    await globalScripts(room, guest, SAVED_REPLY, [{ name: "member reply runaway", findRegex: RUNAWAY, replaceString: "X" }]);
     const memberCaller = await room.root.internalCallerFor(guest.userId);
     if (rewrite === undefined) {
       throw new Error("the member's script was not stored");
@@ -305,15 +297,10 @@ test("a seated member's own scripts run on no server leg and raise nothing, and 
     expect(await replayedWarnings(room, room.host)).toEqual([]);
 
     // Positive control: the same scripts stored by the host do run on the member's line and do raise the event.
-    const [, hostBroken] = await globalScripts(
-      room,
-      room.host,
-      ["USER_INPUT"],
-      [
-        { name: "host rewrite", findRegex: "/Begin/", replaceString: "HOST" },
-        { name: "host broken", findRegex: UNCLOSED },
-      ],
-    );
+    const [, hostBroken] = await globalScripts(room, room.host, SAVED_SEND, [
+      { name: "host rewrite", findRegex: "/Begin/", replaceString: "HOST" },
+      { name: "host broken", findRegex: UNCLOSED },
+    ]);
     const again = await room.root.services.chat.send({ principal: guest, chatId: room.chatId, content: "Begin again." });
     await turnsCompleted(2);
 

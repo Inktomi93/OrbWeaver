@@ -44,12 +44,10 @@ export const regexCollection: CollectionContribution = {
   // "WHERE IT RUNS".
   //
   // …AND IT IS NO LONGER "WHERE IT RUNS" (side-eye 2026-08-19, the clarity finding). Two orthogonal concepts
-  // wore near-identical phrasing on one screen: the EDITOR's `Runs on` field picks which TEXT STREAMS a
-  // script rewrites (your message · model output · rendered transcript), while THIS pane decides and reports
-  // which SCOPES it is attached from (globally, or by a preset / character / room). A reader who has just
-  // set "Runs on" and then reads "Where it runs" 300px away has no way to know they are not the same
-  // control, and the pane's own copy already speaks the attachment vocabulary ("Runs in every chat",
-  // "Attached by presets · 2"). The panel is re-headed rather than the field, because the field's label is
-  // also quoted inside this pane's own "no stream selected" warning — one re-head, one changed string.
+  // wore near-identical phrasing on one screen: the EDITOR picks what text a script rewrites and `When it
+  // runs`, while THIS pane decides and reports which SCOPES it is attached from (globally, or by a preset /
+  // character / room). A reader who has just set "When it runs" and then reads "Where it runs" 300px away
+  // has no way to know they are not the same control, and the pane's own copy already speaks the attachment
+  // vocabulary ("Runs in every chat", "Attached by presets · 2").
   context: { kind: "body", title: "Where it’s attached", render: (view) => <RegexContextBody memberId={view.memberId} /> },
 };

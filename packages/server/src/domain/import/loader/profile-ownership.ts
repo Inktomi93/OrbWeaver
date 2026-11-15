@@ -15,13 +15,13 @@ import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import type { CharacterId } from "@orb/kit/ids";
 import { mapYielding } from "#primitives/abort";
 import { sha256Hex } from "#primitives/content-hash";
-import type { CollectedCard, CollectedChat, CollectedPersona } from "../contract/collection.ts";
+import type { CollectedCard, CollectedChat, CollectedPersona, CollectedPreset } from "../contract/collection.ts";
 import type { CurrentCardIdentity } from "../contract/identity.ts";
 import type { ImportOwnership, ProfileCollected, ProfileDirImportDeps } from "../contract/profile-directory.ts";
 import { currentCardIdentity, importFileHash, reusedCardRow } from "../substrate/card.ts";
 import { partitionGroups, resolveMembers, seatsOf } from "../substrate/group.ts";
 import { orphanImportHash } from "../substrate/handle.ts";
-import { presetBytes, themeBytes } from "../substrate/landing-bytes.ts";
+import { presetImportFile, themeBytes } from "../substrate/landing-bytes.ts";
 
 /** The row a character's chats land under: an owned character, or the one the upload itself creates. A row an upload
  *  creates is named by the content hash of the card that lands it, so a later upload names the same row alike. */
@@ -271,8 +271,8 @@ async function passGroups(deps: ProfileDirImportDeps, collected: ProfileCollecte
 
 /** The items the twin answered, each with its answer. An answer list shorter than the items (an aborted run) leaves
  *  the rest out. */
-function answersOf<Item>(items: readonly Item[], answers: readonly ImportAnswer[]): Map<Item, ImportAnswer> {
-  const answered = new Map<Item, ImportAnswer>();
+function answersOf<Item, Answer = ImportAnswer>(items: readonly Item[], answers: readonly Answer[]): Map<Item, Answer> {
+  const answered = new Map<Item, Answer>();
   for (const [i, item] of items.entries()) {
     const answer = answers[i];
     if (answer !== undefined) {
@@ -308,16 +308,32 @@ async function passPersonas(
   return answersOf(collected.personas, answers);
 }
 
+/** What each preset's script lift does, asked of the lift's own planner in the run's order. The run lifts a preset's
+ *  scripts only after its write lands it, so a preset the write refuses (an answer with no key) or never reached is
+ *  left out, as it is when no lift is wired. */
+async function presetScriptPlan(
+  deps: ProfileDirImportDeps,
+  presets: readonly CollectedPreset[],
+  judged: ReadonlyMap<CollectedPreset, ImportAnswer>,
+): Promise<ImportOwnership["presetScripts"]> {
+  const lifted = presets.filter((preset) => preset.parsed.regexScripts.length > 0 && (judged.get(preset)?.keys.length ?? 0) > 0);
+  if (deps.planPresetScripts === undefined || deps.importPresetScripts === undefined || lifted.length === 0) {
+    return new Map();
+  }
+  const plan = await deps.planPresetScripts({ ownerId: deps.principal.userId, presets: lifted.map((preset) => preset.parsed.regexScripts) });
+  return answersOf(lifted, plan);
+}
+
 /** The planes whose items another domain keeps in the owner's library: books, presets, themes and backgrounds. Books,
  *  presets and themes are judged by the batch op the run writes them with, in dry-run mode. */
 async function passLibrary(
   deps: ProfileDirImportDeps,
   collected: ProfileCollected,
-): Promise<Pick<ImportOwnership, "worlds" | "presets" | "themes" | "backgrounds">> {
+): Promise<Pick<ImportOwnership, "worlds" | "presets" | "presetScripts" | "themes" | "backgrounds">> {
   const { ownership, principal, signal } = deps;
   const ownerId = principal.userId;
   const books = await deps.importStandaloneLorebooks({ ownerId, books: collected.worlds.map(({ book }) => book), dryRun: true, signal });
-  const presets = await deps.importPresets({ ownerId, files: await mapYielding(collected.presets, signal, presetBytes), dryRun: true, signal });
+  const presets = await deps.importPresets({ ownerId, files: await mapYielding(collected.presets, signal, presetImportFile), dryRun: true, signal });
   const themeFiles = await mapYielding(collected.themes, signal, (theme) => ({ bytes: themeBytes(theme) }));
   const themes = await deps.importThemes({ ownerId, files: themeFiles, dryRun: true, signal });
   const heldHashes = collected.backgrounds.length === 0 ? new Set<string>() : await ownership.backgroundHashes(ownerId);
@@ -334,9 +350,11 @@ async function passLibrary(
     landedHashes.add(hash);
     return { reuse: null, keys: [hash] };
   });
+  const judgedPresets = answersOf(collected.presets, presets);
   return {
     worlds: answersOf(collected.worlds, books),
-    presets: answersOf(collected.presets, presets),
+    presets: judgedPresets,
+    presetScripts: await presetScriptPlan(deps, collected.presets, judgedPresets),
     themes: answersOf(collected.themes, themes),
     backgrounds: answersOf(collected.backgrounds, backgrounds),
   };

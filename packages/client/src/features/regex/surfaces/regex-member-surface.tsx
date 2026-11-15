@@ -3,9 +3,8 @@
 // in a Dialog on top of the settings modal. The autosave status moves to the top of the pane, which is
 // where the mock puts it and where a pane-shaped editor can show it without a footer.
 //
-// THE ONE TIER-FLAG WRITE BOUNDARY (side-eye X-1/X-2) is unchanged: `markdownOnly`/`promptOnly` are
-// re-derived from the placement chips on every save, so the pair can never disagree with the chips or with
-// each other — and an ST-imported row carrying contradictory flags heals the first time it is edited here.
+// EVERY SAVE PASSES THE ONE SAVE BOUNDARY (`../lib/regex-save-boundary.ts`), so the stored row never keeps a depth,
+// author scope or run-on-edit flag that its passes cannot read.
 //
 // DELETE IS NOT HERE — it converged onto the ROW's kebab (config-delete #271). The row kebab already carried
 // Duplicate · Export · Delete, so the editor's own Delete button was a SECOND home for one verb; removing it
@@ -29,7 +28,7 @@ import { regexScriptTitle, useFocusOnMount } from "#lib";
 import { RegexEditorFields } from "../components/regex-editor-fields.tsx";
 import { useUpdateRegexScript } from "../hooks/use-regex-library.ts";
 import { RegexScriptForm } from "../hooks/use-regex-script-form.ts";
-import { withDerivedTierFlags } from "../lib/derive-tier-flags.ts";
+import { withSaveBoundary } from "../lib/regex-save-boundary.ts";
 
 type ScriptUpdate = inferInput<Trpc["regex"]["updateScript"]>["input"];
 
@@ -68,7 +67,7 @@ function RegexMemberEditor({ row, back }: { readonly row: RegexScriptRow; readon
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const update = useUpdateRegexScript({ trpc, invalidation });
-  const save = (values: CreateRegexScriptInput): Promise<unknown> => update.mutateAsync({ scriptId: row.id, input: withDerivedTierFlags(values) });
+  const save = (values: CreateRegexScriptInput): Promise<unknown> => update.mutateAsync({ scriptId: row.id, input: withSaveBoundary(values) });
 
   return (
     <RegexScriptForm entityId={row.id} save={save} serverValues={toFormValues(row)}>

@@ -1,8 +1,8 @@
 // The regex collection's CONTEXT arm — "Where it’s attached" for the selected script.
 //
 // IT IS ABOUT SCOPES, AND THE BAND SAYS SO. "Where it runs" would be one preposition away from the EDITOR's
-// `Runs on` field — and those two decide orthogonal things: the field picks which TEXT STREAMS a script
-// rewrites, this pane which SCOPES it is attached from. The band speaks the vocabulary this pane's own copy
+// `When it runs` field — and those two decide orthogonal things: the editor picks what text a script rewrites
+// and when, this pane which SCOPES it is attached from. The band speaks the vocabulary this pane's own copy
 // uses ("Runs in every chat", "Attached by presets · 2"); `regex-collection.tsx` records the fork.
 //
 // THE FOUR SCOPES, EACH IN ITS OWN VOICE (workspace.html's context column). The GLOBAL scope is a SWITCH:
@@ -41,7 +41,7 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import { ContextTabBody, MutedLine, RegexScopeOrder, SettingSwitchRow } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { deriveChatTitle, regexScriptTitle, rowQualifiers, timeLib } from "#lib";
+import { deriveChatTitle, regexRunsNowhere, regexScriptTitle, rowQualifiers, timeLib } from "#lib";
 import { useAttachRegexGlobal, useDetachRegexGlobal } from "../hooks/use-regex-library.ts";
 
 export function RegexContextBody({ memberId }: { readonly memberId: string }): ReactElement {
@@ -116,12 +116,12 @@ function RegexScopePanel({
         onChange={onGlobalChange}
       />
       {/* THE SCOPE IS MOOT WHEN THE SCRIPT RUNS ON NOTHING. This pane's entire job
-          is "where does this script run", and with `placement: []` the honest answer is nowhere — no amount
+          is "where does this script run", and with an empty axis the honest answer is nowhere — no amount
           of attaching changes that. Said here as well as on the row and in the editor, because this is the
           pane a reader opens to ask the question. */}
-      {script.placement.length === 0 ? (
+      {regexRunsNowhere(script) ? (
         <Text tone="destructive" voice="label">
-          This script has no “Runs on” stream selected, so it will not run in any of these scopes. Pick one in the editor.
+          This script has no text or no time selected, so it will not run in any of these scopes. Pick both in the editor.
         </Text>
       ) : null}
       <AttachmentList

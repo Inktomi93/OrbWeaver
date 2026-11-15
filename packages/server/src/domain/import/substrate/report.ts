@@ -34,17 +34,25 @@ function section(title: string, lines: readonly string[]): string {
  *  (a mangled list, caught only by reading the rendered markdown). A preset whose whole file mapped renders
  *  the reassuring "everything mapped" line rather than nothing at all — the operator has to be able to tell
  *  "landed whole" apart from "was never looked at". A preset that carried its own regex scripts (the ST
- *  presetManager extension field) gets the lift accounting appended to its head line. */
+ *  presetManager extension field) gets the lift accounting nested under its head line, and a new preset the sections
+ *  it gained for orbweaver's own slots. */
 function presetNoteLines(report: ImportReport): string[] {
   const base = noteLines(report.presetNotes);
   return base.map((line, i) => {
     const note = report.presetNotes[i];
-    if (note === undefined || note.scriptsLifted + note.scriptsReused === 0) {
+    if (note === undefined) {
       return line;
     }
-    const scripts = `${note.scriptsLifted + note.scriptsReused} regex script(s) → the script library, attached to this preset (${note.scriptsLifted} new, ${note.scriptsReused} matched existing rows)`;
-    // The scripts line nests under the preset's head line, exactly like the unmapped fields do.
-    return `${line}\n  - ${scripts}`;
+    const nested = [
+      ...(note.scriptsLifted + note.scriptsReused === 0
+        ? []
+        : [
+            `${note.scriptsLifted + note.scriptsReused} regex script(s) → the script library, attached to this preset (${note.scriptsLifted} new, ${note.scriptsReused} matched existing rows)`,
+          ]),
+      ...(note.addedSections.length === 0 ? [] : [`sections added for orbweaver's own slots: ${note.addedSections.map((name) => `\`${name}\``).join(", ")}`]),
+    ];
+    // These lines nest under the preset's head line, exactly like the unmapped fields do.
+    return [line, ...nested.map((entry) => `  - ${entry}`)].join("\n");
   });
 }
 
@@ -87,9 +95,7 @@ function regexLines(report: ImportReport): string[] {
     `Preset-carried scripts (\`extensions.regex_scripts\` in a chat-completion preset): see each preset's own note above`,
     `Global scripts (\`settings.json#extension_settings.regex\`): found ${report.globalRegexScriptsFound} — ${report.globalRegexScriptsLifted} new library rows (global), ${report.globalRegexScriptsReused} matched existing`,
   ];
-  if (report.malformedGlobalRegexScripts > 0) {
-    lines.push(`Global entries that did not parse as regex scripts: ${report.malformedGlobalRegexScripts} — dropped, see the server log`);
-  }
+  lines.push(...report.globalRegexScriptNotes.map(({ field, reason }) => `Global script \`${field}\` — ${reason}`));
   if (report.globalRegexSkippedReason !== null) {
     lines.push(`Global scripts NOT imported: ${report.globalRegexSkippedReason}`);
   }
@@ -210,6 +216,10 @@ export function formatImportReport(report: ImportReport, generatedAt: number): s
       ...report.orphanSkipped.map((o) => `\`${o.dir}\` — NOT imported: ${o.reason}`),
     ]),
     section("Characters skipped (skip-listed)", report.skippedCharacters),
+    section(
+      "Character planes that did NOT land (the character imported)",
+      report.cardNotes.map((n) => `\`${n.file}\` — ${n.reason}`),
+    ),
     section(
       "Library tags that did NOT attach (the character imported without them)",
       report.skippedCardTags.map((t) => `\`${t.character}\` → \`${t.tag}\` — ${t.reason}`),

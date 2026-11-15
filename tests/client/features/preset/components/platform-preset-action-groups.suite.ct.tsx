@@ -1,3 +1,4 @@
+import { OWNED_PRESET_KIND } from "@orb/contracts/preset";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { actionGroupGeometry } from "@orb/testkit/browser/spec";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
@@ -5,7 +6,6 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import {
-  NEW_PRESET_KIND,
   NEW_PRESET_NAME,
   PRESET_ACTIVATE_NAME,
   PRESET_ACTIVE_RADIOGROUP_NAME,
@@ -128,7 +128,7 @@ for (const regime of REGIMES) {
       await create.focus();
       await page.keyboard.press("Enter");
       await expect.poll(async () => (await caller.preset.list()).length).toBe(before.length + 1);
-      expect(calls.lastInput("preset.create")).toEqual({ name: NEW_PRESET_NAME, kind: NEW_PRESET_KIND });
+      expect(calls.lastInput("preset.create")).toEqual({ name: NEW_PRESET_NAME, kind: OWNED_PRESET_KIND });
     });
   });
 }

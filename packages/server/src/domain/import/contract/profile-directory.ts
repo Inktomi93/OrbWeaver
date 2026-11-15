@@ -4,7 +4,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { ImportAnswer, ImportFsPort, PersonaCollisionChoices } from "@orb/contracts/import";
 import type { BulkImportPersonas } from "@orb/contracts/persona";
 import type { ImportPresets } from "@orb/contracts/preset";
-import type { ImportCardScripts, ImportGlobalScripts, ImportPresetScripts } from "@orb/contracts/regex";
+import type { ImportCardScripts, ImportGlobalScripts, ImportPresetScripts, PlanPresetScripts, ScriptPlan } from "@orb/contracts/regex";
 import type { ImportedAppearance, ImportedAppearanceOutcome, ImportThemes, NewBackgroundEntryId, OwnedBackgroundHashes } from "@orb/contracts/settings";
 import type { AttachCardTagByNameOp } from "@orb/contracts/tag";
 import type { AttachOwnedBooksByName, ImportStandaloneLorebooks, ImportWorldInfoPort } from "@orb/contracts/world-info";
@@ -56,6 +56,8 @@ export interface ImportOwnership {
   readonly personas: Judged<CollectedPersona>;
   readonly worlds: Judged<CollectedWorld>;
   readonly presets: Judged<CollectedPreset>;
+  /** Per preset the run lifts scripts for, what the lift does with each, in the preset's script order. */
+  readonly presetScripts: ReadonlyMap<CollectedPreset, readonly ScriptPlan[]>;
   readonly themes: Judged<CollectedTheme>;
   readonly backgrounds: Judged<CollectedBackground>;
   readonly groups: Judged<CollectedGroup>;
@@ -82,6 +84,8 @@ export interface ProfileDirImportDeps {
   readonly importGlobalScripts?: ImportGlobalScripts;
   /** The preset-scoped regex lift, threaded to the presets verb through the profile ops. Same optionality. */
   readonly importPresetScripts?: ImportPresetScripts;
+  /** Travels with `importPresetScripts`: the dry run asks it what each preset's lift does with each script. */
+  readonly planPresetScripts?: PlanPresetScripts;
   /** The ST NAME-LINK attach (card `extensions.world` primary + charLore auxiliaries → the owner's books,
    *  by exact name). Optional on the same precedent; dangling names are REPORTED per character. */
   readonly attachBooksByName?: AttachOwnedBooksByName;
@@ -164,7 +168,7 @@ export interface ProfileCollected
       | "groups"
       | "orphanBundles"
       | "globalRegexScripts"
-      | "malformedGlobalRegexScripts"
+      | "globalRegexScriptNotes"
       | "databankFileCount"
       | "galleryImageCount"
     > {
@@ -189,6 +193,7 @@ export type ProfileWaveOutcomes = Pick<
   | "skippedBackgrounds"
   | "skippedPersonaAvatars"
   | "skippedCardTags"
+  | "cardNotes"
   | "appearanceKeysApplied"
   | "groupsImported"
   | "groupChatsImported"

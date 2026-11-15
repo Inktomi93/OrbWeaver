@@ -9,7 +9,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { CreateRegexScriptInput } from "@orb/contracts/regex";
 import { createRegexScriptSchema, MAX_REPLACE_LENGTH } from "@orb/contracts/regex";
-import { deriveRegexTierFlags, REGEX_OUTPUT_TOO_LONG, REGEX_SUBSTITUTION_TOO_LONG, SubstituteFindRegex } from "@orb/kit/regex";
+import { REGEX_OUTPUT_TOO_LONG, REGEX_SUBSTITUTION_TOO_LONG, SubstituteFindRegex } from "@orb/kit/regex";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
@@ -24,7 +24,8 @@ import {
 import { vi } from "vitest";
 import { z } from "zod";
 
-const PLACEMENT = ["AI_OUTPUT"] as const;
+// The save pass over replies.
+const AXES = { targets: ["AI_OUTPUT"], passes: ["save"] } as const;
 const PROSE = "The rain had not stopped since morning. She pulled her coat tighter. ";
 const REPLY = PROSE.repeat(44);
 const FOLLOWER = { name: "follower", findRegex: "/rain/g", replaceString: "snow" } as const;
@@ -59,7 +60,7 @@ async function openRoom(
   );
   for (const script of scripts) {
     const row = await h.caller.regex.createScript({
-      input: createRegexScriptSchema.parse({ ...script, placement: [...PLACEMENT], ...deriveRegexTierFlags(PLACEMENT) }),
+      input: createRegexScriptSchema.parse({ ...script, targets: [...AXES.targets], passes: [...AXES.passes] }),
     });
     await h.caller.regex.attachGlobal({ scriptId: row.id });
   }

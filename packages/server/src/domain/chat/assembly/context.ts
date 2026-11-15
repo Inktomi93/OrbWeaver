@@ -29,6 +29,7 @@ import { composeRewriteSteer, GUIDED_GAME_STEERS } from "@orb/kit/guided";
 import type { CharacterId, ChatId, PersonaId, UserId, WorldEntryId } from "@orb/kit/ids";
 import type { MacroContext, MacroFreeze, MacroRegistry, RandomSource } from "@orb/kit/macro";
 import { globalMacroRegistry } from "@orb/kit/macro";
+import type { RoomStanding } from "@orb/kit/message-author";
 import type { RegexScriptInput } from "@orb/kit/regex";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { EntryPosition, MatchEntryKeysOptions, TestKeyRegex } from "@orb/kit/world-info";
@@ -54,13 +55,13 @@ interface MatchedKey {
 /** Logs a ReDoS-watchdog/bad-regex failure and records it on the turn's episode; the pass proceeds fail-open on the
  *  text as-is. A preview build passes no episode, so it records nothing. */
 function onHostRegexFailure(
-  placement: "WORLD_INFO" | "USER_INPUT",
+  target: "WORLD_INFO" | "USER_INPUT",
   logger: Logger,
   notices: { readonly episode: RegexNoticeEpisode | undefined; readonly scripts: readonly RegexScriptRow[] },
 ): (err: unknown, script: RegexScriptInput) => void {
-  const pass: RegexServerPass = placement === "USER_INPUT" ? "user_input" : "world_info";
+  const pass: RegexServerPass = target === "USER_INPUT" ? "user_input" : "world_info";
   return (err, script): void => {
-    getLog(logger).warn({ err, placement, findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)");
+    getLog(logger).warn({ err, target, findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)");
     notices.episode?.note(pass, err, script, notices.scripts);
   };
 }
@@ -274,7 +275,9 @@ function classifyWiEntry(entry: AssembleWorldEntry, env: WiConvEnv): InjectionCa
   const afterRegex = env.args.regexPass.execute({
     text: resolved,
     scripts: env.args.regexScripts,
-    placement: "WORLD_INFO",
+    // World info is read only as the prompt is built, so this is the prompt pass. An at-depth entry is placed
+    // in the history at its inject depth and is filtered by that depth; any other entry carries none.
+    call: { pass: "prompt", target: "WORLD_INFO", depth: entry.inject?.depth },
     ctx: env.regexCtx,
     onScriptFailure: onHostRegexFailure("WORLD_INFO", env.args.logger, { episode: env.args.regexNotices, scripts: env.args.regexScripts }),
   });
@@ -417,6 +420,8 @@ interface BuildAssembleContextInput {
   /** Effective host-tier regex set (global ∪ preset ∪ character ∪ room), resolved by the verb/root; applied
    *  at SEND (USER_INPUT) and copied onto the returned AssembleContext for RECEIVE. */
   readonly hostTierRegexScripts?: readonly RegexScriptRow[] | undefined;
+  /** The room's seat standings the host-tier scripts' author scopes read, copied onto the returned context. */
+  readonly hostTierRegexRoom?: RoomStanding | undefined;
   /** The turn's record of host scripts the USER_INPUT and WORLD_INFO passes did not apply. Absent on a preview build. */
   readonly regexNotices?: RegexNoticeEpisode | undefined;
   /** The per-turn user-macro RENDER registry (WAVE MU) — every section/WI/persona/note render resolves
@@ -880,7 +885,7 @@ async function runSendAuthorTransforms(
     text = ctx.openRegexPass().execute({
       text,
       scripts: hostScripts,
-      placement: "USER_INPUT",
+      call: { pass: "save", target: "USER_INPUT", edit: false },
       ctx: sendMacroCtx,
       onScriptFailure: onHostRegexFailure("USER_INPUT", ctx.logger, { episode: input.regexNotices, scripts: hostScripts }),
     });
@@ -1036,6 +1041,7 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
     ...(authorsNote.authorsNoteSource !== undefined ? { authorsNoteSource: authorsNote.authorsNoteSource } : {}),
     // Carries the resolved host-tier regex set onto the immutable ctx so RECEIVE applies the same set SEND used.
     ...(input.hostTierRegexScripts !== undefined ? { hostTierRegexScripts: input.hostTierRegexScripts } : {}),
+    ...(input.hostTierRegexRoom !== undefined ? { hostTierRegexRoom: input.hostTierRegexRoom } : {}),
     wiTrace: {
       // WORLD-INFO entries only — the kept candidates that carry a `worldEntry`, which is exactly
       // `activated`. It used to count every kept injection, and `chatInjections` holds all six candidate

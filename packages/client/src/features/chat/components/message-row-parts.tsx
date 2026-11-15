@@ -11,8 +11,8 @@ import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { CSSProperties, ReactElement, ReactNode } from "react";
 import type { ChatMessageSurfaceState, ChatSurfaceContribution, ContributorRegistry, MessageRenderContext, RowRenderPolicy, ToolRenderer } from "#lib";
-import { renderMessageForDisplay } from "#lib";
 import type { BubbleDecoration } from "../lib/art-decorations.ts";
+import { bodyDisplayRow } from "../lib/display-row.ts";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
 import { messageBoxFacts } from "../lib/message-box-facts.ts";
 import type { RowSkin } from "../lib/message-row-variants.ts";
@@ -68,15 +68,22 @@ export function renderRowReasoning(args: {
   readonly showLLMReasoningIcon: boolean;
   readonly viewerIsHost: boolean;
   readonly viewerUserId: UserId | null | undefined;
+  /** The row's display depth (`displayDepthsOf`). */
+  readonly displayDepth: number | undefined;
 }): ReactNode {
   const raw = args.message.reasoning;
   if (args.editing || raw === null || raw.length === 0) {
     return null;
   }
-  // Same macro/regex display pass the ghost's live trace gets, so `{{char}}`/`{{user}}` in a thinking trace
-  // read identically before and after commit.
-  const text = renderMessageForDisplay(raw, args.renderContext, args.message.characterId, args.message.personaId);
-  return <MessageReasoning message={args.message} displayText={text} showIcon={args.showLLMReasoningIcon} canEdit={isAuthorOrHost(args)} />;
+  return (
+    <MessageReasoning
+      message={args.message}
+      renderContext={args.renderContext}
+      displayDepth={args.displayDepth}
+      showIcon={args.showLLMReasoningIcon}
+      canEdit={isAuthorOrHost(args)}
+    />
+  );
 }
 
 /** The author-or-host UX gate the server verbs enforce; a caller without it never sees the control. */
@@ -93,6 +100,8 @@ export function resolveRowContent(args: {
   readonly renderContext: MessageRenderContext;
   readonly speakerThemes: ReadonlyMap<string, ThemeScopeTokens>;
   readonly narratorVoiced: boolean;
+  /** The row's display depth (`displayDepthsOf`). */
+  readonly displayDepth: number | undefined;
   /** The host's edit toolbar carries Move up / Move down; a member's carries none. */
   readonly viewerIsHost: boolean;
   readonly neighbours: MoveNeighbours | undefined;
@@ -111,14 +120,14 @@ export function resolveRowContent(args: {
       content={args.message.content}
       render={args.render}
       renderContext={args.renderContext}
-      rowCharacterId={args.message.characterId}
-      rowPersonaId={args.message.personaId}
+      display={bodyDisplayRow(args.message, args.displayDepth)}
       speakerThemes={args.speakerThemes}
       narratorVoiced={args.narratorVoiced}
       cardOrigin={{ chatId: args.message.chatId, characterId: args.message.characterId }}
       // The COMMITTED row identity the plugin display seam needs (U6, seam 14). Only committed rows carry one:
       // a ghost row has no settled `MessageView`, so it renders untransformed and always did.
       pluginDisplayRow={{ chatId: args.message.chatId, messageId: args.message.id }}
+      displayOrder={args.message.seq}
     />
   );
 }
@@ -180,6 +189,8 @@ export function renderRowBubble(args: {
   readonly renderContext: MessageRenderContext;
   readonly speakerThemes: ReadonlyMap<string, ThemeScopeTokens>;
   readonly narratorVoiced: boolean;
+  /** The row's display depth (`displayDepthsOf`). */
+  readonly displayDepth: number | undefined;
   /** #245 — EDIT mode: the bubble stops hugging (`w-fit`, D66 N3) and fills the column the row holds open
    *  (`MessageRow`'s reservation is the other half); a hugging editor snapped a short reply's box narrower. */
   readonly editing: boolean;
@@ -235,11 +246,11 @@ export function renderRowBubble(args: {
               content={paragraph}
               render={args.render}
               renderContext={args.renderContext}
-              rowCharacterId={args.message.characterId}
-              rowPersonaId={args.message.personaId}
+              display={bodyDisplayRow(args.message, args.displayDepth)}
               speakerThemes={args.speakerThemes}
               narratorVoiced={args.narratorVoiced}
               cardOrigin={{ chatId: args.message.chatId, characterId: args.message.characterId }}
+              displayOrder={args.message.seq}
             />
           </MessageBox>
         ))}

@@ -13,6 +13,8 @@ export function createDetachFromCharacter(ctx: RegexContext): RegexService["deta
     const ownerId = principal.userId;
     await ensureCharacterOwned(ctx.db, ownerId, characterId);
     await requireOwnedScript(ctx.db, ownerId, scriptId);
+    // The junction row is the reach, so the rooms are read before it goes.
+    const announce = await ctx.captureRoomReachForDelete([scriptId]);
     const at = ctx.now();
     const result = await ctx.db
       .delete(characterRegexScripts)
@@ -24,6 +26,7 @@ export function createDetachFromCharacter(ctx: RegexContext): RegexService["deta
         at,
       );
       ctx.emitUserEvent(ownerId, { type: "regexChanged", scriptId });
+      announce([scriptId]);
     }
     return { detached };
   };

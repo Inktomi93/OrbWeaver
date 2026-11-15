@@ -30,7 +30,7 @@ held(
   "a raced single regex delete preserves its answer but fans no rooms when its owned DELETE removed nothing",
   async ({ heldDb, db, harness, ownerCaller, app }): Promise<void> => {
     const script = await ownerCaller.regex.createScript({
-      input: createRegexScriptSchema.parse({ name: "race", findRegex: "x", replaceString: "y", placement: [] }),
+      input: createRegexScriptSchema.parse({ name: "race", findRegex: "x", replaceString: "y", targets: [], passes: [] }),
     });
     const { chat } = await ownerCaller.chat.startChat({ characterIds: [] });
     await ownerCaller.regex.attachToChat({ chatId: chat.id, scriptId: script.id });

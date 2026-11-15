@@ -20,6 +20,7 @@ import type { StreamFrame } from "@orb/contracts/stream";
 import type { WorkloadRowAnyKind } from "@orb/contracts/workloads";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { WorkloadId } from "@orb/kit/ids";
+import { MAX_FIND_REGEX_LENGTH } from "@orb/kit/regex";
 import { actionGroupGeometry, resolvedLength, watchToastMounts } from "@orb/testkit/browser/spec";
 import type { ServedHold } from "@orb/testkit/ct";
 import { holdServed, routeAuthConfig, routeOrbSocket, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
@@ -37,10 +38,15 @@ import {
   IMPORT_PREVIEW_FAILURE,
   IMPORT_PREVIEW_HIDE_NAMES,
   IMPORT_PREVIEW_REPORT_NAME,
+  IMPORT_PREVIEW_SCRIPT_VERDICTS,
   IMPORT_PREVIEW_SHOW_NAMES,
   IMPORT_PROGRESS_NAME,
   IMPORT_RESULT_NAME,
+  importPreviewPresetLeftOutLine,
+  importPreviewPresetScriptsLine,
   importPreviewProfileLabel,
+  importPreviewScriptEntry,
+  importPreviewScriptRefused,
 } from "#client/features/workloads/lib/import-library-names.ts";
 import {
   asImportPreview,
@@ -677,6 +683,93 @@ async function stageProfiles(root: ServerTestHarness, folder: string, cards: "ow
   }
   await writeFile(join(folder, BOB, "characters", "broken.png"), "not a card");
 }
+
+// SillyTavern wire text is snake_case with integer placements, so these scripts are raw JSON; 2 is the AI reply.
+const ST_SCRIPT = {
+  trimStrings: [],
+  placement: [2],
+  disabled: false,
+  markdownOnly: false,
+  promptOnly: false,
+  runOnEdit: false,
+  substituteRegex: 0,
+  minDepth: null,
+  maxDepth: null,
+};
+const WHISTLE = { ...ST_SCRIPT, id: "c0ffee00-0000-4000-8000-000000000041", scriptName: "Whistle", findRegex: "sings", replaceString: "whistles" };
+const KETTLE = { ...ST_SCRIPT, id: "c0ffee00-0000-4000-8000-000000000042", scriptName: "Kettle", findRegex: "<kettle>", replaceString: "<b>kettle</b>" };
+const HEAVY_UNIT = "(a|b)";
+// Capture groups of alternation up to the stored length cap: storable by length, refused by the compile door.
+const HEAVY = {
+  ...ST_SCRIPT,
+  id: "c0ffee00-0000-4000-8000-000000000043",
+  scriptName: "Heavy",
+  findRegex: HEAVY_UNIT.repeat(Math.floor(MAX_FIND_REGEX_LENGTH / HEAVY_UNIT.length)),
+  replaceString: "",
+};
+
+function stPresetWithScripts(scripts: readonly unknown[], text: string): string {
+  return JSON.stringify({
+    prompts: [{ identifier: "main", name: "Main", content: text, role: "system" }],
+    ["prompt_order"]: [{ ["character_id"]: 100_001, order: [{ identifier: "main", enabled: true }] }],
+    extensions: { ["regex_scripts"]: scripts },
+  });
+}
+
+test("the names panel lists each preset's regex scripts with what the run does with each, and the fields it leaves out", async ({
+  mount,
+  page,
+  baseURL,
+}, testInfo) => {
+  await using root = await createServerHarness(ROOT_OPTIONS);
+  const caller = await root.internalCallerFor(root.ownerId);
+  const folder = testInfo.outputPath("profile");
+  await mkdir(join(folder, "OpenAI Settings"), { recursive: true });
+  // Amber brings a new script, one the library holds, one the write door refuses, and one that is not a script; Birch
+  // brings Amber's new one again.
+  await writeFile(join(folder, "OpenAI Settings", "Amber.json"), stPresetWithScripts([WHISTLE, KETTLE, HEAVY, "not a script"], "You narrate."));
+  await writeFile(join(folder, "OpenAI Settings", "Birch.json"), stPresetWithScripts([WHISTLE], "You keep the bells."));
+  await writeFile(join(folder, ST_SETTINGS_FILE), JSON.stringify({}));
+  await caller.regex.importScriptFile({ fileText: JSON.stringify(KETTLE) });
+  await root.settleBackground();
+  await using _native = await routeNativeImport(page, root, baseURL);
+  await openImport(page, root);
+  await mount<typeof ImportPreviewStory>(STORY, { width: WIDTHS[0].width, appearance: WIDTHS[0].appearance });
+
+  await pickFolder(page, folder);
+  const report = page.getByRole("group", { name: PREFLIGHT }).getByRole("group", { name: IMPORT_PREVIEW_REPORT_NAME, exact: true });
+  await expect(report).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
+  // The control: the wire carries one script of each verdict and the refused one, so each line below has its subject.
+  const [preview] = nonEmpty(await dryRunPreviews(root));
+  const amber = preview.kinds.presets.items.find((item) => item.name === "Amber (OpenAI)");
+  const birch = preview.kinds.presets.items.find((item) => item.name === "Birch (OpenAI)");
+  const heavyReason = amber?.regexScripts?.find((script) => script.name === "Heavy")?.refused ?? "";
+  expect(heavyReason).toMatch(/ms to compile/u);
+  expect([amber?.regexScripts, birch?.regexScripts]).toEqual([
+    [{ name: "Whistle" }, { name: "Kettle", inLibrary: true }, { name: "Heavy", refused: heavyReason }],
+    [{ name: "Whistle", repeat: true }],
+  ]);
+  const leftOut = nonEmpty([...(amber?.leftOut ?? [])]);
+  await report.getByRole("button", { name: IMPORT_PREVIEW_SHOW_NAMES }).click();
+
+  await expect(
+    report.getByText(
+      importPreviewPresetScriptsLine("Amber (OpenAI)", [
+        importPreviewScriptEntry("Whistle", IMPORT_PREVIEW_SCRIPT_VERDICTS.added),
+        importPreviewScriptEntry("Kettle", IMPORT_PREVIEW_SCRIPT_VERDICTS.inLibrary),
+        importPreviewScriptEntry("Heavy", importPreviewScriptRefused(heavyReason)),
+      ]),
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(
+    report.getByText(importPreviewPresetScriptsLine("Birch (OpenAI)", [importPreviewScriptEntry("Whistle", IMPORT_PREVIEW_SCRIPT_VERDICTS.repeat)]), {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(report.getByText(importPreviewPresetLeftOutLine("Amber (OpenAI)", leftOut), { exact: true })).toBeVisible();
+  await expect(report.getByText(importPreviewPresetLeftOutLine("Birch (OpenAI)", leftOut), { exact: true })).toHaveCount(0);
+});
 
 test("a folder of two profiles lists both cards under their own profile, and a refusal stays with the profile it came from", async ({
   mount,

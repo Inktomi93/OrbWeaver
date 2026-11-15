@@ -32,7 +32,7 @@ import { listOwnedScripts, toRow } from "./queries.ts";
 
 // A handoff copies rows another owner already stored, through the write door or before it existed; it stores no new
 // pattern, so it measures none.
-type HandoffCopyContext = Omit<RegexPortabilityContext, "probeFindCompiles">;
+type HandoffCopyContext = Omit<RegexPortabilityContext, "probeFindCompiles" | "fanRegexScriptRooms">;
 
 /** One chat-tier attachment the departing host owns: the script record plus the junction slot it holds. */
 interface OwnedChatAttachment {

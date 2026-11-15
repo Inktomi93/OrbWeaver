@@ -3,13 +3,10 @@
  * panels: every row is created through the domain
  * verbs, never raw inserts, so a seeded row can never disagree with what the UI would have written.
  *
- * `deriveRegexTierFlags` is the SAME pure derivation the client's save boundary and the server's bulk-placement
- * verb use, so a seeded script's markdownOnly/promptOnly flags cannot disagree with its placement set. The
- * disabled preset tier lives here too, called once the demo preset exists.
+ * The disabled preset tier lives here too, called once the demo preset exists.
  */
 import type { CharacterId, ChatId, PresetId } from "@orb/kit/ids";
-import type { RegexPlacement } from "@orb/kit/regex";
-import { deriveRegexTierFlags, SubstituteFindRegex } from "@orb/kit/regex";
+import { SubstituteFindRegex } from "@orb/kit/regex";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { SeedDemoDeps, SeedDemoResult } from "../contract/types.ts";
 import {
@@ -36,10 +33,7 @@ export async function seedDemoRegexTiers(
   const { assistantId, chatId } = target;
   // Regex scripts (#1725 boards 04/05 + the #1742 room Regex section) — one per tier, so the room's
   // effective run order shows every tier populated on a fresh db: global / character / chat / preset
-  // (the preset leg lands below, once the demo preset exists). `deriveRegexTierFlags` is the SAME pure
-  // derivation the client's save boundary and the server's bulk-placement verb use, so a seeded row's
-  // markdownOnly/promptOnly flags can never disagree with its placement set.
-  const findReplacePlacement: RegexPlacement[] = ["AI_OUTPUT", "USER_INPUT"];
+  // (the preset leg lands below, once the demo preset exists).
   const findReplaceScript = await services.regex.createScript({
     principal: owner,
     input: {
@@ -47,8 +41,8 @@ export async function seedDemoRegexTiers(
       enabled: true,
       findRegex: "\\bthe Loom\\b",
       replaceString: "the great Loom",
-      placement: findReplacePlacement,
-      ...deriveRegexTierFlags(findReplacePlacement),
+      targets: ["USER_INPUT", "AI_OUTPUT"],
+      passes: ["save"],
       runOnEdit: false,
       trimStrings: [],
       substituteRegex: SubstituteFindRegex.none,
@@ -56,7 +50,6 @@ export async function seedDemoRegexTiers(
   });
   await services.regex.attachGlobal({ principal: owner, scriptId: findReplaceScript.id });
 
-  const displayOnlyPlacement: RegexPlacement[] = ["DISPLAY"];
   const displayOnlyScript = await services.regex.createScript({
     principal: owner,
     input: {
@@ -64,8 +57,8 @@ export async function seedDemoRegexTiers(
       enabled: true,
       findRegex: "\\*([^*]+)\\*",
       replaceString: "_$1_",
-      placement: displayOnlyPlacement,
-      ...deriveRegexTierFlags(displayOnlyPlacement),
+      targets: ["USER_INPUT", "AI_OUTPUT", "REASONING"],
+      passes: ["display"],
       runOnEdit: false,
       trimStrings: [],
       substituteRegex: SubstituteFindRegex.none,
@@ -75,7 +68,6 @@ export async function seedDemoRegexTiers(
     await services.regex.attachToCharacter({ principal: owner, characterId: assistantId, scriptId: displayOnlyScript.id });
   }
 
-  const promptOnlyPlacement: RegexPlacement[] = ["AI_OUTPUT"];
   const promptOnlyScript = await services.regex.createScript({
     principal: owner,
     input: {
@@ -83,8 +75,8 @@ export async function seedDemoRegexTiers(
       enabled: true,
       findRegex: "\\bvault-key-7\\b",
       replaceString: "[redacted]",
-      placement: promptOnlyPlacement,
-      ...deriveRegexTierFlags(promptOnlyPlacement),
+      targets: ["AI_OUTPUT"],
+      passes: ["prompt"],
       runOnEdit: false,
       trimStrings: [],
       substituteRegex: SubstituteFindRegex.none,
@@ -136,7 +128,6 @@ export async function seedDemoPresetRegexTier(deps: LibraryArmDeps, presetId: Pr
   const { services, owner, log } = deps;
   // The FOURTH regex tier: a DISABLED script attached to the demo preset — so the preset leg of the room's
   // Regex section is populated too, and a disabled row stays disabled through the attach.
-  const disabledPlacement: RegexPlacement[] = ["WORLD_INFO"];
   const disabledScript = await services.regex.createScript({
     principal: owner,
     input: {
@@ -144,8 +135,8 @@ export async function seedDemoPresetRegexTier(deps: LibraryArmDeps, presetId: Pr
       enabled: false,
       findRegex: "\\r\\n",
       replaceString: "\\n",
-      placement: disabledPlacement,
-      ...deriveRegexTierFlags(disabledPlacement),
+      targets: ["WORLD_INFO"],
+      passes: ["prompt"],
       runOnEdit: false,
       trimStrings: [],
       substituteRegex: SubstituteFindRegex.none,
