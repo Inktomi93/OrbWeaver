@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-22
+updated: 2026-11-15
 ---
 
 # Orbweaver constitution
@@ -130,7 +130,7 @@ exports map has one entry, so no domain can reach a backend.
 | The decision ledger | `../adr/README.md` (one decision per file) |
 | Writing a ui-audit rule | `../../tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md` |
 | Server tier law | `Tier-1-DB.md`, `Tier-2-Foundation.md`, `Tier-3-Infra.md`, `Tier-3b-Providers.md`, `Tier-4-Transport.md`, `Tier-5-Entry.md` |
-| UI law | `UI-Architecture-and-Layout.md`, `ui-architecture-state-and-stack.md`, `UI-Primitives-and-Reuse.md`, `UI-Theming-and-Content.md`, `UI-Density-Law.md`, `ui-platform-rulings.md`, `ui-package-design.md`, `motion-and-animation-guide.md`, `integer-line-boxes.md` |
+| UI law | `UI-Architecture-and-Layout.md`, `ui-architecture-state-and-stack.md`, `UI-Primitives-and-Reuse.md`, `UI-Theming-and-Content.md`, `UI-Density-Law.md`, `ui-platform-rulings.md`, `ui-package-design.md`, `motion-and-animation-guide.md`, `integer-line-boxes.md`, `ui-surface-and-interaction-rules.md` |
 | Client composition | `client-architecture-lockdown.md`, `client-architecture-state-and-gates.md` |
 | Chat macro and persona resolution | `Chat-Macro-Resolution.md` |
 | Plugins | `plugin-system.md` |

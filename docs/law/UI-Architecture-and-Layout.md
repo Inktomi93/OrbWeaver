@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-17
+updated: 2026-11-15
 ---
 
 # UI-Architecture-and-Layout
@@ -358,7 +358,7 @@ The client targets **React 19 + the React Compiler** (the compiler runs full-com
 
 **Axis 3 — capability, NOT size.** hover/pointer are media-query-only (container queries can't see them). **Pointer-conditional floor:** interactive primitives meet the ≥44px touch floor at `@media (pointer: coarse)` via token control-heights; fine pointers get the desktop scale, emitted as a token-layer `pointer: fine` override. An interactive element with a sub-44px visual box on coarse pointers wraps in a ≥44px hit area. That hit area is centred and out of flow, so it overhangs a narrower control: keep it inside the row's inline inset by fixing the row, never by shrinking the hit area. `data-density="compact"` remains the separate spacing axis (ship COMFORTABLE; never build a parallel compact path). Hover is only ever an *enhancement* (`@media (hover:hover)`); **every hover action has a tap-equivalent** (and a `:focus-within` keyboard equivalent, §4.3 rule 4).
 
-The same rule binds Tailwind capability variants: `pointer-coarse:`/`pointer-fine:`/`hover-capable:`, their `any-pointer-*` twins, and raw `[@media(pointer|hover:…)]:` variants belong at the **token/shell layer**, never in a feature class string. A feature composes a pointer-conditional token or a primitive prop: `hiddenAt` uses `packages/ui/src/lib/pointer-visibility.ts`; `Row reveal` and `inertUntilHover` use `packages/ui/src/lib/hover-reveal.ts`. The `:hover` pseudo-class (`hover:bg-accent`) is an interaction state and stays legal in features. The `POINTER_CLASSES` pattern in `eslint.config.ts` (`better-tailwindcss/no-restricted-classes`) enforces this on class strings in features outside `app-shell`; a reasoned line exception follows D321#3.
+The same rule binds Tailwind capability variants: `pointer-coarse:`/`pointer-fine:`/`hover-capable:`, their `any-pointer-*` twins, and raw `[@media(pointer|hover:…)]:` variants belong at the **token/shell layer**, never in a feature class string. A feature composes a pointer-conditional token or a primitive prop: `hiddenAt` uses `packages/ui/src/lib/pointer-visibility.ts`; `Row reveal` and `inertUntilHover` use `packages/ui/src/lib/hover-reveal.ts`. A `hover:` class (`hover:bg-accent`) stays legal in features: it compiles hover-gated (ui-surface-and-interaction-rules §4). The `POINTER_CLASSES` pattern in `eslint.config.ts` (`better-tailwindcss/no-restricted-classes`) enforces this on class strings in features outside `app-shell`; a reasoned line exception follows D321#3.
 
 **Axis 4 — mobile platform CSS, baked into 3 primitives:**
 
