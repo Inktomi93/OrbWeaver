@@ -45,6 +45,7 @@ import { SAMPLING_RANGE_KNOBS } from "../inference/capability/generation.ts";
 import type { ResolvedWarning } from "../inference/warnings.ts";
 import { emittedWarningSchema } from "../inference/warnings.ts";
 import { PRESET_SCHEMA_KIND } from "../portability/envelope.ts";
+import type { RegexScriptCard, StRegexScriptFields } from "../regex/schemas.ts";
 import type { VersionedParseFailure } from "../versioned-config/index.ts";
 import { versionedParseFailureSchema } from "../versioned-config/index.ts";
 import { PRESET_COMPACTION_SLOT_ID, PRESET_PROSE_SLOTS } from "./prose.ts";
@@ -3753,15 +3754,19 @@ export interface PresetFile {
   schemaVersion: number;
   name: string;
   config: PromptConfig;
+  /** The preset's attached regex scripts in its run order, on the card wire in both spellings. A file written before
+   *  the export carried them has none, and its import compares the preset by its config alone. */
+  regexScripts?: readonly (RegexScriptCard & StRegexScriptFields)[];
 }
 
-/** Build the export payload for a preset (name + its full config). */
-export function buildPresetFile(name: string, config: PromptConfig): PresetFile {
+/** Build the export payload for a preset: its name, its full config and, from an export, its attached scripts. */
+export function buildPresetFile(name: string, config: PromptConfig, regexScripts?: readonly (RegexScriptCard & StRegexScriptFields)[]): PresetFile {
   return {
     schemaKind: PRESET_SCHEMA_KIND,
     schemaVersion: PROMPT_CONFIG_SCHEMA_VERSION,
     name,
     config,
+    ...(regexScripts === undefined ? {} : { regexScripts }),
   };
 }
 

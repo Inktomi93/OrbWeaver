@@ -12,6 +12,7 @@
 import type { ResolveRegexSources } from "@orb/contracts/chat";
 import type {
   ExportCardScripts,
+  ExportPresetScripts,
   ExportRegexScripts,
   ImportCardScripts,
   ImportGlobalScripts,
@@ -30,6 +31,7 @@ import { createWiredChatGuards, loadPresentHostUserId } from "#domain/chat";
 import type { RegexService } from "#domain/regex";
 import {
   createExportCardScripts,
+  createExportPresetScripts,
   createExportRegexScripts,
   createImportCardScripts,
   createImportGlobalScripts,
@@ -75,6 +77,8 @@ export interface RegexComposeResult {
   readonly planPresetScripts: PlanPresetScripts;
   /** A preset import's read of the scripts each owned preset holds, for its identity. */
   readonly listPresetScriptKeys: ListPresetScriptKeys;
+  /** A preset export's read of each preset's attached scripts. */
+  readonly exportPresetScripts: ExportPresetScripts;
   /** The ST profile import's GLOBAL lift (`extension_settings.regex` → `global_regex_scripts`). */
   readonly importGlobalScripts: ImportGlobalScripts;
   /** Injected into `ExportContext` — the card RE-EMBED. */
@@ -120,6 +124,7 @@ export function buildRegex(deps: RegexComposeDeps): RegexComposeResult {
     importPresetScripts: createImportPresetScripts(portabilityCtx),
     planPresetScripts: createPlanPresetScripts({ db, probeFindCompiles }),
     listPresetScriptKeys: createListPresetScriptKeys({ db }),
+    exportPresetScripts: createExportPresetScripts({ db }),
     importGlobalScripts: createImportGlobalScripts(portabilityCtx),
     exportCardScripts: createExportCardScripts({ db }),
     exportRegexScripts: createExportRegexScripts({ db }),

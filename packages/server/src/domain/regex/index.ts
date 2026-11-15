@@ -7,6 +7,7 @@ export type { RegexService } from "./contract/service.ts";
 export { createCopyHandoffRegexScripts, createCountHandoffRegexScripts, createDetachHandoffRegexScripts } from "./persistence/handoff-copy-write.ts";
 export {
   createExportCardScripts,
+  createExportPresetScripts,
   createExportRegexScripts,
   createImportCardScripts,
   createImportGlobalScripts,

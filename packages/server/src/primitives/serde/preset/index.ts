@@ -65,6 +65,23 @@ function parsePresetExtensions(raw: Record<string, unknown>): {
   return { regexScripts: read.scripts, refusedScripts: read.refused.map(({ name, reason }) => ({ name, reason })), dropped };
 }
 
+/** The field an orbweaver preset file carries its attached scripts in (`PresetFile.regexScripts`). */
+const PRESET_FILE_SCRIPTS_FIELD = "regexScripts";
+
+/** The scripts an already-JSON-parsed orbweaver preset file carries, read as every SillyTavern script list is: those
+ *  that parsed and each one refused, by name. Undefined for a file with no script list, which an export wrote before
+ *  it carried one. */
+export function readPresetFileScripts(
+  raw: unknown,
+): { readonly scripts: readonly RegexScriptCard[]; readonly refused: readonly RegexScriptRefusal[] } | undefined {
+  const list = isPlainObject(raw) ? raw[PRESET_FILE_SCRIPTS_FIELD] : undefined;
+  if (!Array.isArray(list)) {
+    return undefined;
+  }
+  const read = readStScriptList(list, PRESET_FILE_SCRIPTS_FIELD, "scoped");
+  return { scripts: read.scripts, refused: read.refused.map(({ name, reason }) => ({ name, reason })) };
+}
+
 /** Map an already-JSON-parsed SillyTavern chat-completion preset, or say why it does not map.
  *
  *  `powerUser` is ST's global `settings.json.power_user` blob, the other half of what orb calls generation config.

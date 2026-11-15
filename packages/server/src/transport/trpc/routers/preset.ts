@@ -7,6 +7,7 @@
 // (today: a format string that dropped its carrier token). Reads keep the plain schema on purpose, so a
 // preset that already carries a broken wrapper still loads and can be fixed in the editor.
 
+import { portableTextFileSchema } from "@orb/contracts/portability";
 import {
   effectivePresetSchema,
   presetDetailSchema,
@@ -58,6 +59,11 @@ export const presetRouter = t.router({
     .output(presetDetailSchema)
     .input(presetIdInputSchema)
     .query(({ ctx, input }) => ctx.services.preset.get({ userId: ctx.auth.userId, id: input.id })),
+
+  exportFile: authedProcedure
+    .output(strictTwin(portableTextFileSchema))
+    .input(presetIdInputSchema)
+    .query(({ ctx, input }) => ctx.services.preset.exportFile({ userId: ctx.auth.userId, id: input.id })),
 
   update: authedProcedure
     .output(presetDetailSchema)

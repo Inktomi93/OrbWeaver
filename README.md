@@ -1,39 +1,113 @@
-<p align="center"><img src="packages/client/public/brand/orb-mark.svg" width="120" alt=""></p>
+<p align="center"><img src="packages/client/public/brand/orb-mark.svg" width="96" alt=""></p>
 
-# Orbweaver
+<h1 align="center">Orbweaver</h1>
 
-**Roleplay with your friends in the same scene, live.**
+<p align="center"><strong>Roleplay with your friends in the same scene, live.</strong></p>
+
+<p align="center">
+  <a href="https://github.com/Inktomi93/OrbWeaver/wiki/Install">Install</a> ·
+  <a href="https://github.com/Inktomi93/OrbWeaver/wiki/Connect-a-Model">Connect a model</a> ·
+  <a href="https://github.com/Inktomi93/OrbWeaver/wiki/Your-First-Chat">Your first chat</a> ·
+  <a href="https://github.com/Inktomi93/OrbWeaver/wiki/Coming-from-SillyTavern">Coming from SillyTavern</a> ·
+  <a href="https://github.com/Inktomi93/OrbWeaver/wiki">The whole guide</a>
+</p>
+
+![A game in progress: three characters and a player in one scene, with the game panel showing the place, the time, health, gold and the pack](.github/readme/banner.png)
 
 Orbweaver is a self-hosted AI roleplay app with real-time multiplayer: several people and several characters
 in one live scene. Invite friends in, turn any story into a game, and keep chats that remember what happened
-a hundred messages ago. It runs on your own machine, and your characters, chats and keys stay there.
+a hundred messages ago. Your SillyTavern library comes over in one step. It runs on your own machine, and your
+characters, chats and keys stay there.
 
 One dude built this, and it's an alpha: there are rough edges, and a few SillyTavern features aren't here yet
-([the exact list](https://github.com/Inktomi93/orbweaver/wiki/Coming-from-SillyTavern#what-isnt-supported)).
+([the exact list](https://github.com/Inktomi93/OrbWeaver/wiki/Coming-from-SillyTavern#what-isnt-supported)).
 It's also a love letter to SillyTavern. The shared rooms started with STMP (SillyTavern MultiPlayer) by
-RossAscends, and I wanted that in every scene. ([Credits](https://github.com/Inktomi93/orbweaver/wiki/Credits))
+RossAscends, and I wanted that in every scene. ([Credits](https://github.com/Inktomi93/OrbWeaver/wiki/Credits))
 
-**The [Orbweaver wiki](https://github.com/Inktomi93/orbweaver/wiki) is the user guide:** install, connecting a
-model, your first chat, and every feature below.
+| You are... | Start here |
+| - | - |
+| New to AI roleplay | [Install](https://github.com/Inktomi93/OrbWeaver/wiki/Install) → [Connect a model](https://github.com/Inktomi93/OrbWeaver/wiki/Connect-a-Model) → [Your first chat](https://github.com/Inktomi93/OrbWeaver/wiki/Your-First-Chat) |
+| Coming from SillyTavern | [Install](https://github.com/Inktomi93/OrbWeaver/wiki/Install) → [Coming from SillyTavern](https://github.com/Inktomi93/OrbWeaver/wiki/Coming-from-SillyTavern) |
+| Hosting for friends | [Install](https://github.com/Inktomi93/OrbWeaver/wiki/Install) → [Share with friends](https://github.com/Inktomi93/OrbWeaver/wiki/Share-with-Friends) |
 
-## What it does
+## Play together
 
-- **Play together.** Invite friends into a room. Everyone takes turns, the characters answer all of you, and
-  every device you sign in on stays live. ([Share with friends](https://github.com/Inktomi93/orbweaver/wiki/Share-with-Friends))
-- **Turn any story into a game.** One switch adds stats, relationships, quests, inventory and a journal that
-  the story keeps up to date, with optional D20 rules. ([RPG mode](https://github.com/Inktomi93/orbweaver/wiki/RPG-Mode))
-- **Stories that remember.** Rolling summaries keep long chats coherent, and old moments come back by meaning
-  and by keyword. ([How memory works](https://github.com/Inktomi93/orbweaver/wiki/How-Memory-Works))
-- **Your library.** Browse characters as a map of similar cards, search by description, and improve cards with
-  the Refinery. ([Refinery](https://github.com/Inktomi93/orbweaver/wiki/Refinery))
-- **Plugins and themes.** Sandboxed plugins that show what they want before they run, and themes down to the
-  backdrop and type. ([Plugins](https://github.com/Inktomi93/orbweaver/wiki/Plugins), [Themes](https://github.com/Inktomi93/orbweaver/wiki/Themes))
+Invite friends into your scene and play it together. You see who's online, everyone takes their turns, and the
+characters answer all of you. React to each other's messages and let the characters react too. Hand the room to
+someone else when you're done hosting, or let the characters talk among themselves for a few rounds while you
+watch. Every device you sign in on stays live, so a scene started on your computer carries on from your phone.
+
+You don't need to know networking to get friends in: choose "me and friends" at setup, press Start sharing, and
+send them the link. ([Rooms and group chats](https://github.com/Inktomi93/OrbWeaver/wiki/Rooms-and-Group-Chats),
+[Share with friends](https://github.com/Inktomi93/OrbWeaver/wiki/Share-with-Friends))
+
+![Two people in one room with a character, with the members panel showing who is online and who hosts](.github/readme/multiplayer-online.png)
+
+## Turn any story into a game
+
+Flip one switch and your chat becomes a light RPG. You keep writing the story the way you always do, and the
+game keeps track of it beside you: stats you define, relationships, quests, inventory, coin and a journal, with
+a band across the top of the panel for the place, the date, the time of day and the weather. Games start
+story-driven; switch on the D20 rules any time for attributes, health and dice.
+
+Every swipe keeps its own state. Swipe to another version of a reply and the whole game swaps with it: stats,
+loot, quests, who's in the scene. Reroll a bad turn and the damage goes with it.
+([RPG mode](https://github.com/Inktomi93/OrbWeaver/wiki/RPG-Mode))
+
+![Swiping a reply changes the character's health and inventory with it](.github/readme/rpg-swipe.gif)
+
+## Stories that remember
+
+Long chats don't forget. Every few messages Orbweaver writes a short summary, and older summaries roll up into
+broader ones, so the story so far stays compact however long the chat runs. When an old moment becomes relevant
+again, it's found by meaning and by keyword and brought back into the scene. In a group chat each character can
+keep their own memory and recall only what happened while they were in the room. You can search your own past
+scenes the same way: describe the moment and it finds the chat.
+([How memory works](https://github.com/Inktomi93/OrbWeaver/wiki/How-Memory-Works))
+
+## Your library, and a card doctor
+
+See hundreds of cards as a map of similar characters, find the ones you never played, and search by vibe
+instead of by name. The Refinery scores a card field by field and rewrites only the parts you pick; every
+accepted change is a version you can roll back to, and nothing changes until you accept it. Your own stats come
+with it, and every number says whether it was measured, estimated or never recorded.
+([Refinery](https://github.com/Inktomi93/OrbWeaver/wiki/Refinery),
+[Stats and insights](https://github.com/Inktomi93/OrbWeaver/wiki/Stats-and-Insights))
+
+![The Refinery reviewing a rewrite of a character card, field by field](.github/readme/refinery.png)
+
+## And the rest
+
+<img src=".github/readme/mobile.png" width="230" align="right" alt="Orbweaver on a phone">
+
 - **Coming from SillyTavern.** One import brings your characters, chats, personas, presets, lorebooks and
-  themes, and reports anything it skipped. ([Coming from SillyTavern](https://github.com/Inktomi93/orbweaver/wiki/Coming-from-SillyTavern))
+  themes. It only adds, and it reports anything it skipped.
+  ([Coming from SillyTavern](https://github.com/Inktomi93/OrbWeaver/wiki/Coming-from-SillyTavern))
+- **Make it look like your story.** Read a chat as bubbles, a manuscript or a visual novel with tall portraits.
+  Pick a theme or build one, set a backdrop, and let a character carry their own look.
+  ([Themes](https://github.com/Inktomi93/OrbWeaver/wiki/Themes))
+- **Stories you can touch.** Characters can hand you a sealed letter, a wanted poster or a terminal you can
+  click through, drawn inside the story in a sandbox and kept in a journal.
+- **Plugins.** Sandboxed plugins that show what they want before they run, with example plugins to switch on
+  and two starter repositories for your own. ([Plugins](https://github.com/Inktomi93/OrbWeaver/wiki/Plugins))
+- **Automation.** Ready-made rules such as a welcome-back recap, a pacing nudge or a scene illustration, and an
+  editor for your own. A rule that would write something asks first.
+  ([Automation](https://github.com/Inktomi93/OrbWeaver/wiki/Automation))
+- **See what was sent.** Preview what the next turn will contain and what each part costs in tokens; every
+  reply keeps the prompt it was made from.
+  ([How a turn is built](https://github.com/Inktomi93/OrbWeaver/wiki/How-a-Turn-Is-Built))
+- **On your phone.** A one-pane layout you can add to your home screen, live and in sync with your computer.
+- **Everything you'd expect.** Swipes, alternate greetings, group chats, personas, lorebooks, presets with a
+  prompt manager, regex scripts, images, and chat import and export.
+  ([The full list](https://github.com/Inktomi93/OrbWeaver/wiki/Features))
 
-Orbweaver ships no language model. Paste an API key (OpenRouter, Anthropic and others) or point it at a model
-server you already run, such as Ollama, KoboldCpp, LM Studio or vLLM.
-([Connect a model](https://github.com/Inktomi93/orbweaver/wiki/Connect-a-Model))
+<br clear="right">
+
+Orbweaver ships no language model. Paste an API key (OpenRouter, Anthropic, OpenAI, Google Gemini and others)
+or point it at a model server you already run, such as Ollama, KoboldCpp, LM Studio or vLLM.
+([Connect a model](https://github.com/Inktomi93/OrbWeaver/wiki/Connect-a-Model))
+
+There's no text-completion mode, so text-completion presets don't come over.
 
 ## Run it
 

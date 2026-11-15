@@ -7,7 +7,7 @@ import type { ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { ResolveChatCapabilityOp } from "@orb/contracts/inference";
 import type { EffectivePreset, PresetDetail, PresetFilePreview, PresetImportOutcome, PresetSummary, PresetUsageView } from "@orb/contracts/preset";
-import type { ImportPresetScripts, ListPresetScriptKeys, PlanPresetScripts } from "@orb/contracts/regex";
+import type { ExportPresetScripts, ImportPresetScripts, ListPresetScriptKeys, PlanPresetScripts } from "@orb/contracts/regex";
 import type { LoadUserSettings } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
@@ -68,6 +68,8 @@ export interface PresetContext {
   readonly planPresetScripts: PlanPresetScripts;
   /** The scripts each owned preset holds, which are part of a preset's import identity. */
   readonly listPresetScriptKeys: ListPresetScriptKeys;
+  /** Each owned preset's attached scripts, which a preset export carries. */
+  readonly exportPresetScripts: ExportPresetScripts;
 }
 
 export type PresetAssemblyContext = DbAssemblyInput<PresetContext>;
@@ -102,6 +104,9 @@ export interface PresetService {
    *  one through the SAME `ImportPresets` op the whole-profile bundle uses (additive: an equal preset is reused, a
    *  same-named different one lands beside it). Never throws for a malformed file; the outcome carries the error. */
   readonly importFile: (params: ImportPresetFileParams) => Promise<PresetImportOutcome>;
+  /** One readable preset as its portable file, the bytes the backup writes for it, its attached scripts included.
+   *  Throws `PresetNotFoundError` for a preset this caller can't read. */
+  readonly exportFile: (params: GetPresetParams) => Promise<{ readonly filename: string; readonly fileText: string }>;
   /** What {@link PresetService.importFile} does with the same file, from its own read and a dry run of its write. */
   readonly previewFile: (params: ImportPresetFileParams) => Promise<PresetFilePreview>;
 }

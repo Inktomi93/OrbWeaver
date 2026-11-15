@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-11-15
 priority: P3
 area: client
+lane: wt/agent-a5487884af20f9847
 ---
 
 # The limits step tells a LiteRouter user where the window comes from

@@ -895,6 +895,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     importPresetScripts: regexCompose.importPresetScripts,
     planPresetScripts: regexCompose.planPresetScripts,
     listPresetScriptKeys: regexCompose.listPresetScriptKeys,
+    exportPresetScripts: regexCompose.exportPresetScripts,
     getContributions: getWorkloadContributions,
     isBoxOwner,
     isAccountEnabled: createResolveUserEnabled(sessions),
