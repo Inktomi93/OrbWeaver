@@ -6,7 +6,7 @@
 
 import type { MessageView } from "@orb/contracts/chat";
 import { CHAT_MESSAGE_LIST_MAX_LIMIT } from "@orb/contracts/chat";
-import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { noticeToast, routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -323,37 +323,80 @@ test("a narrator row is AI output: an AI-scoped script draws on it, and one excl
   await expect(rowOf(page, narration.id).getByText(`The narration AI-DRAWN ${MARK}.`, { exact: true })).toBeVisible();
 });
 
-test("a script scoped to the host draws on the host's message and not on another member's", async ({ mount, page, corpusMedia }) => {
-  await using root = await createCorpusHarness();
-  const owner = await root.internalCallerFor(root.ownerId);
-  const room = await findRoom(owner, (tail, detail) => {
-    if (!detail.viewerIsHost) {
-      return null;
-    }
-    const members = new Set(
-      detail.participants.flatMap((seat) => (seat.userId !== null && seat.leftSeq === null && seat.role === "member" ? [seat.userId] : [])),
-    );
-    const hosts = tail.findLast((m) => m.role === "user" && m.authorUserId === detail.viewerUserId);
-    const theirs = tail.findLast((m) => m.role === "user" && m.authorUserId !== null && members.has(m.authorUserId));
-    return hosts === undefined || theirs === undefined ? null : [hosts, theirs];
-  });
-  const [hosts, theirs] = room.rows;
-  if (hosts === undefined || theirs === undefined) {
-    throw new Error("The room lost its rows");
+/** A room the corpus's second human hosts with the owner joined as a member, through the real invite verbs, and one
+ *  posted line from each. The corpus holds no room with both humans' rows on screen, so the case builds its own. The
+ *  host has no databank of its own and holds the owner's global documents out, and the owner's memory is off, so a
+ *  commit embeds nothing through the unscripted provider. The owner is the viewer. */
+async function twoHumanRoom(
+  root: Harness,
+  hostUserId: UserId | undefined,
+): Promise<{
+  readonly chatId: ChatId;
+  readonly characterId: CharacterId;
+  readonly host: Owner;
+  readonly viewer: Owner;
+  readonly hostLine: MessageId;
+  readonly viewerLine: MessageId;
+}> {
+  if (hostUserId === undefined) {
+    throw new Error("The corpus has no second human");
   }
-  await addDisplayScript(owner, {
-    name: "Host badge",
-    findRegex: MARK,
-    replaceString: "HOST-DRAWN",
-    targets: ["USER_INPUT"],
-    authors: { include: [{ by: "standing", standing: "host" }], exclude: [] },
-  });
-  await owner.chat.editMessage({ chatId: room.chatId, messageId: hosts.id, content: `The host's line ${MARK}.`, timeZone: UTC });
-  await owner.chat.editMessage({ chatId: room.chatId, messageId: theirs.id, content: `The member's line ${MARK}.`, timeZone: UTC });
-  await serveRoom(page, root, owner);
+  await (await root.internalCallerFor(root.ownerId)).settings.updateAppSettings({ partial: { localMultiUser: true } });
+  // The multi-user toggle is read when a caller is built, so both callers are made after it is set.
+  const host = await root.internalCallerFor(hostUserId);
+  const viewer = await root.internalCallerFor(root.ownerId);
+  await viewer.settings.updateUserSettingsSection({ section: "memory", patch: { enabled: false } });
+  // The story streams as one of the owner's characters; the room's own rows are the two humans'.
+  const { characterId } = await findRoom(viewer, () => []);
+  const chatId = (await host.chat.startChat({ characterIds: [], opening: "none" })).chat.id;
+  await viewer.invites.redeemInvite({ token: (await host.invites.createInvite({ chatId, input: {} })).token });
+  await host.chat.setChatDocumentVisibility({ chatId, visibility: { hidden: await viewer.databank.listGlobal() } });
+  const posted = async (caller: Owner, content: string): Promise<MessageId> => {
+    const message = (await caller.chat.commitMessage({ chatId, content, timeZone: UTC })).messages[0];
+    if (message === undefined) {
+      throw new Error("The posted line came back empty");
+    }
+    return message.id;
+  };
+  const hostLine = await posted(host, `The host's line ${MARK}.`);
+  const viewerLine = await posted(viewer, `The member's line ${MARK}.`);
+  return { chatId, characterId, host, viewer, hostLine, viewerLine };
+}
+
+const HOST_BADGE: Script = {
+  name: "Host badge",
+  findRegex: MARK,
+  replaceString: "HOST-DRAWN",
+  targets: ["USER_INPUT"],
+  authors: { include: [{ by: "standing", standing: "host" }], exclude: [] },
+};
+
+test("a script scoped to the host draws on the host's message and not on a member's", async ({ corpus, mount, page, corpusMedia }) => {
+  await using root = await createCorpusHarness();
+  const room = await twoHumanRoom(root, corpus.memberIdentities?.sharedMember.viewer.userId);
+  // The viewer's own Everywhere script runs last on the viewer's screen, the host's room or not.
+  await addDisplayScript(room.viewer, HOST_BADGE);
+  await serveRoom(page, root, room.viewer);
   await corpusMedia();
   await mount<typeof StreamingReplyStory>(STORY, { chatId: room.chatId, speakerCharacterId: room.characterId, streamedText: "", streamLabel: STREAM_LABEL });
 
-  await expect(rowOf(page, hosts.id).getByText("The host's line HOST-DRAWN.", { exact: true })).toBeVisible();
-  await expect(rowOf(page, theirs.id).getByText(`The member's line ${MARK}.`, { exact: true })).toBeVisible();
+  await expect(rowOf(page, room.hostLine).getByText("The host's line HOST-DRAWN.", { exact: true })).toBeVisible();
+  await expect(rowOf(page, room.viewerLine).getByText(`The member's line ${MARK}.`, { exact: true })).toBeVisible();
+});
+
+test("after a host handoff, a host-scoped script draws on the new host's message and not the former host's", async ({ corpus, mount, page, corpusMedia }) => {
+  await using root = await createCorpusHarness();
+  const room = await twoHumanRoom(root, corpus.memberIdentities?.sharedMember.viewer.userId);
+  await room.host.invites.nominateHostHandoff({ chatId: room.chatId, userId: root.ownerId });
+  await room.viewer.invites.acceptHostHandoff({ chatId: room.chatId });
+  // The positive control for the handoff itself: the viewer now hosts the room.
+  expect((await room.viewer.chat.getChat({ chatId: room.chatId })).viewerIsHost).toBe(true);
+  // The viewer's Everywhere script is now the room's global tier, and the standing is read against the room now.
+  await addDisplayScript(room.viewer, HOST_BADGE);
+  await serveRoom(page, root, room.viewer);
+  await corpusMedia();
+  await mount<typeof StreamingReplyStory>(STORY, { chatId: room.chatId, speakerCharacterId: room.characterId, streamedText: "", streamLabel: STREAM_LABEL });
+
+  await expect(rowOf(page, room.viewerLine).getByText("The member's line HOST-DRAWN.", { exact: true })).toBeVisible();
+  await expect(rowOf(page, room.hostLine).getByText(`The host's line ${MARK}.`, { exact: true })).toBeVisible();
 });

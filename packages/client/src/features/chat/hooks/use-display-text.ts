@@ -184,8 +184,8 @@ function displayedAnswer(input: {
   return scripted === undefined ? { landed: false, text: finishDisplayPass(pass.text, ctx) } : { landed: true, text: finishDisplayPass(scripted, ctx) };
 }
 
-/** The display scripts stopped this session, in the order they were stopped.
- *  @public The room's On screen regex roster marks each one stopped; that roster's own lane adds the reader. */
+/** The display scripts stopped this session, in the order they were stopped. The room's On screen regex roster
+ *  marks each one stopped. */
 export function useStoppedDisplayScripts(): readonly StoppedDisplayScript[] {
   return useSyncExternalStore(stoppedDisplayScripts.subscribe, stoppedDisplayScripts.getSnapshot);
 }
