@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-15
 priority: P3
 area: inference
+lane: wt/agent-aaaef4a406560836a
 ---
 
 # Hosted readers fail closed on a malformed kind field
