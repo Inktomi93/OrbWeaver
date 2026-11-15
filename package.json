@@ -77,6 +77,7 @@
     "test:ct:tools": "playwright test --config=playwright-ct.config.ts --project=tooling",
     "test:tools": "vitest run --config=vitest.config.ts --exclude=\"tests/!(tooling)/**\"",
     "test:mutation": "node tooling/src/floor/process/niced-exec.ts node tooling/src/mutation-run/cli.ts",
+    "test:mutation:targets": "node tooling/src/floor/process/niced-exec.ts node tooling/src/mutation-run/cli.ts --targets",
     "test-audit": "node tooling/src/test-audit/cli.ts"
   },
   "devDependencies": {

@@ -290,3 +290,15 @@ Run affected compiler programs, lint and dependency checks. Reuse matching compl
 Read the completed output. A timeout, tool error or failed cold start supplies no passing verdict. Preserve first-failure artifacts and fix the cause. Do not raise limits, weaken assertions, suppress real findings or rerun warm to claim success.
 
 Report the covered behavior, checks, remaining gaps and limitations. For each new test, name the production entry it runs, the layer and why, and the defect that turned it red. Passing a selected batch does not complete the wider restoration plan.
+
+## Run the mutation targets by hand
+
+`pnpm test:mutation:targets` runs `pnpm test:mutation` over each file in `tooling/src/mutation-run/lib/targets.ts`, one at a time. The list holds the files the change history keeps ranking as defect-prone. Run it by hand only; no test script, hook or CI job runs it.
+
+- Run one target: `pnpm test:mutation:targets <path-part>`. Every target whose path contains the part runs.
+- Print the targets and the tests each runs against: `pnpm test:mutation:targets --list`.
+- Print what the history ranks and the list lacks, and listed files that no longer rank: `pnpm test:mutation:targets --candidates`.
+- Add a target with one row: the file and a short reason. Name `tests` only when the lookup misses the tests that reach the file. The lookup takes the mirror directory, every test whose header says `@subject <file>`, and, when both are empty, tests that import the file.
+- The command refuses a missing or non-source file, and a file no test reaches, by name before any run.
+
+Each target's Stryker report lands in `reports/mutation/targets/`, named after its file. The table of every target that finished lands in `reports/mutation/targets/summary.txt`. A stop signal ends the current run and prints the table for the targets that finished.

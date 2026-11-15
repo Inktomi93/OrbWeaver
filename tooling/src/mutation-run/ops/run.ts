@@ -1,7 +1,8 @@
 // `pnpm test:mutation <file...>`: argument checks, the slot, the Stryker run and the summary. Nothing else.
-import { rmSync } from "node:fs";
-import { join } from "node:path";
+import { copyFileSync, mkdirSync, rmSync } from "node:fs";
+import { dirname, join } from "node:path";
 import process from "node:process";
+import { setTimeout as delay } from "node:timers/promises";
 import { print } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
@@ -12,12 +13,13 @@ import type { ChildExit, FullPriorityChild } from "../../floor/process/proc.ts";
 import { captureProcessGroup, spawnFullPriorityChild } from "../../floor/process/proc.ts";
 import { inheritedProcessEnv } from "../../floor/process/process-env.ts";
 import { escalateStop } from "../../floor/process/stop-escalation.ts";
-import { MUTATION_REPORT_JSON, MUTATION_WORLD_ENV, STRYKER_TEMP_DIR } from "../../floor/testing/stryker-config.ts";
+import { MUTATION_REPORT_HTML, MUTATION_REPORT_JSON, MUTATION_WORLD_ENV, STRYKER_TEMP_DIR } from "../../floor/testing/stryker-config.ts";
 import { instrumentError, printVerdict } from "../../floor/verdict/evidence.ts";
 import { aridCensus, readStrykerMutants } from "../../mutation-arid/index.ts";
 import { homeFiles, NativeWorld, packageWorlds } from "../../unwired/index.ts";
 import type { MutationPlan } from "../lib/named-files.ts";
 import { planMutationRun } from "../lib/named-files.ts";
+import type { StatusCounts } from "../lib/summary.ts";
 import { countStatuses, exitForCounts, NOT_MEASURED_NOTE, SURVIVOR_NOTE, testedCount, ZERO_KILLED_READINGS } from "../lib/summary.ts";
 import { worldOf } from "../lib/world.ts";
 
@@ -72,7 +74,7 @@ async function runStryker({ files, tests }: MutationPlan, world: string): Promis
   return exit.code;
 }
 
-function summarize(root: string, files: readonly string[]): number {
+function summarize(root: string, files: readonly string[]): MutationOutcome {
   const reportPath = join(root, MUTATION_REPORT_JSON);
   const counts = countStatuses(readStrykerMutants(reportPath));
   const tested = testedCount(counts);
@@ -91,33 +93,68 @@ function summarize(root: string, files: readonly string[]): number {
   if (verdict === EXIT.violations && tested > 0) {
     print(ZERO_KILLED_READINGS.join("\n"));
   }
-  return printVerdict("mutation-run", {
+  const exit = printVerdict("mutation-run", {
     verdict,
     denominators: { tested: { value: tested, refuseWhen: "zero" } },
     pairs: [["files", files.length], ...Object.entries(counts), ["report", MUTATION_REPORT_JSON]],
   });
+  return { exit, counts };
 }
 
-export async function runMutation(args: readonly string[]): Promise<number> {
-  const root = process.cwd();
-  const plan = planMutationRun(args, root);
+/** One run's exit under the house contract, and its counts when Stryker finished and left a report. */
+export interface MutationOutcome {
+  readonly exit: number;
+  readonly counts: StatusCounts | null;
+}
+
+/** Where a finished run's JSON and HTML reports are copied, checkout-relative, before the next run overwrites them. */
+export interface KeptReport {
+  readonly json: string;
+  readonly html: string;
+}
+
+interface PlanRunOptions {
+  readonly keep?: KeptReport;
+  /** Aborts a run still queued for the slot; a signal during the Stryker run stops it through {@link stopOnSignal}. */
+  readonly signal?: AbortSignal;
+}
+
+/** One planned run: the world, the slot, the Stryker run and its summary. */
+export async function runMutationPlan(plan: MutationPlan, root: string, options: PlanRunOptions = {}): Promise<MutationOutcome> {
   const worlds = packageWorlds(root);
   const world = worldOf(plan.files, homeFiles(worlds, NativeWorld.fileLists(root, worlds)));
+  const { signal } = options;
   const lease = await acquireHostSlot(mutationSlotPool(), {
     onQueued: (holder) => print(`waiting for the mutation slot, held by pid ${String(holder.pid)}`),
+    ...(signal === undefined ? {} : { sleep: (ms: number): Promise<void> => delay(ms, undefined, { signal }) }),
   });
   const sandbox = join(root, STRYKER_TEMP_DIR);
   try {
+    signal?.throwIfAborted();
     // A killed run leaves both behind, and a stale report must never be read as this run's result.
     rmSync(sandbox, { recursive: true, force: true });
     rmSync(join(root, MUTATION_REPORT_JSON), { force: true });
     const code = await runStryker(plan, world);
     if (code !== EXIT.clean) {
-      return instrumentError({ evidence: "a finished Stryker run", detail: `stryker exited ${String(code)}; read its output above` });
+      return {
+        exit: instrumentError({ evidence: "a finished Stryker run", detail: `stryker exited ${String(code)}; read its output above` }),
+        counts: null,
+      };
     }
-    return summarize(root, plan.files);
+    const outcome = summarize(root, plan.files);
+    if (options.keep !== undefined) {
+      mkdirSync(dirname(join(root, options.keep.json)), { recursive: true });
+      copyFileSync(join(root, MUTATION_REPORT_JSON), join(root, options.keep.json));
+      copyFileSync(join(root, MUTATION_REPORT_HTML), join(root, options.keep.html));
+    }
+    return outcome;
   } finally {
     rmSync(sandbox, { recursive: true, force: true });
     lease.release();
   }
+}
+
+export async function runMutation(args: readonly string[]): Promise<number> {
+  const root = process.cwd();
+  return (await runMutationPlan(planMutationRun(args, root), root)).exit;
 }

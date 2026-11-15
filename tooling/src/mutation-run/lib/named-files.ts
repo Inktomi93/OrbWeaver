@@ -43,13 +43,15 @@ function refusalFor(path: string, root: string): string | null {
   return PACKAGE_SOURCE.test(dirname(fromRoot)) ? null : "is not package source; the tooling suites cannot run in a sandbox";
 }
 
-function mirrorGlob(file: string, root: string): string | null {
+/** The `tests/` directory that mirrors a checkout-relative package source file, whether or not it exists. */
+export function mirrorDir(file: string): string | null {
   const groups = PACKAGE_SOURCE.exec(dirname(file))?.groups;
-  if (groups === undefined) {
-    return null;
-  }
-  const mirror = join("tests", groups["name"] ?? "", groups["dir"] ?? "");
-  return existsSync(join(root, mirror)) ? join(mirror, "**", "*.test.ts") : null;
+  return groups === undefined ? null : join("tests", groups["name"] ?? "", groups["dir"] ?? "");
+}
+
+function mirrorGlob(file: string, root: string): string | null {
+  const mirror = mirrorDir(file);
+  return mirror !== null && existsSync(join(root, mirror)) ? join(mirror, "**", "*.test.ts") : null;
 }
 
 function mirrorGlobs(files: readonly string[], root: string): readonly string[] {

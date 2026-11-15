@@ -11,7 +11,8 @@ const CHECKER_SHARE = 2;
 export const STRYKER_TEMP_DIR = ".stryker-tmp";
 /** The machine-readable report `pnpm test:mutation` summarizes, relative to the checkout. */
 export const MUTATION_REPORT_JSON = "reports/mutation/mutation.json";
-const MUTATION_REPORT_HTML = "reports/mutation/mutation.html";
+/** The human report beside {@link MUTATION_REPORT_JSON}. */
+export const MUTATION_REPORT_HTML = "reports/mutation/mutation.html";
 /** Stryker's CLI has no tsconfig flag, so `pnpm test:mutation` hands the checker its world through this variable. */
 export const MUTATION_WORLD_ENV = "ORB_MUTATION_WORLD";
 
