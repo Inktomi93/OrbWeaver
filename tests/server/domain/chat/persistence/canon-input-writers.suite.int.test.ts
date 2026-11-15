@@ -157,7 +157,8 @@ test("the actual first-user greeting freeze fences one canon-version transition 
   }
 });
 
-test("public Stop returns only the already committed user and never an assistant or completed lifecycle", async () => {
+// A Stop after text has streamed keeps that text as the reply (the Stop-keeps ruling); the turn still ends aborted, never completed.
+test("public Stop after a delta returns the committed user and the kept reply, and never a completed lifecycle", async () => {
   await withPeer("stream", async (f) => {
     const pending = f.start();
     await f.peer.arrived;
@@ -166,10 +167,14 @@ test("public Stop returns only the already committed user and never an assistant
     await expect.poll(f.peer.stopped).toBe(true);
     const outcome = await pending;
     expect(outcome).toMatchObject({ aborted: true, abortReason: "user" });
-    expect(outcome.messages).toHaveLength(1);
+    expect(outcome.messages).toHaveLength(2);
     expect(outcome.messages[0]).toMatchObject({ role: "user", content: "hello", authorUserId: f.h.owner.userId });
+    expect(outcome.messages[1]).toMatchObject({ role: "assistant" });
     const canon = await f.h.root.db.select().from(messages).where(eq(messages.chatId, f.h.chatId)).orderBy(messages.seq);
-    expect(canon.map(({ role, id }) => ({ role, id }))).toEqual([{ role: "user", id: outcome.messages[0]?.id }]);
+    expect(canon.map(({ role, id }) => ({ role, id }))).toEqual([
+      { role: "user", id: outcome.messages[0]?.id },
+      { role: "assistant", id: outcome.messages[1]?.id },
+    ]);
     expect(f.events.map(({ type }) => type)).toContain("turnAborted");
     expect(f.events.map(({ type }) => type)).not.toContain("turnCompleted");
   });
