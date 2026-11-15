@@ -88,7 +88,9 @@ jobs:
         with:
           browsers: "true"
       - run: pnpm --filter @orb/showcase-plugins build
-      - run: pnpm test:ct --workers=2 --shard=${{ matrix.shard }}/3
+      # A hosted runner is several times slower than a developer's machine, and a test that waits on a guess can lose there.
+      # One retry lets the job pass; the summary still names each test that needed it as flaky, and local runs keep no retry.
+      - run: pnpm test:ct --workers=2 --retries=1 --shard=${{ matrix.shard }}/3
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

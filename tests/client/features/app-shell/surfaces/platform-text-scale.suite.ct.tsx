@@ -761,8 +761,9 @@ function reachInDialog(popup: Element, { stride }: { readonly stride: number }):
 }
 
 /** Walks one mounted dialog across the grid, resizing in place: geometry only, so a cell costs a layout and no request. */
-async function walkGrid(page: Page, dialog: Locator, widths: readonly number[]): Promise<{ readonly cells: number; readonly failures: readonly string[] }> {
-  const failures: string[] = [];
+/** Walk every size and scale and return how many cells were judged. A size change reaches the list through its own observers a
+ *  frame or more after the layout, so each cell is polled until a row, Start and Blank chat are whole; a cell that never gets there fails by name. */
+async function walkGrid(page: Page, dialog: Locator, widths: readonly number[]): Promise<number> {
   let cells = 0;
   for (const width of widths) {
     for (const height of GRID_HEIGHTS) {
@@ -771,13 +772,15 @@ async function walkGrid(page: Page, dialog: Locator, widths: readonly number[]):
         await setRootFontScale(page, FONT_SCALE_PROPERTY, factor);
         await expect(dialog.getByRole("option").first()).toBeAttached();
         cells += 1;
-        const missing = await dialog.evaluate(reachInDialog, { stride: GRID_STRIDE_PX });
-        const clipped = await dialog.evaluate(cutOffControls, SUBPIXEL);
-        failures.push(...[...missing, ...clipped].map((what) => `${String(width)}x${String(height)} at ${String(factor * 100)}%: ${what}`));
+        await expect
+          .poll(async () => [...(await dialog.evaluate(reachInDialog, { stride: GRID_STRIDE_PX })), ...(await dialog.evaluate(cutOffControls, SUBPIXEL))], {
+            message: `${String(width)}x${String(height)} at ${String(factor * 100)}%`,
+          })
+          .toEqual([]);
       }
     }
   }
-  return { cells, failures };
+  return cells;
 }
 
 /** Controls or text painted past the dialog's sides: a stack that overflows there reads as a clipped sentence. */
@@ -803,13 +806,13 @@ for (const pointer of ["touch", "fine"] as const) {
     test("shows a whole row, Start and Blank chat at every size", async ({ mount, page }) => {
       test.setTimeout(GRID_TIMEOUT_MS);
       const dialog = await openNewChat(newChatMount(mount), page, 1);
-      expect(await walkGrid(page, dialog, widths)).toEqual({ cells: widths.length * GRID_HEIGHTS.length * GRID_SCALES.length, failures: [] });
+      expect(await walkGrid(page, dialog, widths)).toBe(widths.length * GRID_HEIGHTS.length * GRID_SCALES.length);
     });
 
     test("holds with the temporary-room notice above the list", async ({ mount, page }) => {
       test.setTimeout(GRID_TIMEOUT_MS);
       const dialog = await openNewChat(() => mount<typeof AppShellTemporaryNewChatStory>(`${SHELL_STORIES}/AppShellTemporaryNewChatStory`, {}), page, 1);
-      expect(await walkGrid(page, dialog, widths)).toEqual({ cells: widths.length * GRID_HEIGHTS.length * GRID_SCALES.length, failures: [] });
+      expect(await walkGrid(page, dialog, widths)).toBe(widths.length * GRID_HEIGHTS.length * GRID_SCALES.length);
     });
   });
 }
