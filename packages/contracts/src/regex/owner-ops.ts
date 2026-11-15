@@ -27,8 +27,12 @@ export type ImportPresetScripts = (args: ImportPresetScriptsArgs) => Promise<Imp
 
 /** What a dry run answers for one script a lift carries: `reuse` says why the lift mints no row for it (an owned row
  *  holds it, or an earlier script of the same run mints it) and is `null` when it mints one; `refused` is the write
- *  door's reason when it would mint one and the door refuses it. */
-export type ScriptPlan = { readonly reuse: ImportReuse | null } | { readonly refused: string };
+ *  door's reason when it would mint one and the door refuses it. An owned row's `enabled` is its own switch, which the
+ *  lift keeps whatever the file says. */
+export type ScriptPlan =
+  | { readonly reuse: Extract<ImportReuse, "library">; readonly enabled: boolean }
+  | { readonly reuse: Exclude<ImportReuse, "library"> | null }
+  | { readonly refused: string };
 
 /** The preset lifts of a folder run, dry: per preset in run order, per script, what {@link ImportPresetScripts} does
  *  with it. Read-only. */

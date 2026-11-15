@@ -3349,10 +3349,16 @@ type NumericKnob = keyof typeof generationKnobSchemas;
 
 /** Judge one foreign number against the stored knob's own schema, alone, so no field can sink another: a value in
  *  range lands as sent; one past the range, or a fraction where a whole number is stored, lands at the nearest stored
- *  value and is reported as clamped; one the schema still refuses at its bound (an exclusive one) is left out. */
+ *  value and is reported as clamped; a whole number past the safe integers, or one the schema still refuses at its
+ *  bound (an exclusive one), is left out. */
 function judgeKnob(key: NumericKnob, value: number, field: string, seats: StSeats): void {
   const stored = generationKnobSchemas[key].unwrap();
   const whole = stored.format === "safeint";
+  // Clamping such a value to the largest safe integer would store a number the file never meant.
+  if (whole && !Number.isSafeInteger(Math.round(value))) {
+    seats.dropped.push({ field, reason: `SillyTavern sent ${value}, past the largest whole number this app stores, so it was left out.` });
+    return;
+  }
   const landed = Math.min(
     Math.max(whole ? Math.round(value) : value, stored.minValue ?? Number.NEGATIVE_INFINITY),
     stored.maxValue ?? Number.POSITIVE_INFINITY,

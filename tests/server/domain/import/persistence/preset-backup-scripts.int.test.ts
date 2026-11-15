@@ -122,7 +122,10 @@ async function restore(b: Box, bundle: Uint8Array): Promise<void> {
 
 const fileSchema = z.looseObject({ name: z.string(), regexScripts: z.array(z.unknown()).optional() });
 
-test("a backup restores a preset with its scripts attached in order on another account, reuses it on a second restore, and an old backup restores its config alone", async () => {
+// Four bundle restores and a preset import, each measuring its scripts' patterns in a worker.
+test("a backup restores a preset with its scripts attached in order on another account, reuses it on a second restore, and an old backup restores its config alone", {
+  tags: ["slow"],
+}, async () => {
   await using b = await box();
   const sourceCaller = await b.root.internalCallerFor(b.source.userId);
   const imported = await sourceCaller.preset.importFile({ fileText: PRESET_FILE, fileName: "Lighthouse.json" });

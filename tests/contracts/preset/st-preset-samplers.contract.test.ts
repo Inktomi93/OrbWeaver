@@ -67,10 +67,12 @@ const fileOf = (value: (field: (typeof FIELDS)[number]) => unknown): Record<stri
 const clampedEntry = (field: string, sent: number, landedAs: number): unknown => ({ field, reason: expect.any(String), clamped: { sent, landedAs } });
 const leftOutEntry = (field: string): unknown => ({ field, reason: expect.any(String) });
 
-// Past a field's ceiling; a whole-number knob with no ceiling of its own is past it only beyond the safe integers.
+// A whole-number knob with no ceiling of its own is bounded only by the safe integers.
+const unbounded = (field: (typeof FIELDS)[number]): boolean => bounds(field.knob).max === Number.MAX_SAFE_INTEGER;
+
+// Past a field's ceiling, or for an unbounded whole-number knob, past the safe integers.
 function above(field: (typeof FIELDS)[number]): number {
-  const { max } = bounds(field.knob);
-  return max === Number.MAX_SAFE_INTEGER ? 2 ** 60 : max + 1;
+  return unbounded(field) ? 1e308 : bounds(field.knob).max + 1;
 }
 
 test("every sampler and limit in range lands as sent, and an absent one lands nothing", () => {
@@ -88,10 +90,11 @@ test("a value below its range is clamped to the range's floor, or carried as not
   expect(dropped).toEqual(FIELDS.filter((field) => field.offBelow === undefined).map((field) => clampedEntry(field.st, below(field), bounds(field.knob).min)));
 });
 
-test("a value above its range, or a fraction where a whole number is stored, is clamped and reported with both values", () => {
+test("a value above its range, or a fraction where a whole number is stored, is clamped; one past the safe integers is left out", () => {
   const { params, dropped } = landedParams(fileOf(above));
-  expect(params).toEqual(Object.fromEntries(FIELDS.map(({ knob }) => [knob, bounds(knob).max])));
-  expect(dropped).toEqual(FIELDS.map((field) => clampedEntry(field.st, above(field), bounds(field.knob).max)));
+  expect(params).toEqual(Object.fromEntries(FIELDS.map((field) => [field.knob, unbounded(field) ? undefined : bounds(field.knob).max])));
+  expect(dropped).toEqual(FIELDS.map((field) => (unbounded(field) ? leftOutEntry(field.st) : clampedEntry(field.st, above(field), bounds(field.knob).max))));
+  expect(FIELDS.filter(unbounded).length).toBeGreaterThan(0);
 
   const whole = FIELDS.filter(({ knob }) => bounds(knob).whole);
   expect(whole.length).toBeGreaterThan(0);
