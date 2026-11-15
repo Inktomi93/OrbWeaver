@@ -28,6 +28,7 @@ import {
   historyPageSchema,
   hostTierRegexAllowSchema,
   listMessagesInputSchema,
+  MESSAGE_TEXT_MAX_CHARS,
   memberCardViewSchema,
   memoryViewSchema,
   messageVariantSummarySchema,
@@ -98,10 +99,14 @@ const listMessageVariantsSchema = z.strictObject({
 // Every procedure whose assembly renders `{{date}}`/`{{time}}`/`{{weekday}}` requires `timeZone`, the viewer's browser
 // zone (UI-Gates §11.5). `reportedTimeZoneSchema` refuses a non-string and reads an unknown zone as UTC, so a
 // browser on a zone this server's ICU lacks still runs its turn.
+// The text cap is declared at the door so the contract says it; the commit builders enforce it on the final body,
+// which macros and regex can grow past what was sent.
+const messageTextSchema = z.string().max(MESSAGE_TEXT_MAX_CHARS);
+
 const sendSchema = z
   .strictObject({
     chatId: typeIdSchema(ID_PREFIX.chat),
-    content: z.string(),
+    content: messageTextSchema,
     personaId: typeIdSchema(ID_PREFIX.persona).nullish(),
     blocks: sendContentBlocksSchema.optional(),
     // Inline images the user attached (asset ids). The send verb TRUST-BOUNDARY-checks each is the
@@ -122,7 +127,7 @@ const sendSchema = z
 // generation ⇒ no gen-config, no steer). The verb runs `send`'s trust boundaries + persist; no AI round.
 const commitMessageSchema = z.strictObject({
   chatId: typeIdSchema(ID_PREFIX.chat),
-  content: z.string(),
+  content: messageTextSchema,
   personaId: typeIdSchema(ID_PREFIX.persona).nullish(),
   attachmentAssetIds: z.array(assetIdSchema).max(ASSET_LIST_LIMIT_MAX).optional(),
   timeZone: reportedTimeZoneSchema,
@@ -212,7 +217,7 @@ const abortSchema = z.strictObject({ chatId: typeIdSchema(ID_PREFIX.chat) });
 const editMessageSchema = z.strictObject({
   chatId: typeIdSchema(ID_PREFIX.chat),
   messageId: typeIdSchema(ID_PREFIX.message),
-  content: z.string(),
+  content: messageTextSchema,
   timeZone: reportedTimeZoneSchema,
 });
 
@@ -260,7 +265,7 @@ const deleteMessagesSchema = z.strictObject({
 const editReasoningSchema = z.strictObject({
   chatId: typeIdSchema(ID_PREFIX.chat),
   messageId: typeIdSchema(ID_PREFIX.message),
-  reasoning: z.string(),
+  reasoning: messageTextSchema,
 });
 
 const clearReasoningSchema = z.strictObject({

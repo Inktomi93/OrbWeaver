@@ -14,6 +14,7 @@ import type {
   BulkImportChatInput,
   BulkImportChatsOp,
   BulkImportChatsResult,
+  BulkImportRefusedRow,
   BulkImportVariantInput,
   ChatMetadata,
   FindImportedChatHashes,
@@ -22,7 +23,7 @@ import type {
   MessageKind,
   TurnInitiator,
 } from "@orb/contracts/chat";
-import { DEFAULT_MESSAGE_KIND } from "@orb/contracts/chat";
+import { DEFAULT_MESSAGE_KIND, MESSAGE_TEXT_MAX_CHARS } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
 import { generationUsageSchema, modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
@@ -87,10 +88,15 @@ function* landingStages(all: readonly ImportMessage[]): Generator<{ readonly sta
   }
 }
 
+/** The distinct inline `asset:<id>` refs in the variants' content. */
+function assetRefsInVariants(variants: readonly { readonly content: string }[]): AssetId[] {
+  // query-local dedup Set for asset refs in a message. Ends if it outlives the call.
+  return [...new Set(variants.flatMap((v) => assetIdsInContent(v.content)))];
+}
+
 /** The distinct inline `asset:<id>` refs in a message's content, across all its variants. */
 function assetRefsInMessage(message: ImportMessage): AssetId[] {
-  // query-local dedup Set for asset refs in a message. Ends if it outlives the call.
-  return [...new Set(message.variants.flatMap((v) => assetIdsInContent(v.content)))];
+  return assetRefsInVariants(message.variants);
 }
 
 interface PendingParent {
@@ -325,6 +331,11 @@ interface MessageRowsArgs {
   readonly chatId: ChatId;
   readonly seq: number;
   readonly message: BulkImportChatInput["messages"][number];
+  /** The chat's source name and the message's input position, for a refused row's report entry. */
+  readonly chat: string;
+  readonly messageIndex: number;
+  /** Collects each variant refused as over-long. */
+  readonly refused: BulkImportRefusedRow[];
   readonly ownerId: UserId;
   /** The run's PRIMARY character — the voice every assistant slot that names none falls back to. */
   readonly characterId: CharacterId;
@@ -425,43 +436,74 @@ interface MessageRows {
   readonly variants: (typeof messageVariants.$inferInsert)[];
   readonly selectedVariantId: MessageVariantId | null;
   readonly assets: (typeof messageAssets.$inferInsert)[];
-  readonly variantIds: readonly MessageVariantId[];
+  readonly variantIds: readonly (MessageVariantId | null)[];
 }
 
-function messageRows(args: MessageRowsArgs): MessageRows {
+/** The text that keeps `v` out of canon, or null when both fit `MESSAGE_TEXT_MAX_CHARS`. Live canon writers meet the
+ *  same cap in `canon-write.ts`; an import names the row instead of failing the whole chat. */
+function overlongText(v: BulkImportVariantInput): Pick<BulkImportRefusedRow, "field" | "chars"> | null {
+  if (v.content.length > MESSAGE_TEXT_MAX_CHARS) {
+    return { field: "content", chars: v.content.length };
+  }
+  if (v.reasoning !== null && v.reasoning.length > MESSAGE_TEXT_MAX_CHARS) {
+    return { field: "reasoning", chars: v.reasoning.length };
+  }
+  return null;
+}
+
+/** The message's rows without its over-long variants, or null when every variant was refused: such a message gets
+ *  no slot, and its seq stays empty the way a deleted slot's does. A refused selected variant hands the selection
+ *  to the first variant written. */
+function messageRows(args: MessageRowsArgs): MessageRows | null {
   const { ctx, messageId, chatId, seq, message } = args;
   const isUser = message.role === "user";
   let selectedVariantId: MessageVariantId | null = null;
-  const variantIds: MessageVariantId[] = [];
-  const variants = message.variants.map((v, i): typeof messageVariants.$inferInsert => {
+  const variantIds: (MessageVariantId | null)[] = [];
+  const variants = message.variants.flatMap((v, i): (typeof messageVariants.$inferInsert)[] => {
+    const overlong = overlongText(v);
+    if (overlong !== null) {
+      args.refused.push({ chat: args.chat, messageIndex: args.messageIndex, variantIdx: v.idx, ...overlong });
+      variantIds.push(null);
+      return [];
+    }
     const variantId = ctx.newMessageVariantId();
     variantIds.push(variantId);
     if (i === message.selectedIdx) {
       selectedVariantId = variantId;
     }
-    return {
-      id: variantId,
-      messageId,
-      idx: v.idx,
-      content: v.content,
-      model: importedModelId(v.model),
-      provider: importedProviderId(v.provider),
-      // Foreign history has no durable local connection row to attribute. Preserve that as missing,
-      // never as a fabricated deletion of a connection this app did not record.
-      connectionAttributionProvenance: "unrecorded",
-      // `tokensIn` is supplied by the orb-native bundle AND by the ST arm's user/system slots (the
-      // role-routed `extra.token_count`); `variableDelta` stays orb-native-only.
-      ...importedUsageColumns(v),
-      tokenProvenance: v.tokenProvenance,
-      reasoning: v.reasoning,
-      ttftMs: v.ttftMs,
-      genStartedAt: v.genStartedAt,
-      genFinishedAt: v.genFinishedAt,
-      variableDelta: v.variableDelta ?? null,
-      metadata: v.metadata,
-      createdAt: message.createdAt,
-    };
+    return [
+      {
+        id: variantId,
+        messageId,
+        idx: v.idx,
+        content: v.content,
+        model: importedModelId(v.model),
+        provider: importedProviderId(v.provider),
+        // Foreign history has no durable local connection row to attribute. Preserve that as missing,
+        // never as a fabricated deletion of a connection this app did not record.
+        connectionAttributionProvenance: "unrecorded",
+        // `tokensIn` is supplied by the orb-native bundle AND by the ST arm's user/system slots (the
+        // role-routed `extra.token_count`); `variableDelta` stays orb-native-only.
+        ...importedUsageColumns(v),
+        tokenProvenance: v.tokenProvenance,
+        reasoning: v.reasoning,
+        ttftMs: v.ttftMs,
+        genStartedAt: v.genStartedAt,
+        genFinishedAt: v.genFinishedAt,
+        variableDelta: v.variableDelta ?? null,
+        metadata: v.metadata,
+        createdAt: message.createdAt,
+      },
+    ];
   });
+  const [firstWritten] = variants;
+  if (firstWritten === undefined && message.variants.length > 0) {
+    return null;
+  }
+  const selected = message.variants[message.selectedIdx];
+  if (selected !== undefined && overlongText(selected) !== null) {
+    selectedVariantId = firstWritten?.id ?? null;
+  }
   return {
     message: {
       id: messageId,
@@ -481,7 +523,7 @@ function messageRows(args: MessageRowsArgs): MessageRows {
     variants,
     selectedVariantId,
     // Re-create the message_assets retaining row for each inline attachment that exists on the target box.
-    assets: assetRefsInMessage(message)
+    assets: assetRefsInVariants(variants)
       .filter((assetId) => args.existingAssetIds.includes(assetId))
       .map((assetId) => ({
         id: ctx.newMessageAssetId(),
@@ -683,14 +725,14 @@ function importedSeq(index: number): number {
  *  return the identity of what landed. `identity` is INDEX-ALIGNED to `ci.messages` — the R6 remap
  *  (`ImportedChatIdentity`); the tallies the caller reports are derived from it rather than counted separately,
  *  so the count and the remap cannot disagree about what landed. */
-async function landMessages(args: OneChatArgs): Promise<ImportedChatIdentity> {
+async function landMessages(args: OneChatArgs, refused: BulkImportRefusedRow[]): Promise<ImportedChatIdentity> {
   const { ctx, chatId, ci, ownerId, characterId, existingAssetIds, narratorCharacterId } = args;
   const { db } = ctx;
-  const messageIds: MessageId[] = [];
-  const variantIds: (readonly MessageVariantId[])[] = [];
+  const messageIds: (MessageId | null)[] = [];
+  const variantIds: (readonly (MessageVariantId | null)[])[] = [];
   for (const { start, stage } of landingStages(ci.messages)) {
     const selections: { readonly messageId: MessageId; readonly variantId: MessageVariantId }[] = [];
-    const rows = stage.map((m, offset) => {
+    const rows = stage.flatMap((m, offset) => {
       const messageId = ctx.newMessageId();
       const built = messageRows({
         ctx,
@@ -698,18 +740,30 @@ async function landMessages(args: OneChatArgs): Promise<ImportedChatIdentity> {
         chatId,
         seq: importedSeq(start + offset),
         message: m,
+        chat: ci.importedFrom,
+        messageIndex: start + offset,
+        refused,
         ownerId,
         characterId,
         existingAssetIds,
         narratorCharacterId,
       });
+      if (built === null) {
+        messageIds.push(null);
+        variantIds.push(m.variants.map(() => null));
+        return [];
+      }
       messageIds.push(messageId);
       variantIds.push(built.variantIds);
       if (built.selectedVariantId !== null) {
         selections.push({ messageId, variantId: built.selectedVariantId });
       }
-      return built;
+      return [built];
     });
+    // A refused over-long message fills its own stage, which then writes nothing.
+    if (rows.length === 0) {
+      continue;
+    }
     // The stage's messages, then their variants, then the pointers: a variant names its message and a pointer
     // names its variant.
     await commitChatBatch(db, [
@@ -816,6 +870,7 @@ interface ImportRunState {
   variantsImported: number;
   chatsPersonaHealed: number;
   readonly realConversationsWritten: ChatId[];
+  readonly refusedRows: BulkImportRefusedRow[];
 }
 
 /** The claimed room's remap for `ci`, paired by `seq = index + origin` against the slots the import wrote, so a
@@ -942,7 +997,7 @@ async function importOneChat(args: {
   // the closing stage's roster. A failure after the opening stage removes what landed.
   let identity: ImportedChatIdentity;
   try {
-    identity = await landMessages(plan);
+    identity = await landMessages(plan, state.refusedRows);
     const closing = closingStmts(plan, identity);
     // Once per room, in the stage that makes it visible: a rebuild scanning meanwhile folds the owner again once.
     ctx.bumpStatsCanonVersion(closing, ctx.db, ownerId);
@@ -958,8 +1013,8 @@ async function importOneChat(args: {
   state.written.push(identity);
   state.remaps.push({ kind: "aligned", ...identity });
   state.chatsImported += 1;
-  state.messagesImported += identity.messageIds.length;
-  state.variantsImported += identity.variantIds.reduce((total, pool) => total + pool.length, 0);
+  state.messagesImported += identity.messageIds.filter((id) => id !== null).length;
+  state.variantsImported += identity.variantIds.reduce((total, pool) => total + pool.filter((id) => id !== null).length, 0);
   if (ci.isRealConversation) {
     state.realConversationsWritten.push(chatId);
   }
@@ -1016,6 +1071,7 @@ export function createBulkImportChats(assembly: ChatImportAssemblyContext): Bulk
       variantsImported: 0,
       chatsPersonaHealed: 0,
       realConversationsWritten: [],
+      refusedRows: [],
     };
 
     for (const ci of input) {
@@ -1036,6 +1092,7 @@ export function createBulkImportChats(assembly: ChatImportAssemblyContext): Bulk
       branchesLinked,
       realConversationsWritten: state.realConversationsWritten,
       chatsPersonaHealed: state.chatsPersonaHealed,
+      refusedRows: state.refusedRows,
     };
   };
 }

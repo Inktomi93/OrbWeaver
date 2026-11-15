@@ -422,6 +422,7 @@ const NO_WAVES: ProfileWaveOutcomes = {
   seatedDisabledMembers: [],
   unresolvedPinnedPersonas: [],
   chatsPersonaHealed: 0,
+  skippedChatRows: [],
   personasMergedKeys: [],
   memoryChatIds: [],
   globalRegexScriptsLifted: 0,
@@ -580,12 +581,14 @@ async function importOrphanBundles(
   readonly unresolvedPins: ImportUnresolvedPinnedPersona[];
   readonly chatsPersonaHealed: number;
   readonly memoryChatIds: ChatId[];
+  readonly skippedChatRows: ImportSkippedCard[];
 }> {
   let changed = 0;
   let orphansReused = 0;
   let chatsReused = 0;
   let chatsPersonaHealed = 0;
   const memoryChatIds: ChatId[] = [];
+  const skippedChatRows: ImportSkippedCard[] = [];
   const orphanImports: { dir: string; characterName: string; created: boolean; chatsImported: number }[] = [];
   const orphanSkipped: { dir: string; reason: string }[] = [];
   const unresolvedPins: ImportUnresolvedPinnedPersona[] = [];
@@ -620,13 +623,14 @@ async function importOrphanBundles(
       chatsPersonaHealed += chatResult.chatsPersonaHealed;
       memoryChatIds.push(...chatResult.memoryChatIds);
       unresolvedPins.push(...chatResult.unresolvedPinnedPersonas);
+      skippedChatRows.push(...chatResult.skippedChatRows);
       orphanImports.push({ dir: orphan.dirName, characterName: mint.name, created: mint.created, chatsImported: chatResult.chatsImported });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       orphanSkipped.push({ dir: orphan.dirName, reason: message.split("\n").filter(Boolean).at(-1) ?? message });
     }
   }
-  return { changed, orphansReused, chatsReused, orphanImports, orphanSkipped, unresolvedPins, chatsPersonaHealed, memoryChatIds };
+  return { changed, orphansReused, chatsReused, orphanImports, orphanSkipped, unresolvedPins, chatsPersonaHealed, memoryChatIds, skippedChatRows };
 }
 
 /** Import one collected card bundle: the character (idempotent by importHash) then its chats. Returns the
@@ -646,6 +650,7 @@ async function importOneBundle(
   readonly chatsPersonaHealed: number;
   /** The card's written real conversations (the memory-build offer's scope). */
   readonly memoryChatIds: readonly ChatId[];
+  readonly skippedChatRows: readonly ImportSkippedCard[];
   /** The card's regex-script lift counts (D121-E) — summed into the report's card-lift accounting. */
   readonly scriptsLifted: number;
   readonly scriptsReused: number;
@@ -658,7 +663,7 @@ async function importOneBundle(
   const card = { characterId: cardResult.characterId, cardReused: !cardResult.created };
   const scripts = { scriptsLifted: cardResult.regexScriptsLifted, scriptsReused: cardResult.regexScriptsReused };
   if (bundle.chats.length === 0) {
-    return { changed, ...card, chatsReused: 0, unresolvedPins: [], chatsPersonaHealed: 0, memoryChatIds: [], ...scripts };
+    return { changed, ...card, chatsReused: 0, unresolvedPins: [], chatsPersonaHealed: 0, memoryChatIds: [], skippedChatRows: [], ...scripts };
   }
   const chatResult = await service.importChats({ characterId: cardResult.characterId, chats: bundle.chats });
   changed += chatResult.chatsImported;
@@ -669,6 +674,7 @@ async function importOneBundle(
     unresolvedPins: chatResult.unresolvedPinnedPersonas,
     chatsPersonaHealed: chatResult.chatsPersonaHealed,
     memoryChatIds: chatResult.memoryChatIds,
+    skippedChatRows: chatResult.skippedChatRows,
     ...scripts,
   };
 }
@@ -725,6 +731,7 @@ async function importCollectedBundles(
   readonly chatsPersonaHealed: number;
   /** The solo wave's written real conversations. */
   readonly memoryChatIds: ChatId[];
+  readonly skippedChatRows: ImportSkippedCard[];
   /** The card-lift halves of the regex accounting, summed across every imported card. */
   readonly cardScriptsLifted: number;
   readonly cardScriptsReused: number;
@@ -736,6 +743,7 @@ async function importCollectedBundles(
   let chatsReused = 0;
   let chatsPersonaHealed = 0;
   const memoryChatIds: ChatId[] = [];
+  const skippedChatRows: ImportSkippedCard[] = [];
   const skippedCards: ImportSkippedCard[] = [];
   const characterIdByCard = new Map<CollectedCard, CharacterId>();
   const unresolvedPins: ImportUnresolvedPinnedPersona[] = [];
@@ -756,6 +764,7 @@ async function importCollectedBundles(
       chatsReused += result.chatsReused;
       chatsPersonaHealed += result.chatsPersonaHealed;
       memoryChatIds.push(...result.memoryChatIds);
+      skippedChatRows.push(...result.skippedChatRows);
       unresolvedPins.push(...result.unresolvedPins);
       cardScriptsLifted += result.scriptsLifted;
       cardScriptsReused += result.scriptsReused;
@@ -777,6 +786,7 @@ async function importCollectedBundles(
     unresolvedPins,
     chatsPersonaHealed,
     memoryChatIds,
+    skippedChatRows,
     cardScriptsLifted,
     cardScriptsReused,
     skippedCardTags,
@@ -998,6 +1008,7 @@ export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<I
       // Every wave's dedup-skip HEALS, summed: this is the number the operator reads to see an existing
       // corpus gain the persona attribution its first import could not resolve.
       chatsPersonaHealed: bundleResult.chatsPersonaHealed + groupResult.chatsPersonaHealed + orphanResult.chatsPersonaHealed,
+      skippedChatRows: [...bundleResult.skippedChatRows, ...groupResult.skippedChatRows, ...orphanResult.skippedChatRows],
       personasMergedKeys,
       memoryChatIds: [...bundleResult.memoryChatIds, ...groupResult.memoryChatIds, ...orphanResult.memoryChatIds],
       globalRegexScriptsLifted,
