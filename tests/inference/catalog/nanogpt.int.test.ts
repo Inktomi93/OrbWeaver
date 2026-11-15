@@ -1,8 +1,8 @@
 // @subject packages/inference/src/catalog/endpoint.ts
 // NanoGPT states each model's limits only in its detailed list. A stated window and output cap are reported on the
 // connection; a model the list leaves null runs on the floor, marked assumed.
-import type { Capability, ModelListing } from "@orb/contracts/inference";
-import { BUILTIN_PROVIDERS, TOOLS_PARAMETER } from "@orb/contracts/inference";
+import type { Capability, DeclaredCapability, ModelListing } from "@orb/contracts/inference";
+import { BUILTIN_PROVIDERS, declaredCapabilitySchema, TOOLS_PARAMETER } from "@orb/contracts/inference";
 import type { Resolved } from "@orb/inference";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -224,10 +224,14 @@ function nanoGptListAndChat(): typeof fetch {
   };
 }
 
-async function turnUsage(root: ServerTestHarness, model: string): Promise<{ readonly costUsd: number | null; readonly costProvenance: string }> {
+async function turnUsage(
+  root: ServerTestHarness,
+  model: string,
+  declared?: DeclaredCapability,
+): Promise<{ readonly costUsd: number | null; readonly costProvenance: string }> {
   const principal = await root.principalFor(root.ownerId);
   const credential = await root.services.credentials.add({ principal, provider: nanoGpt().id, key: RUNTIME_KEY });
-  const row = await root.services.connection.create({ principal, providerId: nanoGpt().id, credentialId: credential.id, baseUrl: null, model });
+  const row = await root.services.connection.create({ principal, providerId: nanoGpt().id, credentialId: credential.id, baseUrl: null, model, declared });
   const signal = new AbortController().signal;
   // The capability read warms the list the turn's resolve then reads.
   await root.services.connection.capabilities({ principal, connectionId: row.id, signal });
@@ -253,6 +257,19 @@ test("a turn on a model the list prices reports an estimated cost, and one whose
   expect(priced.costUsd).toBeCloseTo((promptUsd + TOKENS_OUT * COMPLETION_PER_MILLION) / TOKENS_PER_MILLION, 12);
   const unpriced = await turnUsage(root, UNSTATED_MODEL);
   expect(unpriced).toEqual({ costUsd: null, costProvenance: "unrecorded" });
+});
+
+const DECLARED_PRICING = { inputPerMTok: 4, outputPerMTok: 20, cacheReadPerMTok: 1 };
+
+test("a price the user declares on the connection wins over the list's price", async () => {
+  await using root = await createRuntimeRoot({ providerFetch: nanoGptListAndChat() });
+  const declared = await turnUsage(root, STATED_MODEL, declaredCapabilitySchema.parse({ features: { pricing: DECLARED_PRICING } }));
+  expect(declared.costProvenance).toBe("estimated");
+  const promptUsd = (TOKENS_IN - TOKENS_CACHED) * DECLARED_PRICING.inputPerMTok + TOKENS_CACHED * DECLARED_PRICING.cacheReadPerMTok;
+  expect(declared.costUsd).toBeCloseTo((promptUsd + TOKENS_OUT * DECLARED_PRICING.outputPerMTok) / TOKENS_PER_MILLION, 12);
+  // Positive control: the same model with nothing declared is priced from the list, so the figures differ.
+  const listed = await turnUsage(root, STATED_MODEL);
+  expect(listed.costUsd).not.toBeCloseTo(declared.costUsd ?? 0, 12);
 });
 
 const EMBED_MODEL = "vendor/stated-embedder";
