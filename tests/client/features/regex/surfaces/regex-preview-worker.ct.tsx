@@ -1,5 +1,7 @@
 // The regex editor's tester and pipeline run a script in the display-pass Worker, so a pattern that backtracks for
-// minutes on a short near-miss stops at the Worker's deadline and the page keeps answering.
+// minutes on a short near-miss stops at the Worker's deadline and the page keeps answering. The pipeline gates each
+// script with the kit's own `regexSkipReason`, so a depth range or an author scope, which a loose sample has no
+// position or author for, never sits a script out there.
 // @subject packages/client/src/features/regex/components/regex-test-panel.tsx
 // @subject packages/client/src/features/regex/components/regex-pipeline-panel.tsx
 import { routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
@@ -42,4 +44,41 @@ test("a runaway pattern on a near-miss sample stops in the Worker and the page k
   // The pipeline reads the same stop: its stage for this script says it was stopped without running it again.
   await page.getByRole("textbox", { name: REGEX_TEXT_GOING_IN_NAME, exact: true }).fill(NEAR_MISS);
   await expect(page.getByText(REGEX_PREVIEW_STOPPED, { exact: true })).toHaveCount(2);
+});
+
+test("the pipeline runs a depth-bounded and an author-scoped script, as the kit's gate admits them on a loose sample", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  // Each script rewrites its own word, so the earlier stage cannot leave the later one nothing to match.
+  const scoped = await caller.regex.createScript({
+    input: {
+      name: "Host lines only",
+      findRegex: "witness",
+      replaceString: "WITNESS",
+      targets: ["AI_OUTPUT"],
+      passes: ["display"],
+      authors: { include: [{ by: "standing", standing: "host" }], exclude: [] },
+    },
+  });
+  await caller.regex.attachGlobal({ scriptId: scoped.id });
+  const bounded = await caller.regex.createScript({
+    input: {
+      name: "Older replies only",
+      findRegex: "lantern",
+      replaceString: "LANTERN",
+      targets: ["AI_OUTPUT"],
+      passes: ["display"],
+      depth: { min: 2, max: 4 },
+    },
+  });
+  await routeTrpc(page, serveCorpusProcedures(caller, PROCEDURES));
+  await mount<typeof RegexMemberSaveStory>(STORY, { scriptId: bounded.id });
+
+  await page.getByRole("textbox", { name: REGEX_TEXT_GOING_IN_NAME, exact: true }).fill("the witness holds a lantern");
+  // A stage that changed its text draws the text after it; a skipped stage draws none.
+  for (const name of [scoped.name, bounded.name]) {
+    const stage = page.locator(STAGE).filter({ hasText: name });
+    await expect(stage).toHaveCount(1);
+    await expect(stage.getByRole("textbox")).toHaveCount(1);
+  }
 });

@@ -72,6 +72,10 @@ export const REGEX_SAVE_CLEARS_SCOPE_DESCRIPTION =
   "A script that changes the saved message runs on every message as it is saved, so it has no depth range and no whose-messages lists. Switching clears this script's.";
 export const REGEX_SAVE_CLEARS_SCOPE_CONFIRM_NAME = "Clear them and switch";
 
+/** The library's file import result, with the import's notes beside it when it left something out. */
+export const REGEX_IMPORT_CREATED = "Script imported.";
+export const REGEX_IMPORT_ALREADY_HAD = "You already had that script. Nothing new was added.";
+
 /** The run-on-edit switch, shown beside the save choice. */
 export const REGEX_RUN_ON_EDIT_NAME = "Run on edit";
 
