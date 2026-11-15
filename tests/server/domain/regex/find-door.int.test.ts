@@ -9,6 +9,7 @@ import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { deriveRegexTierFlags, MAX_FIND_REGEX_LENGTH } from "@orb/kit/regex";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { FIND_COMPILE_LIMIT_MS } from "#server/primitives/regex/compile-probe.ts";
 
 const PLACEMENT = ["AI_OUTPUT"] as const;
 const UNIT = "(a|b)";
@@ -23,7 +24,7 @@ function scriptInput(name: string, findRegex: string): ReturnType<typeof createR
   return createRegexScriptSchema.parse({ name, findRegex, replaceString: "x", placement: PLACEMENT, ...deriveRegexTierFlags(PLACEMENT) });
 }
 
-const REFUSAL = /^script "heavy" not saved: its find pattern costs \d+ ms to compile and first run, over the \d+ ms limit$/;
+const REFUSAL = new RegExp(`^script "heavy" not saved: its find pattern costs \\d+ ms to compile and first run, over the ${FIND_COMPILE_LIMIT_MS} ms limit$`);
 
 test("create stores a panel pattern and refuses a compile-heavy one by name, its cost and the limit", { tags: ["slow"] }, async () => {
   await using root = await createServerHarness();

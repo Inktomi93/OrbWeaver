@@ -7,11 +7,9 @@
 import type { JsonValue } from "@orb/kit/json";
 import { expect, test } from "@orb/testkit/node";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
+import { RPG_PLOT_ACTS_MAX } from "#contracts/rpg/snapshot.ts";
 import { coreFrame, coreSse } from "../../chat/engine/core-physical.ts";
 import { TURN_SCENE_TOOL, turnRpgRoom } from "../../chat/verbs/turn-rpg-physical.ts";
-
-// The stated maximum, pinned here so a change to the bound is a deliberate edit in two places.
-const RPG_PLOT_ACTS_MAX = 100;
 
 // The largest whole number a schema integer admits: the old padding loop never finishes on it.
 const HOSTILE_ACT = Number.MAX_SAFE_INTEGER;

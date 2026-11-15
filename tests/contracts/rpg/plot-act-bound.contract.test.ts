@@ -1,8 +1,6 @@
 import { rpgPlotSchema, updateSceneArgsSchema } from "@orb/contracts/rpg";
 import { expect, test } from "@orb/testkit/node";
-
-// The stated maximum, pinned here so a change to the bound is a deliberate edit in two places.
-const RPG_PLOT_ACTS_MAX = 100;
+import { RPG_PLOT_ACTS_MAX } from "#contracts/rpg/snapshot.ts";
 
 // The stored plot and the model's patch read one maximum, so a plot the model can write is a plot the read accepts.
 test("the stored plot and the scene patch both stop at the plot act maximum", () => {
