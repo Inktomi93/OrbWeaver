@@ -39,7 +39,9 @@ test("boot continues across a real binding refusal, and the composed post-boot a
   expect(await app.sessions.loadUserById(minted)).toMatchObject({ handle: "after_boot_refusal" });
   const mintedPrincipal = await harness.principalFor(minted);
   const bindingsOf = async (): Promise<NonNullable<Awaited<ReturnType<typeof app.services.connection.listBindings>>[number]["binding"]>[]> =>
-    (await app.services.connection.listBindings({ principal: mintedPrincipal })).flatMap(({ binding }) => (binding === null ? [] : [binding]));
+    (await app.services.connection.listBindings({ signal: new AbortController().signal, principal: mintedPrincipal })).flatMap(({ binding }) =>
+      binding === null ? [] : [binding],
+    );
   expect(await app.services.connection.list({ principal: mintedPrincipal })).toHaveLength(2);
   expect(await bindingsOf()).toEqual([]);
   await refusal.lift();

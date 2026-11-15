@@ -14,11 +14,11 @@ import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
 import { requirePositiveTopN } from "../substrate/top-n.ts";
 
 export function createSimilarCharacters(ctx: SearchContext): SearchService["similarCharacters"] {
-  return async (params: SimilarCharactersParams): Promise<CharacterCardHit[]> => {
+  return async (params: SimilarCharactersParams & { readonly signal: AbortSignal }): Promise<CharacterCardHit[]> => {
     const { ownerId, characterId, topN } = params;
     requirePositiveTopN(topN, "similarCharacters");
 
-    return await withActiveQuerySpace(ctx, ownerId, "embed", async (space) => {
+    return await withActiveQuerySpace(ctx, { ownerId, task: "embed", signal: params.signal }, async (space) => {
       const seed = await readSeedCharacterVector(ctx.db, ownerId, characterId, space.generationId);
       if (seed === null) {
         return [];

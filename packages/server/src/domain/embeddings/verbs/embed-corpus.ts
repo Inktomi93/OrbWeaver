@@ -41,7 +41,7 @@ async function embedOneCard(
   if (cardOwnerId === null || !(await sweep.ownerEnabled(cardOwnerId))) {
     return "skipped";
   }
-  const embedModel = await requireTaskModel(ctx, cardOwnerId);
+  const embedModel = await requireTaskModel(ctx, cardOwnerId, sweep.signal);
   if (embedModel === null) {
     return "skipped";
   }

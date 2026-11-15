@@ -23,7 +23,7 @@ test("a 0-based bundle import with a carried marker shows the row after the mark
   const sourceChat = source.root.services.chat;
   await sourceChat.send({ principal: source.owner, chatId: source.chatId, content: OPENING });
   await sourceChat.send({ principal: source.owner, chatId: source.chatId, content: "A second question." });
-  const compacted = await sourceChat.compact({ principal: source.owner, chatId: source.chatId });
+  const compacted = await sourceChat.compact({ signal: new AbortController().signal, principal: source.owner, chatId: source.chatId });
   await sourceChat.send({ principal: source.owner, chatId: source.chatId, content: AFTER_MARKER });
   expect(compacted).toMatchObject({ summary: SUMMARY, compactedAtSeq: 4, updated: true });
   const exporter = source.root.app.portability.find((entity) => entity.kind === "chat");

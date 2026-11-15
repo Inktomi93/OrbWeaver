@@ -41,8 +41,14 @@ async function verifiedKey(
     allowBackground: true,
     declared: declaredCapabilitySchema.parse({ kind: "generation", generation: { input: ["text"] } }),
   });
-  const { resolved } = await root.app.runtime.resolve({ task: "chat", connectionId: connection.id, principal, cachedFacts: true });
-  await expect(root.app.runtime.diagnostics.verifyAuth({ connection: resolved })).rejects.toThrow(SDK_REFUSAL);
+  const { resolved } = await root.app.runtime.resolve({
+    signal: new AbortController().signal,
+    task: "chat",
+    connectionId: connection.id,
+    principal,
+    cachedFacts: true,
+  });
+  await expect(root.app.runtime.diagnostics.verifyAuth({ signal: new AbortController().signal, connection: resolved })).rejects.toThrow(SDK_REFUSAL);
   await root.settleBackground();
   return credential;
 }

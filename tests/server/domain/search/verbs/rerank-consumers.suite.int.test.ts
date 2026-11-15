@@ -221,7 +221,12 @@ async function rerankWorld(shape: Shape): Promise<RerankWorld> {
   await h.caller.databank.attachToChat({ chatId: otherRoom.chat.id, documentId: elsewhere.document.id });
   const stranger = await h.root.principalFor((await h.root.actor()).id);
   await seedCorpusConnections(h.root, stranger);
-  const foreign = await h.root.services.databank.createFromText({ principal: stranger, name: "foreign.txt", text: `doc-foreign. They buried ${NEEDLE}.` });
+  const foreign = await h.root.services.databank.createFromText({
+    signal: new AbortController().signal,
+    principal: stranger,
+    name: "foreign.txt",
+    text: `doc-foreign. They buried ${NEEDLE}.`,
+  });
   const foreignCharacter = await h.root.services.character.create({
     principal: stranger,
     input: createCharacterSchema.parse({ handle: "persona-foreign", name: "Stranger", description: `persona-foreign. They buried ${NEEDLE}.` }),

@@ -18,7 +18,7 @@ import { activeSpaceModel } from "../substrate/active-space.ts";
 import { queueIngest } from "../substrate/queue-ingest.ts";
 
 export function createUpload(ctx: DatabankContext): DatabankService["upload"] {
-  return async ({ principal, bytes, mime, name, destination }: UploadDocumentParams): Promise<UploadResult> => {
+  return async ({ principal, bytes, mime, name, destination, signal }: UploadDocumentParams): Promise<UploadResult> => {
     const ownerId: UserId = principal.userId;
     const importHash = sha256Hex(bytes);
 
@@ -26,7 +26,7 @@ export function createUpload(ctx: DatabankContext): DatabankService["upload"] {
     const existing = await findByImportHash(ctx.db, ownerId, importHash);
     if (existing !== undefined) {
       await attachIngestDestination(ctx, principal, destination, importHash);
-      const counts = await ctx.countChunks({ documentIds: [existing.id], model: await activeSpaceModel(ctx, ownerId) });
+      const counts = await ctx.countChunks({ documentIds: [existing.id], model: await activeSpaceModel(ctx, ownerId, signal) });
       return { document: toDocumentView(existing, counts.get(existing.id) ?? 0), outcome: "duplicate", ingest: "skipped" };
     }
 
@@ -58,7 +58,7 @@ export function createUpload(ctx: DatabankContext): DatabankService["upload"] {
       if (winner === undefined) {
         throw new Error("Atomic ingestion did not produce a document.");
       }
-      const counts = await ctx.countChunks({ documentIds: [winner.id], model: await activeSpaceModel(ctx, ownerId) });
+      const counts = await ctx.countChunks({ documentIds: [winner.id], model: await activeSpaceModel(ctx, ownerId, signal) });
       return { document: toDocumentView(winner, counts.get(winner.id) ?? 0), outcome: "duplicate", ingest: "skipped" };
     }
 

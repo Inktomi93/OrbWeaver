@@ -49,7 +49,9 @@ test("a deleted owner's admitted job never upgrades into every-owner execution o
     .where(eq(workloads.id, ref.id));
   await expect(root.services.workloads.retry({ caller: owner, id: ref.id })).rejects.toBeInstanceOf(DomainNotFoundError);
   await expect(root.services.workloads.retry({ caller: null, id: ref.id })).rejects.toBeInstanceOf(DomainNotFoundError);
-  await expect(root.services.workloads.estimateRetryModelCalls({ caller: owner, id: ref.id })).rejects.toBeInstanceOf(DomainNotFoundError);
+  await expect(root.services.workloads.estimateRetryModelCalls({ signal: new AbortController().signal, caller: owner, id: ref.id })).rejects.toBeInstanceOf(
+    DomainNotFoundError,
+  );
   run.mockRestore();
 });
 

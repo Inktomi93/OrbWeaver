@@ -73,7 +73,12 @@ export async function seedCorpusKnowledgeImages(root: ServerTestHarness): Promis
         description: "An illustrated traveller preserves the orbital ledger.",
       }),
     });
-    const updated = await root.services.character.update({ principal, characterId: card.id, input: { avatarAssetId: stored.assetId } });
+    const updated = await root.services.character.update({
+      signal: new AbortController().signal,
+      principal,
+      characterId: card.id,
+      input: { avatarAssetId: stored.assetId },
+    });
     await root.settleBackground();
     const row = await root.db.select().from(assets).where(eq(assets.id, stored.assetId)).get();
     if (row === undefined) {
@@ -81,8 +86,8 @@ export async function seedCorpusKnowledgeImages(root: ServerTestHarness): Promis
     }
     cards.push(updated);
     storedRows.push({ ...row, kinds: (await loadAssetKinds(root.db, [row.id])).get(row.id) ?? [] });
-    indexed.push(await seedIndexedAssetRows(root, [stored.assetId, { force: false }]));
-    repeated.push(await seedIndexedAssetRows(root, [stored.assetId, { force: false }]));
+    indexed.push(await seedIndexedAssetRows(root, [stored.assetId, { signal: new AbortController().signal, force: false }]));
+    repeated.push(await seedIndexedAssetRows(root, [stored.assetId, { signal: new AbortController().signal, force: false }]));
   }
   const cardVectors = await seedEmbeddedCorpusRows(root, {
     ownerId: root.ownerId,

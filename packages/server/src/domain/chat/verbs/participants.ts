@@ -534,7 +534,7 @@ function createSetMemberPersonaLore(ctx: ChatContext, emit: EmitChatEvent, claim
  *  fetch → magic-belt → CAS-store the pasted URL, keeping the original URL as `provenanceUrl`. A blank URL is
  *  a no-op clear (⇒ `kind:"none"`). Any non-external source passes through untouched. A materialize refusal
  *  throws a leak-free coded error (the honest reason, never the URL). */
-async function materializeExternal(ctx: ChatContext, principal: Principal, source: ThemeBackground): Promise<ThemeBackground> {
+async function materializeExternal(ctx: ChatContext, principal: Principal, source: ThemeBackground, signal: AbortSignal): Promise<ThemeBackground> {
   if (source.kind !== "external") {
     return source;
   }
@@ -542,7 +542,7 @@ async function materializeExternal(ctx: ChatContext, principal: Principal, sourc
   if (url.length === 0) {
     return { ...source, kind: "none" };
   }
-  const result = await ctx.materializeBackground(principal, url);
+  const result = await ctx.materializeBackground(principal, url, signal);
   if (!result.ok) {
     throw new ChatOperationError(CHAT_OP_CODES.backgroundUnavailable, backgroundMaterializeMessage(result.reason));
   }
@@ -564,7 +564,7 @@ async function materializeExternal(ctx: ChatContext, principal: Principal, sourc
  *  sub-blobs (`...chat.metadata`) so it never nukes roomOverrides/group. The audit logs only the source KIND
  *  — never the url/hash (a background can be card-body-like text). */
 function createSetChatBackground(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setChatBackground"] {
-  return async ({ principal, chatId, background }: SetChatBackgroundParams): Promise<ThemeBackground> => {
+  return async ({ principal, chatId, background, signal }: SetChatBackgroundParams): Promise<ThemeBackground> => {
     const { chat, admission } = await requireHost(ctx, principal, chatId);
     const parsed = themeBackgroundSchema.safeParse(background);
     if (!parsed.success) {
@@ -573,7 +573,7 @@ function createSetChatBackground(ctx: ChatContext, emit: EmitChatEvent, claimCha
     // BG-C invariant: a `kind:"external"` source can never paint (CSP), so materialize it server-side
     // into an owned `kind:"asset"` source (original URL kept as provenance) BEFORE persisting — or refuse. A
     // blank external URL is a no-op clear (⇒ `kind:"none"`), never a fetch of "".
-    const resolved = await materializeExternal(ctx, principal, parsed.data);
+    const resolved = await materializeExternal(ctx, principal, parsed.data, signal);
     // Canonicalize FIRST: a non-asset kind carries NO asset ref, so a `kind:"none"` payload with a populated
     // `assetId` (the smuggle) is emptied here and can never GC-root through the metadata JSON live-source. The
     // ownership gate then runs whenever an asset ref SURVIVES (⇒ `kind:"asset"`) — belt-and-suspenders keyed on

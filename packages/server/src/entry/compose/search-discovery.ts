@@ -85,6 +85,8 @@ export interface SearchDiscoveryComposeDeps {
 
   readonly supervise?: DetachedSupervision["superviseDetached"];
   readonly scheduleTimeout: EmbeddingsAssemblyContext["scheduleTimeout"];
+  /** The process's background-work lifetime; bus-driven indexing ends with it. */
+  readonly backgroundSignal: AbortSignal;
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
   readonly now: Clock;
@@ -207,6 +209,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     loadCardText,
     loadCharacterOwner,
     roleClientsFor,
+    backgroundSignal: deps.backgroundSignal,
   });
   eventBus.subscribe(createEmbeddingsIndexerSubscription({ getEffectiveConfig: deps.getEffectiveConfig, indexer }));
 

@@ -22,7 +22,7 @@ test("nested real provider failure preserves its original outer object and strik
   fundingProvider.status(401);
   let received: Error | undefined;
   try {
-    await app.runtime.executor.embed({ connection, input: "nested provider failure" });
+    await app.runtime.executor.embed({ signal: new AbortController().signal, connection, input: "nested provider failure" });
   } catch (error) {
     if (!(error instanceof Error)) {
       throw error;
@@ -54,6 +54,7 @@ test("an HTTP stream transport failure preserves the normalized error without in
   const deltaReady = Promise.withResolvers<void>();
   const text: string[] = [];
   const request = toChatRequest({
+    signal: new AbortController().signal,
     connection,
     params: {},
     systemPrompt: { static: "Answer briefly.", dynamic: "" },
@@ -108,7 +109,11 @@ test("a native SDK utility rejection settles its owned timer and strikes once", 
   const callsBefore = nativeSdk.children.length;
   const tokensBefore = nativeSdk.tokens.length;
   await expect(
-    app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "Answer briefly.", userPrompt: "native-auth-rejection utility funding" }] }),
+    app.runtime.executor.summarize({
+      signal: new AbortController().signal,
+      connection,
+      inputs: [{ systemPrompt: "Answer briefly.", userPrompt: "native-auth-rejection utility funding" }],
+    }),
   ).toThrowProviderError("auth_failed");
   expect(nativeSdk.children).toHaveLength(callsBefore + 1);
   expect(nativeSdk.tokens.slice(tokensBefore)).toEqual(["sdk-utility-funding-token"]);

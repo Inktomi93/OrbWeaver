@@ -31,6 +31,7 @@ export function createAutomationRuntimeOps<TSet>(deps: AutomationRuntimeDeps<TSe
         caller,
         actor: { kind: "automation-rule", ruleId },
         ...(chatId === null ? {} : { chatId }),
+        signal: deps.backgroundSignal,
       });
       if (chatId !== null) {
         await deps.emitPictureWarnings(chatId, picture.warnings);
@@ -96,6 +97,7 @@ export function createAutomationRuntimeOps<TSet>(deps: AutomationRuntimeDeps<TSe
         // ROW READ like every other author→Principal edge in this file; a bare `UserId` carries no authority.
         principal: await resolveOwnerPrincipal(authorUserId),
         chatId,
+        signal: deps.backgroundSignal,
         // No turn exists — a rule dispatch is not a turn. This is also why first-party tools are not
         // direct-drivable: `executeToolCalls` rejects this `exec` for a first-party set at compile time.
         turnId: null,
@@ -122,7 +124,11 @@ export function createAutomationRuntimeOps<TSet>(deps: AutomationRuntimeDeps<TSe
       const rc = await roleClientsFor(authorUserId);
       const sampling = resolveSideGenSampling(SIDE_GEN_POSTURES[posture], await deps.resolveUtilityPresetParams(authorUserId));
       const inputs = [{ systemPrompt, userPrompt: prompt }];
-      const res = responseFormat === undefined ? await rc.summarize(inputs, sampling) : await rc.structured(inputs, { ...sampling, responseFormat });
+      const signal = deps.backgroundSignal;
+      const res =
+        responseFormat === undefined
+          ? await rc.summarize(inputs, { ...sampling, signal })
+          : await rc.structured(inputs, { ...sampling, responseFormat, signal });
       const item = res.items[0];
       return { text: (item?.text ?? "").trim() };
     },

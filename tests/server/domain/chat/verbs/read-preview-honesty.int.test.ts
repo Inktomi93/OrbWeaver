@@ -30,7 +30,7 @@ function presetLeading(id: string, content: string): PromptConfig {
 }
 
 async function preview(h: ChatRoot, extra: Partial<Parameters<PreviewAssembly>[0]> = {}): Promise<AssemblyPreview> {
-  return await h.root.services.chat.previewAssembly({ principal: h.owner, chatId: h.chatId, ...extra });
+  return await h.root.services.chat.previewAssembly({ principal: h.owner, chatId: h.chatId, signal: new AbortController().signal, ...extra });
 }
 
 async function previewText(h: ChatRoot): Promise<string> {
@@ -277,6 +277,7 @@ test("the preview reads the clock in the viewer's zone, the zone the next turn r
   const template = async (timeZone?: IanaTimeZone): Promise<string | undefined> =>
     (
       await h.root.services.chat.previewActionTemplates({
+        signal: new AbortController().signal,
         principal: h.owner,
         chatId: h.chatId,
         presetId: preset.id,
@@ -348,7 +349,12 @@ test("the template readout renders the inspected preset through the room's own i
       },
     },
   });
-  const readout = await h.root.services.chat.previewActionTemplates({ principal: h.owner, chatId: h.chatId, presetId: preset.id });
+  const readout = await h.root.services.chat.previewActionTemplates({
+    signal: new AbortController().signal,
+    principal: h.owner,
+    chatId: h.chatId,
+    presetId: preset.id,
+  });
   expect(readout.templates.map(({ id }) => id)).toEqual(TEMPLATE_DEFS.map(({ id }) => id));
   expect(readout.identity.user).toBe(persona.name);
   const impersonate = readout.templates.find(({ id }) => id === "impersonate")?.resolved ?? "";

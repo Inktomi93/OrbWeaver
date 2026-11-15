@@ -18,13 +18,13 @@ import { fetchOwnedConnection } from "../persistence/connections.ts";
 const LOCALHOST_ALIAS = "localhost";
 
 /** Resolve the row for a diagnostic: its FIRST servable task (a diagnostic is wire-keyed, not task-keyed). */
-async function resolveRow(ctx: ConnectionContext, principal: Principal, connectionId: UserConnectionId): Promise<Resolved> {
+async function resolveRow(ctx: ConnectionContext, principal: Principal, connectionId: UserConnectionId, signal: AbortSignal): Promise<Resolved> {
   const row = await fetchOwnedConnection(ctx.db, principal.userId, connectionId);
   if (row === null) {
     throw new ConnectionNotFoundError(connectionId);
   }
   const task = DIAGNOSTIC_TASK_BY_KIND[await ctx.runtime.modelKind(row)];
-  return (await ctx.runtime.resolve({ task, principal, connectionId })).resolved;
+  return (await ctx.runtime.resolve({ task, principal, connectionId, signal })).resolved;
 }
 
 /** True when the dialled host is loopback or LAN — an offline box there strikes NOTHING (owner ruling). */
@@ -42,8 +42,8 @@ function isLocalEndpoint(baseUrl: string | null): boolean {
 
 function createProbe(ctx: ConnectionContext): ConnectionService["probe"] {
   return async (params): Promise<CredentialHealth> => {
-    const resolved = await resolveRow(ctx, params.principal, params.connectionId);
-    const result = await ctx.runtime.diagnostics.probe({ connection: resolved, ...(params.signal !== undefined ? { signal: params.signal } : {}) });
+    const resolved = await resolveRow(ctx, params.principal, params.connectionId, params.signal);
+    const result = await ctx.runtime.diagnostics.probe({ connection: resolved, signal: params.signal });
     const credentialId = resolved.credential.credentialId;
     if (credentialId === null) {
       return { ...result, checkedAt: ctx.now() };
@@ -55,25 +55,25 @@ function createProbe(ctx: ConnectionContext): ConnectionService["probe"] {
 function createAccountCredits(ctx: ConnectionContext): ConnectionService["accountCredits"] {
   return async (params): Promise<AccountCredits> =>
     ctx.runtime.diagnostics.accountCredits({
-      connection: await resolveRow(ctx, params.principal, params.connectionId),
-      ...(params.signal !== undefined ? { signal: params.signal } : {}),
+      connection: await resolveRow(ctx, params.principal, params.connectionId, params.signal),
+      signal: params.signal,
     });
 }
 
 function createGenerationCost(ctx: ConnectionContext): ConnectionService["generationCost"] {
   return async (params): Promise<GenerationCost> =>
     ctx.runtime.diagnostics.generationCost({
-      connection: await resolveRow(ctx, params.principal, params.connectionId),
+      connection: await resolveRow(ctx, params.principal, params.connectionId, params.signal),
       generationId: params.generationId,
-      ...(params.signal !== undefined ? { signal: params.signal } : {}),
+      signal: params.signal,
     });
 }
 
 function createVerifyAuth(ctx: ConnectionContext): ConnectionService["verifyAuth"] {
   return async (params): Promise<VerifyAuthResult> =>
     ctx.runtime.diagnostics.verifyAuth({
-      connection: await resolveRow(ctx, params.principal, params.connectionId),
-      ...(params.signal !== undefined ? { signal: params.signal } : {}),
+      connection: await resolveRow(ctx, params.principal, params.connectionId, params.signal),
+      signal: params.signal,
     });
 }
 
@@ -87,8 +87,8 @@ function createInspectEndpoint(ctx: ConnectionContext): ConnectionService["inspe
     // resolve below, so the inspection and every later turn read what the server says now.
     await ctx.runtime.catalogs.invalidateEndpoint(row);
     return ctx.runtime.diagnostics.inspect({
-      connection: await resolveRow(ctx, params.principal, params.connectionId),
-      ...(params.signal !== undefined ? { signal: params.signal } : {}),
+      connection: await resolveRow(ctx, params.principal, params.connectionId, params.signal),
+      signal: params.signal,
     });
   };
 }

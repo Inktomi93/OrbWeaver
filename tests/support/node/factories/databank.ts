@@ -47,12 +47,12 @@ export async function captureDatabankViews(
 ): Promise<CapturedDatabankViews> {
   const databank = root.services.databank;
   return {
-    metadata: await databank.get({ principal, id: refs.documentId }),
-    source: await databank.get({ principal, id: refs.documentId, includeText: true }),
-    page: await databank.list({ principal, limit: 1 }),
-    health: await databank.bankHealth({ principal }),
+    metadata: await databank.get({ signal: new AbortController().signal, principal, id: refs.documentId }),
+    source: await databank.get({ signal: new AbortController().signal, principal, id: refs.documentId, includeText: true }),
+    page: await databank.list({ signal: new AbortController().signal, principal, limit: 1 }),
+    health: await databank.bankHealth({ signal: new AbortController().signal, principal }),
     globalIds: await databank.listGlobal({ principal }),
-    attachments: await databank.listAttachments({ principal, id: refs.documentId }),
-    active: await databank.listActiveForChat({ principal, chatId: refs.chatId }),
+    attachments: await databank.listAttachments({ signal: new AbortController().signal, principal, id: refs.documentId }),
+    active: await databank.listActiveForChat({ signal: new AbortController().signal, principal, chatId: refs.chatId }),
   };
 }

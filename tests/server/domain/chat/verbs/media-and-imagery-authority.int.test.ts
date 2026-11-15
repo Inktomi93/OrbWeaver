@@ -46,9 +46,15 @@ test("composed imagery card reads carry the row-derived host role rather than a 
   } = await seedChat(harness, { principal: host, characterIds: [subject.id] });
   await seatMember(harness, host, room.id, member);
   const getCard = vi.spyOn(services.character, "getCard");
-  await expect(services.imagery.extractPrompt({ caller: member, chatId: room.id, mode: "character", subjectCharacterId: subject.id })).rejects.toThrow(
-    ProviderError,
-  );
+  await expect(
+    services.imagery.extractPrompt({
+      signal: new AbortController().signal,
+      caller: member,
+      chatId: room.id,
+      mode: "character",
+      subjectCharacterId: subject.id,
+    }),
+  ).rejects.toThrow(ProviderError);
   expect(getCard).toHaveBeenCalledExactlyOnceWith({
     principal: host,
     characterId: subject.id,
@@ -116,7 +122,9 @@ test("quiet extraction sends only the caller's visible scene through the host's 
   const hostCaller = await root.internalCallerFor(host.userId);
   const memberCaller = await root.internalCallerFor(member.userId);
   await root.services.connection.setBinding({ principal: member, task: "summarize", connectionId: null });
-  expect(await root.services.connection.availability({ principal: member, task: "summarize" })).toMatchObject({ available: false });
+  expect(await root.services.connection.availability({ principal: member, task: "summarize", signal: new AbortController().signal })).toMatchObject({
+    available: false,
+  });
   const subject = await hostCaller.character.create({
     input: createCharacterSchema.parse({ handle: "quiet-witness", name: "Quiet witness", description: "A host-owned scene witness." }),
   });
@@ -133,7 +141,7 @@ test("quiet extraction sends only the caller's visible scene through the host's 
   const getCard = vi.spyOn(root.services.character, "getCard");
   const beforeExtraction = requests.length;
   const params = { chatId: chat.id, mode: "character" as const, subjectCharacterId: subject.id, timeZone: UTC_TIME_ZONE };
-  const extracted = await root.services.imagery.extractPrompt({ caller: member, ...params });
+  const extracted = await root.services.imagery.extractPrompt({ signal: new AbortController().signal, caller: member, ...params });
   expect(extracted).toMatchObject({ prompt: extractedPrompt, source: "extracted" });
   expect(getCard).toHaveBeenCalledExactlyOnceWith({
     principal: host,
@@ -155,7 +163,9 @@ test("quiet extraction sends only the caller's visible scene through the host's 
 
   const outsider = await root.principalFor((await root.actor()).id);
   const beforeRefusal = requests.length;
-  await expect(root.services.imagery.extractPrompt({ caller: outsider, ...params })).rejects.toMatchObject({ name: "DomainNotFoundError" });
+  await expect(root.services.imagery.extractPrompt({ signal: new AbortController().signal, caller: outsider, ...params })).rejects.toMatchObject({
+    name: "DomainNotFoundError",
+  });
   expect(getCard).toHaveBeenCalledTimes(1);
   expect(requests).toHaveLength(beforeRefusal);
 });
@@ -207,10 +217,25 @@ test("a member's picture request spends neither the Utility nor the image connec
   await root.services.chat.commitMessage({ principal: host, chatId: room, content: "The keeper lights the ledger lamps.", timeZone: UTC_TIME_ZONE });
   await root.settleBackground();
   const extract = (): ReturnType<typeof root.services.imagery.extractPrompt> =>
-    root.services.imagery.extractPrompt({ caller: member, chatId: room, mode: "character", subjectCharacterId: subject.id, timeZone: UTC_TIME_ZONE });
+    root.services.imagery.extractPrompt({
+      signal: new AbortController().signal,
+      caller: member,
+      chatId: room,
+      mode: "character",
+      subjectCharacterId: subject.id,
+      timeZone: UTC_TIME_ZONE,
+    });
   const generate = (): ReturnType<typeof root.services.chat.generateImage> => {
     images.push(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)));
-    return root.services.chat.generateImage({ principal: member, chatId: room, mode: "free", prompt: "The ledger at dusk.", n: 1, gallery: false });
+    return root.services.chat.generateImage({
+      signal: new AbortController().signal,
+      principal: member,
+      chatId: room,
+      mode: "free",
+      prompt: "The ledger at dusk.",
+      n: 1,
+      gallery: false,
+    });
   };
   const setHostEnabled = (enabled: boolean): Promise<unknown> => root.services.admin.setEnabled({ principal: admin, userId: host.userId, enabled });
 
@@ -264,8 +289,8 @@ test("a present member's picture the room never placed reads no bytes, while a p
     resolveUserEnabled: createResolveUserEnabled(root.app.sessions),
   });
 
-  expect(await resolve({ chatId: room.id, ref: { kind: "asset", assetId: membersPicture.assetId } })).toBeNull();
+  expect(await resolve({ signal: new AbortController().signal, chatId: room.id, ref: { kind: "asset", assetId: membersPicture.assetId } })).toBeNull();
   expect(read).not.toHaveBeenCalled();
-  expect((await resolve({ chatId: room.id, ref: { kind: "asset", assetId: drawn.assetId } }))?.media).toBe("image");
+  expect((await resolve({ signal: new AbortController().signal, chatId: room.id, ref: { kind: "asset", assetId: drawn.assetId } }))?.media).toBe("image");
   expect(read).toHaveBeenCalledExactlyOnceWith(drawn.assetId);
 });

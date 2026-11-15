@@ -63,7 +63,7 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
     ...createImageProviderOps({ resolve: (params) => connection.resolve(params), generateImage: (req) => executor.generateImage(req) }),
     ...createImageryRoomAccess(deps),
     ...createImageryInstructions(deps),
-    fetchImage: (url) => fetchImage(url, deps.maxImageBytes()),
+    fetchImage: (url, signal) => fetchImage(url, signal, deps.maxImageBytes()),
     resolveRunAs: deps.resolveHostPrincipal,
     storeAsset: createGeneratedAssetStore((params) => assets.store(params)),
     extractQuiet: createVisibleExtractQuiet({

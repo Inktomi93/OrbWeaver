@@ -30,8 +30,8 @@ export function createEstimateModelCalls(ctx: WorkloadServiceContext): Pick<Work
       input.kind,
       input.params,
       ownerId === null
-        ? { ownerId: null, everyOwnerEstimate: Object.freeze({}) as EveryOwnerEstimate, funderUserId: params.caller.userId, before }
-        : { ownerId, funderUserId: params.caller.userId, before },
+        ? { ownerId: null, everyOwnerEstimate: Object.freeze({}) as EveryOwnerEstimate, funderUserId: params.caller.userId, before, signal: params.signal }
+        : { ownerId, funderUserId: params.caller.userId, before, signal: params.signal },
     );
   }
 
@@ -73,8 +73,8 @@ export function createEstimateModelCalls(ctx: WorkloadServiceContext): Pick<Work
       original.kind,
       original.params,
       original.ownerId === null
-        ? { ownerId: null, everyOwnerEstimate: Object.freeze({}) as EveryOwnerEstimate, funderUserId: original.funderUserId, before: [] }
-        : { ownerId: original.ownerId, funderUserId: original.funderUserId, before: [] },
+        ? { ownerId: null, everyOwnerEstimate: Object.freeze({}) as EveryOwnerEstimate, funderUserId: original.funderUserId, before: [], signal: params.signal }
+        : { ownerId: original.ownerId, funderUserId: original.funderUserId, before: [], signal: params.signal },
     );
   }
 

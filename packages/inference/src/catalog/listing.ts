@@ -74,6 +74,7 @@ export function createCatalogListing(deps: CatalogListingDeps): (draft: CatalogD
           secret: key,
           secrets: resolvedScrubSet({ credential: { secret: key }, transport: null }),
           label: `${provider.id} models`,
+          signal: draft.signal,
         },
         deps.fetch,
       );
@@ -89,6 +90,7 @@ export function createCatalogListing(deps: CatalogListingDeps): (draft: CatalogD
         credential,
         transport: draft.headers === undefined ? null : { headers: draft.headers },
       },
+      signal: draft.signal,
     });
   };
 
@@ -108,6 +110,7 @@ export function createCatalogListing(deps: CatalogListingDeps): (draft: CatalogD
         secret,
         headers: draft.headers,
         secrets,
+        signal: draft.signal,
         modelInfoApi: provider.features?.modelInfoApi,
         warn: (message) => {
           deps.warn({ providerId: provider.id }, message);

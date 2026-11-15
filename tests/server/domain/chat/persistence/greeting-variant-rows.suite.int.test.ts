@@ -135,7 +135,12 @@ test("a card edit after creation preserves the old greeting instead of destroyin
   await using root = await createServerHarness();
   const { principal, card, chatId, greeting } = await room(root);
   const replacement = "The card now opens at the bridge.";
-  await root.services.character.update({ principal, characterId: card.id, input: { greetings: [{ text: replacement }, { text: GREETINGS[1] }] } });
+  await root.services.character.update({
+    signal: new AbortController().signal,
+    principal,
+    characterId: card.id,
+    input: { greetings: [{ text: replacement }, { text: GREETINGS[1] }] },
+  });
   await root.services.chat.setSeededGreeting({ principal, chatId, messageId: greeting.id, greetingIndex: 0 });
   expect(
     await root.db

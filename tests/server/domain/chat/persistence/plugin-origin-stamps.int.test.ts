@@ -49,7 +49,7 @@ async function enableWitness(h: Room, guest = GUEST): Promise<Omit<Parameters<Ro
     enable: true,
   });
   expect(enabled.outcome.status).toBe("enabled");
-  return { caller: h.owner, pluginId: installed.plugin.id, name: COMMAND, args: "" };
+  return { caller: h.owner, pluginId: installed.plugin.id, name: COMMAND, args: "", signal: new AbortController().signal };
 }
 
 test("a native command refuses foreign rooms before guest execution and cannot turn its forged human hint into a human slot", async () => {

@@ -76,7 +76,7 @@ async function readVerdict(answers: EngineAnswers): Promise<EngineReading> {
   });
   await root.services.connection.setBinding({ principal, task: "chat", connectionId: row.id });
   const chatId = (await root.services.chat.startChat({ principal, characterIds: [], opening: "none" })).chat.id;
-  return { verdict: await root.services.chat.checkSendAvailability({ principal, chatId }), asked };
+  return { verdict: await root.services.chat.checkSendAvailability({ signal: new AbortController().signal, principal, chatId }), asked };
 }
 
 test("a server that does not serve the sleep route reads available when its model list answers", async () => {
@@ -89,7 +89,12 @@ test("a llama-swap listing lists its models for the connection pane", async () =
   await using engine = await servePhysicalPeer((request) => Promise.resolve(new URL(request.url).pathname === MODELS_PATH ? modelsListed() : routeMissing()));
   await using root = await createServerHarness({ providerFetch: fetch });
   const principal = await root.principalFor(root.ownerId);
-  const listing = await root.services.connection.draftCatalogModels({ principal, providerId: ENGINE_PROVIDER, baseUrl: `${engine.origin}/v1` });
+  const listing = await root.services.connection.draftCatalogModels({
+    signal: new AbortController().signal,
+    principal,
+    providerId: ENGINE_PROVIDER,
+    baseUrl: `${engine.origin}/v1`,
+  });
   expect(listing.listed ? listing.models.map(({ id }) => id) : listing.reason).toEqual(LISTED_IDS);
 });
 

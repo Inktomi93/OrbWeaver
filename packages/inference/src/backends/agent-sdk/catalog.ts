@@ -66,12 +66,12 @@ function queryError(err: unknown, secrets: ProviderScrubSet, safeErrorMessage: A
   return new ProviderError({ kind: "server", retryable: true, message: `agent-sdk ${operation} failed: ${safe}`, cause: new Error(safe) });
 }
 
-export async function fetchAgentSdkModels(connection: SpawnIdentity, deps: AgentSdkDeps, log: AgentSdkLog): Promise<AgentSdkModel[]> {
+export async function fetchAgentSdkModels(connection: SpawnIdentity, deps: AgentSdkDeps, log: AgentSdkLog, signal: AbortSignal): Promise<AgentSdkModel[]> {
   // `transport: null` is a fact about this wire, not a convenience: the agent-sdk spawn authenticates ONLY
   // through `buildClaudeSdkEnv`'s token env (`index.ts::childEnv`) — there is no HTTP request here to carry a
   // user-authored auth header or a key-in-body field, which is why `SpawnIdentity` narrows to owner+credential.
   const secrets = resolvedScrubSet({ credential: connection.credential, transport: null });
-  await using lease = deps.execution.open(connection, { prompt: heldOpenPrompt(), options: disciplineOptions(deps.childEnv(connection)) });
+  await using lease = deps.execution.open(connection, { prompt: heldOpenPrompt(), options: disciplineOptions(deps.childEnv(connection)) }, signal);
   const stream = lease.query;
   try {
     const models = await withTimeout(stream.supportedModels(), deps, DISCOVERY_TIMEOUT_MS, "model discovery").catch(async (err: unknown) => {

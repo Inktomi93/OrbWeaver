@@ -22,13 +22,20 @@ test("native resumed transcript identities replay without dropping distinct chil
     const actor = await seedCorpusSdkActor(root);
     const caller = await root.internalCallerFor(actor.principal.userId);
     const { chat } = await caller.chat.startChat({ characterIds: [], opening: "none" });
-    const { resolved } = await root.app.runtime.resolve({ principal: actor.principal, connectionId: actor.connection.id, task: "chat", cachedFacts: true });
+    const { resolved } = await root.app.runtime.resolve({
+      signal: new AbortController().signal,
+      principal: actor.principal,
+      connectionId: actor.connection.id,
+      task: "chat",
+      cachedFacts: true,
+    });
     if (resolved.task !== "chat") {
       throw new Error("native SDK identity control lost its chat task");
     }
     const connection = { ...resolved, task: resolved.task };
     const first = await root.app.runtime.executor.runChatTurn(
       toChatRequest({
+        signal: new AbortController().signal,
         connection,
         chatId: chat.id,
         params: {},
@@ -44,6 +51,7 @@ test("native resumed transcript identities replay without dropping distinct chil
     expect(first).toMatchObject({ providerMetadata: { sdkSessionId: sessionId } });
     for (const prompt of [CORPUS_SDK_REUSE, CORPUS_SDK_REUSE]) {
       const result = await root.app.runtime.executor.runChatTurn({
+        signal: new AbortController().signal,
         api: "agent-sdk",
         connection,
         chatId: chat.id,
@@ -123,12 +131,19 @@ test("native SDK root disposal joins its actual held child before closing the co
   const wire = createCorpusSdkExecution({ deferHoldExit: true });
   await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY, sdkSpawn: wire.spawn });
   const actor = await seedCorpusSdkActor(root);
-  const { resolved } = await root.app.runtime.resolve({ principal: actor.principal, connectionId: actor.connection.id, task: "chat", cachedFacts: true });
+  const { resolved } = await root.app.runtime.resolve({
+    signal: new AbortController().signal,
+    principal: actor.principal,
+    connectionId: actor.connection.id,
+    task: "chat",
+    cachedFacts: true,
+  });
   if (resolved.task !== "chat") {
     throw new Error("native SDK disposal did not resolve its actual task");
   }
   const turn = root.app.runtime.executor
     .runChatTurn({
+      signal: new AbortController().signal,
       api: "agent-sdk",
       connection: { ...resolved, task: resolved.task },
       params: {},

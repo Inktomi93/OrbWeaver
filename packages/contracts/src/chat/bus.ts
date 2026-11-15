@@ -401,12 +401,13 @@ export const DEADLINE_ABORT_REASON = "deadline-reported";
  *  0–999, plugins 1000+ — host policy wraps guest). Each `apply` is deadline-bounded by the CALLER (250 ms);
  *  a timeout or throw SKIPS it (draft unchanged) + emits a `prompt_transform_skipped` warning (D53). A
  *  transform that instead returns a {@link PromptTransformAbort} REFUSES the generation — the deliberate
- *  outcome, distinct from the skip in both shape and consequence. */
-export interface PromptTransform {
+ *  outcome, distinct from the skip in both shape and consequence. `Signal` is the runtime's abort type, which this
+ *  isomorphic package cannot name: the registry aborts it at the deadline, and the server binds `AbortSignal`. */
+export interface PromptTransform<Signal> {
   readonly id: string;
   readonly point: PromptTransformPoint;
   readonly order: number;
-  readonly apply: (draft: string, env: PromptTransformEnv) => Promise<PromptTransformOutcome>;
+  readonly apply: (draft: string, env: PromptTransformEnv, signal: Signal) => Promise<PromptTransformOutcome>;
   /** The transform logs its own thrown failures, so the registry's skip warning does not repeat a throw. */
   readonly logsOwnFailures?: true;
 }

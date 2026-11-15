@@ -158,7 +158,7 @@ export async function computeCooccurrence(db: Db, deps: ComputeCooccurrenceDeps,
   const maxPairs = opts.maxPairs ?? DEFAULT_MAX_PAIRS;
   const hubFraction = opts.hubFraction ?? DEFAULT_HUB_FRACTION;
   const { signal } = opts;
-  signal?.throwIfAborted();
+  signal.throwIfAborted();
   const now = deps.now();
   const all = await readRunDigestKeywords(db, opts);
   // GROUP-ROOM DIGESTS ARE NOT ONE CHARACTER'S KEYWORDS. A group digest is scoped to the synthetic
@@ -172,7 +172,7 @@ export async function computeCooccurrence(db: Db, deps: ComputeCooccurrenceDeps,
   let pairsWritten = 0;
   let charKeywordsWritten = 0;
   for (const [ownerId, digests] of byOwner) {
-    signal?.throwIfAborted();
+    signal.throwIfAborted();
     const { reps } = collapseByHash(
       digests,
       (d) => d.contentHash,

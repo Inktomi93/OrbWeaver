@@ -100,7 +100,7 @@ class IngestAccumulator {
  *  records it as data); returns the per-document counts on success. */
 async function ingestOne(ctx: DatabankContext, doc: LoadedDocument, signal: AbortSignal): Promise<DocCounts> {
   const settings = await ctx.getDatabankSettings(doc.ownerId);
-  const space = await ctx.getActiveEmbedSpace(doc.ownerId);
+  const space = await ctx.getActiveEmbedSpace(doc.ownerId, signal);
   if (space === null) {
     throw new DatabankNoEmbedSpaceError();
   }

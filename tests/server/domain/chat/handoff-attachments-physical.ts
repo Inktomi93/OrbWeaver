@@ -151,7 +151,12 @@ export async function documentRoom(replies: readonly string[], options: Document
 /** A text document `owner` attaches to the room through the host-gated databank verb, ingested by the production
  *  ingest product. Retrieval also needs the owner's embedding sweep: {@link embedDocuments}. */
 export async function attachRoomDocument(h: ChatRoot, owner: Person, document: { readonly name: string; readonly text: string }): Promise<DocumentId> {
-  const created = await h.root.services.databank.createFromText({ principal: owner, name: document.name, text: document.text });
+  const created = await h.root.services.databank.createFromText({
+    signal: new AbortController().signal,
+    principal: owner,
+    name: document.name,
+    text: document.text,
+  });
   await h.root.services.databank.attachToChat({ principal: owner, chatId: h.chatId, documentId: created.document.id });
   await ingest(h, created.document.id);
   return created.document.id;
@@ -198,7 +203,9 @@ export async function embedDocuments(h: ChatRoot, host: Person, owners: readonly
 
 /** The documents the room's panel lists to `viewer`, the same scope its retrieval reads. */
 export async function roomDocuments(h: ChatRoot, viewer: Person): Promise<readonly DocumentId[]> {
-  return (await h.root.services.databank.listActiveForChat({ principal: viewer, chatId: h.chatId })).map((view) => view.id);
+  return (await h.root.services.databank.listActiveForChat({ signal: new AbortController().signal, principal: viewer, chatId: h.chatId })).map(
+    (view) => view.id,
+  );
 }
 
 /** The room's attached book and script ids, through the member-read rack verbs. */

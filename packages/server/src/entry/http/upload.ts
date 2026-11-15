@@ -229,6 +229,7 @@ export function registerUpload(app: Hono<PrincipalEnv>, deps: UploadDeps): void 
     try {
       const result = await deps.databank.upload({
         principal,
+        signal: c.req.raw.signal,
         bytes: await fileBytes(file),
         mime,
         name,

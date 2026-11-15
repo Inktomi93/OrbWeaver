@@ -37,5 +37,5 @@ test("diagnostics resolve embedding rows under their canonical kind task", async
     allowBackground: true,
     declared: { kind: "embedding", embedding: { dims: 3 }, features: { detectServer: false } },
   });
-  expect(await root.services.connection.probe({ principal, connectionId: row.id })).toMatchObject({ status: "ok" });
+  expect(await root.services.connection.probe({ signal: new AbortController().signal, principal, connectionId: row.id })).toMatchObject({ status: "ok" });
 });

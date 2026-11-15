@@ -179,7 +179,8 @@ test("a bulk avatar index neither captions nor embeds a disabled owner's avatar,
 
 test("a bulk databank reindex skips a disabled owner's document, and the sweep after re-enable embeds it", async () => {
   await using room = await sweepRoom(
-    async (root, owner) => await root.services.databank.createFromText({ principal: owner, name: "lamps.txt", text: DOCUMENT_TEXT }),
+    async (root, owner) =>
+      await root.services.databank.createFromText({ signal: new AbortController().signal, principal: owner, name: "lamps.txt", text: DOCUMENT_TEXT }),
   );
   room.spentSince();
 

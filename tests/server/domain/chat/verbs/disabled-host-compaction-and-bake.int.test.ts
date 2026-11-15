@@ -110,7 +110,7 @@ async function greetingContent(room: HostRoom): Promise<string | undefined> {
 test("a disabled host's compaction refuses before any model call, and compacts once re-enabled", async () => {
   await using room = await hostRoom();
   const compact = (): ReturnType<ServerTestHarness["services"]["chat"]["compact"]> =>
-    room.root.services.chat.compact({ principal: room.host, chatId: room.chatId });
+    room.root.services.chat.compact({ principal: room.host, chatId: room.chatId, signal: new AbortController().signal });
 
   await room.setHostEnabled(false);
   const beforeRefusal = room.completions();

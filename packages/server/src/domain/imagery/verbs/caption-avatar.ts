@@ -25,7 +25,7 @@ export function createCaptionAvatar(ctx: ImageryContext): CaptionAvatar {
     // characters, and `character.get` is owner-only, so a member's own principal would never find them.
     // The instruction is its per-mode override ⊕ the shipped catalog default (⑫).
     const instruction = await ctx.resolveCaptionInstruction(args.runAs, args.mode);
-    const { text, costUsd } = await ctx.captionImage({ runAs: args.runAs, bytes, mime, instruction });
+    const { text, costUsd } = await ctx.captionImage({ runAs: args.runAs, bytes, mime, instruction, signal: args.signal });
     await recordPromptSpend(ctx, { kind: "image-caption", ownerId: args.runAs.userId, costUsd });
     const prompt = processReply(text);
     if (prompt.length === 0) {

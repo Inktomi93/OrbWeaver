@@ -101,12 +101,10 @@ export function createRpgFlushBarrier(onTimeout: FlushBarrierOnTimeout, schedule
       // header, and `backends/http/idle-timeout.ts` for the archetype and the bug it was written against.
       const controller = new AbortController();
       const onTurnAbort = (): void => controller.abort();
-      if (turnSignal !== undefined) {
-        if (turnSignal.aborted) {
-          controller.abort();
-        } else {
-          turnSignal.addEventListener("abort", onTurnAbort, { once: true });
-        }
+      if (turnSignal.aborted) {
+        controller.abort();
+      } else {
+        turnSignal.addEventListener("abort", onTurnAbort, { once: true });
       }
       const set = inFlight.get(chatId) ?? new Set<InFlightFlush>();
       inFlight.set(chatId, set);
@@ -120,7 +118,7 @@ export function createRpgFlushBarrier(onTimeout: FlushBarrierOnTimeout, schedule
       entry.tracked = flush
         .catch(() => undefined)
         .finally(() => {
-          turnSignal?.removeEventListener("abort", onTurnAbort);
+          turnSignal.removeEventListener("abort", onTurnAbort);
           const live = inFlight.get(chatId);
           if (live !== undefined) {
             live.delete(entry);

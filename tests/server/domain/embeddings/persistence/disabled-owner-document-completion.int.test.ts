@@ -75,7 +75,10 @@ test("a bulk databank reindex records no documents completion for a disabled own
   const gone = await root.principalFor((await root.actor()).id);
   const documents = new Map<UserId, Awaited<ReturnType<typeof root.services.databank.createFromText>>>();
   for (const owner of [kept, gone]) {
-    documents.set(owner.userId, await root.services.databank.createFromText({ principal: owner, name: "lamps.txt", text: DOCUMENT_TEXT }));
+    documents.set(
+      owner.userId,
+      await root.services.databank.createFromText({ signal: new AbortController().signal, principal: owner, name: "lamps.txt", text: DOCUMENT_TEXT }),
+    );
     await root.services.character.create({
       principal: owner,
       input: createCharacterSchema.parse({ name: "Lamplighter", handle: "lamplighter", description: "A keeper who tends the ledger room's lamps." }),
@@ -136,7 +139,7 @@ test("a bulk databank reindex records no documents completion for a disabled own
   if (document === undefined) {
     throw new Error("the disabled owner's document was never created");
   }
-  const view = await root.services.databank.get({ principal: gone, id: document.id });
+  const view = await root.services.databank.get({ signal: new AbortController().signal, principal: gone, id: document.id });
   expect(view.embeddedCount).toBeGreaterThan(0);
   expect(view.embeddedCount).toBe(view.chunkCount);
 });

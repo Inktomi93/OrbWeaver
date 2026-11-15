@@ -9,7 +9,7 @@ import { SETTINGS_ADJUSTED_CODE } from "#contracts/chat/bus.ts";
 import { textRoom } from "./scenario-physical.ts";
 
 async function setCachePosture(h: ChatRoot, enabled: boolean): Promise<void> {
-  const bindings = await h.root.services.connection.listBindings({ principal: h.owner });
+  const bindings = await h.root.services.connection.listBindings({ signal: new AbortController().signal, principal: h.owner });
   const connectionId = bindings.find(({ task }) => task === "chat")?.binding?.connectionId;
   if (connectionId === undefined || connectionId === null) {
     throw new Error("the real chat root has no saved chat connection");

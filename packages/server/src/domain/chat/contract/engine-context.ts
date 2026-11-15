@@ -59,7 +59,7 @@ export interface ChatToolExecFrame {
   readonly chatId: ChatId;
   readonly membership: ChatMembership | null;
   readonly turnId: ChatTurnId;
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }
 
 /** Bound to one turn; individual tool failures remain ordered errors-as-data. */
@@ -89,12 +89,12 @@ export type ResolveImageUrlOp = (params: {
   readonly chatId: ChatId;
   readonly ref: ContentImageRef;
   readonly quality?: AttachmentQuality | undefined;
-  readonly signal?: AbortSignal | undefined;
+  readonly signal: AbortSignal;
 }) => Promise<ResolvedMediaRef | null>;
 
 // Store in the frozen host's CAS so every room member can read it; compose owns SSRF and byte validation.
 // Null drops only the refused picture, never the model's prose or a dangling canon asset reference.
-type StoreInlineReplyImageOp = (ownerId: UserId, image: GeneratedImage) => Promise<{ readonly assetId: AssetId } | null>;
+type StoreInlineReplyImageOp = (ownerId: UserId, image: GeneratedImage, signal: AbortSignal) => Promise<{ readonly assetId: AssetId } | null>;
 
 /** D337 — automation's upserts for one turn's global writes, unexecuted, for the reply's commit batch; the writes the
  *  caps refuse are only counted, for the warning. Last write per key wins. */
@@ -112,7 +112,7 @@ export interface EngineContext
   /** The root's trace ring the engine's detached post-turn roots seal into. */
   readonly traces: TraceRing;
   readonly timers: TimerScheduler;
-  readonly backgroundSignal?: AbortSignal;
+  readonly backgroundSignal: AbortSignal;
   readonly trackBackground: (settled: Promise<void>, chatId: ChatId) => void;
   /** The wire-capture outcome recorder; compose wires it only when wire capture is on. */
   readonly recordTurnOutcome?: (outcome: WireOutcome) => void;
@@ -159,6 +159,6 @@ export interface EngineDeps {
     readonly ownerId: UserId;
     readonly coveragePoint?: number | undefined;
     readonly instructions?: string | undefined;
-    readonly signal?: AbortSignal | undefined;
+    readonly signal: AbortSignal;
   }) => Promise<CompactResult>;
 }

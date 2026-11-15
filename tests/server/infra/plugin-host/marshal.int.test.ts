@@ -206,6 +206,7 @@ test("a guest's string return value reaches the host whole", { tags: ["slow"] },
   await root.services.plugin.setGrant({ caller: owner, pluginId: installed.id, grant: manifest.capabilities, acknowledgedNetHosts: [], enable: true });
 
   const outcome = await root.services.plugin.invokeUiCommand({
+    signal: new AbortController().signal,
     caller: owner,
     pluginId: installed.id,
     name: "draft",

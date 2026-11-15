@@ -10,11 +10,11 @@ test("the role bundle follows a repointed binding on its next call", async ({ ha
   const second = await fundingConnection({ ownerCaller, harness, task: "summarize" });
   await ownerCaller.connection.setBinding({ task: "summarize", connectionId: first.connectionId });
   const roles = await harness.roleClientsFor(harness.ownerId);
-  expect((await roles.resolved("summarize"))?.connectionId).toBe(first.connectionId);
-  await roles.summarize(INPUTS);
+  expect((await roles.resolved("summarize", new AbortController().signal))?.connectionId).toBe(first.connectionId);
+  await roles.summarize(INPUTS, { signal: new AbortController().signal });
   await ownerCaller.connection.setBinding({ task: "summarize", connectionId: second.connectionId });
-  expect((await roles.resolved("summarize"))?.connectionId).toBe(second.connectionId);
-  await roles.summarize(INPUTS);
+  expect((await roles.resolved("summarize", new AbortController().signal))?.connectionId).toBe(second.connectionId);
+  await roles.summarize(INPUTS, { signal: new AbortController().signal });
   expect(fundingProvider.calls).toHaveLength(2);
 });
 
@@ -25,7 +25,7 @@ test("a pinned encoder rechecks authority without changing its admitted model or
   expect(pinned.dims).toBe(3);
   const settledCalls = [...fundingProvider.calls];
   const settledBodies = fundingProvider.requestBodies.length;
-  expect((await snapshot.embed("before model change")).vectors[0]).toEqual(new Float32Array([1, 0, 0]));
+  expect((await snapshot.embed("before model change", { signal: new AbortController().signal })).vectors[0]).toEqual(new Float32Array([1, 0, 0]));
   expect(fundingProvider.calls).toEqual([...settledCalls, EMBEDDING_PATH]);
   fundingProvider.embedding(REPOINTED_MODEL, [1, 0, 0, 0, 0, 0, 0]);
   const beforeMove = fundingProvider.requestBodies.length;
@@ -37,7 +37,7 @@ test("a pinned encoder rechecks authority without changing its admitted model or
   const moveBodies = fundingProvider.requestBodies.slice(beforeMove);
   expect(moveBodies.map((body) => JSON.parse(body))).toMatchObject([{ model: REPOINTED_MODEL }]);
   expect((await harness.app.embeddings.resolveGeneration(harness.ownerId, "embed")).dims).toBe(7);
-  expect((await snapshot.embed("after model change")).vectors[0]).toEqual(new Float32Array([1, 0, 0]));
+  expect((await snapshot.embed("after model change", { signal: new AbortController().signal })).vectors[0]).toEqual(new Float32Array([1, 0, 0]));
   expect(fundingProvider.calls).toEqual([...settledCalls, EMBEDDING_PATH, EMBEDDING_PATH, EMBEDDING_PATH]);
   expect(fundingProvider.requestBodies.slice(settledBodies).map((body) => JSON.parse(body))).toMatchObject([
     { model: captured.model, input: ["before model change"] },

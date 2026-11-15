@@ -63,6 +63,7 @@ test("real admitted embedding and distillation produce owned summaries, vectors,
   expect(corpus.calls.filter((row) => row.connectionId === embed.id && row.outcome === "completed").length).toBeGreaterThan(0);
   for (const id of ids) {
     const distilled = await seedCharacterDistillationsRows(root, {
+      signal: new AbortController().signal,
       ownerId: root.ownerId,
       funderUserId: root.ownerId,
       characterId: id,
@@ -70,17 +71,13 @@ test("real admitted embedding and distillation produce owned summaries, vectors,
     expect(distilled.result).toMatchObject({ distilled: 1, skipped: 0 });
     expect(distilled.summaries).toMatchObject([{ characterId: id, model: CORPUS_TEXT_MODEL, genre: "science-fiction", tags: ["loom", "traveller", "orbit"] }]);
   }
-  const pairs = await seedDuplicateCharacterPairsRows(root, { ownerId: root.ownerId });
+  const pairs = await seedDuplicateCharacterPairsRows(root, { signal: new AbortController().signal, ownerId: root.ownerId });
   expect(pairs.pairs).toContainEqual(expect.objectContaining({ characterIdA: ids.toSorted()[0], characterIdB: ids.toSorted()[1], similarity: 1 }));
   const foreign = await root.actor();
   expect(await root.services.discovery.duplicateCharacters(foreign.id)).toEqual([]);
   const beforeForeign = [...wire.requests];
   await expect(
-    seedCharacterDistillationsRows(root, {
-      ownerId: foreign.id,
-      funderUserId: foreign.id,
-      characterId: first.id,
-    }),
+    seedCharacterDistillationsRows(root, { signal: new AbortController().signal, ownerId: foreign.id, funderUserId: foreign.id, characterId: first.id }),
   ).rejects.toThrow(DomainNotFoundError);
   expect(wire.requests).toEqual(beforeForeign);
 });

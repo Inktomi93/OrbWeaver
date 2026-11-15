@@ -20,7 +20,9 @@ test("a real host-authored cascade stamps each bounded automation depth, records
     group: { output: "per-speaker", policy: "list", allowSelfResponses: true },
     server: { secretBoxKey: SECRET_BOX_TEST_KEY },
   });
-  const connectionId = (await h.root.services.connection.listBindings({ principal: h.owner })).find(({ task }) => task === "chat")?.binding?.connectionId;
+  const connectionId = (await h.root.services.connection.listBindings({ signal: new AbortController().signal, principal: h.owner })).find(
+    ({ task }) => task === "chat",
+  )?.binding?.connectionId;
   if (connectionId === undefined || connectionId === null) {
     throw new Error("the real automation room has no saved chat connection");
   }

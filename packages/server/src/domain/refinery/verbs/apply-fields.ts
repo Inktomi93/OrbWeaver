@@ -68,7 +68,7 @@ function basisOf(liveCard: CharacterCard): CardWriteBasis {
 }
 
 export function createApplyFields(ctx: RefineryContext): RefineryService["applyFields"] {
-  return async ({ principal, sessionId, accepts, rewriteRunId }) => {
+  return async ({ principal, sessionId, accepts, rewriteRunId, signal }) => {
     const ownerId = principal.userId;
     // The shared preamble: owned session → chosen rewrite (latest or operate-back) → LIVE card → the
     // per-entry intersection (belts 9-11 + divergence), in itemized order — ONE resolver with the copy arm.
@@ -103,7 +103,7 @@ export function createApplyFields(ctx: RefineryContext): RefineryService["applyF
     const snapshot = await ctx.snapshotCharacter({ principal, characterId: session.characterId, label: applySnapshotLabelOf(sessionId) });
     let detail: Awaited<ReturnType<typeof ctx.updateCharacter>>;
     try {
-      detail = await ctx.updateCharacter({ principal, characterId: session.characterId, input, expectedBasis: basisOf(liveCard) });
+      detail = await ctx.updateCharacter({ principal, characterId: session.characterId, input, expectedBasis: basisOf(liveCard), signal });
     } catch (err) {
       // The snapshot above is the apply's WITNESS, not its prelude (the `restoreCardInPlace`
       // precedent's own words): it exists to record what the card looked like BEFORE THIS APPLY, so it has

@@ -161,6 +161,7 @@ export interface CatalogDraft {
   readonly secret: CatalogSecret;
   readonly baseUrl: string | null;
   readonly headers?: Readonly<Record<string, string>> | undefined;
+  readonly signal: AbortSignal;
 }
 
 export interface InferenceLog {

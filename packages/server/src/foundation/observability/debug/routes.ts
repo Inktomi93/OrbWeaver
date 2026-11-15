@@ -537,7 +537,7 @@ export function registerDebugRoutes<E extends Env>(app: Hono<E>, options: DebugR
     });
   }
   if (assets !== undefined) {
-    app.get("/api/_debug/db/assets", async (c) => c.json(await assets.fsck()));
+    app.get("/api/_debug/db/assets", async (c) => c.json(await assets.fsck({ signal: c.req.raw.signal })));
   }
   if (rpgTrace !== undefined) {
     // The rpg flight recorder: the per-turn trace stream, filterable by `chatId` (a chat's events) or
