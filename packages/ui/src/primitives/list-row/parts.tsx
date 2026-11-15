@@ -3,6 +3,7 @@
 // that lays out ONE row's text column lives here. Internal to the primitive — `index.ts` exports neither.
 
 import type { ReactElement, ReactNode } from "react";
+import { HOVER_SWAP } from "#lib";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "#primitives/tooltip";
 import { TitleQualifier } from "./title-qualifier.tsx";
 import type { listRowVariants } from "./variants.ts";
@@ -150,7 +151,7 @@ export function ListRowContent({
   // The subtitle YIELDS on hover/focus only when a reveal is present, so the reveal takes the exact line.
   // VISIBILITY, not display: both spans share one grid cell (`subtitleStack`), so the line's box is the max
   // of the two and never changes under the pointer.
-  const subtitleSwap = subtitleReveal === undefined ? "" : "col-start-1 row-start-1 group-hover:invisible group-focus-within:invisible";
+  const subtitleSwap = subtitleReveal === undefined ? "" : `col-start-1 row-start-1 ${HOVER_SWAP.hide}`;
   const subtitleSpan =
     subtitle === undefined ? null : (
       <span
