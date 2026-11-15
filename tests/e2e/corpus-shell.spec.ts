@@ -36,6 +36,7 @@ import {
   durableLocalStorageKey,
   PERSISTED_STORE_PREFIX,
 } from "#client/state/durable-local-keys.ts";
+import type { SectionId } from "#client/state/section-ids.ts";
 import type { ActorClient } from "./support/actors.ts";
 import { ownerActor } from "./support/actors.ts";
 import { waitForAppReady } from "./support/chat-room.ts";
@@ -194,8 +195,8 @@ interface CensusCase {
   readonly label: string;
   /** The desktop LIST band's title where it differs from `label`. */
   readonly bandTitle?: string;
-  /** A content-first section docks its LIST only on request. */
-  readonly listStartsCollapsed?: boolean;
+  /** A content-first section docks its LIST only on request; this names the section the shell shows while it is on screen. */
+  readonly listStartsCollapsed?: SectionId;
   /** A phone lands this mode on CONTENT, so its band rides the LIST pane off screen rather than being shed. */
   readonly bandOffScreen?: boolean;
   /** A search typed into the section's own finder before the census is read. */
@@ -255,7 +256,7 @@ const CENSUS_CASES: readonly CensusCase[] = [
     section: SECTION_LABELS.corpus,
     mode: CORPUS_MODE_LABELS.insights,
     label: CORPUS_MODE_LABELS.insights,
-    listStartsCollapsed: true,
+    listStartsCollapsed: "corpus",
     bandOffScreen: true,
     census: async (host) => {
       const { rows, total } = await host.trpc.stats.leaderboard.query({});
@@ -283,7 +284,7 @@ const CENSUS_CASES: readonly CensusCase[] = [
     section: SECTION_LABELS.refinery,
     label: SECTION_LABELS.refinery,
     bandTitle: "Sessions",
-    listStartsCollapsed: true,
+    listStartsCollapsed: "refinery",
     census: async (host) => countCensus((await host.trpc.refinery.listSessions.query()).length),
   },
 ];
@@ -299,6 +300,15 @@ async function reachCensusScreen(page: Page, host: ActorClient, kase: CensusCase
   }
   if (kase.search !== undefined) {
     await page.getByRole("textbox", { name: kase.search.box, exact: true }).fill(await kase.search.term(host));
+  }
+}
+
+/** Open a section's LIST by its toggle when the section starts it collapsed. The panel is the same node from one section to the next, so its
+ *  mode says nothing about this section until the shell names the section it shows. */
+async function openCollapsedList(page: Page, section: SectionId): Promise<void> {
+  await expect(page.locator(GRID)).toHaveAttribute("data-section", section);
+  if ((await listPanel(page).getAttribute("data-panel-mode")) === "collapsed") {
+    await page.getByRole("button", { name: "Show list panel" }).click();
   }
 }
 
@@ -413,8 +423,8 @@ test.describe("committed corpus shell", () => {
       const census = await kase.census(host);
       await reachCensusScreen(page, host, kase, isMobile);
       // A content-first section boots with its LIST collapsed; the toggle is the desktop's door to the band.
-      if (kase.listStartsCollapsed === true && (await listPanel(page).getAttribute("data-panel-mode")) === "collapsed") {
-        await page.getByRole("button", { name: "Show list panel" }).click();
+      if (kase.listStartsCollapsed !== undefined) {
+        await openCollapsedList(page, kase.listStartsCollapsed);
       }
       // The heading's text is its title then its census, with no separator text between the two.
       await expect(page.locator(LIST_BAND_TITLE)).toHaveText(`${kase.bandTitle ?? kase.label}${census ?? ""}`);
@@ -477,9 +487,11 @@ test.describe("committed corpus shell", () => {
     await openHome(page);
     // Dock the Refinery's LIST once, so the next cold entry mounts its body in the section-switch commit itself.
     await rail(page).getByRole("button", { name: SECTION_LABELS.refinery, exact: true }).click();
-    if ((await listPanel(page).getAttribute("data-panel-mode")) === "collapsed") {
-      await page.getByRole("button", { name: "Show list panel" }).click();
-    }
+    // The panel is the same node from one section to the next; the shell names the section it shows, and only then is the mode the Refinery's
+    // own, which its section declares collapsed.
+    await expect(page.locator(GRID)).toHaveAttribute("data-section", "refinery");
+    await expect(listPanel(page)).toHaveAttribute("data-panel-mode", "collapsed");
+    await page.getByRole("button", { name: "Show list panel" }).click();
     await expect(listPanel(page)).toHaveAttribute("data-panel-mode", "docked");
     await rail(page).getByRole("button", { name: SECTION_LABELS.home, exact: true }).click();
     await openHome(page);

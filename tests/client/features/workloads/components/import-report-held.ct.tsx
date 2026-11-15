@@ -9,7 +9,7 @@ import { exportCharacterPath, PORTABILITY_ROUTES } from "@orb/contracts/portabil
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { routeAuthConfig, routeOrbSocket, routeToServer, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { createServerHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
 import { IMPORT_CONFIRM_NAMES } from "#client/features/workloads/lib/portability-model.ts";
 import { IN_LIBRARY_DETAIL } from "#client/lib/in-library-copy.ts";
 import type { ImportPreviewStory } from "./_import-preview-stories.tsx";
@@ -53,11 +53,14 @@ for (const held of [true, false]) {
       "stream.detach": ({ ref }) => (ref.channel === "user" || ref.channel === "workloads" ? null : trpcError({ code: "NOT_FOUND" })),
     });
     await routeOrbSocket(page);
-    await routeToServer(page, root, PORTABILITY_ROUTES.importCards);
+    const route = await routeToServer(page, root, PORTABILITY_ROUTES.importCards);
     await mount<typeof ImportPreviewStory>(STORY, { width: 960, appearance: appearanceSettingsSchema.parse({}) });
 
     await page.locator('input[type="file"]').first().setInputFiles(file);
+    // The route answers once the real server has read the card, so the icon is asserted from that answer on the import's own deadline.
+    const answered = route.answered(WORKLOAD_DEADLINE_MS);
     await page.getByRole("button", { name: IMPORT_CONFIRM_NAMES.file, exact: true }).click();
+    await answered;
 
     const icon = page.getByTestId(testId("importReport")).getByRole("listitem").filter({ hasText: file.name }).locator("svg");
     // The new card is the positive control: its row and icon are there, and the icon is named something other than held.

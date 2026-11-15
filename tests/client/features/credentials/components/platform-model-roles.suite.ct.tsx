@@ -195,17 +195,24 @@ test.describe("desktop width", () => {
     await serveRoles(page, corpus, root);
     await mount<typeof ModelRolesStory>(STORY, {});
     const chat = page.getByRole("group", { name: roleOf("chat").heading, exact: true });
-    const picker = await chat.getByRole("combobox").boundingBox();
-    const hint = await chat.locator(HINT).first().boundingBox();
-    if (picker === null || hint === null) {
-      throw new Error("The Chat role painted no picker or hint");
-    }
-    const group = await chat.boundingBox();
-    if (group === null) {
-      throw new Error("The Chat role painted no box");
-    }
-    expect(picker.y).toBeLessThan(hint.y + hint.height);
-    expect(picker.width).toBeLessThan(group.width * HUG_SHARE);
+    // The picker takes its width from the value the role's binding read gives it, after the box is first drawn, so both facts are polled
+    // from one reading of the three boxes until the picker has taken its place.
+    await expect
+      .poll(
+        async () => {
+          const [picker, hint, group] = await Promise.all([
+            chat.getByRole("combobox").boundingBox(),
+            chat.locator(HINT).first().boundingBox(),
+            chat.boundingBox(),
+          ]);
+          if (picker === null || hint === null || group === null) {
+            return { painted: false, sharesHeadingRow: false, hugsValue: false };
+          }
+          return { painted: true, sharesHeadingRow: picker.y < hint.y + hint.height, hugsValue: picker.width < group.width * HUG_SHARE };
+        },
+        { message: "the Chat role's picker, hint and group" },
+      )
+      .toEqual({ painted: true, sharesHeadingRow: true, hugsValue: true });
   });
 });
 

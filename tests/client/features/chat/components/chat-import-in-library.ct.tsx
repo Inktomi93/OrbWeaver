@@ -14,7 +14,7 @@ import { seedShellState } from "@orb/testkit/browser/spec";
 import { noticeToast, routeAuthConfig, routeToServer, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import { CHAT_IMPORT_NAME, CHAT_IMPORT_TITLE } from "#client/features/chat/lib/chat-surface-names.ts";
 import { chatInLibraryNotice, importedOfLead } from "#client/lib/in-library-copy.ts";
@@ -67,17 +67,20 @@ async function openChatImport(args: {
   const { page, root } = args;
   await routeAuthConfig(page, args.signedInConfig);
   await routeTrpc(page, serveCorpusProcedures(await root.internalCallerFor(root.ownerId), [...SECTION_PROCEDURES, ...SHELL_MOUNT_PROCEDURES]));
-  const sent = await routeToServer(page, root, PORTABILITY_ROUTES.importChat);
+  const route = await routeToServer(page, root, PORTABILITY_ROUTES.importChat);
   await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "docked", context: "collapsed" } } });
   await args.mountShell();
   await page.getByRole("button", { name: CHAT_IMPORT_NAME, exact: true }).click();
   const dialog = page.getByRole("dialog", { name: CHAT_IMPORT_TITLE, exact: true });
   return {
-    sent,
+    sent: route.sent,
+    // Resolves once the server has answered the drop, so the toast is asserted from that answer and not from the drop.
     drop: async (files): Promise<void> => {
       const chooser = page.waitForEvent("filechooser");
       await dialog.locator(FILE_INPUT).click();
+      const answered = route.answered(WORKLOAD_DEADLINE_MS);
       await (await chooser).setFiles(files.map((file) => ({ name: file.filename, mimeType: "application/json", buffer: Buffer.from(file.bytes) })));
+      await answered;
     },
   };
 }

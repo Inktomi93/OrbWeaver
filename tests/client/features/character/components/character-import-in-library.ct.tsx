@@ -13,7 +13,7 @@ import { seedShellState } from "@orb/testkit/browser/spec";
 import { noticeToast, routeAuthConfig, routeToServer, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import { CHARACTER_IMPORT_NAME } from "#client/features/character/lib/character-names.ts";
 import { cardImportPartialLine } from "#client/lib/card-import-copy.ts";
@@ -69,17 +69,20 @@ async function openCardImport(args: {
   const { page, root } = args;
   await routeAuthConfig(page, args.signedInConfig);
   await routeTrpc(page, serveCorpusProcedures(await root.internalCallerFor(root.ownerId), [...SECTION_PROCEDURES, ...SHELL_MOUNT_PROCEDURES]));
-  const sent = await routeToServer(page, root, PORTABILITY_ROUTES.importCards);
+  const route = await routeToServer(page, root, PORTABILITY_ROUTES.importCards);
   await seedShellState(page, { activeSection: "characters", panelOverrides: { characters: { list: "docked", context: "collapsed" } } });
   await args.mountShell();
   await page.getByRole("button", { name: CHARACTER_IMPORT_NAME, exact: true }).click();
   const dialog = page.getByRole("dialog", { name: CHARACTER_IMPORT_NAME, exact: true });
   return {
-    sent,
+    sent: route.sent,
+    // Resolves once the server has answered the drop, so the toast is asserted from that answer and not from the drop.
     drop: async (files): Promise<void> => {
       const chooser = page.waitForEvent("filechooser");
       await dialog.locator(FILE_INPUT).click();
+      const answered = route.answered(WORKLOAD_DEADLINE_MS);
       await (await chooser).setFiles(files.map((file) => ({ ...file, mimeType: "image/png" })));
+      await answered;
     },
   };
 }

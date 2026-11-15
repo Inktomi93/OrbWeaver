@@ -55,11 +55,17 @@ const CHARACTERS = SECTION_LABELS.characters;
 const CLOSE_DETAILS = new RegExp(`^(?:Close ${RegExp.escape(CHARACTERS)} details|${RegExp.escape(contextToggleLabel(false))})$`, "u");
 const SHOW_LIST = new RegExp(`^Show (?:list panel|${RegExp.escape(CHARACTERS)}(?: · .+)? list)$`, "u");
 const READ_PROCEDURES = [...SECTION_PROCEDURES, "tag.listTagFilterVocabulary"] as const;
+// `listAtMount` is the mode each regime settles the LIST pane to before a character is picked: the desktop docks it, a phone's list is the
+// screen, and a narrow desktop keeps it behind its toggle.
 const REGIMES = [
-  { name: "both docked desktop", viewport: { width: 1280, height: 720 }, coarse: false, landscape: false },
-  { name: "coarse portrait sheet", viewport: { width: 390, height: 844 }, coarse: true, landscape: false },
-  { name: "coarse short landscape", viewport: { width: 844, height: 390 }, coarse: true, landscape: true },
+  { name: "both docked desktop", viewport: { width: 1280, height: 720 }, coarse: false, landscape: false, listAtMount: "docked" },
+  { name: "coarse portrait sheet", viewport: { width: 390, height: 844 }, coarse: true, landscape: false, listAtMount: "docked" },
+  { name: "coarse short landscape", viewport: { width: 844, height: 390 }, coarse: true, landscape: true, listAtMount: "collapsed" },
 ] as const;
+const LIST_PANE = '.shell-panel[data-panel-side="list"]';
+const CONTEXT_PANE = '.shell-panel[data-panel-side="context"]';
+
+type ListAtMount = (typeof REGIMES)[number]["listAtMount"];
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 type Caller = Awaited<ReturnType<Root["internalCallerFor"]>>;
@@ -93,25 +99,26 @@ async function prepare(
   return { caller, card, reads };
 }
 
-async function selectCharacter(page: Page, name: string): Promise<void> {
-  const notification = page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true }).getByRole("button", { name: TOAST_CLOSE_NAME, exact: true });
-  if (await notification.isVisible()) {
-    await notification.click();
-    await notification.waitFor({ state: "hidden" });
-  }
-  const context = page.locator('.shell-panel[data-panel-side="context"]');
-  if ((await context.getAttribute("data-panel-mode")) === "overlay") {
-    await page.getByRole("button", { name: CLOSE_DETAILS }).click();
-  }
-  const back = page.getByRole("button", { name: sectionBackName(CHARACTERS), exact: true });
-  if (await back.isVisible()) {
-    await back.click();
-  }
+/** Close the toast a failed save raises beside its status: it is awaited first, because it lands after the status line, and closed so it
+ *  does not stand over the list the next step drives. */
+async function dismissSaveFailureToast(page: Page): Promise<void> {
+  const alerts = page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true });
+  await expect(alerts.getByText(CHARACTER_SAVE_FAILURE, { exact: true })).toBeVisible();
+  const close = alerts.getByRole("button", { name: TOAST_CLOSE_NAME, exact: true });
+  await close.click();
+  await expect(close).toBeHidden();
+}
+
+/** Pick a character from the list. The shell is awaited at the modes its regime settles to, and the press that follows is decided by that
+ *  value, not by a read taken on the way: no sheet or pushed detail stands over the list, and the list is docked or behind its toggle. */
+async function selectCharacter(page: Page, name: string, listAtMount: ListAtMount = "docked"): Promise<void> {
+  await expect(page.locator(CONTEXT_PANE)).not.toHaveAttribute("data-panel-mode", "overlay");
+  await expect(page.getByRole("button", { name: sectionBackName(CHARACTERS), exact: true })).toBeHidden();
+  await expect(page.locator(LIST_PANE)).toHaveAttribute("data-panel-mode", listAtMount);
   const library = page.getByRole("list", { name: CHARACTER_LIBRARY_NAME, exact: true });
   const search = page.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true });
-  const showList = page.getByRole("button", { name: SHOW_LIST });
-  if ((await page.locator('.shell-panel[data-panel-side="list"]').getAttribute("data-panel-mode")) === "collapsed") {
-    await showList.click();
+  if (listAtMount === "collapsed") {
+    await page.getByRole("button", { name: SHOW_LIST }).click();
   }
   await expect(search).toBeVisible();
   await search.fill(name);
@@ -165,15 +172,25 @@ async function expectRetryContained(context: Locator, retry: Locator, landscape:
   expect((await actionGroupGeometry(context, [retry])).inlineOverflow).toBeLessThanOrEqual(1);
 }
 
+/** The context pane starts every case collapsed, in each regime; the toggle that opens it is pressed only once the pane has said so. */
+async function revealContext(page: Page): Promise<void> {
+  await expect(page.locator(CONTEXT_PANE)).toHaveAttribute("data-panel-mode", "collapsed");
+  await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
+}
+
+/** Picking another character leaves the pane docked beside it, as the desktop settled it when the first one opened it. */
+async function expectContextStaysDocked(page: Page): Promise<void> {
+  await expect(page.locator(CONTEXT_PANE)).toHaveAttribute("data-panel-mode", "docked");
+}
+
 async function openCharacterContext(
   page: Page,
   tabName: typeof CHARACTER_HISTORY_TAB_LABEL | typeof CHARACTER_LINKS_TAB_LABEL | typeof CHARACTER_LOOK_TAB_LABEL | typeof CHARACTER_OVERVIEW_TAB_LABEL,
+  listAtMount: ListAtMount = "docked",
 ): Promise<void> {
-  await selectCharacter(page, CARD_NAME);
-  if ((await page.locator('.shell-panel[data-panel-side="context"]').getAttribute("data-panel-mode")) === "collapsed") {
-    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
-  }
-  const context = page.locator('.shell-panel[data-panel-side="context"]');
+  await selectCharacter(page, CARD_NAME, listAtMount);
+  await revealContext(page);
+  const context = page.locator(CONTEXT_PANE);
   const tab = context.getByRole("tab", { name: tabName, exact: true });
   await tab.focus();
   await page.keyboard.press("Enter");
@@ -218,15 +235,11 @@ test("History resets a failed read when selecting another character and retries 
   const context = page.locator('.shell-panel[data-panel-side="context"]');
   await expect(context.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toBeVisible();
   await selectCharacter(page, other.name);
-  if ((await page.locator('.shell-panel[data-panel-side="context"]').getAttribute("data-panel-mode")) === "collapsed") {
-    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
-  }
+  await expectContextStaysDocked(page);
   await expect(context.getByText(otherLabel, { exact: true })).toBeVisible();
   await expect(context.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toHaveCount(0);
   await selectCharacter(page, CARD_NAME);
-  if ((await page.locator('.shell-panel[data-panel-side="context"]').getAttribute("data-panel-mode")) === "collapsed") {
-    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
-  }
+  await expectContextStaysDocked(page);
   const retry = context.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
   await expect(retry).toBeVisible();
   refuse = false;
@@ -333,10 +346,9 @@ test("Look isolates a failed character's draft on selection without leaking it i
   await font.click();
   await page.getByRole("option", { name: FONT, exact: true }).click();
   await expect(status).toContainText(AUTOSAVE_SAVE_FAILED_TEXT);
+  await dismissSaveFailureToast(page);
   await selectCharacter(page, other.name);
-  if ((await page.locator('.shell-panel[data-panel-side="context"]').getAttribute("data-panel-mode")) === "collapsed") {
-    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
-  }
+  await expectContextStaysDocked(page);
   await expect(font).toHaveText(otherFont);
   await expect(status).toHaveText(AUTOSAVE_SAVED_TEXT);
   await font.click();
@@ -359,7 +371,7 @@ for (const regime of REGIMES) {
       await routeTrpc(page, { ...reads, ...serveCorpusProcedures(caller, ["character.listSnapshots"], () => pending) });
       try {
         await mount<typeof ShellAmbientStory>(STORY, {});
-        await openCharacterContext(page, CHARACTER_HISTORY_TAB_LABEL);
+        await openCharacterContext(page, CHARACTER_HISTORY_TAB_LABEL, regime.listAtMount);
         await pending.requested;
         const context = page.locator('.shell-panel[data-panel-side="context"]');
         await expect(context.getByRole("tab", { name: CHARACTER_HISTORY_TAB_LABEL, exact: true })).toHaveAttribute("aria-selected", "true");
@@ -389,7 +401,7 @@ for (const regime of REGIMES) {
         }),
       });
       await mount<typeof ShellAmbientStory>(STORY, {});
-      await openCharacterContext(page, CHARACTER_HISTORY_TAB_LABEL);
+      await openCharacterContext(page, CHARACTER_HISTORY_TAB_LABEL, regime.listAtMount);
       await failed.promise;
       const context = page.locator('.shell-panel[data-panel-side="context"]');
       const retry = context.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
@@ -418,7 +430,7 @@ for (const regime of REGIMES) {
       });
       try {
         await mount<typeof ShellAmbientStory>(STORY, {});
-        await openCharacterContext(page, CHARACTER_LOOK_TAB_LABEL);
+        await openCharacterContext(page, CHARACTER_LOOK_TAB_LABEL, regime.listAtMount);
         const context = page.locator('.shell-panel[data-panel-side="context"]');
         const font = context.getByRole("combobox", { name: FONT_FIELD_NAME, exact: true });
         const status = context.locator('[data-slot="autosave-status"]');
@@ -474,10 +486,8 @@ async function createSecondCharacter(caller: Caller): Promise<string> {
 }
 
 async function showContextTab(page: Page, tab: string): Promise<void> {
-  if ((await page.locator('.shell-panel[data-panel-side="context"]').getAttribute("data-panel-mode")) === "collapsed") {
-    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
-  }
-  await page.locator('.shell-panel[data-panel-side="context"]').getByRole("tab", { name: tab, exact: true }).click();
+  await expectContextStaysDocked(page);
+  await page.locator(CONTEXT_PANE).getByRole("tab", { name: tab, exact: true }).click();
 }
 
 test("Links: a failed read for one character does not stick on the next", async ({ page, corpus, mount }) => {

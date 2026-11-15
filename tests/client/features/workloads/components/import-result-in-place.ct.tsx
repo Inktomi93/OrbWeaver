@@ -11,7 +11,7 @@ import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { routeAuthConfig, routeOrbSocket, routeToServer, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { createServerHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import { IMPORT_RESULT_NAME } from "#client/features/workloads/lib/import-library-names.ts";
 import { IMPORT_CONFIRM_NAMES } from "#client/features/workloads/lib/portability-model.ts";
@@ -63,7 +63,7 @@ test.describe("a card import's result", () => {
         "stream.detach": ({ ref }) => (ref.channel === "user" || ref.channel === "workloads" ? null : trpcError({ code: "NOT_FOUND" })),
       });
       await routeOrbSocket(page);
-      await routeToServer(page, root, PORTABILITY_ROUTES.importCards);
+      const route = await routeToServer(page, root, PORTABILITY_ROUTES.importCards);
       // A toast can come and go between two reads, so the page keeps the most toasts it ever held at once.
       await page.addInitScript(
         ({ key, selector }) => {
@@ -79,7 +79,10 @@ test.describe("a card import's result", () => {
       await mount<typeof ImportPreviewStory>(STORY, { width: WIDE_PANE_PX, appearance: appearanceSettingsSchema.parse({}) });
 
       await page.locator('input[type="file"]').first().setInputFiles(file);
+      // The route answers once the real server has read the file, so the report is awaited from that answer on the import's own deadline.
+      const answered = route.answered(WORKLOAD_DEADLINE_MS);
       await page.getByRole("button", { name: IMPORT_CONFIRM_NAMES.file, exact: true }).click();
+      await answered;
 
       const result = page.getByRole("group", { name: IMPORT_RESULT_NAME });
       const report = page.getByTestId(testId("importReport"));
