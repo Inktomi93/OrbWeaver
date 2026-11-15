@@ -1,7 +1,7 @@
 ---
 kind: adr
 status: active
-updated: 2026-10-03
+updated: 2026-11-14
 supersedes: docs/adr/0044-theming-and-rich-content-use-trust-tiers.md
 ---
 
@@ -29,15 +29,17 @@ Tier A is the inert sanitized allowlist through Streamdown in the main DOM. It r
 
 A row at or above `trusted` renders sanitized markdown in the main DOM under the trusted policy. Off-origin images are dropped unless the row admits external media, links open through a confirm, and a Mermaid block renders as inert code. Its cards render in Tier B.
 
+A reply that a display regex script styled renders whole in one routed card frame on a row whose card tier is Tier B. A row is styled only when a display script whose own template carries an HTML tag replaced a match. Markup the model wrote, and a script that only echoes captured text, never style a row, and no new consent or setting gates this. The frame document holds the reply's static markdown render with raw HTML kept and not sanitized, the app's own rules its markup can match, read from the app's build stylesheets and inlined (an opaque-origin frame cannot load them, and no user-authored stylesheet rides along), the resolved token set at the reply's place and the root's `data-*` channels, so the reply reads in the transcript's prose rules. It grows to its content up to the reply height cap. Media, choice sets and paragraphs with a dice stamp stay native between frame runs. A link clicked inside the frame reaches the host through the pinned frame script; the host opens only an http, https or mailto address, only during a live user activation, and only through a confirm. The reply renders through the inert allowlist while it streams, until the routed mint answers, when the mint is refused, and on every Tier A row. A plugin display transform that changed the text keeps the row on its plain path. The frame mints under the row's card origin, so the interactive posture applies to it as to a card. A link clicked inside the frame reaches the host only from a click in that frame, never to the app's own origin; an open confirm keeps its address, and a Cancel mutes the frame's links until it remounts. A frame whose handle has expired or been evicted mints again once, then renders the inert path.
+
 A card runs its own scripts only under the `interactive` frame posture. The card-frame route grants it when three answers are yes: the character resolves to `interactive`, `allowInteractiveCards` is on, and the viewer's `UserSettings.chat.runCardScripts` is on (default on). The route resolves all three again on every serve of an interactive document, so any one switched off withdraws the scripts at the next frame load.
 
-The sandbox does not change with the posture: an opaque origin with `sandbox allow-scripts` and never `allow-same-origin`, `default-src 'none'` with no `connect-src`, `form-action 'none'`, `base-uri 'none'`, `frame-ancestors 'self'`, and the app's `frame-src 'self'`. Only `script-src` changes. The static posture admits our height script by hash, and the interactive posture admits `'unsafe-inline'`.
+The sandbox does not change with the posture: an opaque origin with `sandbox allow-scripts` and never `allow-same-origin`, `default-src 'none'` with no `connect-src`, `form-action 'none'`, `base-uri 'none'`, `frame-ancestors 'self'`, and the app's `frame-src 'self'`. Only `script-src` changes. The static posture admits our pinned script by hash, which measures the height and hands a link click to the host, and the interactive posture admits `'unsafe-inline'`.
 
 Accepted residual: a card script can send a WebRTC/STUN beacon to a host it picks. The beacon can carry the viewer's IP, a signal that the card was shown, or text typed into the card. No CSP directive in Chromium closes it. The controls are `allowInteractiveCards` for the box and `runCardScripts` for one viewer.
 
 Media: own uploads render freely through `asset://id`. External URLs default to `forbidExternalMedia: true`, which a lower tier can only tighten. They are click-to-load, with `autoplay` forced off and `controls` required on untrusted audio and video (not overridable), behind a CSP that admits `https:` media only while the deployment allows external media, all through `@orb/ui/message-media`. The render block union is `MessageContentBlock` in `@orb/contracts/chat`. Gates: `no-untrusted-html-in-main-dom`, `no-external-media-without-gate`, `theme-override-only-via-scope`, and a present CSP.
 
-Homes: `resolveRenderPolicy` (`@orb/contracts/chat`), `ALLOW_INTERACTIVE_CARDS_FLOOR` in `packages/server/src/domain/settings/effective-config/layer.ts`, `packages/server/src/entry/http/card-frame.ts`, `@orb/kit/card-frame`, and `resolveRowRenderPolicy` in `packages/client/src/lib/render-trust.ts`.
+Homes: `resolveRenderPolicy` (`@orb/contracts/chat`), `ALLOW_INTERACTIVE_CARDS_FLOOR` in `packages/server/src/domain/settings/effective-config/layer.ts`, `packages/server/src/entry/http/card-frame.ts`, `@orb/kit/card-frame`, and `resolveRowRenderPolicy` in `packages/client/src/lib/render-trust.ts`. The styled-reply rule lives in `packages/client/src/lib/display-styled.ts`, `packages/client/src/features/chat/components/reply-frame.tsx` and `packages/ui/src/content/sandbox-frame/frame-reply.ts`.
 
 ## Consequences
 

@@ -92,10 +92,10 @@ const keyRegexCache = new Map<string, RegExp>();
 // `我去北京了`). Latin/Cyrillic/Greek/etc. keep whole-word boundaries.
 const BOUNDARYLESS_SCRIPT = /[\p{sc=Han}\p{sc=Hiragana}\p{sc=Katakana}\p{sc=Hangul}\p{sc=Thai}\p{sc=Lao}\p{sc=Khmer}\p{sc=Myanmar}\p{sc=Tibetan}]/u;
 
-// ReDoS pre-compile heuristic for a USER-AUTHORED key pattern — the same two caps the regex-script executor
-// applies (`@orb/kit/regex` `tooComplex`), restated rather than imported: pulling `@orb/kit/regex` in here
-// would drag the macro engine into every consumer of these leaf primitives (contracts/world-info imports
-// this module). Counts quantifier-stack OCCURRENCES, not nesting depth — defense in depth, not a guarantee.
+// ReDoS pre-compile heuristic for a USER-AUTHORED key pattern: a length cap and a quantifier-stack count. The
+// regex-script executor dropped its own stack count (D53); a key still carries one, kept local because pulling
+// `@orb/kit/regex` in here would drag the macro engine into every consumer of these leaf primitives
+// (contracts/world-info imports this module). Defense in depth, not a guarantee: the per-key watchdog is the guard.
 const MAX_KEY_PATTERN_LENGTH = 2048;
 const MAX_STACKED_QUANTIFIERS = 3;
 function keyPatternTooComplex(pattern: string): string | null {

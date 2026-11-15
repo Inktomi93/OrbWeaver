@@ -247,7 +247,7 @@ export type { ListPaneHeaderProps, ListPaneHeaderView } from "./list-pane-header
 export { LIST_PANE_TITLE_ID } from "./list-pane-title-id.ts";
 export {} from "./log-clock.ts";
 export type { MessageRenderContext } from "./message-render.ts";
-export { renderMessageForDisplay } from "./message-render.ts";
+export { renderMessageForDisplay, renderStyledMessageForDisplay } from "./message-render.ts";
 export { MESSAGE_ROLE_ITEMS, MESSAGE_ROLE_LABELS } from "./message-role-labels.ts";
 export type { NonEmptyLabel } from "./non-empty-label.ts";
 export type { NotifyAction, NotifyNotice } from "./notify.ts";

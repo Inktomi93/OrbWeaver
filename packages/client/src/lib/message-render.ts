@@ -2,8 +2,9 @@
 //   1. resolveRowMacros    — {{user}}/{{char}}/{{persona}} → live values, via the shared atom also
 //                            called by server assemble; the row's own characterId/personaId stamps
 //                            drive the subject.
-//   2. executeRegexScripts (placement: "DISPLAY") — the viewer's markdownOnly scripts, ephemeral,
-//                            never canon/shared-prompt.
+//   2. executeDisplayScripts (placement: "DISPLAY", `display-styled.ts`) — the viewer's markdownOnly
+//                            scripts, ephemeral, never canon/shared-prompt; it also reports whether a
+//                            script's own template drew markup.
 //   3. fixMarkdown          — LLM artifact repair.
 //
 // Output is a string for the @orb/ui/markdown renderer (never HTML) — not for composer/edit
@@ -14,7 +15,8 @@ import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import type { MacroEnv, ProcessMacroOptions, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
 import type { RegexReplacer, RegexScriptInput } from "@orb/kit/regex";
-import { executeRegexScripts } from "@orb/kit/regex";
+import type { StyledDisplayText } from "./display-styled.ts";
+import { executeDisplayScripts } from "./display-styled.ts";
 
 // DISPLAY-tier ReDoS guard (2026-08-09 DoS audit, finding #3). The DISPLAY tier runs UNWATCHED in the
 // browser — there is no node:vm lever, so unlike the server's prompt-side legs it has no per-call timeout.
@@ -87,6 +89,16 @@ function regexCtxChar(ctx: MessageRenderContext, characterId: CharacterId | null
 }
 
 export function renderMessageForDisplay(text: string, ctx: MessageRenderContext, rowCharacterId?: CharacterId | null, rowPersonaId?: PersonaId | null): string {
+  return renderStyledMessageForDisplay(text, ctx, rowCharacterId, rowPersonaId).text;
+}
+
+/** {@link renderMessageForDisplay}, plus whether a display script's own template drew markup into the row. */
+export function renderStyledMessageForDisplay(
+  text: string,
+  ctx: MessageRenderContext,
+  rowCharacterId?: CharacterId | null,
+  rowPersonaId?: PersonaId | null,
+): StyledDisplayText {
   const characterId = rowCharacterId ?? null;
   const personaId = rowPersonaId ?? null;
 
@@ -114,10 +126,10 @@ export function renderMessageForDisplay(text: string, ctx: MessageRenderContext,
     ...(ctx.nowMs === undefined ? {} : { nowMs: ctx.nowMs }),
   };
 
-  const regexed =
+  const regexed: StyledDisplayText =
     ctx.displayScripts === undefined || ctx.displayScripts.length === 0
-      ? substituted
-      : executeRegexScripts({
+      ? { text: substituted, styled: false }
+      : executeDisplayScripts({
           text: substituted,
           scripts: ctx.displayScripts,
           placement: "DISPLAY",
@@ -126,5 +138,5 @@ export function renderMessageForDisplay(text: string, ctx: MessageRenderContext,
           applyReplace: guardedDisplayReplace,
           // Display tier: a failing viewer script silently skips — never worth breaking the room render.
         });
-  return ctx.autoFixMarkdown === true ? fixMarkdown(regexed, true) : regexed;
+  return ctx.autoFixMarkdown === true ? { text: fixMarkdown(regexed.text, true), styled: regexed.styled } : regexed;
 }

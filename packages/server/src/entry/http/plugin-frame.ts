@@ -120,6 +120,7 @@ const MISS_DOC = buildCardFrameDocument({
   themeTokens: undefined,
   styleTokens: undefined,
   fontFamily: undefined,
+  rootAttributes: undefined,
 });
 
 /** The owner-scoped frame-body read — the ONE authority for whether these bytes may be served to this caller.
@@ -214,6 +215,8 @@ export function registerPluginFrame(app: Hono<PrincipalEnv>, deps: PluginFrameDe
           // still runs here and is the one that bounds the root size to the appearance range.
           styleTokens: body.styleTokens,
           fontFamily: body.fontFamily,
+          // A plugin surface draws its own markup; the transcript's skin channels are not its.
+          rootAttributes: undefined,
         }),
       csp: PLUGIN_FRAME_CSP,
       expiresAt: deps.now() + FRAME_HANDLE_TTL_MS,
