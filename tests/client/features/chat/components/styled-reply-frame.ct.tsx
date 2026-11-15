@@ -1,5 +1,5 @@
 // A reply a display script styled renders in ONE routed card frame on a row whose card tier is the sandboxed one
-// (D294): the real transcript (`MessageListSurface`) over a corpus room, with a native DISPLAY script the viewer
+// (D354): the real transcript (`MessageListSurface`) over a corpus room, with a native DISPLAY script the viewer
 // created through `regex.createScript`, the room's reads served by the corpus root and the card-frame mint and
 // serve answered by the root's own HTTP entry. The script's `<style>` applies inside the frame and never lands in
 // the main document; with the character set to plain text the same reply renders through the inert path with no
@@ -84,20 +84,20 @@ async function openStyledRoom(body: string): Promise<StyledRoom> {
 
 interface FrameTraffic {
   mints: number;
+  serves: number;
 }
 
 /** Answer the card-frame mint and serve from the page with the root's own HTTP entry, under the viewer's session.
  *  The first `missServes` serves ask the root for a handle no mint produced, so they get its real miss notice. */
 async function routeCardFrames(page: Page, root: Root, missServes = 0): Promise<FrameTraffic> {
   const { cookie } = await captureCookieAuth(root, await root.principalFor(root.ownerId), VIEWER_PASSWORD);
-  const traffic: FrameTraffic = { mints: 0 };
-  let serves = 0;
+  const traffic: FrameTraffic = { mints: 0, serves: 0 };
   await page.route(`**${CARD_FRAME_ROUTE}**`, async (route) => {
     const request = route.request();
     const isMint = request.method() === "POST";
+    const missed = !isMint && traffic.serves < missServes;
     traffic.mints += isMint ? 1 : 0;
-    const missed = !isMint && serves < missServes;
-    serves += isMint ? 0 : 1;
+    traffic.serves += isMint ? 0 : 1;
     const sent = await request.allHeaders();
     const headers: Record<string, string> = { cookie, forwarded: "" };
     for (const name of [CSRF_HEADER, "content-type"]) {
@@ -118,11 +118,19 @@ interface Corpus {
   readonly auth: { readonly signedInConfig: Parameters<typeof routeAuthConfig>[1] };
 }
 
-async function serveRoom(page: Page, root: Root, corpus: Corpus, missServes = 0): Promise<FrameTraffic> {
+/** The room's reads and its card-frame traffic, routed to `root`. Declare it with `await using` AFTER the root: it is
+ *  disposed first, and disposal removes the routes and waits for any handler still answering, so no request the page
+ *  makes after the case ends reaches a closed root. */
+async function serveRoom(page: Page, root: Root, corpus: Corpus, missServes = 0): Promise<FrameTraffic & AsyncDisposable> {
   const caller = await root.internalCallerFor(root.ownerId);
   await routeAuthConfig(page, corpus.auth.signedInConfig);
   await routeTrpc(page, serveCorpusProcedures(caller, TRANSCRIPT_READS));
-  return await routeCardFrames(page, root, missServes);
+  const traffic = await routeCardFrames(page, root, missServes);
+  return Object.assign(traffic, {
+    [Symbol.asyncDispose]: async (): Promise<void> => {
+      await page.unrouteAll({ behavior: "wait" });
+    },
+  });
 }
 
 /** Every external page a popup asked for: `window.open` from the confirm lands here instead of the network. */
@@ -165,7 +173,7 @@ async function mainDocumentStyles(page: Page): Promise<string> {
 test("a display script's banner draws in one routed frame with its own style, which never reaches the main document", async ({ corpus, mount, page }) => {
   const room = await openStyledRoom(STYLED_BODY);
   await using root = room.root;
-  await serveRoom(page, root, corpus);
+  await using _routes = await serveRoom(page, root, corpus);
   await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
   const frame = page.locator(`${REPLY_FRAME}[data-delivery="routed"] ${SANDBOX}`);
   await expect(frame).toHaveAttribute("data-delivery", "routed");
@@ -186,7 +194,7 @@ test("on a row whose character renders plain text the same reply draws through t
   await using root = room.root;
   const caller = await root.internalCallerFor(root.ownerId);
   await caller.character.update({ characterId: room.characterId, input: { trustHtml: false, interactiveHtml: false } });
-  await serveRoom(page, root, corpus);
+  await using _routes = await serveRoom(page, root, corpus);
   await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
   // Positive control: the script ran on this row (its output text is on screen), so the absence below is the tier's doing.
   await expect(page.getByText("Camelot · Great Hall", { exact: true })).toBeVisible();
@@ -199,7 +207,7 @@ test("on a row whose character renders plain text the same reply draws through t
 test("model-written markup no display script produced keeps today's path in a normal room", async ({ corpus, mount, page }) => {
   const room = await openStyledRoom(BARE_HTML_BODY);
   await using root = room.root;
-  await serveRoom(page, root, corpus);
+  await using _routes = await serveRoom(page, root, corpus);
   await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
   await expect(page.getByText("Model-written markup", { exact: true })).toBeVisible();
   await expect(page.locator(REPLY_FRAME)).toHaveCount(0);
@@ -209,7 +217,7 @@ test("model-written markup no display script produced keeps today's path in a no
 test("a link inside the frame opens nothing until the confirm, which names the address", async ({ corpus, mount, page }) => {
   const room = await openStyledRoom(STYLED_BODY);
   await using root = room.root;
-  await serveRoom(page, root, corpus);
+  await using _routes = await serveRoom(page, root, corpus);
   await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
   const link = page.frameLocator(`${REPLY_FRAME} ${SANDBOX}`).locator("#w6p-link");
   await expect(link).toBeVisible();
@@ -224,7 +232,7 @@ test("a link inside the frame opens nothing until the confirm, which names the a
 test("a frame's link message raises nothing unless the click was in that frame", async ({ corpus, mount, page }) => {
   const room = await openStyledRoom(STYLED_BODY);
   await using root = room.root;
-  await serveRoom(page, root, corpus);
+  await using _routes = await serveRoom(page, root, corpus);
   await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
   await expect(page.frameLocator(`${REPLY_FRAME} ${SANDBOX}`).locator("#w6p-link")).toBeVisible();
   // A click elsewhere in the app gives the page a live activation; the frame then posts a link on its own.
@@ -239,7 +247,7 @@ test("a frame's link message raises nothing unless the click was in that frame",
 test("an open confirm keeps its address, and Open opens exactly the address it shows", async ({ corpus, mount, page }) => {
   const room = await openStyledRoom(STYLED_BODY);
   await using root = room.root;
-  await serveRoom(page, root, corpus);
+  await using _routes = await serveRoom(page, root, corpus);
   const opened = await recordExternalPages(page);
   await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
   await page.frameLocator(`${REPLY_FRAME} ${SANDBOX}`).locator("#w6p-link").click();
@@ -256,7 +264,7 @@ test("an open confirm keeps its address, and Open opens exactly the address it s
 test("after a Cancel the frame's links raise nothing until it remounts", async ({ corpus, mount, page }) => {
   const room = await openStyledRoom(STYLED_BODY);
   await using root = room.root;
-  await serveRoom(page, root, corpus);
+  await using _routes = await serveRoom(page, root, corpus);
   await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
   const link = page.frameLocator(`${REPLY_FRAME} ${SANDBOX}`).locator("#w6p-link");
   await link.click();
@@ -272,7 +280,7 @@ test("after a Cancel the frame's links raise nothing until it remounts", async (
 test("a link to the app's own origin never reaches the confirm", async ({ corpus, mount, page }) => {
   const room = await openStyledRoom(STYLED_BODY);
   await using root = room.root;
-  await serveRoom(page, root, corpus);
+  await using _routes = await serveRoom(page, root, corpus);
   await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
   await page.frameLocator(`${REPLY_FRAME} ${SANDBOX}`).locator("#w6p-internal").click();
   await postFromFrame(page, {});
@@ -285,27 +293,31 @@ test("a link to the app's own origin never reaches the confirm", async ({ corpus
 test("an expired frame handle mints again and the reply draws, never the expiry notice", async ({ corpus, mount, page }) => {
   const room = await openStyledRoom(STYLED_BODY);
   await using root = room.root;
-  const traffic = await serveRoom(page, root, corpus, 1);
+  await using traffic = await serveRoom(page, root, corpus, 1);
   await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
   await expect(page.frameLocator(`${REPLY_FRAME} ${SANDBOX}`).locator("#w6p-location")).toHaveText("Camelot · Great Hall");
-  expect(traffic.mints).toBe(2);
+  expect([traffic.mints, traffic.serves]).toEqual([2, 2]);
 });
 
 test("a handle that is gone again after its fresh mint leaves the reply on the inert path", async ({ corpus, mount, page }) => {
   const room = await openStyledRoom(STYLED_BODY);
   await using root = room.root;
-  const traffic = await serveRoom(page, root, corpus, 2);
+  await using traffic = await serveRoom(page, root, corpus, 2);
   await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
-  await expect(page.locator(`${REPLY_FRAME}[data-delivery="fallback"]`)).toBeVisible();
+  // The inert path also shows while a mint is pending, so the settled outcome is read off the traffic first: the
+  // second miss has been served, and the frame that loaded it is gone.
+  await expect.poll(() => traffic.serves).toBe(2);
   await expect(page.locator(SANDBOX)).toHaveCount(0);
+  await expect(page.locator(`${REPLY_FRAME}[data-delivery="fallback"]`)).toBeVisible();
   await expect(page.getByText("Camelot · Great Hall", { exact: true })).toBeVisible();
-  expect(traffic.mints).toBe(2);
+  // Given up: no third mint and no further serve.
+  expect([traffic.mints, traffic.serves]).toEqual([2, 2]);
 });
 
 test("the framed prose reads in the transcript's own type: the app stylesheet and tokens reach the frame", async ({ corpus, mount, page }) => {
   const room = await openStyledRoom(STYLED_BODY);
   await using root = room.root;
-  await serveRoom(page, root, corpus);
+  await using _routes = await serveRoom(page, root, corpus);
   await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
   await expect(page.locator(`${REPLY_FRAME} ${SANDBOX}`)).toHaveAttribute("data-delivery", "routed");
   // The prose paragraph, not its quoted span: the quote carries its own tint, which the native neighbour has none of.
@@ -326,7 +338,7 @@ test("the framed prose reads in the transcript's own type: the app stylesheet an
 test("a sheet the page cannot read and a stylesheet the app did not build never reach the frame, which still draws", async ({ corpus, mount, page }) => {
   const room = await openStyledRoom(STYLED_BODY);
   await using root = room.root;
-  await serveRoom(page, root, corpus);
+  await using _routes = await serveRoom(page, root, corpus);
   // An extension-style cross-origin sheet, and an injected `<style>` the way the owner's custom theme is applied.
   await page.addInitScript(
     ({ leak }) => {
@@ -366,7 +378,7 @@ test("a sheet the page cannot read and a stylesheet the app did not build never 
 test("focus moves through the frame and out again in both directions, never trapped", async ({ corpus, mount, page }) => {
   const room = await openStyledRoom(STYLED_BODY);
   await using root = room.root;
-  await serveRoom(page, root, corpus);
+  await using _routes = await serveRoom(page, root, corpus);
   await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
   const link = page.frameLocator(`${REPLY_FRAME} ${SANDBOX}`).locator("#w6p-link");
   await expect(link).toBeVisible();
@@ -395,7 +407,7 @@ for (const fontScale of [2, 3] as const) {
     test("the frame grows to its content: nothing clips and the page never scrolls sideways", async ({ corpus, mount, page }) => {
       const room = await openStyledRoom(STYLED_BODY);
       await using root = room.root;
-      await serveRoom(page, root, corpus);
+      await using _routes = await serveRoom(page, root, corpus);
       await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale });
       const frame = page.locator(`${REPLY_FRAME} ${SANDBOX}`);
       await expect(frame).toHaveAttribute("data-delivery", "routed");

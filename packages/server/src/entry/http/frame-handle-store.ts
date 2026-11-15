@@ -21,7 +21,7 @@
 // eviction (Map iteration is insertion-ordered, so the first matching key IS the oldest handle); a victim of
 // eviction re-mints.
 //
-// SIZED for a whole framed reply (D294), measured on the public Sola V4 preset's display scripts: the longest reply
+// SIZED for a whole framed reply (D354), measured on the public Sola V4 preset's display scripts: the longest reply
 // (a six-tracker scene) mints a 279,294-byte body (204,544 chars of markup, 58,319 of matched app CSS, the token
 // set), so its stored document is about 0.27 MiB. An open transcript keeps eight framed rows mounted plus the
 // visible ones, about sixteen such documents, 4.3 MiB for one viewer. The per-user ceiling holds that about twice
