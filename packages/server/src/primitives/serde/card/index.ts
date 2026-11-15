@@ -46,7 +46,7 @@ import { messageRoleFromSt, messageRoleToSt } from "@orb/kit/message-role";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { inertActivationFields, resolveEntryInjection, resolveEntryKeyMode, resolveEntryScope } from "@orb/kit/world-info";
 import type { StScriptNote } from "#primitives/serde/regex";
-import { readStScriptList } from "#primitives/serde/regex";
+import { readStScriptList, stScriptListNotes } from "#primitives/serde/regex";
 
 function str(v: unknown): string {
   return typeof v === "string" ? v : "";
@@ -179,10 +179,10 @@ function parseDepthPrompt(raw: unknown): CharacterCard["depthPrompt"] {
  *  importer hands these to the regex domain), and a note for each script refused or each placement lost, by its
  *  position. The raw blob is V3 `data.extensions.regex_scripts` or the V2 root `data.regex_scripts`. */
 function parseRegexScripts(data: RawCard): { readonly scripts: RegexScriptCard[]; readonly notes: StScriptNote[] } {
-  if (Array.isArray(data.extensions?.regex_scripts)) {
-    return readStScriptList(data.extensions.regex_scripts, "data.extensions.regex_scripts");
-  }
-  return readStScriptList(Array.isArray(data.regex_scripts) ? data.regex_scripts : [], "data.regex_scripts");
+  const read = Array.isArray(data.extensions?.regex_scripts)
+    ? readStScriptList(data.extensions.regex_scripts, "data.extensions.regex_scripts")
+    : readStScriptList(Array.isArray(data.regex_scripts) ? data.regex_scripts : [], "data.regex_scripts");
+  return { scripts: read.scripts, notes: stScriptListNotes(read) };
 }
 
 /** `data.extensions` MINUS the fields promoted to typed columns (`depth_prompt`, `regex_scripts`, `fav`) —

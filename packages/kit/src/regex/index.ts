@@ -317,6 +317,20 @@ function compilePattern(script: RegexScriptInput, ctx: ProcessMacroOptions): Reg
   return new RegExp(parsed.pattern, parsed.flags);
 }
 
+// A find pattern read as it is stored: its macros resolve to nothing, as the server's compile probe reads them.
+const STORED_PATTERN_MACROS: ProcessMacroOptions = { char: "", user: "", persona: "", scenario: "", env: {} };
+
+/** Whether a find pattern, as stored, compiles to a regular expression. Construction only parses the pattern; V8
+ *  compiles it to code on its first run, which is the cost the server's compile probe measures off the event loop. */
+export function findPatternCompiles(script: Pick<RegexScriptInput, "findRegex" | "substituteRegex">): boolean {
+  try {
+    compilePattern({ enabled: true, targets: [], passes: [], replaceString: "", ...script }, STORED_PATTERN_MACROS);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Values are `string | undefined` — an unmatched optional named group is undefined.
 function isNamedGroups(value: unknown): value is Record<string, string | undefined> {
   return typeof value === "object" && value !== null;

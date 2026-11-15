@@ -11,7 +11,7 @@
 
 import type { PresetFile, StDroppedField } from "@orb/contracts/preset";
 import { buildPresetFile, tryImportStChatCompletionPreset } from "@orb/contracts/preset";
-import type { RegexScriptCard } from "@orb/contracts/regex";
+import type { RegexScriptCard, RegexScriptRefusal } from "@orb/contracts/regex";
 import { isPlainObject } from "@orb/kit/guards";
 import { readStScriptList } from "#primitives/serde/regex";
 
@@ -25,11 +25,14 @@ export interface ParsedStPreset {
   readonly name: string;
   /** Fed verbatim to the preset domain's `ImportPresets` op as UTF-8 JSON bytes. */
   readonly file: PresetFile;
-  /** ST fields present with a meaningful value that orb has no seat for, a refused regex script included. */
+  /** ST fields present with a meaningful value that orb has no seat for, and what a kept script lost on the way in. */
   readonly unmapped: readonly StDroppedField[];
   /** The preset's own regex scripts, lifted onto the library and attached to the preset AFTER its row exists.
    *  Not part of the preset file: scripts are owner-library rows, never embedded config (D121-E). */
   readonly regexScripts: readonly RegexScriptCard[];
+  /** The preset's scripts the parse refused, by name, in the file's order: every door lists them among the preset's
+   *  scripts. */
+  readonly refusedScripts: readonly RegexScriptRefusal[];
   /** The names of the sections added for orb's own slots, which the file has no prompt for. */
   readonly addedSections: readonly string[];
 }
@@ -42,15 +45,16 @@ export type StPresetParse =
 
 /** ST's presetManager stores extension fields on the preset itself under `extensions`; the regex extension's
  *  preset-scoped scripts ride `extensions.regex_scripts` (SillyTavern `extensions/regex/engine.js:126`), read by the
- *  shared script-list reader, which names each refused script and each lost placement by position. Any other
+ *  shared script-list reader, which names each refused script and what a kept one lost, by position. Any other
  *  `extensions.*` key is reported by name. */
 function parsePresetExtensions(raw: Record<string, unknown>): {
   readonly regexScripts: RegexScriptCard[];
+  readonly refusedScripts: RegexScriptRefusal[];
   readonly dropped: StDroppedField[];
 } {
   const ext = raw[ST_PRESET_EXTENSIONS_KEY];
   if (!isPlainObject(ext)) {
-    return { regexScripts: [], dropped: [] };
+    return { regexScripts: [], refusedScripts: [], dropped: [] };
   }
   const { regex_scripts: rawScripts, ...residue } = ext;
   const read = readStScriptList(Array.isArray(rawScripts) ? rawScripts : [], `${ST_PRESET_EXTENSIONS_KEY}.regex_scripts`);
@@ -58,7 +62,7 @@ function parsePresetExtensions(raw: Record<string, unknown>): {
   for (const key of Object.keys(residue)) {
     dropped.push({ field: `${ST_PRESET_EXTENSIONS_KEY}.${key}`, reason: "preset-scoped extension state — no orb seat" });
   }
-  return { regexScripts: read.scripts, dropped };
+  return { regexScripts: read.scripts, refusedScripts: read.refused.map(({ name, reason }) => ({ name, reason })), dropped };
 }
 
 /** Map an already-JSON-parsed SillyTavern chat-completion preset, or say why it does not map.
@@ -77,7 +81,7 @@ export function parseStPresetJson(raw: unknown, options: { readonly name: string
   if (!outcome.ok) {
     return outcome;
   }
-  const { regexScripts, dropped } = parsePresetExtensions(raw);
+  const { regexScripts, refusedScripts, dropped } = parsePresetExtensions(raw);
   return {
     ok: true,
     parsed: {
@@ -85,6 +89,7 @@ export function parseStPresetJson(raw: unknown, options: { readonly name: string
       file: buildPresetFile(options.name, outcome.result.config),
       unmapped: [...outcome.result.dropped, ...dropped],
       regexScripts,
+      refusedScripts,
       addedSections: outcome.result.addedSections,
     },
   };

@@ -7,7 +7,7 @@ import type { ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { ResolveChatCapabilityOp } from "@orb/contracts/inference";
 import type { EffectivePreset, PresetDetail, PresetFilePreview, PresetImportOutcome, PresetSummary, PresetUsageView } from "@orb/contracts/preset";
-import type { ImportPresetScripts, PlanPresetScripts } from "@orb/contracts/regex";
+import type { ImportPresetScripts, ListPresetScriptKeys, PlanPresetScripts } from "@orb/contracts/regex";
 import type { LoadUserSettings } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
@@ -66,6 +66,8 @@ export interface PresetContext {
   readonly importPresetScripts: ImportPresetScripts;
   /** That lift's dry run, so the single-file preview names what the run does with each script. */
   readonly planPresetScripts: PlanPresetScripts;
+  /** The scripts each owned preset holds, which are part of a preset's import identity. */
+  readonly listPresetScriptKeys: ListPresetScriptKeys;
 }
 
 export type PresetAssemblyContext = DbAssemblyInput<PresetContext>;

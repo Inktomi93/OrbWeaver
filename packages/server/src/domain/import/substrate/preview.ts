@@ -169,6 +169,12 @@ function presetItem(profile: LabeledProfile, preset: CollectedPreset, owned: Imp
     }
     return verdict.reuse === null ? named : { ...named, ...REUSE_FLAGS[verdict.reuse] };
   });
+  // A script the parse refused is never lifted, so it follows the lifted ones, wherever the preset lands.
+  const parseRefused = (owned.presets.get(preset)?.keys.length ?? 0) > 0 ? preset.parsed.refusedScripts : [];
+  const scriptList = [...regexScripts, ...parseRefused.map(({ name, reason }) => ({ name: clipImportText(name), refused: clipImportText(reason) }))].slice(
+    0,
+    IMPORT_PREVIEW_LIST_MAX,
+  );
   const leftOut = preset.parsed.unmapped
     .slice(0, IMPORT_PREVIEW_LIST_MAX)
     .map(({ field, reason }) => ({ field: clipImportText(field), reason: clipImportText(reason) }));
@@ -177,7 +183,7 @@ function presetItem(profile: LabeledProfile, preset: CollectedPreset, owned: Imp
   const addedSections = lands ? preset.parsed.addedSections.map(clipImportText) : [];
   return {
     ...base,
-    ...(regexScripts.length > 0 ? { regexScripts } : {}),
+    ...(scriptList.length > 0 ? { regexScripts: scriptList } : {}),
     ...(leftOut.length > 0 ? { leftOut } : {}),
     ...(addedSections.length > 0 ? { addedSections } : {}),
   };

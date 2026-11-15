@@ -18,6 +18,7 @@ import type {
   ImportGlobalScripts,
   ImportPresetScripts,
   ImportRegexScript,
+  ListPresetScriptKeys,
   PlanPresetScripts,
   PortableRegexScript,
   RegexScriptRefusal,
@@ -29,7 +30,7 @@ import { batchMany } from "@orb/db/query";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { DomainOperationError } from "@orb/kit/errors";
-import type { RegexScriptId, UserId } from "@orb/kit/ids";
+import type { PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import { and, asc, eq } from "drizzle-orm";
 import { portableParseError } from "#primitives/serde/lib";
@@ -37,9 +38,9 @@ import { buildRegexScriptFile, parseRegexScriptFile, REGEX_SCRIPT_SCHEMA_KIND, r
 import type { CardLiftPlan, SplitScript } from "../contract/dedup.ts";
 import { REGEX_FIND_TOO_COSTLY } from "../contract/errors.ts";
 import type { RegexPortabilityContext } from "../contract/portability.ts";
-import { findDuplicate, planCardLift, planUploadLift, splitScript } from "../substrate/dedup.ts";
+import { findDuplicate, planCardLift, planUploadLift, rowKey, splitScript } from "../substrate/dedup.ts";
 import { ensureCharacterOwned, ensurePresetOwned } from "./ownership.ts";
-import { listOwnedScripts, loadOwnedScript, loadOwnedScriptsByIds, toRow } from "./queries.ts";
+import { listOwnedPresetAttachments, listOwnedScripts, loadOwnedScript, loadOwnedScriptsByIds, toRow } from "./queries.ts";
 
 /** The write door on a lift (D53): every row the plan would mint has its find pattern's compile measured, and a
  *  refused one is neither minted nor attached. Reused rows are not measured again; they are already stored. */
@@ -164,6 +165,18 @@ export function createPlanPresetScripts(input: DbAssemblyInput<Pick<RegexPortabi
       }),
     );
     return planUploadLift((await listOwnedScripts(ctx.db, ownerId)).map(toRow), presets, refusals);
+  };
+}
+
+/** The owner's presets' attached scripts as content keys, in each preset's run order, for a preset import's identity. */
+export function createListPresetScriptKeys(input: DbAssemblyInput<Pick<RegexPortabilityContext, "db">>): ListPresetScriptKeys {
+  const db = databaseForOwner(input.db);
+  return async ({ ownerId }) => {
+    const keys = new Map<PresetId, string[]>();
+    for (const { presetId, script } of await listOwnedPresetAttachments(db, ownerId)) {
+      keys.set(presetId, [...(keys.get(presetId) ?? []), rowKey(toRow(script))]);
+    }
+    return keys;
   };
 }
 

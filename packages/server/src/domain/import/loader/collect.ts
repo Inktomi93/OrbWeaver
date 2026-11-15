@@ -15,7 +15,7 @@ import { slugifyHandle } from "@orb/kit/slug";
 import { chatContentHash, parseChatJsonl } from "#primitives/serde/chat";
 import { portableParseError } from "#primitives/serde/lib";
 import type { StScriptNote } from "#primitives/serde/regex";
-import { readStScriptList } from "#primitives/serde/regex";
+import { readStScriptList, stScriptListNotes } from "#primitives/serde/regex";
 import { parseThemeFile, THEME_SCHEMA_KIND } from "#primitives/serde/theme";
 import { parseWorldBookFile } from "#primitives/serde/world-info";
 import type {
@@ -664,7 +664,8 @@ async function collectGlobalRegexScripts(
   profileDir: ImportDirectory,
 ): Promise<{ readonly scripts: RegexScriptCard[]; readonly notes: readonly StScriptNote[] }> {
   const list = descend(await readSettingsJson(fs, profileDir), "extension_settings", "regex");
-  return readStScriptList(Array.isArray(list) ? list : [], "extension_settings.regex");
+  const read = readStScriptList(Array.isArray(list) ? list : [], "extension_settings.regex");
+  return { scripts: read.scripts, notes: stScriptListNotes(read) };
 }
 
 /** One charLore entry's (stem, books) pair, or null when it carries no usable binding. */

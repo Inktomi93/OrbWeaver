@@ -35,6 +35,7 @@ import { MESSAGE_KINDS, PARTICIPANT_KINDS, PARTICIPANT_ROLES } from "@orb/kit/me
 import type { RegexAuthorScope, RegexAuthorSelector, RegexDepth, RegexPass, RegexTarget } from "@orb/kit/regex";
 import {
   EPHEMERAL_REGEX_PASSES,
+  findPatternCompiles,
   findPatternLimitBreak,
   MAX_FIND_REGEX_LENGTH,
   REGEX_DEPTH_FLOOR,
@@ -224,6 +225,28 @@ export function stPlacementsWithoutTarget(candidate: unknown): readonly number[]
   );
 }
 
+const ST_SUBSTITUTE_MODES: readonly unknown[] = Object.values(SubstituteFindRegex);
+
+function isSubstituteMode(value: unknown): value is SubstituteFindRegex {
+  return ST_SUBSTITUTE_MODES.includes(value);
+}
+
+/** Whether a card-wire script's find pattern compiles; true for a script in this app's own spelling, which is stored
+ *  as written. SillyTavern keeps a script that does not compile and never runs it, so the lift imports it switched
+ *  off, and every import door names it. */
+export function stScriptPatternCompiles(candidate: unknown): boolean {
+  if (typeof candidate !== "object" || candidate === null || Array.isArray(candidate)) {
+    return true;
+  }
+  const obj = candidate as Record<string, unknown>;
+  const findRegex = obj["findRegex"];
+  if (!isStDialect(obj) || typeof findRegex !== "string") {
+    return true;
+  }
+  const mode = obj["substituteRegex"] === undefined ? undefined : stSubstituteRegex(obj["substituteRegex"]);
+  return findPatternCompiles({ findRegex, substituteRegex: isSubstituteMode(mode) ? mode : undefined });
+}
+
 /** ST's older BOOLEAN spelling of `substituteRegex`: `true` substituted macros into the pattern raw, `false`
  *  did not. Any other value is the current enum form and passes through to the schema. */
 function stSubstituteRegex(value: unknown): unknown {
@@ -268,9 +291,9 @@ function liftStScriptWire(obj: Record<string, unknown>, placement: readonly unkn
     ...rest,
     name: typeof scriptName === "string" ? scriptName : rest["name"],
     ...(typeof rest["disabled"] === "boolean" ? { enabled: !rest["disabled"] } : {}),
-    // A script whose every placement has no target here runs nowhere: it is kept, so the owner can retarget it, but
-    // switched off, so the library never shows an enabled script that does nothing.
-    ...(targets.length === 0 ? { enabled: false } : {}),
+    // A script with no target here, or whose pattern does not compile, runs nowhere: it is kept, so the owner can fix
+    // it, but switched off, so the library never shows an enabled script that does nothing.
+    ...(targets.length === 0 || !stScriptPatternCompiles(obj) ? { enabled: false } : {}),
     targets,
     passes,
     ...(depth === undefined ? {} : { depth }),
@@ -388,6 +411,20 @@ export const regexScriptCardSchema = z.preprocess(
 );
 
 export type RegexScriptCard = z.output<typeof regexScriptCardSchema>;
+
+/** The content identity of one script: its name and its behavior under a stable key order, since a JSON blob's key
+ *  order is not semantic. Its switch is not part of it: a library row holds one switch for every carrier it is
+ *  attached to. An import reuses an owned row by this key, and a preset's import identity is built from it. */
+export function regexScriptContentKey(name: string, behavior: RegexScriptBehavior): string {
+  const entries = Object.entries(behavior).sort(([a], [b]) => (a < b ? -1 : 1));
+  return `${name} ${JSON.stringify(entries)}`;
+}
+
+/** {@link regexScriptContentKey} of a card-wire script; its foreign id is provenance, not content. */
+export function regexScriptCardContentKey(script: RegexScriptCard): string {
+  const { id: _id, name, enabled: _enabled, ...behavior } = script;
+  return regexScriptContentKey(name, regexScriptBehaviorSchema.parse(behavior));
+}
 
 /** The stored-length cap an imported script broke. `max` is the largest value the cap admits. */
 export interface RegexScriptLimitBreak {
