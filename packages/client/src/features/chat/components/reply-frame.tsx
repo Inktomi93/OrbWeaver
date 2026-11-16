@@ -36,6 +36,7 @@ import { useCardFrame } from "#data";
 import { REPLY_FRAME_UNNAMED_TITLE } from "../lib/reply-frame-names.ts";
 import type { FrameReplySegment, ReplyRunStyles } from "../lib/reply-parts.ts";
 import type { CardOrigin } from "./card-block.tsx";
+import { FramedMediaNotice } from "./plain-content-notice.tsx";
 
 export interface ReplyFrameProps {
   readonly segments: readonly FrameReplySegment[];
@@ -162,6 +163,9 @@ export function ReplyFrame({ segments, styles, colorQuotes, cardOrigin, speakerN
         unframed
       )}
       {links.confirm}
+      {mint.state === "routed" && built !== undefined ? (
+        <FramedMediaNotice chatId={cardOrigin?.chatId} characterId={cardOrigin?.characterId ?? null} html={built.html} css={built.look.css} />
+      ) : null}
     </Stack>
   );
 }

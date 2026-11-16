@@ -45,9 +45,11 @@ export function isConfigGroupId(v: unknown): v is ConfigGroupId {
  *  settings"), so its id lives beside the group vocabulary rather than in two features. */
 export const MULTI_USER_CONFIG_SUB = "multi-user";
 
-/** The Admin group's Media and trust section and its rich-HTML setting, which a chat row's plain-content notice opens. */
+/** The Admin group's Media and trust section and its rich-HTML and external-media settings, which a chat row's plain-content
+ *  and framed-media notices open. */
 export const MEDIA_TRUST_CONFIG_SUB = "media-trust";
 export const TRUST_HTML_CONFIG_SETTING = "trust-html";
+export const FORBID_EXTERNAL_MEDIA_CONFIG_SETTING = "forbid-external-media";
 
 /** The LIST's four named shelves, in paint order — the settings nav's `SETTINGS_GROUPS` (User/App) with the
  *  two shelves the unification added. `user`, NOT "you" (owner correction 2026-08-30): the mobile "You"

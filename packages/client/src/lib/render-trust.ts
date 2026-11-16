@@ -193,6 +193,48 @@ export function resolvePlainVerdict(subject: PlainSubject, viewerIsAdmin: boolea
   };
 }
 
+/** Which setting holds external media out of a framed card or styled reply: the install's, the character's own, or
+ *  none, because no seated character's policy covers the row and the frame takes the floor. */
+const FRAMED_MEDIA_REASONS = ["install-media", "character-media", "unattributed-media"] as const;
+export type FramedMediaReason = (typeof FRAMED_MEDIA_REASONS)[number];
+
+/** A framed row's author as the room's roster resolves it, beside the install's own media setting. */
+export interface FramedMediaSubject {
+  /** The seat's server-resolved policy; absent when no seated character covers the row. */
+  readonly policy: RenderPolicy | undefined;
+  /** The install's `forbidExternalMedia`, as `/api/auth/config` serves it to every viewer. */
+  readonly installForbids: boolean;
+  readonly characterId: CharacterId | null;
+  readonly characterName: string | undefined;
+  readonly viewerIsHost: boolean;
+}
+
+export interface FramedMediaVerdict {
+  readonly reason: FramedMediaReason;
+  readonly remedy: PlainRemedy;
+  readonly characterId: CharacterId | null;
+  readonly characterName: string | undefined;
+}
+
+/** Which setting withholds a framed row's external media and where this viewer can change it, or `undefined` when the
+ *  row's policy lets it load. The resolved policy is tighten-only (`resolveRenderPolicy`), so the install's setting
+ *  binds whenever it forbids, and the character's own setting binds only when the install allows. Both inputs are
+ *  already on every member's roster and auth config, so the verdict tells a member nothing new. */
+export function resolveFramedMediaVerdict(subject: FramedMediaSubject, viewerIsAdmin: boolean): FramedMediaVerdict | undefined {
+  const { policy, characterId } = subject;
+  if (!(policy ?? SAFE_FLOOR).forbidExternalMedia) {
+    return undefined;
+  }
+  const unnamed = { characterId: null, characterName: undefined };
+  if (policy === undefined || characterId === null) {
+    return { reason: "unattributed-media", remedy: "none", ...unnamed };
+  }
+  if (subject.installForbids) {
+    return { reason: "install-media", remedy: viewerIsAdmin ? "system-trust" : "ask-admin", ...unnamed };
+  }
+  return { reason: "character-media", remedy: subject.viewerIsHost ? "character-trust" : "ask-host", characterId, characterName: subject.characterName };
+}
+
 export function resolveRowRenderPolicy(input: ResolveRowRenderPolicyInput): RowRenderPolicy {
   const { role, authorUserId, characterId, viewerUserId, participants } = input;
 

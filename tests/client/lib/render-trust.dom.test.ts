@@ -1,12 +1,12 @@
-// The plain-content verdict over every row it can face: the reason a plain row names and the remedy each viewer gets,
+// The plain-content and framed-media verdicts. The plain-content verdict over every row it can face: the reason a plain row names and the remedy each viewer gets,
 // for a character's own setting, an inherited install default, a seat with no readable card (deleted, or a former
 // host's after a handoff), a room with no consenting host, another person's row and an unattributed one. Each subject
 // comes from `resolveRowRenderPolicy` over a roster seat parsed by the wire schema, as the transcript builds it.
 
 import type { PlainReason, PlainRemedy } from "@orb/client/lib";
-import { resolvePlainVerdict, resolveRowRenderPolicy } from "@orb/client/lib";
+import { resolveFramedMediaVerdict, resolvePlainVerdict, resolveRowRenderPolicy } from "@orb/client/lib";
 import type { ParticipantView, RenderPolicySource } from "@orb/contracts/chat";
-import { participantViewSchema, TALKATIVENESS_DEFAULT } from "@orb/contracts/chat";
+import { participantViewSchema, resolveRenderPolicy, TALKATIVENESS_DEFAULT } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId, mintUserId } from "@orb/kit/ids";
 import { createSeededIds } from "@orb/testkit/iso";
@@ -125,6 +125,68 @@ test("a row another person wrote, and a row no seated character covers, offer no
     }
     for (const isAdmin of [true, false]) {
       expect(resolvePlainVerdict(row.plain, isAdmin)).toEqual({ reason, remedy: "none", characterId: null, characterName: undefined });
+    }
+  }
+});
+
+// A framed row's withheld external media, over the policy `resolveRenderPolicy` folds from the install's and the
+// character's own media settings: the install binds whenever it forbids, the character only when the install allows.
+// Each case states the verdict per viewer; the install's remedy turns on admin standing, the character's on hosting.
+const INSTALL_BINDS = {
+  reason: "install-media",
+  characterNamed: false,
+  remedies: { "admin host": "system-trust", "admin member": "system-trust", host: "ask-admin", member: "ask-admin" },
+} as const;
+const CHARACTER_BINDS = {
+  reason: "character-media",
+  characterNamed: true,
+  remedies: { "admin host": "character-trust", "admin member": "ask-host", host: "character-trust", member: "ask-host" },
+} as const;
+const FRAMED_MEDIA_CASES = [
+  { install: true, character: true, binds: INSTALL_BINDS },
+  { install: true, character: null, binds: INSTALL_BINDS },
+  { install: false, character: true, binds: CHARACTER_BINDS },
+  { install: false, character: false, binds: undefined },
+] as const;
+
+for (const { install, character, binds } of FRAMED_MEDIA_CASES) {
+  test(`framed media with the install forbidding ${String(install)} and the character forbidding ${String(character)}`, () => {
+    const characterId = mintTypeId(ID_PREFIX.character, ids.next);
+    const policy = resolveRenderPolicy(
+      { trustHtml: true, forbidExternalMedia: install, allowInteractiveCards: true },
+      { trustHtml: true, interactiveHtml: false, forbidExternalMedia: character },
+    );
+    for (const viewer of VIEWERS) {
+      const { viewerIsHost, isAdmin } = viewerStanding(viewer);
+      const verdict = resolveFramedMediaVerdict({ policy, installForbids: install, characterId, characterName: CHARACTER_NAME, viewerIsHost }, isAdmin);
+      const expected =
+        binds === undefined
+          ? undefined
+          : {
+              reason: binds.reason,
+              remedy: binds.remedies[viewer],
+              characterId: binds.characterNamed ? characterId : null,
+              characterName: binds.characterNamed ? CHARACTER_NAME : undefined,
+            };
+      expect(verdict, viewer).toEqual(expected);
+    }
+  });
+}
+
+test("framed media no seated character covers stays blocked with no remedy, even on an install that allows it", () => {
+  const characterId = mintTypeId(ID_PREFIX.character, ids.next);
+  for (const subject of [
+    { policy: undefined, characterId },
+    { policy: { htmlTrust: "trusted", forbidExternalMedia: true } as const, characterId: null },
+  ]) {
+    for (const viewer of VIEWERS) {
+      const { viewerIsHost, isAdmin } = viewerStanding(viewer);
+      expect(resolveFramedMediaVerdict({ ...subject, installForbids: false, characterName: CHARACTER_NAME, viewerIsHost }, isAdmin)).toEqual({
+        reason: "unattributed-media",
+        remedy: "none",
+        characterId: null,
+        characterName: undefined,
+      });
     }
   }
 });
