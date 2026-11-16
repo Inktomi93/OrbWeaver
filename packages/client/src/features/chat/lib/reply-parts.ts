@@ -5,10 +5,10 @@
 // chrome is the app's).
 
 import type { CardTrust, MessageContentBlock } from "@orb/contracts/chat";
-import type { FrameStyleSheet } from "@orb/kit/content";
-import { frameStyleElements, heldBlockRanges, holdBlocksWhole, paragraphBreaks, tokenizeContent } from "@orb/kit/content";
+import type { FrameStyleSheet, TextRange } from "@orb/kit/content";
+import { frameStyleElements, heldBlockRanges, holdBlocksWhole, markupUnitRanges, modelPanels, paragraphBreaks, tokenizeContent } from "@orb/kit/content";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
-import type { PlainReplyReason } from "#lib";
+import type { PlainReplyReason, RowRenderPolicy } from "#lib";
 import { PLAIN_REPLY_REASON } from "#lib";
 import { toContentBlocks } from "./content-blocks.ts";
 
@@ -32,6 +32,30 @@ export const REPLY_CARRY_BUDGET_CHARS = REPLY_CARRY_BUDGET_MIB * CHARS_PER_MIB;
 /** The stylesheet copies all of one reply's runs may carry between them. Each is an element in another run's document,
  *  and text alone cannot bound them: an empty sheet carries none. A heavy styling preset carries a few dozen. */
 export const REPLY_CARRY_BUDGET_SHEETS = 1024;
+/** The longest drawn body the panel readers read (`modelPanels`, `markupUnitRanges`), each linear in it. A bound against
+ *  abuse that fails closed: a longer body never frames, and a longer stream holds. It sits above the largest framed reply
+ *  measured, whose whole rendered document is 204,544 characters. */
+export const PANEL_READ_MAX_CHARS = 262_144;
+
+const NO_RANGES: readonly TextRange[] = [];
+
+/** What the panel readers say about a drawn body: the ranges no speaker label may split, and whether the body holds a
+ *  panel its author wrote, which frames it on the sandboxed tier and raises the plain notice on the other. Nothing is
+ *  read past {@link PANEL_READ_MAX_CHARS}: such a body holds no panel, and a sandboxed one is opaque whole, since a label
+ *  split could cut an element a later strip reads whole. The speaker guard reads only on the sandboxed tier. */
+export function readPanels(
+  text: string,
+  render: Pick<RowRenderPolicy, "cardTier" | "lenientCards">,
+): {
+  readonly opaque: readonly TextRange[];
+  readonly modelPanel: boolean;
+} {
+  const sandboxed = render.cardTier === "tierB";
+  if (text.length > PANEL_READ_MAX_CHARS) {
+    return { opaque: sandboxed ? [{ start: 0, end: text.length }] : NO_RANGES, modelPanel: false };
+  }
+  return { opaque: sandboxed ? markupUnitRanges(text) : NO_RANGES, modelPanel: modelPanels(text, { lenientHtml: render.lenientCards }).length > 0 };
+}
 
 /** What a styled reply renders: its frame runs and native blocks, or the plain path whole, with the reason. */
 export type ReplyLayout = { readonly kind: "framed"; readonly parts: readonly ReplyPart[] } | { readonly kind: "plain"; readonly reason: PlainReplyReason };

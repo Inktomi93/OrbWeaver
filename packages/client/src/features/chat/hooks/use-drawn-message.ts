@@ -2,7 +2,6 @@
 // speaker split, each run once over the text. The single-bubble row draws its body through it once
 // (`MessageContent`), and Tide's train draws the whole reply through it once and cuts what it drew (`MessageTrain`).
 
-import { markupUnitRanges, modelPanels } from "@orb/kit/content";
 import type { SpeakerSpan } from "@orb/kit/speaker-label";
 import { parseSpeakerSpans } from "@orb/kit/speaker-label";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
@@ -10,9 +9,10 @@ import type { RefCallback } from "react";
 import type { PluginDisplayRow } from "#data";
 import { usePluginDisplayText } from "#data";
 import type { DisplayRowCall, MessageRenderContext, RowRenderPolicy } from "#lib";
+import { PLAIN_REPLY_REASON } from "#lib";
 import type { CardOrigin } from "../components/card-block.tsx";
 import type { ReplyLayout } from "../lib/reply-parts.ts";
-import { replyLayout } from "../lib/reply-parts.ts";
+import { PANEL_READ_MAX_CHARS, readPanels, replyLayout } from "../lib/reply-parts.ts";
 import { colorForCharacter } from "../lib/speaker-color.ts";
 import { useDisplayText } from "./use-display-text.ts";
 
@@ -71,11 +71,12 @@ export function useDrawnMessage(content: string, props: MessageDrawProps): Drawn
   // produced. Inert without a row or without a registered transform — same string in, same string out.
   const resolvedContent = usePluginDisplayText(displayed, pluginDisplayRow);
   const characterNames = narratorVoiced && speakerThemes !== undefined ? [...speakerThemes.keys()] : NO_CHARACTER_NAMES;
+  const panels = readPanels(resolvedContent, props.render);
   return {
     text: resolvedContent,
-    spans: parseSpeakerSpans(resolvedContent, characterNames, markupUnitRanges(resolvedContent)),
+    spans: parseSpeakerSpans(resolvedContent, characterNames, panels.opaque),
     styled,
-    modelPanel: modelPanels(resolvedContent, { lenientHtml: props.render.lenientCards }).length > 0,
+    modelPanel: panels.modelPanel,
     pending,
     rewritten: resolvedContent !== displayed,
     observeBody,
@@ -93,6 +94,9 @@ export function drawnLayout(drawn: Omit<DrawnMessage, "observeBody">, props: Pic
   const frames = (drawn.styled && !drawn.rewritten) || drawn.modelPanel;
   if (render.cardTier !== "tierB" || !frames || drawn.pending) {
     return undefined;
+  }
+  if (drawn.text.length > PANEL_READ_MAX_CHARS) {
+    return { kind: "plain", reason: PLAIN_REPLY_REASON.carriedStylesOverBudget };
   }
   return replyLayout(
     drawn.spans.map((span) => ({

@@ -55,6 +55,7 @@ import { messageBoxFacts } from "../lib/message-box-facts.ts";
 import type { RowSkin } from "../lib/message-row-variants.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { FORMING_CARD_UNTITLED, REPLY_PANEL_FORMING_TITLE } from "../lib/reply-frame-names.ts";
+import { PANEL_READ_MAX_CHARS } from "../lib/reply-parts.ts";
 import { gutterRailFor } from "../lib/row-placement.ts";
 import { CardBlock } from "./card-block.tsx";
 import { GhostActionsFootprint } from "./message-actions-cluster.tsx";
@@ -76,6 +77,8 @@ interface GhostSegmentOptions {
   readonly cardTier: CardTrust;
   /** A display script in force may reshape this reply's markup once it settles, so the stream holds it (D354). */
   readonly holdsMarkup: boolean;
+  /** The stream has shown a panel its author wrote, so every text segment holds from here (D354). */
+  readonly panelSeen: boolean;
 }
 
 /** One ghost segment → its element. The KEY is `index-kind`, the settled path's precedent
@@ -102,7 +105,7 @@ function ghostSegment(segment: GhostContentSegment, index: number, opts: GhostSe
       />
     );
   }
-  return opts.holdsMarkup || formsPanel(segment.text, opts.cardTier) ? heldGhostText(segment.text, key, opts) : ghostMarkdown(segment.text, key, opts);
+  return opts.holdsMarkup || formsPanel(segment.text, opts) ? heldGhostText(segment.text, key, opts) : ghostMarkdown(segment.text, key, opts);
 }
 
 // A tag line still arriving at the tail: it may yet carry the style attribute that makes its block a panel.
@@ -110,8 +113,13 @@ const ARRIVING_TAG_LINE = /(?:^|\n) {0,3}<[A-Za-z][^>\n]*$/u;
 
 // On the sandboxed tier a reply whose own panel will settle framed (`modelPanels`, D354) holds from the first moment the
 // stream shows one, and while a tag line is still arriving at the tail, so no CSS, script or half a tag ever prints.
-function formsPanel(text: string, cardTier: CardTrust): boolean {
-  return cardTier === "tierB" && (ARRIVING_TAG_LINE.test(text) || modelPanels(text).length > 0);
+function formsPanel(text: string, opts: GhostSegmentOptions): boolean {
+  return opts.cardTier === "tierB" && (opts.panelSeen || ARRIVING_TAG_LINE.test(text));
+}
+
+// Whether the stream shows a panel yet. Past the read bound it holds unread, as a settled body that long never frames.
+function streamShowsPanel(held: string): boolean {
+  return held.length > PANEL_READ_MAX_CHARS || modelPanels(held).length > 0;
 }
 
 // Only the TAIL segment is live (the caret + incomplete-markdown repair); earlier segments are settled text. A
@@ -166,6 +174,13 @@ function GhostBubbleBody({
   readonly holdsMarkup: boolean;
   readonly providerWaiting: boolean;
 }): ReactElement {
+  // A stream that has shown a panel holds to its end, so the whole-text read stops there: each delta would otherwise read
+  // the whole reply again, which over a stream costs the square of its length.
+  const [panelSeen, setPanelSeen] = useState(false);
+  const showsPanel = panelSeen || (cardTier === "tierB" && streamShowsPanel(held));
+  if (showsPanel && !panelSeen) {
+    setPanelSeen(true);
+  }
   if (held.length === 0) {
     // The wait note rides the dots' own reserved line, so it appears and leaves without moving the row.
     return <TypingDots label="Generating a reply…" note={providerWaiting ? CHAT_PROVIDER_WAITING_NOTE : undefined} />;
@@ -178,7 +193,7 @@ function GhostBubbleBody({
     <div data-slot="ghost-stream-body" data-streaming={streaming ? "" : undefined}>
       <Stack gap="row">
         {segments.map((segment, index) =>
-          ghostSegment(segment, index, { isTail: index === segments.length - 1, streaming, colorQuotes, cardTier, holdsMarkup }),
+          ghostSegment(segment, index, { isTail: index === segments.length - 1, streaming, colorQuotes, cardTier, holdsMarkup, panelSeen: showsPanel }),
         )}
       </Stack>
     </div>
