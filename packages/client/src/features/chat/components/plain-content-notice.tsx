@@ -139,9 +139,14 @@ export function FramedMediaNotice({ chatId, characterId, html, css }: FramedMedi
   if (config === undefined || room === undefined) {
     return null;
   }
-  const seat = characterId === null ? undefined : buildParticipantsById(room.participants).get(characterId);
   const verdict = resolveFramedMediaVerdict(
-    { policy: seat?.renderPolicy, installForbids: config.forbidExternalMedia, characterId, characterName: seat?.displayName, viewerIsHost: room.viewerIsHost },
+    {
+      characterId,
+      participants: buildParticipantsById(room.participants),
+      narrator: room.narratorRender,
+      installForbids: config.forbidExternalMedia,
+      viewerIsHost: room.viewerIsHost,
+    },
     isAdmin,
   );
   if (verdict === undefined || !holdsExternalMedia(html, css)) {

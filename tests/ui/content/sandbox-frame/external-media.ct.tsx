@@ -16,7 +16,7 @@ const EXTERNAL: readonly (ExternalMediaCase & { readonly name: string })[] = [
   { name: "a plain-http image", html: `<img src="http://${MEDIA_HOST}/a.png">` },
   { name: "a protocol-relative image", html: `<img src="//${MEDIA_HOST}/a.png">` },
   { name: "a backslashed image the URL parser reads as a host", html: `<img src="\\\\${MEDIA_HOST}/a.png">` },
-  { name: "an entity-encoded scheme", html: `<img src="ht&#116;ps://${MEDIA_HOST}/a.png">` },
+  { name: "a scheme split by a tab the URL parser drops", html: `<img src="ht\ttps://${MEDIA_HOST}/a.png">` },
   { name: "a later srcset candidate", html: `<img srcset="/local.png 1x, https://${MEDIA_HOST}/a.png 2x">` },
   { name: "a picture source", html: `<picture><source srcset="https://${MEDIA_HOST}/a.webp"><img src="/local.png"></picture>` },
   { name: "a video poster", html: `<video poster="https://${MEDIA_HOST}/p.png"></video>` },

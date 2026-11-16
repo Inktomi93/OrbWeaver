@@ -5,8 +5,8 @@
 
 import type { PlainReason, PlainRemedy } from "@orb/client/lib";
 import { resolveFramedMediaVerdict, resolvePlainVerdict, resolveRowRenderPolicy } from "@orb/client/lib";
-import type { ParticipantView, RenderPolicySource } from "@orb/contracts/chat";
-import { participantViewSchema, resolveRenderPolicy, TALKATIVENESS_DEFAULT } from "@orb/contracts/chat";
+import type { ParticipantView, RenderPolicy, RenderPolicySource } from "@orb/contracts/chat";
+import { participantViewSchema, resolveNarratorRenderPolicy, resolveRenderPolicy, TALKATIVENESS_DEFAULT } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId, mintUserId } from "@orb/kit/ids";
 import { createSeededIds } from "@orb/testkit/iso";
@@ -149,6 +149,26 @@ const FRAMED_MEDIA_CASES = [
   { install: false, character: false, binds: undefined },
 ] as const;
 
+/** A character seat at `policy`, as the roster carries it. */
+function mediaSeat(characterId: CharacterId, displayName: string, policy: RenderPolicy): ParticipantView {
+  return { ...characterSeat(characterId, "trusted", "own"), displayName, renderPolicy: policy };
+}
+
+function framedSubject(
+  characterId: CharacterId | null,
+  seats: readonly ParticipantView[],
+  install: boolean,
+  viewerIsHost: boolean,
+): Parameters<typeof resolveFramedMediaVerdict>[0] {
+  return {
+    characterId,
+    participants: new Map(seats.flatMap((seat) => (seat.characterId === null ? [] : [[seat.characterId, seat] as const]))),
+    narrator: resolveNarratorRenderPolicy(seats),
+    installForbids: install,
+    viewerIsHost,
+  };
+}
+
 for (const { install, character, binds } of FRAMED_MEDIA_CASES) {
   test(`framed media with the install forbidding ${String(install)} and the character forbidding ${String(character)}`, () => {
     const characterId = mintTypeId(ID_PREFIX.character, ids.next);
@@ -158,7 +178,7 @@ for (const { install, character, binds } of FRAMED_MEDIA_CASES) {
     );
     for (const viewer of VIEWERS) {
       const { viewerIsHost, isAdmin } = viewerStanding(viewer);
-      const verdict = resolveFramedMediaVerdict({ policy, installForbids: install, characterId, characterName: CHARACTER_NAME, viewerIsHost }, isAdmin);
+      const verdict = resolveFramedMediaVerdict(framedSubject(characterId, [mediaSeat(characterId, CHARACTER_NAME, policy)], install, viewerIsHost), isAdmin);
       const expected =
         binds === undefined
           ? undefined
@@ -173,15 +193,30 @@ for (const { install, character, binds } of FRAMED_MEDIA_CASES) {
   });
 }
 
+test("a narrator row's frame names the present character whose own setting forbids its media, not the first seat", () => {
+  const allowing = mintTypeId(ID_PREFIX.character, ids.next);
+  const forbidding = mintTypeId(ID_PREFIX.character, ids.next);
+  const groupCharacter = mintTypeId(ID_PREFIX.character, ids.next);
+  const allowingSeat = mediaSeat(allowing, "Arthur", { htmlTrust: "trusted", forbidExternalMedia: false });
+  const seats = [allowingSeat, mediaSeat(forbidding, CHARACTER_NAME, { htmlTrust: "interactive", forbidExternalMedia: true })];
+  expect(resolveFramedMediaVerdict(framedSubject(groupCharacter, seats, false, true), false)).toEqual({
+    reason: "character-media",
+    remedy: "character-trust",
+    characterId: forbidding,
+    characterName: CHARACTER_NAME,
+  });
+  // With every seat allowing, the narrator policy loads external media and nothing is withheld.
+  const open = [allowingSeat, mediaSeat(forbidding, CHARACTER_NAME, { htmlTrust: "interactive", forbidExternalMedia: false })];
+  expect(resolveFramedMediaVerdict(framedSubject(groupCharacter, open, false, true), false)).toBeUndefined();
+});
+
 test("framed media no seated character covers stays blocked with no remedy, even on an install that allows it", () => {
-  const characterId = mintTypeId(ID_PREFIX.character, ids.next);
-  for (const subject of [
-    { policy: undefined, characterId },
-    { policy: { htmlTrust: "trusted", forbidExternalMedia: true } as const, characterId: null },
-  ]) {
-    for (const viewer of VIEWERS) {
-      const { viewerIsHost, isAdmin } = viewerStanding(viewer);
-      expect(resolveFramedMediaVerdict({ ...subject, installForbids: false, characterName: CHARACTER_NAME, viewerIsHost }, isAdmin)).toEqual({
+  const seated = mintTypeId(ID_PREFIX.character, ids.next);
+  const seats = [mediaSeat(seated, CHARACTER_NAME, { htmlTrust: "trusted", forbidExternalMedia: false })];
+  // A seatless selector in a room whose roster resolves no narrator policy, and a frame minted with no character.
+  for (const subject of [framedSubject(mintTypeId(ID_PREFIX.character, ids.next), [], false, true), framedSubject(null, seats, false, true)]) {
+    for (const isAdmin of [true, false]) {
+      expect(resolveFramedMediaVerdict(subject, isAdmin)).toEqual({
         reason: "unattributed-media",
         remedy: "none",
         characterId: null,

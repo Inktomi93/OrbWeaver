@@ -204,14 +204,15 @@ export function resolvePlainVerdict(subject: PlainSubject, viewerIsAdmin: boolea
 const FRAMED_MEDIA_REASONS = ["install-media", "character-media", "unattributed-media"] as const;
 export type FramedMediaReason = (typeof FRAMED_MEDIA_REASONS)[number];
 
-/** A framed row's author as the room's roster resolves it, beside the install's own media setting. */
+/** A framed card's or styled reply's mint selector, beside the roster and install reads every member already has. */
 export interface FramedMediaSubject {
-  /** The seat's server-resolved policy; absent when no seated character covers the row. */
-  readonly policy: RenderPolicy | undefined;
+  /** The character the frame was minted for (`CardOrigin.characterId`). */
+  readonly characterId: CharacterId | null;
+  readonly participants: ReadonlyMap<CharacterId, ParticipantView>;
+  /** The room's narrator policy (`ChatDetail.narratorRender`). */
+  readonly narrator: NarratorRenderPolicy | undefined;
   /** The install's `forbidExternalMedia`, as `/api/auth/config` serves it to every viewer. */
   readonly installForbids: boolean;
-  readonly characterId: CharacterId | null;
-  readonly characterName: string | undefined;
   readonly viewerIsHost: boolean;
 }
 
@@ -222,23 +223,36 @@ export interface FramedMediaVerdict {
   readonly characterName: string | undefined;
 }
 
+// The policy the frame was minted under and the character whose own media setting forbids it. A selector with no seat
+// is a narrator row's group character, which the card-frame route resolves to the narrator policy; that policy forbids
+// external media when any present character's does, so the first such seat in roster order is the one to name.
+function framedMediaAuthor(subject: FramedMediaSubject): { readonly policy: RenderPolicy | undefined; readonly seat: ParticipantView | undefined } {
+  const { characterId, participants, narrator } = subject;
+  const seat = characterId === null ? undefined : participants.get(characterId);
+  if (seat !== undefined || characterId === null || narrator === undefined) {
+    return { policy: seat?.renderPolicy, seat };
+  }
+  return { policy: narrator.renderPolicy, seat: [...participants.values()].find((candidate) => candidate.renderPolicy?.forbidExternalMedia === true) };
+}
+
 /** Which setting withholds a framed row's external media and where this viewer can change it, or `undefined` when the
  *  row's policy lets it load. The resolved policy is tighten-only (`resolveRenderPolicy`), so the install's setting
- *  binds whenever it forbids, and the character's own setting binds only when the install allows. Both inputs are
- *  already on every member's roster and auth config, so the verdict tells a member nothing new. */
+ *  binds whenever it forbids, and a character's own setting binds only when the install allows. Every input is already
+ *  on every member's roster and auth config, so the verdict tells a member nothing new. */
 export function resolveFramedMediaVerdict(subject: FramedMediaSubject, viewerIsAdmin: boolean): FramedMediaVerdict | undefined {
-  const { policy, characterId } = subject;
+  const { policy, seat } = framedMediaAuthor(subject);
   if (!(policy ?? SAFE_FLOOR).forbidExternalMedia) {
     return undefined;
   }
   const unnamed = { characterId: null, characterName: undefined };
-  if (policy === undefined || characterId === null) {
-    return { reason: "unattributed-media", remedy: "none", ...unnamed };
-  }
-  if (subject.installForbids) {
+  if (policy !== undefined && subject.installForbids) {
     return { reason: "install-media", remedy: viewerIsAdmin ? "system-trust" : "ask-admin", ...unnamed };
   }
-  return { reason: "character-media", remedy: subject.viewerIsHost ? "character-trust" : "ask-host", characterId, characterName: subject.characterName };
+  const characterId = policy === undefined ? null : (seat?.characterId ?? null);
+  if (characterId === null) {
+    return { reason: "unattributed-media", remedy: "none", ...unnamed };
+  }
+  return { reason: "character-media", remedy: subject.viewerIsHost ? "character-trust" : "ask-host", characterId, characterName: seat?.displayName };
 }
 
 /** The character a row's policy is read from, with that policy as the server resolved it. */
