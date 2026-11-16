@@ -4,12 +4,13 @@
 // later paragraph prints as prose. Each closed element's text is lifted before the parse (`liftRawTextBodies`) and put
 // back after `raw` has rebuilt the element. Only the text moves: the tags stay, so the parse finds the same elements.
 //
-// THE STAND-IN MUST BE ONE NO REPLY CAN SPELL. It is a private-use character around the text's index, and the
-// character is one the text neither holds nor names by number after a `#` (`&#57344;`, `&#xE000`, `&amp;#xE000;`):
-// before the restore, the parse makes new characters only by decoding character references, and no named reference
-// is a private-use character. KaTeX can make any character, but Streamdown runs math after the caller's rehype
-// steps, so the restore never reads its output. `tests/ui/markdown/frame-lift.dom.test.ts` turns red if that order
-// changes. A text that leaves no character free is not lifted.
+// THE STAND-IN MUST BE ONE NO REPLY CAN SPELL. It is a private-use mark around the text's index, and the mark is one
+// the text neither holds nor names by number after a `#` (`&#57344;`, `&#xE000`, `&amp;#xE000;`): before the restore,
+// the parse makes new characters only by decoding character references, and no named reference is a private-use
+// character. The mark is one such character, or, in a text that holds or names every one, a pair of them that never
+// stand next to each other in the text with each reference read as its character. KaTeX can make any character, but
+// Streamdown runs math after the caller's rehype steps, so the restore never reads its output.
+// `tests/ui/markdown/frame-lift.dom.test.ts` turns red if that order changes.
 //
 // EACH TEXT GOES BACK ONCE, at its first stand-in in tree order, and any later copy of a stand-in (a reference link
 // copies its definition's title into every link) drops to nothing. The restore therefore adds at most the lifted texts'
@@ -19,6 +20,9 @@
 //
 // THE RESTORE RUNS AFTER `raw`, ON THE BUILT TREE, NEVER ON THE MARKDOWN: a text put back outside its element lands in
 // a text node, a comment or an attribute value, which the render escapes or drops, so it can never become markup there.
+// THE LIFT IS NO ESCAPE INSIDE ITS ELEMENT: the render writes a style or script element's text raw, so whatever that
+// text does in the frame document it does exactly as the same reply unlifted would. The guard is the frame's CSP for
+// its posture, never this file.
 //
 // THE BODIES RIDE THE PLUGIN'S OPTIONS, NEVER A CLOSURE: Streamdown caches its processor under each plugin's function
 // name and the JSON of its options, so a closure would hand one reply's stylesheet to the next reply that has the same
@@ -51,32 +55,53 @@ export interface RawTextLift {
   readonly rehypePlugins: NonNullable<StreamdownProps["rehypePlugins"]>;
 }
 
-// A number after `#`, in hex after `#x`: what a character reference decodes to, with or without its `&` or `;`.
-const NUMBERED_CHARACTER_RE = /#(?:[xX]0*([0-9A-Fa-f]{1,8})|0*(\d{1,10}))/g;
+// A number after `#`, in hex after `#x`: what a character reference decodes to, with or without its `&` or `;`, and with
+// any run of `amp;` an escaped reference carries.
+const NUMBERED_CHARACTER_RE = /(?:&(?:amp;)*)?#(?:[xX]0*([0-9A-Fa-f]{1,8})|0*(\d{1,10}));?/g;
 const HEX = 16;
 const DECIMAL = 10;
+const PRIVATE_USE_COUNT = PRIVATE_USE_LAST - PRIVATE_USE_FIRST + 1;
 
-// The lowest private-use character `text` neither holds nor names by number, or undefined when none is left. One pass
-// over the characters and one over the numbers.
-function absentPrivateUse(text: string): string | undefined {
+function isPrivateUse(code: number): boolean {
+  return code >= PRIVATE_USE_FIRST && code <= PRIVATE_USE_LAST;
+}
+
+// `text` with each numbered reference read as the character it names: the characters the parse could put side by side.
+function asDecoded(text: string): string {
+  return text.replace(NUMBERED_CHARACTER_RE, (_reference, hex: string | undefined, decimal: string | undefined) => {
+    const code = hex === undefined ? Number.parseInt(decimal ?? "", DECIMAL) : Number.parseInt(hex, HEX);
+    return isPrivateUse(code) ? String.fromCharCode(code) : " ";
+  });
+}
+
+// The mark no reply text can spell (see the header): the lowest private-use character the decoded text lacks, else the
+// lowest pair of them it never holds side by side. A text has fewer pairs than its length, and there are forty million
+// pairs, so one is always free. One pass over the text and one over the marks it rules out.
+function freeMark(text: string): string {
+  const decoded = asDecoded(text);
   const held = new Set<number>();
-  const hold = (code: number): void => {
-    if (code >= PRIVATE_USE_FIRST && code <= PRIVATE_USE_LAST) {
-      held.add(code);
+  const pairs = new Set<number>();
+  for (let index = 0; index < decoded.length; index += 1) {
+    const code = decoded.charCodeAt(index);
+    if (!isPrivateUse(code)) {
+      continue;
     }
-  };
-  for (let index = 0; index < text.length; index += 1) {
-    hold(text.charCodeAt(index));
-  }
-  for (const [, hex, decimal] of text.matchAll(NUMBERED_CHARACTER_RE)) {
-    hold(hex === undefined ? Number.parseInt(decimal ?? "", DECIMAL) : Number.parseInt(hex, HEX));
+    held.add(code);
+    const next = decoded.charCodeAt(index + 1);
+    if (isPrivateUse(next)) {
+      pairs.add((code - PRIVATE_USE_FIRST) * PRIVATE_USE_COUNT + (next - PRIVATE_USE_FIRST));
+    }
   }
   for (let code = PRIVATE_USE_FIRST; code <= PRIVATE_USE_LAST; code += 1) {
     if (!held.has(code)) {
       return String.fromCharCode(code);
     }
   }
-  return undefined;
+  let pair = 0;
+  while (pairs.has(pair)) {
+    pair += 1;
+  }
+  return String.fromCharCode(PRIVATE_USE_FIRST + Math.floor(pair / PRIVATE_USE_COUNT), PRIVATE_USE_FIRST + (pair % PRIVATE_USE_COUNT));
 }
 
 // The tree unified hands a rehype step is a hast root; the guard only names that to the checker.
@@ -122,9 +147,9 @@ function restoreRawText({ mark, bodies }: Lifted): (tree: unknown) => void {
 
 /** Lift each closed `<style>` and `<script>` text out of `markdown` for the parse; see the file header. */
 export function liftRawText(markdown: string): RawTextLift {
-  const mark = absentPrivateUse(markdown);
-  const lifted = mark === undefined ? undefined : liftRawTextBodies(markdown, mark);
-  if (mark === undefined || lifted === undefined || lifted.bodies.length === 0) {
+  const mark = freeMark(markdown);
+  const lifted = liftRawTextBodies(markdown, mark);
+  if (lifted.bodies.length === 0) {
     return { text: markdown, rehypePlugins: [] };
   }
   const options: Lifted = { mark, bodies: lifted.bodies };

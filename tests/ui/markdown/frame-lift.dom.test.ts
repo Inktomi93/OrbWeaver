@@ -84,9 +84,33 @@ test("the mark is a private-use character", () => {
   expect(MARK).toMatch(PRIVATE_USE_RE);
 });
 
-test("a reply holding every private-use character is parsed as written", () => {
+test("a reply holding every private-use character still has its stylesheet go back whole, under a mark of two", () => {
   const html = framed(`${EVERY_BMP_PRIVATE_USE}\n\nlit ${FORGED_STAND_IN} <div><style>.a{}\n\n.b{}</style></div>`);
   expect(html).toContain(`lit ${FORGED_STAND_IN}`);
+  expect(html).toContain("<style>.a{}\n\n.b{}</style>");
+  expect(html).not.toMatch(/<p[^>]*>\.b\{/u);
+});
+
+// Every private-use character named by reference, so no single character is free, in a 4 MB-class reply.
+const EVERY_PRIVATE_USE_NAMED = (EVERY_BMP_PRIVATE_USE.match(/\p{Co}/gu) ?? []).map((char) => `&#x${(char.codePointAt(0) ?? 0).toString(16)};`).join(" ");
+
+// The pair the lift marks `text` with when no single private-use character is free.
+function pairMark(text: string): string {
+  return /(\p{Co}{2})0\1/u.exec(liftRawText(text).text)?.[1] ?? "";
+}
+
+test("a reply naming every private-use character by reference is lifted under a pair it never spells", () => {
+  const reply = `${EVERY_PRIVATE_USE_NAMED}\n\n${PANEL}`;
+  expect(pairMark(reply)).toHaveLength(2);
+  expect(framed(reply)).toContain(`<style>${PANEL_BODY}</style>`);
+});
+
+test("a reply spelling that pair's stand-in by reference prints it as written and captures no text", () => {
+  const reply = `${EVERY_PRIVATE_USE_NAMED}\n\n${PANEL}`;
+  const named = (pairMark(reply).match(/\p{Co}/gu) ?? []).map((char) => `&#x${(char.codePointAt(0) ?? 0).toString(16)};`).join("");
+  const html = framed(`${reply}\n\n<code>${named}0${named}</code>`);
+  expect(html.split(".real{").length).toBe(2);
+  expect(html).toContain(`<style>${PANEL_BODY}</style>`);
 });
 
 const PANEL = "<div><style>.real{color:red}\n\n.tail{}</style></div>";
