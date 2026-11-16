@@ -6,6 +6,7 @@
 
 import type { ThemeOverride } from "@orb/contracts/theme";
 import { cardEmbeddableSubset } from "@orb/contracts/theme";
+import { stripStyleElements } from "@orb/kit/content";
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
@@ -223,7 +224,7 @@ function GreetingBody({
                   <Text voice="quiet">No first message yet.</Text>
                 ) : (
                   <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static" colorQuotes={colorQuotes} allowExternalMedia={allowExternalMedia}>
-                    {active}
+                    {stripStyleElements(active)}
                   </Markdown>
                 )}
               </Spoiler>

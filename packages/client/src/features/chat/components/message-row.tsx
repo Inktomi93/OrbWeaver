@@ -57,8 +57,8 @@ import {
   resolveGenerationCredit,
   resolveMessageFooter,
   resolveRowContent,
+  rowTrains,
   themedColumnContent,
-  trainParagraphsFor,
 } from "./message-row-parts.tsx";
 
 export interface MessageRowProps {
@@ -287,7 +287,7 @@ export function MessageRow({
   const content = resolveRowContent({
     editing,
     message: displayedMessage,
-    trainParagraphs: trainParagraphsFor(displayedMessage, editing, skin.bubbleLayout === "trains"),
+    trains: rowTrains(displayedMessage, editing, skin.bubbleLayout === "trains"),
     render,
     renderContext,
     speakerThemes,
@@ -436,7 +436,7 @@ export function MessageRow({
                   headerOverlaid: !shape.ownLine,
                   content,
                   reasoning: renderRowReasoning({ editing, message, renderContext, showLLMReasoningIcon, viewerIsHost, viewerUserId, displayDepth }),
-                  trainParagraphs: trainParagraphsFor(displayedMessage, editing, skin.bubbleLayout === "trains"),
+                  trains: rowTrains(displayedMessage, editing, skin.bubbleLayout === "trains"),
                   skin,
                   decoration,
                   weldedAvatar,

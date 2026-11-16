@@ -26,7 +26,8 @@ import { executeRegexScripts, regexSkipReason } from "@orb/kit/regex";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { toContentBlocks } from "#client/features/chat/lib/content-blocks.ts";
-import { replyParts } from "#client/features/chat/lib/reply-parts.ts";
+import type { ReplyPart } from "#client/features/chat/lib/reply-parts.ts";
+import { replyLayout } from "#client/features/chat/lib/reply-parts.ts";
 import { DISPLAY_OUTPUT_MAX_CHARS, DISPLAY_ROW_BUDGET_MS, DISPLAY_SCRIPT_DEADLINE_MS } from "#client/lib/display-pass-protocol.ts";
 import type { DisplayPass, DisplayRowCall, MessageRenderContext } from "#client/lib/message-render.ts";
 import { applyDisplayScript, prepareDisplayPass, renderStyledMessageForDisplay } from "#client/lib/message-render.ts";
@@ -293,9 +294,14 @@ function shapeOf(text: string): string[] {
   return shapes.flatMap(([name, present]) => (present ? [name] : []));
 }
 
+// A reply too heavy to frame renders through the inert path whole, so only a framed layout has native parts.
+function framedParts(layout: ReturnType<typeof replyLayout>): readonly ReplyPart[] {
+  return layout.kind === "framed" ? layout.parts : [];
+}
+
 function nativeLeaks(text: string, lines: readonly string[]): string[] {
   return [false, true].flatMap((lenientHtml) =>
-    replyParts([{ text, tokens: undefined }], { lenientHtml }).flatMap((part) =>
+    framedParts(replyLayout([{ text, tokens: undefined }], { lenientHtml, cardTrust: "tierB" })).flatMap((part) =>
       part.kind === "native" && part.block.kind === "markdown" && leaksAny(part.block.md, lines) ? [`native-leak(lenient=${String(lenientHtml)})`] : [],
     ),
   );

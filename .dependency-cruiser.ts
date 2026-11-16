@@ -310,7 +310,15 @@ const LAYER_DIRECTION = [
 const UI_FRAME_MARKDOWN_FRAME_ONLY: IForbiddenRuleType = {
   name: "ui-frame-markdown-frame-only",
   severity: "error",
-  from: { pathNot: ["^packages/ui/src/markdown/frame/", "^packages/client/src/features/chat/components/reply-frame\\.tsx$"] },
+  // The test renders the frame lift in node: the one production importer builds its document only in a mounted effect
+  // behind the card-frame mint, so no node test can reach the lift through it.
+  from: {
+    pathNot: [
+      "^packages/ui/src/markdown/frame/",
+      "^packages/client/src/features/chat/components/reply-frame\\.tsx$",
+      "^tests/ui/markdown/frame-lift\\.dom\\.test\\.ts$",
+    ],
+  },
   to: { path: "^packages/ui/src/markdown/frame/" },
 };
 
@@ -1109,6 +1117,21 @@ const PACKAGE_TEST_REACHES = {
   },
   "tests/client/features/chat/lib/display-row.test.ts": {
     "packages/client/src/features/chat/lib/display-row.ts": "displayDepthsOf and roomStandingOf: the depth and seat inputs every row's display call reads",
+  },
+  "tests/client/features/chat/lib/reply-parts.test.ts": {
+    "packages/client/src/features/chat/lib/reply-parts.ts": "replyLayout: the feature-private split of a styled reply into frame runs and native blocks",
+  },
+  "tests/client/features/chat/lib/split-paragraphs.test.ts": {
+    "packages/client/src/features/chat/lib/split-paragraphs.ts": "splitIntoTrainParagraphs: the feature-private split of a reply into Tide's bubbles",
+  },
+  "tests/client/features/chat/components/styled-reply-frame.ct.tsx": {
+    "packages/client/src/features/chat/lib/reply-parts.ts": "REPLY_CARRY_BUDGET_CHARS: the carry budget the over-budget reply is sized past",
+  },
+  "tests/ui/markdown/frame-lift.dom.test.ts": {
+    "packages/ui/src/markdown/frame/frame-document-context.ts":
+      "FrameDocumentContext: the frame-document flag FrameMarkdown requires, which only useFrameDocument sets inside a mounted effect, so a node render of the frame lift supplies it directly",
+    "packages/ui/src/markdown/frame/raw-text-lift.ts":
+      "liftRawText: the stand-in the lift picks, which no render shows when a reply names it only behind an escape",
   },
   "tests/client/features/chat/components/platform-pinned-band-height.suite.ct.tsx": {
     "packages/client/src/features/chat/lib/message-row-variants.ts": "MESSAGE_ROW_SKINS: the styles whose pinned band height the suite holds",

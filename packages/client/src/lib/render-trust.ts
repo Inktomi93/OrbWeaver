@@ -33,6 +33,11 @@ const SAFE_FLOOR: RenderPolicy = { htmlTrust: "untrusted", forbidExternalMedia: 
  *  fail-closed default is how one of them drifts permissive. */
 export const DEPLOYMENT_FLOOR: DeploymentRenderPolicy = { trustHtml: false, forbidExternalMedia: true, allowInteractiveCards: false };
 
+/** Why a styled reply the row's tier would frame renders on the inert plain path instead, by role: the reason the
+ *  plain-content notice names. */
+export const PLAIN_REPLY_REASON = { carriedStylesOverBudget: "carried-styles-over-budget" } as const;
+export type PlainReplyReason = (typeof PLAIN_REPLY_REASON)[keyof typeof PLAIN_REPLY_REASON];
+
 export interface RowRenderPolicy {
   readonly trust: RenderTrust;
   readonly allowExternal: boolean;

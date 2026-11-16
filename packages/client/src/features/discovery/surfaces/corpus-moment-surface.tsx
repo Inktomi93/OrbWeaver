@@ -1,6 +1,7 @@
 import type { MessageView } from "@orb/contracts/chat";
 import { buildIdentityNameContext, isNarratorVoiced } from "@orb/contracts/chat";
 import type { CorpusSourceOutcome } from "@orb/contracts/search";
+import { stripStyleElements } from "@orb/kit/content";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Button } from "@orb/ui/button";
 import { Section, Stack } from "@orb/ui/layout";
@@ -90,7 +91,7 @@ function SourceTranscript({ destination }: { readonly destination: Moment }): Re
                   {sourceSpeakerName(message, names)} · Message {message.seq}
                 </Text>
                 <Markdown trust="untrusted" mode="static">
-                  {message.content}
+                  {stripStyleElements(message.content)}
                 </Markdown>
               </Stack>
             ))}

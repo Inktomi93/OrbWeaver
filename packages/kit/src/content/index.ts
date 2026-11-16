@@ -540,11 +540,11 @@ function matchText(line: Line): string {
 /** §4.8 element-majority: enough non-empty lines and MORE than half of them carry a tag. */
 function isElementMajorityHtml(texts: readonly string[], minLines: number): boolean {
   const nonEmpty = texts.filter((l) => l.trim().length > 0);
-  if (nonEmpty.length < minLines) {
-    return false;
-  }
-  const tagged = nonEmpty.filter((l) => TAGGED_LINE_RE.test(l)).length;
-  return tagged * 2 > nonEmpty.length;
+  return isElementMajorityCount(nonEmpty.length, nonEmpty.filter((l) => TAGGED_LINE_RE.test(l)).length, minLines);
+}
+
+function isElementMajorityCount(nonEmpty: number, tagged: number, minLines: number): boolean {
+  return nonEmpty >= minLines && tagged * 2 > nonEmpty;
 }
 
 /** §4.8 derived stub title: first `<h1-3>`/`<title>` text, else null (the stub renders `[card]`). */
@@ -705,26 +705,76 @@ function tryLenientMarkupFence(content: string, lines: readonly Line[], i: numbe
   return { pieces: [{ kind: "span", span }, ...tailPiece(content, lines, closeIdx, false)], next: closeIdx + 1 };
 }
 
-/** §4.8 naked-HTML arm: a contiguous ≥N-line element-majority run opening with a block-level tag. */
-function tryLenientBlock(content: string, lines: readonly Line[], i: number): BlockResult | null {
+/** One lenient run, read once: its first line, the index past its last line, and for each of its lines the counts of
+ *  non-empty and tagged lines from that line to the run's end, which the majority test reads. */
+interface LenientRun {
+  readonly from: number;
+  readonly end: number;
+  readonly nonEmpty: readonly number[];
+  readonly tagged: readonly number[];
+}
+
+// The lenient run from line `i`. A blank or code-fence line ends it, unless it is a raw-text element's text, and that
+// text is left out of the counts. A run started from any of its later lines ends at the same line and counts a suffix
+// of the same lines, so the run is read once and every opening line inside it reads its counts from the memo: a run
+// that fails the majority test is not rescanned for each opener in it.
+function lenientRunFrom(env: ScanEnv, i: number, covering: (offset: number) => RawTextElement | undefined): LenientRun {
+  const held = env.lenientRun.current;
+  if (held !== undefined && held.from <= i && i < held.end) {
+    return held;
+  }
+  const flags: { readonly nonEmpty: boolean; readonly tagged: boolean }[] = [];
+  let j = i;
+  for (let line = env.lines[j]; line !== undefined; line = env.lines[j]) {
+    const t = matchText(line);
+    const inside = covering(line.start) !== undefined;
+    if (!inside && (t.trim().length === 0 || t.startsWith(CODE_FENCE_MARK))) {
+      break;
+    }
+    const counted = !inside && line.text.trim().length > 0;
+    flags.push({ nonEmpty: counted, tagged: counted && TAGGED_LINE_RE.test(line.text) });
+    j += 1;
+  }
+  const run: LenientRun = {
+    from: i,
+    end: j,
+    nonEmpty: suffixCounts(flags.map((flag) => flag.nonEmpty)),
+    tagged: suffixCounts(flags.map((flag) => flag.tagged)),
+  };
+  env.lenientRun.current = run;
+  return run;
+}
+
+// For each index, how many of the flags from it to the end are set; one entry more, the empty suffix's zero.
+function suffixCounts(flags: readonly boolean[]): readonly number[] {
+  const counts = Array.from({ length: flags.length + 1 }, () => 0);
+  for (let k = flags.length - 1; k >= 0; k -= 1) {
+    counts[k] = (counts[k + 1] ?? 0) + (flags[k] === true ? 1 : 0);
+  }
+  return counts;
+}
+
+/** §4.8 naked-HTML arm: a contiguous ≥N-line element-majority run opening with a block-level tag. A `<style>` or
+ *  `<script>` element is one unit of the run: a blank line inside one does not end it, and its own lines are not
+ *  counted toward the majority. */
+function tryLenientBlock(env: ScanEnv, i: number): BlockResult | null {
+  const { content, lines } = env;
   const first = lines[i];
   if (first === undefined || !LENIENT_BLOCK_OPEN_RE.test(matchText(first))) {
     return null;
   }
-  let j = i;
-  while (j < lines.length) {
-    const line = lines[j];
-    const t = line === undefined ? "" : matchText(line);
-    if (t.trim().length === 0 || t.startsWith(CODE_FENCE_MARK)) {
-      break;
-    }
-    j += 1;
-  }
-  const runLines = sliceTexts(lines, i, j);
-  const last = lines[j - 1];
-  if (last === undefined || !isElementMajorityHtml(runLines, LENIENT_HTML_MIN_LINES)) {
+  const covering = rawTextCursor(env.rawText, firstRawTextEndingAfter(env.rawText, first.start));
+  // A tag line inside a stylesheet or script is its text, not a block.
+  if (covering(first.start) !== undefined) {
     return null;
   }
+  const run = lenientRunFrom(env, i, covering);
+  const j = run.end;
+  const last = lines[j - 1];
+  if (last === undefined || !isElementMajorityCount(run.nonEmpty[i - run.from] ?? 0, run.tagged[i - run.from] ?? 0, LENIENT_HTML_MIN_LINES)) {
+    return null;
+  }
+  const runLines = sliceTexts(lines, i, j);
   const body = runLines.join("\n");
   const raw = content.slice(first.start, last.end);
   const span: ContentSpan = { kind: "card", title: deriveCardTitle(body), body, origin: "lenient", raw };
@@ -744,6 +794,26 @@ interface ScanEnv {
   readonly lenient: boolean;
   /** Final-body semantics: a registered fence with no close consumes to EOF (`TokenizeContentOptions`). */
   readonly committed: boolean;
+  /** The body's `<style>` and `<script>` elements; read only when the lenient arm is on, the one step that needs them. */
+  readonly rawText: readonly RawTextElement[];
+  /** The last lenient run read (`lenientRunFrom`), so its later opening lines do not read it again. */
+  readonly lenientRun: { current: LenientRun | undefined };
+}
+
+// The index of the first element in `rawText` that ends after `offset`. Elements are in order, so a binary search: a
+// lenient run per block line must not rescan every element before it.
+function firstRawTextEndingAfter(rawText: readonly RawTextElement[], offset: number): number {
+  let low = 0;
+  let high = rawText.length;
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+    if ((rawText[middle]?.end ?? Number.POSITIVE_INFINITY) > offset) {
+      high = middle;
+    } else {
+      low = middle + 1;
+    }
+  }
+  return low;
 }
 
 /** A code-fence delimiter line: toggle the fence state (its own line stays literal); the lenient html arm may
@@ -773,7 +843,7 @@ function stepLine(env: ScanEnv, i: number, inCode: boolean): StepState {
     return { ...fence, inCode };
   }
   if (env.lenient) {
-    const block = tryLenientBlock(env.content, env.lines, i);
+    const block = tryLenientBlock(env, i);
     if (block !== null) {
       return { ...block, inCode };
     }
@@ -944,14 +1014,27 @@ function runIndexAt(runs: TickRuns, from: number, tick: number): number {
   return index;
 }
 
+// The offset of the first tick at or after an offset asked in rising order, or -1. Each search is kept until the read
+// passes it, so a body with no tick is searched once, not once per stamp.
+function nextTickCursor(text: string): (from: number) => number {
+  let tick = Number.NEGATIVE_INFINITY;
+  return (from) => {
+    if (tick !== -1 && tick < from) {
+      tick = text.indexOf("`", from);
+    }
+    return tick;
+  };
+}
+
 // Every code span and dice stamp in the text, left to right: the matches one pattern of "code span or stamp" would yield.
 function* stampMatches(text: string): Generator<StampMatch> {
   const runs = tickRunsOf(text);
   let runIndex = 0;
   let pos = 0;
   let dice: RegExpExecArray | null | undefined;
+  const nextTick = nextTickCursor(text);
   for (;;) {
-    const tick = text.indexOf("`", pos);
+    const tick = nextTick(pos);
     if (dice === undefined || (dice !== null && dice.index < pos)) {
       dice = execDice(text, pos);
     }
@@ -996,6 +1079,12 @@ function scanDiceStamps(text: string): Expanded[] {
   return out;
 }
 
+function appendAll<T>(into: T[], items: readonly T[]): void {
+  for (const item of items) {
+    into.push(item);
+  }
+}
+
 function expandPieces(content: string, pieces: readonly Piece[]): Expanded[] {
   const expanded: Expanded[] = [];
   for (const p of coalesceTextPieces(pieces)) {
@@ -1005,7 +1094,10 @@ function expandPieces(content: string, pieces: readonly Piece[]): Expanded[] {
     }
     const text = content.slice(p.start, p.end);
     if (p.allowTags) {
-      expanded.push(...scanTags(text, "literal").flatMap((part) => (part.kind === "text" ? scanDiceStamps(part.text) : [part])));
+      // Appended one by one: a body of many tags makes more parts than a spread call can pass.
+      for (const part of scanTags(text, "literal")) {
+        appendAll(expanded, part.kind === "text" ? scanDiceStamps(part.text) : [part]);
+      }
     } else {
       expanded.push({ kind: "text", text });
     }
@@ -1021,13 +1113,21 @@ function expandPieces(content: string, pieces: readonly Piece[]): Expanded[] {
  * DEGRADES, never throws, on all persisted content (D51).
  */
 export function tokenizeContent(content: string, options?: TokenizeContentOptions): ContentSpan[] {
-  const env: ScanEnv = { content, lines: splitLines(content), lenient: options?.lenientHtml === true, committed: options?.committed === true };
+  const lenient = options?.lenientHtml === true;
+  const env: ScanEnv = {
+    content,
+    lines: splitLines(content),
+    lenient,
+    committed: options?.committed === true,
+    rawText: lenient ? rawTextElements(content) : [],
+    lenientRun: { current: undefined },
+  };
   const expanded = expandPieces(content, structuralPass(env));
   const spans: ContentSpan[] = [];
   let pending = "";
   const flush = (): void => {
     if (pending.length > 0) {
-      spans.push(...tokenizeImages(pending));
+      appendAll(spans, tokenizeImages(pending));
       pending = "";
     }
   };
@@ -1214,7 +1314,10 @@ function hiddenSpansToFixpoint(content: string): readonly LocatedHiddenSpan[] {
       const span: HiddenContentSpan = { kind: "hidden", tag: next.span.tag, attrs: {}, raw: text.slice(next.start) };
       return [...found, { start: origin[next.start] ?? 0, end: content.length, span }];
     }
-    found.push(...layer.map(({ start, end, span }) => ({ start: origin[start] ?? 0, end: (origin[end - 1] ?? 0) + 1, span })));
+    appendAll(
+      found,
+      layer.map(({ start, end, span }) => ({ start: origin[start] ?? 0, end: (origin[end - 1] ?? 0) + 1, span })),
+    );
   }
 }
 
@@ -1580,6 +1683,11 @@ export function scanGhostContent(content: string): GhostContentSegment[] {
 // not arrived is held to the end of the text. A block whose opening line closes or opens no element (a close tag, a
 // self-closing or void tag, an element closed on its own line) ends at the next blank line, as CommonMark's does.
 //
+// A `<style>` or `<script>` element is ONE UNIT wherever it opens on a line ({@link rawTextElements}): HTML reads its
+// text raw to its close, so no blank line, tag or comment inside it ends a block or opens one. A block ends past the
+// close of every such element it opens, and the lines of one opened inside a paragraph stay that paragraph, which the
+// strip below then removes whole. Every splitter here reads them from the one reader, `readMarkup`.
+//
 // Inline markup in a paragraph streams as the paragraph through the inert allowlist, which drops its attributes and
 // keeps its text; an inline `<style>` or `<script>` element is removed with its content first, because the allowlist
 // would keep that content as prose. A tag still arriving on the last line is held as forming markup, so a half-written
@@ -1619,21 +1727,224 @@ const VOID_TAG_NAMES: ReadonlySet<string> = new Set([
   "track",
   "wbr",
 ]);
-const STYLE_ELEMENT_RE = /<(style|script)\b(?:[^>]*>[\s\S]*?(?:<\/\1\s*>|$)|[^>]*$)/gi;
-
-/** Removes every `<style>` and `<script>` element with its content; an element whose close has not arrived is removed
- *  to the end. The inert allowlist drops both tags but keeps their content as prose. */
-export function stripStyleElements(text: string): string {
-  return text.replace(STYLE_ELEMENT_RE, "");
+/** One `<style>` or `<script>` element: offsets of its `<`, its text, and just past its close's `>`. An element whose
+ *  close has not arrived runs to the end of the text. */
+export interface RawTextElement {
+  readonly name: RawTextName;
+  readonly start: number;
+  readonly bodyStart: number;
+  readonly bodyEnd: number;
+  readonly end: number;
+  readonly closed: boolean;
 }
 
-// Where the tag that opens at `lt` ends: the first `>` after it on its line, outside a quoted attribute value, or -1
-// when it has not arrived. One pass, so a long line costs its length.
-function tagEndFrom(text: string, lt: number): number {
+// The elements whose text HTML reads raw to their close, each with that close as HTML's tokenizer ends raw text: the
+// name in any case, then a space, `/`, `>` or the end.
+const RAW_TEXT_CLOSE_RES = { script: /<\/script(?=[\s/>]|$)/gi, style: /<\/style(?=[\s/>]|$)/gi } as const;
+type RawTextName = keyof typeof RAW_TEXT_CLOSE_RES;
+
+function isRawTextName(name: string): name is RawTextName {
+  return Object.hasOwn(RAW_TEXT_CLOSE_RES, name);
+}
+
+/** Every `<style>` and `<script>` element in `content`, in order, as HTML reads them (see {@link readMarkup}). */
+export function rawTextElements(content: string): readonly RawTextElement[] {
+  return readMarkup(content).rawText;
+}
+
+/** One stylesheet a reply draws: its `media` and `title` attributes, when it has them, and its text. */
+export interface FrameStyleSheet {
+  readonly media: string | undefined;
+  readonly title: string | undefined;
+  readonly css: string;
+}
+
+// One attribute of a tag, from just past the tag's name, as HTML's tokenizer splits them: its name, then its value,
+// quoted either way, bare, or absent.
+const TAG_ATTRIBUTE_RE = /[\s/]*([^\s/>][^\s/>=]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/y;
+const STYLE_OPENER_NAME_LENGTH = "<style".length;
+const CSS_TYPE = "text/css";
+
+// The attributes of a `<style ...>` opener the reader already bounded, each name lower case, the first of a repeated
+// name kept as HTML keeps it. One pass over the opener.
+function styleOpenerAttributes(opener: string): ReadonlyMap<string, string> {
+  const attributes = new Map<string, string>();
+  TAG_ATTRIBUTE_RE.lastIndex = STYLE_OPENER_NAME_LENGTH;
+  for (let found = TAG_ATTRIBUTE_RE.exec(opener); found !== null; found = TAG_ATTRIBUTE_RE.exec(opener)) {
+    const name = found[1]?.toLowerCase() ?? "";
+    if (!attributes.has(name)) {
+      attributes.set(name, found[2] ?? found[3] ?? found[4] ?? "");
+    }
+  }
+  return attributes;
+}
+
+/** Each closed `<style>` element a Markdown renderer draws from `content` (see {@link liftRawTextBodies}), in order:
+ *  the stylesheets every other frame of the same reply carries too. A sample shown as code is not one, nor is a style
+ *  element whose `type` names something other than CSS, which a browser does not apply. Only the text, `media` and
+ *  `title` are kept, so a carried copy runs no handler and repeats no id. */
+export function frameStyleElements(content: string): readonly FrameStyleSheet[] {
+  return markdownRawTextElements(content).flatMap((element) => {
+    if (element.name !== "style" || !element.closed) {
+      return [];
+    }
+    const attributes = styleOpenerAttributes(content.slice(element.start, element.bodyStart - 1));
+    const type = attributes.get("type")?.trim().toLowerCase() ?? "";
+    if (type !== "" && type !== CSS_TYPE) {
+      return [];
+    }
+    return [{ media: attributes.get("media"), title: attributes.get("title"), css: content.slice(element.bodyStart, element.bodyEnd) }];
+  });
+}
+
+/** `content` with the text of each closed `<style>` and `<script>` element a Markdown renderer reads as one replaced by
+ *  `mark`, its index and `mark` again, and those texts in order: none in code, in a text element or behind an escape
+ *  (see `readMarkup`). The tags stay, so a parser reads the same elements: the frame's Markdown lift, which a blank
+ *  line inside an element must not cut. `mark` must be a character neither `content` nor any parse of it can hold. */
+export function liftRawTextBodies(content: string, mark: string): { readonly text: string; readonly bodies: readonly string[] } {
+  const bodies: string[] = [];
+  let text = "";
+  let from = 0;
+  for (const element of markdownRawTextElements(content)) {
+    if (!element.closed || element.bodyEnd === element.bodyStart) {
+      continue;
+    }
+    text += `${content.slice(from, element.bodyStart)}${mark}${String(bodies.length)}${mark}`;
+    bodies.push(content.slice(element.bodyStart, element.bodyEnd));
+    from = element.bodyEnd;
+  }
+  return { text: text + content.slice(from), bodies };
+}
+
+// The raw-text elements a Markdown renderer reads as elements, in order.
+function markdownRawTextElements(content: string): readonly RawTextElement[] {
+  return readMarkup(content, MARKDOWN_READING).rawText;
+}
+
+/** Where a text's inline units may run, as the code reader reads its blocks: a code span or a comment within one
+ *  paragraph, or one HTML block. */
+interface InlineBlocks {
+  /** Ascending: the start of each line that does not continue a paragraph from the line before it. */
+  readonly ends: readonly number[];
+  /** Ascending and disjoint: each HTML block's lines, which hold no code span. */
+  readonly html: readonly TextRange[];
+}
+
+// The paragraph ends and HTML blocks of `content`, read by the same line reader that finds its code, so one reading
+// decides both where code is and where an inline unit may run.
+function inlineBlocks(content: string): InlineBlocks {
+  const state = codeLineState(true);
+  const ends: number[] = [];
+  const html: TextRange[] = [];
+  for (const line of splitLines(content)) {
+    readCodeLineKind(state, expandTabs(matchText(line)));
+    if (!state.continues && line.start > 0) {
+      ends.push(line.start);
+    }
+    const block = html.at(-1);
+    if (state.inHtml === "inside" && block !== undefined) {
+      html[html.length - 1] = { start: block.start, end: line.end };
+    } else if (state.inHtml !== undefined) {
+      html.push({ start: line.start, end: line.end });
+    }
+  }
+  return { ends, html };
+}
+
+// Where a comment opening at an offset asked in rising order must close by: the end of the HTML block it opens in, or
+// of its paragraph. A renderer reads each block's markup on its own, so a comment closed in a later block is no comment,
+// and its `<!--` prints as text.
+function commentBound(blocks: InlineBlocks): (offset: number) => number {
+  const paragraphEnd = firstPast(blocks.ends);
+  const htmlBlock = rangeCursor(blocks.html);
+  return (offset) => htmlBlock(offset)?.end ?? paragraphEnd(offset);
+}
+
+// The first value of an ascending list past an offset asked in rising order; infinity when none is left.
+function firstPast(values: readonly number[]): (offset: number) => number {
+  let next = 0;
+  return (offset) => {
+    while ((values[next] ?? Number.POSITIVE_INFINITY) <= offset) {
+      next += 1;
+    }
+    return values[next] ?? Number.POSITIVE_INFINITY;
+  };
+}
+
+// The range of ascending, disjoint ranges that holds an offset asked in rising order, or undefined.
+function rangeCursor(ranges: readonly TextRange[]): (offset: number) => TextRange | undefined {
+  let next = 0;
+  return (offset) => {
+    while ((ranges[next]?.end ?? Number.POSITIVE_INFINITY) <= offset) {
+      next += 1;
+    }
+    const range = ranges[next];
+    return range !== undefined && range.start <= offset ? range : undefined;
+  };
+}
+
+// Where the inline code span holding `offset` ends, asked in rising order, or undefined when none holds it. A span is
+// CommonMark's: a tick run closed by the next run of the same length within its paragraph, and none opens in an HTML
+// block, whose lines are HTML. Ticks before `readTo` were read as an element's text or a code block, so they open
+// nothing. One pass: each run's closer is found from the right once.
+function codeSpanCursor(content: string, blocks: InlineBlocks): (offset: number, readTo: number) => number | undefined {
+  const runs = tickRunClosers(content);
+  const paragraphEnd = firstPast(blocks.ends);
+  const htmlBlock = rangeCursor(blocks.html);
+  let run = 0;
+  let spanEnd = 0;
+  return (offset, readTo) => {
+    spanEnd = Math.max(spanEnd, readTo);
+    for (let at = runs[run]; at !== undefined && at.start < offset && spanEnd <= offset; at = runs[run]) {
+      run += 1;
+      const opens = at.start >= spanEnd && htmlBlock(at.start) === undefined;
+      if (opens && at.closer !== undefined && at.closer.start < paragraphEnd(at.start)) {
+        spanEnd = at.closer.end;
+      }
+    }
+    return offset < spanEnd ? spanEnd : undefined;
+  };
+}
+
+interface TickRun {
+  readonly start: number;
+  readonly end: number;
+  /** The next run of the same length: the one that would close a code span this run opens. */
+  closer: TickRun | undefined;
+}
+
+// Each run of ticks in `content` with its closer, found from the right in one pass.
+function tickRunClosers(content: string): readonly TickRun[] {
+  const runs: TickRun[] = [...content.matchAll(/`+/gu)].map((run) => ({ start: run.index, end: run.index + run[0].length, closer: undefined }));
+  const lastOfLength = new Map<number, TickRun>();
+  for (const run of runs.toReversed()) {
+    run.closer = lastOfLength.get(run.end - run.start);
+    lastOfLength.set(run.end - run.start, run);
+  }
+  return runs;
+}
+
+/** Removes every `<style>` and `<script>` element with its content; an element whose close has not arrived is removed
+ *  to the end. The inert allowlist drops both tags but keeps their content as prose. Text is read as Markdown shows it
+ *  (see {@link liftRawTextBodies}), so a sample shown as code or behind an escape stays as written. */
+export function stripStyleElements(text: string): string {
+  let kept = "";
+  let from = 0;
+  for (const element of markdownRawTextElements(text)) {
+    kept += text.slice(from, element.start);
+    from = element.end;
+  }
+  return kept + text.slice(from);
+}
+
+// Where the tag that opens at `lt` ends: the first `>` after it, outside a quoted attribute value, or -1 when it has not
+// arrived. The line grammar reads a tag on its own line only; a raw-text opener is read across lines, as HTML reads it.
+// One pass, so a long line costs its length.
+function tagEndFrom(text: string, lt: number, onItsLine = true): number {
   let quote = "";
   for (let index = lt + 1; index < text.length; index += 1) {
     const char = text.charAt(index);
-    if (char === "\n") {
+    if (char === "\n" && onItsLine) {
       return -1;
     }
     if (quote !== "") {
@@ -1657,16 +1968,24 @@ const TAG_OPENING_TAIL_RE = /<\/?$/;
 /** Removes every tag and keeps the text between them: a stream's own markup, shown before the scripts that would
  *  turn it into a panel run. A tag whose `>` has not arrived on the last line is removed to the end, and so is a `<`
  *  or `</` that ends the text; elsewhere the
- *  rest of a line whose `<` never closes is prose and stays. Run {@link stripStyleElements} first, or a style
- *  element's CSS stays as text. */
+ *  rest of a line whose `<` never closes is prose and stays. A tag in a code block or an inline code span stays as
+ *  written, as Markdown shows it. Run {@link stripStyleElements} first, or a style element's CSS stays as text. */
 export function stripTags(text: string): string {
   let kept = "";
   let from = 0;
-  // Past an unclosed `<`, every later `<` on the same line is prose too: one failed scan per line keeps this linear.
+  // Past an unclosed `<` (or code), every later `<` before this offset is prose too: one failed scan per line keeps this
+  // linear.
   let proseUntil = 0;
+  const code = markdownCodeCursor(text, MARKDOWN_READING);
+  let removed: ReadSpan | undefined;
   for (const start of text.matchAll(TAG_START_RE)) {
     const lt = start.index;
     if (lt < from || lt < proseUntil) {
+      continue;
+    }
+    const shown = code(lt, removed);
+    if (shown !== undefined) {
+      proseUntil = shown;
       continue;
     }
     const end = tagEndFrom(text, lt);
@@ -1680,6 +1999,7 @@ export function stripTags(text: string): string {
     }
     kept += text.slice(from, lt);
     from = end + 1;
+    removed = { start: lt, end: from };
   }
   // A `<` or `</` that ends the text may still become a tag.
   return (kept + text.slice(from)).replace(TAG_OPENING_TAIL_RE, "");
@@ -1707,35 +2027,605 @@ function elementOpenedBy(opener: string): { readonly lt: number; readonly name: 
   return end === -1 || opener.charAt(end - 1) === "/" ? undefined : { lt, name };
 }
 
-// An element tag: `/` for a close, then the name a close repeats, the part before any `:` (`<copper:bite>`, `</copper>`).
-const ELEMENT_TAG_SOURCE = String.raw`<(\/?)([A-Za-z][\w.-]*)(?::[\w:.-]*)?(?=[\s/>])`;
+// A comment open, or an element tag: `/` for a close, then the name a close repeats, the part before any `:`
+// (`<copper:bite>`, `</copper>`).
+const MARKUP_TOKEN_SOURCE = String.raw`<!--|<(\/?)([A-Za-z][\w.-]*)(?::[\w:.-]*)?(?=[\s/>]|$)`;
 
-// For each element opener's `<`, the offset just past the `>` of its close; an opener whose close has not arrived has no
-// entry. Elements of the same name nest. ONE PASS, so the scan costs the text's length: after a tag the read resumes past
-// its `>` (a quoted `</x>` inside an attribute value closes nothing), and after a `<` whose `>` never arrives on its line
-// it resumes at the next line, as `stripTags` does.
-function elementCloses(content: string): ReadonlyMap<number, number> {
+interface MarkupRead {
+  /** For each element opener's `<`, the offset just past the `>` of its close; an opener whose close has not arrived
+   *  has no entry. */
+  readonly closes: ReadonlyMap<number, number>;
+  readonly rawText: readonly RawTextElement[];
+  /** With the Markdown reading, each element whose text HTML reads as text, ascending: opener to close, or to the end
+   *  of the text when its close never arrives. */
+  readonly textElements: readonly TextRange[];
+  /** Each element the renderer draws folded until opened (`CONCEALING_TAG_NAMES`), opener to close, or to the end of
+   *  the text when its close never arrives. */
+  readonly concealing: readonly TextRange[];
+}
+
+// The elements whose contents the renderer draws folded until opened.
+const CONCEALING_TAG_NAMES = ["details"] as const;
+
+// The ONE reader of where an element ends, for every splitter in this file and the frame's Markdown lift. Elements of
+// the same name nest. A `<style>` or `<script>` element is read to its close as HTML reads it, wherever it opens, so no
+// tag, comment or blank line inside it counts; a comment is skipped to its `-->`. ONE PASS, so the scan costs the text's
+// length: after a tag the read resumes past its `>` (a quoted `</x>` inside an attribute value closes nothing), after a
+// `<` whose `>` never arrives on its line it resumes at the next line, as `stripTags` does, and a raw-text element whose
+// close never arrives ends the read, because everything after it is its text.
+//
+// With `markdown`, the read is a Markdown renderer's, which shows some markup as written: a token in a code block, on a
+// fence line or in an inline code span is skipped to the code's end, and a `<` a backslash escapes opens nothing, so a
+// sample there opens nothing (an unclosed one does not end the read). An element whose text HTML reads as text
+// (`textarea`, `title`, `xmp`, `iframe`, `noembed`, `noframes`, `plaintext`) is skipped to its close, so nothing inside
+// it opens. A unit read whole (an element, a comment) is its own text, so a fence line in it opens no block and a tick
+// in it opens no span. Where this read and the renderer could still disagree, the frame lifts nothing, and an element
+// not lifted renders as written.
+function readMarkup(content: string, markdown?: MarkdownReading): MarkupRead {
   const closes = new Map<number, number>();
+  const rawText: RawTextElement[] = [];
   const openers = new Map<string, number[]>();
-  const tags = new RegExp(ELEMENT_TAG_SOURCE, "g");
+  const blocks = markdown === undefined ? undefined : inlineBlocks(content);
+  const commentClose = { next: -1, bound: blocks === undefined ? undefined : commentBound(blocks) };
+  const textClose = new Map<string, number>();
+  const textElements: TextRange[] = [];
+  const code = markdown === undefined || blocks === undefined ? undefined : markdownCodeCursor(content, markdown, blocks);
+  let last: ReadSpan | undefined;
+  const tags = new RegExp(MARKUP_TOKEN_SOURCE, "g");
   for (let tag = tags.exec(content); tag !== null; tag = tags.exec(content)) {
-    const end = tagEndFrom(content, tag.index);
-    if (end === -1) {
-      const newline = content.indexOf("\n", tag.index);
-      if (newline === -1) {
+    const shown = code === undefined ? undefined : shownAsWritten(content, tag, { code, last, textClose, textElements });
+    const resume = shown ?? readMarkupToken(content, tag, { closes, rawText, openers, commentClose });
+    if (resume === -1 || resume >= content.length) {
+      break;
+    }
+    // A skip, a raw-text element and a comment are units read whole; a tag is not.
+    const whole = shown !== undefined || tag[2] === undefined || rawText.at(-1)?.start === tag.index;
+    last = whole ? { start: tag.index, end: resume } : last;
+    tags.lastIndex = resume;
+  }
+  const concealing = CONCEALING_TAG_NAMES.flatMap((name) => {
+    const opener = new RegExp(String.raw`<${name}(?=[\s/>]|$)`, "iy");
+    const closed = [...closes].filter(([start]) => {
+      opener.lastIndex = start;
+      return opener.test(content);
+    });
+    const open = (openers.get(name) ?? []).map((start) => [start, content.length] as const);
+    return [...closed, ...open].map(([start, end]) => ({ start, end }));
+  });
+  return { closes, rawText, textElements, concealing };
+}
+
+// HTML's elements whose text is read as text to their close, each with that close; `plaintext` has none.
+const TEXT_ELEMENT_CLOSE_SOURCES: Readonly<Record<string, string | undefined>> = {
+  textarea: "textarea",
+  title: "title",
+  xmp: "xmp",
+  iframe: "iframe",
+  noembed: "noembed",
+  noframes: "noframes",
+  plaintext: undefined,
+};
+
+// For `readMarkup`'s Markdown read: where the read resumes when the token at `tag` is markup a renderer shows as
+// written or reads as text, or undefined when it is markup. `textClose` keeps each text element's next close, so many
+// unclosed openers search the text once; `textElements` takes each text element read.
+function shownAsWritten(
+  content: string,
+  tag: RegExpExecArray,
+  state: {
+    readonly code: ReturnType<typeof markdownCodeCursor>;
+    readonly last: ReadSpan | undefined;
+    readonly textClose: Map<string, number>;
+    readonly textElements: TextRange[];
+  },
+): number | undefined {
+  const code = state.code(tag.index, state.last);
+  if (code !== undefined) {
+    return code;
+  }
+  let slashes = 0;
+  while (content.charAt(tag.index - slashes - 1) === "\\") {
+    slashes += 1;
+  }
+  if (slashes % 2 === 1) {
+    return tag.index + 1;
+  }
+  const name = tag[2]?.toLowerCase();
+  if (tag[1] === "/" || name === undefined || !Object.hasOwn(TEXT_ELEMENT_CLOSE_SOURCES, name)) {
+    return undefined;
+  }
+  const end = textElementEnd(content, tag.index, TEXT_ELEMENT_CLOSE_SOURCES[name], state.textClose);
+  state.textElements.push({ start: tag.index, end: end.closed ? end.resume : content.length });
+  return end.resume;
+}
+
+// Just past the close of the text element opening at `lt`, and whether that close arrived. One with no close, or whose
+// close never arrives, is read past its opener only: HTML would show what follows as the element's text, and the strip
+// must still find a style element there, or its stylesheet prints on the inert row.
+function textElementEnd(
+  content: string,
+  lt: number,
+  close: string | undefined,
+  nextClose: Map<string, number>,
+): { readonly resume: number; readonly closed: boolean } {
+  const open = tagEndFrom(content, lt, false);
+  // An opener whose `>` never arrives has no tag after it either.
+  if (open === -1) {
+    return { resume: content.length, closed: false };
+  }
+  if (close === undefined) {
+    return { resume: open + 1, closed: false };
+  }
+  let found = nextClose.get(close) ?? -1;
+  if (found !== Number.POSITIVE_INFINITY && found <= open) {
+    const closeRe = new RegExp(String.raw`</${close}(?=[\s/>]|$)`, "gi");
+    closeRe.lastIndex = open + 1;
+    found = closeRe.exec(content)?.index ?? Number.POSITIVE_INFINITY;
+    nextClose.set(close, found);
+  }
+  const gt = found === Number.POSITIVE_INFINITY ? -1 : content.indexOf(">", found);
+  return gt === -1 ? { resume: open + 1, closed: false } : { resume: gt + 1, closed: true };
+}
+
+/** A stretch of text already read as one unit: a raw-text element or a removed tag. */
+interface ReadSpan {
+  readonly start: number;
+  readonly end: number;
+}
+
+/** How `readMarkup` reads Markdown's code: indented code too, or fences and spans only. */
+interface MarkdownReading {
+  readonly indentedCode: boolean;
+}
+
+// The renderer's reading, for the frame lift and the strips.
+const MARKDOWN_READING: MarkdownReading = { indentedCode: true };
+// The styled hold's: an indented tag line is markup it holds (`TAG_NAME_START_RE`), so indented lines are not code.
+const HOLD_READING: MarkdownReading = { indentedCode: false };
+
+// Where a scan in rising order resumes when `offset` sits in code a Markdown renderer shows as written (a code block
+// or an inline code span), or undefined when it does not. `covering` is the last unit the scan read: its lines open no
+// code block and its ticks open no span.
+function markdownCodeCursor(
+  content: string,
+  reading: MarkdownReading,
+  inline: InlineBlocks = inlineBlocks(content),
+): (offset: number, covering: ReadSpan | undefined) => number | undefined {
+  const blocks: CodeBlockRead = { lines: splitLines(content), next: 0, read: codeLineReader(reading.indentedCode), codeTo: 0 };
+  const spanEnd = codeSpanCursor(content, inline);
+  return (offset, covering) => pastCodeBlock(blocks, offset, covering) ?? spanEnd(offset, Math.max(blocks.codeTo, covering?.end ?? 0));
+}
+
+// CommonMark's code blocks. A fence opens on up to three spaces then three or more ticks (whose info holds no tick) or
+// tildes, and closes on a run of the same mark at least as long with only spaces after it; an unclosed one runs to
+// the end. With `indented`, a line indented four columns that no paragraph line comes before is code too, and an HTML
+// block's lines are HTML, never code, to the block's end.
+//
+// Both are read inside the line's containers, block quotes and list items, as CommonMark reads them: a quote's `>` and
+// an item's content column come off first, so indented code in an item sits four columns past its content, and a line
+// that leaves its item closes the fence or HTML block the item held. Where this read is coarser than CommonMark's (an
+// item that opens empty), it errs toward text: a style element read as one where the renderer shows code stays inside
+// that code, while one read as code where the renderer builds it would print its stylesheet.
+//
+// The same reader says which lines continue a paragraph and which sit in an HTML block (`inlineBlocks`), so one
+// reading decides both where code is and how far a code span or a comment may run.
+const CODE_FENCE_OPEN_RE = /^ {0,3}(`{3,}(?=[^`]*$)|~{3,})/;
+const CODE_FENCE_CLOSE_RE = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
+const INDENTED_CODE_RE = /^(?: {0,3}\t| {4})/;
+const QUOTE_MARKER_RE = /^ {0,3}> ?/;
+const LIST_MARKER_RE = /^ {0,3}(?:[-+*]|\d{1,9}[.)])(?=[ \t]|$)/;
+const TAB_STOP = 4;
+// Past this many spaces after a marker, the item's content is the marker plus one space, and the rest is indented code.
+const MARKER_GAP_MAX = 4;
+// Every line is read through each open container, so the depth bounds the cost of a line. A reply nests a few deep.
+const CONTAINER_DEPTH_MAX = 32;
+
+const CODE_LINES = ["fence-open", "fence-close", "code", "text"] as const;
+type CodeLine = (typeof CODE_LINES)[number];
+
+/** An open block quote or list item; `column` is an item's content column within its parent, undefined for a quote. */
+interface BlockContainer {
+  readonly column: number | undefined;
+}
+
+// `line` with each tab spaced out to the next stop, as CommonMark measures columns, so a container's prefix and an
+// indent are read in spaces alone.
+function expandTabs(line: string): string {
+  if (!line.includes("\t")) {
+    return line;
+  }
+  let expanded = "";
+  for (const char of line) {
+    expanded += char === "\t" ? " ".repeat(TAB_STOP - (expanded.length % TAB_STOP)) : char;
+  }
+  return expanded;
+}
+
+// The number of leading spaces of a line `expandTabs` has read.
+function indentColumns(text: string): number {
+  return LEADING_SPACES_RE.exec(text)?.[0].length ?? 0;
+}
+
+const LEADING_SPACES_RE = /^ */;
+
+// How many of the open containers `text` continues, and the text left inside the last one it does.
+function continueContainers(open: readonly BlockContainer[], text: string): { readonly matched: number; readonly rest: string } {
+  let rest = text;
+  let matched = 0;
+  for (const container of open) {
+    if (container.column === undefined) {
+      const quote = QUOTE_MARKER_RE.exec(rest)?.[0];
+      if (quote === undefined) {
         break;
       }
-      tags.lastIndex = newline;
-      continue;
+      rest = rest.slice(quote.length);
+    } else if (rest.trim() !== "") {
+      if (indentColumns(rest) < container.column) {
+        break;
+      }
+      rest = rest.slice(container.column);
     }
-    tags.lastIndex = end + 1;
-    pairElementTag(
-      { closing: tag[1] === "/", name: (tag[2] ?? "").toLowerCase(), lt: tag.index, selfClosing: content.charAt(end - 1) === "/", end },
-      openers,
-      closes,
-    );
+    matched += 1;
   }
-  return closes;
+  return { matched, rest };
+}
+
+const FIRST_ORDINAL_RE = /^ {0,3}0*1[.)]/;
+
+// The list marker `text` opens with, or undefined. A rule outranks an item: `- - -` and `-     ---` are rules. Where
+// the item would interrupt the block before it (paragraph text or indented code, in the same containers), only one
+// that holds text and is a bullet or numbered 1 opens; any other marker line is text.
+function listMarker(text: string, afterParagraph: boolean): string | undefined {
+  const marker = THEMATIC_BREAK_RE.test(text) ? undefined : LIST_MARKER_RE.exec(text)?.[0];
+  if (marker === undefined || !afterParagraph) {
+    return marker;
+  }
+  const interrupts = text.slice(marker.length).trim() !== "" && (/[-+*]$/.test(marker) || FIRST_ORDINAL_RE.test(marker));
+  return interrupts ? marker : undefined;
+}
+
+// The list item `marker` opens, pushed onto `open`, and the text left inside it.
+function openItem(open: BlockContainer[], text: string, marker: string): string {
+  const after = text.slice(marker.length);
+  const gap = indentColumns(after);
+  const pad = after.trim() === "" || gap > MARKER_GAP_MAX ? 1 : gap;
+  open.push({ column: marker.length + pad });
+  return after.slice(pad);
+}
+
+// The quotes and items `text` opens, pushed onto `open`, and the text left inside the last; `emptyItem` when the last
+// is a list item with nothing after its marker. At `CONTAINER_DEPTH_MAX` open containers a marker opens none and is
+// read as text, and `readCodeLineKind` reads no line there as indented code.
+function openContainers(open: BlockContainer[], text: string, afterParagraph: boolean): { readonly emptyItem: boolean; readonly rest: string } {
+  let rest = text;
+  let item = false;
+  // The renderer holds an item to the interrupting rule through the quotes the same line opens before it.
+  let interrupting = afterParagraph;
+  for (;;) {
+    if (open.length >= CONTAINER_DEPTH_MAX) {
+      return { emptyItem: false, rest };
+    }
+    const quote = QUOTE_MARKER_RE.exec(rest)?.[0];
+    const marker = quote === undefined ? listMarker(rest, interrupting) : undefined;
+    interrupting &&= quote !== undefined;
+    if (quote !== undefined) {
+      open.push({ column: undefined });
+      rest = rest.slice(quote.length);
+    } else if (marker === undefined) {
+      return { emptyItem: item && rest.trim() === "", rest };
+    } else {
+      rest = openItem(open, rest, marker);
+    }
+    item = marker !== undefined;
+  }
+}
+
+// A line that opens no block of its own, so after paragraph text in a container it leaves it is that paragraph's lazy
+// continuation. Any list marker opens a block here: the renderer holds a line that could be lazy to no rule for
+// interrupting a paragraph. A lone tag continues nothing either (`readLazyLine`).
+function continuesParagraph(text: string): boolean {
+  const opensBlock =
+    CODE_FENCE_OPEN_RE.test(text) ||
+    QUOTE_MARKER_RE.test(text) ||
+    LIST_MARKER_RE.test(text) ||
+    THEMATIC_BREAK_RE.test(text) ||
+    ATX_HEADING_RE.test(text) ||
+    htmlBlockEnd(text, false) !== undefined;
+  return text.trim() !== "" && !opensBlock;
+}
+
+function closesFence(fence: string, text: string): boolean {
+  const close = CODE_FENCE_CLOSE_RE.exec(text)?.[1];
+  return close !== undefined && close.charAt(0) === fence.charAt(0) && close.length >= fence.length;
+}
+
+// The line that ends an HTML block that closes at a blank line, not at a close it waits for.
+const ENDS_AT_BLANK = /^[ \t]*$/;
+
+// The HTML block kinds that end on the line holding a close of their own, each opener with that close. A `pre`,
+// `script`, `style` or `textarea` block ends at the close of any of the four, as CommonMark has it.
+const HTML_BLOCK_ENDS: readonly (readonly [RegExp, RegExp])[] = [
+  [RAW_TEXT_BLOCK_RE, /<\/(?:pre|script|style|textarea)>/i],
+  [/^ {0,3}<!--/, /-->/],
+  [/^ {0,3}<\?/, /\?>/],
+  [/^ {0,3}<![A-Za-z]/, />/],
+  [/^ {0,3}<!\[CDATA\[/, /\]\]>/],
+];
+
+// The line test that ends the HTML block `text` opens, or undefined when it opens none. CommonMark's kinds: those of
+// `HTML_BLOCK_ENDS`, then a block-level tag, or a lone complete tag that interrupts no paragraph, to a blank line.
+function htmlBlockEnd(text: string, interruptsParagraph: boolean): RegExp | undefined {
+  const own = HTML_BLOCK_ENDS.find(([open]) => open.test(text))?.[1];
+  if (own !== undefined) {
+    return own;
+  }
+  const lone = !interruptsParagraph && indentColumns(text) < TAB_STOP && isLoneTagLine(text);
+  return BLOCK_TAG_LINE_RE.test(text) || lone ? ENDS_AT_BLANK : undefined;
+}
+
+// The end of the HTML block `text` opens and its own line does not end, or undefined.
+function htmlBlockClose(text: string, interruptsParagraph: boolean): RegExp | undefined {
+  const close = htmlBlockEnd(text, interruptsParagraph);
+  if (close === undefined || close === ENDS_AT_BLANK) {
+    return close;
+  }
+  // Searched past the opener's `<` and the character after it, so no opener reads as its own close.
+  return close.test(text.slice(text.indexOf("<") + 2)) ? undefined : close;
+}
+
+// `codeLineReader`'s state between lines.
+interface CodeLineState {
+  readonly indented: boolean;
+  fence: string | undefined;
+  /** The open HTML block's end (`htmlBlockClose`); read only with indented code, the one reading a block can hide. */
+  html: RegExp | undefined;
+  readonly open: BlockContainer[];
+  /** The line before was paragraph text, so this one may continue it: leaving its containers, it stays in them. */
+  paragraph: boolean;
+  /** This line may start indented code: the line before was no paragraph's and opened no empty list item. After an
+   *  empty item the renderer reads an indented line as code or as the item's text by what came before the list, which
+   *  this read does not follow, so it reads text. */
+  codeMayStart: boolean;
+  /** The line before was indented code, which a list item interrupts as it does a paragraph. */
+  indentedCode: boolean;
+  /** The last line read continues the paragraph of the line before it, so an inline unit may run across the two. */
+  continues: boolean;
+  /** Where the last line read sits in an HTML block: the line that opens one, a later line of it, or in none. */
+  inHtml: "opens" | "inside" | undefined;
+}
+
+function codeLineState(indented: boolean): CodeLineState {
+  return {
+    indented,
+    fence: undefined,
+    html: undefined,
+    open: [],
+    paragraph: false,
+    codeMayStart: true,
+    indentedCode: false,
+    continues: false,
+    inHtml: undefined,
+  };
+}
+
+// A reader of lines in order. A `covered` line sits inside a unit `readMarkup` read whole (an element's text, a
+// comment): it opens nothing and only ends an HTML block whose close it holds. `state` is the reader's own, passed in
+// by a caller that reads the containers and blocks a line sits in.
+function codeLineReader(indented: boolean, state = codeLineState(indented)): (text: string, covered: boolean) => CodeLine {
+  return (text, covered) => {
+    if (!covered) {
+      return readCodeLineKind(state, expandTabs(text));
+    }
+    if (state.html !== undefined && state.html !== ENDS_AT_BLANK && state.html.test(text)) {
+      state.html = undefined;
+    }
+    return "text";
+  };
+}
+
+// One line inside an open HTML block: true when it is the block's, false when it leaves the block's container or is
+// the blank line that ends a block closing at one, which is no line of that block.
+function readHtmlBlockLine(state: CodeLineState, inside: string, contained: boolean): boolean {
+  if (state.html === undefined) {
+    return false;
+  }
+  if (!contained || (state.html === ENDS_AT_BLANK && ENDS_AT_BLANK.test(inside))) {
+    state.html = undefined;
+    return false;
+  }
+  state.html = state.html.test(inside) ? undefined : state.html;
+  state.codeMayStart = true;
+  return true;
+}
+
+const ATX_HEADING_RE = /^ {0,3}#{1,6}(?:[ \t]|$)/;
+const THEMATIC_BREAK_RE = /^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/;
+const SETEXT_UNDERLINE_RE = /^ {0,3}(?:=+|-+)[ \t]*$/;
+
+// A line that is a block of its own, one line long: a heading, a rule, or the underline that makes the paragraph
+// before it a heading. No paragraph runs into it or out of it.
+function isOneLineBlock(text: string, afterParagraph: boolean): boolean {
+  return ATX_HEADING_RE.test(text) || THEMATIC_BREAK_RE.test(text) || (afterParagraph && SETEXT_UNDERLINE_RE.test(text));
+}
+
+function readCodeLineKind(state: CodeLineState, text: string): CodeLine {
+  const { matched, rest: inside } = continueContainers(state.open, text);
+  const afterCode = state.indentedCode && matched === state.open.length;
+  state.continues = false;
+  state.indentedCode = false;
+  if (readHtmlBlockLine(state, inside, matched === state.open.length)) {
+    state.inHtml = "inside";
+    return "text";
+  }
+  state.inHtml = undefined;
+  if (state.fence !== undefined && matched === state.open.length) {
+    if (!closesFence(state.fence, inside)) {
+      return "code";
+    }
+    state.fence = undefined;
+    return "fence-close";
+  }
+  if (matched < state.open.length && state.paragraph) {
+    const lazy = readLazyLine(state, inside);
+    if (lazy !== undefined) {
+      return lazy;
+    }
+  }
+  const afterParagraph = state.paragraph && matched === state.open.length;
+  // A container this line leaves closes, and with it any fence it held (the fence is read afresh below) and the
+  // empty item whose next line may not start code.
+  state.codeMayStart ||= matched < state.open.length;
+  state.open.length = matched;
+  const { emptyItem, rest } = openContainers(state.open, inside, afterParagraph || afterCode);
+  state.fence = CODE_FENCE_OPEN_RE.exec(rest)?.[1];
+  if (state.fence !== undefined) {
+    state.paragraph = false;
+    state.codeMayStart = true;
+    return "fence-open";
+  }
+  return readLeafLine(state, rest, { emptyItem, continuing: afterParagraph && state.open.length === matched });
+}
+
+// A line that leaves a container after paragraph text, read inside the containers it leaves: it continues that
+// paragraph, or a lone tag opens an HTML block there, which the next line that leaves them ends. Undefined when the
+// line closes the containers it leaves.
+function readLazyLine(state: CodeLineState, inside: string): CodeLine | undefined {
+  if (continuesParagraph(inside)) {
+    state.continues = true;
+    return "text";
+  }
+  if (!state.indented || htmlBlockEnd(inside, true) !== undefined || htmlBlockEnd(inside, false) === undefined) {
+    return undefined;
+  }
+  state.html = htmlBlockClose(inside, false);
+  state.inHtml = "opens";
+  state.paragraph = false;
+  state.codeMayStart = true;
+  return "text";
+}
+
+// The rest of a line inside its containers, which opens no fence: indented code, an HTML block, a one-line block or
+// paragraph text. `continuing` when it may continue the paragraph before it: that one's line, in the same containers.
+function readLeafLine(state: CodeLineState, rest: string, line: { readonly emptyItem: boolean; readonly continuing: boolean }): CodeLine {
+  const blank = rest.trim() === "";
+  // A paragraph that this line does not continue has ended, so after it indented code may start.
+  const mayStart = state.codeMayStart || (state.paragraph && !line.continuing);
+  // At the depth bound the containers past it are not read, so their indent is unknown: no line there is code.
+  const code = state.indented && !blank && mayStart && state.open.length < CONTAINER_DEPTH_MAX && INDENTED_CODE_RE.test(rest);
+  const html = state.indented && !code && !blank && htmlBlockEnd(rest, line.continuing) !== undefined;
+  const paragraph = !(blank || code || html || isOneLineBlock(rest, line.continuing));
+  state.html = html ? htmlBlockClose(rest, line.continuing) : undefined;
+  state.inHtml = html ? "opens" : undefined;
+  state.continues = line.continuing && paragraph;
+  state.indentedCode = code;
+  state.paragraph = paragraph;
+  state.codeMayStart = !(paragraph || line.emptyItem);
+  return code ? "code" : "text";
+}
+
+// Code block state for `markdownCodeCursor`, read line by line in rising order.
+interface CodeBlockRead {
+  readonly lines: readonly Line[];
+  next: number;
+  readonly read: (text: string, covered: boolean) => CodeLine;
+  /** Text before this offset holds no tick that opens a span: it was read as code. */
+  codeTo: number;
+}
+
+// One line into the code block state: its kind, with a line inside a unit read whole read as text, opening nothing.
+function readCodeLine(blocks: CodeBlockRead, line: Line, covering: ReadSpan | undefined): CodeLine {
+  blocks.next += 1;
+  const covered = covering !== undefined && line.start > covering.start && line.start < covering.end;
+  const kind = blocks.read(matchText(line), covered);
+  blocks.codeTo = kind === "text" ? blocks.codeTo : line.end + 1;
+  return kind;
+}
+
+// When the line holding `offset` is code or a fence line: where the block ends, just past its closing fence or at the
+// first text line after indented code (the text's length when it runs to the end). Otherwise undefined. `covering` is
+// the last unit read, the only one a line passed since the last token can sit inside.
+function pastCodeBlock(blocks: CodeBlockRead, offset: number, covering: ReadSpan | undefined): number | undefined {
+  let kind: CodeLine = "text";
+  for (let line = blocks.lines[blocks.next]; line !== undefined && line.start <= offset; line = blocks.lines[blocks.next]) {
+    kind = readCodeLine(blocks, line, covering);
+  }
+  if (kind === "text") {
+    return undefined;
+  }
+  if (kind === "fence-close") {
+    return blocks.codeTo;
+  }
+  for (let line = blocks.lines[blocks.next]; line !== undefined; line = blocks.lines[blocks.next]) {
+    const next = readCodeLine(blocks, line, undefined);
+    // A text line ends indented code. It is read now, so a token on it finds no line to read and reads as text.
+    if (next === "text" && line.text.trim() !== "") {
+      return line.start;
+    }
+    if (next === "fence-close") {
+      return blocks.codeTo;
+    }
+  }
+  return (blocks.lines.at(-1)?.end ?? 0) + 1;
+}
+
+// One token of `readMarkup` into its tables: where the read resumes, or -1 when the rest of the text is this token's.
+function readMarkupToken(
+  content: string,
+  tag: RegExpExecArray,
+  into: {
+    readonly closes: Map<number, number>;
+    readonly rawText: RawTextElement[];
+    readonly openers: Map<string, number[]>;
+    /** The offset of the next `-->` found so far (-1 before any search, infinity when none is left), and with the
+     *  Markdown reading, where the unit a comment opens in ends. */
+    readonly commentClose: { next: number; readonly bound: ((offset: number) => number) | undefined };
+  },
+): number {
+  const name = tag[2]?.toLowerCase();
+  if (name === undefined) {
+    // A comment that never closes, or with the Markdown reading closes past its block, is read past, not to its close:
+    // Markdown prints that `<!--` as text, so a style element after it is still one to strip.
+    // The next close is remembered, so many unclosed opens search the text once, not once each.
+    const after = tag.index + COMMENT_BLOCK_OPEN.length;
+    if (into.commentClose.next < after) {
+      const close = content.indexOf(COMMENT_BLOCK_CLOSE, after);
+      into.commentClose.next = close === -1 ? Number.POSITIVE_INFINITY : close;
+    }
+    const end = into.commentClose.next + COMMENT_BLOCK_CLOSE.length;
+    const bound = Math.min(into.commentClose.bound?.(tag.index) ?? content.length, content.length);
+    return end > bound ? after : end;
+  }
+  const closing = tag[1] === "/";
+  if (!closing && isRawTextName(name)) {
+    const element = rawTextElementAt(content, tag.index, name);
+    into.rawText.push(element);
+    if (!element.closed) {
+      return -1;
+    }
+    into.closes.set(element.start, element.end);
+    return element.end;
+  }
+  const end = tagEndFrom(content, tag.index);
+  if (end === -1) {
+    return content.indexOf("\n", tag.index);
+  }
+  pairElementTag({ closing, name, lt: tag.index, selfClosing: content.charAt(end - 1) === "/", end }, into.openers, into.closes);
+  return end + 1;
+}
+
+// The raw-text element `name` whose opener's `<` is at `lt`. An opener whose `>` has not arrived, or a close that has
+// not, runs it to the end of the text, which conceals rather than releases.
+function rawTextElementAt(content: string, lt: number, name: RawTextName): RawTextElement {
+  const toEnd = (bodyStart: number): RawTextElement => ({ name, start: lt, bodyStart, bodyEnd: content.length, end: content.length, closed: false });
+  const open = tagEndFrom(content, lt, false);
+  if (open === -1) {
+    return toEnd(content.length);
+  }
+  const close = RAW_TEXT_CLOSE_RES[name];
+  close.lastIndex = open + 1;
+  const found = close.exec(content);
+  const gt = found === null ? -1 : content.indexOf(">", found.index);
+  return found === null || gt === -1 ? toEnd(open + 1) : { name, start: lt, bodyStart: open + 1, bodyEnd: found.index, end: gt + 1, closed: true };
 }
 
 // One complete tag into the open-element stacks: an opener is pushed, a close pops its name's innermost opener.
@@ -1785,7 +2675,9 @@ function markupBlockEnd(lines: readonly Line[], i: number, closes: ReadonlyMap<n
     return lines.length;
   }
   const opener = matchText(line);
-  const element = RAW_TEXT_BLOCK_RE.test(opener) ? undefined : elementOpenedBy(opener);
+  // `pre` and `textarea` end by their close line; a style or script element ends where `readMarkup` read its close.
+  const lineClosed = RAW_TEXT_BLOCK_RE.exec(opener)?.[1]?.toLowerCase();
+  const element = lineClosed !== undefined && !isRawTextName(lineClosed) ? undefined : elementOpenedBy(opener);
   const close = element === undefined ? line.end : (closes.get(line.start + element.lt) ?? -1);
   if (close === -1) {
     return lines.length;
@@ -1834,12 +2726,38 @@ function opensMarkupBlock(content: string, line: Line, inParagraph: boolean): bo
   return !inParagraph && isLoneTagLine(text);
 }
 
+// The raw-text elements of a text from index `from`, asked in order of rising offsets: which one covers an offset, past
+// its opener.
+function rawTextCursor(rawText: readonly RawTextElement[], from = 0): (offset: number) => RawTextElement | undefined {
+  let next = from;
+  return (offset) => {
+    while (next < rawText.length && (rawText[next]?.end ?? offset) <= offset) {
+      next += 1;
+    }
+    const element = rawText[next];
+    return element !== undefined && element.start < offset ? element : undefined;
+  };
+}
+
+// The line index a block ending before line `end` really ends at: past the close of every raw-text element it cuts.
+function pastRawText(lines: readonly Line[], end: number, covering: (offset: number) => RawTextElement | undefined): number {
+  let next = end;
+  for (let cut = covering(lines[next]?.start ?? Number.POSITIVE_INFINITY); cut !== undefined; cut = covering(lines[next]?.start ?? Number.POSITIVE_INFINITY)) {
+    next = lineAfter(lines, next - 1, cut.end);
+  }
+  return next;
+}
+
 /** Split a styled reply's text into prose and held HTML blocks (see the section note). Code fence regions stay text.
  *  Each prose segment has its `<style>` and `<script>` elements removed, and a prose segment that is only whitespace is
- *  dropped, so two held blocks read as one. */
+ *  dropped, so two held blocks read as one. A `<style>` or `<script>` element is one unit wherever it opens: the lines
+ *  inside one that opened in prose stay that prose, and a block that one opens in ends past its close. */
 export function scanStyledHold(content: string): StyledHoldSegment[] {
   const lines = splitLines(content);
-  const closes = elementCloses(content);
+  const { closes, rawText } = readMarkup(content, HOLD_READING);
+  const covering = rawTextCursor(rawText);
+  // Indented lines stay unread: the hold takes an indented tag line as markup (`TAG_NAME_START_RE`).
+  const codeLine = codeLineReader(false);
   const segments: StyledHoldSegment[] = [];
   let pendingStart = 0;
   const flushText = (endExclusive: number): void => {
@@ -1848,16 +2766,20 @@ export function scanStyledHold(content: string): StyledHoldSegment[] {
       segments.push({ kind: "text", text });
     }
   };
-  let inCode = false;
   let inParagraph = false;
   let i = 0;
   while (i < lines.length) {
     const line = lines[i] ?? { start: content.length, end: content.length, text: "" };
+    const inside = covering(line.start);
+    if (inside !== undefined) {
+      i = lineAfter(lines, i - 1, inside.end);
+      inParagraph = true;
+      continue;
+    }
     const text = matchText(line);
-    const fence = text.startsWith(CODE_FENCE_MARK);
-    inCode = fence ? !inCode : inCode;
-    if (fence || inCode || !opensMarkupBlock(content, line, inParagraph)) {
-      inParagraph = !(inCode || fence) && text.trim() !== "";
+    const code = codeLine(text, false) !== "text";
+    if (code || !opensMarkupBlock(content, line, inParagraph)) {
+      inParagraph = !code && text.trim() !== "";
       i += 1;
       continue;
     }
@@ -1865,12 +2787,109 @@ export function scanStyledHold(content: string): StyledHoldSegment[] {
     if (segments.at(-1)?.kind !== "forming-markup") {
       segments.push({ kind: "forming-markup" });
     }
-    i = markupBlockEnd(lines, i, closes);
+    i = pastRawText(lines, markupBlockEnd(lines, i, closes), covering);
     pendingStart = lines[i]?.start ?? content.length;
     inParagraph = false;
   }
   flushText(content.length);
   return segments;
+}
+
+/** A stretch of a text: offsets of its first character and just past its last. */
+export interface TextRange {
+  readonly start: number;
+  readonly end: number;
+}
+
+// The span kinds a train keeps in one paragraph: each is one block of its own, or a secret no break may cut open.
+const UNBROKEN_SPAN_KINDS: ReadonlySet<ContentSpanKind> = new Set<ContentSpanKind>(["card", "choices", "hidden", "unknown-directive"]);
+
+// The stretches a paragraph break must not cut, ascending and disjoint: each element whose text HTML reads as text and
+// each element that folds its contents away (`readMarkup`); each `:::card`, choice set, hidden span and unknown
+// directive the grammar reads (`tokenizeContent`); and each hidden span the strip removes, wherever it sits. A lenient
+// card run ends at a blank line, so it holds no break to keep; a `<style>` or `<script>` element's lines are no blank
+// lines, and an HTML block's blank lines are no break (`blankRuns`).
+//
+// Any other element is NOT kept whole: Markdown ends its paragraphs at a blank line inside it (a `<div>` or a
+// `<response>` wrapper across two paragraphs renders them as two), so a break there shows what the one bubble shows. A
+// folding element is the exception because a bubble cut from it would show the text the one bubble keeps folded.
+function unbrokenRanges(content: string, markup: MarkupRead): readonly TextRange[] {
+  const ranges: TextRange[] = [...markup.textElements, ...markup.concealing, ...hiddenSpanRanges(content)];
+  let cursor = 0;
+  for (const span of tokenizeContent(content, { committed: true })) {
+    const length = contentSpanRaw(span).length;
+    if (UNBROKEN_SPAN_KINDS.has(span.kind)) {
+      ranges.push({ start: cursor, end: cursor + length });
+    }
+    cursor += length;
+  }
+  return mergedRuns(ranges);
+}
+
+// A run of blank lines, from the newline that ends the line before it to the start of the line after it.
+interface BlankRun {
+  readonly range: TextRange;
+  /** The run ends no block of its own: it sits in a code block (a fence's, or between two lines of indented code), in
+   *  an HTML block that runs past blank lines (a comment, a `<pre>`), or in a list item the line after it continues. */
+  readonly held: boolean;
+}
+
+// The blank-line runs of `content` in order, each with whether it is held, read with the Markdown reading. A line
+// inside a `<style>` or `<script>` element, closed or not, is that element's text: never blank, and it opens nothing.
+//
+// A break inside a list item is held because the text after it means something only in its item: cut away, a
+// continuation indented four columns reads as code and an HTML block under the item loses its indent. Keeping the item
+// whole is the one rule that serves every container; carrying the container into the next bubble would draw a second
+// list marker.
+function blankRuns(content: string, rawText: readonly RawTextElement[]): readonly BlankRun[] {
+  const state = codeLineState(true);
+  const read = codeLineReader(true, state);
+  const covering = rawTextCursor(rawText);
+  const runs: BlankRun[] = [];
+  let previous: { readonly end: number; readonly code: boolean } | undefined;
+  let inRun = false;
+  let heldBlank = false;
+  for (const line of splitLines(content)) {
+    const covered = covering(line.start) !== undefined;
+    const text = matchText(line);
+    const blank = !covered && text.trim() === "";
+    // Read before the line, which closes the containers it leaves.
+    const inItem = inRun && !covered && !blank && continueContainers(state.open, expandTabs(text)).matched > 0;
+    const kind = read(text, covered);
+    if (blank) {
+      inRun = true;
+      heldBlank ||= kind !== "text" || state.inHtml === "inside";
+      continue;
+    }
+    if (inRun && previous !== undefined) {
+      const indentedCode = previous.code && kind === "code";
+      runs.push({ range: { start: previous.end, end: line.start }, held: heldBlank || indentedCode || inItem });
+    }
+    inRun = false;
+    heldBlank = false;
+    previous = { end: line.end, code: kind === "code" };
+  }
+  return runs;
+}
+
+/** Where a reply may split into paragraphs: each run of blank lines that ends a Markdown paragraph, never one inside a
+ *  `<style>` or `<script>` element, an element whose text HTML reads as text, an HTML block, a code block, a list item,
+ *  a card, a choice set or a hidden span. A range runs from the newline that ends the paragraph before it to the start
+ *  of the paragraph after it, so the text between two ranges is one paragraph as written. */
+export function paragraphBreaks(content: string): readonly TextRange[] {
+  const markup = readMarkup(content, MARKDOWN_READING);
+  const unbroken = unbrokenRanges(content, markup);
+  const breaks: TextRange[] = [];
+  let next = 0;
+  for (const { range, held } of blankRuns(content, markup.rawText)) {
+    while ((unbroken[next]?.end ?? Number.POSITIVE_INFINITY) <= range.start) {
+      next += 1;
+    }
+    if (!held && (unbroken[next]?.start ?? Number.POSITIVE_INFINITY) >= range.end) {
+      breaks.push(range);
+    }
+  }
+  return breaks;
 }
 
 /** The deterministic card WIRE STUB (§3.5): same bytes every assembly (cache-stable), compact, honest —

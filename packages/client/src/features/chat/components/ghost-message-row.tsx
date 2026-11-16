@@ -29,7 +29,7 @@
 
 import type { CardTrust } from "@orb/contracts/chat";
 import type { GhostContentSegment } from "@orb/kit/content";
-import { scanGhostContent, scanStyledHold, stripTags } from "@orb/kit/content";
+import { scanGhostContent, scanStyledHold, stripStyleElements, stripTags } from "@orb/kit/content";
 import { holdTornSpeaker } from "@orb/kit/fix-markdown";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { holdTornMacro } from "@orb/kit/macro";
@@ -105,11 +105,13 @@ function ghostSegment(segment: GhostContentSegment, index: number, opts: GhostSe
   return opts.holdsMarkup ? heldGhostText(segment.text, key, opts) : ghostMarkdown(segment.text, key, opts);
 }
 
-// Only the TAIL segment is live (the caret + incomplete-markdown repair); earlier segments are settled text.
+// Only the TAIL segment is live (the caret + incomplete-markdown repair); earlier segments are settled text. A
+// `<style>` or `<script>` element streams as nothing, its close not yet arrived included, because the allowlist keeps
+// its content as text.
 function ghostMarkdown(text: string, key: string, opts: GhostSegmentOptions): ReactElement {
   return (
     <Markdown key={key} trust="untrusted" mode={opts.streaming && opts.isTail ? "streaming" : "static"} colorQuotes={opts.colorQuotes}>
-      {text}
+      {stripStyleElements(text)}
     </Markdown>
   );
 }

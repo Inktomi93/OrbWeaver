@@ -10,6 +10,7 @@
 // "trusted cards vanished".
 
 import type { MessageContentBlock } from "@orb/contracts/chat";
+import { stripStyleElements } from "@orb/kit/content";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { ImmersiveCard, InertCard } from "@orb/ui/immersive-card";
 import { Markdown } from "@orb/ui/markdown";
@@ -91,8 +92,9 @@ export function CardBlock({ block, allowExternal, cardOrigin }: CardBlockProps):
   // Tier A: the sanitized body inside the inert frame. Why it is plain is said once, under the whole row.
   return (
     <InertCard {...(block.title === undefined ? {} : { title: block.title })}>
+      {/* Tier A forbids `<style>`, and the allowlist would keep its content as text. */}
       <Markdown trust="untrusted" mode="static">
-        {block.html}
+        {stripStyleElements(block.html)}
       </Markdown>
     </InertCard>
   );

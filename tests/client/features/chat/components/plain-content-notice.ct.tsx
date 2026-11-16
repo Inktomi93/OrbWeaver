@@ -24,8 +24,9 @@ const NOTICE = '[data-slot="plain-notice"]';
 const NOTICE_ACTION = '[data-slot="plain-notice-action"]';
 const INERT_CARD = '[data-slot="inert-card"]';
 const READOUT = '[data-slot="navigation-readout"]';
-// A styled reply with its card renders whole in one reply frame (D354).
+// A styled reply renders in its reply frame (D354), and a marked card in it keeps its own chrome and frame between runs.
 const REPLY_FRAME = '[data-slot="reply-frame"] [data-slot="sandbox-frame"]';
+const CARD_FRAME = '[data-slot="immersive-card-panel"] [data-slot="sandbox-frame"]';
 const BANNER_FIND = String.raw`/<scene_header location="([^"<>]*)" \/>/g`;
 const BANNER_TEMPLATE = '<div class="w6p-banner" style="border-left:2px solid #F4A261"><strong>$1</strong></div>';
 const CARD_TITLE = "Tide tables";
@@ -157,7 +158,8 @@ test("with the install's trust off as well, a character set to plain text still 
   await serveRoom(page, root, owner, root.ownerId);
   await routeCardFrames(page, root, (await captureCookieAuth(root, await root.principalFor(root.ownerId), VIEWER_PASSWORD)).cookie);
   await mount<typeof PlainContentNoticeStory>(STORY, { chatId: room.chatId });
-  await expect(page.frameLocator(REPLY_FRAME).getByText("High water at dusk.")).toBeVisible();
+  await expect(page.frameLocator(REPLY_FRAME).getByText("Guinevere sets down her goblet.")).toBeVisible();
+  await expect(page.frameLocator(CARD_FRAME).getByText("High water at dusk.")).toBeVisible();
   await expect(page.locator(NOTICE)).toHaveCount(0);
   await expect(page.locator(INERT_CARD)).toHaveCount(0);
   await page.unrouteAll({ behavior: "wait" });

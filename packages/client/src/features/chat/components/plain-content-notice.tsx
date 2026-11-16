@@ -7,11 +7,15 @@ import type { PlainNoticeAction } from "@orb/ui/immersive-card";
 import { PlainNotice } from "@orb/ui/immersive-card";
 import type { ReactElement } from "react";
 import { useSettingsViewerView } from "#data";
-import type { PlainReason, PlainRemedy, PlainSubject } from "#lib";
-import { resolvePlainVerdict } from "#lib";
+import type { PlainReason, PlainRemedy, PlainReplyReason, PlainSubject } from "#lib";
+import { PLAIN_REPLY_REASON, resolvePlainVerdict } from "#lib";
 import { MEDIA_TRUST_CONFIG_SUB, openCharacterTrust, openConfigTo, TRUST_HTML_CONFIG_SETTING } from "#state";
 
 const UNNAMED_CHARACTER = "this character";
+const PLAIN_REPLY_CAUSE: Record<PlainReplyReason, string> = {
+  [PLAIN_REPLY_REASON.carriedStylesOverBudget]: "This reply carries more styling than its frame may hold, so it shows as plain.",
+};
+const NO_REMEDY: PlainRemedy = "none";
 
 function causeLine(reason: PlainReason, name: string): string {
   switch (reason) {
@@ -87,4 +91,9 @@ export function PlainContentNotice({ subject }: { readonly subject: PlainSubject
   const remedy = remedyLine(verdict.remedy, verdict.reason, name);
   const message = remedy === undefined ? causeLine(verdict.reason, name) : `${causeLine(verdict.reason, name)} ${remedy}`;
   return <PlainNotice reason={verdict.reason} remedy={verdict.remedy} message={message} action={remedyAction(verdict.remedy, verdict.characterId, name)} />;
+}
+
+/** Why a styled reply its row's tier would frame shows plain whole. No setting changes it, so it has no control. */
+export function PlainReplyNotice({ reason }: { readonly reason: PlainReplyReason }): ReactElement {
+  return <PlainNotice reason={reason} remedy={NO_REMEDY} message={PLAIN_REPLY_CAUSE[reason]} />;
 }
