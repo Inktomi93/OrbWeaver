@@ -3,16 +3,17 @@
 // authoring character sits above the floor on the server-resolved renderPolicy.htmlTrust LADDER (the ONE
 // ordered axis, contracts/chat: untrusted < trusted < interactive); else "untrusted" (another user's
 // input, a character on the untrusted step, and any row with no resolved policy). External media is a separate
-// axis. Both read the server-resolved ParticipantView.renderPolicy; absent ⇒ fail closed. A plain (tierA) row's
-// verdict — which setting holds it plain and whether this viewer may change it — is read here off the same policy,
-// so the notice that names a setting can never disagree with the tier it explains.
+// axis. Both read the server-resolved ParticipantView.renderPolicy, or ChatDetail.narratorRender for a narrator row;
+// absent ⇒ fail closed. A plain (tierA) row's verdict — which setting holds it plain and whether this viewer may
+// change it — is read here off the same policy, so the notice that names a setting can never disagree with the tier
+// it explains.
 //
 // Homed in lib/ (the cross-cutting display seams, beside `message-render`) rather than features/chat:
 // TWO features render the same authored content — chat's transcript rows and the rpg panel's card
 // archive (Scene "Cards" / Journal) — and a cross-feature RUNTIME import is banned, so a second home
 // here would mean a second spelling of a SECURITY verdict.
 
-import type { DeploymentRenderPolicy, ParticipantView, RenderPolicy, RenderPolicySource } from "@orb/contracts/chat";
+import type { DeploymentRenderPolicy, MessageKind, NarratorRenderPolicy, ParticipantView, RenderPolicy, RenderPolicySource } from "@orb/contracts/chat";
 import { rendersTrustedHtml } from "@orb/contracts/chat";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -126,6 +127,11 @@ export interface ResolveRowRenderPolicyInput {
   readonly characterId: CharacterId | null;
   readonly viewerUserId: UserId | null;
   readonly participants?: ReadonlyMap<CharacterId, ParticipantView> | undefined;
+  /** The row's declared purpose (`MessageView.kind`, D129); absent ⇒ `standard`. */
+  readonly kind?: MessageKind | undefined;
+  /** The room's narrator policy (`ChatDetail.narratorRender`), which a `narrator` row reads in place of a seat. Absent ⇒
+   *  a narrator row renders at the fail-closed floor. */
+  readonly narrator?: NarratorRenderPolicy | undefined;
   /** The chat-level §4.8 lenient-wrap verdict the surface resolved (game + immersiveHtml). Absent ⇒ off. */
   readonly lenientHtmlCards?: boolean | undefined;
   /** The user's quoted-speech tint pref; absent ⇒ ON (the contract default). */
@@ -193,11 +199,30 @@ export function resolvePlainVerdict(subject: PlainSubject, viewerIsAdmin: boolea
   };
 }
 
-export function resolveRowRenderPolicy(input: ResolveRowRenderPolicyInput): RowRenderPolicy {
-  const { role, authorUserId, characterId, viewerUserId, participants } = input;
+/** The character a row's policy is read from, with that policy as the server resolved it. */
+interface RowAuthor {
+  readonly characterId: CharacterId | null;
+  readonly seat: ParticipantView | undefined;
+  readonly policy: RenderPolicy | undefined;
+  readonly source: RenderPolicySource | undefined;
+}
 
-  const seat = characterId === null ? undefined : participants?.get(characterId);
-  const resolved = seat?.renderPolicy;
+// A narrator row voices the whole room, so it reads the policy the server bounded by the present characters, and its
+// subject is the character whose setting binds that policy.
+function rowAuthor(input: ResolveRowRenderPolicyInput): RowAuthor {
+  const narrated = input.kind === "narrator";
+  const characterId = narrated ? (input.narrator?.characterId ?? null) : input.characterId;
+  const seat = characterId === null ? undefined : input.participants?.get(characterId);
+  if (narrated) {
+    return { characterId, seat, policy: input.narrator?.renderPolicy, source: input.narrator?.renderSource };
+  }
+  return { characterId, seat, policy: seat?.renderPolicy, source: seat?.renderSource };
+}
+
+export function resolveRowRenderPolicy(input: ResolveRowRenderPolicyInput): RowRenderPolicy {
+  const { role, authorUserId, viewerUserId } = input;
+
+  const { characterId, seat, policy: resolved, source } = rowAuthor(input);
   const policy: RenderPolicy = resolved ?? SAFE_FLOOR;
 
   const isOwnUserMessage = role === "user" && authorUserId !== null && authorUserId === viewerUserId;
@@ -221,7 +246,7 @@ export function resolveRowRenderPolicy(input: ResolveRowRenderPolicyInput): RowR
     ...base,
     plain: {
       author,
-      source: author === "character" ? seat?.renderSource : undefined,
+      source: author === "character" ? source : undefined,
       characterId: author === "character" ? characterId : null,
       characterName: seat?.displayName,
       viewerIsHost: input.viewerIsHost === true,

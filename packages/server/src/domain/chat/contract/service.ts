@@ -33,6 +33,7 @@ import type {
   NextTurnConnectionView,
   ParticipantData,
   RegexDisplayEntry,
+  RenderPolicy,
   RoomOverrides,
   RoomSendAvailability,
   SetGroupConfigOp,
@@ -108,6 +109,7 @@ import type {
   RemoveCharacterFromChatParams,
   ReplayChatEventsParams,
   ReplayLiveTurnParams,
+  ResolveAuthorRenderPolicyParams,
   RestoreMemoryParams,
   RevertContinueParams,
   RevokeInviteParams,
@@ -201,6 +203,9 @@ export interface ChatService {
   readonly listMessageVariants: (params: ListMessageVariantsParams) => Promise<MessageVariantSummary[]>;
   /** The resolved present roster. */
   readonly listParticipants: (params: ListParticipantsParams) => Promise<ParticipantData[]>;
+  /** The policy content stamped with one character id renders at: the room's narrator policy for the room host's
+   *  synthetic group character, else that character's seat. Member-gated; `undefined` when neither applies. */
+  readonly resolveAuthorRenderPolicy: (params: ResolveAuthorRenderPolicyParams) => Promise<RenderPolicy | undefined>;
   /** The turn in flight, from generation start through `throughSeq`, for a device attaching with no cursor. */
   readonly replayLiveTurn: (params: ReplayLiveTurnParams) => Promise<ChatBusReplayEvent[]>;
   /** Resume the durable chat-bus log from a cursor (the chat room's SSE reconnect replay). */

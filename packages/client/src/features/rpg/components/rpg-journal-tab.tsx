@@ -225,7 +225,9 @@ function ArchivedCards({
   const [{ data: messages }, { data: chat }] = useSuspenseQueries({
     queries: [roomTailOptions(trpc, { chatId: state.chatId }), roomRosterOptions(trpc, { chatId: state.chatId })],
   });
-  return children(collectArchivedCards(messages.messages, { participants: chat.participants, viewerUserId: state.viewerUserId }));
+  return children(
+    collectArchivedCards(messages.messages, { participants: chat.participants, narrator: chat.narratorRender, viewerUserId: state.viewerUserId }),
+  );
 }
 
 function CardArchive({
@@ -326,7 +328,11 @@ function ChronicleWithSettledCards({ state, cardsEnabled }: { readonly state: Rp
   const cards =
     messages.data === undefined || chat.data === undefined
       ? NO_CARDS
-      : collectArchivedCards(messages.data.messages, { participants: chat.data.participants, viewerUserId: state.viewerUserId });
+      : collectArchivedCards(messages.data.messages, {
+          participants: chat.data.participants,
+          narrator: chat.data.narratorRender,
+          viewerUserId: state.viewerUserId,
+        });
   return <JournalEntries state={state} cards={cards} />;
 }
 
