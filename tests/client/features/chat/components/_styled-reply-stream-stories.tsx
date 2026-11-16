@@ -1,6 +1,7 @@
 import { useChatBusDeps } from "@orb/client/data";
 import { MessageListSurface } from "@orb/client/features/chat";
 import { selectChat } from "@orb/client/state";
+import type { MessageView } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { CtAppearanceChannels, CtClientProviders, chatSurfaceContributors, toolRenderers } from "@orb/testkit/browser";
@@ -20,9 +21,11 @@ interface StreamStoryProps {
   readonly chunkLabel: string;
   /** Stream the reply as a swipe of this message instead of a new reply. */
   readonly swipeOf?: MessageId | undefined;
+  /** The stored reply the live turn commits as, once the server has written it, and the control that delivers it. */
+  readonly commit?: { readonly view: MessageView; readonly label: string } | undefined;
 }
 
-function Transcript({ chatId, speakerCharacterId, chunks, chunkLabel, swipeOf }: StreamStoryProps): ReactElement {
+function Transcript({ chatId, speakerCharacterId, chunks, chunkLabel, swipeOf, commit }: StreamStoryProps): ReactElement {
   useState(() => selectChat(chatId));
   const busDeps = useChatBusDeps();
   const [sent, setSent] = useState(0);
@@ -49,6 +52,15 @@ function Transcript({ chatId, speakerCharacterId, chunks, chunkLabel, swipeOf }:
       >
         {chunkLabel}
       </Button>
+      {commit === undefined ? null : (
+        <Button
+          onClick={(): void => {
+            busDeps.invalidate({ type: "messageCommitted", chatId, messageId: commit.view.id, view: commit.view, turnId: TURN_ID });
+          }}
+        >
+          {commit.label}
+        </Button>
+      )}
       <Container className="h-full min-h-0">
         <MessageListSurface chatId={chatId} busDeps={busDeps} surfaceContributors={chatSurfaceContributors} toolRenderers={toolRenderers} />
       </Container>
@@ -57,13 +69,13 @@ function Transcript({ chatId, speakerCharacterId, chunks, chunkLabel, swipeOf }:
 }
 
 /** The real transcript under the production appearance writer, plus a control that streams `chunks` one per press as
- *  `speakerCharacterId`'s live reply, or as a swipe of `swipeOf`. */
-export function StyledReplyStreamStory({ chatId, speakerCharacterId, chunks, chunkLabel, swipeOf }: StreamStoryProps): ReactElement {
+ *  `speakerCharacterId`'s live reply, or as a swipe of `swipeOf`, and one that delivers the turn's commit. */
+export function StyledReplyStreamStory({ chatId, speakerCharacterId, chunks, chunkLabel, swipeOf, commit }: StreamStoryProps): ReactElement {
   return (
     <CtClientProviders>
       <CtAppearanceChannels settings={{ fontScale: 1 }}>
         <Stack className="h-screen">
-          <Transcript chatId={chatId} speakerCharacterId={speakerCharacterId} chunks={chunks} chunkLabel={chunkLabel} swipeOf={swipeOf} />
+          <Transcript chatId={chatId} speakerCharacterId={speakerCharacterId} chunks={chunks} chunkLabel={chunkLabel} swipeOf={swipeOf} commit={commit} />
         </Stack>
       </CtAppearanceChannels>
     </CtClientProviders>

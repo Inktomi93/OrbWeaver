@@ -4,7 +4,16 @@
 // @subject packages/kit/src/content/index.ts
 
 import type { StyledHoldSegment } from "@orb/kit/content";
-import { frameStyleElements, liftRawTextBodies, rawTextElements, scanStyledHold, stripStyleElements, stripTags, tokenizeContent } from "@orb/kit/content";
+import {
+  frameStyleElements,
+  liftRawTextBodies,
+  rawTextElements,
+  scanStyledHold,
+  stripStyleElements,
+  stripTags,
+  stripUnreadElements,
+  tokenizeContent,
+} from "@orb/kit/content";
 import { expect, test } from "@orb/testkit/node";
 
 const HELD: StyledHoldSegment = { kind: "forming-markup" };
@@ -249,4 +258,18 @@ test.each([
 ])("a panel after %s is lifted and stripped", (_name, body) => {
   expect(liftRawTextBodies(body, "\u{E000}").bodies).toEqual([LINE_CSS]);
   expect(stripStyleElements(body)).not.toContain(LINE_CSS);
+});
+
+// The untrusted render unwraps what its allowlist drops, so before it every element whose content would print as words
+// goes with that content: a stylesheet, a script, and an element HTML reads as text.
+test.each([
+  [
+    "a panel's stylesheet, script and text elements",
+    "<div><style>.a{}</style><script>run()</script><textarea>draft</textarea><title>T</title><b>HP</b> 10</div>",
+    "<div><b>HP</b> 10</div>",
+  ],
+  ["an unclosed text element, to the end", "<b>HP</b>\n<textarea>draft\n\nmore", "<b>HP</b>\n"],
+  ["a sample shown as code", "Use `<textarea>x</textarea>` and\n\n    <style>.a{}</style>", "Use `<textarea>x</textarea>` and\n\n    <style>.a{}</style>"],
+])("the plain path's strip removes %s", (_name, text, expected) => {
+  expect(stripUnreadElements(text)).toBe(expected);
 });

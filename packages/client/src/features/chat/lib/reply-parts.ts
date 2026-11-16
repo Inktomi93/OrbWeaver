@@ -5,10 +5,10 @@
 // chrome is the app's).
 
 import type { CardTrust, MessageContentBlock } from "@orb/contracts/chat";
-import type { FrameStyleSheet } from "@orb/kit/content";
-import { frameStyleElements, paragraphBreaks, tokenizeContent } from "@orb/kit/content";
+import type { FrameStyleSheet, TextRange } from "@orb/kit/content";
+import { frameStyleElements, heldBlockRanges, holdBlocksWhole, markupUnitRanges, modelPanels, paragraphBreaks, tokenizeContent } from "@orb/kit/content";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
-import type { PlainReplyReason } from "#lib";
+import type { PlainReplyReason, RowRenderPolicy } from "#lib";
 import { PLAIN_REPLY_REASON } from "#lib";
 import { toContentBlocks } from "./content-blocks.ts";
 
@@ -32,6 +32,33 @@ export const REPLY_CARRY_BUDGET_CHARS = REPLY_CARRY_BUDGET_MIB * CHARS_PER_MIB;
 /** The stylesheet copies all of one reply's runs may carry between them. Each is an element in another run's document,
  *  and text alone cannot bound them: an empty sheet carries none. A heavy styling preset carries a few dozen. */
 export const REPLY_CARRY_BUDGET_SHEETS = 1024;
+/** The longest drawn body the panel readers read (`modelPanels`, `markupUnitRanges`), each linear in it. A bound against
+ *  abuse that fails closed: a longer body never frames, and a longer stream holds. It is about five times the largest
+ *  framed reply measured, 204,544 characters (`packages/contracts/src/chat/card-frame.ts`), so no real reply nears it.
+ *  At the bound the costliest body, unclosed openers with blank lines between, measured about 0.9 s on a sandboxed row
+ *  and a real reply's prose about 2 ms; `modelPanels` dominates. */
+export const PANEL_READ_MAX_CHARS = 1_048_576;
+
+const NO_RANGES: readonly TextRange[] = [];
+
+/** What the panel readers say about a drawn body: the ranges no speaker label may split, and whether the body holds a
+ *  panel its author wrote, which frames it on the sandboxed tier and raises the plain notice on the other. Nothing is
+ *  read past {@link PANEL_READ_MAX_CHARS}: such a body holds no panel, and a sandboxed one is opaque whole, since a label
+ *  split could cut an element a later strip reads whole. The speaker guard reads only on the sandboxed tier. */
+export function readPanels(
+  text: string,
+  render: Pick<RowRenderPolicy, "cardTier" | "lenientCards">,
+): {
+  readonly opaque: readonly TextRange[];
+  readonly modelPanel: boolean;
+} {
+  const sandboxed = render.cardTier === "tierB";
+  if (text.length > PANEL_READ_MAX_CHARS) {
+    return { opaque: sandboxed ? [{ start: 0, end: text.length }] : NO_RANGES, modelPanel: false };
+  }
+  const panels = modelPanels(text, { lenientHtml: render.lenientCards });
+  return { opaque: sandboxed ? markupUnitRanges(text, panels) : NO_RANGES, modelPanel: panels.length > 0 };
+}
 
 /** What a styled reply renders: its frame runs and native blocks, or the plain path whole, with the reason. */
 export type ReplyLayout = { readonly kind: "framed"; readonly parts: readonly ReplyPart[] } | { readonly kind: "plain"; readonly reason: PlainReplyReason };
@@ -60,14 +87,34 @@ export interface ReplySpan {
   readonly tokens: ThemeScopeTokens | undefined;
 }
 
-function carriesDice(markdown: string): boolean {
-  return tokenizeContent(markdown, { committed: true }).some((span) => span.kind === "dice");
+// `markdown` without the block elements the frame holds whole (`heldBlockRanges`): a dice stamp written inside a panel
+// is the panel's text, which the frame draws as written, so it pulls nothing out of the run.
+function outsidePanels(markdown: string): string {
+  let kept = "";
+  let from = 0;
+  for (const held of heldBlockRanges(markdown)) {
+    kept += markdown.slice(from, held.start);
+    from = held.end;
+  }
+  return kept + markdown.slice(from);
 }
 
-// The paragraphs of `markdown`, cut only at its paragraph breaks: a blank line inside a `<style>` element or a code
-// block is that unit's text, and splitting there would put the rest of it in a run of its own, as prose.
+function carriesDice(markdown: string): boolean {
+  return tokenizeContent(outsidePanels(markdown), { committed: true }).some((span) => span.kind === "dice");
+}
+
+// The paragraphs of `markdown`, cut only at its paragraph breaks: a blank line inside a `<style>` element, a code block
+// or a block element the frame holds whole is that unit's text, and splitting there would put the rest of it in a run
+// of its own, as prose.
 function paragraphs(markdown: string): readonly string[] {
-  const breaks = paragraphBreaks(markdown);
+  const held = heldBlockRanges(markdown);
+  let next = 0;
+  const breaks = paragraphBreaks(markdown).filter((cut) => {
+    while ((held[next]?.end ?? Number.POSITIVE_INFINITY) <= cut.start) {
+      next += 1;
+    }
+    return (held[next]?.start ?? Number.POSITIVE_INFINITY) >= cut.start;
+  });
   return [...breaks, { start: markdown.length, end: markdown.length }].map((cut, index) => markdown.slice(breaks[index - 1]?.end ?? 0, cut.start));
 }
 
@@ -104,8 +151,9 @@ function assertNever(value: never): never {
   throw new Error(`reply parts: unhandled block ${JSON.stringify(value)}`);
 }
 
+// A markdown run's sheets as its frame reads them: through the block hold, as `FrameMarkdown` parses it.
 function runSheets(segments: readonly FrameReplySegment[]): readonly FrameStyleSheet[] {
-  return segments.flatMap((segment) => frameStyleElements(segment.kind === "markdown" ? segment.markdown : segment.html));
+  return segments.flatMap((segment) => frameStyleElements(segment.kind === "markdown" ? holdBlocksWhole(segment.markdown) : segment.html));
 }
 
 // A sheet that names a cascade layer fixes that layer's order where it first appears, so no copy of it is dropped.

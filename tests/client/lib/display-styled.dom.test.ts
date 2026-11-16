@@ -2,6 +2,7 @@
 // model-written markup, a capture that echoes it, a text-only template and a script that never matched all leave
 // the row unstyled. Runs `renderStyledMessageForDisplay`, the display pipeline the Worker's per-script step shares.
 import type { RegexScriptRow } from "@orb/contracts/regex";
+import { escapeHtmlData, rawTextElements } from "@orb/kit/content";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
@@ -104,5 +105,41 @@ describe("a row is styled only by a display script's own markup", () => {
     expect(styled.text).toBe('<div class="banner"><style>.banner{color:#f4a261}</style><strong class="loud">Grand Hall</strong></div> Grand things.');
     expect(whole).toBe(styled.text);
     expect(styled.styled).toBe(true);
+  });
+});
+
+// A name is another reader's text: the anchor persona can be a member's, and a framed reply runs its script bodies at
+// the interactive step. So the display pass resolves a name in the prose and never inside a style or script body,
+// in a model panel or in a card fence the card frame draws as HTML.
+describe("the display pass splices no name into a style or script body", () => {
+  const HostileName = 'Nate"); parent.postMessage("pwn", "*"); ("';
+  const HostileDescription = '"}body{background:url(https://example.test/x)}.a{content:"';
+  const bodiesOf = (text: string): readonly string[] => rawTextElements(text).map((element) => text.slice(element.bodyStart, element.bodyEnd));
+
+  test.for([
+    {
+      name: "a model panel",
+      body: '<div class="hud">Hello {{user}}.<script>greet("{{user}}")</script><style>.hud::after{content:"{{persona}}"}</style></div>',
+    },
+    { name: "a card fence", body: ':::card title="Status"\n<p>{{user}} waits.</p>\n<script>greet("{{user}}")</script>\n:::' },
+    { name: "an unclosed script", body: '{{user}} arrives.\n\n<script>greet("{{user}}")' },
+  ])("$name keeps its bodies as written and names the persona in its prose", ({ body }) => {
+    const ctx: MessageRenderContext = { ...context([]), fallbackPersonaName: HostileName, fallbackPersonaDescription: HostileDescription };
+    const text = renderMessageForDisplay(body, ctx, REPLY);
+
+    expect(bodiesOf(text)).toEqual(bodiesOf(body));
+    expect(text).toContain(escapeHtmlData(HostileName));
+    for (const shown of bodiesOf(text)) {
+      expect(shown).not.toContain(HostileName);
+      expect(shown).not.toContain(HostileDescription);
+    }
+  });
+
+  test("the Markdown repair leaves a body's lone asterisk as written and still repairs the prose", () => {
+    const body = '*She waits <style>.a::after{content:"*"}</style>';
+    const text = renderMessageForDisplay(body, { ...context([]), autoFixMarkdown: true }, REPLY);
+
+    expect(bodiesOf(text)).toEqual(['.a::after{content:"*"}']);
+    expect(text).not.toBe(body);
   });
 });

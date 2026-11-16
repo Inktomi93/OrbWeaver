@@ -1,7 +1,7 @@
 // The canonical display pipeline every text-showing surface routes through, three steps in order:
 //   1. resolveRowMacros    — {{user}}/{{char}}/{{persona}} → live values, via the shared atom also
 //                            called by server assemble; the row's own characterId/personaId stamps
-//                            drive the subject.
+//                            drive the subject. A name resolves as HTML data. Steps 1 and 3 leave code a frame runs as written.
 //   2. executeRegexScripts (the display pass) — the viewer's display scripts over the row's target, author
 //                            stamps, depth and room; ephemeral, never canon or the shared prompt. It also
 //                            reports whether a script's own template drew markup (`display-styled.ts`).
@@ -21,6 +21,7 @@
 // the `#lib` barrel does not export it.
 
 import type { RegexScriptRow } from "@orb/contracts/regex";
+import { escapeHtmlData, mapOutsideCode } from "@orb/kit/content";
 import { fixMarkdown } from "@orb/kit/fix-markdown";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import type { MacroEnv, ProcessMacroOptions, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
@@ -101,21 +102,30 @@ function regexCtxChar(ctx: MessageRenderContext, characterId: CharacterId | null
   return characterNames?.[0] ?? ctx.speakerCharName ?? "";
 }
 
+// A name as Markdown code text: as written, unless a tick, a tilde or a line break in it could end the code.
+function asCodeText(value: string): string {
+  return CODE_BREAK_RE.test(value) ? escapeHtmlData(value) : value;
+}
+const CODE_BREAK_RE = /[`~\r\n]/u;
+
 /** Step 1, and the plain-data input of step 2. The row's own stamps are the macro subjects too. */
 export function prepareDisplayPass(text: string, ctx: MessageRenderContext, display: DisplayRowCall): DisplayPass {
   const { characterId, personaId } = display.row;
 
-  const substituted = resolveRowMacros(
+  const names = {
+    characterNamesById: ctx.characterNamesById,
+    personaNamesById: ctx.personaNamesById,
+    speakerCharName: ctx.speakerCharName,
+    characterNames: ctx.characterNames,
+    fallbackPersonaName: ctx.fallbackPersonaName,
+    fallbackPersonaDescription: ctx.fallbackPersonaDescription,
+  };
+  // A name is another reader's text, so it is data, never markup: resolved escaped, and never inside code a frame runs.
+  // Markdown code shows text as written, so a name there resolves plainly unless it could leave that code.
+  const substituted = mapOutsideCode(
     text,
-    { characterId, personaId },
-    {
-      characterNamesById: ctx.characterNamesById,
-      personaNamesById: ctx.personaNamesById,
-      speakerCharName: ctx.speakerCharName,
-      characterNames: ctx.characterNames,
-      fallbackPersonaName: ctx.fallbackPersonaName,
-      fallbackPersonaDescription: ctx.fallbackPersonaDescription,
-    },
+    (piece) => resolveRowMacros(piece, { characterId, personaId }, names, escapeHtmlData),
+    (piece) => resolveRowMacros(piece, { characterId, personaId }, names, asCodeText),
   );
 
   const rowPersona = personaId === null ? undefined : ctx.personaNamesById.get(personaId);
@@ -148,9 +158,9 @@ export function applyDisplayScript(text: string, script: RegexScriptRow, macroCt
   return executeDisplayScripts({ text, scripts: [script], call, ctx: macroCtx });
 }
 
-/** Step 3. */
+/** Step 3. A style or script body is code, not Markdown, so the repair leaves it as written. */
 export function finishDisplayPass(text: string, ctx: MessageRenderContext): string {
-  return ctx.autoFixMarkdown === true ? fixMarkdown(text, true) : text;
+  return ctx.autoFixMarkdown === true ? mapOutsideCode(text, (piece) => fixMarkdown(piece, true)) : text;
 }
 
 /** All three steps on the calling thread, and whether a script's own template drew markup. In the browser this is

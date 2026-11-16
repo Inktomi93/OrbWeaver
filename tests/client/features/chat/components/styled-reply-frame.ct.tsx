@@ -3,7 +3,7 @@
 // created through `regex.createScript`, the room's reads served by the corpus root and the card-frame mint and
 // serve answered by the root's own HTTP entry. The script's `<style>` applies inside the frame and never lands in
 // the main document; with the character set to plain text the same reply renders through the inert path with no
-// style; model-written markup that no script produced keeps today's path; a link inside the frame opens only
+// style; a panel the model wrote itself frames the same way, and plain markup it wrote keeps today's path; a link inside the frame opens only
 // through the confirm, which a scripted frame can neither raise without a click in it, nor change, nor raise again
 // after a Cancel; an expired handle mints again instead of showing the expiry notice; and the frame grows with 200%
 // and 300% text on a phone instead of clipping.
@@ -13,6 +13,7 @@
 
 import { spawn } from "node:child_process";
 import { PLAIN_REPLY_REASON } from "@orb/client/lib";
+import type { MessageView } from "@orb/contracts/chat";
 import { rendersTrustedHtml } from "@orb/contracts/chat";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
@@ -63,6 +64,14 @@ const BANNER_TEMPLATE = [
 const BANNER_FIND = String.raw`/<scene_header location="([^"<>]*)" \/>/g`;
 const STYLED_BODY = '<scene_header location="Camelot · Great Hall" />\n\nGuinevere sets down her goblet. "You are late, Arthur."';
 const BARE_HTML_BODY = '<div style="color:#F4A261" id="w6p-bare">\n<p>Model-written markup</p>\n<p>with its own inline style</p>\n</div>';
+// A panel the model writes itself, as a provider would stream it: cut inside its tag's style attribute, inside the
+// panel, and inside its script.
+const MODEL_PANEL_CHUNKS = [
+  'She looks up.\n\n<div class="w6p-panel" style="pad',
+  'ding:4px">\n<b id="w6p-hp">HP 10</b>\n\n<scr',
+  "ipt>run()</script>\n</div>",
+  "\n\nThe hall waits.",
+] as const;
 const LONG_BODY = "Arthur crosses the great hall without a word, past the hearth and the long tables, and stops before the dais. ".repeat(8).trim();
 const BUBBLE = '[data-slot="message-bubble"]';
 const PHONE_VIEWPORT = { width: 320, height: 640 } as const;
@@ -457,14 +466,124 @@ test("on a row whose character renders plain text the same reply draws through t
   expect(sourceIn((await row.textContent()) ?? "")).toEqual([]);
 });
 
-test("model-written markup no display script produced keeps today's path in a normal room", async ({ corpus, mount, page }) => {
-  const room = await openStyledRoom(BARE_HTML_BODY);
+/** The styled room with no display script, so no reply in it is styled. */
+async function openUnscriptedRoom(body: string): Promise<StyledRoom> {
+  await using construction = new AsyncDisposableStack();
+  const room = await openStyledRoom(body);
+  construction.use(room.root);
+  const caller = await room.root.internalCallerFor(room.root.ownerId);
+  for (const script of await caller.regex.listScripts()) {
+    await caller.regex.removeScript({ scriptId: script.id });
+  }
+  construction.move();
+  return room;
+}
+
+const rowOf = (page: Page, id: MessageId): Locator => page.locator(`[data-slot="message-row"][data-message-id="${id}"]`);
+
+// THE MODEL'S OWN PANELS (D354): each trigger, written by the model with no display script, draws in the row's frame
+// with its own style; with the character's HTML trust off it reads plain with the notice; markup that is no panel stays
+// in the transcript.
+const MODEL_PANELS = [
+  ["a block whose tag carries a style attribute", BARE_HTML_BODY, "#w6p-bare p"],
+  ["a stylesheet", `<style>#w6p-own{color:${BANNER_COLOR}}</style>\n<p id="w6p-own">Model-written markup</p>`, "#w6p-own"],
+  ["a script", '<p id="w6p-run">Model-written markup</p>\n<script>document.body.dataset.ran = "1"</script>', "#w6p-run"],
+  ["an svg", '<p>Model-written markup <svg id="w6p-svg" width="8" height="8"><circle r="4" fill="red"/></svg></p>', "#w6p-svg"],
+  [
+    "a whole document",
+    `<!DOCTYPE html>\n<html>\n<head>\n<title>Status</title>\n<style>body{color:${BANNER_COLOR}}</style>\n</head>\n\n<body>\n<p id="w6p-doc">Model-written markup</p>\n</body>\n</html>`,
+    "#w6p-doc",
+  ],
+] as const;
+
+for (const [name, body, shown] of MODEL_PANELS) {
+  test(`${name} the model wrote draws in its row's frame, with no display script`, async ({ corpus, mount, page }) => {
+    const room = await openUnscriptedRoom(body);
+    await using root = room.root;
+    await using _routes = await serveRoom(page, root, corpus);
+    await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+    const row = rowOf(page, room.messageId);
+    await expect(row.locator(`${REPLY_FRAME} ${SANDBOX}`)).toHaveAttribute("data-delivery", "routed");
+    await expect(row.locator(REPLY_FRAME).locator(SANDBOX).contentFrame().locator(shown).first()).toBeVisible();
+    expect(sourceIn((await row.textContent()) ?? "")).toEqual([]);
+    expect(await mainDocumentStyles(page)).not.toContain("w6p-");
+  });
+
+  test(`${name} the model wrote reads plain with the notice when the character's HTML trust is off`, async ({ corpus, mount, page }) => {
+    const room = await openUnscriptedRoom(`${body}\n\nThe hall waits.`);
+    await using root = room.root;
+    await (await root.internalCallerFor(root.ownerId)).character.update({ characterId: room.characterId, input: { trustHtml: false, interactiveHtml: false } });
+    await using _routes = await serveRoom(page, root, corpus);
+    await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+    const row = rowOf(page, room.messageId);
+    // Positive control: the reply drew, so the absence of a frame is the trust's doing.
+    await expect(row.getByText("The hall waits.", { exact: true })).toBeVisible();
+    await expect(row.getByText("Model-written markup", { exact: false }).first()).toBeVisible();
+    await expect(row.locator(REPLY_FRAME)).toHaveCount(0);
+    await expect(row.locator('[data-slot="plain-notice"]')).toHaveCount(1);
+    expect(sourceIn((await row.textContent()) ?? "")).toEqual([]);
+  });
+}
+
+const INLINE_MARKUP = [
+  ["a coloured span", 'She says <span style="color:red">hi</span>.', "She says hi."],
+  ["a font colour tag", 'She says <font color="red">hi</font>.', "She says hi."],
+  ["a bare wrapper block", "<div>\nModel-written markup\n</div>", "Model-written markup"],
+] as const;
+
+for (const [name, body, shown] of INLINE_MARKUP) {
+  test(`${name} the model wrote is no panel: it stays in the transcript, framed by nothing`, async ({ corpus, mount, page }) => {
+    const room = await openUnscriptedRoom(body);
+    await using root = room.root;
+    await using _routes = await serveRoom(page, root, corpus);
+    await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+    const row = rowOf(page, room.messageId);
+    await expect(row.getByText(shown, { exact: true })).toBeVisible();
+    await expect(row.locator(REPLY_FRAME)).toHaveCount(0);
+    await expect(row.locator('[data-slot="plain-notice"]')).toHaveCount(0);
+  });
+}
+
+test("a model panel streams behind the forming chip from its first tag, and no tag, CSS or script text ever shows", async ({ corpus, mount, page }) => {
+  const room = await openUnscriptedRoom("Unchanged.");
   await using root = room.root;
   await using _routes = await serveRoom(page, root, corpus);
+  const ghost = '[data-slot="ghost-message-row"] [data-slot="ghost-stream-body"]';
+  await watchForSource(page, ghost, [...SOURCE_MARKERS, "padding", "run()"]);
+  await mount<typeof StyledReplyStreamStory>(STREAM_STORY, {
+    chatId: room.chatId,
+    speakerCharacterId: room.characterId,
+    chunks: MODEL_PANEL_CHUNKS,
+    chunkLabel: CHUNK_LABEL,
+  });
+  await streamEachChunk(page, MODEL_PANEL_CHUNKS);
+  const body = page.locator(ghost);
+  await expect(body.locator(FORMING_CHIP)).toHaveCount(1);
+  // Positive control: the prose on both sides of the panel streamed, so the watch read the row as it formed.
+  await expect(body).toContainText("She looks up.");
+  await expect(body).toContainText("The hall waits.");
+  const { hits } = await sourceSeen(page);
+  expect(hits).toEqual([]);
+});
+
+test("a stored model panel holds behind the chip until its frame draws, then draws in place with no source shown", async ({ corpus, mount, page }) => {
+  const room = await openUnscriptedRoom(MODEL_PANEL_CHUNKS.join(""));
+  await using root = room.root;
+  const mints = Promise.withResolvers<void>();
+  await using _routes = await serveRoom(page, root, corpus, { mintsWait: mints.promise });
+  const row = `[data-slot="message-row"][data-message-id="${room.messageId}"]`;
+  await watchForSource(page, `${row} ${BUBBLE}`, [...SOURCE_MARKERS, "padding", "run()"]);
   await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
-  await expect(page.getByText("Model-written markup", { exact: true })).toBeVisible();
-  await expect(page.locator(REPLY_FRAME)).toHaveCount(0);
-  await expect(page.locator(SANDBOX)).toHaveCount(0);
+  const host = page.locator(`${row} ${REPLY_FRAME}`);
+  await expect(host).toHaveAttribute("data-delivery", "held");
+  await expect(host.locator(FORMING_CHIP)).toHaveCount(1);
+  await expect(host).toContainText("She looks up.");
+  mints.resolve();
+  await expect(host.locator(SANDBOX)).toHaveAttribute("data-delivery", "routed");
+  await expect(host.locator(SANDBOX).contentFrame().locator("#w6p-hp")).toHaveText("HP 10");
+  const { hits, seen } = await sourceSeen(page);
+  expect(seen).toContain("She looks up.");
+  expect(hits).toEqual([]);
 });
 
 test("a link inside the frame opens nothing until the confirm, which names the address", async ({ corpus, mount, page }) => {
@@ -902,14 +1021,14 @@ test("one reply's grab while the reader is in another reply stops neither, and t
 /** The styled room with long unstyled replies above the styled one, so the transcript scrolls and the styled reply is
  *  its last row. Copies of the styled reply supply the rows, as a swipe-free duplicate does in the product. The styled
  *  reply also carries a tall panel, so its frame lands taller than its held state, the way a preset's panels do. */
-async function openPinnedRoom(): Promise<StyledRoom> {
+async function openPinnedRoom(copies = PINNED_ROOM_COPIES): Promise<StyledRoom> {
   await using construction = new AsyncDisposableStack();
   const body = `${STYLED_BODY}\n\n${TALL_PANEL_TAG}`;
   const room = await openStyledRoom(body);
   construction.use(room.root);
   const caller = await room.root.internalCallerFor(room.root.ownerId);
   await addDisplayScript(caller, "Tall panel", TALL_PANEL_FIND, TALL_PANEL_TEMPLATE);
-  for (let copy = 0; copy < PINNED_ROOM_COPIES; copy += 1) {
+  for (let copy = 0; copy < copies; copy += 1) {
     await caller.chat.duplicateMessage({ chatId: room.chatId, messageId: room.messageId });
   }
   const { messages } = await caller.chat.listMessages({ chatId: room.chatId });
@@ -1136,6 +1255,91 @@ test("a reader pinned to the end stays pinned while the newest reply's frame lan
   expect(await widestGap(), "through the swipe").toBeLessThanOrEqual(SCROLL_END_THRESHOLD_PX);
 });
 
+// The trains row, where a reply frame commits veiled at the transcript's tail edge.
+async function trainTheRoom(room: StyledRoom): Promise<void> {
+  const caller = await room.root.internalCallerFor(room.root.ownerId);
+  await caller.settings.updateUserSettingsSection({ section: "appearance", patch: { chatStyle: "tide" } });
+}
+
+const COMMIT_LABEL = "Deliver the turn's commit";
+
+/** The pinned room's reader, at its end or wherever `placeReader` leaves them, takes a fast styled reply: the reply streams, the server
+ *  writes the reply as the room's newest row and the turn commits, so the stored row lands below the fold before its
+ *  frame has a height. Returns the new row. */
+async function commitBelowFold(input: {
+  readonly room: StyledRoom;
+  readonly page: Page;
+  readonly placeReader: () => Promise<void>;
+  readonly deliver: (view: MessageView) => Promise<void>;
+}): Promise<string> {
+  const { room, page, placeReader, deliver } = input;
+  await expect(page.locator(`[data-slot="message-row"][data-message-id="${room.messageId}"] ${REPLY_FRAME} ${SANDBOX}`)).toHaveAttribute("data-drawn", "");
+  await expect.poll(async () => await endGapOf(page)).toBeLessThanOrEqual(SUBPIXEL_PX);
+  await placeReader();
+  await streamEachChunk(page, STREAM_CHUNKS);
+  const caller = await room.root.internalCallerFor(room.root.ownerId);
+  await caller.chat.duplicateMessage({ chatId: room.chatId, messageId: room.messageId });
+  const view = (await caller.chat.listMessages({ chatId: room.chatId })).messages.at(-1);
+  if (view === undefined || view.id === room.messageId) {
+    throw new Error("The reply did not land as the room's newest row");
+  }
+  await deliver(view);
+  await page.getByRole("button", { name: COMMIT_LABEL, exact: true }).click();
+  return `[data-slot="message-row"][data-message-id="${view.id}"]`;
+}
+
+const LIST_SCROLL = '[data-slot="message-list-scroll"]';
+const READER_AWAY_PX = 600;
+// A room long enough that the reply's row commits where a lazily loaded frame does not load: a short room hides it.
+const LONG_HISTORY_COPIES = 24;
+
+async function endGapOf(page: Page): Promise<number> {
+  return await page.locator(LIST_SCROLL).evaluate((node) => node.scrollHeight - node.scrollTop - node.clientHeight);
+}
+
+test("a reader pinned to the end stays there when a fast styled reply commits below the fold and its frame draws", async ({ corpus, mount, page }) => {
+  const room = await openPinnedRoom(LONG_HISTORY_COPIES);
+  await using root = room.root;
+  await trainTheRoom(room);
+  await using _routes = await serveRoom(page, root, corpus);
+  const props = { chatId: room.chatId, speakerCharacterId: room.characterId, chunks: STREAM_CHUNKS, chunkLabel: CHUNK_LABEL };
+  const component = await mount<typeof StyledReplyStreamStory>(STREAM_STORY, props);
+  const row = await commitBelowFold({
+    room,
+    page,
+    placeReader: async () => undefined,
+    deliver: async (view) => await component.update({ ...props, commit: { view, label: COMMIT_LABEL } }),
+  });
+  // The frame drew at its own height, and the reader still sits at the end of the list below it.
+  await expect(page.locator(`${row} ${REPLY_FRAME} ${SANDBOX}`)).toHaveAttribute("data-drawn", "");
+  await expect(page.frameLocator(`${row} ${REPLY_FRAME} ${SANDBOX}`).locator(".w6p-tall")).toBeVisible();
+  await expect.poll(async () => await endGapOf(page)).toBeLessThanOrEqual(SUBPIXEL_PX);
+});
+
+test("a reader scrolled up is not moved to a fast styled reply, whose frame draws below them off screen", async ({ corpus, mount, page }) => {
+  const room = await openPinnedRoom(LONG_HISTORY_COPIES);
+  await using root = room.root;
+  await trainTheRoom(room);
+  await using _routes = await serveRoom(page, root, corpus);
+  const props = { chatId: room.chatId, speakerCharacterId: room.characterId, chunks: STREAM_CHUNKS, chunkLabel: CHUNK_LABEL };
+  const component = await mount<typeof StyledReplyStreamStory>(STREAM_STORY, props);
+  const row = await commitBelowFold({
+    room,
+    page,
+    placeReader: async () => {
+      await page.locator(LIST_SCROLL).evaluate((node, away) => node.scrollBy({ top: -away }), READER_AWAY_PX);
+      await expect.poll(async () => await endGapOf(page)).toBeGreaterThan(SCROLL_END_THRESHOLD_PX);
+    },
+    deliver: async (view) => {
+      await component.update({ ...props, commit: { view, label: COMMIT_LABEL } });
+    },
+  });
+  // The reply's frame loads and draws at its height below the reader, who is never taken to it.
+  await expect(page.locator(`${row} ${REPLY_FRAME} ${SANDBOX}`)).toHaveAttribute("data-drawn", "");
+  await expect(page.frameLocator(`${row} ${REPLY_FRAME} ${SANDBOX}`).locator(".w6p-tall")).toBeAttached();
+  expect(await endGapOf(page)).toBeGreaterThan(SCROLL_END_THRESHOLD_PX);
+});
+
 test("a wide table in a bubble-style framed reply scrolls inside its row with a cue, and the page never scrolls sideways", async ({ corpus, mount, page }) => {
   const room = await openStyledRoom(`${STYLED_BODY}\n\n${WIDE_TABLE}`);
   await using root = room.root;
@@ -1325,13 +1529,31 @@ test("tide: a display script whose match spans a blank line draws its panel, fra
   expect(((await row.textContent()) ?? "").includes("HP:")).toBe(false);
 });
 
-test("tide: a model-written stylesheet holding a blank line stays in one bubble with its panel", async ({ corpus, mount, page }) => {
+test("tide: a reply holding a model-written panel is one framed bubble", async ({ corpus, mount, page }) => {
   const room = await openTrainRoom(MODEL_PANEL_BODY);
   await using root = room.root;
   await using _routes = await serveRoom(page, root, corpus);
   await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  const row = trainRow(page, room);
+  await expect(row.locator(`${REPLY_FRAME} ${SANDBOX}`)).toHaveAttribute("data-delivery", "routed");
+  await expect(row.locator(TRAIN_BUBBLE)).toHaveCount(1);
+  const frame = row.locator(REPLY_FRAME).locator(SANDBOX).contentFrame();
+  expect(await frame.locator(".w6p-model b").evaluate((node) => getComputedStyle(node).color)).toBe("rgb(255, 0, 0)");
+  await expect(frame.getByText("The hall waits.")).toBeVisible();
+});
+
+test("tide: with the character's HTML trust off a model-written panel trains plain as its words, its CSS never printed", async ({ corpus, mount, page }) => {
+  const room = await openTrainRoom(MODEL_PANEL_BODY);
+  await using root = room.root;
+  await (await root.internalCallerFor(root.ownerId)).character.update({ characterId: room.characterId, input: { trustHtml: false, interactiveHtml: false } });
+  await using _routes = await serveRoom(page, root, corpus);
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
   const bubbles = trainRow(page, room).locator(TRAIN_BUBBLE);
-  await expect(bubbles).toHaveText(["She looks up.", /HUD/u, "The hall waits."]);
+  // The panel's words keep their bubble: the plain path unwraps the markup it drops, never leaves the bubble empty.
+  await expect(bubbles).toHaveText(["She looks up.", "HUD", "The hall waits."]);
+  await expect(page.locator(REPLY_FRAME)).toHaveCount(0);
+  await expect(trainRow(page, room).locator('[data-slot="plain-notice"]')).toHaveCount(1);
+  expect(sourceIn((await bubbles.allTextContents()).join("\n"))).toEqual([]);
 });
 
 test("tide: a plain three-paragraph reply trains as three bubbles, in order", async ({ corpus, mount, page }) => {
@@ -1423,6 +1645,24 @@ test("tide: a speaker's span runs on across the bubbles it covers", async ({ cor
   expect(tinted).toEqual([0, 1, 1]);
 });
 
+// An ordinary HTML block the model wrote, with no style of its own, straight before a speaker's tag.
+const HUD_THEN_SPOKEN_BODY = `${SPOKEN_PARAGRAPHS[0]}\n\n<div class="w6p-hud">HP 10</div>\n<speaker>Lancelot</speaker>${SPOKEN_PARAGRAPHS[1]}`;
+
+test("tide: a speaker's tag after an ordinary HTML block still opens that speaker's bubble", async ({ corpus, mount, page }) => {
+  const room = await openTrainRoom(HUD_THEN_SPOKEN_BODY);
+  await using root = room.root;
+  await using _routes = await serveRoom(page, root, corpus);
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  const bubbles = trainRow(page, room).locator(TRAIN_BUBBLE);
+  const spoken = bubbles.filter({ hasText: SPOKEN_PARAGRAPHS[1] });
+  // The speaker's words read under the speaker's own tint, and the tag is never text.
+  await expect(spoken).toHaveCount(1);
+  await expect(spoken.locator('[data-slot="theme-scope"]')).toHaveCount(1);
+  // Positive control: the narration before the block reads untinted.
+  await expect(bubbles.filter({ hasText: SPOKEN_PARAGRAPHS[0] }).locator('[data-slot="theme-scope"]')).toHaveCount(0);
+  expect((await trainRow(page, room).textContent()) ?? "").not.toContain("speaker>");
+});
+
 // A viewer plugin whose display transform marks the end of whatever text it is handed.
 const ANNOTATE_MARK = " [annotated]";
 const ANNOTATE_MANIFEST = pluginManifestSchema.parse({
@@ -1489,31 +1729,18 @@ const OWN_STYLE_CHUNKS = ['She looks up.\n\n<div class="w6p-own"><style>.w6p-own
 // The same element as a code sample: a fence and a code span show it as written.
 const OWN_SAMPLE_BODY = `Here is the page:\n\n\`\`\`html\n<style>${OWN_CSS}</style>\n\`\`\`\n\nOr inline: \`<style>${OWN_CSS}</style>\`.`;
 
-/** The styled room with no display script, so no reply in it is styled. */
-async function openUnscriptedRoom(body: string): Promise<StyledRoom> {
-  await using construction = new AsyncDisposableStack();
-  const room = await openStyledRoom(body);
-  construction.use(room.root);
-  const caller = await room.root.internalCallerFor(room.root.ownerId);
-  for (const script of await caller.regex.listScripts()) {
-    await caller.regex.removeScript({ scriptId: script.id });
-  }
-  construction.move();
-  return room;
-}
-
-const rowOf = (page: Page, id: MessageId): Locator => page.locator(`[data-slot="message-row"][data-message-id="${id}"]`);
-
 forEachNonEmpty(THEME_CHAT_STYLES, "THEME_CHAT_STYLES", (chatStyle) => {
-  test(`${chatStyle}: a stylesheet the model wrote into an unstyled reply never prints as text`, async ({ corpus, mount, page }) => {
+  test(`${chatStyle}: a stylesheet the model wrote into an unstyled reply draws in its frame and never prints as text`, async ({ corpus, mount, page }) => {
     const room = await openUnscriptedRoom(OWN_STYLE_BODY);
     await using root = room.root;
     await (await root.internalCallerFor(root.ownerId)).settings.updateUserSettingsSection({ section: "appearance", patch: { chatStyle } });
     await using _routes = await serveRoom(page, root, corpus);
     await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
     const row = rowOf(page, room.messageId);
-    await expect(row).toContainText("The hall waits.");
-    await expect(row.locator("b", { hasText: "HUD" })).toBeVisible();
+    await expect(row.locator(`${REPLY_FRAME} ${SANDBOX}`)).toHaveAttribute("data-delivery", "routed");
+    const frame = row.locator(REPLY_FRAME).locator(SANDBOX).contentFrame();
+    await expect(frame.getByText("The hall waits.")).toBeVisible();
+    expect(await frame.locator(".w6p-own b").evaluate((node) => getComputedStyle(node).color)).toBe("rgb(255, 0, 0)");
     expect((await row.textContent()) ?? "").not.toContain(OWN_CSS);
   });
 });

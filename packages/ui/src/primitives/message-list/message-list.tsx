@@ -46,12 +46,17 @@ const LEADING_ACTION_PIN = [
 
 const reachedEnd = (el: HTMLElement): boolean => el.scrollHeight - el.scrollTop - el.clientHeight <= SCROLL_END_THRESHOLD_PX;
 
-const axisMarkOf = (el: HTMLElement, rows: HTMLElement | null): AxisMark => ({
-  top: el.scrollTop,
-  rowsOnScreen: (rows?.getBoundingClientRect().top ?? 0) - el.getBoundingClientRect().top,
-  contentPx: el.scrollHeight,
-  portPx: el.clientHeight,
-});
+const axisMarkOf = (el: HTMLElement, rows: HTMLElement | null): AxisMark => {
+  const port = el.getBoundingClientRect();
+  const written = rows?.getBoundingClientRect();
+  return {
+    top: el.scrollTop,
+    rowsOnScreen: (written?.top ?? port.top) - port.top,
+    contentPx: el.scrollHeight,
+    portPx: el.clientHeight,
+    writtenPx: written === undefined ? el.scrollHeight : written.bottom - port.top + el.scrollTop,
+  };
+};
 
 export interface MessageListHandle {
   /** Imperatively scrolls to the last item. */
@@ -188,7 +193,7 @@ export function MessageList<T>({
   const readingRowRef = useRef<ReadingRow | null>(null);
   // Where the list last left the axis or last saw it, as of its last write or scroll event. Focus reads this rather than the
   // live value because a browser may have scrolled to the focused control before its focus event fires.
-  const axisMarkRef = useRef<AxisMark>({ top: 0, rowsOnScreen: 0, contentPx: 0, portPx: 0 });
+  const axisMarkRef = useRef<AxisMark>({ top: 0, rowsOnScreen: 0, contentPx: 0, portPx: 0, writtenPx: 0 });
   const totalPxRef = useRef(0);
   const holdingRef = useRef(false);
   const holdReadingRowRef = useRef<() => void>(() => undefined);

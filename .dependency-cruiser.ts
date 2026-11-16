@@ -1123,6 +1123,9 @@ const PACKAGE_TEST_REACHES = {
   "tests/client/features/chat/lib/reply-parts.test.ts": {
     "packages/client/src/features/chat/lib/reply-parts.ts": "replyLayout: the feature-private split of a styled reply into frame runs and native blocks",
   },
+  "tests/client/features/chat/lib/panel-reads.test.ts": {
+    "packages/client/src/features/chat/lib/reply-parts.ts": "readPanels and PANEL_READ_MAX_CHARS: the bounded panel read every drawn body takes",
+  },
   "tests/client/features/chat/lib/split-paragraphs.test.ts": {
     "packages/client/src/features/chat/lib/split-paragraphs.ts": "splitIntoTrainParagraphs: the feature-private split of a reply into Tide's bubbles",
   },

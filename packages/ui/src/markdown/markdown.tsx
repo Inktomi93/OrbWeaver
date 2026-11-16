@@ -1,3 +1,4 @@
+import { stripUnreadElements } from "@orb/kit/content";
 import type { ErrorInfo, ReactElement, ReactNode } from "react";
 import { Component, useState } from "react";
 import type { StreamdownProps } from "streamdown";
@@ -162,8 +163,6 @@ export function Markdown({
   // already is instead of flipping type under the reader. Runs before the repair layer; remend still sees
   // a well-formed prefix, and the caret keeps landing on a real leaf block (the pre-pass never empties
   // the body).
-  const body = mode === "streaming" ? holdAmbiguousTail(children) : children;
-
   if (children.length > MAX_RENDER_LENGTH) {
     return (
       <pre className={cn(`${SCROLLER} text-body leading-body whitespace-pre-wrap max-block-(--height-prose-cap)`, className)} data-slot="markdown-oversized">
@@ -171,6 +170,11 @@ export function Markdown({
       </pre>
     );
   }
+  // THE UNTRUSTED ALLOWLIST UNWRAPS what it drops, so a panel's words stay as prose. An element whose content HTML
+  // reads raw or as text (a stylesheet, a script, a `textarea`) goes first with that content, or it would print.
+  // Below the guard, so an oversized body costs no read.
+  const read = untrusted ? stripUnreadElements(children) : children;
+  const body = mode === "streaming" ? holdAmbiguousTail(read) : read;
 
   // Emphasis/italic reads as narration in this app's prose voice — the base className tints every
   // rendered <em> with --color-narration, re-themed for free per palette.
@@ -247,7 +251,7 @@ export function Markdown({
         // `ghost-stream-body` scope paints the caret on the true leaf block instead.
         {...revealProp}
         {...(untrusted
-          ? { allowedElements: TIER_A_UNTRUSTED_ELEMENTS, urlTransform: untrustedUrlTransform }
+          ? { allowedElements: TIER_A_UNTRUSTED_ELEMENTS, unwrapDisallowed: true, urlTransform: untrustedUrlTransform }
           : {
               allowedTags: TRUSTED_ALLOWED_TAGS,
               literalTagContent: [...TRUSTED_LITERAL_TAG_CONTENT],

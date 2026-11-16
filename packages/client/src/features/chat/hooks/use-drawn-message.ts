@@ -9,9 +9,10 @@ import type { RefCallback } from "react";
 import type { PluginDisplayRow } from "#data";
 import { usePluginDisplayText } from "#data";
 import type { DisplayRowCall, MessageRenderContext, RowRenderPolicy } from "#lib";
+import { PLAIN_REPLY_REASON } from "#lib";
 import type { CardOrigin } from "../components/card-block.tsx";
 import type { ReplyLayout } from "../lib/reply-parts.ts";
-import { replyLayout } from "../lib/reply-parts.ts";
+import { PANEL_READ_MAX_CHARS, readPanels, replyLayout } from "../lib/reply-parts.ts";
 import { colorForCharacter } from "../lib/speaker-color.ts";
 import { useDisplayText } from "./use-display-text.ts";
 
@@ -52,6 +53,9 @@ export interface DrawnMessage {
   readonly spans: readonly SpeakerSpan[];
   /** A display script's own template drew markup (D354). */
   readonly styled: boolean;
+  /** The drawn prose holds a panel its author wrote (`modelPanels`, D354): a stylesheet, a script, an svg, or a block
+   *  whose tag carries a style attribute. */
+  readonly modelPanel: boolean;
   /** The scripts have not answered: lay the body out, do not show it. */
   readonly pending: boolean;
   /** A viewer's plugin changed what the scripts drew. */
@@ -67,10 +71,12 @@ export function useDrawnMessage(content: string, props: MessageDrawProps): Drawn
   // produced. Inert without a row or without a registered transform — same string in, same string out.
   const resolvedContent = usePluginDisplayText(displayed, pluginDisplayRow);
   const characterNames = narratorVoiced && speakerThemes !== undefined ? [...speakerThemes.keys()] : NO_CHARACTER_NAMES;
+  const panels = readPanels(resolvedContent, props.render);
   return {
     text: resolvedContent,
-    spans: parseSpeakerSpans(resolvedContent, characterNames),
+    spans: parseSpeakerSpans(resolvedContent, characterNames, panels.opaque),
     styled,
+    modelPanel: panels.modelPanel,
     pending,
     rewritten: resolvedContent !== displayed,
     observeBody,
@@ -78,14 +84,19 @@ export function useDrawnMessage(content: string, props: MessageDrawProps): Drawn
 }
 
 /** How a drawn body lays out: undefined for the inert path, else framed or the plain path whole, with why (D354).
- *  A display script's own markup styled this row and the row's tier is the sandboxed one, so the reply draws in a
- *  card frame. A plugin that rewrote the text has changed what the scripts produced, so the row keeps the inert
- *  path; markup the model wrote alone never styles a row. A row still waiting on its scripts is never framed: it
- *  stays on the held inert path until its answer lands. */
+ *  On the sandboxed tier a reply draws in a card frame when a display script's own markup styled it, or when its drawn
+ *  prose holds a panel its author wrote. A plugin that rewrote the text has changed what the scripts produced, so the
+ *  script trigger no longer holds; the panel trigger reads the text after the plugin, so a plugin's own panel frames
+ *  like the model's. A row still waiting on its scripts is never framed: it stays on the held inert path until its
+ *  answer lands. */
 export function drawnLayout(drawn: Omit<DrawnMessage, "observeBody">, props: Pick<MessageDrawProps, "render" | "speakerThemes">): ReplyLayout | undefined {
   const { render, speakerThemes } = props;
-  if (render.cardTier !== "tierB" || !drawn.styled || drawn.pending || drawn.rewritten) {
+  const frames = (drawn.styled && !drawn.rewritten) || drawn.modelPanel;
+  if (render.cardTier !== "tierB" || !frames || drawn.pending) {
     return undefined;
+  }
+  if (drawn.text.length > PANEL_READ_MAX_CHARS) {
+    return { kind: "plain", reason: PLAIN_REPLY_REASON.carriedStylesOverBudget };
   }
   return replyLayout(
     drawn.spans.map((span) => ({

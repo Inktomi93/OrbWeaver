@@ -1,3 +1,4 @@
+import { escapeHtmlData, mapOutsideCode } from "#content";
 import type { CharacterId, PersonaId, UserId } from "#ids";
 import type { ProcessMacroOptions } from "#macro";
 import { globalMacroRegistry, macroTextReadsRetrieval, processMacros } from "#macro";
@@ -393,13 +394,24 @@ function resolveDollarToken(token: DollarToken, splice: SpliceContext): string {
 // ORDERING IS LOAD-BEARING: macros run on the replacement template FIRST, then `$N`/`$<name>`/
 // {{match}} are spliced with the raw captured text — so an AI_OUTPUT script re-emitting a model
 // reply containing `{{setvar::x::y}}` can never mutate persisted chat vars on the way through.
-function buildReplacement(args: readonly unknown[], script: RegexScriptInput, ctx: ProcessMacroOptions, budget: OutputBudget): string {
+// One script's replacement on one executor call: its macro context, and whether the call is the display pass.
+interface ReplacementPass {
+  readonly script: RegexScriptInput;
+  readonly ctx: ProcessMacroOptions;
+  readonly display: boolean;
+}
+
+function buildReplacement(args: readonly unknown[], pass: ReplacementPass, budget: OutputBudget): string {
+  const { script, ctx, display } = pass;
   const lastArg = args.at(-1);
   const namedGroups = isNamedGroups(lastArg) ? lastArg : undefined;
   const captureCount = args.length - REPLACE_FIXED_ARGS - (namedGroups ? 1 : 0);
 
-  // Macro pass on the template — before any capture is spliced in.
-  let replacement = processMacros(script.replaceString, ctx);
+  // Macro pass on the template — before any capture is spliced in. On the display pass a macro's value is the reader's
+  // data, so it resolves escaped and never inside code a frame runs (`mapOutsideCode`); the prompt passes keep it as is.
+  let replacement = display
+    ? mapOutsideCode(script.replaceString, (piece) => processMacros(piece, { ...ctx, postProcess: escapeHtmlData }))
+    : processMacros(script.replaceString, ctx);
 
   // `{{match}}` → `$0` resolves AFTER the macro pass so its expansion isn't itself macro-evaluated.
   replacement = replacement.replace(/\{\{match\}\}/gi, "$0");
@@ -429,11 +441,11 @@ interface RegexExecuteOptions {
 }
 
 // Top-level factory (not an inline closure in the loop below — that would trip noLoopFunc).
-function makeReplacer(script: RegexScriptInput, ctx: ProcessMacroOptions, budget: OutputBudget): RegexReplacer {
+function makeReplacer(pass: ReplacementPass, budget: OutputBudget): RegexReplacer {
   return (...args: unknown[]): string => {
     const [matched] = args;
     charge(budget, -(typeof matched === "string" ? matched.length : 0));
-    return buildReplacement(args, script, ctx, budget);
+    return buildReplacement(args, pass, budget);
   };
 }
 
@@ -557,7 +569,7 @@ export function executeRegexScripts(args: ExecuteRegexScriptsArgs): string {
     // preview shows it to the author; only the client display tier omits it, by design. Ends if a server caller drops the sink.
     try {
       const regex = compilePattern(script, ctx);
-      result = applyReplace(result, regex, makeReplacer(script, ctx, { projected: result.length, limit }));
+      result = applyReplace(result, regex, makeReplacer({ script, ctx, display: call.pass === "display" }, { projected: result.length, limit }));
     } catch (err) {
       args.onScriptFailure?.(err, script);
     }

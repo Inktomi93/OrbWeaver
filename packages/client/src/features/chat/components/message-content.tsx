@@ -202,8 +202,9 @@ function FramedReply({
   );
 }
 
-// A tierA row draws rich content plain when a display script styled it or when it carries a card: the notice says once,
-// under the row, which setting holds it there. A row still waiting on its scripts shows none until its answer lands.
+// A tierA row draws rich content plain when a display script styled it, when its prose holds a panel its author wrote,
+// or when it carries a card: the notice says once, under the row, which setting holds it there. A row still waiting on
+// its scripts shows none until its answer lands.
 function rowPlainNotice(texts: readonly string[], render: RowRenderPolicy, styled: boolean, pending: boolean): ReactElement | null {
   if (render.plain === undefined || pending) {
     return null;
@@ -217,7 +218,7 @@ function rowPlainNotice(texts: readonly string[], render: RowRenderPolicy, style
 // frame, why it is plain whole. Null when it says nothing.
 function rowNotices(drawn: Omit<DrawnMessage, "observeBody">, layout: ReplyLayout | undefined, render: RowRenderPolicy): ReactElement | null {
   const texts = drawn.spans.map((span) => (drawn.styled ? stripStyleElements(span.text) : span.text));
-  const trust = rowPlainNotice(texts, render, drawn.styled, drawn.pending);
+  const trust = rowPlainNotice(texts, render, drawn.styled || drawn.modelPanel, drawn.pending);
   const heavy = layout?.kind === "plain" ? <PlainReplyNotice key="plain-reply-notice" reason={layout.reason} /> : null;
   return trust === null && heavy === null ? null : (
     <>

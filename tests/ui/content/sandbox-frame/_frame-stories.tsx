@@ -55,3 +55,24 @@ export function SandboxFrameStory(props: FrameStoryProps): ReactElement {
     </CtIsolation>
   );
 }
+
+/** A routed reply frame veiled behind its stand-in at the end of a scroller, far below what the scroller shows, as the
+ *  newest row of a long transcript commits before the list has moved to it. The scroller is never scrolled. */
+export function FrameBelowScrollerFoldStory({
+  src,
+  title,
+  spacerRem,
+}: {
+  readonly src: string;
+  readonly title: string;
+  readonly spacerRem: number;
+}): ReactElement {
+  return (
+    <CtIsolation subject="SandboxFrame veil" isolates="A veiled routed frame clipped below a scroller's visible edge, without the transcript">
+      <div data-slot="story-scroller" style={{ blockSize: "10rem", overflowY: "auto" }}>
+        <div style={{ blockSize: `${String(spacerRem)}rem` }} />
+        <SandboxFrame html="" src={src} title={title} holds="reply" pending={<p>The reply is on its way.</p>} />
+      </div>
+    </CtIsolation>
+  );
+}

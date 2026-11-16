@@ -15,7 +15,7 @@ import { setImmediate } from "node:timers/promises";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { stRegexScriptFields } from "@orb/contracts/regex";
-import { scanStyledHold, stripStyleElements, stripTags } from "@orb/kit/content";
+import { holdBlocksWhole, modelPanels, scanStyledHold, stripStyleElements, stripTags } from "@orb/kit/content";
 import { isPlainObject } from "@orb/kit/guards";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { jsonValueSchema } from "@orb/kit/json";
@@ -289,6 +289,10 @@ function shapeOf(text: string): string[] {
     ["css-blank-line", blankLine],
     [STYLE_AFTER_TAG_BLANK_LINE, afterTag && blankLine],
     ["script", /<script\b/i.test(text)],
+    // Written by the model, this text would frame on its own (`modelPanels`); and a frame reads it differently with the
+    // block hold than without (`holdBlocksWhole` turns a blank line inside a held block into a comment).
+    ["model-panel", modelPanels(text).length > 0],
+    ["hold-changes-parse", holdBlocksWhole(text) !== text],
     [NO_STYLE_SHAPE, !/<style\b/i.test(text)],
   ];
   return shapes.flatMap(([name, present]) => (present ? [name] : []));
