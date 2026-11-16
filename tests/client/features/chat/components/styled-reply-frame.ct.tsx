@@ -13,6 +13,7 @@
 
 import { spawn } from "node:child_process";
 import { PLAIN_REPLY_REASON } from "@orb/client/lib";
+import type { MessageView } from "@orb/contracts/chat";
 import { rendersTrustedHtml } from "@orb/contracts/chat";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
@@ -1020,14 +1021,14 @@ test("one reply's grab while the reader is in another reply stops neither, and t
 /** The styled room with long unstyled replies above the styled one, so the transcript scrolls and the styled reply is
  *  its last row. Copies of the styled reply supply the rows, as a swipe-free duplicate does in the product. The styled
  *  reply also carries a tall panel, so its frame lands taller than its held state, the way a preset's panels do. */
-async function openPinnedRoom(): Promise<StyledRoom> {
+async function openPinnedRoom(copies = PINNED_ROOM_COPIES): Promise<StyledRoom> {
   await using construction = new AsyncDisposableStack();
   const body = `${STYLED_BODY}\n\n${TALL_PANEL_TAG}`;
   const room = await openStyledRoom(body);
   construction.use(room.root);
   const caller = await room.root.internalCallerFor(room.root.ownerId);
   await addDisplayScript(caller, "Tall panel", TALL_PANEL_FIND, TALL_PANEL_TEMPLATE);
-  for (let copy = 0; copy < PINNED_ROOM_COPIES; copy += 1) {
+  for (let copy = 0; copy < copies; copy += 1) {
     await caller.chat.duplicateMessage({ chatId: room.chatId, messageId: room.messageId });
   }
   const { messages } = await caller.chat.listMessages({ chatId: room.chatId });
@@ -1252,6 +1253,91 @@ test("a reader pinned to the end stays pinned while the newest reply's frame lan
   await streamEachChunk(page, STREAM_CHUNKS);
   await expect(page.locator('[data-slot="ghost-message-row"]')).toContainText("You are late, Arthur.");
   expect(await widestGap(), "through the swipe").toBeLessThanOrEqual(SCROLL_END_THRESHOLD_PX);
+});
+
+// The trains row, where a reply frame commits veiled at the transcript's tail edge.
+async function trainTheRoom(room: StyledRoom): Promise<void> {
+  const caller = await room.root.internalCallerFor(room.root.ownerId);
+  await caller.settings.updateUserSettingsSection({ section: "appearance", patch: { chatStyle: "tide" } });
+}
+
+const COMMIT_LABEL = "Deliver the turn's commit";
+
+/** The pinned room's reader, at its end or wherever `placeReader` leaves them, takes a fast styled reply: the reply streams, the server
+ *  writes the reply as the room's newest row and the turn commits, so the stored row lands below the fold before its
+ *  frame has a height. Returns the new row. */
+async function commitBelowFold(input: {
+  readonly room: StyledRoom;
+  readonly page: Page;
+  readonly placeReader: () => Promise<void>;
+  readonly deliver: (view: MessageView) => Promise<void>;
+}): Promise<string> {
+  const { room, page, placeReader, deliver } = input;
+  await expect(page.locator(`[data-slot="message-row"][data-message-id="${room.messageId}"] ${REPLY_FRAME} ${SANDBOX}`)).toHaveAttribute("data-drawn", "");
+  await expect.poll(async () => await endGapOf(page)).toBeLessThanOrEqual(SUBPIXEL_PX);
+  await placeReader();
+  await streamEachChunk(page, STREAM_CHUNKS);
+  const caller = await room.root.internalCallerFor(room.root.ownerId);
+  await caller.chat.duplicateMessage({ chatId: room.chatId, messageId: room.messageId });
+  const view = (await caller.chat.listMessages({ chatId: room.chatId })).messages.at(-1);
+  if (view === undefined || view.id === room.messageId) {
+    throw new Error("The reply did not land as the room's newest row");
+  }
+  await deliver(view);
+  await page.getByRole("button", { name: COMMIT_LABEL, exact: true }).click();
+  return `[data-slot="message-row"][data-message-id="${view.id}"]`;
+}
+
+const LIST_SCROLL = '[data-slot="message-list-scroll"]';
+const READER_AWAY_PX = 600;
+// A room long enough that the reply's row commits where a lazily loaded frame does not load: a short room hides it.
+const LONG_HISTORY_COPIES = 24;
+
+async function endGapOf(page: Page): Promise<number> {
+  return await page.locator(LIST_SCROLL).evaluate((node) => node.scrollHeight - node.scrollTop - node.clientHeight);
+}
+
+test("a reader pinned to the end stays there when a fast styled reply commits below the fold and its frame draws", async ({ corpus, mount, page }) => {
+  const room = await openPinnedRoom(LONG_HISTORY_COPIES);
+  await using root = room.root;
+  await trainTheRoom(room);
+  await using _routes = await serveRoom(page, root, corpus);
+  const props = { chatId: room.chatId, speakerCharacterId: room.characterId, chunks: STREAM_CHUNKS, chunkLabel: CHUNK_LABEL };
+  const component = await mount<typeof StyledReplyStreamStory>(STREAM_STORY, props);
+  const row = await commitBelowFold({
+    room,
+    page,
+    placeReader: async () => undefined,
+    deliver: async (view) => await component.update({ ...props, commit: { view, label: COMMIT_LABEL } }),
+  });
+  // The frame drew at its own height, and the reader still sits at the end of the list below it.
+  await expect(page.locator(`${row} ${REPLY_FRAME} ${SANDBOX}`)).toHaveAttribute("data-drawn", "");
+  await expect(page.frameLocator(`${row} ${REPLY_FRAME} ${SANDBOX}`).locator(".w6p-tall")).toBeVisible();
+  await expect.poll(async () => await endGapOf(page)).toBeLessThanOrEqual(SUBPIXEL_PX);
+});
+
+test("a reader scrolled up is not moved to a fast styled reply, whose frame draws below them off screen", async ({ corpus, mount, page }) => {
+  const room = await openPinnedRoom(LONG_HISTORY_COPIES);
+  await using root = room.root;
+  await trainTheRoom(room);
+  await using _routes = await serveRoom(page, root, corpus);
+  const props = { chatId: room.chatId, speakerCharacterId: room.characterId, chunks: STREAM_CHUNKS, chunkLabel: CHUNK_LABEL };
+  const component = await mount<typeof StyledReplyStreamStory>(STREAM_STORY, props);
+  const row = await commitBelowFold({
+    room,
+    page,
+    placeReader: async () => {
+      await page.locator(LIST_SCROLL).evaluate((node, away) => node.scrollBy({ top: -away }), READER_AWAY_PX);
+      await expect.poll(async () => await endGapOf(page)).toBeGreaterThan(SCROLL_END_THRESHOLD_PX);
+    },
+    deliver: async (view) => {
+      await component.update({ ...props, commit: { view, label: COMMIT_LABEL } });
+    },
+  });
+  // The reply's frame loads and draws at its height below the reader, who is never taken to it.
+  await expect(page.locator(`${row} ${REPLY_FRAME} ${SANDBOX}`)).toHaveAttribute("data-drawn", "");
+  await expect(page.frameLocator(`${row} ${REPLY_FRAME} ${SANDBOX}`).locator(".w6p-tall")).toBeAttached();
+  expect(await endGapOf(page)).toBeGreaterThan(SCROLL_END_THRESHOLD_PX);
 });
 
 test("a wide table in a bubble-style framed reply scrolls inside its row with a cue, and the page never scrolls sideways", async ({ corpus, mount, page }) => {

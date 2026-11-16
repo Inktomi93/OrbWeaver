@@ -143,6 +143,13 @@ function frameStyle(fill: boolean, veiled: boolean, appliedPx: number | undefine
   return { height: appliedPx === undefined ? cssVar("height.chart") : `${appliedPx}px` };
 }
 
+// A VEILED FRAME IS NEVER LAZY. Its host waits on the height its document reports, and the veil holds it at 0px, which a
+// lazy load reads as off screen wherever it sits: at a transcript's end it never loads, never reports, and the list it
+// should grow is left short of its end. Only a frame that draws at a height of its own loads lazily.
+function frameLoading(veiled: boolean): "eager" | "lazy" {
+  return veiled ? "eager" : "lazy";
+}
+
 // EXACTLY ONE of the two delivery attributes is ever emitted — see the `src` prop doc.
 function frameDelivery(input: {
   readonly html: string;
@@ -406,7 +413,7 @@ export function SandboxFrame({
         sandbox={CARD_FRAME_SANDBOX[src === undefined ? "meta" : "document"]}
         {...delivery}
         title={title === "" ? UNNAMED_FRAME_TITLE : title}
-        loading="lazy"
+        loading={frameLoading(veiled)}
         referrerPolicy="no-referrer"
         className={cn(className ?? FRAME_SURFACE[holds], veiled && "invisible")}
         style={style}
