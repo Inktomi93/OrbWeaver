@@ -1,9 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-15
+updated: 2026-11-16
 priority: P3
 area: kit
+plan: chat-html-and-presets
 ---
 
 # An empty bullet line after indented code that closed a container can print a panel's stylesheet on the plain path

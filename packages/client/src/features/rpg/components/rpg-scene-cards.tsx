@@ -122,7 +122,11 @@ function ArchiveBody({ chatId }: Pick<RpgSceneCardsProps, "chatId">): ReactEleme
     queries: [roomTailOptions(trpc, { chatId }), roomRosterOptions(trpc, { chatId })],
   });
   const [openKey, setOpenKey] = useState<string | null>(null);
-  const cards = collectArchivedCards(messages.messages, { participants: chat.participants, viewerUserId: chat.viewerUserId }).toReversed();
+  const cards = collectArchivedCards(messages.messages, {
+    participants: chat.participants,
+    narrator: chat.narratorRender,
+    viewerUserId: chat.viewerUserId,
+  }).toReversed();
   if (cards.length === 0) {
     return <MutedLine>{RPG_SCENE_NO_CARDS_LINE}</MutedLine>;
   }

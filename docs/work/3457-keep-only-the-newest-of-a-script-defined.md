@@ -1,9 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-11-15
+updated: 2026-11-16
 priority: P3
 area: regex
+plan: chat-html-and-presets
 ---
 
 # Keep only the newest of a script-defined block in context without one script per tag

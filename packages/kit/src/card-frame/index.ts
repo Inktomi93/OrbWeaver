@@ -37,7 +37,8 @@
 //     this is a real block, not a probe that could never navigate anything. A card's http, https or mailto link
 //     never reaches this: the pinned script hands its click to the embedder (`CARD_FRAME_HEIGHT_SCRIPT`). A refused
 //     navigation leaves the frame blank (measured: a card's `data:` or custom-scheme link under the app policy), so
-//     the script swallows every other card link but a `javascript:` one.
+//     the script reads an image map's `area` as it reads an `a`, and swallows every other card link but a
+//     `javascript:` one.
 //   • `target="_top"` — REFUSED (two belts: the sandbox has no `allow-top-navigation`, and the destination
 //     is off-origin anyway). The top document stays put.
 //   • a `<form action="https://elsewhere">` submit — REFUSED (`form-action 'none'`, this document's own).
@@ -172,10 +173,12 @@ export type CardFramePosture = (typeof CARD_FRAME_POSTURES)[number];
 /**
  * The ONE script the routed frame is allowed to run: measure the body and post the height to the embedder, and hand
  * a link click to the embedder instead of navigating the frame, which the app's `frame-src 'self'` would refuse
- * (FRAME NAVIGATION in the header). A fragment-only link keeps its default everywhere, so in-document jumps work. In a
- * card, an http, https or mailto link is handed over, a `javascript:` link keeps its default (Chromium did not follow one
- * in an interactive card frame, and the static posture's `script-src` refuses it), and a link of any other scheme (`data:`, a custom scheme) does nothing: the app's `frame-src`
- * refuses its navigation and Chromium would leave the frame blank. Inside a styled reply's body (`[data-frame-reply]`)
+ * (FRAME NAVIGATION in the header). A link is an `a` or an image map's `area` with an `href`: both navigate the frame
+ * the same way. A fragment-only link keeps its default everywhere, so in-document jumps work. In a card, an http, https
+ * or mailto link is handed over, a `javascript:` link keeps its default (Chromium did not follow one in an interactive
+ * card frame, and the static posture's `script-src` refuses it), and a link of any other scheme (`data:`, a custom
+ * scheme) does nothing: the app's `frame-src` refuses its navigation and Chromium would leave the frame blank. Inside a
+ * styled reply's body (`[data-frame-reply]`)
  * every other link is swallowed and handed over, so no other scheme runs or navigates there. The embedder decides what
  * a link message may do: {@link readCardFrameLink} admits only an http, https or mailto address, and the host opens it
  * only through its own confirm, raised from a frame its focus gate admitted. A document whose root carries
@@ -193,13 +196,13 @@ export type CardFramePosture = (typeof CARD_FRAME_POSTURES)[number];
  * identity, never by the message. See {@link foldCardFrameHeight}.
  */
 const CARD_FRAME_HEIGHT_SCRIPT =
-  '(function(){var last=-1;function post(){var body=document.body;if(body===null){return;}var height=body.scrollHeight;if(height!==last){last=height;parent.postMessage({orbCardFrameHeight:height},"*");}}addEventListener("DOMContentLoaded",function(){new ResizeObserver(post).observe(document.body);if(document.documentElement.hasAttribute("data-frame-missing")){parent.postMessage({orbCardFrameMissing:true},"*");}});addEventListener("load",post);addEventListener("click",function(event){var target=event.target;var link=target instanceof Element?target.closest("a[href]"):null;if(link===null||link.getAttribute("href").charAt(0)==="#"){return;}var scheme=link.protocol;var handed=link.closest("[data-frame-reply]")!==null||scheme==="http:"||scheme==="https:"||scheme==="mailto:";if(!handed&&scheme==="javascript:"){return;}event.preventDefault();if(handed){parent.postMessage({orbCardFrameLink:link.href},"*");}},true);})();';
+  '(function(){var last=-1;function post(){var body=document.body;if(body===null){return;}var height=body.scrollHeight;if(height!==last){last=height;parent.postMessage({orbCardFrameHeight:height},"*");}}addEventListener("DOMContentLoaded",function(){new ResizeObserver(post).observe(document.body);if(document.documentElement.hasAttribute("data-frame-missing")){parent.postMessage({orbCardFrameMissing:true},"*");}});addEventListener("load",post);addEventListener("click",function(event){var target=event.target;var link=target instanceof Element?target.closest("a[href],area[href]"):null;if(link===null||link.getAttribute("href").charAt(0)==="#"){return;}var scheme=link.protocol;var handed=link.closest("[data-frame-reply]")!==null||scheme==="http:"||scheme==="https:"||scheme==="mailto:";if(!handed&&scheme==="javascript:"){return;}event.preventDefault();if(handed){parent.postMessage({orbCardFrameLink:link.href},"*");}},true);})();';
 
 /** The CSP source expression pinning {@link CARD_FRAME_HEIGHT_SCRIPT} by digest. A literal, because kit is
  *  isomorphic (no `node:crypto`) and WebCrypto's digest is async — the recompute lives in the unit test,
  *  which is the gate: change the script without re-pinning and the suite REDs before the policy ships
  *  (`tests/kit/card-frame/index.test.ts`). */
-const CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH = "'sha256-szLGfMxpNEsbAykZ9RFtFUns0LzQwKHPMKIWtdS+u9U='";
+const CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH = "'sha256-Uki64FSn1l3jNRK+040ZgvTzvEPqYmIQvLQYLzTCqY4='";
 
 /** The one keyword that turns the posture into a capability. Named so the grant is greppable and so the
  *  `static` row can assert against it by identity rather than by a re-typed string. */
@@ -654,7 +657,9 @@ function baseBodyBlock(fontFamily: string | undefined): string {
   // The host's root font-size carries the user's font scale; the frame cannot inherit it, so the host injects it
   // as a root percentage and the frame's root follows. Card text in rem/em scales; authored px stays fixed.
   const rootSize = `html { font-size: var(${CARD_FRAME_STYLE_TOKEN.rootSize}, 100%); }`;
-  return `${scrollbar} ${rootSize} body { margin: 0; padding: 0; background: var(--sandbox-bg); color: var(--sandbox-fg); font-family: ${font}; }`;
+  // A flow root, so the first and last children's margins stay inside the body: the pinned script measures
+  // `body.scrollHeight`, and a margin that collapsed through the body would be cut from the frame.
+  return `${scrollbar} ${rootSize} body { display: flow-root; margin: 0; padding: 0; background: var(--sandbox-bg); color: var(--sandbox-fg); font-family: ${font}; }`;
 }
 
 /**

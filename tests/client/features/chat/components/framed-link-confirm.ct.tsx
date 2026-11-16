@@ -1,9 +1,10 @@
 // A routed card's links through the real transcript (`MessageListSurface`) beside an app field, over a corpus room whose
 // card-frame mint and serve the corpus root's own HTTP entry answers. A link counts only from a frame the focus gate
-// admitted: a card whose script posts and then takes focus raises nothing off a click in the app. The confirm shows the
-// address the URL parser serialized, host on its own line, and opens exactly that; an address with credentials, or a
-// mail link that names an attachment, raises nothing. A confirm the pace raised later gives focus back to where the
-// reader was.
+// admitted: a card whose script posts and then takes focus raises nothing off a click in the app. An image map's link
+// hands off as an anchor's does. The confirm announces the host, wrapped only between its labels, or every recipient of a
+// mail link, and shows and opens the address the URL parser serialized; an address with credentials, or a mail link that
+// names an attachment or smuggles a header in a value, raises nothing. A confirm the pace raised later gives focus back
+// to where the reader was.
 
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Locator, Page } from "@playwright/test";
@@ -121,6 +122,27 @@ test("Tab into a card and Enter on its link raises the confirm", async ({ corpus
   await expect(page.getByRole("alertdialog").locator(ADDRESS_PART)).toHaveText(LINK_URL);
 });
 
+const MAP_URL = "https://example.test/tide-chart";
+const MAP_CARD = [
+  ':::card title="Tide chart"',
+  `<p id="tide-line">High water at dusk.</p><img id="tide-map" usemap="#tide" width="200" height="80" alt="Tide chart" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='80'/>">`,
+  `<map name="tide"><area shape="rect" coords="0,0,200,80" href="${MAP_URL}" alt="Chart"></map>`,
+  ":::",
+].join("\n");
+
+test("a press on a card's image map link raises the confirm for its address and the card stays drawn", async ({ corpus, mount, page }) => {
+  const room = await openCardRoom(MAP_CARD, "interactive");
+  await using root = room.root;
+  await using _routes = await serveCardRoom(page, root, corpus);
+  const external = await recordExternal(page);
+  await mount<typeof RoutedReplyBesideFieldStory>(STORY, { chatId: room.chatId });
+  const card = page.frameLocator(ROUTED_CARD);
+  await card.locator("#tide-map").click({ position: { x: 100, y: 40 } });
+  await expect(page.getByRole("alertdialog").locator(ADDRESS_PART)).toHaveText(MAP_URL);
+  await expect(card.locator("#tide-line")).toHaveText("High water at dusk.");
+  expect(external.requested).toEqual([]);
+});
+
 // Each address a card script posts on a click of its button, built from code points so no source byte is invisible.
 const CYRILLIC_A = String.fromCodePoint(0x4_30);
 const RIGHT_TO_LEFT_OVERRIDE = String.fromCodePoint(0x20_2e);
@@ -132,9 +154,40 @@ const POSTED = {
   override: `https://example.test/${RIGHT_TO_LEFT_OVERRIDE}txt.exe`,
   longPath: `https://example.test/${"tide".repeat(600)}`,
   attachment: "mailto:someone@example.test?attach=/etc/passwd",
-  mail: "mailto:someone@example.test?subject=Tides",
+  // Allowed headers whose decoded values carry a further header: a line break, then an encoded `&`, `?` and `;`.
+  lineBreak: "mailto:someone@example.test?subject=Tides%0D%0ABcc:hidden@example.test",
+  encodedAmpersand: "mailto:someone@example.test?subject=Tides%26attach%3D/etc/passwd",
+  questionInTo: "mailto:someone@example.test?to=friend@example.test%3Fattach%3D/etc/passwd",
+  semicolon: "mailto:someone@example.test?subject=Tides;attach=/etc/passwd",
+  // A header after `#`, which the query never reads.
+  fragment: "mailto:friend@example.test#?bcc=someone@other.test",
+  mail: "mailto:someone@example.test,second@example.test?cc=copy@example.test&bcc=hidden@example.test&subject=Tides",
 } as const;
 type Posted = keyof typeof POSTED;
+const MAIL_RECIPIENTS = ["someone@example.test", "second@example.test", "copy@example.test", "hidden@example.test"] as const;
+
+/** Matches a value anywhere in an accessible name or description. */
+function including(value: string): RegExp {
+  return new RegExp(value.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`), "u");
+}
+
+/** The lines a wrapped host shows, read from where each of its text runs lands. */
+async function hostLines(host: Locator): Promise<{ readonly lines: readonly string[]; readonly split: number }> {
+  return await host.evaluate((node) => {
+    const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+    const byTop = new Map<number, string>();
+    let split = 0;
+    for (let text = walker.nextNode(); text !== null; text = walker.nextNode()) {
+      const range = document.createRange();
+      range.selectNodeContents(text);
+      const rects = [...range.getClientRects()].filter((rect) => rect.width > 0);
+      split += rects.length > 1 ? 1 : 0;
+      const top = Math.round(rects[0]?.top ?? 0);
+      byTop.set(top, `${byTop.get(top) ?? ""}${text.textContent ?? ""}`);
+    }
+    return { lines: [...byTop.entries()].sort(([a], [b]) => a - b).map(([, line]) => line), split };
+  });
+}
 
 /** One button per posted address, and a real link to the long host, which needs no script at all. */
 const ADDRESS_CARD = [
@@ -208,6 +261,14 @@ for (const [width, viewport] of [
     // Cancel takes the first focus, ahead of the address region's own tab stop.
     await expect(confirm.getByRole("button", CANCEL)).toBeFocused();
     await expect(confirm.locator(HOST_PART)).toHaveText(LONG_HOST);
+    // The host is part of what the dialog announces with its question.
+    await expect(confirm).toHaveAccessibleDescription(including(LONG_HOST));
+    // It wraps only between labels, so every line but the last ends at a dot and no label is cut in two.
+    const { lines, split } = await hostLines(confirm.locator(HOST_PART));
+    expect(split).toBe(0);
+    expect(lines.join("")).toBe(LONG_HOST);
+    expect(lines.slice(0, -1).filter((line) => !line.endsWith("."))).toEqual([]);
+    expect(lines.length).toBeGreaterThan(width === "phone" ? 1 : 0);
     await expect(confirm.locator(ADDRESS_PART)).toHaveText(`https://${LONG_HOST}/login`);
     await expectUnclipped(confirm.locator(HOST_PART), page);
     await expectUnclipped(confirm.locator(ADDRESS_PART), page);
@@ -233,12 +294,21 @@ for (const [width, viewport] of [
     await expect(confirm.getByRole("button", { name: FRAMED_LINK_CONFIRM_LABEL, exact: true })).toBeInViewport();
     await open(POSTED.longPath);
 
-    // A mail link naming an attachment raises nothing; a plain one raises the mail confirm with its mailbox and address.
+    // A mail link naming an attachment, or carrying a further header inside an allowed value, raises nothing; the plain
+    // one posted after them raises the mail confirm, which names every recipient it sets.
     await post("attachment");
+    await post("lineBreak");
+    await post("encodedAmpersand");
+    await post("questionInTo");
+    await post("semicolon");
+    await post("fragment");
     await post("mail");
     await expect(confirm).toHaveAccessibleName(FRAMED_MAIL_CONFIRM_TITLE);
-    await expect(confirm.locator(MAILBOX_PART)).toHaveText("someone@example.test");
     await expect(confirm.locator(ADDRESS_PART)).toHaveText(POSTED.mail);
+    for (const recipient of MAIL_RECIPIENTS) {
+      await expect(confirm.locator(MAILBOX_PART)).toContainText(recipient);
+      await expect(confirm).toHaveAccessibleDescription(including(recipient));
+    }
     // Enter answers the focused Cancel: nothing opens.
     await page.keyboard.press("Enter");
     await expect(confirm).toHaveCount(0);

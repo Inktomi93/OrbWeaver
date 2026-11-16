@@ -1,9 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-15
+updated: 2026-11-16
 priority: P2
 area: chat
+plan: chat-html-and-presets
 ---
 
 # A reused reference-link title can expand a reply into a far larger frame document

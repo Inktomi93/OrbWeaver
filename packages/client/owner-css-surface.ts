@@ -458,6 +458,7 @@ export const OWNER_CSS_SLOTS = [
   "message-choices",
   "message-content-column",
   "message-content-framed",
+  "message-content-plain",
   "message-content-spans",
   "message-dice-chip",
   "message-echo-art",

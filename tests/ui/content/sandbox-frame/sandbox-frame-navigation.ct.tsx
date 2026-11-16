@@ -137,6 +137,40 @@ for (const [posture, characterId] of [
   }
 }
 
+const HANDED_ATTRIBUTE = "data-handed-links";
+// An image map whose left half links off-origin and whose right half links a scheme no browser handles.
+const MAP_IMAGE = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='80'/>";
+const MAP_CARD = [
+  '<p id="tide-line">High water at dusk.</p>',
+  `<img id="tide-map" usemap="#tide" width="200" height="80" alt="Tide chart" src="${MAP_IMAGE}">`,
+  `<map name="tide"><area shape="rect" coords="0,0,100,80" href="${EXTERNAL_URL}" alt="web"><area shape="rect" coords="100,0,200,80" href="web+tide:high-water" alt="custom"></map>`,
+].join("");
+
+test("a card's image map links hand off as an anchor's do: nothing navigates and the card stays drawn", async ({ room, page }) => {
+  const served = await room.serve(MAP_CARD);
+  expect(served.granted.inlineData).toBe(true);
+  const hits = await openProbe(page, served, await room.appPolicy());
+  // What the frame hands the page, recorded on the page's root as the host's link listener would receive it.
+  await page.evaluate((attribute) => {
+    const handed: string[] = [];
+    addEventListener("message", (event) => {
+      const data: unknown = event.data;
+      if (typeof data === "object" && data !== null && "orbCardFrameLink" in data) {
+        handed.push(String(data.orbCardFrameLink));
+        document.documentElement.setAttribute(attribute, handed.join(" "));
+      }
+    });
+  }, HANDED_ATTRIBUTE);
+  const frame = page.frameLocator("#card");
+  await expect(frame.locator("#tide-line")).toHaveText("High water at dusk.");
+  await frame.locator("#tide-map").click({ position: { x: 50, y: 40 } });
+  await frame.locator("#tide-map").click({ position: { x: 150, y: 40 } });
+  await settleNavigation(page);
+  await expect(page.locator("html")).toHaveAttribute(HANDED_ATTRIBUTE, EXTERNAL_URL);
+  expect(hits).toEqual([]);
+  await expect(frame.locator("#tide-line")).toHaveText("High water at dusk.");
+});
+
 test("a card link targeting the top window is blocked and the top document stays put", async ({ room, page }) => {
   const hits = await openProbe(page, await room.serve(`<a href="${EXTERNAL_URL}" target="_top">go</a>`, null), await room.appPolicy());
   await page.frameLocator("#card").getByRole("link", { name: "go" }).click();

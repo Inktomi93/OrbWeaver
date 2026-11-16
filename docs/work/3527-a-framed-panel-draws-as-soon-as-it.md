@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-16
 priority: P2
 area: chat
+plan: chat-html-and-presets
 ---
 
 # A framed panel draws as soon as it is complete while the rest of the reply streams

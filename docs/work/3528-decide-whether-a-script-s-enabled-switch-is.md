@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-16
 priority: P3
 area: import
+plan: chat-html-and-presets
 ---
 
 # Decide whether a script's enabled switch is part of a preset's import identity

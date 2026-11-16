@@ -7,7 +7,7 @@
 // id survives anywhere.
 
 import type { ConfigSubcategory } from "#state";
-import { MEDIA_TRUST_CONFIG_SUB, MULTI_USER_CONFIG_SUB, TRUST_HTML_CONFIG_SETTING } from "#state";
+import { FORBID_EXTERNAL_MEDIA_CONFIG_SETTING, MEDIA_TRUST_CONFIG_SUB, MULTI_USER_CONFIG_SUB, TRUST_HTML_CONFIG_SETTING } from "#state";
 
 /** The install's trust-HTML setting, as its nav entry and its switch both name it. */
 export const TRUST_HTML_SETTING_LABEL = "Render rich HTML as trusted";
@@ -22,7 +22,7 @@ export const MEDIA_TRUST_SUBCATEGORY: ConfigSubcategory = {
   },
   settings: [
     {
-      id: "forbid-external-media",
+      id: FORBID_EXTERNAL_MEDIA_CONFIG_SETTING,
       label: "Block external media",
       keywords: ["url", "image", "privacy", "ssrf", "tracking", "pixel"],
       teach: {

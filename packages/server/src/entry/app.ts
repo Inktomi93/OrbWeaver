@@ -435,7 +435,7 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
   // through the security headers' own-policy registrar, so the frame's own, tighter policy survives (see
   // security-headers.ts).
   registerCardFrame(app, {
-    participants: { listParticipants: (params) => deps.services.chat.listParticipants(params) },
+    participants: { resolveAuthorRenderPolicy: (params) => deps.services.chat.resolveAuthorRenderPolicy(params) },
     allowExternalMedia: () => !deps.services.settings.getEffectiveConfig().forbidExternalMedia,
     // The deployment half of the html-trust ladder's TOP rung. Same live read the participant
     // resolver uses, applied a second time at the boundary that actually mints the policy.

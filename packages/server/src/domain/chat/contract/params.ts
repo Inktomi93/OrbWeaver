@@ -177,6 +177,11 @@ export type ListMessagesParams = ChatScopedParams & { readonly limit?: number | 
 
 export type ListParticipantsParams = ChatScopedParams;
 
+/** `resolveAuthorRenderPolicy` — the policy content stamped with `characterId` renders at in this room. */
+export interface ResolveAuthorRenderPolicyParams extends ChatScopedParams {
+  readonly characterId: CharacterId;
+}
+
 /** `listMessageVariants` — the full sibling-variant set for one slot (no content). */
 export interface ListMessageVariantsParams extends MessageScopedParams {}
 

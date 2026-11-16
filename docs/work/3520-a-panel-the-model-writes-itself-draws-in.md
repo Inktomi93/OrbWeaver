@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-16
 priority: P1
 area: chat
+plan: chat-html-and-presets
 ---
 
 # A panel the model writes itself draws in its row's card frame

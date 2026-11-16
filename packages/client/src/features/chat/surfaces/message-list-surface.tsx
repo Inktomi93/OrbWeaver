@@ -269,6 +269,8 @@ function ChatThread({
     characterId: ghostSpeakerCharacterId,
     viewerUserId,
     participants,
+    kind: ghostKind,
+    narrator: chatDetail.narratorRender,
     lenientHtmlCards,
   }).cardTier;
   // THE GREETING WINDOW (§4.8/F6, R3) — resolved HERE, once, from canon this surface already holds plus the
@@ -282,7 +284,16 @@ function ChatThread({
   const items = useMessageItems(messages, chatId, !edges.later);
   const displayDepths = displayDepthsOf(items, edges);
   const liveCardRows = liveCardRowIds(items, (view) =>
-    resolveRowRenderPolicy({ role: view.role, authorUserId: view.authorUserId, characterId: view.characterId, viewerUserId, participants, lenientHtmlCards }),
+    resolveRowRenderPolicy({
+      role: view.role,
+      authorUserId: view.authorUserId,
+      characterId: view.characterId,
+      viewerUserId,
+      participants,
+      kind: view.kind,
+      narrator: chatDetail.narratorRender,
+      lenientHtmlCards,
+    }),
   );
   // Only rows that genuinely arrived this render get an enter transition — a windowed row remounts on
   // every scrollback, so "mounted" != "new".
@@ -408,6 +419,7 @@ function ChatThread({
         contextBoundaryLabel={contextBoundaryLabel}
         contextBoundaryCompactSummary={contextBoundaryCompactSummary}
         participants={participants}
+        narratorRender={chatDetail.narratorRender}
         characterNamesById={characterNamesById}
         personaNamesById={personaNamesById}
         personaAvatarsById={personaAvatarsById}

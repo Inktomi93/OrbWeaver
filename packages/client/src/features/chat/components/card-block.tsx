@@ -19,6 +19,7 @@ import type { ReactElement } from "react";
 import { FormingChip, useFramedLinkConfirm } from "#components";
 import { useCardFrame } from "#data";
 import { FORMING_CARD_UNTITLED } from "../lib/reply-frame-names.ts";
+import { FramedMediaNotice } from "./plain-content-notice.tsx";
 
 /** The room a card was authored in — the card-frame doorway's POLICY SELECTOR (the server resolves this
  *  character's `renderPolicy` and builds the frame CSP from it). Absent ⇒ the srcdoc floor renders, which is
@@ -71,6 +72,7 @@ function TierBCard({
         {...(block.origin === undefined ? {} : { origin: block.origin })}
       />
       {links.confirm}
+      <FramedMediaNotice chatId={cardOrigin?.chatId} characterId={cardOrigin?.characterId ?? null} html={block.html} css={block.css} />
     </>
   );
 }

@@ -119,7 +119,14 @@ export { notePendingAttachments, takePendingAttachments } from "./composer-pendi
 export type { ConfigFocus } from "./config-focus-store.ts";
 export { setConfigFocus, useConfigFocus } from "./config-focus-store.ts";
 export type { ConfigGroupId, ConfigShelf } from "./config-group-ids.ts";
-export { CONFIG_GROUP_IDS, CONFIG_SHELVES, MEDIA_TRUST_CONFIG_SUB, MULTI_USER_CONFIG_SUB, TRUST_HTML_CONFIG_SETTING } from "./config-group-ids.ts";
+export {
+  CONFIG_GROUP_IDS,
+  CONFIG_SHELVES,
+  FORBID_EXTERNAL_MEDIA_CONFIG_SETTING,
+  MEDIA_TRUST_CONFIG_SUB,
+  MULTI_USER_CONFIG_SUB,
+  TRUST_HTML_CONFIG_SETTING,
+} from "./config-group-ids.ts";
 export { setConfigGroupFoldOpen, useConfigGroupFoldOpen, useConfigGroupOpen } from "./config-group-open-store.ts";
 export type {
   CollectionGroupDefinition,

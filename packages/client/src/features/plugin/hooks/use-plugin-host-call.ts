@@ -12,12 +12,13 @@
 // The room rides the same way: the mount's own `chatId`, re-verified server-side as one the caller can read.
 // Plugin code never names a room.
 
+import { PLUGIN_UI_HOST_CALL_ARGS_MAX_BYTES } from "@orb/contracts/plugin";
 import type { ChatId, PluginId } from "@orb/kit/ids";
 import { useTRPCClient } from "#data";
 
 /**
  * A relay bound to one mounted plugin surface: `(fn, argsJson)` in, the server's `resultJson` out. It REJECTS
- * on any refusal (not proxyable, not granted, a room the caller cannot read, the per-plugin in-flight cap);
+ * on any refusal (arguments past the cap, not proxyable, not granted, a room the caller cannot read, the per-plugin in-flight cap);
  * each caller decides how much of that reason its plugin code may see.
  *
  * The IMPERATIVE client, not `useMutation`: a host call is driven by plugin code, not by a render, so it has no
@@ -26,6 +27,11 @@ import { useTRPCClient } from "#data";
 export function usePluginHostCall(pluginId: PluginId, chatId: ChatId | undefined): (fn: string, argsJson: string) => Promise<string> {
   const client = useTRPCClient();
   return async (fn, argsJson) => {
+    // Plugin code sizes the arguments. The server refuses a document longer than the cap, so one is refused here before
+    // a frame's or guest's bytes are uploaded.
+    if (argsJson.length > PLUGIN_UI_HOST_CALL_ARGS_MAX_BYTES) {
+      throw new RangeError(`host call arguments exceed ${String(PLUGIN_UI_HOST_CALL_ARGS_MAX_BYTES)} characters`);
+    }
     const result = await client.plugin.uiHostCall.mutate({ pluginId, fn, argsJson, ...(chatId === undefined ? {} : { chatId }) });
     return result.resultJson;
   };
