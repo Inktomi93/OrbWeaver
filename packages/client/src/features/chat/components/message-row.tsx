@@ -5,7 +5,7 @@
 // (an inheriting character is, by default); the trusted policy still sanitizes, because model output
 // stays untrusted (the indirect-prompt-injection boundary).
 
-import type { MessageView, ParticipantView } from "@orb/contracts/chat";
+import type { MessageView, NarratorRenderPolicy, ParticipantView } from "@orb/contracts/chat";
 import { isNarratorVoiced } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
@@ -77,6 +77,8 @@ export interface MessageRowProps {
   /** Keep the identity header pinned within its own row while it crosses the transcript edge. */
   readonly stickyAttribution?: boolean | undefined;
   readonly participants?: ReadonlyMap<CharacterId, ParticipantView> | undefined;
+  /** The room's narrator policy (`ChatDetail.narratorRender`), which a narrator row renders at. */
+  readonly narratorRender?: NarratorRenderPolicy | undefined;
   /** The per-chat macro-name producer — one source for both the attribution badge and `{{char}}`/`{{user}}`. */
   readonly characterNamesById: ReadonlyMap<CharacterId, RowCharacterName>;
   readonly personaNamesById: ReadonlyMap<PersonaId, RowPersonaName>;
@@ -168,6 +170,7 @@ export function MessageRow({
   lastRow = false,
   stickyAttribution = false,
   participants,
+  narratorRender,
   characterNamesById,
   personaNamesById,
   personaAvatarsById,
@@ -256,6 +259,8 @@ export function MessageRow({
     characterId: message.characterId,
     viewerUserId: viewer,
     participants,
+    kind: message.kind,
+    narrator: narratorRender,
     lenientHtmlCards,
     colorQuotedSpeech,
     viewerIsHost,

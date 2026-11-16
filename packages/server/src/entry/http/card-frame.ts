@@ -9,7 +9,9 @@
 // `characterId`). It never carries a policy: no token reaches the CSP, the sandbox or the script. The server
 // resolves the selector through the MEMBERSHIP-GATED roster read and takes that participant's server-resolved
 // `renderPolicy` — the same value `ParticipantView.renderPolicy` hands the client, produced by
-// `resolveRenderPolicy` at compose, which is tighten-only against the deployment floor.
+// `resolveRenderPolicy` at compose, which is tighten-only against the deployment floor. A narrator row's selector is
+// the host's synthetic group character, which holds no seat; it takes the room's narrator policy, the most restrictive
+// among the present character seats (`resolveNarratorRenderPolicy`, the value `ChatDetail.narratorRender` carries).
 // Every SELECTOR failure resolves to `CARD_FRAME_SAFE_FLOOR`: not a member, roster read threw, character
 // absent from the room, `characterId: null`, `renderPolicy` absent on the row. A failed read of the viewer's
 // own settings (the script-consent input below) is not caught: it throws, the request errors, and no
@@ -82,13 +84,10 @@ const BAD_REQUEST = 400;
 const PAYLOAD_TOO_LARGE = 413;
 const TOO_MANY_REQUESTS = 429;
 
-/** The membership-gated participant read — the ONE authority for a card's render policy. Structural port
- *  so `entry/http` states exactly the slice it consumes (the `BlobAssetsPort` precedent). */
+/** The membership-gated author-policy read — the ONE authority for a card's render policy, a seat's or the room's
+ *  narrator policy. Structural port so `entry/http` states exactly the slice it consumes (the `BlobAssetsPort` precedent). */
 export interface CardFrameParticipantsPort {
-  /** Narrowed on purpose: the frame reads only each participant's `characterId` and `renderPolicy`. */
-  readonly listParticipants: (
-    params: Parameters<ChatService["listParticipants"]>[0],
-  ) => Promise<readonly Pick<Awaited<ReturnType<ChatService["listParticipants"]>>[number], "characterId" | "renderPolicy">[]>;
+  readonly resolveAuthorRenderPolicy: ChatService["resolveAuthorRenderPolicy"];
 }
 
 export interface CardFrameDeps {
@@ -147,16 +146,15 @@ async function resolvePolicy(
   if (selector.characterId === null) {
     return FRAME_POLICY_FLOOR;
   }
-  let participants: Awaited<ReturnType<CardFrameParticipantsPort["listParticipants"]>>;
+  let policy: Awaited<ReturnType<CardFrameParticipantsPort["resolveAuthorRenderPolicy"]>>;
   // a LEAK-FREE COLLAPSE to the SAFE FLOOR, stated in the comment below — a non-participant throwing out of the membership gate and an unknown character must land on the identical restrictive policy, or the frame's permissiveness reveals chat membership. Every failure arm here tightens, never widens. Ends if the floor stops being the safe posture.
   try {
-    participants = await deps.participants.listParticipants({ principal, chatId: selector.chatId });
+    policy = await deps.participants.resolveAuthorRenderPolicy({ principal, chatId: selector.chatId, characterId: selector.characterId });
   } catch {
     // A non-participant throws out of the membership gate. A foreigner learns nothing from the difference
     // between "not a member" and "no such character" — both are the floor.
     return FRAME_POLICY_FLOOR;
   }
-  const policy = participants.find((p) => p.characterId === selector.characterId)?.renderPolicy;
   if (policy === undefined) {
     return FRAME_POLICY_FLOOR;
   }

@@ -46,6 +46,7 @@ import type {
   NextTurnConnectionView,
   ParticipantData,
   RegexDisplayEntry,
+  RenderPolicy,
   RoomSendAvailability,
   ShapeTrace,
   TeachingIdentity,
@@ -61,6 +62,7 @@ import {
   projectViewForMember,
   REGEX_VIEWER_SOURCE,
   resolveHostDisplayScripts,
+  resolveNarratorRenderPolicy,
   TURN_HOST_UNAVAILABLE_OP_CODE,
 } from "@orb/contracts/chat";
 import { CRED_REVOKED_REASONS, REVOKED_KEY_CAUSES } from "@orb/contracts/credentials";
@@ -117,6 +119,7 @@ import type {
   PreviewContextFitParams,
   ReplayChatEventsParams,
   ReplayLiveTurnParams,
+  ResolveAuthorRenderPolicyParams,
 } from "../contract/params.ts";
 import type { PromptHistoryRegexEnv } from "../contract/regex.ts";
 import type { HistoryBudgetInput, HistoryMacroNames } from "../contract/results.ts";
@@ -233,6 +236,7 @@ type ReadVerbs = Pick<
   | "listMessages"
   | "listMessageVariants"
   | "listParticipants"
+  | "resolveAuthorRenderPolicy"
   | "replayLiveTurn"
   | "replayChatEvents"
   | "chatEventBounds"
@@ -1188,6 +1192,26 @@ function createListParticipants(ctx: ChatContext, deps: ReadDeps): ChatService["
   };
 }
 
+/** `resolveAuthorRenderPolicy` — the card frame's policy read. A narrator row is stamped with the room host's synthetic
+ *  group character, which holds no seat, so that id resolves to the room's narrator policy and every other id to its
+ *  own seat. The narrator id is checked before the seats. */
+function createResolveAuthorRenderPolicy(ctx: ChatContext, deps: ReadDeps): ChatService["resolveAuthorRenderPolicy"] {
+  return async ({ principal, chatId, characterId }: ResolveAuthorRenderPolicyParams): Promise<RenderPolicy | undefined> => {
+    await requireParticipant(ctx, principal, chatId);
+    const participants = await deps.loadParticipantViews(chatId);
+    const narrator = resolveNarratorRenderPolicy(participants);
+    if (narrator !== undefined) {
+      // A narrator policy exists only when the roster read found a consenting host, so this is that host.
+      const hostUserId = hostUserIdOf(participants);
+      const author = hostUserId === null ? null : await ctx.findSyntheticGroupCharacter({ ownerId: hostUserId, chatId });
+      if (author?.characterId === characterId) {
+        return narrator.renderPolicy;
+      }
+    }
+    return participants.find((participant) => participant.characterId === characterId)?.renderPolicy;
+  };
+}
+
 /** SHAPE the NEXT turn's wire history off the current canon — the one preamble `previewAssembly`,
  *  `getShapeTrace` and `previewContextFit` share (no user input, no group nudge, primary speaker / merged):
  *  the same `toShapeCanon` → `shapeTurn` the pipeline runs, minus the per-speaker round machinery. Returns
@@ -1934,6 +1958,7 @@ export function createRead(ctx: ChatContext, deps: ReadDeps): ReadVerbs {
     listMessages: createListMessages(ctx, deps),
     listMessageVariants: createListMessageVariants(ctx),
     listParticipants: createListParticipants(ctx, deps),
+    resolveAuthorRenderPolicy: createResolveAuthorRenderPolicy(ctx, deps),
 
     replayLiveTurn: createReplayLiveTurn(ctx, deps),
     replayChatEvents: createReplayChatEvents(ctx),

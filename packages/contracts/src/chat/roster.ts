@@ -288,6 +288,47 @@ export function resolveSeatRenderPolicy(deployment: DeploymentRenderPolicy, basi
   return { renderPolicy: resolveRenderPolicy(deployment, basis), renderSource: stepFromRenderPolicyOverride(basis) === null ? "inherited" : "own" };
 }
 
+/** The policy every narrator row in a room renders at, with the present character whose setting binds it.
+ *
+ *  @remarks One narrator generation voices every character in the room, so the weakest consent bounds it: the lowest
+ *  ladder step among the present character seats, and external media forbidden when any seat forbids it. The binding
+ *  character is the first seat in roster order at that step, and the source is that seat's. Every input is a field
+ *  each present member already reads on the roster, so a member learns nothing from this value that the seats do not
+ *  show. docs/law/UI-Theming-and-Content.md §12.2 states the rule. */
+export interface NarratorRenderPolicy extends SeatRenderPolicy {
+  readonly characterId: CharacterId;
+}
+
+/** The strict runtime twin of {@link NarratorRenderPolicy}, a member of the chat detail's schema. */
+export const narratorRenderPolicySchema = z.strictObject({
+  renderPolicy: renderPolicySchema,
+  renderSource: z.enum(RENDER_POLICY_SOURCES),
+  characterId: typeIdSchema(ID_PREFIX.character),
+}) satisfies z.ZodType<NarratorRenderPolicy>;
+
+/** Resolve a room's {@link NarratorRenderPolicy} from its present roster, or `undefined` when nothing consents: no
+ *  character seat, a room with no consenting host (its seats say `no-host`), or a seat with no resolved policy. */
+export function resolveNarratorRenderPolicy(
+  participants: readonly Pick<ParticipantView, "kind" | "characterId" | "renderPolicy" | "renderSource">[],
+): NarratorRenderPolicy | undefined {
+  let binding: NarratorRenderPolicy | undefined;
+  let forbidExternalMedia = false;
+  for (const { kind, characterId, renderPolicy, renderSource } of participants) {
+    if (kind !== "character" || characterId === null) {
+      continue;
+    }
+    if (renderPolicy === undefined || renderSource === undefined || renderSource === "no-host") {
+      return;
+    }
+    forbidExternalMedia ||= renderPolicy.forbidExternalMedia;
+    // The ladder's own order: a strictly lower step binds, so a tie keeps the earlier seat.
+    if (binding === undefined || HTML_TRUST_STEPS.indexOf(renderPolicy.htmlTrust) < HTML_TRUST_STEPS.indexOf(binding.renderPolicy.htmlTrust)) {
+      binding = { renderPolicy, renderSource, characterId };
+    }
+  }
+  return binding === undefined ? undefined : { ...binding, renderPolicy: { htmlTrust: binding.renderPolicy.htmlTrust, forbidExternalMedia } };
+}
+
 /** The roster read-model (one `chat_participants` row, resolved for display). `kind` (∈ PARTICIPANT_KINDS)
  *  drives the identity + column shape per the `chat_participants_kind_shape` CHECK: `human` carries `userId`,
  *  `character` carries `characterId` (the old 2-way XOR was replaced at AP0; the CHECK still carries dormant
