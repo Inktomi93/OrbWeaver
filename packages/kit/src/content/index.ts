@@ -1904,7 +1904,7 @@ function codeSpanCursor(content: string, blocks: InlineBlocks): (offset: number,
     spanEnd = Math.max(spanEnd, readTo);
     for (let at = runs[run]; at !== undefined && at.start < offset && spanEnd <= offset; at = runs[run]) {
       run += 1;
-      const opens = at.start >= spanEnd && htmlBlock(at.start) === undefined;
+      const opens = at.start >= spanEnd && !at.escaped && htmlBlock(at.start) === undefined;
       if (opens && at.closer !== undefined && at.closer.start < paragraphEnd(at.start)) {
         spanEnd = at.closer.end;
       }
@@ -1916,13 +1916,30 @@ function codeSpanCursor(content: string, blocks: InlineBlocks): (offset: number,
 interface TickRun {
   readonly start: number;
   readonly end: number;
+  /** Whether an odd count of backslashes stands before the run: its first tick is then a literal one and the run opens no
+   *  span. It may still close one, since an escape means nothing inside code. Where the rest of such a run would open a
+   *  span, the read is in doubt and names no code. */
+  readonly escaped: boolean;
   /** The next run of the same length: the one that would close a code span this run opens. */
   closer: TickRun | undefined;
 }
 
+function backslashesBefore(content: string, index: number): number {
+  let count = 0;
+  while (content[index - count - 1] === "\\") {
+    count += 1;
+  }
+  return count;
+}
+
 // Each run of ticks in `content` with its closer, found from the right in one pass.
 function tickRunClosers(content: string): readonly TickRun[] {
-  const runs: TickRun[] = [...content.matchAll(/`+/gu)].map((run) => ({ start: run.index, end: run.index + run[0].length, closer: undefined }));
+  const runs: TickRun[] = [...content.matchAll(/`+/gu)].map((run) => ({
+    start: run.index,
+    end: run.index + run[0].length,
+    escaped: backslashesBefore(content, run.index) % 2 === 1,
+    closer: undefined,
+  }));
   const lastOfLength = new Map<number, TickRun>();
   for (const run of runs.toReversed()) {
     run.closer = lastOfLength.get(run.end - run.start);

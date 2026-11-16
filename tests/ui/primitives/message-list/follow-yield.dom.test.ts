@@ -10,8 +10,9 @@ const PORT_PX = 646;
 const PINNED: AxisMark = { top: 952, rowsOnScreen: -908, contentPx: 1752, portPx: PORT_PX, writtenPx: 1563 };
 
 test("a clamp to the rows' written end, when an overflowing row is replaced by a taller one, is no outside move", () => {
-  // The browser clamped to the written end, 1563 less the port, and the taller row then landed.
-  const clamped: AxisMark = { top: 917, rowsOnScreen: -873, contentPx: 1804, portPx: PORT_PX, writtenPx: 1563 };
+  // The browser clamped to the end written at the mark, 1563 less the port. The taller row then landed and was measured,
+  // so the written end as it stands now has grown with the content.
+  const clamped: AxisMark = { top: 917, rowsOnScreen: -873, contentPx: 1804, portPx: PORT_PX, writtenPx: 1804 };
 
   expect(movedFromOutside(PINNED, clamped)).toBe(false);
 });
