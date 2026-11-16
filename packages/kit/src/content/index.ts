@@ -3143,12 +3143,11 @@ export function holdBlocksWhole(content: string): string {
   return kept + content.slice(from);
 }
 
-/** The stretches of `content` a speaker marker or label inside cannot split: each held block element, each HTML block
- *  and each `<style>` or `<script>` element, as the frame reads them. Ascending and disjoint; pass them to
- *  `parseSpeakerSpans` so a panel stays in one speaker's span. */
-export function markupUnitRanges(content: string): readonly TextRange[] {
-  const markup = readMarkup(content, MARKDOWN_READING);
-  return mergedRuns([...heldBlocks(content, markup), ...inlineBlocks(content).html, ...markup.rawText]);
+/** The stretches of `content` a speaker marker or label may not split: each of `panels` (the reply's panels,
+ *  {@link modelPanels}), which a frame draws or holds whole, and each `<style>` or `<script>` element, read as Markdown
+ *  shows it. Any other HTML block is prose to the split. A fenced code block is the speaker parser's own to skip. */
+export function markupUnitRanges(content: string, panels: readonly TextRange[]): readonly TextRange[] {
+  return mergedRuns([...panels, ...readMarkup(content, MARKDOWN_READING).rawText]);
 }
 
 // Where `content`'s prose runs: every span but a card, a choice set, a hidden span and an unknown directive.

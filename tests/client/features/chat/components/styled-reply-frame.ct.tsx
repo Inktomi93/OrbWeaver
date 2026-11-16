@@ -1559,6 +1559,24 @@ test("tide: a speaker's span runs on across the bubbles it covers", async ({ cor
   expect(tinted).toEqual([0, 1, 1]);
 });
 
+// An ordinary HTML block the model wrote, with no style of its own, straight before a speaker's tag.
+const HUD_THEN_SPOKEN_BODY = `${SPOKEN_PARAGRAPHS[0]}\n\n<div class="w6p-hud">HP 10</div>\n<speaker>Lancelot</speaker>${SPOKEN_PARAGRAPHS[1]}`;
+
+test("tide: a speaker's tag after an ordinary HTML block still opens that speaker's bubble", async ({ corpus, mount, page }) => {
+  const room = await openTrainRoom(HUD_THEN_SPOKEN_BODY);
+  await using root = room.root;
+  await using _routes = await serveRoom(page, root, corpus);
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  const bubbles = trainRow(page, room).locator(TRAIN_BUBBLE);
+  const spoken = bubbles.filter({ hasText: SPOKEN_PARAGRAPHS[1] });
+  // The speaker's words read under the speaker's own tint, and the tag is never text.
+  await expect(spoken).toHaveCount(1);
+  await expect(spoken.locator('[data-slot="theme-scope"]')).toHaveCount(1);
+  // Positive control: the narration before the block reads untinted.
+  await expect(bubbles.filter({ hasText: SPOKEN_PARAGRAPHS[0] }).locator('[data-slot="theme-scope"]')).toHaveCount(0);
+  expect((await trainRow(page, room).textContent()) ?? "").not.toContain("speaker>");
+});
+
 // A viewer plugin whose display transform marks the end of whatever text it is handed.
 const ANNOTATE_MARK = " [annotated]";
 const ANNOTATE_MANIFEST = pluginManifestSchema.parse({

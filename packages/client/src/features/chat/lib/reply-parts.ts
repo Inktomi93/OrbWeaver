@@ -54,7 +54,8 @@ export function readPanels(
   if (text.length > PANEL_READ_MAX_CHARS) {
     return { opaque: sandboxed ? [{ start: 0, end: text.length }] : NO_RANGES, modelPanel: false };
   }
-  return { opaque: sandboxed ? markupUnitRanges(text) : NO_RANGES, modelPanel: modelPanels(text, { lenientHtml: render.lenientCards }).length > 0 };
+  const panels = modelPanels(text, { lenientHtml: render.lenientCards });
+  return { opaque: sandboxed ? markupUnitRanges(text, panels) : NO_RANGES, modelPanel: panels.length > 0 };
 }
 
 /** What a styled reply renders: its frame runs and native blocks, or the plain path whole, with the reason. */

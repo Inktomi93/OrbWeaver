@@ -100,7 +100,7 @@ export interface SpeakerSpan {
  *      attribution a low-vision reader has, and would make the body change at stream-settle.
  *  A body with no tags and no matched label yields the byte-identical single `{speaker: null}` span.
  *
- *  `opaque` names stretches read as one unit of markup (a panel the frame holds whole, an HTML block, a stylesheet;
+ *  `opaque` names stretches read as one unit of markup (a panel the frame draws or holds whole, a stylesheet, a script;
  *  `markupUnitRanges` in `#content`): a marker or a label inside one is that unit's text and splits nothing, so a
  *  panel is never torn across two spans. The display parse passes them; the canon parse a reaction anchors to does not. */
 export function parseSpeakerSpans(content: string, characterNames: readonly string[] = [], opaque: readonly OpaqueRange[] = []): readonly SpeakerSpan[] {

@@ -175,25 +175,45 @@ test("the reader, the strip, the split and the hold agree on a panel: one unit, 
   expect(stripStyleElements(text)).not.toContain("margin");
 });
 
+const unitsOf = (text: string): ReturnType<typeof markupUnitRanges> => markupUnitRanges(text, modelPanels(text));
+const HUD = '<div class="hud" style="color:red">';
+
 test.each([
-  ["a marker inside a panel", 'Narration.\n\n<div class="hud">\n<speaker>Bob</speaker>HP 10\n</div>\n\n<speaker>Ann</speaker>Hello.', [null, "Ann"]],
+  ["a marker inside a panel", `Narration.\n\n${HUD}\n<speaker>Bob</speaker>HP 10\n</div>\n\n<speaker>Ann</speaker>Hello.`, [null, "Ann"]],
   [
     "a marker that opens before a panel and the next after it",
-    '<speaker>Bob</speaker>Before.\n\n<div class="hud">\n<b>HP</b>\n</div>\n\n<speaker>Ann</speaker>After.',
+    `<speaker>Bob</speaker>Before.\n\n${HUD}\n<b>HP</b>\n</div>\n\n<speaker>Ann</speaker>After.`,
     ["Bob", "Ann"],
   ],
-  ["a marker wrapping a block", '<speaker>Bob</speaker>\n<div class="hud">\n<b>HP</b>\n</div>', ["Bob"]],
+  ["a marker wrapping a block", `<speaker>Bob</speaker>\n${HUD}\n<b>HP</b>\n</div>`, ["Bob"]],
 ])("a speaker split skips %s", (_name, text, speakers) => {
-  const spans = parseSpeakerSpans(text, [], markupUnitRanges(text));
+  const spans = parseSpeakerSpans(text, [], unitsOf(text));
   expect(spans.map((span) => span.speaker)).toEqual(speakers);
   // The panel sits whole in one span.
-  const panelStart = text.indexOf('<div class="hud">');
+  const panelStart = text.indexOf(HUD);
   expect(spans.some((span) => span.start <= panelStart && span.start + span.text.length >= text.indexOf("</div>"))).toBe(true);
 });
 
+// Only a block the reply draws or holds whole is a unit: after an ordinary HTML block a marker or label splits as it
+// always has, and its tag never stays in the text.
+test.each([
+  ["a marker on the line after an ordinary block", '<div class="hud">HP 10</div>\n<speaker>Ann</speaker>Hello.', [], [null, "Ann"]],
+  ["a marker inside an ordinary multi-line block", '<div class="hud">\n<speaker>Ann</speaker>Hello.\n</div>', [], [null, "Ann"]],
+  ["a label line after an ordinary block", '<div class="hud">HP 10</div>\nAnn: Hello.', ["Ann"], [null, "Ann"]],
+])("a speaker split reads %s", (_name, text, names, speakers) => {
+  const spans = parseSpeakerSpans(text, names, unitsOf(text));
+  expect(spans.map((span) => span.speaker)).toEqual(speakers);
+  expect(spans.map((span) => span.text).join("")).not.toContain("<speaker>");
+});
+
+test("a marker inside a stylesheet or a script splits nothing, in a block that is no panel", () => {
+  const text = "Narration. <i>x</i><script>let s = '<speaker>Bob</speaker>';</script>\n\n<speaker>Ann</speaker>Hello.";
+  expect(parseSpeakerSpans(text, [], unitsOf(text)).map((span) => span.speaker)).toEqual([null, "Ann"]);
+});
+
 test("a speaker label line inside a panel splits nothing", () => {
-  const text = 'Narration.\n\n<div class="hud">\nBob: HP 10\n</div>\n\nBob: Hello.';
-  expect(parseSpeakerSpans(text, ["Bob"], markupUnitRanges(text)).map((span) => span.speaker)).toEqual([null, "Bob"]);
+  const text = `Narration.\n\n${HUD}\nBob: HP 10\n</div>\n\nBob: Hello.`;
+  expect(parseSpeakerSpans(text, ["Bob"], unitsOf(text)).map((span) => span.speaker)).toEqual([null, "Bob"]);
   // Positive control: without the units the label inside the panel splits it.
   expect(parseSpeakerSpans(text, ["Bob"]).map((span) => span.speaker)).toEqual([null, "Bob", "Bob"]);
 });
@@ -207,6 +227,6 @@ test.each([
   const started = performance.now();
   modelPanels(text);
   holdBlocksWhole(text);
-  markupUnitRanges(text);
+  unitsOf(text);
   expect(performance.now() - started).toBeLessThan(BUDGET_MS);
 });
