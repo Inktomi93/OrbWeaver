@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-16
 priority: P3
 area: ui
+plan: chat-html-and-presets
 ---
 
 # Inline event handler attributes do nothing inside a framed reply or card at the interactive step

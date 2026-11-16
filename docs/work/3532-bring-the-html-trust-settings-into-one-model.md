@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-16
 priority: P1
 area: chat
+plan: chat-html-and-presets
 ---
 
 # Bring the HTML trust settings into one model a user can read as a single chain

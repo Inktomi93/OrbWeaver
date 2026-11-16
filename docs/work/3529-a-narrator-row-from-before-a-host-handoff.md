@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-16
 priority: P3
 area: chat
+plan: chat-html-and-presets
 ---
 
 # A narrator row from before a host handoff frames at the floor while its row renders at the room's policy

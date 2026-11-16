@@ -1,9 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-11-15
+updated: 2026-11-16
 priority: P3
 area: server
+plan: chat-html-and-presets
 ---
 
 # The frame handle store could evict by last serve, store documents compressed and free expired bytes

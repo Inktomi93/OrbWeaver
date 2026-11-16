@@ -1,10 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-11-15
+updated: 2026-11-16
 priority: P1
 area: chat
-plan: cross-surface-consistency
+plan: chat-html-and-presets
 ---
 
 # No notice says a card's scripts are off

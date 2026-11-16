@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-16
 priority: P3
 area: chat
+plan: chat-html-and-presets
 ---
 
 # Decide whether the lenient card reading still cards a naked HTML block once model panels frame

@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-16
 priority: P3
 area: chat
+plan: chat-html-and-presets
 ---
 
 # The narrator notice names one character when several hold the row plain

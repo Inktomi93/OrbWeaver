@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-16
 priority: P2
 area: server
+plan: chat-html-and-presets
 ---
 
 # History collapses marked cards to a stub but resends unmarked model-written HTML in full

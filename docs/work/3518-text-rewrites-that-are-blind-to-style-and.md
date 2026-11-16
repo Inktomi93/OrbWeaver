@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-16
 priority: P3
 area: chat
+plan: chat-html-and-presets
 ---
 
 # Text rewrites that are blind to style and script elements can break a model-written stylesheet or script

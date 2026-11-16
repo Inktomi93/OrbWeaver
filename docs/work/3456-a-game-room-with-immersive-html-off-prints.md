@@ -1,10 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-11-15
+updated: 2026-11-16
 priority: P1
 area: chat
-plan: cross-surface-consistency
+plan: chat-html-and-presets
 ---
 
 # A game room with immersive HTML off prints card markup as text with no notice

@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-16
 priority: P3
 area: chat
+plan: chat-html-and-presets
 ---
 
 # A trains row decides its shape from the stored reply, so a script that adds paragraphs still shows one bubble

@@ -1,9 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-15
+updated: 2026-11-16
 priority: P3
 area: kit
+plan: chat-html-and-presets
 ---
 
 # Two escaped-character shapes still hide a style element from the Markdown reader

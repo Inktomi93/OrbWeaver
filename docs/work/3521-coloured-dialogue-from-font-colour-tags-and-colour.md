@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-16
 priority: P2
 area: ui
+plan: chat-html-and-presets
 ---
 
 # Coloured dialogue from font colour tags and colour-only span styles loses its colour on rows that do not frame
