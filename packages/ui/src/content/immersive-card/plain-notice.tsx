@@ -8,6 +8,8 @@ import { Button } from "#primitives/button";
 import { plainNoticeVariants } from "./variants.ts";
 
 export interface PlainNoticeAction {
+  /** Unique among the notice's controls. */
+  readonly key: string;
   /** The control's name, which states where it goes ("Open Charlotte's Trust settings"). */
   readonly label: string;
   readonly onAction: () => void;
@@ -20,19 +22,21 @@ export interface PlainNoticeProps {
   readonly remedy: string;
   /** The cause and the remedy, in plain words. */
   readonly message: string;
-  /** Absent when the viewer cannot change the setting. */
-  readonly action?: PlainNoticeAction | undefined;
+  /** One per setting that must change; absent or empty when the viewer cannot change any. */
+  readonly actions?: readonly PlainNoticeAction[] | undefined;
 }
 
-export function PlainNotice({ reason, remedy, message, action }: PlainNoticeProps): ReactElement {
+const NO_ACTIONS: readonly PlainNoticeAction[] = [];
+
+export function PlainNotice({ reason, remedy, message, actions = NO_ACTIONS }: PlainNoticeProps): ReactElement {
   return (
     <div className={plainNoticeVariants()} data-slot="plain-notice" data-reason={reason} data-remedy={remedy}>
       <p className={CAPTION}>{message}</p>
-      {action === undefined ? null : (
-        <Button variant="ghost" size="sm" wrap={true} onClick={action.onAction} data-slot="plain-notice-action">
+      {actions.map((action) => (
+        <Button key={action.key} variant="ghost" size="sm" wrap={true} onClick={action.onAction} data-slot="plain-notice-action">
           {action.label}
         </Button>
-      )}
+      ))}
     </div>
   );
 }

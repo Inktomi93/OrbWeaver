@@ -10,8 +10,10 @@
 // resolves the selector through the MEMBERSHIP-GATED roster read and takes that participant's server-resolved
 // `renderPolicy` — the same value `ParticipantView.renderPolicy` hands the client, produced by
 // `resolveRenderPolicy` at compose, which is tighten-only against the deployment floor. A narrator row's selector is
-// the host's synthetic group character, which holds no seat; it takes the room's narrator policy, the most restrictive
-// among the present character seats (`resolveNarratorRenderPolicy`, the value `ChatDetail.narratorRender` carries).
+// a synthetic group character, which holds no seat; when the room's own canon proves it authored a narrator row there,
+// it takes the room's narrator policy, the most restrictive among the present character seats
+// (`resolveNarratorRenderPolicy`, the value `ChatDetail.narratorRender` carries). A narrator row with no character id
+// cannot be bound to the request, so it floors here and in the transcript alike.
 // Every SELECTOR failure resolves to `CARD_FRAME_SAFE_FLOOR`: not a member, roster read threw, character
 // absent from the room, `characterId: null`, `renderPolicy` absent on the row. A failed read of the viewer's
 // own settings (the script-consent input below) is not caught: it throws, the request errors, and no

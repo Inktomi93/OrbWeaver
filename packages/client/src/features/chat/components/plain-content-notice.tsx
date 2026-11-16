@@ -52,31 +52,45 @@ function remedyLine(remedy: PlainRemedy, reason: PlainReason, name: string): str
   }
 }
 
-function remedyAction(remedy: PlainRemedy, characterId: CharacterId | null, name: string): PlainNoticeAction | undefined {
+// A narrator row can be held by several characters at once; lifting it means lifting each, so each gets its control.
+function remedyActions(remedy: PlainRemedy, characters: readonly NamedCharacter[]): readonly PlainNoticeAction[] {
   switch (remedy) {
     case "character-trust":
-      return characterId === null
-        ? undefined
-        : {
-            label: `Open ${name}'s Trust settings`,
-            onAction: (): void => {
-              openCharacterTrust(characterId);
-            },
-          };
-    case "system-trust":
-      return {
-        label: "Open media and trust settings",
+      return characters.map(({ characterId, name }) => ({
+        key: characterId,
+        label: `Open ${name}'s Trust settings`,
         onAction: (): void => {
-          openConfigTo("admin", MEDIA_TRUST_CONFIG_SUB, TRUST_HTML_CONFIG_SETTING);
+          openCharacterTrust(characterId);
         },
-      };
+      }));
+    case "system-trust":
+      return [
+        {
+          key: remedy,
+          label: "Open media and trust settings",
+          onAction: (): void => {
+            openConfigTo("admin", MEDIA_TRUST_CONFIG_SUB, TRUST_HTML_CONFIG_SETTING);
+          },
+        },
+      ];
     case "ask-host":
     case "ask-admin":
     case "none":
-      return undefined;
+      return [];
     default:
       return assertNever(remedy);
   }
+}
+
+interface NamedCharacter {
+  readonly characterId: CharacterId;
+  readonly name: string;
+}
+
+const NAME_LIST = new Intl.ListFormat("en", { type: "conjunction" });
+
+function joinNames(names: readonly string[]): string {
+  return names.length === 0 ? UNNAMED_CHARACTER : NAME_LIST.format(names);
 }
 
 function assertNever(value: never): never {
@@ -87,10 +101,14 @@ function assertNever(value: never): never {
 export function PlainContentNotice({ subject }: { readonly subject: PlainSubject }): ReactElement {
   const { isAdmin } = useSettingsViewerView();
   const verdict = resolvePlainVerdict(subject, isAdmin);
-  const name = verdict.characterName === undefined || verdict.characterName === "" ? UNNAMED_CHARACTER : verdict.characterName;
+  const characters = verdict.characters.map(({ characterId, characterName }) => ({
+    characterId,
+    name: characterName === undefined || characterName === "" ? UNNAMED_CHARACTER : characterName,
+  }));
+  const name = joinNames(characters.map((character) => character.name));
   const remedy = remedyLine(verdict.remedy, verdict.reason, name);
   const message = remedy === undefined ? causeLine(verdict.reason, name) : `${causeLine(verdict.reason, name)} ${remedy}`;
-  return <PlainNotice reason={verdict.reason} remedy={verdict.remedy} message={message} action={remedyAction(verdict.remedy, verdict.characterId, name)} />;
+  return <PlainNotice reason={verdict.reason} remedy={verdict.remedy} message={message} actions={remedyActions(verdict.remedy, characters)} />;
 }
 
 /** Why a styled reply its row's tier would frame shows plain whole. No setting changes it, so it has no control. */

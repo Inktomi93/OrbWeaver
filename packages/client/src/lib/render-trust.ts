@@ -106,19 +106,23 @@ export interface PlainSubject {
   readonly author: "character" | "member" | "unattributed";
   /** Where the character's policy came from; set when `author` is `character`. */
   readonly source: RenderPolicySource | undefined;
-  /** The character whose setting it is; null when no character's setting applies. */
-  readonly characterId: CharacterId | null;
-  /** That character's name in this room, when the room names one. */
-  readonly characterName: string | undefined;
+  /** The characters whose settings hold the row, in roster order: one for a character's row, every binding seat for a
+   *  narrator row; empty when no character's setting applies. */
+  readonly characters: readonly PlainCharacter[];
   /** Whether the viewer hosts the room. Characters in a room are the host's (D64), so only the host can edit one. */
   readonly viewerIsHost: boolean;
+}
+
+/** One character a plain row names, with its name in this room when the room names one. */
+interface PlainCharacter {
+  readonly characterId: CharacterId;
+  readonly characterName: string | undefined;
 }
 
 export interface PlainVerdict {
   readonly reason: PlainReason;
   readonly remedy: PlainRemedy;
-  readonly characterId: CharacterId | null;
-  readonly characterName: string | undefined;
+  readonly characters: readonly PlainCharacter[];
 }
 
 export interface ResolveRowRenderPolicyInput {
@@ -194,35 +198,33 @@ export function resolvePlainVerdict(subject: PlainSubject, viewerIsAdmin: boolea
   return {
     reason,
     remedy: plainRemedy(reason, subject.viewerIsHost, viewerIsAdmin),
-    characterId: named ? subject.characterId : null,
-    characterName: named ? subject.characterName : undefined,
+    characters: named ? subject.characters : [],
   };
 }
 
-/** The character a row's policy is read from, with that policy as the server resolved it. */
+/** The characters a row's policy is read from, with that policy as the server resolved it. */
 interface RowAuthor {
-  readonly characterId: CharacterId | null;
-  readonly seat: ParticipantView | undefined;
+  readonly characterIds: readonly CharacterId[];
   readonly policy: RenderPolicy | undefined;
   readonly source: RenderPolicySource | undefined;
 }
 
 // A narrator row voices the whole room, so it reads the policy the server bounded by the present characters, and its
-// subject is the character whose setting binds that policy.
+// subjects are the characters whose settings bind that policy. One with no character id floors, as its card frame does:
+// the frame route cannot bind that row to the request.
 function rowAuthor(input: ResolveRowRenderPolicyInput): RowAuthor {
-  const narrated = input.kind === "narrator";
-  const characterId = narrated ? (input.narrator?.characterId ?? null) : input.characterId;
-  const seat = characterId === null ? undefined : input.participants?.get(characterId);
-  if (narrated) {
-    return { characterId, seat, policy: input.narrator?.renderPolicy, source: input.narrator?.renderSource };
+  if (input.kind === "narrator") {
+    const narrator = input.characterId === null ? undefined : input.narrator;
+    return { characterIds: narrator?.characterIds ?? [], policy: narrator?.renderPolicy, source: narrator?.renderSource };
   }
-  return { characterId, seat, policy: seat?.renderPolicy, source: seat?.renderSource };
+  const seat = input.characterId === null ? undefined : input.participants?.get(input.characterId);
+  return { characterIds: input.characterId === null ? [] : [input.characterId], policy: seat?.renderPolicy, source: seat?.renderSource };
 }
 
 export function resolveRowRenderPolicy(input: ResolveRowRenderPolicyInput): RowRenderPolicy {
   const { role, authorUserId, viewerUserId } = input;
 
-  const { characterId, seat, policy: resolved, source } = rowAuthor(input);
+  const { characterIds, policy: resolved, source } = rowAuthor(input);
   const policy: RenderPolicy = resolved ?? SAFE_FLOOR;
 
   const isOwnUserMessage = role === "user" && authorUserId !== null && authorUserId === viewerUserId;
@@ -247,8 +249,8 @@ export function resolveRowRenderPolicy(input: ResolveRowRenderPolicyInput): RowR
     plain: {
       author,
       source: author === "character" ? source : undefined,
-      characterId: author === "character" ? characterId : null,
-      characterName: seat?.displayName,
+      characters:
+        author === "character" ? characterIds.map((characterId) => ({ characterId, characterName: input.participants?.get(characterId)?.displayName })) : [],
       viewerIsHost: input.viewerIsHost === true,
     },
   };

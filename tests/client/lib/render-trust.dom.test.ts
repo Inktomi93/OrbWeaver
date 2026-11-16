@@ -5,7 +5,7 @@
 
 import type { PlainReason, PlainRemedy } from "@orb/client/lib";
 import { resolvePlainVerdict, resolveRowRenderPolicy } from "@orb/client/lib";
-import type { ParticipantView, RenderPolicySource } from "@orb/contracts/chat";
+import type { NarratorRenderPolicy, ParticipantView, RenderPolicySource } from "@orb/contracts/chat";
 import { participantViewSchema, TALKATIVENESS_DEFAULT } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId, mintUserId } from "@orb/kit/ids";
@@ -49,7 +49,12 @@ const BY_SOURCE = {
   },
 } as const satisfies Record<RenderPolicySource, Expected>;
 
-function characterSeat(characterId: CharacterId, htmlTrust: "untrusted" | "trusted", source: RenderPolicySource): ParticipantView {
+function characterSeat(
+  characterId: CharacterId,
+  htmlTrust: "untrusted" | "trusted",
+  source: RenderPolicySource,
+  displayName = CHARACTER_NAME,
+): ParticipantView {
   return participantViewSchema.parse({
     id: mintTypeId(ID_PREFIX.chatParticipant, ids.next),
     chatId: mintTypeId(ID_PREFIX.chat, ids.next),
@@ -64,7 +69,7 @@ function characterSeat(characterId: CharacterId, htmlTrust: "untrusted" | "trust
     joinSeq: 1,
     leftSeq: null,
     joinHistoryVisibility: "full",
-    displayName: CHARACTER_NAME,
+    displayName,
     handle: null,
     avatarAssetId: null,
     avatarHash: null,
@@ -99,8 +104,7 @@ for (const source of participantViewSchema.shape.renderSource.unwrap().options) 
       expect(resolvePlainVerdict(row.plain, isAdmin)).toEqual({
         reason: expected.reason,
         remedy: expected.remedies[viewer],
-        characterId: expected.named ? characterId : null,
-        characterName: expected.named ? CHARACTER_NAME : undefined,
+        characters: expected.named ? [{ characterId, characterName: CHARACTER_NAME }] : [],
       });
     });
   }
@@ -124,9 +128,68 @@ test("a row another person wrote, and a row no seated character covers, offer no
       throw new Error("a tierA row carries its plain subject");
     }
     for (const isAdmin of [true, false]) {
-      expect(resolvePlainVerdict(row.plain, isAdmin)).toEqual({ reason, remedy: "none", characterId: null, characterName: undefined });
+      expect(resolvePlainVerdict(row.plain, isAdmin)).toEqual({ reason, remedy: "none", characters: [] });
     }
   }
+});
+
+test("a narrator row held by two characters at one step names both, in roster order, and the host's remedy reaches each", () => {
+  const aria = mintTypeId(ID_PREFIX.character, ids.next);
+  const kai = mintTypeId(ID_PREFIX.character, ids.next);
+  const participants = new Map([
+    [aria, characterSeat(aria, "untrusted", "own", "Aria")],
+    [kai, characterSeat(kai, "untrusted", "own", "Kai")],
+  ]);
+  const narrator: NarratorRenderPolicy = {
+    renderPolicy: { htmlTrust: "untrusted", forbidExternalMedia: true },
+    renderSource: "own",
+    characterIds: [aria, kai],
+  };
+  const row = resolveRowRenderPolicy({
+    role: "assistant",
+    authorUserId: null,
+    characterId: mintTypeId(ID_PREFIX.character, ids.next),
+    viewerUserId: mintUserId(ids.next),
+    participants,
+    kind: "narrator",
+    narrator,
+    viewerIsHost: true,
+  });
+  if (row.plain === undefined) {
+    throw new Error("a tierA row carries its plain subject");
+  }
+  expect(resolvePlainVerdict(row.plain, false)).toEqual({
+    reason: "character",
+    remedy: "character-trust",
+    characters: [
+      { characterId: aria, characterName: "Aria" },
+      { characterId: kai, characterName: "Kai" },
+    ],
+  });
+});
+
+test("a narrator row with no character id renders at the floor, as its card frame does, while one with an id takes the room's policy", () => {
+  const aria = mintTypeId(ID_PREFIX.character, ids.next);
+  const narrator: NarratorRenderPolicy = { renderPolicy: { htmlTrust: "trusted", forbidExternalMedia: true }, renderSource: "own", characterIds: [aria] };
+  const narratorRow = (characterId: CharacterId | null): ReturnType<typeof resolveRowRenderPolicy> =>
+    resolveRowRenderPolicy({
+      role: "assistant",
+      authorUserId: null,
+      characterId,
+      viewerUserId: mintUserId(ids.next),
+      participants: new Map([[aria, characterSeat(aria, "trusted", "own")]]),
+      kind: "narrator",
+      narrator,
+      viewerIsHost: true,
+    });
+  expect(narratorRow(mintTypeId(ID_PREFIX.character, ids.next)).cardTier).toBe("tierB");
+  const unbound = narratorRow(null);
+  expect(unbound.cardTier).toBe("tierA");
+  expect(unbound.plain === undefined ? undefined : resolvePlainVerdict(unbound.plain, true)).toEqual({
+    reason: "unattributed",
+    remedy: "none",
+    characters: [],
+  });
 });
 
 test("a row from a character that renders trusted HTML is not plain and carries no verdict subject", () => {
