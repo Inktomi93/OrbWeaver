@@ -1,0 +1,148 @@
+// @subject packages/server/src/entry/http/card-frame.ts
+// A routed card's grants are read again on every serve: a member mints a trusted, interactive card that may load
+// external media, then one grant is withdrawn between the mint and the serve, and the served policy loses exactly
+// that grant. A grant added after the mint never reaches the handle. Everything runs over the real HTTP entry.
+import { CARD_FRAME_ROUTE, cardFrameMintResponseSchema } from "@orb/contracts/chat";
+import { CSRF_HEADER } from "@orb/contracts/identity";
+import type { CardFrameMediaPolicy, CardFramePosture } from "@orb/kit/card-frame";
+import { buildCardFrameCsp, CARD_FRAME_SAFE_FLOOR } from "@orb/kit/card-frame";
+import type { CharacterId, ChatId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node";
+import type { AuthModeRoot, SignedIn } from "@orb/testkit/node/auth";
+import { createAuthModeRoot, mintMember, signIn } from "@orb/testkit/node/auth";
+import type { z } from "zod";
+
+type Caller = Awaited<ReturnType<AuthModeRoot["internalCallerFor"]>>;
+type Granted = z.infer<typeof cardFrameMintResponseSchema>["granted"];
+
+const POLICY = "content-security-policy";
+const CARD_HTML = "<p>tide tables</p>";
+const ALL_MEDIA: CardFrameMediaPolicy = { allowExternalMedia: true, allowInlineData: true };
+
+interface GrantedRoom {
+  readonly root: AuthModeRoot;
+  readonly host: Caller;
+  readonly member: SignedIn;
+  readonly memberCaller: Caller;
+  readonly chatId: ChatId;
+  readonly characterId: CharacterId;
+}
+
+/** A room the box owner hosts, seating one character on "Inherit default", with a signed-in member. External media is
+ *  allowed on the box, so the character's mint carries every grant. */
+async function grantedRoom(root: AuthModeRoot): Promise<GrantedRoom> {
+  await (await root.internalCallerFor(root.ownerId)).settings.updateAppSettings({ partial: { localMultiUser: true, forbidExternalMedia: false } });
+  // Internal callers capture one request's capability, so they are taken after the switch.
+  const host = await root.internalCallerFor(root.ownerId);
+  const card = await host.character.create({ input: { handle: "tide-keeper", name: "Tide Keeper", description: "Keeps the tables." } });
+  const { chat } = await host.chat.startChat({ characterIds: [card.id] });
+  const memberSubject = await mintMember(root);
+  const memberCaller = await root.internalCallerFor(memberSubject.userId);
+  const invite = await host.invites.createInvite({ chatId: chat.id, input: {} });
+  await memberCaller.invites.redeemInvite({ token: invite.token });
+  const member = await signIn(root, memberSubject);
+  return { root, host, member, memberCaller, chatId: chat.id, characterId: card.id };
+}
+
+async function mint(room: GrantedRoom): Promise<{ readonly url: string; readonly granted: Granted }> {
+  const response = await room.root.http.request(CARD_FRAME_ROUTE, {
+    method: "POST",
+    headers: { ...room.member.headers, [CSRF_HEADER]: "1", "content-type": "application/json" },
+    body: JSON.stringify({ chatId: room.chatId, characterId: room.characterId, html: CARD_HTML }),
+  });
+  expect(response.status).toBe(200);
+  return cardFrameMintResponseSchema.parse(await response.json());
+}
+
+async function servedPolicy(room: GrantedRoom, url: string): Promise<string | null> {
+  const response = await room.root.http.request(url, { headers: room.member.headers });
+  expect(response.status).toBe(200);
+  expect(await response.text()).toContain(CARD_HTML);
+  return response.headers.get(POLICY);
+}
+
+/** Mint with every grant and prove the first serve carries them all, so a narrowed serve is a withdrawal. */
+async function mintWithEveryGrant(room: GrantedRoom): Promise<string> {
+  const minted = await mint(room);
+  expect(minted.granted).toEqual({ externalMedia: true, inlineData: true, interactive: true });
+  expect(await servedPolicy(room, minted.url)).toBe(buildCardFrameCsp(ALL_MEDIA, "document", "interactive"));
+  return minted.url;
+}
+
+interface Withdrawal {
+  readonly withdraw: (room: GrantedRoom) => Promise<void>;
+  readonly media: CardFrameMediaPolicy;
+  readonly posture: CardFramePosture;
+}
+
+const WITHDRAWALS: Readonly<Record<string, Withdrawal>> = {
+  "the host lowers the character to Render HTML": {
+    withdraw: async ({ host, characterId }) => {
+      await host.character.update({ characterId, input: { trustHtml: true, interactiveHtml: false } });
+    },
+    media: ALL_MEDIA,
+    posture: "static",
+  },
+  "the host lowers the character to Untrusted": {
+    withdraw: async ({ host, characterId }) => {
+      await host.character.update({ characterId, input: { trustHtml: false, interactiveHtml: false } });
+    },
+    media: { allowExternalMedia: true, allowInlineData: false },
+    posture: "static",
+  },
+  "the host forbids the character's external media": {
+    withdraw: async ({ host, characterId }) => {
+      await host.character.update({ characterId, input: { forbidExternalMedia: true } });
+    },
+    media: { allowExternalMedia: false, allowInlineData: true },
+    posture: "interactive",
+  },
+  "the admin blocks external media on the box": {
+    withdraw: async ({ host }) => {
+      await host.settings.updateAppSettings({ partial: { forbidExternalMedia: true } });
+    },
+    media: { allowExternalMedia: false, allowInlineData: true },
+    posture: "interactive",
+  },
+  "the admin switches interactive cards off": {
+    withdraw: async ({ host }) => {
+      await host.settings.updateAppSettings({ partial: { allowInteractiveCards: false, trustHtml: true } });
+    },
+    media: ALL_MEDIA,
+    posture: "static",
+  },
+  "the viewer turns card scripts off": {
+    withdraw: async ({ memberCaller }) => {
+      await memberCaller.settings.updateUserSettingsSection({ section: "chat", patch: { runCardScripts: false } });
+    },
+    media: ALL_MEDIA,
+    posture: "static",
+  },
+  "the host removes the viewer from the room": {
+    withdraw: async ({ host, chatId, member }) => {
+      await host.invites.kick({ chatId, userId: member.userId });
+    },
+    media: CARD_FRAME_SAFE_FLOOR,
+    posture: "static",
+  },
+};
+
+test.for(Object.entries(WITHDRAWALS))("%s between mint and serve narrows the served policy to what remains", async ([, withdrawal]) => {
+  await using root = await createAuthModeRoot("local");
+  const room = await grantedRoom(root);
+  const url = await mintWithEveryGrant(room);
+  await withdrawal.withdraw(room);
+  expect(await servedPolicy(room, url)).toBe(buildCardFrameCsp(withdrawal.media, "document", withdrawal.posture));
+});
+
+test("a grant given after the mint never reaches the handle minted without it", async () => {
+  await using root = await createAuthModeRoot("local");
+  const room = await grantedRoom(root);
+  await room.host.character.update({ characterId: room.characterId, input: { forbidExternalMedia: true } });
+  const minted = await mint(room);
+  expect(minted.granted).toEqual({ externalMedia: false, inlineData: true, interactive: true });
+  await room.host.character.update({ characterId: room.characterId, input: { forbidExternalMedia: false } });
+  // A fresh mint now carries the grant, so the setting really is back on.
+  expect((await mint(room)).granted.externalMedia).toBe(true);
+  expect(await servedPolicy(room, minted.url)).toBe(buildCardFrameCsp({ allowExternalMedia: false, allowInlineData: true }, "document", "interactive"));
+});
