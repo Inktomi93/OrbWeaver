@@ -52,8 +52,9 @@ export function RpgCardLightbox({
  *  the card carries the ORIGIN ROW's render policy on BOTH axes: the archive is a second lens on the same
  *  authored content, so its sandbox CSP must be the transcript's, never a laxer default.
  *
- *  It frames as the transcript's card does: a lost handle mints once more and then draws the floor, a link opens only
- *  through the shared confirm, and a forming chip holds the body until the routed frame draws. */
+ *  It frames as the transcript's card does: a lost handle mints once more and then draws the floor, a frame that falls
+ *  to its floor gives the card up, a link opens only through the shared confirm, and a forming chip holds the body
+ *  until the routed frame draws. */
 function ArchivedCardBody({ card, chatId }: { readonly card: ArchivedCard; readonly chatId: ChatId | undefined }): ReactElement {
   const { themeTokens, styleTokens, fontFamily } = useSandboxTheme();
   const frame = useCardFrame(
@@ -72,6 +73,7 @@ function ArchivedCardBody({ card, chatId }: { readonly card: ArchivedCard; reado
         {...(forming === undefined ? {} : { pending: forming })}
         onLink={links.requestLink}
         onMissing={frame.onMissing}
+        onFloor={frame.giveUp}
       />
       {links.confirm}
     </>

@@ -117,31 +117,40 @@ function mintKey(attempt: number, body: string): string {
   return `${String(attempt)}:${body}`;
 }
 
-// A miss means the server dropped the handle, so every handle the tab remembers for these bytes goes: the re-mint and
-// any later remount mint afresh instead of serving a handle that is gone.
-function forgetMints(request: CardFrameRequest | undefined): void {
+// The bodies that already spent their one re-mint in this tab. A card can claim its handle lost on every load, so the
+// re-mint a miss earns is spent once per body per tab, not once per mount: a later miss for that body goes to the floor.
+const remintSpent = new Map<string, true>();
+
+// A miss means the server dropped the handle, so every handle the tab remembers for these bytes goes: a remount mints
+// afresh instead of serving a handle that is gone. Answers whether these bytes may still mint once more.
+function forgetMints(request: CardFrameRequest | undefined): boolean {
   if (request === undefined) {
-    return;
+    return false;
   }
   const body = JSON.stringify(cardFrameMintBody(request));
   for (let attempt = 0; attempt < MINT_ATTEMPTS; attempt += 1) {
     minted.delete(mintKey(attempt, body));
   }
+  if (remintSpent.has(body)) {
+    return false;
+  }
+  rememberBounded(remintSpent, body, true, MINTED_CACHE_CAP);
+  return true;
 }
 
 /** One routed frame's mint, and the two ways its caller learns the handle is no use. */
 export interface CardFrame {
   readonly mint: CardFrameMint;
   /** The frame loaded the server's miss notice (`SandboxFrame.onMissing`): the handle expired or was evicted. The
-   *  first miss mints the same bytes again; a second one gives up to the floor. */
+   *  tab's first miss for these bytes mints them again; any later one gives up to the floor. */
   readonly onMissing: () => void;
   /** Give up on the routed frame for good: from now on {@link CardFrame.mint} is the floor. */
   readonly giveUp: () => void;
 }
 
 /**
- * The ONE mint hook for a routed card frame, card or styled reply: the mint for these exact bytes, re-minted once when
- * its handle is gone, then the floor. A pending mint and a refused one stay apart, so a caller can hold a stand-in
+ * The ONE mint hook for a routed card frame, card or styled reply: the mint for these exact bytes, re-minted when its
+ * handle is gone (once per body per tab), then the floor. A pending mint and a refused one stay apart, so a caller can hold a stand-in
  * for the first and draw its floor for the second.
  *
  * `request === undefined` is the "no room context" arm — a story mount, the rpg card archive before a chat
@@ -155,8 +164,7 @@ export function useCardFrame(request: CardFrameRequest | undefined): CardFrame {
   return {
     mint: lost ? GAVE_UP : mint,
     onMissing: (): void => {
-      forgetMints(request);
-      if (attempt < MINT_ATTEMPTS - 1) {
+      if (forgetMints(request) && attempt < MINT_ATTEMPTS - 1) {
         setAttempt(1);
       } else {
         setLost(true);

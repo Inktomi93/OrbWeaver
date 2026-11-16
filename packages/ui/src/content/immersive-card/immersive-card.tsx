@@ -39,6 +39,9 @@ export interface ImmersiveCardProps {
   readonly onLink?: ((url: string, landing: HTMLElement | null) => void) | undefined;
   /** `SandboxFrame.onMissing`: the routed frame loaded the server's miss notice. */
   readonly onMissing?: (() => void) | undefined;
+  /** `SandboxFrame.onFloor`: a frame fell to its floor. The caller drops `frameSrc`, so the inline card and the
+   *  fullscreen view both draw the floor rather than the address that failed. */
+  readonly onFloor?: (() => void) | undefined;
   readonly heightPx?: number | undefined;
   readonly className?: string | undefined;
 }
@@ -59,14 +62,24 @@ interface CardBodyProps {
   readonly pending: ReactNode;
   readonly onLink: ((url: string) => void) | undefined;
   readonly onMissing: (() => void) | undefined;
+  readonly onFloor: (() => void) | undefined;
 }
 
 // The frame's optional callbacks, spread so an absent one stays absent.
 function frameCallbacks(
   onLink: ((url: string) => void) | undefined,
   onMissing: (() => void) | undefined,
-): { readonly onLink?: (url: string) => void; readonly onMissing?: () => void } {
-  return { ...(onLink === undefined ? {} : { onLink }), ...(onMissing === undefined ? {} : { onMissing }) };
+  onFloor: (() => void) | undefined,
+): {
+  readonly onLink?: (url: string) => void;
+  readonly onMissing?: () => void;
+  readonly onFloor?: () => void;
+} {
+  return {
+    ...(onLink === undefined ? {} : { onLink }),
+    ...(onMissing === undefined ? {} : { onMissing }),
+    ...(onFloor === undefined ? {} : { onFloor }),
+  };
 }
 
 /** The card's content pane: the sandboxed render, or (view-raw) the exact stored source as a code echo. */
@@ -85,6 +98,7 @@ function CardBody({
   pending,
   onLink,
   onMissing,
+  onFloor,
 }: CardBodyProps): ReactElement {
   const slots = immersiveCardVariants();
   if (showRaw) {
@@ -113,7 +127,7 @@ function CardBody({
       title={label}
       allowExternalMedia={allowExternalMedia}
       {...(frameSrc === undefined ? {} : { src: frameSrc })}
-      {...frameCallbacks(onLink, onMissing)}
+      {...frameCallbacks(onLink, onMissing, onFloor)}
       // The lightbox's parent owns its height, so it takes no veil (`SandboxFrame` types `pending` out of `fill`): it
       // opens on a card the inline arm already drew, with the same handle.
       {...(fill ? { fill: true } : { heightPx, ...(pending === undefined ? {} : { pending }) })}
@@ -143,6 +157,7 @@ export function ImmersiveCard({
   pending,
   onLink,
   onMissing,
+  onFloor,
   heightPx = DEFAULT_HEIGHT_PX,
   className,
 }: ImmersiveCardProps): ReactElement {
@@ -158,7 +173,7 @@ export function ImmersiveCard({
   // The sandboxed iframe can't resolve the app's `var(--token)` cascade, so the base body rule is fed
   // CONCRETE theme-resolved surface/text/font values (recolors live on a theme switch).
   const { themeTokens, styleTokens, fontFamily } = useSandboxTheme();
-  const bodyProps = { showRaw, html, css, themeTokens, styleTokens, fontFamily, label, heightPx, allowExternalMedia, frameSrc, pending, onMissing };
+  const bodyProps = { showRaw, html, css, themeTokens, styleTokens, fontFamily, label, heightPx, allowExternalMedia, frameSrc, pending, onMissing, onFloor };
   const inlineLink =
     onLink === undefined
       ? undefined

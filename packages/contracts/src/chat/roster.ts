@@ -265,10 +265,12 @@ const RENDER_POLICY_SOURCES = ["own", "inherited", "no-card", "no-host"] as cons
  *  card gone between the roster read and its card read; deleting a card removes its seats), so the install floor
  *  applies. `no-host`: the room seats no consenting host, so no card applies and the install floor does.
  *
- *  @remarks Every member reads it (D210: the visibility tier is default-visible, limited only by the host's options).
- *  It is not card content under the D22 dial: `no-card` and `no-host` repeat what the seat's removed-character name
- *  already says, and `own` versus `inherited` is the resolved step (already on the wire) read against the install
- *  defaults `/api/auth/config` serves every signed-in user. D44 owns the tiers it explains. */
+ *  @remarks Every present member reads it (D210: the visibility tier is default-visible, limited only by the host's
+ *  options), and no D22 level carries the trust columns. `no-card` and `no-host` repeat what the seat's name and the
+ *  roster already show. `own` versus `inherited` tells a member one fact the resolved step and the install defaults
+ *  (`/api/auth/config`) do not: that the host set an explicit step equal to the one the character would inherit, and
+ *  when that changes. That residual is accepted, because the notice needs the distinction to name the setting that
+ *  lifts the content. D44 owns the tiers it explains. */
 export type RenderPolicySource = (typeof RENDER_POLICY_SOURCES)[number];
 
 /** A seat's resolved policy and where it came from, produced together so the two can never disagree. */

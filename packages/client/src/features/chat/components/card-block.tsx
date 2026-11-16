@@ -38,7 +38,7 @@ export interface CardOrigin {
  *  card's own. Its floor is its srcdoc render (a card brings its own look and fits the floor, where a reply cannot), so
  *  a refused mint or a lost handle draws the card there instead of an inert copy; that floor runs no script, so its
  *  links do nothing. A frame that falls to its floor (its scripts stopped, or its document loaded and never reported)
- *  draws that same floor inside `SandboxFrame` itself, so the card needs no give-up of its own for it. */
+ *  gives the card up as a reply's does, so the fullscreen view draws that floor too instead of the address that failed. */
 function TierBCard({
   block,
   allowExternal,
@@ -64,6 +64,7 @@ function TierBCard({
         {...(forming === undefined ? {} : { pending: forming })}
         onLink={links.requestLink}
         onMissing={frame.onMissing}
+        onFloor={frame.giveUp}
         {...(block.css === undefined ? {} : { css: block.css })}
         {...(block.title === undefined ? {} : { title: block.title })}
         {...(block.origin === undefined ? {} : { origin: block.origin })}

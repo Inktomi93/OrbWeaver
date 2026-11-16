@@ -1,10 +1,10 @@
 // A corpus room whose latest reply is one card, its card-frame mint and serve answered by the corpus root's own HTTP
-// entry, for the cases that drive a routed card's links through the real transcript.
-import { CARD_FRAME_ROUTE, rendersTrustedHtml } from "@orb/contracts/chat";
-import { CSRF_HEADER } from "@orb/contracts/identity";
-import type { ChatId } from "@orb/kit/ids";
+// entry, for the cases that drive a routed card through the real transcript.
+import { rendersTrustedHtml } from "@orb/contracts/chat";
+import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { ROOM_PROCEDURES, routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import type { CardFrameServing, CardFrameTraffic } from "@orb/testkit/ct";
+import { ROOM_PROCEDURES, routeAuthConfig, routeCardFrames, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { captureCookieAuth, createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 
@@ -20,6 +20,7 @@ export type CardPosture = "static" | "interactive";
 export interface CardRoom {
   readonly root: Root;
   readonly chatId: ChatId;
+  readonly characterId: CharacterId;
 }
 
 /** A corpus room whose latest reply is spoken by a character that renders trusted HTML, rewritten to `content`, with
@@ -41,49 +42,47 @@ export async function openCardRoom(content: string, posture: CardPosture): Promi
       await caller.character.update({ characterId: reply.characterId, input: { trustHtml: true, interactiveHtml: posture === "interactive" } });
       await caller.chat.editMessage({ chatId: row.id, messageId: reply.id, content, timeZone: UTC_TIME_ZONE });
       construction.move();
-      return { root, chatId: row.id };
+      return { root, chatId: row.id, characterId: reply.characterId };
     }
   }
   throw new Error("No corpus room has a reply from a character that renders trusted HTML");
 }
 
-/** The room's reads, and its card-frame mint and serve answered by the root's own HTTP entry under the viewer's session. */
+/** The room's reads, and its card-frame traffic answered by the root under the viewer's session. Declare it with
+ *  `await using` after the root: disposal removes the routes and waits for a handler still answering, so no request
+ *  the page makes after the case ends reaches a closed root. */
 export async function serveCardRoom(
   page: Page,
   root: Root,
   corpus: { readonly auth: { readonly signedInConfig: Parameters<typeof routeAuthConfig>[1] } },
-): Promise<AsyncDisposable> {
+  serving: CardFrameServing = {},
+): Promise<CardFrameTraffic & AsyncDisposable> {
   const caller = await root.internalCallerFor(root.ownerId);
   await routeAuthConfig(page, corpus.auth.signedInConfig);
   await routeTrpc(page, serveCorpusProcedures(caller, TRANSCRIPT_READS));
   const { cookie } = await captureCookieAuth(root, await root.principalFor(root.ownerId), VIEWER_PASSWORD);
-  await page.route(`**${CARD_FRAME_ROUTE}**`, async (route) => {
-    const request = route.request();
-    const sent = await request.allHeaders();
-    const headers: Record<string, string> = { cookie, forwarded: "" };
-    for (const name of [CSRF_HEADER, "content-type"]) {
-      const value = sent[name.toLowerCase()];
-      if (value !== undefined) {
-        headers[name] = value;
-      }
-    }
-    const body = request.postData();
-    const response = await root.http.request(new URL(request.url()).pathname, { method: request.method(), headers, ...(body === null ? {} : { body }) });
-    await route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body: Buffer.from(await response.arrayBuffer()) });
-  });
-  return {
+  const traffic = await routeCardFrames(page, root, cookie, serving);
+  return Object.assign(traffic, {
     [Symbol.asyncDispose]: async (): Promise<void> => {
       await page.unrouteAll({ behavior: "wait" });
     },
-  };
+  });
 }
 
-/** Every external page requested in the context, a popup's included; they land here instead of the network. */
-export async function recordExternalPages(page: Page): Promise<string[]> {
-  const requested: string[] = [];
+export interface ExternalTraffic {
+  /** Every external address requested: a popup's page, or a frame that navigated itself. */
+  readonly requested: string[];
+  /** Every page the context opened. */
+  readonly popups: string[];
+}
+
+/** External requests land here instead of the network; a page `window.open` would open is counted. */
+export async function recordExternal(page: Page): Promise<ExternalTraffic> {
+  const traffic: ExternalTraffic = { requested: [], popups: [] };
   await page.context().route(EXTERNAL_PAGES, async (route) => {
-    requested.push(route.request().url());
+    traffic.requested.push(route.request().url());
     await route.fulfill({ status: 200, contentType: "text/html", body: "" });
   });
-  return requested;
+  page.context().on("page", (popup) => traffic.popups.push(popup.url()));
+  return traffic;
 }

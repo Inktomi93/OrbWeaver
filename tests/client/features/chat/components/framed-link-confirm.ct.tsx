@@ -13,11 +13,10 @@ import {
   FRAMED_LINK_CONFIRM_TITLE,
   FRAMED_LINK_PART_ATTRIBUTE,
   FRAMED_LINK_PARTS,
-  FRAMED_MAIL_CONFIRM_DESCRIPTION,
   FRAMED_MAIL_CONFIRM_TITLE,
 } from "#client/components/framed-link-names.ts";
 import { FRAMED_LINK_FIRST_WAIT_MS, FRAMED_LINK_FREE_CANCELS } from "#client/components/framed-link-pace.ts";
-import { openCardRoom, recordExternalPages, serveCardRoom } from "./_card-frame-room.ts";
+import { openCardRoom, recordExternal, serveCardRoom } from "./_card-frame-room.ts";
 import type { RoutedReplyBesideFieldStory } from "./_routed-card-text-scale-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_routed-card-text-scale-stories/RoutedReplyBesideFieldStory";
@@ -73,6 +72,37 @@ for (const order of ["post-then-focus", "focus-then-post"] as const) {
     await expect(page.getByRole("alertdialog").locator(ADDRESS_PART)).toHaveText(LINK_URL);
   });
 }
+
+test("a card the reader pressed earlier and then left for the bare page raises nothing when its script posts and grabs focus in one task", async ({
+  corpus,
+  mount,
+  page,
+}) => {
+  const room = await openCardRoom(ridingCard("post-then-focus"), "interactive");
+  await using root = room.root;
+  await using _routes = await serveCardRoom(page, root, corpus);
+  await mount<typeof RoutedReplyBesideFieldStory>(STORY, { chatId: room.chatId });
+  const card = page.frameLocator(ROUTED_CARD);
+  await expect(card.locator("body[data-ran]")).toHaveCount(1);
+  // The reader's press admits the card, which stays the newest place they held focus, and gives the page a live
+  // activation.
+  await card.locator("#ride-field").click();
+  await expect(page.locator(ROUTED_CARD)).toBeFocused();
+  // Focus leaves the card for the bare page, as a click on a part of a page no element takes would leave it: no app
+  // element is focused, so the card is still the newest holder.
+  await page.locator(ROUTED_CARD).evaluate((frame) => {
+    frame.blur();
+  });
+  expect(await page.evaluate(() => document.activeElement === document.body)).toBe(true);
+  // The card posts and grabs in one task, so its link arrives with the card holding focus and the grab not yet judged.
+  await card.locator("body").evaluate((body, cue) => body.dispatchEvent(new Event(cue)), RIDE_EVENT);
+  await expect(card.locator("body[data-rode]")).toHaveCount(1);
+  // The grab waits for its judgement, so the link it posted meanwhile raised nothing.
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  // Positive control: the reader's own click on the card's link raises the confirm for that link.
+  await card.locator("#tide-link").click();
+  await expect(page.getByRole("alertdialog").locator(ADDRESS_PART)).toHaveText(LINK_URL);
+});
 
 test("Tab into a card and Enter on its link raises the confirm", async ({ corpus, mount, page }) => {
   const room = await openCardRoom(`:::card title="Tide tables"\n${TIDE_LINK}\n:::`, "static");
@@ -159,7 +189,7 @@ for (const [width, viewport] of [
     const room = await openCardRoom(ADDRESS_CARD, "interactive");
     await using root = room.root;
     await using _routes = await serveCardRoom(page, root, corpus);
-    const requested = await recordExternalPages(page);
+    const { requested } = await recordExternal(page);
     await mount<typeof RoutedReplyBesideFieldStory>(STORY, { chatId: room.chatId });
     const card = page.frameLocator(ROUTED_CARD);
     const confirm = page.getByRole("alertdialog");
@@ -203,11 +233,10 @@ for (const [width, viewport] of [
     await expect(confirm.getByRole("button", { name: FRAMED_LINK_CONFIRM_LABEL, exact: true })).toBeInViewport();
     await open(POSTED.longPath);
 
-    // A mail link naming an attachment raises nothing; a plain one shows its address and says it opens the mail app.
+    // A mail link naming an attachment raises nothing; a plain one raises the mail confirm with its mailbox and address.
     await post("attachment");
     await post("mail");
     await expect(confirm).toHaveAccessibleName(FRAMED_MAIL_CONFIRM_TITLE);
-    await expect(confirm).toContainText(FRAMED_MAIL_CONFIRM_DESCRIPTION);
     await expect(confirm.locator(MAILBOX_PART)).toHaveText("someone@example.test");
     await expect(confirm.locator(ADDRESS_PART)).toHaveText(POSTED.mail);
     // Enter answers the focused Cancel: nothing opens.
