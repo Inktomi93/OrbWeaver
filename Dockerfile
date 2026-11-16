@@ -37,7 +37,7 @@
 # frontend can add a build check, and an unpinned one would fail the build on the day it ships.
 
 # ── base: the full node image every build stage shares ──────────────────────────────────────────────
-FROM node:26.11.1-bookworm@sha256:f1233c415b41ffcf237c717b3dea92e9d4ea006e0e4c71edcb790605d74f5404 AS base
+FROM node:26.12.1-bookworm@sha256:3b764117159bda01d2396391e7789b6a9106af9729cfd001ef55e98557868310 AS base
 # Every RUN and heredoc below stops at its first failing command, inside a pipe too.
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
 WORKDIR /app
@@ -128,7 +128,7 @@ RUN --mount=type=bind,source=docker/assemble-runtime.sh,target=/tmp/assemble-run
     sh /tmp/assemble-runtime.sh app /app /runtime/links /runtime/app
 
 # ── runtime ──────────────────────────────────────────────────────────────────────────────────────────
-FROM node:26.11.1-bookworm-slim@sha256:86f07bc9c5dce4578cf37e5a418b7bfc7f817cda25cde66e2b66e95ed86c4567 AS runtime
+FROM node:26.12.1-bookworm-slim@sha256:88e480776c6149ff1d098cd304f44bf18057fb5d284a3329b78162d29821e28c AS runtime
 # cloudflared uses the system trust store; the slim base does not contain it. The upgrade takes Debian's security
 # fixes that landed after the pinned base digest, so the release's vulnerability gate sees a current OS layer.
 RUN apt-get update && apt-get upgrade -y --no-install-recommends && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
