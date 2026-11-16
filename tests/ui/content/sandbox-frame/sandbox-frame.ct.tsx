@@ -132,6 +132,19 @@ test("a short static card measures itself and the frame drops below its pre-meas
   await expect.poll(async () => frameHeight(frame)).toBe(120);
 });
 
+test("a card whose first and last children carry margins measures them, so none of its content is clipped", async ({ mount, room, page }) => {
+  const served = await room.serve('<p id="first" style="margin:20px 0;height:30px">First</p><p id="last" style="margin:20px 0;height:30px">Last</p>', null);
+  await routeServedFrame(page, served);
+  const frame = (await mount<typeof SandboxFrameStory>(STORY, routed(served, "margined card"))).locator(FRAME);
+  // The content's full extent from the resolved layout: the last child's bottom edge plus its own bottom margin.
+  const extent = await page
+    .frameLocator(FRAME)
+    .locator("#last")
+    .evaluate((last) => last.getBoundingClientRect().bottom + Number.parseFloat(getComputedStyle(last).marginBottom));
+  expect(extent).toBeGreaterThan(0);
+  await expect.poll(async () => frameHeight(frame)).toBe(extent);
+});
+
 // A reply document whose content height changes every animation frame once the frame has settled, then rests at
 // RESTING_PX: the pinned measure script reports every change, as a document whose height feeds back on itself would.
 const RESTING_PX = 555;
