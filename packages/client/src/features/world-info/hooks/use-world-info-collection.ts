@@ -2,10 +2,11 @@
 // create verb, and the IMPORT verb (D121-D's band half, now the group band's). All three are hooks because a
 // definition is a module-level value — the host calls each unconditionally, once, per rendered affordance.
 
+import { IMPORT_FILE_TEXT_MAX_CHARS } from "@orb/contracts/uploads";
 import { useQuery } from "@tanstack/react-query";
 import { useCollectionCount, useInvalidation, useTRPC } from "#data";
 import type { CollectionCount, CollectionInsight } from "#lib";
-import { notify, WORLD_INFO_DUPLICATE_BOOK_NOTICE } from "#lib";
+import { notify, readTextWithin, WORLD_INFO_DUPLICATE_BOOK_NOTICE } from "#lib";
 import { selectCollectionMember } from "#state";
 import { WORLD_INFO_COLLECTION_ID } from "../lib/world-info-model.ts";
 import { useCreateWorldBook, useImportWorldBookFile } from "./use-world-info-mutations.ts";
@@ -131,8 +132,7 @@ export function useImportWorldInfoMember(): (file: File) => void {
   const invalidation = useInvalidation();
   const importBook = useImportWorldBookFile({ trpc, invalidation, failureShownInline: "the book library's own import error toast" });
   return (file: File): void => {
-    void file
-      .text()
+    void readTextWithin(file, IMPORT_FILE_TEXT_MAX_CHARS.worldBook)
       .then((fileText) => importBook.mutateAsync({ fileText, filename: file.name }))
       .then((outcome) => {
         notify.success(importedBookMessage(outcome));

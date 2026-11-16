@@ -40,6 +40,7 @@ import { Markdown } from "@orb/ui/markdown";
 import { TypingDots, useSmoothText } from "@orb/ui/stream";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { FormingChip } from "#components";
 import type { MessageRenderContext } from "#lib";
 import { useArtViewer } from "../hooks/art-viewer-context.tsx";
 import { useArtControl } from "../hooks/use-art-control.ts";
@@ -56,7 +57,6 @@ import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { FORMING_CARD_UNTITLED, REPLY_PANEL_FORMING_TITLE } from "../lib/reply-frame-names.ts";
 import { gutterRailFor } from "../lib/row-placement.ts";
 import { CardBlock } from "./card-block.tsx";
-import { FormingChip } from "./forming-chip.tsx";
 import { GhostActionsFootprint } from "./message-actions-cluster.tsx";
 import { artViewFor, renderRowAvatar } from "./message-row-avatar.tsx";
 import { renderSingleBubble } from "./message-row-bubble.tsx";
@@ -81,7 +81,8 @@ interface GhostSegmentOptions {
 /** One ghost segment → its element. The KEY is `index-kind`, the settled path's precedent
  *  (`message-content.tsx`): stable for an unchanged body, so a closed card's iframe is never remounted by
  *  the prose that keeps streaming BELOW it — a remount would reload the srcdoc and re-run the card's paint
- *  on every token. Kept honest by the "prose after a closed card never reloads the iframe" CT. */
+ *  on every token. `tests/client/features/chat/components/card-frame-parity.ct.tsx` holds it: prose streaming below a
+ *  closed card never remounts or reloads the card's frame. */
 function ghostSegment(segment: GhostContentSegment, index: number, opts: GhostSegmentOptions): ReactElement {
   const key = `${index}-${segment.kind}`;
   if (segment.kind === "forming-card") {

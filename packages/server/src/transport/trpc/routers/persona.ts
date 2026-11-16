@@ -13,7 +13,7 @@ import {
   updatePersonaSchema,
 } from "@orb/contracts/persona";
 import { portableTextFileSchema } from "@orb/contracts/portability";
-
+import { IMPORT_FILE_TEXT_MAX_CHARS } from "@orb/contracts/uploads";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { strictTwin } from "@orb/kit/zod-schema";
 import { TRPCError } from "@trpc/server";
@@ -21,8 +21,7 @@ import { z } from "zod";
 import { refuseExportNote } from "#primitives/stored-config";
 import { authedProcedure, t } from "../trpc.ts";
 
-// A persona backup is prose-sized; the cap only fences a hostile upload (the preset door's shape).
-const MAX_PERSONA_FILE_CHARS = 2_000_000;
+// A persona backup is prose-sized; the cap (`IMPORT_FILE_TEXT_MAX_CHARS.persona`) only fences a hostile upload.
 const ENC = new TextEncoder();
 const DEC = new TextDecoder();
 
@@ -151,7 +150,7 @@ export const personaRouter = t.router({
 
   import: authedProcedure
     .output(strictTwin(personaDetailSchema))
-    .input(z.strictObject({ fileText: z.string().max(MAX_PERSONA_FILE_CHARS) }))
+    .input(z.strictObject({ fileText: z.string().max(IMPORT_FILE_TEXT_MAX_CHARS.persona) }))
     .mutation(async ({ ctx, input }) => {
       const outcome = await ctx.services.persona.import({ principal: ctx.auth, bytes: ENC.encode(input.fileText) });
       if (!outcome.ok) {

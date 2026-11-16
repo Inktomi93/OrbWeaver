@@ -316,8 +316,10 @@ export type {
 } from "./registry-contracts.ts";
 export { CHAT_PLUGINS_TAB_LABEL, CONFIG_TEACHER_TAB_IDS, defineContextRegion, defineContextTabs, GAME_STRIP_LABEL } from "./registry-contracts.ts";
 export { RenderProfiler } from "./render-profiler.tsx";
-export type { PlainReplyReason, RowRenderPolicy } from "./render-trust.ts";
-export { DEPLOYMENT_FLOOR, PLAIN_REPLY_REASON, resolveRowRenderPolicy } from "./render-trust.ts";
+export type { PlainReason, PlainRemedy, PlainReplyReason, PlainSubject, RowRenderPolicy } from "./render-trust.ts";
+export { DEPLOYMENT_FLOOR, PLAIN_REPLY_REASON, resolvePlainVerdict, resolveRowRenderPolicy } from "./render-trust.ts";
+export type { RefusalKind } from "./request-refused.ts";
+export { isFinalRefusal, readTextWithin, refusalOfAnswer, refusalOr, refuseOversizeFiles, requestRefusalOf } from "./request-refused.ts";
 export { dataThemeOf, isSeedThemeName, resolveThemeScopeTokens, type SeedThemeName } from "./resolve-theme-scope-tokens.ts";
 export { RETRY_NAME } from "./retry-names.ts";
 export { REVOKED_KEY_COPY } from "./revoked-key-copy.ts";

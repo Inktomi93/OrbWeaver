@@ -12,7 +12,7 @@ import type { ThemeBackground, ThemeOverride } from "#theme";
 import type { DroppedAppendFanEvent, DurableChatBusEvent, LiveOnlyChatBusEvent, PromptTransform, TurnInitiator } from "./bus.ts";
 import type { GuidedSteer } from "./metadata.ts";
 import type { CharacterRegexSlice } from "./regex-tiers.ts";
-import type { HistoryFloorSeq, RenderPolicy } from "./roster.ts";
+import type { HistoryFloorSeq, SeatRenderPolicy } from "./roster.ts";
 import type { TurnOutcome } from "./views.ts";
 
 /** Does the invite's minter still hold the authority to mint a signup invite: enabled, and a global admin? */
@@ -23,9 +23,8 @@ export type SignupMinterCheckOp = (minterUserId: UserId) => Promise<boolean>;
 //  render policy, the raw theme + background overrides, and the card name/avatar) — replaces
 //  four separate reads of the same `characters` row per participant. `card` is null for a human/agent
 //  seat, no resolvable host, or a gone/mid-delete card.
-interface SeatDeco {
-  /** The content-render policy (character override ?? global floor); the bare global floor for a card-less seat. */
-  readonly renderPolicy: RenderPolicy;
+// The render policy and its source come from `resolveSeatRenderPolicy`, never from two separate reads.
+interface SeatDeco extends SeatRenderPolicy {
   /** The raw, unmerged per-character theme override; null for a card-less seat. Chat never reads the themes
    *  table — the override/global/default cascade is a client concern. */
   readonly themeOverride: ThemeOverride | null;
@@ -44,7 +43,8 @@ export type ResolveCharacterTagsOp = (params: {
 }) => Promise<readonly Pick<TagView, "id" | "name">[]>;
 
 /** Resolves a roster member's full card-derived decoration in ONE read. `characterId: null` (a human/agent
- *  seat) or `ownerId: null` (no resolvable host) yields the bare global floor + a null card — fail-closed. */
+ *  seat) or `ownerId: null` (no consenting host) yields the bare global floor + a null card — fail-closed; the
+ *  second answers `no-host` as its render source. */
 export type ResolveSeatDecoOp = (params: { readonly ownerId: UserId | null; readonly characterId: CharacterId | null }) => Promise<SeatDeco>;
 
 declare const viewerVisibilityBrand: unique symbol;

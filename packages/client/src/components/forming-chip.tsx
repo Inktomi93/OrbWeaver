@@ -1,7 +1,8 @@
 // The §4.5 FORMING placeholder: the building-state chip (skeleton shimmer and a title) that stands in for markup whose
-// bytes the row must not paint yet. A `:::card` whose body is still streaming shows it in the ghost row
-// (`ghost-message-row.tsx`), and so does an HTML block of a styled reply until its frame draws it (D354,
-// `reply-frame.tsx`). NO iframe and NO partial HTML: the segment that asks for a chip carries no bytes.
+// bytes must not paint yet. A `:::card` whose body is still streaming shows it in the ghost row, an HTML block of a
+// styled reply shows it until its frame draws it (D354), and a framed card shows it until its routed frame draws, in the
+// transcript and in the rpg card archive alike. NO iframe and NO partial HTML: the segment that asks for a chip carries
+// no bytes.
 
 import { Card } from "@orb/ui/card";
 import { Stack } from "@orb/ui/layout";

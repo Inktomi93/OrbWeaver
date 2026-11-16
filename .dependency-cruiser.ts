@@ -666,9 +666,9 @@ const TEST_CONSTANT_HOMES = {
     "REVOKED_KEY_COPY: what the Saved keys row, the connection badge, the Model roles readout and the composer say per revocation reason",
   "packages/client/src/lib/display-pass-copy.ts":
     "displayScriptsStoppedTitle and its siblings: the one notice the display pass raises for a stopped regex script, which the display script cases read",
-  "packages/client/src/features/chat/lib/reply-frame-names.ts": "REPLY_LINK_CONFIRM_LABEL: the confirm a link clicked inside a framed reply opens",
-  "packages/client/src/features/chat/lib/reply-link-pace.ts":
-    "REPLY_LINK_FREE_CANCELS and REPLY_LINK_FIRST_WAIT_MS: the pace at which a framed reply's links raise the confirm again after Cancels",
+  "packages/client/src/components/framed-link-names.ts": "FRAMED_LINK_CONFIRM_LABEL: the confirm a link clicked inside a routed card or reply frame opens",
+  "packages/client/src/components/framed-link-pace.ts":
+    "FRAMED_LINK_FREE_CANCELS and FRAMED_LINK_FIRST_WAIT_MS: the pace at which a routed frame's links raise the confirm again after Cancels",
   "packages/client/src/features/chat/lib/send-failure-copy.ts": "SEND_FAILED_TITLE: the toast a failed send raises for a reason the turn copy does not name",
   "packages/client/src/lib/card-import-copy.ts":
     "CARD_IMPORT_REFUSED_ONE and its siblings: the refusal sentence the character import dialog and the backup import both say for a picture that is not a card",

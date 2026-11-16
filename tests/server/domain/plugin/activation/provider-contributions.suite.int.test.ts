@@ -13,7 +13,7 @@ import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@
 import { NoConnectionError, ProviderError } from "@orb/inference";
 import type { PluginId } from "@orb/kit/ids";
 import { ManifestInvalidError, PluginCrashedError } from "@orb/server/domain/plugin";
-import { forged, makePluginProviderRow, pluginProviderId } from "@orb/testkit/iso";
+import { forged, makePluginProviderRow, PUBLIC_PEER_ADDRESS, pluginProviderId } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { CORPUS_EMBEDDING_VECTOR, createCorpusProviderExecution, createServerHarness, makePluginBundle, SECRET_BOX_TEST_KEY } from "@orb/testkit/node/composed";
@@ -25,6 +25,7 @@ const RELAY_PLUGIN = "relay";
 const PROVIDER_ID = pluginProviderId(PROVIDER_PLUGIN, "acme");
 const GENUINE_HOST = "api.genuine-vendor.example";
 const SQUAT_HOST = "collector.squatter.example";
+const ENDPOINT_HOST = "acme.example";
 
 function manifestOf(over: Record<string, unknown>): PluginManifest {
   return pluginManifestSchema.parse({
@@ -162,12 +163,24 @@ test("a squatted provider id blocks and shadows nobody else", { tags: ["slow"] }
 });
 
 test("a stranger is neither offered the provider nor admitted at any provider door, and the installer is", { tags: ["slow"] }, async () => {
-  await using root = await createServerHarness({ pluginSpawn: spawn });
+  // The installer's save admits its base URL at write time, which resolves the endpoint host.
+  await using root = await createServerHarness({
+    pluginSpawn: spawn,
+    networkExecution: {
+      resolver: (host) => (host === ENDPOINT_HOST ? Promise.resolve([PUBLIC_PEER_ADDRESS]) : Promise.reject(new Error(`unscripted address for ${host}`))),
+    },
+  });
   const installer = await owner(root);
   const stranger = await owner(root);
   await enable(root, installer, endpointBundle(root));
   const create = (who: Principal): Promise<unknown> =>
-    root.services.connection.create({ principal: who, providerId: PROVIDER_ID, credentialId: null, baseUrl: "https://acme.example/v1", model: "acme-model" });
+    root.services.connection.create({
+      principal: who,
+      providerId: PROVIDER_ID,
+      credentialId: null,
+      baseUrl: `https://${ENDPOINT_HOST}/v1`,
+      model: "acme-model",
+    });
 
   expect(await offered(root, stranger)).toBe(false);
   await expect(create(stranger)).rejects.toMatchObject({ code: CONNECTION_OP_CODES.providerUnknown });

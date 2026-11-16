@@ -21,7 +21,7 @@ import { bodyDisplayRow } from "../lib/display-row.ts";
 import type { MessageBoxFacts } from "../lib/message-box-facts.ts";
 import { trainParagraphs } from "../lib/split-paragraphs.ts";
 import { MessageBox } from "./message-box.tsx";
-import { MessageBody } from "./message-content.tsx";
+import { MessageBody, RowNotices } from "./message-content.tsx";
 
 export interface MessageTrainProps extends Omit<MessageDrawProps, "display" | "cardOrigin" | "pluginDisplayRow" | "displayOrder"> {
   readonly message: MessageView;
@@ -69,7 +69,7 @@ export function MessageTrain({ message, displayDepth, facts, header, reasoning, 
   const bubbles = trainBodies(drawn, framed).map((body, index) => (
     // biome-ignore lint/suspicious/noArrayIndexKey: ordinal paragraphs belong to the keyed immutable message snapshot; replacement expires descendant state.
     <MessageBox key={index} {...facts} shape="stack" positioned={false}>
-      <MessageBody drawn={body} layout={framed ? layout : undefined} {...props} />
+      <MessageBody drawn={body} layout={framed ? layout : undefined} notices={false} {...props} />
     </MessageBox>
   ));
   return (
@@ -82,6 +82,7 @@ export function MessageTrain({ message, displayDepth, facts, header, reasoning, 
       {header}
       {reasoning}
       {bubbles}
+      <RowNotices drawn={drawn} layout={layout} render={props.render} />
     </Stack>
   );
 }

@@ -16,6 +16,7 @@ import { Markdown } from "@orb/ui/markdown";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement, RefCallback } from "react";
+import { FormingChip } from "#components";
 import type { RowRenderPolicy } from "#lib";
 import type { DrawnMessage, MessageDrawProps } from "../hooks/use-drawn-message.ts";
 import { drawnLayout, useDrawnMessage } from "../hooks/use-drawn-message.ts";
@@ -25,9 +26,9 @@ import type { FrameReplySegment, ReplyLayout, ReplyPart } from "../lib/reply-par
 import { colorForCharacter } from "../lib/speaker-color.ts";
 import type { CardOrigin } from "./card-block.tsx";
 import { CardBlock } from "./card-block.tsx";
-import { FormingChip } from "./forming-chip.tsx";
 import { MessageChoicesBlock } from "./message-choices-block.tsx";
 import { MessageMediaBlock } from "./message-media-block.tsx";
+import { PlainContentNotice, PlainReplyNotice } from "./plain-content-notice.tsx";
 import { ReplyFrame } from "./reply-frame.tsx";
 
 function assertNever(value: never): never {
@@ -58,7 +59,7 @@ function renderBlock(block: MessageContentBlock, key: string, render: RowRenderP
     //           inline style=, so `block.css` is not merely unused here, it is unusable by law.
     // The inert arm is wrapped in InertCard rather than emitted bare: an unstyled card in the prose flow is
     // indistinguishable from the model writing plain text, which is how this read as "cards vanish". The
-    // frame says a card is here, the badge says it is plain, and the hint says what turns it on — the same
+    // frame says a card is here, the badge says it is plain, and the row's notice says what turns it on — the same
     // refuse-VISIBLY posture MessageMedia's click-to-load gate has always had.
     case "html-card":
       return <CardBlock key={key} block={block} allowExternal={allowExternal} cardOrigin={cardOrigin} />;
@@ -201,6 +202,55 @@ function FramedReply({
   );
 }
 
+// A tierA row draws rich content plain when a display script styled it or when it carries a card: the notice says once,
+// under the row, which setting holds it there. A row still waiting on its scripts shows none until its answer lands.
+function rowPlainNotice(texts: readonly string[], render: RowRenderPolicy, styled: boolean, pending: boolean): ReactElement | null {
+  if (render.plain === undefined || pending) {
+    return null;
+  }
+  const holdsCard = (): boolean =>
+    texts.some((text) => toContentBlocks(text, { cardTrust: render.cardTier, lenientHtml: render.lenientCards }).some((block) => block.kind === "html-card"));
+  return styled || holdsCard() ? <PlainContentNotice key="plain-notice" subject={render.plain} /> : null;
+}
+
+// What a row says under its body about content it draws plain: the trust notice, and for a styled reply too heavy to
+// frame, why it is plain whole. Null when it says nothing.
+function rowNotices(drawn: Omit<DrawnMessage, "observeBody">, layout: ReplyLayout | undefined, render: RowRenderPolicy): ReactElement | null {
+  const texts = drawn.spans.map((span) => (drawn.styled ? stripStyleElements(span.text) : span.text));
+  const trust = rowPlainNotice(texts, render, drawn.styled, drawn.pending);
+  const heavy = layout?.kind === "plain" ? <PlainReplyNotice key="plain-reply-notice" reason={layout.reason} /> : null;
+  return trust === null && heavy === null ? null : (
+    <>
+      {trust}
+      {heavy}
+    </>
+  );
+}
+
+/** The row's notices about content it draws plain, said once under the row however many bubbles draw it. */
+export function RowNotices({
+  drawn,
+  layout,
+  render,
+}: {
+  readonly drawn: Omit<DrawnMessage, "observeBody">;
+  readonly layout: ReplyLayout | undefined;
+  readonly render: RowRenderPolicy;
+}): ReactElement | null {
+  return rowNotices(drawn, layout, render);
+}
+
+function withNotice(body: ReactElement, notice: ReactElement | null): ReactElement {
+  return notice === null ? (
+    body
+  ) : (
+    <Stack gap="row">
+      {body}
+      {notice}
+    </Stack>
+  );
+}
+
 export interface MessageContentProps extends MessageDrawProps {
   readonly content: string;
 }
@@ -214,7 +264,13 @@ export function MessageBody({
   display,
   speakerThemes,
   cardOrigin,
-}: { readonly drawn: DrawnMessage; readonly layout: ReplyLayout | undefined } & MessageDrawProps): ReactElement {
+  notices = true,
+}: {
+  readonly drawn: DrawnMessage;
+  readonly layout: ReplyLayout | undefined;
+  /** False for a bubble of a train, which says the row's notices once itself (`RowNotices`). */
+  readonly notices?: boolean;
+} & MessageDrawProps): ReactElement {
   if (layout?.kind === "framed") {
     // The frame's accessible name is the row's own speaker: its character, or the persona that wrote it.
     const { characterId, personaId } = display.row;
@@ -226,14 +282,16 @@ export function MessageBody({
   }
   const { spans, styled, pending, observeBody } = drawn;
   const inert = renderInert({ spans, styled, pending, render, speakerThemes, cardOrigin, observeBody });
-  // A reply too heavy to frame renders plain whole, and says why for the notice that names it.
-  return layout === undefined ? (
-    inert
-  ) : (
-    <Stack gap="block" data-slot="message-content-plain" data-plain-reason={layout.reason}>
-      {inert}
-    </Stack>
-  );
+  // A reply too heavy to frame renders plain whole, and its notice says why.
+  const body =
+    layout === undefined ? (
+      inert
+    ) : (
+      <Stack gap="block" data-slot="message-content-plain" data-plain-reason={layout.reason}>
+        {inert}
+      </Stack>
+    );
+  return withNotice(body, notices ? rowNotices(drawn, layout, render) : null);
 }
 
 export function MessageContent({ content, ...props }: MessageContentProps): ReactElement {

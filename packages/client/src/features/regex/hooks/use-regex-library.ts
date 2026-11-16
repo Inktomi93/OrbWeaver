@@ -9,6 +9,7 @@ import type { ImportScriptFileResult, RegexScriptRow } from "@orb/contracts/rege
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
+import { refusalOr } from "#lib";
 
 export const useCreateRegexScript = createEntityMutation<inferInput<Trpc["regex"]["createScript"]>, RegexScriptRow>({
   options: (trpc) => trpc.regex.createScript.mutationOptions(),
@@ -90,5 +91,5 @@ export const useBulkRemoveRegexScripts = createEntityMutation<inferInput<Trpc["r
 export const useImportRegexScriptFile = createEntityMutation<inferInput<Trpc["regex"]["importScriptFile"]>, ImportScriptFileResult>({
   options: (trpc) => trpc.regex.importScriptFile.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't import that script.",
+  errorToast: refusalOr("Couldn't import that script."),
 });

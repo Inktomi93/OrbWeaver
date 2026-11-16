@@ -49,6 +49,8 @@ export const OWNER_CSS_RENAMES: readonly OwnerCssRename[] = [
   { kind: "slot", name: "persona-row-name", to: null, see: "list-row-title" },
   { kind: "slot", name: "chat-style-stripe", to: "chat-style-tick" },
   { kind: "slot", name: "labels-control-row", to: null, see: "list-search" },
+  // A plain card's own hint gave way to one notice under the whole row, which also carries a control.
+  { kind: "slot", name: "inert-card-hint", to: null, see: "plain-notice" },
   // The empty library's line moved from the finder band into the rows, drawn by the shared empty state.
   { kind: "slot", name: "labels-finder-empty", to: null, see: "empty-state-root" },
   { kind: "slot", name: "stat-figure-delta", to: null },

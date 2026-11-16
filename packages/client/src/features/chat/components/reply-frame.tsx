@@ -7,7 +7,8 @@
 //
 // THE FRAME DRAWS ONLY ON THE ROUTED DELIVERY. While the frame document builds and the mint is pending, the run shows
 // `held`: its prose, with every HTML block a forming chip that carries none of the template's bytes. When the frame
-// cannot come (no room, a refused mint, a handle lost twice, or scripts stopped for taking the reader's focus), it
+// cannot come (no room, a refused mint, a handle lost twice, a frame fallen to its floor for taking the reader's focus
+// or for a document that loaded and never reported), it
 // shows the inert `fallback`. The srcdoc floor is script-dead, so it could neither measure the reply's height nor hand
 // a link to the host, and a reply must not become a clipped box with dead links. Once routed, the frame loads with no height or paint behind the held run, and replaces
 // it only when its document reports its first height, so the reader never sees an empty frame while it loads, however
@@ -15,14 +16,12 @@
 // (FILLS_MEASURE): the frame's document cannot size the bubble around it, and a body that hugged its text would make
 // the swap a width jump.
 //
-// A link clicked inside the frame reaches the host through `SandboxFrame.onLink` (sender checked, address vetted,
-// off the app's origin, a live user activation and a click in this frame required) and opens only through the
-// confirm below. An open confirm keeps the address it shows, and Open opens exactly that string: a frame that
-// posts again cannot change it. A Cancel only closes the confirm; the frame's next links raise it again, paced by
-// `reply-link-pace.ts`, so a scripted frame cannot raise it again and again.
+// A link clicked inside the frame opens only through the shared confirm (`packages/client/src/components/framed-link-confirm.tsx`), the one a
+// framed card uses too; focus returns to this run's own stop.
 //
 // A HANDLE THAT IS GONE (expired, or evicted under store pressure) loads the server's miss notice, which says so.
-// The frame then mints again once; a second miss renders the inert fallback, never the notice in place of the reply.
+// The frame then mints again once (`useCardFrame`); a second miss renders the inert fallback, never the notice in
+// place of the reply.
 
 import type { FrameStyleSheet } from "@orb/kit/content";
 import { FrameMarkdown, useFrameDocument } from "@orb/ui/frame-markdown";
@@ -31,11 +30,10 @@ import { FILLS_MEASURE } from "@orb/ui/lib";
 import { resolveFrameReplyLook, SandboxFrame, useSandboxTheme } from "@orb/ui/sandbox-frame";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement, ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
-import { ConfirmDialog } from "#components";
-import { useCardFrameMint } from "#data";
-import { REPLY_FRAME_UNNAMED_TITLE, REPLY_LINK_CONFIRM_DESCRIPTION, REPLY_LINK_CONFIRM_LABEL, REPLY_LINK_CONFIRM_TITLE } from "../lib/reply-frame-names.ts";
-import { replyLinkWaitMs } from "../lib/reply-link-pace.ts";
+import { useRef } from "react";
+import { useFramedLinkConfirm } from "#components";
+import { useCardFrame } from "#data";
+import { REPLY_FRAME_UNNAMED_TITLE } from "../lib/reply-frame-names.ts";
 import type { FrameReplySegment, ReplyRunStyles } from "../lib/reply-parts.ts";
 import type { CardOrigin } from "./card-block.tsx";
 
@@ -55,8 +53,6 @@ export interface ReplyFrameProps {
 }
 
 const BUBBLE_SLOT = "message-bubble";
-const LINK_TARGET = "_blank";
-const LINK_FEATURES = "noreferrer";
 
 function bodySegment(segment: FrameReplySegment, index: number, colorQuotes: boolean): ReactElement {
   if (segment.kind === "card") {
@@ -105,12 +101,11 @@ function deliveryOf(input: {
   readonly framedable: boolean;
   readonly documentFailed: boolean;
   readonly mintRefused: boolean;
-  readonly lost: boolean;
 }): Delivery {
   if (input.routed) {
     return "routed";
   }
-  return !input.framedable || input.documentFailed || input.mintRefused || input.lost ? "fallback" : "held";
+  return !input.framedable || input.documentFailed || input.mintRefused ? "fallback" : "held";
 }
 
 export function ReplyFrame({ segments, styles, colorQuotes, cardOrigin, speakerName, held, fallback }: ReplyFrameProps): ReactElement {
@@ -123,9 +118,7 @@ export function ReplyFrame({ segments, styles, colorQuotes, cardOrigin, speakerN
     (html) => (host.current === null ? undefined : { html, look: resolveFrameReplyLook(host.current, html) }),
   );
   const built = framed.state === "ready" ? framed.value : undefined;
-  const [attempt, setAttempt] = useState(0);
-  const [lost, setLost] = useState(false);
-  const mint = useCardFrameMint(
+  const frame = useCardFrame(
     cardOrigin === undefined || built === undefined
       ? undefined
       : {
@@ -138,107 +131,37 @@ export function ReplyFrame({ segments, styles, colorQuotes, cardOrigin, speakerN
           fontFamily: sandbox.fontFamily,
           rootAttributes: built.look.rootAttributes,
         },
-    attempt,
   );
-  const routed = mint.state === "routed" && !lost;
+  const { mint } = frame;
   const delivery = deliveryOf({
-    routed,
+    routed: mint.state === "routed",
     framedable: cardOrigin !== undefined,
     documentFailed: framed.state === "failed",
+    // A frame given up on (lost twice, or fallen to its floor) reads as the floor too.
     mintRefused: built !== undefined && mint.state === "floor",
-    lost,
   });
   const unframed = delivery === "held" ? held : fallback;
-  const [pendingLink, setPendingLink] = useState<string | undefined>(undefined);
-  const [waitingLink, setWaitingLink] = useState<string | undefined>(undefined);
-  const [cancels, setCancels] = useState(0);
-  // When this frame's next link may raise the confirm, on the `performance.now()` clock; set by a Cancel.
-  const linksReadyAt = useRef(0);
-  // Set by Open and read by the close that follows it, so only a Cancel counts against the frame's links.
-  const opened = useRef(false);
-
-  const requestLink = (url: string): void => {
-    if (pendingLink !== undefined) {
-      return;
-    }
-    if (performance.now() >= linksReadyAt.current) {
-      setPendingLink(url);
-    } else {
-      // The newest request wins: the reader's latest click is the link they want.
-      setWaitingLink(url);
-    }
-  };
-
-  // The newest link that arrived inside the wait raises its confirm when the wait ends: paced, never dropped.
-  useEffect(() => {
-    if (waitingLink === undefined || pendingLink !== undefined) {
-      return;
-    }
-    const timer = setTimeout(
-      () => {
-        setPendingLink(waitingLink);
-        setWaitingLink(undefined);
-      },
-      Math.max(0, linksReadyAt.current - performance.now()),
-    );
-    return (): void => {
-      clearTimeout(timer);
-    };
-  }, [waitingLink, pendingLink]);
+  const links = useFramedLinkConfirm();
 
   return (
     <Stack ref={host} {...FILLS_MEASURE} tabIndex={-1} data-slot="reply-frame" data-delivery={delivery}>
-      {mint.state === "routed" && !lost ? (
+      {mint.state === "routed" ? (
         <SandboxFrame
           src={mint.url}
           html=""
           title={speakerName === undefined || speakerName === "" ? REPLY_FRAME_UNNAMED_TITLE : speakerName}
           holds="reply"
-          onLink={requestLink}
-          onMissing={(): void => {
-            if (attempt === 0) {
-              setAttempt(1);
-            } else {
-              setLost(true);
-            }
+          onLink={(url): void => {
+            links.requestLink(url, host.current);
           }}
+          onMissing={frame.onMissing}
           pending={held}
-          onScriptsStopped={(): void => {
-            setLost(true);
-          }}
+          onFloor={frame.giveUp}
         />
       ) : (
         unframed
       )}
-      {pendingLink === undefined ? null : (
-        <ConfirmDialog
-          title={REPLY_LINK_CONFIRM_TITLE}
-          description={REPLY_LINK_CONFIRM_DESCRIPTION}
-          body={pendingLink}
-          confirmLabel={REPLY_LINK_CONFIRM_LABEL}
-          confirmTone="primary"
-          open={true}
-          // Focus returns to the reply's own stop in the app, never into the frame: the frame's focus gate would send a
-          // return into it back as unasked, and the reader re-enters the frame by a press or a Tab like any other time.
-          finalFocus={(): boolean => {
-            host.current?.focus({ preventScroll: true });
-            return false;
-          }}
-          onOpenChange={(open): void => {
-            if (!open) {
-              const next = opened.current ? 0 : cancels + 1;
-              linksReadyAt.current = performance.now() + replyLinkWaitMs(next);
-              setCancels(next);
-              opened.current = false;
-              setPendingLink(undefined);
-            }
-          }}
-          onConfirm={(): void => {
-            opened.current = true;
-            window.open(pendingLink, LINK_TARGET, LINK_FEATURES);
-          }}
-        />
-      )}
+      {links.confirm}
     </Stack>
   );
 }

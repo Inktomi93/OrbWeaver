@@ -82,18 +82,11 @@ async function widenedFramePolicy(room: FrameRoom): Promise<string> {
   return [...kept, `${FRAME_SRC} *`].join("; ");
 }
 
-test("control: with the embedder's frame-src widened a card link navigates the frame off-origin", async ({ room, page }) => {
-  const hits = await openProbe(page, await room.serve(`<a href="${EXTERNAL_URL}">go</a>`, null), await widenedFramePolicy(room));
-  await page.frameLocator("#card").getByRole("link", { name: "go" }).click();
-  await settleNavigation(page);
-  expect(hits).toContain(EXTERNAL_URL);
-});
-
-test("control: under the served app policy a same-origin self-navigation still lands", async ({ room, page }) => {
-  const hits = await openProbe(page, await room.serve(`<a href="${SAME_ORIGIN_URL}">go</a>`, null), await room.appPolicy());
-  await page.frameLocator("#card").getByRole("link", { name: "go" }).click();
-  await settleNavigation(page);
-  expect(hits.some((url) => url.includes(SAME_ORIGIN_URL))).toBe(true);
+test("control: with the embedder's frame-src widened a card meta refresh navigates the frame off-origin", async ({ room, page }) => {
+  const served = await room.serve(metaRefreshCard(EXTERNAL_URL), null);
+  expectRefreshServed(served, EXTERNAL_URL);
+  const hits = await openProbe(page, served, await widenedFramePolicy(room));
+  await expect.poll(() => hits).toContain(EXTERNAL_URL);
 });
 
 for (const [posture, characterId] of [
@@ -108,14 +101,41 @@ for (const [posture, characterId] of [
   });
 }
 
-test("a card link navigating the frame off-origin is blocked by the served app policy", async ({ room, page }) => {
-  const hits = await openProbe(page, await room.serve(`<a href="${EXTERNAL_URL}">go</a>`, null), await room.appPolicy());
+test("a card's web link never navigates the frame, even with the embedder's frame-src widened", async ({ room, page }) => {
+  // The pinned frame script hands the click to the embedder instead; the widened control above shows the frame could go.
+  const hits = await openProbe(page, await room.serve(`<a href="${EXTERNAL_URL}">go</a>`, null), await widenedFramePolicy(room));
   const link = page.frameLocator("#card").getByRole("link", { name: "go" });
   await expect(link).toBeVisible();
   await link.click();
   await settleNavigation(page);
   expect(hits).toEqual([]);
+  await expect(link).toBeVisible();
 });
+
+// The links the pinned frame script neither hands over nor runs: a `data:` document that would refresh off-origin if it
+// loaded, and a scheme no browser handles.
+const UNHANDED_LINKS = {
+  data: `data:text/html,<meta http-equiv=refresh content='0;url=${EXTERNAL_URL}?via=data'>`,
+  custom: "web+tide:high-water",
+} as const;
+
+for (const [posture, characterId] of [
+  ["static", null],
+  ["interactive", undefined],
+] as const) {
+  for (const [scheme, href] of Object.entries(UNHANDED_LINKS)) {
+    test(`a ${posture} card's ${scheme} link requests nothing and leaves the card drawn under the served app policy`, async ({ room, page }) => {
+      const served = await room.serve(`<p id="tide-line">High water at dusk.</p><a href="${href}">go</a>`, characterId);
+      const hits = await openProbe(page, served, await room.appPolicy());
+      const frame = page.frameLocator("#card");
+      await expect(frame.locator("#tide-line")).toHaveText("High water at dusk.");
+      await frame.getByRole("link", { name: "go", exact: true }).click();
+      await settleNavigation(page);
+      expect(hits).toEqual([]);
+      await expect(frame.locator("#tide-line")).toHaveText("High water at dusk.");
+    });
+  }
+}
 
 test("a card link targeting the top window is blocked and the top document stays put", async ({ room, page }) => {
   const hits = await openProbe(page, await room.serve(`<a href="${EXTERNAL_URL}" target="_top">go</a>`, null), await room.appPolicy());
@@ -128,7 +148,7 @@ test("a card link targeting the top window is blocked and the top document stays
 test("a card form submission is blocked even when the embedder's frame-src is open", async ({ room, page }) => {
   const served = await room.serve(`<form action="${EXTERNAL_URL}" method="get"><button type="submit">send</button></form>`, null);
   // Under the widened embedder policy the frame may go anywhere, so the card's sandbox (no allow-forms) and its own
-  // form-action are what stand in the way; the first control shows the widened policy lets a link through.
+  // form-action are what stand in the way; the first control shows the widened policy lets a navigation through.
   const hits = await openProbe(page, served, await widenedFramePolicy(room));
   const send = page.frameLocator("#card").getByRole("button", { name: "send" });
   await expect(send).toBeVisible();
@@ -167,7 +187,7 @@ test("an interactive card runs its script and still reaches no top or popup navi
   expect(page.url()).toContain(PARENT_URL);
 });
 
-test("an interactive card's script-driven self navigation off-origin is refused like the link", async ({ room, page }) => {
+test("an interactive card's script-driven self navigation off-origin is refused like the meta refresh", async ({ room, page }) => {
   const served = await room.serve(`<p>lab</p><script>location.href=${JSON.stringify(`${EXTERNAL_URL}?via=self`)};</script>`);
   const hits = await openProbe(page, served, await room.appPolicy());
   await expect(page.locator("#card")).toBeVisible();

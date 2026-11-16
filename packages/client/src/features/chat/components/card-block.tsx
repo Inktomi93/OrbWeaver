@@ -16,7 +16,9 @@ import { ImmersiveCard, InertCard } from "@orb/ui/immersive-card";
 import { Markdown } from "@orb/ui/markdown";
 import { useSandboxTheme } from "@orb/ui/sandbox-frame";
 import type { ReactElement } from "react";
-import { useCardFrameSrc } from "#data";
+import { FormingChip, useFramedLinkConfirm } from "#components";
+import { useCardFrame } from "#data";
+import { FORMING_CARD_UNTITLED } from "../lib/reply-frame-names.ts";
 
 /** The room a card was authored in — the card-frame doorway's POLICY SELECTOR (the server resolves this
  *  character's `renderPolicy` and builds the frame CSP from it). Absent ⇒ the srcdoc floor renders, which is
@@ -29,7 +31,15 @@ export interface CardOrigin {
 /** The tierB card. A COMPONENT rather than a render helper: the routed card-frame handle is minted with a
  *  hook, and the mint needs the theme-resolved tokens the frame will actually carry (a card that recolors on
  *  a theme flip must re-mint, or the routed document would serve yesterday's palette). Without a
- *  `cardOrigin` there is no room, hence no roster, hence no trust verdict — it renders the floor. */
+ *  `cardOrigin` there is no room, hence no roster, hence no trust verdict — it renders the floor.
+ *
+ *  It frames as a styled reply does (`reply-frame.tsx`), through the same parts: `useCardFrame` mints once more when
+ *  the handle is gone and then gives up to the floor, the shared confirm is the only way a framed link opens, and while
+ *  the mint answers and the routed document draws, a forming chip holds the card's body. Two differences are the
+ *  card's own. Its floor is its srcdoc render (a card brings its own look and fits the floor, where a reply cannot), so
+ *  a refused mint or a lost handle draws the card there instead of an inert copy; that floor runs no script, so its
+ *  links do nothing. A frame that falls to its floor (its scripts stopped, or its document loaded and never reported)
+ *  gives the card up as a reply's does, so the fullscreen view draws that floor too instead of the address that failed. */
 function TierBCard({
   block,
   allowExternal,
@@ -40,18 +50,28 @@ function TierBCard({
   readonly cardOrigin: CardOrigin | undefined;
 }): ReactElement {
   const { themeTokens, styleTokens, fontFamily } = useSandboxTheme();
-  const frameSrc = useCardFrameSrc(
-    cardOrigin === undefined ? undefined : { ...cardOrigin, html: block.html, css: block.css, themeTokens, styleTokens, fontFamily },
-  );
+  const frame = useCardFrame(cardOrigin === undefined ? undefined : { ...cardOrigin, html: block.html, css: block.css, themeTokens, styleTokens, fontFamily });
+  const links = useFramedLinkConfirm();
+  const { mint } = frame;
+  // Pending and routed wait behind the chip; only the floor draws at once.
+  const forming =
+    mint.state === "floor" ? undefined : <FormingChip title={block.title !== undefined && block.title !== "" ? block.title : FORMING_CARD_UNTITLED} />;
   return (
-    <ImmersiveCard
-      html={block.html}
-      allowExternalMedia={allowExternal}
-      {...(frameSrc === undefined ? {} : { frameSrc })}
-      {...(block.css === undefined ? {} : { css: block.css })}
-      {...(block.title === undefined ? {} : { title: block.title })}
-      {...(block.origin === undefined ? {} : { origin: block.origin })}
-    />
+    <>
+      <ImmersiveCard
+        html={block.html}
+        allowExternalMedia={allowExternal}
+        {...(mint.state === "routed" ? { frameSrc: mint.url } : {})}
+        {...(forming === undefined ? {} : { pending: forming })}
+        onLink={links.requestLink}
+        onMissing={frame.onMissing}
+        onFloor={frame.giveUp}
+        {...(block.css === undefined ? {} : { css: block.css })}
+        {...(block.title === undefined ? {} : { title: block.title })}
+        {...(block.origin === undefined ? {} : { origin: block.origin })}
+      />
+      {links.confirm}
+    </>
   );
 }
 
@@ -69,10 +89,7 @@ export function CardBlock({ block, allowExternal, cardOrigin }: CardBlockProps):
   if (block.trust === "tierB") {
     return <TierBCard block={block} allowExternal={allowExternal} cardOrigin={cardOrigin} />;
   }
-  // Tier A: the sanitized body inside the inert frame. No `authorName` is threaded yet — the row policy
-  // does not carry one, and InertCard degrades to "this character" rather than printing an empty name.
-  // Threading the real name is a follow-up worth doing (it makes the remedy one click more obvious), not a
-  // reason to hold the visibility fix.
+  // Tier A: the sanitized body inside the inert frame. Why it is plain is said once, under the whole row.
   return (
     <InertCard {...(block.title === undefined ? {} : { title: block.title })}>
       {/* Tier A forbids `<style>`, and the allowlist would keep its content as text. */}

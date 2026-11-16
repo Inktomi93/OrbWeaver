@@ -4,7 +4,7 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { actionGroupGeometry } from "@orb/testkit/browser/spec";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
+import { ENLARGED_APPEARANCE_SETTINGS, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { createServerHarness, makePluginBundle } from "@orb/testkit/node/composed";
 import { CONNECTIONS_GROUP_LABEL } from "#client/features/credentials/lib/credentials-names.ts";
 import { sectionBackName } from "#client/lib/context-pane-names.ts";
@@ -16,6 +16,7 @@ const LABEL = "An explicitly named connection for the long-running collaborative
 const MODEL = "gpt-6-sol";
 const PLUGIN_SLUG = "layout-provider";
 const PROVIDER_ID = `plugin:${PLUGIN_SLUG}/text`;
+const ENDPOINT_HOST = "models.example.test";
 const READS = [
   "sessions.me",
   "settings.getUserSettings",
@@ -50,7 +51,16 @@ for (const regime of REGIMES) {
           }
           return Promise.resolve(Response.json({ data: [{ id: MODEL }] }));
         };
-        await using root = await createServerHarness({ startJobs: false, providerFetch: catalogFetch, secretBoxKey: Buffer.alloc(32, 17), pluginSpawn: spawn });
+        // The plugin endpoint's save admits its base URL at write time, which resolves the endpoint host.
+        const resolver = (hostname: string): Promise<string[]> =>
+          hostname === ENDPOINT_HOST ? Promise.resolve([PUBLIC_PEER_ADDRESS]) : Promise.reject(new Error(`Unscripted connection layout address: ${hostname}`));
+        await using root = await createServerHarness({
+          startJobs: false,
+          providerFetch: catalogFetch,
+          networkExecution: { resolver },
+          secretBoxKey: Buffer.alloc(32, 17),
+          pluginSpawn: spawn,
+        });
         const caller = await root.internalCallerFor(root.ownerId);
         await caller.settings.updateUserSettingsSection({ section: "appearance", patch: regime.appearance });
         await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: null } });
@@ -83,7 +93,7 @@ for (const regime of REGIMES) {
           connection = await caller.connection.create({
             providerId: PROVIDER_ID,
             credentialId: null,
-            baseUrl: "https://models.example.test/v1",
+            baseUrl: `https://${ENDPOINT_HOST}/v1`,
             model: MODEL,
             label: LABEL,
           });

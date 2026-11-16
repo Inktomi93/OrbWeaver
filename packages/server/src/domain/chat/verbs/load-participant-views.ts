@@ -52,13 +52,21 @@ export function createLoadParticipantViews(ctx: ChatContext): {
       ),
     );
     const floor = await ctx.resolveSeatDeco({ ownerId: null, characterId: null });
+    // A character seat in a room with no consenting host takes the floor because of the room, not its card.
+    const hostless = new Map<CharacterId, ReturnType<ChatContext["resolveSeatDeco"]>>();
     const publicsByUser = new Map<UserId, Map<PersonaId | null, ReturnType<ChatContext["resolveUserPublics"]>>>();
     const hashes = new Map<AssetId | null, ReturnType<ChatContext["resolveAssetHash"]>>();
     const views = await Promise.all(
       rows.map(async (r): Promise<ParticipantData> => {
         const hostUserId = hosts.get(r.chatId);
-        const deco =
-          hostUserId === null || hostUserId === undefined || r.characterId === null ? floor : (decorations.get(hostUserId)?.get(r.characterId) ?? floor);
+        const characterId = r.characterId;
+        let deco = floor;
+        if (characterId !== null) {
+          deco =
+            hostUserId === null || hostUserId === undefined
+              ? await hostless.getOrInsertComputed(characterId, () => ctx.resolveSeatDeco({ ownerId: null, characterId }))
+              : (decorations.get(hostUserId)?.get(characterId) ?? floor);
+        }
         const actor = classifyParticipant(r);
         let publics: Awaited<ReturnType<ChatContext["resolveUserPublics"]>> = null;
         if (actor?.kind === "human") {
@@ -88,6 +96,7 @@ export function createLoadParticipantViews(ctx: ChatContext): {
           avatarAssetId,
           avatarHash: await hash,
           renderPolicy: deco.renderPolicy,
+          renderSource: deco.renderSource,
           themeOverride: deco.themeOverride,
           backgroundOverride: deco.backgroundOverride,
         };

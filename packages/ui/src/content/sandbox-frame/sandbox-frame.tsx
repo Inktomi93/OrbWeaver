@@ -14,7 +14,7 @@ import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { cn } from "#lib";
 import { cssVar } from "#tokens";
-import { gateFrameFocus } from "./frame-focus.ts";
+import { gateFrameFocus, holdsAdmittedFocus } from "./frame-focus.ts";
 import { buildSrcDoc } from "./srcdoc.ts";
 
 // An iframe is a focusable landmark in the tab order, so its `title` IS its accessible name — an empty one
@@ -25,6 +25,10 @@ import { buildSrcDoc } from "./srcdoc.ts";
 const FRAME_SURFACE: Record<CardFrameHeightCap, string> = { card: "rounded-base border border-border bg-card inline-full", reply: "inline-full" };
 
 const UNNAMED_FRAME_TITLE = "Embedded card";
+
+// How long a veiled routed frame may stay silent after its document loads. The pinned script reports on load, so a
+// document still silent past this answered with an error status, or carries no script the policy let run.
+const FRAME_REPORT_BOUND_MS = 2000;
 
 // Whether a vetted framed link points off the app's own origin. An address the URL parser refuses leaves nothing.
 function leavesApp(link: string): boolean {
@@ -82,8 +86,11 @@ interface SandboxFramePropsBase {
   /**
    * A link clicked inside the frame, as an absolute http, https or mailto address off the app's own origin. Called
    * only when the sender is this frame's own window ({@link readCardFrameLink} vets the address), the page holds a
-   * live user activation AND this iframe holds focus, so a scripted frame cannot raise it without a click in it.
-   * The caller still owes its own confirm before opening. Absent ⇒ a framed link does nothing, as before.
+   * live user activation AND the focus gate admitted this frame as the place the reader holds
+   * ({@link holdsAdmittedFocus}): after a press on it or a Tab into it, never after its own `focus()`. So a scripted
+   * frame raises nothing off a click elsewhere in the app; once the reader presses or types in it, its script can post
+   * on that input. A frame with `ungatedFocus` is never admitted and never raises it. The string is the frame's: the
+   * caller still owes its own parse and confirm before opening. Absent ⇒ a framed link does nothing.
    */
   readonly onLink?: (url: string) => void;
   /** The frame's document is the server's miss notice: its handle is unknown, expired or evicted. Sender-checked
@@ -95,10 +102,10 @@ interface SandboxFramePropsBase {
    * a click in the app, and its controls take focus at once as the app's do. Only its load-time focus is returned.
    */
   readonly ungatedFocus?: boolean;
-  /** A gated frame took focus by its own script in a grab loop ({@link FRAME_FOCUS_GRAB_LOOP_BOUND}), so the host
-   *  stopped its scripts: from then on it draws `html` on the script-dead floor. A caller whose `html` is empty draws
-   *  its own. */
-  readonly onScriptsStopped?: () => void;
+  /** The frame fell to the script-dead floor for good and draws `html` there; a caller whose `html` is empty draws its
+   *  own. A gated frame falls when its own script took focus in a grab loop ({@link FRAME_FOCUS_GRAB_LOOP_BOUND}); a
+   *  veiled routed frame falls when its document loads and reports no height within {@link FRAME_REPORT_BOUND_MS}. */
+  readonly onFloor?: () => void;
 }
 
 export type SandboxFrameProps = SandboxFramePropsBase &
@@ -183,6 +190,9 @@ function frameDelivery(input: {
  *
  * HEIGHT: caller-controlled until the routed frame measures itself. The message is untrusted input from a
  * hostile document and is treated as such — see the listener below.
+ *
+ * LINKS: a link message counts only from a frame the focus gate admitted (`onLink`). Raw `document.activeElement` is
+ * not that control: a frame that calls `focus()` holds focus until the gate's judgement in the next task returns it.
  */
 export function SandboxFrame({
   html,
@@ -203,13 +213,13 @@ export function SandboxFrame({
   onMissing,
   pending,
   ungatedFocus = false,
-  onScriptsStopped,
+  onFloor,
 }: SandboxFrameProps): ReactElement {
   const frameRef = useRef<HTMLIFrameElement>(null);
   // The measurement is stored WITH the delivery it belongs to, so a re-mint (new `src`) is answered during
-  // render instead of by a cascading `setState` — the same shape `useCardFrameSrc` uses for its handle.
+  // render instead of by a cascading `setState` — the same shape `useCardFrame` uses for its handle.
   const [measured, setMeasured] = useState<{ readonly delivery: string; readonly height: CardFrameHeight } | undefined>(undefined);
-  // Set once the frame's scripts are stopped (`onScriptsStopped`), with the height it had: it stays on the floor.
+  // Set once the frame falls to the floor (`onFloor`), with the height it had: it stays there.
   const [stopped, setStopped] = useState<{ readonly px: number | undefined } | undefined>(undefined);
   const src = stopped === undefined ? routedSrc : undefined;
   const deliveryKey = src ?? "srcdoc-floor";
@@ -222,31 +232,34 @@ export function SandboxFrame({
   //      which is what keeps an INTERACTIVE card (#111 leg 3 — it can `postMessage` anything, including to
   //      its siblings, measured) from resizing any frame but its own.
   //   2. PAYLOAD — `foldCardFrameHeight` coerces, clamps to floor..cap and rations resizes (kit, tested).
-  // Listener registration follows the delivery, because a re-mint replaces the frame's window.
+  // Listener registration follows the delivery, because a re-mint replaces the frame's window. A `fill` frame's parent
+  // owns its height, so it folds no height; its links and its miss notice pass the same checks as any frame's.
   useEffect(() => {
-    if (fill) {
-      return;
-    }
     const onMessage = (event: MessageEvent): void => {
       const frameWindow = frameRef.current?.contentWindow;
       if (event.source === null || event.source !== frameWindow) {
         return;
       }
       const nowMs = performance.now();
-      setMeasured((current) => {
-        const height = foldCardFrameHeight(current?.delivery === deliveryKey ? current.height : undefined, event.data, holds, nowMs);
-        return height === undefined ? current : { delivery: deliveryKey, height };
-      });
+      if (!fill) {
+        setMeasured((current) => {
+          const height = foldCardFrameHeight(current?.delivery === deliveryKey ? current.height : undefined, event.data, holds, nowMs);
+          return height === undefined ? current : { delivery: deliveryKey, height };
+        });
+      }
       const link = readCardFrameLink(event.data);
-      // A link counts only from a click IN THIS FRAME: the click activated the page (activation reaches every
-      // ancestor of the frame it lands in) and focused this iframe. Activation alone is page-wide and lasts seconds,
-      // so a scripted frame could ride a click anywhere else in the app. No activation API ⇒ no link. A link to the
-      // app's own origin never leaves a frame: the frame resolves `href`, so `/settings` arrives as this origin.
+      // A link counts only from a press or key IN THIS FRAME: it activated the page (activation reaches every ancestor
+      // of the frame it lands in) and the focus gate admitted this frame. Activation alone is page-wide and lasts
+      // seconds, and a frame that posts and then calls `focus()` holds focus before the gate returns it, so either check
+      // alone lets a scripted frame ride a click anywhere in the app. No activation API ⇒ no link. A link to the app's
+      // own origin never leaves a frame: the frame resolves `href`, so `/settings` arrives as this origin.
+      const frame = frameRef.current;
       if (
         link !== undefined &&
+        frame !== null &&
         "userActivation" in navigator &&
         navigator.userActivation.isActive &&
-        document.activeElement === frameRef.current &&
+        holdsAdmittedFocus(frame) &&
         leavesApp(link)
       ) {
         onLink?.(link);
@@ -329,19 +342,40 @@ export function SandboxFrame({
 
   // FOCUS ENTERS ONLY BY THE READER'S HAND (`frame-focus.ts`): a frame's own script cannot take keyboard focus.
   const isVeiled = useEffectEvent((): boolean => veiled);
-  const onGrabLoop = useEffectEvent((): void => {
+  const fallToFloor = useEffectEvent((): void => {
     if (stopped === undefined) {
       setStopped({ px: appliedPx });
-      onScriptsStopped?.();
+      onFloor?.();
     }
   });
+  // A veiled frame whose document loaded and stayed silent would hold its stand-in for good.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: deliveryKey + complete are the re-arm triggers — the iframe is re-keyed per delivery and absent while incomplete, so the ref's target changes with them.
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (frame === null || !isVeiled()) {
+      return;
+    }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const onLoad = (): void => {
+      timer = setTimeout(() => {
+        if (isVeiled()) {
+          fallToFloor();
+        }
+      }, FRAME_REPORT_BOUND_MS);
+    };
+    frame.addEventListener("load", onLoad);
+    return (): void => {
+      frame.removeEventListener("load", onLoad);
+      clearTimeout(timer);
+    };
+  }, [deliveryKey, complete]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: deliveryKey + complete are the re-arm triggers — the iframe is re-keyed per delivery and absent while incomplete, so the ref's target changes with them.
   useEffect(() => {
     const frame = frameRef.current;
     if (frame === null || ungatedFocus) {
       return;
     }
-    return gateFrameFocus(frame, isVeiled, onGrabLoop);
+    return gateFrameFocus(frame, isVeiled, fallToFloor);
   }, [deliveryKey, complete, ungatedFocus]);
 
   if (!complete) {
