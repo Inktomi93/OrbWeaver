@@ -9,10 +9,13 @@ import { PANEL_READ_MAX_CHARS, readPanels } from "#client/features/chat/lib/repl
 
 // Openers that never close: the costliest shape for the readers, each linear in the body (seconds at this length).
 const UNIT = "<div\n\n";
-const HUGE = UNIT.repeat(Math.floor(MESSAGE_TEXT_MAX_CHARS / UNIT.length));
 const PANEL = '<div style="color:red">HP 10</div>';
+const HUGE = UNIT.repeat(Math.floor(MESSAGE_TEXT_MAX_CHARS / UNIT.length));
 // Answering without a read is one comparison; any read of a body this long takes far longer.
 const BUDGET_MS = 50;
+// The same openers filling the bound read in about 0.9 s on a sandboxed row; a read that turns quadratic takes minutes.
+const AT_BOUND = `${UNIT.repeat(Math.floor((PANEL_READ_MAX_CHARS - PANEL.length) / UNIT.length))}${PANEL}`;
+const AT_BOUND_BUDGET_MS = 3000;
 
 test.each([
   ["a plain row", "tierA"],
@@ -24,6 +27,17 @@ test.each([
 
   expect(read.modelPanel).toBe(false);
   expect(elapsedMs).toBeLessThan(BUDGET_MS);
+});
+
+test("a sandboxed body of openers filling the bound is read within its budget", () => {
+  const started = performance.now();
+  const read = readPanels(AT_BOUND, { cardTier: "tierB", lenientCards: false });
+  const elapsedMs = performance.now() - started;
+
+  // Positive control: the body is read to its end, where its one panel sits.
+  expect(read.modelPanel).toBe(true);
+  expect(AT_BOUND.length).toBeLessThanOrEqual(PANEL_READ_MAX_CHARS);
+  expect(elapsedMs).toBeLessThan(AT_BOUND_BUDGET_MS);
 });
 
 test("past the bound a sandboxed body is opaque whole, so no speaker label splits markup nothing read", () => {

@@ -33,9 +33,9 @@ The frame mints under the row's card origin, so the interactive posture applies 
 
 A link opens only through a confirm, whose header states its parse and display rule. It wraps the host only between labels and leaves the registrable domain unmarked, an accepted residual. A Cancel returns focus to the frame's stop in the app. Repeated requests are paced (`framed-link-pace.ts`): two Cancels in a row are free, then each doubles the next wait, from 2 s to 30 s. The newest waiting request then raises its confirm; its close returns focus where the reader was. An Open or a remount resets the count.
 
-**Before the frame draws.** The row shows the reply as a streaming card forms (`scanStyledHold` in `@orb/kit/content`): prose through the inert allowlist, each HTML block as a forming chip with none of its bytes. A block opens on CommonMark's block shapes and holds to the close of its element, blank lines included, so a region a script styles, hides or deletes never shows while it forms. Pending, this splits the display output; the routed frame loads hidden and replaces it at its first height report. Streaming, no display script runs, so it splits the model's own text whenever a display script is in force, or on Tier B once a model panel or a tag line arriving at the tail shows. Inline tags drop with their words kept.
+**Before the frame draws.** The row shows the reply as a streaming card forms (`scanStyledHold` in `@orb/kit/content`): prose through the inert allowlist, each HTML block as a forming chip with none of its bytes. A block opens on CommonMark's block shapes and holds to its element's close, blank lines included, so no region a script styles, hides or deletes shows while it forms. Pending, it splits the display output until the frame's first height report. Streaming, it splits the model's own text while a display script is in force, or on Tier B once a panel or an arriving tag line shows. Inline tags drop with their words kept.
 
-**Inert path.** The reply renders through the inert allowlist on a Tier A row, when a plugin rewrote its text, when the mint is refused, when a handle is lost twice, when its scripts were stopped for taking focus (D294), and when its document loads but reports no height in time. Its `<style>` and `<script>` elements are removed with their content first, because the allowlist drops those tags but keeps their content as text.
+**Inert path.** The reply renders through the inert allowlist on a Tier A row, when a plugin rewrote its text, when the mint is refused, when a handle is lost twice, when its scripts were stopped for taking focus (D294), and when its document reports no height in time. Its style, script and text elements drop with their content first; other dropped markup keeps its words.
 
 **A lost handle.** The server's miss document carries `data-frame-missing`, and the pinned script reports it. A frame whose handle expired or was evicted mints again once, then renders the inert path.
 
@@ -70,15 +70,15 @@ An account's own mints evict its own oldest handles first.
 
 ## Consequences
 
-A preset's panels, inline colours and keyframes draw as their author built them, on a Tier B row. A preset is not a theme, so no contrast floor or audit judges the colours it draws inside its frame.
+A preset's panels, inline colours and keyframes draw as their author built them, on a Tier B row. A preset is not a theme, so no contrast floor or audit judges the colours it draws in its frame.
 
-One gap remains: the app's font files do not load in the frame. An opaque-origin request meets `Cross-Origin-Resource-Policy: same-origin`, so framed prose falls back to the system face. Loading them is not yet built.
+One gap remains: the app's font files do not load in the frame. An opaque-origin request meets `Cross-Origin-Resource-Policy: same-origin`, so framed prose uses the system face. Loading them is not yet built.
 
 ## Alternatives rejected
 
 - **Linking the app stylesheet in the frame.** Every app response carries `Cross-Origin-Resource-Policy: same-origin`, so the frame's opaque origin cannot load it, and widening that header changes the app's security headers for one feature.
-- **Per-region frames or in-text markers.** Later scripts' lookbehinds break markers, and a capture echo loses provenance.
-- **A new trust setting or consent.** The row's existing tier already decides where a card frame may draw.
+- **Per-region frames or in-text markers.** Later scripts break markers, and a capture echo loses provenance.
+- **A new trust setting or consent.** The row's tier already decides where a card frame may draw.
 - **The srcdoc floor for a reply.** It runs no script, so it can neither measure the reply nor hand over a link.
-- **The inert render while the frame is pending.** The allowlist keeps a `<style>` element's content as text, so a room open would show the template's CSS until the frame draws.
-- **Muting a frame's links after a Cancel.** It reads as a dead control, and the pace bounds a scripted frame as well.
+- **The inert render while the frame is pending.** The allowlist keeps a `<style>` element's content as text, so an opened room would show the template's CSS until the frame draws.
+- **Muting a frame's links after a Cancel.** It reads as a dead control, and the pace bounds a scripted frame too.

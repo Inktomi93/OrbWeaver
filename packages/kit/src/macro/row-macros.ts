@@ -110,7 +110,7 @@ function charFromCharacterNames(ctx: RowMacroNameContext): string {
  * verbatim, so a given row renders byte-identically on every assemble/re-render regardless of wall
  * clock or PRNG.
  */
-export function resolveRowMacros(content: string, stamps: RowMacroStamps, ctx: RowMacroNameContext): string {
+export function resolveRowMacros(content: string, stamps: RowMacroStamps, ctx: RowMacroNameContext, postProcess?: (value: string) => string): string {
   const character = stamps.characterId === null ? undefined : ctx.characterNamesById.get(stamps.characterId);
   const persona = stamps.personaId === null ? undefined : ctx.personaNamesById.get(stamps.personaId);
 
@@ -126,6 +126,7 @@ export function resolveRowMacros(content: string, stamps: RowMacroStamps, ctx: R
       persona: personaDescription,
       scenario: "",
       env: {},
+      ...(postProcess === undefined ? {} : { postProcess }),
     },
     NAMES_ONLY_REGISTRY,
   );

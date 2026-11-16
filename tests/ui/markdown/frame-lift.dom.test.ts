@@ -4,12 +4,21 @@
 // Markdown.
 // @subject packages/ui/src/markdown/frame/raw-text-lift.ts
 // @subject packages/ui/src/markdown/frame/frame-markdown.tsx
+// @subject packages/client/src/lib/message-render.ts
 
-import { frameStyleElements, stripStyleElements } from "@orb/kit/content";
+import type { RegexScriptRow } from "@orb/contracts/regex";
+import { frameStyleElements, stripStyleElements, tokenizeContent } from "@orb/kit/content";
+import type { CharacterId, PersonaId } from "@orb/kit/ids";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
+import { NO_SEATS } from "@orb/kit/message-author";
+import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { FrameMarkdown } from "@orb/ui/frame-markdown";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import type { DisplayRowCall, MessageRenderContext } from "#client/lib/message-render.ts";
+import { renderMessageForDisplay } from "#client/lib/message-render.ts";
 import { FrameDocumentContext } from "../../../packages/ui/src/markdown/frame/frame-document-context.ts";
 import { liftRawText } from "../../../packages/ui/src/markdown/frame/raw-text-lift.ts";
 
@@ -253,3 +262,102 @@ test("a wrapper tag and a folding element keep their Markdown", () => {
   expect(html).toContain("<em>one</em>");
   expect(html).toMatch(/<strong[^>]*>two<\/strong>/);
 });
+
+// A NAME IS DATA, NEVER MARKUP: the display pass resolves a persona's name and description as HTML data outside code,
+// and keeps the macro literal inside a style or script element and an `on*` handler, so a member who owns the anchor
+// persona writes no markup and no script into any viewer's frame document.
+const ids = createSeededIds();
+const HOSTILE_NAME = "<img src=x onerror=alert(1)>";
+const HOSTILE_DESCRIPTION = '"><img src=y onerror=alert(2)>';
+const REPLY: DisplayRowCall = {
+  target: "AI_OUTPUT",
+  row: { role: "assistant", kind: "standard", authorUserId: null, characterId: null, personaId: null },
+  depth: 0,
+};
+
+function displayContext(personaName: string, displayScripts: readonly RegexScriptRow[] = []): MessageRenderContext {
+  return {
+    characterNamesById: new Map<CharacterId, RowCharacterName>(),
+    personaNamesById: new Map<PersonaId, RowPersonaName>(),
+    fallbackPersonaName: personaName,
+    fallbackPersonaDescription: HOSTILE_DESCRIPTION,
+    displayScripts,
+    room: NO_SEATS,
+  };
+}
+
+function displayScript(findRegex: string, replaceString: string): RegexScriptRow {
+  return {
+    id: mintTypeId(ID_PREFIX.regexScript, ids.next),
+    name: findRegex,
+    enabled: true,
+    updatedAt: 0,
+    targets: ["AI_OUTPUT"],
+    passes: ["display"],
+    findRegex,
+    replaceString,
+    runOnEdit: false,
+    trimStrings: [],
+    substituteRegex: 0,
+  };
+}
+
+const ESCAPED_NAME = "&lt;img src=x onerror=alert(1)&gt;";
+
+test.each([
+  ["a model panel", '<div style="color:red">Hi {{user}}. <span title="{{persona}}">x</span></div>', []],
+  [
+    "a display script's reply",
+    "[hud]",
+    [displayScript(String.raw`/\[hud\]/g`, '<div style="color:red">Hi {{user}}. <span title="{{persona}}">x</span></div>')],
+  ],
+])("%s draws a hostile persona name and description as text in the frame document", (_name, body, scripts) => {
+  const html = framed(renderMessageForDisplay(body, displayContext(HOSTILE_NAME, scripts), REPLY));
+  expect(html).not.toMatch(/<img/iu);
+  expect(html).toContain(`Hi ${ESCAPED_NAME}.`);
+  // The description stays inside its attribute: it closes nothing.
+  expect(html).toContain('title="&quot;&gt;&lt;img src=y onerror=alert(2)&gt;"');
+});
+
+test("a card fence's body takes the hostile name as text, never markup", () => {
+  const text = renderMessageForDisplay(':::card title="Status"\n<p>{{user}} waits.</p>\n:::', displayContext(HOSTILE_NAME), REPLY);
+  const card = tokenizeContent(text, { committed: true }).find((span) => span.kind === "card");
+  expect(card?.kind === "card" ? card.body : "").toContain(`<p>${ESCAPED_NAME} waits.</p>`);
+});
+
+// The frame's Markdown drops every handler of a panel, and a card fence's body keeps its own: the display text keeps
+// the macro literal in either, so no handler is ever handed the name.
+test.each([
+  ["the model's own handler", '<div style="color:red"><button onclick="greet(\'{{user}}\')">Go</button></div>', []],
+  ["a card fence's handler", ':::card title="Go"\n<button onclick="greet(\'{{user}}\')">Go</button>\n:::', []],
+  [
+    "a display script's handler",
+    "[go]",
+    [displayScript(String.raw`/\[go\]/g`, '<div style="color:red"><button onclick="greet(\'{{user}}\')">Go</button></div>')],
+  ],
+])("%s keeps the macro literal", (_name, body, scripts) => {
+  const text = renderMessageForDisplay(`Hi {{user}}. ${body}`, displayContext(HOSTILE_NAME, scripts), REPLY);
+  expect(text).toContain("onclick=\"greet('{{user}}')\"");
+  // Positive control: the same pass resolves the name outside the handler.
+  expect(text).toContain(`Hi ${ESCAPED_NAME}.`);
+});
+
+test.each([
+  ["a plain name", "Ann", "Hello Ann, you came."],
+  ["a name with an apostrophe and an ampersand", "O'Brien & Co", "Hello O'Brien & Co, you came."],
+])("ordinary prose naming %s reads as before", (_name, personaName, shown) => {
+  const html = framed(renderMessageForDisplay("Hello {{user}}, you came.", displayContext(personaName), REPLY));
+  expect(textOf(html)).toBe(shown);
+});
+
+// The text a reader sees in rendered markup: every tag dropped and every character reference read back.
+function textOf(html: string): string {
+  return html
+    .replace(/<[^<>]*>/gu, "")
+    .replace(/&#x27;|&#39;/gu, "'")
+    .replace(/&quot;/gu, '"')
+    .replace(/&lt;/gu, "<")
+    .replace(/&gt;/gu, ">")
+    .replace(/&amp;/gu, "&")
+    .trim();
+}

@@ -1950,25 +1950,74 @@ export function stripUnreadElements(text: string): string {
   });
 }
 
-/** `rewrite` applied to each stretch of `text` outside a style or script element, each element kept byte for byte.
+/** The longest text {@link mapOutsideCode} reads for code: about five times the largest framed reply measured,
+ *  204,544 characters (`packages/contracts/src/chat/card-frame.ts`). Past it the rewrite does not run at all: it refuses
+ *  rather than splice into code it did not read. At the bound the costliest text, unclosed openers, measured about 0.3 s. */
+export const CODE_READ_MAX_CHARS = 1_048_576;
+
+/** `rewrite` applied to each stretch of `text` outside code a frame runs, each stretch of code kept byte for byte: a
+ *  style or script element, and the value of an `on*` event-handler attribute.
  *  @remarks SECURITY: a display rewrite splices text the reader does not own (a member's persona name, a Markdown
- *  repair) into the reply, and a framed reply runs its script bodies at the interactive step. A body counts when
- *  either reader sees one: the frame's, which reads text as Markdown shows it, and the raw HTML reader, which also
- *  reads inside a card fence, whose body a card frame draws as HTML. An unclosed element runs to the end. */
-export function mapOutsideRawText(text: string, rewrite: (piece: string) => string): string {
-  const elements = mergedRuns(
-    [...readMarkup(text, MARKDOWN_READING).rawText, ...readMarkup(text).rawText].map((element) => ({ start: element.start, end: element.end })),
-  );
-  if (elements.length === 0) {
+ *  repair) into the reply, and a framed reply runs its code at the interactive step. A style or script element counts
+ *  when either reader sees one: the frame's, which reads text as Markdown shows it, and the raw HTML reader, which also
+ *  reads inside a card fence, whose body a card frame draws as HTML. An unclosed element or tag runs to the end. Past
+ *  {@link CODE_READ_MAX_CHARS} the text comes back unchanged. */
+export function mapOutsideCode(text: string, rewrite: (piece: string) => string): string {
+  if (!text.includes("<")) {
     return rewrite(text);
   }
+  if (text.length > CODE_READ_MAX_CHARS) {
+    return text;
+  }
+  const code = mergedRuns([
+    ...[...readMarkup(text, MARKDOWN_READING).rawText, ...readMarkup(text).rawText].map((element) => ({ start: element.start, end: element.end })),
+    ...handlerValues(text),
+  ]);
   let out = "";
   let from = 0;
-  for (const element of elements) {
-    out += rewrite(text.slice(from, element.start)) + text.slice(element.start, element.end);
-    from = element.end;
+  for (const stretch of code) {
+    out += rewrite(text.slice(from, stretch.start)) + text.slice(stretch.start, stretch.end);
+    from = stretch.end;
   }
   return out + rewrite(text.slice(from));
+}
+
+const TAG_OPEN_RE = /<[A-Za-z]/g;
+const HANDLER_ATTRIBUTE_RE = /[\s/]on[\w-]*\s*=\s*("[^"]*"?|'[^']*'?|[^\s>]+)/giu;
+
+// The value of every `on*` attribute of a tag in `text`, read tag by tag from left to right so each character is read
+// once; a tag whose `>` has not arrived runs to the end.
+function handlerValues(text: string): readonly TextRange[] {
+  const values: TextRange[] = [];
+  TAG_OPEN_RE.lastIndex = 0;
+  for (let open = TAG_OPEN_RE.exec(text); open !== null; open = TAG_OPEN_RE.exec(text)) {
+    const gt = tagEndFrom(text, open.index, false);
+    const end = gt === -1 ? text.length : gt;
+    for (const attribute of text.slice(open.index, end).matchAll(HANDLER_ATTRIBUTE_RE)) {
+      const value = attribute[1] ?? "";
+      const start = open.index + attribute.index + attribute[0].length - value.length;
+      values.push({ start, end: start + value.length });
+    }
+    if (gt === -1) {
+      break;
+    }
+    TAG_OPEN_RE.lastIndex = gt;
+  }
+  return values;
+}
+
+const HTML_DATA_ESCAPES: ReadonlyMap<string, string> = new Map([
+  ["&", "&amp;"],
+  ["<", "&lt;"],
+  [">", "&gt;"],
+  ['"', "&quot;"],
+  ["'", "&#39;"],
+]);
+
+/** `value` as HTML data: text in an element or a quoted attribute value, never markup. Markdown and HTML both show
+ *  the escapes as the characters they stand for. */
+export function escapeHtmlData(value: string): string {
+  return value.replace(/[&<>"']/gu, (char) => HTML_DATA_ESCAPES.get(char) ?? char);
 }
 
 // Removes each range `elements` reads from the text, to a fixpoint, since the pieces around a removed element can join

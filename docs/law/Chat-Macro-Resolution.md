@@ -128,6 +128,8 @@ are NOT history — they keep the two-persona doctrine (`context.ts`: `pinnedPer
 `activePersona` = the anchor human's seat persona), so who presses send never changes the prompt-config
 `{{user}}` (not `personaIds[0]`).
 
+On DISPLAY a substituted name or persona text is data, never markup. The names pass and a display script's template pass resolve it HTML-escaped outside code, and leave the macro literal inside a style or script element and an `on*` attribute value (`mapOutsideCode` in `packages/kit/src/content/index.ts`). ASSEMBLE and the prompt passes resolve it unescaped.
+
 ## 4. The three persona axes (do not conflate)
 
 - **pinnedPersona** — the chat-open anchor (host-designated in multi-human), FROZEN. CARD-section `{{user}}`

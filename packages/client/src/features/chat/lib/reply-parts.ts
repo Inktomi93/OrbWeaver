@@ -33,9 +33,11 @@ export const REPLY_CARRY_BUDGET_CHARS = REPLY_CARRY_BUDGET_MIB * CHARS_PER_MIB;
  *  and text alone cannot bound them: an empty sheet carries none. A heavy styling preset carries a few dozen. */
 export const REPLY_CARRY_BUDGET_SHEETS = 1024;
 /** The longest drawn body the panel readers read (`modelPanels`, `markupUnitRanges`), each linear in it. A bound against
- *  abuse that fails closed: a longer body never frames, and a longer stream holds. It sits above the largest framed reply
- *  measured, whose whole rendered document is 204,544 characters. */
-export const PANEL_READ_MAX_CHARS = 262_144;
+ *  abuse that fails closed: a longer body never frames, and a longer stream holds. It is about five times the largest
+ *  framed reply measured, 204,544 characters (`packages/contracts/src/chat/card-frame.ts`), so no real reply nears it.
+ *  At the bound the costliest body, unclosed openers with blank lines between, measured about 0.9 s on a sandboxed row
+ *  and a real reply's prose about 2 ms; `modelPanels` dominates. */
+export const PANEL_READ_MAX_CHARS = 1_048_576;
 
 const NO_RANGES: readonly TextRange[] = [];
 

@@ -2,7 +2,7 @@
 // model-written markup, a capture that echoes it, a text-only template and a script that never matched all leave
 // the row unstyled. Runs `renderStyledMessageForDisplay`, the display pipeline the Worker's per-script step shares.
 import type { RegexScriptRow } from "@orb/contracts/regex";
-import { rawTextElements } from "@orb/kit/content";
+import { escapeHtmlData, rawTextElements } from "@orb/kit/content";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
@@ -128,7 +128,7 @@ describe("the display pass splices no name into a style or script body", () => {
     const text = renderMessageForDisplay(body, ctx, REPLY);
 
     expect(bodiesOf(text)).toEqual(bodiesOf(body));
-    expect(text).toContain(HostileName);
+    expect(text).toContain(escapeHtmlData(HostileName));
     for (const shown of bodiesOf(text)) {
       expect(shown).not.toContain(HostileName);
       expect(shown).not.toContain(HostileDescription);
