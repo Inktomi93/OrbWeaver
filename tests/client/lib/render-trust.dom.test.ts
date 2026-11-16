@@ -129,7 +129,7 @@ test("a row another person wrote, and a row no seated character covers, offer no
   }
 });
 
-// A framed row's withheld external media, over the policy `resolveRenderPolicy` folds from the install's and the
+// A framed row's withheld external media, over what `resolveRenderPolicy` folds from the install's and the
 // character's own media settings: the install binds whenever it forbids, the character only when the install allows.
 // Each case states the verdict per viewer; the install's remedy turns on admin standing, the character's on hosting.
 const INSTALL_BINDS = {
