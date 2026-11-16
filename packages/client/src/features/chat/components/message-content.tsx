@@ -4,23 +4,24 @@
 // original single-path (byte-identical no-op). Untrusted HTML never touches the main DOM; external
 // media never bypasses MessageMediaBlock. Macros resolve against renderContext BEFORE the speaker split
 // so a <speaker> NAME position never sees an unresolved {{char}}/{{user}}.
+//
+// `MessageContent` is the drawing hook (`useDrawnMessage`) and the body (`MessageBody`). Tide's train calls the hook
+// once over the whole reply and a body per bubble (`message-train.tsx`).
 
 import type { MessageContentBlock } from "@orb/contracts/chat";
 import { scanStyledHold, stripStyleElements } from "@orb/kit/content";
-import { parseSpeakerSpans } from "@orb/kit/speaker-label";
+import type { SpeakerSpan } from "@orb/kit/speaker-label";
 import { Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement, RefCallback } from "react";
-import type { PluginDisplayRow } from "#data";
-import { usePluginDisplayText } from "#data";
-import type { DisplayRowCall, MessageRenderContext, RowRenderPolicy } from "#lib";
-import { useDisplayText } from "../hooks/use-display-text.ts";
+import type { RowRenderPolicy } from "#lib";
+import type { DrawnMessage, MessageDrawProps } from "../hooks/use-drawn-message.ts";
+import { drawnLayout, useDrawnMessage } from "../hooks/use-drawn-message.ts";
 import { toContentBlocks } from "../lib/content-blocks.ts";
 import { REPLY_PANEL_FORMING_TITLE } from "../lib/reply-frame-names.ts";
-import type { FrameReplySegment, ReplyPart } from "../lib/reply-parts.ts";
-import { replyLayout } from "../lib/reply-parts.ts";
+import type { FrameReplySegment, ReplyLayout, ReplyPart } from "../lib/reply-parts.ts";
 import { colorForCharacter } from "../lib/speaker-color.ts";
 import type { CardOrigin } from "./card-block.tsx";
 import { CardBlock } from "./card-block.tsx";
@@ -28,9 +29,6 @@ import { FormingChip } from "./forming-chip.tsx";
 import { MessageChoicesBlock } from "./message-choices-block.tsx";
 import { MessageMediaBlock } from "./message-media-block.tsx";
 import { ReplyFrame } from "./reply-frame.tsx";
-
-/** A stable empty CHARACTER-NAME list — a fresh `[]` per render would be a new identity for no reason. */
-const NO_CHARACTER_NAMES: readonly string[] = [];
 
 function assertNever(value: never): never {
   throw new Error(`MessageContent: unhandled block ${JSON.stringify(value)}`);
@@ -201,73 +199,30 @@ function FramedReply({
   );
 }
 
-export interface MessageContentProps {
+export interface MessageContentProps extends MessageDrawProps {
   readonly content: string;
-  readonly render: RowRenderPolicy;
-  /** Absent means no roster/persona threaded yet, so content renders unchanged. */
-  readonly renderContext?: MessageRenderContext | undefined;
-  /** The row this body belongs to, read off its own data: the display call's target, author stamps and depth. The
-   *  stamps also retarget `{{char}}`, `{{user}}` and `{{persona}}`. Ignored when renderContext is absent. */
-  readonly display: DisplayRowCall;
-  /** NAME -\> that character's tint (`speakerThemesByName`); absent ⇒ every span uses the hash fallback.
-   *  Its KEYS are also the present character-name set the plain-label span grammar keys on. */
-  readonly speakerThemes?: ReadonlyMap<string, ThemeScopeTokens> | undefined;
-  /** True only for a row this room voices through the NARRATOR grammar (one generation speaking every
-   *  character). It is the OUTER guard on the plain-`Name:` half of the span parse: in any other grammar a
-   *  row is one speaker's, so a line opening `Alice:` is prose (or, on a USER row, an attribution a member
-   *  could forge) and must never split. The `<speaker>` marker half is unconditional — it is markup, not
-   *  prose, and cannot be typed into a body by accident. */
-  readonly narratorVoiced?: boolean | undefined;
-  /** The room + author this body was written in — the card-frame doorway selector (see {@link CardOrigin}).
-   *  Absent (a story/preview mount with no room) ⇒ every tierB card renders the srcdoc floor. */
-  readonly cardOrigin?: CardOrigin | undefined;
-  /** The COMMITTED row this body belongs to — the plugin DISPLAY-transform seam (seam 14, U6).
-   *  Absent (a ghost row, a preview, a story mount) ⇒ no transform runs, byte-identical. Present ⇒ the viewer's
-   *  OWN plugins may annotate the rendered text, after macros and after DISPLAY regex, before markdown. */
-  readonly pluginDisplayRow?: PluginDisplayRow | undefined;
-  /** This body's place in the display-pass queue: a higher value runs first. The row's sequence number. */
-  readonly displayOrder?: number | undefined;
 }
 
-export function MessageContent({
-  content,
+/** One drawn body in its layout: the reply's frames, or the inert path. */
+export function MessageBody({
+  drawn,
+  layout,
   render,
   renderContext,
   display,
   speakerThemes,
-  narratorVoiced = false,
   cardOrigin,
-  pluginDisplayRow,
-  displayOrder,
-}: MessageContentProps): ReactElement {
-  const { text: displayed, styled, pending, observeBody } = useDisplayText(content, renderContext, { ...display, order: displayOrder });
-  // The LAST step before markup (§5.5/§5.29): the viewer's own plugins annotate what the house pipeline
-  // produced. Inert without a row or without a registered transform — same string in, same string out.
-  const resolvedContent = usePluginDisplayText(displayed, pluginDisplayRow);
-  const characterNames = narratorVoiced && speakerThemes !== undefined ? [...speakerThemes.keys()] : NO_CHARACTER_NAMES;
-  const spans = parseSpeakerSpans(resolvedContent, characterNames);
-
-  // D354: a display script's own markup styled this row and the row's tier is the sandboxed one, so the reply
-  // draws in a card frame. A plugin that rewrote the text has changed what the scripts produced, so the row keeps
-  // today's path; markup the model wrote alone never styles a row. A row still waiting on its scripts is never
-  // framed: it stays on the held inert path below until its answer lands.
-  const layout =
-    render.cardTier === "tierB" && styled && !pending && resolvedContent === displayed
-      ? replyLayout(
-          spans.map((span) => ({
-            text: span.text,
-            tokens: span.speaker === null ? undefined : (speakerThemes?.get(span.speaker) ?? colorForCharacter(span.speaker)),
-          })),
-          { lenientHtml: render.lenientCards, cardTrust: render.cardTier },
-        )
-      : undefined;
+}: { readonly drawn: DrawnMessage; readonly layout: ReplyLayout | undefined } & MessageDrawProps): ReactElement {
   if (layout?.kind === "framed") {
     // The frame's accessible name is the row's own speaker: its character, or the persona that wrote it.
     const { characterId, personaId } = display.row;
     const characterName = characterId === null ? undefined : renderContext?.characterNamesById.get(characterId)?.name;
     const personaName = personaId === null ? undefined : renderContext?.personaNamesById.get(personaId)?.name;
-    return <FramedReply observeBody={observeBody} parts={layout.parts} render={render} cardOrigin={cardOrigin} speakerName={characterName ?? personaName} />;
+    return (
+      <FramedReply observeBody={drawn.observeBody} parts={layout.parts} render={render} cardOrigin={cardOrigin} speakerName={characterName ?? personaName} />
+    );
   }
+  const { spans, styled, pending, observeBody } = drawn;
   const inert = renderInert({ spans, styled, pending, render, speakerThemes, cardOrigin, observeBody });
   // A reply too heavy to frame renders plain whole, and says why for the notice that names it.
   return layout === undefined ? (
@@ -277,6 +232,11 @@ export function MessageContent({
       {inert}
     </Stack>
   );
+}
+
+export function MessageContent({ content, ...props }: MessageContentProps): ReactElement {
+  const drawn = useDrawnMessage(content, props);
+  return <MessageBody drawn={drawn} layout={drawnLayout(drawn, props)} {...props} />;
 }
 
 // A styled row the frame does not draw (a Tier A row, a plugin rewrote its text, or its runs would carry too much CSS)
@@ -291,7 +251,7 @@ function renderInert({
   cardOrigin,
   observeBody,
 }: {
-  readonly spans: ReturnType<typeof parseSpeakerSpans>;
+  readonly spans: readonly SpeakerSpan[];
   readonly styled: boolean;
   readonly pending: boolean;
   readonly render: RowRenderPolicy;

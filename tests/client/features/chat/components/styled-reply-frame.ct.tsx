@@ -1297,3 +1297,158 @@ for (const fontScale of [2, 3] as const) {
     });
   });
 }
+
+// THE TRAINS ROW (tide): the display pass runs once over the whole reply, and the train cuts what it drew into bubbles.
+const TRAIN = '[data-slot="message-bubble-train"]';
+const TRAIN_BUBBLE = `${TRAIN} > ${BUBBLE}`;
+// Status lines whose match spans a paragraph break, as a preset status panel does: no one paragraph holds the match.
+const STATUS_FIND = String.raw`/Location: ([^\n]*)\n\nHP: \d+/g`;
+const STATUS_BODY = 'Location: Camelot · Great Hall\n\nHP: 10\n\nGuinevere sets down her goblet. "You are late, Arthur."';
+// A stylesheet the model wrote, holding a blank line, in a panel between two paragraphs.
+const MODEL_PANEL_BODY =
+  'She looks up.\n\n<div class="w6p-model"><style>.w6p-model b{color:red}\n\n.w6p-model i{margin:0}</style><b>HUD</b></div>\n\nThe hall waits.';
+const PLAIN_PARAGRAPHS = ["Guinevere rises.", "She crosses the hall.", "She waits by the door."] as const;
+const SPOKEN_PARAGRAPHS = ["The hall falls quiet.", "Lancelot rises from the high table.", "He waits by the door."] as const;
+const SPOKEN_BODY = `${SPOKEN_PARAGRAPHS[0]}\n\n<speaker>Lancelot</speaker>${SPOKEN_PARAGRAPHS[1]}\n\n${SPOKEN_PARAGRAPHS[2]}`;
+const MAX_BUBBLES_KEY = "w6pMaxTrainBubbles";
+
+/** The styled room on the trains row, its reply rewritten to `body`. */
+async function openTrainRoom(body: string): Promise<StyledRoom> {
+  await using construction = new AsyncDisposableStack();
+  const room = await openStyledRoom(body);
+  construction.use(room.root);
+  const caller = await room.root.internalCallerFor(room.root.ownerId);
+  await caller.settings.updateUserSettingsSection({ section: "appearance", patch: { chatStyle: "tide" } });
+  construction.move();
+  return room;
+}
+
+const trainRow = (page: Page, room: StyledRoom): Locator => page.locator(`[data-slot="message-row"][data-message-id="${room.messageId}"]`);
+
+test("tide: a display script whose match spans a blank line draws its panel, framed in one bubble", async ({ corpus, mount, page }) => {
+  const room = await openTrainRoom(STATUS_BODY);
+  await using root = room.root;
+  await addDisplayScript(await root.internalCallerFor(root.ownerId), "Status panel", STATUS_FIND, BANNER_TEMPLATE);
+  await using _routes = await serveRoom(page, root, corpus);
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  const row = trainRow(page, room);
+  await expect(row.locator(`${REPLY_FRAME} ${SANDBOX}`)).toHaveAttribute("data-delivery", "routed");
+  const frame = row.locator(REPLY_FRAME).locator(SANDBOX).contentFrame();
+  await expect(frame.locator("#w6p-location")).toHaveText("Camelot · Great Hall");
+  await expect(frame.getByText("You are late, Arthur.", { exact: false })).toBeVisible();
+  await expect(row.locator(TRAIN_BUBBLE)).toHaveCount(1);
+  expect(((await row.textContent()) ?? "").includes("HP:")).toBe(false);
+});
+
+test("tide: a model-written stylesheet holding a blank line stays in one bubble with its panel", async ({ corpus, mount, page }) => {
+  const room = await openTrainRoom(MODEL_PANEL_BODY);
+  await using root = room.root;
+  await using _routes = await serveRoom(page, root, corpus);
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  const bubbles = trainRow(page, room).locator(TRAIN_BUBBLE);
+  await expect(bubbles).toHaveText(["She looks up.", /HUD/u, "The hall waits."]);
+});
+
+test("tide: a plain three-paragraph reply trains as three bubbles, in order", async ({ corpus, mount, page }) => {
+  const room = await openTrainRoom(PLAIN_PARAGRAPHS.join("\n\n"));
+  await using root = room.root;
+  await using _routes = await serveRoom(page, root, corpus);
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  await expect(trainRow(page, room).locator(TRAIN_BUBBLE)).toHaveText([...PLAIN_PARAGRAPHS]);
+});
+
+test("tide: on a row whose character renders plain text a styled reply trains, its panel whole in one bubble", async ({ corpus, mount, page }) => {
+  const room = await openTrainRoom(TRACKER_BODY);
+  await using root = room.root;
+  const caller = await root.internalCallerFor(root.ownerId);
+  await caller.character.update({ characterId: room.characterId, input: { trustHtml: false, interactiveHtml: false } });
+  await addDisplayScript(caller, "Tracker panel", TRACKER_FIND, TRACKER_TEMPLATE);
+  await using _routes = await serveRoom(page, root, corpus);
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  const bubbles = trainRow(page, room).locator(TRAIN_BUBBLE);
+  await expect(bubbles).toHaveCount(2);
+  await expect(bubbles.nth(0).locator("details summary")).toHaveText("Tracker");
+  await expect(bubbles.nth(1)).toContainText("You are late, Arthur.");
+  await expect(page.locator(REPLY_FRAME)).toHaveCount(0);
+  expect(sourceIn((await bubbles.allTextContents()).join("\n"))).toEqual([]);
+});
+
+// Replies whose blank lines sit inside markup, each with the bubbles Markdown draws from it. A wrapper element ends its
+// paragraphs at a blank line as any text does; a list item keeps its continuation, which alone would read as code.
+const WRAPPED_REPLIES = [
+  ["a reply wrapped in an unknown element", '<response>\n*She looks up.*\n\n"You came."\n</response>', ["*She looks up.*", '"You came."']],
+  ["a think block before the reply", "<think>\nA plan.\n\nMore.\n</think>\n\nShe smiles.", ["A plan.", "More.", "She smiles."]],
+  [
+    "a list item and its continuation",
+    "- She draws.\n\n    The blade hums.\n\nThe hall waits.",
+    [/^\s*She draws\.\s*The blade hums\.\s*$/u, "The hall waits."],
+  ],
+  ["a comment holding a blank line", "<!-- plan\n\nbetray him -->\n\nShe smiles.\n\nShe waits.", ["She smiles.", "She waits."]],
+] as const;
+
+for (const [name, body, expected] of WRAPPED_REPLIES) {
+  test(`tide: ${name} trains as Markdown draws it`, async ({ corpus, mount, page }) => {
+    const room = await openTrainRoom(body);
+    await using root = room.root;
+    await using _routes = await serveRoom(page, root, corpus);
+    await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+    const bubbles = trainRow(page, room).locator(TRAIN_BUBBLE);
+    await expect(bubbles).toHaveText([...expected]);
+    await expect(bubbles.locator("pre, code")).toHaveCount(0);
+  });
+}
+
+test("tide: a folded element holding a blank line stays in one bubble, its contents still folded", async ({ corpus, mount, page }) => {
+  const room = await openTrainRoom("<details>\n<summary>Notes</summary>\n\nA secret.\n\n</details>\n\nShe smiles.");
+  await using root = room.root;
+  await using _routes = await serveRoom(page, root, corpus);
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  const bubbles = trainRow(page, room).locator(TRAIN_BUBBLE);
+  await expect(bubbles).toHaveCount(2);
+  await expect(bubbles.nth(0).locator("details summary")).toHaveText("Notes");
+  await expect(bubbles.nth(1)).toHaveText("She smiles.");
+  await expect(trainRow(page, room).getByText("A secret.")).toBeHidden();
+});
+
+test("tide: a speaker's span runs on across the bubbles it covers", async ({ corpus, mount, page }) => {
+  const room = await openTrainRoom(SPOKEN_BODY);
+  await using root = room.root;
+  await using _routes = await serveRoom(page, root, corpus);
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  const bubbles = trainRow(page, room).locator(TRAIN_BUBBLE);
+  await expect(bubbles).toHaveText([...SPOKEN_PARAGRAPHS]);
+  // Each bubble from the speaker's tag on reads under the speaker's own tint; the narration before it under none.
+  const tinted = await Promise.all([0, 1, 2].map(async (nth) => await bubbles.nth(nth).locator('[data-slot="theme-scope"]').count()));
+  expect(tinted).toEqual([0, 1, 1]);
+});
+
+test("tide: from mount to framed a styled reply is one bubble, never the unscripted paragraphs or the template's source", async ({ corpus, mount, page }) => {
+  const room = await openTrainRoom(STYLED_BODY);
+  await using root = room.root;
+  const mints = Promise.withResolvers<void>();
+  await using _routes = await serveRoom(page, root, corpus, { mintsWait: mints.promise });
+  const row = `[data-slot="message-row"][data-message-id="${room.messageId}"]`;
+  await watchForSource(page, `${row} ${BUBBLE}`);
+  await page.addInitScript(
+    ({ selector, key }) => {
+      if (globalThis.window !== globalThis.top) {
+        return;
+      }
+      new MutationObserver(() => {
+        const count = document.querySelectorAll(selector).length;
+        document.documentElement.dataset[key] = String(Math.max(count, Number(document.documentElement.dataset[key] ?? "0")));
+      }).observe(document, { subtree: true, childList: true });
+    },
+    { selector: `${row} ${TRAIN_BUBBLE}`, key: MAX_BUBBLES_KEY },
+  );
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  const host = page.locator(`${row} ${REPLY_FRAME}`);
+  await expect(host).toHaveAttribute("data-delivery", "held");
+  mints.resolve();
+  await expect(host.locator(SANDBOX)).toHaveAttribute("data-delivery", "routed");
+  await expect(page.frameLocator(`${REPLY_FRAME} ${SANDBOX}`).locator("#w6p-location")).toHaveText("Camelot · Great Hall");
+  const { hits, seen } = await sourceSeen(page);
+  expect(seen).toContain("You are late, Arthur.");
+  expect(hits).toEqual([]);
+  expect(await page.evaluate((key) => document.documentElement.dataset[key], MAX_BUBBLES_KEY)).toBe("1");
+});

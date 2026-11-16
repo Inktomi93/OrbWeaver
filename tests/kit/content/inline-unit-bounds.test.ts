@@ -14,7 +14,7 @@ test.each([
   ["a span opened in prose and closed after a panel line", `She says \`hi.\n${PANEL}\nThen \`x\` appears.`],
   ["a span opened in a heading", `# Status \`ok\n${PANEL}\nmore \`x\``],
   ["a span opened in a quote and closed after it", `> she says \`hi\n> ${PANEL}\nThen \`x\``],
-  ["a span opened in an HTML block's own text", `<div class="hud">Press \`Enter\n<style>${CSS}</style>\nto go\`</div>`],
+  ["a span that would open and close on an HTML block's own line", `<div class="hud">Press \`<style>${CSS}</style>\` here</div>`],
   ["a comment opened mid-line and closed after a panel", `She waits <!-- note\n${PANEL}\n-->`],
   ["a comment opened mid-line and closed past a blank line", `She waits <!-- note\n\n${PANEL}\n\n-->`],
   ["a comment opened in an HTML block and closed in a later one", `<div>a <!-- x</div>\n\n${PANEL}\n\n<p>-->`],

@@ -51,6 +51,8 @@ export interface SpeakerSpan {
   /** `null` = no attributed speaker for this span (narrator / plain text). */
   readonly speaker: string | null;
   readonly text: string;
+  /** Where `text` begins in the parsed content; a consumed `<speaker>` tag sits between two spans. */
+  readonly start: number;
 }
 
 /** Splits a SETTLED message body on `<speaker>NAME</speaker>` markers (§12.4) into ordered
@@ -94,7 +96,7 @@ export function parseSpeakerSpans(content: string, characterNames: readonly stri
     const matchIndex = match.index;
     // Preamble / inter-marker plain text (no attributed speaker) ahead of this marker.
     if (matchIndex > cursor) {
-      spans.push({ speaker: null, text: content.slice(cursor, matchIndex) });
+      spans.push({ speaker: null, text: content.slice(cursor, matchIndex), start: cursor });
     }
     const rawName = match[1]?.trim() ?? "";
     const textStart = matchIndex + match[0].length;
@@ -102,6 +104,7 @@ export function parseSpeakerSpans(content: string, characterNames: readonly stri
     spans.push({
       speaker: rawName.length > 0 ? rawName : null,
       text: content.slice(textStart, nextMatchIndex),
+      start: textStart,
     });
     cursor = nextMatchIndex;
   }
@@ -165,14 +168,14 @@ function splitOnPlainLabels(content: string, characterNames: readonly string[]):
   }
   const [first] = cuts;
   if (first === undefined) {
-    return [{ speaker: null, text: content }];
+    return [{ speaker: null, text: content, start: 0 }];
   }
   const spans: SpeakerSpan[] = [];
   if (first.at > 0) {
-    spans.push({ speaker: null, text: content.slice(0, first.at) });
+    spans.push({ speaker: null, text: content.slice(0, first.at), start: 0 });
   }
   for (const [i, cut] of cuts.entries()) {
-    spans.push({ speaker: cut.speaker, text: content.slice(cut.at, cuts[i + 1]?.at ?? content.length) });
+    spans.push({ speaker: cut.speaker, text: content.slice(cut.at, cuts[i + 1]?.at ?? content.length), start: cut.at });
   }
   return spans;
 }
