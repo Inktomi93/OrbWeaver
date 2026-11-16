@@ -40,8 +40,10 @@ function renderBlock(block: MessageContentBlock, key: string, render: RowRenderP
     case "markdown":
       return (
         // Quote tinting rides the PROSE arm only — a card block owns its own styles.
+        // A `<style>` or `<script>` element in prose never applies in the main document, and both allowlists keep its
+        // content as text, so it is removed with its content on every row; a card keeps its own for its frame.
         <Markdown key={key} trust={trust} mode="static" inlineDice={true} colorQuotes={render.colorQuotes} allowExternalMedia={allowExternal}>
-          {block.md}
+          {stripStyleElements(block.md)}
         </Markdown>
       );
     case "media":

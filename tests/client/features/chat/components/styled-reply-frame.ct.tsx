@@ -1452,3 +1452,96 @@ test("tide: from mount to framed a styled reply is one bubble, never the unscrip
   expect(hits).toEqual([]);
   expect(await page.evaluate((key) => document.documentElement.dataset[key], MAX_BUBBLES_KEY)).toBe("1");
 });
+
+// A stylesheet the reply's own author wrote, on a row no display script styled. Markup the model or the user writes
+// never styles a row, and its CSS must not print as prose on any path the frame does not draw.
+const OWN_CSS = ".w6p-own b{color:red}";
+const OWN_STYLE_BODY = `She looks up.\n\n<div class="w6p-own"><style>${OWN_CSS}</style><b>HUD</b></div>\n\nThe hall waits.`;
+const OWN_STYLE_CHUNKS = ['She looks up.\n\n<div class="w6p-own"><style>.w6p-own b{', "color:red}</style><b>HUD</b></div>", "\n\nThe hall waits."] as const;
+// The same element as a code sample: a fence and a code span show it as written.
+const OWN_SAMPLE_BODY = `Here is the page:\n\n\`\`\`html\n<style>${OWN_CSS}</style>\n\`\`\`\n\nOr inline: \`<style>${OWN_CSS}</style>\`.`;
+
+/** The styled room with no display script, so no reply in it is styled. */
+async function openUnscriptedRoom(body: string): Promise<StyledRoom> {
+  await using construction = new AsyncDisposableStack();
+  const room = await openStyledRoom(body);
+  construction.use(room.root);
+  const caller = await room.root.internalCallerFor(room.root.ownerId);
+  for (const script of await caller.regex.listScripts()) {
+    await caller.regex.removeScript({ scriptId: script.id });
+  }
+  construction.move();
+  return room;
+}
+
+const rowOf = (page: Page, id: MessageId): Locator => page.locator(`[data-slot="message-row"][data-message-id="${id}"]`);
+
+forEachNonEmpty(THEME_CHAT_STYLES, "THEME_CHAT_STYLES", (chatStyle) => {
+  test(`${chatStyle}: a stylesheet the model wrote into an unstyled reply never prints as text`, async ({ corpus, mount, page }) => {
+    const room = await openUnscriptedRoom(OWN_STYLE_BODY);
+    await using root = room.root;
+    await (await root.internalCallerFor(root.ownerId)).settings.updateUserSettingsSection({ section: "appearance", patch: { chatStyle } });
+    await using _routes = await serveRoom(page, root, corpus);
+    await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+    const row = rowOf(page, room.messageId);
+    await expect(row).toContainText("The hall waits.");
+    await expect(row.locator("b", { hasText: "HUD" })).toBeVisible();
+    expect((await row.textContent()) ?? "").not.toContain(OWN_CSS);
+  });
+});
+
+test("a stylesheet a user wrote into their message never prints as text", async ({ corpus, mount, page }) => {
+  const room = await openUnscriptedRoom("Unchanged.");
+  await using root = room.root;
+  const caller = await root.internalCallerFor(root.ownerId);
+  const { messages } = await caller.chat.listMessages({ chatId: room.chatId });
+  const user = messages.findLast((message) => message.role === "user");
+  expect(user).toBeDefined();
+  const userId = user?.id ?? room.messageId;
+  await caller.chat.editMessage({ chatId: room.chatId, messageId: userId, content: OWN_STYLE_BODY, timeZone: UTC_TIME_ZONE });
+  await using _routes = await serveRoom(page, root, corpus);
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  const row = rowOf(page, userId);
+  await expect(row).toContainText("The hall waits.");
+  expect((await row.textContent()) ?? "").not.toContain(OWN_CSS);
+});
+
+test("a stylesheet the model writes while the reply streams never prints as text, with no display script", async ({ corpus, mount, page }) => {
+  const room = await openUnscriptedRoom("Unchanged.");
+  await using root = room.root;
+  await using _routes = await serveRoom(page, root, corpus);
+  const ghost = '[data-slot="ghost-message-row"] [data-slot="ghost-stream-body"]';
+  await watchForSource(page, ghost, [OWN_CSS]);
+  await mount<typeof StyledReplyStreamStory>(STREAM_STORY, {
+    chatId: room.chatId,
+    speakerCharacterId: room.characterId,
+    chunks: OWN_STYLE_CHUNKS,
+    chunkLabel: CHUNK_LABEL,
+  });
+  await streamEachChunk(page, OWN_STYLE_CHUNKS);
+  await expect(page.locator(ghost)).toContainText("The hall waits.");
+  const { hits } = await sourceSeen(page);
+  expect(hits).toEqual([]);
+});
+
+test("a card's stylesheet never prints as text in the plain card a row without trusted HTML draws", async ({ corpus, mount, page }) => {
+  const room = await openUnscriptedRoom(`She looks up.\n\n:::card title="Status"\n<style>${OWN_CSS}</style><strong>Card body</strong>\n:::\n\nThe hall waits.`);
+  await using root = room.root;
+  const caller = await root.internalCallerFor(root.ownerId);
+  await caller.character.update({ characterId: room.characterId, input: { trustHtml: false, interactiveHtml: false } });
+  await using _routes = await serveRoom(page, root, corpus);
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  const row = rowOf(page, room.messageId);
+  await expect(row).toContainText("Card body");
+  expect((await row.textContent()) ?? "").not.toContain(OWN_CSS);
+});
+
+test("a stylesheet written as a code sample in an unstyled reply still shows as written", async ({ corpus, mount, page }) => {
+  const room = await openUnscriptedRoom(OWN_SAMPLE_BODY);
+  await using root = room.root;
+  await using _routes = await serveRoom(page, root, corpus);
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  const row = rowOf(page, room.messageId);
+  await expect(row.locator("pre")).toContainText(`<style>${OWN_CSS}</style>`);
+  await expect(row.locator("p code")).toHaveText(`<style>${OWN_CSS}</style>`);
+});

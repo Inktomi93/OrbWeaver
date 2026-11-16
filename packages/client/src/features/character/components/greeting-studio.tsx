@@ -3,6 +3,7 @@
 
 import type { GreetingTransformAxis, GreetingTransformId } from "@orb/contracts/preset";
 import { GREETING_TRANSFORM_AXES, GREETING_TRANSFORMS } from "@orb/contracts/preset";
+import { stripStyleElements } from "@orb/kit/content";
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Check, Icon, Sparkles, WandSparkles, X } from "@orb/ui/icons";
@@ -115,7 +116,7 @@ export function GreetingStudio({
         <MessageBubble messageRole="assistant">
           <Stack gap="row">
             <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static" colorQuotes={colorQuotes} allowExternalMedia={allowExternalMedia}>
-              {preview}
+              {stripStyleElements(preview)}
             </Markdown>
           </Stack>
         </MessageBubble>
