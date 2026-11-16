@@ -517,6 +517,7 @@ for (const [name, body, shown] of MODEL_PANELS) {
     const row = rowOf(page, room.messageId);
     // Positive control: the reply drew, so the absence of a frame is the trust's doing.
     await expect(row.getByText("The hall waits.", { exact: true })).toBeVisible();
+    await expect(row.getByText("Model-written markup", { exact: false }).first()).toBeVisible();
     await expect(row.locator(REPLY_FRAME)).toHaveCount(0);
     await expect(row.locator('[data-slot="plain-notice"]')).toHaveCount(1);
     expect(sourceIn((await row.textContent()) ?? "")).toEqual([]);
@@ -1455,15 +1456,15 @@ test("tide: a reply holding a model-written panel is one framed bubble", async (
   await expect(frame.getByText("The hall waits.")).toBeVisible();
 });
 
-test("tide: with the character's HTML trust off a reply holding a model-written panel trains plain, its CSS never printed", async ({ corpus, mount, page }) => {
+test("tide: with the character's HTML trust off a model-written panel trains plain as its words, its CSS never printed", async ({ corpus, mount, page }) => {
   const room = await openTrainRoom(MODEL_PANEL_BODY);
   await using root = room.root;
   await (await root.internalCallerFor(root.ownerId)).character.update({ characterId: room.characterId, input: { trustHtml: false, interactiveHtml: false } });
   await using _routes = await serveRoom(page, root, corpus);
   await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
   const bubbles = trainRow(page, room).locator(TRAIN_BUBBLE);
-  await expect(bubbles.first()).toHaveText("She looks up.");
-  await expect(bubbles.last()).toHaveText("The hall waits.");
+  // The panel's words keep their bubble: the plain path unwraps the markup it drops, never leaves the bubble empty.
+  await expect(bubbles).toHaveText(["She looks up.", "HUD", "The hall waits."]);
   await expect(page.locator(REPLY_FRAME)).toHaveCount(0);
   await expect(trainRow(page, room).locator('[data-slot="plain-notice"]')).toHaveCount(1);
   expect(sourceIn((await bubbles.allTextContents()).join("\n"))).toEqual([]);

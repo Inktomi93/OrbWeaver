@@ -217,8 +217,9 @@ test("with the character's HTML trust off the greeting reads plain with the noti
   await using _routes = await serveRoom(page, root, corpus);
   await mount<typeof GreetingRoomStory>(STORY, { chatId: room.chatId, messageId: room.greetingId, deliverLabel: DELIVER_LABEL });
   const row = rowOf(page, room.greetingId);
-  // Positive control: the greeting's prose drew, so the absence of a frame is the trust's doing.
+  // Positive control: the greeting drew, its panel's words included, so the absence of a frame is the trust's doing.
   await expect(row.getByText("The road is dark.")).toBeVisible();
+  await expect(row.getByText(GREETING_TEXTS[0])).toBeVisible();
   await expect(row.locator(REPLY_FRAME)).toHaveCount(0);
   await expect(row.locator(PLAIN_NOTICE)).toHaveCount(1);
   const text = (await row.textContent()) ?? "";
@@ -251,6 +252,7 @@ test("in a group room each greeting is gated by its own character's trust", asyn
   await expectFramed(rowOf(page, room.greetingId), 0);
   const guardRow = rowOf(page, guardGreeting?.id ?? room.greetingId);
   await expect(guardRow.getByText("The road is dark.")).toBeVisible();
+  await expect(guardRow.getByText("Gate Guard lifts the lantern.")).toBeVisible();
   await expect(guardRow.locator(REPLY_FRAME)).toHaveCount(0);
   await expect(guardRow.locator(PLAIN_NOTICE)).toHaveCount(1);
 });

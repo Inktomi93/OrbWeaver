@@ -1937,21 +1937,38 @@ function tickRunClosers(content: string): readonly TickRun[] {
  *  fixpoint, since the pieces around a removed element can join into a new one (`<sty<style>x</style>le>`); past
  *  {@link MAX_HIDDEN_PASSES} passes it conceals from the first element still standing to the end. */
 export function stripStyleElements(text: string): string {
+  return stripElements(text, markdownRawTextElements);
+}
+
+/** {@link stripStyleElements}, and each element whose text HTML reads as text (`textarea`, `title`, `iframe` and the
+ *  rest `readMarkup` names) removed with its content too: the untrusted render unwraps every element its allowlist drops,
+ *  so a panel's words stay, and these are the elements whose content would otherwise print as words. */
+export function stripUnreadElements(text: string): string {
+  return stripElements(text, (kept) => {
+    const markup = readMarkup(kept, MARKDOWN_READING);
+    return mergedRuns([...markup.rawText, ...markup.textElements]);
+  });
+}
+
+// Removes each range `elements` reads from the text, to a fixpoint, since the pieces around a removed element can join
+// into a new one (`<sty<style>x</style>le>`); past MAX_HIDDEN_PASSES passes it conceals from the first range still
+// standing to the end.
+function stripElements(text: string, elements: (kept: string) => readonly TextRange[]): string {
   let kept = text;
   for (let pass = 0; pass < MAX_HIDDEN_PASSES; pass += 1) {
-    const elements = markdownRawTextElements(kept);
-    if (elements.length === 0) {
+    const found = elements(kept);
+    if (found.length === 0) {
       return kept;
     }
     let stripped = "";
     let from = 0;
-    for (const element of elements) {
+    for (const element of found) {
       stripped += kept.slice(from, element.start);
       from = element.end;
     }
     kept = stripped + kept.slice(from);
   }
-  return kept.slice(0, markdownRawTextElements(kept)[0]?.start ?? kept.length);
+  return kept.slice(0, elements(kept)[0]?.start ?? kept.length);
 }
 
 // Where the tag that opens at `lt` ends: the first `>` after it, outside a quoted attribute value, or -1 when it has not
