@@ -79,8 +79,25 @@ test.each<readonly [string, string, string]>([
   ["a style inside a comment is no element", "<!-- <style> -->kept</style>", "<!-- <style> -->kept</style>"],
   ["a style after a comment opener that never closes", "a <!-- b <style>x{}</style>c", "a <!-- b c"],
   ["an unclosed script is removed to the end", "a<script>\nlet x = 1;\n\nlet y", "a"],
+  ["a style the pieces around a removed one join into", "a<sty<style>x</style>le>.forged{color:red}</style>b", "ab"],
+  ["a nest of joined styles three deep", `a${forgedNest(3)}b`, "ab"],
 ])("stripping removes %s exactly", (_name, text, expected) => {
   expect(stripStyleElements(text)).toBe(expected);
+});
+
+// A style element whose removal joins the pieces around it into another, `depth` times over.
+function forgedNest(depth: number): string {
+  let nest = "<style>x</style>";
+  for (let layer = 0; layer < depth; layer += 1) {
+    nest = `<sty${nest}le>.forged{color:red}</style>`;
+  }
+  return nest;
+}
+
+test("a nest of joined styles deeper than the strip's pass bound is concealed to the end, never printed", () => {
+  const stripped = stripStyleElements(`Before. ${forgedNest(40)} After.`);
+  expect(stripped.startsWith("Before. ")).toBe(true);
+  expect(stripped).not.toMatch(/forged|After/u);
 });
 
 test("a lenient card keeps its whole stylesheet: a blank line inside the style does not cut the card", () => {
@@ -89,6 +106,15 @@ test("a lenient card keeps its whole stylesheet: a blank line inside the style d
   expect(spans.map((span) => span.kind)).toEqual(["card", "text"]);
   expect(spans[0]?.kind === "card" ? spans[0].body : "").toBe(card);
   expect(spans.filter((span) => span.kind === "text").map((span) => span.text)).toEqual(["\n\nAfter."]);
+});
+
+test("an image written in a stylesheet's text stays that text, and one after the element is still an image", () => {
+  const style = "<style>.a{content:'![](u.png)'}</style>";
+  const spans = tokenizeContent(`${style} after ![](v.png)`, { committed: true });
+  expect(spans).toEqual([
+    { kind: "text", text: `${style} after ` },
+    { kind: "image", ref: { kind: "external", url: "v.png" }, alt: "" },
+  ]);
 });
 
 test("the elements are read from their opener to just past their close", () => {
@@ -184,6 +210,8 @@ test.each([
   ["many tick runs before one style", `${"`a``b".repeat(50_000)}<style>x{}</style>`],
   ["many unclosed text elements before one style", `${"<textarea>".repeat(60_000)}<style>x{}</style>`],
   ["list markers nested deep, then blank lines", `${"- ".repeat(20_000)}x${"\n".repeat(20_000)}<style>x{}</style>`],
+  ["a nest of joined styles far past the strip's pass bound", forgedNest(30_000)],
+  ["many images inside one style, then many after it", `<style>${"![](a)".repeat(40_000)}</style>${"![](b)".repeat(40_000)}`],
   ["list markers nested deep, then wide indents", `${"1. ".repeat(15_000)}x\n${`${" ".repeat(45_000)}z\n`.repeat(5)}<style>x{}</style>`],
 ])("%s is read in linear time", (_name, body) => {
   const started = performance.now();

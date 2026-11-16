@@ -1534,6 +1534,20 @@ test("a stylesheet a user wrote into their message never prints as text", async 
   expect((await row.textContent()) ?? "").not.toContain(OWN_CSS);
 });
 
+test("a stylesheet the model wrote into its reasoning never prints as text when the trace is opened", async ({ corpus, mount, page }) => {
+  const room = await openUnscriptedRoom("Unchanged.");
+  await using root = room.root;
+  const caller = await root.internalCallerFor(root.ownerId);
+  await caller.chat.editReasoning({ chatId: room.chatId, messageId: room.messageId, reasoning: OWN_STYLE_BODY });
+  await using _routes = await serveRoom(page, root, corpus);
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  const row = rowOf(page, room.messageId);
+  await row.locator('[data-slot="collapsible-trigger"]').first().click();
+  const trace = row.locator('[data-slot="collapsible-panel"]').first();
+  await expect(trace).toContainText("The hall waits.");
+  expect((await trace.textContent()) ?? "").not.toContain(OWN_CSS);
+});
+
 test("a stylesheet the model writes while the reply streams never prints as text, with no display script", async ({ corpus, mount, page }) => {
   const room = await openUnscriptedRoom("Unchanged.");
   await using root = room.root;

@@ -17,6 +17,7 @@
 import { blobUrl } from "@orb/contracts/assets";
 import type { MemberCardView, MemberCardVisibility } from "@orb/contracts/chat";
 import { MEMBER_CARD_VISIBILITY_LEVELS } from "@orb/contracts/chat";
+import { stripStyleElements } from "@orb/kit/content";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
@@ -254,7 +255,7 @@ function GreetingsSection({ greetings }: { readonly greetings: readonly string[]
         {keyedEntries(present).map(({ key, text }) => (
           <Bubble key={key}>
             <Markdown trust="untrusted" mode="static">
-              {text}
+              {stripStyleElements(text)}
             </Markdown>
           </Bubble>
         ))}
