@@ -1,5 +1,6 @@
 // An isolated plugin frame's refused host call answers the bare refusal and no reason, even when the server refused it
-// with an allowlisted code a scripted guest would receive; a granted call through the same relay answers its value. A web
+// with an allowlisted code a scripted guest would receive; a granted call through the same relay answers its value, and a
+// call whose arguments pass the server's cap is refused before it is sent. A web
 // link in a plugin frame opens nothing and leaves the frame drawn: the pinned frame script hands the click to an embedder
 // that has no link listener for plugins.
 import { spawn } from "node:child_process";
@@ -12,6 +13,7 @@ import {
   PLUGIN_HOST_VERSIONS,
   PLUGIN_MAIN_ENTRY,
   PLUGIN_UI_ENTRY,
+  PLUGIN_UI_HOST_CALL_ARGS_MAX_BYTES,
   PLUGIN_UI_HOST_CALL_CODES,
   PLUGIN_UI_ROUTE,
   pluginManifestSchema,
@@ -58,6 +60,12 @@ addEventListener("message", (event) => {
 });
 parent.postMessage({ orbPluginFrameCall: { callId: ${JSON.stringify(GRANTED_CALL)}, fn: "storage.get", args: ["ledger"] } }, "*");
 parent.postMessage({ orbPluginFrameCall: { callId: ${JSON.stringify(REFUSED_CALL)}, fn: "variables.get", args: ["ledger"] } }, "*");
+</script>`;
+const OVERSIZED_CALL = "oversized";
+// The same result recorder, posting the granted call at its ordinary size and again with arguments past the cap the
+// server reads them under. The frame's own script builds the long argument, so the frame document stays small.
+const OVERSIZED_FRAME_HTML = `${FRAME_HTML.slice(0, FRAME_HTML.indexOf("parent.postMessage"))}parent.postMessage({ orbPluginFrameCall: { callId: ${JSON.stringify(GRANTED_CALL)}, fn: "storage.get", args: ["ledger"] } }, "*");
+parent.postMessage({ orbPluginFrameCall: { callId: ${JSON.stringify(OVERSIZED_CALL)}, fn: "storage.get", args: ["x".repeat(${String(PLUGIN_UI_HOST_CALL_ARGS_MAX_BYTES)})] } }, "*");
 </script>`;
 // A frame with one web link and a line that stays only while the frame keeps its own document.
 const LINK_FRAME_HTML = `<p id="still-here">Plugin preferences</p><a id="docs-link" href="${LINK_URL}">Docs</a>`;
@@ -129,6 +137,24 @@ test("a frame's refused host call carries no reason, though the server refused i
     const results = page.frameLocator(FRAME).locator("#results");
     await expect(results).toHaveText(JSON.stringify(expected));
     expect(trpc.count("plugin.uiHostCall")).toBe(2);
+  } finally {
+    await component.unmount();
+  }
+});
+
+test("a frame's call with arguments past the server's cap is refused before it leaves the browser", async ({ page, mount }) => {
+  await using root = await createCorpusHarness(undefined, { pluginSpawn: spawn });
+  const { trpc } = await serveFramePlugin(page, root, OVERSIZED_FRAME_HTML);
+  const component = await mount<typeof PluginFrameTextScaleStory>(STORY, { width: STORY_WIDTH, fontScale: 1 });
+  try {
+    const expected: Record<string, Parameters<typeof pluginFrameResultMessage>[0]> = {
+      [GRANTED_CALL]: { callId: GRANTED_CALL, ok: true, value: null },
+      [OVERSIZED_CALL]: { callId: OVERSIZED_CALL, ok: false, error: PLUGIN_FRAME_CALL_REFUSED },
+    };
+    await page.locator(FRAME).scrollIntoViewIfNeeded();
+    await expect(page.frameLocator(FRAME).locator("#results")).toHaveText(JSON.stringify(expected));
+    // The ordinary call reached the server; the oversized one never did.
+    expect(trpc.count("plugin.uiHostCall")).toBe(1);
   } finally {
     await component.unmount();
   }
