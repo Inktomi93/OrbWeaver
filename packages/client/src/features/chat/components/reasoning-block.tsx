@@ -22,6 +22,7 @@
 // shows is whatever the SERVER handed this viewer: the §3.6 reasoning strip nulls the field for a member of a
 // deception-active game, so a stripped row simply has nothing to mount (this component never gates access).
 
+import { stripStyleElements } from "@orb/kit/content";
 import { holdTornSpeaker } from "@orb/kit/fix-markdown";
 import { speakerTagsToPlain } from "@orb/kit/speaker-label";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
@@ -105,7 +106,7 @@ export function ReasoningBlock({
           <StreamShimmer label="Reading the reasoning trace…" />
         ) : (
           <Markdown trust="untrusted" mode={thinking ? "streaming" : "static"}>
-            {held}
+            {stripStyleElements(held)}
           </Markdown>
         )}
       </CollapsiblePanel>

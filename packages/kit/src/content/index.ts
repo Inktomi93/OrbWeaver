@@ -198,11 +198,18 @@ function* imageMatches(text: string): Generator<ImageMatch> {
   }
 }
 
-/** The image tokenization over one maximal text run (no empty-fallback — the caller owns that). */
+/** The image tokenization over one maximal text run (no empty-fallback — the caller owns that). An image written in a
+ *  `<style>` or `<script>` element's text is that text, never an image: cutting there would split the element across
+ *  blocks and print the rest of its source. */
 function tokenizeImages(text: string): ContentSpan[] {
   const spans: ContentSpan[] = [];
   let last = 0;
+  let inRawText: ((offset: number) => RawTextElement | undefined) | undefined;
   for (const image of imageMatches(text)) {
+    inRawText ??= rawTextCursor(markdownRawTextElements(text));
+    if (inRawText(image.start) !== undefined) {
+      continue;
+    }
     if (image.start > last) {
       spans.push({ kind: "text", text: text.slice(last, image.start) });
     }
@@ -1926,15 +1933,25 @@ function tickRunClosers(content: string): readonly TickRun[] {
 
 /** Removes every `<style>` and `<script>` element with its content; an element whose close has not arrived is removed
  *  to the end. The inert allowlist drops both tags but keeps their content as prose. Text is read as Markdown shows it
- *  (see {@link liftRawTextBodies}), so a sample shown as code or behind an escape stays as written. */
+ *  (see {@link liftRawTextBodies}), so a sample shown as code or behind an escape stays as written. The strip runs to a
+ *  fixpoint, since the pieces around a removed element can join into a new one (`<sty<style>x</style>le>`); past
+ *  {@link MAX_HIDDEN_PASSES} passes it conceals from the first element still standing to the end. */
 export function stripStyleElements(text: string): string {
-  let kept = "";
-  let from = 0;
-  for (const element of markdownRawTextElements(text)) {
-    kept += text.slice(from, element.start);
-    from = element.end;
+  let kept = text;
+  for (let pass = 0; pass < MAX_HIDDEN_PASSES; pass += 1) {
+    const elements = markdownRawTextElements(kept);
+    if (elements.length === 0) {
+      return kept;
+    }
+    let stripped = "";
+    let from = 0;
+    for (const element of elements) {
+      stripped += kept.slice(from, element.start);
+      from = element.end;
+    }
+    kept = stripped + kept.slice(from);
   }
-  return kept + text.slice(from);
+  return kept.slice(0, markdownRawTextElements(kept)[0]?.start ?? kept.length);
 }
 
 // Where the tag that opens at `lt` ends: the first `>` after it, outside a quoted attribute value, or -1 when it has not

@@ -4,6 +4,7 @@
 // prompt's small inputs/selects live in the CONTEXT Field tab. The Provenance facet's creator/version pair
 // is edited here and nowhere else: the Field tab only reads it back.
 
+import { stripStyleElements } from "@orb/kit/content";
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
@@ -350,7 +351,7 @@ function ExampleTranscript({
         >
           <Stack padding="field">
             <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static" colorQuotes={colorQuotes} allowExternalMedia={allowExternalMedia}>
-              {block}
+              {stripStyleElements(block)}
             </Markdown>
           </Stack>
         </Card>
