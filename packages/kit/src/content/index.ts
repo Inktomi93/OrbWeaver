@@ -1950,6 +1950,27 @@ export function stripUnreadElements(text: string): string {
   });
 }
 
+/** `rewrite` applied to each stretch of `text` outside a style or script element, each element kept byte for byte.
+ *  @remarks SECURITY: a display rewrite splices text the reader does not own (a member's persona name, a Markdown
+ *  repair) into the reply, and a framed reply runs its script bodies at the interactive step. A body counts when
+ *  either reader sees one: the frame's, which reads text as Markdown shows it, and the raw HTML reader, which also
+ *  reads inside a card fence, whose body a card frame draws as HTML. An unclosed element runs to the end. */
+export function mapOutsideRawText(text: string, rewrite: (piece: string) => string): string {
+  const elements = mergedRuns(
+    [...readMarkup(text, MARKDOWN_READING).rawText, ...readMarkup(text).rawText].map((element) => ({ start: element.start, end: element.end })),
+  );
+  if (elements.length === 0) {
+    return rewrite(text);
+  }
+  let out = "";
+  let from = 0;
+  for (const element of elements) {
+    out += rewrite(text.slice(from, element.start)) + text.slice(element.start, element.end);
+    from = element.end;
+  }
+  return out + rewrite(text.slice(from));
+}
+
 // Removes each range `elements` reads from the text, to a fixpoint, since the pieces around a removed element can join
 // into a new one (`<sty<style>x</style>le>`); past MAX_HIDDEN_PASSES passes it conceals from the first range still
 // standing to the end.
