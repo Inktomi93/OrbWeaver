@@ -26,7 +26,8 @@
 // carries a CR, an LF or text shaped like a further header (`?`, `&` or `;` then `name=`), the shapes a client that
 // decodes and parses again would read as a header the confirm did not show; stripping would open an address other
 // than the one the frame sent. A recipient outside printable ASCII is refused, since a decoded address could hold the
-// bidi or lookalike characters the serialized host never does.
+// bidi or lookalike characters the serialized host never does. Any fragment is refused: the confirm reads none, and a
+// client may read a header from it (`#?bcc=…`).
 //
 // Focus returns to the landing the request named, the frame's own stop in the app, never into the frame: the frame's
 // focus gate would send a return into it back as unasked. A confirm the pace raised later, with no reader action,
@@ -103,7 +104,7 @@ function mailHeader(pair: string): { readonly name: string; readonly value: stri
 // Every recipient a mail link sets, by field, or `undefined` when it carries a header or a value the confirm refuses.
 function mailRecipients(url: URL): MailRecipients | undefined {
   const path = decoded(url.pathname);
-  if (path === undefined || FURTHER_HEADER.test(path)) {
+  if (path === undefined || FURTHER_HEADER.test(path) || url.hash !== "") {
     return undefined;
   }
   const lists: Record<MailField, string[]> = { to: [path], cc: [], bcc: [] };
