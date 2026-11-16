@@ -60,6 +60,7 @@ const READ_GATES = {
   getMessageWindow: "elsewhere",
   listMessageVariants: "room-read",
   listParticipants: "room-read",
+  resolveAuthorRenderPolicy: "room-read",
   replayLiveTurn: "room-read",
   replayChatEvents: "room-read",
   chatEventBounds: "room-read",
@@ -230,6 +231,8 @@ test("a non-participant gets a leak-free not-found on every room read, while the
     listMessageVariants: (principal: Principal): Promise<unknown> =>
       h.root.services.chat.listMessageVariants({ principal, chatId: h.chatId, messageId: line.id }),
     listParticipants: (principal: Principal): Promise<unknown> => h.root.services.chat.listParticipants({ principal, chatId: h.chatId }),
+    resolveAuthorRenderPolicy: (principal: Principal): Promise<unknown> =>
+      h.root.services.chat.resolveAuthorRenderPolicy({ principal, chatId: h.chatId, characterId }),
     listForks: (principal: Principal): Promise<unknown> => h.root.services.chat.listForks({ principal, chatId: h.chatId }),
     getChatLineage: (principal: Principal): Promise<unknown> => h.root.services.chat.getChatLineage({ principal, chatId: h.chatId }),
     replayLiveTurn: (principal: Principal): Promise<unknown> => h.root.services.chat.replayLiveTurn({ principal, chatId: h.chatId, throughSeq: 0 }),

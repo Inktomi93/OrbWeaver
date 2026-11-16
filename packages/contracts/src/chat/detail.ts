@@ -15,8 +15,8 @@ import type { GroupConfig, OpeningPolicy, RoomOverrides } from "./metadata.ts";
 import { groupConfigSchema, openingPolicySchema, roomOverridesSchema } from "./metadata.ts";
 import type { ChatIdentity } from "./producers.ts";
 import { chatIdentitySchema } from "./producers.ts";
-import type { ParticipantView } from "./roster.ts";
-import { participantViewSchema } from "./roster.ts";
+import type { NarratorRenderPolicy, ParticipantView } from "./roster.ts";
+import { narratorRenderPolicySchema, participantViewSchema } from "./roster.ts";
 
 // How a room's pin stands — see {@link ChatDetail.anchorState}.
 const ANCHOR_STATES = ["live", "held", "none"] as const;
@@ -47,6 +47,9 @@ export interface ChatDetail {
    *  is already on the roster, and for a pin whose persona has no owner left. Still does not say why it is held. */
   readonly anchorOwnerHandle: Handle | null;
   readonly participants: readonly ParticipantView[];
+  /** The policy every narrator row renders at, resolved from {@link ChatDetail.participants} by
+   *  `resolveNarratorRenderPolicy`. Absent when nothing consents, so a narrator row renders at the fail-closed floor. */
+  readonly narratorRender?: NarratorRenderPolicy;
   /** The CALLER's own participant's `activePersonaId` — populated
    *  server-side from the resolving `principal`, so the client never has to find-and-match its own
    *  userId in `participants`. Null when the caller has none set (never null-because-absent: `getChat`
@@ -150,6 +153,7 @@ export const chatDetailSchema = z.strictObject({
   anchorState: z.enum(ANCHOR_STATES),
   anchorOwnerHandle: brandedId("Handle").nullable(),
   participants: z.array(participantViewSchema).readonly(),
+  narratorRender: narratorRenderPolicySchema.exactOptional(),
   viewerActivePersonaId: typeIdSchema(ID_PREFIX.persona).nullable(),
   viewerIsHost: z.boolean(),
   viewerUserId: brandedId("UserId"),

@@ -4,7 +4,7 @@
 // chronicle (cards archived into the day they were born — the "Journal" rule), so both lenses read the
 // SAME projection of the same cache entry (`trpc.chat.listMessages` — lockdown §12 direct read).
 
-import type { MessageView, ParticipantView } from "@orb/contracts/chat";
+import type { MessageView, NarratorRenderPolicy, ParticipantView } from "@orb/contracts/chat";
 import type { CardSpanOrigin } from "@orb/kit/content";
 import { tokenizeContent } from "@orb/kit/content";
 import type { CharacterId, MessageId, UserId } from "@orb/kit/ids";
@@ -32,12 +32,14 @@ export interface ArchivedCard {
   readonly characterId: CharacterId | null;
 }
 
-type ArchivedCardSource = Pick<MessageView, "id" | "content" | "createdAt" | "role" | "authorUserId" | "characterId">;
+type ArchivedCardSource = Pick<MessageView, "id" | "content" | "createdAt" | "role" | "authorUserId" | "characterId" | "kind">;
 
 /** The participants + viewer the per-row policy resolves against — the same `chat.getChat` read the takeover
  *  already holds. `participants` absent (still loading) resolves every card to the safe floor. */
 interface ArchivedCardViewer {
   readonly participants: readonly ParticipantView[] | undefined;
+  /** `ChatDetail.narratorRender`, the policy a narrator row's cards render at. */
+  readonly narrator: NarratorRenderPolicy | undefined;
   readonly viewerUserId: UserId | null;
 }
 
@@ -62,6 +64,8 @@ export function collectArchivedCards(messages: readonly ArchivedCardSource[], vi
       characterId: message.characterId,
       viewerUserId: viewer.viewerUserId,
       participants: byCharacter,
+      kind: message.kind,
+      narrator: viewer.narrator,
     });
     tokenizeContent(message.content, { lenientHtml: true, committed: true }).forEach((span, index) => {
       if (span.kind === "card") {

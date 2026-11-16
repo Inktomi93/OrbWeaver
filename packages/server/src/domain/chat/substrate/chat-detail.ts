@@ -6,7 +6,7 @@
 // ownership read, so the verb resolves it (`substrate/viewer-gallery.ts`), and the gallery subject derives here.
 
 import type { ChatIdentity, HistoryFloorSeq, ParticipantData } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES, NO_HISTORY_FLOOR, resolveHostDisplayScripts } from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES, NO_HISTORY_FLOOR, resolveHostDisplayScripts, resolveNarratorRenderPolicy } from "@orb/contracts/chat";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { ChatDetailData } from "../contract/views.ts";
 import type { ResolvedAnchor } from "../persistence/anchor.ts";
@@ -49,6 +49,7 @@ export function toChatDetail({
 }: ToChatDetailInput): ChatDetailData {
   const viewer = participants.find((p) => p.userId === viewerUserId);
   const checkpointVisible = viewerHistoryFloorSeq <= NO_HISTORY_FLOOR;
+  const narratorRender = resolveNarratorRenderPolicy(participants);
   return {
     id: chat.id,
     title: chat.title,
@@ -61,6 +62,7 @@ export function toChatDetail({
     anchorState: anchor.state,
     anchorOwnerHandle: anchor.ownerHandle,
     participants,
+    ...(narratorRender === undefined ? {} : { narratorRender }),
     viewerActivePersonaId: viewer?.activePersonaId ?? null,
     // A role-derived PAYLOAD field, not a gate — DERIVED from its class home (`member-visibility.ts`, the
     // role-PROJECTION class, D106-F1: consumers thread the verdict as DATA), never the
