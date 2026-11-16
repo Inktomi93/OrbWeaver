@@ -2,6 +2,7 @@
 // speaker split, each run once over the text. The single-bubble row draws its body through it once
 // (`MessageContent`), and Tide's train draws the whole reply through it once and cuts what it drew (`MessageTrain`).
 
+import { markupUnitRanges, modelPanels } from "@orb/kit/content";
 import type { SpeakerSpan } from "@orb/kit/speaker-label";
 import { parseSpeakerSpans } from "@orb/kit/speaker-label";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
@@ -52,6 +53,9 @@ export interface DrawnMessage {
   readonly spans: readonly SpeakerSpan[];
   /** A display script's own template drew markup (D354). */
   readonly styled: boolean;
+  /** The drawn prose holds a panel its author wrote (`modelPanels`, D354): a stylesheet, a script, an svg, or a block
+   *  whose tag carries a style attribute. */
+  readonly modelPanel: boolean;
   /** The scripts have not answered: lay the body out, do not show it. */
   readonly pending: boolean;
   /** A viewer's plugin changed what the scripts drew. */
@@ -69,8 +73,9 @@ export function useDrawnMessage(content: string, props: MessageDrawProps): Drawn
   const characterNames = narratorVoiced && speakerThemes !== undefined ? [...speakerThemes.keys()] : NO_CHARACTER_NAMES;
   return {
     text: resolvedContent,
-    spans: parseSpeakerSpans(resolvedContent, characterNames),
+    spans: parseSpeakerSpans(resolvedContent, characterNames, markupUnitRanges(resolvedContent)),
     styled,
+    modelPanel: modelPanels(resolvedContent, { lenientHtml: props.render.lenientCards }).length > 0,
     pending,
     rewritten: resolvedContent !== displayed,
     observeBody,
@@ -78,13 +83,15 @@ export function useDrawnMessage(content: string, props: MessageDrawProps): Drawn
 }
 
 /** How a drawn body lays out: undefined for the inert path, else framed or the plain path whole, with why (D354).
- *  A display script's own markup styled this row and the row's tier is the sandboxed one, so the reply draws in a
- *  card frame. A plugin that rewrote the text has changed what the scripts produced, so the row keeps the inert
- *  path; markup the model wrote alone never styles a row. A row still waiting on its scripts is never framed: it
- *  stays on the held inert path until its answer lands. */
+ *  On the sandboxed tier a reply draws in a card frame when a display script's own markup styled it, or when its drawn
+ *  prose holds a panel its author wrote. A plugin that rewrote the text has changed what the scripts produced, so the
+ *  script trigger no longer holds; the panel trigger reads the text after the plugin, so a plugin's own panel frames
+ *  like the model's. A row still waiting on its scripts is never framed: it stays on the held inert path until its
+ *  answer lands. */
 export function drawnLayout(drawn: Omit<DrawnMessage, "observeBody">, props: Pick<MessageDrawProps, "render" | "speakerThemes">): ReplyLayout | undefined {
   const { render, speakerThemes } = props;
-  if (render.cardTier !== "tierB" || !drawn.styled || drawn.pending || drawn.rewritten) {
+  const frames = (drawn.styled && !drawn.rewritten) || drawn.modelPanel;
+  if (render.cardTier !== "tierB" || !frames || drawn.pending) {
     return undefined;
   }
   return replyLayout(

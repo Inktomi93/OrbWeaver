@@ -29,7 +29,7 @@
 
 import type { CardTrust } from "@orb/contracts/chat";
 import type { GhostContentSegment } from "@orb/kit/content";
-import { scanGhostContent, scanStyledHold, stripStyleElements, stripTags } from "@orb/kit/content";
+import { modelPanels, scanGhostContent, scanStyledHold, stripStyleElements, stripTags } from "@orb/kit/content";
 import { holdTornSpeaker } from "@orb/kit/fix-markdown";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { holdTornMacro } from "@orb/kit/macro";
@@ -102,7 +102,16 @@ function ghostSegment(segment: GhostContentSegment, index: number, opts: GhostSe
       />
     );
   }
-  return opts.holdsMarkup ? heldGhostText(segment.text, key, opts) : ghostMarkdown(segment.text, key, opts);
+  return opts.holdsMarkup || formsPanel(segment.text, opts.cardTier) ? heldGhostText(segment.text, key, opts) : ghostMarkdown(segment.text, key, opts);
+}
+
+// A tag line still arriving at the tail: it may yet carry the style attribute that makes its block a panel.
+const ARRIVING_TAG_LINE = /(?:^|\n) {0,3}<[A-Za-z][^>\n]*$/u;
+
+// On the sandboxed tier a reply whose own panel will settle framed (`modelPanels`, D354) holds from the first moment the
+// stream shows one, and while a tag line is still arriving at the tail, so no CSS, script or half a tag ever prints.
+function formsPanel(text: string, cardTier: CardTrust): boolean {
+  return cardTier === "tierB" && (ARRIVING_TAG_LINE.test(text) || modelPanels(text).length > 0);
 }
 
 // Only the TAIL segment is live (the caret + incomplete-markdown repair); earlier segments are settled text. A

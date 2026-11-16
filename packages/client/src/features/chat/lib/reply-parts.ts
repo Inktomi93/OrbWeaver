@@ -6,7 +6,7 @@
 
 import type { CardTrust, MessageContentBlock } from "@orb/contracts/chat";
 import type { FrameStyleSheet } from "@orb/kit/content";
-import { frameStyleElements, paragraphBreaks, tokenizeContent } from "@orb/kit/content";
+import { frameStyleElements, heldBlockRanges, holdBlocksWhole, paragraphBreaks, tokenizeContent } from "@orb/kit/content";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import type { PlainReplyReason } from "#lib";
 import { PLAIN_REPLY_REASON } from "#lib";
@@ -60,14 +60,34 @@ export interface ReplySpan {
   readonly tokens: ThemeScopeTokens | undefined;
 }
 
-function carriesDice(markdown: string): boolean {
-  return tokenizeContent(markdown, { committed: true }).some((span) => span.kind === "dice");
+// `markdown` without the block elements the frame holds whole (`heldBlockRanges`): a dice stamp written inside a panel
+// is the panel's text, which the frame draws as written, so it pulls nothing out of the run.
+function outsidePanels(markdown: string): string {
+  let kept = "";
+  let from = 0;
+  for (const held of heldBlockRanges(markdown)) {
+    kept += markdown.slice(from, held.start);
+    from = held.end;
+  }
+  return kept + markdown.slice(from);
 }
 
-// The paragraphs of `markdown`, cut only at its paragraph breaks: a blank line inside a `<style>` element or a code
-// block is that unit's text, and splitting there would put the rest of it in a run of its own, as prose.
+function carriesDice(markdown: string): boolean {
+  return tokenizeContent(outsidePanels(markdown), { committed: true }).some((span) => span.kind === "dice");
+}
+
+// The paragraphs of `markdown`, cut only at its paragraph breaks: a blank line inside a `<style>` element, a code block
+// or a block element the frame holds whole is that unit's text, and splitting there would put the rest of it in a run
+// of its own, as prose.
 function paragraphs(markdown: string): readonly string[] {
-  const breaks = paragraphBreaks(markdown);
+  const held = heldBlockRanges(markdown);
+  let next = 0;
+  const breaks = paragraphBreaks(markdown).filter((cut) => {
+    while ((held[next]?.end ?? Number.POSITIVE_INFINITY) <= cut.start) {
+      next += 1;
+    }
+    return (held[next]?.start ?? Number.POSITIVE_INFINITY) >= cut.start;
+  });
   return [...breaks, { start: markdown.length, end: markdown.length }].map((cut, index) => markdown.slice(breaks[index - 1]?.end ?? 0, cut.start));
 }
 
@@ -104,8 +124,9 @@ function assertNever(value: never): never {
   throw new Error(`reply parts: unhandled block ${JSON.stringify(value)}`);
 }
 
+// A markdown run's sheets as its frame reads them: through the block hold, as `FrameMarkdown` parses it.
 function runSheets(segments: readonly FrameReplySegment[]): readonly FrameStyleSheet[] {
-  return segments.flatMap((segment) => frameStyleElements(segment.kind === "markdown" ? segment.markdown : segment.html));
+  return segments.flatMap((segment) => frameStyleElements(segment.kind === "markdown" ? holdBlocksWhole(segment.markdown) : segment.html));
 }
 
 // A sheet that names a cascade layer fixes that layer's order where it first appears, so no copy of it is dropped.

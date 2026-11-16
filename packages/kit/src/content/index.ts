@@ -2059,6 +2059,12 @@ interface MarkupRead {
   /** Each element the renderer draws folded until opened (`CONCEALING_TAG_NAMES`), opener to close, or to the end of
    *  the text when its close never arrives. */
   readonly concealing: readonly TextRange[];
+  /** Each comment, raw-text element and text element, ascending and disjoint; one whose end never arrives runs to the
+   *  end of the text. */
+  readonly units: readonly TextRange[];
+  /** With the Markdown reading, each stretch shown as written because it is code or escaped, from its first token to
+   *  past that token and the skip, ascending. */
+  readonly samples: readonly TextRange[];
 }
 
 // The elements whose contents the renderer draws folded until opened.
@@ -2086,17 +2092,21 @@ function readMarkup(content: string, markdown?: MarkdownReading): MarkupRead {
   const commentClose = { next: -1, bound: blocks === undefined ? undefined : commentBound(blocks) };
   const textClose = new Map<string, number>();
   const textElements: TextRange[] = [];
+  const units: TextRange[] = [];
+  const samples: TextRange[] = [];
   const code = markdown === undefined || blocks === undefined ? undefined : markdownCodeCursor(content, markdown, blocks);
   let last: ReadSpan | undefined;
   const tags = new RegExp(MARKUP_TOKEN_SOURCE, "g");
   for (let tag = tags.exec(content); tag !== null; tag = tags.exec(content)) {
     const shown = code === undefined ? undefined : shownAsWritten(content, tag, { code, last, textClose, textElements });
     const resume = shown ?? readMarkupToken(content, tag, { closes, rawText, openers, commentClose });
+    // A skip, a raw-text element and a comment are units read whole; a tag is not.
+    const whole = shown !== undefined || tag[2] === undefined || rawText.at(-1)?.start === tag.index;
+    noteUnit(units, { whole: whole && shown === undefined, start: tag.index, resume, length: content.length });
+    noteSample(samples, { shown, tag, textElements });
     if (resume === -1 || resume >= content.length) {
       break;
     }
-    // A skip, a raw-text element and a comment are units read whole; a tag is not.
-    const whole = shown !== undefined || tag[2] === undefined || rawText.at(-1)?.start === tag.index;
     last = whole ? { start: tag.index, end: resume } : last;
     tags.lastIndex = resume;
   }
@@ -2109,7 +2119,26 @@ function readMarkup(content: string, markdown?: MarkdownReading): MarkupRead {
     const open = (openers.get(name) ?? []).map((start) => [start, content.length] as const);
     return [...closed, ...open].map(([start, end]) => ({ start, end }));
   });
-  return { closes, rawText, textElements, concealing };
+  return { closes, rawText, textElements, concealing, units: mergedRuns([...units, ...textElements]), samples };
+}
+
+// Records a unit `readMarkup` read whole, from `start` to where the read resumed, or to the end when it stopped.
+// A comment the read passed over without a close (it resumes just past its `<!--`) is no unit: Markdown prints it.
+function noteUnit(units: TextRange[], read: { readonly whole: boolean; readonly start: number; readonly resume: number; readonly length: number }): void {
+  if (read.whole && read.resume !== read.start + COMMENT_BLOCK_OPEN.length) {
+    units.push({ start: read.start, end: read.resume === -1 ? read.length : read.resume });
+  }
+}
+
+// Records markup the Markdown read showed as written because it is code or escaped; a text element is no sample.
+function noteSample(
+  samples: TextRange[],
+  read: { readonly shown: number | undefined; readonly tag: RegExpExecArray; readonly textElements: readonly TextRange[] },
+): void {
+  const { shown, tag } = read;
+  if (shown !== undefined && read.textElements.at(-1)?.start !== tag.index) {
+    samples.push({ start: tag.index, end: Math.max(shown, tag.index + tag[0].length) });
+  }
 }
 
 // HTML's elements whose text is read as text to their close, each with that close; `plaintext` has none.
@@ -2907,6 +2936,247 @@ export function paragraphBreaks(content: string): readonly TextRange[] {
     }
   }
   return breaks;
+}
+
+// THE BLOCK HOLD. A frame holds each of these elements whole, from a line that opens one to its matching close, with no
+// Markdown read inside: a panel written with blank lines and indented markup draws as the markup it is, never as
+// paragraphs and code blocks. The names are showdown's block list, which SillyTavern renders a reply with, less `pre`,
+// `script` and `style`, which CommonMark already holds to their close. A wrapper a reply puts round its prose
+// (`<response>`, `<think>`) and a folding element (`details`) are not on it, so their contents still read as Markdown,
+// as they do there. A whole document a reply writes raw (`<html>`, `<head>`, `<body>`) is held as one unit too, which
+// showdown's list leaves out. An element whose close has not arrived is held to the end of the text, as the forming chip
+// holds it.
+const HELD_BLOCK_NAMES: ReadonlySet<string> = new Set([
+  "address",
+  "article",
+  "aside",
+  "audio",
+  "blockquote",
+  "body",
+  "canvas",
+  "div",
+  "dl",
+  "fieldset",
+  "figure",
+  "footer",
+  "form",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "head",
+  "header",
+  "hgroup",
+  "html",
+  "iframe",
+  "math",
+  "nav",
+  "noscript",
+  "ol",
+  "output",
+  "p",
+  "section",
+  "table",
+  "ul",
+  "video",
+]);
+// An opener carrying this attribute asks for its contents to be read as Markdown, as showdown honours it.
+const MARKDOWN_ATTRIBUTE_RE = /\smarkdown\b/i;
+const STYLE_ATTRIBUTE_RE = /\sstyle\s*=/i;
+const SVG_TAG_RE = /<svg(?=[\s/>]|$)/i;
+// `<svg` and the one character that ends its name.
+const SVG_OPENER_LENGTH = 5;
+// A blank line inside a held element, as the frame's parse reads it: a line that is not blank, so the HTML block runs
+// on, and that draws nothing.
+const HELD_BLANK_LINE = "<!---->";
+
+// The held element a line opens, as the offset just past its matching close (the text's end while unclosed), or
+// undefined when it opens none: a code line, an indented one, a name not held, or an opener that asks for Markdown.
+function heldBlockEnd(text: string, lineStart: number, markup: MarkupRead): number | undefined {
+  if (indentColumns(text) >= TAB_STOP) {
+    return undefined;
+  }
+  const opener = elementOpenedBy(text);
+  if (opener === undefined || !HELD_BLOCK_NAMES.has(opener.name) || MARKDOWN_ATTRIBUTE_RE.test(text.slice(opener.lt, tagEndFrom(text, opener.lt)))) {
+    return undefined;
+  }
+  return markup.closes.get(lineStart + opener.lt) ?? Number.POSITIVE_INFINITY;
+}
+
+// A `<style>` or `<script>` opener or a comment opener: markup every kit reader reads.
+const READ_MARKUP_OPENER_RE = /<(?:style|script)(?=[\s/>]|$)|<!--/i;
+
+// Whether `text`, the line at `lineStart`, holds a comment opener the read did not take as a comment: the comment the
+// hold writes at a blank line below it would close it. `unit` is asked in rising order.
+function opensStrayComment(text: string, lineStart: number, unit: (offset: number) => TextRange | undefined): boolean {
+  for (let at = text.indexOf(COMMENT_BLOCK_OPEN); at !== -1; at = text.indexOf(COMMENT_BLOCK_OPEN, at + 1)) {
+    if (unit(lineStart + at) === undefined) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// The held elements of `content`, outermost only, each from the start of its opening line. One pass over the lines.
+// SECURITY: the hold must not change what any kit reader (the lift, the carried sheets, the strip) reads. So an element
+// is not held when its range holds a sample (code or an escape) naming a `<style>`, `<script>` or comment opener,
+// which the hold would turn into live markup, or when a comment opener the read left open sits in or above it, which a
+// comment the hold writes would close.
+function heldBlocks(content: string, markup: MarkupRead): readonly TextRange[] {
+  const covering = rawTextCursor(markup.rawText);
+  const unit = rangeCursor(markup.units);
+  let sample = 0;
+  // Whether a sample that starts before `end` names markup the readers read; asked in rising order.
+  const samplesMarkup = (end: number): boolean => {
+    let found = false;
+    for (let next = markup.samples[sample]; next !== undefined && next.start < end; next = markup.samples[sample]) {
+      found ||= READ_MARKUP_OPENER_RE.test(content.slice(next.start, next.end));
+      sample += 1;
+    }
+    return found;
+  };
+  const read = codeLineReader(true);
+  const held: TextRange[] = [];
+  let holdEnd = 0;
+  let unsafe = false;
+  // A comment opener the read left open, anywhere above: a comment the hold writes below it would close it.
+  let strayed = false;
+  const keep = (): void => {
+    if (unsafe) {
+      held.pop();
+    }
+    unsafe = false;
+  };
+  for (const line of splitLines(content)) {
+    const covered = covering(line.start) !== undefined;
+    const text = matchText(line);
+    const code = read(text, covered) !== "text";
+    strayed ||= !code && opensStrayComment(text, line.start, unit);
+    const sampled = samplesMarkup(line.end);
+    if (line.start < holdEnd) {
+      unsafe ||= strayed || sampled;
+      continue;
+    }
+    const end = covered || code ? undefined : heldBlockEnd(text, line.start, markup);
+    if (end !== undefined) {
+      keep();
+      holdEnd = Math.min(end, content.length);
+      held.push({ start: line.start, end: holdEnd });
+      unsafe = strayed || sampled;
+    }
+  }
+  keep();
+  return held;
+}
+
+/** Where a frame holds a block element whole (the block hold, see {@link holdBlocksWhole}): ascending and disjoint,
+ *  each from the start of the line that opens it to just past its matching close, or to the end while unclosed. */
+export function heldBlockRanges(content: string): readonly TextRange[] {
+  return heldBlocks(content, readMarkup(content, MARKDOWN_READING));
+}
+
+/** `content` as a frame parses it: each blank line inside a held block element (see {@link heldBlockRanges}) becomes an
+ *  empty comment, so the element stays one HTML block and none of its text is read as Markdown. A line inside a comment,
+ *  a `<style>` or `<script>` element or a text element is left alone. The identity when nothing is held. */
+export function holdBlocksWhole(content: string): string {
+  const markup = readMarkup(content, MARKDOWN_READING);
+  const held = heldBlocks(content, markup);
+  if (held.length === 0) {
+    return content;
+  }
+  // A blank line inside a unit read whole (a comment, a stylesheet, a text element) stays: the comment written there
+  // would end an open comment or print as an element's text.
+  const covering = rangeCursor(markup.units);
+  let kept = "";
+  let from = 0;
+  let next = 0;
+  for (const line of splitLines(content)) {
+    while ((held[next]?.end ?? Number.POSITIVE_INFINITY) <= line.start) {
+      next += 1;
+    }
+    const inside = (held[next]?.start ?? Number.POSITIVE_INFINITY) < line.start;
+    if (inside && ENDS_AT_BLANK.test(matchText(line)) && covering(line.start) === undefined) {
+      kept += content.slice(from, line.start) + HELD_BLANK_LINE;
+      from = line.end;
+    }
+  }
+  return kept + content.slice(from);
+}
+
+/** The stretches of `content` a speaker marker or label inside cannot split: each held block element, each HTML block
+ *  and each `<style>` or `<script>` element, as the frame reads them. Ascending and disjoint; pass them to
+ *  `parseSpeakerSpans` so a panel stays in one speaker's span. */
+export function markupUnitRanges(content: string): readonly TextRange[] {
+  const markup = readMarkup(content, MARKDOWN_READING);
+  return mergedRuns([...heldBlocks(content, markup), ...inlineBlocks(content).html, ...markup.rawText]);
+}
+
+// Where `content`'s prose runs: every span but a card, a choice set, a hidden span and an unknown directive.
+function proseRanges(content: string, lenientHtml: boolean): readonly TextRange[] {
+  const ranges: TextRange[] = [];
+  let cursor = 0;
+  for (const span of tokenizeContent(content, { committed: true, lenientHtml })) {
+    const length = contentSpanRaw(span).length;
+    if (!UNBROKEN_SPAN_KINDS.has(span.kind)) {
+      ranges.push({ start: cursor, end: cursor + length });
+    }
+    cursor += length;
+  }
+  return ranges;
+}
+
+// Whether a block (a held element or an HTML block) is a panel: it holds a `<style>` or `<script>` element or an
+// `<svg>`, or its opening tag carries a style attribute. A comment block is none.
+function isPanelBlock(text: string, holdsRawText: boolean): boolean {
+  if (holdsRawText) {
+    return true;
+  }
+  const lt = text.indexOf("<");
+  if (text.startsWith(COMMENT_BLOCK_OPEN, lt)) {
+    return false;
+  }
+  return STYLE_ATTRIBUTE_RE.test(text.slice(lt, tagEndFrom(text, lt) + 1)) || SVG_TAG_RE.test(text);
+}
+
+/** The panels a model wrote in `content`'s prose, as the frame trigger reads them (D354): each held block element or
+ *  HTML block that holds a `<style>` or `<script>` element or an `<svg>`, or whose opening tag carries a style
+ *  attribute, each `<style>` or `<script>` element outside one, and each closed `<svg>` element. The text is read as
+ *  Markdown shows it, so a sample in code or behind an escape never counts, and the text of a card, a choice set or a
+ *  hidden span is never prose. Any other tag inside a paragraph (`<span style>`, `<font color>`) is no panel.
+ *  Ascending and disjoint. */
+export function modelPanels(content: string, options: { readonly lenientHtml?: boolean | undefined } = {}): readonly TextRange[] {
+  const markup = readMarkup(content, MARKDOWN_READING);
+  const blocks = mergedRuns([...heldBlocks(content, markup), ...inlineBlocks(content).html]);
+  const raw = markup.rawText;
+  const panels: TextRange[] = [];
+  let element = 0;
+  const standAlone = (before: number): void => {
+    for (let next = raw[element]; next !== undefined && next.start < before; next = raw[element]) {
+      panels.push({ start: next.start, end: next.end });
+      element += 1;
+    }
+  };
+  for (const block of blocks) {
+    standAlone(block.start);
+    const first = element;
+    while ((raw[element]?.start ?? Number.POSITIVE_INFINITY) < block.end) {
+      element += 1;
+    }
+    if (isPanelBlock(content.slice(block.start, block.end), element > first)) {
+      panels.push(block);
+    }
+  }
+  standAlone(Number.POSITIVE_INFINITY);
+  // An inline `<svg>` draws only as markup, so it is a panel wherever it sits.
+  for (const [start, end] of markup.closes) {
+    if (SVG_TAG_RE.test(content.slice(start, start + SVG_OPENER_LENGTH))) {
+      panels.push({ start, end });
+    }
+  }
+  const prose = rangeCursor(proseRanges(content, options.lenientHtml === true));
+  return mergedRuns(panels).filter((panel) => prose(panel.start) !== undefined);
 }
 
 /** The deterministic card WIRE STUB (§3.5): same bytes every assembly (cache-stable), compact, honest —

@@ -7,11 +7,13 @@
 // one importer of its door, `packages/client/src/features/chat/components/reply-frame.tsx`.
 //
 // A `<style>` or `<script>` body is lifted out for the parse and put back after `raw` (`raw-text-lift.ts`), so a blank
-// line inside one never turns its tail into prose.
+// line inside one never turns its tail into prose. A block element a panel is built from is held whole first
+// (`holdBlocksWhole`), so no Markdown is read inside it.
 //
 // Links render as plain anchors (Streamdown's link-safety button would be a dead control inside a frame); the
 // frame's pinned script hands a click to the host, which opens it only through its own confirm.
 
+import { holdBlocksWhole } from "@orb/kit/content";
 import type { ReactElement } from "react";
 import { use } from "react";
 import { defaultRehypePlugins, Streamdown } from "streamdown";
@@ -34,7 +36,7 @@ export function FrameMarkdown({ children, colorQuotes }: { readonly children: st
   if (!use(FrameDocumentContext)) {
     throw new Error("FrameMarkdown renders only inside a frame document; its raw HTML is not sanitized.");
   }
-  const lifted = liftRawText(children);
+  const lifted = liftRawText(holdBlocksWhole(children));
   return (
     <Streamdown
       mode="static"

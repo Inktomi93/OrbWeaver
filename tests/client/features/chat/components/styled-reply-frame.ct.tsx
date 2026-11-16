@@ -3,7 +3,7 @@
 // created through `regex.createScript`, the room's reads served by the corpus root and the card-frame mint and
 // serve answered by the root's own HTTP entry. The script's `<style>` applies inside the frame and never lands in
 // the main document; with the character set to plain text the same reply renders through the inert path with no
-// style; model-written markup that no script produced keeps today's path; a link inside the frame opens only
+// style; a panel the model wrote itself frames the same way, and plain markup it wrote keeps today's path; a link inside the frame opens only
 // through the confirm, which a scripted frame can neither raise without a click in it, nor change, nor raise again
 // after a Cancel; an expired handle mints again instead of showing the expiry notice; and the frame grows with 200%
 // and 300% text on a phone instead of clipping.
@@ -63,6 +63,14 @@ const BANNER_TEMPLATE = [
 const BANNER_FIND = String.raw`/<scene_header location="([^"<>]*)" \/>/g`;
 const STYLED_BODY = '<scene_header location="Camelot · Great Hall" />\n\nGuinevere sets down her goblet. "You are late, Arthur."';
 const BARE_HTML_BODY = '<div style="color:#F4A261" id="w6p-bare">\n<p>Model-written markup</p>\n<p>with its own inline style</p>\n</div>';
+// A panel the model writes itself, as a provider would stream it: cut inside its tag's style attribute, inside the
+// panel, and inside its script.
+const MODEL_PANEL_CHUNKS = [
+  'She looks up.\n\n<div class="w6p-panel" style="pad',
+  'ding:4px">\n<b id="w6p-hp">HP 10</b>\n\n<scr',
+  "ipt>run()</script>\n</div>",
+  "\n\nThe hall waits.",
+] as const;
 const LONG_BODY = "Arthur crosses the great hall without a word, past the hearth and the long tables, and stops before the dais. ".repeat(8).trim();
 const BUBBLE = '[data-slot="message-bubble"]';
 const PHONE_VIEWPORT = { width: 320, height: 640 } as const;
@@ -457,14 +465,123 @@ test("on a row whose character renders plain text the same reply draws through t
   expect(sourceIn((await row.textContent()) ?? "")).toEqual([]);
 });
 
-test("model-written markup no display script produced keeps today's path in a normal room", async ({ corpus, mount, page }) => {
-  const room = await openStyledRoom(BARE_HTML_BODY);
+/** The styled room with no display script, so no reply in it is styled. */
+async function openUnscriptedRoom(body: string): Promise<StyledRoom> {
+  await using construction = new AsyncDisposableStack();
+  const room = await openStyledRoom(body);
+  construction.use(room.root);
+  const caller = await room.root.internalCallerFor(room.root.ownerId);
+  for (const script of await caller.regex.listScripts()) {
+    await caller.regex.removeScript({ scriptId: script.id });
+  }
+  construction.move();
+  return room;
+}
+
+const rowOf = (page: Page, id: MessageId): Locator => page.locator(`[data-slot="message-row"][data-message-id="${id}"]`);
+
+// THE MODEL'S OWN PANELS (D354): each trigger, written by the model with no display script, draws in the row's frame
+// with its own style; with the character's HTML trust off it reads plain with the notice; markup that is no panel stays
+// in the transcript.
+const MODEL_PANELS = [
+  ["a block whose tag carries a style attribute", BARE_HTML_BODY, "#w6p-bare p"],
+  ["a stylesheet", `<style>#w6p-own{color:${BANNER_COLOR}}</style>\n<p id="w6p-own">Model-written markup</p>`, "#w6p-own"],
+  ["a script", '<p id="w6p-run">Model-written markup</p>\n<script>document.body.dataset.ran = "1"</script>', "#w6p-run"],
+  ["an svg", '<p>Model-written markup <svg id="w6p-svg" width="8" height="8"><circle r="4" fill="red"/></svg></p>', "#w6p-svg"],
+  [
+    "a whole document",
+    `<!DOCTYPE html>\n<html>\n<head>\n<title>Status</title>\n<style>body{color:${BANNER_COLOR}}</style>\n</head>\n\n<body>\n<p id="w6p-doc">Model-written markup</p>\n</body>\n</html>`,
+    "#w6p-doc",
+  ],
+] as const;
+
+for (const [name, body, shown] of MODEL_PANELS) {
+  test(`${name} the model wrote draws in its row's frame, with no display script`, async ({ corpus, mount, page }) => {
+    const room = await openUnscriptedRoom(body);
+    await using root = room.root;
+    await using _routes = await serveRoom(page, root, corpus);
+    await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+    const row = rowOf(page, room.messageId);
+    await expect(row.locator(`${REPLY_FRAME} ${SANDBOX}`)).toHaveAttribute("data-delivery", "routed");
+    await expect(row.locator(REPLY_FRAME).locator(SANDBOX).contentFrame().locator(shown).first()).toBeVisible();
+    expect(sourceIn((await row.textContent()) ?? "")).toEqual([]);
+    expect(await mainDocumentStyles(page)).not.toContain("w6p-");
+  });
+
+  test(`${name} the model wrote reads plain with the notice when the character's HTML trust is off`, async ({ corpus, mount, page }) => {
+    const room = await openUnscriptedRoom(`${body}\n\nThe hall waits.`);
+    await using root = room.root;
+    await (await root.internalCallerFor(root.ownerId)).character.update({ characterId: room.characterId, input: { trustHtml: false, interactiveHtml: false } });
+    await using _routes = await serveRoom(page, root, corpus);
+    await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+    const row = rowOf(page, room.messageId);
+    // Positive control: the reply drew, so the absence of a frame is the trust's doing.
+    await expect(row.getByText("The hall waits.", { exact: true })).toBeVisible();
+    await expect(row.locator(REPLY_FRAME)).toHaveCount(0);
+    await expect(row.locator('[data-slot="plain-notice"]')).toHaveCount(1);
+    expect(sourceIn((await row.textContent()) ?? "")).toEqual([]);
+  });
+}
+
+const INLINE_MARKUP = [
+  ["a coloured span", 'She says <span style="color:red">hi</span>.', "She says hi."],
+  ["a font colour tag", 'She says <font color="red">hi</font>.', "She says hi."],
+  ["a bare wrapper block", "<div>\nModel-written markup\n</div>", "Model-written markup"],
+] as const;
+
+for (const [name, body, shown] of INLINE_MARKUP) {
+  test(`${name} the model wrote is no panel: it stays in the transcript, framed by nothing`, async ({ corpus, mount, page }) => {
+    const room = await openUnscriptedRoom(body);
+    await using root = room.root;
+    await using _routes = await serveRoom(page, root, corpus);
+    await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+    const row = rowOf(page, room.messageId);
+    await expect(row.getByText(shown, { exact: true })).toBeVisible();
+    await expect(row.locator(REPLY_FRAME)).toHaveCount(0);
+    await expect(row.locator('[data-slot="plain-notice"]')).toHaveCount(0);
+  });
+}
+
+test("a model panel streams behind the forming chip from its first tag, and no tag, CSS or script text ever shows", async ({ corpus, mount, page }) => {
+  const room = await openUnscriptedRoom("Unchanged.");
   await using root = room.root;
   await using _routes = await serveRoom(page, root, corpus);
+  const ghost = '[data-slot="ghost-message-row"] [data-slot="ghost-stream-body"]';
+  await watchForSource(page, ghost, [...SOURCE_MARKERS, "padding", "run()"]);
+  await mount<typeof StyledReplyStreamStory>(STREAM_STORY, {
+    chatId: room.chatId,
+    speakerCharacterId: room.characterId,
+    chunks: MODEL_PANEL_CHUNKS,
+    chunkLabel: CHUNK_LABEL,
+  });
+  await streamEachChunk(page, MODEL_PANEL_CHUNKS);
+  const body = page.locator(ghost);
+  await expect(body.locator(FORMING_CHIP)).toHaveCount(1);
+  // Positive control: the prose on both sides of the panel streamed, so the watch read the row as it formed.
+  await expect(body).toContainText("She looks up.");
+  await expect(body).toContainText("The hall waits.");
+  const { hits } = await sourceSeen(page);
+  expect(hits).toEqual([]);
+});
+
+test("a stored model panel holds behind the chip until its frame draws, then draws in place with no source shown", async ({ corpus, mount, page }) => {
+  const room = await openUnscriptedRoom(MODEL_PANEL_CHUNKS.join(""));
+  await using root = room.root;
+  const mints = Promise.withResolvers<void>();
+  await using _routes = await serveRoom(page, root, corpus, { mintsWait: mints.promise });
+  const row = `[data-slot="message-row"][data-message-id="${room.messageId}"]`;
+  await watchForSource(page, `${row} ${BUBBLE}`, [...SOURCE_MARKERS, "padding", "run()"]);
   await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
-  await expect(page.getByText("Model-written markup", { exact: true })).toBeVisible();
-  await expect(page.locator(REPLY_FRAME)).toHaveCount(0);
-  await expect(page.locator(SANDBOX)).toHaveCount(0);
+  const host = page.locator(`${row} ${REPLY_FRAME}`);
+  await expect(host).toHaveAttribute("data-delivery", "held");
+  await expect(host.locator(FORMING_CHIP)).toHaveCount(1);
+  await expect(host).toContainText("She looks up.");
+  mints.resolve();
+  await expect(host.locator(SANDBOX)).toHaveAttribute("data-delivery", "routed");
+  await expect(host.locator(SANDBOX).contentFrame().locator("#w6p-hp")).toHaveText("HP 10");
+  const { hits, seen } = await sourceSeen(page);
+  expect(seen).toContain("She looks up.");
+  expect(hits).toEqual([]);
 });
 
 test("a link inside the frame opens nothing until the confirm, which names the address", async ({ corpus, mount, page }) => {
@@ -1325,13 +1442,31 @@ test("tide: a display script whose match spans a blank line draws its panel, fra
   expect(((await row.textContent()) ?? "").includes("HP:")).toBe(false);
 });
 
-test("tide: a model-written stylesheet holding a blank line stays in one bubble with its panel", async ({ corpus, mount, page }) => {
+test("tide: a reply holding a model-written panel is one framed bubble", async ({ corpus, mount, page }) => {
   const room = await openTrainRoom(MODEL_PANEL_BODY);
   await using root = room.root;
   await using _routes = await serveRoom(page, root, corpus);
   await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  const row = trainRow(page, room);
+  await expect(row.locator(`${REPLY_FRAME} ${SANDBOX}`)).toHaveAttribute("data-delivery", "routed");
+  await expect(row.locator(TRAIN_BUBBLE)).toHaveCount(1);
+  const frame = row.locator(REPLY_FRAME).locator(SANDBOX).contentFrame();
+  expect(await frame.locator(".w6p-model b").evaluate((node) => getComputedStyle(node).color)).toBe("rgb(255, 0, 0)");
+  await expect(frame.getByText("The hall waits.")).toBeVisible();
+});
+
+test("tide: with the character's HTML trust off a reply holding a model-written panel trains plain, its CSS never printed", async ({ corpus, mount, page }) => {
+  const room = await openTrainRoom(MODEL_PANEL_BODY);
+  await using root = room.root;
+  await (await root.internalCallerFor(root.ownerId)).character.update({ characterId: room.characterId, input: { trustHtml: false, interactiveHtml: false } });
+  await using _routes = await serveRoom(page, root, corpus);
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
   const bubbles = trainRow(page, room).locator(TRAIN_BUBBLE);
-  await expect(bubbles).toHaveText(["She looks up.", /HUD/u, "The hall waits."]);
+  await expect(bubbles.first()).toHaveText("She looks up.");
+  await expect(bubbles.last()).toHaveText("The hall waits.");
+  await expect(page.locator(REPLY_FRAME)).toHaveCount(0);
+  await expect(trainRow(page, room).locator('[data-slot="plain-notice"]')).toHaveCount(1);
+  expect(sourceIn((await bubbles.allTextContents()).join("\n"))).toEqual([]);
 });
 
 test("tide: a plain three-paragraph reply trains as three bubbles, in order", async ({ corpus, mount, page }) => {
@@ -1489,31 +1624,18 @@ const OWN_STYLE_CHUNKS = ['She looks up.\n\n<div class="w6p-own"><style>.w6p-own
 // The same element as a code sample: a fence and a code span show it as written.
 const OWN_SAMPLE_BODY = `Here is the page:\n\n\`\`\`html\n<style>${OWN_CSS}</style>\n\`\`\`\n\nOr inline: \`<style>${OWN_CSS}</style>\`.`;
 
-/** The styled room with no display script, so no reply in it is styled. */
-async function openUnscriptedRoom(body: string): Promise<StyledRoom> {
-  await using construction = new AsyncDisposableStack();
-  const room = await openStyledRoom(body);
-  construction.use(room.root);
-  const caller = await room.root.internalCallerFor(room.root.ownerId);
-  for (const script of await caller.regex.listScripts()) {
-    await caller.regex.removeScript({ scriptId: script.id });
-  }
-  construction.move();
-  return room;
-}
-
-const rowOf = (page: Page, id: MessageId): Locator => page.locator(`[data-slot="message-row"][data-message-id="${id}"]`);
-
 forEachNonEmpty(THEME_CHAT_STYLES, "THEME_CHAT_STYLES", (chatStyle) => {
-  test(`${chatStyle}: a stylesheet the model wrote into an unstyled reply never prints as text`, async ({ corpus, mount, page }) => {
+  test(`${chatStyle}: a stylesheet the model wrote into an unstyled reply draws in its frame and never prints as text`, async ({ corpus, mount, page }) => {
     const room = await openUnscriptedRoom(OWN_STYLE_BODY);
     await using root = room.root;
     await (await root.internalCallerFor(root.ownerId)).settings.updateUserSettingsSection({ section: "appearance", patch: { chatStyle } });
     await using _routes = await serveRoom(page, root, corpus);
     await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
     const row = rowOf(page, room.messageId);
-    await expect(row).toContainText("The hall waits.");
-    await expect(row.locator("b", { hasText: "HUD" })).toBeVisible();
+    await expect(row.locator(`${REPLY_FRAME} ${SANDBOX}`)).toHaveAttribute("data-delivery", "routed");
+    const frame = row.locator(REPLY_FRAME).locator(SANDBOX).contentFrame();
+    await expect(frame.getByText("The hall waits.")).toBeVisible();
+    expect(await frame.locator(".w6p-own b").evaluate((node) => getComputedStyle(node).color)).toBe("rgb(255, 0, 0)");
     expect((await row.textContent()) ?? "").not.toContain(OWN_CSS);
   });
 });

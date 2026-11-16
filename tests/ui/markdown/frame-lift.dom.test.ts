@@ -1,6 +1,9 @@
 // A framed reply's style and script texts are lifted out for the Markdown parse and put back after it: each text goes
-// back as it was wherever the parse put it, escaped as text or attribute value, never as markup.
+// back as it was wherever the parse put it, escaped as text or attribute value, never as markup. A block-level panel
+// parses whole: blank lines and indented lines inside one stay the panel's own HTML, and the prose round it stays
+// Markdown.
 // @subject packages/ui/src/markdown/frame/raw-text-lift.ts
+// @subject packages/ui/src/markdown/frame/frame-markdown.tsx
 
 import { frameStyleElements, stripStyleElements } from "@orb/kit/content";
 import { expect, test } from "@orb/testkit/node";
@@ -211,4 +214,42 @@ test("each reply gets its own texts back, however many replies of one shape rend
     expect(html).toContain(`<style>.${name}{}\n\n.tail{}</style>`);
     expect(html).not.toContain(name === "one" ? ".two{}" : ".one{}");
   }
+});
+
+const INDENTED_PANEL = '<div class="hud">\n<b>HP</b> 10\n\n    <span class="row">indented</span>\n\n*as written* [[1d20: 7]]\n</div>';
+
+test("an indented multi-paragraph panel draws as its own HTML, and the prose round it stays Markdown", () => {
+  const html = framed(`Before *prose*.\n\n${INDENTED_PANEL}\n\nAfter *prose*.`);
+  expect(html).toContain('<span class="row">indented</span>');
+  expect(html).toContain("*as written* [[1d20: 7]]");
+  expect(html).not.toContain("<pre");
+  expect(html).not.toContain("&lt;span");
+  expect(html.match(/<em>prose<\/em>/g)).toHaveLength(2);
+});
+
+test.each([
+  ["a nested panel", '<div class="a">\n<div class="b">\n\n    inner\n\n</div>\n</div>\n\nTail *x*.', "<em>x</em>"],
+  ["an unclosed panel, to the end of the reply", '<section class="s">\nopen\n\n    still inside *y*', "still inside *y*"],
+])("%s holds whole", (_name, text, expected) => {
+  const html = framed(text);
+  expect(html).not.toContain("<pre");
+  expect(html).toContain(expected);
+});
+
+test("a whole document draws its head stylesheet and its body; its html, head and body wrappers print nothing", () => {
+  const html = framed(
+    'Intro.\n\n<!DOCTYPE html>\n<html lang="en">\n<head>\n<title>Status</title>\n<style>body{margin:0} .x{color:red}</style>\n</head>\n\n<body>\n<div class="x">\n\n    HP 10\n\n</div>\n</body>\n</html>\n\nOutro.',
+  );
+  expect(html).toContain("<style>body{margin:0} .x{color:red}</style>");
+  expect(html).toContain('<div class="x">');
+  expect(html).not.toContain("<pre");
+  expect(html).not.toMatch(/<\/?(?:html|head|body)\b/);
+  expect(html).not.toContain("&lt;");
+  expect(html).toContain('<p dir="ltr">Outro.</p>');
+});
+
+test("a wrapper tag and a folding element keep their Markdown", () => {
+  const html = framed("<response>\n\n*one*\n\n</response>\n\n<details><summary>S</summary>\n\n**two**\n\n</details>");
+  expect(html).toContain("<em>one</em>");
+  expect(html).toMatch(/<strong[^>]*>two<\/strong>/);
 });
