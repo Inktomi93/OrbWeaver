@@ -1970,7 +1970,7 @@ export function stripUnreadElements(text: string): string {
 /** The longest text {@link mapOutsideCode} reads for code: about five times the largest framed reply measured,
  *  204,544 characters (`packages/contracts/src/chat/card-frame.ts`). Past it the rewrite does not run at all: it refuses
  *  rather than splice into code it did not read. At the bound the costliest text, unclosed openers, measured about 0.3 s. */
-export const CODE_READ_MAX_CHARS = 1_048_576;
+const CODE_READ_MAX_CHARS = 1_048_576;
 
 /** `rewrite` applied to each stretch of `text` outside code a frame runs, each stretch of code kept byte for byte: a
  *  style or script element, and the value of an `on*` event-handler attribute.

@@ -26,7 +26,7 @@ const REFUSAL_KINDS = [
   "redirected",
   "unexpected",
 ] as const;
-export type RefusalKind = (typeof REFUSAL_KINDS)[number];
+type RefusalKind = (typeof REFUSAL_KINDS)[number];
 
 /** The reader's sentence for a refusal of each kind, besides `tooLarge`, which states its limit ({@link tooLargeMessage}). */
 const REFUSAL_MESSAGES: Readonly<Record<Exclude<RefusalKind, "tooLarge">, string>> = {

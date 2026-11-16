@@ -6,7 +6,6 @@
 // the fetch edge.
 
 import { createAppQueryClient, createTrpcClient } from "@orb/client/data";
-import type { RefusalKind } from "@orb/client/lib";
 import { readTextWithin, refuseOversizeFiles, requestRefusalOf } from "@orb/client/lib";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { IMPORT_FILE_TEXT_MAX_CHARS, TRPC_BODY_MAX_BYTES } from "@orb/contracts/uploads";
@@ -14,6 +13,9 @@ import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { isTRPCClientError } from "@trpc/client";
 import { afterEach, vi } from "vitest";
+
+// The kinds a refusal carries, read off the production reader's own result.
+type RefusalKind = NonNullable<ReturnType<typeof requestRefusalOf>>["kind"];
 
 const CLIENT_URL = "http://127.0.0.1:1/api/trpc";
 const LISTED_PEER = "203.0.113.7";
