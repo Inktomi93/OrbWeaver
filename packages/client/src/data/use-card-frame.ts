@@ -105,25 +105,79 @@ async function postMint(body: string): Promise<string | undefined> {
   return parsed.success ? parsed.data.url : undefined;
 }
 
+/** Where one mint stands: still answering, answered with a routed URL, or answered with nothing (the floor). */
+type CardFrameMint = { readonly state: "pending" } | { readonly state: "routed"; readonly url: string } | { readonly state: "floor" };
+
+const GAVE_UP: CardFrameMint = { state: "floor" };
+
+// The first mint and the one re-mint a miss earns.
+const MINT_ATTEMPTS = 2;
+
+function mintKey(attempt: number, body: string): string {
+  return `${String(attempt)}:${body}`;
+}
+
+// The bodies that already spent their one re-mint in this tab. A card can claim its handle lost on every load, so the
+// re-mint a miss earns is spent once per body per tab, not once per mount: a later miss for that body goes to the floor.
+const remintSpent = new Map<string, true>();
+
+// A miss means the server dropped the handle, so every handle the tab remembers for these bytes goes: a remount mints
+// afresh instead of serving a handle that is gone. Answers whether these bytes may still mint once more.
+function forgetMints(request: CardFrameRequest | undefined): boolean {
+  if (request === undefined) {
+    return false;
+  }
+  const body = JSON.stringify(cardFrameMintBody(request));
+  for (let attempt = 0; attempt < MINT_ATTEMPTS; attempt += 1) {
+    minted.delete(mintKey(attempt, body));
+  }
+  if (remintSpent.has(body)) {
+    return false;
+  }
+  rememberBounded(remintSpent, body, true, MINTED_CACHE_CAP);
+  return true;
+}
+
+/** One routed frame's mint, and the two ways its caller learns the handle is no use. */
+export interface CardFrame {
+  readonly mint: CardFrameMint;
+  /** The frame loaded the server's miss notice (`SandboxFrame.onMissing`): the handle expired or was evicted. The
+   *  tab's first miss for these bytes mints them again; any later one gives up to the floor. */
+  readonly onMissing: () => void;
+  /** Give up on the routed frame for good: from now on {@link CardFrame.mint} is the floor. */
+  readonly giveUp: () => void;
+}
+
 /**
- * The routed frame URL for one card, or `undefined` while it resolves / when it cannot be had (the floor).
+ * The ONE mint hook for a routed card frame, card or styled reply: the mint for these exact bytes, re-minted when its
+ * handle is gone (once per body per tab), then the floor. A pending mint and a refused one stay apart, so a caller can hold a stand-in
+ * for the first and draw its floor for the second.
  *
  * `request === undefined` is the "no room context" arm — a story mount, the rpg card archive before a chat
  * is threaded — and never mints. That arm is not a degradation to apologise for: without a chat there is no
  * roster, so there is no trust verdict to widen anything with.
  */
-export function useCardFrameSrc(request: CardFrameRequest | undefined): string | undefined {
-  const mint = useCardFrameMint(request);
-  return mint.state === "routed" ? mint.url : undefined;
+export function useCardFrame(request: CardFrameRequest | undefined): CardFrame {
+  const [attempt, setAttempt] = useState(0);
+  const [lost, setLost] = useState(false);
+  const mint = useCardFrameMint(request, attempt);
+  return {
+    mint: lost ? GAVE_UP : mint,
+    onMissing: (): void => {
+      if (forgetMints(request) && attempt < MINT_ATTEMPTS - 1) {
+        setAttempt(1);
+      } else {
+        setLost(true);
+      }
+    },
+    giveUp: (): void => {
+      setLost(true);
+    },
+  };
 }
 
-/** Where one mint stands: still answering, answered with a routed URL, or answered with nothing (the floor). */
-export type CardFrameMint = { readonly state: "pending" } | { readonly state: "routed"; readonly url: string } | { readonly state: "floor" };
-
-/** {@link useCardFrameSrc}, telling a pending mint apart from a refused one — a framed reply waits for the first
- *  and renders today's path on the second. A higher `attempt` mints the same bytes again instead of reusing the
- *  tab's handle: a reply frame asks for that once when its handle has expired or been evicted. */
-export function useCardFrameMint(request: CardFrameRequest | undefined, attempt = 0): CardFrameMint {
+// A higher `attempt` mints the same bytes again instead of reusing the tab's handle.
+function useCardFrameMint(request: CardFrameRequest | undefined, attempt: number): CardFrameMint {
   // The state carries the KEY it resolved for, not a bare URL. That is what lets the stale case be answered
   // during RENDER (`resolved.key !== key ⇒ pending`) instead of by a synchronous `setState` inside the
   // effect — which is a cascading render, and which React's own lint bans. So the only `setState` here is
@@ -132,7 +186,7 @@ export function useCardFrameMint(request: CardFrameRequest | undefined, attempt 
   // The serialized body and its attempt key are the effect's dependencies — strings, so they compare by value
   // where `request` (a fresh object every render) would re-mint on every paint.
   const body = request === undefined ? undefined : JSON.stringify(cardFrameMintBody(request));
-  const key = body === undefined ? undefined : `${String(attempt)}:${body}`;
+  const key = body === undefined ? undefined : mintKey(attempt, body);
 
   useEffect(() => {
     if (body === undefined || key === undefined) {

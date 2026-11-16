@@ -23,7 +23,7 @@ import { saveStateOf, useReportSaveStatus } from "#forms";
 import { rethrowUnlessTrpcFailure } from "#lib";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { envFloor, isOverridden } from "../lib/app-override-model.ts";
-import { MEDIA_TRUST_SUBCATEGORY } from "../lib/system-config-nav.ts";
+import { MEDIA_TRUST_SUBCATEGORY, TRUST_HTML_SETTING_LABEL } from "../lib/system-config-nav.ts";
 import { ADMIN_MAX_IMAGE_DOWNLOAD_NAME } from "../lib/user-admin-names.ts";
 import { AdminOverrideField, AdminOverrideResetRow, AdminOverrideSwitch } from "./admin-override-field.tsx";
 
@@ -119,7 +119,7 @@ function MediaTrustBody({ anchorId, sectionId }: { readonly anchorId: string; re
             onSet={(next): void => write({ forbidExternalMedia: next })}
           />
           <AdminOverrideSwitch
-            label="Render rich HTML as trusted"
+            label={TRUST_HTML_SETTING_LABEL}
             hint="How messages look for characters set to “Inherit default” while interactive cards are off: on shows styled messages, off shows plain text. A character's own Trust tab choice still wins."
             value={resolved.trustHtml}
             overridden={trustOverridden}

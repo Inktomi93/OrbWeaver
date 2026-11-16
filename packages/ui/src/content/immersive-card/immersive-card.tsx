@@ -1,6 +1,6 @@
 import type { CardSpanOrigin } from "@orb/kit/content";
-import type { ReactElement } from "react";
-import { useState } from "react";
+import type { ReactElement, ReactNode } from "react";
+import { useRef, useState } from "react";
 import { cn } from "#lib";
 import { Button } from "#primitives/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "#primitives/collapsible";
@@ -31,6 +31,17 @@ export interface ImmersiveCardProps {
   /** The ROUTED card-frame URL minted for these exact bytes (`SandboxFrame.src`). Absent ⇒ the srcdoc floor.
    *  Resolved by the CLIENT feature, never here: `@orb/ui` performs no I/O, and the mint is a server call. */
   readonly frameSrc?: string | undefined;
+  /** What stands in the body while the routed frame is on the way: before `frameSrc` arrives, and after it until the
+   *  frame reports its first height (`SandboxFrame.pending`). Absent ⇒ no wait: the srcdoc floor draws at once, and a
+   *  routed frame shows from its first byte. The caller passes it only while its mint is pending or routed. */
+  readonly pending?: ReactNode;
+  /** `SandboxFrame.onLink`, with the app-side element of the arm that raised it, for focus to return to. */
+  readonly onLink?: ((url: string, landing: HTMLElement | null) => void) | undefined;
+  /** `SandboxFrame.onMissing`: the routed frame loaded the server's miss notice. */
+  readonly onMissing?: (() => void) | undefined;
+  /** `SandboxFrame.onFloor`: a frame fell to its floor. The caller drops `frameSrc`, so the inline card and the
+   *  fullscreen view both draw the floor rather than the address that failed. */
+  readonly onFloor?: (() => void) | undefined;
   readonly heightPx?: number | undefined;
   readonly className?: string | undefined;
 }
@@ -48,6 +59,27 @@ interface CardBodyProps {
   readonly heightPx: number;
   readonly allowExternalMedia: boolean;
   readonly frameSrc: string | undefined;
+  readonly pending: ReactNode;
+  readonly onLink: ((url: string) => void) | undefined;
+  readonly onMissing: (() => void) | undefined;
+  readonly onFloor: (() => void) | undefined;
+}
+
+// The frame's optional callbacks, spread so an absent one stays absent.
+function frameCallbacks(
+  onLink: ((url: string) => void) | undefined,
+  onMissing: (() => void) | undefined,
+  onFloor: (() => void) | undefined,
+): {
+  readonly onLink?: (url: string) => void;
+  readonly onMissing?: () => void;
+  readonly onFloor?: () => void;
+} {
+  return {
+    ...(onLink === undefined ? {} : { onLink }),
+    ...(onMissing === undefined ? {} : { onMissing }),
+    ...(onFloor === undefined ? {} : { onFloor }),
+  };
 }
 
 /** The card's content pane: the sandboxed render, or (view-raw) the exact stored source as a code echo. */
@@ -63,6 +95,10 @@ function CardBody({
   heightPx,
   allowExternalMedia,
   frameSrc,
+  pending,
+  onLink,
+  onMissing,
+  onFloor,
 }: CardBodyProps): ReactElement {
   const slots = immersiveCardVariants();
   if (showRaw) {
@@ -76,6 +112,11 @@ function CardBody({
       </pre>
     );
   }
+  // The mint is still answering: the stand-in holds the body, never the floor, which would draw at the default height
+  // and then be replaced by the routed frame.
+  if (frameSrc === undefined && pending !== undefined) {
+    return <>{pending}</>;
+  }
   return (
     <SandboxFrame
       html={html}
@@ -86,7 +127,10 @@ function CardBody({
       title={label}
       allowExternalMedia={allowExternalMedia}
       {...(frameSrc === undefined ? {} : { src: frameSrc })}
-      {...(fill ? { fill: true } : { heightPx })}
+      {...frameCallbacks(onLink, onMissing, onFloor)}
+      // The lightbox's parent owns its height, so it takes no veil (`SandboxFrame` types `pending` out of `fill`): it
+      // opens on a card the inline arm already drew, with the same handle.
+      {...(fill ? { fill: true } : { heightPx, ...(pending === undefined ? {} : { pending }) })}
       className={fill ? "flex-1 rounded-card border border-border bg-card inline-full min-block-0" : "rounded-none border-0 bg-card inline-full"}
     />
   );
@@ -110,18 +154,38 @@ export function ImmersiveCard({
   origin,
   allowExternalMedia = false,
   frameSrc,
+  pending,
+  onLink,
+  onMissing,
+  onFloor,
   heightPx = DEFAULT_HEIGHT_PX,
   className,
 }: ImmersiveCardProps): ReactElement {
   const [showRaw, setShowRaw] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [open, setOpen] = useState(true);
+  // Where focus returns after a link the frame raised: the card's own stop in the app, or the fullscreen view's, never
+  // the frame, whose focus gate would send focus that came back into it away as unasked.
+  const inlineLanding = useRef<HTMLDivElement>(null);
+  const lightboxLanding = useRef<HTMLDivElement>(null);
   const slots = immersiveCardVariants();
   const label = title !== undefined && title !== "" ? title : UNTITLED_LABEL;
   // The sandboxed iframe can't resolve the app's `var(--token)` cascade, so the base body rule is fed
   // CONCRETE theme-resolved surface/text/font values (recolors live on a theme switch).
   const { themeTokens, styleTokens, fontFamily } = useSandboxTheme();
-  const bodyProps = { showRaw, html, css, themeTokens, styleTokens, fontFamily, label, heightPx, allowExternalMedia, frameSrc };
+  const bodyProps = { showRaw, html, css, themeTokens, styleTokens, fontFamily, label, heightPx, allowExternalMedia, frameSrc, pending, onMissing, onFloor };
+  const inlineLink =
+    onLink === undefined
+      ? undefined
+      : (url: string): void => {
+          onLink(url, inlineLanding.current);
+        };
+  const lightboxLink =
+    onLink === undefined
+      ? undefined
+      : (url: string): void => {
+          onLink(url, lightboxLanding.current);
+        };
 
   const rawLabel = showRaw ? IMMERSIVE_CARD_LABELS.renderedCard : IMMERSIVE_CARD_LABELS.rawSource;
   // Each icon-only control keeps its pointer hint as a Tooltip; the text repeats the aria-label, so the seal does not
@@ -140,7 +204,15 @@ export function ImmersiveCard({
   );
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className={slots.root({ className })} data-slot="immersive-card" data-origin={origin}>
+    <Collapsible
+      ref={inlineLanding}
+      tabIndex={-1}
+      open={open}
+      onOpenChange={setOpen}
+      className={slots.root({ className })}
+      data-slot="immersive-card"
+      data-origin={origin}
+    >
       <div className={slots.header()} data-slot="immersive-card-header">
         <span className={slots.title()} data-slot="immersive-card-title">
           ✦ {label}
@@ -185,7 +257,7 @@ export function ImmersiveCard({
         </Tooltip>
       </div>
       <CollapsiblePanel data-slot="immersive-card-panel">
-        <CardBody fill={false} {...bodyProps} />
+        <CardBody fill={false} {...bodyProps} onLink={inlineLink} />
       </CollapsiblePanel>
       <Dialog open={expanded} onOpenChange={setExpanded}>
         <DialogPopup size="xl" className="gap-row">
@@ -196,8 +268,8 @@ export function ImmersiveCard({
               <Icon icon={X} size="sm" />
             </DialogClose>
           </div>
-          <div className={slots.lightboxBody()} data-slot="immersive-card-lightbox-body">
-            <CardBody fill={true} {...bodyProps} />
+          <div ref={lightboxLanding} tabIndex={-1} className={slots.lightboxBody()} data-slot="immersive-card-lightbox-body">
+            <CardBody fill={true} {...bodyProps} onLink={lightboxLink} />
           </div>
         </DialogPopup>
       </Dialog>

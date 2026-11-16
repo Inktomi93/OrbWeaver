@@ -26,7 +26,7 @@ import type { ReactNode } from "react";
 import type { CharacterChatsProjectionView, CharacterContextState, CharacterDetailContribution, ContributorRegistry } from "#lib";
 import { defineContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
-import { characterSectionSelection } from "#state";
+import { CHARACTER_TRUST_TAB_ID, characterSectionSelection } from "#state";
 import { CharacterLibraryAnchor } from "../anchors/character-library-anchor.tsx";
 import { CharacterActionsMenu } from "../components/character-actions-menu.tsx";
 import { CharacterLookTab } from "../components/character-appearance-tab.tsx";
@@ -143,7 +143,7 @@ export function makeCharactersSection(
           body: (s) => <CharacterHistoryTab characterId={s.characterId} />,
         },
         {
-          id: "trust",
+          id: CHARACTER_TRUST_TAB_ID,
           label: CHARACTER_TRUST_TAB_LABEL,
           icon: Shield,
           body: (s) => <CharacterTrustTab characterId={s.characterId} />,

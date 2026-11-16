@@ -33,6 +33,10 @@
 // - A Tab pressed inside a frame is invisible, so tabbing from one frame straight into the next is refused, and focus
 //   returns to the app.
 // - A screen reader command that moves into a frame without a Tab or a press is refused, one move at a time.
+//
+// ADMITTED IS NOT FOCUSED. Between a frame's own `focus()` and the judgement that returns it, `document.activeElement`
+// is that frame. A control that must know the reader chose the frame (the link check in `sandbox-frame.tsx`) reads
+// `holdsAdmittedFocus`, never `document.activeElement`.
 
 import type { FrameFocusEntry, FramePressSignal, FrameRefusalRun } from "@orb/kit/card-frame";
 import { APP_INPUT_ACTIVATION_MS, admitsFrameFocus, foldFramePressSignal, foldFrameRefusal, learnsUnmarkedPress, stopsFrameScripts } from "@orb/kit/card-frame";
@@ -73,6 +77,9 @@ let appInputAt = Number.NEGATIVE_INFINITY;
 let frameFocusAt = Number.NEGATIVE_INFINITY;
 let tabbing = false;
 let watching = false;
+// Entries seen leaving the app whose judgement still waits for its task. A frame that took focus in one of them holds
+// focus but is not admitted, so `holdsAdmittedFocus` refuses it until the judgement runs.
+let unjudged = 0;
 
 function hold(element: Element): void {
   const at = holders.indexOf(element);
@@ -207,7 +214,9 @@ function watchFrames(): void {
 // returned after a refusal, or judges an admitted entry again from the same observation and admits it again.
 const onFocusLeavesApp = (): void => {
   const move = observeMove();
+  unjudged += 1;
   setTimeout(() => {
+    unjudged -= 1;
     judgeFocused(move, true);
     if (asGated(document.activeElement) !== undefined) {
       watchFrames();
@@ -263,6 +272,16 @@ function unlisten(): void {
   document.removeEventListener("pointerover", onPointer, true);
   document.removeEventListener("keydown", onKeyDown, true);
   globalThis.removeEventListener("blur", onFocusLeavesApp, true);
+}
+
+/**
+ * Whether `frame` holds focus that the gate admitted: it is a gated frame, the newest place the reader held, the
+ * focused element, and no entry is waiting to be judged. A frame that took focus by its own `focus()` holds it until
+ * the judgement returns it, and fails here meanwhile. So does a frame admitted earlier that took focus back after the
+ * reader left it.
+ */
+export function holdsAdmittedFocus(frame: HTMLIFrameElement): boolean {
+  return gated.has(frame) && unjudged === 0 && holders.at(-1) === frame && document.activeElement === frame;
 }
 
 /**

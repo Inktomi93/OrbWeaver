@@ -12,8 +12,8 @@ import { useSandboxTheme } from "@orb/ui/sandbox-frame";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { MutedLine, QueryBoundary, ViewerDialog } from "#components";
-import { QueryErrorState, roomRosterOptions, roomTailOptions, SkeletonRows, useCardFrameSrc, useSuspenseQueries, useTRPC } from "#data";
+import { FormingChip, MutedLine, QueryBoundary, useFramedLinkConfirm, ViewerDialog } from "#components";
+import { QueryErrorState, roomRosterOptions, roomTailOptions, SkeletonRows, useCardFrame, useSuspenseQueries, useTRPC } from "#data";
 import type { ArchivedCard } from "../lib/archived-cards.ts";
 import { cardLabel, collectArchivedCards } from "../lib/archived-cards.ts";
 import { RPG_JOURNAL_SCOPE_LABELS, RPG_SCENE_CARDS_READ_LABEL, RPG_SCENE_NO_CARDS_LINE } from "../lib/rpg-names.ts";
@@ -50,20 +50,33 @@ export function RpgCardLightbox({
 
 /** The lightbox's card body. A COMPONENT because the routed card-frame handle is minted with a hook — and
  *  the card carries the ORIGIN ROW's render policy on BOTH axes: the archive is a second lens on the same
- *  authored content, so its sandbox CSP must be the transcript's, never a laxer default. */
+ *  authored content, so its sandbox CSP must be the transcript's, never a laxer default.
+ *
+ *  It frames as the transcript's card does: a lost handle mints once more and then draws the floor, a frame that falls
+ *  to its floor gives the card up, a link opens only through the shared confirm, and a forming chip holds the body
+ *  until the routed frame draws. */
 function ArchivedCardBody({ card, chatId }: { readonly card: ArchivedCard; readonly chatId: ChatId | undefined }): ReactElement {
   const { themeTokens, styleTokens, fontFamily } = useSandboxTheme();
-  const frameSrc = useCardFrameSrc(
+  const frame = useCardFrame(
     chatId === undefined ? undefined : { chatId, characterId: card.characterId, html: card.html, css: undefined, themeTokens, styleTokens, fontFamily },
   );
+  const links = useFramedLinkConfirm();
+  const forming = frame.mint.state === "floor" ? undefined : <FormingChip title={cardLabel(card.title)} />;
   return (
-    <ImmersiveCard
-      html={card.html}
-      {...(card.title === null ? {} : { title: card.title })}
-      origin={card.origin}
-      allowExternalMedia={card.allowExternalMedia}
-      {...(frameSrc === undefined ? {} : { frameSrc })}
-    />
+    <>
+      <ImmersiveCard
+        html={card.html}
+        {...(card.title === null ? {} : { title: card.title })}
+        origin={card.origin}
+        allowExternalMedia={card.allowExternalMedia}
+        {...(frame.mint.state === "routed" ? { frameSrc: frame.mint.url } : {})}
+        {...(forming === undefined ? {} : { pending: forming })}
+        onLink={links.requestLink}
+        onMissing={frame.onMissing}
+        onFloor={frame.giveUp}
+      />
+      {links.confirm}
+    </>
   );
 }
 

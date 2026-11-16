@@ -8,7 +8,7 @@ updated: 2026-11-15
 
 ## Context
 
-SillyTavern presets draw their panels with display regex scripts. Their templates open and close styled regions around the model's prose, colour inline speech, and carry `<style>` blocks and keyframes. A region cannot be traced through later scripts, captured text and markdown repair, so per-region styling cannot follow the preset. The owner ruled that a preset's styling draws on a row whose existing tier allows the card frame (D294), with no new consent, and that nothing styled reaches the main document.
+SillyTavern presets draw panels with display regex scripts whose templates wrap the model's prose in styled regions, colour speech, and carry `<style>` blocks and keyframes. A region cannot be traced through later scripts, captures and markdown repair, so per-region styling cannot follow the preset. The owner ruled that a preset's styling draws on a row whose existing tier allows the card frame (D294), with no new consent, and that nothing styled reaches the main document.
 
 ## Decision
 
@@ -23,26 +23,20 @@ Markup the model wrote and a template that only echoes a capture never style a r
 The frame document holds:
 
 - **Markup.** The transcript's markdown seal, rendered statically with raw HTML kept and not sanitized. `@orb/ui/frame-markdown` throws outside a frame render, and policy `ui-frame-markdown-frame-only` admits one importer. An attributed self-closing tag stays as markup (`keepUnknownDirectives`), and a hidden span stays hidden.
-- **App rules.** Only the rules the markup can match, read through the CSSOM from the app's build stylesheets: a same-origin `<link>`, or a `<style>` Vite injected for a module. The owner's custom theme, extension sheets and unreadable sheets are skipped. The rules sit in one cascade layer below the reply's own styles.
+- **App rules.** Only the rules the markup can match, read through the CSSOM from the app's build stylesheets: a same-origin `<link>`, or a `<style>` Vite injected for a module. The owner's theme, extension sheets and unreadable sheets are skipped. The rules sit in one cascade layer below the reply's styles.
 - **Tokens and channels.** The resolved token set and the root's `data-*` channels, clamped by `@orb/kit/card-frame`.
 
 The frame's `style-src` stays `'unsafe-inline'` only.
 
-The frame mints under the row's card origin, so the interactive posture applies to it as to a card. Its height follows its content up to the reply cap. After it settles, each change spends a credit from a small burst that refills (`foldCardFrameHeight` in `@orb/kit/card-frame`), and a change with no credit lands when one returns. So a drawer closes at once, no content stays clipped, and a document whose height feeds back on itself relayouts the transcript at a bounded rate. The frame's document drops the app's `min-block-size: 100dvh` body floor, which would hold the frame at its given height. The run takes the transcript's full measure in every state (`FILLS_MEASURE` in `@orb/ui/lib`), because the frame's document cannot size the bubble around it.
+The frame mints under the row's card origin, so the interactive posture applies to it as to a card. Its height follows its content up to the reply cap. After it settles, each change spends a credit from a small refilling burst (`foldCardFrameHeight` in `@orb/kit/card-frame`); a change with no credit lands when one returns. A drawer closes at once, nothing stays clipped, and a self-feeding height relayouts at a bounded rate. The frame's document drops the app's `min-block-size: 100dvh` body floor. The run takes the transcript's full measure in every state (`FILLS_MEASURE` in `@orb/ui/lib`), because the frame's document cannot size the bubble around it.
 
-**Links.** The pinned frame script hands a click on a link inside the reply body to the host. The host accepts a link only when all of these hold:
+**Links.** The pinned frame script hands a link click in the reply body to the host, as it does for a card's web and mail links. A fragment-only link keeps its default. The host takes a link only from its own frame window, under a live user activation, from a frame the focus gate admitted (`holdsAdmittedFocus` in `frame-focus.ts`), as an http, https or mailto address off the app's origin. A press or a Tab admits a frame, its own `focus()` never; after that input its script may post too.
 
-- it comes from its own frame window;
-- a user activation is live;
-- that iframe holds focus;
-- the address is http, https or mailto;
-- the address is off the app's own origin.
+A link opens only through a confirm, whose header states its parse and display rule. A Cancel returns focus to the frame's stop in the app. Repeated requests are paced (`framed-link-pace.ts`): two Cancels in a row are free, then each doubles the next wait, from 2 s to 30 s. The newest waiting request then raises its confirm; its close returns focus where the reader was. An Open or a remount resets the count.
 
-It opens the link only through a confirm. An open confirm keeps its address, and Open opens exactly that address. A Cancel closes the confirm and returns focus to the reply, so the frame's script raises nothing until the reader presses into the frame again (D294). The host cannot tell that press from a scripted request on it, so repeated requests are paced, not muted (`reply-link-pace.ts`): the first two consecutive Cancels cost nothing, and each further one makes the frame's next request wait twice as long, from 2 s up to 30 s. The newest request inside the wait raises its confirm when the wait ends. An Open or a remount resets the count.
+**Before the frame draws.** The row shows the reply as a streaming card forms (`scanStyledHold` in `@orb/kit/content`): prose through the inert allowlist, each HTML block as a forming chip with none of its bytes. A block opens on CommonMark's block shapes and holds to the close of its element, blank lines included, so a region a script styles, hides or deletes never shows while it forms. Pending, this splits the display output; the routed frame loads hidden and replaces it at its first height report. Streaming, no display script runs, so it splits the model's own text whenever a display script is in force, and inline tags drop with their words kept.
 
-**Before the frame draws.** The row shows the reply the way a streaming card forms (`scanStyledHold` in `@orb/kit/content`): prose through the inert allowlist, and each HTML block as a forming chip that carries none of its bytes. A block opens on CommonMark's block shapes, because provenance does not survive later scripts, and holds to the close of the element it opens, blank lines included: a region a script styles, hides or deletes never shows while it forms. While the frame is on the way, this splits the display output; the routed frame loads hidden and replaces it at its first height report. While the reply streams, no display script runs, so it splits the model's own text whenever a display script is in force, and inline tags drop with their words kept.
-
-**Inert path.** The reply renders through the inert allowlist on a Tier A row, when a plugin rewrote its text, when the mint is refused, when a handle is lost twice, and when its scripts were stopped for taking focus (D294). Its `<style>` and `<script>` elements are removed with their content first, because the allowlist drops those tags but keeps their content as text.
+**Inert path.** The reply renders through the inert allowlist on a Tier A row, when a plugin rewrote its text, when the mint is refused, when a handle is lost twice, when its scripts were stopped for taking focus (D294), and when its document loads but reports no height in time. Its `<style>` and `<script>` elements are removed with their content first, because the allowlist drops those tags but keeps their content as text.
 
 **A lost handle.** The server's miss document carries `data-frame-missing`, and the pinned script reports it. A frame whose handle expired or was evicted mints again once, then renders the inert path.
 
@@ -63,7 +57,8 @@ An account's own mints evict its own oldest handles first.
 - `packages/client/src/lib/display-styled.ts`
 - `packages/client/src/features/chat/lib/reply-parts.ts`
 - `packages/client/src/features/chat/components/reply-frame.tsx`
-- `packages/client/src/features/chat/lib/reply-link-pace.ts`
+- `packages/client/src/components/framed-link-confirm.tsx`
+- `packages/client/src/components/framed-link-pace.ts`
 - `packages/client/src/features/chat/components/ghost-message-row.tsx`
 - `@orb/kit/content`
 - `packages/ui/src/content/sandbox-frame/frame-reply.ts`

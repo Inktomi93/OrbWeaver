@@ -7,7 +7,7 @@
 import type { CharacterId } from "@orb/kit/ids";
 import { createDrillSelectionStore } from "./create-drill-selection-store.ts";
 import type { SectionSelection } from "./section-registry.ts";
-import { withContentSwap } from "./shell-store.ts";
+import { revealContextPanel, setActiveSection, withContentSwap } from "./shell-store.ts";
 
 // The facet id is a card-content-local string (not a `@orb/kit/ids` entity id).
 const characterSelection = createDrillSelectionStore<CharacterId, string>("character-selection", { secondary: true });
@@ -49,3 +49,17 @@ export const useSelectedCharacterFacetId = characterSelection.useSecondaryId;
  *  view transition a clear from inside the section does, or the two doors out of a character would behave
  *  differently. */
 export const characterSectionSelection: SectionSelection = { ...characterSelection.selection, clear: clearCharacterSelection };
+
+/** The Characters section's Trust tab, the one home of a character's render settings. */
+export const CHARACTER_TRUST_TAB_ID = "trust";
+
+/** Open one character's Trust tab from anywhere: select her, switch to the Characters section and reveal the tab. */
+export function openCharacterTrust(characterId: CharacterId): void {
+  selectCharacter(characterId);
+  setActiveSection("characters");
+  // Both writes above land in a view transition that runs after this task, and the section switch closes any open
+  // panel. Joining that transition orders the reveal after them, so the switch cannot close the panel it opens.
+  withContentSwap(() => {
+    revealContextPanel(CHARACTER_TRUST_TAB_ID);
+  });
+}

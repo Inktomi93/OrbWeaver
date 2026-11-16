@@ -31,6 +31,7 @@ import { ContextTabBody, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useExternalMediaBlocked, useInteractiveCardsAllowed, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { usePreviewRenderPolicy } from "../hooks/use-preview-render-policy.ts";
+import { CHARACTER_HTML_TRUST_LABEL } from "../lib/character-names.ts";
 import type { CharacterAppearanceTabProps } from "./character-appearance-tab.tsx";
 
 /** inherit / on / off ⇄ null / true / false (the tri-state wire encoding, shared by both Trust controls). */
@@ -142,7 +143,7 @@ function TrustTabBody({ characterId }: CharacterAppearanceTabProps): ReactElemen
               The write direction is the contracts helper, so this control cannot store the incoherent
               "interactive but untrusted" pair — the resolver would not be able to represent it either. */}
           <Select
-            label="HTML rendering"
+            label={CHARACTER_HTML_TRUST_LABEL}
             items={HTML_TRUST_ITEMS}
             value={stepFromRenderPolicyOverride(data) ?? INHERIT_STEP}
             onValueChange={(value): void => commit(htmlTrustEdit(String(value)))}

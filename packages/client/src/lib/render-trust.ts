@@ -3,14 +3,16 @@
 // authoring character sits above the floor on the server-resolved renderPolicy.htmlTrust LADDER (the ONE
 // ordered axis, contracts/chat: untrusted < trusted < interactive); else "untrusted" (another user's
 // input, a character on the untrusted step, and any row with no resolved policy). External media is a separate
-// axis. Both read the server-resolved ParticipantView.renderPolicy; absent ⇒ fail closed.
+// axis. Both read the server-resolved ParticipantView.renderPolicy; absent ⇒ fail closed. A plain (tierA) row's
+// verdict — which setting holds it plain and whether this viewer may change it — is read here off the same policy,
+// so the notice that names a setting can never disagree with the tier it explains.
 //
 // Homed in lib/ (the cross-cutting display seams, beside `message-render`) rather than features/chat:
 // TWO features render the same authored content — chat's transcript rows and the rpg panel's card
 // archive (Scene "Cards" / Journal) — and a cross-feature RUNTIME import is banned, so a second home
 // here would mean a second spelling of a SECURITY verdict.
 
-import type { DeploymentRenderPolicy, ParticipantView, RenderPolicy } from "@orb/contracts/chat";
+import type { DeploymentRenderPolicy, ParticipantView, RenderPolicy, RenderPolicySource } from "@orb/contracts/chat";
 import { rendersTrustedHtml } from "@orb/contracts/chat";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -55,6 +57,62 @@ export interface RowRenderPolicy {
    *
    *  `tierA` (the default inert allowlist — no `<style>`, no inline `style=`) otherwise. */
   readonly cardTier: CardTier;
+  /** Whose content a `tierA` row is and what its own policy says, for the plain-content notice; absent on `tierB`.
+   *  {@link resolvePlainVerdict} turns it into the reason and the remedy once the viewer's standing is read. */
+  readonly plain?: PlainSubject | undefined;
+}
+
+/** What makes a `tierA` row plain, read off the same policy the tier came from. */
+const PLAIN_REASONS = [
+  // The character's own HTML setting is Plain text.
+  "character",
+  // The character inherits the install default, and the install renders HTML as plain.
+  "install",
+  // No card is read for the seat, so the install's plain default applies.
+  "no-card",
+  // The room has no consenting host, so no card applies and the install's plain default does.
+  "no-host",
+  // Another person wrote the row: no setting renders someone else's HTML.
+  "member",
+  // No seated character's policy covers the row, so it renders at the fail-closed floor.
+  "unattributed",
+] as const;
+export type PlainReason = (typeof PLAIN_REASONS)[number];
+
+/** Where the viewer can turn rich content on for this row, or that they cannot. */
+const PLAIN_REMEDIES = [
+  // The character's Trust tab: the viewer hosts the room, so the character is theirs.
+  "character-trust",
+  // The System section's media and trust settings: the viewer is an admin.
+  "system-trust",
+  // Only the room's host can change it.
+  "ask-host",
+  // Only the server's admin can change it.
+  "ask-admin",
+  // Nothing turns it on.
+  "none",
+] as const;
+export type PlainRemedy = (typeof PLAIN_REMEDIES)[number];
+
+/** A `tierA` row's author as its policy resolved: a seated character with a resolved policy, another person, or
+ *  neither (the fail-closed floor). */
+export interface PlainSubject {
+  readonly author: "character" | "member" | "unattributed";
+  /** Where the character's policy came from; set when `author` is `character`. */
+  readonly source: RenderPolicySource | undefined;
+  /** The character whose setting it is; null when no character's setting applies. */
+  readonly characterId: CharacterId | null;
+  /** That character's name in this room, when the room names one. */
+  readonly characterName: string | undefined;
+  /** Whether the viewer hosts the room. Characters in a room are the host's (D64), so only the host can edit one. */
+  readonly viewerIsHost: boolean;
+}
+
+export interface PlainVerdict {
+  readonly reason: PlainReason;
+  readonly remedy: PlainRemedy;
+  readonly characterId: CharacterId | null;
+  readonly characterName: string | undefined;
 }
 
 export interface ResolveRowRenderPolicyInput {
@@ -67,24 +125,101 @@ export interface ResolveRowRenderPolicyInput {
   readonly lenientHtmlCards?: boolean | undefined;
   /** The user's quoted-speech tint pref; absent ⇒ ON (the contract default). */
   readonly colorQuotedSpeech?: boolean | undefined;
+  /** Whether the viewer hosts the room (`ChatDetail.viewerIsHost`); absent ⇒ not. */
+  readonly viewerIsHost?: boolean | undefined;
+}
+
+// Why an untrusted character policy is untrusted, read off where the server says it came from. Under
+// `resolveRenderPolicy` (`@orb/contracts/chat`) one setting always suffices: a character's own step wins over the
+// install default, and an inheriting character or a seat on the floor follows the install default alone.
+function plainReason(subject: PlainSubject): PlainReason {
+  if (subject.author !== "character" || subject.source === undefined) {
+    return subject.author === "character" ? "unattributed" : subject.author;
+  }
+  switch (subject.source) {
+    case "own":
+      return "character";
+    case "inherited":
+      return "install";
+    case "no-card":
+    case "no-host":
+      return subject.source;
+    default:
+      return assertNeverReason(subject.source);
+  }
+}
+
+function plainRemedy(reason: PlainReason, isHost: boolean, isAdmin: boolean): PlainRemedy {
+  switch (reason) {
+    case "character":
+      return isHost ? "character-trust" : "ask-host";
+    case "install":
+      // The install default is the admin's; a host who is not an admin can still give their own character Rich HTML.
+      if (isAdmin) {
+        return "system-trust";
+      }
+      return isHost ? "character-trust" : "ask-host";
+    case "no-card":
+    case "no-host":
+      // No card's setting applies, so only the install default can change it.
+      return isAdmin ? "system-trust" : "ask-admin";
+    case "member":
+    case "unattributed":
+      return "none";
+    default:
+      return assertNeverReason(reason);
+  }
+}
+
+function assertNeverReason(reason: never): never {
+  throw new Error(`render-trust: unhandled plain reason ${String(reason)}`);
+}
+
+/** Which setting holds a `tierA` row plain and where this viewer can change it. A character is named only when its
+ *  own setting, or the default it inherits, is the cause. */
+export function resolvePlainVerdict(subject: PlainSubject, viewerIsAdmin: boolean): PlainVerdict {
+  const reason = plainReason(subject);
+  const named = reason === "character" || reason === "install";
+  return {
+    reason,
+    remedy: plainRemedy(reason, subject.viewerIsHost, viewerIsAdmin),
+    characterId: named ? subject.characterId : null,
+    characterName: named ? subject.characterName : undefined,
+  };
 }
 
 export function resolveRowRenderPolicy(input: ResolveRowRenderPolicyInput): RowRenderPolicy {
   const { role, authorUserId, characterId, viewerUserId, participants } = input;
 
-  const policy: RenderPolicy = (characterId === null ? undefined : participants?.get(characterId)?.renderPolicy) ?? SAFE_FLOOR;
+  const seat = characterId === null ? undefined : participants?.get(characterId);
+  const resolved = seat?.renderPolicy;
+  const policy: RenderPolicy = resolved ?? SAFE_FLOOR;
 
   const isOwnUserMessage = role === "user" && authorUserId !== null && authorUserId === viewerUserId;
 
   const trust: RenderTrust = isOwnUserMessage || rendersTrustedHtml(policy.htmlTrust) ? "trusted" : "untrusted";
   const lenientCards = input.lenientHtmlCards === true;
+  // EITHER consent grants the sandboxed tier — see the field doc. Both come from the host or the box (the
+  // character's resolved step, or the room's immersive-HTML switch); neither is anything the MODEL can assert.
+  const cardTier: CardTier = trust === "trusted" || lenientCards ? "tierB" : "tierA";
+  const base = { trust, allowExternal: !policy.forbidExternalMedia, lenientCards, colorQuotes: input.colorQuotedSpeech !== false, cardTier };
+  if (cardTier === "tierB") {
+    return base;
+  }
+  let author: PlainSubject["author"] = "unattributed";
+  if (role === "user") {
+    author = "member";
+  } else if (resolved !== undefined) {
+    author = "character";
+  }
   return {
-    trust,
-    allowExternal: !policy.forbidExternalMedia,
-    lenientCards,
-    colorQuotes: input.colorQuotedSpeech !== false,
-    // EITHER consent grants the sandboxed tier — see the field doc. Both come from the host or the box (the
-    // character's resolved step, or the room's immersive-HTML switch); neither is anything the MODEL can assert.
-    cardTier: trust === "trusted" || lenientCards ? "tierB" : "tierA",
+    ...base,
+    plain: {
+      author,
+      source: author === "character" ? seat?.renderSource : undefined,
+      characterId: author === "character" ? characterId : null,
+      characterName: seat?.displayName,
+      viewerIsHost: input.viewerIsHost === true,
+    },
   };
 }
