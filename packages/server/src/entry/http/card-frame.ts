@@ -48,9 +48,9 @@
 // indistinguishable from an expired one (the `/api/blob` no-existence-leak precedent). Nothing persists:
 // model-authored bytes never reach disk through this route.
 //
-// That store is `frame-handle-store.ts` — the ONE home since U7 gave it a second doorway (the plugin frame).
-// Its behaviour here is unchanged: same 128-bit ids, same count AND byte ceilings, same oldest-first eviction,
-// same sliding 30-minute TTL, same owner check as the last word. This file's own tests are the proof of that.
+// That store is `frame-handle-store.ts`, the ONE home it shares with the plugin frame: 128-bit ids, count AND byte
+// ceilings (this doorway's are `CARD_FRAME_CEILINGS`, sized there for split replies), oldest-first eviction, a
+// sliding 30-minute TTL, and the owner check as the last word.
 
 import {
   allowsInteractiveCards,
@@ -71,7 +71,7 @@ import { bodyLimit } from "hono/body-limit";
 import type { ChatService } from "#domain/chat";
 import { hasCsrfHeader } from "#infra/auth";
 import type { PrincipalEnv } from "./contract/request-env.ts";
-import { createFrameHandleStore, FRAME_HANDLE_SHAPE, FRAME_HANDLE_TTL_MS } from "./frame-handle-store.ts";
+import { CARD_FRAME_CEILINGS, createFrameHandleStore, FRAME_HANDLE_SHAPE, FRAME_HANDLE_TTL_MS } from "./frame-handle-store.ts";
 import type { OwnPolicyRegistrar, OwnPolicyReply } from "./security-headers.ts";
 
 const OK = 200;
@@ -185,7 +185,7 @@ async function resolvePolicy(
 
 /** Register `POST /api/card-frame` (mint) + `GET /api/card-frame/:id` (serve) on `app`. */
 export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps): void {
-  const store = createFrameHandleStore(deps.now);
+  const store = createFrameHandleStore(deps.now, CARD_FRAME_CEILINGS);
   const mintsInFlight = new Map<UserId, number>();
 
   // THE IN-FLIGHT GATE runs BEFORE the body limit, because the body limit buffers a chunked body whole before the
