@@ -3,8 +3,8 @@
   "private": true,
   "version": "1.0.0",
   "dependencies": {
-    "@anthropic-ai/claude-code": "2.1.293",
-    "@ast-grep/cli": "0.45.3",
+    "@anthropic-ai/claude-code": "2.1.316",
+    "@ast-grep/cli": "0.51.0",
     "pnpm": "12.15.0"
   }
 }
