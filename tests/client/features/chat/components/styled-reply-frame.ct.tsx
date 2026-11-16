@@ -11,8 +11,10 @@
 // A hostile frame is played by evaluating in the frame's own document: `parent.postMessage` from there is exactly
 // what a reply's own script could send.
 
+import { spawn } from "node:child_process";
 import { PLAIN_REPLY_REASON } from "@orb/client/lib";
 import { rendersTrustedHtml } from "@orb/contracts/chat";
+import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
@@ -21,7 +23,7 @@ import type { CardFrameServing, CardFrameTraffic } from "@orb/testkit/ct";
 import { ROOM_PROCEDURES, routeAuthConfig, routeCardFrames, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { forEachNonEmpty } from "@orb/testkit/iso";
-import { captureCookieAuth, createCorpusHarness } from "@orb/testkit/node/composed";
+import { captureCookieAuth, createCorpusHarness, makePluginBundle } from "@orb/testkit/node/composed";
 import { SCROLL_END_THRESHOLD_PX } from "@orb/ui/message-list";
 import type { FrameLocator, Locator, Page } from "@playwright/test";
 import { FRAMED_LINK_CONFIRM_LABEL } from "#client/components/framed-link-names.ts";
@@ -105,7 +107,15 @@ const WIDE_TABLE = [
   // Unbroken cells: a table's columns take at least their longest word, so these overflow any reply's measure.
   `| ${Array.from({ length: 8 }, () => "witness-testimony-under-seal-of-the-court").join(" | ")} |`,
 ].join("\n");
-const TRANSCRIPT_READS = [...ROOM_PROCEDURES, "sessions.me", "settings.getUserSettings", "plugin.list", "plugin.listSurfaces", "regex.listScripts"] as const;
+const TRANSCRIPT_READS = [
+  ...ROOM_PROCEDURES,
+  "sessions.me",
+  "settings.getUserSettings",
+  "plugin.list",
+  "plugin.listSurfaces",
+  "regex.listScripts",
+  "plugin.transformForDisplay",
+] as const;
 
 interface StyledRoom {
   readonly root: Root;
@@ -122,9 +132,9 @@ async function addDisplayScript(caller: Caller, name: string, findRegex: string,
 }
 
 /** A corpus room whose latest reply is spoken by a character that renders trusted HTML, plus the viewer's banner script. */
-async function openStyledRoom(body: string): Promise<StyledRoom> {
+async function openStyledRoom(body: string, options?: Parameters<typeof createCorpusHarness>[1]): Promise<StyledRoom> {
   await using construction = new AsyncDisposableStack();
-  const root = construction.use(await createCorpusHarness());
+  const root = construction.use(await createCorpusHarness(undefined, options));
   const caller = await root.internalCallerFor(root.ownerId);
   await addDisplayScript(caller, "Scene banner", BANNER_FIND, BANNER_TEMPLATE);
   for (const row of (await caller.chat.listChats({ limit: 100 })).items) {
@@ -1288,9 +1298,9 @@ const SPOKEN_BODY = `${SPOKEN_PARAGRAPHS[0]}\n\n<speaker>Lancelot</speaker>${SPO
 const MAX_BUBBLES_KEY = "w6pMaxTrainBubbles";
 
 /** The styled room on the trains row, its reply rewritten to `body`. */
-async function openTrainRoom(body: string): Promise<StyledRoom> {
+async function openTrainRoom(body: string, options?: Parameters<typeof createCorpusHarness>[1]): Promise<StyledRoom> {
   await using construction = new AsyncDisposableStack();
-  const room = await openStyledRoom(body);
+  const room = await openStyledRoom(body, options);
   construction.use(room.root);
   const caller = await room.root.internalCallerFor(room.root.ownerId);
   await caller.settings.updateUserSettingsSection({ section: "appearance", patch: { chatStyle: "tide" } });
@@ -1359,6 +1369,9 @@ const WRAPPED_REPLIES = [
     [/^\s*She draws\.\s*The blade hums\.\s*$/u, "The hall waits."],
   ],
   ["a comment holding a blank line", "<!-- plan\n\nbetray him -->\n\nShe smiles.\n\nShe waits.", ["She smiles.", "She waits."]],
+  // A wrapper tag alone on its line draws nothing, so it is no bubble.
+  ["a wrapper tag alone at each end", "<continuation>\n\nShe looks up.\n\nShe waits.\n\n</continuation>", ["She looks up.", "She waits."]],
+  ["a stray close tag before the reply", "</think>\n\nShe smiles.\n\nShe waits.", ["She smiles.", "She waits."]],
 ] as const;
 
 for (const [name, body, expected] of WRAPPED_REPLIES) {
@@ -1408,6 +1421,33 @@ test("tide: a speaker's span runs on across the bubbles it covers", async ({ cor
   // Each bubble from the speaker's tag on reads under the speaker's own tint; the narration before it under none.
   const tinted = await Promise.all([0, 1, 2].map(async (nth) => await bubbles.nth(nth).locator('[data-slot="theme-scope"]').count()));
   expect(tinted).toEqual([0, 1, 1]);
+});
+
+// A viewer plugin whose display transform marks the end of whatever text it is handed.
+const ANNOTATE_MARK = " [annotated]";
+const ANNOTATE_MANIFEST = pluginManifestSchema.parse({
+  id: "train-annotate",
+  name: "Train annotate",
+  description: "Marks the end of each row it displays.",
+  version: "1.0.0",
+  hostVersion: PLUGIN_HOST_VERSIONS[0],
+  entry: PLUGIN_MAIN_ENTRY,
+  capabilities: ["chat.transform"],
+});
+const ANNOTATE_SOURCE = `orb.host(1).transforms.registerDisplay({ name: "annotate", apply: async ({ text }) => text + ${JSON.stringify(ANNOTATE_MARK)} });`;
+
+test("tide: a viewer plugin's display transform runs once over the whole reply, so only the last bubble carries its mark", async ({ corpus, mount, page }) => {
+  const room = await openTrainRoom(PLAIN_PARAGRAPHS.join("\n\n"), { pluginSpawn: spawn });
+  await using root = room.root;
+  const caller = await root.internalCallerFor(root.ownerId);
+  const installed = await caller.plugin.install({
+    bundleBase64: Buffer.from(makePluginBundle(ANNOTATE_MANIFEST, ANNOTATE_SOURCE, root.clock.now())).toString("base64"),
+    grant: ANNOTATE_MANIFEST.capabilities,
+  });
+  await caller.plugin.setEnabled({ pluginId: installed.id, enabled: true });
+  await using _routes = await serveRoom(page, root, corpus);
+  await mount<typeof RoutedCardTextScaleStory>(STORY, { chatId: room.chatId, fontScale: 1 });
+  await expect(trainRow(page, room).locator(TRAIN_BUBBLE)).toHaveText([PLAIN_PARAGRAPHS[0], PLAIN_PARAGRAPHS[1], `${PLAIN_PARAGRAPHS[2]}${ANNOTATE_MARK}`]);
 });
 
 test("tide: from mount to framed a styled reply is one bubble, never the unscripted paragraphs or the template's source", async ({ corpus, mount, page }) => {

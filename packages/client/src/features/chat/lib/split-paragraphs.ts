@@ -1,6 +1,6 @@
 // Pure paragraph splitter for the Tide chatStyle skin (§B.2 — "per-`<p>` bubble trains, iMessage-style").
 // The row calls it ONLY when `skin.bubbleLayout === "trains"`: once over the stored reply, to decide that the row
-// trains, and once over what the display pass drew, to cut the bubbles (`message-train.tsx`). The pass runs once
+// trains (`storedReplyTrains`), and once over what the display pass drew, to cut the bubbles (`message-train.tsx`). The pass runs once
 // over the whole reply, so a script whose match spans a blank line still matches, and each bubble renders through
 // the same `MessageBody` the single-bubble path uses — Tide changes the BUBBLE COUNT, never the render pipeline.
 // It is role-blind by construction: a user turn with paragraph breaks trains exactly like an assistant one (the
@@ -27,11 +27,12 @@
 // stylesheet, a code block, an HTML block, a list item, a folded element, a card, a choice set or a hidden span is
 // part of that unit, and cutting there would print the rest of it in a bubble of its own or change what it means.
 //
-// A PARAGRAPH OF COMMENTS ALONE IS NOT A BUBBLE. Markdown draws an HTML comment as nothing, so its pill would be the
-// same empty box a leading rule makes.
+// A PARAGRAPH THAT DRAWS NOTHING IS NOT A BUBBLE. A wrapper tag alone on its line (`<continuation>`, `</think>`), a
+// comment, a stylesheet and whitespace render as nothing, so their pill would be the same empty box a leading rule
+// makes. The paragraph is dropped from the train only; the single-bubble and framed renders keep every tag as written.
 
 import type { TextRange } from "@orb/kit/content";
-import { paragraphBreaks } from "@orb/kit/content";
+import { paragraphBreaks, stripStyleElements } from "@orb/kit/content";
 
 /** A paragraph that is nothing but a CommonMark thematic break (`---`, `***`, `___`, optionally spaced) —
  *  the pill it would get renders as an empty box, because an `<hr>` has no text. */
@@ -41,8 +42,11 @@ const THEMATIC_BREAK_ONLY = /^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/u;
 const LEADING_BLANK_LINES = /^(?:[ \t]*\n)+/u;
 const COMMENT_OPEN = "<!--";
 const COMMENT_CLOSE = "-->";
-// A comment Markdown reads as an HTML block opens a line with at most three spaces before it; past that it is code.
-const BLOCK_INDENT_MAX = 3;
+// A line opening at least this many columns in reads as code when no HTML block holds it.
+const CODE_INDENT = 4;
+// The elements the chat's sanitize schema keeps that draw something with no text inside them.
+const VISIBLE_EMPTY_ELEMENTS: ReadonlySet<string> = new Set(["img", "hr", "input"]);
+const TAG_NAME_RE = /<\/?([A-Za-z][\w-]*)/uy;
 
 // The run of spaces and tabs at `at`.
 function spacesAt(text: string, at: number): number {
@@ -51,36 +55,68 @@ function spacesAt(text: string, at: number): number {
   return spaces.exec(text)?.[0].length ?? 0;
 }
 
-// Whether `paragraph` is nothing but HTML comment blocks, each opening a line or following another on its line. One
-// pass over the text.
-function isCommentsOnly(paragraph: string): boolean {
+// Where the tag opening at `lt` ends: its first `>` outside a quoted attribute value, or -1 when it never closes.
+function tagEndAt(text: string, lt: number): number {
+  let quote = "";
+  for (let index = lt + 1; index < text.length; index += 1) {
+    const char = text.charAt(index);
+    if (quote !== "") {
+      quote = char === quote ? "" : quote;
+    } else if (char === '"' || char === "'") {
+      quote = char;
+    } else if (char === ">") {
+      return index;
+    }
+  }
+  return -1;
+}
+
+// Past the markup at `at` when it draws nothing: a comment (an unclosed one hides the rest of the text) or the tag of
+// an element that draws nothing when empty. -1 when it draws: any other character, an unclosed `<`, which is prose, or
+// a tag such as `<img>`.
+function silentMarkupEnd(text: string, at: number): number {
+  if (text.startsWith(COMMENT_OPEN, at)) {
+    const close = text.indexOf(COMMENT_CLOSE, at + COMMENT_OPEN.length);
+    return close === -1 ? text.length : close + COMMENT_CLOSE.length;
+  }
+  TAG_NAME_RE.lastIndex = at;
+  const name = TAG_NAME_RE.exec(text)?.[1]?.toLowerCase();
+  const end = name === undefined || VISIBLE_EMPTY_ELEMENTS.has(name) ? -1 : tagEndAt(text, at);
+  return end === -1 ? -1 : end + 1;
+}
+
+// Whether the row's Markdown render of `paragraph` shows nothing: once its stylesheets are gone (the render drops
+// them), it holds only whitespace and silent markup, with no line read as code. A comment that opens a block ends it on
+// its own line, so the next line may be code; a tag that opens one holds every line to the next blank. One pass.
+function drawsNothing(paragraph: string): boolean {
+  const text = stripStyleElements(paragraph);
+  let inBlock = false;
   let at = 0;
-  let lineStart = true;
-  while (at < paragraph.length) {
-    const lead = spacesAt(paragraph, at);
-    if ((lineStart && lead > BLOCK_INDENT_MAX) || !paragraph.startsWith(COMMENT_OPEN, at + lead)) {
+  while (at < text.length) {
+    const lineStart = at === 0 || text.charAt(at - 1) === "\n";
+    const lead = spacesAt(text, at);
+    at += lead;
+    if (at === text.length || text.charAt(at) === "\n") {
+      inBlock &&= !lineStart;
+      at += 1;
+      continue;
+    }
+    const opensBlock = lineStart && !inBlock;
+    const end = opensBlock && lead >= CODE_INDENT ? -1 : silentMarkupEnd(text, at);
+    if (end === -1) {
       return false;
     }
-    const close = paragraph.indexOf(COMMENT_CLOSE, at + lead + COMMENT_OPEN.length);
-    // HTML reads an unclosed comment to the end of the text.
-    if (close === -1) {
-      return true;
-    }
-    at = close + COMMENT_CLOSE.length;
-    at += spacesAt(paragraph, at);
-    lineStart = paragraph.charAt(at) === "\n";
-    at += lineStart ? 1 : 0;
+    inBlock ||= opensBlock && !text.startsWith(COMMENT_OPEN, at);
+    at = end;
   }
   return true;
 }
 
-/** Where each non-empty paragraph of `content` sits for Tide's bubble train, dropping standalone thematic breaks and
- *  paragraphs of comments alone: from its first line, past any blank lines before it, to its last non-space
- *  character. Returns `null` — "don't train this" — only when what is left cannot BE a train: a single paragraph
- *  (nothing to chain) or none at all. */
-export function trainParagraphs(content: string): readonly TextRange[] | null {
+// Each paragraph of `content` that holds text and is no standalone thematic break: from its first line, past any blank
+// lines before it, to its last non-space character.
+function paragraphsOf(content: string): readonly TextRange[] {
   const breaks = paragraphBreaks(content);
-  const paragraphs = [...breaks, { start: content.length, end: content.length }]
+  return [...breaks, { start: content.length, end: content.length }]
     .map((cut, index): TextRange => {
       const from = breaks[index - 1]?.end ?? 0;
       const text = content.slice(from, cut.start);
@@ -89,7 +125,21 @@ export function trainParagraphs(content: string): readonly TextRange[] | null {
     })
     .filter(({ start, end }) => {
       const paragraph = content.slice(start, end);
-      return paragraph.trim().length > 0 && !THEMATIC_BREAK_ONLY.test(paragraph) && !isCommentsOnly(paragraph);
+      return paragraph.trim().length > 0 && !THEMATIC_BREAK_ONLY.test(paragraph);
     });
+}
+
+/** Where each bubble of Tide's train sits in the drawn text `content`, one per paragraph past standalone thematic breaks
+ *  and paragraphs that draw nothing. Returns `null` — "don't train this" — only when what is left cannot BE a train: a
+ *  single paragraph (nothing to chain) or none at all. */
+export function trainParagraphs(content: string): readonly TextRange[] | null {
+  const paragraphs = paragraphsOf(content).filter(({ start, end }) => !drawsNothing(content.slice(start, end)));
   return paragraphs.length <= 1 ? null : paragraphs;
+}
+
+/** Whether a STORED reply may train: it holds more than one paragraph past standalone thematic breaks. Markup that draws
+ *  nothing counts here, because a display script may turn it into a panel (`<scene_hud />`); the train then cuts the
+ *  drawn text with {@link trainParagraphs}. */
+export function storedReplyTrains(content: string): boolean {
+  return paragraphsOf(content).length > 1;
 }

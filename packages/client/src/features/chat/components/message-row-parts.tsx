@@ -18,7 +18,7 @@ import type { RowSkin } from "../lib/message-row-variants.ts";
 import type { MoveNeighbours } from "../lib/move-neighbours.ts";
 import { NO_MOVE_NEIGHBOURS } from "../lib/move-neighbours.ts";
 import type { SwipeFoot } from "../lib/pager-chrome.ts";
-import { trainParagraphs } from "../lib/split-paragraphs.ts";
+import { storedReplyTrains } from "../lib/split-paragraphs.ts";
 import type { ArtFailedReport, ArtView } from "./art-slot.tsx";
 import { GreetingSwipeStrip } from "./greeting-swipe-strip.tsx";
 import { MessageContent } from "./message-content.tsx";
@@ -33,7 +33,7 @@ import { SwipeCount, SwipeStrip } from "./swipe-strip.tsx";
 /** A row trains when its skin trains, it is not being edited, and its stored reply holds more than one paragraph. The
  *  train then cuts its bubbles from what the display pass drew (`MessageTrain`). */
 export function rowTrains(message: MessageView, editing: boolean, trains: boolean): boolean {
-  return !editing && trains && trainParagraphs(message.content) !== null;
+  return !editing && trains && storedReplyTrains(message.content);
 }
 
 /** Tool-card controls follow the message's author-or-host display posture. */
