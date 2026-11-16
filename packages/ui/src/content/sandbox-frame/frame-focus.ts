@@ -22,8 +22,8 @@
 // WHAT IT CANNOT SEE, and how each gap fails:
 // - (OPEN, bounded) Keys pressed between a frame's `focus()` and the return land in the frame. For a frame out of
 //   process the app learns of the move only from the browser, so the window cannot close: it is the browser's message
-//   plus one task. A grab loop is stopped after FRAME_FOCUS_GRAB_LOOP_BOUND windows; a frame that takes focus more
-//   slowly than FRAME_FOCUS_GRAB_GAP_MS is refused each time and never stopped.
+//   plus one task. A grab loop is stopped after FRAME_FOCUS_GRAB_LOOP_BOUND windows with no press or Tab in the app
+//   between them; a frame that grabs once per reader press is refused each time and never stopped.
 // - (OPEN, bounded) Focus moving between frames is read up to one animation frame late, and keys in that frame land in
 //   the frame that moved. A press released within that frame is missed, and refused.
 // - (OPEN) On a touch screen with a frame in process, a tap shows only as `:hover`, so the frame under the last touch
@@ -36,7 +36,11 @@
 //
 // ADMITTED IS NOT FOCUSED. Between a frame's own `focus()` and the judgement that returns it, `document.activeElement`
 // is that frame. A control that must know the reader chose the frame (the link check in `sandbox-frame.tsx`) reads
-// `holdsAdmittedFocus`, never `document.activeElement`.
+// `holdsAdmittedFocus`, never `document.activeElement`. An admission ends at the reader's next press or key in the app,
+// counted in that input's own event, and when the per-frame check sees focus outside every frame. (OPEN, bounded) Focus
+// that leaves a frame with no app input (an app's own `blur()`, a screen reader) and comes back by the frame's script
+// within one animation frame is refused only by the pending judgement, so only where the app's blur fires in the task
+// that moves focus, which is measured only in Chromium with the card frames the component tests serve.
 
 import type { FrameFocusEntry, FramePressSignal, FrameRefusalRun } from "@orb/kit/card-frame";
 import { APP_INPUT_ACTIVATION_MS, admitsFrameFocus, foldFramePressSignal, foldFrameRefusal, learnsUnmarkedPress, stopsFrameScripts } from "@orb/kit/card-frame";
@@ -61,6 +65,8 @@ interface GatedFrame {
   readonly veiled: () => boolean;
   readonly stop: () => void;
   run: FrameRefusalRun | undefined;
+  /** `appInputs` when the gate last admitted this frame; cleared when focus is seen outside every frame. */
+  admittedAtInput: number | undefined;
 }
 
 // The places the reader held focus, newest last: the app elements they focused and the frames admitted. A refusal
@@ -80,6 +86,11 @@ let watching = false;
 // Entries seen leaving the app whose judgement still waits for its task. A frame that took focus in one of them holds
 // focus but is not admitted, so `holdsAdmittedFocus` refuses it until the judgement runs.
 let unjudged = 0;
+// Trusted presses and keys in the app document. Focus held in a frame gets the reader's keys, so any app input after an
+// admission means the reader left that frame, whatever order the browser fires its focus events in.
+let appInputs = 0;
+// Trusted app presses and Tabs: the reader's moves that could put focus somewhere. Each starts a new run of refusals.
+let readerMoves = 0;
 
 function hold(element: Element): void {
   const at = holders.indexOf(element);
@@ -170,10 +181,13 @@ function judge(frame: HTMLIFrameElement, move: FocusMove): void {
   frameFocusAt = nowMs;
   if (admitsFrameFocus(entry, pressSignal)) {
     hold(frame);
+    record.admittedAtInput = appInputs;
+    record.run = undefined;
     return;
   }
+  record.admittedAtInput = undefined;
   returnFocus(frame);
-  record.run = foldFrameRefusal(record.run, nowMs);
+  record.run = foldFrameRefusal(record.run, readerMoves);
   if (stopsFrameScripts(record.run, pressSignal)) {
     record.stop();
   }
@@ -200,6 +214,10 @@ function watchFrames(): void {
   watching = true;
   const check = (): void => {
     if (asGated(document.activeElement) === undefined) {
+      // Focus left every frame, by whatever path: each must be admitted again before its links count.
+      for (const record of gated.values()) {
+        record.admittedAtInput = undefined;
+      }
       watching = false;
       return;
     }
@@ -234,6 +252,8 @@ const onPointer = (event: PointerEvent): void => {
   lastPointerWasTouch = event.pointerType === "touch";
   if (event.type === "pointerdown" && event.isTrusted) {
     appInputAt = performance.now();
+    appInputs += 1;
+    readerMoves += 1;
   }
   if (event.type === "pointerover" && event.isTrusted && event.pointerType === "mouse") {
     const frame = asGated(event.target);
@@ -246,8 +266,10 @@ const onKeyDown = (event: KeyboardEvent): void => {
     return;
   }
   appInputAt = performance.now();
+  appInputs += 1;
   // The focus move a Tab makes is dispatched inside this keydown; the flag is gone by the next task.
   if (event.key === "Tab") {
+    readerMoves += 1;
     tabbing = true;
     setTimeout(() => {
       tabbing = false;
@@ -275,13 +297,15 @@ function unlisten(): void {
 }
 
 /**
- * Whether `frame` holds focus that the gate admitted: it is a gated frame, the newest place the reader held, the
- * focused element, and no entry is waiting to be judged. A frame that took focus by its own `focus()` holds it until
- * the judgement returns it, and fails here meanwhile. So does a frame admitted earlier that took focus back after the
- * reader left it.
+ * Whether `frame` holds focus that the gate admitted: it is a gated frame, admitted with no trusted press or key in the
+ * app since, the newest place the reader held, the focused element, and no entry is waiting to be judged. A frame that
+ * took focus by its own `focus()` holds it until the judgement returns it, and fails here meanwhile. So does a frame
+ * admitted earlier that took focus back after the reader left it: leaving by a press or a key counts that input before
+ * any message the frame can send on its activation, so that refusal does not rest on the order of focus events.
  */
 export function holdsAdmittedFocus(frame: HTMLIFrameElement): boolean {
-  return gated.has(frame) && unjudged === 0 && holders.at(-1) === frame && document.activeElement === frame;
+  const record = gated.get(frame);
+  return record !== undefined && record.admittedAtInput === appInputs && unjudged === 0 && holders.at(-1) === frame && document.activeElement === frame;
 }
 
 /**
@@ -293,7 +317,7 @@ export function gateFrameFocus(frame: HTMLIFrameElement, veiled: () => boolean, 
   if (gated.size === 0) {
     listen();
   }
-  gated.set(frame, { veiled, stop, run: undefined });
+  gated.set(frame, { veiled, stop, run: undefined, admittedAtInput: undefined });
   // A frame already holding focus when it is gated (it focused itself while it loaded) is judged at once.
   if (document.activeElement === frame) {
     judgeFocused(observeMove(), true);

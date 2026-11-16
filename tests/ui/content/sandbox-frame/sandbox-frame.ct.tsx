@@ -3,7 +3,6 @@
 import {
   buildCardFrameCsp,
   CARD_FRAME_SAFE_FLOOR,
-  FRAME_FOCUS_GRAB_GAP_MS,
   FRAME_FOCUS_GRAB_LOOP_BOUND,
   foldCardFrameHeight,
   REPLY_FRAME_RESIZE_BURST,
@@ -14,7 +13,7 @@ import { expect } from "@orb/testkit/ct-corpus";
 import { LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { z } from "zod";
-import type { FocusedBesideFrameStory, SandboxFrameStory, TwoFramesBesideFieldStory } from "./_frame-stories.tsx";
+import type { FocusedBesideFrameStory, LinkingFrameBesideFieldStory, SandboxFrameStory, TwoFramesBesideFieldStory } from "./_frame-stories.tsx";
 import type { FrameRoom, ServedFrame } from "./_served-frame.ts";
 import { routeServedFrame, test } from "./_served-frame.ts";
 
@@ -312,12 +311,12 @@ const KEYS_ATTRIBUTE = "data-keys";
 const GRABS_ATTRIBUTE = "data-grabs";
 const STEAL = "steal";
 const STEAL_LOOP = "steal-loop";
-// Focus calls spaced well past the grab gap, as a reader's own refused moves come: their count and spacing.
+// Focus calls spaced out, as a loop on a loaded device or a deliberately slow one lands: their count and spacing.
 const STEAL_SPACED = "steal-spaced";
 const SPACED_GRABS = FRAME_FOCUS_GRAB_LOOP_BOUND + 1;
-const SPACED_GRAB_MS = FRAME_FOCUS_GRAB_GAP_MS * 3;
-// A loop that begins once the reader is typing and ends before the reader stops, inside the grab gap but slower than
-// the reader's keys: its start, its period and how many focus calls it makes.
+const SPACED_GRAB_MS = 300;
+// A loop that begins once the reader is typing and ends before the reader stops, slower than the reader's keys: its
+// start, its period and how many focus calls it makes.
 const STEAL_LOOP_LATER = "steal-loop-later";
 const LATER_LOOP_START_MS = 150;
 const LATER_LOOP_MS = 50;
@@ -535,25 +534,60 @@ for (const { name, leave, landed, fieldValue } of LEAVE_CARD) {
   });
 }
 
-test("a card refused now and then, as a reader's own moves are, keeps its scripts; only a grab loop stops them", async ({ mount, room, page }) => {
+// A card that, on a cue, posts a link and then grabs its own field (`ride`), or only posts it (`post`).
+const LINK_STORY = "tests/ui/content/sandbox-frame/_frame-stories/LinkingFrameBesideFieldStory";
+const RIDE_LINK = "https://ride.test/rode-a-press";
+const RIDE = "ride";
+const POST = "post";
+const RIDING_CARD = `<input id="field" aria-label="Field inside the frame">${script(
+  [
+    `const post=()=>{parent.postMessage({orbCardFrameLink:"${RIDE_LINK}"},"*");};`,
+    `addEventListener("message",(e)=>{if(e.data==="${RIDE}"){post();document.getElementById("field").focus();document.body.setAttribute("${GRABS_ATTRIBUTE}","1");}if(e.data==="${POST}"){post();}});`,
+    MARK_RAN,
+  ].join(""),
+)}`;
+
+test("a card the reader pressed and then left by a press on the bare page hands over no link it posts as it grabs focus back", async ({
+  mount,
+  room,
+  page,
+}) => {
+  const served = await room.serve(RIDING_CARD);
+  await routeServedFrame(page, served);
+  const root = await mount<typeof LinkingFrameBesideFieldStory>(LINK_STORY, routed(served, "riding card"));
+  await expect(page.frameLocator(FRAME).locator("body")).toHaveAttribute("data-card-ran", "1");
+  const handed = root.getByRole("status", { name: "Handed-over links", exact: true });
+  await pressFrame(page, 0);
+  await expect(page.locator(FRAME)).toBeFocused();
+  // A real press where no element takes focus: the page itself holds it, and the card is still the newest holder.
+  const viewport = page.viewportSize();
+  await page.mouse.click((viewport?.width ?? 1) - 2, (viewport?.height ?? 1) - 2);
+  await expect.poll(async () => page.locator("body").evaluate(() => document.activeElement?.tagName)).toBe("BODY");
+  await cueFrame(page, 0, RIDE);
+  await expect(page.frameLocator(FRAME).locator("body")).toHaveAttribute(GRABS_ATTRIBUTE, "1");
+  await settle(page);
+  await expect(handed).toBeEmpty();
+  // Positive control: once the reader presses back into the card, the same post is handed over.
+  await pressFrame(page, 0);
+  await cueFrame(page, 0, POST);
+  await expect(handed).toHaveText(RIDE_LINK);
+});
+
+test("a card refused once per reader press keeps its scripts; spaced refusals with no press between stop them", async ({ mount, room, page }) => {
   const root = await mount<typeof TwoFramesBesideFieldStory>(TWO_FRAMES_STORY, await serveTwoKeyLoggers(room, page));
   await keyLoggersReady(page);
   const field = root.getByRole("textbox", OUTSIDE_FIELD);
-  await field.click();
-  // Each focus call comes well past the gap after the last, with nothing in the app between them.
-  await cueFrame(page, 0, STEAL_SPACED);
-  await expect(page.locator(FRAME).nth(0).contentFrame().locator("body")).toHaveAttribute(GRABS_ATTRIBUTE, String(SPACED_GRABS), {
-    timeout: SPACED_GRABS * SPACED_GRAB_MS * 4,
-  });
-  await settle(page);
-  await expect(field).toBeFocused();
-  // Every call was refused, and the card's scripts still run: one more focus call is still answered.
+  // A press in the app before each focus call, as a reader's own refused moves come: past the bound, it still runs.
+  for (let grab = 0; grab <= FRAME_FOCUS_GRAB_LOOP_BOUND; grab += 1) {
+    await field.click();
+    await stealFocus(page, 0);
+    await expect(field).toBeFocused();
+  }
   await expect(page.locator(FRAME).nth(0)).toHaveAttribute("data-delivery", "routed");
-  await stealFocus(page, 0);
-  await expect(field).toBeFocused();
-  // Positive control in the same card: a grab loop does stop it.
-  await cueFrame(page, 0, STEAL_LOOP);
+  // The same card's focus calls spaced out with nothing in the app between them: however slow, they are a loop.
+  await cueFrame(page, 0, STEAL_SPACED);
   await expect(page.locator(FRAME).nth(0)).toHaveAttribute("data-delivery", "srcdoc");
+  await expect(field).toBeFocused();
 });
 
 test("a frame that outgrows its box scrolls inside itself with the thin themed bar", async ({ mount, room, page }) => {

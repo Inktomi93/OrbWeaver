@@ -15,12 +15,15 @@
 // and never stops a frame's scripts. The cost: a frame's own `focus()` while the reader's pointer rests on it, inside
 // the activation's lifetime of the reader's last input, takes the keys typed after it.
 //
-// THE STOP COUNTS ONLY A GRAB LOOP. A refusal counts toward {@link FRAME_FOCUS_GRAB_LOOP_BOUND} only when it follows
-// a refusal of the same frame within {@link FRAME_FOCUS_GRAB_GAP_MS}. A reader's own moves (a screen reader entering a
-// card without Tab, a click the host could not read) come far slower, are refused one at a time, and count nothing.
-// The reader's own input does not break a run: a loop that starts while the reader types would otherwise never stop.
-// Residual: a frame that grabs more slowly than the gap is refused each time and never stopped, and gets at most the
-// key in flight before each return.
+// THE STOP COUNTS REFUSALS, NOT TIME. A frame's refusals run on until the reader makes a move that could put focus
+// somewhere: a press anywhere in the app or a Tab there. That move starts a new run, as does the reader's admitted entry
+// into that frame. {@link FRAME_FOCUS_GRAB_LOOP_BOUND} refusals in one run stop the frame's scripts, however far apart
+// they land, so a loaded device cannot space a loop out of being stopped. Other keys typed in the app do not start a
+// run: a loop that starts while the reader types would otherwise never stop.
+// Residuals: a frame that grabs once per reader press is refused each time and never stopped, and gets at most the key
+// in flight before each return. A reader's own entries the host cannot read (a screen reader moving into a card
+// without Tab, a press released before the host reads it) count too, so that many of them into one card with no press
+// or Tab in the app between stop its scripts.
 
 /** What the host observed as focus entered a frame. */
 export interface FrameFocusEntry {
@@ -44,11 +47,6 @@ export type FramePressSignal = (typeof FRAME_PRESS_SIGNALS)[number];
 /** At least the browsers' transient user activation lifetime, so an activation an app press or key made is never
  *  read as a press or touch inside a frame. */
 export const APP_INPUT_ACTIVATION_MS = 5000;
-
-/** The longest gap between two refusals of one frame that still reads as a grab loop. Measured in Chromium against a
- *  frame calling `focus()` on a timer while the reader typed: refusals came at most 33 ms apart at a 5 ms timer, 49 ms
- *  at 20 ms and 62 ms at 50 ms. A reader's own moves come far slower than this. */
-export const FRAME_FOCUS_GRAB_GAP_MS = 100;
 
 /** How many refusals in one grab loop stop a frame's scripts. Each refusal leaves the frame a window of the reader's
  *  keys (the browser's message plus one task), so a loop is held to this many windows. */
@@ -103,17 +101,18 @@ export function foldFramePressSignal(signal: FramePressSignal, entry: { readonly
   return entry.learnsUnmarked ? "unmarked" : signal;
 }
 
-/** One frame's current run of refusals: how many, and when the last came. */
+/** One frame's current run of refusals: how many, since which of the reader's moves. */
 export interface FrameRefusalRun {
   readonly count: number;
-  readonly lastAtMs: number;
+  /** The host's count of the reader's presses and Tabs in the app when the run began. */
+  readonly sinceMove: number;
 }
 
-/** The frame's run after one more refusal at `atMs`: it continues only inside {@link FRAME_FOCUS_GRAB_GAP_MS} of the
- *  last refusal. */
-export function foldFrameRefusal(run: FrameRefusalRun | undefined, atMs: number): FrameRefusalRun {
-  const continues = run !== undefined && atMs - run.lastAtMs <= FRAME_FOCUS_GRAB_GAP_MS;
-  return { count: continues ? run.count + 1 : 1, lastAtMs: atMs };
+/** The frame's run after one more refusal, with `readerMoves` presses and Tabs seen so far: it continues while the
+ *  reader has made no such move since the run began. */
+export function foldFrameRefusal(run: FrameRefusalRun | undefined, readerMoves: number): FrameRefusalRun {
+  const continues = run !== undefined && run.sinceMove === readerMoves;
+  return { count: continues ? run.count + 1 : 1, sinceMove: readerMoves };
 }
 
 /** Whether a frame's run of refusals is a grab loop long enough to stop its scripts. Never on an unmarked engine. */

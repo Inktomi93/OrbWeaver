@@ -10,26 +10,32 @@
 // http, https or mailto raise nothing. A user name reads as a host (`https://bank.example@elsewhere.test`), and no
 // framed link needs one.
 //
-// HOW AN ADDRESS SHOWS. The host sits on its own line as the parser serializes it: ASCII, with a non-ASCII label in its
-// punycode form (`xn--…`), which is the name the browser resolves. Under it the whole `href`, also the parser's
+// HOW AN ADDRESS SHOWS. The host sits on its own line, inside the dialog's description so a screen reader announces it
+// with the question, as the parser serializes it: ASCII, with a non-ASCII label in its punycode form (`xn--…`), which
+// is the name the browser resolves. It wraps only between labels, so its right-hand end, where the registrable domain
+// sits, always shows whole; only a single label too long for a line breaks inside itself. The registrable domain is not
+// marked, since that needs the public suffix list. Under the description the whole `href`, also the parser's
 // serialization, so every non-ASCII, bidi or control character in the path, query or fragment shows percent-encoded and
-// cannot reorder or hide the text around it. Both lines wrap anywhere, so no part runs past the dialog at any width;
-// the whole address scrolls inside its own region, so a long one cannot push the dialog's actions off the screen. The
-// registrable domain is not marked: that needs the public suffix list, so the reader reads the whole host.
+// cannot reorder or hide the text around it. It wraps anywhere and scrolls inside its own region, so a long one cannot
+// push the dialog's actions off the screen.
 //
-// MAIL. A `mailto:` link shows its address on the host line and says it opens the mail app. It is refused when its
-// query names any header other than to, cc, bcc, subject and body: several mail clients take an `attach` or
-// `attachment` header as a local file to attach, which would let a frame send the reader's files.
+// MAIL. A `mailto:` link names every recipient it sets, the path's and each `to`, `cc` and `bcc` header's, on a line
+// per field, and says it opens the mail app. It is refused when its query names any header other than to, cc, bcc,
+// subject and body: several mail clients take an `attach` or `attachment` header as a local file to attach, which
+// would let a frame send the reader's files. It is also refused, never stripped, when a decoded value or the path
+// carries a CR, an LF or text shaped like a further header (`?`, `&` or `;` then `name=`), the shapes a client that
+// decodes and parses again would read as a header the confirm did not show; stripping would open an address other
+// than the one the frame sent. A recipient outside printable ASCII is refused, since a decoded address could hold the
+// bidi or lookalike characters the serialized host never does.
 //
 // Focus returns to the landing the request named, the frame's own stop in the app, never into the frame: the frame's
 // focus gate would send a return into it back as unasked. A confirm the pace raised later, with no reader action,
 // returns focus to the element the reader held when it opened, when that element is still on the page and outside
 // every frame.
 
-import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import type { ReactElement } from "react";
-import { useEffect, useRef, useState } from "react";
+import type { ReactElement, ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "./confirm-dialog.tsx";
 import {
   FRAMED_LINK_ADDRESS_NAME,
@@ -41,16 +47,90 @@ import {
   FRAMED_MAIL_CONFIRM_DESCRIPTION,
   FRAMED_MAIL_CONFIRM_LABEL,
   FRAMED_MAIL_CONFIRM_TITLE,
+  FRAMED_MAIL_RECIPIENT_FIELDS,
 } from "./framed-link-names.ts";
 import { framedLinkWaitMs } from "./framed-link-pace.ts";
 
 const LINK_TARGET = "_blank";
 const LINK_FEATURES = "noreferrer";
-const MAIL_HEADERS: ReadonlySet<string> = new Set(["to", "cc", "bcc", "subject", "body"]);
 
-interface LinkTarget {
-  readonly kind: "page" | "mail";
-  readonly url: URL;
+type MailField = keyof typeof FRAMED_MAIL_RECIPIENT_FIELDS;
+const MAIL_RECIPIENT_HEADERS = ["to", "cc", "bcc"] as const satisfies readonly MailField[];
+const MAIL_HEADERS: ReadonlySet<string> = new Set([...MAIL_RECIPIENT_HEADERS, "subject", "body"]);
+// A CR or LF, or a further header after `?`, `&` or `;`: what a value smuggles to a client that decodes and parses again.
+const FURTHER_HEADER = /[\r\n]|[?&;]\s*[\w.-]+\s*=/u;
+const RECIPIENT_SEPARATOR = ",";
+const FIRST_PRINTABLE = 0x21;
+const LAST_PRINTABLE = 0x7e;
+
+type MailRecipients = Readonly<Record<MailField, readonly string[]>>;
+
+type LinkTarget = { readonly kind: "page"; readonly url: URL } | { readonly kind: "mail"; readonly url: URL; readonly recipients: MailRecipients };
+
+// Percent-decoding as a mail client reads RFC 6068: `+` stays a plus, and a malformed escape refuses the link.
+function decoded(text: string): string | undefined {
+  try {
+    return decodeURIComponent(text);
+  } catch (error) {
+    if (error instanceof URIError) {
+      return undefined;
+    }
+    throw error;
+  }
+}
+
+function printable(recipient: string): boolean {
+  for (const char of recipient) {
+    const code = char.codePointAt(0) ?? 0;
+    if (code < FIRST_PRINTABLE || code > LAST_PRINTABLE) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// One `name=value` pair of a mail link's query, decoded, or `undefined` when the confirm refuses it.
+function mailHeader(pair: string): { readonly name: string; readonly value: string } | undefined {
+  const equals = pair.indexOf("=");
+  const name = decoded(equals === -1 ? pair : pair.slice(0, equals))?.toLowerCase();
+  const value = decoded(equals === -1 ? "" : pair.slice(equals + 1));
+  if (name === undefined || value === undefined || !MAIL_HEADERS.has(name) || FURTHER_HEADER.test(value)) {
+    return undefined;
+  }
+  return { name, value };
+}
+
+// Every recipient a mail link sets, by field, or `undefined` when it carries a header or a value the confirm refuses.
+function mailRecipients(url: URL): MailRecipients | undefined {
+  const path = decoded(url.pathname);
+  if (path === undefined || FURTHER_HEADER.test(path)) {
+    return undefined;
+  }
+  const lists: Record<MailField, string[]> = { to: [path], cc: [], bcc: [] };
+  for (const pair of url.search.slice(1).split("&")) {
+    if (pair === "") {
+      continue;
+    }
+    const header = mailHeader(pair);
+    if (header === undefined) {
+      return undefined;
+    }
+    const field = MAIL_RECIPIENT_HEADERS.find((recipientHeader) => recipientHeader === header.name);
+    if (field !== undefined) {
+      lists[field].push(header.value);
+    }
+  }
+  const recipients: MailRecipients = {
+    to: splitRecipients(lists.to),
+    cc: splitRecipients(lists.cc),
+    bcc: splitRecipients(lists.bcc),
+  };
+  const all = MAIL_RECIPIENT_HEADERS.flatMap((field) => recipients[field]);
+  return all.length > 0 && all.every(printable) ? recipients : undefined;
+}
+
+function splitRecipients(values: readonly string[]): readonly string[] {
+  return values.flatMap((value) => value.split(RECIPIENT_SEPARATOR).map((recipient) => recipient.trim())).filter((recipient) => recipient !== "");
 }
 
 interface LinkRequest {
@@ -69,11 +149,8 @@ function linkTarget(posted: string): LinkTarget | undefined {
   if (url.protocol === "http:" || url.protocol === "https:") {
     return { kind: "page", url };
   }
-  const headers = [...url.searchParams.keys()];
-  if (url.protocol === "mailto:" && url.pathname !== "" && headers.every((name) => MAIL_HEADERS.has(name.toLowerCase()))) {
-    return { kind: "mail", url };
-  }
-  return undefined;
+  const recipients = url.protocol === "mailto:" ? mailRecipients(url) : undefined;
+  return recipients === undefined ? undefined : { kind: "mail", url, recipients };
 }
 
 // An app element the reader can be handed back to: on the page, and not a frame, whose gate would refuse the return.
@@ -81,31 +158,59 @@ function returnable(element: Element | null | undefined): element is HTMLElement
   return element instanceof HTMLElement && !(element instanceof HTMLIFrameElement) && element !== document.body && element.isConnected;
 }
 
-function linkAddress(target: LinkTarget): ReactElement {
-  const { url } = target;
+// The host with a break opportunity after each dot, so it wraps between labels and never inside the right-hand ones.
+function hostLabels(host: string): ReactNode[] {
+  const labels = host.split(".");
+  return labels.map((label, index) =>
+    index === labels.length - 1 ? (
+      label
+    ) : (
+      // biome-ignore lint/suspicious/noArrayIndexKey: a host's labels can repeat and never reorder, so position is their identity.
+      <Fragment key={index}>
+        {label}.<wbr />
+      </Fragment>
+    ),
+  );
+}
+
+// Where the link goes, as the description's own line: the page's host, or a mail link's recipients by field. It sits
+// inside the description so the dialog announces it with the question.
+function linkSummary(target: LinkTarget): ReactElement {
+  if (target.kind === "page") {
+    return (
+      <Text as="span" flow="block" voice="code" wrap="anywhere" dir="ltr" {...{ [FRAMED_LINK_PART_ATTRIBUTE]: FRAMED_LINK_PARTS.host }}>
+        {hostLabels(target.url.host)}
+      </Text>
+    );
+  }
+  const { recipients } = target;
   return (
-    <Stack gap="tight">
-      <Text
-        voice="code"
-        wrap="anywhere"
-        dir="ltr"
-        {...{ [FRAMED_LINK_PART_ATTRIBUTE]: target.kind === "mail" ? FRAMED_LINK_PARTS.mailbox : FRAMED_LINK_PARTS.host }}
-      >
-        {target.kind === "mail" ? url.pathname : url.host}
-      </Text>
-      <Text
-        voice="datumMono"
-        wrap="anywhere"
-        dir="ltr"
-        role="region"
-        aria-label={FRAMED_LINK_ADDRESS_NAME}
-        scroll="y"
-        maxHeight="scrollSm"
-        {...{ [FRAMED_LINK_PART_ATTRIBUTE]: FRAMED_LINK_PARTS.address }}
-      >
-        {url.href}
-      </Text>
-    </Stack>
+    <Text as="span" flow="block" voice="code" wrap="anywhere" dir="ltr" {...{ [FRAMED_LINK_PART_ATTRIBUTE]: FRAMED_LINK_PARTS.mailbox }}>
+      {MAIL_RECIPIENT_HEADERS.map((field) =>
+        recipients[field].length === 0 ? null : (
+          <Text as="span" flow="block" key={field}>
+            {`${FRAMED_MAIL_RECIPIENT_FIELDS[field]}: ${recipients[field].join(`${RECIPIENT_SEPARATOR} `)}`}
+          </Text>
+        ),
+      )}
+    </Text>
+  );
+}
+
+function linkAddress(target: LinkTarget): ReactElement {
+  return (
+    <Text
+      voice="datumMono"
+      wrap="anywhere"
+      dir="ltr"
+      role="region"
+      aria-label={FRAMED_LINK_ADDRESS_NAME}
+      scroll="y"
+      maxHeight="scrollSm"
+      {...{ [FRAMED_LINK_PART_ATTRIBUTE]: FRAMED_LINK_PARTS.address }}
+    >
+      {target.url.href}
+    </Text>
   );
 }
 
@@ -160,10 +265,15 @@ export function useFramedLinkConfirm(): FramedLinkConfirm {
   }
   const { target, heldWhenRaised } = pending;
   const mail = target.kind === "mail";
+  const sentence = mail ? FRAMED_MAIL_CONFIRM_DESCRIPTION : FRAMED_LINK_CONFIRM_DESCRIPTION;
   const confirm = (
     <ConfirmDialog
       title={mail ? FRAMED_MAIL_CONFIRM_TITLE : FRAMED_LINK_CONFIRM_TITLE}
-      description={mail ? FRAMED_MAIL_CONFIRM_DESCRIPTION : FRAMED_LINK_CONFIRM_DESCRIPTION}
+      description={
+        <>
+          {sentence} {linkSummary(target)}
+        </>
+      }
       body={linkAddress(target)}
       confirmLabel={mail ? FRAMED_MAIL_CONFIRM_LABEL : FRAMED_LINK_CONFIRM_LABEL}
       confirmTone="primary"

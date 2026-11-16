@@ -5,7 +5,6 @@
 import type { FrameFocusEntry, FramePressEvidence, FramePressSignal, FrameRefusalRun } from "@orb/kit/card-frame";
 import {
   admitsFrameFocus,
-  FRAME_FOCUS_GRAB_GAP_MS,
   FRAME_FOCUS_GRAB_LOOP_BOUND,
   FRAME_PRESS_SIGNALS,
   foldFramePressSignal,
@@ -72,42 +71,40 @@ test.each<readonly [FramePressSignal, boolean, boolean, FramePressSignal]>([
   expect(foldFramePressSignal(signal, { pressed, learnsUnmarked })).toBe(next);
 });
 
-// Folds refusals at `times` and says whether the run ever stopped the frame.
-function stopsAfter(times: readonly number[], signal: FramePressSignal): boolean {
+// Folds one refusal per entry, each made when the host had counted that many reader presses and Tabs, and says whether
+// the run ever stopped the frame.
+function stopsAfter(readerMovesAtEachRefusal: readonly number[], signal: FramePressSignal): boolean {
   let run: FrameRefusalRun | undefined;
   let stopped = false;
-  for (const at of times) {
-    run = foldFrameRefusal(run, at);
+  for (const readerMoves of readerMovesAtEachRefusal) {
+    run = foldFrameRefusal(run, readerMoves);
     stopped ||= stopsFrameScripts(run, signal);
   }
   return stopped;
 }
 
-// A loop well into the page's life, so the run reads gaps between refusals and not their clock values.
-const LOOP_START_MS = 60_000;
-const LOOP = Array.from({ length: FRAME_FOCUS_GRAB_LOOP_BOUND }, (_, index) => LOOP_START_MS + index * (FRAME_FOCUS_GRAB_GAP_MS / 4));
-const AT_THE_GAP = Array.from({ length: FRAME_FOCUS_GRAB_LOOP_BOUND }, (_, index) => LOOP_START_MS + index * FRAME_FOCUS_GRAB_GAP_MS);
-const SPACED = Array.from({ length: FRAME_FOCUS_GRAB_LOOP_BOUND * 4 }, (_, index) => index * (FRAME_FOCUS_GRAB_GAP_MS + 1));
+// A loop with no reader move during it, well into the page's life: the run reads whether the count moved, not its value.
+const READER_MOVES_SO_FAR = 41;
+const LOOP = Array.from({ length: FRAME_FOCUS_GRAB_LOOP_BOUND }, () => READER_MOVES_SO_FAR);
+// One reader move before every refusal, as a reader's own refused entries come.
+const EACH_AFTER_A_MOVE = Array.from({ length: FRAME_FOCUS_GRAB_LOOP_BOUND * 4 }, (_, index) => READER_MOVES_SO_FAR + index);
 
-test("a tight loop of refusals stops the frame at the bound, and one fewer does not", () => {
+test("refusals with no reader press or Tab between them stop the frame at the bound, and one fewer does not", () => {
   expect(stopsAfter(LOOP, "marked")).toBe(true);
   expect(stopsAfter(LOOP.slice(1), "marked")).toBe(false);
   expect(stopsAfter(LOOP, "unknown")).toBe(true);
 });
 
-test("refusals exactly the gap apart are still a loop", () => {
-  expect(stopsAfter(AT_THE_GAP, "marked")).toBe(true);
+test("a reader press or Tab before each refusal never stops the frame, however many", () => {
+  expect(stopsAfter(EACH_AFTER_A_MOVE, "marked")).toBe(false);
 });
 
-test("refusals spaced past the gap never stop the frame, however many", () => {
-  expect(stopsAfter(SPACED, "marked")).toBe(false);
-});
-
-test("one gap past the window inside a run starts it again", () => {
-  const [first = 0, ...rest] = LOOP;
-  expect(stopsAfter([first, ...rest.map((at) => at + FRAME_FOCUS_GRAB_GAP_MS + 1)].slice(0, FRAME_FOCUS_GRAB_LOOP_BOUND), "marked")).toBe(false);
+test("one reader move inside a run starts it again", () => {
+  const [first = READER_MOVES_SO_FAR, ...rest] = LOOP;
+  expect(stopsAfter([first, ...rest.map((moves) => moves + 1)], "marked")).toBe(false);
+  expect(stopsAfter([first, ...rest.map((moves) => moves + 1), READER_MOVES_SO_FAR + 1], "marked")).toBe(true);
 });
 
 test("on an unmarked engine a loop never stops the frame", () => {
-  expect(stopsAfter([...LOOP, ...LOOP.map((at) => at + 1)], "unmarked")).toBe(false);
+  expect(stopsAfter([...LOOP, ...LOOP], "unmarked")).toBe(false);
 });
