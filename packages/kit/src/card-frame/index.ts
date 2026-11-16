@@ -657,7 +657,9 @@ function baseBodyBlock(fontFamily: string | undefined): string {
   // The host's root font-size carries the user's font scale; the frame cannot inherit it, so the host injects it
   // as a root percentage and the frame's root follows. Card text in rem/em scales; authored px stays fixed.
   const rootSize = `html { font-size: var(${CARD_FRAME_STYLE_TOKEN.rootSize}, 100%); }`;
-  return `${scrollbar} ${rootSize} body { margin: 0; padding: 0; background: var(--sandbox-bg); color: var(--sandbox-fg); font-family: ${font}; }`;
+  // A flow root, so the first and last children's margins stay inside the body: the pinned script measures
+  // `body.scrollHeight`, and a margin that collapsed through the body would be cut from the frame.
+  return `${scrollbar} ${rootSize} body { display: flow-root; margin: 0; padding: 0; background: var(--sandbox-bg); color: var(--sandbox-fg); font-family: ${font}; }`;
 }
 
 /**
