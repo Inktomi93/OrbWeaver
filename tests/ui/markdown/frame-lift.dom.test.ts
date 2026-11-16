@@ -350,6 +350,44 @@ test.each([
   expect(textOf(html)).toBe(shown);
 });
 
+// Markdown code shows its text as written, so a name there resolves plainly; anywhere code may not be what the renderer
+// draws, it stays escaped.
+const CODE_NAME = "O'Brien & Co";
+const FENCED = "```\nName: {{user}}\n```";
+const SPAN = "Say `{{user}}`.";
+
+test.each([
+  ["a fenced block", FENCED, "Name: O'Brien & Co"],
+  ["a code span", SPAN, "O'Brien & Co"],
+])("a name in %s reads as written on a framed row and on a plain row", (_name, body, shown) => {
+  const plain = renderMessageForDisplay(body, displayContext(CODE_NAME), REPLY);
+  expect(plain).toContain(shown);
+  const html = framed(renderMessageForDisplay(`<div style="color:red">HUD</div>\n\n${body}`, displayContext(CODE_NAME), REPLY));
+  expect(textOf(html)).toContain(shown);
+  expect(html).not.toContain("&amp;#39;");
+});
+
+test.each([
+  ["a fenced block", FENCED, HOSTILE_NAME],
+  ["a code span", SPAN, HOSTILE_NAME],
+  ["a code span, by a name that closes it", SPAN, "x` <img src=x onerror=alert(3)> `"],
+  ["a fenced block, by a name that breaks its line", FENCED, "x\n```\n<img src=x onerror=alert(4)>"],
+  ["a fence inside a held panel, which the frame reads as HTML", `<div style="color:red">\n\n${FENCED}\n\n</div>`, HOSTILE_NAME],
+])("a hostile name in %s draws no element in the frame document", (_name, body, personaName) => {
+  const html = framed(renderMessageForDisplay(`<div style="color:red">HUD</div>\n\n${body}`, displayContext(personaName), REPLY));
+  // Positive control: the panel drew as markup.
+  expect(html).toContain('<div style="color:red">HUD</div>');
+  expect(html).not.toMatch(/<img/iu);
+});
+
+test("a hostile name in backticks in a card block's body stays escaped, since that body is HTML", () => {
+  const text = renderMessageForDisplay(':::card title="Status"\nSay `{{user}}`.\n\n```\n{{user}}\n```\n:::', displayContext(HOSTILE_NAME), REPLY);
+  const card = tokenizeContent(text, { committed: true }).find((span) => span.kind === "card");
+  const body = card?.kind === "card" ? card.body : "";
+  expect(body).toContain(`Say \`${ESCAPED_NAME}\`.`);
+  expect(body).toContain(`\`\`\`\n${ESCAPED_NAME}\n\`\`\``);
+});
+
 // The text a reader sees in rendered markup: every tag dropped and every character reference read back.
 function textOf(html: string): string {
   return html

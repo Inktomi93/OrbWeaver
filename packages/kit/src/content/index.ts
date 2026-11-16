@@ -1961,13 +1961,31 @@ export const CODE_READ_MAX_CHARS = 1_048_576;
  *  repair) into the reply, and a framed reply runs its code at the interactive step. A style or script element counts
  *  when either reader sees one: the frame's, which reads text as Markdown shows it, and the raw HTML reader, which also
  *  reads inside a card fence, whose body a card frame draws as HTML. An unclosed element or tag runs to the end. Past
- *  {@link CODE_READ_MAX_CHARS} the text comes back unchanged. */
-export function mapOutsideCode(text: string, rewrite: (piece: string) => string): string {
-  if (!text.includes("<")) {
-    return rewrite(text);
-  }
+ *  {@link CODE_READ_MAX_CHARS} the text comes back unchanged.
+ *
+ *  With `shown`, each stretch from a `{{` the renderer draws inside Markdown code to that code's end takes `shown`
+ *  instead of `rewrite` (see {@link markdownCodeAfterMacros}). */
+export function mapOutsideCode(text: string, rewrite: (piece: string) => string, shown?: (piece: string) => string): string {
   if (text.length > CODE_READ_MAX_CHARS) {
     return text;
+  }
+  const inShownCode = shown === undefined ? NO_TEXT_RANGES : markdownCodeAfterMacros(text);
+  const rewriteAround = (start: number, to: number): string => {
+    let around = "";
+    let at = start;
+    for (const stretch of inShownCode) {
+      if (stretch.end <= at || stretch.start >= to) {
+        continue;
+      }
+      const opens = Math.max(stretch.start, at);
+      const end = Math.min(stretch.end, to);
+      around += rewrite(text.slice(at, opens)) + (shown ?? rewrite)(text.slice(opens, end));
+      at = end;
+    }
+    return around + rewrite(text.slice(at, to));
+  };
+  if (!text.includes("<")) {
+    return rewriteAround(0, text.length);
   }
   const code = mergedRuns([
     ...[...readMarkup(text, MARKDOWN_READING).rawText, ...readMarkup(text).rawText].map((element) => ({ start: element.start, end: element.end })),
@@ -1976,10 +1994,40 @@ export function mapOutsideCode(text: string, rewrite: (piece: string) => string)
   let out = "";
   let from = 0;
   for (const stretch of code) {
-    out += rewrite(text.slice(from, stretch.start)) + text.slice(stretch.start, stretch.end);
+    out += rewriteAround(from, stretch.start) + text.slice(stretch.start, stretch.end);
     from = stretch.end;
   }
-  return out + rewrite(text.slice(from));
+  return out + rewriteAround(from, text.length);
+}
+
+const NO_TEXT_RANGES: readonly TextRange[] = [];
+const MACRO_OPEN = "{{";
+
+/** Each stretch from a `{{` that the renderer draws inside Markdown code, a fenced or indented block or a code span, to
+ *  that code's end, ascending.
+ *  @remarks SECURITY: a stretch named here is shown as written, so a caller may put text there unescaped. Each text span
+ *  is read as the renderer reads it, on its own and with the frame's own code reading, so a card, a choice set or a
+ *  hidden tag, whose body is not Markdown, holds none. A held block holds none either: the frame reads it whole as HTML,
+ *  where a fence or an indent is no code. Where a read is in doubt it names nothing, and the caller escapes. */
+export function markdownCodeAfterMacros(text: string): readonly TextRange[] {
+  if (!text.includes(MACRO_OPEN) || readMarkup(text, MACRO_READING).probed.length === 0) {
+    return NO_TEXT_RANGES;
+  }
+  const stretches: TextRange[] = [];
+  let offset = 0;
+  for (const span of tokenizeContent(text, { committed: true })) {
+    const raw = contentSpanRaw(span);
+    if (span.kind === "text") {
+      const held = rangeCursor(heldBlockRanges(raw));
+      for (const probed of readMarkup(raw, MACRO_READING).probed) {
+        if (held(probed.start) === undefined && held(probed.end - 1) === undefined) {
+          stretches.push({ start: offset + probed.start, end: offset + Math.min(probed.end, raw.length) });
+        }
+      }
+    }
+    offset += raw.length;
+  }
+  return stretches;
 }
 
 const TAG_OPEN_RE = /<[A-Za-z]/g;
@@ -2152,6 +2200,8 @@ interface MarkupRead {
   /** With the Markdown reading, each stretch shown as written because it is code or escaped, from its first token to
    *  past that token and the skip, ascending. */
   readonly samples: readonly TextRange[];
+  /** With a probe, each place the probe starts inside Markdown code, to that code's end, ascending. */
+  readonly probed: readonly TextRange[];
 }
 
 // The elements whose contents the renderer draws folded until opened.
@@ -2175,16 +2225,20 @@ function readMarkup(content: string, markdown?: MarkdownReading): MarkupRead {
   const closes = new Map<number, number>();
   const rawText: RawTextElement[] = [];
   const openers = new Map<string, number[]>();
-  const blocks = markdown === undefined ? undefined : inlineBlocks(content);
-  const commentClose = { next: -1, bound: blocks === undefined ? undefined : commentBound(blocks) };
+  const { code, bound, probe } = markdownRead(content, markdown);
+  const commentClose = { next: -1, bound };
   const textClose = new Map<string, number>();
   const textElements: TextRange[] = [];
   const units: TextRange[] = [];
   const samples: TextRange[] = [];
-  const code = markdown === undefined || blocks === undefined ? undefined : markdownCodeCursor(content, markdown, blocks);
+  const probed: TextRange[] = [];
   let last: ReadSpan | undefined;
-  const tags = new RegExp(MARKUP_TOKEN_SOURCE, "g");
+  const tags = new RegExp(probe === undefined ? MARKUP_TOKEN_SOURCE : `${MARKUP_TOKEN_SOURCE}|${RegExp.escape(probe)}`, "g");
   for (let tag = tags.exec(content); tag !== null; tag = tags.exec(content)) {
+    if (tag[0] === probe) {
+      tags.lastIndex = noteProbe(probed, { code, last, at: tag.index, length: tag[0].length });
+      continue;
+    }
     const shown = code === undefined ? undefined : shownAsWritten(content, tag, { code, last, textClose, textElements });
     const resume = shown ?? readMarkupToken(content, tag, { closes, rawText, openers, commentClose });
     // A skip, a raw-text element and a comment are units read whole; a tag is not.
@@ -2206,7 +2260,36 @@ function readMarkup(content: string, markdown?: MarkdownReading): MarkupRead {
     const open = (openers.get(name) ?? []).map((start) => [start, content.length] as const);
     return [...closed, ...open].map(([start, end]) => ({ start, end }));
   });
-  return { closes, rawText, textElements, concealing, units: mergedRuns([...units, ...textElements]), samples };
+  return { closes, rawText, textElements, concealing, units: mergedRuns([...units, ...textElements]), samples, probed };
+}
+
+// Records the code a probe at `at` opens in, if any, and returns where the read resumes. A probe is no markup: it asks
+// the code cursor where it stands, in the same rising order as every token, and reads nothing.
+function noteProbe(
+  probed: TextRange[],
+  read: { readonly code: ReturnType<typeof markdownCodeCursor> | undefined; readonly last: ReadSpan | undefined; readonly at: number; readonly length: number },
+): number {
+  const codeEnd = read.code?.(read.at, read.last);
+  if (codeEnd !== undefined) {
+    probed.push({ start: read.at, end: codeEnd });
+  }
+  return read.at + read.length;
+}
+
+// What `readMarkup` reads with a Markdown reading: the code cursor, the bound of each comment, and the probe.
+function markdownRead(
+  content: string,
+  markdown: MarkdownReading | undefined,
+): {
+  readonly code: ReturnType<typeof markdownCodeCursor> | undefined;
+  readonly bound: ((offset: number) => number) | undefined;
+  readonly probe: string | undefined;
+} {
+  if (markdown === undefined) {
+    return { code: undefined, bound: undefined, probe: undefined };
+  }
+  const blocks = inlineBlocks(content);
+  return { code: markdownCodeCursor(content, markdown, blocks), bound: commentBound(blocks), probe: markdown.probe };
 }
 
 // Records a unit `readMarkup` read whole, from `start` to where the read resumed, or to the end when it stopped.
@@ -2306,13 +2389,17 @@ interface ReadSpan {
   readonly end: number;
 }
 
-/** How `readMarkup` reads Markdown's code: indented code too, or fences and spans only. */
+/** How `readMarkup` reads Markdown's code: indented code too, or fences and spans only. With `probe`, it also notes
+ *  where code covers each place the probe text starts. */
 interface MarkdownReading {
   readonly indentedCode: boolean;
+  readonly probe?: string;
 }
 
 // The renderer's reading, for the frame lift and the strips.
 const MARKDOWN_READING: MarkdownReading = { indentedCode: true };
+// The renderer's reading, noting the code a macro opens in (`markdownCodeAfterMacros`).
+const MACRO_READING: MarkdownReading = { ...MARKDOWN_READING, probe: MACRO_OPEN };
 // The styled hold's: an indented tag line is markup it holds (`TAG_NAME_START_RE`), so indented lines are not code.
 const HOLD_READING: MarkdownReading = { indentedCode: false };
 

@@ -102,6 +102,12 @@ function regexCtxChar(ctx: MessageRenderContext, characterId: CharacterId | null
   return characterNames?.[0] ?? ctx.speakerCharName ?? "";
 }
 
+// A name as Markdown code text: as written, unless a tick, a tilde or a line break in it could end the code.
+function asCodeText(value: string): string {
+  return CODE_BREAK_RE.test(value) ? escapeHtmlData(value) : value;
+}
+const CODE_BREAK_RE = /[`~\r\n]/u;
+
 /** Step 1, and the plain-data input of step 2. The row's own stamps are the macro subjects too. */
 export function prepareDisplayPass(text: string, ctx: MessageRenderContext, display: DisplayRowCall): DisplayPass {
   const { characterId, personaId } = display.row;
@@ -115,7 +121,12 @@ export function prepareDisplayPass(text: string, ctx: MessageRenderContext, disp
     fallbackPersonaDescription: ctx.fallbackPersonaDescription,
   };
   // A name is another reader's text, so it is data, never markup: resolved escaped, and never inside code a frame runs.
-  const substituted = mapOutsideCode(text, (piece) => resolveRowMacros(piece, { characterId, personaId }, names, escapeHtmlData));
+  // Markdown code shows text as written, so a name there resolves plainly unless it could leave that code.
+  const substituted = mapOutsideCode(
+    text,
+    (piece) => resolveRowMacros(piece, { characterId, personaId }, names, escapeHtmlData),
+    (piece) => resolveRowMacros(piece, { characterId, personaId }, names, asCodeText),
+  );
 
   const rowPersona = personaId === null ? undefined : ctx.personaNamesById.get(personaId);
   const macroCtx: ProcessMacroOptions = {
