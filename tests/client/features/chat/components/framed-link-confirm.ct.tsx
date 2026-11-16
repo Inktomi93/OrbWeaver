@@ -159,6 +159,8 @@ const POSTED = {
   encodedAmpersand: "mailto:someone@example.test?subject=Tides%26attach%3D/etc/passwd",
   questionInTo: "mailto:someone@example.test?to=friend@example.test%3Fattach%3D/etc/passwd",
   semicolon: "mailto:someone@example.test?subject=Tides;attach=/etc/passwd",
+  // A header after `#`, which the query never reads.
+  fragment: "mailto:friend@example.test#?bcc=someone@other.test",
   mail: "mailto:someone@example.test,second@example.test?cc=copy@example.test&bcc=hidden@example.test&subject=Tides",
 } as const;
 type Posted = keyof typeof POSTED;
@@ -299,6 +301,7 @@ for (const [width, viewport] of [
     await post("encodedAmpersand");
     await post("questionInTo");
     await post("semicolon");
+    await post("fragment");
     await post("mail");
     await expect(confirm).toHaveAccessibleName(FRAMED_MAIL_CONFIRM_TITLE);
     await expect(confirm.locator(ADDRESS_PART)).toHaveText(POSTED.mail);
