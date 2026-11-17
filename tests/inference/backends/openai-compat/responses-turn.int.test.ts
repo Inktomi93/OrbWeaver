@@ -8,7 +8,9 @@ import { providerIdSchema, WARNING_CODE } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ChatEvent, ChatHistoryMessage, ChatResult } from "@orb/inference";
-import { jsonValueSchema } from "@orb/kit/json";
+import { ProviderError } from "@orb/inference";
+import type { JsonObject } from "@orb/kit/json";
+import { jsonObjectSchema, jsonValueSchema } from "@orb/kit/json";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { expect, test } from "@orb/testkit/node";
 import type { RecordedRequest, ResponsesReply } from "@orb/testkit/node/helpers";
@@ -37,12 +39,22 @@ const toolsArray = z.array(z.object({ name: z.string(), type: z.string().optiona
 // The vendor's raw-reasoning delta event type, named once for the tape arms below.
 const DELTA_FRAME_TYPE = "response.reasoning_text.delta";
 
+/** Narrow a rejected turn to its ProviderError; anything else is a failure of the test's premise. */
+function providerRejection(error: unknown): ProviderError {
+  if (!(error instanceof ProviderError)) {
+    throw new Error("the turn rejected with a non-provider failure", { cause: error });
+  }
+  return error;
+}
+
 interface Sent {
   readonly url: string;
   readonly headers: Readonly<Record<string, string>>;
   readonly body: RecordedRequest["body"];
   readonly turn: ChatResult;
   readonly events: readonly ChatEvent[];
+  /** The root ring's log lines at turn end — the `provider.*` receipts ride them at debug level. */
+  readonly receipts: readonly string[];
 }
 
 /** One `/responses` turn against a scripted endpoint; what the endpoint received and what the turn reported. */
@@ -70,7 +82,7 @@ async function send(
           recorded.push(await recordRequest(input, init));
           return await customFetch(input, init);
         };
-  await using root = await createRuntimeRoot({ providerFetch });
+  await using root = await createRuntimeRoot({ providerFetch, logLevel: "debug" });
   const connection = await wireConnection(root, {
     task: "chat",
     providerId: DEEPSEEK,
@@ -95,7 +107,7 @@ async function send(
   if (first === undefined) {
     throw new Error("the turn reached no endpoint");
   }
-  return { url: first.url, headers: first.headers, body: first.body, turn, events: turn.events };
+  return { url: first.url, headers: first.headers, body: first.body, turn, events: turn.events, receipts: root.observability.logLines(1000) };
 }
 
 test("system rows ride in place on this protocol — leading AND mid-conversation, as `system` role items", async () => {
@@ -264,20 +276,44 @@ test("the row's raw-reasoning dialect folds onto reasoning deltas; without the f
     expect(variant.turn.reply, `reply lost on the ${spelling} spelling`).toBe("391");
   }
 
-  // An over-cap frame (one delta beyond the dialect's 1 MiB buffer): the buffer passes bytes through
-  // UNFRAMED instead of growing, and because that passthrough is byte-identical the SDK's own parser
-  // re-frames the split bytes — the giant delta must still arrive folded.
+  // A frame that fits under the cap when delivered atomically still folds whole (single chunk, no
+  // buffering pressure): the giant delta must arrive folded end to end.
   const giant = "G".repeat(1_200_000);
-  const giantFrames = frames.map((f) => ("delta" in f && f.type === DELTA_FRAME_TYPE && f.delta === "Thinking " ? { ...f, delta: giant } : f));
-  const giantTape: typeof fetch = () =>
-    Promise.resolve(
-      new Response(giantFrames.map((f) => `event: ${f.type}\ndata: ${JSON.stringify(f)}\n\n`).join(""), {
-        status: 200,
-        headers: { "content-type": "text/event-stream" },
-      }),
-    );
-  const overflowed = await send({ declaredFeatures: {} }, { fetch: giantTape });
-  expect(overflowed.turn.reasoning.length, "the over-cap delta vanished instead of passing through unframed").toBe(giant.length + "hard.".length);
+  const giantBody = frames
+    .map((f) => ("delta" in f && f.type === DELTA_FRAME_TYPE && f.delta === "Thinking " ? { ...f, delta: giant } : f))
+    .map((f) => `event: ${f.type}\ndata: ${JSON.stringify(f)}\n\n`)
+    .join("");
+  const atomic = await send(
+    { declaredFeatures: {} },
+    { fetch: () => Promise.resolve(new Response(giantBody, { status: 200, headers: { "content-type": "text/event-stream" } })) },
+  );
+  expect(atomic.turn.reasoning.length, "the atomic-delivery giant delta did not fold whole").toBe(giant.length + "hard.".length);
+  expect(atomic.turn.reply).toBe("391");
+
+  // The cap under REAL streaming: a frame larger than the 1 MiB buffer can only be withheld past the cap
+  // when the bytes arrive in pieces (a single chunk is drained by the frame loop before the cap is ever
+  // consulted — an unchunked tape measures nothing). Delivered in 64 KiB chunks the giant frame crosses
+  // the cap unframed: its bytes pass through byte-identical, so the SDK keeps its COMPLETE frame — but an
+  // unfolded frame is the vendor's raw `reasoning_text.delta`, which the SDK's catch-all drops. That is
+  // the cap's whole contract: graceful degradation (stream survives, named frames still fold) for a frame
+  // no legitimate vendor streams; the giant delta is lost, `hard.` (later, under-cap) is not.
+  const chunkedTape: typeof fetch = () => {
+    const bytes = new TextEncoder().encode(giantBody);
+    let offset = 0;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller): void {
+        if (offset >= bytes.length) {
+          controller.close();
+          return;
+        }
+        controller.enqueue(bytes.slice(offset, offset + 65_536));
+        offset += 65_536;
+      },
+    });
+    return Promise.resolve(new Response(stream, { status: 200, headers: { "content-type": "text/event-stream" } }));
+  };
+  const overflowed = await send({ declaredFeatures: {} }, { fetch: chunkedTape });
+  expect(overflowed.turn.reasoning, "the over-cap delta folded — the cap never fired on a chunked stream").toBe("hard.");
   expect(overflowed.turn.reply).toBe("391");
 
   const accTape: typeof fetch = () =>
@@ -295,10 +331,15 @@ test("the row's raw-reasoning dialect folds onto reasoning deltas; without the f
     );
   // Multi-line `data:` accumulation is a frame the dialect does not name: rewriting the first line only
   // would corrupt it, so it rides untouched (byte-identical). MEASURED here: the SDK parses EVERY frame's
-  // payload, so the accumulated JSON pair surfaces as a JSON-parse ProviderError — the #758 policy
-  // (a malformed data line is a protocol error the caller sees). The dialect's silence on unnamed frames
-  // is what keeps that error honest: a half-rewrite would rename the payload and hide the malformation.
-  await expect(send({ declaredFeatures: {} }, { fetch: accTape })).rejects.toThrow(/JSON parsing failed/);
+  // payload, so the accumulated JSON pair surfaces as a ProviderError — the #758 policy (a malformed
+  // data line is a protocol error the caller sees), not a silent drop. The class guard plus the
+  // feature-OFF control below are what make that attribution honest: the same failure with the
+  // transformer absent proves the dialect neither hid the malformation nor manufactured one.
+  const surfaced = await send({ declaredFeatures: {} }, { fetch: accTape }).catch(providerRejection);
+  expect(surfaced.kind).toBe("unknown");
+  expect(surfaced.message).toMatch(/JSON parsing failed/);
+  const untouched = await send({ declaredFeatures: { responsesReasoningStream: "summary" } }, { fetch: accTape }).catch(providerRejection);
+  expect(untouched.kind).toBe("unknown");
 });
 
 // The `/responses` protocol models no forced continuation (a trailing assistant input item reads
@@ -320,4 +361,40 @@ test("the row's extras and includeBody/excludeBody ride the Responses body — e
   expect(sent.body["vendorFlag"], "extras merged into the Responses body").toBe(true);
   expect(sent.body["store"], "includeBody overrode the SDK's store:false").toBe(true);
   expect(sent.body["temperature"], "excludeBody removed the modelled sampler").toBeUndefined();
+});
+
+/** The last `provider.*` line of this event the root ring holds, fields parsed off the JSON line. */
+function lastReceipt(lines: readonly string[], event: string): JsonObject {
+  const matching = lines.filter((line) => line.includes(`"event":"${event}"`));
+  const last = matching.at(-1);
+  if (last === undefined) {
+    throw new Error(`no ${event} line in the root ring (${lines.length} lines captured)`);
+  }
+  return jsonObjectSchema.parse(JSON.parse(last));
+}
+
+// The `emitTurnReceipts` lines are the operator's only view of what the funnel resolved and what the
+// wire actually sent — and they had no assertions from the day the pair was written. Pinned through the
+// root's own log ring (the `scheduler-log-level` precedent), the shared receipts can no longer drift a
+// field in silence. One hosted wire pins the canon; the cache line's two placer wires ride the same
+// function with caller-supplied counts.
+test("the turn's capability and sampling receipts reach the root log with the funnel's answers", async () => {
+  const spoken = await send(
+    { capability: generationCapability({ verbosity: ["low", "medium", "high"] }) },
+    { params: { verbosity: "low", temperature: 0.5 }, prefillReasoning: "(thinking in Spanish.)" },
+  );
+  const capability = lastReceipt(spoken.receipts, "provider.capability");
+  expect(capability["api"]).toBe("responses");
+  expect(capability["requestedModel"]).toBe("deepseek-v4-pro");
+  expect(capability["droppedWarnings"]).toContainEqual(expect.objectContaining({ code: WARNING_CODE.prefillReasoningDropped }));
+  const sampling = lastReceipt(spoken.receipts, "provider.sampling");
+  expect(sampling["applied"]).toMatchObject({ verbosity: "low", temperature: 0.5 });
+
+  // Negative fold: with no verbosity cell the resolver drops the ask, so the receipt must not CLAIM
+  // verbosity in `applied` and its code must read in `dropped` — the split the per-wire intent table
+  // exists to keep honest.
+  const silent = await send({}, { params: { verbosity: "low" } });
+  const silentSampling = lastReceipt(silent.receipts, "provider.sampling");
+  expect(silentSampling).not.toMatchObject({ applied: { verbosity: expect.anything() } });
+  expect(silentSampling["dropped"]).toContainEqual(expect.objectContaining({ reason: expect.stringContaining("verbosity ignored") }));
 });
