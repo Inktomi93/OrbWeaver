@@ -148,16 +148,21 @@ Judgments: **necessary** (the SDK cannot), **stricter** (the SDK can, loses a wr
 - The OR typed `reasoning.effort` set lacks `"max"`; our `reasoning.ts:35` works only because we write the raw
   body past the SDK's schema.
 
-## Open questions for the ledger (each is a ruling, not a fix)
+## Rulings on the open questions
 
-1. `/responses` prompt-cache axis: adopt `promptCacheKey`/`options`/`retention` or rule the route cacheless
-   for deepseek-shaped endpoints?
-2. Citations: does anything in the app owe the user the web-search `source` parts? If yes, `ChatResult` needs
-   the field before the fold can keep them.
-3. Google `continuationToken` vs the output-cap law.
-4. Google server-side retrieval tools: allowed under the no-provider-execution rule? (They retrieve, not
-   execute — the rule's wording should be checked, not assumed.)
-5. Anthropic safeguards as a second refusal signal beside `stopDetails`.
+1. `/responses` prompt-cache axis: **adopted** — `promptCacheKey`/`promptCacheOptions`/`promptCacheRetention`
+   are passed to the openai `/responses` route under the same capability gates the chat route uses.
+2. Web-search `source` parts: the app runs no web-search feature, but the parts are **stored, not dropped** —
+   `ChatResult` gains the field and the fold keeps them; no UI is promised. (Boarded item.)
+3. Google `continuationToken`: **to be fully wired** — a truncated Google reply should continue rather than
+   terminate, reconciled with the output-cap law by its lane. (Boarded item.)
+4. Google server-side retrieval tools: **not supported** by owner decision; nothing in the architecture needs
+   re-reading because nothing reaches the rule.
+5. Anthropic safeguards: **declined** — the owner's users are roleplaying catgirls, not paying for a compliance
+   classifier. No feature, no inventory, no code; the betas stay unreachable by omission and that is the ruling.
+6. Anthropic `fallbacks`/`contextManagement`: **banned from the extras allowlist** until per-iteration cost
+   attribution exists — the allowlist may not carry a key whose effect the cost fold miscounts. The
+   attribution lane is the condition for re-listing. (Boarded item.)
 
 ## Method note
 
