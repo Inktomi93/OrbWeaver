@@ -107,6 +107,10 @@ Doc pages quote request fields; every `https://api-docs.deepseek.com` path below
   is a DeepSeek engineer and names the first-user-message tail as the trained injection point; the effect is
   probabilistic and changes only the thinking, the reply following indirectly.
   Guide `victorchen96/deepseek_v4_rolepaly_instruct`, Probe (English marker, translated).
+- Marker placement is not fragile: the same marker measured on the literal first user row, on the first user row
+  behind an assistant greeting, and on a mid-conversation user row all produced the immersive form, 3/3 each,
+  while the unmarked control stayed analytic. Persistence comes from the re-sent history, not the position.
+  Probe.
 - Instructing the model to begin its thinking with a literal token or phrase does not work as an API instruction:
   the chain never started with the demanded opener, and the instruction ballooned chain length instead. Probe.
 - The official harness names a plugin family `forge`: a git-forge review panel (worktrees, change requests),
