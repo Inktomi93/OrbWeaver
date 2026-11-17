@@ -5,7 +5,8 @@
 // write path, no honoured forced choice, and a plain tool round that rides thinking-on because the row's
 // requiresReasoningOff gates only the structured plan's vehicles (proved at the wire: effort `high` rides).
 // Reference: legacy `server/entry/compose/rpg-state-round-structured.int.test.ts` (0511), rebuilt for today's
-// composed root per item 3571.
+// composed root per item 3571. The folded-mode pair covers the SHIPPED delivery default (D112 mount + the
+// announced `no-terminal-calls` escalation), which the live vendor walk exercised on 2026-11-17.
 // @subject packages/server/src/domain/rpg/tools/rounds/tool-round.ts
 // @subject packages/server/src/domain/rpg/substrate/readonly-axis.ts
 
@@ -107,7 +108,12 @@ interface DeepseekRoom extends AsyncDisposable {
 /** The real graph with the real DeepSeek row dialed at the fetch seam: the listing answers from the banked
  *  bytes, chat completions spend the finite plan. The narrative and the round are BOTH chat completions; the
  *  plan's order is the turn's order. */
-async function deepseekRoom(replies: readonly CoreWireReply[], vehicle: "tools" | "structured", live: boolean): Promise<DeepseekRoom> {
+async function deepseekRoom(
+  replies: readonly CoreWireReply[],
+  vehicle: "tools" | "structured",
+  live: boolean,
+  mode: "cheap" | "folded" = "cheap",
+): Promise<DeepseekRoom> {
   await using construction = new AsyncDisposableStack();
   const nextReply = construction.use(finiteReplies("deepseek round", replies)).take;
   const corpus = createCorpusProviderExecution({
@@ -184,7 +190,7 @@ async function deepseekRoom(replies: readonly CoreWireReply[], vehicle: "tools" 
   });
   await room.root.services.connection.setBinding({ principal: room.owner, task: "chat", connectionId: connection.id });
   await room.root.services.rpg.createGame({ principal: room.owner, chatId: room.chatId, mode: "lite" });
-  await room.root.services.rpg.updateConfig({ principal: room.owner, chatId: room.chatId, extractionMode: "cheap", patch: { stateCaptureVehicle: vehicle } });
+  await room.root.services.rpg.updateConfig({ principal: room.owner, chatId: room.chatId, extractionMode: mode, patch: { stateCaptureVehicle: vehicle } });
   const lifetime = construction.move();
   return {
     root: room.root,
@@ -361,6 +367,60 @@ test("a game that asks for the structured vehicle on a row without a structured-
   // vehicle degrades to tools, NOT to a response_format the vendor refuses.
   expect(round["response_format"]).toBeUndefined();
   expect(Array.isArray(round["tools"])).toBe(true);
+  const view = await h.root.services.rpg.getTrackerView(params);
+  expect(JSON.stringify(view)).toContain("The flooded undercroft");
+});
+
+// The SHIPPED delivery default (`extractionMode: "folded"`, D112): the row's absent `silencesProse` cell says
+// the wire co-emits prose with tools (contracts/inference `coEmitsProseWithTools`), so the fold MOUNTS the
+// state tools on the foreground dial instead of always paying a second call. The live vendor walk of this
+// mode (2026-11-17) answered the mounted foreground prose-only, escalated through the announced
+// `no-terminal-calls` fallback, and the round wrote a coherent scene — the pair below pins both the mount +
+// escalation and the true fold on the scripted seam, one forward per dial.
+test("a folded game mounts the state tools on the foreground, and a prose-only foreground escalates through the announced fallback to the dedicated round", async () => {
+  await using h = await deepseekRoom(
+    [(): Response => coreProse("Corvin takes the rusted sword from the rack."), deepseekToolCallReply([SCENE_TOOL], null)],
+    "tools",
+    false,
+    "folded",
+  );
+  const params = turnParams(h);
+  const turn = await runTurn(h, params);
+  expect(turn).toHaveLength(2);
+  const bodies = await bodiesOf(turn);
+
+  // The mount: the FOREGROUND dial itself carries the offered state surface — every round tool minus the
+  // trackers a fresh lite game cannot see, exactly the round's visible set — offered, never forced.
+  const foreground = bodies[0];
+  const round = bodies[1];
+  if (foreground === undefined || round === undefined) {
+    throw new Error("the folded turn's foreground or fallback round never dialed the provider");
+  }
+  const mounted = wireToolSurface(foreground);
+  expect(mounted.map((tool) => tool.name).toSorted()).toStrictEqual(RPG_TOOL_ROUND_TOOL_NAMES.filter((name) => name !== "set_tracker").toSorted());
+  expect(foreground["tool_choice"]).toBe("auto");
+  // The pair the live walk measured (2026-11-17): the foreground rides the chat preset's reasoning-off while
+  // the fallback round rides the effort-default fold — if either source moves, this catches it.
+  expect(foreground["reasoning_effort"]).toBe("none");
+  expect(round["reasoning_effort"]).toBe("high");
+
+  // A prose-only foreground is NOT trusted as a quiet beat: the flush ANNOUNCES the escalation, then the
+  // dedicated round lands the state. The trace is the law here — a silent fallback would pass a view diff.
+  const trace = (h.root.app.rpgTrace?.recent({ chatId: h.chatId }) ?? []).map(({ event }) => event);
+  expect(trace).toContainEqual(expect.objectContaining({ phase: "flush", path: "tool-round", fallbackReason: "no-terminal-calls" }));
+  expect(trace).toContainEqual(expect.objectContaining({ phase: "tool", calls: [expect.objectContaining({ name: SCENE_TOOL })] }));
+  const view = await h.root.services.rpg.getTrackerView(params);
+  expect(JSON.stringify(view)).toContain("The flooded undercroft");
+});
+
+test("a folded foreground that emits its own state calls folds them with NO second dial", async () => {
+  await using h = await deepseekRoom([deepseekToolCallReply([SCENE_TOOL], "Corvin takes the rusted sword from the rack.")], "tools", false, "folded");
+  const params = turnParams(h);
+  const turn = await runTurn(h, params);
+  // The true fold: the beat's calls rode the foreground completion, so the room never pays the second dial.
+  expect(turn).toHaveLength(1);
+  const trace = (h.root.app.rpgTrace?.recent({ chatId: h.chatId }) ?? []).map(({ event }) => event);
+  expect(trace).toContainEqual(expect.objectContaining({ phase: "flush", path: "folded", fallbackReason: null }));
   const view = await h.root.services.rpg.getTrackerView(params);
   expect(JSON.stringify(view)).toContain("The flooded undercroft");
 });
