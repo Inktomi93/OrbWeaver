@@ -35,6 +35,7 @@ import {
   OUTPUT_CAP_FIELDS,
   PREFILL_MODES,
   REASONING_BUDGET_FIELDS,
+  RESPONSES_REASONING_STREAMS,
   SAMPLER_KNOBS,
   SAMPLER_ORDER_SPELLINGS,
   STRICT_JSON_MODES,
@@ -262,6 +263,14 @@ const QUIRK_LEAVES_BY_FEATURE: Record<keyof Required<EndpointFeatures>, readonly
   forbiddenIsNotCredentialVerdict: [{ path: "forbiddenIsNotCredentialVerdict", name: "a 403 is not a key failure", edit: { kind: "boolean" }, unset: NOT_SET }],
   modelInfoApi: [{ path: "modelInfoApi", name: "model info API", edit: { kind: "enum", options: MODEL_INFO_APIS }, unset: NOT_SET }],
   nativeChat: [{ path: "nativeChat", name: "native chat route", edit: { kind: "enum", options: NATIVE_CHAT_APIS }, unset: "not set: chat uses /v1" }],
+  responsesReasoningStream: [
+    {
+      path: "responsesReasoningStream",
+      name: "responses reasoning stream spelling",
+      edit: { kind: "enum", options: RESPONSES_REASONING_STREAMS },
+      unset: "not set: the SDK's summary spelling",
+    },
+  ],
   detectServer: [{ path: "detectServer", name: "detect the server", edit: { kind: "boolean" }, unset: NOT_SET }],
   sleep: [
     { path: "sleep.isSleepingPath", name: "sleep check path", edit: { kind: "text" } },

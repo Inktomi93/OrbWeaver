@@ -146,7 +146,7 @@ function parseBody(body: unknown): unknown {
  * chain carries none or it is not JSON. RAW upstream content: a caller that shows a field of it scrubs and sanitizes
  * that field after reading it.
  */
-export function upstreamBody(error: unknown): unknown {
+function upstreamBody(error: unknown): unknown {
   if (!isRecord(error)) {
     return;
   }
@@ -182,6 +182,31 @@ export function judgesTheKey(failure: ProviderError, forbiddenIsNotCredentialVer
     return true;
   }
   return credentialCodeSchema.safeParse(failure.detail).success;
+}
+
+/** On a row whose 403 is no credential verdict, a 403 is a refusal in the service's own words: never `auth_failed`,
+ *  which strikes the stored key, and never retried, since the same request meets the same plan, model or cooldown.
+ *  A 403 whose structured code names the key still judges it: {@link judgesTheKey}, the rule the key check reads.
+ *  Read by every openai-compat protocol runner (chat-completions and responses alike). */
+export function forbiddenAsRefusal(args: {
+  readonly error: unknown;
+  readonly classified: ProviderError;
+  readonly label: string;
+  readonly secrets: ProviderScrubSet;
+  readonly forbiddenIsNotCredentialVerdict: boolean;
+}): ProviderError {
+  const { classified } = args;
+  if (classified.kind !== "auth_failed" || judgesTheKey(classified, args.forbiddenIsNotCredentialVerdict)) {
+    return classified;
+  }
+  const words = refusalWords(upstreamBody(args.error), args.secrets);
+  return new ProviderError({
+    kind: "invalid",
+    retryable: false,
+    message: words === undefined ? classified.message : `${args.label}: ${words}`,
+    apiErrorStatus: HTTP_FORBIDDEN,
+    cause: classified,
+  });
 }
 
 const refusalBodySchema = z.looseObject({ error: z.union([z.string(), z.looseObject({ message: z.string() })]) });

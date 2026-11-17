@@ -263,6 +263,8 @@ export interface ForcedToolRoundInput {
 
 export type AgentSdkChatRequest = ChatRequest & { readonly api: "agent-sdk" };
 export type OpenAiCompatChatRequest = ChatRequest & { readonly api: "chat-completions" };
+/** The `/responses` protocol arm of the same wire (`responses.ts` is its runner). */
+export type ResponsesChatRequest = ChatRequest & { readonly api: "responses" };
 export type GoogleChatRequest = ChatRequest & { readonly api: "google-generative-ai" };
 export type AnthropicChatRequest = ChatRequest & { readonly api: "anthropic-messages" };
 

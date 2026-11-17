@@ -28,6 +28,7 @@ export type {
   HistoryRole,
   OpenAiCompatChatRequest,
   ReasoningContentPart,
+  ResponsesChatRequest,
   ToolCallInput,
   ToolChoice,
   WireMeta,

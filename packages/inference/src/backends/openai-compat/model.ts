@@ -6,10 +6,12 @@
 // whose folded `features.nativeChat` names a server's own chat route keeps the transport and translates its
 // chat calls (`ollama-native.ts`).
 
+import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { EmbeddingModelV4, ImageModelV4, LanguageModelV4 } from "@ai-sdk/provider";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import type { CachePolicy, Dialect } from "@orb/contracts/inference";
+import type { EffortLevel } from "@orb/contracts/preset";
 import { wrapLanguageModel } from "ai";
 import { ProviderError } from "#contract";
 import { resolveCachePolicy } from "#funnel";
@@ -21,6 +23,7 @@ import { resolvedScrubSet } from "../http/sanitize.ts";
 import { wrapFetch } from "../v4/fetch.ts";
 import { shapeOutboundBody, userOwnedKeys } from "./body.ts";
 import { fromOllamaChat, ollamaNativeFetch, toOllamaChat } from "./ollama-native.ts";
+import { responsesReasoningTextStream } from "./responses-dialect.ts";
 import { samplerBodyKeys } from "./sampling.ts";
 import { thinkTagMiddleware } from "./think-tags.ts";
 
@@ -214,6 +217,40 @@ function openRouterProvider(call: ModelCall, responseReplaySupported: boolean): 
     fetch: wrapFetch(fetchArgs(call, shapeBody)),
     compatibility: "strict",
   });
+}
+
+/** The `/responses` protocol on this wire (`apis.ts` revival ruling, `responses.ts` runner): the SAME
+ *  URL convention as the chat transports (`openAiPath`, so the SDK POSTs `<base>/v1/responses` — the
+ *  path DeepSeek serves, MEASURED) and the SAME wrapped fetch (capture, scrub, response-map). The SDK's
+ *  own auth line is built from `apiKey`; an endpoint row has no secret, so the caller's own headers win
+ *  the `Authorization` key (the SDK spreads `options.headers` last) and `apiKey: ""` only keeps the
+ *  factory off the server process's `OPENAI_API_KEY` fallback. Per-call like every other factory here.
+ *
+ *  `reasoningEffort` closes one SDK gap at the body seam: the responses converter gates its whole
+ *  `reasoning` arm on its OWN catalog (`getOpenAILanguageModelCapabilities` — o-series/gpt-5 regexes),
+ *  so for every off-catalog id on this wire an options-level `reasoning` is silently DROPPED from the
+ *  body (MEASURED in 4.0.99's dist, `isReasoningModel &&` before the arm). The shapeBody hook rides the
+ *  field the SDK should have written — only when the SDK's own body carries no `reasoning` arm, so a
+ *  catalog model that spelled its own is never touched, and the capture sees the final bytes. */
+export function responsesModelFor(call: ModelCall, reasoningEffort: EffortLevel | undefined): LanguageModelV4 {
+  const reasoningText = call.connection.features.responsesReasoningStream === "text";
+  return createOpenAI({
+    baseURL: openAiPath(baseUrlOf(call), ""),
+    apiKey: call.connection.credential.secret ?? "",
+    headers: authHeaders(call.connection.credential.secret, call.connection.transport?.headers),
+    fetch: wrapFetch({
+      ...fetchArgs(call, undefined),
+      ...(reasoningEffort === undefined
+        ? {}
+        : {
+            shapeBody: (body: Record<string, unknown>): Record<string, unknown> =>
+              body["reasoning"] === undefined ? { ...body, reasoning: { effort: reasoningEffort } } : body,
+          }),
+      // The raw-reasoning dialect is rewritten onto the SDK's summary spelling BEFORE the SDK parses it
+      // (`responses-dialect.ts`); the capture keeps the bytes the server actually sent.
+      ...(reasoningText ? { translateResponse: responsesReasoningTextStream } : {}),
+    }),
+  }).responses(call.connection.model);
 }
 
 const TRANSPORTS: Record<Dialect, Transport> = {

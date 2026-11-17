@@ -152,6 +152,13 @@ export type ModelInfoApi = (typeof MODEL_INFO_APIS)[number];
 export const NATIVE_CHAT_APIS = ["ollama", "none"] as const;
 export type NativeChatApi = (typeof NATIVE_CHAT_APIS)[number];
 
+/** The `/responses` route's reasoning-stream spelling. `summary` (absent ⇒ this) = the OpenAI summary events
+ *  the SDK folds into reasoning parts; `text` = raw `response.reasoning_text.delta` frames, which the SDK's
+ *  chunk union silently DROPS as unknown chunks — the runner then rewrites them onto the summary spelling at
+ *  the fetch seam (`responses-dialect.ts`; MEASURED DeepSeek 2026-11-17: reasoning streams as
+ *  `reasoning_text.delta/done` and no summary events arrive at all). */
+export const RESPONSES_REASONING_STREAMS = ["summary", "text"] as const;
+
 /** The most side-generation items a connection runs at once. An agent-sdk item is its own Claude subprocess, so the
  *  bound holds on every wire rather than per backend. */
 export const SUMMARIZE_CONCURRENCY_MAX = 32;
@@ -179,6 +186,9 @@ export const endpointFeaturesSchema = z
     images: z.enum(IMAGE_ARMS).optional(),
     modelInfoApi: z.enum(MODEL_INFO_APIS).optional(),
     nativeChat: z.enum(NATIVE_CHAT_APIS).optional(),
+    /** The `/responses` reasoning-stream event spelling; absent ⇒ `summary` (the SDK-native fold). See
+     *  {@link RESPONSES_REASONING_STREAMS}. */
+    responsesReasoningStream: z.enum(RESPONSES_REASONING_STREAMS).optional(),
     /** Probe the connection's server for a known local server (KoboldCpp, llama.cpp, Ollama) and read the
      *  matching built-in row's features and model-info API in place of this row's. A declared `modelInfoApi`
      *  skips the probe; the connection's identity and credential stay this row's. */

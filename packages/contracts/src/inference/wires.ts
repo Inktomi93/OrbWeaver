@@ -26,12 +26,14 @@ export const WIRE_DEFS: Record<Wire, WireDef> = {
     serves: ["chat", "summarize", "structured", "generateImage", "embed", "imageEmbed"],
     deltas: ["text", "reasoning", "image", "tool-call", "citation", "usage"],
   },
-  // Two transports (`openai-compatible`, `openrouter`), one backend over the Vercel AI SDK (§8.1).
+  // Two transports (`openai-compatible`, `openrouter`), one backend over the Vercel AI SDK (§8.1), and two
+  // chat protocols: `/chat/completions` and `/responses` (the latter over `@ai-sdk/openai`'s `.responses()`;
+  // provider rows list the subset they actually serve).
   // `generateImage` rides the row's `features.images` arm, `rerank` the row's `features.rerankPath`,
   // `imageEmbed` a model whose embedding capability declares `input ∋ image` — the wire CAN serve them;
   // `connectionTasks` + `requirementMet` decide per row.
   "openai-compat": {
-    apis: ["chat-completions"],
+    apis: ["chat-completions", "responses"],
     serves: ["chat", "summarize", "structured", "generateImage", "embed", "imageEmbed", "rerank"],
     deltas: ["text", "reasoning", "image", "tool-call", "citation", "usage"],
   },

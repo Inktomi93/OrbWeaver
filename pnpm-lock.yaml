@@ -170,6 +170,9 @@ catalogs:
     '@ai-sdk/google':
       specifier: 4.0.102
       version: 4.0.102
+    '@ai-sdk/openai':
+      specifier: 4.0.99
+      version: 4.0.99
     '@ai-sdk/openai-compatible':
       specifier: 3.0.75
       version: 3.0.75
@@ -1069,6 +1072,9 @@ importers:
       '@ai-sdk/google':
         specifier: 'catalog:'
         version: 4.0.102(zod@4.6.7)
+      '@ai-sdk/openai':
+        specifier: 'catalog:'
+        version: 4.0.99(zod@4.6.7)
       '@ai-sdk/openai-compatible':
         specifier: 'catalog:'
         version: 3.0.75(zod@4.6.7)
@@ -1580,6 +1586,12 @@ packages:
 
   '@ai-sdk/openai-compatible@3.0.75':
     resolution: {integrity: sha512-Zs+EWsK1XprpCR6+VIva50W2YuD3TNSymd5DKFh8XSrroK0copxm2BlSDRKWVdx3SZEh1XqD+1cgYzGR7huL4A==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/openai@4.0.99':
+    resolution: {integrity: sha512-XRHUiXgxhVEe0smSp537lzCqMsOVg6jvGTWDbTZeGMTc+iHeOwgHgZMFBvOiNWXZ8n125Jta72m+64PtU1WNJA==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -9104,6 +9116,12 @@ snapshots:
       zod: 4.6.7
 
   '@ai-sdk/openai-compatible@3.0.75(zod@4.6.7)':
+    dependencies:
+      '@ai-sdk/provider': 4.0.31(patch_hash=30622a8e5166cc9d0e1fa38a71fde9276811cc0201d0143bb2545d7c30620b56)
+      '@ai-sdk/provider-utils': 5.0.65(patch_hash=739cea2b2986506918dae6bccdc2579ec0b978751177a48eb0a856cd50364d79)(zod@4.6.7)
+      zod: 4.6.7
+
+  '@ai-sdk/openai@4.0.99(zod@4.6.7)':
     dependencies:
       '@ai-sdk/provider': 4.0.31(patch_hash=30622a8e5166cc9d0e1fa38a71fde9276811cc0201d0143bb2545d7c30620b56)
       '@ai-sdk/provider-utils': 5.0.65(patch_hash=739cea2b2986506918dae6bccdc2579ec0b978751177a48eb0a856cd50364d79)(zod@4.6.7)

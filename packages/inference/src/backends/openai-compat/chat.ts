@@ -14,7 +14,7 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { JsonValue } from "@orb/kit/json";
 import type { Clock, ScheduleOp } from "@orb/kit/time";
 import { z } from "zod";
-import type { ChatHistoryMessage, ChatResult, OpenAiCompatChatRequest, ProviderScrubSet, RateLimitSnapshot, Resolved, ResolvedChatKnobs } from "#contract";
+import type { ChatHistoryMessage, ChatResult, OpenAiCompatChatRequest, RateLimitSnapshot, Resolved, ResolvedChatKnobs } from "#contract";
 import { ProviderError } from "#contract";
 import { resolveCachePolicy, resolveChat, templateThinkingFor } from "#funnel";
 import type { ProviderLogger } from "#src/contract/http.ts";
@@ -23,7 +23,7 @@ import type { PlannedTool, StructuredPlan } from "#src/contract/structured.ts";
 import type { ResultContext, StreamDrain, WirePlan } from "#src/contract/v4.ts";
 import type { ExplicitCachePlan, OpenRouterRouting } from "#src/contract/wire.ts";
 import { requireStructuredPlan, structuredChatResult } from "#structured";
-import { extractHttpErrorDiagnostic, judgesTheKey, providerErrorFromHttp, refusalWords, upstreamBody, withSchemaRejection } from "../http/error-classify.ts";
+import { extractHttpErrorDiagnostic, forbiddenAsRefusal, providerErrorFromHttp, refusalWords, withSchemaRejection } from "../http/error-classify.ts";
 import { observeChatResult } from "../http/generation-observation.ts";
 import { turnAbortSignal } from "../http/idle-timeout.ts";
 import { providerLogger } from "../http/provider-log.ts";
@@ -146,32 +146,6 @@ function templateRoleRefusal(error: unknown, label: string, classified: Provider
     retryable: false,
     message: `${label}: ${TEMPLATE_ROLE_MESSAGE} (the server said: ${match[0].slice(0, TEMPLATE_DETAIL_LIMIT)})`,
     ...(classified.apiErrorStatus !== undefined ? { apiErrorStatus: classified.apiErrorStatus } : {}),
-    cause: classified,
-  });
-}
-
-const HTTP_FORBIDDEN = 403;
-
-/** On a row whose 403 is no credential verdict, a 403 is a refusal in the service's own words: never `auth_failed`,
- *  which strikes the stored key, and never retried, since the same request meets the same plan, model or cooldown.
- *  A 403 whose structured code names the key still judges it: {@link judgesTheKey}, the rule the key check reads. */
-function forbiddenAsRefusal(args: {
-  readonly error: unknown;
-  readonly classified: ProviderError;
-  readonly label: string;
-  readonly secrets: ProviderScrubSet;
-  readonly forbiddenIsNotCredentialVerdict: boolean;
-}): ProviderError {
-  const { classified } = args;
-  if (classified.kind !== "auth_failed" || judgesTheKey(classified, args.forbiddenIsNotCredentialVerdict)) {
-    return classified;
-  }
-  const words = refusalWords(upstreamBody(args.error), args.secrets);
-  return new ProviderError({
-    kind: "invalid",
-    retryable: false,
-    message: words === undefined ? classified.message : `${args.label}: ${words}`,
-    apiErrorStatus: HTTP_FORBIDDEN,
     cause: classified,
   });
 }

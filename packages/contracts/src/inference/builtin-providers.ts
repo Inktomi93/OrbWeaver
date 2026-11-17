@@ -143,8 +143,13 @@ export const BUILTIN_PROVIDER_ROWS = [
     dialect: "openai-compatible",
     auth: "apiKey",
     // The direct API's versioned root; `GET /v1/models` answers there with the per-model facts (live 2026-11-16).
+    // Both routes hang off this base: chat-completions at `/v1/chat/completions`, responses at `/v1/responses`
+    // (the responses runner applies the same `openAiPath` convention; both measured 2026-11-16/17).
     baseUrl: "https://api.deepseek.com/v1",
-    apis: ["chat-completions"],
+    // Two protocols on one wire: the chat-completions body and `/v1/responses` (measured 2026-11-17: the
+    // vendor answers `/v1/responses` for every id, though its list declares no `responses` capability —
+    // per-model participation and every route fact live in the api-scoped cells, `curated/deepseek.ts`).
+    apis: ["chat-completions", "responses"],
     serves: ["chat", "summarize", "structured"],
     features: {
       effort: "reasoning_effort",
@@ -163,6 +168,10 @@ export const BUILTIN_PROVIDER_ROWS = [
       prefill: "prefix-flag",
       betaChatPath: "/beta",
       modelInfoApi: "deepseek",
+      // The `/responses` route streams reasoning as raw `response.reasoning_text.*` frames, which the
+      // SDK's chunk union drops silently; the dialect rewrites them onto the summary spelling
+      // (`responses-dialect.ts`, measured 2026-11-17 against deepseek-v4-pro).
+      responsesReasoningStream: "text",
     },
     catalog: "url",
     metered: true,

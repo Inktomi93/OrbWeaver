@@ -206,6 +206,10 @@ catalog:
   # every provider package's own `@ai-sdk/provider` dependency at install, so the stack moves together.
   ai: 7.0.148
   "@ai-sdk/provider": 4.0.31
+  # The `/responses` protocol transport (§8.1, `apis.ts` revival ruling). NOT the newest 4.x: 4.0.99 is the
+  # newest whose `@ai-sdk/provider` / `@ai-sdk/provider-utils` dependencies are EXACTLY the stack's patched
+  # pins below, so it dedupes onto the patched copies instead of nesting drift (the stack moves together).
+  "@ai-sdk/openai": 4.0.99
   "@ai-sdk/openai-compatible": 3.0.75
   "@ai-sdk/google": 4.0.102
   "@ai-sdk/anthropic": 4.0.85

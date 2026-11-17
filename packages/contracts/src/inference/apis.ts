@@ -7,16 +7,19 @@
 // deleted with the source axis). `anthropic-messages` RETURNS as a member (F6, owner word): the
 // first-party Anthropic key path is a wire of its own, served by the `anthropic` provider row.
 //
-// `responses` was RETIRED as a member (owner ruling). It was a WORKING OpenRouter GA Responses
-// turn (`backends/openrouter/runners/chat/responses.ts`, 523 lines over `@openrouter/sdk`) demolished as
-// collateral when the `@orb/inference` cut-over dropped that dependency wholesale (§8.2 F9):
-// the replacement `@openrouter/ai-sdk-provider` speaks chat-completions only. Listing a member whose only
-// possible outcome was a typed refusal at send made the picker a trap. Reviving it means wiring
-// `@ai-sdk/openai`'s `.responses()` transport — NOT restoring the deleted runner.
+// `responses` was RETIRED as a member (owner ruling) when the OpenRouter GA runner
+// (`backends/openrouter/runners/chat/responses.ts`, 523 lines over `@openrouter/sdk`) was demolished as
+// collateral in the `@orb/inference` cut-over (§8.2 F9): listing a member whose only possible outcome was
+// a typed refusal at send made the picker a trap. The ruling's revival path — `@ai-sdk/openai`'s
+// `.responses()` transport, NOT the deleted runner — is now executed: the member returns with a real
+// runner (`backends/openai-compat/responses.ts`), first served by the DeepSeek row. Which MODELS serve
+// the route is capability data (the api-scoped cells), not a provider branch — and the vendor answers
+// `/v1/responses` for every direct id, so the row's `apis` is the picker's ceiling and the cells are
+// the truth.
 
 import { z } from "zod";
 
-export const CHAT_APIS = ["chat-completions", "agent-sdk", "anthropic-messages", "google-generative-ai"] as const;
+export const CHAT_APIS = ["chat-completions", "responses", "agent-sdk", "anthropic-messages", "google-generative-ai"] as const;
 export type ChatApi = (typeof CHAT_APIS)[number];
 export const chatApiSchema = z.enum(CHAT_APIS) satisfies z.ZodType<ChatApi>;
 

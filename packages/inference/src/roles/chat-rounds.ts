@@ -22,6 +22,9 @@ const FORCED_TOOL_CHOICE: ToolChoice = { mode: "required" };
 const FORCED_TOOL_ROUND: Record<ChatApi, Exclude<ChatApi, "agent-sdk"> | null> = {
   "agent-sdk": null,
   "chat-completions": "chat-completions",
+  // `/responses` carries `tools` + `tool_choice` like chat-completions; where thinking mode rejects a
+  // forced choice (DeepSeek V4) the structured plan demotes it to `auto` and says so.
+  responses: "responses",
   "anthropic-messages": "anthropic-messages",
   "google-generative-ai": "google-generative-ai",
 };

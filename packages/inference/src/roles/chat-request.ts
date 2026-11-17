@@ -66,6 +66,7 @@ function toArrayWireChatRequest(input: ChatTurnInput, api: Exclude<ChatApi, "age
 const PROJECTIONS: Record<ChatApi, (input: ChatTurnInput) => ChatRequest> = {
   "agent-sdk": toAgentSdkChatRequest,
   "chat-completions": (input) => toArrayWireChatRequest(input, "chat-completions"),
+  responses: (input) => toArrayWireChatRequest(input, "responses"),
   "google-generative-ai": (input) => toArrayWireChatRequest(input, "google-generative-ai"),
   "anthropic-messages": (input) => toArrayWireChatRequest(input, "anthropic-messages"),
 };

@@ -1,10 +1,11 @@
 // The `openai-compat` wire's sealed backend: ONE backend, TWO transports (`openai-compatible` +
-// `openrouter`), everything else data (§8.1). Serves chat / summarize / structured / embed / imageEmbed /
+// `openrouter`) and two chat protocols (`/chat/completions` in `chat.ts`, `/responses` in `responses.ts`),
+// everything else data (§8.1). Serves chat / summarize / structured / embed / imageEmbed /
 // rerank / generateImage + the six diagnostics; `WIRE_DEFS["openai-compat"].serves` is pinned against
 // these methods by the table test. Nothing here knows a provider id — the row's `features`, `extras` and
 // `transport` are the whole configuration.
 
-import type { ChatRequest, ChatResult, OpenAiCompatChatRequest, StructuredRequest, SummarizeRequest } from "#contract";
+import type { ChatRequest, ChatResult, OpenAiCompatChatRequest, ResponsesChatRequest, StructuredRequest, SummarizeRequest } from "#contract";
 import { ProviderError } from "#contract";
 import { runSideGen } from "#roles";
 import type { DiagnosticRequestCommon } from "#src/contract/diagnostics.ts";
@@ -18,10 +19,15 @@ import { runOpenAiCompatImageEmbed } from "./image-embed.ts";
 import { runOpenAiCompatGenerateImage } from "./images.ts";
 import { createReachabilityProber } from "./reachability.ts";
 import { runOpenAiCompatRerank } from "./rerank.ts";
+import { runOpenAiCompatResponsesTurn } from "./responses.ts";
 import { createTokenLexicon } from "./tokens.ts";
 
 function isOpenAiCompatChatRequest(req: ChatRequest): req is OpenAiCompatChatRequest {
   return req.api === "chat-completions";
+}
+
+function isResponsesChatRequest(req: ChatRequest): req is ResponsesChatRequest {
+  return req.api === "responses";
 }
 
 /** What a task carries that the wake reads: its row and its cancel. */
@@ -86,6 +92,9 @@ export function createOpenAiCompatBackend(deps: OpenAiCompatBackendDeps): OpenAi
   const reachability = createReachabilityProber({ fetch: deps.fetch, now: deps.now, scheduleTimeout: deps.scheduleTimeout });
   const awake = wakeBeforeSend(reachability);
   const chatTurn = async (req: ChatRequest): Promise<ChatResult> => {
+    if (isResponsesChatRequest(req)) {
+      return await runOpenAiCompatResponsesTurn(req, chatDeps);
+    }
     if (!isOpenAiCompatChatRequest(req)) {
       throw new ProviderError({ kind: "invalid", retryable: false, message: `openai-compat backend received api="${req.api}"` });
     }
