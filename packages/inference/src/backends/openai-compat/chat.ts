@@ -815,6 +815,11 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   if (attempt.rateLimit !== null) {
     log.emit(attempt.rateLimit.status === "allowed" ? "debug" : "warn", "provider.rate_limit", { turnId: knobs.turnId, ...attempt.rateLimit });
   }
+  // The receipt's gate is the PLACEMENT, not the dialect: `placeCache` runs for every dialect whose
+  // resolved plan says markers (curated openai rows spell `prompt_cache_breakpoint` themselves; OpenRouter
+  // rides the SDK's `cache_control` path), so the OR-dialect gate once hid this line from exactly the rows
+  // the curator marked explicit-cache while the span below reported their breakpoints.
+  const breakpointsPlaced = cache.written.systemBlocks + cache.written.historyDepths.length + cache.written.requestBlocks;
   emitTurnReceipts({
     log,
     knobs,
@@ -825,10 +830,10 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
     requestedParams: { ...req.params },
     usage: turn.usage,
     warnings,
-    ...(generation.turns?.explicitPromptCache === true && req.connection.provider.dialect === "openrouter"
+    ...(breakpointsPlaced > 0
       ? {
           cache: {
-            breakpointsPlaced: cache.written.systemBlocks + cache.written.historyDepths.length + cache.written.requestBlocks,
+            breakpointsPlaced,
             breakpointOffsets: cache.written.historyDepths,
           },
         }
@@ -844,7 +849,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
     firstDeltaAt,
     turn,
     cache: {
-      breakpointsPlaced: cache.written.systemBlocks + cache.written.historyDepths.length + cache.written.requestBlocks,
+      breakpointsPlaced,
       readTokens: turn.usage.cacheReadTokens,
       writeTokens: turn.usage.cacheWriteTokens,
     },

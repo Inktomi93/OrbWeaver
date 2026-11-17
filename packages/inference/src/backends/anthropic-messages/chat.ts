@@ -438,6 +438,8 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
   if (response.rateLimit !== null) {
     log.emit(response.rateLimit.status === "allowed" ? "debug" : "warn", "provider.rate_limit", { turnId: knobs.turnId, ...response.rateLimit });
   }
+  // One number, both surfaces: the log receipt and the D4 span must report the same placement fact.
+  const breakpointsPlaced = cache.written.systemBlocks + cache.written.historyDepths.length + cache.written.toolBlocks + cache.written.requestBlocks;
   emitTurnReceipts({
     log,
     knobs,
@@ -449,7 +451,7 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
     usage: turn.usage,
     warnings,
     cache: {
-      breakpointsPlaced: cache.written.systemBlocks + cache.written.historyDepths.length + cache.written.toolBlocks + cache.written.requestBlocks,
+      breakpointsPlaced,
       breakpointOffsets: cache.written.historyDepths,
     },
   });
@@ -464,7 +466,7 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
     firstDeltaAt,
     turn,
     cache: {
-      breakpointsPlaced: cache.written.systemBlocks + cache.written.historyDepths.length + cache.written.toolBlocks + cache.written.requestBlocks,
+      breakpointsPlaced,
       readTokens: turn.usage.cacheReadTokens,
       writeTokens: turn.usage.cacheWriteTokens,
     },

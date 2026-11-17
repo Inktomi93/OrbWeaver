@@ -8,11 +8,14 @@ import type { UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ChatEvent, ChatHistoryMessage } from "@orb/inference";
 import { isPlainObject } from "@orb/kit/guards";
+import type { JsonObject } from "@orb/kit/json";
+import { jsonObjectSchema } from "@orb/kit/json";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { expect, test } from "@orb/testkit/node";
 import type { RecordedRequest } from "@orb/testkit/node/helpers";
 import { openAiServer, warningCodes } from "@orb/testkit/node/helpers";
 import { z } from "zod";
+import { PROVIDER_CACHE_EVENT } from "#inference/backends/http/provider-log.ts";
 import { createRuntimeRoot, generationCapability, wireConnection } from "../../roles/runtime.fixtures.ts";
 
 type Connection = Parameters<typeof wireConnection<"chat">>[1];
@@ -26,6 +29,8 @@ interface Sent {
   readonly url: string;
   readonly body: RecordedRequest["body"];
   readonly events: readonly ChatEvent[];
+  /** The root ring's log lines at turn end — the `provider.*` receipts ride them. */
+  readonly receipts: readonly string[];
 }
 
 /** One chat turn against a scripted openai-compatible endpoint; what the endpoint received and what the turn reported. */
@@ -36,11 +41,12 @@ async function send(
     readonly history?: readonly ChatHistoryMessage[];
     readonly responseFormat?: ResponseFormat;
     readonly prefillReasoning?: string;
+    readonly cacheBreakpointDepth?: number;
   } = {},
 ): Promise<Sent> {
   const recorded: RecordedRequest[] = [];
   using server = openAiServer(recorded, () => ({}));
-  await using root = await createRuntimeRoot({ providerFetch: server.execute });
+  await using root = await createRuntimeRoot({ providerFetch: server.execute, logLevel: "debug" });
   const connection = await wireConnection(root, { ...row, task: "chat", providerId: row.providerId ?? "custom-openai", model: row.model ?? "shaping-model" });
   const turn = await root.app.runtime.executor.runChatTurn({
     signal: new AbortController().signal,
@@ -51,12 +57,13 @@ async function send(
     history: options.history ?? [USER_LINE],
     ...(options.responseFormat === undefined ? {} : { responseFormat: options.responseFormat }),
     ...(options.prefillReasoning === undefined ? {} : { prefillReasoning: options.prefillReasoning }),
+    ...(options.cacheBreakpointDepth === undefined ? {} : { cacheBreakpointDepth: options.cacheBreakpointDepth }),
   });
   const [first] = recorded;
   if (first === undefined) {
     throw new Error("the turn reached no endpoint");
   }
-  return { url: first.url, body: first.body, events: turn.events };
+  return { url: first.url, body: first.body, events: turn.events, receipts: root.observability.logLines(1000) };
 }
 
 function ignoredKeys(events: readonly ChatEvent[]): string[] {
@@ -399,6 +406,22 @@ test("participant names, a prior reply's image and the image detail ride the wir
 const CACHEABLE = generationCapability({
   turns: { assistantPrefill: false, midConversationSystem: false, historySystemRows: false, roleHandlingFloor: "strict", explicitPromptCache: true },
 });
+// The curated openai rows' spelling for a user who TURNED explicit caching on: the default-enabled fact
+// (resolve-task reads it into `promptSettings.enabled`; the curated rows ship it `false`) and a placement
+// floor lowered off the fixture's tiny rows — the placement arithmetic, not the token estimate, is what
+// the receipt arm pins.
+const OPENAI_SPELLING = generationCapability({
+  turns: {
+    assistantPrefill: false,
+    midConversationSystem: false,
+    historySystemRows: false,
+    roleHandlingFloor: "strict",
+    explicitPromptCache: true,
+    promptCacheFormat: "openai-breakpoint",
+    promptCacheDefaultEnabled: true,
+    cacheMinTokens: 1,
+  },
+});
 const ANTHROPIC_ON_OPENROUTER = { providerId: providerIdSchema.parse("openrouter"), model: "anthropic/claude-sonnet-4.5", capability: CACHEABLE } as const;
 const MARKED = { cacheBreakpoint: true } as const;
 
@@ -426,6 +449,36 @@ test("an OpenRouter cache marker rides its row's last text part, and a row with 
   expect(contentOf(moved.body, 1)).toEqual([expect.objectContaining({ text: "One.", ["cache_control"]: expect.anything() })]);
   expect(wireRows(moved.body)[2]).not.toHaveProperty("cache_control");
   expect(wireRows(moved.body)[2]?.["content"]).toBeNull();
+});
+
+/** The last `provider.*` line of this event the root ring holds, fields parsed off the JSON line. */
+function lastReceipt(lines: readonly string[], event: string): JsonObject {
+  const matching = lines.filter((line) => line.includes(`"event":"${event}"`));
+  const last = matching.at(-1);
+  if (last === undefined) {
+    throw new Error(`no ${event} line in the root ring (${lines.length} lines captured)`);
+  }
+  return jsonObjectSchema.parse(JSON.parse(last));
+}
+
+// The `provider.cache` receipt used to be gated on `dialect === "openrouter"` while the PLACER is gated on
+// the resolved plan — so exactly the rows the curator spells `prompt_cache_breakpoint` themselves (the
+// curated openai rows) placed real breakpoints, had the span count them, and emitted no log line. The
+// gate is now the placement; this is the pin that keeps it there.
+test("the provider.cache receipt fires on placement, not dialect: a plain openai-compatible row that spells the breakpoint format gets the line", async () => {
+  const history: ChatHistoryMessage[] = [
+    { role: "user", content: [{ type: "text", text: "One." }] },
+    { role: "assistant", content: [{ type: "text", text: "Two." }] },
+    { role: "user", content: [{ type: "text", text: "Three." }] },
+  ];
+  const sent = await send(
+    { capability: OPENAI_SPELLING, promptCache: { enabled: true, cacheSystem: false, historyDepth: null, ttl: "1h" } },
+    { history, cacheBreakpointDepth: 1 },
+  );
+  // The wire bytes first: the placed breakpoint was translated to the provider's spelling.
+  expect(JSON.stringify(sent.body), "the breakpoint was sent in the openai spelling").toContain("prompt_cache_breakpoint");
+  const cache = lastReceipt(sent.receipts, PROVIDER_CACHE_EVENT);
+  expect(cache["breakpointsPlaced"], "the receipt counts the breakpoint the placer wrote").toBe(1);
 });
 
 test("same-role rows fold into one message of parts on a block-end-preserving prefix, each marker on its own part, and stay separate elsewhere", async () => {

@@ -11,6 +11,8 @@ export const EMBED_CLAMPED_EVENT = "provider.embed-clamped";
 /** The turn's two receipt events — the one spelling the emitters below and the suites that pin the receipts use. */
 export const PROVIDER_SAMPLING_EVENT = "provider.sampling";
 export const PROVIDER_CAPABILITY_EVENT = "provider.capability";
+/** The explicit-cache placement line; the D4 trace surface shares this name deliberately (`turn-span.ts`). */
+export const PROVIDER_CACHE_EVENT = "provider.cache";
 
 /** Bind the sink to one wire/provider pair — every line the backend emits carries both. */
 export function providerLogger(log: InferenceLog, wire: string, providerId: string): ProviderLogger {
@@ -19,7 +21,7 @@ export function providerLogger(log: InferenceLog, wire: string, providerId: stri
   };
   return {
     emit,
-    cache: (entry) => emit("info", "provider.cache", { ...entry }),
+    cache: (entry) => emit("info", PROVIDER_CACHE_EVENT, { ...entry }),
     sampling: (entry) =>
       emit("debug", PROVIDER_SAMPLING_EVENT, { turnId: entry.turnId, requested: entry.requested, applied: entry.applied, dropped: [...entry.dropped] }),
     capability: (entry) =>
