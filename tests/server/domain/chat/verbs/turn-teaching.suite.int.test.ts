@@ -12,7 +12,7 @@ import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
-import { connectDevice } from "@orb/testkit/node/composed";
+import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL, connectDevice } from "@orb/testkit/node/composed";
 import { REACTION_ANONYMOUS_REACTOR, REACTION_WHOLE_MESSAGE_TARGET, reactionNote } from "#server/domain/chat/substrate/reaction-note.ts";
 import { coreProse } from "../engine/core-physical.ts";
 import { inputMessages, invitePerson, messageText, personaRoom, seatPersona } from "../persona-cache-physical.ts";
@@ -309,6 +309,69 @@ test("a game's state block is accounted under its own budget source and reaches 
   await using plain = await textRoom([]);
   const plainPreview = await plain.root.services.chat.previewAssembly({ signal: new AbortController().signal, principal: plain.owner, chatId: plain.chatId });
   expect(nonEmpty(plainPreview.budget.sources).some((source) => source.source === "game-state")).toBe(false);
+});
+
+// The game-state note and a preset's tail-prefill assistant both claim the depth-0 slot, and only one row can
+// end the array. The continuation row owns the tail — the model needs an assistant row to continue, and the
+// vendor accepts the fixed order unchanged (a system note above a `prefix` continue row: continuation 3/3,
+// seed steering undamaged, `docs/law/deepseek-api-surface.md`). Red-proof: drop the tail tie-break from
+// `spliceOrder` (`assembly/injections.ts`) and the note merges last, the array ends on the note, and the
+// first assertion fails on both role and stamp.
+test("the game-state note is taught ABOVE a tail-prefill assistant, leaving the model a row to continue", async () => {
+  // The cheap game's DEDICATED post-commit tool round is the plan's second reply; the assertions read the
+  // narrator request, which is what the splice ordering acts on.
+  await using game = await turnRpgRoom(
+    [(): Response => turnRpgReply("The keeper nods."), (): Response => turnRpgReply("", "Registered observatory")],
+    {},
+    "cheap",
+  );
+  // The capability half: a row that continues a trailing assistant and carries mid-conversation system rows.
+  const prefillRow = await game.root.services.connection.create({
+    principal: game.owner,
+    providerId: "custom-openai",
+    credentialId: null,
+    baseUrl: CORPUS_PROVIDER_ENDPOINT,
+    model: CORPUS_TEXT_MODEL,
+    declared: {
+      kind: "generation",
+      generation: {
+        input: ["text"],
+        context: { window: 32_000 },
+        tools: { parallel: true, silencesProse: false },
+        turns: { assistantPrefill: true, midConversationSystem: true, historySystemRows: true },
+      },
+      features: { detectServer: false, prefill: "prefix-flag" },
+    },
+  });
+  await game.caller.connection.setBinding({ task: "chat", connectionId: prefillRow.id });
+  const tailOpen = "The keeper's hand stops halfway to the bell.";
+  await game.root.services.chat.setChatInjection({
+    principal: game.owner,
+    chatId: game.chatId,
+    position: "in_chat",
+    depth: 0,
+    role: "assistant",
+    content: tailOpen,
+  });
+  const preview = await game.root.services.chat.previewAssembly({ signal: new AbortController().signal, principal: game.owner, chatId: game.chatId });
+  const stateOpening = preview.budget.sources.find((source) => source.source === "game-state")?.text.split("\n")[0] ?? "";
+  expect(stateOpening).not.toBe("");
+  const messages = inputMessages((await wireOf(game, () => send(game))).bodies[0]);
+  // The whole chain in the last row: the preset's own text, assistant-role, and stamped to continue.
+  expect(messages.at(-1)).toMatchObject({ role: "assistant", prefix: true });
+  expect(JSON.stringify(messages.at(-1))).toContain(tailOpen);
+  // And the note is still taught — above the tail, not behind it.
+  expect(messages.slice(0, -1).some((row) => JSON.stringify(row).includes(stateOpening))).toBe(true);
+
+  // Positive control: with no prefill row authored, the note keeps the tail slot it holds today; the
+  // tie-break is conditional on the continuation row, not a blanket reorder.
+  await using plain = await turnRpgRoom(
+    [(): Response => turnRpgReply("The keeper nods."), (): Response => turnRpgReply("", "Registered observatory")],
+    {},
+    "cheap",
+  );
+  const plainMessages = inputMessages((await wireOf(plain, () => send(plain))).bodies[0]);
+  expect(JSON.stringify(plainMessages.at(-1))).toContain(stateOpening);
 });
 
 /** The tool declarations the act's newest provider request carried, one serialized declaration each. */

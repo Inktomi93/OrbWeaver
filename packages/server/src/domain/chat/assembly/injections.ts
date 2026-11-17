@@ -103,10 +103,20 @@ const DEFAULT_INJECTION_ORDER = 100;
 
 /** The splice order. Primary: depth desc (deepest splices first). Then the new-chat marker: it is always the first
  *  history row, so an over-deep injection that clamps to the same top depth lands below it. Then `order` asc —
- *  within one depth, lower order lands first/top. Absent order ⇒ 100; equal keys keep array/rack order. */
+ *  within one depth, lower order lands first/top. Absent order ⇒ 100; equal keys keep array/rack order. The last
+ *  tie-break is the tail ownership: a `prefix`-capable turn continues the row the array ENDS on, so at depth 0 the
+ *  continuation row (role assistant — it only reaches depth 0 when the assembler honored the prefill) owns the
+ *  last slot and every other same-depth note is taught above it. An explicit `order` still outranks this, so a
+ *  host that deliberately wants to speak after the half-written reply can. */
 function spliceOrder(a: { readonly inj: ChatInjection; readonly depth: number }, b: { readonly inj: ChatInjection; readonly depth: number }): number {
   const headRank = (inj: ChatInjection): number => (inj.origin === "new-chat-marker" ? 0 : 1);
-  return b.depth - a.depth || headRank(a.inj) - headRank(b.inj) || (a.inj.order ?? DEFAULT_INJECTION_ORDER) - (b.inj.order ?? DEFAULT_INJECTION_ORDER);
+  const tailRank = (x: { readonly inj: ChatInjection; readonly depth: number }): number => (x.depth === 0 && x.inj.role === "assistant" ? 1 : 0);
+  return (
+    b.depth - a.depth ||
+    headRank(a.inj) - headRank(b.inj) ||
+    (a.inj.order ?? DEFAULT_INJECTION_ORDER) - (b.inj.order ?? DEFAULT_INJECTION_ORDER) ||
+    tailRank(a) - tailRank(b)
+  );
 }
 
 /**
