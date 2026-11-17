@@ -115,9 +115,9 @@ export function openAiResponsesServer(
     if (answer.kind === "error") {
       return Promise.resolve(Response.json({ error: { message: answer.message, type: "invalid_request_error" } }, { status: answer.status ?? 400 }));
     }
-    const frame = (payload: Record<string, JsonValue>): string => `event: ${String(payload["type"])}\ndata: ${JSON.stringify(payload)}\n\n`;
+    const frame = (type: string, payload: Record<string, JsonValue>): string => `event: ${type}\ndata: ${JSON.stringify({ type, ...payload })}\n\n`;
     const response: Record<string, JsonValue> = { id: "resp-1", ["created_at"]: 1, model: "m" };
-    const frames: string[] = [frame({ type: "response.created", response }), frame({ type: "response.in_progress", response })];
+    const frames: string[] = [frame("response.created", { response }), frame("response.in_progress", { response })];
     if (answer.kind === "tool-call") {
       const item: Record<string, JsonValue> = {
         type: "function_call",
@@ -128,37 +128,35 @@ export function openAiResponsesServer(
         status: "completed",
       };
       frames.push(
-        frame({ type: "response.output_item.added", ["output_index"]: 0, item: { ...item, arguments: "", status: "in_progress" } }),
-        frame({ type: "response.function_call_arguments.delta", ["item_id"]: "fc-1", ["output_index"]: 0, delta: answer.arguments }),
-        frame({ type: "response.function_call_arguments.done", ["item_id"]: "fc-1", ["output_index"]: 0, arguments: answer.arguments }),
-        frame({ type: "response.output_item.done", ["output_index"]: 0, item }),
+        frame("response.output_item.added", { ["output_index"]: 0, item: { ...item, arguments: "", status: "in_progress" } }),
+        frame("response.function_call_arguments.delta", { ["item_id"]: "fc-1", ["output_index"]: 0, delta: answer.arguments }),
+        frame("response.function_call_arguments.done", { ["item_id"]: "fc-1", ["output_index"]: 0, arguments: answer.arguments }),
+        frame("response.output_item.done", { ["output_index"]: 0, item }),
       );
     } else {
       let outputIndex = 0;
       if (answer.reasoning !== undefined) {
         frames.push(
-          frame({ type: "response.output_item.added", ["output_index"]: 0, item: { type: "reasoning", id: "rs-1" } }),
-          frame({ type: "response.reasoning_summary_part.added", ["item_id"]: "rs-1", ["output_index"]: 0, ["summary_index"]: 0 }),
-          frame({ type: "response.reasoning_summary_text.delta", ["item_id"]: "rs-1", ["output_index"]: 0, ["summary_index"]: 0, delta: answer.reasoning }),
-          frame({ type: "response.reasoning_summary_part.done", ["item_id"]: "rs-1", ["output_index"]: 0, ["summary_index"]: 0 }),
-          frame({ type: "response.output_item.done", ["output_index"]: 0, item: { type: "reasoning", id: "rs-1" } }),
+          frame("response.output_item.added", { ["output_index"]: 0, item: { type: "reasoning", id: "rs-1" } }),
+          frame("response.reasoning_summary_part.added", { ["item_id"]: "rs-1", ["output_index"]: 0, ["summary_index"]: 0 }),
+          frame("response.reasoning_summary_text.delta", { ["item_id"]: "rs-1", ["output_index"]: 0, ["summary_index"]: 0, delta: answer.reasoning }),
+          frame("response.reasoning_summary_part.done", { ["item_id"]: "rs-1", ["output_index"]: 0, ["summary_index"]: 0 }),
+          frame("response.output_item.done", { ["output_index"]: 0, item: { type: "reasoning", id: "rs-1" } }),
         );
         outputIndex = 1;
       }
       frames.push(
-        frame({ type: "response.output_item.added", ["output_index"]: outputIndex, item: { type: "message", id: "msg-1" } }),
-        frame({ type: "response.output_text.delta", ["item_id"]: "msg-1", ["output_index"]: outputIndex, delta: answer.text }),
-        frame({ type: "response.output_text.done", ["item_id"]: "msg-1", ["output_index"]: outputIndex, text: answer.text }),
-        frame({
-          type: "response.output_item.done",
+        frame("response.output_item.added", { ["output_index"]: outputIndex, item: { type: "message", id: "msg-1" } }),
+        frame("response.output_text.delta", { ["item_id"]: "msg-1", ["output_index"]: outputIndex, delta: answer.text }),
+        frame("response.output_text.done", { ["item_id"]: "msg-1", ["output_index"]: outputIndex, text: answer.text }),
+        frame("response.output_item.done", {
           ["output_index"]: outputIndex,
           item: { type: "message", id: "msg-1", content: [{ type: "output_text", text: answer.text }] },
         }),
       );
     }
     frames.push(
-      frame({
-        type: "response.completed",
+      frame("response.completed", {
         response: {
           ...response,
           usage: {
