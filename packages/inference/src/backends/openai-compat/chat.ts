@@ -34,7 +34,7 @@ import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "../http/sanitize.ts";
 import { emitTurnSpanEvents } from "../http/turn-span.ts";
 import { plannedOptions, standardSampling } from "../v4/options.ts";
 import { buildWirePlan, withMessageOptions } from "../v4/prompt.ts";
-import { appliedSampling, DROPPED_SAMPLING_CODES, measuredCostOf, sdkWarnings, toChatResult } from "../v4/result.ts";
+import { emitTurnReceipts, measuredCostOf, sdkWarnings, toChatResult } from "../v4/result.ts";
 import { drainStream } from "../v4/stream.ts";
 import { effortWordOf } from "../wire/applied-effort.ts";
 import { automaticCachePlan, effectiveProviderRouting, explicitCachePlan, isAnthropicModel, placeExplicitCacheMarkers } from "../wire/cache-control.ts";
@@ -555,51 +555,6 @@ async function streamOnce(args: StreamOnceArgs): Promise<StreamDrain> {
   }
 }
 
-// ── receipts ──────────────────────────────────────────────────────────────────────────────────────────────
-
-function emitReceipts(args: {
-  readonly log: ProviderLogger;
-  readonly req: OpenAiCompatChatRequest;
-  readonly generation: GenerationCapability;
-  readonly knobs: ResolvedChatKnobs;
-  readonly turn: ChatResult;
-  readonly written: CacheWriteReceipt;
-  readonly warnings: readonly ResolvedWarning[];
-}): void {
-  const { log, req, generation, knobs, turn, written, warnings } = args;
-  if (generation.turns?.explicitPromptCache === true && req.connection.provider.dialect === "openrouter") {
-    const { cacheReadTokens, cacheWriteTokens } = turn.usage;
-    const total = cacheReadTokens !== null && cacheWriteTokens !== null ? cacheReadTokens + cacheWriteTokens : null;
-    let hitRatio: number | null = null;
-    if (total !== null && cacheReadTokens !== null) {
-      hitRatio = total > 0 ? cacheReadTokens / total : 0;
-    }
-    log.cache({
-      turnId: knobs.turnId,
-      cacheReadTokens: turn.usage.cacheReadTokens,
-      cacheWriteTokens: turn.usage.cacheWriteTokens,
-      breakpointsPlaced: written.systemBlocks + written.historyDepths.length + written.requestBlocks,
-      breakpointOffsets: written.historyDepths,
-      hitRatio,
-      minCacheTokens: cacheMinTokensOf(generation),
-    });
-  }
-  log.capability({
-    turnId: knobs.turnId,
-    api: req.api,
-    providerId: req.connection.providerId,
-    requestedModel: req.connection.model,
-    turns: { ...generation.turns },
-    droppedWarnings: warnings.map((w) => ({ code: w.code, message: w.message })),
-  });
-  log.sampling({
-    turnId: knobs.turnId,
-    requested: { ...req.params },
-    applied: { ...appliedSampling(knobs.sampling, warnings), ...(knobs.verbosity !== undefined ? { verbosity: knobs.verbosity } : {}) },
-    dropped: warnings.filter((w) => DROPPED_SAMPLING_CODES.has(w.code)).map((w) => ({ knob: w.knob ?? w.code, reason: w.message })),
-  });
-}
-
 function rowOptionsFor(
   anthropicRoute: boolean,
   cachePlan: ExplicitCachePlan | null,
@@ -860,7 +815,26 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   if (attempt.rateLimit !== null) {
     log.emit(attempt.rateLimit.status === "allowed" ? "debug" : "warn", "provider.rate_limit", { turnId: knobs.turnId, ...attempt.rateLimit });
   }
-  emitReceipts({ log, req, generation, knobs, turn, written: cache.written, warnings });
+  emitTurnReceipts({
+    log,
+    knobs,
+    generation,
+    api: req.api,
+    providerId: req.connection.providerId,
+    requestedModel: req.connection.model,
+    requestedParams: { ...req.params },
+    usage: turn.usage,
+    warnings,
+    ...(generation.turns?.explicitPromptCache === true && req.connection.provider.dialect === "openrouter"
+      ? {
+          cache: {
+            breakpointsPlaced: cache.written.systemBlocks + cache.written.historyDepths.length + cache.written.requestBlocks,
+            breakpointOffsets: cache.written.historyDepths,
+          },
+        }
+      : {}),
+    ...(knobs.verbosity !== undefined ? { sentVerbosity: knobs.verbosity } : {}),
+  });
   // D4: the turn's timeline, same three events as the direct wire (the trace must read the same on both).
   emitTurnSpanEvents({
     addSpanEvent: deps.addSpanEvent,

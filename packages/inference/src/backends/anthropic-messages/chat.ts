@@ -17,7 +17,7 @@
 
 import type { JSONObject, LanguageModelV4CallOptions, SharedV4Headers, SharedV4ProviderOptions } from "@ai-sdk/provider";
 import type { GenerationCapability, ReasoningOffMode, ResolvedWarning } from "@orb/contracts/inference";
-import { acceptsAssistantPrefill, acceptsTurnScopedSystem, bindsThinkingToPrefix, cacheMinTokensOf, REASONING_OFF_DEFAULT } from "@orb/contracts/inference";
+import { acceptsAssistantPrefill, acceptsTurnScopedSystem, bindsThinkingToPrefix, REASONING_OFF_DEFAULT } from "@orb/contracts/inference";
 import type { EffortLevel } from "@orb/contracts/preset";
 import type { Clock, ScheduleOp } from "@orb/kit/time";
 import type { AnthropicChatRequest, ChatEvent, ChatHistoryMessage, ChatResult, RateLimitSnapshot, ResolvedChatKnobs, ResolvedReasoning } from "#contract";
@@ -40,7 +40,7 @@ import { resolvedScrubSet } from "../http/sanitize.ts";
 import { emitTurnSpanEvents } from "../http/turn-span.ts";
 import { plannedOptions, standardSampling } from "../v4/options.ts";
 import { buildWirePlan, withMessageOptions } from "../v4/prompt.ts";
-import { appliedSampling, DROPPED_SAMPLING_CODES, measuredCostOf, sdkWarnings, toChatResult } from "../v4/result.ts";
+import { emitTurnReceipts, measuredCostOf, sdkWarnings, toChatResult } from "../v4/result.ts";
 import { drainStream } from "../v4/stream.ts";
 import { effortWordOf } from "../wire/applied-effort.ts";
 import { automaticCachePlan, explicitCachePlan, placeExplicitCacheMarkers } from "../wire/cache-control.ts";
@@ -308,47 +308,6 @@ async function streamOnce(args: StreamOnceArgs): Promise<StreamDrain> {
   }
 }
 
-function emitReceipts(args: {
-  readonly log: ProviderLogger;
-  readonly req: AnthropicChatRequest;
-  readonly generation: GenerationCapability;
-  readonly knobs: ResolvedChatKnobs;
-  readonly turn: ChatResult;
-  readonly written: CacheWriteReceipt;
-  readonly warnings: readonly ResolvedWarning[];
-}): void {
-  const { log, req, generation, knobs, turn, written, warnings } = args;
-  const { cacheReadTokens, cacheWriteTokens } = turn.usage;
-  const total = cacheReadTokens !== null && cacheWriteTokens !== null ? cacheReadTokens + cacheWriteTokens : null;
-  let hitRatio: number | null = null;
-  if (total !== null && cacheReadTokens !== null) {
-    hitRatio = total > 0 ? cacheReadTokens / total : 0;
-  }
-  log.cache({
-    turnId: knobs.turnId,
-    cacheReadTokens: turn.usage.cacheReadTokens,
-    cacheWriteTokens: turn.usage.cacheWriteTokens,
-    breakpointsPlaced: written.systemBlocks + written.historyDepths.length + written.toolBlocks + written.requestBlocks,
-    breakpointOffsets: written.historyDepths,
-    hitRatio,
-    minCacheTokens: cacheMinTokensOf(generation),
-  });
-  log.capability({
-    turnId: knobs.turnId,
-    api: req.api,
-    providerId: req.connection.providerId,
-    requestedModel: req.connection.model,
-    turns: { ...generation.turns },
-    droppedWarnings: warnings.map((w) => ({ code: w.code, message: w.message })),
-  });
-  log.sampling({
-    turnId: knobs.turnId,
-    requested: { ...req.params },
-    applied: appliedSampling(knobs.sampling, warnings),
-    dropped: warnings.filter((w) => DROPPED_SAMPLING_CODES.has(w.code)).map((w) => ({ knob: w.knob ?? w.code, reason: w.message })),
-  });
-}
-
 export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: AnthropicChatDeps): Promise<ChatResult> {
   const { connection } = req;
   const label = `${connection.providerId} chat (${connection.model})`;
@@ -479,7 +438,21 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
   if (response.rateLimit !== null) {
     log.emit(response.rateLimit.status === "allowed" ? "debug" : "warn", "provider.rate_limit", { turnId: knobs.turnId, ...response.rateLimit });
   }
-  emitReceipts({ log, req, generation, knobs, turn, written: cache.written, warnings });
+  emitTurnReceipts({
+    log,
+    knobs,
+    generation,
+    api: req.api,
+    providerId: req.connection.providerId,
+    requestedModel: req.connection.model,
+    requestedParams: { ...req.params },
+    usage: turn.usage,
+    warnings,
+    cache: {
+      breakpointsPlaced: cache.written.systemBlocks + cache.written.historyDepths.length + cache.written.toolBlocks + cache.written.requestBlocks,
+      breakpointOffsets: cache.written.historyDepths,
+    },
+  });
   raiseThinkingDrops(log, drain, knobs.turnId, connection.model);
   // D4: the turn's own timeline. The receipts above are the LOG surface; these three are the TRACE surface,
   // and they answer the questions a span's duration alone cannot (first-delta split, stop reason, cache hit).

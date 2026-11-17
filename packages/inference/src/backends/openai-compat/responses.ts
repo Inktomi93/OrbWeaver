@@ -33,7 +33,7 @@ import { resolvedScrubSet } from "../http/sanitize.ts";
 import { emitTurnSpanEvents } from "../http/turn-span.ts";
 import { plannedOptions, standardSampling } from "../v4/options.ts";
 import { buildWirePlan } from "../v4/prompt.ts";
-import { appliedSampling, DROPPED_SAMPLING_CODES, measuredCostOf, sdkWarnings, toChatResult } from "../v4/result.ts";
+import { emitTurnReceipts, measuredCostOf, sdkWarnings, toChatResult } from "../v4/result.ts";
 import { drainStream } from "../v4/stream.ts";
 import { effortWordOf } from "../wire/applied-effort.ts";
 import { responsesModelFor } from "./model.ts";
@@ -239,19 +239,17 @@ export async function runOpenAiCompatResponsesTurn(req: ResponsesChatRequest, de
   if (attempt.rateLimit !== null) {
     log.emit(attempt.rateLimit.status === "allowed" ? "debug" : "warn", "provider.rate_limit", { turnId: knobs.turnId, ...attempt.rateLimit });
   }
-  log.capability({
-    turnId: knobs.turnId,
+  emitTurnReceipts({
+    log,
+    knobs,
+    generation,
     api: req.api,
     providerId: connection.providerId,
     requestedModel: connection.model,
-    turns: { ...generation.turns },
-    droppedWarnings: warnings.map((w) => ({ code: w.code, message: w.message })),
-  });
-  log.sampling({
-    turnId: knobs.turnId,
-    requested: { ...req.params },
-    applied: { ...appliedSampling(knobs.sampling, warnings), ...(knobs.verbosity !== undefined ? { verbosity: knobs.verbosity } : {}) },
-    dropped: warnings.filter((w) => DROPPED_SAMPLING_CODES.has(w.code)).map((w) => ({ knob: w.knob ?? w.code, reason: w.message })),
+    requestedParams: { ...req.params },
+    usage: turn.usage,
+    warnings,
+    ...(knobs.verbosity !== undefined ? { sentVerbosity: knobs.verbosity } : {}),
   });
   emitTurnSpanEvents({
     addSpanEvent: deps.addSpanEvent,

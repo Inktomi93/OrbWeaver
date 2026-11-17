@@ -6,11 +6,13 @@
 import type { SharedV4ProviderMetadata, SharedV4Warning } from "@ai-sdk/provider";
 import type { AdjustedKnob } from "@orb/contracts/chat";
 import { ADJUSTED_KNOBS } from "@orb/contracts/chat";
-import type { ChatUsage, GenerationUsage, NestedUsage, ResolvedWarning } from "@orb/contracts/inference";
-import { foldNestedUsage, foldTokenUsage } from "@orb/contracts/inference";
+import type { ChatUsage, GenerationCapability, GenerationUsage, NestedUsage, ProviderId, ResolvedWarning } from "@orb/contracts/inference";
+import { cacheMinTokensOf, foldNestedUsage, foldTokenUsage } from "@orb/contracts/inference";
+import type { ModelId } from "@orb/kit/ids";
 import { z } from "zod";
-import type { ChatEvent, ChatResult, ResolvedSampling } from "#contract";
+import type { ChatEvent, ChatResult, ResolvedChatKnobs, ResolvedSampling } from "#contract";
 import { normalizeFinishReason } from "#contract";
+import type { ProviderLogger } from "#src/contract/http.ts";
 import type { MeasuredCost, ResultContext, StreamDrain } from "#src/contract/v4.ts";
 import { variantProviderMetadataOf } from "../wire/provider-metadata.ts";
 
@@ -197,6 +199,75 @@ export function appliedSampling(sampling: ResolvedSampling, warnings: readonly R
     }
   }
   return Object.fromEntries(Object.entries(sampling).filter(([knob]) => !dropped.has(knob)));
+}
+
+/** The cache line for wires that place explicit-cache breakpoints; the breakpoint COUNTS stay with the
+ *  placer (only the placer knows its block kinds — the anthropic receipt names the audit-C4 tool-list
+ *  breakpoint, the openai-compat one has no such block). */
+export interface TurnReceiptCache {
+  readonly breakpointsPlaced: number;
+  readonly breakpointOffsets: readonly number[];
+}
+
+export interface TurnReceiptArgs {
+  readonly log: ProviderLogger;
+  readonly knobs: ResolvedChatKnobs;
+  readonly generation: GenerationCapability;
+  readonly api: string | null;
+  readonly providerId: ProviderId;
+  readonly requestedModel: ModelId;
+  readonly requestedParams: Record<string, unknown>;
+  readonly usage: ChatResult["usage"];
+  readonly warnings: readonly ResolvedWarning[];
+  /** The verbosity a wire ACTUALLY SENDS (openai-compat chat's `extraBody` §H1(b), responses' `text:`).
+   *  Anthropic and Google drop it at the wire with a `verbosity_dropped` warning, so their `applied` must
+   *  not claim it and its code reads in `dropped` — the fold is caller-passed, not canonical, for that. */
+  readonly sentVerbosity?: ResolvedChatKnobs["verbosity"];
+  /** Only the breakpoint-placing wires pass this: openai-compat chat when the OR explicit-cache gate is
+   *  open, anthropic messages always. */
+  readonly cache?: TurnReceiptCache;
+}
+
+/** The turn's receipt lines: the (model × wire) cell the funnel resolved (capability), the knobs that
+ *  survived it (sampling), and where the explicit cache went (cache). One home for the pair every hosted
+ *  wire used to re-roll; the per-wire intents are ARGUMENTS (see the two fields above), and the
+ *  agent-sdk runner keeps its capability-only line — its generation resolves outside the funnel, so a
+ *  sampling receipt there would report nothing. */
+export function emitTurnReceipts(args: TurnReceiptArgs): void {
+  const { log, knobs, generation, usage, warnings } = args;
+  if (args.cache !== undefined) {
+    const { cacheReadTokens, cacheWriteTokens } = usage;
+    const total = cacheReadTokens !== null && cacheWriteTokens !== null ? cacheReadTokens + cacheWriteTokens : null;
+    let hitRatio: number | null = null;
+    if (total !== null && cacheReadTokens !== null) {
+      hitRatio = total > 0 ? cacheReadTokens / total : 0;
+    }
+    log.cache({
+      turnId: knobs.turnId,
+      cacheReadTokens,
+      cacheWriteTokens,
+      breakpointsPlaced: args.cache.breakpointsPlaced,
+      breakpointOffsets: args.cache.breakpointOffsets,
+      hitRatio,
+      minCacheTokens: cacheMinTokensOf(generation),
+    });
+  }
+  log.capability({
+    turnId: knobs.turnId,
+    api: args.api,
+    providerId: args.providerId,
+    requestedModel: args.requestedModel,
+    turns: { ...generation.turns },
+    droppedWarnings: warnings.map((warning) => ({ code: warning.code, message: warning.message })),
+  });
+  log.sampling({
+    turnId: knobs.turnId,
+    requested: { ...args.requestedParams },
+    applied: { ...appliedSampling(knobs.sampling, warnings), ...(args.sentVerbosity !== undefined ? { verbosity: args.sentVerbosity } : {}) },
+    dropped: warnings
+      .filter((warning) => DROPPED_SAMPLING_CODES.has(warning.code))
+      .map((warning) => ({ knob: warning.knob ?? warning.code, reason: warning.message })),
+  });
 }
 
 function costOf(
