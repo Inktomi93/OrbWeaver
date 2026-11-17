@@ -40,12 +40,11 @@ import { parseJsonText } from "@orb/kit/json";
 import type { ProviderScrubSet, ResponseMap } from "#contract";
 import { ProviderError } from "#contract";
 import type { WrapFetchArgs } from "#src/contract/v4.ts";
+import { isRedirect } from "../http/fetch-json.ts";
 import { encodeSseData, parseOpenAiSse, SSE_DONE_LINE } from "../http/sse.ts";
 import { redactSecretsFromText, secretScrubOverhang } from "../wire/openai-body.ts";
 
 const ERROR_BODY_LIMIT = 65_536;
-const REDIRECT_MIN = 300;
-const REDIRECT_MAX = 399;
 const JSON_CONTENT_TYPE = "application/json";
 const EVENT_STREAM = "text/event-stream";
 const CONTENT_TYPE = "content-type";
@@ -53,10 +52,6 @@ const REASONING_CONTENT_KEY = "reasoning_content";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function isRedirect(res: Response): boolean {
-  return res.type === "opaqueredirect" || (res.status >= REDIRECT_MIN && res.status <= REDIRECT_MAX);
 }
 
 /** What a capped read produced. `tearDown` is the abort / socket reset that ended it early — carried rather
