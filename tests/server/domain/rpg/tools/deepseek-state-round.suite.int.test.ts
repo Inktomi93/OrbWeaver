@@ -13,7 +13,7 @@
 import { promises as dnsPromises } from "node:dns";
 import process from "node:process";
 import type { ConnectionApi } from "@orb/contracts/inference";
-import { RPG_LITE_TOOL_NAMES, RPG_NO_CHANGES_TOOL, RPG_STATE_CHANGES_FIELD, RPG_TOOL_ROUND_TOOL_NAMES } from "@orb/contracts/rpg";
+import { RPG_LITE_TOOL_NAMES, RPG_NO_CHANGES_TOOL, RPG_TOOL_ROUND_TOOL_NAMES } from "@orb/contracts/rpg";
 import { jsonValueSchema } from "@orb/kit/json";
 import { appendedBy, finiteReplies } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
@@ -28,6 +28,7 @@ import {
 } from "@orb/testkit/node/composed";
 import type { ResponsesReply } from "@orb/testkit/node/helpers";
 import { openAiResponsesServer, terminalSseLine } from "@orb/testkit/node/helpers";
+import { RPG_STATE_CHANGES_FIELD } from "#contracts/rpg/structured-round.ts";
 import type { CoreWireReply } from "../../chat/engine/core-physical.ts";
 import { CORE_ROOM_GROUP, coreFrame, coreProse, coreSse } from "../../chat/engine/core-physical.ts";
 
