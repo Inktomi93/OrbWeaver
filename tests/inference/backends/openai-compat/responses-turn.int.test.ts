@@ -16,6 +16,7 @@ import { expect, test } from "@orb/testkit/node";
 import type { RecordedRequest, ResponsesReply } from "@orb/testkit/node/helpers";
 import { openAiResponsesServer, recordRequest } from "@orb/testkit/node/helpers";
 import { z } from "zod";
+import { PROVIDER_CAPABILITY_EVENT, PROVIDER_SAMPLING_EVENT } from "#inference/backends/http/provider-log.ts";
 import { createRuntimeRoot, generationCapability, wireConnection } from "../../roles/runtime.fixtures.ts";
 
 type Connection = Omit<Parameters<typeof wireConnection<"chat">>[1], "task">;
@@ -276,8 +277,10 @@ test("the row's raw-reasoning dialect folds onto reasoning deltas; without the f
     expect(variant.turn.reply, `reply lost on the ${spelling} spelling`).toBe("391");
   }
 
-  // A frame that fits under the cap when delivered atomically still folds whole (single chunk, no
-  // buffering pressure): the giant delta must arrive folded end to end.
+  // An OVER-cap frame delivered ATOMICALLY still folds whole: the boundary loop reads a single chunk to
+  // completion before the cap is ever consulted (responses-dialect.ts, the pending-buffer flush), so the
+  // 1.2 MB delta never faces buffering pressure — the giant delta arrives folded end to end. The cap only
+  // bites when bytes arrive in pieces, which is what the next arm delivers.
   const giant = "G".repeat(1_200_000);
   const giantBody = frames
     .map((f) => ("delta" in f && f.type === DELTA_FRAME_TYPE && f.delta === "Thinking " ? { ...f, delta: giant } : f))
@@ -292,11 +295,12 @@ test("the row's raw-reasoning dialect folds onto reasoning deltas; without the f
 
   // The cap under REAL streaming: a frame larger than the 1 MiB buffer can only be withheld past the cap
   // when the bytes arrive in pieces (a single chunk is drained by the frame loop before the cap is ever
-  // consulted — an unchunked tape measures nothing). Delivered in 64 KiB chunks the giant frame crosses
-  // the cap unframed: its bytes pass through byte-identical, so the SDK keeps its COMPLETE frame — but an
-  // unfolded frame is the vendor's raw `reasoning_text.delta`, which the SDK's catch-all drops. That is
-  // the cap's whole contract: graceful degradation (stream survives, named frames still fold) for a frame
-  // no legitimate vendor streams; the giant delta is lost, `hard.` (later, under-cap) is not.
+  // consulted — an unchunked tape measures nothing). Delivered in 64 KiB chunks the giant frame crosses the
+  // cap unframed, and the arm pins the OUTCOME that is this cap's whole contract: graceful degradation — the
+  // stream survives, the named frames still fold, the over-cap delta is lost (the vendor's raw
+  // `reasoning_text.delta` name is what the SDK's catch-all drops) and `hard.` (later, under-cap) is not.
+  // Whether the withheld bytes pass through byte-identical is the dialect header's mechanism claim; this
+  // test asserts the turn-level degradation, not the byte equality.
   const chunkedTape: typeof fetch = () => {
     const bytes = new TextEncoder().encode(giantBody);
     let offset = 0;
@@ -340,6 +344,13 @@ test("the row's raw-reasoning dialect folds onto reasoning deltas; without the f
   expect(surfaced.message).toMatch(/JSON parsing failed/);
   const untouched = await send({ declaredFeatures: { responsesReasoningStream: "summary" } }, { fetch: accTape }).catch(providerRejection);
   expect(untouched.kind).toBe("unknown");
+  // The classification control the feature-OFF repeat could not give: a plain 400 on the SAME feature-ON
+  // path must classify as "invalid" (error-classify maps every 400 there, and unlike a 5xx it is never
+  // retried), so the multi-line arm's "unknown" is a kind doing real work — not the catch-all everything
+  // fails into. If the malformed-JSON classification ever drifts, this pair fails instead of agreeing
+  // with itself.
+  const refused = await send({ declaredFeatures: {} }, { fetch: () => Promise.resolve(new Response("bad request", { status: 400 })) }).catch(providerRejection);
+  expect(refused.kind).toBe("invalid");
 });
 
 // The `/responses` protocol models no forced continuation (a trailing assistant input item reads
@@ -383,18 +394,18 @@ test("the turn's capability and sampling receipts reach the root log with the fu
     { capability: generationCapability({ verbosity: ["low", "medium", "high"] }) },
     { params: { verbosity: "low", temperature: 0.5 }, prefillReasoning: "(thinking in Spanish.)" },
   );
-  const capability = lastReceipt(spoken.receipts, "provider.capability");
+  const capability = lastReceipt(spoken.receipts, PROVIDER_CAPABILITY_EVENT);
   expect(capability["api"]).toBe("responses");
   expect(capability["requestedModel"]).toBe("deepseek-v4-pro");
   expect(capability["droppedWarnings"]).toContainEqual(expect.objectContaining({ code: WARNING_CODE.prefillReasoningDropped }));
-  const sampling = lastReceipt(spoken.receipts, "provider.sampling");
+  const sampling = lastReceipt(spoken.receipts, PROVIDER_SAMPLING_EVENT);
   expect(sampling["applied"]).toMatchObject({ verbosity: "low", temperature: 0.5 });
 
   // Negative fold: with no verbosity cell the resolver drops the ask, so the receipt must not CLAIM
   // verbosity in `applied` and its code must read in `dropped` — the split the per-wire intent table
   // exists to keep honest.
   const silent = await send({}, { params: { verbosity: "low" } });
-  const silentSampling = lastReceipt(silent.receipts, "provider.sampling");
-  expect(silentSampling).not.toMatchObject({ applied: { verbosity: expect.anything() } });
+  const silentSampling = lastReceipt(silent.receipts, PROVIDER_SAMPLING_EVENT);
+  expect(silentSampling).not.toHaveProperty(["applied", "verbosity"]);
   expect(silentSampling["dropped"]).toContainEqual(expect.objectContaining({ reason: expect.stringContaining("verbosity ignored") }));
 });
