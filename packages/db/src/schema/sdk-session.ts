@@ -13,8 +13,10 @@ import { userConnections } from "./connection.ts";
 // session_entries — one persisted agent-sdk session in a chat's prompt-cache lineage (D8). Keyed by
 // `chatId` (CASCADE — a deleted chat drops its whole SDK cache). A reseed appends a new entry (the
 // deterministic-frame replay means a fresh seed is byte-identical); the lineage is ordered by `seq`, and
-// exactly one entry per `(chat, connection)` is the live primary at a time. Staleness is
-// computed vs canon from `seeded_through_seq` + `canon_hash` — there is NO stored dirty flag (D25).
+// exactly one entry per `(chat, connection)` is the live primary at a time. Staleness is DETECTED VS CANON,
+// NOT A FLAG (D25) — the shipped gate is the inference session store's live-frame comparison
+// (`sessionMatchesSeed`: the SDK's stored frames vs the re-derived seed, beside content-addressed lineage
+// ids), not these columns; there is NO stored dirty flag.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 export const sessionEntries = sqliteTable(
@@ -41,9 +43,11 @@ export const sessionEntries = sqliteTable(
     // canon seq, so a reader wanting the real horizon must first extend that seam (writer:
     // domain/connection/persistence/session-entries.ts). No live reader exists; the value is internally consistent.
     seededThroughSeq: integer("seeded_through_seq").notNull(),
-    // A hash of the canon prefix the seed was built from — the staleness GATE (D25 "detected vs canon,
-    // not a flag"): re-hash the live canon and compare; a mismatch ⇒ canon diverged ⇒ reseed. Mirrors the
-    // `content_hash` staleness pattern on the vector tables.
+    // A hash of the canon prefix the seed was built from. WRITE-ONLY RECORD: the planned re-hash-and-compare
+    // gate was superseded by the live-frame comparison and the content-addressed lineage ids (header above),
+    // so no live reader exists — a future reader would be an optimization over that comparison, not the gate
+    // itself. D25's "detected vs canon, not a flag" is honored by the shipped gate. Mirrors the
+    // `content_hash` pattern on the vector tables.
     canonHash: nulFreeText("canon_hash").notNull(),
     // The lineage the connection runs on now: the writer moves this seat onto every row it inserts or
     // re-adopts, so the other rows of that `(chat, connection)` are the reap candidates. NOT a staleness flag.
