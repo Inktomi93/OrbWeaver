@@ -111,6 +111,10 @@ Doc pages quote request fields; every `https://api-docs.deepseek.com` path below
   behind an assistant greeting, and on a mid-conversation user row all produced the immersive form, 3/3 each,
   while the unmarked control stayed analytic. Persistence comes from the re-sent history, not the position.
   Probe.
+- The guide's system-prompt warning does not reproduce on the API: the marker also styled the chain from inside
+  the system block, 3/3, and from a mid-conversation system row, 3/3. Position changes the format slightly —
+  only the first-user tail kept the instruction's literal parenthetical spelling — not whether it bites. A
+  thinking-style setting can live in the system prompt. Probe.
 - Instructing the model to begin its thinking with a literal token or phrase does not work as an API instruction:
   the chain never started with the demanded opener, and the instruction ballooned chain length instead. Probe.
 - The official harness names a plugin family `forge`: a git-forge review panel (worktrees, change requests),
