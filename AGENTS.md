@@ -130,7 +130,7 @@ without a path are in that folder.
 | - | - |
 | A server domain | `Core-0-Architecture-and-Structure.md` §3–§4, the Spine doc for each thread, the `Tier-*` doc for your tier, the domain's `contract/` and file headers |
 | Identity, auth, sessions | `Spine-Identity-and-Auth.md` and the ledger rows it cites; route the work to `security-builder` |
-| Providers, backends, a model source | `Tier-3b-Providers.md`, `packages/server/src/domain/connection/` |
+| Providers, backends, a model source | `Tier-3b-Providers.md`, `packages/server/src/domain/connection/`, a vendor's mined API facts from `deepseek-api-surface.md` |
 | Config, settings, serialization | `Spine-Config-and-Serialization.md` |
 | Embeddings, search, discovery, memory, stats | `Knowledge-Cluster.md` |
 | Any test | `Spine-Testing.md`, `tests/support/README.md` |
