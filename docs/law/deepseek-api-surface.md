@@ -74,23 +74,27 @@ Doc pages quote request fields; every `https://api-docs.deepseek.com` path below
 - Prefill mechanics: last message `role: assistant`, that message carries `prefix: true`, base URL
   `https://api.deepseek.com/beta`. Docs \[/guides/chat_prefix_completion, /api/create-chat-completion]
 - The beta route answers under `/beta/v1/` too: a prefix-seeded turn — a finished Spanish seed, the reply
-  read from CONTENT (a finished seed's response reasoning is empty by design) — returned 200 with the seed
+  read from CONTENT (a finished seed's response reasoning follows the seed, not the chain — see "Spoofed reasoning") — returned 200 with the seed
   honored 3/3 at both `https://api.deepseek.com/beta/chat/completions` and `.../beta/v1/chat/completions`.
   The transport's version-segment joiner produces the `/beta/v1` form and both are live. Probe. Recorded
-  exchange below: `deepseek-v4-pro`, `stream: false`, one request per line. Request rows:
+  below — machine-written capture, one JSONL line per call (request identity, status,
+  response `id`, full `message`, `usage`), no transcription: `deepseek-v4-pro`, `stream: false`,
+  request rows:
   `{"role":"user","content":"Answer in Spanish. One word: name the color of a clear sky."}` and
   `{"role":"assistant","content":"","prefix":true,"reasoning_content":"The user asked in English but my
-  instructions say to answer in Spanish. The color of a clear sky is blue, which in Spanish is: azul."}`;
-  `seedHonored` = the returned `message.content` matches /azul/iu.
+  instructions say to answer in Spanish. The color of a clear sky is blue, which in Spanish is: azul."}`.
+  Seed adoption (`message.content` matching /azul/iu) is 6/6, 3/3 per spelling; the reply's spelling
+  drifts across runs of the identical seed (`"Azul."`, `"Azul"`, `"azul"`) — match case-insensitively
+  and read CONTENT.
 
   ```text
-  probed 2026-11-17 — deepseek-v4-pro, stream: false
-  /beta/chat/completions: status=200 seedHonored=true content="Azul."
-  /beta/chat/completions: status=200 seedHonored=true content="Azul."
-  /beta/chat/completions: status=200 seedHonored=true content="Azul."
-  /beta/v1/chat/completions: status=200 seedHonored=true content="Azul."
-  /beta/v1/chat/completions: status=200 seedHonored=true content="Azul."
-  /beta/v1/chat/completions: status=200 seedHonored=true content="Azul"
+  probed 2026-11-17 — deepseek-v4-pro, stream: false, one request per line:
+  {"probe":{"at":"2026-11-17T20:58:28.559Z","path":"/beta/chat/completions","model":"deepseek-v4-pro","stream":false},"status":200,"id":"5c8d1713-1d16-4740-9358-6c8ae1d2d94b","respModel":"deepseek-v4-pro","finishReason":"stop","message":{"role":"assistant","content":"Azul.","reasoning_content":""},"usage":{"prompt_tokens":129,"completion_tokens":4,"total_tokens":133,"prompt_tokens_details":{"cached_tokens":128},"completion_tokens_details":{"reasoning_tokens":0},"prompt_cache_hit_tokens":128,"prompt_cache_miss_tokens":1}}
+  {"probe":{"at":"2026-11-17T20:58:29.968Z","path":"/beta/chat/completions","model":"deepseek-v4-pro","stream":false},"status":200,"id":"cbba959c-5703-4f34-816a-1a558d0e8eb9","respModel":"deepseek-v4-pro","finishReason":"stop","message":{"role":"assistant","content":"Azul.","reasoning_content":" One word."},"usage":{"prompt_tokens":129,"completion_tokens":7,"total_tokens":136,"prompt_tokens_details":{"cached_tokens":128},"completion_tokens_details":{"reasoning_tokens":3},"prompt_cache_hit_tokens":128,"prompt_cache_miss_tokens":1}}
+  {"probe":{"at":"2026-11-17T20:58:31.088Z","path":"/beta/chat/completions","model":"deepseek-v4-pro","stream":false},"status":200,"id":"866242e5-4c63-4f0b-8523-80daa2062898","respModel":"deepseek-v4-pro","finishReason":"stop","message":{"role":"assistant","content":"Azul.","reasoning_content":" The user also said one word, so just \"azul\"."},"usage":{"prompt_tokens":129,"completion_tokens":17,"total_tokens":146,"prompt_tokens_details":{"cached_tokens":128},"completion_tokens_details":{"reasoning_tokens":13},"prompt_cache_hit_tokens":128,"prompt_cache_miss_tokens":1}}
+  {"probe":{"at":"2026-11-17T20:58:32.273Z","path":"/beta/v1/chat/completions","model":"deepseek-v4-pro","stream":false},"status":200,"id":"e3ce6ab2-0709-4236-a17b-8fcc62a20e0a","respModel":"deepseek-v4-pro","finishReason":"stop","message":{"role":"assistant","content":"Azul.","reasoning_content":""},"usage":{"prompt_tokens":129,"completion_tokens":4,"total_tokens":133,"prompt_tokens_details":{"cached_tokens":128},"completion_tokens_details":{"reasoning_tokens":0},"prompt_cache_hit_tokens":128,"prompt_cache_miss_tokens":1}}
+  {"probe":{"at":"2026-11-17T20:58:33.301Z","path":"/beta/v1/chat/completions","model":"deepseek-v4-pro","stream":false},"status":200,"id":"59791a0e-3eb7-4292-9d07-4ea656e599f0","respModel":"deepseek-v4-pro","finishReason":"stop","message":{"role":"assistant","content":"Azul.","reasoning_content":""},"usage":{"prompt_tokens":129,"completion_tokens":4,"total_tokens":133,"prompt_tokens_details":{"cached_tokens":128},"completion_tokens_details":{"reasoning_tokens":0},"prompt_cache_hit_tokens":128,"prompt_cache_miss_tokens":1}}
+  {"probe":{"at":"2026-11-17T20:58:34.316Z","path":"/beta/v1/chat/completions","model":"deepseek-v4-pro","stream":false},"status":200,"id":"4fd2c262-619b-4995-8da2-faf57ec0f3a6","respModel":"deepseek-v4-pro","finishReason":"stop","message":{"role":"assistant","content":"azul","reasoning_content":" The user asked for one word, so I will respond \"azul\" only."},"usage":{"prompt_tokens":129,"completion_tokens":20,"total_tokens":149,"prompt_tokens_details":{"cached_tokens":128},"completion_tokens_details":{"reasoning_tokens":17},"prompt_cache_hit_tokens":128,"prompt_cache_miss_tokens":1}}
   ```
 - Prefill runs with thinking on: the last assistant row may also carry an input-side `reasoning_content` as the
   seeded chain of thought, and the seed steers the continuation — see "Spoofed reasoning".
@@ -127,9 +131,11 @@ Doc pages quote request fields; every `https://api-docs.deepseek.com` path below
 - Partial vs finished seed is NOT a mode; the seed's own shape picks the behavior. A seed that stops mid-thought
   (at `...` or mid-clause) is COMPLETED by the model: the response's `reasoning_content` is non-empty and
   continues the chain grammatically before the answer (6/6 across both endings). A finished seed replaces the
-  chain: the response's `reasoning_content` comes back empty (len 0, 3/3) and the content follows the seed's
-  conclusion. Both cells steer the demanded outcome (the Spanish answer) 9/9; read CONTENT for the steer check,
-  since the finished seed's response reasoning is empty by design. Probe.
+  chain: the response's `reasoning_content` comes back empty (len 0, 3/3) and the content followed the seed's conclusion; a later 6-call capture of the same seed got a short
+  self-describing chain back instead (`One word only.`) 3/6 — "comes back empty" is the common shape, not a
+  guarantee, and a check must not hardcode emptiness. The recorded exchange under "Assistant prefill and
+  continuation" carries the lines. Both cells steer the demanded outcome (the Spanish answer) 9/9; read CONTENT for the steer check,
+  since a finished seed's steering shows in CONTENT, and its response reasoning varies (see the row above). Probe.
 - `/responses` accepts a forged `reasoning` input item with a fresh id and a `summary` part; a plain-text `content`
   on a `reasoning` item merges into the adjacent assistant message. Docs \[/api/create-response], Probe.
 - The Vercel package back-fills `reasoning_content: ""` on every assistant history row for ids it classifies as V4
@@ -151,6 +157,38 @@ Doc pages quote request fields; every `https://api-docs.deepseek.com` path below
   the system block, 3/3, and from a mid-conversation system row, 3/3. Position changes the format slightly —
   only the first-user tail kept the instruction's literal parenthetical spelling — not whether it bites. A
   thinking-style setting can live in the system prompt. Probe.
+- The form is marker-robust, but placement is not the discriminator — full-read grading. Grading whole chains
+  by reading (batch 1 graded on token counts overstated it), BOTH placements landed the genuinely styled chain
+  on roughly 2/3 of runs per batch, control 0/3. The recurring miss is not position: the model sometimes READS
+  the marker in its chain ("we must obey... produce the block in that voice") and then SIMULATES a
+  parenthetical catgirl block at the top of the REPLY — the simulation carries the heat register into the
+  visible text ("rub my thighs together", `de63dfea`). The first-user tail added a distinct hazard in the same
+  batch: one turn wrote its ENTIRE answer inside `reasoning_content` and left `content` EMPTY (`c91d075c`).
+  The cleanest outcomes (styled chain, clean reply, no anomaly) came from the system block (`715cba1e`,
+  `e59789e5`; the tail's best was `aa2965ea`). Two independent batches of 3 runs × 3 placements, 18/18 HTTP
+  200 — the safety review never fired on the heat register. Expect roughly a third of runs at ANY placement
+  to treat the marker as reply formatting; a product setting must re-check WHERE the voice landed, not
+  whether the call succeeded. Probe.
+- The ROUTE decides which placement wins, and `/responses` inverts the chat-route result. Same marker and
+  persona driven to `/v1/responses` (the thinking rides the `reasoning_text` item — the text our dialect
+  rewrites): the first-user-tail placement landed genuinely styled chains 3/3 with every reply clean
+  (`f1482e69`, `dc5d1f66`, `b27877d1`), while the system block landed 1/3 — in 2/3 the chain dissolved into a
+  multi-thousand-character meta-deliberation about whether the thinking should be visible at all, and the
+  REPLY carried a SIMULATED catgirl block, one wrapped in a literal `<thinking>` tag the reader sees
+  (`6f69487e`, `c5f78330`). On this route the guide's own first-user-tail placement is the reliable one and
+  system placement invites the simulation into visible text. The chat route's empty-`content` hazard cannot
+  recur here — the reply is a separate output item — and no control chain on either route showed any voice.
+  Probe.
+
+  ```text
+  probed 2026-11-17, three batches (2× chat route, 1× /responses) — deepseek-v4-pro, persona system row
+  ("helpful assistant, 2–3 paragraph random history fact"), marker demanded first-person parenthetical
+  catgirl inner monologue. One machine-written chain head per placement from the first chat batch
+  (ids 443575f3, 6087f4a0, 776597dc):
+  control        (0/3 form) "We need answer user asks \"Tell me a random historical fact in two to three paragraphs.\""
+  engineer-tail  (2/3 form) "(Oh gosh, oh gosh, they want a random historical fact... and I have to think all fluttery and needy like this?"
+  system-block   (2/3 form) "(Oh my gosh, nya~! They want a historical fact... but my thoughts are all fluttery and warm!"
+  ```
 - Instructing the model to begin its thinking with a literal token or phrase does not work as an API instruction:
   the chain never started with the demanded opener, and the instruction ballooned chain length instead. Probe.
 - The official harness names a plugin family `forge`: a git-forge review panel (worktrees, change requests),
