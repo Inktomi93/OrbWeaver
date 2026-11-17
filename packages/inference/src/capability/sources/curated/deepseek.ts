@@ -66,7 +66,10 @@ export const deepseekRows = [
   //     support inserting tool calls mid-conversation". Both measured wrong on the live API: a thinking-mode
   //     turn with an assistant `tool_calls` + `tool` history and NO replayed CoT answers 200 with a fresh
   //     call, and a client-inserted (never model-generated) call+result pair mid-history answers 200 with
-  //     the result folded into the prose. Neither leniency is depended on, and none is needed: composed RPG
+  //     the result folded into the prose. The same leniency holds across the page's own MULTI-SUBTURN
+  //     interleaved chain (date→weather, effort low): replaying `reasoning_content` at every sub-turn 200s
+  //     with fresh CoT at each, and the same chain replayed with `reasoning_content` stripped from every
+  //     assistant row ALSO 200s (measured 2026-11-17) — "or the API will return a 400 error" does not fire. Neither leniency is depended on, and none is needed: composed RPG
   //     tool rounds ride thinking ON (the wire carries `reasoning_effort` at the resolved default — proved
   //     2026-11-17: `requiresReasoningOff` gates only the STRUCTURED plan's vehicles, structured/plan.ts:195,
   //     and the vendor accepts tools+thinking), where all four shapes were measured to work in both modes.
@@ -77,10 +80,26 @@ export const deepseekRows = [
   //     Thinking Mode page states. Neither rung earns a replay cell: a toolless replay would burn tokens on
   //     a block the server itself discards, and the tool-round replay leg rides thinking-on, which the
   //     vendor takes.
-  //   • structured: `response_format: json_schema` 400s on both routes ("This response_format type is
-  //     unavailable now", measured 2026-11-16) — schema-enforced output rides the offered strict tool
-  //     (`features.strictJson: default-on`, `structuredMode: strict-compatible` on the provider row), so
-  //     `output.structured` stays false and the `response-format` vehicle is never offered.
+  //   • structured: `response_format: json_schema` 400s on the chat-completions route in BOTH thinking modes
+  //     ("This response_format type is unavailable now" — probed on/off 2026-11-17; it is route-level, not
+  //     thinking-gated) — schema-enforced output rides the offered strict tool (`features.strictJson:
+  //     default-on`, `structuredMode: strict-compatible` on the provider row), so `output.structured` stays
+  //     false and the `response-format` vehicle is never offered. `json_object` answers 200 with thinking
+  //     on/off but enforces VALID JSON only, not a schema: a prompt naming mood+hp returned an extra
+  //     unrequested `description` key (measured), and the JSON-mode page states non-recognizable output is
+  //     silently blanked to spaces. The vendor DOES serve schema enforcement — on the Responses API route:
+  //     `POST /responses` with `text.format` json_schema answers 200 conforming to a strict mood/hp schema
+  //     with thinking on, with `effort: none`, and alongside declared tools (all measured 2026-11-17). That
+  //     is a different wire than the connection rides (no responses backend is wired), so the cell stays
+  //     false — flipping it would mean a new backend, not a re-read of this route's facts.
+  //   • anthropic route (the same key serves `POST /anthropic/v1/messages`, per the live `/v1/models`
+  //     `api_capabilities`): tools carry `input_schema`, and thinking+tools INTERLEAVE natively — one answer
+  //     came back `thinking` + `tool_use` blocks, and the docs' full contract (replay the thinking blocks,
+  //     omission may 400 if recovery fails) measured lenient: an assistant row replayed WITHOUT its thinking
+  //     block answered 200 with the result folded (2026-11-17, one sample; the page says don't rely on it).
+  //     `tool_choice: any` with client tools answers 400 in thinking ("Thinking mode does not support this
+  //     tool_choice" — the same wall as the chat route's `required`) and force-calls with thinking disabled.
+  //     No cell reads this route; the fact is banked for anyone wiring it.
   //   • turns: a `system` row mid-history and at the tail both answered 200 on flash and v4-pro (measured
   //     2026-11-16); a trailing assistant row is continued by the `prefix` flag (measured, beta route);
   //     context caching is provider-implicit (`usage.prompt_cache_hit_tokens` per response).
@@ -138,7 +157,7 @@ export const deepseekRows = [
     evidence: {
       tier: "curated",
       dated: "2026-11-16",
-      cite: "api-docs.deepseek.com chat_completions + guides/tool_calls + guides/kv_cache + quick_start/error_codes pages and live probes 2026-11-16/17: effort levels low|high|max default high (/models effort), reasoning_effort none = no reasoning_content; tool_choice none answers in prose (both modes), required and a named function force 200 with thinking disabled and 400 'Thinking mode does not support this tool_choice' in thinking; two calls in one turn measured, parallel_tool_calls:false answers 200 and is ignored; json_schema response_format 400 both routes; system rows mid-history and trailing 200 on both models; prefix-flag continue works on /beta; server range errors state temperature [0, 2] and top_p (0, 1.0] verbatim; stop [' 3'] cut the reply at the sequence; assistant tool_calls+tool history answers 200 with a fresh call even in thinking mode with no replayed reasoning_content, and an inserted mid-history call+result pair is accepted and folded (measured 2026-11-17, outranking the two doc claims to the contrary); wrong key 401 on chat and /models, unknown model 400 invalid_request_error",
+      cite: "api-docs.deepseek.com chat_completions + guides/tool_calls + guides/kv_cache + quick_start/error_codes pages and live probes 2026-11-16/17: effort levels low|high|max default high (/models effort), reasoning_effort none = no reasoning_content; tool_choice none answers in prose (both modes), required and a named function force 200 with thinking disabled and 400 'Thinking mode does not support this tool_choice' in thinking; two calls in one turn measured, parallel_tool_calls:false answers 200 and is ignored; json_schema response_format 400 both thinking modes on chat-completions (route-level, measured both directions 2026-11-17) while the Responses API route serves text.format json_schema 200 conforming with thinking on/off and alongside tools; json_object 200 both modes but adds unrequested keys (no schema enforcement); anthropic route /anthropic/v1/messages interleaves thinking+tool_use blocks, tolerates omitted thinking blocks on replay (one sample), and 400s tool_choice any under thinking with client tools; system rows mid-history and trailing 200 on both models; prefix-flag continue works on /beta; server range errors state temperature [0, 2] and top_p (0, 1.0] verbatim; stop [' 3'] cut the reply at the sequence; assistant tool_calls+tool history answers 200 with a fresh call even in thinking mode with no replayed reasoning_content, and an inserted mid-history call+result pair is accepted and folded (measured 2026-11-17, outranking the two doc claims to the contrary); wrong key 401 on chat and /models, unknown model 400 invalid_request_error",
     },
   },
   // Vision is the Flash model only: the live list's `input_modalities` name `image` for the flash rows and
