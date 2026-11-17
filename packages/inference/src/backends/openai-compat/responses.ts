@@ -17,7 +17,7 @@ import type { LanguageModelV4CallOptions, SharedV4ProviderOptions } from "@ai-sd
 import type { GenerationCapability, ResolvedWarning } from "@orb/contracts/inference";
 import type { ChatResult, RateLimitSnapshot, ResolvedChatKnobs, ResponsesChatRequest } from "#contract";
 import { ProviderError } from "#contract";
-import { resolveChat } from "#funnel";
+import { resolveChat, templateThinkingFor } from "#funnel";
 import type { ModelCall, OpenAiCompatChatDeps } from "#src/contract/openai-backend.ts";
 import type { StructuredPlan } from "#src/contract/structured.ts";
 import type { StreamDrain } from "#src/contract/v4.ts";
@@ -51,11 +51,14 @@ function requireGeneration(connection: ResponsesChatRequest["connection"], label
   return connection.capability.generation;
 }
 
-/** What the Responses option builder reads: the resolved knobs, their wire spelling, and the structured plan. */
+/** What the Responses option builder reads: the resolved knobs, their wire spelling, the structured plan,
+ *  and rule 5b's template-thinking state (a folded turn's mount is off on a row whose switch IS the effort
+ *  word — a model that thinks answers the mount call-only and the beat loses its prose). */
 interface ResponsesTurn {
   readonly knobs: ResolvedChatKnobs;
   readonly sampling: ReturnType<typeof wireSampling>;
   readonly structured: StructuredPlan;
+  readonly templateThinking: boolean | undefined;
 }
 
 /** The turn's V4 call options, built ONCE (no mandatory-reasoning replay on this route, so every attempt
@@ -72,7 +75,7 @@ function responsesOptions(
 ): Omit<LanguageModelV4CallOptions, "prompt" | "abortSignal"> {
   const { connection } = req;
   const { knobs, sampling, structured } = turn;
-  const { word: effort, body: budget } = compatibleReasoning(connection.features, knobs.reasoning, undefined, warnings);
+  const { word: effort, body: budget } = compatibleReasoning(connection.features, knobs.reasoning, turn.templateThinking, warnings);
   // The row-spelled unmodelled knobs (the thinking budget included) have no Responses body arm; each drops loudly.
   for (const knob of Object.keys(budget)) {
     warnings.push({ code: "sampling_knob_dropped", message: `${knob} ignored: the /responses route has no field for it` });
@@ -148,7 +151,12 @@ export async function runOpenAiCompatResponsesTurn(req: ResponsesChatRequest, de
   };
 
   const sampling = await resolveWordBias({ sampling: knobs.sampling, connection, lexicon: deps.tokens, warnings, signal: req.signal });
-  const turnKnobs: ResponsesTurn = { knobs, sampling: wireSampling(sampling, connection.features, "openai-compatible", warnings), structured };
+  const turnKnobs: ResponsesTurn = {
+    knobs,
+    sampling: wireSampling(sampling, connection.features, "openai-compatible", warnings),
+    structured,
+    templateThinking: templateThinkingFor(req.params, generation, req.terminalToolsAttached === true, req.posture),
+  };
   const baseOptions = responsesOptions(req, turnKnobs, warnings);
   const deltaTarget = req.chatId === undefined || req.onDelta === undefined ? undefined : { chatId: req.chatId, onDelta: req.onDelta };
   const call: ModelCall = {

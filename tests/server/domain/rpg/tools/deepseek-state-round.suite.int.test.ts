@@ -12,7 +12,8 @@
 
 import { promises as dnsPromises } from "node:dns";
 import process from "node:process";
-import { RPG_LITE_TOOL_NAMES, RPG_NO_CHANGES_TOOL, RPG_TOOL_ROUND_TOOL_NAMES } from "@orb/contracts/rpg";
+import type { ConnectionApi } from "@orb/contracts/inference";
+import { RPG_LITE_TOOL_NAMES, RPG_NO_CHANGES_TOOL, RPG_STATE_CHANGES_FIELD, RPG_TOOL_ROUND_TOOL_NAMES } from "@orb/contracts/rpg";
 import { jsonValueSchema } from "@orb/kit/json";
 import { appendedBy, finiteReplies } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
@@ -25,7 +26,8 @@ import {
   createCorpusProviderExecution,
   SECRET_BOX_TEST_KEY,
 } from "@orb/testkit/node/composed";
-import { terminalSseLine } from "@orb/testkit/node/helpers";
+import type { ResponsesReply } from "@orb/testkit/node/helpers";
+import { openAiResponsesServer, terminalSseLine } from "@orb/testkit/node/helpers";
 import type { CoreWireReply } from "../../chat/engine/core-physical.ts";
 import { CORE_ROOM_GROUP, coreFrame, coreProse, coreSse } from "../../chat/engine/core-physical.ts";
 
@@ -97,6 +99,15 @@ function deepseekToolCallReply(calls: readonly string[], prose: string | null): 
     ]);
 }
 
+/** One `/responses` protocol reply: streamed through the testkit's responses door, so the frame sequence
+ *  is the SDK's own modeled spelling and cannot drift from the chunk union that parses it. */
+function responsesReply(reply: ResponsesReply): CoreWireReply {
+  return async (request) => {
+    using server = openAiResponsesServer([], () => reply);
+    return await server.execute(request);
+  };
+}
+
 interface DeepseekRoom extends AsyncDisposable {
   readonly root: Awaited<ReturnType<typeof createChatRoot>>["root"];
   readonly owner: Awaited<ReturnType<typeof createChatRoot>>["owner"];
@@ -106,14 +117,16 @@ interface DeepseekRoom extends AsyncDisposable {
 }
 
 /** The real graph with the real DeepSeek row dialed at the fetch seam: the listing answers from the banked
- *  bytes, chat completions spend the finite plan. The narrative and the round are BOTH chat completions; the
- *  plan's order is the turn's order. */
+ *  bytes, the provider POSTs spend the finite plan on the connection's own protocol — a chat-completions
+ *  plan replies with chat SSE, a responses plan with responses SSE. The narrative and the round ride the
+ *  same api; the plan's order is the turn's order. */
 async function deepseekRoom(
   replies: readonly CoreWireReply[],
   vehicle: "tools" | "structured",
   live: boolean,
-  mode: "cheap" | "folded" = "cheap",
+  options: { readonly mode?: "cheap" | "folded"; readonly api?: Exclude<ConnectionApi, "auto"> } = {},
 ): Promise<DeepseekRoom> {
+  const { mode = "cheap", api = "chat-completions" } = options;
   await using construction = new AsyncDisposableStack();
   const nextReply = construction.use(finiteReplies("deepseek round", replies)).take;
   const corpus = createCorpusProviderExecution({
@@ -187,6 +200,7 @@ async function deepseekRoom(
     credentialId: credential.id,
     baseUrl: null,
     model: DEEPSEEK_MODEL,
+    api,
   });
   await room.root.services.connection.setBinding({ principal: room.owner, task: "chat", connectionId: connection.id });
   await room.root.services.rpg.createGame({ principal: room.owner, chatId: room.chatId, mode: "lite" });
@@ -205,7 +219,11 @@ async function deepseekRoom(
 async function bodiesOf(requests: readonly Request[]): Promise<readonly Record<string, unknown>[]> {
   const out: Record<string, unknown>[] = [];
   for (const request of requests) {
-    out.push((await request.json()) satisfies Record<string, unknown>);
+    const body = jsonValueSchema.parse(await request.json());
+    if (body === null || typeof body !== "object" || Array.isArray(body)) {
+      throw new Error("a DeepSeek dial carried a non-object body");
+    }
+    out.push(body);
   }
   return out;
 }
@@ -371,6 +389,162 @@ test("a game that asks for the structured vehicle on a row without a structured-
   expect(JSON.stringify(view)).toContain("The flooded undercroft");
 });
 
+// The tool round on the responses arm: the round rides the connection's own api, so its tools go out in the
+// Responses top-level shape (`{type:"function", name, parameters, strict}` — the SDK's `prepareFunctionTool`,
+// no nested `function` object) and the answer comes back as `function_call` items, not chat deltas. This is
+// the composed pair to the transport suite's fetch-seam proof: the vehicle planner, the mount and the state
+// fold working TOGETHER on the protocol where the structured vehicle also exists.
+test("the cheap round on the responses arm carries its tools in the top-level Responses shape and lands state through the function_call fold", async () => {
+  await using h = await deepseekRoom(
+    [
+      responsesReply({ kind: "text", text: "Corvin's blade catches Mira's arm." }),
+      responsesReply({ kind: "tool-call", name: SCENE_TOOL, arguments: JSON.stringify({ location: "The flooded undercroft" }) }),
+    ],
+    "tools",
+    false,
+    { api: "responses" },
+  );
+  const params = turnParams(h);
+  const turn = await runTurn(h, params);
+  expect(turn).toHaveLength(2);
+  const bodies = await bodiesOf(turn);
+  const narrative = bodies[0];
+  const round = bodies[1];
+  if (narrative === undefined || round === undefined) {
+    throw new Error("the narrative or the state round never dialed the provider");
+  }
+  // The RESPONSES protocol on both dials (positive control: the narrative carries no tools), and the stateless pin.
+  expect(Array.isArray(narrative["input"])).toBe(true);
+  expect(narrative["tools"]).toBeUndefined();
+  expect(Array.isArray(round["input"])).toBe(true);
+  expect(round["messages"]).toBeUndefined();
+  expect(round["store"]).toBe(false);
+  // Un-forced like the chat arm: the row claims no honoured forced choice.
+  expect(round["tool_choice"]).toBe("auto");
+  // The Responses tool shape: name/parameters/strict on the entry itself, no nested `function` object.
+  const wire = jsonValueSchema.parse(round["tools"]);
+  if (!Array.isArray(wire)) {
+    throw new Error("the responses round dial carried no tools array");
+  }
+  const surface: { readonly name: string; readonly strict: unknown }[] = [];
+  for (const entry of wire) {
+    if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
+      throw new Error("a responses tools-array entry was not an object");
+    }
+    expect(entry["function"]).toBeUndefined();
+    const name = entry["name"];
+    if (typeof name !== "string") {
+      throw new Error("a responses wire tool carried no top-level name");
+    }
+    surface.push({ name, strict: entry["strict"] });
+  }
+  expect(surface.map((tool) => tool.name).toSorted()).toStrictEqual(RPG_TOOL_ROUND_TOOL_NAMES.filter((name) => name !== "set_tracker").toSorted());
+  for (const tool of surface) {
+    expect(tool.strict).toBe(true);
+  }
+  // The chat arm's effort-default fold reaches THIS wire too — as the `reasoning.effort` arm the SDK's own
+  // catalog gate drops for off-catalog ids and the body seam writes back. Red-proof 2026-11-17: flipping the
+  // deepseek row's effort spelling (`features.effort` in builtin-providers) removed the arm and this caught it.
+  expect(round["reasoning"]).toEqual({ effort: "high" });
+  const view = await h.root.services.rpg.getTrackerView(params);
+  expect(JSON.stringify(view)).toContain("The flooded undercroft");
+});
+
+// The responses arm is the ONLY DeepSeek route with a native structured-output carrier (the chat route's
+// json_schema carrier 400s — curated row and `deepseek-api-surface.md`), so this is the composed proof the
+// structured vehicle SURVIVES planning instead of degrading: the api-scoped cell flips `output.structured`,
+// the planner puts `response-format` first, the round dials `/v1/responses` with the strict projection of
+// the union grammar in `text.format`, and the state lands from the decoded JSON with no tools array.
+test("the structured vehicle on the responses arm rides the native json_schema carrier, not a degraded tool round, and lands state", async () => {
+  await using h = await deepseekRoom(
+    [
+      responsesReply({ kind: "text", text: "Corvin's blade catches Mira's arm." }),
+      responsesReply({
+        kind: "text",
+        text: JSON.stringify({ [RPG_STATE_CHANGES_FIELD]: [{ tool: SCENE_TOOL, args: { location: "The flooded undercroft" } }] }),
+      }),
+    ],
+    "structured",
+    false,
+    { mode: "cheap", api: "responses" },
+  );
+  const params = turnParams(h);
+  const turn = await runTurn(h, params);
+  expect(turn).toHaveLength(2);
+  const bodies = await bodiesOf(turn);
+  const narrative = bodies[0];
+  const round = bodies[1];
+  if (narrative === undefined || round === undefined) {
+    throw new Error("the narrative or the state round never dialed the provider");
+  }
+  // Both dials ride the RESPONSES protocol — the round rides the connection's own api, not the chat route.
+  expect(Array.isArray(round["input"])).toBe(true);
+  expect(round["messages"]).toBeUndefined();
+  // The non-degraded vehicle: the native carrier rides, the degraded tool round does NOT. Positive control
+  // beside both absences: the narrative is the formatless dial of the same protocol.
+  expect(narrative["text"]).toBeUndefined();
+  expect(round["tools"]).toBeUndefined();
+  const text = jsonValueSchema.parse(round["text"]);
+  if (text === null || typeof text !== "object" || Array.isArray(text)) {
+    throw new Error("the structured round dialed without a text object");
+  }
+  const format = text["format"];
+  if (format === null || typeof format !== "object" || Array.isArray(format)) {
+    throw new Error("the structured round's text object carried no format");
+  }
+  expect(format["type"]).toBe("json_schema");
+  expect(format["strict"]).toBe(true);
+  const schema = JSON.stringify(format["schema"]);
+  expect(schema).toContain(RPG_STATE_CHANGES_FIELD);
+  expect(schema).toContain(SCENE_TOOL);
+  // The stateless-send ruling rides the composed round too, and the `reasoning` arm is the side-generation
+  // posture's floor (resolve-chat.ts postureIntent: an unchoosing side-gen turn runs EFFORT_OFF) spelled
+  // through the body seam's re-injection — the vendor's `/responses` off-word, so the round pays no thinking.
+  expect(round["store"]).toBe(false);
+  expect(round["reasoning"]).toEqual({ effort: "none" });
+  const view = await h.root.services.rpg.getTrackerView(params);
+  expect(JSON.stringify(view)).toContain("The flooded undercroft");
+});
+
+// The SHIPPED delivery default on the responses arm: the absent `silencesProse` cell says the wire co-emits
+// prose with tools, so the fold MOUNTS the state tools on the foreground dial, and a prose-only foreground
+// is not trusted — the flush announces the escalation and the dedicated round lands the state. Both legs
+// ride `/responses`. The mount decision (`coEmitsProseWithTools`) is a wire fact independent of the api, and
+// the red-proof 2026-11-17 flipped it off (`silencesProse: true` on the row) and the foreground's mounted
+// surface went missing here.
+test("a folded game on the responses arm mounts the state tools on the foreground and escalates a prose-only beat to the dedicated round", async () => {
+  await using h = await deepseekRoom(
+    [
+      responsesReply({ kind: "text", text: "Corvin takes the rusted sword from the rack." }),
+      responsesReply({ kind: "tool-call", name: SCENE_TOOL, arguments: JSON.stringify({ location: "The flooded undercroft" }) }),
+    ],
+    "tools",
+    false,
+    { mode: "folded", api: "responses" },
+  );
+  const params = turnParams(h);
+  const turn = await runTurn(h, params);
+  expect(turn).toHaveLength(2);
+  const bodies = await bodiesOf(turn);
+  const foreground = bodies[0];
+  const round = bodies[1];
+  if (foreground === undefined || round === undefined) {
+    throw new Error("the folded turn's foreground or fallback round never dialed the provider");
+  }
+  // The mount: the FOREGROUND dial on `/responses` itself carries the offered state surface, un-forced.
+  expect(Array.isArray(foreground["input"])).toBe(true);
+  expect(Array.isArray(foreground["tools"])).toBe(true);
+  expect(foreground["tool_choice"]).toBe("auto");
+  // The pair the chat arm measures: the foreground rides the chat preset's reasoning-off, the fallback
+  // round the effort-default fold — both spelled as the `reasoning.effort` arm on this protocol.
+  expect(foreground["reasoning"]).toEqual({ effort: "none" });
+  expect(round["reasoning"]).toEqual({ effort: "high" });
+  const trace = (h.root.app.rpgTrace?.recent({ chatId: h.chatId }) ?? []).map(({ event }) => event);
+  expect(trace).toContainEqual(expect.objectContaining({ phase: "flush", path: "tool-round", fallbackReason: "no-terminal-calls" }));
+  const view = await h.root.services.rpg.getTrackerView(params);
+  expect(JSON.stringify(view)).toContain("The flooded undercroft");
+});
+
 // The SHIPPED delivery default (`extractionMode: "folded"`, D112): the row's absent `silencesProse` cell says
 // the wire co-emits prose with tools (contracts/inference `coEmitsProseWithTools`), so the fold MOUNTS the
 // state tools on the foreground dial instead of always paying a second call. The live vendor walk of this
@@ -382,7 +556,7 @@ test("a folded game mounts the state tools on the foreground, and a prose-only f
     [(): Response => coreProse("Corvin takes the rusted sword from the rack."), deepseekToolCallReply([SCENE_TOOL], null)],
     "tools",
     false,
-    "folded",
+    { mode: "folded" },
   );
   const params = turnParams(h);
   const turn = await runTurn(h, params);
@@ -414,7 +588,7 @@ test("a folded game mounts the state tools on the foreground, and a prose-only f
 });
 
 test("a folded foreground that emits its own state calls folds them with NO second dial", async () => {
-  await using h = await deepseekRoom([deepseekToolCallReply([SCENE_TOOL], "Corvin takes the rusted sword from the rack.")], "tools", false, "folded");
+  await using h = await deepseekRoom([deepseekToolCallReply([SCENE_TOOL], "Corvin takes the rusted sword from the rack.")], "tools", false, { mode: "folded" });
   const params = turnParams(h);
   const turn = await runTurn(h, params);
   // The true fold: the beat's calls rode the foreground completion, so the room never pays the second dial.

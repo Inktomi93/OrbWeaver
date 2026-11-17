@@ -245,6 +245,7 @@ export {
 export { describePatchFields, patchChangesToToolCalls, stateRoundPatchSchema } from "./structured-patch.ts";
 export type { RpgStateRoundTool, RpgStructuredChanges, RpgStructuredRoundShape } from "./structured-round.ts";
 export {
+  RPG_STATE_CHANGES_FIELD,
   RPG_STRUCTURED_ROUND_SHAPES,
   stateRoundChangesSchema,
   structuredChangesToToolCalls,
