@@ -68,7 +68,7 @@ function effortWord(features: EndpointFeatures, reasoning: ResolvedReasoning, te
     return REASONING_OFF;
   }
   if (reasoning.enabled) {
-    return reasoning.effort === undefined ? undefined : wireEffortOf(reasoning.effort);
+    return reasoning.effort === undefined ? undefined : wireEffortOf(reasoning.effort, features.effortMaxLiteral === true);
   }
   if (templateThinking === false && features.thinkingOff === TEMPLATE_KWARGS_SWITCH) {
     return;

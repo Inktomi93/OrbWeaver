@@ -243,8 +243,17 @@ function overrideSource(providerLabel: string, fromProvider: boolean, replaced: 
 const QUIRK_LEAVES_BY_FEATURE: Record<keyof Required<EndpointFeatures>, readonly FactLeaf[]> = {
   prefill: [{ path: "prefill", name: "prefill", edit: { kind: "enum", options: PREFILL_MODES }, unset: NOT_SET }],
   prefillSuppressesThinking: [{ path: "prefillSuppressesThinking", name: "prefill suppresses thinking", edit: { kind: "boolean" }, unset: NOT_SET }],
+  betaChatPath: [
+    {
+      path: "betaChatPath",
+      name: "beta chat path",
+      edit: { kind: "text" },
+      unset: "not set: no beta route; prefix prefills and strict tools ride the row's own base",
+    },
+  ],
   strictJson: [{ path: "strictJson", name: "strict JSON", edit: { kind: "enum", options: STRICT_JSON_MODES }, unset: NOT_SET }],
   effort: [{ path: "effort", name: "effort field", edit: { kind: "enum", options: EFFORT_SPELLINGS }, unset: NOT_SET }],
+  effortMaxLiteral: [{ path: "effortMaxLiteral", name: "effort max rides the wire as-is", edit: { kind: "boolean" }, unset: NOT_SET }],
   outputCapField: [{ path: "outputCapField", name: "output cap field", edit: { kind: "enum", options: OUTPUT_CAP_FIELDS }, unset: NOT_SET }],
   reasoningKeys: [{ path: "reasoningKeys", name: "reasoning fields", edit: { kind: "list" }, unset: NOT_SET }],
   images: [{ path: "images", name: "image generation arm", edit: { kind: "enum", options: IMAGE_ARMS }, unset: "not set: no image generation" }],

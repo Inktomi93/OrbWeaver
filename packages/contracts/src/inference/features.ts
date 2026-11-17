@@ -102,10 +102,13 @@ export const SAMPLER_ORDER_TOKENS: Readonly<
 };
 
 /** How a delivered trailing-assistant row is continued on this server. `continue-final-message` = vLLM's
- *  `continue_final_message: true` + `add_generation_prompt: false` pair; `deliver` = send the row and hope;
+ *  `continue_final_message: true` + `add_generation_prompt: false` pair; `prefix-flag` = a `prefix: true` field
+ *  stamped on the converted trailing-assistant message (DeepSeek's beta-route continue, live-verified 2026-11-16:
+ *  prod hard-400s the field, `prefix is only available when using beta api`, so the row names a
+ *  {@link EndpointFeatures.betaChatPath} and the turn takes it); `deliver` = send the row and hope;
  *  `none` = the server has no continuation arm. Honoured only when the capability says
  *  `turns.assistantPrefill`. */
-export const PREFILL_MODES = ["continue-final-message", "deliver", "none"] as const;
+export const PREFILL_MODES = ["continue-final-message", "prefix-flag", "deliver", "none"] as const;
 
 /** Whether a tool's `strict: true` input mode rides. `default-on` = strict unless the tool says otherwise (vLLM
  *  guided decoding); `declared-only` = only where the tool asks; `never` = the endpoint has no strict tool input.
@@ -136,9 +139,11 @@ export const OUTPUT_CAP_FIELDS = ["max_tokens", "max_completion_tokens"] as cons
  *  server runs, an embedder's width, and what each model takes (tools, image input, its kind). `ollama` =
  *  `GET /api/version` + `GET /api/ps` + `POST /api/show`; `llama-cpp` = `GET /props` + the list's `meta`;
  *  `koboldcpp` = `GET /api/extra/version` + `GET /props`; `nanogpt` = the hosted list's own `?detailed=true` mode,
- *  read in place of the bare list; `literouter` = the hosted list's own per-model fields, read from the same list. The
+ *  read in place of the bare list; `literouter` = the hosted list's own per-model fields, read from the same list;
+ *  `deepseek` = the hosted list's own per-model fields (`context_window`, `max_output_tokens`, `input_modalities`,
+ *  `effort.supported_levels`), read from the same list. The
  *  readers live in `@orb/inference`'s endpoint catalog. */
-export const MODEL_INFO_APIS = ["ollama", "llama-cpp", "koboldcpp", "nanogpt", "literouter"] as const;
+export const MODEL_INFO_APIS = ["ollama", "llama-cpp", "koboldcpp", "nanogpt", "literouter", "deepseek"] as const;
 export type ModelInfoApi = (typeof MODEL_INFO_APIS)[number];
 
 /** A server's native chat route, sent instead of `/v1/chat/completions` (D310). `ollama` = `POST /api/chat`,
@@ -200,6 +205,16 @@ export const endpointFeaturesSchema = z
      *  `["reasoning", "reasoning_content"]` (0.26 renamed it; a `reasoning_content`-only read silently dropped
      *  every reasoning token, live-verified). Applied by the transport's chunk reshaper. */
     reasoningKeys: z.array(z.string().min(1)).optional(),
+    /** A generic effort level rides this server's effort field verbatim, including our `max`: the wire's own
+     *  vocabulary spells that word (`reasoning_effort: "max"`, measured on DeepSeek 2026-11-16 — its `/models`
+     *  `effort.supported_levels` names `max` and the field accepts it). Absent ⇒ the V4 mapping holds and our
+     *  `max` rides as the wire's `xhigh`. */
+    effortMaxLiteral: z.boolean().optional(),
+    /** The route serving this server's beta-gated chat request fields (`prefix`, strict tool mode), as a plain
+     *  path from the base URL's ORIGIN (DeepSeek: `/beta`, live-verified 2026-11-16 — prod 400s `prefix` and
+     *  docs gate strict-mode behind it). Read only on a turn that sends a beta-gated field: the
+     *  `prefix-flag` prefill turn and a turn carrying a `strict: true` tool. Absent ⇒ no separate beta route. */
+    betaChatPath: declaredPathSchema.optional(),
     /** The key a sampler rides under on this server, where it differs from `DEFAULT_SAMPLER_KEYS` (llama.cpp
      *  reads `repeat_penalty`; KoboldCpp reads `typical`, `nsigma`, `rep_pen_range`, and on its OpenAI route
      *  only `mirostat_mode`). Folds key by key. */

@@ -137,6 +137,38 @@ export const BUILTIN_PROVIDER_ROWS = [
     docsUrl: "https://docs.literouter.com",
   },
   {
+    id: "deepseek",
+    label: "DeepSeek",
+    wire: "openai-compat",
+    dialect: "openai-compatible",
+    auth: "apiKey",
+    // The direct API's versioned root; `GET /v1/models` answers there with the per-model facts (live 2026-11-16).
+    baseUrl: "https://api.deepseek.com/v1",
+    apis: ["chat-completions"],
+    serves: ["chat", "summarize", "structured"],
+    features: {
+      effort: "reasoning_effort",
+      // The wire spells our `max` itself: `/models` `effort.supported_levels` names `max` and the field accepts it
+      // (measured 2026-11-16; `xhigh` would sit silently under it).
+      effortMaxLiteral: true,
+      // `reasoning_effort: "none"` IS the thinking off (Thinking Mode guide; measured 2026-11-16: no
+      // `reasoning_content` came back), so the effort field is the whole switch.
+      thinkingOff: "reasoning_effort",
+      // Tool-call strict mode is the only schema-enforcing structured vehicle it serves: `response_format`
+      // `json_schema` 400s on both routes ("This response_format type is unavailable now", measured 2026-11-16).
+      // The strict grammar is the OpenAI-shaped all-required/closed/anyOf-with-null set (measured 2026-11-16).
+      strictJson: "default-on",
+      structuredMode: "strict-compatible",
+      // A trailing-assistant continue is a `prefix: true` flag on the row, served only on `/beta`.
+      prefill: "prefix-flag",
+      betaChatPath: "/beta",
+      modelInfoApi: "deepseek",
+    },
+    catalog: "url",
+    metered: true,
+    docsUrl: "https://api-docs.deepseek.com",
+  },
+  {
     id: "vllm",
     label: "vLLM",
     wire: "openai-compat",

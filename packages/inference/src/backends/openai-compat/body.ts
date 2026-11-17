@@ -14,6 +14,8 @@
 //   5. the prefill pair (`continue_final_message` + `add_generation_prompt: false`) when the row's folded
 //      `features.prefill` is `continue-final-message`, the capability says `assistantPrefill`, and the array
 //      actually ends on an assistant row; `prefillSuppressesThinking` strips the thinking toggle then.
+//   5a. the `prefix-flag` spelling of the same decision: `prefix: true` stamped on the converted trailing-assistant
+//      message, the row's beta route under `features.betaChatPath` for that call (`model.ts` reads the same gate).
 //   5b. `chat_template_kwargs.enable_thinking` set to the turn's template thinking state when `features.thinkingOff`
 //      names the kwarg, merged into whatever kwargs extras or `includeBody` set.
 //   5c. `chat_template_kwargs.preserve_reasoning: false` on such a row when the turn's reasoning carry is off.
@@ -51,6 +53,7 @@ const MAX_TOKENS_KEY = "max_tokens";
 const MAX_COMPLETION_TOKENS_KEY = "max_completion_tokens";
 const CONTINUE_FINAL_MESSAGE_KEY = "continue_final_message";
 const ADD_GENERATION_PROMPT_KEY = "add_generation_prompt";
+const PREFIX_FLAG_KEY = "prefix";
 const MODALITIES_KEY = "modalities";
 const REPLY_MODALITIES = ["text", "image"] as const;
 const CHAT_TEMPLATE_KWARGS_KEY = "chat_template_kwargs";
@@ -195,6 +198,26 @@ function applyPrefill(body: Record<string, unknown>, args: ShapeArgs, owned: Rea
     return { ...kept, [CHAT_TEMPLATE_KWARGS_KEY]: { ...(isRecord(kwargs) ? kwargs : {}), [ENABLE_THINKING_KEY]: false } };
   }
   return out;
+}
+
+/** Rule 5a: the `prefix-flag` spelling of the same decision — DeepSeek's beta-route continue stamps the converted
+ *  trailing-assistant message with `prefix: true` instead of a body-level pair (measured 2026-11-16: the flag
+ *  continues mid-word, and the seeded `reasoning_content` of that row rides as the model's own chain). A
+ *  `messages` array the user set is theirs, and the same capability and array gates as rule 5 decide the turn;
+ *  a converter that reshaped the tail into a non-assistant row gets nothing stamped. */
+function applyPrefixFlag(body: Record<string, unknown>, args: ShapeArgs, owned: ReadonlySet<string>): Record<string, unknown> {
+  if (args.plan === null || owned.has(MESSAGES_KEY) || args.features.prefill !== "prefix-flag" || !args.prefillAllowed || !args.plan.endsOnAssistant) {
+    return body;
+  }
+  const messages = body[MESSAGES_KEY];
+  if (!Array.isArray(messages)) {
+    return body;
+  }
+  const last = messages.at(-1);
+  if (!isRecord(last) || last["role"] !== "assistant") {
+    return body;
+  }
+  return { ...body, [MESSAGES_KEY]: [...messages.slice(0, -1), { ...last, [PREFIX_FLAG_KEY]: true }] };
 }
 
 /** Rule 5b: the template-level thinking switch, beside the user's own kwargs and never over them. A switch the
@@ -409,6 +432,7 @@ export function shapeOutboundBody(raw: Record<string, unknown>, args: ShapeArgs)
   // Read before any rule writes a kwarg, so the switch our own rules set is never mistaken for the user's.
   const userThinking = userDecidesKwarg(body, args, owned, ENABLE_THINKING_KEY);
   body = applyTemplateThinking(applyPrefill(body, args, owned, userThinking), args, userThinking);
+  body = applyPrefixFlag(body, args, owned);
   body = applyBudgetOff(applyPreserveReasoning(body, args, owned), args, owned, userThinking);
   if (args.replyImages && !owned.has(MODALITIES_KEY)) {
     body = { ...body, [MODALITIES_KEY]: [...REPLY_MODALITIES] };

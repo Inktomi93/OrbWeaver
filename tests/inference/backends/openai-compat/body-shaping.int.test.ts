@@ -5,11 +5,14 @@ import { toolCallIdSchema } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
 import { connectionExtrasSchema, DEFAULT_ATTACHMENT_QUALITY, isBeltOwnedBodyKey, providerIdSchema, WARNING_CODE } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
+import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ChatEvent, ChatHistoryMessage } from "@orb/inference";
 import { isPlainObject } from "@orb/kit/guards";
+import { projectJsonSchema } from "@orb/kit/json-schema";
 import { expect, test } from "@orb/testkit/node";
 import type { RecordedRequest } from "@orb/testkit/node/helpers";
 import { openAiServer, warningCodes } from "@orb/testkit/node/helpers";
+import { z } from "zod";
 import { createRuntimeRoot, generationCapability, wireConnection } from "../../roles/runtime.fixtures.ts";
 
 type Connection = Parameters<typeof wireConnection<"chat">>[1];
@@ -20,6 +23,7 @@ const USER_LINE: ChatHistoryMessage = { role: "user", content: [{ type: "text", 
 const ASSISTANT_OPENING: ChatHistoryMessage = { role: "assistant", content: [{ type: "text", text: "Once upon a" }] };
 
 interface Sent {
+  readonly url: string;
   readonly body: RecordedRequest["body"];
   readonly events: readonly ChatEvent[];
 }
@@ -27,7 +31,7 @@ interface Sent {
 /** One chat turn against a scripted openai-compatible endpoint; what the endpoint received and what the turn reported. */
 async function send(
   row: Omit<Connection, "task" | "model" | "providerId"> & { readonly providerId?: ProviderId; readonly model?: string },
-  options: { readonly params?: UserIntent; readonly history?: readonly ChatHistoryMessage[] } = {},
+  options: { readonly params?: UserIntent; readonly history?: readonly ChatHistoryMessage[]; readonly responseFormat?: ResponseFormat } = {},
 ): Promise<Sent> {
   const recorded: RecordedRequest[] = [];
   using server = openAiServer(recorded, () => ({}));
@@ -40,12 +44,13 @@ async function send(
     params: options.params ?? {},
     systemPrompt: { static: SYSTEM_TEXT, dynamic: "" },
     history: options.history ?? [USER_LINE],
+    ...(options.responseFormat === undefined ? {} : { responseFormat: options.responseFormat }),
   });
   const [first] = recorded;
   if (first === undefined) {
     throw new Error("the turn reached no endpoint");
   }
-  return { body: first.body, events: turn.events };
+  return { url: first.url, body: first.body, events: turn.events };
 }
 
 function ignoredKeys(events: readonly ChatEvent[]): string[] {
@@ -337,6 +342,16 @@ function wireRows(body: RecordedRequest["body"]): readonly Record<string, unknow
   return rows.flatMap((row) => (isPlainObject(row) ? [row] : []));
 }
 
+/** The `function` block of the planned tool at `index`, narrowed by the guards like `wireRows`, never asserted. */
+function wireTool(body: RecordedRequest["body"], index: number): Record<string, unknown> | undefined {
+  const tools = body["tools"];
+  if (!Array.isArray(tools)) {
+    throw new Error("the endpoint received no tools array");
+  }
+  const tool = tools[index];
+  return isPlainObject(tool) && isPlainObject(tool["function"]) ? tool["function"] : undefined;
+}
+
 test("participant names, a prior reply's image and the image detail ride the wire rows, and a messages array the user set takes none of them", async () => {
   const picture = "data:image/png;base64,AAAA";
   const history: ChatHistoryMessage[] = [
@@ -517,4 +532,73 @@ test("a mandatory-reasoning model keeps its thinking and its effort through a de
   expect(sent.body["chat_template_kwargs"]).toMatchObject({ ["enable_thinking"]: true });
   expect(sent.body["reasoning_effort"]).toBe("high");
   expect(warningCodes(sent.events)).not.toContain(WARNING_CODE.reasoningDroppedForPrefill);
+});
+
+test("the shipped deepseek row spells effort words literally, turns thinking off with `none`, and never writes template kwargs", async () => {
+  const deepseek = providerIdSchema.parse("deepseek");
+  const capability = generationCapability({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "high", "max"] } });
+
+  const on = await send({ providerId: deepseek, capability }, { params: { effort: "high" } });
+  expect(on.body["reasoning_effort"]).toBe("high");
+  expect(on.body).not.toHaveProperty("chat_template_kwargs");
+
+  // The row's `effortMaxLiteral`: our `max` rides the wire as the word the vendor spells, not the V4 `xhigh`
+  // mapping — DeepSeek's own enum includes `max` and silently down-maps `xhigh`.
+  const max = await send({ providerId: deepseek, capability }, { params: { effort: "max" } });
+  expect(max.body["reasoning_effort"]).toBe("max");
+
+  const mapped = await send({ capability, declaredFeatures: { effort: "reasoning_effort" } }, { params: { effort: "max" } });
+  expect(mapped.body["reasoning_effort"]).toBe("xhigh");
+
+  // `thinkingOff: "reasoning_effort"`: the off is the effort word itself, no kwargs beside it.
+  const off = await send({ providerId: deepseek, capability }, { params: { effort: "none" } });
+  expect(off.body["reasoning_effort"]).toBe("none");
+  expect(off.body).not.toHaveProperty("chat_template_kwargs");
+});
+
+test("a `prefix-flag` row stamps the converted trailing assistant row and rides that turn on the beta route alone", async () => {
+  const deepseek = providerIdSchema.parse("deepseek");
+  const prefill = prefillCapability();
+  const params = { effort: "high" } satisfies UserIntent;
+  const history = [USER_LINE, ASSISTANT_OPENING];
+
+  const stamped = await send({ providerId: deepseek, capability: prefill }, { params, history });
+  expect(wireRows(stamped.body).at(-1)).toMatchObject({ role: "assistant", content: "Once upon a", prefix: true });
+  expect(stamped.url).toContain("/beta/v1/chat/completions");
+
+  // The route and the stamp share the prefill gate: a turn that does not end on an assistant row keeps the
+  // prod base and gets no stamp anywhere in the array.
+  const plain = await send({ providerId: deepseek, capability: prefill }, { params, history: [USER_LINE] });
+  expect(plain.url).not.toContain("/beta");
+  expect(JSON.stringify(plain.body["messages"])).not.toContain("prefix");
+
+  // A `messages` array the user owns is never stamped, but the route is the stamping gate's superset: the
+  // turn still rides `/beta`, where both spellings answer.
+  const theirs = [{ role: "user", content: "Their own row." }];
+  const owned = await send({ providerId: deepseek, capability: prefill, transport: { includeBody: { messages: theirs } } }, { params, history });
+  expect(owned.body["messages"]).toEqual(theirs);
+  expect(owned.url).toContain("/beta/v1/chat/completions");
+});
+
+test("a turn carrying a strict tool rides the row's beta route; without a beta path the same strict body rides the base", async () => {
+  const deepseek = providerIdSchema.parse("deepseek");
+  // The DeepSeek capability shape: no `response_format` json_schema carrier, no forced choices — the
+  // structured plan must ride an offered tool, and `strictJson: default-on` stamps it strict.
+  const capability = generationCapability({
+    output: { maxTokens: { min: 1, max: 8192 }, structured: false, modalities: ["text"] },
+    tools: { parallel: true, requiredChoice: false, namedChoice: false, noneChoice: true, parallelControl: false },
+  });
+  const format: ResponseFormat = { name: "report", schema: projectJsonSchema(z.object({ mood: z.string() })) };
+
+  const beta = await send({ providerId: deepseek, capability }, { responseFormat: format });
+  expect(beta.url).toContain("/beta/v1/chat/completions");
+  expect(beta.body).not.toHaveProperty("response_format");
+  expect(wireTool(beta.body, 0)).toMatchObject({ name: "report", strict: true });
+
+  // Control: the same plan on a row with the same features and no `betaChatPath` sends the strict tool to
+  // the base URL — the hop is the row's declared path, not a provider reflex.
+  const base = await send({ capability, declaredFeatures: { structuredMode: "strict-compatible", strictJson: "default-on" } }, { responseFormat: format });
+  expect(base.url).not.toContain("/beta");
+  expect(base.url).toContain("/v1/chat/completions");
+  expect(wireTool(base.body, 0)).toMatchObject({ strict: true });
 });

@@ -7,7 +7,7 @@
 // `warning` event (D41).
 
 import type { JSONObject, LanguageModelV4CallOptions, SharedV4Headers, SharedV4ProviderOptions } from "@ai-sdk/provider";
-import type { CachePolicy, Dialect, GenerationCapability, ResolvedWarning, ResponseCache } from "@orb/contracts/inference";
+import type { CachePolicy, Dialect, EndpointFeatures, GenerationCapability, ResolvedWarning, ResponseCache } from "@orb/contracts/inference";
 import { acceptsAssistantPrefill, cacheMinTokensOf, DEFAULT_ATTACHMENT_QUALITY, honoursParallelControl } from "@orb/contracts/inference";
 import type { EffortLevel } from "@orb/contracts/preset";
 import { errorMessage } from "@orb/kit/error-message";
@@ -19,7 +19,7 @@ import { ProviderError } from "#contract";
 import { resolveCachePolicy, resolveChat, templateThinkingFor } from "#funnel";
 import type { ProviderLogger } from "#src/contract/http.ts";
 import type { ModelCall, OpenAiCompatChatDeps } from "#src/contract/openai-backend.ts";
-import type { StructuredPlan } from "#src/contract/structured.ts";
+import type { PlannedTool, StructuredPlan } from "#src/contract/structured.ts";
 import type { ResultContext, StreamDrain, WirePlan } from "#src/contract/v4.ts";
 import type { ExplicitCachePlan, OpenRouterRouting } from "#src/contract/wire.ts";
 import { requireStructuredPlan, structuredChatResult } from "#structured";
@@ -232,6 +232,19 @@ interface TurnKnobs {
 /** The planned response format's strictness, where one rides natively. */
 function plannedStrict(plan: StructuredPlan): boolean | undefined {
   return plan.responseFormat?.vehicle === "response-format" ? plan.responseFormat.strict : undefined;
+}
+
+/** Whether this turn must be built against the row's beta route (`features.betaChatPath`, `model.ts`): a
+ *  `prefix-flag` turn that may stamp — the body shaper's rule 5a is the narrow gate, this is its superset, so
+ *  every possible stamp rides `/beta` — or any turn carrying a strict tool: strict tool mode is the vendor's
+ *  beta feature, its guarantee lives on `/beta` and prod only tolerates the flag. */
+function betaRouteNeeded(
+  prefill: EndpointFeatures["prefill"],
+  prefillAllowed: boolean,
+  endsOnAssistant: boolean,
+  tools: readonly PlannedTool[] | undefined,
+): boolean {
+  return (prefill === "prefix-flag" && prefillAllowed && endsOnAssistant) || tools?.some((tool) => tool.strict === true) === true;
 }
 
 type TurnShape = {
@@ -789,6 +802,10 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
             ? openRouterShape(req, turnKnobs, warnings, includeReasoning)
             : openAiCompatibleShape(req, turnKnobs, warnings, providerOptionsKey(connection.providerId));
         attempt.shape = shape;
+        // The beta-route decision; the route is the stamping gate's superset, so a turn that routes to `/beta`
+        // without stamping is harmless and a stamp never rides prod where the vendor 400s it.
+        const prefillAllowed = acceptsAssistantPrefill(generation) && req.tools === undefined;
+        const betaRoute = betaRouteNeeded(connection.features.prefill, prefillAllowed, plan.endsOnAssistant, structured.tools);
         const call: ModelCall = {
           cachePolicy: policy.plan,
           responseCache: req.responseCache,
@@ -799,7 +816,8 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
           api: req.api,
           chatId: req.chatId,
           plan,
-          prefillAllowed: acceptsAssistantPrefill(generation) && req.tools === undefined,
+          prefillAllowed,
+          requiresBetaRoute: betaRoute,
           templateThinking: turnKnobs.templateThinking,
           templatePreserveReasoning: knobs.carryReasoning === "off" ? false : undefined,
           reasoningEffort,

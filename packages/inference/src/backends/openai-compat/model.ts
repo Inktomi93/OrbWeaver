@@ -15,7 +15,7 @@ import { ProviderError } from "#contract";
 import { resolveCachePolicy } from "#funnel";
 import type { ModelCall, NativeThink, ShapeArgs } from "#src/contract/openai-backend.ts";
 import type { WrapFetchArgs } from "#src/contract/v4.ts";
-import { authHeaders, openAiPath } from "../http/fetch-json.ts";
+import { authHeaders, onBaseOrigin, openAiPath } from "../http/fetch-json.ts";
 import { cachePolicyContextOf, effectiveDialectOf, responseCacheHeaders } from "../http/response-cache.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";
 import { wrapFetch } from "../v4/fetch.ts";
@@ -91,6 +91,20 @@ function baseUrlOf(call: ModelCall): string {
   return baseUrl;
 }
 
+/** The chat base for this call: the row's own, or the beta route named by `features.betaChatPath` when the turn
+ *  sends a beta-gated field (the `prefix-flag` prefill stamp or a strict tool — the factory is per call, so the
+ *  hop is scoped to the request that needs it). The declared path is checked to stay on the base URL's origin
+ *  before anything is sent, like every other declared path. */
+function chatBaseOf(call: ModelCall): string {
+  const base = baseUrlOf(call);
+  const betaPath = call.requiresBetaRoute === true ? call.connection.features.betaChatPath : undefined;
+  if (betaPath === undefined) {
+    return openAiPath(base, "");
+  }
+  const checked = onBaseOrigin(base, new URL(betaPath, base).toString(), call.label);
+  return openAiPath(checked, "");
+}
+
 interface Transport {
   readonly language: (call: ModelCall) => LanguageModelV4;
   readonly embedding: (call: ModelCall) => EmbeddingModelV4;
@@ -103,7 +117,7 @@ function openAiCompatibleProvider(call: ModelCall): ReturnType<typeof createOpen
   const withExtra = (body: Record<string, unknown>): Record<string, unknown> => shapeOutboundBody({ ...body, ...(call.extraBody ?? {}) }, args);
   return createOpenAICompatible({
     name: connection.providerId,
-    baseURL: openAiPath(baseUrlOf(call), ""),
+    baseURL: chatBaseOf(call),
     headers: authHeaders(connection.credential.secret, connection.transport?.headers),
     fetch: wrapFetch(fetchArgs(call, undefined)),
     includeUsage: true,

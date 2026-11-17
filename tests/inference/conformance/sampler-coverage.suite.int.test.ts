@@ -52,6 +52,8 @@ const SOURCES = {
   },
   nanogpt: { kind: "provider-row" },
   literouter: { kind: "provider-row" },
+  // curated/deepseek.ts states the ranges the service's own range errors gave, for its direct ids.
+  deepseek: { kind: "family", model: "deepseek-flash" },
   vllm: { kind: "provider-row" },
   "lm-studio": { kind: "provider-row" },
   ollama: { kind: "provider-row" },

@@ -131,6 +131,9 @@ export interface ModelCall {
   readonly chatId?: ChatId | undefined;
   readonly plan: WirePlan | null;
   readonly prefillAllowed: boolean;
+  /** The turn sends a beta-gated request field — the `prefix-flag` prefill stamp or a `strict: true` tool — so a
+   *  row with `features.betaChatPath` builds this call against that route (see `model.ts`). */
+  readonly requiresBetaRoute?: boolean;
   /** What body rule 5b tells the template's thinking switch; `undefined` leaves the server's default. */
   readonly templateThinking: boolean | undefined;
   /** What body rule 5c tells the template about replaying prior thinking; `undefined` sends nothing. */

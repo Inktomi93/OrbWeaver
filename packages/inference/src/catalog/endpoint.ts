@@ -64,6 +64,9 @@ export async function fetchEndpointModels(args: EndpointFetchArgs): Promise<Endp
   if (args.modelInfoApi === "literouter") {
     return await fetchLiteRouterModels(args);
   }
+  if (args.modelInfoApi === "deepseek") {
+    return await fetchDeepSeekModels(args);
+  }
   const listed = await boundedRead(args, {
     url: openAiPath(args.baseUrl, "/models"),
     headers: authHeaders(args.secret, args.headers),
@@ -462,6 +465,58 @@ function literouterModel(row: LiteRouterRow): EndpointModel {
       probed: true,
     },
   );
+}
+
+// ── DeepSeek ─────────────────────────────────────────────────────────────────────────────────────────
+
+/** The live list's fields this reader keeps (api-docs.deepseek.com Models list, live 2026-11-16): the window and
+ *  output cap the service runs, what each model takes as input, and the effort levels its `reasoning_effort`
+ *  accepts. `api_capabilities` describes the Anthropic route and stays a loose unknown. */
+const deepseekRowSchema = z.looseObject({
+  id: z.string().min(1),
+  name: STATED_TEXT,
+  context_window: STATED_LIMIT,
+  max_output_tokens: STATED_LIMIT,
+  input_modalities: STATED_NAMES,
+  effort: z.looseObject({ supported_levels: STATED_NAMES, default_level: STATED_TEXT }).optional().catch(undefined),
+});
+type DeepSeekRow = z.infer<typeof deepseekRowSchema>;
+
+/** The effort words the model states, and whether thinking is switchable: `reasoning_effort: "none"` is the off
+ *  (Thinking Mode guide; measured 2026-11-16 — no `reasoning_content` came back), so `false` is always among the
+ *  values and this reader never states a mandatory thinker. */
+function deepseekThinking(row: DeepSeekRow): EndpointModel["thinking"] {
+  const stated = row.effort?.supported_levels;
+  if (stated === undefined) {
+    return;
+  }
+  const levels = EFFORT_LEVELS.filter((level) => stated.includes(level));
+  if (levels.length === 0) {
+    return;
+  }
+  return { values: [...levels, false], default: row.effort?.default_level ?? true };
+}
+
+async function fetchDeepSeekModels(args: EndpointFetchArgs): Promise<EndpointModel[]> {
+  const rows = await hostedRows(args, { path: "/models", label: "DeepSeek models" }, deepseekRowSchema);
+  return rows.map((row) => {
+    const limits = statedLimits(row.context_window, row.max_output_tokens);
+    const thinks = row.effort !== undefined;
+    return withStated(
+      { id: row.id, contextLength: limits.window },
+      {
+        kind: "generation",
+        name: row.name,
+        // The hosted service runs every model at its stated window; there is nothing above it to clamp to.
+        contextTrained: limits.window ?? undefined,
+        maxCompletionTokens: limits.output,
+        input: hostedInput(row.input_modalities, {}),
+        thinks: thinks ? true : undefined,
+        thinking: thinks ? deepseekThinking(row) : undefined,
+        probed: true,
+      },
+    );
+  });
 }
 
 // ── shared ───────────────────────────────────────────────────────────────────────────────────────────
@@ -1132,6 +1187,7 @@ async function listedModelFacts(args: EndpointFetchArgs, row: EndpointModel): Pr
     case undefined:
     case "nanogpt":
     case "literouter":
+    case "deepseek":
       return { probed: true };
     case "ollama":
       return await ollamaLateFacts(args, row);
