@@ -70,6 +70,20 @@ export function generationOf(resolved: Resolved): GenerationCapability {
   return resolved.capability.generation;
 }
 
+/** {@link generationOf}'s sibling for a call site that already carries a user-facing provider LABEL (the
+ *  runner's `${providerId} chat (${model})`): same refusal, voiced with the label the turn's other errors
+ *  use, so one failure reads as one sentence. */
+export function requireGeneration(resolved: Resolved, label: string): GenerationCapability {
+  if (resolved.capability.kind !== "generation") {
+    throw new ProviderError({
+      kind: "invalid",
+      retryable: false,
+      message: `${label}: the connection's model is a ${resolved.capability.kind} model, not a generation model`,
+    });
+  }
+  return resolved.capability.generation;
+}
+
 /** The chat connection a turn sends: on a route whose window the request sets, carrying the preset's Max context as its
  *  window ({@link windowForPreset}), so the history fit and the request read one value. The same object elsewhere. */
 export function withPresetWindow(connection: Resolved<"chat">, maxContextTokens: number | undefined): Resolved<"chat"> {

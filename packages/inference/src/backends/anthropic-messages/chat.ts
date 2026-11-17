@@ -20,17 +20,8 @@ import type { GenerationCapability, ReasoningOffMode, ResolvedWarning } from "@o
 import { acceptsAssistantPrefill, acceptsTurnScopedSystem, bindsThinkingToPrefix, cacheMinTokensOf, REASONING_OFF_DEFAULT } from "@orb/contracts/inference";
 import type { EffortLevel } from "@orb/contracts/preset";
 import type { Clock, ScheduleOp } from "@orb/kit/time";
-import type {
-  AnthropicChatRequest,
-  ChatEvent,
-  ChatHistoryMessage,
-  ChatResult,
-  RateLimitSnapshot,
-  Resolved,
-  ResolvedChatKnobs,
-  ResolvedReasoning,
-} from "#contract";
-import { ProviderError, prefillSeedDrop } from "#contract";
+import type { AnthropicChatRequest, ChatEvent, ChatHistoryMessage, ChatResult, RateLimitSnapshot, ResolvedChatKnobs, ResolvedReasoning } from "#contract";
+import { ProviderError, prefillSeedDrop, requireGeneration } from "#contract";
 import { resolveCachePolicy, resolveChat } from "#funnel";
 import type { AnthropicCall, AnthropicChatDeps } from "#src/contract/anthropic-backend.ts";
 import type { ProviderLogger } from "#src/contract/http.ts";
@@ -61,17 +52,6 @@ import { refusalEventOf } from "./refusal.ts";
 /** The SDK's effort enum — `minimal` has no arm on this wire and drops with a warning. */
 const SDK_EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
 type SdkEffort = (typeof SDK_EFFORTS)[number];
-
-function requireGeneration(connection: Resolved, label: string): GenerationCapability {
-  if (connection.capability.kind !== "generation") {
-    throw new ProviderError({
-      kind: "invalid",
-      retryable: false,
-      message: `${label}: the connection's model is a ${connection.capability.kind} model, not a generation model`,
-    });
-  }
-  return connection.capability.generation;
-}
 
 function sdkEffortOf(effort: string | undefined, warnings: ResolvedWarning[]): SdkEffort | undefined {
   if (effort === undefined) {

@@ -15,7 +15,7 @@ import type { JsonValue } from "@orb/kit/json";
 import type { Clock, ScheduleOp } from "@orb/kit/time";
 import { z } from "zod";
 import type { ChatHistoryMessage, ChatResult, OpenAiCompatChatRequest, RateLimitSnapshot, Resolved, ResolvedChatKnobs } from "#contract";
-import { ProviderError } from "#contract";
+import { ProviderError, requireGeneration } from "#contract";
 import { resolveCachePolicy, resolveChat, templateThinkingFor } from "#funnel";
 import type { ProviderLogger } from "#src/contract/http.ts";
 import type { ModelCall, OpenAiCompatChatDeps } from "#src/contract/openai-backend.ts";
@@ -109,17 +109,6 @@ const openRouterRoutingSchema = z
   })
   .strip()
   .partial();
-
-function requireGeneration(connection: Resolved, label: string): GenerationCapability {
-  if (connection.capability.kind !== "generation") {
-    throw new ProviderError({
-      kind: "invalid",
-      retryable: false,
-      message: `${label}: the connection's model is a ${connection.capability.kind} model, not a generation model`,
-    });
-  }
-  return connection.capability.generation;
-}
 
 function upstreamText(error: unknown): string {
   const diag = extractHttpErrorDiagnostic(error, NO_PROVIDER_SECRETS);

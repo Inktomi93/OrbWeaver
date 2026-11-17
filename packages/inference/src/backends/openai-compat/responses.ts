@@ -14,10 +14,10 @@
 // `logit_bias` arm, so each rides a loud `sampling_knob_dropped`.
 
 import type { LanguageModelV4CallOptions, SharedV4ProviderOptions } from "@ai-sdk/provider";
-import type { GenerationCapability, ResolvedWarning } from "@orb/contracts/inference";
+import type { ResolvedWarning } from "@orb/contracts/inference";
 import { WARNING_CODE } from "@orb/contracts/inference";
 import type { ChatResult, RateLimitSnapshot, ResolvedChatKnobs, ResponsesChatRequest } from "#contract";
-import { ProviderError } from "#contract";
+import { ProviderError, requireGeneration } from "#contract";
 import { resolveChat, templateThinkingFor } from "#funnel";
 import type { ModelCall, OpenAiCompatChatDeps } from "#src/contract/openai-backend.ts";
 import type { StructuredPlan } from "#src/contract/structured.ts";
@@ -40,17 +40,6 @@ import { responsesModelFor } from "./model.ts";
 import { compatibleReasoning } from "./reasoning.ts";
 import { wireSampling } from "./sampling.ts";
 import { resolveWordBias } from "./tokens.ts";
-
-function requireGeneration(connection: ResponsesChatRequest["connection"], label: string): GenerationCapability {
-  if (connection.capability.kind !== "generation") {
-    throw new ProviderError({
-      kind: "invalid",
-      retryable: false,
-      message: `${label}: the connection's model is a ${connection.capability.kind} model, not a generation model`,
-    });
-  }
-  return connection.capability.generation;
-}
 
 /** What the Responses option builder reads: the resolved knobs, their wire spelling, the structured plan,
  *  and rule 5b's template-thinking state (a folded turn's mount is off on a row whose switch IS the effort

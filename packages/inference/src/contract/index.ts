@@ -53,7 +53,7 @@ export type { AgentSdkSessionId } from "./identity.ts";
 export { agentSdkSessionIdSchema } from "./identity.ts";
 export type { ResolvedChatKnobs, ResolvedReasoning, ResolvedSampling } from "./resolve.ts";
 export type { ConnectionTransport, Resolved, ResponseMap } from "./resolved.ts";
-export { generationOf, withPresetWindow } from "./resolved.ts";
+export { generationOf, requireGeneration, withPresetWindow } from "./resolved.ts";
 export type {
   EmbeddingExecution,
   EmbedRequest,
