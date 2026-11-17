@@ -156,6 +156,10 @@ export const deepseekRows = [
         assistantPrefill: true,
         midConversationSystem: true,
         historySystemRows: true,
+        // Stated from the measured system-row acceptance already cited below: notes ride as system rows
+        // wherever the two booleans gate delivery. `merge` (not `none`) so same-role merging keeps running
+        // exactly as it did under the fail-closed `strict` floor — only the fold placement changes.
+        roleHandlingFloor: "merge",
         providerImplicitPromptCache: true,
       },
       sampling: {
@@ -166,8 +170,8 @@ export const deepseekRows = [
     },
     evidence: {
       tier: "curated",
-      dated: "2026-11-16",
-      cite: "api-docs.deepseek.com chat_completions + guides/tool_calls + guides/kv_cache + quick_start/error_codes pages and live probes 2026-11-16/17: effort levels low|high|max default high (/models effort), reasoning_effort none = no reasoning_content; tool_choice none answers in prose (both modes), required and a named function force 200 with thinking disabled and 400 'Thinking mode does not support this tool_choice' in thinking; two calls in one turn measured, parallel_tool_calls:false answers 200 and is ignored; json_schema response_format 400 both thinking modes on chat-completions (route-level, measured both directions 2026-11-17) while the Responses API route serves text.format json_schema 200 conforming with thinking on/off and alongside tools; json_object 200 both modes but adds unrequested keys (no schema enforcement); anthropic route /anthropic/v1/messages interleaves thinking+tool_use blocks, tolerates omitted thinking blocks on replay (one sample), and 400s tool_choice any under thinking with client tools; system rows mid-history and trailing 200 on both models; prefix-flag continue works on /beta; server range errors state temperature [0, 2] and top_p (0, 1.0] verbatim; stop [' 3'] cut the reply at the sequence; assistant tool_calls+tool history answers 200 with a fresh call even in thinking mode with no replayed reasoning_content, and an inserted mid-history call+result pair is accepted and folded (measured 2026-11-17, outranking the two doc claims to the contrary); wrong key 401 on chat and /models, unknown model 400 invalid_request_error",
+      dated: "2026-11-17",
+      cite: "api-docs.deepseek.com chat_completions + guides/tool_calls + guides/kv_cache + quick_start/error_codes pages and live probes 2026-11-16/17: effort levels low|high|max default high (/models effort), reasoning_effort none = no reasoning_content; tool_choice none answers in prose (both modes), required and a named function force 200 with thinking disabled and 400 'Thinking mode does not support this tool_choice' in thinking; two calls in one turn measured, parallel_tool_calls:false answers 200 and is ignored; json_schema response_format 400 both thinking modes on chat-completions (route-level, measured both directions 2026-11-17) while the Responses API route serves text.format json_schema 200 conforming with thinking on/off and alongside tools; json_object 200 both modes but adds unrequested keys (no schema enforcement); anthropic route /anthropic/v1/messages interleaves thinking+tool_use blocks, tolerates omitted thinking blocks on replay (one sample), and 400s tool_choice any under thinking with client tools; system rows mid-history and trailing 200 on both models (the stated basis for roleHandlingFloor merge — placement anywhere, merging preserved; a system row directly above a prefix continue row also continued 3/3, docs/law/deepseek-api-surface.md); prefix-flag continue works on /beta; server range errors state temperature [0, 2] and top_p (0, 1.0] verbatim; stop [' 3'] cut the reply at the sequence; assistant tool_calls+tool history answers 200 with a fresh call even in thinking mode with no replayed reasoning_content, and an inserted mid-history call+result pair is accepted and folded (measured 2026-11-17, outranking the two doc claims to the contrary); wrong key 401 on chat and /models, unknown model 400 invalid_request_error",
     },
   },
   // Vision is the Flash model only: the live list's `input_modalities` name `image` for the flash rows and
@@ -254,6 +258,9 @@ export const deepseekRows = [
         assistantPrefill: false,
         midConversationSystem: true,
         historySystemRows: true,
+        // Measured on this route (system row mid-input 200, cited below): same ruling as the chat arm, same
+        // reason for `merge` over `none` — merging is untouched, only the fold placement loosens.
+        roleHandlingFloor: "merge",
         providerImplicitPromptCache: true,
       },
       sampling: {
@@ -265,7 +272,7 @@ export const deepseekRows = [
     evidence: {
       tier: "curated",
       dated: "2026-11-17",
-      cite: "live probes on https://api.deepseek.com/v1/responses 2026-11-17: all four ids answer 200 (plus the chat/reasoner aliases); json_schema strict:true compiles the projected RPG schema (optional-props and type-array rules measured verbatim), strict omitted answers the unprojected schema advisory-only; tool strict:true accepted, suggestive at best (n=4); system row mid-input 200; function_call+output replay 200 with the reasoning item kept-id, stripped-id and omitted; effort none/medium/max pass through and effort none + tool_choice required forces the call (required/named under thinking 400 'Thinking mode does not support this tool_choice', the chat route's wall); temperature 2.5 and top_p 0 400 with the chat route's range words, stop:[' 3'] silently ignored on a '1 2 3 4 5' count; second identical prompt reports input_tokens_details.cached_tokens 384; terminal response.completed carries usage and there is no [DONE] line",
+      cite: "live probes on https://api.deepseek.com/v1/responses 2026-11-17: all four ids answer 200 (plus the chat/reasoner aliases); json_schema strict:true compiles the projected RPG schema (optional-props and type-array rules measured verbatim), strict omitted answers the unprojected schema advisory-only; tool strict:true accepted, suggestive at best (n=4); system row mid-input 200 (the stated basis for roleHandlingFloor merge, matching the chat arm); function_call+output replay 200 with the reasoning item kept-id, stripped-id and omitted; effort none/medium/max pass through and effort none + tool_choice required forces the call (required/named under thinking 400 'Thinking mode does not support this tool_choice', the chat route's wall); temperature 2.5 and top_p 0 400 with the chat route's range words, stop:[' 3'] silently ignored on a '1 2 3 4 5' count; second identical prompt reports input_tokens_details.cached_tokens 384; terminal response.completed carries usage and there is no [DONE] line",
     },
   },
 ] as const satisfies readonly CapabilityOverrideInput[];

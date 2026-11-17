@@ -170,7 +170,13 @@ test("the reader's facts and the curated rows compose on a real id: stated limit
     outputMax: OUTPUT,
   });
   // These cells ride ONLY the curated provider rows — the list states no turn or tool facts.
-  expect(flash.turns).toMatchObject({ assistantPrefill: true, midConversationSystem: true, historySystemRows: true, providerImplicitPromptCache: true });
+  expect(flash.turns).toMatchObject({
+    assistantPrefill: true,
+    midConversationSystem: true,
+    historySystemRows: true,
+    roleHandlingFloor: "merge",
+    providerImplicitPromptCache: true,
+  });
   expect(flash.tools).toMatchObject({ requiredChoice: false, namedChoice: false, noneChoice: true, parallel: true, parallelControl: false });
   expect(flash.output.structured).toBe(false);
   expect(flash.sampling.temperature).toEqual({ min: 0, max: 2 });
