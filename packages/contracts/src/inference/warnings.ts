@@ -54,6 +54,11 @@ export const WARNING_CODE = {
   // elsewhere, prefill is off for it, the user owns the `messages` array, or the route models no continue.
   // The seed is dropped; the home is the aggregated per-turn notice.
   prefillReasoningDropped: "prefill_reasoning_dropped",
+  // An authored tail-prefill row (assistant@depth-0) stood down because the turn carries tools: "continue this
+  // row" and "stop and emit a call" are incompatible instructions at one turn end, and the tools win (the
+  // `hasAnyTools` shape ST refuses outright). The row still rides, normalized to a plain message; the
+  // CONTINUATION intent drops, and the author who configured the prefill is told rather than left guessing.
+  prefillSuppressedByTools: "prefill_suppressed_by_tools",
   // The CONNECTION's `declared` block overrode a dated measurement on the named field (§6.2). NEVER on the turn
   // stream — a badge on the connection row (the user asked for it).
   declaredOverridesMeasured: "declared_overrides_measured",

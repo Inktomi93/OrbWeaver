@@ -2540,6 +2540,7 @@ function toChatWarning(warning: ResolvedWarning): ChatWarning {
     case "tool_result_error_dropped":
     case "reasoning_dropped_for_prefill":
     case "prefill_reasoning_dropped":
+    case "prefill_suppressed_by_tools":
     case "tool_choice_downgraded":
     case "carry_reasoning_downgraded":
     case "cache_control_adjusted":

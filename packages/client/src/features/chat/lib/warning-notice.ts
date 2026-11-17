@@ -268,6 +268,12 @@ function settingsAdjustedNotice(warning: ChatSettingsAdjustedWarning): NotifyNot
         description: "The thinking you wrote can ride only a reply you left half-finished for the model, and this turn had none, so it was not sent.",
         title: "Your written thinking wasn't used",
       };
+    case "prefill_suppressed_by_tools":
+      return {
+        description:
+          "This turn also runs a tool, and a reply the model continues can't stop and call one at the same time. Your half-written reply was sent as a normal message.",
+        title: "Your half-written reply wasn't continued",
+      };
     case "tool_choice_downgraded":
       return {
         description: "This model can't be made to call a tool, so the tools were offered and it chose whether to use one.",

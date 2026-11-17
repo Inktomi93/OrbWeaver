@@ -4,6 +4,7 @@
 // host's override, the game's own copy) and the react tool's attachment. Knob precedence for the choices teach has
 // its own cases in turn-offer-choices.suite.int.test.ts.
 import { CHAT_REACT_TOOL_NAME } from "@orb/contracts/chat";
+import { WARNING_CODE } from "@orb/contracts/inference";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { PROSE_SLOTS, resolveProseText } from "@orb/contracts/prose";
@@ -13,6 +14,7 @@ import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL, connectDevice } from "@orb/testkit/node/composed";
+import { SETTINGS_ADJUSTED_CODE } from "#contracts/chat/bus.ts";
 import { REACTION_ANONYMOUS_REACTOR, REACTION_WHOLE_MESSAGE_TARGET, reactionNote } from "#server/domain/chat/substrate/reaction-note.ts";
 import { coreProse } from "../engine/core-physical.ts";
 import { inputMessages, invitePerson, messageText, personaRoom, seatPersona } from "../persona-cache-physical.ts";
@@ -372,6 +374,106 @@ test("the game-state note is taught ABOVE a tail-prefill assistant, leaving the 
   );
   const plainMessages = inputMessages((await wireOf(plain, () => send(plain))).bodies[0]);
   expect(JSON.stringify(plainMessages.at(-1))).toContain(stateOpening);
+});
+
+// The other half of the prefill verdict: TOOLS suppress a tail prefill outright — "continue this row" and
+// "stop and emit a call" are incompatible instructions at one turn end, and the tools win (`honorsAssistantPrefill`,
+// the ST `hasAnyTools` shape). The authored row still rides, normalized to a plain message; the CONTINUATION
+// intent drops, and the author is told — the same no-silent-vanish ruling as `prefill_reasoning_dropped`.
+// Red-proof: lift the suppression notice out of the pipeline (`engine/pipeline.ts`, the
+// `prefillSuppressedByTools` block) and the folded room sends the codes list without it.
+test("a folded turn that carries tools stands the tail prefill down and says so", async () => {
+  // Folded mode: the terminal state tools ride the narrator request, which is the suppression condition.
+  await using game = await turnRpgRoom([(): Response => turnRpgReply("The keeper nods.")]);
+  const prefillRow = await game.root.services.connection.create({
+    principal: game.owner,
+    providerId: "custom-openai",
+    credentialId: null,
+    baseUrl: CORPUS_PROVIDER_ENDPOINT,
+    model: CORPUS_TEXT_MODEL,
+    declared: {
+      kind: "generation",
+      generation: {
+        input: ["text"],
+        context: { window: 32_000 },
+        tools: { parallel: true, silencesProse: false },
+        turns: { assistantPrefill: true, midConversationSystem: true, historySystemRows: true },
+      },
+      features: { detectServer: false, prefill: "prefix-flag" },
+    },
+  });
+  await game.caller.connection.setBinding({ task: "chat", connectionId: prefillRow.id });
+  await game.root.services.chat.setChatInjection({
+    principal: game.owner,
+    chatId: game.chatId,
+    position: "in_chat",
+    depth: 0,
+    role: "assistant",
+    content: "The keeper's hand stops halfway to the bell.",
+  });
+  const adjustments: string[] = [];
+  const unsubscribe = game.root.app.liveBuses.chat.subscribeAllChatEvents(({ event }) => {
+    if (event.type === "warning" && event.chatId === game.chatId && event.code === SETTINGS_ADJUSTED_CODE) {
+      adjustments.push(event.adjustment);
+    }
+  });
+  try {
+    const { bodies } = await wireOf(game, () => send(game));
+    await game.root.settleBackground();
+    // The row itself still rides the request, un-stamped: the tools get the turn end, the words get heard.
+    const messages = inputMessages(bodies[0]);
+    expect(nonEmpty(messages).some((row) => JSON.stringify(row).includes("prefix"))).toBe(false);
+  } finally {
+    unsubscribe();
+  }
+  expect(adjustments).toContain(WARNING_CODE.prefillSuppressedByTools);
+
+  // Positive control: the SAME room in cheap mode honors the prefill (the case above) and carries no notice —
+  // the suppression is made of tools on the turn, not of the game mode's name.
+  const cheapAdjustments: string[] = [];
+  await using cheap = await turnRpgRoom(
+    [(): Response => turnRpgReply("The keeper nods."), (): Response => turnRpgReply("", "Registered observatory")],
+    {},
+    "cheap",
+  );
+  const cheapRow = await cheap.root.services.connection.create({
+    principal: cheap.owner,
+    providerId: "custom-openai",
+    credentialId: null,
+    baseUrl: CORPUS_PROVIDER_ENDPOINT,
+    model: CORPUS_TEXT_MODEL,
+    declared: {
+      kind: "generation",
+      generation: {
+        input: ["text"],
+        context: { window: 32_000 },
+        tools: { parallel: true, silencesProse: false },
+        turns: { assistantPrefill: true, midConversationSystem: true, historySystemRows: true },
+      },
+      features: { detectServer: false, prefill: "prefix-flag" },
+    },
+  });
+  await cheap.caller.connection.setBinding({ task: "chat", connectionId: cheapRow.id });
+  await cheap.root.services.chat.setChatInjection({
+    principal: cheap.owner,
+    chatId: cheap.chatId,
+    position: "in_chat",
+    depth: 0,
+    role: "assistant",
+    content: "The keeper's hand stops halfway to the bell.",
+  });
+  const cheapUnsubscribe = cheap.root.app.liveBuses.chat.subscribeAllChatEvents(({ event }) => {
+    if (event.type === "warning" && event.chatId === cheap.chatId && event.code === SETTINGS_ADJUSTED_CODE) {
+      cheapAdjustments.push(event.adjustment);
+    }
+  });
+  try {
+    await send(cheap);
+    await cheap.root.settleBackground();
+  } finally {
+    cheapUnsubscribe();
+  }
+  expect(cheapAdjustments).not.toContain(WARNING_CODE.prefillSuppressedByTools);
 });
 
 /** The tool declarations the act's newest provider request carried, one serialized declaration each. */

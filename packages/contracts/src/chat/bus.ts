@@ -260,6 +260,7 @@ export const PROVIDER_ADJUSTMENT_KINDS = [
   WARNING_CODE.toolResultErrorDropped,
   WARNING_CODE.reasoningDroppedForPrefill,
   WARNING_CODE.prefillReasoningDropped,
+  WARNING_CODE.prefillSuppressedByTools,
   WARNING_CODE.toolChoiceDowngraded,
   WARNING_CODE.carryReasoningDowngraded,
   WARNING_CODE.cacheControlAdjusted,

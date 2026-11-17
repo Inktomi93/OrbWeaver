@@ -40,6 +40,7 @@ import {
   coEmitsProseWithTools,
   projectGenerationUsage,
   turnsLevelFor,
+  WARNING_CODE,
 } from "@orb/contracts/inference";
 import type { CarryReasoning, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_NAMES_BEHAVIOR } from "@orb/contracts/preset";
@@ -737,6 +738,20 @@ function honorsAssistantPrefill(args: RunTurnPipelineArgs): boolean {
   return acceptsAssistantPrefill(generationOf(args.connection)) && !turnCarriesTools(args);
 }
 
+/** The verdict's loud half: an authored tail prefill (an assistant@depth-0 injection) that ONLY the tools
+ *  could have stood down is a degradation their author must be told about — no silent vanish. The capability
+ *  and the tools are read again rather than inferred from the honored flag, so a stand-down for any other
+ *  reason (a wire that cannot continue at all — the documented plain-message normalization) stays quiet,
+ *  exactly as the delivery-cluster contract spells it. */
+function prefillStoodDownByTools(args: RunTurnPipelineArgs, prefillHonored: boolean, inChatInjections: readonly ChatInjection[]): boolean {
+  return (
+    !prefillHonored &&
+    acceptsAssistantPrefill(generationOf(args.connection)) &&
+    turnCarriesTools(args) &&
+    inChatInjections.some((inj) => inj.role === "assistant" && inj.depth === 0)
+  );
+}
+
 /** SHAPE's synthetic trailing user row: the caller's, minus a CONTINUATION FALLBACK the prefill verdict makes
  *  wrong. A continue's nudge is the fallback spelling of "keep going" for a wire that cannot continue its own
  *  trailing row; where prefill IS honored, shipping it defeats the mechanism twice — the tail makes the
@@ -833,6 +848,7 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
   // THE TURN'S PREFILL VERDICT — one value, two readers: SHAPE (keep an assistant@depth-0 injection at depth 0
   // and skip the continuation nudge) and {@link shapeTail} (drop the continue verb's fallback row).
   const prefillHonored = honorsAssistantPrefill(args);
+  const prefillSuppressedByTools = prefillStoodDownByTools(args, prefillHonored, inChatInjections);
 
   // §8.8 REASONING CARRY — resolved HERE, once, off the ONE funnel policy (`resolveCarryReasoning`): SHAPE reads it
   // for the cue replay and the CONVERT step below for the carried thinking, both upstream of every wire call. The
@@ -988,6 +1004,7 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
       ctx,
       imageDropped,
       videoDropped,
+      prefillSuppressedByTools,
     });
   const finish = (loop: RecurseLoopTotals): TurnPipelineResult =>
     settle(loop, applyReceiveTransforms({ content: loop.content, reasoning: loop.reasoning }, args, ctx));
@@ -1034,6 +1051,9 @@ function pipelineResult(input: {
   readonly ctx: AssembleContext;
   readonly imageDropped: boolean;
   readonly videoDropped: boolean;
+  /** The turn stood down an authored tail prefill because it carries tools; rides the runner warnings as the
+   *  author's notice. See the verdict's loud half at the {@link honorsAssistantPrefill} call site. */
+  readonly prefillSuppressedByTools: boolean;
 }): TurnPipelineResult {
   const {
     loop,
@@ -1052,6 +1072,7 @@ function pipelineResult(input: {
     ctx,
     imageDropped,
     videoDropped,
+    prefillSuppressedByTools,
   } = input;
   return {
     toolEvents,
@@ -1090,7 +1111,15 @@ function pipelineResult(input: {
     toolsUnsupported: attach.unsupported,
     worldInfoEntryIds: (ctx.wiTrace?.activated ?? []).map((e) => e.id),
     guidedPlacedAsInjection: ctx.guidedPlacedAsInjection === true,
-    runnerWarnings: loop.warnings,
+    runnerWarnings: prefillSuppressedByTools
+      ? [
+          ...loop.warnings,
+          {
+            code: WARNING_CODE.prefillSuppressedByTools,
+            message: "tail prefill suppressed: the turn carries tools, and a continued row and a tool call cannot share the turn end",
+          },
+        ]
+      : loop.warnings,
     providerRefused: loop.refused,
   };
 }
