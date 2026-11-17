@@ -92,6 +92,16 @@ export const deepseekRows = [
   //     with thinking on, with `effort: none`, and alongside declared tools (all measured 2026-11-17). That
   //     is a different wire than the connection rides (no responses backend is wired), so the cell stays
   //     false — flipping it would mean a new backend, not a re-read of this route's facts.
+  //     The route's strict grammar measured its own rules (2026-11-17, against the REAL RPG extraction
+  //     schema): `strict: true` compiles an OpenAI-strict-style grammar that REJECTS optional properties
+  //     ("Required properties must match all properties in the object") and a closed type-union vocabulary
+  //     — a `type` array naming `array` 400s ("unknown variant `array`", a Rust-enum parser's own words)
+  //     while `anyOf`-wrapped `array|null`/`string|null` compile and answer 200 with a correct `null`.
+  //     Our omit=keep patch shape is therefore representable there only under a required-all + anyOf-nullable
+  //     projection (kit-side, beside `projectJsonSchema`) plus a null-is-keep decode rule — no third-party
+  //     schema library does that mapping. With `strict` omitted or false the route serves the CURRENT
+  //     projected schema unchanged and answers 200 with a clean parseable delta (measured), so the route
+  //     without the grammar is a cleaner json_object — advisory only, the lenient fold still required.
   //   • anthropic route (the same key serves `POST /anthropic/v1/messages`, per the live `/v1/models`
   //     `api_capabilities`): tools carry `input_schema`, and thinking+tools INTERLEAVE natively — one answer
   //     came back `thinking` + `tool_use` blocks, and the docs' full contract (replay the thinking blocks,
