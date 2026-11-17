@@ -431,9 +431,16 @@ test("a folded turn that carries tools stands the tail prefill down and says so"
   // Positive control: the SAME room in cheap mode honors the prefill (the case above) and carries no notice —
   // the suppression is made of tools on the turn, not of the game mode's name.
   const cheapAdjustments: string[] = [];
+  // The preset states the authored chain of thought (`params.reasoningSeed`): the domain forwards it to the
+  // transport, which stamps it on the continue row the tail injection produces. Seed-marked text is the
+  // needle; it rides only if the whole preset→pipeline→bridge→transport hop holds.
+  const seedPreset = {
+    ...DEFAULT_PROMPT_CONFIG,
+    params: { ...DEFAULT_PROMPT_CONFIG.params, reasoningSeed: "SEED-MARKER the sky is blue, so the answer is short." },
+  };
   await using cheap = await turnRpgRoom(
     [(): Response => turnRpgReply("The keeper nods."), (): Response => turnRpgReply("", "Registered observatory")],
-    {},
+    { promptConfig: seedPreset },
     "cheap",
   );
   const cheapRow = await cheap.root.services.connection.create({
@@ -468,12 +475,16 @@ test("a folded turn that carries tools stands the tail prefill down and says so"
     }
   });
   try {
-    await send(cheap);
+    const { bodies } = await wireOf(cheap, () => send(cheap));
     await cheap.root.settleBackground();
+    // The seed rode the request: the continue row carries it and the stamped thinking is the model's own.
+    const rows = JSON.stringify(inputMessages(bodies[0]));
+    expect(rows).toContain("SEED-MARKER the sky is blue, so the answer is short.");
+    expect(rows).toContain('"prefix":true');
+    expect(cheapAdjustments).not.toContain(WARNING_CODE.prefillSuppressedByTools);
   } finally {
     cheapUnsubscribe();
   }
-  expect(cheapAdjustments).not.toContain(WARNING_CODE.prefillSuppressedByTools);
 });
 
 /** The tool declarations the act's newest provider request carried, one serialized declaration each. */

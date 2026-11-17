@@ -40,7 +40,7 @@ import type {
   ResponseFormat,
   ToolCallInput,
 } from "#contract";
-import { agentSdkSessionIdSchema, normalizeFinishReason, ProviderError } from "#contract";
+import { agentSdkSessionIdSchema, normalizeFinishReason, ProviderError, prefillSeedDrop } from "#contract";
 import type { AgentSdkDeps, AgentSdkLog, SeededSessionDecision, TurnStreamContext } from "#src/contract/agent-sdk-backend.ts";
 import type { IdleAbort } from "#src/contract/http.ts";
 import type { PlannedResponseFormat } from "#src/contract/structured.ts";
@@ -169,7 +169,11 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
   }
   const generation = connection.capability.generation;
   const gen = toSdkGeneration(req.params, generation, req.posture);
-  const warnings = [...gen.warnings, ...parallelToolWarnings(req)];
+  const warnings = [
+    ...gen.warnings,
+    ...parallelToolWarnings(req),
+    ...(req.prefillReasoning === undefined ? [] : [prefillSeedDrop("the agent-sdk wire (the SDK owns the prompt)", connection.model)]),
+  ];
   log.capability({
     turnId: gen.turnId,
     api: req.api,

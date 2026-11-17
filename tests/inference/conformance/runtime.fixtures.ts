@@ -244,6 +244,9 @@ export interface ChatArmOptions {
   readonly omitChatIdAtRuntime?: true | undefined;
   /** Tools the agent-sdk turn carries (its terminal-tool channel). Ignored on the hosted wires. */
   readonly terminalTools?: readonly WireTool[] | undefined;
+  /** The authored chain of thought (`prefillReasoning`): the seed the model continues FROM. Rides only a wire
+   *  that stamps a continue row; every other route must announce the drop. */
+  readonly prefillReasoning?: string | undefined;
   /** Hosted wires only: replies sent before the scripted stream (a refused attempt the turn retries). */
   readonly refusals?: readonly (() => Response)[] | undefined;
   /** Hosted wires only: the root's timers, so a case can observe and fire the retry's wait. */
@@ -286,6 +289,7 @@ async function chatRequestFor(root: ServerTestHarness, wire: Wire, options: Chat
       sink.events.push(event);
     },
     signal: options.signal ?? new AbortController().signal,
+    ...(options.prefillReasoning === undefined ? {} : { prefillReasoning: options.prefillReasoning }),
   };
   const history = [{ role: "user" as const, content: [{ type: "text" as const, text: "Say something." }] }];
   if (wire === "agent-sdk") {

@@ -738,7 +738,7 @@ function honorsAssistantPrefill(args: RunTurnPipelineArgs): boolean {
   return acceptsAssistantPrefill(generationOf(args.connection)) && !turnCarriesTools(args);
 }
 
-/** The verdict's loud half: an authored tail prefill (an assistant@depth-0 injection) that ONLY the tools
+/** The verdict's loud half: an authored tail prefill (an assistant injection at depth 0) that ONLY the tools
  *  could have stood down is a degradation their author must be told about — no silent vanish. The capability
  *  and the tools are read again rather than inferred from the honored flag, so a stand-down for any other
  *  reason (a wire that cannot continue at all — the documented plain-message normalization) stays quiet,
@@ -750,6 +750,13 @@ function prefillStoodDownByTools(args: RunTurnPipelineArgs, prefillHonored: bool
     turnCarriesTools(args) &&
     inChatInjections.some((inj) => inj.role === "assistant" && inj.depth === 0)
   );
+}
+
+/** The preset's authored chain of thought (`reasoningSeed`) rides the turn WHOLESALE: the transports own every
+ *  drop with their own notice (`prefill_reasoning_dropped`), so a stated seed never vanishes silently and the
+ *  pipeline never pre-judges whether THIS turn has a continue row. */
+function seedRideOf(intent: UserIntent): { readonly prefillReasoning?: string } {
+  return intent.reasoningSeed === undefined ? {} : { prefillReasoning: intent.reasoningSeed };
 }
 
 /** SHAPE's synthetic trailing user row: the caller's, minus a CONTINUATION FALLBACK the prefill verdict makes
@@ -973,6 +980,9 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
     ...(ctx.promptConfig.reasoningParse?.autoParse === true
       ? { reasoningTags: { prefix: ctx.promptConfig.reasoningParse.prefix, suffix: ctx.promptConfig.reasoningParse.suffix } }
       : {}),
+    // The preset's authored chain of thought rides WHOLESALE: the transports own every drop with their own
+    // notice (`prefill_reasoning_dropped`), so a preset that states a seed never loses it silently.
+    ...seedRideOf(effectiveIntent),
     signal: args.signal,
   };
 

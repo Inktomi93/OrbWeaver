@@ -88,6 +88,7 @@ function chatTurnInputOf(args: {
     ...(req.tools !== undefined ? { tools: req.tools } : {}),
     ...(req.responseFormat !== undefined ? { responseFormat: req.responseFormat } : {}),
     ...(req.reasoningTags !== undefined ? { reasoningTags: req.reasoningTags } : {}),
+    ...(req.prefillReasoning !== undefined ? { prefillReasoning: req.prefillReasoning } : {}),
     onDelta,
     signal: req.signal,
   };

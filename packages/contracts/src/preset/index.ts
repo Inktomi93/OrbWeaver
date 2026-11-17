@@ -502,6 +502,12 @@ export const userIntentSchema = z.strictObject({
   thinkingDisplay: z.enum(THINKING_DISPLAYS).optional(),
   // How much of the model's own prior thinking rides back (§8.8). Absent ⇒ `CARRY_REASONING_DEFAULT`.
   carryReasoning: z.enum(CARRY_REASONING_MODES).optional(),
+  // The authored chain of thought the model CONTINUES FROM on a prefilled reply (§8.8 seed): rule 5a stamps it
+  // on the continue row and the model answers from it. A partial seed that stops mid-thought is completed by
+  // the model in its own reasoning (measured 6/6, `docs/law/deepseek-api-surface.md`); a finished one is
+  // adopted whole (3/3, response reasoning empty). Rides only a turn that ends on the assistant's half-started
+  // row; every other route drops it with its own notice.
+  reasoningSeed: z.string().optional(),
 
   maxOutputTokens: generationKnobSchemas.maxOutputTokens,
   maxContextTokens: generationKnobSchemas.maxContextTokens,
@@ -600,6 +606,7 @@ const CHAT_ONLY_INTENT_FIELDS = [
   "quality",
   "thinkingDisplay",
   "carryReasoning",
+  "reasoningSeed",
   "providerContextCompression",
   "verbosity",
   "replyMedia",

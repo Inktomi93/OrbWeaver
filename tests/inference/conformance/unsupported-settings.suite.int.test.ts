@@ -64,6 +64,21 @@ for (const wire of CONFORMANCE_WIRES) {
     );
     expect([sent, announced], `"${KNOB}" was resolved, reported applied, and then neither sent nor announced as dropped`).toContain(true);
   });
+
+  cellTest(wire, "chat", "an authored chain of thought that no continue row can carry is announced as dropped and never sent", async () => {
+    // The seed's D41: it rides ONLY a stamped continue row, and this fixture's history is one user turn — so
+    // every wire owes the same loud drop here. The honoring route (a stamped row) is pinned by
+    // tests/server/domain/chat/verbs/turn-teaching.suite.int.test.ts, which reads the seed on the wire bytes.
+    const { events, captured, turn } = await driveChat(wire, {
+      script: scriptFor(wire),
+      prefillReasoning: "SEED the user wants one line; keep it short.",
+    });
+    expect(warningCodesOf(events), "the drop was announced").toContain(WARNING_CODE.prefillReasoningDropped);
+    expect(warningCodesOf(turn.events), "the record carries the warning as well as the stream").toContain(WARNING_CODE.prefillReasoningDropped);
+    for (const body of captured) {
+      expect(JSON.stringify(body), "the dropped seed was still on the wire").not.toContain("SEED the user wants one line");
+    }
+  });
 }
 
 test("an undeclared saved subscription resolves with no sampler range on the production path (D41)", async () => {

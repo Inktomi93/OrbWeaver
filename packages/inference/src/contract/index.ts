@@ -40,6 +40,7 @@ export {
   deltaSubscriptionOf,
   GenerationObservationPersistenceError,
   normalizeFinishReason,
+  prefillSeedDrop,
 } from "./chat.ts";
 export type { DiagnosticRequestCommon, GenerationCostRequest, ListModelsRequest, ModelsDial } from "./diagnostics.ts";
 export type { ProviderErrorKind, ProviderScrubSet, VectorWidthMismatch } from "./errors.ts";

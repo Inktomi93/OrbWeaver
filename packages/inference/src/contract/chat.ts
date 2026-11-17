@@ -3,7 +3,8 @@
 // spelling. Discriminated on `api` (the protocol axis) — never on a wire or a provider id.
 
 import type { ChatContentPart, ChatDeltaEvent, TextSignature, VariantProviderMetadata } from "@orb/contracts/chat";
-import type { AttachmentQuality, ChatApi, ChatUsage, NormalizedFinishReason, ProviderGenerationId } from "@orb/contracts/inference";
+import type { AttachmentQuality, ChatApi, ChatUsage, NormalizedFinishReason, ProviderGenerationId, ResolvedWarning } from "@orb/contracts/inference";
+import { WARNING_CODE } from "@orb/contracts/inference";
 import type { EffortLevel, ReasoningTagPair, ResponseCacheControl, UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ChatId } from "@orb/kit/ids";
@@ -218,6 +219,9 @@ export type ChatRequest =
       /** TERMINAL tools (D112 R1): declared on THIS completion, denied at `PreToolUse`, the co-emitted calls
        *  handed back on {@link ChatResult.toolCalls}. */
       readonly terminalTools?: readonly WireTool[] | undefined;
+      /** Rides here ONLY so the runner can name its own drop: the SDK owns the prompt and its wire expresses
+       *  no continuation row, so a stated seed can never land. Dropped with `prefill_reasoning_dropped`. */
+      readonly prefillReasoning?: string | undefined;
     })
   | (HistoryChatRequest & { readonly api: Exclude<ChatApi, "agent-sdk"> });
 
@@ -234,6 +238,9 @@ export type ChatTurnInput = ChatRequestCommon & {
   readonly responseFormat?: ResponseFormat | undefined;
   readonly cacheBreakpointDepth?: number | undefined;
   readonly reasoningTags?: ReasoningTagPair | undefined;
+  /** The authored chain of thought (see the {@link HistoryChatRequest} field of the same name). The
+   *  array-wire arms stamp it on the continue row; every other backend drops it with its own notice. */
+  readonly prefillReasoning?: string | undefined;
 };
 
 /**
@@ -304,6 +311,16 @@ export function normalizeFinishReason(raw: string | null | undefined): Normalize
     return null;
   }
   return FINISH_REASON_MAP.get(raw.toLowerCase()) ?? "other";
+}
+
+/** The authored chain of thought (`prefillReasoning`) has no channel on a wire without a continue row: the
+ *  seed can only ride a row the model is told to extend. One home for the drop, read by every runner whose
+ *  protocol models no continuation — a stated seed never vanishes silently. */
+export function prefillSeedDrop(channel: string, route: string): ResolvedWarning {
+  return {
+    code: WARNING_CODE.prefillReasoningDropped,
+    message: `prefill reasoning dropped: ${channel} on ${route} has no continue row to seed`,
+  };
 }
 
 /** "How full is my context window" after one turn — present only when the backend supports the control call. */

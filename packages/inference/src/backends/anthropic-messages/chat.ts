@@ -30,7 +30,7 @@ import type {
   ResolvedChatKnobs,
   ResolvedReasoning,
 } from "#contract";
-import { ProviderError } from "#contract";
+import { ProviderError, prefillSeedDrop } from "#contract";
 import { resolveCachePolicy, resolveChat } from "#funnel";
 import type { AnthropicCall, AnthropicChatDeps } from "#src/contract/anthropic-backend.ts";
 import type { ProviderLogger } from "#src/contract/http.ts";
@@ -374,7 +374,10 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
   const label = `${connection.providerId} chat (${connection.model})`;
   const generation = requireGeneration(connection, label);
   const knobs = resolveChat(req.params, generation, { posture: req.posture, wire: connection.wire });
-  const warnings: ResolvedWarning[] = [...knobs.warnings];
+  const warnings: ResolvedWarning[] = [
+    ...knobs.warnings,
+    ...(req.prefillReasoning === undefined ? [] : [prefillSeedDrop("the anthropic wire (its prefill has no thinking channel)", connection.model)]),
+  ];
   const log = providerLogger(deps.log, connection.wire, connection.providerId);
   const startedAt = deps.now();
   let firstDeltaAt: number | undefined;

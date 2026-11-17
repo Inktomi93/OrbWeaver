@@ -103,6 +103,12 @@ Doc pages quote request fields; every `https://api-docs.deepseek.com` path below
   or the character's first-person parenthetical — including on a continue row with started content and with a
   system note above it. The reply's `reasoning_content` comes back empty on a seeded turn: steering shows only
   in the content, so a check that reads the response's reasoning reads the wrong channel. Probe.
+- Partial vs finished seed is NOT a mode; the seed's own shape picks the behavior. A seed that stops mid-thought
+  (at `...` or mid-clause) is COMPLETED by the model: the response's `reasoning_content` is non-empty and
+  continues the chain grammatically before the answer (6/6 across both endings). A finished seed replaces the
+  chain: the response's `reasoning_content` comes back empty (len 0, 3/3) and the content follows the seed's
+  conclusion. Both cells steer the demanded outcome (the Spanish answer) 9/9; read CONTENT for the steer check,
+  since the finished seed's response reasoning is empty by design. Probe.
 - `/responses` accepts a forged `reasoning` input item with a fresh id and a `summary` part; a plain-text `content`
   on a `reasoning` item merges into the adjacent assistant message. Docs \[/api/create-response], Probe.
 - The Vercel package back-fills `reasoning_content: ""` on every assistant history row for ids it classifies as V4

@@ -4,7 +4,7 @@ import type { JSONObject } from "@ai-sdk/provider";
 import type { GenerationCapability, ResolvedWarning } from "@orb/contracts/inference";
 import { acceptsAssistantPrefill } from "@orb/contracts/inference";
 import type { ChatResult, GoogleBackendDeps, GoogleChatRequest, RateLimitSnapshot, Resolved } from "#contract";
-import { ProviderError } from "#contract";
+import { ProviderError, prefillSeedDrop } from "#contract";
 import { resolveChat } from "#funnel";
 import { requireStructuredPlan, structuredChatResult } from "#structured";
 import { providerErrorFromHttp, withSchemaRejection } from "../http/error-classify.ts";
@@ -40,7 +40,10 @@ export async function runGoogleChat(req: GoogleChatRequest, deps: GoogleBackendD
   const label = `${connection.providerId} chat (${connection.model})`;
   const generation = requireGoogleGeneration(connection);
   const knobs = resolveChat(req.params, generation, { posture: req.posture, wire: connection.wire });
-  const warnings: ResolvedWarning[] = [...knobs.warnings];
+  const warnings: ResolvedWarning[] = [
+    ...knobs.warnings,
+    ...(req.prefillReasoning === undefined ? [] : [prefillSeedDrop("the google wire", connection.model)]),
+  ];
   const log = providerLogger(deps.log, connection.wire, connection.providerId);
   const startedAt = deps.now();
   let firstDeltaAt: number | undefined;

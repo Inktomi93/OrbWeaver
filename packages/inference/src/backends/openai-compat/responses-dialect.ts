@@ -15,6 +15,7 @@
 // a route that streams BOTH spellings would otherwise double-fold.
 
 import type { JsonValue } from "@orb/kit/json";
+import { jsonValueSchema } from "@orb/kit/json";
 
 const FRAME_SEP = "\n\n";
 const DATA_PREFIX = "data:";
@@ -28,8 +29,14 @@ function parseData(line: string): JsonValue | undefined {
     return undefined;
   }
   try {
-    return JSON.parse(line.slice(DATA_PREFIX.length).trim()) as JsonValue;
-  } catch {
+    return jsonValueSchema.parse(JSON.parse(line.slice(DATA_PREFIX.length).trim()));
+  } catch (error) {
+    // A malformed or non-JSON data frame is folded away (the dialect only rewrites the frames it can
+    // name); `JSON.parse` throws only SyntaxError, so anything else is a programming fault and must not
+    // be laundered into "no payload".
+    if (!(error instanceof SyntaxError)) {
+      throw error;
+    }
     return undefined;
   }
 }
@@ -72,7 +79,8 @@ function rewriteFrame(frame: string): string | undefined {
 /** The reply translator for a `features.responsesReasoningStream: "text"` row: SSE frames are rewritten
  *  as they stream; frame boundaries split across network chunks are buffered. */
 export function responsesReasoningTextStream(res: Response): Promise<Response> {
-  if (res.body === null || !res.headers.get("content-type")?.includes("text/event-stream")) {
+  const contentType = res.headers.get("content-type") ?? "";
+  if (res.body === null || !contentType.includes("text/event-stream")) {
     return Promise.resolve(res);
   }
   const decoder = new TextDecoder();

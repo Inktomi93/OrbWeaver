@@ -318,6 +318,21 @@ function ReasoningCluster({
         </form.AppField>
         <ThinkingDisplayField effective={effective} form={form} />
       </SettingRowGroup>
+      {/* The authored chain of thought the model CONTINUES FROM (the seed on the continue row). OUTSIDE the
+          row group like the knobs below: a textarea is not a docked control column. Both behaviors are
+          measured vendor facts (docs/law/deepseek-api-surface.md): a finished seed is adopted whole and the
+          answer follows it; a seed that stops mid-thought is completed by the model in its own reasoning.
+          One textarea, no toggle — the seed's own shape picks the mode. */}
+      <form.AppField name="params.reasoningSeed">
+        {(field): ReactElement => (
+          <field.TextareaField
+            hint="Reasoning you write for the model. Finish the thought and the model adopts it whole and answers from it; stop mid-thought and the model finishes it in its own reasoning. Rides only replies started for the model (prefill) — other routes drop it with a notice."
+            label="Seeded reasoning"
+            placeholder="The user asked in English, but my instructions say to answer in Spanish…"
+            rows={3}
+          />
+        )}
+      </form.AppField>
       {/* OUTSIDE the row group, both of them: a KnobGrid declares its OWN tracks (a rail is not a docked
           control column) and the adaptive note is a paragraph, and either one dropped into the group's
           grid would take the label track alone. */}

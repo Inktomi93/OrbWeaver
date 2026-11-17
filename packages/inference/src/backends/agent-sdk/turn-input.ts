@@ -387,6 +387,9 @@ export function toAgentSdkChatRequest(input: ChatTurnInput): AgentSdkChatRequest
     // The TERMINAL channel (D112 R1): the runner mounts these as its own deny-on-use MCP server and hands the
     // co-emitted calls back on `result.toolCalls` — the SAME field the array wires report.
     ...(terminal !== undefined ? { terminalTools: terminal } : {}),
+    // The seed rides so the RUNNER names its drop (`prefill_reasoning_dropped`): the SDK prompt has no slot
+    // for a continuation row, but a stated seed must never vanish at this projection in silence.
+    ...(input.prefillReasoning !== undefined ? { prefillReasoning: input.prefillReasoning } : {}),
     ...(input.onEvent !== undefined ? { onEvent: input.onEvent } : {}),
     ...deltaSubscriptionOf(input),
     seed: split.seed,
