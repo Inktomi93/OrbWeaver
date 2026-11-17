@@ -35,7 +35,9 @@ Doc pages quote request fields; every `https://api-docs.deepseek.com` path below
   `effort.supported_levels`, `effort.default_level` and `api_capabilities.anthropic_messages.system_prompt_update`
   (`deepseek-flash` → `in-history`, `deepseek-v4-pro` → `leading-only`). Docs \[/api/list-models]
 - Routes: `/v1/chat/completions`, `/v1/responses`, `/anthropic`, `/v1/models`, and the beta base
-  `https://api.deepseek.com/beta` for prefix completion, FIM and strict tools. Docs \[/api/create-chat-completion]
+  `https://api.deepseek.com/beta` for prefix completion, FIM and strict tools — the prefix route answers
+  under both the `/beta` and `/beta/v1` spellings (recorded exchange under "Assistant prefill and
+  continuation"). Docs \[/api/create-chat-completion]
 - `/responses` officially names `deepseek-flash` and `deepseek-v4-pro`; every legacy id also answers 200 there.
   Docs \[/api/create-response], Probe — undocumented grace, not a contract.
 - `/responses` is stateless: `store` unsupported (always false), `previous_response_id` unsupported, full history
@@ -74,7 +76,22 @@ Doc pages quote request fields; every `https://api-docs.deepseek.com` path below
 - The beta route answers under `/beta/v1/` too: a prefix-seeded turn — a finished Spanish seed, the reply
   read from CONTENT (a finished seed's response reasoning is empty by design) — returned 200 with the seed
   honored 3/3 at both `https://api.deepseek.com/beta/chat/completions` and `.../beta/v1/chat/completions`.
-  The transport's version-segment joiner produces the `/beta/v1` form and both are live. Probe.
+  The transport's version-segment joiner produces the `/beta/v1` form and both are live. Probe. Recorded
+  exchange below: `deepseek-v4-pro`, `stream: false`, one request per line. Request rows:
+  `{"role":"user","content":"Answer in Spanish. One word: name the color of a clear sky."}` and
+  `{"role":"assistant","content":"","prefix":true,"reasoning_content":"The user asked in English but my
+  instructions say to answer in Spanish. The color of a clear sky is blue, which in Spanish is: azul."}`;
+  `seedHonored` = the returned `message.content` matches /azul/iu.
+
+  ```text
+  probed 2026-11-17 — deepseek-v4-pro, stream: false
+  /beta/chat/completions: status=200 seedHonored=true content="Azul."
+  /beta/chat/completions: status=200 seedHonored=true content="Azul."
+  /beta/chat/completions: status=200 seedHonored=true content="Azul."
+  /beta/v1/chat/completions: status=200 seedHonored=true content="Azul."
+  /beta/v1/chat/completions: status=200 seedHonored=true content="Azul."
+  /beta/v1/chat/completions: status=200 seedHonored=true content="Azul"
+  ```
 - Prefill runs with thinking on: the last assistant row may also carry an input-side `reasoning_content` as the
   seeded chain of thought, and the seed steers the continuation — see "Spoofed reasoning".
   Docs \[/api/create-chat-completion] Probe: `prefix: true` on the non-beta base is ignored
