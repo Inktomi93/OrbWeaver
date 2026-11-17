@@ -182,7 +182,7 @@ export function sdkWarnings(warnings: readonly SharedV4Warning[]): ResolvedWarni
 
 /** Which warning codes a `provider.sampling` receipt lists under `dropped` — the funnel's own drops PLUS the
  *  SDK's second gate (§B2). One home, both hosted wires. */
-export const DROPPED_SAMPLING_CODES: ReadonlySet<ResolvedWarning["code"]> = new Set<ResolvedWarning["code"]>([
+const DROPPED_SAMPLING_CODES: ReadonlySet<ResolvedWarning["code"]> = new Set<ResolvedWarning["code"]>([
   "sampling_knob_dropped",
   "verbosity_dropped",
   "sdk_unsupported_setting",
@@ -191,7 +191,7 @@ export const DROPPED_SAMPLING_CODES: ReadonlySet<ResolvedWarning["code"]> = new 
 /** `log.sampling.applied` is a CLAIM about the wire, so it must survive the SDK's own stripping (§B2): a knob
  *  the provider refused after `resolveChat` resolved it is removed here and rides `dropped` instead. Without
  *  this the receipt says "temperature applied" for a model whose provider never sent it. */
-export function appliedSampling(sampling: ResolvedSampling, warnings: readonly ResolvedWarning[]): Record<string, unknown> {
+function appliedSampling(sampling: ResolvedSampling, warnings: readonly ResolvedWarning[]): Record<string, unknown> {
   const dropped = new Set<string>();
   for (const warning of warnings) {
     if (warning.code === "sdk_unsupported_setting" && warning.knob !== undefined) {
