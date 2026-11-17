@@ -230,6 +230,8 @@ export interface ChatArmResult {
   readonly events: readonly ChatEvent[];
   readonly captured: readonly Record<string, unknown>[];
   readonly turn: Awaited<ReturnType<ProviderExecutor["runChatTurn"]>>;
+  /** The root ring's log lines at turn end — the `provider.*` receipts ride them at debug level. */
+  readonly receipts: readonly string[];
 }
 
 export interface ChatArmOptions {
@@ -315,6 +317,8 @@ export function conformanceRoot(options: Parameters<typeof createRuntimeRoot>[0]
     env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
     physicalPeer: () => "127.0.0.1",
     wireCapture: true,
+    // The `provider.*` receipts ride the ring at debug level; the suites reading `receipts` need them held.
+    logLevel: "debug",
     ...options,
   });
 }
@@ -354,7 +358,7 @@ export async function driveChat(wire: Wire, options: ChatArmOptions): Promise<Ch
   if (!capture.enabled) {
     throw new Error("the real root's wire capture was not installed");
   }
-  return { deltas: sink.deltas, events: sink.events, captured: capture.captures.map((entry) => entry.body), turn };
+  return { deltas: sink.deltas, events: sink.events, captured: capture.captures.map((entry) => entry.body), turn, receipts: root.observability.logLines(1000) };
 }
 
 const CONFORMANCE_RESPONSE_FORMAT: ResponseFormat = {

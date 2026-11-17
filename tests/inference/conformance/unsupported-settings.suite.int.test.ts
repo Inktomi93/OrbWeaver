@@ -2,7 +2,10 @@
 // @subject packages/inference/src/backends/agent-sdk/translate.ts
 import type { Wire } from "@orb/contracts/inference";
 import { WARNING_CODE } from "@orb/contracts/inference";
+import type { JsonObject } from "@orb/kit/json";
+import { jsonObjectSchema } from "@orb/kit/json";
 import { expect, test } from "@orb/testkit/node";
+import { PROVIDER_CAPABILITY_EVENT, PROVIDER_SAMPLING_EVENT } from "#inference/backends/http/provider-log.ts";
 import { wireConnection } from "../roles/runtime.fixtures.ts";
 import type { ChatScript } from "./runtime.fixtures.ts";
 import { CONFORMANCE_WIRES, cellTest, chatCapability, conformanceRoot, driveChat, warningCodesOf } from "./runtime.fixtures.ts";
@@ -125,4 +128,34 @@ test("with no tools on the turn, parallelToolCalls is not announced on the agent
   const { events } = await driveChat("agent-sdk", { script: scriptFor("agent-sdk"), params: { advanced: { parallelToolCalls: true } } });
   const dropped = events.flatMap((event) => (event.kind === "warning" && event.code === WARNING_CODE.samplingKnobDropped ? [event.knob] : []));
   expect(dropped).not.toContain("parallelToolCalls");
+});
+
+/** The last `provider.*` line of this event the root ring holds, fields parsed off the JSON line. */
+function lastReceipt(lines: readonly string[], event: string): JsonObject {
+  const matching = lines.filter((line) => line.includes(`"event":"${event}"`));
+  const last = matching.at(-1);
+  if (last === undefined) {
+    throw new Error(`no ${event} line in the root ring (${lines.length} lines captured)`);
+  }
+  return jsonObjectSchema.parse(JSON.parse(last));
+}
+
+// Every turn runner emits the pair post-turn through `emitTurnReceipts`; the agent-sdk wire joined the canon
+// when the exemption sentence in `result.ts` proved false (its generation resolves through the same funnel
+// and its translator's second gate is exactly what the sampling line reports). Without this pin the wire
+// silently regresses to capability-only — an operator reading claude-sub turns would see no knob story.
+test("an agent-sdk turn emits the same receipt pair as the hosted wires, with its second-gate drops on the sampling line", async () => {
+  const { receipts } = await driveChat("agent-sdk", {
+    script: scriptFor("agent-sdk"),
+    capability: chatCapability({ sampling: { temperature: { min: 0, max: 2 } } }),
+    params: { temperature: 0.9 },
+  });
+  const sampling = lastReceipt(receipts, PROVIDER_SAMPLING_EVENT);
+  expect(sampling["dropped"], "the runtime-ignored knob is listed by name on the receipt").toEqual(
+    expect.arrayContaining([expect.objectContaining({ knob: KNOB })]),
+  );
+  expect(sampling, "a knob the runtime ignores is never claimed as applied").not.toHaveProperty(["applied", KNOB]);
+  expect(sampling["requested"], "the receipt preserves the user's intent verbatim").toMatchObject({ [KNOB]: 0.9 });
+  const capability = lastReceipt(receipts, PROVIDER_CAPABILITY_EVENT);
+  expect(capability["api"], "the capability line names the wire's api").toBe("agent-sdk");
 });

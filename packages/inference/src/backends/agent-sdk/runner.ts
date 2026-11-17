@@ -50,6 +50,7 @@ import { classifyHttpStatus } from "../http/error-classify.ts";
 import { observeChatResult } from "../http/generation-observation.ts";
 import { isIdleTrip, turnAbortSignal } from "../http/idle-timeout.ts";
 import { resolvedScrubSet, sanitizeApiError } from "../http/sanitize.ts";
+import { emitTurnReceipts } from "../v4/result.ts";
 import { toAnthImageBlock } from "../wire/anth-image-block.ts";
 import { redactSecretsFromText } from "../wire/openai-body.ts";
 import { agentSdkVariantMetadata } from "../wire/provider-metadata.ts";
@@ -174,14 +175,6 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
     ...parallelToolWarnings(req),
     ...(req.prefillReasoning === undefined ? [] : [prefillSeedDrop("the agent-sdk wire (the SDK owns the prompt)", connection.model)]),
   ];
-  log.capability({
-    turnId: gen.turnId,
-    api: req.api,
-    providerId: connection.providerId,
-    requestedModel: connection.model,
-    turns: { ...generation.turns },
-    droppedWarnings: warnings.map((w) => ({ code: w.code, message: w.message })),
-  });
   const { systemPrompt, dynamicHook } = systemChannels(req);
   const { resume, disposition, savedTotals } = await resolveResume(req, sessions);
   logSessionDecision(req.chatId, resume, disposition, log);
@@ -244,6 +237,21 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
     },
     log,
   );
+  // The pair rides the shared canon like the four hosted wires. The warnings array is final HERE (the
+  // funnel's drops, the translator's second gate, the tool and prefill drops are all computed above the
+  // spawn, and `consumeTurnStream` adds none), so the emit waits only for `result.usage` — and like the
+  // hosted wires, a turn that throws before its result emits nothing.
+  emitTurnReceipts({
+    log: log.base,
+    knobs: gen.knobs,
+    generation,
+    api: req.api,
+    providerId: connection.providerId,
+    requestedModel: connection.model,
+    requestedParams: { ...req.params },
+    usage: result.usage,
+    warnings,
+  });
   return appendWarnings(result, warnings, deps.now(), req.onEvent);
 }
 

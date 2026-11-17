@@ -188,13 +188,15 @@ const DROPPED_SAMPLING_CODES: ReadonlySet<ResolvedWarning["code"]> = new Set<Res
   "sdk_unsupported_setting",
 ]);
 
-/** `log.sampling.applied` is a CLAIM about the wire, so it must survive the SDK's own stripping (§B2): a knob
- *  the provider refused after `resolveChat` resolved it is removed here and rides `dropped` instead. Without
+/** `log.sampling.applied` is a CLAIM about the wire, so it must survive the post-funnel strippers (§B2): a
+ *  knob the provider refused (`sdk_unsupported_setting`) or the wire's own translator announced as ignored
+ *  (`sampling_knob_dropped` after the funnel — the agent-sdk's second gate, whose resolved values the funnel
+ *  could not drop because the user widened the axis) is removed here and rides `dropped` instead. Without
  *  this the receipt says "temperature applied" for a model whose provider never sent it. */
 function appliedSampling(sampling: ResolvedSampling, warnings: readonly ResolvedWarning[]): Record<string, unknown> {
   const dropped = new Set<string>();
   for (const warning of warnings) {
-    if (warning.code === "sdk_unsupported_setting" && warning.knob !== undefined) {
+    if ((warning.code === "sdk_unsupported_setting" || warning.code === "sampling_knob_dropped") && warning.knob !== undefined) {
       dropped.add(warning.knob);
     }
   }
@@ -223,16 +225,18 @@ export interface TurnReceiptArgs {
    *  Anthropic and Google drop it at the wire with a `verbosity_dropped` warning, so their `applied` must
    *  not claim it and its code reads in `dropped` — the fold is caller-passed, not canonical, for that. */
   readonly sentVerbosity?: ResolvedChatKnobs["verbosity"];
-  /** Only the breakpoint-placing wires pass this: openai-compat chat when the OR explicit-cache gate is
-   *  open, anthropic messages always. */
+  /** Only the breakpoint-placing wires pass this, and the gate is the PLACEMENT (the placer wrote
+   *  breakpoints), never the dialect: openai-compat chat's markers ride the resolved plan for any dialect
+   *  that spells a breakpoint format, anthropic messages always. */
   readonly cache?: TurnReceiptCache;
 }
 
 /** The turn's receipt lines: the (model × wire) cell the funnel resolved (capability), the knobs that
- *  survived it (sampling), and where the explicit cache went (cache). One home for the pair every hosted
- *  wire used to re-roll; the per-wire intents are ARGUMENTS (see the two fields above), and the
- *  agent-sdk runner keeps its capability-only line — its generation resolves outside the funnel, so a
- *  sampling receipt there would report nothing. */
+ *  survived it (sampling), and where the explicit cache went (cache). One home for the pair EVERY turn
+ *  runner emits — the four hosted wires and the agent-sdk, whose generation also resolves through the
+ *  funnel (`toSdkGeneration` calls `resolveChat`) and whose second-gate drops are exactly what the
+ *  sampling line exists to report. All five emit post-turn; a turn that throws before its result emits
+ *  nothing. The per-wire intents are ARGUMENTS (see the two fields above). */
 export function emitTurnReceipts(args: TurnReceiptArgs): void {
   const { log, knobs, generation, usage, warnings } = args;
   if (args.cache !== undefined) {
