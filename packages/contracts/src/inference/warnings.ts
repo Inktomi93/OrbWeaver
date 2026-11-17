@@ -50,6 +50,10 @@ export const WARNING_CODE = {
   // A CONTENT prefill with thinking on ⇒ an empty reply on a server whose folded
   // `features.prefillSuppressesThinking` says so; the prefill wins and the thinking toggle is dropped.
   reasoningDroppedForPrefill: "reasoning_dropped_for_prefill",
+  // The authored chain of thought (`prefillReasoning`) found no stamped continue row to ride: the turn ends
+  // elsewhere, prefill is off for it, the user owns the `messages` array, or the route models no continue.
+  // The seed is dropped; the home is the aggregated per-turn notice.
+  prefillReasoningDropped: "prefill_reasoning_dropped",
   // The CONNECTION's `declared` block overrode a dated measurement on the named field (§6.2). NEVER on the turn
   // stream — a badge on the connection row (the user asked for it).
   declaredOverridesMeasured: "declared_overrides_measured",

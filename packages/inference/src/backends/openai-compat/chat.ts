@@ -791,6 +791,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
           chatId: req.chatId,
           plan,
           prefillAllowed,
+          prefillReasoning: req.prefillReasoning,
           requiresBetaRoute: betaRoute,
           templateThinking: turnKnobs.templateThinking,
           templatePreserveReasoning: knobs.carryReasoning === "off" ? false : undefined,

@@ -30,6 +30,9 @@ export interface ShapeArgs {
   readonly dialect: Dialect;
   /** The capability half of the prefill decision (`acceptsAssistantPrefill`); the array half is the plan's. */
   readonly prefillAllowed: boolean;
+  /** The authored chain of thought rule 5a stamps beside the `prefix` flag on the continue row; `undefined`
+   *  stamps nothing, and a stated seed on a turn that stamps no continue row drops with the drop warning. */
+  readonly prefillReasoning: string | undefined;
   /** Rule 9 runs: the admitted prefix action preserves block ends at the effective merging role floor. */
   readonly foldSameRole: boolean;
   readonly replyImages: boolean;
@@ -131,6 +134,8 @@ export interface ModelCall {
   readonly chatId?: ChatId | undefined;
   readonly plan: WirePlan | null;
   readonly prefillAllowed: boolean;
+  /** {@link ShapeArgs.prefillReasoning}: the continue-row chain of thought; `undefined` stamps nothing. */
+  readonly prefillReasoning?: string | undefined;
   /** The turn sends a beta-gated request field — the `prefix-flag` prefill stamp or a `strict: true` tool — so a
    *  row with `features.betaChatPath` builds this call against that route (see `model.ts`). */
   readonly requiresBetaRoute?: boolean;

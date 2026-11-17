@@ -52,6 +52,7 @@ async function send(
     readonly responseFormat?: ResponseFormat;
     readonly tools?: { readonly name: string; readonly description: string; readonly parameters: Record<string, unknown> }[];
     readonly fetch?: typeof fetch;
+    readonly prefillReasoning?: string;
   } = {},
 ): Promise<Sent> {
   const recorded: RecordedRequest[] = [];
@@ -85,6 +86,7 @@ async function send(
     history: options.history ?? [USER_LINE],
     ...(options.responseFormat === undefined ? {} : { responseFormat: options.responseFormat }),
     ...(options.tools === undefined ? {} : { tools: options.tools, toolChoice: { mode: "auto" as const } }),
+    ...(options.prefillReasoning === undefined ? {} : { prefillReasoning: options.prefillReasoning }),
   });
   const [first] = recorded;
   if (first === undefined) {
@@ -240,4 +242,13 @@ test("the row's raw-reasoning dialect folds onto reasoning deltas; without the f
   const dropped = await send({ declaredFeatures: { responsesReasoningStream: "summary" } }, { fetch: rawFetch });
   expect(dropped.turn.reasoning).toBe("");
   expect(dropped.turn.reply).toBe("391");
+});
+
+// The `/responses` protocol models no forced continuation (a trailing assistant input item reads
+// continuation-LIKE but may restart — `docs/law/deepseek-api-surface.md`), so an authored chain of thought has
+// no continue row to ride: it drops with its own code instead of vanishing silently.
+test("a continue seed drops loudly on this route — there is no continuation to seed", async () => {
+  const sent = await send({}, { prefillReasoning: "(I answer in Spanish: azul.)" });
+  expect(JSON.stringify(sent.body["input"])).not.toContain("azul");
+  expect(sent.events).toContainEqual(expect.objectContaining({ kind: "warning", code: WARNING_CODE.prefillReasoningDropped }));
 });

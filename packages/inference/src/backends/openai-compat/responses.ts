@@ -15,6 +15,7 @@
 
 import type { LanguageModelV4CallOptions, SharedV4ProviderOptions } from "@ai-sdk/provider";
 import type { GenerationCapability, ResolvedWarning } from "@orb/contracts/inference";
+import { WARNING_CODE } from "@orb/contracts/inference";
 import type { ChatResult, RateLimitSnapshot, ResolvedChatKnobs, ResponsesChatRequest } from "#contract";
 import { ProviderError } from "#contract";
 import { resolveChat, templateThinkingFor } from "#funnel";
@@ -114,6 +115,11 @@ export async function runOpenAiCompatResponsesTurn(req: ResponsesChatRequest, de
   const generation = requireGeneration(connection, label);
   const knobs = resolveChat(req.params, generation, { posture: req.posture, wire: connection.wire });
   const warnings: ResolvedWarning[] = [...knobs.warnings];
+  if (req.prefillReasoning !== undefined) {
+    // This route models no forced continuation (a trailing assistant input item reads continue-LIKE but may
+    // restart — `docs/law/deepseek-api-surface.md`), so an authored chain of thought has no row to ride.
+    warnings.push({ code: WARNING_CODE.prefillReasoningDropped, message: "prefill reasoning dropped: the /responses protocol has no continue row to seed" });
+  }
   const log = providerLogger(deps.log, connection.wire, connection.providerId);
   const startedAt = deps.now();
   let firstDeltaAt: number | undefined;

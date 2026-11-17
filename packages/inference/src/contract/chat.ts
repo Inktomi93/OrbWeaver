@@ -187,6 +187,11 @@ type HistoryChatRequest = ChatRequestCommon & {
   readonly reasoningTags?: ReasoningTagPair | undefined;
   /** `tools` carries TERMINAL declarations (D112 R1), so the turn must co-emit prose and state calls. */
   readonly terminalToolsAttached?: boolean | undefined;
+  /** The authored chain of thought (`prefillReasoning`) the model continues FROM: rule 5a (`body.ts`) stamps it
+   *  on the `prefix-flag` continue row beside the flag, and the model treats it as its own reasoning. Dropped
+   *  with `prefill_reasoning_dropped` on a turn that stamps no continue row; routes without a continuation
+   *  never carry it. Measured on the `prefix-flag` row: `docs/law/deepseek-api-surface.md`. */
+  readonly prefillReasoning?: string | undefined;
 };
 
 /**

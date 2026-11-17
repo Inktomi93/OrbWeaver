@@ -38,6 +38,7 @@ function shapeArgs(call: ModelCall, dialect: Dialect): ShapeArgs {
     transport: call.connection.transport,
     dialect,
     prefillAllowed: call.prefillAllowed,
+    prefillReasoning: call.prefillReasoning,
     templateThinking: call.templateThinking,
     templatePreserveReasoning: call.templatePreserveReasoning,
     reasoningMandatory: call.connection.capability.kind === "generation" && call.connection.capability.generation.reasoning.mandatory === true,

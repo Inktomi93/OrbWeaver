@@ -15,7 +15,9 @@
 //      `features.prefill` is `continue-final-message`, the capability says `assistantPrefill`, and the array
 //      actually ends on an assistant row; `prefillSuppressesThinking` strips the thinking toggle then.
 //   5a. the `prefix-flag` spelling of the same decision: `prefix: true` stamped on the converted trailing-assistant
-//      message, the row's beta route under `features.betaChatPath` for that call (`model.ts` reads the same gate).
+//      message with the turn's authored chain of thought beside it (`prefillReasoning`, stamped as the row's
+//      `reasoning_content`), the row's beta route under `features.betaChatPath` for that call (`model.ts` reads
+//      the same gate); a seed on a turn that stamps no continue row drops with `prefill_reasoning_dropped`.
 //   5b. `chat_template_kwargs.enable_thinking` set to the turn's template thinking state when `features.thinkingOff`
 //      names the kwarg, merged into whatever kwargs extras or `includeBody` set.
 //   5c. `chat_template_kwargs.preserve_reasoning: false` on such a row when the turn's reasoning carry is off.
@@ -41,7 +43,7 @@
 // Warnings are collected on a per-call sink the caller folds into the turn's `warning` events (D41).
 
 import type { ImageDetail, ResolvedWarning } from "@orb/contracts/inference";
-import { DEFAULT_SAMPLER_KEYS, isBeltOwnedBodyKey } from "@orb/contracts/inference";
+import { DEFAULT_SAMPLER_KEYS, isBeltOwnedBodyKey, WARNING_CODE } from "@orb/contracts/inference";
 import { deepMergeRequestBody } from "@orb/kit/custom-parameters";
 
 import type { ShapeArgs } from "#src/contract/openai-backend.ts";
@@ -54,6 +56,7 @@ const MAX_COMPLETION_TOKENS_KEY = "max_completion_tokens";
 const CONTINUE_FINAL_MESSAGE_KEY = "continue_final_message";
 const ADD_GENERATION_PROMPT_KEY = "add_generation_prompt";
 const PREFIX_FLAG_KEY = "prefix";
+const PREFILL_REASONING_KEY = "reasoning_content";
 const MODALITIES_KEY = "modalities";
 const REPLY_MODALITIES = ["text", "image"] as const;
 const CHAT_TEMPLATE_KWARGS_KEY = "chat_template_kwargs";
@@ -204,20 +207,31 @@ function applyPrefill(body: Record<string, unknown>, args: ShapeArgs, owned: Rea
  *  trailing-assistant message with `prefix: true` instead of a body-level pair (measured 2026-11-16: the flag
  *  continues mid-word, and the seeded `reasoning_content` of that row rides as the model's own chain). A
  *  `messages` array the user set is theirs, and the same capability and array gates as rule 5 decide the turn;
- *  a converter that reshaped the tail into a non-assistant row gets nothing stamped. */
+ *  a converter that reshaped the tail into a non-assistant row gets nothing stamped. The turn's authored chain
+ *  of thought (`args.prefillReasoning`) rides the stamped row as its `reasoning_content` (measured: the model
+ *  answers FROM it and writes no reasoning of its own); a seed on an unstampeable turn drops with
+ *  `prefill_reasoning_dropped` rather than riding some other row. */
 function applyPrefixFlag(body: Record<string, unknown>, args: ShapeArgs, owned: ReadonlySet<string>): Record<string, unknown> {
-  if (args.plan === null || owned.has(MESSAGES_KEY) || args.features.prefill !== "prefix-flag" || !args.prefillAllowed || !args.plan.endsOnAssistant) {
-    return body;
-  }
+  const gate = args.plan !== null && !owned.has(MESSAGES_KEY) && args.features.prefill === "prefix-flag" && args.prefillAllowed && args.plan.endsOnAssistant;
   const messages = body[MESSAGES_KEY];
-  if (!Array.isArray(messages)) {
-    return body;
-  }
-  const last = messages.at(-1);
+  const rows = gate && Array.isArray(messages) ? messages : [];
+  const last = rows.at(-1);
   if (!isRecord(last) || last["role"] !== "assistant") {
+    if (args.prefillReasoning !== undefined) {
+      args.warnings.push({
+        code: WARNING_CODE.prefillReasoningDropped,
+        message:
+          "prefill reasoning dropped: this turn stamps no continue row (the array must end on the assistant, the prefill must be allowed, and the messages must be ours)",
+      });
+    }
     return body;
   }
-  return { ...body, [MESSAGES_KEY]: [...messages.slice(0, -1), { ...last, [PREFIX_FLAG_KEY]: true }] };
+  const stamped: Record<string, unknown> = {
+    ...last,
+    [PREFIX_FLAG_KEY]: true,
+    ...(args.prefillReasoning === undefined ? {} : { [PREFILL_REASONING_KEY]: args.prefillReasoning }),
+  };
+  return { ...body, [MESSAGES_KEY]: [...rows.slice(0, -1), stamped] };
 }
 
 /** Rule 5b: the template-level thinking switch, beside the user's own kwargs and never over them. A switch the

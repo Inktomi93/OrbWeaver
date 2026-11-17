@@ -263,6 +263,11 @@ function settingsAdjustedNotice(warning: ChatSettingsAdjustedWarning): NotifyNot
         description: "You gave the model text to continue, which it can't do while reasoning, so it continued your text instead.",
         title: "Reasoning was skipped for this reply",
       };
+    case "prefill_reasoning_dropped":
+      return {
+        description: "The thinking you wrote can ride only a reply you left half-finished for the model, and this turn had none, so it was not sent.",
+        title: "Your written thinking wasn't used",
+      };
     case "tool_choice_downgraded":
       return {
         description: "This model can't be made to call a tool, so the tools were offered and it chose whether to use one.",

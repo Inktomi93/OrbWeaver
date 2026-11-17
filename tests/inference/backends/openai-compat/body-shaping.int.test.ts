@@ -31,7 +31,12 @@ interface Sent {
 /** One chat turn against a scripted openai-compatible endpoint; what the endpoint received and what the turn reported. */
 async function send(
   row: Omit<Connection, "task" | "model" | "providerId"> & { readonly providerId?: ProviderId; readonly model?: string },
-  options: { readonly params?: UserIntent; readonly history?: readonly ChatHistoryMessage[]; readonly responseFormat?: ResponseFormat } = {},
+  options: {
+    readonly params?: UserIntent;
+    readonly history?: readonly ChatHistoryMessage[];
+    readonly responseFormat?: ResponseFormat;
+    readonly prefillReasoning?: string;
+  } = {},
 ): Promise<Sent> {
   const recorded: RecordedRequest[] = [];
   using server = openAiServer(recorded, () => ({}));
@@ -45,6 +50,7 @@ async function send(
     systemPrompt: { static: SYSTEM_TEXT, dynamic: "" },
     history: options.history ?? [USER_LINE],
     ...(options.responseFormat === undefined ? {} : { responseFormat: options.responseFormat }),
+    ...(options.prefillReasoning === undefined ? {} : { prefillReasoning: options.prefillReasoning }),
   });
   const [first] = recorded;
   if (first === undefined) {
@@ -578,6 +584,29 @@ test("a `prefix-flag` row stamps the converted trailing assistant row and rides 
   const owned = await send({ providerId: deepseek, capability: prefill, transport: { includeBody: { messages: theirs } } }, { params, history });
   expect(owned.body["messages"]).toEqual(theirs);
   expect(owned.url).toContain("/beta/v1/chat/completions");
+});
+
+// The steered chain of thought (`prefillReasoning`, `docs/law/deepseek-api-surface.md` "Assistant prefill and
+// continuation"): the seeded `reasoning_content` on the continue row IS the model's thinking — measured 6/6, the
+// answer follows the seed and the model writes no reasoning of its own. Red-proof: lift the seed stamp out of
+// rule 5a (`body.ts`) and the continue row keeps its flag but sheds the seed, which the first assertion catches.
+test("the continue row carries the authored chain of thought beside the prefix stamp, and an unstampeable turn drops it loudly", async () => {
+  const deepseek = providerIdSchema.parse("deepseek");
+  const prefill = prefillCapability();
+  const params = { effort: "high" } satisfies UserIntent;
+  const seed = "(He leans on my counter, dripping on the wood I just polished. I answer short, and in Spanish: azul.)";
+
+  const stamped = await send({ providerId: deepseek, capability: prefill }, { params, history: [USER_LINE, ASSISTANT_OPENING], prefillReasoning: seed });
+  expect(wireRows(stamped.body).at(-1)).toMatchObject({ role: "assistant", content: "Once upon a", prefix: true, ["reasoning_content"]: seed });
+
+  // No assistant tail, no continue row, no silent rider on some other row: the seed drops with its own code.
+  const dropped = await send({ providerId: deepseek, capability: prefill }, { params, history: [USER_LINE], prefillReasoning: seed });
+  expect(JSON.stringify(dropped.body["messages"])).not.toContain("reasoning_content");
+  expect(warningCodes(dropped.events)).toContain(WARNING_CODE.prefillReasoningDropped);
+
+  // The plain prefill turn is unchanged: the stamp rides alone, no empty seed appears.
+  const plain = await send({ providerId: deepseek, capability: prefill }, { params, history: [USER_LINE, ASSISTANT_OPENING] });
+  expect(JSON.stringify(plain.body["messages"])).not.toContain("reasoning_content");
 });
 
 test("a turn carrying a strict tool rides the row's beta route; without a beta path the same strict body rides the base", async () => {
