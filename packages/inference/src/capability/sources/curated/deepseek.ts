@@ -200,4 +200,72 @@ export const deepseekRows = [
       cite: "live GET /v1/models input_modalities [text] on deepseek-v4-pro; measured 2026-11-17: an image part is accepted with 200 and the content is dropped — solid black answered 'White', solid white answered 'Red', no validation of the bytes (the list's own claim that nothing reads it, confirmed by wrong answers on both controls)",
     },
   },
+  // The `/responses` protocol cells (api-scoped; `backends/openai-compat/responses.ts` is the runner). The
+  // api-scoped match layers over the provider-scoped chat cell, so only what THIS route was measured on is
+  // restated or narrowed; effort levels, tool-choice cells and ranges it does not name are the chat cell's.
+  // The vendor's `/v1/models` `api_capabilities` declares only `anthropic_messages` per row — nothing about
+  // `/responses` — and the served set is wider than Vercel's hardcoded catalog, which names flash + v4-pro
+  // only: MEASURED 2026-11-17, every direct id answers 200 on `/v1/responses` (flash, v4-pro, v4-flash,
+  // vision-exp, and the legacy chat/reasoner aliases alike), so all four curated ids carry the cells.
+  //   • structured: `text.format` json_schema with `strict: true` COMPILES THE REAL GRAMMAR — the route's
+  //     rules measured against the RPG extraction schema: optional properties are rejected ("Required
+  //     properties must match all properties in the object"), a `type` array naming `array` 400s ("unknown
+  //     variant `array`") while `anyOf:[X,null]` compiles and answers 200 with a correct null, and the
+  //     required-all + anyOf-null projection of the real 4737-byte schema compiles and answers conforming
+  //     (probes 2026-11-17, /tmp/opencode structured forensics). The `strict-compatible` scrub IS that
+  //     projection (required-all + anyOf-null + closed, `wire-subset.ts:287-296`), so the plan sends the
+  //     grammar-ready shape and `structured` flips to true for this api; null-is-keep decode rides the
+  //     plan's `nullMeansAbsent` drop (`structured/reply.ts`). With strict omitted the route answers 200
+  //     to the UNPROJECTED schema too but enforces nothing (advisory — the lenient fold stays required),
+  //     which is why the SDK's default-on strictness is overridden from the plan, never trusted
+  //     (`responses.ts`). `strict:true` on a TOOL is accepted and measured merely SUGGESTIVE (4/4 strict
+  //     runs clean vs one unparseable non-strict args string at temperature 2.0 — n too small for more).
+  //   • turns: a `system` row mid-`input` answers 200; tool-call replay needs NO item-id carry — a
+  //     function_call + output round trip answers 200 replaying the reasoning item with its id, WITHOUT
+  //     its id, and omitted entirely (all three measured 2026-11-17, `store:false` stateless sends).
+  //     `assistantPrefill` narrows to false: the `prefix` continue flag is a chat-route `/beta` body field
+  //     this protocol has no arm for, and trailing-assistant behavior here is unmeasured.
+  //   • sampling: temperature and top_p carry the SAME server-side range errors as the chat route
+  //     (measured: 2.5 400 "the valid range of temperature is [0, 2]", top_p 0 400 "the valid range of
+  //     top_p is (0, 1.0]"), but `stop` is silently IGNORED — `stop:[" 3"]` on a "1 2 3 4 5" count came
+  //     back complete (measured 2026-11-17), so the cut that holds on chat does not ride here and the
+  //     cell says false. The Responses body also models no `top_k`/`seed`/penalties; the SDK warns on
+  //     each, which lands on the sampling receipt as a drop.
+  //   • reasoning: effort words pass through verbatim — `none` (forces a tool call when combined with
+  //     `tool_choice: required`), `medium`, and `max` all answer 200 (measured 2026-11-17); the chat
+  //     route's `required`/named-choice 400 under thinking was measured on THIS route too, matching the
+  //     inherited false cells. Implicit caching rides this route as it does on chat: a repeated long
+  //     prompt reported `input_tokens_details.cached_tokens: 384` on the second call (measured).
+  //   • stream: the terminal `response.completed` event carries the usage (no `[DONE]` line); the SDK
+  //     folds the event union into V4 stream parts, which is why no per-event cell is needed here.
+  {
+    match: {
+      provider: "deepseek",
+      model: "^deepseek-(flash|v4-pro|v4-flash|v4-flash-vision-exp)$",
+      wire: "openai-compat",
+      api: "responses",
+    },
+    generation: {
+      output: {
+        structured: true,
+        structuredLimits: { maxOptionalProps: 0 },
+      },
+      turns: {
+        assistantPrefill: false,
+        midConversationSystem: true,
+        historySystemRows: true,
+        providerImplicitPromptCache: true,
+      },
+      sampling: {
+        temperature: { min: 0, max: 2 },
+        topP: { min: 0, max: 1 },
+        stop: false,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-11-17",
+      cite: "live probes on https://api.deepseek.com/v1/responses 2026-11-17: all four ids answer 200 (plus the chat/reasoner aliases); json_schema strict:true compiles the projected RPG schema (optional-props and type-array rules measured verbatim), strict omitted answers the unprojected schema advisory-only; tool strict:true accepted, suggestive at best (n=4); system row mid-input 200; function_call+output replay 200 with the reasoning item kept-id, stripped-id and omitted; effort none/medium/max pass through and effort none + tool_choice required forces the call (required/named under thinking 400 'Thinking mode does not support this tool_choice', the chat route's wall); temperature 2.5 and top_p 0 400 with the chat route's range words, stop:[' 3'] silently ignored on a '1 2 3 4 5' count; second identical prompt reports input_tokens_details.cached_tokens 384; terminal response.completed carries usage and there is no [DONE] line",
+    },
+  },
 ] as const satisfies readonly CapabilityOverrideInput[];
