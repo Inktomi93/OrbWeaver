@@ -87,3 +87,89 @@ export function openAiServer(recorded: RecordedRequest[], reply: (body: Record<s
   const lifetime = construction.move();
   return { execute, [Symbol.dispose]: () => lifetime.dispose() };
 }
+
+/** One scripted reply of the `/responses` protocol: a text turn (optionally reasoned, optionally with a
+ *  prompt-cache receipt on the terminal usage), a tool call, or an HTTP error. */
+export type ResponsesReply =
+  | { readonly kind: "text"; readonly text: string; readonly reasoning?: string; readonly cachedTokens?: number }
+  | { readonly kind: "tool-call"; readonly name: string; readonly arguments: string }
+  | { readonly kind: "error"; readonly status?: number; readonly message: string };
+
+/**
+ * A scripted `/responses` endpoint as a `fetch`, on the same capture discipline as {@link openAiServer}.
+ * The events are the OpenAI summary spelling (the arms `@ai-sdk/openai`'s chunk union declares); the raw
+ * dialect DeepSeek actually streams (`response.reasoning_text.*`) is spelled inline by the test that
+ * pins the dialect rewriter (MEASURED vendor form, 2026-11-17).
+ */
+export function openAiResponsesServer(
+  recorded: RecordedRequest[],
+  respond: (body: z.infer<typeof objectBody>) => ResponsesReply,
+): {
+  execute: typeof fetch;
+  [Symbol.dispose]: () => void;
+} {
+  const execute: typeof fetch = async (request) => {
+    const captured = await recordRequest(request);
+    recorded.push(captured);
+    const answer = respond(captured.body);
+    if (answer.kind === "error") {
+      return Promise.resolve(Response.json({ error: { message: answer.message, type: "invalid_request_error" } }, { status: answer.status ?? 400 }));
+    }
+    const frame = (payload: Record<string, JsonValue>): string => `event: ${String(payload["type"])}\ndata: ${JSON.stringify(payload)}\n\n`;
+    const response: Record<string, JsonValue> = { id: "resp-1", ["created_at"]: 1, model: "m" };
+    const frames: string[] = [frame({ type: "response.created", response }), frame({ type: "response.in_progress", response })];
+    if (answer.kind === "tool-call") {
+      const item: Record<string, JsonValue> = {
+        type: "function_call",
+        id: "fc-1",
+        ["call_id"]: "call-1",
+        name: answer.name,
+        arguments: answer.arguments,
+        status: "completed",
+      };
+      frames.push(
+        frame({ type: "response.output_item.added", ["output_index"]: 0, item: { ...item, arguments: "", status: "in_progress" } }),
+        frame({ type: "response.function_call_arguments.delta", ["item_id"]: "fc-1", ["output_index"]: 0, delta: answer.arguments }),
+        frame({ type: "response.function_call_arguments.done", ["item_id"]: "fc-1", ["output_index"]: 0, arguments: answer.arguments }),
+        frame({ type: "response.output_item.done", ["output_index"]: 0, item }),
+      );
+    } else {
+      let outputIndex = 0;
+      if (answer.reasoning !== undefined) {
+        frames.push(
+          frame({ type: "response.output_item.added", ["output_index"]: 0, item: { type: "reasoning", id: "rs-1" } }),
+          frame({ type: "response.reasoning_summary_part.added", ["item_id"]: "rs-1", ["output_index"]: 0, ["summary_index"]: 0 }),
+          frame({ type: "response.reasoning_summary_text.delta", ["item_id"]: "rs-1", ["output_index"]: 0, ["summary_index"]: 0, delta: answer.reasoning }),
+          frame({ type: "response.reasoning_summary_part.done", ["item_id"]: "rs-1", ["output_index"]: 0, ["summary_index"]: 0 }),
+          frame({ type: "response.output_item.done", ["output_index"]: 0, item: { type: "reasoning", id: "rs-1" } }),
+        );
+        outputIndex = 1;
+      }
+      frames.push(
+        frame({ type: "response.output_item.added", ["output_index"]: outputIndex, item: { type: "message", id: "msg-1" } }),
+        frame({ type: "response.output_text.delta", ["item_id"]: "msg-1", ["output_index"]: outputIndex, delta: answer.text }),
+        frame({ type: "response.output_text.done", ["item_id"]: "msg-1", ["output_index"]: outputIndex, text: answer.text }),
+        frame({
+          type: "response.output_item.done",
+          ["output_index"]: outputIndex,
+          item: { type: "message", id: "msg-1", content: [{ type: "output_text", text: answer.text }] },
+        }),
+      );
+    }
+    frames.push(
+      frame({
+        type: "response.completed",
+        response: {
+          ...response,
+          usage: {
+            ["input_tokens"]: 10,
+            ["output_tokens"]: 5,
+            ...(answer.kind === "text" && answer.cachedTokens !== undefined ? { ["input_tokens_details"]: { ["cached_tokens"]: answer.cachedTokens } } : {}),
+          },
+        },
+      }),
+    );
+    return Promise.resolve(new Response(frames.join(""), { status: 200, headers: { "content-type": "text/event-stream" } }));
+  };
+  return { execute, [Symbol.dispose]: (): void => undefined };
+}
