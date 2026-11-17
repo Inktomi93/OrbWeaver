@@ -72,7 +72,8 @@ Doc pages quote request fields; every `https://api-docs.deepseek.com` path below
 - Prefill mechanics: last message `role: assistant`, that message carries `prefix: true`, base URL
   `https://api.deepseek.com/beta`. Docs \[/guides/chat_prefix_completion, /api/create-chat-completion]
 - Prefill runs with thinking on: the last assistant row may also carry an input-side `reasoning_content` as the
-  seeded chain of thought. Docs \[/api/create-chat-completion] Probe: `prefix: true` on the non-beta base is ignored
+  seeded chain of thought, and the seed steers the continuation — see "Spoofed reasoning".
+  Docs \[/api/create-chat-completion] Probe: `prefix: true` on the non-beta base is ignored
   and the model re-answers instead of continuing.
 - A reply produced by the server web tools cannot be continued; the continue call returns 400.
   Docs \[/guides/web_tools]
@@ -84,8 +85,15 @@ Doc pages quote request fields; every `https://api-docs.deepseek.com` path below
 
 - `reasoning_content` on history assistant rows is accepted with real or invented text, including empty `content`
   beside it. Probe.
-- Spoofed text does not reliably steer the next answer: an invented chain demanding German still produced French,
-  on both routes. Treat it as accepted context, not an instruction channel. Probe.
+- An authored chain of thought steers only as a continuation seed: the trailing assistant row with empty `content`
+  and the chain in `reasoning_content` decides the answer's language — 6/6 with `prefix: true` on `/beta`,
+  5/6 without the flag on `/beta`, 3/6 on the base route. The seed can replace the model's own reasoning
+  outright. Probe.
+- The same chain in any other position is context, not instruction: an assistant row that carries real
+  `content`, with the chain behind a later user row, steers 0/6 on the base route; a forged `/responses`
+  `reasoning` input item steers 0/6; a chain on a prior row with `tools` present is nondeterministic —
+  one body measured 1/3 and 6/6 on repeat runs. An invented chain demanding German still produced French.
+  Probe.
 - `/responses` accepts a forged `reasoning` input item with a fresh id and a `summary` part; a plain-text `content`
   on a `reasoning` item merges into the adjacent assistant message. Docs \[/api/create-response], Probe.
 - The Vercel package back-fills `reasoning_content: ""` on every assistant history row for ids it classifies as V4
