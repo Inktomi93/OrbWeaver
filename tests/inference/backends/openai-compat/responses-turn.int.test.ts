@@ -34,6 +34,9 @@ const formatArm = z.object({ format: z.record(z.string(), jsonValueSchema) });
 const wireSchema = z.object({ required: z.array(z.string()), properties: z.record(z.string(), z.record(z.string(), jsonValueSchema)) });
 const toolsArray = z.array(z.object({ name: z.string(), type: z.string().optional() }));
 
+// The vendor's raw-reasoning delta event type, named once for the tape arms below.
+const DELTA_FRAME_TYPE = "response.reasoning_text.delta";
+
 interface Sent {
   readonly url: string;
   readonly headers: Readonly<Record<string, string>>;
@@ -215,8 +218,8 @@ test("the row's raw-reasoning dialect folds onto reasoning deltas; without the f
   const frames = [
     { type: "response.created", response: { id: "resp-raw", ["created_at"]: 1, model: "m" } },
     { type: "response.output_item.added", ["output_index"]: 0, item: { type: "reasoning", id: "rs-1", status: "in_progress" } },
-    { type: "response.reasoning_text.delta", ["item_id"]: "rs-1", ["output_index"]: 0, ["content_index"]: 0, delta: "Thinking " },
-    { type: "response.reasoning_text.delta", ["item_id"]: "rs-1", ["output_index"]: 0, ["content_index"]: 0, delta: "hard." },
+    { type: DELTA_FRAME_TYPE, ["item_id"]: "rs-1", ["output_index"]: 0, ["content_index"]: 0, delta: "Thinking " },
+    { type: DELTA_FRAME_TYPE, ["item_id"]: "rs-1", ["output_index"]: 0, ["content_index"]: 0, delta: "hard." },
     { type: "response.reasoning_text.done", ["item_id"]: "rs-1", ["output_index"]: 0, ["content_index"]: 0, text: "Thinking hard." },
     { type: "response.output_item.done", ["output_index"]: 0, item: { type: "reasoning", id: "rs-1", status: "completed" } },
     { type: "response.output_item.added", ["output_index"]: 1, item: { type: "message", id: "msg-1" } },
@@ -260,6 +263,42 @@ test("the row's raw-reasoning dialect folds onto reasoning deltas; without the f
     expect(variant.turn.reasoning, `reasoning lost on the ${spelling} spelling`).toBe("Thinking hard.");
     expect(variant.turn.reply, `reply lost on the ${spelling} spelling`).toBe("391");
   }
+
+  // An over-cap frame (one delta beyond the dialect's 1 MiB buffer): the buffer passes bytes through
+  // UNFRAMED instead of growing, and because that passthrough is byte-identical the SDK's own parser
+  // re-frames the split bytes — the giant delta must still arrive folded.
+  const giant = "G".repeat(1_200_000);
+  const giantFrames = frames.map((f) => ("delta" in f && f.type === DELTA_FRAME_TYPE && f.delta === "Thinking " ? { ...f, delta: giant } : f));
+  const giantTape: typeof fetch = () =>
+    Promise.resolve(
+      new Response(giantFrames.map((f) => `event: ${f.type}\ndata: ${JSON.stringify(f)}\n\n`).join(""), {
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+      }),
+    );
+  const overflowed = await send({ declaredFeatures: {} }, { fetch: giantTape });
+  expect(overflowed.turn.reasoning.length, "the over-cap delta vanished instead of passing through unframed").toBe(giant.length + "hard.".length);
+  expect(overflowed.turn.reply).toBe("391");
+
+  const accTape: typeof fetch = () =>
+    Promise.resolve(
+      new Response(
+        frames
+          .map((f) =>
+            "delta" in f && f.type === DELTA_FRAME_TYPE && f.delta === "hard."
+              ? `event: ${f.type}\ndata: ${JSON.stringify({ ...f, delta: "Multi-" })}\ndata: ${JSON.stringify(f)}\n\n`
+              : `event: ${f.type}\ndata: ${JSON.stringify(f)}\n\n`,
+          )
+          .join(""),
+        { status: 200, headers: { "content-type": "text/event-stream" } },
+      ),
+    );
+  // Multi-line `data:` accumulation is a frame the dialect does not name: rewriting the first line only
+  // would corrupt it, so it rides untouched (byte-identical). MEASURED here: the SDK parses EVERY frame's
+  // payload, so the accumulated JSON pair surfaces as a JSON-parse ProviderError — the #758 policy
+  // (a malformed data line is a protocol error the caller sees). The dialect's silence on unnamed frames
+  // is what keeps that error honest: a half-rewrite would rename the payload and hide the malformation.
+  await expect(send({ declaredFeatures: {} }, { fetch: accTape })).rejects.toThrow(/JSON parsing failed/);
 });
 
 // The `/responses` protocol models no forced continuation (a trailing assistant input item reads

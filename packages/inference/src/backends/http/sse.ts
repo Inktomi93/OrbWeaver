@@ -1,8 +1,11 @@
-// The OpenAI-dialect SSE line parser — the ONE place a `data:` stream is split into JSON events. It survives
+// The OpenAI-dialect SSE line parser — the ONE place a `data:` stream is READ into JSON events. It survives
 // the SDK cut-over for one job: `wrapFetch` on the `openai-compatible` transport reshapes each chunk through a
 // connection's `transport.responseMap` BEFORE the SDK parses it, and reshaping needs the chunks as objects.
 // A malformed RESULT-BEARING `data:` line is a protocol error the caller must see (#758) — silently dropping
 // it let a reducer return an empty turn as a SUCCESS; blank lines, comments and non-data fields stay skippable.
+// The one sibling that frames SSE separately is `openai-compat/responses-dialect.ts`: a TRANSFORMER, not a
+// reader — it must pass unnamed frames byte-identical (the wire capture keeps the bytes the server sent),
+// which an object round-trip through this parser cannot promise.
 
 const SSE_DATA_PREFIX = "data:";
 const SSE_DONE = "[DONE]";
