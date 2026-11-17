@@ -106,7 +106,6 @@ export interface AgentSdkLog {
     readonly unliftable?: { readonly tool: string; readonly construct: string; readonly path: string };
   }) => void;
   readonly compaction: (fields: Record<string, unknown>) => void;
-  readonly capability: ProviderLogger["capability"];
   readonly info: InferenceLog["info"];
   readonly warn: InferenceLog["warn"];
   readonly debug: InferenceLog["debug"];

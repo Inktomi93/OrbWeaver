@@ -26,7 +26,6 @@ export function createAgentSdkLog(log: InferenceLog, providerId: string): AgentS
     leak: (entry) => base.emit("error", "provider.leak", { ...entry }),
     terminalTools: (entry) => base.emit(entry.mounted ? "debug" : "warn", "provider.terminal_tools", { ...entry }),
     compaction: (fields) => base.emit("warn", "provider.compaction", fields),
-    capability: (entry) => base.capability(entry),
     info: (fields, message) => log.info({ wire: WIRE, providerId, ...fields }, message),
     warn: (fields, message) => log.warn({ wire: WIRE, providerId, ...fields }, message),
     debug: (fields, message) => log.debug({ wire: WIRE, providerId, ...fields }, message),
