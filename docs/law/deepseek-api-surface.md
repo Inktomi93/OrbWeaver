@@ -71,6 +71,9 @@ Doc pages quote request fields; every `https://api-docs.deepseek.com` path below
 
 - Prefill mechanics: last message `role: assistant`, that message carries `prefix: true`, base URL
   `https://api.deepseek.com/beta`. Docs \[/guides/chat_prefix_completion, /api/create-chat-completion]
+- The beta route answers under `/beta/v1/` too: a prefix-seeded turn measured 200 with the seed honored at
+  both `https://api.deepseek.com/beta/chat/completions` and `.../beta/v1/chat/completions` (1/1 each).
+  The transport's version-segment joiner produces the `/beta/v1` form and both are live. Probe.
 - Prefill runs with thinking on: the last assistant row may also carry an input-side `reasoning_content` as the
   seeded chain of thought, and the seed steers the continuation — see "Spoofed reasoning".
   Docs \[/api/create-chat-completion] Probe: `prefix: true` on the non-beta base is ignored
