@@ -1,0 +1,1 @@
+ALTER TABLE `user_seed_ledger` DROP COLUMN `seeded_at`;

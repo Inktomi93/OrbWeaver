@@ -65,7 +65,6 @@ export const userSeedLedger = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     itemKey: nulFreeText("item_key").notNull(),
-    seededAt: integer("seeded_at").notNull(),
   },
   (t) => [primaryKey({ columns: [t.userId, t.itemKey] })],
 );

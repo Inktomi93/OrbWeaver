@@ -1504,9 +1504,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     logger: deps.logger,
     enabled: () => seedContentEnabled,
     manifest: SEED_MANIFEST,
-    now,
     seededKeys: createReadSeededKeys(db),
-    recordSeeded: (userId, keys, at) => recordSeededItemKeys(db, userId, keys, at),
+    recordSeeded: (userId, keys) => recordSeededItemKeys(db, userId, keys),
     legacyLatches: settingsComposedOps.legacyLatches,
     seedCharacter: (principal, handle) => characterSeeder.seedCard(principal, handle),
     seedPersona: createSeedPersonaWithCompletion({

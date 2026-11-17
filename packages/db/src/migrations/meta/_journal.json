@@ -155,6 +155,13 @@
       "when": 1794942431990,
       "tag": "0021_connection-api-responses-check",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "6",
+      "when": 1794945594656,
+      "tag": "0022_user-seed-ledger-drop-seeded-at",
+      "breakpoints": true
     }
   ]
 }
