@@ -80,6 +80,10 @@ Doc pages quote request fields; every `https://api-docs.deepseek.com` path below
 - `/responses` does not support continuing a reply. Docs \[/guides/web_tools] Probe: a trailing assistant input item
   reads as continuation-like (a count probe continued), but the model may restart instead — a soft signal, not a
   forced prefix. A body-level `prefix` field on `/responses` is an unmodeled, ignored field. Probe.
+- A `system` row directly above the continue row does not disturb the continuation: the RPG note shape
+  (`[..., user, system note, assistant prefix row]`) continued 3/3 on `/beta`. The row above the tail may be a
+  note; only the TAIL row must be the assistant. Probe: backs the tail tie-break in `spliceOrder`
+  (`packages/server/src/domain/chat/assembly/injections.ts`).
 
 ## Spoofed reasoning
 
@@ -94,6 +98,11 @@ Doc pages quote request fields; every `https://api-docs.deepseek.com` path below
   `reasoning` input item steers 0/6; a chain on a prior row with `tools` present is nondeterministic —
   one body measured 1/3 and 6/6 on repeat runs. An invented chain demanding German still produced French.
   Probe.
+- Seed quality: the chain must COMMIT the demanded outcome ("my answer will be: azul"). A soft demand ("I answer
+  short, and in Spanish") steered 0/3; naming the concrete token steered from either voice — explicit chain prose
+  or the character's first-person parenthetical — including on a continue row with started content and with a
+  system note above it. The reply's `reasoning_content` comes back empty on a seeded turn: steering shows only
+  in the content, so a check that reads the response's reasoning reads the wrong channel. Probe.
 - `/responses` accepts a forged `reasoning` input item with a fresh id and a `summary` part; a plain-text `content`
   on a `reasoning` item merges into the adjacent assistant message. Docs \[/api/create-response], Probe.
 - The Vercel package back-fills `reasoning_content: ""` on every assistant history row for ids it classifies as V4
