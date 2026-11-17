@@ -4,10 +4,11 @@
 // strict flag beating the SDK's default-on strictness, and the raw-reasoning dialect rewrite.
 // @subject packages/inference/src/backends/openai-compat/responses.ts
 import type { ProviderId } from "@orb/contracts/inference";
-import { WARNING_CODE } from "@orb/contracts/inference";
+import { providerIdSchema, WARNING_CODE } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ChatEvent, ChatHistoryMessage, ChatResult } from "@orb/inference";
+import { jsonValueSchema } from "@orb/kit/json";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { expect, test } from "@orb/testkit/node";
 import type { RecordedRequest, ResponsesReply } from "@orb/testkit/node/helpers";
@@ -24,7 +25,14 @@ const MID_SYSTEM: ChatHistoryMessage = { role: "system", content: [{ type: "text
 // The deepseek row is the fixture provider (the revival's first served row): its features carry
 // `effort: "reasoning_effort"` and the raw-reasoning dialect. Tests that script SDK-native summary
 // events narrow the dialect per-connection; the dialect test lets the row's own feature ride.
-const DEEPSEEK: ProviderId = "deepseek";
+const DEEPSEEK: ProviderId = providerIdSchema.parse("deepseek");
+
+// Wire-body arms read through schemas, not narrowing `as` (the recorded body is parsed JsonValue): an
+// assertion that lies about the wire would sail past the expectations; a parse throws on the wrong shape.
+const rolesArray = z.array(z.object({ role: z.string(), content: z.unknown() }));
+const formatArm = z.object({ format: z.record(z.string(), jsonValueSchema) });
+const wireSchema = z.object({ required: z.array(z.string()), properties: z.record(z.string(), z.record(z.string(), jsonValueSchema)) });
+const toolsArray = z.array(z.object({ name: z.string(), type: z.string().optional() }));
 
 interface Sent {
   readonly url: string;
@@ -92,7 +100,7 @@ test("system rows ride in place on this protocol — leading AND mid-conversatio
     turns: { assistantPrefill: false, midConversationSystem: true, historySystemRows: true, roleHandlingFloor: "strict", explicitPromptCache: false },
   });
   const sent = await send({ capability: turnCap }, { history: [USER_LINE, MID_SYSTEM, { role: "user", content: [{ type: "text", text: "And again." }] }] });
-  const input = sent.body.input as { readonly role: string; readonly content?: unknown }[];
+  const input = rolesArray.parse(sent.body["input"]);
   expect(input.map((item) => item.role)).toEqual(["system", "user", "system", "user"]);
   expect(input[2]?.content).toContain("Answer tersely.");
 });
@@ -102,12 +110,12 @@ test("a plain turn POSTs a stateless body to <base>/v1/responses and folds the t
   // The deepseek row's own base URL is fixed (an apiKey row may not name one), so this also pins that
   // `responsesModelFor` hangs `/responses` off the row's versioned root, not a re-derived path.
   expect(sent.url).toBe("https://api.deepseek.com/v1/responses");
-  expect(sent.headers.authorization).toBe("Bearer synthetic-runtime-fixture-key");
-  expect(sent.body.model).toBe("deepseek-v4-pro");
-  expect(sent.body.store).toBe(false);
-  expect(sent.body.stream).toBe(true);
-  expect(sent.body.max_output_tokens).toBe(1024);
-  const input = sent.body.input as { readonly role: string }[];
+  expect(sent.headers["authorization"]).toBe("Bearer synthetic-runtime-fixture-key");
+  expect(sent.body["model"]).toBe("deepseek-v4-pro");
+  expect(sent.body["store"]).toBe(false);
+  expect(sent.body["stream"]).toBe(true);
+  expect(sent.body["max_output_tokens"]).toBe(1024);
+  const input = rolesArray.parse(sent.body["input"]);
   expect(input.map((item) => item.role)).toEqual(["system", "user"]);
   expect(sent.turn.reply).toBe("Here you go.");
   expect(sent.turn.finishReason).toBe("stop");
@@ -122,7 +130,7 @@ test("an effort request rides `reasoning.effort` despite the SDK catalog — the
   const sent = await send({}, { params: { effort: "medium" } satisfies UserIntent, reply: { kind: "text", text: "Medium." } });
   // `deepseek-v4-pro` is off `@ai-sdk/openai`'s own regex catalog, so the converter gates the whole
   // `reasoning` arm off the body; the shapeBody seam writes it back (red without the injection).
-  expect(sent.body.reasoning).toEqual({ effort: "medium" });
+  expect(sent.body["reasoning"]).toEqual({ effort: "medium" });
   expect(sent.turn.appliedEffort).toBe("medium");
 
   // No effort to spell (reasoning off at the capability) ⇒ no reasoning arm at all — the model rides its default.
@@ -133,7 +141,7 @@ test("an effort request rides `reasoning.effort` despite the SDK catalog — the
 
 test("samplers the Responses body does not model drop loudly; temperature rides", async () => {
   const sent = await send({}, { params: { temperature: 0.7, topK: 40 } satisfies UserIntent });
-  expect(sent.body.temperature).toBe(0.7);
+  expect(sent.body["temperature"]).toBe(0.7);
   expect(sent.body).not.toHaveProperty("top_k");
   const dropped = sent.events.flatMap((event) =>
     event.kind === "warning" && event.code === WARNING_CODE.samplingKnobDropped ? [`${event.knob ?? ""} ${event.message}`] : [],
@@ -150,15 +158,15 @@ test("the structured plan's strict flag rides explicitly — strict on default-o
   });
 
   const strict = await send({ capability }, { responseFormat: format, reply: { kind: "text", text: '{"mood":"glad","note":null}' } });
-  const arm = strict.body.text as { format: Record<string, unknown> };
-  expect(arm.format.type).toBe("json_schema");
-  expect(arm.format.name).toBe("report");
+  const arm = formatArm.parse(strict.body["text"]);
+  expect(arm.format["type"]).toBe("json_schema");
+  expect(arm.format["name"]).toBe("report");
   // The SDK default is strict `true` anyway, but the PLAN states it — and the plan's strict-compatible
   // scrub has already projected the optional `note` to required-with-null (the vendor's grammar rule).
-  expect(arm.format.strict).toBe(true);
-  const schema = arm.format.schema as { required: string[]; properties: Record<string, Record<string, unknown>> };
+  expect(arm.format["strict"]).toBe(true);
+  const schema = wireSchema.parse(arm.format["schema"]);
   expect(schema.required).toContain("note");
-  expect(schema.properties.note).toHaveProperty("anyOf");
+  expect(schema.properties["note"]).toHaveProperty("anyOf");
   // The scripted reply carries the projection's `note: null`; the plan's `nullMeansAbsent` decode drops
   // it back to absent, so the caller sees the schema-shaped object it declared, not the wire's padding.
   expect(strict.turn.reply).toBe('{"mood":"glad"}');
@@ -175,7 +183,7 @@ test("the structured plan's strict flag rides explicitly — strict on default-o
     { capability: permissive, declaredFeatures: { responsesReasoningStream: "summary", structuredMode: "hosted-common" } },
     { responseFormat: format, reply: { kind: "text", text: '{"mood":"glad"}' } },
   );
-  expect((advisory.body.text as { format: Record<string, unknown> }).format.strict).toBe(false);
+  expect(formatArm.parse(advisory.body["text"]).format["strict"]).toBe(false);
 });
 
 test("a tool round sends the tool and returns the call with the vendor's own call id", async () => {
@@ -192,7 +200,7 @@ test("a tool round sends the tool and returns the call with the vendor's own cal
       reply: { kind: "tool-call", name: "get_weather", arguments: '{"city":"Oslo"}' },
     },
   );
-  const tools = sent.body.tools as { name: string; type?: string }[];
+  const tools = toolsArray.parse(sent.body["tools"]);
   expect(tools[0]?.name).toBe("get_weather");
   expect(sent.turn.toolCalls?.[0]).toMatchObject({ toolCallId: "call-1", name: "get_weather" });
   expect(JSON.stringify(sent.turn.toolCalls?.[0]?.arguments)).toContain("Oslo");
@@ -215,7 +223,7 @@ test("the row's raw-reasoning dialect folds onto reasoning deltas; without the f
     { type: "response.completed", response: { id: "resp-raw", ["created_at"]: 1, model: "m", usage: { ["input_tokens"]: 10, ["output_tokens"]: 5 } } },
   ];
   const rawFetch: typeof fetch = () => {
-    const sse = frames.map((f) => `event: ${String(f.type)}\ndata: ${JSON.stringify(f)}\n\n`).join("");
+    const sse = frames.map((f) => `event: ${f.type}\ndata: ${JSON.stringify(f)}\n\n`).join("");
     return Promise.resolve(new Response(sse, { status: 200, headers: { "content-type": "text/event-stream" } }));
   };
   // The row's own feature (`responsesReasoningStream: "text"`) rides — an empty declared override keeps it.
@@ -224,7 +232,7 @@ test("the row's raw-reasoning dialect folds onto reasoning deltas; without the f
   expect(folded.turn.reply).toBe("391");
   expect(folded.turn.appliedEffort).toBe("medium");
   // The effort injection survived the dialect path too.
-  expect(folded.body.reasoning).toEqual({ effort: "medium" });
+  expect(folded.body["reasoning"]).toEqual({ effort: "medium" });
 
   // Red-proof pair: the SAME bytes on a connection pinned to the summary spelling meet the SDK catch-all
   // `unknown_chunk` and drop silently — empty reasoning, text still fine. Without this pair the fold
