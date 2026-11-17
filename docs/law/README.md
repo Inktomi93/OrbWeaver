@@ -11,6 +11,7 @@ The locked principles are the first section of Core-0, the enforcement catalog i
 
 | Law | Status |
 | - | - |
+| [Vercel AI SDK surface — installed packages, our use, and the hand-roll ledger](ai-sdk-surface.md) | active |
 | [Chat macro/persona resolution — the one home](Chat-Macro-Resolution.md) | active |
 | [Client Architecture Lockdown](client-architecture-lockdown.md) | active |
 | [Client architecture: state, data, error handling and sync spine](client-architecture-state-and-gates.md) | active |
