@@ -99,6 +99,19 @@ Doc pages quote request fields; every `https://api-docs.deepseek.com` path below
 - The Vercel package back-fills `reasoning_content: ""` on every assistant history row for ids it classifies as V4
   (unknown ids included). Package `@ai-sdk/deepseek` — explains broad acceptance of the field.
 
+## Thinking style
+
+- An in-band instruction can style the chain of thought itself. A marker appended to the FIRST user message,
+  demanding first-person parenthesized inner monologue inside the thinking block, produced exactly that form in
+  the `reasoning_content` of every run sampled; a pure-analysis marker forbids the same form. The guide's author
+  is a DeepSeek engineer and names the first-user-message tail as the trained injection point; the effect is
+  probabilistic and changes only the thinking, the reply following indirectly.
+  Guide `victorchen96/deepseek_v4_rolepaly_instruct`, Probe (English marker, translated).
+- Instructing the model to begin its thinking with a literal token or phrase does not work as an API instruction:
+  the chain never started with the demanded opener, and the instruction ballooned chain length instead. Probe.
+- The official harness names a plugin family `forge`: a git-forge review panel (worktrees, change requests),
+  not a thinking mechanism. Repo `deepseek-ai/deepseek-harness`.
+
 ## Tool calling
 
 - Chat tool shape: OpenAI function tools; `function.name` matches `a-z`, `A-Z`, `0-9`, `_`, `-`, at most 128 chars,
