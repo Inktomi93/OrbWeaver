@@ -13,67 +13,105 @@
 // the vendor's `response.content_part.*` and `response.output_text.done`, which the SDK's catch-all
 // drops — they carry nothing the fold needs. Gated by `features.responsesReasoningStream: "text"`:
 // a route that streams BOTH spellings would otherwise double-fold.
+//
+// Framing follows the SSE spec, not one vendor: the frame separator is `\n\n` OR `\r\n\r\n`, the space
+// after `data:` is optional, and lines ending in CR are read with the CR (pinned by the no-space and
+// CRLF arms of `tests/inference/backends/openai-compat/responses-turn.int.test.ts`).
 
 import type { JsonValue } from "@orb/kit/json";
-import { jsonValueSchema } from "@orb/kit/json";
+import { parseJsonText } from "@orb/kit/json";
 
-const FRAME_SEP = "\n\n";
 const DATA_PREFIX = "data:";
+const EVENT_PREFIX = "event:";
 const DELTA = "response.reasoning_text.delta";
 const DONE = "response.reasoning_text.done";
 const SUMMARY_DELTA = "response.reasoning_summary_text.delta";
 const SUMMARY_PART_DONE = "response.reasoning_summary_part.done";
+/** No frame legitimately reaches a megabyte; past this the buffer stops accumulating and bytes pass
+ *  through unframed (byte-identical), so a stream that never frames cannot grow the buffer without
+ *  bound. The SDK's own parser re-buffers as usual — only the FOLD is skipped for such a stream. */
+const PENDING_CAP_BYTES = 1_048_576;
 
-function parseData(line: string): JsonValue | undefined {
-  if (!line.startsWith(DATA_PREFIX)) {
-    return undefined;
+/** The next frame boundary per the SSE spec: `\r\n\r\n` or `\n\n`, whichever comes first (a `\n\n`
+ *  inside a CRLF separator is the same boundary, not an earlier one). */
+function boundaryOf(pending: string): { readonly index: number; readonly separator: string } | undefined {
+  const crlf = pending.indexOf("\r\n\r\n");
+  const lf = pending.indexOf("\n\n");
+  if (crlf !== -1 && (lf === -1 || crlf <= lf)) {
+    return { index: crlf, separator: "\r\n\r\n" };
   }
-  try {
-    return jsonValueSchema.parse(JSON.parse(line.slice(DATA_PREFIX.length).trim()));
-  } catch (error) {
-    // A malformed or non-JSON data frame is folded away (the dialect only rewrites the frames it can
-    // name); `JSON.parse` throws only SyntaxError, so anything else is a programming fault and must not
-    // be laundered into "no payload".
-    if (!(error instanceof SyntaxError)) {
-      throw error;
-    }
-    return undefined;
+  if (lf !== -1) {
+    return { index: lf, separator: "\n\n" };
   }
+  return undefined;
 }
 
-/** Point the frame's `event:`/`data:` lines at the rewritten payload (the data line is always single-line JSON). */
-function refold(frame: string, payload: Record<string, JsonValue>, summaryType: string): string {
-  return frame.replace(/^data: .*$/mu, `${DATA_PREFIX} ${JSON.stringify(payload)}`).replace(/^event: .*$/mu, `event: ${summaryType}`);
+/** The fold target for one parsed frame payload, or `undefined` to keep the frame as-is. */
+interface Fold {
+  readonly payload: Record<string, JsonValue>;
+  readonly summaryType: string;
 }
 
-/** Rewrite one SSE frame's data frame from the raw-reasoning spelling onto the summary spelling;
- *  `undefined` keeps the frame as-is. */
+function foldOf(record: Record<string, JsonValue>): Fold | undefined {
+  const type = record["type"];
+  const itemId = typeof record["item_id"] === "string" ? record["item_id"] : undefined;
+  if (type === DELTA && itemId !== undefined && typeof record["delta"] === "string") {
+    return { payload: { ...record, type: SUMMARY_DELTA, ["summary_index"]: 0 }, summaryType: SUMMARY_DELTA };
+  }
+  if (type === DONE && itemId !== undefined) {
+    const outputIndex = typeof record["output_index"] === "number" ? record["output_index"] : undefined;
+    return {
+      payload: {
+        type: SUMMARY_PART_DONE,
+        ["item_id"]: itemId,
+        ...(outputIndex === undefined ? {} : { ["output_index"]: outputIndex }),
+        ["summary_index"]: 0,
+      },
+      summaryType: SUMMARY_PART_DONE,
+    };
+  }
+  return undefined;
+}
+
+/** Rewrite one SSE frame from the raw-reasoning spelling onto the summary spelling; `undefined` keeps
+ *  the frame as-is. CR line endings are read with the CR; a frame whose data line is replaced is
+ *  rewritten with the canonical `data: ` spacing, which every conformant parser (the SDK included) reads. */
 function rewriteFrame(frame: string): string | undefined {
-  const dataLine = frame.split("\n").find((line) => line.startsWith(DATA_PREFIX));
+  const lines = frame.split("\n");
+  const dataIndex = lines.findIndex((line) => line.startsWith(DATA_PREFIX));
+  if (dataIndex === -1) {
+    return undefined;
+  }
+  // Multi-line `data:` accumulation is a frame we do not name: rewriting only the first line would
+  // corrupt it, so it rides untouched.
+  if (lines.some((line, index) => index !== dataIndex && line.startsWith(DATA_PREFIX))) {
+    return undefined;
+  }
+  const dataLine = lines[dataIndex];
   if (dataLine === undefined) {
     return undefined;
   }
-  const data = parseData(dataLine);
+  const data = parseJsonText(dataLine.slice(DATA_PREFIX.length).trim());
   if (typeof data !== "object" || data === null || Array.isArray(data)) {
     return undefined;
   }
-  const record = data as Record<string, JsonValue>;
-  const type = record["type"];
-  const itemId = typeof record["item_id"] === "string" ? record["item_id"] : undefined;
-  const outputIndex = typeof record["output_index"] === "number" ? record["output_index"] : undefined;
-  if (type === DELTA && itemId !== undefined && typeof record["delta"] === "string") {
-    return refold(frame, { ...record, type: SUMMARY_DELTA, ["summary_index"]: 0 }, SUMMARY_DELTA);
+  const fold = foldOf(data);
+  if (fold === undefined) {
+    return undefined;
   }
-  if (type === DONE && itemId !== undefined) {
-    const payload: Record<string, JsonValue> = {
-      type: SUMMARY_PART_DONE,
-      ["item_id"]: itemId,
-      ...(outputIndex === undefined ? {} : { ["output_index"]: outputIndex }),
-      ["summary_index"]: 0,
-    };
-    return refold(frame, payload, SUMMARY_PART_DONE);
+  return lines.map((line) => refoldLine(line, fold)).join("\n");
+}
+
+/** One line of a folded frame: the `data:`/`event:` lines point at the rewritten payload, every other
+ *  line (and CR, on CRLF streams) rides. */
+function refoldLine(line: string, fold: Fold): string {
+  if (line.startsWith(DATA_PREFIX)) {
+    return `${DATA_PREFIX} ${JSON.stringify(fold.payload)}`;
   }
-  return undefined;
+  if (line.startsWith(EVENT_PREFIX)) {
+    return `${EVENT_PREFIX} ${fold.summaryType}`;
+  }
+  return line;
 }
 
 /** The reply translator for a `features.responsesReasoningStream: "text"` row: SSE frames are rewritten
@@ -90,13 +128,18 @@ export function responsesReasoningTextStream(res: Response): Promise<Response> {
     new TransformStream<Uint8Array, Uint8Array>({
       transform(chunk, controller) {
         pending += decoder.decode(chunk, { stream: true });
-        let cut = pending.indexOf(FRAME_SEP);
-        while (cut !== -1) {
-          const frame = pending.slice(0, cut);
-          pending = pending.slice(cut + FRAME_SEP.length);
+        let boundary = boundaryOf(pending);
+        while (boundary !== undefined) {
+          const frame = pending.slice(0, boundary.index);
+          const rest = pending.slice(boundary.index + boundary.separator.length);
           const rewritten = rewriteFrame(frame);
-          controller.enqueue(encoder.encode(`${rewritten ?? frame}${FRAME_SEP}`));
-          cut = pending.indexOf(FRAME_SEP);
+          controller.enqueue(encoder.encode(`${rewritten ?? frame}${boundary.separator}`));
+          pending = rest;
+          boundary = boundaryOf(pending);
+        }
+        if (pending.length > PENDING_CAP_BYTES) {
+          controller.enqueue(encoder.encode(pending));
+          pending = "";
         }
       },
       flush(controller) {

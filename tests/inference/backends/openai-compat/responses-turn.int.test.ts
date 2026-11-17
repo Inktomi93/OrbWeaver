@@ -242,6 +242,24 @@ test("the row's raw-reasoning dialect folds onto reasoning deltas; without the f
   const dropped = await send({ declaredFeatures: { responsesReasoningStream: "summary" } }, { fetch: rawFetch });
   expect(dropped.turn.reasoning).toBe("");
   expect(dropped.turn.reply).toBe("391");
+
+  // The SSE spec makes the post-`data:` space OPTIONAL and both line endings LEGAL (WHATWG §9.2.5/§9.2.6):
+  // a conformant vendor or a rewriting proxy may send either, and reasoning must survive both. The
+  // measured DeepSeek form is LF with spaces — these arms cover the rest of the legal dialect surface.
+  for (const [spelling, render] of [
+    ["no-space data lines", (f: { type: string }): string => `event: ${f.type}\ndata:${JSON.stringify(f)}\n\n`],
+    ["CRLF lines", (f: { type: string }): string => `event: ${f.type}\r\ndata: ${JSON.stringify(f)}\r\n\r\n`],
+  ] as const) {
+    const variant = await send(
+      { declaredFeatures: {} },
+      {
+        fetch: () => Promise.resolve(new Response(frames.map((f) => render(f)).join(""), { status: 200, headers: { "content-type": "text/event-stream" } })),
+        params: { effort: "medium" } satisfies UserIntent,
+      },
+    );
+    expect(variant.turn.reasoning, `reasoning lost on the ${spelling} spelling`).toBe("Thinking hard.");
+    expect(variant.turn.reply, `reply lost on the ${spelling} spelling`).toBe("391");
+  }
 });
 
 // The `/responses` protocol models no forced continuation (a trailing assistant input item reads
@@ -251,4 +269,16 @@ test("a continue seed drops loudly on this route — there is no continuation to
   const sent = await send({}, { prefillReasoning: "(I answer in Spanish: azul.)" });
   expect(JSON.stringify(sent.body["input"])).not.toContain("azul");
   expect(sent.events).toContainEqual(expect.objectContaining({ kind: "warning", code: WARNING_CODE.prefillReasoningDropped }));
+});
+
+// The row's `extras` merge and `includeBody`/`excludeBody` are shape-agnostic body rules — they carried on
+// the chat wire since §8.1 and now carry here too; only the chat shaper's chat-specific rules stay behind.
+test("the row's extras and includeBody/excludeBody ride the Responses body — excludeBody has the last word", async () => {
+  const sent = await send(
+    { extras: { vendorFlag: true }, transport: { includeBody: { store: true }, excludeBody: ["temperature"] } },
+    { params: { temperature: 0.5 } },
+  );
+  expect(sent.body["vendorFlag"], "extras merged into the Responses body").toBe(true);
+  expect(sent.body["store"], "includeBody overrode the SDK's store:false").toBe(true);
+  expect(sent.body["temperature"], "excludeBody removed the modelled sampler").toBeUndefined();
 });

@@ -430,6 +430,14 @@ export function userOwnedKeys(args: ShapeArgs): ReadonlySet<string> {
   return owned;
 }
 
+/** The two row-body rules that carry on EVERY OpenAI-shaped route: the admitted `extras` merge and the
+ *  endpoint's final word through `includeBody`/`excludeBody`. The chat shaper layers its chat-body rules
+ *  (rows, prefill, cache markers) on top of these two; the `/responses` route runs THESE and only these —
+ *  its body shape belongs to the SDK, and a chat-shaped rule would corrupt it. */
+export function applyRowExtras(raw: Record<string, unknown>, args: ShapeArgs): Record<string, unknown> {
+  return applyIncludeExclude(mergeExtras(raw, args), args.transport?.includeBody ?? null, args.transport?.excludeBody ?? null);
+}
+
 /** The whole shaper, in rule order. Pure: returns a new object, never mutates the SDK's argument. */
 export function shapeOutboundBody(raw: Record<string, unknown>, args: ShapeArgs): Record<string, unknown> {
   const owned = userOwnedKeys(args);

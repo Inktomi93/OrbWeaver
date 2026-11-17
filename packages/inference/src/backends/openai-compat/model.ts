@@ -21,7 +21,7 @@ import { authHeaders, onBaseOrigin, openAiPath } from "../http/fetch-json.ts";
 import { cachePolicyContextOf, effectiveDialectOf, responseCacheHeaders } from "../http/response-cache.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";
 import { wrapFetch } from "../v4/fetch.ts";
-import { shapeOutboundBody, userOwnedKeys } from "./body.ts";
+import { applyRowExtras, shapeOutboundBody, userOwnedKeys } from "./body.ts";
 import { fromOllamaChat, ollamaNativeFetch, toOllamaChat } from "./ollama-native.ts";
 import { responsesReasoningTextStream } from "./responses-dialect.ts";
 import { samplerBodyKeys } from "./sampling.ts";
@@ -235,18 +235,19 @@ function openRouterProvider(call: ModelCall, responseReplaySupported: boolean): 
  *  catalog model that spelled its own is never touched, and the capture sees the final bytes. */
 export function responsesModelFor(call: ModelCall, reasoningEffort: EffortLevel | undefined): LanguageModelV4 {
   const reasoningText = call.connection.features.responsesReasoningStream === "text";
+  const args = shapeArgs(call, "openai-compatible");
+  // The shape-agnostic row-body rules (`extras`, `includeBody`/`excludeBody`) carry on this route too —
+  // everything else in `shapeOutboundBody` is chat-body shaped and would corrupt a Responses body.
+  const shapeBody = (body: Record<string, unknown>): Record<string, unknown> => {
+    const shaped = applyRowExtras({ ...body, ...(call.extraBody ?? {}) }, args);
+    return reasoningEffort === undefined || shaped["reasoning"] !== undefined ? shaped : { ...shaped, reasoning: { effort: reasoningEffort } };
+  };
   return createOpenAI({
     baseURL: openAiPath(baseUrlOf(call), ""),
     apiKey: call.connection.credential.secret ?? "",
     headers: authHeaders(call.connection.credential.secret, call.connection.transport?.headers),
     fetch: wrapFetch({
-      ...fetchArgs(call, undefined),
-      ...(reasoningEffort === undefined
-        ? {}
-        : {
-            shapeBody: (body: Record<string, unknown>): Record<string, unknown> =>
-              body["reasoning"] === undefined ? { ...body, reasoning: { effort: reasoningEffort } } : body,
-          }),
+      ...fetchArgs(call, shapeBody),
       // The raw-reasoning dialect is rewritten onto the SDK's summary spelling BEFORE the SDK parses it
       // (`responses-dialect.ts`); the capture keeps the bytes the server actually sent.
       ...(reasoningText ? { translateResponse: responsesReasoningTextStream } : {}),
