@@ -2,7 +2,7 @@
 // OpenRouter-only plain-fetch surfaces (`accountCredits` → `GET /credits`, `generationCost` → `GET
 // /generation?id=`, and the enriched `listModels` → `GET /models`), the `/v1/models` list for every other row,
 // and the "Test endpoint" INSPECTOR — one 1-token chat call on the route chat uses, the redacted request + raw
-// (scrubbed, over-read-then-cut, #1820) response back, never a throw.
+// (scrubbed, over-read-then-cut) response back, never a throw.
 
 import type { CredentialHealth } from "@orb/contracts/credentials";
 import type { ModelCatalogEntry, ModelListing } from "@orb/contracts/inference";
@@ -196,7 +196,7 @@ export async function listOpenAiCompatModels(req: ListModelsRequest, deps: Diagn
 // ── the inspector ─────────────────────────────────────────────────────────────────────────────────────────
 
 /** Read at most `BODY_PREVIEW_LIMIT + overhang` UTF-16 code units and cancel the rest — the over-read lets
- *  the by-value scrub see a credential the endpoint reflected ACROSS the cut (#1820), one unit throughout. */
+ *  the by-value scrub see a credential the endpoint reflected ACROSS the cut, one unit throughout. */
 async function readBodyPreview(res: Response, overhang: number): Promise<string> {
   if (res.body === null) {
     return "";

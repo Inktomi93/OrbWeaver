@@ -64,7 +64,7 @@ export function secretHeaderValues(headers: Readonly<Record<string, string>> | n
  * scrubbed even when short. A custom auth header defines the value's secret semantics — collision-driven
  * over-redaction is safer than leakage.
  *
- * ORDER IS LOAD-BEARING (#1785): the by-value belt runs FIRST, on intact text. The shape sweep's token class
+ * ORDER IS LOAD-BEARING: the by-value belt runs FIRST, on intact text. The shape sweep's token class
  * stops at a `\`, so on an ESCAPED credential inside a `Bearer …` frame it used to bite the literal in half
  * (masking `Bearer byo`, leaving the rest of the key standing) — and with the literal now fragmented, both
  * spellings were absent and nothing else could catch it. Running the primary belt first cannot be undone by
@@ -82,7 +82,7 @@ export function redactSecretsFromText(text: string, secrets: readonly string[]):
 
 /**
  * How far PAST a display cut a truncating reader must read before it may hand the bytes to
- * {@link redactSecretsFromText} (#1820).
+ * {@link redactSecretsFromText}.
  *
  * A reader that truncates FIRST and scrubs SECOND cannot be saved by any later belt: a secret straddling
  * the cut is only half present, so neither of its spellings matches, and the surviving PREFIX is real key

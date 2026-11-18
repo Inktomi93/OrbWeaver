@@ -1,10 +1,10 @@
 // The text-embed task on the openai-compat wire — an `EmbeddingModelV4.doEmbed` per POST, with the measured
 // controls the vLLM surface paid for kept as CODE keyed off the resolved capability:
-//   • THE WINDOW GUARD IS CLIENT-SIDE (#165): every input is clamped to `capability.embedding.maxInputTokens`
+//   • THE WINDOW GUARD IS CLIENT-SIDE: every input is clamped to `capability.embedding.maxInputTokens`
 //     (discounted by `safeTokenWindow` — the estimate's error is proportional) and the engine is asked for
 //     NOTHING; a `truncate_prompt_tokens` knob converts an over-window input into an unbounded hang. A clamp
 //     is LOGGED — a silently shortened embed quietly changes what a vector means.
-//   • THE TRANSPORT BATCH IS BOUNDED BY TOKENS AS WELL AS ITEMS (#187): `features.embedBatch.maxTokens` caps
+//   • THE TRANSPORT BATCH IS BOUNDED BY TOKENS AS WELL AS ITEMS: `features.embedBatch.maxTokens` caps
 //     a POST; the deadline scales with the tokens it carries at `floorTokensPerSec`. A model's own
 //     `maxBatchInputs` caps the item count below the wire's.
 //   • the `dimensions` REJECTION fallback: a pooling combo that 400s on the MRL knob is re-asked without it and

@@ -4,7 +4,7 @@
 // `index` is into the SENT slice, mapped back to the CALLER's stable ids. Multimodal sides (a query/document
 // image) ride the ScoreMultiModalParam content array when the capability says `input ∋ image`.
 //
-// THE WINDOW GUARD IS CLIENT-SIDE (#173): the text sides are clamped to `capability.rerank.maxInputTokens`
+// THE WINDOW GUARD IS CLIENT-SIDE: the text sides are clamped to `capability.rerank.maxInputTokens`
 // (query to at most half, each document to what the query left) and the engine is asked for NOTHING — the
 // `truncate_prompt_tokens` knob turned an over-window pair from a fast 400 into an unbounded hang. A clamp is
 // legitimate on a SCORING pass (nothing persisted) and is LOGGED.
