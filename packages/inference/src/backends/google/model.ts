@@ -7,7 +7,7 @@
 // the response parts emit `providerMetadata` ONLY under those names (`wrapProviderMetadata`, :1687,:1893).
 // A name containing "vertex" therefore re-keys the bag off `google` and silently zeroes its readers — the
 // thought-signature replay keys `providerMetadata.google` in
-// `packages/inference/src/backends/v4/stream.ts:147,:186`.
+// `packages/inference/src/backends/v4/stream.ts:112,:154`.
 
 import type { GoogleProvider } from "@ai-sdk/google";
 import { createGoogle } from "@ai-sdk/google";
