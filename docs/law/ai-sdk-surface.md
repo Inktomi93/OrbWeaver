@@ -170,9 +170,9 @@ A code comment names the FACT the trap rests on — the behaviour in present ten
 function, string literal or field name a re-measurer searches for), and the provenance stamp `@pkg@version`.
 NO line numbers into dist files: a shipped `index.js` reflows on every patch release, and a drifted line number is
 a worse cite than none — false precision nobody re-verifies mid-task. The line-number inventory lives HERE and in
-plan docs, where the standing re-mine-at-bump rule already refreshes it. Bad: "`dist/index.js:4786-4797` carries
-the span". Good: "the `url_citation` annotation builder defaults missing spans to 0
-(`@openrouter/ai-sdk-provider@3.1.0`)".
+plan docs, where the standing re-mine-at-bump rule already refreshes it. Bad: a line range pointing into the
+provider's shipped bundle, quoted as if it were a fact. Good: "the `url_citation` annotation builder defaults
+missing spans to 0 (`@openrouter/ai-sdk-provider@3.1.0`)".
 
 ## Rulings on the open questions
 
