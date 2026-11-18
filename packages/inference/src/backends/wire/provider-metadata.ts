@@ -1,5 +1,5 @@
 // THE ONE NARROWING SEAM between a vendor SDK's per-provider metadata bag and the closed sidecar the record
-// stores (`VariantProviderMetadata`, §5.3c class 3 — "a parsed JSON sidecar with a zod schema at the read seam
+// stores (`VariantProviderMetadata` — "a parsed JSON sidecar with a zod schema at the read seam
 // AND a producer-side parse on write"). This file is the producer-side half: every backend that finishes a
 // `ChatResult` narrows here, so the SDK's `Record<string, unknown>` never crosses the package boundary and a
 // reader downstream (the OpenRouter cost pill) names a typed field or does not compile.
@@ -8,7 +8,7 @@
 // the bag: an arm carries ONLY what the normalized core cannot. Cache read/write totals, the `gen-…` handle
 // and the turn cost are `message_variants` COLUMNS — putting them here too would be two homes for one number.
 //
-// WHAT EACH VENDOR SPELLS (source-pinned against the installed SDKs, 2026-11-17):
+// WHAT EACH VENDOR SPELLS (source-pinned against the installed SDKs):
 //   • openrouter → `providerMetadata.openrouter = { provider, reasoning_details?, usage: OpenRouterUsageAccounting }`
 //     (`@openrouter/ai-sdk-provider@3.1.0` dist `index.d.ts:686-692`, the usage type at `:572`). Its `provider` is
 //     the UPSTREAM vendor name, which collides by spelling with our discriminator — hence the explicit
@@ -115,7 +115,7 @@ function anthropicArm(bag: unknown): VariantProviderMetadata | undefined {
 
 /** The plugin arm is the one shape this file cannot CONSTRUCT and have `tsc` check: both halves are runtime
  *  data (an unenumerable id, an unknown payload). So it is PARSED through the contract's own schema — the
- *  producer-side parse §5.3c class 3 names — which validates the `plugin:<ns>/<id>` pattern and the payload's
+ *  producer-side parse the header names — which validates the `plugin:<ns>/<id>` pattern and the payload's
  *  JSON-ness in one step and yields a value already inside the union. The caller's `isPluginProviderId` guard
  *  stays: without it a named id would parse as its own (empty) arm and record provenance about nothing. */
 function pluginArm(providerId: string, bag: unknown): VariantProviderMetadata | undefined {

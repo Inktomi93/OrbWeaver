@@ -5,7 +5,7 @@
 // the both-spellings rule).
 //
 // The SDK writes the sampler and `tools`/`tool_choice`/`response_format` fields now; `backends/openai-compat/body.ts`
-// edits the converted object afterwards (§8.1).
+// edits the converted object afterwards.
 
 import { redactKnownSecrets, secretRedactionLiterals, secretSafeRedactionMarker } from "@orb/kit/secret-redaction";
 

@@ -1,6 +1,6 @@
-// backends/wire/image-normalize — the wire-normalize seam for outbound image INPUT bytes
-// (MA-6). A hosted vision/embed/edit turn base64-labels raw card bytes into a `data:` URL; a GIF sent
-// as-is is (a) mislabeled (the runners assumed png regardless of format) and (b) an animated multi-frame
+// backends/wire/image-normalize — the wire-normalize seam for outbound image INPUT bytes.
+// A hosted vision/embed/edit turn base64-labels raw card bytes into a `data:` URL; a GIF sent
+// as-is is (a) mislabeled (the wire is told `png` regardless of format) and (b) an animated multi-frame
 // blob most hosted decoders reject or mis-read. This op decodes a GIF to a SINGLE first-frame PNG (via an
 // INJECTED sharp transform — the seam that keeps `infra/image` from leaking into a sealed backend) and
 // passes recognized static formats through with their sniffed MIME. GIF and unknown bytes are decoded to
@@ -38,7 +38,7 @@ export function createImageNormalizer(toPng: ImageToPng): NormalizeImageBytes {
 export const passthroughImageNormalizer: NormalizeImageBytes = (bytes) => Promise.resolve({ bytes, mediaType: PNG_MIME });
 
 /** One image input → a URL a hosted wire accepts: a string passes through (URL / data-URL); raw bytes are
- *  wire-normalized (GIF → first-frame PNG — MA-6) then base64 data-URL-encoded with the normalized mime. */
+ *  wire-normalized (GIF → first-frame PNG) then base64 data-URL-encoded with the normalized mime. */
 export async function toImageUrl(image: ImageInput, normalize: NormalizeImageBytes): Promise<string> {
   if (typeof image === "string") {
     return image;

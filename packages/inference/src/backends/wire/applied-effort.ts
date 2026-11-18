@@ -1,4 +1,4 @@
-// The APPLIED-effort read (inference audit B1): each hosted wire reads the effort word back off the OPTIONS it
+// The APPLIED-effort read: each hosted wire reads the effort word back off the OPTIONS it
 // built — the anthropic `providerOptions.anthropic.effort` / `thinking.type`, the openai-compatible V4
 // `reasoning`, the openrouter `providerOptions.openrouter.reasoning.effort` — and narrows it onto the preset's
 // 7-member tuple (the `reasoning_effort` column's CHECK). Reading the built options rather than recomputing from

@@ -3,7 +3,7 @@
 // assistant rows, and any caller that needs the row's prose alone — cache measurement, emptiness checks).
 //
 // The SDK converter owns media now: `backends/v4/prompt.ts` emits `file` parts, and `openai-compat/body.ts`
-// re-attaches the assistant image afterwards (§6.7/§8.0).
+// re-attaches the assistant image afterwards.
 import type { ChatContentPart } from "@orb/contracts/chat";
 
 export function chatHistoryText(content: readonly ChatContentPart[]): string {
