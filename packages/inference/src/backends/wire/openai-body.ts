@@ -4,9 +4,8 @@
 // wire capture and the "Test endpoint" inspector scrub SERIALIZED bodies (`@orb/kit/secret-redaction` owns
 // the both-spellings rule).
 //
-// The hand-rolled RAW builders that used to live here — the sampler slice and the `tools`/`tool_choice`/
-// `response_format` spellings — were deleted 2026-09-20 with their last consumers: the SDK writes those
-// fields now, and `backends/openai-compat/body.ts` edits the converted object afterwards (§8.1).
+// The SDK writes the sampler and `tools`/`tool_choice`/`response_format` fields now; `backends/openai-compat/body.ts`
+// edits the converted object afterwards (§8.1).
 
 import { redactKnownSecrets, secretRedactionLiterals, secretSafeRedactionMarker } from "@orb/kit/secret-redaction";
 
@@ -58,7 +57,7 @@ export function secretHeaderValues(headers: Readonly<Record<string, string>> | n
  * header value) straight back into the body, so the raw body is a secret sink.
  *
  * PRIMARY guarantee: every known secret LITERAL in `secrets` is replaced by value — in its raw AND its
- * JSON-escaped spelling, since most callers hand this a SERIALIZED document (`#primitives/secret-redaction` owns
+ * JSON-escaped spelling, since most callers hand this a SERIALIZED document (`@orb/kit/secret-redaction` owns
  * that rule) — so an endpoint cannot leak a secret we scrubbed by its exact value, regardless of framing.
  * DEFENSE-IN-DEPTH: `Bearer …` and `sk-…`-shaped substrings are also masked in case the token is
  * re-encoded/reshaped on the way back. Empty values are skipped; every non-empty configured credential is
@@ -111,8 +110,8 @@ export function secretScrubOverhang(secrets: readonly string[]): number {
 /**
  * Apply a user's per-endpoint body transforms: merge `includeBody` over the base (user wins), then strip
  * `excludeBody` keys (applied LAST so a user can remove a field the endpoint rejects even if `includeBody`
- * re-added it). Shallow by design (matches ST's flat merge). Rebuilds the object rather than `delete`-ing
- * (delete is banned + deopts the shape).
+ * re-added it). Shallow by design. Rebuilds the object rather than `delete`-ing (delete is banned + deopts
+ * the shape).
  */
 export function applyIncludeExclude(
   base: Readonly<Record<string, unknown>>,

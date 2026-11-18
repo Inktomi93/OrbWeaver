@@ -57,9 +57,9 @@ export function preservesCacheBlockEnds(
 }
 
 // A caller-supplied routing always wins; otherwise pin Anthropic (order + NO fallbacks) so cache_control is
-// honored. `order` ALONE does not pin: `allow_fallbacks` defaults TRUE, and a probe caught a turn walking
+// honored. `order` ALONE does not pin: `allow_fallbacks` defaults TRUE, and a turn can walk
 // Anthropic → Bedrock → Azure → Google — every hop a non-Anthropic endpoint that ignores `cache_control`
-// and re-bills the whole prefix (findings §2). This arm runs only when the user supplied NO routing, so it
+// and re-bills the whole prefix. This arm runs only when the user supplied NO routing, so it
 // can never override a user's own fallback choice; the MODEL-level chain is the orthogonal `models[]` axis
 // (`resolveFallbackModels`, which reads that same user routing) and is unaffected.
 export function effectiveProviderRouting<T extends OpenRouterRouting>(
@@ -73,33 +73,31 @@ export function effectiveProviderRouting<T extends OpenRouterRouting>(
 }
 
 // ── The breakpoint DEPTH axis ────────────────────────────────────────────────────────────────────────────
-// The depth a runner is handed is CONVERSATIONAL, and it is counted in ROLE SWITCHES from the end — not in
-// raw wire-array offsets (findings §5). Two facts force that unit:
+// The depth a runner is handed is CONVERSATIONAL, counted in ROLE SWITCHES from the end — never in raw
+// wire-array offsets. Two facts force that unit:
 //
-//  1. The producer counts conversation. `chat/assembly/shape.ts:computeHistoryBreakpoint` derives the depth
-//     over the delivered history with THIS file's counter (`cacheDepthCovering`) — a `tool` row cannot exist
-//     there.
+//  1. The producer counts conversation. `packages/server/src/domain/chat/assembly/shape.ts`'s
+//     `computeHistoryBreakpoint` derives the depth over the delivered history with THIS file's counter
+//     (`cacheDepthCovering`) — a `tool` row cannot exist there.
 //  2. The wire array does not. Every `tool` row (and the assistant row carrying its calls) is appended AFTER
-//     assembly by `chat/engine/pipeline.ts:runRecurseLoop`, which re-sends the SAME depth it was given. One
-//     recursion depth of N parallel calls adds N+1 array rows but only TWO role groups — so an array-offset
-//     placer slides forward by a number nobody upstream can predict, landing the breakpoint on bytes
-//     GENERATED THIS TURN. Measured: still a cache READ (Anthropic's lookback finds the older entry) but a
-//     wasted cache WRITE per depth, sized by the tool exchange (the OpenRouter probe, OR-5).
+//     assembly by `packages/server/src/domain/chat/engine/pipeline.ts`'s `runRecurseLoop`, which re-sends the
+//     SAME depth it was given. One recursion depth of N parallel calls adds N+1 array rows but only TWO role
+//     groups — so an array-offset placer slides forward by a number nobody upstream can predict, landing the
+//     breakpoint on bytes GENERATED THIS TURN. Measured: still a cache READ (Anthropic's lookback finds the
+//     older entry) but a wasted cache WRITE per depth, sized by the tool exchange.
 //
 // So a within-turn tool exchange is TRANSPARENT to depth: it did not exist when the depth was computed, and
-// counting it is the whole defect. This is a DELIBERATE deviation from SillyTavern's
-// `cachingAtDepthForOpenRouterClaude` (`prompt-converters.js`), which has no tool rows in that flow and so
-// never had this decision to make; the ST reference is a floor, not a golden.
+// counting it is the whole defect.
 //
-// System rows DO consume no depth (ST parity, and a system injection is not a conversational turn); SHAPE counts
-// with the same rule, so a system row it delivers moves neither number.
+// A system row consumes no depth: a system injection is not a conversational turn. SHAPE counts with the same
+// rule, so a system row it delivers moves neither number.
 //
-// ST's PREFILL skip is deliberately NOT adopted. ST anchors depth 0 on the last real conversational message;
-// OUR depth 0 is the volatile tail whatever its role, because that is what `computeHistoryBreakpoint` counts
+// Depth 0 is the volatile tail whatever its role, because that is what `computeHistoryBreakpoint` counts
 // (`stableCount = withTail.length - 1` — the tail is index 0 even when it is an `assistantPrefill` row).
-// Re-anchoring here would shift every depth by one group against its own producer. The prefill is never a
-// target anyway: `computeHistoryBreakpoint` returns `undefined` below depth 1, and the admin depth floor and
-// the connection's `promptCache.historyDepth` can only raise the depth, so the placer is never asked for depth 0.
+// Re-anchoring it on the last real conversational message would shift every depth by one group against its
+// own producer. The prefill is never a target anyway: `computeHistoryBreakpoint` returns `undefined` below
+// depth 1, and the admin depth floor and the connection's `promptCache.historyDepth` can only raise the
+// depth, so the placer is never asked for depth 0.
 
 /** One delivered wire row as the breakpoint placer sees it. */
 interface CacheBreakpointRow {

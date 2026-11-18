@@ -1,4 +1,4 @@
-// infra/providers/backends/wire/image-normalize — the wire-normalize seam for outbound image INPUT bytes
+// backends/wire/image-normalize — the wire-normalize seam for outbound image INPUT bytes
 // (MA-6). A hosted vision/embed/edit turn base64-labels raw card bytes into a `data:` URL; a GIF sent
 // as-is is (a) mislabeled (the runners assumed png regardless of format) and (b) an animated multi-frame
 // blob most hosted decoders reject or mis-read. This op decodes a GIF to a SINGLE first-frame PNG (via an
