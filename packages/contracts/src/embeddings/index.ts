@@ -20,7 +20,7 @@ export type ImageLens = (typeof IMAGE_LENSES)[number];
 export const imageLensSchema = z.enum(IMAGE_LENSES) satisfies z.ZodType<ImageLens>;
 
 /** Why the image indexer REFUSED to caption+embed an asset — a durable, attributable skip-record (the
- *  `image_index_skips.reason` column derives this tuple, as `lens` does IMAGE_LENSES). Promoted here so
+ *  `image_index_skips.reason` column derives this tuple, as `lens` does IMAGE_LENSES). Homed here so
  *  `@orb/db` can build the column's `{ enum }` + CHECK without importing a server-tier `domain/<x>/contract/`.
  *
  *  `below-dimension-floor` is the admission floor: an asset whose header-parsed shorter edge is under the
@@ -35,7 +35,7 @@ export const IMAGE_SKIP_REASONS = ["below-dimension-floor"] as const;
 export type ImageSkipReason = (typeof IMAGE_SKIP_REASONS)[number];
 
 /** The four INDEPENDENTLY-SWEPT halves of an owner's vector corpus — the granularity at which "the reindex
- *  finished" is a true statement (inference program §10-5, `readGeneration`).
+ *  finished" is a true statement (`readGeneration`).
  *
  *  It is four and not two because a `(model[@dtype])` space change fires FOUR separate sweeps, each with its
  *  own workload, its own abort and its own failure mode: `cards` (`embeddings.embedCorpus`), `memory` (chat's
@@ -45,7 +45,7 @@ export type ImageSkipReason = (typeof IMAGE_SKIP_REASONS)[number];
  *  the old geometry. `embed_space_state` therefore keys one row per `(owner, scope)` and
  *  {@link VECTOR_SCOPES_BY_TASK} folds them back up.
  *
- *  Promoted here — not into a server-tier `contract/` — for the D34 reason `IMAGE_LENSES` is here:
+ *  It homes here — not in a server-tier `contract/` — for the D34 reason `IMAGE_LENSES` does:
  *  `@orb/db` derives the `embed_space_state.scope` `{ enum }` + CHECK from this tuple and cannot import a
  *  domain. A fifth vector surface is a tsc error at {@link VECTOR_SCOPES_BY_TASK} until it names its task. */
 export const VECTOR_SCOPES = ["cards", "memory", "documents", "images"] as const;
@@ -74,13 +74,12 @@ export const VECTOR_SCOPES_BY_TASK: Readonly<Record<EmbeddingTask, readonly Vect
 // The enums are also the guided-decode grammar (`projectJsonSchema` → `responseFormat`), so the model is
 // CONSTRAINED to the vocabulary rather than trusted to stay inside it.
 //
-// PROVENANCE: before this module existed, both write sites stored
-// `{ model: <summarizerModel> }` and NOTHING else, while the reader declared fourteen facet paths. The
-// tally therefore returned every array empty on a 101-image corpus, and `visualArchetypes` — whose label
-// prefers `artStyle · mood` — fell through to its `tone genre` arm and labelled PORTRAIT-embedding clusters
-// with CARD-TEXT genre/tone. Three of eight families rendered the identical "wholesome slice-of-life".
-// The layer that was missing was never the looking (the captions are specific and correct); it was the
-// structured breakdown. Do not re-introduce a caption-only write path.
+// WHY THE BREAKDOWN, NOT THE CAPTION ALONE. A caption-only write leaves the facet readers nothing to
+// tally (`image-analytics/facets.ts`), no signal to label visual families from (`image-analytics/retrieve.ts`),
+// and nothing for `charactersByImageFacet` to drill. `visualArchetypes` — whose label prefers `artStyle · mood`
+// — then falls through to its `tone genre` arm and labels PORTRAIT-embedding clusters with CARD-TEXT
+// genre/tone. The layer that is missing is never the looking (the captions are specific and correct); it is
+// the structured breakdown. Never write a caption-only path.
 
 // Whether a facet is a single value (`json_extract` equality) or a set (`json_each` membership). Discovery's
 //  drill derives its per-facet SQL from this split, so a new facet without a nature is a tsc error there.
@@ -200,8 +199,8 @@ export const imageBreakdownSchema = z
   })
   .strip();
 
-/** A stored `caption_meta` blob, read back from a column that outlives any one build: `model` has always been
- *  there, every facet is OPTIONAL because the backfill boundary means older rows carry none, and
+/** A stored `caption_meta` blob, read back from a column that outlives any one build: `model` is present on
+ *  every stored row, every facet is OPTIONAL so a row written without one still parses, and
  *  unknown keys pass through (a future facet must not poison an old reader). */
 export const imageCaptionMetaSchema = imageBreakdownSchema.omit({ caption: true }).partial().extend({ model: z.string().optional() }).loose();
 /** Canonical reader fields; parsing still preserves unknown stored keys without exposing them as application fields. */
@@ -233,8 +232,8 @@ export interface WriteHubScoresResult {
 /** The discovery → embeddings seam: takes pre-computed scores. */
 export type WriteHubScoresOp = (params: WriteHubScoresParams) => Promise<WriteHubScoresResult>;
 
-// ── The `index` workload's terminal result (the workloads junk-drawer exit: a workload's result shape is
-//    domain↔domain wire, authored by the OWNING domain — embeddings owns the ONE vector write path). ──
+// ── The `index` workload's terminal result: a workload's result shape is domain↔domain wire, authored by
+//    the OWNING domain — embeddings owns the ONE vector write path. ──
 
 /** An embed pass's counts. `skipped` = rows already embedded in the active space (the resumable-by-skip
  *  arm a non-`force` run takes). `failedAssets` names each image whose stored file was gone; absent when none. */
