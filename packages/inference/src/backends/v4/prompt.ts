@@ -1,8 +1,8 @@
 // The assembled history → the Vercel V4 prompt the two hosted wires share (`openai-compat` + `anthropic-messages`
 // hand the SDK the SAME `LanguageModelV4Prompt`; only the per-message `providerOptions` key differs). What the
-// SDK converters DROP, and this file therefore RECORDS for the post-convert hooks (§8.0, verify4 H1) — shared by BOTH hosted wires, so it lives in `backends/v4/`, the hosted-wire kit beside `kit/`:
+// SDK converters DROP, and this file therefore RECORDS for the post-convert hooks — shared by BOTH hosted wires, so it lives in `backends/v4/`, the hosted-wire kit beside `kit/`:
 //   • an ASSISTANT `file` part — both converters switch on `text | reasoning | tool-call` with no `file` arm, so
-//     a prior inline-reply image riding back (§6.7) is re-attached by `body.ts` from `WirePlan.assistantMedia`;
+//     a prior inline-reply image riding back is re-attached by `body.ts` from `WirePlan.assistantMedia`;
 //   • the per-participant `name` — neither converter forwards it; `body.ts` writes it from `WirePlan.names`.
 // Both are keyed by the WIRE-ARRAY index, which this file derives from its own walk (a `tool` row fans out to
 // one wire message per `tool-result` part; every other row is 1:1; an empty row is DROPPED here, before the
@@ -29,7 +29,7 @@ const PROMPT_JOINER = "\n\n";
 const DATA_URL_RE = /^data:(?<mime>[^;,]+);base64,(?<data>.*)$/su;
 const IMAGE_MEDIA = "image";
 const VIDEO_MEDIA = "video";
-/** The two converters' own `providerOptions` keys for a replayed reasoning part (§A1). Spelled here rather
+/** The two converters' own `providerOptions` keys for a replayed reasoning part. Spelled here rather
  *  than imported from either transport: this file is the shared prompt builder and must not depend on a
  *  wire module (the dependency runs the other way). */
 const ANTHROPIC_OPTIONS_KEY = "anthropic";
@@ -66,7 +66,8 @@ function mediaOf(content: readonly ChatContentPart[]): OutboundMedia[] {
 function toolInput(raw: string): unknown {
   try {
     return JSON.parse(raw);
-    // malformed model-emitted arguments are replayed as the raw string in the tool-call `input` (`toolCallPart`), so the model's bytes reach the wire instead of the call being dropped. Ends if raw stops being sent.
+    // malformed model-emitted arguments replay as the raw string in the tool-call `input` (`toolCallPart`), so
+    // the model's bytes reach the wire instead of the call being dropped.
   } catch {
     return raw;
   }
