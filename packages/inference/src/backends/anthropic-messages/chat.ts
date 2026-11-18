@@ -218,7 +218,9 @@ function anthropicOptions(
     // knob below it (D311: a row with no custom body keeps an allowlist that excludes every modelled key).
     ...anthropicExtras(req.connection, warnings),
     ...(model.automaticCache === null ? {} : { cacheControl: { ...model.automaticCache.directive } }),
-    sendReasoning: true,
+    // `sendReasoning` is deliberately NOT spelled: the SDK defaults it to true (`@ai-sdk/anthropic` 4.0.85
+    // `dist/index.js:3713`), and the replayed-thinking cases in
+    // `tests/inference/backends/anthropic-messages/chat-wire.int.test.ts` go red if that default ever flips.
     thinking: withBlockBinding(thinkingOf(knobs.reasoning), knobs, generation),
     ...(effort !== undefined ? { effort } : {}),
     ...(plan.tools !== undefined && parallel === false ? { disableParallelToolUse: true } : {}),
