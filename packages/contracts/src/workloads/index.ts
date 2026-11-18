@@ -4,7 +4,7 @@
 //                       columns + CHECKs from (D34), the per-kind mode policy, and the admission-key
 //                       sentinel (the lock partition is a free-form KEY, not an axis — see below)
 //   • events.ts       — the lifecycle EVENT union + its failure shape: what the `workloads` room delivers on
-//                       the multiplexed socket (SSE-1 S5), which is why it is a wire contract and not a
+//                       the multiplexed socket, which is why it is a wire contract and not a
 //                       domain-internal one
 //   • params.ts       — the per-kind params schemas + `WorkloadParamsByKind` + the `start` wire input
 //   • result.ts       — the per-kind terminal result shapes + `WorkloadResultByKind`
