@@ -1,4 +1,4 @@
-// The `anthropic-messages` wire's sealed backend (§8.5): a first-party API key over `@ai-sdk/anthropic`.
+// The `anthropic-messages` wire's sealed backend: a first-party API key over `@ai-sdk/anthropic`.
 // Serves chat / summarize / structured + the credential probe and the model list (`GET /v1/models`). No
 // agent path (the Claude Code loop needs the runtime — the subscription wire's), no embeddings, no images.
 
@@ -74,8 +74,9 @@ export async function fetchAnthropicModels(dial: ModelsDial, fetchImpl: typeof f
 export async function listAnthropicModels(dial: ModelsDial, fetchImpl: typeof fetch): Promise<ModelListing> {
   try {
     return listingOf(await fetchAnthropicModels(dial, fetchImpl));
-    // the failure becomes `{ listed: false, reason }` through failedListing at anthropic-messages/index.ts:78, which the model pane reads; generation stays usable with an explicit model. Ends if callers require a successful catalog.
   } catch (err) {
+    // A catalog read failure is not a generation failure: the model pane reads `{ listed: false, reason }`,
+    // and an explicit model still runs.
     return failedListing(err, dial.secrets);
   }
 }
@@ -85,7 +86,6 @@ async function probe(req: DiagnosticRequestCommon, fetchImpl: typeof fetch, now:
   try {
     await fetchAnthropicModels(dialOf(req), fetchImpl);
     return { status: "ok", checkedAt };
-    // the probe returns the failure as `revoked` or `unreachable` health with a sanitized reason at anthropic-messages/index.ts:90. Ends if the returned health stops carrying that disposition.
   } catch (err) {
     const reason = sanitizeApiError(redactSecretsFromText(errorMessage(err), resolvedScrubSet(req.connection)));
     return AUTH_FAILURE_RE.test(reason) ? { status: "revoked", checkedAt, reason } : { status: "unreachable", checkedAt, reason };

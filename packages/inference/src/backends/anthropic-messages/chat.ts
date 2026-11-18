@@ -1,4 +1,4 @@
-// ONE chat turn on the anthropic-messages wire over the SDK's V4 `doStream` (§8.5). The converter is the
+// ONE chat turn on the anthropic-messages wire over the SDK's V4 `doStream`. The converter is the
 // SDK's: it hoists the leading system block(s), places `cacheControl` per message, forwards a mid-history
 // `system` row + its `clearAt` under the betas the curated row enabled, and merges same-role rows
 // (a no-op after our floor). Ours: the funnel, the prompt plan, the cache PLACEMENT (the one placer,
@@ -96,7 +96,7 @@ interface CacheWriteReceipt {
   readonly requestBlocks: number;
   readonly historyDepths: readonly number[];
   readonly systemBlocks: number;
-  /** The TOOL-LIST breakpoint (audit C4): 1 when a `cacheControl` rode the last tool, else 0. Counted in the
+  /** The TOOL-LIST breakpoint: 1 when a `cacheControl` rode the last tool, else 0. Counted in the
    *  receipt's `breakpointsPlaced` because a breakpoint nobody counts is a cache write nobody can audit —
    *  Anthropic's per-request breakpoint budget is small and the receipt is how an operator sees it spent. */
   readonly toolBlocks: number;
@@ -169,7 +169,7 @@ function raiseThinkingDrops(log: ProviderLogger, drain: StreamDrain, turnId: str
   }
 }
 
-/** THE TOOL-LIST CACHE BREAKPOINT (audit C4). The tool list is a large, stable prefix that changes far less
+/** THE TOOL-LIST CACHE BREAKPOINT. The tool list is a large, stable prefix that changes far less
  *  often than the history does, and Anthropic caches everything up to a breakpoint — so one `cacheControl` on
  *  the LAST tool caches the whole list. Placed only when the model's capability says explicit prompt caching
  *  is worth the write AND the connection has caching on; `undefined` leaves every tool's provider options
@@ -214,7 +214,7 @@ function anthropicOptions(
   }
   const parallel = req.params.advanced?.parallelToolCalls;
   const anthropic: JSONObject = {
-    // C2: the allowlisted `extras` slice FIRST, so nothing a connection declares can displace a modelled
+    // The allowlisted `extras` slice FIRST, so nothing a connection declares can displace a modelled
     // knob below it (D311: a row with no custom body keeps an allowlist that excludes every modelled key).
     ...anthropicExtras(req.connection, warnings),
     ...(model.automaticCache === null ? {} : { cacheControl: { ...model.automaticCache.directive } }),
@@ -233,7 +233,7 @@ function anthropicOptions(
   };
 }
 
-/** THE PREFILL BELT (§A2). The assembly already reshapes a trailing assistant row when the capability says
+/** THE PREFILL BELT. The assembly already reshapes a trailing assistant row when the capability says
  *  the model refuses prefill (`needsContinuation`), so this never fires on the normal path — it exists so a
  *  caller that BYPASSES the assembly cannot reach the upstream 400. MEASURED 2026-09-19: `claude-opus-5` and
  *  `claude-opus-4-6` reject a trailing assistant row with a 400 — "This model does not support assistant
@@ -253,7 +253,7 @@ function isJsonObject(value: unknown): value is JSONObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** B1: the effort THIS request carried, read off the OPTIONS the builder produced (never recomputed from the
+/** The effort THIS request carried, read off the OPTIONS the builder produced (never recomputed from the
  *  knobs): thinking spelled OFF (either off spelling) ⇒ `none`; a spelled SDK effort ⇒ that word; neither (a
  *  `minimal` the SDK vocabulary dropped, an adaptive turn with no dial) ⇒ `null` — the model reasoned at its own
  *  default, which is unrecorded. */
@@ -349,7 +349,7 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
       message: "a prior reply picture was not re-sent: the Anthropic Messages wire does not permit image blocks inside an assistant turn",
     });
   }
-  // C4: the tool list is its own cacheable prefix. Decided BEFORE `placeCache` so the receipt can count the
+  // The tool list is its own cacheable prefix. Decided BEFORE `placeCache` so the receipt can count the
   // breakpoint the option builder is about to place (Anthropic's per-request breakpoint budget is small).
   const toolCache = toolCacheOptions(generation, cachePlan, req.tools !== undefined && req.tools.length > 0);
   const cache = placeCache({ plan, req, cachePlan, generation, log, toolBlocks: toolCache === undefined ? 0 : 1, automaticCache });
@@ -410,7 +410,7 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
   ).catch((err: unknown): never => {
     throw classify(err);
   });
-  // The SDK's OWN drops (§A3) land in the SAME array as the funnel's, BEFORE the result is folded — so one
+  // The SDK's OWN drops land in the SAME array as the funnel's, BEFORE the result is folded — so one
   // push reaches the turn's `warning` events, the capability receipt and the sampling receipt alike.
   warnings.push(...sdkWarnings(drain.warnings));
   const finishedAt = deps.now();
@@ -431,7 +431,7 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
     rateLimit: response.rateLimit,
     warnings,
   });
-  // The direct wire's two extra signals beside the warnings (A5 · B6): a classifier block as the existing
+  // The direct wire's two extra signals beside the warnings: a classifier block as the existing
   // `refusal` member, and the rate-limit canary from `allowed_warning` up.
   const extraEvents: ChatEvent[] = [refusalEventOf(drain, connection.model, finishedAt), rateLimitCanaryEvent(response.rateLimit, finishedAt)].filter(
     (event): event is ChatEvent => event !== null,
@@ -441,7 +441,7 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
   if (response.rateLimit !== null) {
     log.emit(response.rateLimit.status === "allowed" ? "debug" : "warn", "provider.rate_limit", { turnId: knobs.turnId, ...response.rateLimit });
   }
-  // One number, both surfaces: the log receipt and the D4 span must report the same placement fact.
+  // One number, both surfaces: the log receipt and the span events must report the same placement fact.
   const breakpointsPlaced = cache.written.systemBlocks + cache.written.historyDepths.length + cache.written.toolBlocks + cache.written.requestBlocks;
   emitTurnReceipts({
     log,
@@ -459,7 +459,7 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
     },
   });
   raiseThinkingDrops(log, drain, knobs.turnId, connection.model);
-  // D4: the turn's own timeline. The receipts above are the LOG surface; these three are the TRACE surface,
+  // The turn's own timeline. The receipts above are the LOG surface; these three are the TRACE surface,
   // and they answer the questions a span's duration alone cannot (first-delta split, stop reason, cache hit).
   emitTurnSpanEvents({
     addSpanEvent: deps.addSpanEvent,
