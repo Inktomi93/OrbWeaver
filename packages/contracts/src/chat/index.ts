@@ -259,6 +259,7 @@ export {
   toolCallRecordSchema,
   userMacroDrawsSchema,
   VARIANT_METADATA_REASONING_MS_KEY,
+  VARIANT_METADATA_SYSTEM_FINGERPRINT_KEY,
   VARIANT_METADATA_TOKEN_COUNT_KEY,
   variableDeltaSchema,
   variablePreconditionsSchema,

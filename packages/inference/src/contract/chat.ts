@@ -357,6 +357,11 @@ export interface ChatResult {
   /** The provider's response id for this generation — OpenRouter's `gen-…` (the cost-settlement key), Anthropic's
    *  `msg_…` (the support handle); null where a wire reports none (agent-sdk). Opaque provenance (§5.3c class 4). */
   readonly generationId?: ProviderGenerationId | null | undefined;
+  /** The vendor's per-generation `system_fingerprint` — the backend's own model-mix identity for this
+   *  generation, read off the raw body where the SDK's schema does not model it. `null` where the wire reports
+   *  none or the route models no such field; absent on a backend that never reads one (agent-sdk). Opaque
+   *  provenance (§5.3c class 4): recorded, never compared. */
+  readonly systemFingerprint?: string | null | undefined;
   /** The reasoning effort the wire ACTUALLY CARRIED, in the preset's 7-member vocabulary (the `reasoning_effort`
    *  column's CHECK): `"none"` when the transport spelled thinking OFF, the wire word when it spelled a level,
    *  `null` when it spelled no effort field at all (a row with `features.effort: "none"`, a budget-mode turn, an

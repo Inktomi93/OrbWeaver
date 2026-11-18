@@ -164,6 +164,15 @@ export const VARIANT_METADATA_REASONING_MS_KEY = "reasoning_duration";
  *  reasoning window because it enumerated the LIVE-TURN writer; the tree has two keys with readers. */
 export const VARIANT_METADATA_TOKEN_COUNT_KEY = "token_count";
 
+/** THE ONE SPELLING of the `message_variants.metadata` key carrying a generation's vendor FINGERPRINT (the
+ *  OpenAI-compatible `system_fingerprint`): the backend's own model-mix identity for that generation, which the
+ *  normalized usage core cannot express and no `message_variants` column holds. An operator reads it to tell a
+ *  reloaded backend from a stable one across a room's turns, and the turn's `provider.finish` span attribute
+ *  reports the same value live. A TOP-LEVEL key rather than a {@link variantProviderMetadataSchema} arm: every
+ *  wire that reports one spells it the same, and the arm union dispatches on a provider literal this fact does
+ *  not carry. Absent when the wire reports none — never an empty string standing in for one. */
+export const VARIANT_METADATA_SYSTEM_FINGERPRINT_KEY = "system_fingerprint";
+
 // Strip mode: also reads stored rows and upstream responses.
 /** The FIRST-PARTY arms of the per-provider sidecar: one NAMED shape per provider we ourselves write, keyed
  *  on a `provider` LITERAL so zod dispatches in one lookup and `tsc` narrows a reader to exactly one arm.
@@ -323,6 +332,7 @@ const variantMetadataSchema = z
   .object({
     [VARIANT_METADATA_REASONING_MS_KEY]: z.number().optional(),
     [VARIANT_METADATA_TOKEN_COUNT_KEY]: z.number().optional(),
+    [VARIANT_METADATA_SYSTEM_FINGERPRINT_KEY]: z.string().optional(),
     /** The estimated cost of the system prompt the generating turn sent (agent-sdk turns only). The next turn's
      *  pre-turn managed-compaction check prices it before its own prompt is assembled. */
     systemTokens: z.number().optional(),

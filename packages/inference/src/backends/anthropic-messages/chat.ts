@@ -417,6 +417,7 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
   const folded = toChatResult(drain, {
     model: connection.model,
     providerId: connection.providerId,
+    providerMetadataKey: ANTHROPIC_KEY,
     generation,
     maxOutputTokens: knobs.maxOutputTokens,
     startedAt,

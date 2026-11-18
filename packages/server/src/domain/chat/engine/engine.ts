@@ -37,6 +37,7 @@ import {
   HIDDEN_TAG_BROKEN_CODE,
   INLINE_REPLY_ORIGIN,
   VARIANT_METADATA_REASONING_MS_KEY,
+  VARIANT_METADATA_SYSTEM_FINGERPRINT_KEY,
 } from "@orb/contracts/chat";
 import type { NormalizedFinishReason, ProviderId } from "@orb/contracts/inference";
 import { projectGenerationUsage } from "@orb/contracts/inference";
@@ -202,18 +203,25 @@ async function readCommittedView(ctx: EngineContext, messageId: MessageId): Prom
  * closed union sat in contracts with no importer, so the ephemeral cache-creation split, the warm-spare
  * receipt and OpenRouter's upstream charge were collected once per turn and dropped. This is the join.
  *
- * Null (not `{}`) when the turn recorded NEITHER: an empty blob would make the column's "has a sidecar"
+ * THE THIRD KEY is the vendor's per-generation `system_fingerprint` (`TurnEconomics.systemFingerprint`). It is a
+ * top-level wire-named key rather than a `providerMetadata` arm because the arm union dispatches on a `provider`
+ * literal and a bare string member would be no discriminant at all (`contracts/src/chat/messages.ts`). A turn
+ * whose wire reported none writes no key.
+ *
+ * Null (not `{}`) when the turn recorded NONE of them: an empty blob would make the column's "has a sidecar"
  * question a lie and costs a row of JSON for nothing. Takes the whole pipeline result rather than its parts
  * because the variant row and the live stats-mirror row MUST persist the IDENTICAL blob — they are
  * reconciled against each other, and two call sites assembling it separately is how they drift.
  */
 function liveVariantMetadata(result: Awaited<ReturnType<typeof runTurnPipeline>>): VariantMetadata | null {
   const providerMetadata = result.economics?.providerMetadata;
+  const systemFingerprint = result.economics?.systemFingerprint ?? null;
   const text = [...(result.economics?.textSignatures ?? [])];
   const images = [...(result.imageSignatures ?? [])];
   const tools = result.toolSignatures;
   const sidecar: VariantMetadata = {
     ...(result.reasoningMs === null ? {} : { [VARIANT_METADATA_REASONING_MS_KEY]: result.reasoningMs }),
+    ...(systemFingerprint === null ? {} : { [VARIANT_METADATA_SYSTEM_FINGERPRINT_KEY]: systemFingerprint }),
     ...(result.systemTokens === null ? {} : { systemTokens: result.systemTokens }),
     ...(text.length === 0 && images.length === 0 && tools.length === 0 ? {} : { contentSignatures: { content: result.content, text, images, tools } }),
     ...(providerMetadata === null || providerMetadata === undefined ? {} : { providerMetadata }),

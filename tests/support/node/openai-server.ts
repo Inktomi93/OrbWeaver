@@ -25,6 +25,8 @@ export interface OpenAiReply {
   readonly error?: string;
   readonly content?: string;
   readonly finish?: string;
+  /** The vendor's per-generation model-mix fingerprint; absent unless scripted, so a fixture cannot invent one. */
+  readonly fingerprint?: string;
   /** The terminal usage frame; the detail axes ride only when scripted, so a fixture cannot invent one. */
   readonly usage?: {
     readonly prompt: number;
@@ -40,8 +42,16 @@ const DEFAULT_USAGE: NonNullable<OpenAiReply["usage"]> = { prompt: 10, completio
 /** The vLLM wake probe path; the server answers it awake without spending a scripted reply. */
 export const SLEEP_PROBE_SUFFIX = "/is_sleeping";
 
-function chunk(choice: Record<string, unknown>, usage?: Record<string, unknown>): string {
-  const data = { id: "gen-openai", object: "chat.completion.chunk", created: 1, model: "m", choices: [choice], ...(usage === undefined ? {} : { usage }) };
+function chunk(choice: Record<string, unknown>, usage?: Record<string, unknown>, fingerprint?: string): string {
+  const data = {
+    id: "gen-openai",
+    object: "chat.completion.chunk",
+    created: 1,
+    model: "m",
+    choices: [choice],
+    ...(usage === undefined ? {} : { usage }),
+    ...(fingerprint === undefined ? {} : { ["system_fingerprint"]: fingerprint }),
+  };
   return `data: ${JSON.stringify(data)}\n\n`;
 }
 
@@ -95,7 +105,8 @@ export function openAiServer(recorded: RecordedRequest[], reply: (body: Record<s
     const total = { ...usageFrame(tokens), ["total_tokens"]: tokens.prompt + tokens.completion };
     if (body["stream"] === true) {
       const text =
-        chunk({ index: 0, delta: { role: "assistant", content }, ["finish_reason"]: null }) + chunk({ index: 0, delta: {}, ["finish_reason"]: finish }, total);
+        chunk({ index: 0, delta: { role: "assistant", content }, ["finish_reason"]: null }, undefined, answer.fingerprint) +
+        chunk({ index: 0, delta: {}, ["finish_reason"]: finish }, total, answer.fingerprint);
       return Promise.resolve(new Response(`${text}data: [DONE]\n\n`, { status: 200, headers: { "content-type": "text/event-stream" } }));
     }
     const completion = {
@@ -105,6 +116,7 @@ export function openAiServer(recorded: RecordedRequest[], reply: (body: Record<s
       model: "m",
       choices: [{ index: 0, message: { role: "assistant", content }, ["finish_reason"]: finish }],
       usage: total,
+      ...(answer.fingerprint === undefined ? {} : { ["system_fingerprint"]: answer.fingerprint }),
     };
     return Promise.resolve(Response.json(completion));
   };

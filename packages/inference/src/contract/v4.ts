@@ -109,6 +109,10 @@ export interface ResultContext {
   readonly responseCache?: ResponseCache | undefined;
   readonly model: ModelId;
   readonly providerId: ProviderId;
+  /** The `providerMetadata` key THIS wire's SDK files vendor bags under. A compatible SDK resolves it from the
+   *  caller's `providerOptions` key, never from the registry id, so reading it back under the id misses every
+   *  hyphenated row (3577). Each runner passes the same derivation it wrote `providerOptions` with. */
+  readonly providerMetadataKey: string;
   readonly generation: GenerationCapability;
   readonly maxOutputTokens: number | undefined;
   readonly startedAt: number;

@@ -134,6 +134,7 @@ function finalTurnChunk(req: TurnRequest, result: ChatResult): TurnStreamChunk {
       stopReason: result.stopReason,
       terminalReason: result.terminalReason,
       generationId: result.generationId ?? null,
+      systemFingerprint: result.systemFingerprint ?? null,
       // §5.3c class 3 — the per-provider sidecar, already NARROWED by the runtime to the closed union
       // (`backends/wire/provider-metadata.ts`). This seam carries it and decides nothing about its shape: the
       // per-vendor spelling is backend knowledge, and re-deriving it here would put provider shape above the

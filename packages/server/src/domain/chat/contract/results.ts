@@ -305,6 +305,10 @@ export interface TurnEconomics {
   /** The upstream OpenRouter generation handle (`gen-…`) this turn billed under — the cost key,
    *  folded onto the variant. Absent/null on a backend that doesn't surface one (agent-sdk / responses). */
   readonly generationId?: ProviderGenerationId | null;
+  /** The vendor's per-generation `system_fingerprint` (`ChatResult.systemFingerprint`) — the backend's model-mix
+   *  identity for this generation, persisted as a top-level `message_variants.metadata` key. Absent/null where the
+   *  wire reported none. Opaque provenance (§5.3c class 4): recorded, never compared. */
+  readonly systemFingerprint?: string | null;
   /** The wire-opaque facts the normalized fields above cannot carry, ALREADY narrowed by the runtime to the
    *  closed per-provider union (§5.3c class 3): the ephemeral cache-creation TTL split, the subscription's
    *  warm-spare receipt, OpenRouter's upstream vendor and its pre-fee charge. Persisted under

@@ -142,6 +142,17 @@ export function variantProviderMetadataOf(providerId: string, bag: unknown): Var
   }
 }
 
+/** The extractor's own bag member (`backends/openai-compat/system-fingerprint`): the key it was filed under is
+ *  the caller's, so this reads only the field. */
+const systemFingerprintBagSchema = z.object({ systemFingerprint: z.string().min(1) }).strip();
+
+/** The vendor's per-generation fingerprint out of a compatible SDK bag. `null` means the bag carries none — the
+ *  record's spelling for a wire that reported no fingerprint, distinct from a turn whose bag never existed. */
+export function systemFingerprintOf(bag: unknown): string | null {
+  const parsed = systemFingerprintBagSchema.safeParse(bag);
+  return parsed.success ? parsed.data.systemFingerprint : null;
+}
+
 /**
  * The agent-sdk turn's sidecar arm. Guarded by the provider id rather than by the wire: a plugin row may
  * declare the agent-sdk wire, and its payload is `raw` with no reader by key — never the `claude-sub` shape,

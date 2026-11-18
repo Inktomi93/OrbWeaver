@@ -34,6 +34,7 @@ export function emitTurnSpanEvents(args: {
   if (addSpanEvent === undefined) {
     return;
   }
+  const systemFingerprint = turn.systemFingerprint ?? null;
   if (args.firstDeltaAt !== undefined) {
     addSpanEvent("provider.first_delta", { turnId: args.turnId, model: args.model, ttftMs: args.firstDeltaAt - args.startedAt });
   }
@@ -45,6 +46,9 @@ export function emitTurnSpanEvents(args: {
     finishReason: turn.finishReason ?? "unknown",
     stopReason: turn.stopReason ?? "",
     toolCalls: turn.toolCalls?.length ?? 0,
+    // The vendor's own model-mix identity for this generation — absent, never `""`, when the wire reported none,
+    // so a missing attribute means "no fingerprint" and not "the field arrived empty".
+    ...(systemFingerprint === null ? {} : { systemFingerprint }),
   });
   const { readTokens, writeTokens } = args.cache;
   const total = readTokens !== null && writeTokens !== null ? readTokens + writeTokens : null;

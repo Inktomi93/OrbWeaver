@@ -117,6 +117,7 @@ export async function runGoogleChat(req: GoogleChatRequest, deps: GoogleBackendD
   const folded = toChatResult(drain, {
     model: connection.model,
     providerId: connection.providerId,
+    providerMetadataKey: GOOGLE_KEY,
     generation,
     maxOutputTokens: knobs.maxOutputTokens,
     startedAt,
