@@ -155,9 +155,10 @@ Judgments: **necessary** (the SDK cannot), **stricter** (the SDK can, loses a wr
   embedding and image models never call it.
 - `openai-compatible`'s `languageModel(id, config)` accepts a per-model `config` that the implementation IGNORES
   (dist js:1485) despite the types. Build nothing on it.
-- Header citation drift, resolved as of the source-parts landing: `provider-metadata.ts`'s OR dist cites re-verified
-  exact at 3.1.0 (`index.d.ts:686-692`, `:572`); `http/abort-flatten.ts` states its `@openrouter/sdk@1.1.8` cite is
-  a probe instrument, not a dependency; `v4/stream.ts`'s OR dist cites were re-measured at that landing. Still open:
+- Header citation drift, resolved as of the source-parts landing: `packages/inference/src/backends/wire/provider-metadata.ts`'s OR
+  dist cites re-verified exact at 3.1.0 (`index.d.ts:686-692`, `:572`); `packages/inference/src/backends/http/abort-flatten.ts`
+  states its `@openrouter/sdk@1.1.8` cite is a probe instrument, not a dependency;
+  `packages/inference/src/backends/v4/stream.ts`'s OR dist cites were re-measured at that landing. Still open:
   `packages/inference/src/backends/v4/fetch.ts` says "measured against the installed provider dist 3.0.0"
   (installed 3.1.0 — true as provenance, stale as a claim). Re-measure before renumbering.
 - `openrouter-reasoning-wire.int.test.ts` asserts the request side (`reasoning.effort`) but never the

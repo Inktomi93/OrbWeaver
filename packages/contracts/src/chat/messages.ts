@@ -317,7 +317,7 @@ const chatSourceSchema = z
 /** THE READ SEAM for a stored source list: one malformed ENTRY drops and its neighbours survive, so a row
  *  whose citation blob went bad still lists its other citations instead of degrading the whole sidecar to
  *  `{}` (the `versioned-config` rule: heal element-wise, never whole-array). */
-export const chatSourcesSchema = z
+const chatSourcesSchema = z
   .array(chatSourceSchema.nullable().catch(null))
   .transform((entries): readonly ChatSource[] => entries.filter((entry): entry is ChatSource => entry !== null));
 // Strip mode: also reads stored rows.
