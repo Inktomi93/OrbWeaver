@@ -148,7 +148,8 @@ export const bundleImportWorkloadResultSchema = z.strictObject({
   memoryScope: storedImportWindowSchema.nullable().default(null),
 }) satisfies z.ZodType<BundleImportWorkloadResult>;
 
-// A stored row can still carry the retired owner census keys: accept and drop, so the strict view never echoes them.
+// A stored row may still carry owner census keys this build does not declare: accept and drop, so the strict view
+// never echoes them.
 export const importTokenUsageBackfillResultSchema = z
   .strictObject({
     scanned: z.number(),
