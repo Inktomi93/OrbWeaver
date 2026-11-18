@@ -1,17 +1,15 @@
-// @orb/contracts/refinery — the refinery prose slot table (D132; refinery R1).
-// THIRTEEN slots, F4's own arithmetic: four stage-SYSTEM prompts
-// (score/rewrite/refine/analyze — `refine` is the refinement-rewrite system, the extension's
-// BASE_REFINEMENT_PROMPT) + the NL→schema generator's system prompt (R3/SF — `refinery.schemaForge.system`)
-// + eight (stage × mode) INSTRUCTION bodies — the source extension's 8 builtin
-// presets ARE the F4 modes, carried as individually-overridable slots (PROSE-1's one-override-per-slot is
-// the sanctioned tuning surface). Baselines are seeded from the extension corpus
-// (card-refinery's defaults) and adapted to orb's STRUCTURED output (the extension's markdown
-// conventions — "[ORIGINAL]/[REVISED]", "## Section" — die to the typed payloads); the shipped texts are
-// OWNER-SACRED and ship for the owner to sign/veto.
+// @orb/contracts/refinery — the refinery prose slot table (D132).
+// THIRTEEN slots: four stage-SYSTEM prompts
+// (score/rewrite/refine/analyze — `refine` is the refinement-rewrite system prompt) + the NL→schema
+// generator's system prompt (`refinery.schemaForge.system`)
+// + eight (stage × mode) INSTRUCTION bodies — the eight builtin modes, carried as individually-overridable
+// slots (one override per slot is the sanctioned tuning surface). Baselines are adapted to orb's STRUCTURED
+// output (markdown conventions like "[ORIGINAL]/[REVISED]" and "## Section" give way to the typed
+// payloads); the shipped texts are OWNER-SACRED and ship for the owner to sign/veto.
 //
 // HOME = per-USER (the ruling: library-authoring prose beside the discovery cohort —
 // never per-preset generation voice, never a per-session home). The `USER_PROSE_SLOT_IDS` derivation puts
-// every slot in the Prose settings editor the commit this lands — zero client work.
+// every slot in the Prose settings editor — zero client work.
 // MACRO MODE = "none" — LOAD-BEARING (the belt-5 by-construction posture, design §9.4): refinery prompts
 // NEVER pass through the macro engine, so the card's own `{{char}}`/`{{user}}` bytes ride to the model as
 // inert text and rewritten text round-trips back into the card with its macros intact. Neutralizing here
@@ -23,9 +21,9 @@
 // engine, which these slots do not run; the `{{person}}`/`{{base}}` guided precedent). Two reasons it
 // cannot stay a literal:
 //   • A host's prose override would FREEZE one payload's shape into owner-editable text. Under a custom
-//     schema (SF) the system prompt would then TEACH THE WRONG SHAPE and fight the wire's actual grammar.
+//     schema the system prompt would then TEACH THE WRONG SHAPE and fight the wire's actual grammar.
 //   • Spliced, the shape can never be edited away — which is the honest answer to the `requiredTokens`
-//     warn-never-block gap (an override dropping "REGRESSION" or the field list silently degraded the
+//     warn-never-block gap (an override dropping "REGRESSION" or the field list would silently degrade the
 //     loop). The token itself is listed in `requiredMacros` (the pre-substitution class), so an override
 //     that drops it is linted in the editor and simply loses the restatement it carried.
 //
@@ -54,11 +52,10 @@ const CORE_TOKEN = "{{core}}";
  *  other three. */
 const TASK_TOKEN = "{{task}}";
 
-// The NL→schema designer's system prompt (SF — NL design §4.6, under the owner's
+// The NL→schema designer's system prompt (NL design §4.6, under the owner's
 // structured-output veto). It describes the DESIGN TASK and the display vocabulary, and NOTHING
 // about output format: the call rides an ENFORCED grammar (`#refinery`'s `forgeDesignEnvelopeSchema` and its
 // siblings), so shape-policing text here would be a second, weaker copy of a rule the wire already holds.
-// Every "respond with ONLY a JSON object" instruction the extension's corpus carried is deliberately gone.
 //
 // TWO PRE-SUBSTITUTION TOKENS, both spliced per call by the forge substrate (never the macro engine — this
 // slot is `macros:"none"`): `{{core}}` is the STAGE's automatically-added well-known field, and `{{task}}`

@@ -1,26 +1,22 @@
-// @orb/contracts/refinery — the card-refinery pipeline contracts (R0 of the owner-signed port;
-// D171).
+// @orb/contracts/refinery — the card-refinery pipeline contracts (D171).
 // SCORE → REWRITE → ANALYZE with an anti-drift invariant (analyze always compares against the session's
-// original-card snapshot) and a REGRESSION-bearing verdict enum — the loop's contract, carried verbatim
-// from the source extension.
+// original-card snapshot) and a REGRESSION-bearing verdict enum — the loop's contract.
 //
 // Character consumes analysis from ./core.ts, not this root, so browser outputs can compose its validators
 // without an initialization cycle. Core never imports either public root.
 //
-// The stage PAYLOADS are the F3 "fixed typed payloads" — ONE schema per stage across every F4 mode
-// (modes are PROMPT-tier variants; the extension's separate quick-score schema is deliberately
-// collapsed). They are projected to provider wires via `projectJsonSchema` in R1, so EVERY bound is
-// expressed as a NATIVE zod keyword (grammar-enforced on vLLM, post-parse-belt everywhere else).
-// Selection/config schemas are storage/input shapes, never projected, and MAY refine.
+// The stage PAYLOADS are fixed typed payloads — ONE schema per stage and per mode (a mode is a PROMPT-tier
+// variant, never a second payload shape). They are projected to provider wires via `projectJsonSchema`, so
+// EVERY bound is expressed as a NATIVE zod keyword (grammar-enforced on vLLM, post-parse belt everywhere
+// else). Selection/config schemas are storage/input shapes, never projected, and MAY refine.
 //
-// THE ONE SANCTIONED REFINEMENT (owner ruling, amending the older "carry NO zod
-// refinements" rule): critique prose is capped in TOKENS, and a token count is not a JSON-Schema keyword —
-// no grammar can express it, so the belt is the ONLY possible enforcer for that tier. The relaxation is
-// SAFE because it is additive: every critique field still carries its native `.max()`, so the projected
-// wire schema is unchanged in KIND and the grammar still prevents at the char tier; the refinement only
-// tightens the parse. Verified, not assumed (zod 4.4.3): `z.toJSONSchema` does NOT throw on a refined
-// string — it silently DROPS the refinement and keeps `maxLength`, so the projection stays whole. The
-// cost is stated plainly: an over-token blob is now a FAILED RUN rather than an ungeneratable one.
+// THE ONE SANCTIONED REFINEMENT: critique prose is capped in TOKENS, and a token count is not a JSON-Schema
+// keyword — no grammar can express it, so the belt is the ONLY possible enforcer for that tier. The
+// relaxation is SAFE because it is additive: every critique field still carries its native `.max()`, so the
+// projected wire schema is unchanged in KIND and the grammar still prevents at the char tier; the refinement
+// only tightens the parse. Verified, not assumed (zod 4.4.3): `z.toJSONSchema` does NOT throw on a refined
+// string — it silently DROPS the refinement and keeps `maxLength`, so the projection stays whole. The cost is
+// stated plainly: an over-token blob is a FAILED RUN rather than an ungeneratable one.
 
 // Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import type { CharacterId, CharacterSnapshotId, RefinerySessionId } from "@orb/kit/ids";
@@ -47,7 +43,7 @@ export {
   refineryVerdictSchema,
   SCORE_MAX,
 } from "./core.ts";
-// The refinery prose slot table (R1) — composed into `PROSE_SLOTS` by `#prose` through this front door.
+// The refinery prose slot table — composed into `PROSE_SLOTS` by `#prose` through this front door.
 export { REFINERY_PROSE_SLOTS } from "./prose.ts";
 // The raw-door PREFLIGHT (advisories + stats). Sits BESIDE the belt, never in front of it: the belt
 // refuses, this only explains what a schema that saves will still cost on a hosted wire. It imports
@@ -110,7 +106,7 @@ export const REFINERY_STAGES = ["score", "rewrite", "analyze"] as const;
 export type RefineryStage = (typeof REFINERY_STAGES)[number];
 export const refineryStageSchema = z.enum(REFINERY_STAGES) satisfies z.ZodType<RefineryStage>;
 
-// (REFINERY_VERDICTS / refineryVerdictSchema re-homed to ./core.ts — see the note above.)
+// (REFINERY_VERDICTS / refineryVerdictSchema live in ./core.ts — see the note above.)
 
 export const REFINERY_SESSION_STATUSES = ["active", "completed", "abandoned"] as const;
 export type RefinerySessionStatus = (typeof REFINERY_SESSION_STATUSES)[number];
@@ -137,7 +133,7 @@ export const REFINERY_ROUND_IN_FLIGHT_REASON = "refinery_round_in_flight";
  *  to the live card, and running a stage re-opens it. */
 export const REFINERY_SESSION_COMPLETED_REASON = "refinery_session_completed";
 
-// ── F4 stage modes (per-stage prompt-variant enums; the extension's 8 builtin presets ARE these) ────────
+// ── Stage modes (per-stage prompt-variant enums) ────────────────────────────────────────────────────────
 
 export const REFINERY_SCORE_MODES = ["full", "quick"] as const;
 export type RefineryScoreMode = (typeof REFINERY_SCORE_MODES)[number];
@@ -151,10 +147,10 @@ const REFINERY_ANALYZE_MODES = ["full", "iteration", "quick"] as const;
 export type RefineryAnalyzeMode = (typeof REFINERY_ANALYZE_MODES)[number];
 const refineryAnalyzeModeSchema = z.enum(REFINERY_ANALYZE_MODES) satisfies z.ZodType<RefineryAnalyzeMode>;
 
-// ── F5 refinable fields (card text fields, canonical-card order; per-greeting via indexes) ──────────────
+// ── Refinable fields (card text fields, canonical-card order; per-greeting via indexes) ────────────────
 
-/** The card fields the pipeline may read/rewrite (F5: card fields only — attached books are a
- *  cross-domain follow-up, never v1). Members are CANONICAL CARD field names in card-schema order;
+/** The card fields the pipeline may read/rewrite (card fields only — attached books are a
+ *  separate cross-domain surface). Members are CANONICAL CARD field names in card-schema order;
  *  `greetings` granularity rides `greetingIndexes` (selection) / `greetingIndex` (payload entries) —
  *  orb greetings are ONE index-addressable array. `depthPrompt` means the note TEXT (`.prompt`); the
  *  `{depth, role}` directive is authored config, not refinable prose. The ⊆-CharacterCard pin lives in
@@ -217,7 +213,7 @@ export type RefinerySelectionPatch = z.infer<typeof refinerySelectionPatchSchema
 
 /** The session's loop-wide steering text ("keep her mean") — HOST-authored, but it is spliced into every
  *  stage prompt, so it crosses into the model wire and is bounded like any other model-facing prose. The
- *  ONE home for the `refinery_sessions.guidance` bound: R1's start/iterate inputs parse through THIS, and
+ *  ONE home for the `refinery_sessions.guidance` bound: the start/iterate inputs parse through THIS, and
  *  the prompt substrate neutralizes it before splicing (the `{{input}}` guided precedent). */
 export const refineryGuidanceSchema = z.string().max(HOST_PROSE_MAX_CHARS);
 
@@ -225,13 +221,12 @@ export const refineryGuidanceSchema = z.string().max(HOST_PROSE_MAX_CHARS);
  *  `name`: it is a row label rendered in the D62 LIST pane, not a prose field. */
 export const refinerySessionNameSchema = z.string().max(SESSION_NAME_MAX);
 
-// ── Per-stage payload config — the kind-tagged union (the SF seam, now TWO-ARMED on score/analyze) ──────
+// ── Per-stage payload config — the kind-tagged union (two arms on score/analyze) ───────────────────────
 // The SESSION-side custom arm is a POINTER (`{kind:"custom", schemaId}`): the session's in-force schema
 // is mutable state, re-resolved at every run so a schema edit governs the next call (the D126 per-call
 // discipline). The RUN-side provenance arm EMBEDS the schema (further down — the provenance header ruling);
 // the two arms are deliberately different shapes for different lifetimes. REWRITE has no custom arm
-// (F-N3: the apply path's semantics ARE the fixed typed contract) — its second RUN-side arm is `manual`
-// (a hand-authored rewrite, og-extension-feedback gap 1).
+// (the apply path's semantics ARE the fixed typed contract) — its second RUN-side arm is `manual`.
 
 /** The fixed arm, score. Exported apart from the session union: run rows and the read-seam heal speak
  *  the ARM, not the union (a strip-mode union parse would silently eat a custom embed's schema). */
@@ -286,8 +281,8 @@ export const refineryStageConfigSchema = z
   .strip();
 export type RefineryStageConfig = z.infer<typeof refineryStageConfigSchema>;
 
-/** A session's born configuration (score full · rewrite balanced · analyze full — the extension's
- *  "default" presets under the F4 mode names). */
+/** A session's born configuration (score full · rewrite balanced · analyze full — the default presets
+ *  under the mode names). */
 export const DEFAULT_REFINERY_STAGE_CONFIG = {
   score: { kind: "fixed", mode: "full" },
   rewrite: { kind: "fixed", mode: "balanced" },
@@ -310,8 +305,8 @@ export const refineryCustomRunConfigSchema = z
   .strip();
 export type RefineryCustomRunConfig = z.infer<typeof refineryCustomRunConfigSchema>;
 
-/** The RUN-side manual-rewrite provenance arm — a HAND-authored rewrite (og-extension-feedback gap 1,
- *  the ShadowKyogre fork: score → hand-edit → analyze). No mode, no model, no schema: the payload is the
+/** The RUN-side manual-rewrite provenance arm — a HAND-authored rewrite (score → hand-edit → analyze).
+ *  No mode, no model, no schema: the payload is the
  *  same typed rewrite contract, authored by the owner in the WIP edit area instead of a model. */
 export const refineryManualRewriteConfigSchema = z
   .object({
@@ -331,12 +326,12 @@ export type RefineryStagePayloadConfig =
   | RefineryCustomRunConfig
   | RefineryManualRewriteConfig;
 
-// ── F3 stage payloads (fixed; wire-projected in R1 — NO refinements here, see the header) ───────────────
+// ── Stage payloads (fixed; wire-projected — NO refinements here, see the header) ───────────────────────
 
 /** One field's critique in a score payload. `strengths`/`weaknesses`/`suggestions` are prose STRINGS
- *  (the extension's builtin score schema, not arrays). `greetingIndex` is present ⇔ `field` is
+ *  (never arrays). `greetingIndex` is present ⇔ `field` is
  *  `greetings` — a flat optional (not a per-entry union) for small-model structured-output reliability;
- *  the invariant's one enforcement consumer is R1's apply/render belt. */
+ *  the invariant's one enforcement consumer is the apply/render belt. */
 const refineryFieldScoreSchema = z
   .object({
     field: refinableFieldSchema,
@@ -350,7 +345,7 @@ const refineryFieldScoreSchema = z
 export const refineryScorePayloadSchema = z
   .object({
     fieldScores: z.array(refineryFieldScoreSchema).max(ENTRIES_MAX),
-    /** Weighted average over `fieldScores` — the value R1 stamps into `characters.refinery.score` (F6). */
+    /** Weighted average over `fieldScores` — the value stamped into `characters.refinery.score`. */
     overallScore: z.number().min(SCORE_MIN).max(SCORE_MAX),
     priorityImprovements: z.array(z.string().max(NOTE_MAX)).max(LIST_MAX),
     summary: critiqueProseSchema,
@@ -367,8 +362,7 @@ const rewriteFieldTarget = {
 
 /** One rewritten field — a THREE-ARM union: replace the text, EMPTY the field, or APPEND a new greeting.
  *
- *  EMPTYING IS REFINING (owner ruling, overruling the R0 stance that lived on this comment —
- *  "why wouldn't they be able to empty personality? They can fill it therefore they can empty it").
+ *  EMPTYING IS REFINING (owner ruling: if they can fill a field they can empty it).
  *  Consolidating several fields into one REQUIRES clearing the donors, so the pipeline must be able to say
  *  it.
  *
@@ -381,9 +375,9 @@ const rewriteFieldTarget = {
  *   • ANTI-SNIFFING. `""`-as-clear is one more data-sniffed convention — the failure class the whole
  *     schema-driven design exists to kill.
  *
- *  APPENDING IS REFINING TOO (fork F-T1, owner-ruled IN for R4): "split one greeting
- *  into two" is squarely the owner's SPLIT case, and before this arm a payload could only ever address slots
- *  the card already had (an entry naming `greetingIndex === liveGreetingCount` died at `greeting_index_invalid`).
+ *  APPENDING IS REFINING TOO (owner-ruled): "split one greeting into two" is squarely the owner's SPLIT
+ *  case, and without this arm a payload could only ever address slots
+ *  the card already had.
  *  The arm is GREETINGS-ONLY: every other refinable target is a single field that already exists on the card,
  *  so "add one" is meaningless there — only the greetings array has slots to grow.
  *
@@ -407,7 +401,7 @@ export const refineryRewriteFieldSchema = z.union([
 export type RefineryRewriteField = z.infer<typeof refineryRewriteFieldSchema>;
 
 /** Is this entry the EMPTYING arm? The ONE recogniser — the apply verb's patch builder, the prompt
- *  overlay and the R3 block renderer all ask through here rather than re-spelling `"cleared" in entry`
+ *  overlay and the block renderer all ask through here rather than re-spelling `"cleared" in entry`
  *  (a dynamic seam the language service cannot rename). */
 export function isClearedRewrite(entry: RefineryRewriteField): entry is Extract<RefineryRewriteField, { cleared: true }> {
   return "cleared" in entry;
@@ -427,8 +421,8 @@ export function appendedRewrites(fields: readonly RefineryRewriteField[]): Extra
   return fields.filter((entry) => isAppendedRewrite(entry));
 }
 
-/** The structured rewrite — the single biggest correctness upgrade over the extension (which
- *  regex-parsed markdown back into fields): typed entries make compare + apply lossless by construction.
+/** The structured rewrite — typed entries make compare + apply lossless by construction: nothing
+ *  regex-parses prose back into fields.
  *  `fields` is entry-COUNT-capped as well as per-text-capped: the entry count is the apply verb's blast
  *  radius (one entry = one card field overwritten), and one payload can never name more targets than the
  *  card has. */
@@ -511,9 +505,9 @@ export const REFINERY_STAGE_SHAPES = {
     '{"preserved":["..."],"lost":["..."],"gained":["..."],"soulScore":9,"soulAssessment":"...","verdict":"ACCEPT","issues":["..."],"recommendations":["..."]}',
 } as const satisfies Record<RefineryStage, string>;
 
-// ── The library SCORE SWEEP (R4 — port study I3: the orb-native win the extension never had) ────────────
+// ── The library SCORE SWEEP ────────────────────────────────────────────────────────────────────────────
 // A `refine-score-sweep` workload scores the whole library with NO session: one score pass per card,
-// stamped straight into `characters.refinery.score` (the F6 signal channel), feeding the library's
+// stamped straight into `characters.refinery.score` (the score signal channel), feeding the library's
 // score sorts and the dossier readout. Params + result home HERE, beside the payload the pass produces —
 // `@orb/contracts/workloads` references them by kind (the `IngestRunResult` precedent), never re-spells them.
 
@@ -526,9 +520,9 @@ export const refineScoreSweepWorkloadParams = z.object({ rescoreAll: z.boolean()
 export type RefineScoreSweepWorkloadParams = z.infer<typeof refineScoreSweepWorkloadParams>;
 
 /** What one sweep pass did. FOUR counts, not the two `AnalyticsResult` carries: a sweep that skipped 400
- *  already-scored cards and failed 3 must be able to SAY so — distill's own header records the cost of
- *  squeezing a per-item failure plane into `{scanned, written}` (its `skipped` count survives only as a
- *  progress sentence). Every card lands in exactly one of `scored`/`skipped`/`failed`. */
+ *  already-scored cards and failed 3 must be able to SAY so — a per-item failure plane squeezed into
+ *  `{scanned, written}` loses it, and `skipped` then survives only as a progress sentence. Every card lands
+ *  in exactly one of `scored`/`skipped`/`failed`. */
 export interface RefineryScoreSweepResult {
   /** Cards the pass looked at (the owner's non-synthetic library, or every owner's on a bulk run). */
   readonly scanned: number;
@@ -566,11 +560,10 @@ const refineryRunBaseSchema = z.strictObject({
    *  append-only log is a timestamp-ordered list, so "which rewrite did this analyze judge?" is answerable
    *  only by "the latest one at the time" — which stops being true the moment step-back lets an analyze
    *  target round 1 while round 2 exists. Recorded, the ledger draws the true DAG instead of implying a
-   *  straight line. Session-scoped by construction (both rows hang off the same session). [OVERRULED:
-   *  D24 — this IS a self-FK, shipped as `refinery_runs.source_run_id`, references onDelete set null,
-   *  in packages/db/src/schema/refinery.ts: boundaries are physics, so the original "no FK needed beyond
-   *  session scope" design was rejected; set null (not cascade) because a parent's disappearance means
-   *  the DAG edge is UNKNOWN, not that the child should vanish.] */
+   *  straight line. Session-scoped by construction (both rows hang off the same session). It IS a self-FK,
+   *  `refinery_runs.source_run_id`, with onDelete set null (D24): boundaries are physics, and set null (not
+   *  cascade) because a parent's disappearance means the DAG edge is UNKNOWN, not that the child should
+   *  vanish. */
   sourceRunId: typeIdSchema(ID_PREFIX.refineryRun).nullable(),
   /** The keys the zod strip-mode parse silently REMOVED from the model's payload — dotted paths, never
    *  content (the strip-and-itemize posture: an invented key must appear in the run record instead of
@@ -671,7 +664,7 @@ export interface PreflightResult {
 
 /** `generateSchema`/`refineSchema` — ERRORS-AS-DATA (the applyRefusal precedent): a draft that failed the
  *  belt on BOTH turns still RESOLVES, carrying the refusal + the model's raw last reply so the editor can
- *  offer it for hand-fixing (the extension's own show-the-partial policy, NL design §1.1.5/§2.1 — the raw
+ *  offer it for hand-fixing (the show-the-partial policy, NL design §1.1.5/§2.1 — the raw
  *  never rides an error message). Provider faults still throw. */
 export type SchemaForgeResult =
   /** `dropped` itemizes design rows the transpiler could not place (a duplicate path, a path that collides
@@ -758,8 +751,7 @@ export interface RefinerySessionView {
 /** Why one accepted entry was REFUSED — itemized per entry so the user learns which field and why. The
  *  apply is atomic, so any refusal refuses the whole act (a partial write is a card the user never reviewed as a
  *  whole), and the user recovers by discarding the refused entries. A closed axis so the client renders typed copy. The
- *  tuple stays UNEXPORTED until a runtime consumer exists (R3's reason-copy map re-exports it then);
- *  the derived union below is the wire surface. */
+ *  tuple stays UNEXPORTED until a runtime consumer exists; the derived union below is the wire surface. */
 const APPLY_DROP_REASONS = [
   /** The accept names a field the latest rewrite run did not produce. */
   "not_in_rewrite",
@@ -782,7 +774,7 @@ const APPLY_DROP_REASONS = [
   "would_leave_no_greeting",
   /** An APPEND that would push the card past the greetings ceiling (`GREETING_SLOTS_MAX`). Itemized rather
    *  than thrown, and rather than letting the constructed patch fail `updateCharacterSchema`: a card at its
-   *  ceiling is a legal card, so a payload wanting one more slot is a refusal about THIS entry (F-T1). */
+   *  ceiling is a legal card, so a payload wanting one more slot is a refusal about THIS entry. */
   "greeting_cap_reached",
   /** The MERGE CONFLICT (schema-renderer §21 edge 2): the LIVE card's text for this field differs from
    *  the session's `original_card` pin — someone edited it under the session — and the accept carried no
@@ -795,8 +787,8 @@ export type ApplyDropReason = (typeof APPLY_DROP_REASONS)[number];
 
 /** What an applied entry DID. The emptying arm makes this load-bearing: destruction must be itemized
  *  separately from replacement so the outcome panel and the audit trail state it explicitly rather than
- *  leaving a user to infer it from a diff with a blank side (schema-renderer §15.5). `added` is the F-T1
- *  append arm's twin — a NEW greeting slot is not a replacement of anything, and reporting it as one would
+ *  leaving a user to infer it from a diff with a blank side (schema-renderer §15.5). `added` is the append
+ *  arm's twin — a NEW greeting slot is not a replacement of anything, and reporting it as one would
  *  make the outcome panel lie about which slot moved. Same posture as the drop reasons: the tuple stays
  *  unexported until a runtime consumer exists. */
 const APPLIED_FIELD_KINDS = ["replaced", "cleared", "added"] as const;
