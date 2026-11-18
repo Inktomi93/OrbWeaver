@@ -18,10 +18,10 @@ const rpgStatAttributeDefSchema = z
   .strip();
 export type RpgStatAttributeDef = z.infer<typeof rpgStatAttributeDefSchema>;
 
-/** The max attribute count a profile may carry (§2.3 — "≤12"). A prompt-budget shape constant. */
+/** The max attribute count a profile may carry. A prompt-budget shape constant. */
 export const RPG_PROFILE_MAX_ATTRIBUTES = 12;
 
-// The RESERVED resolution discriminant (§2.3) — a single-arm union today (`house-d20`). Full's check
+// The RESERVED resolution discriminant — a single-arm union today (`house-d20`). Full's check
 //  engine grows this with alt-arms (the D86 reserved-discriminant growth pattern); lite never reads it.
 const rpgStatResolutionSchema = z.discriminatedUnion("kind", [z.object({ kind: z.literal("house-d20") }).strip()]);
 type RpgStatResolution = z.infer<typeof rpgStatResolutionSchema>;
@@ -67,9 +67,9 @@ export function rpgAttributeModifier(profile: RpgStatProfile, score: number): nu
  *  and each actor's line then carries only `label value` ({@link attributeReading}). Teaching the hint per
  *  actor would multiply the profile's prose by the party size for zero extra information.
  *
- *  Without this the reminder printed raw `str 14` pairs: the key, not the host's label, and never the hint —
- *  the label-as-mini-prompt (and the packaged d20 profiles' real steering prose) reached the model NOWHERE.
- *  That is the R4b class exactly: a lever that exists in the schema and dies in the read path. */
+ *  Without this the reminder would print raw `str 14` pairs: the key, not the host's label, and never the hint —
+ *  the label-as-mini-prompt (and the packaged d20 profiles' real steering prose) would reach the model nowhere:
+ *  a lever that exists in the schema and dies in the read path. */
 export function attributeGloss(def: RpgStatAttributeDef): string {
   return def.hint === "" ? def.label : `${def.label} (${def.hint})`;
 }
@@ -98,7 +98,7 @@ export const RPG_PROFILE_FREEFORM: RpgStatProfile = {
 };
 
 /** `d20` — the classic six (STR/DEX/CON/INT/WIS/CHA), 1–20, `(score-10)/2` modifier (`center 10, step 2`).
- *  Authored fresh from the D86 §2.1 published table (common-knowledge content). The D20 ruleset applies it additively. */
+ *  Authored fresh from the D86 published table (common-knowledge content). The D20 ruleset applies it additively. */
 export const RPG_PROFILE_D20: RpgStatProfile = {
   attributes: [
     { key: "str", label: "Strength", hint: "raw physical power — lifting, melee force" },
@@ -124,21 +124,18 @@ export const RPG_PROFILE_D20: RpgStatProfile = {
 };
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
-// THE SEEDED TRACKERS (R3) — the profile's half of hp's demotion.
+// THE SEEDED TRACKERS — the profile's half of health.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
-// `hp` used to be a schema-privileged field on every actor: a `hp: {value,max} | null` leaf, a bespoke
-// `hpDelta` tool arm, a named reminder seg, a dedicated delta renderer, and a SECOND max home on the sheet.
-// It is now an ordinary `meter` tracker, which means a game only has health if its game says so — and the
-// lived default was already hp-absent (a real freeform session renders zero hp anywhere, `untangle-status.png`).
-// So the demotion has no default-UX regression: a MECHANICAL profile seeds the def at mint and reads exactly as
-// before, and `freeform` seeds nothing and finally stops carrying a null health track it never used.
+// `hp` is an ordinary `meter` tracker, not a schema-privileged field: a game only has health if its game
+// says so, and a freeform session renders no hp anywhere. A MECHANICAL profile seeds the def at mint so the
+// sheet reads as a d20 sheet; `freeform` seeds nothing.
 
 /** The seeded HP meter's key — how a surface tells it from a host-defined pool. */
 const RPG_SEED_HP_KEY = "hp";
 
 // The default ceiling the seeded HP meter is born with. A per-CARRIER ceiling that differs on purpose rides
-//  `RpgTrackerValue.max` through the one `trackerCeiling` resolver (the d20 max-HP reality the unification's
-//  per-carrier override was designed for) — this is only the game-wide default the host can retune.
+//  `RpgTrackerValue.max` through the one `trackerCeiling` resolver — this is only the game-wide default the
+//  host can retune.
 const RPG_SEED_HP_MAX = 20;
 
 /** The seeded HP def. `write:"delta"` because damage and healing are spends/restores (that axis is what picks

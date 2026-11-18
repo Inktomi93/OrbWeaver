@@ -1,12 +1,12 @@
-// @orb/contracts/rpg/prose — the rpg prose slot table (D132). TWO cohorts, one table:
-//   • census 1-10   — the steering REMINDER seam (what the NARRATOR is taught the tracked values mean).
+// @orb/contracts/rpg/prose — the rpg prose slot table (D132). Three cohorts, one table:
+//   • the steering REMINDER seam (what the NARRATOR is taught the tracked values mean).
 //     `domain/rpg/substrate/reminder.ts` + `delta.ts` resolve these rows through the prose registry,
 //     so defaults and preset overrides share one authored home.
-//   • census 11-27 + 29-36 — the EXTRACTION seam (what the EXTRACTOR is taught to write back): the per-plane
+//   • the EXTRACTION seam (what the EXTRACTOR is taught to write back): the per-plane
 //     teaching fragments, the six tool descriptions + the `no_changes` escape, and the two system-prompt
 //     framings. These are per-game TEMPLATES — see the cohort's own header block below for why that is a
 //     token vocabulary on an ordinary `text` slot and not a `render(ctx)` arm on `ProseSlotDef`.
-//   • the POPULATE census (rows 1-7) — the BORN-STATE round's own prose (`rpg.populate.*`): its system header,
+//   • the POPULATE group — the BORN-STATE round's own prose (`rpg.populate.*`): its system header,
 //     identity clause, invent-nothing doctrine, and the four user-turn blocks. Same shape as the extraction
 //     cohort, its own group because it fires on the host's one card-read click, not on turns.
 //
@@ -14,28 +14,26 @@
 // `PROSE_SLOTS`, so importing it here — even for a type — would close a `no-circular` cycle (the split's whole
 // reason; see `#prose-slot`'s header).
 //
-// STORAGE: the PRESET's `promptConfig.prose` (owner ruling, "we are putting everything in presets" —
-// the standing per-PRESET home already recorded at `domain/chat/assembly/injections.ts`). These slots homed on
-// `rpg_games.config.prose` for exactly one merge; that spine — the config field, the
-// `updateConfig.patch.prose` write arm, the fork strip arm — is DELETED, and `home:"preset"` is what routes each
+// STORAGE: the PRESET's `promptConfig.prose` ("everything in presets" — the standing per-PRESET home already
+// recorded at `domain/chat/assembly/injections.ts`). `home:"preset"` is what routes each
 // row into `PRESET_PROSE_SLOT_IDS`, its Templates-tab row, and `composeProse`'s preset source. The host edits
 // them in the preset Templates tab; a GAME turn assembles the game's `gmPresetId` (the preset REDIRECT in
-// `chat/verbs/turn.ts`), so "this table's own teach copy" is authored on that table's GM preset.
+// `chat/verbs/turn.ts`), so "this table's own teach copy" is authored on that table's GM preset. A copy kept
+// anywhere else is a second storage for one concept.
 //
 // The reminder still resolves each slot against `LiteReminderInput.prose` and the delta against
-// `DeltaContext.prose` — the builders' signatures never knew where the overrides came from; only chat's gather
-// args changed. An ABSENT override is byte-identical to the pre-PROSE-1 constant, which is the whole safety
-// story for this migration.
+// `DeltaContext.prose` — the builders' signatures never knew where the overrides came from. An ABSENT override
+// resolves to the shipped default, which is the whole safety story: a host who has edited nothing composes
+// byte-identically to the shipped bytes.
 //
 // MACRO MODE: the TEACHES are `names-only` — the reminder resolves a host override's `{{user}}`/`{{char}}`
 // through the same identity-only registry `renderSteeringNote` uses (a default carries no macro, so it resolves
 // byte-identically). The two DELTA HEADINGS are `none`: a diff heading has no character context to substitute,
-// so its bytes ship verbatim (owner decision 5 ruled them prose/voice, in scope — the STRUCTURAL labels of
-// §2.11 stay out and below the gate's word threshold).
+// so its bytes ship verbatim. Structural labels stay out of the prose gate entirely.
 
 import type { ProseSlotDef, ProseSlotId } from "#prose-slot";
 
-/** The game-turn steering-reminder prose (census 1-10) + the extraction seam (11-27, 29-36). Keys ARE the
+/** The game-turn steering-reminder prose + the extraction seam. Keys ARE the
  *  slot ids; `satisfies Partial<Record<…>>`
  *  so an unlisted id fails `tsc`, and `#prose` annotates the composed `PROSE_SLOTS` so a missing row fails too. */
 export const RPG_PROSE_SLOTS = {
@@ -122,7 +120,7 @@ For example, a three-line sign is enough:
     home: "preset",
     version: 1,
     // The one delimiter around the whole reminder. On a model that folds it into user text it lands in the
-    // player's message, so it must never read as the player's words (owner ruling).
+    // player's message, so it must never read as the player's words.
     text: "[Game notes for the narrator — not the player's words:\n\n{{reminder}}\n]",
     requiredMacros: ["{{reminder}}"],
     requiredTokens: [],
@@ -167,7 +165,7 @@ For example, a three-line sign is enough:
   },
 
   // ══════════════════════════════════════════════════════════════════════════════════════════════════
-  // THE EXTRACTION SEAM (census 11-27 + 29-36) — the WRITE-surface prose (S4).
+  // THE EXTRACTION SEAM — the WRITE-surface prose.
   // ══════════════════════════════════════════════════════════════════════════════════════════════════
   // The reminder cohort above teaches the NARRATOR what the tracked values mean. This cohort teaches the
   // EXTRACTOR what to write back — the per-plane teaching fragments, the six tool descriptions, and the two
@@ -195,13 +193,10 @@ For example, a three-line sign is enough:
   // an extraction prompt is not a character context — there is no `{{user}}`/`{{char}}` binding to resolve, so
   // any other `{{…}}` in an override ships as literal braces rather than silently rendering empty.
   //
-  // ROW 27 IS NOW `rpg.extract.stateTrackingGuide` (owner ruling on spec §11 decision 6: WIRE it and
-  // measure). It was the one row S4 deferred — a constant composed onto nothing, which is why slotting it then
-  // would have handed a host an edit surface over bytes no model read. It is wired now, so it is a slot like its
-  // siblings; see its own comment block below. Census rows 28 and 32 (the transcript role fallback, the three
-  // user-prompt block labels) are STRUCTURAL labels and stay out by §2.11.
+  // `rpg.extract.stateTrackingGuide` is a slot like its siblings; see its own comment block below. The
+  // transcript role fallback and the user-prompt block labels are STRUCTURAL labels, deliberately not slots.
 
-  // ── The deception-gated standing prefix (census 11) ──
+  // ── The deception-gated standing prefix ──
   "rpg.extract.deceptionSurface": {
     home: "preset",
     version: 1,
@@ -217,7 +212,7 @@ For example, a three-line sign is enough:
     fires: "Heads every extraction prompt on a game running Deception or Perception filter.",
   },
 
-  // ── The per-actor tracker teaching (census 12 — three sites) ──
+  // ── The per-actor tracker teaching ──
   "rpg.extract.party.resources": {
     home: "preset",
     version: 1,
@@ -246,7 +241,7 @@ For example, a three-line sign is enough:
     fires: "Closes the per-actor tracker teaching, whenever this game defines actor trackers.",
   },
 
-  // ── The `scene` plane fragment (census 13 — the mode-aware clause set) ──
+  // ── The `scene` plane fragment — the mode-aware clause set ──
   "rpg.extract.scene.core": {
     home: "preset",
     version: 1,
@@ -352,7 +347,7 @@ For example, a three-line sign is enough:
     fires: "The scene plane, only when `features.plotProgression` is on.",
   },
 
-  // ── The remaining plane fragments (census 14-18) ──
+  // ── The remaining plane fragments ──
   "rpg.extract.plane.party": {
     home: "preset",
     version: 1,
@@ -435,12 +430,10 @@ For example, a three-line sign is enough:
     fires: "Closes the journal teaching on a game that defines its own journal-type hints.",
   },
 
-  // ── The BE-THOROUGH state-tracking guide (census 27) ──
-  // Appendix A's system-prompt addendum, the measured per-turn coverage lifter. It was authored long before the
-  // registry and composed onto NOTHING for the whole of its life;
-  // owner decision 6 (wire-or-delete) was ruled WIRE, so the constant became this row and
-  // `composePlaneTeaching` pushes it. Bytes VERBATIM from the retired `RPG_STATE_TRACKING_GUIDE` — a wire-and-
-  // measure ruling is only measurable if what lands is the text the measurement was taken on.
+  // ── The BE-THOROUGH state-tracking guide ──
+  // The system-prompt addendum that lifts per-turn coverage. `composePlaneTeaching` pushes it on both write
+  // surfaces. Bytes are FROZEN: a wire-and-measure ruling is only measurable if what lands is the text the
+  // measurement was taken on.
   "rpg.extract.stateTrackingGuide": {
     home: "preset",
     version: 2,
@@ -457,7 +450,7 @@ For example, a three-line sign is enough:
     fires: "Tails the plane teaching on every extraction prompt — the coverage push, ahead of the reconcile rule.",
   },
 
-  // ── The shared RECONCILE doctrine (census 19) ──
+  // ── The shared RECONCILE doctrine ──
   "rpg.extract.reconcileDoctrine": {
     home: "preset",
     version: 1,
@@ -471,7 +464,7 @@ For example, a three-line sign is enough:
     fires: "Tails the plane teaching on every extraction prompt — fix what the story contradicts.",
   },
 
-  // ── The six model-facing TOOL DESCRIPTIONS (census 20-25) + the worked party example (26) ──
+  // ── The model-facing TOOL DESCRIPTIONS + the worked party example ──
   // ONE HOME, two consumers (`extraction-prompt.ts`'s own header): the per-call wire tools AND the tool-use
   // registry defs, which render the SAME templates against the empty-config baseline. The baseline consumer
   // has no game and therefore no preset in scope, so it reads these DEFAULTS only — an override is a per-call
@@ -613,7 +606,7 @@ For example, a three-line sign is enough:
     fires: "The `no_changes` escape tool's description, on every tool-carrying vehicle.",
   },
 
-  // ── The two system-prompt FRAMINGS + the three per-call lines (census 29-31, 34, 36) ──
+  // ── The system-prompt FRAMINGS + the per-call lines ──
   "rpg.extract.systemHeader": {
     home: "preset",
     version: 1,
@@ -732,7 +725,7 @@ For example, a three-line sign is enough:
     fires: "The user block's lock line, whenever a player has pinned a field this turn.",
   },
 
-  // ── The valid-ref enumeration block (census 33 — six line templates) ──
+  // ── The valid-ref enumeration block ──
   // The FALLBACK arm for a wire that cannot enforce the schema's enums: the schema binds these structurally
   // where the backend supports it, and the prompt names them everywhere.
   "rpg.extract.refs.targets": {
@@ -803,10 +796,10 @@ For example, a three-line sign is enough:
     fires: "Closes the extraction user-turn body, on every `window`/`full` extraction call.",
   },
 
-  // ── The `roll_dice` tool description (debt-prose burn). Not an extraction-schema plane (roll_dice
+  // ── The `roll_dice` tool description. Not an extraction-schema plane (roll_dice
   // is zero-state, bake-once — see `domain/rpg/tools/index.ts` header), so it carries no per-game token; it
-  // rides the SAME `buildRpgToolDescriptions`/`RPG_BASELINE_TOOL_DESCRIPTIONS` seam as its six siblings so the
-  // registry's static registration and a future per-call render never disagree. ──
+  // rides the SAME `buildRpgToolDescriptions`/`RPG_BASELINE_TOOL_DESCRIPTIONS` seam as its siblings so the
+  // registry's static registration and a per-call render never disagree. ──
   "rpg.extract.tool.rollDice": {
     home: "preset",
     version: 1,
@@ -818,13 +811,11 @@ For example, a three-line sign is enough:
   },
 
   // ══════════════════════════════════════════════════════════════════════════════════════════════════
-  // THE POPULATE ROUND (the populate census rows 1-7) — the BORN-STATE surface's own prose.
+  // THE POPULATE ROUND — the BORN-STATE surface's own prose.
   // ══════════════════════════════════════════════════════════════════════════════════════════════════
   // The host's ONE click over a character CARD, not a turn: the round reads the card + the room's opening
-  // line and writes what the character walked in with. Everything it says to the model used to be a source
-  // constant — the system header and the four user-turn labels in `domain/rpg/tools/rounds/prompts.ts`, the IDENTITY clause
-  // and the invent-nothing doctrine inline in `extraction-prompt.ts` — while its two PLANE fragments
-  // (inventory/quests) were already slots. That split is the disease: one prompt, half of it host-editable.
+  // line and writes what the character walked in with. Its header, identity clause, doctrine and user-turn
+  // labels are all slots here, so the whole prompt is host-editable end to end.
   //
   // ITS OWN `rpg.populate.*` GROUP, not more `rpg.extract.*` rows: the two cohorts fire on different calls
   // (every state round of every turn vs one born-state click), so the `rpg.extract.` cohort assertions stay a

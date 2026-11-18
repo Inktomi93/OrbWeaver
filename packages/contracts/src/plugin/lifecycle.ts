@@ -3,14 +3,13 @@
 // (not the domain) because `@orb/db` — BELOW server — must derive its CHECK from the ONE tuple, exactly the
 // `ASSET_KINDS` precedent.
 
-/** How the host obtained the bundle bytes (owner-ruled — first-party catalog seam). ADDITIVE axis
- *  (D86 resolution-discriminant precedent — the bundle-validate funnel stays source-agnostic; a new origin is
+/** How the host obtained the bundle bytes (first-party catalog seam). ADDITIVE axis
+ *  (the bundle-validate funnel stays source-agnostic; a new origin is
  *  just another byte source, never a re-shape or a second install path):
  *    - `"upload"` — a file the installer handed over (or an admin fan-out's bytes); has NO remembered URL.
- *    - `"url"` — fetched from an installer-supplied URL through the egress guard (U8 2b).
+ *    - `"url"` — fetched from an installer-supplied URL through the egress guard.
  *      The row records the URL it came from (`plugins.source_url`) so the auto update-check + one-click upgrade
- *      can re-fetch it re-paste-free. This is the honest origin the 2a placeholder deferred: 2a recorded a URL
- *      install as `"upload"` while the source-agnostic funnel was the only thing built; 2b makes it truthful.
+ *      can re-fetch it re-paste-free.
  *    - `"git"` — packed from a guarded shallow clone; records repository URL and exact installed commit.
  *  A future first-party catalog adds `"catalog"` the same way. INVARIANT (a `plugins` CHECK enforces it):
  *  `"upload"` is the ONE origin with no source URL — every non-upload origin carries one. */

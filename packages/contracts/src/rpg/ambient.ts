@@ -2,7 +2,7 @@
 // full-engine's STORAGE shape, born nullable. Lite WRITES these; full's time/weather
 // ENGINE later writes the SAME fields — no column re-type at graft. `clock` is the engine's `{day,hour,
 // minute}` struct (nullable, born null — a born "day 1 · morning" is a phantom fact one banner-render from
-// steering wrong, the §8 nullable-honesty argument); lite writes it through a LABEL vocabulary
+// steering wrong); lite writes it through a LABEL vocabulary
 // (`TIME_OF_DAY` → a representative hour via `TIME_OF_DAY_HOURS`, the ONE mapping home) and the banner
 // derives the label back from the hour by RANGE MEMBERSHIP (`TIME_OF_DAY_RANGES` — the boundary truth) via
 // `timeOfDayAtHour`, the ONE derivation home. `weather` has `type` required, everything else
@@ -58,7 +58,7 @@ const WEATHER_LABEL_MAX = 40;
 export const rpgWeatherLabelSchema = z.string().max(WEATHER_LABEL_MAX) satisfies z.ZodType<string>;
 
 /** Weather — a CLOSED `type` + an optional free `label`, everything else optional (the relationship-kind
- *  `{kind, label}` precedent, §2.1). `type` is the eight-state vocabulary the Waystone renders and the
+ *  `{kind, label}` precedent). `type` is the eight-state vocabulary the Waystone renders and the
  *  extraction wire binds at the token level: a free string had to be BINNED onto these eight anyway, and
  *  binning at the render silently degraded everything the table missed. `label` keeps the model's vivid
  *  phrasing as the DISPLAYED datum ("torrential sleet" over `snow`) — the text is the datum, the type is
@@ -88,17 +88,17 @@ export function rpgWeatherText(weather: RpgWeather): string {
   return label.length > 0 ? label : weather.type;
 }
 
-/** The label vocabulary lite steers ambient time through (§2.7). `update_scene.timeOfDay` picks one; the
- *  banner derives the label back from the stored hour. Deliberately does NOT carry `dusk` (owner
- *  ruling): a WRITE vocabulary with both `dusk` and `evening` invites the model to dither between
+/** The label vocabulary lite steers ambient time through. `update_scene.timeOfDay` picks one; the
+ *  banner derives the label back from the stored hour. Deliberately does NOT carry `dusk`: a WRITE
+ *  vocabulary with both `dusk` and `evening` invites the model to dither between
  *  near-synonyms. Dawn/dusk differentiation is a RENDER concern — the Waystone reads `clock.hour` directly and
  *  glows through the golden windows (`waystone-treatment.ts`), so the visual distinction ships without a
  *  vocabulary member. */
 export const TIME_OF_DAY = ["dawn", "morning", "afternoon", "evening", "night", "midnight"] as const;
 export type TimeOfDay = (typeof TIME_OF_DAY)[number];
 
-/** The ONE label→representative-hour WRITE mapping (§2.7) — the hour a `timeOfDay` label PUTS ON THE CLOCK.
- *  An internal vocabulary constant (§4.11 #6 argued no-knob). It is also the RENDER input in narrated mode: a
+/** The ONE label→representative-hour WRITE mapping — the hour a `timeOfDay` label PUTS ON THE CLOCK.
+ *  An internal vocabulary constant, deliberately not a knob. It is also the RENDER input in narrated mode: a
  *  lite game's clock only ever holds one of these representative hours, and the Waystone's continuous sky
  *  interpolates from exactly that number. Reading the label BACK is `timeOfDayAtHour` (range membership) —
  *  never an inversion of this table; each representative hour must lie inside its own range, or the
@@ -114,9 +114,8 @@ export const TIME_OF_DAY_HOURS: Readonly<Record<TimeOfDay, number>> = {
 
 // The ONE boundary truth: each phase's START hour, running until the next phase's start (wrap-aware —
 //  `midnight` spans 23h→5h across the day line). Owner-tunable: these are the hours the DAY actually turns
-//  over, not an artifact of where two representative hours happen to average out. (They used to be exactly
-//  that artifact — inverting `TIME_OF_DAY_HOURS` by nearest hour put dawn's border at 7.5h and reached it
-//  back to 3am, so a 4am hand sat in dawn's color under a pitch-dark sky.)
+//  over, not an artifact of where two representative hours happen to average out (inverting by nearest hour
+//  would put dawn's border at 7.5h and leave a 4am hand in dawn's color under a pitch-dark sky).
 //
 //  Coupled to the Waystone's palette: the sky's golden windows (~5-7h and ~17-19h, `waystone-treatment`)
 //  must fall INSIDE `dawn` and `evening` respectively — the boundaries and the light are one design, and the

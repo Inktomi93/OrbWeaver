@@ -23,7 +23,7 @@ export class PluginCapabilityError extends DomainForbiddenError {
   }
 }
 
-/** POSTURE 2 (interaction spec §3-S4): the installer has the GRANT but not standing authority on this chat,
+/** POSTURE 2: the installer has the GRANT but not standing authority on this chat,
  *  so the act was NOT performed — it was raised as a SUGGESTION for the room's host to confirm.
  *
  *  WHY A THROW AND NOT A SILENT SUCCESS. The three-posture law says the act becomes an ask; it does not say
