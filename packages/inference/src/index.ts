@@ -123,13 +123,11 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
   const registry = await createProviderRegistry(deps.providerStore);
   const built = buildBackends(deps);
   const fetchImpl = deps.sdkFetch;
-  // `warn` is WRAPPED, never passed as a bare method reference (#2510, found while verifying that lane's e2e).
-  // pino's level methods read `this[writeSym]`, so a detached `deps.log.warn` throws
-  // `TypeError: this[writeSym] is not a function` the first time it is CALLED — which is only ever on the
-  // mirror's degrade path (`catalog/mirror.ts` warmOnce's catch). A catalog warm that failed for an ordinary
-  // reason therefore did not degrade to the marked-estimated fallback: it threw from inside its own catch and
-  // surfaced as an unmapped 500 on `chat.commitMessage` / `chat.previewAssembly`. The sibling wiring at
-  // `backends/agent-sdk/log.ts:93` already wraps for the same reason.
+  // `warn` is WRAPPED, never passed as a bare method reference: pino's level methods read `this[writeSym]`, so a
+  // detached `deps.log.warn` throws `TypeError: this[writeSym] is not a function` the first time it is CALLED —
+  // which is only ever on the mirror's degrade path (`catalog/mirror.ts` warmOnce's catch). A catalog warm that
+  // fails for an ordinary reason must degrade to the marked-estimated fallback; a throw from inside its own catch
+  // surfaces as an unmapped 500.
   const mirrorDeps: MirrorDeps = {
     now: deps.now,
     snapshotStore: deps.snapshotStore,

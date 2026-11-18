@@ -186,7 +186,7 @@ function resolveDisplay(
   return wanted;
 }
 
-/** THE ADAPTIVE DISPLAY DEFAULT (§B4). MEASURED 2026-09-19 on the direct wire: `claude-opus-5` with
+/** THE ADAPTIVE DISPLAY DEFAULT (§B4). On the direct wire, `claude-opus-5` with
  *  `thinking: {type:"adaptive"}` and NO `display` streams ZERO reasoning characters while still billing
  *  reasoning tokens; the same call with `display: "summarized"` streams 67. Absent is therefore not "the
  *  model's choice", it is "no trace at all" — so an adaptive model that ADVERTISES the summarized mode gets
