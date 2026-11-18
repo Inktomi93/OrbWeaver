@@ -5,6 +5,13 @@
 // cache. The dialect `Record` is the exhaustive map (a third transport package is a compile error here). A row
 // whose folded `features.nativeChat` names a server's own chat route keeps the transport and translates its
 // chat calls (`ollama-native.ts`).
+//
+// FORBIDDEN: a factory `name` other than the connection's exact registry id. It is not a label — the SDK
+// derives `provider` as `${name}.${modelType}` and `providerOptionsName` from `provider.split(".")[0].trim()`
+// (`@ai-sdk/openai-compatible` dist `index.js:1476` and `:364`), and files `providerMetadata` under whichever
+// key that resolves to. A shared literal or a pretty name silently orphans the bag our result mapper reads
+// under the id (`drain.providerMetadata?.[ctx.providerId]`, `v4/result.ts`), and the same footgun exists on
+// the anthropic wire (`getProviderOptionsName`, `@ai-sdk/anthropic` dist `index.js:3539-3542`).
 
 import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
@@ -26,6 +33,7 @@ import { fromOllamaChat, ollamaNativeFetch, toOllamaChat } from "./ollama-native
 import { responsesReasoningTextStream } from "./responses-dialect.ts";
 import { samplerBodyKeys } from "./sampling.ts";
 import { thinkTagMiddleware } from "./think-tags.ts";
+import { openAiCompatConvertUsage } from "./usage.ts";
 
 const OR_REFERER_HEADER = "HTTP-Referer";
 const OR_TITLE_HEADER = "X-OpenRouter-Title";
@@ -125,8 +133,17 @@ function openAiCompatibleProvider(call: ModelCall): ReturnType<typeof createOpen
     headers: authHeaders(connection.credential.secret, connection.transport?.headers),
     fetch: wrapFetch(fetchArgs(call, undefined)),
     includeUsage: true,
+    // The vendor's raw frame → our usage axes (the SDK drops `cache_write_tokens` and zero-coerces
+    // absent axes; `usage.ts` states the reading and the null-vs-zero discipline).
+    convertUsage: openAiCompatConvertUsage,
     // The structured plan decides whether a response format rides; the SDK must never downgrade one itself.
     supportsStructuredOutputs: true,
+    // Structured tool results ride as parts instead of being JSON-stringified into `content` (dist
+    // `index.js:228`; default `false` at :146). Inert for our history today — `v4/prompt.ts:189` emits
+    // only `text`/`error-text` tool outputs, so the `content` arm this gates is unreachable — and correct
+    // the moment a `content` output exists, since a stringified array is not what a multi-part-tolerant
+    // endpoint should receive.
+    supportsMultiPartToolContent: true,
     transformRequestBody: withExtra,
   });
 }
@@ -182,6 +199,9 @@ function ollamaNativeProvider(call: ModelCall): ReturnType<typeof createOpenAICo
       translateResponse: (res) => fromOllamaChat(res, call.label),
     }),
     includeUsage: true,
+    // The same usage reading as the chat factory: `fromOllamaChat` re-spells the native frame into the
+    // OpenAI shape this hook reads, so both rows answer the same axes.
+    convertUsage: openAiCompatConvertUsage,
     // The structured plan decides whether a response format rides; the SDK must never downgrade one itself.
     supportsStructuredOutputs: true,
     transformRequestBody: withExtra,

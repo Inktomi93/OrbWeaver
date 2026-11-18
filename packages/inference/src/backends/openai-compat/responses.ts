@@ -18,7 +18,7 @@ import type { ResolvedWarning } from "@orb/contracts/inference";
 import { WARNING_CODE } from "@orb/contracts/inference";
 import type { ChatResult, RateLimitSnapshot, ResolvedChatKnobs, ResponsesChatRequest } from "#contract";
 import { ProviderError, requireGeneration } from "#contract";
-import { resolveChat, templateThinkingFor } from "#funnel";
+import { resolveCachePolicy, resolveChat, templateThinkingFor } from "#funnel";
 import type { ModelCall, OpenAiCompatChatDeps } from "#src/contract/openai-backend.ts";
 import type { StructuredPlan } from "#src/contract/structured.ts";
 import type { StreamDrain } from "#src/contract/v4.ts";
@@ -28,6 +28,8 @@ import { observeChatResult } from "../http/generation-observation.ts";
 import { turnAbortSignal } from "../http/idle-timeout.ts";
 import { providerLogger } from "../http/provider-log.ts";
 import { rateLimitCanaryEvent, rateLimitFromHeaders } from "../http/rate-limit-headers.ts";
+import type { ImplicitPromptCacheFields } from "../http/response-cache.ts";
+import { cachePolicyContextOf, implicitPromptCacheFields } from "../http/response-cache.ts";
 import { runWithPreCommitRetry } from "../http/retry.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";
 import { emitTurnSpanEvents } from "../http/turn-span.ts";
@@ -61,6 +63,7 @@ interface ResponsesTurn {
 function responsesOptions(
   req: ResponsesChatRequest,
   turn: ResponsesTurn,
+  promptCache: ImplicitPromptCacheFields,
   warnings: ResolvedWarning[],
 ): Omit<LanguageModelV4CallOptions, "prompt" | "abortSignal"> {
   const { connection } = req;
@@ -87,6 +90,12 @@ function responsesOptions(
       store: false,
       ...(strict !== undefined ? { strictJsonSchema: strict } : {}),
       ...(knobs.verbosity !== undefined ? { textVerbosity: knobs.verbosity } : {}),
+      // The prompt-cache controls, on the same gates the chat body applies (`implicitPromptCacheFields`): the
+      // SDK spells these three as `prompt_cache_key`/`prompt_cache_options`/`prompt_cache_retention`
+      // (`@ai-sdk/openai` dist `index.js:6425-6427`; the option schemas at :4361/:4368/:4383).
+      ...(promptCache.key === null ? {} : { promptCacheKey: promptCache.key }),
+      ...(promptCache.breakpoint === null ? {} : { promptCacheOptions: promptCache.breakpoint }),
+      ...(promptCache.retention === null ? {} : { promptCacheRetention: promptCache.retention }),
     },
   };
   return {
@@ -104,6 +113,18 @@ export async function runOpenAiCompatResponsesTurn(req: ResponsesChatRequest, de
   const generation = requireGeneration(connection, label);
   const knobs = resolveChat(req.params, generation, { posture: req.posture, wire: connection.wire });
   const warnings: ResolvedWarning[] = [...knobs.warnings];
+  // The same policy resolve the chat runner performs (`chat.ts`), so implicit caching is gated identically on
+  // both protocols of this wire. No OpenRouter row serves `/responses`, so replay is never supported here.
+  const policy = resolveCachePolicy({
+    context: cachePolicyContextOf(connection, false),
+    generation,
+    preset: req.params.responseCache,
+    request: req.responseCache,
+    requestedDepth: req.cacheBreakpointDepth,
+    requestedRoleHandling: req.params.advanced?.roleHandling,
+  });
+  warnings.push(...policy.warnings);
+  const promptCache = implicitPromptCacheFields(policy.plan, generation, req.chatId);
   if (req.prefillReasoning !== undefined) {
     // This route models no forced continuation (a trailing assistant input item reads continue-LIKE but may
     // restart — `docs/law/deepseek-api-surface.md`), so an authored chain of thought has no row to ride.
@@ -152,7 +173,7 @@ export async function runOpenAiCompatResponsesTurn(req: ResponsesChatRequest, de
     structured,
     templateThinking: templateThinkingFor(req.params, generation, req.terminalToolsAttached === true, req.posture),
   };
-  const baseOptions = responsesOptions(req, turnKnobs, warnings);
+  const baseOptions = responsesOptions(req, turnKnobs, promptCache, warnings);
   const deltaTarget = req.chatId === undefined || req.onDelta === undefined ? undefined : { chatId: req.chatId, onDelta: req.onDelta };
   const call: ModelCall = {
     connection,
