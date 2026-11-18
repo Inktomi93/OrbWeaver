@@ -95,7 +95,7 @@ export function anthropicExtras(connection: Resolved, warnings: ResolvedWarning[
       warnings.push({ code: "custom_parameters_ignored", key, message: `extras key "${key}" ignored: the value is not a valid ${key} block` });
       continue;
     }
-    out[key] = parsed.data as JSONObject[string];
+    out[key] = parsed.data;
   }
   return out;
 }

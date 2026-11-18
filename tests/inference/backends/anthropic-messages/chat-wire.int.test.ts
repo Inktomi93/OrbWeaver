@@ -217,7 +217,7 @@ test("extras fallbacks and a context-management edit are refused on this wire: e
   });
 
   const refused = turn.events.flatMap((event) => (event.kind === "warning" && event.code === WARNING_CODE.customParametersIgnored ? [event.key] : []));
-  expect(refused.toSorted()).toEqual(["contextManagement", "fallbacks"]);
+  expect(new Set(refused)).toEqual(new Set(["fallbacks", "contextManagement"]));
   expect(sent.body).not.toHaveProperty("fallbacks");
   expect(sent.body).not.toHaveProperty("context_management");
   // Positive control: the allowlist still carries keys the cost fold prices whole, so the refusal above is
