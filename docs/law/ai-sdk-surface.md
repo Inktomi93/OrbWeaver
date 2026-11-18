@@ -17,16 +17,16 @@ in the backend file headers. This doc states what the SDKs do, not what we decid
 ## Why our footprint looks empty: we live below `streamText`
 
 `ai` exposes 178 runtime exports; we import two (`extractReasoningMiddleware`, `wrapLanguageModel`, plus a type,
-in `backends/openai-compat/think-tags.ts` and `model.ts`). That is architecture, not neglect. The stack has three
+in `packages/inference/src/backends/openai-compat/think-tags.ts` and `model.ts`). That is architecture, not neglect. The stack has three
 floors:
 
 - **The core (`ai`)** sits above the provider boundary: `streamText`/`generateText`, the agent loop, UI streams,
   the telemetry dispatcher. We never import the core's execution — a bare `doStream()` call never reaches the
-  core's telemetry dispatcher at all (`ai/dist/index.js:4519` builds it inside `streamText`).
+  core's telemetry dispatcher at all (ai dist index.js:4519 builds it inside `streamText`).
 - **The provider specification (`@ai-sdk/provider`)** is the contract between floors. It is versioned `v1`…`v4`;
   `specificationVersion: 'v4'` is a literal on every current interface (`@ai-sdk/provider/dist/index.d.ts:994`),
   and the same file still declares the V2 (:1997) and V3 (:1945) interfaces because older providers must stay
-  consumable. Our `backends/v4/` consumes V4 directly — fold the stream, build the result — which is why the
+  consumable. Our `packages/inference/src/backends/v4/` consumes V4 directly — fold the stream, build the result — which is why the
   core's helpers are mostly inapplicable to us rather than overlooked.
 - **`@ai-sdk/provider-utils`** sits inside the provider packages. We never import it (0 of 202 exports); its
   helpers operate on requests the provider factories already own.
@@ -39,14 +39,14 @@ whole stack pins as one unit because every provider's own provider-dependency mu
 
 | Package | Pin | Runtime exports | Imported | Where |
 | - | - | - | - | - |
-| `ai` | 7.0.148 | 178 (+306 types) | 2 | `think-tags.ts`, `openai-compat/model.ts` |
-| `@ai-sdk/provider` | 4.0.31 (patched) | 22 (+251 types) | 0 runtime, ~22 types | `contract/v4.ts`, `backends/v4/*` |
+| `ai` | 7.0.148 | 178 (+306 types) | 2 | `think-tags.ts`, `packages/inference/src/backends/openai-compat/model.ts` |
+| `@ai-sdk/provider` | 4.0.31 (patched) | 22 (+251 types) | 0 runtime, ~22 types | `packages/inference/src/contract/v4.ts`, `packages/inference/src/backends/v4/*` |
 | `@ai-sdk/provider-utils` | 5.0.65 (patched) | 118 (+84 types) | 0 | transitive of `ai` only |
-| `@ai-sdk/openai` | 4.0.99 | 53 (+37 types) | 1 (`createOpenAI`) | `openai-compat/model.ts:9` |
+| `@ai-sdk/openai` | 4.0.99 | 53 (+37 types) | 1 (`createOpenAI`) | `packages/inference/src/backends/openai-compat/model.ts:9` |
 | `@ai-sdk/openai-compatible` | 3.0.75 | 11 (+16 types) | 1 (`createOpenAICompatible`) | `model.ts:10` |
-| `@ai-sdk/anthropic` | 4.0.85 | 14 (+~15 types) | 1 (`createAnthropic`) | `anthropic-messages/model.ts:5` |
-| `@ai-sdk/google` | 4.0.102 | 44 (+types) | 3 | `google/model.ts`, `google/embed.ts` |
-| `@openrouter/ai-sdk-provider` | 3.1.0 | 3 (+19 types) | 1 (`createOpenRouter`) | `openai-compat/model.ts:219` |
+| `@ai-sdk/anthropic` | 4.0.85 | 14 (+~15 types) | 1 (`createAnthropic`) | `packages/inference/src/backends/anthropic-messages/model.ts:5` |
+| `@ai-sdk/google` | 4.0.102 | 44 (+types) | 3 | `packages/inference/src/backends/google/model.ts`, `packages/inference/src/backends/google/embed.ts` |
+| `@openrouter/ai-sdk-provider` | 3.1.0 | 3 (+19 types) | 1 (`createOpenRouter`) | `packages/inference/src/backends/openai-compat/model.ts:219` |
 
 ## Patches: required, not drifted, port on every bump
 
@@ -78,20 +78,20 @@ Judgments: **necessary** (the SDK cannot), **stricter** (the SDK can, loses a wr
 
 | Our site | SDK state | Verdict | The law the swap would trade |
 | - | - | - | - |
-| `v4/stream.ts` fold | core fold lives in `streamText`, one floor above us; usage combiners are internal (not exported) | necessary | drops `reasoningParts` provenance, `textSignatures`, per-part ordinals, `servedModel`, warnings |
+| `packages/inference/src/backends/v4/stream.ts` fold | core fold lives in `streamText`, one floor above us; usage combiners are internal (not exported) | necessary | drops `reasoningParts` provenance, `textSignatures`, per-part ordinals, `servedModel`, warnings |
 | synthesized-finish guard (`stream.ts:283`) | `NoContentGeneratedError` is exported but never thrown in the core dist | stricter | reopens the empty-reply-committed-as-success bug (issue 1400) |
-| usage fold (`v4/result.ts` → `contracts/inference/usage.ts`) | `asLanguageModelUsage` is internal | necessary+stricter | theirs keeps noCache/text splits; ours holds null-vs-0 discipline, cost provenance, cap facts |
-| `v4/fetch.ts wrapFetch`, `http/fetch-json.ts` | `postJsonToApi` family | stricter | manual-redirect host pin, scrubbed capped error bodies, non-JSON-2xx as retryable server error, `ProviderError` classification |
+| usage fold (`packages/inference/src/backends/v4/result.ts` → `packages/contracts/src/inference/usage.ts`) | `asLanguageModelUsage` is internal | necessary+stricter | theirs keeps noCache/text splits; ours holds null-vs-0 discipline, cost provenance, cap facts |
+| `packages/inference/src/backends/v4/fetch.ts wrapFetch`, `packages/inference/src/backends/http/fetch-json.ts` | `postJsonToApi` family | stricter | manual-redirect host pin, scrubbed capped error bodies, non-JSON-2xx as retryable server error, `ProviderError` classification |
 | capped reads (`readCappedStream`, `readCapped`) | `readResponseWithSizeLimit` (provider-utils:1621) | stricter | code-unit cap with the secret-scrub over-read seam (issue 1820); theirs is byte-counted and throws instead of keeping the prefix |
-| SSE parse (`http/sse.ts:63`) | `parseJsonEventStream` (provider-utils:3365) | stricter | malformed `data:` must THROW (issue 758); theirs yields a value call sites drop; plus the 1 MiB line cap |
+| SSE parse (`packages/inference/src/backends/http/sse.ts:63`) | `parseJsonEventStream` (provider-utils:3365) | stricter | malformed `data:` must THROW (issue 758); theirs yields a value call sites drop; plus the 1 MiB line cap |
 | `error-classify.ts` | `APICallError.isRetryable` | stricter | theirs is one boolean; ours is the kind table feeding the key-strike rule and the 403 moderation discriminator |
 | `abort-flatten.ts` | `isAbortError` (provider-utils:543) | necessary | the helper counts `TimeoutError` as abort — the exact conflation the file exists to prevent; `createAbortError` is not even exported |
-| `http/retry.ts` pre-commit retry | `retryWithExponentialBackoff` (provider-utils:3737) | stricter | no committed-output gate: the SDK loop would replay deltas that already hit the bus |
-| `v4/prompt.ts buildWirePlan` | `standardizePrompt` internal; no `ModelMessage` layer here | necessary | the plan's row indices are the contract the placer and shaper share |
+| `packages/inference/src/backends/http/retry.ts` pre-commit retry | `retryWithExponentialBackoff` (provider-utils:3737) | stricter | no committed-output gate: the SDK loop would replay deltas that already hit the bus |
+| `packages/inference/src/backends/v4/prompt.ts buildWirePlan` | `standardizePrompt` internal; no `ModelMessage` layer here | necessary | the plan's row indices are the contract the placer and shaper share |
 | openai-compat body shaping (`body.ts`) | flat pass-through of unknown `providerOptions` keys | stricter | ordered extras merge with warnings, the SDK-owned key list, sampler-alias ownership, fold/prefill/template-kwargs the SDK converters never emit |
-| `cache_control` placement (`wire/cache-control.ts`) | Anthropic SDK has NO placer (forwards what we stamp, dist js:2322,:2386,:2524); compatible has message-level only | necessary+stricter | row-index and part-level breakpoints have no SDK home on our transports |
+| `cache_control` placement (`packages/inference/src/backends/wire/cache-control.ts`) | Anthropic SDK has NO placer (forwards what we stamp, dist js:2322,:2386,:2524); compatible has message-level only | necessary+stricter | row-index and part-level breakpoints have no SDK home on our transports |
 | anthropic/google thinking spelling | SDKs warn-and-rewrite post-resolution | stricter | we decide pre-request via curated rows, so the rewrite never fires |
-| google usage reads (`google/usage.ts`) | normalized shape coerces absence to 0, drops modalities, never surfaces `modelVersion` | necessary | we read raw chunks to keep null-vs-0 and served-model identity |
+| google usage reads (`packages/inference/src/backends/google/usage.ts`) | normalized shape coerces absence to 0, drops modalities, never surfaces `modelVersion` | necessary | we read raw chunks to keep null-vs-0 and served-model identity |
 | `parallel_tool_calls:false`, `top_k`/`min_p`, prefill, image detail on compatible wire | untyped; pass-through survives them | hand-rolled (SDK silent) | nothing to adopt; the pass-through is the SDK's extension seam |
 
 **Adopt list (the SDK genuinely has the door):**
@@ -100,7 +100,7 @@ Judgments: **necessary** (the SDK cannot), **stricter** (the SDK can, loses a wr
    (dist:40-60) — a fact our own `chat.ts:82` comments — and we then hand-roll `nativeOpenAiUsageOverlay` gated
    to `providerId === "openai"`, so endpoints that DO report the field currently yield `null`. The hook is the
    supported home for that read.
-2. `extractReasoningMiddleware` literal-delimiter form (`ai/dist/index.d.ts:9696-9698`: `tagName` accepts
+2. `extractReasoningMiddleware` literal-delimiter form (ai dist index.d.ts:9696-9698: `tagName` accepts
    `{ opening, closing }`; shipped since 7.0.128, we pin above). `think-tags.ts:20-23` claims a preset's
    `[thinking]`/`[/thinking]` pair is "INEXPRESSIBLE" — stale; bracket presets silently miss the stream-time
    split. Fix `tagNameOf`; keep the `reasoningKeys` guard; the post-hoc split stays as fallback.
@@ -121,7 +121,7 @@ Judgments: **necessary** (the SDK cannot), **stricter** (the SDK can, loses a wr
   would land in `providerMetadata` (`GoogleProviderMetadata` carries `groundingMetadata`/`safetyRatings`).
 - **Anthropic `safeguards`** (dist js:3839, beta header js:3932) and `iterations[]` per-model billing rows
   (js:1914-1934) which our cost fold ignores. `anthropicBeta` has no modeled path for an unmodeled beta.
-- **V4 stream parts we drop**: 8 of 21 (`v4/stream.ts` handles 13). Tool-input delta triples are safe by
+- **V4 stream parts we drop**: 8 of 21 (`packages/inference/src/backends/v4/stream.ts` handles 13). Tool-input delta triples are safe by
   contract (the terminal `tool-call` is mandatory, provider dist:3370-3382) but the code does not say so, and a
   deltas-only wire would yield zero tool calls silently — one comment plus one guard owed. `source` parts
   (web-search citations; OR emits them, anthropic 7 sites) are the only USER-visible loss: citations are
@@ -138,10 +138,10 @@ Judgments: **necessary** (the SDK cannot), **stricter** (the SDK can, loses a wr
   headers on the model.ts factories should say so.
 - `openai-compatible`'s `languageModel(id, config)` accepts a per-model `config` that the implementation IGNORES
   (dist js:1485) despite the types. Build nothing on it.
-- Header citations that drifted: `v4/fetch.ts:22` says "measured against the installed provider dist 3.0.0"
-  (installed 3.1.0 — true as provenance, stale as a claim); `http/abort-flatten.ts:12` cites
+- Header citations that drifted: `packages/inference/src/backends/v4/fetch.ts:22` says "measured against the installed provider dist 3.0.0"
+  (installed 3.1.0 — true as provenance, stale as a claim); `packages/inference/src/backends/http/abort-flatten.ts:12` cites
   `@openrouter/sdk@1.1.8`, a package not in this repo's graph at all (a probe instrument, not a dependency —
-  say so in the comment); `provider-metadata.ts:13` and `v4/stream.ts:261,:266` cite OR dist lines that moved
+  say so in the comment); `provider-metadata.ts:13` and `packages/inference/src/backends/v4/stream.ts:261,:266` cite OR dist lines that moved
   between provider versions. Re-measure before renumbering.
 - `openrouter-reasoning-wire.int.test.ts` asserts the request side (`reasoning.effort`) but never the
   `reasoning_details` replay its name promises.
@@ -167,6 +167,6 @@ Judgments: **necessary** (the SDK cannot), **stricter** (the SDK can, loses a wr
 ## Method note
 
 Full mining output (497-row provider export table, 484-row core export table, per-site overlap tables with dist
-`path:line` for every claim) lives in the raw pass files under `/tmp/opencode/sdk-surface/` (`ai-core.md`,
-`openai.md`, `anthropic-google.md`, `provider-layer.md`) while this doc keeps the settled conclusions. Re-run a
+`path:line` for every claim) lives in the raw pass files under /tmp/opencode/sdk-surface/ — one file per
+pass (ai-core, openai, anthropic-google, provider-layer) — while this doc keeps the settled conclusions. Re-run a
 lane after any SDK bump: these facts are pins, not laws of nature.
