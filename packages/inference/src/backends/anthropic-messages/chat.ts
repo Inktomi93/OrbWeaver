@@ -5,9 +5,7 @@
 // `backends/wire/cache-control.ts`), the thinking/effort spelling, the shared reducer and result fold,
 // pre-commit retry.
 //
-// AN ASSISTANT IMAGE IS DROPPED HERE, AND THE REASON IS THE WIRE, NOT THE HOOK. An earlier header claimed
-// "the SDK exposes no post-convert hook" — that was false (`wrapFetch.shapeBody` is exactly one, and the
-// openrouter transport re-attaches through it). MEASURED 2026-09-20 against the live API: an `image` block on
+// AN ASSISTANT IMAGE IS DROPPED HERE, AND THE REASON IS THE WIRE, NOT THE HOOK. An `image` block on
 // an assistant row is `400 "messages.1.content: 'image' blocks are not permitted within assistant turns"`
 // (req_011CfEBBYooCmJyWSAv45UPL; the identical body without the block is 200, req_011CfEBBZzjfJ88KQ58U3qzi).
 // So a prior reply picture riding back has nowhere to go on this wire and is dropped LOUDLY, by the wire's
@@ -235,7 +233,7 @@ function anthropicOptions(
 
 /** THE PREFILL BELT. The assembly already reshapes a trailing assistant row when the capability says
  *  the model refuses prefill (`needsContinuation`), so this never fires on the normal path — it exists so a
- *  caller that BYPASSES the assembly cannot reach the upstream 400. MEASURED 2026-09-19: `claude-opus-5` and
+ *  caller that BYPASSES the assembly cannot reach the upstream 400. `claude-opus-5` and
  *  `claude-opus-4-6` reject a trailing assistant row with a 400 — "This model does not support assistant
  *  message prefill" — on both routes, thinking on or off; `claude-opus-4-5` accepts it. A tool exchange is NOT a
  *  prefill (the plan's `endsOnAssistant` already excludes an assistant row that ends in a tool call). */
@@ -274,7 +272,7 @@ interface StreamOnceArgs {
   readonly now: Clock;
   readonly markCommitted: () => void;
   readonly onFirstDelta: (at: number) => void;
-  /** The response headers the V4 stream result exposes (B6) — before the first part, once per attempt. */
+  /** The response headers the V4 stream result exposes — before the first part, once per attempt. */
   readonly onResponse: (headers: SharedV4Headers | undefined) => void;
 }
 
@@ -375,14 +373,13 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
       : withSchemaRejection(providerErrorFromHttp(err, label, secrets, deps.now), err, { log, model: connection.model, mode: structured.mode, secrets });
   // THE TYPED-FAILURE BOUNDARY. `runWithPreCommitRetry` re-throws the ORIGINAL error on purpose (its JSDoc
   // states it: the classification is only the retry policy's input, and the openai-compat replay below peels
-  // `responseBody`/`cause` off that raw object, which `providerErrorFromHttp` would have scrubbed away). That
-  // ruling stands — but it left every streaming-chat failure escaping the package RAW, breaking the one thing
-  // `contract/errors.ts` promises: "ONE error class across every task so a consumer catches a single type
-  // regardless of which backend threw". Measured 2026-09-20 by the cross-backend conformance suite: a
-  // cancelled turn surfaced a bare `DOMException: AbortError` here while the agent-sdk and local-light wires
-  // surfaced `ProviderError{kind:"aborted"}`, and `entry/compose/chat.ts` hands the rejection straight on
-  // without normalising. So the classify happens HERE, outside everything that needs the raw error and
-  // inside nothing that does. `classify` returns an existing `ProviderError` untouched.
+  // `responseBody`/`cause` off that raw object, which `providerErrorFromHttp` would have scrubbed away). But
+  // every streaming-chat failure then escapes the package RAW, breaking the one thing `contract/errors.ts`
+  // promises: "ONE error class across every task so a consumer catches a single type regardless of which
+  // backend threw". A cancelled turn surfaces a bare `DOMException: AbortError` here while the agent-sdk and
+  // local-light wires surface `ProviderError{kind:"aborted"}`, and `entry/compose/chat.ts` hands the rejection
+  // straight on without normalising. So the classify happens HERE, outside everything that needs the raw
+  // error and inside nothing that does. `classify` returns an existing `ProviderError` untouched.
   const drain = await runWithPreCommitRetry(
     (markCommitted) =>
       streamOnce({
@@ -425,7 +422,7 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
     now: finishedAt,
     measuredCost: measuredCostOf(drain.providerMetadata, drain.usage?.raw),
     pricing: connection.features.pricing,
-    // The `msg_…` response id — the support handle (B7); OpenRouter's is the `gen-…` on its own transport.
+    // The `msg_…` response id — the support handle; OpenRouter's is the `gen-…` on its own transport.
     generationId: drain.responseId ?? null,
     appliedEffort: appliedEffortOf(options),
     rateLimit: response.rateLimit,
