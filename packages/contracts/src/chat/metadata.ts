@@ -1,8 +1,8 @@
 // @orb/contracts/chat/metadata — the `chats.metadata` room-behavior blob (D16) and its fault-isolated
 // sub-blobs: room overrides (host-only three-field allowlist), the member-card visibility dial (D22), the
-// group arbitration config, the opening policy, and the guided-steer wire contract (F6). Misfiled-from-
-// settings (shared-dissolution §7 #4): these are chat verb / assemble / client-form shapes, NOT the
-// settings KV. ONE HOME here so the `db` `$type` and the server parser derive, never re-spell.
+// group arbitration config, the opening policy, and the guided-steer wire contract. These are chat verb /
+// assemble / client-form shapes, NOT the settings KV. ONE HOME here so the `db` `$type` and the server
+// parser derive, never re-spell.
 
 import { GUIDED_GAME_STEER_KINDS } from "@orb/kit/guided";
 import { z } from "zod";
@@ -13,22 +13,14 @@ import type { ThemeBackground } from "#theme";
 import { messageRoleSchema } from "./participants.ts";
 import type { RegexTierAllow } from "./regex-tiers.ts";
 
-// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// MISFILED-FROM-SETTINGS CHAT SHAPES (shared-dissolution §7 #4) — chatMetadata sub-blobs / start-chat
-// unions consumed by chat verbs + assemble types + client chat forms, NOT the settings KV.
-// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-
-// ── Room overrides (host-only; exactly three fields — the Part III §9 allowlist) ──
+// ── Room overrides (host-only; exactly three fields) ──
 const OVERRIDE_FIELD_MAX = 100_000;
 const overrideField = z.string().max(OVERRIDE_FIELD_MAX);
 
-// RETIRED KEY — `authorsNote` (owner ruling): the room author's note was a SECOND home for the
-// concept `chat_injections` already owns. Both landed as the same `in_chat` at-depth splice (operator
-// priority, budget-exempt); the note was just an injection with a default depth. ONE door survives — the
-// per-chat Injections list (a system note at depth 4 IS the author's note). Strictness therefore REJECTS a
-// stored/wired `authorsNote`: the sub-blob heals to absent at the read seam (`domain/chat/contract/
-// metadata.ts` `.catch(undefined)`) and the write verb refuses it (`forbiddenOverride`). Pre-launch, stored
-// values are debris — no migration.
+// RETIRED KEY — `authorsNote`: the room author's note was a SECOND home for a concept `chat_injections`
+// already owns (both land as the same `in_chat` at-depth splice, a system note at depth 4 IS the author's
+// note). Strictness therefore REJECTS a stored or wired one: the sub-blob heals to absent at the read seam
+// (`domain/chat/contract/metadata.ts`) and the write verb refuses it (`forbiddenOverride`).
 
 /** The host-only per-room overrides — exactly three PLAIN-TEXT section overrides ("jailbreak" IS
  *  post_history). `z.strictObject` default-denies a stray key (an enforcer, not prose). Each field absent ⇒
@@ -45,7 +37,7 @@ export type RoomOverrides = z.infer<typeof roomOverridesSchema>;
 export const DEFAULT_ROOM_OVERRIDES: RoomOverrides = {};
 
 // ── Member card visibility (D22 — the host-set per-room dial) ──
-/** How much of a roster character's card a present human member may read (Part III §11; D22). Levels
+/** How much of a roster character's card a present human member may read (D22). Levels
  *  widen left→right: `name-avatar` (the conservative floor) → `sheet` (presentable identity) → `sheet+lore`
  *  (+ the character's world-info) → `full` (+ prompt-steering internals). Host-set; the owner/host always
  *  sees `full`; the member view is read-only + while-present. */
@@ -54,7 +46,7 @@ export type MemberCardVisibility = (typeof MEMBER_CARD_VISIBILITY_LEVELS)[number
 export const memberCardVisibilitySchema = z.enum(MEMBER_CARD_VISIBILITY_LEVELS) satisfies z.ZodType<MemberCardVisibility>;
 
 // ── Group config (the `chatMetadata.group` sub-blob) ──
-/** The canonical arbitration-policy union (spine §5.5 — ONE importable tuple; the derived Select items +
+/** The canonical arbitration-policy union (Spine-TypeScript-and-Patterns §7.4 — ONE importable tuple; the derived Select items +
  *  a total `Record` label map in `group-config-form.tsx` fail `tsc` when a member is added/renamed). The
  *  `.catch().default()` on the schema hides `.options`, so the tuple is the shared source, not the enum. */
 export const GROUP_POLICIES = ["natural", "list", "pooled", "manual", "smart"] as const;
@@ -89,7 +81,7 @@ export const GROUP_POLICY_LABELS: Record<GroupPolicy, string> = {
   smart: "Smart",
 };
 
-// What Smart picks with (owner ruling on 0420): the bound rerank role by default, free and local on the
+// What Smart picks with: the bound rerank role by default, free and local on the
 //  built-in reranker, or the Utility-model arbiter as the opt-in upgrade. A sub-setting of `smart`, never a
 //  policy of its own; every other policy ignores it.
 const SMART_PICKERS = ["reranker", "utility"] as const;
@@ -101,7 +93,7 @@ export const SMART_PICKER_LABELS: Record<SmartPicker, string> = {
 };
 /** The Group-tab switch that turns on Smart's Utility-model picker; the arbiter prompt's editor copy names it too. */
 export const SMART_UTILITY_SWITCH_LABEL = `Use the ${SMART_PICKER_LABELS.utility} instead`;
-// A stored blob from before the sub-setting existed parses to the default, so no migration is owed.
+// `.catch().default()`: a blob written before this key existed parses to the default rather than failing.
 const smartPickerField = {
   smartPicker: z.enum(SMART_PICKERS).catch("reranker").default("reranker"),
 } as const;
@@ -121,14 +113,11 @@ const autoModeFields = {
   allowSelfResponses: z.boolean().catch(false).default(false),
 } as const;
 
-// RETIRED KEY — `groupCharacterId` (owner ruling, the D107 dead-switch class): the synthetic
-// group character (Part III §10) is resolved by HANDLE (`__group__<chatId>`, a find-or-mint), so this key
-// never had a writer OR a reader — a dead switch that nevertheless travelled VERBATIM in the portability
-// bundle, where a foreign `CharacterId` resolves to nothing on the target box (the D136(C) class). Both arms
-// now REFUSE it (strictObject) at every write boundary. A STORED blob still carrying one is not debris the
-// way a retired `authorsNote` is: healing the group sub-blob to absent would silently revert a narrator room
-// to the per-speaker default, so the retired key is STRIPPED on the stored read instead — see
-// `storedGroupConfigSchema` below, the ONE strip home both stored readers share. Pre-launch, no migration.
+// RETIRED KEY — `groupCharacterId`: the synthetic group character is resolved by HANDLE
+// (`__group__<chatId>`, a find-or-mint), so this key never had a writer or a reader. Both arms REFUSE it
+// (strictObject) at every write boundary, and the STORED read STRIPS it rather than healing the sub-blob to
+// absent — that heal would silently revert a narrator room (or a user's saved room defaults) to the
+// per-speaker default. See `storedGroupConfigSchema` below, the ONE strip home both stored readers share.
 
 // `memberCardVisibility` (D22) — host-set, default `sheet`; on BOTH arms (both arms are strict).
 const memberCardVisibilityField = {
@@ -154,7 +143,7 @@ export const groupConfigSchema = z.discriminatedUnion("output", [
     ...autoModeFields,
     ...memberCardVisibilityField,
   }),
-  // `z.strictObject` on THIS arm too (F6): both arms are enforcers, so a typo'd knob on a `setGroupConfig`
+  // `z.strictObject` on THIS arm too: both arms are enforcers, so a typo'd knob on a `setGroupConfig`
   // write is refused loudly instead of stripped-and-healed into a silently-wrong room.
   z.strictObject({
     output: z.literal("per-speaker"),
@@ -237,7 +226,7 @@ export const groupConfigInputSchema = z.discriminatedUnion("output", [
 /** The normalized partial output; omitted room knobs stay omitted rather than acquiring defaults. */
 export type NormalizedGroupConfigInput = z.output<typeof groupConfigInputSchema>;
 
-/** The default room behavior (Part III §7): per-speaker × merged, natural arbitration, no speaker tags,
+/** The default room behavior: per-speaker × merged, natural arbitration, no speaker tags,
  *  group-nudge on, auto-mode OFF, member cards visible at `sheet` (D22). */
 export const DEFAULT_GROUP_CONFIG: GroupConfig = {
   output: "per-speaker",
@@ -261,14 +250,13 @@ export const DEFAULT_GROUP_CONFIG: GroupConfig = {
 export const openingPolicySchema = z.enum(["greet-all", "generate", "none", "first-message"]);
 export type OpeningPolicy = z.infer<typeof openingPolicySchema>;
 
-// ── The guided-steer wire contract (F6 — the transport trust boundary for the composer wand) ──
+// ── The guided-steer wire contract (the transport trust boundary for the composer wand) ──
 // The one-turn typed steer every generating chat verb accepts. DERIVED, never re-spelled: `action` from
 // `guidedActionKindSchema` (#preset), `person` from `GUIDED_IMPERSONATE_PERSONS` (#preset), the inject
-// placement role from `messageRoleSchema`. Before this schema the six turn verbs rode `z.any()` and the
-// domain assumed the shape — a garbage `action` dereferenced `undefined.prompt` and a non-string `input`
-// hit `.trim()`, so any authed participant could 500 the turn with a malformed body. This schema IS the
-// trust boundary; the domain re-exports this exact `GuidedSteer` type (`domain/chat/contract/params.ts`)
-// — the pre-F6 local re-spell died with `z.any()`, so there is one shape and no drift to guard.
+// placement role from `messageRoleSchema`. This schema IS the trust boundary: before it the six turn verbs
+// rode `z.any()` and a garbage `action` dereferenced `undefined.prompt`, so any authed participant could 500
+// the turn with a malformed body. The domain re-exports this exact `GuidedSteer` type
+// (`domain/chat/contract/params.ts`), so there is one shape and no drift to guard.
 /** The steer text cap — the house user-prose bound ({@link OVERRIDE_FIELD_MAX}); a steer is a short one-turn
  *  nudge, so this ceiling is only a wire-abuse floor, never a real-usage limit. */
 export const GUIDED_STEER_INPUT_MAX = OVERRIDE_FIELD_MAX;
@@ -280,13 +268,13 @@ export const guidedSteerSchema = z.strictObject({
     .optional(),
   /** The `{{person}}` word for impersonate's 1st/2nd/3rd-person templates; ignored by other actions. */
   person: z.enum(GUIDED_IMPERSONATE_PERSONS).optional(),
-  /** A wand-fired one-shot GAME steer KIND (parity-plus P5 — the Plot submenu + "Offer choices"). When
+  /** A wand-fired one-shot GAME steer KIND (the Plot submenu + "Offer choices"). When
    *  present, the assembly resolves the kit-homed SYSTEM template (`GUIDED_GAME_STEERS`) through the macro
    *  engine (the rpg data macros read the game turn's gather feed) and delivers it as a depth-0 system
    *  injection — `input`/the action config are ignored. Enum-validated: the wire carries only the kind,
    *  never template text (a member cannot smuggle macros onto the trusted template side). */
   gameSteer: z.enum(GUIDED_GAME_STEER_KINDS).optional(),
-  /** The Rewrite modal's picked toggle KINDS (the templating fork, ARM B — owner ruling). Enum-validated
+  /** The Rewrite modal's picked toggle KINDS (owner ruling). Enum-validated
    *  for the same reason `gameSteer` is: the wire carries the kind, the SERVER holds the bytes. Each id names
    *  a `preset.rewriteToggle.*` prose slot the assembly resolves against the turn's preset overrides and
    *  joins — in CATALOG order, never wire order — ahead of `input` (the host's own free text) into the ONE
@@ -333,7 +321,7 @@ export interface ChatMetadata {
    *  explicit boolean. Resolve through {@link resolveHostDisplayScripts}. It governs render only; no wire
    *  payload, canon or composer text changes on either side. */
   hostDisplayScripts?: boolean;
-  /** B1 / RULED F2 — the per-room "offer choices" POSTURE: whether this chat's model is taught the standing
+  /** The per-room "offer choices" POSTURE: whether this chat's model is taught the standing
    *  `:::choices` fence (the reading surface renders the options as click-to-compose affordances).
    *
    *  TRI-STATE BY ABSENCE, and that is the whole point: `true`/`false` are the host's explicit per-room
@@ -342,9 +330,9 @@ export interface ChatMetadata {
    *  create-time copy of the value into the blob. Resolve through {@link resolveOfferChoices}, never with an
    *  ad-hoc `?? false`. Host-set (`chat.setOfferChoices`); room-public on the read (a member sees why the
    *  model keeps offering choices). Distinct from the GAME's own `features.cyoa` knob, which is rpg's and
-   *  untouched — a chat with both on gets ONE teach (the S2 double-teach guard, `substrate/teaching.ts`). */
+   *  untouched — a chat with both on gets ONE teach (the double-teach guard, `substrate/teaching.ts`). */
   offerChoices?: boolean;
-  /** B7 — the per-room "characters can react" POSTURE: whether this chat's turns attach the `react` tool,
+  /** The per-room "characters can react" POSTURE: whether this chat's turns attach the `react` tool,
    *  letting the model have a PRESENT character drop an emoji reaction on the newest message mid-turn.
    *
    *  The `offerChoices` shape exactly: tri-state by absence — `true`/`false` are the host's explicit
@@ -354,7 +342,7 @@ export interface ChatMetadata {
    *  is opt-in — a room whose host never touched either tier never attaches the tool. Also gated by
    *  {@link ChatMetadata.reactionsEnabled}: a room with the reaction plane off attaches nothing. */
   charactersCanReact?: boolean;
-  /** B7 — the per-room MASTER switch for the B6 reaction plane (pills, picker, toggles, the react tool,
+  /** The per-room MASTER switch for the reaction plane (pills, picker, toggles, the react tool,
    *  the prompt-attribution loop). Same tri-state shape; per-user default
    *  `UserSettings.chat.reactionsEnabled`, which DEFAULTS ON — the shipped feature stays on; this knob
    *  makes it disableable, never silently off. Resolve through {@link resolveReactionsEnabled}. Host-set
@@ -400,7 +388,7 @@ export function resolveHostDisplayScripts(roomValue: boolean | undefined): boole
   return roomValue !== false;
 }
 
-/** The B7 "characters can react" precedence — the {@link resolveOfferChoices} rule for its knob: the
+/** The "characters can react" precedence — the {@link resolveOfferChoices} rule for its knob: the
  *  room's explicit choice wins, absent inherits the host's per-user default (itself defaulting OFF —
  *  the react tool is opt-in at both tiers). Same two callers by design: the server resolves it into the
  *  S2 teaching knobs, the client resolves it to seat the host's toggle. */
@@ -408,9 +396,9 @@ export function resolveCharactersCanReact(roomValue: boolean | undefined, userDe
   return roomValue ?? userDefault;
 }
 
-/** The B7 reaction-plane master precedence — same rule, OPPOSITE default direction: the per-user default
- *  ships ON (`UserSettings.chat.reactionsEnabled` defaults `true` — B6 is a shipped feature, this knob
- *  makes it disableable rather than quietly off). One home because THREE surfaces resolve the same pair —
+/** The reaction-plane master precedence — same rule, OPPOSITE default direction: the per-user default
+ *  ships ON (`UserSettings.chat.reactionsEnabled` defaults `true`; this knob makes the shipped feature
+ *  disableable rather than quietly off). One home because THREE surfaces resolve the same pair —
  *  the toggle-verb gate, the `listReactions` verdict, and the host's switch — and a drifted spelling here
  *  is a room whose pills disagree with its writes. */
 export function resolveReactionsEnabled(roomValue: boolean | undefined, userDefault: boolean): boolean {

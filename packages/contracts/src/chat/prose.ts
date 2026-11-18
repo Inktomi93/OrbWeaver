@@ -1,49 +1,35 @@
-// @orb/contracts/chat — the APP-TIER chat prose slot table (D132, census rows 74-81). The ONE home
-// for the BYTES of every chat SIDE-generation prompt: the anchor-persona identity lead-in, the smart-arbiter
-// prompt, the compaction summarizer, and the memory digest/consolidation prompts. The server
-// substrate reads these through `resolveProse` — it authors none of them.
+// @orb/contracts/chat — the APP-TIER chat prose slot table (D132 clause A). The ONE home for the BYTES of
+// every chat SIDE-generation prompt: the anchor-persona identity lead-in, the smart-arbiter prompt, the
+// compaction summarizer, and the memory digest/consolidation prompts. The server substrate reads these
+// through `resolveProse` — it authors none of them.
 //
-// HOME — TWO of them, and the split is the point (the table is one home for the BYTES; `home` names the
-// STORAGE per row, D132 clause A):
+// TWO storage homes, and the split is the point: the table is one home for the BYTES, while `home` names the
+// STORAGE per row.
 //
-//   • per-USER, resolved against the ROOM HOST (owner ruling on PROSE-1 owner-decision 8, option (a)): the
-//     SIDE-GENERATION prompts — arbiter, compaction, memory digest/consolidation, the recovery ask, the
-//     anchor identity lead-in. These are ROOM-level generations that resolve where NO preset is in scope, so a
-//     chat's memory corpus and its arbiter stay internally consistent no matter which member spoke. Threading
-//     seam: `ChatContext.resolveChatProse(chatId)`, which resolves the present host exactly as
-//     `resolveChatPresetParams` does (`resolveChatHostUserId` → `loadUserSettings(host).prose`); a
-//     hostless/stale room degrades to `{}` ⇒ the shipped defaults.
-//   • per-PRESET (owner ruling, verbatim: "templates need to have one home in presets not
-//     scattered between that and settings or hiding in code"): the TURN-WIRE FRAMINGS — the two injection note
-//     frames, the continuation cue, and (F4 re-home, ruling arm (a) + D132(B) amendment) the
-//     GROUP-ROOM FRAMINGS: the co-speaker headings (`characterHeading`/
-//     `scenarioHeading`/`exampleHeading`), the person heading (`personaHeading`), the per-speaker and narrator
-//     round nudges (`roundNudge`/`narratorNudge`), and the speaker-tag instruction (`speakerTags`). Storage `promptConfig.prose`; authored
-//     in the preset Templates tab beside every other template. Decision 8 is NOT reversed by this: it answers
-//     "WHICH user when a slot is user-homed", and these framings are not side generations at all — they are
-//     wrappers spliced into the MAIN turn's prompt (the co-speaker card walk, the round's trailing user row),
-//     where the resolved preset IS in scope, so §3.2's per-USER rationale ("a property of how YOU run the app,
-//     not of one preset") never covered them. D132(B)'s own test — "does this text resolve where a preset is in
-//     scope?" — answers YES here, which is exactly why the F4 review found the old user-home enumeration
-//     self-contradictory. Threading seam: `composeProse` at `assembly/context`, which merges the host's user
-//     blob with the resolved preset's blob FILTERED BY HOME, so a slot still resolves from exactly one storage
-//     and the no-cascade law holds.
+//   • per-USER, resolved against the ROOM HOST: the SIDE-GENERATION prompts — arbiter, compaction, memory
+//     digest/consolidation, the recovery ask, the anchor identity lead-in. These are ROOM-level generations
+//     that resolve where NO preset is in scope, so a chat's memory corpus and its arbiter stay consistent no
+//     matter which member spoke. Seam: `ChatContext.resolveChatProse(chatId)`, resolving the present host
+//     exactly as `resolveChatPresetParams` does; a hostless/stale room degrades to `{}` ⇒ shipped defaults.
+//   • per-PRESET: the TURN-WIRE FRAMINGS — the two injection note frames, the continuation cue, and the
+//     GROUP-ROOM FRAMINGS (the co-speaker headings, the person heading, the round/narrator nudges, the
+//     speaker-tag instruction). These are wrappers spliced into the MAIN turn's prompt, where the resolved
+//     preset IS in scope. Storage `promptConfig.prose`, authored in the preset Templates tab. Seam:
+//     `composeProse` at `assembly/context`, which merges the host's user blob with the preset's blob FILTERED
+//     BY HOME, so a slot resolves from exactly one storage and the no-cascade law holds.
 //
-// NO DATA MIGRATION for the re-homed frames (pre-launch NO-LEGACY): a `UserSettings.prose` override written
-// against the two injection frames or the seven group framings from before the re-home
-// stops applying — D132(D) leaves the stale user-blob key inert — and is re-entered in the preset Templates tab.
+// A user-blob key for a now-preset slot is inert (D132 clause D) and is re-entered in the preset Templates
+// tab.
 //
-// MACRO MODE = "none" for every row: a summarizer / arbiter / digest prompt runs over a
-// TRANSCRIPT, not a character context — there is no `{{char}}` binding at these seams, so a `{{…}}` in an
-// override ships verbatim rather than silently rendering empty.
+// MACRO MODE = "none" for every row: these prompts run over a TRANSCRIPT, not a character context, so there
+// is no `{{char}}` binding and a `{{…}}` in an override ships verbatim rather than silently rendering empty.
 //
 // The `chat.group.*` / `chat.injection.*` rows carry ONE caller-supplied PRE-SUBSTITUTION token each
-// (`{{name}}` = the roster member / speaker this frame is about; `{{note}}` = the injection's own content).
-// Still `macros:"none"`: the token is spliced by `resolveProseText`'s `tokens` argument as a plain string
-// replace — the `{{person}}`/`{{base}}` guided precedent — never through the macro engine, because these
-// frames are composed AROUND already-macro-resolved text and re-running the engine would resolve it twice.
-// The token is listed in `requiredMacros` so the editor warns a host who deletes it (dropping `{{name}}`
-// makes every co-speaker heading read the same; dropping `{{note}}` drops the injection's whole payload).
+// (`{{name}}` = the roster member / speaker this frame is about; `{{note}}` = the injection's own content),
+// spliced by `resolveProseText`'s `tokens` argument as a plain string replace — never through the macro
+// engine, because these frames are composed AROUND already-macro-resolved text and re-running it would
+// resolve twice. The token rides `requiredMacros` so the editor warns a host who deletes it (dropping
+// `{{name}}` makes every co-speaker heading read the same; dropping `{{note}}` drops the payload).
 //
 // The slot SHAPE comes from `#prose-slot`, never `#prose`: `#prose` imports this table at runtime to compose
 // `PROSE_SLOTS`, so importing it here — even for a type — would close a `no-circular` cycle.
@@ -51,8 +37,8 @@
 import type { ProseSlotDef, ProseSlotId } from "#prose-slot";
 import { GROUP_POLICY_LABELS, SMART_UTILITY_SWITCH_LABEL } from "./metadata.ts";
 
-/** The tier-0 digest system prompt's three-part contract, authored line-by-line and joined — the shape it has
- *  always had, so the composed bytes are identical to the pre-PROSE-1 constant. */
+/** The tier-0 digest system prompt's three-part contract, authored line-by-line and joined — the parse
+ *  contract the digest reader keys on (the topic-anchor brackets and the `keywords:` line). */
 const DIGEST_SYSTEM_TEXT = [
   "You distill a block of roleplay transcript into a retrieval-optimized memory unit.",
   "Output EXACTLY three parts, in order:",
@@ -77,7 +63,7 @@ export const CHAT_PROSE_SLOTS = {
     home: "user",
     version: 1,
     // Composed as `[<text> <anchor name>: <description>]` — the brackets, the name and the description are
-    // the injection's GRAMMAR (§2.11) and stay in the assembler; only the lead-in clause is the voice.
+    // the injection's GRAMMAR and stay in the assembler; only the lead-in clause is the voice.
     text: "The person the character knows as the user is",
     requiredMacros: [],
     requiredTokens: [],
@@ -87,10 +73,9 @@ export const CHAT_PROSE_SLOTS = {
   "chat.arbiter.system": {
     home: "user",
     version: 4,
-    // Re-versioned (D132(A)) because the bytes changed: the arbiter answers through a structured-output
-    // schema whose enum holds only the round's candidates, so the text carries no output format and no
-    // "never choose the humans" rule; the schema enforces both. It stays short on purpose: small Utility models
-    // lose a long instruction.
+    // The arbiter answers through a structured-output schema whose enum holds only the round's candidates,
+    // so the text carries no output format and no "never choose the humans" rule — the schema enforces both.
+    // Short on purpose: small Utility models lose a long instruction.
     text:
       "You choose who speaks next in a group roleplay. The human players write their own lines. Choose the " +
       "character the last message is addressed to, by name or by role (a question about the road goes to the " +
@@ -140,7 +125,7 @@ export const CHAT_PROSE_SLOTS = {
     home: "user",
     version: 1,
     // The user-prompt LEAD only. The numbered child facets that follow it are data the builder appends —
-    // they are not authorable, and homing them here would need the template machinery (S4).
+    // they are not authorable.
     text: "Prior digests to consolidate (synthesize the arc across these — do not repeat each):",
     requiredMacros: [],
     requiredTokens: [],
@@ -151,30 +136,21 @@ export const CHAT_PROSE_SLOTS = {
     home: "preset",
     version: 2,
     // The heading over every roster member's card beside the primary, on both roster layouts: a narrator round
-    // and a per-speaker merged turn. The merged turn's `[Also present — X]` frame is retired (owner ruling): its
-    // system block is now the same roster for every speaker, so no card is framed as a bystander, and the round
-    // cue names who speaks.
+    // and a per-speaker merged turn. The merged turn's `[Also present — X]` frame is retired: its system block
+    // is the same roster for every speaker, so no card is framed as a bystander and the round cue names who
+    // speaks.
     //
-    // v2 is a VOCABULARY fix on the `chat.arbiter.system` v2 / `chat.group.speakerTags` v2 precedent, not a
-    // behavior change: the vocabulary ruling retired "cast" for the room's seated characters, and this heading spent it.
-    // Owner-ruled to a direct swap ("[Character — {{name}}]") rather than dropping the label — the
-    // explicit "this block is a character" signal is what weaker local models lean on. Model-facing bytes are
-    // still bytes, so it rides the lawful re-version path (D132(A)); a silent edit would strand every
-    // host's `baseVersion` stamp.
+    // The label is kept rather than dropped (owner ruling): the explicit "this block is a character" signal is
+    // what weaker local models lean on. Model-facing bytes are still bytes, so an edit here rides the lawful
+    // re-version path (D132(A)); a silent one would strand every host's `baseVersion` stamp.
     //
-    // THE ID ITSELF IS NOT `chat.group.castMember` (owner-ruled arm (a)). The
-    // ruling above SURVIVES — its INPUT changed: the warning it records is about a SILENT id edit, and this one
-    // is not silent. `migrateProseSlotVocab` (`domain/preset/persistence/migrate-prose-slot-vocab.ts`, run as a
-    // boot step) re-keys every stored `promptConfig.prose` override onto the new id CARRYING its `baseVersion`
-    // stamp, so no host's staleness signal is stranded and `version` stays 2 (the TEXT did not change). The id
-    // was the last `cast` spelling left in `contracts/src/chat` — the `alsoPresent` twin, the `title` and the
-    // preset Templates `label` had all said "character" since v2, and only the persisted key disagreed.
+    // The id is `characterHeading`, NOT `…Member`: `docs/law/vocabulary-map.md` gives `character` for the
+    // concept this slot names (the seated characters the arbiter may drive) and **Member** to the HUMANS in a
+    // room (`chat_participants.kind='human'`). `Heading` is the suffix this slot's group siblings already
+    // carry (`scenarioHeading` / `exampleHeading`).
     //
-    // WHY `characterHeading` AND NOT `…Member`: `docs/law/vocabulary-map.md` gives `character` for the concept this
-    // slot names (the seated characters the arbiter may drive) and gives **Member** to the HUMANS in a room
-    // (`chat_participants.kind='human'`) — so a `Member` suffix on a character-only slot would swap one
-    // crossed word for another. `Heading` is not a concept word at all; it is the suffix this slot's own group
-    // siblings already carry (`chat.group.scenarioHeading` / `chat.group.exampleHeading`). Nothing minted.
+    // The retired `chat.group.castMember` id is re-keyed onto this one at boot
+    // (`migrateProseSlotVocab`), carrying its `baseVersion`, so `version` stays 2 — the TEXT did not change.
     text: "[Character — {{name}}]",
     requiredMacros: ["{{name}}"],
     requiredTokens: [],
@@ -214,10 +190,9 @@ export const CHAT_PROSE_SLOTS = {
     home: "preset",
     version: 2,
     // The per-speaker fence on a MULTI-speaker round — the one line that stops the model voicing all the seated
-    // characters in one reply. Delivered as the round's trailing user row.
-    // v2 spells out the two failure modes the RECEIVE side otherwise has to clean up after
-    // (`cleanPerSpeakerReply`): the echoed `Name:` self-label, and drifting on into another character's
-    // lines. Saying them here is cheaper than repairing them, and a small local model needs them said.
+    // characters in one reply. Delivered as the round's trailing user row. The text spells out the two failure
+    // modes the receive side otherwise cleans up after (`cleanPerSpeakerReply`): the echoed `Name:` self-label,
+    // and drifting on into another character's lines. Saying them here is cheaper than repairing them.
     text:
       "[Write the next reply only as {{name}}. Stay in {{name}}'s voice — their dialogue, actions and " +
       "thoughts only. Do not write lines for the other characters or for the user, and do not open the " +
@@ -245,18 +220,12 @@ export const CHAT_PROSE_SLOTS = {
   "chat.group.speakerTags": {
     home: "preset",
     version: 2,
-    // v2 is a VOCABULARY fix on the `chat.arbiter.system` v2 precedent, not a behavior change: the default
-    // said "as it is spelled in the cast" and the vocabulary ruling retired "cast" for the room's seated characters.
-    // Owner-ruled to read "in the room" rather than "in the character list" — the string is read
-    // by a MODEL, never shown as chrome, so it owes unambiguity, not agreement with a UI label. Model-facing
-    // bytes are still bytes, so it rides the lawful re-version path (D132(A)) instead of a silent edit
-    // that would strand every host's `baseVersion` stamp.
     // The PRODUCE half of per-speaker color in a merged bubble: the renderer splits a narrator body on
-    // `<speaker>NAME</speaker>` markers and tints each span with that character's theme, so the markers
-    // have to be ASKED FOR. The `<speaker>`/`</speaker>` literals are the renderer's parse contract, hence
-    // requiredTokens — an override that drops them silently costs the room its per-speaker coloring
-    // (the display side still tolerates the plain `Name:` form models emit unprompted; this slot is what
-    // makes the exact, unambiguous form available). Host-facing name for the toggle: "Label each speaker".
+    // `<speaker>NAME</speaker>` markers and tints each span with that character's theme, so the markers have
+    // to be ASKED FOR. The literals are the renderer's parse contract, hence requiredTokens — an override that
+    // drops them silently costs the room its per-speaker coloring (the display side still tolerates the plain
+    // `Name:` form models emit unprompted). The string is read by a MODEL, never shown as chrome, so it owes
+    // unambiguity, not agreement with a UI label. Host-facing name for the toggle: "Label each speaker".
     text:
       "[Wrap each character's spoken lines and actions in <speaker>Name</speaker> tags: put the character's " +
       "exact name between the tags, then what they say and do. Open a new tag every time the speaker " +
@@ -284,7 +253,6 @@ export const CHAT_PROSE_SLOTS = {
     version: 1,
     // An assistant-role injection just above the tail re-roles to USER text so it never merges into the model's
     // last committed reply (the cached prefix). The frame names no speaker: the line is not the user's words.
-    // Modelled on Guided Generations' `[Take the following into special consideration for your next message: …]`.
     text: "[Take the following into special consideration for your next message: {{note}}]",
     requiredMacros: ["{{note}}"],
     requiredTokens: [],
@@ -319,11 +287,10 @@ export const CHAT_PROSE_SLOTS = {
   "chat.recovery.narrativeContinuation": {
     home: "user",
     version: 1,
-    // The ONE ask of the recovery pass (dogfood EMPTYGEN-REASONING, owner ruling — RECOVER, do not
-    // discard). A reasoning turn on a tool-attached game can conclude that its tool calls discharged the beat
-    // and emit ZERO prose; the state writes are good, the reply is missing, and the turn used to be thrown
-    // away whole. The recovery pass re-runs the SAME turn with the tools removed and this line as the trailing
-    // user row, so the model writes the narrative it skipped.
+    // The ONE ask of the recovery pass (owner ruling — RECOVER, do not discard). A reasoning turn on a
+    // tool-attached game can conclude that its tool calls discharged the beat and emit ZERO prose; the state
+    // writes are good, the reply is missing, and the turn used to be thrown away whole. The recovery pass
+    // re-runs the SAME turn with the tools removed and this line as the trailing user row.
     //
     // Two things it must say and one it must not. It must name that the state is ALREADY RECORDED (or the
     // model narrates the bookkeeping it just did — "I updated your HP" — which is the exact prose this feature
@@ -339,10 +306,10 @@ export const CHAT_PROSE_SLOTS = {
   "chat.tool.reactDescription": {
     home: "user",
     version: 1,
-    // The B7 `react` tool's model-facing contract (the `imagery.tool.generateImageDescription` shape:
-    // resolved to its shipped default at compose registration — no user in scope there). The description
-    // IS the teach: the tool-use posture ships no prose injection beside a wire description, so everything
-    // the model needs — who may react, what to target, restraint — lives in this one text.
+    // The `react` tool's model-facing contract (the `imagery.tool.generateImageDescription` shape: resolved to
+    // its shipped default at compose registration — no user in scope there). The description IS the teach: the
+    // tool-use posture ships no prose injection beside a wire description, so everything the model needs — who
+    // may react, what to target, restraint — lives in this one text.
     text:
       "React to the newest message with an emoji, as one of the present characters. Use it sparingly — only " +
       "when a character would visibly react in the moment (amusement, shock, delight, dread). `character` is " +

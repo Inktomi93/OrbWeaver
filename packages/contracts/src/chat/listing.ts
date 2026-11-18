@@ -1,7 +1,7 @@
 // @orb/contracts/chat/listing — the `listChats` KEYSET wire (the character-list precedent, `@orb/contracts/
-// character`'s `characterListCursorSchema`). A membership list is unbounded by construction — an 880-chat
-// library pulled every row, and each row costs `buildSummaries` a per-chat participant read — so the read is
-// paged and the cursor shape is a cross-boundary contract, not a router local.
+// character`'s `characterListCursorSchema`). A membership list is unbounded by construction — every row costs
+// `buildSummaries` a per-chat participant read — so the read is paged and the cursor shape is a
+// cross-boundary contract, not a router local.
 //
 // ONE sort, so the cursor is a plain object rather than character's sort-discriminated union: `listChats` is
 // newest-CONVERSATION-first and nothing offers another order (the star is a MARKER, never a sort key — the
@@ -14,9 +14,9 @@ import { z } from "zod";
 
 /** The `listChats` page CEILING, enforced at the transport trust boundary (the `character.list` /
  *  `CHARACTER_LIST_MAX_LIMIT` precedent): an over-bound ask is a BAD_REQUEST naming the bound, never a
- *  silently trimmed page. Each row costs `buildSummaries` a per-chat participant resolve (~100 extra queries
- *  at this ceiling), so it is a real cap, not advice — the same 100 the domain DoS backstop (`read.ts`
- *  `Math.min` clamp for internal callers) references, homed HERE so the two never drift. */
+ *  silently trimmed page. Each row costs `buildSummaries` a per-chat participant resolve, so it is a real
+ *  cap, not advice — the domain DoS backstop (`read.ts`) clamps internal callers to this same constant,
+ *  homed HERE so the two never drift. */
 export const CHAT_LIST_MAX_LIMIT = 100;
 
 /** How many recents Home shows, and through its tile's `skeletonRows` how many rows the first-boot skeleton reserves,
@@ -26,9 +26,9 @@ export const HOME_RECENT_CHATS_LIMIT = 8;
 /** The keyset boundary — the LAST row of the page just served, in the list's own `(recencyAt, id)` order.
  *
  *  `recencyAt` is the list's ONE recency clock: the room's newest message time, falling back to the
- *  chat row's `updatedAt` when it has none — the same value every row DISPLAYS. It was spelled `updatedAt`
- *  while the list sorted on the row stamp; the field is renamed rather than reused because a cursor whose
- *  name no longer describes its column is how the next reader re-derives it from the wrong one. */
+ *  chat row's `updatedAt` when it has none — the same value every row DISPLAYS. The field is named for the
+ *  value it carries rather than the column it falls back to, so the next reader cannot re-derive it from the
+ *  wrong one. */
 export const chatListCursorSchema = z.strictObject({
   recencyAt: z.int(),
   id: typeIdSchema(ID_PREFIX.chat),

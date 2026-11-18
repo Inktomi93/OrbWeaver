@@ -1,27 +1,6 @@
 // @orb/contracts/chat — the front-door for the chat wire contracts. The shapes are split across sibling
-// modules by concern (D15's directory-module law: internals flat, this index re-exports, consumer-invisible):
-//   • participants.ts   — participant kinds + drive/identity axes + the AI-speaker ref + `messageRoleSchema`
-//                         + the MESSAGE-KIND axis (`MESSAGE_KINDS` / `MESSAGE_KIND_POLICY` — row PURPOSE)
-//   • assemble.ts       — the ASSEMBLE family (slim projections, `AssembleContext`, traces, injections)
-//   • messages.ts       — the D26 message/variant wire (`MessageView`, tool/var records)
-//   • member-projection.ts — the pure §3.6 member projection of a `MessageView` (hidden-span and reasoning strip)
-//   • producers.ts      — the member-gated kind-polymorphic CHAT IDENTITY producer (D137) + its two projections
-//   • bus.ts            — the stream delta, the `ChatBusEvent` union, warning codes, turn origin, D50 transform
-//   • metadata.ts       — the `chats.metadata` sub-blobs (roomOverrides/group/opening/visibility/steer)
-//   • roster.ts         — the unified-roster wire (D16/D22/D80): roster/seat/invite/render-policy/history-floor
-//   • detail.ts         — the full chat read (`ChatDetail`) + the invite join result that carries it
-//   • content-blocks.ts — the D294, UI-Theming-and-Content §12.4 render blocks + `contentSpansToBlocks`
-//   • card-frame.ts     — the trust-gated card-frame doorway wire (mint request/response + the route)
-//   • content-classes.ts — the content-class visibility registry (`CONTENT_CLASS_POLICY`)
-//   • listing.ts        — the `listChats` KEYSET cursor (`chatListCursorSchema`)
-//   • bulk-import.ts    — the chat-owned bulk-import op shapes (D34)
-//   • prose.ts          — the PROSE-1 app-tier slot table (the side-generation prompts' shipped defaults)
-//   • reactions.ts      — the B6 reaction emoji vocabulary + the grouped read projection (MA-2)
-//   • visible-rooms.ts  — the leak-safe reverse-room read every usage roster shares (`VisibleRoomRef` +
-//                         `ResolveVisibleRoomsOp`, D18)
-//   • memory-view.ts    — the story memory view read and the host's strike and restore inputs
-//   • regex-tiers.ts    — the room's REGEX TIER vocabulary: the tier key, the per-chat allow blob,
-//                         the per-seat character slice, and the `chat.listEffectiveRegex` view
+// modules by concern and re-exported here (D15's directory-module law: internals flat, this index
+// re-exports, consumer-invisible).
 //
 // LAWS honored across these modules:
 //   • Turn identity (D19): a wire shape that carries turn attribution uses `triggeredBy`/`runAsUserId`,
@@ -332,8 +311,8 @@ export type {
   ViewerVisibility,
 } from "./owner-ops.ts";
 export type { MessageKind, ParticipantKind, SpeakerRef } from "./participants.ts";
-// B7 — the narrator-voice predicate, promoted from the client (the server's segment-anchor validation and
-// the client picker must gate the plain-label span grammar identically).
+// The narrator-voice predicate — the server's segment-anchor validation and the client picker must gate the
+// plain-label span grammar identically.
 export {
   DEFAULT_MESSAGE_KIND,
   isAiDriven,
@@ -360,10 +339,10 @@ export {
   CHAT_IDENTITY_KIND_POLICY,
   identityKey,
 } from "./producers.ts";
-// The PROSE-1 app-tier slot table (census 74-81) — `#prose` imports it to compose `PROSE_SLOTS`.
+// The app-tier slot table — `#prose` imports it to compose `PROSE_SLOTS`.
 export { CHAT_PROSE_SLOTS, CHAT_REACT_TOOL_DESCRIPTION } from "./prose.ts";
-// B6/MR0 — the message-reaction vocabulary + the grouped read projection (MA-2); B7 adds the segment
-// anchor, the `react` tool name and the attribution caps.
+// The message-reaction vocabulary + the grouped read projection, plus the segment anchor, the `react` tool
+// name and the attribution caps.
 export type {
   ChatReactionsView,
   MessageReactionGroup,

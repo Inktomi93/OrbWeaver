@@ -61,11 +61,9 @@ interface ChatSummaryFields {
    *  falls through to "Untitled chat". */
   readonly participantNames: readonly string[];
   /** The row's own PORTRAITS — one entry per PRESENT character seat, in seat order. The list row
-   *  paints a face per seat (one seat = a portrait, two or more = an `AvatarStack`), and until now the
-   *  client resolved those faces by fetching the WHOLE character library (`character.list {limit: 500}`)
-   *  on every surface that shows a chat row, then indexing character ids into it — a whole-library read to
-   *  decorate six rows, and one that simply stopped resolving past the page ceiling.
-   *  A row carries what it is about, so the seats ride the row.
+   *  paints a face per seat (one seat = a portrait, two or more = an `AvatarStack`). A row carries what it
+   *  is about, so the seats ride the row rather than making every chat-row surface read the whole character
+   *  library to decorate a handful of rows.
    *
    *  Derived from the roster views this projection ALREADY loads (`loadParticipantViews` — the same read
    *  that produces `participantNames`), so it costs no extra query and its name/avatar resolution is the
@@ -91,8 +89,8 @@ export type ChatSummary = ChatSummaryFields &
  *  `ListCharactersResult` and ADDS the census.
  *
  *  `totalCount` is a real server `COUNT` over the SAME scope this page windows, not `items.length`: a census
- *  that silently means "loaded so far" is worse than none, and chat prints its census in two user-visible places
- *  (the chats band's count and the character card's "N chats"). */
+ *  that silently means "loaded so far" is worse than none, and chat prints its census where a person reads a
+ *  total. */
 export interface ChatListPage {
   readonly items: readonly ChatSummary[];
   /** The keyset boundary to pass as the next `cursor`; `null` when a short page came back (no row remains). */
@@ -124,12 +122,12 @@ export interface MessageVariantSummary {
 export interface AssemblyPreview {
   readonly prompt: AssembledPrompt;
   readonly trace: AssembleTrace;
-  /** The next turn's CONTEXT BUDGET, partitioned by source (D-4 — the Preview tab's stacked bar + drill-in
+  /** The next turn's CONTEXT BUDGET, partitioned by source (the Preview tab's stacked bar + drill-in
    *  rows). Same build, same fit, same estimator as the turn itself; `sources` partitions `totalTokens`. */
   readonly budget: AssemblyBudgetPreview;
 }
 
-/** One ACTION template resolved against a bound chat (`previewActionTemplates` — D8 / §7.1). NON-exported:
+/** One ACTION template resolved against a bound chat (`previewActionTemplates`). NON-exported:
  *  its ONE consumer is {@link ActionTemplatesPreview}, which carries it across the wire (the `matrix.ts`
  *  idiom — a second exported name for the same row would be dead surface). */
 interface ActionTemplatePreview {
@@ -137,7 +135,7 @@ interface ActionTemplatePreview {
    *  the Actions list renders from, so a new template needs no new field here. */
   readonly id: TemplateDefId;
   /** The template rendered through the chat's own macro resolution: identity/chat macros REAL, the two
-   *  fire-time tokens (`{{input}}`/`{{person}}`) preserved verbatim — the §7 honesty pin's bound arm. */
+   *  fire-time tokens (`{{input}}`/`{{person}}`) preserved verbatim — the bound readout's honest arm. */
   readonly resolved: string;
 }
 
@@ -176,15 +174,15 @@ interface UserMacroPickDef {
   readonly name: string;
   readonly description: string;
   readonly inputs: readonly UserMacroInputDef[];
-  /** WHICH authoring home declared it (the owner ruling's two homes) — `preset` = the chat's active preset,
-   *  `game` = this chat's rpg game config. Derived from kit's own `MacroSourceRef.kind` (never a re-spelled
-   *  union). The pane glosses a `game` macro so a picker can tell why a knob appeared with the game and will
-   *  vanish with it; on a name clash the GAME def is the one projected (it is the one the turn resolves —
-   *  `shadowPresetUserMacros`). */
+  /** WHICH authoring home declared it (D345 — a user macro has two: the preset and the game) — `preset` = the
+   *  chat's active preset, `game` = this chat's rpg game config. Derived from kit's own `MacroSourceRef.kind`
+   *  (never a re-spelled union). The pane glosses a `game` macro so a picker can tell why a knob appeared with
+   *  the game and will vanish with it; on a name clash the GAME def is the one projected (it is the one the
+   *  turn resolves — `shadowPresetUserMacros`). */
   readonly source: MacroSourceRef["kind"];
 }
 
-/** The MU picks pane read (`getUserMacroPicks`) — the chat's pickable user-macro declarations (the
+/** The picks pane read (`getUserMacroPicks`) — the chat's pickable user-macro declarations (the
  *  resolved preset's `userMacros` that declare at least one input; a macro with no inputs has nothing to
  *  pick) plus the persisted per-chat picks (`chats.user_macro_values`). Per-CHAT, not per-user: the picks
  *  are room state every member shares (the owner's Arm-A ruling — the `setVariables` sibling), and the
@@ -221,11 +219,9 @@ export interface TurnOutcome {
 }
 
 /** `startChat` — the lazily-created chat (+ roster) and the seeded opening, if any. `opening` is null when
- *  the resolved policy seeded no greeting (`none`, or a founding character with no card greeting). The
- *  `generate` opening + its `openingFailure` DEGRADED-NOT-BROKEN apparatus (START-1) retired with the
- *  creation-time draft carry (D166) — "guide the opening" is
- *  now an ordinary post-creation turn against the real room, so a failed generation is just a failed
- *  turn with the standard toast, never data on a successful `startChat`. */
+ *  the resolved policy seeded no greeting (`none`, or a founding character with no card greeting). A
+ *  `generate` opening is an ordinary post-creation turn against the real room (D166), so a failed generation
+ *  is just a failed turn with the standard toast, never data on a successful `startChat`. */
 export interface StartChatResult {
   readonly chat: ChatDetail;
   readonly opening: TurnOutcome | null;

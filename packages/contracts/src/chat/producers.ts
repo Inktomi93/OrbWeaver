@@ -18,15 +18,14 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { z } from "zod";
 
-// The closed chat-identity-kind axis. `agent` is the D60 one-arm add: adding it REDS the policy record, both
-//  projections' `assertNever` tails, the loader's per-kind source table and `identityKey` — the five decision
-//  sites, found by the compiler (§3.7 of the design; the planted-control receipt lives in the build report).
+// The closed chat-identity-kind axis. Adding a member REDS the policy record, both projections'
+//  `assertNever` tails, the loader's per-kind source table and `identityKey` — the five decision sites, found
+//  by the compiler.
 const CHAT_IDENTITY_KINDS = ["character", "persona"] as const;
 export type ChatIdentityKind = (typeof CHAT_IDENTITY_KINDS)[number];
 
 /** One character the chat references — name + portrait floor. NO description: a card's description is not
- *  member-consented; the member-visible card surface is `ParticipantView`, and it agrees (design §3.6 —
- *  fail-closed; an additive field behind its own D-entry if a surface ever earns it). The portrait floor
+ *  member-consented; the member-visible card surface is `ParticipantView`, and it agrees (fail-closed). The portrait floor
  *  exists because a message's speaker CAN leave the room while its historical rows stay in the transcript:
  *  once removed there is no `ParticipantView` to carry `avatarHash`, so the assistant-row avatar would
  *  degrade to bare initials without this participant-independent entry. */
@@ -37,8 +36,8 @@ export interface ChatCharacterIdentity {
   readonly avatarHash: string | null;
 }
 
-/** One persona the chat references — D122's consented presentation surface (name, description) + the
- *  avatar hash the transcript already renders. `description` backs the row `{{persona}}` macro (distinct
+/** One persona the chat references — the consented presentation surface (name, description) + the
+ *  avatar hash the transcript already renders (D330). `description` backs the row `{{persona}}` macro (distinct
  *  from `{{user}}`, which resolves to `name`). */
 export interface ChatPersonaIdentity {
   readonly kind: "persona";
@@ -82,15 +81,14 @@ export interface ChatIdentityKindPolicy {
 }
 
 /** The shipped cells. The `Record<ChatIdentityKind, …>` is the compile-force: a third kind will not build until it
- *  declares its row (the agent wave's explicit macro-subject + avatar-precedence decisions). */
+ *  declares its row. */
 export const CHAT_IDENTITY_KIND_POLICY: Readonly<Record<ChatIdentityKind, ChatIdentityKindPolicy>> = {
   character: { avatar: "participant-first" },
   persona: { avatar: "identity-only" },
 };
 
-/** The stable string key — deliberately EXTENDS `speakerKey`'s namespace (`participants.ts`: `c:`; `u:`
- *  reserved for agent) so the two key spaces can never collide. The detail ∪ pages last-write-wins merge
- *  key. */
+/** The stable string key — deliberately EXTENDS `speakerKey`'s namespace (`participants.ts`: `c:` vs `p:`) so
+ *  the two key spaces can never collide. The detail ∪ pages last-write-wins merge key. */
 export function identityKey(entry: ChatIdentity): string {
   switch (entry.kind) {
     case "character":
@@ -108,8 +106,7 @@ function assertNeverChatIdentity(entry: never): never {
 
 /** The names(+persona description) ONLY projection — the macro-law arm. Output types are the KIT types
  *  (`RowCharacterName`/`RowPersonaName`), which have no avatar field: the macro engine remains structurally
- *  unable to see chrome. Total over `ChatIdentity["kind"]` (`assertNever` tail); the routing enacts
- *  {@link CHAT_IDENTITY_KIND_POLICY}'s `macro` column (char-subject → character map, user-subject → persona map).
+ *  unable to see chrome. Total over `ChatIdentity["kind"]` (`assertNever` tail).
  *  Pure; last-write-wins on a duplicate id (the detail ∪ pages merge contract). */
 export function buildIdentityNameContext(entries: readonly ChatIdentity[]): {
   characterNamesById: ReadonlyMap<CharacterId, RowCharacterName>;
