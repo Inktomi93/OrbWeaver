@@ -155,16 +155,24 @@ Judgments: **necessary** (the SDK cannot), **stricter** (the SDK can, loses a wr
   embedding and image models never call it.
 - `openai-compatible`'s `languageModel(id, config)` accepts a per-model `config` that the implementation IGNORES
   (dist js:1485) despite the types. Build nothing on it.
-- Header citation drift, resolved as of the source-parts landing: `packages/inference/src/backends/wire/provider-metadata.ts`'s OR
-  dist cites re-verified exact at 3.1.0 (`index.d.ts:686-692`, `:572`); `packages/inference/src/backends/http/abort-flatten.ts`
-  states its `@openrouter/sdk@1.1.8` cite is a probe instrument, not a dependency;
-  `packages/inference/src/backends/v4/stream.ts`'s OR dist cites were re-measured at that landing. Still open:
-  `packages/inference/src/backends/v4/fetch.ts` says "measured against the installed provider dist 3.0.0"
-  (installed 3.1.0 — true as provenance, stale as a claim). Re-measure before renumbering.
+- Header citation drift, closed: every drift site (provider-metadata's OR type cites, abort-flatten's probe-package
+  cite, `packages/inference/src/backends/v4/stream.ts` and `packages/inference/src/backends/v4/fetch.ts`'s OR dist cites) was re-verified or
+  re-pinned at the installed dists during the source-parts landing and the v4 comment pass. Code cannot reopen
+  the class: the section below bars line numbers from code comments entirely.
 - `openrouter-reasoning-wire.int.test.ts` asserts the request side (`reasoning.effort`) but never the
   `reasoning_details` replay its name promises.
 - The OR typed `reasoning.effort` set lacks `"max"`; our `reasoning.ts:35` works only because we write the raw
   body past the SDK's schema.
+
+## How code cites the SDK dists: intent, not coordinates
+
+A code comment names the FACT the trap rests on — the behaviour in present tense, the greppable identifier (the
+function, string literal or field name a re-measurer searches for), and the provenance stamp `@pkg@version`.
+NO line numbers into dist files: a shipped `index.js` reflows on every patch release, and a drifted line number is
+a worse cite than none — false precision nobody re-verifies mid-task. The line-number inventory lives HERE and in
+plan docs, where the standing re-mine-at-bump rule already refreshes it. Bad: "`dist/index.js:4786-4797` carries
+the span". Good: "the `url_citation` annotation builder defaults missing spans to 0
+(`@openrouter/ai-sdk-provider@3.1.0`)".
 
 ## Rulings on the open questions
 
