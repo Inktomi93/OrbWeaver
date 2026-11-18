@@ -48,6 +48,15 @@ function providerRejection(error: unknown): ProviderError {
   return error;
 }
 
+/** A rejection arm's send must have REJECTED; a resolved send means the tape premise fell over, and
+ *  reading `.kind` off it would assert on a field that does not exist. */
+function rejectedTurn(result: ProviderError | Sent, label: string): ProviderError {
+  if (!(result instanceof ProviderError)) {
+    throw new Error(`${label}: expected a ProviderError rejection, but the turn resolved (stopReason ${result.turn.stopReason})`);
+  }
+  return result;
+}
+
 interface Sent {
   readonly url: string;
   readonly headers: Readonly<Record<string, string>>;
@@ -340,17 +349,17 @@ test("the row's raw-reasoning dialect folds onto reasoning deltas; without the f
   // feature-OFF control below are what make that attribution honest: the same failure with the
   // transformer absent proves the dialect neither hid the malformation nor manufactured one.
   const surfaced = await send({ declaredFeatures: {} }, { fetch: accTape }).catch(providerRejection);
-  expect(surfaced.kind).toBe("unknown");
-  expect(surfaced.message).toMatch(/JSON parsing failed/);
+  expect(rejectedTurn(surfaced, "multi-line accumulation").kind).toBe("unknown");
+  expect(rejectedTurn(surfaced, "multi-line accumulation").message).toMatch(/JSON parsing failed/);
   const untouched = await send({ declaredFeatures: { responsesReasoningStream: "summary" } }, { fetch: accTape }).catch(providerRejection);
-  expect(untouched.kind).toBe("unknown");
+  expect(rejectedTurn(untouched, "feature-ON repeat").kind).toBe("unknown");
   // The classification control the feature-OFF repeat could not give: a plain 400 on the SAME feature-ON
   // path must classify as "invalid" (error-classify maps every 400 there, and unlike a 5xx it is never
   // retried), so the multi-line arm's "unknown" is a kind doing real work — not the catch-all everything
   // fails into. If the malformed-JSON classification ever drifts, this pair fails instead of agreeing
   // with itself.
   const refused = await send({ declaredFeatures: {} }, { fetch: () => Promise.resolve(new Response("bad request", { status: 400 })) }).catch(providerRejection);
-  expect(refused.kind).toBe("invalid");
+  expect(rejectedTurn(refused, "400 classification control").kind).toBe("invalid");
 });
 
 // The `/responses` protocol models no forced continuation (a trailing assistant input item reads
