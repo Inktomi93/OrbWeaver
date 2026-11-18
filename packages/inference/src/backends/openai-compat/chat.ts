@@ -242,8 +242,8 @@ function parallelToolCallsBody(turn: TurnKnobs): Record<string, unknown> {
   return turn.parallelOff ? { parallel_tool_calls: false } : {};
 }
 
-/** THE OPENROUTER PLUGIN UNION, validated against the 3.1.0 dist's own shape
- *  (`OpenRouterChatSettings.plugins`, `index.d.ts:98-131`) — five ids, each with its own fields. Spelled here
+/** THE OPENROUTER PLUGIN UNION, validated against the provider's own `OpenRouterChatSettings.plugins`
+ *  shape (`@openrouter/ai-sdk-provider@3.1.0`) — five ids, each with its own fields. Spelled here
  *  because this file is the ONE reader of `extras` on this transport; a malformed entry drops loudly and is
  *  never sent. `response-healing` is the reason this door is worth opening: it is OpenRouter's server-side
  *  repair for the malformed JSON our non-streaming structured task otherwise has to re-ask for. */
@@ -263,16 +263,16 @@ const openRouterPluginSchema = z.discriminatedUnion("id", [
   z.object({ id: z.literal("auto-router"), allowed_models: z.array(z.string()).optional() }).strip(),
 ]);
 
-/** OR's request DEBUG block (`debug`, `index.d.ts:174-185`) — the `debug` extras door. `echo_upstream_body`
- *  makes OpenRouter return, as the FIRST SSE frame, the body it actually sent upstream after routing and
- *  caching: the only way to see what a routed provider received rather than what we asked OR for. It is a
- *  REQUEST BODY field and its payload rides the ordinary stream, so the wire capture's own reply tap
- *  (`WIRE_CAPTURE_REPLY`, `backends/v4/fetch.ts` control 4b) is what surfaces it — the SDK's
- *  `includeRawChunks` is NOT involved, and deliberately not taken (that file's header records why).
+/** OR's request DEBUG block (`debug.echo_upstream_body`, `@openrouter/ai-sdk-provider@3.1.0`) — the `debug`
+ *  extras door. `echo_upstream_body` makes OpenRouter return, as the FIRST SSE frame, the body it actually
+ *  sent upstream after routing and caching: the only way to see what a routed provider received rather than
+ *  what we asked OR for. It is a REQUEST BODY field and its payload rides the ordinary stream, so the wire
+ *  capture's own reply tap (`WIRE_CAPTURE_REPLY`, `backends/v4/fetch.ts` control 4b) is what surfaces it —
+ *  the SDK's `includeRawChunks` is NOT involved, and deliberately not taken (that file's header records why).
  *  Streaming-only per the dist's own note; a non-streaming call simply gets nothing back. */
 const openRouterDebugSchema = z.object({ echo_upstream_body: z.boolean().optional() }).strip();
 
-/** OR's built-in web-search options (`web_search_options`, `index.d.ts:134-153`) — a sibling of the `web`
+/** OR's built-in web-search options (`web_search_options`, `@openrouter/ai-sdk-provider@3.1.0`) — a sibling of the `web`
  *  plugin, not a duplicate of it: the plugin ADDS search to a model that has none, these options configure a
  *  model whose own search is native. */
 const openRouterWebSearchSchema = z

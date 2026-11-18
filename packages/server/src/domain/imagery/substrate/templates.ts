@@ -5,7 +5,7 @@
 // The negative-prompt BASE is the negative-prompt lists adapted from Marinara Engine (doc 02 §6) — appended-to,
 // never replaced — and since PROSE-1 S1 it is a slot in the `@orb/contracts/imagery` catalog like its template
 // siblings, so `composeNegative` takes the resolved base rather than owning the bytes.
-// Modernized from ST's promptTemplates (index.js:174): the "Ignore previous instructions" jailbreak
+// Modernized from ST's promptTemplates: the "Ignore previous instructions" jailbreak
 // preamble is REPLACED by an explicit "Pause the roleplay" task frame (we control the system prompt, ST didn't).
 
 import type { PromptTemplateMode } from "@orb/contracts/imagery";

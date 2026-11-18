@@ -1,6 +1,6 @@
 // The direct wire's CLASSIFIER-BLOCK fold. A Fable safety block is a 200 with the V4 finish
 // `content-filter` and, when the API attaches one, `providerMetadata.anthropic.stopDetails` (the category + a
-// human explanation; the SDK's `mapAnthropicStopDetails`, `@ai-sdk/anthropic` 4.0.85 `dist/index.js:5549-5557`); when
+// human explanation; the SDK's `mapAnthropicStopDetails`, `@ai-sdk/anthropic@4.0.85`); when
 // the caller asked for `fallbacks` the API may have retried server-side, which `usage.iterations` records as a
 // `fallback_message` entry with the model that answered. All of it lands on the EXISTING `refusal` ChatEvent —
 // the same member the agent-sdk wire emits from its `model_refusal_*` frames — so a consumer reads one shape.

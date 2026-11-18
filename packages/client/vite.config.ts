@@ -732,14 +732,14 @@ export default defineConfig(({ mode }) => {
     // changes what gets built.
     //
     // This is `future: "warn"` (the shorthand that enables ALL of them) MINUS exactly one key, and the
-    // exception is the whole reason it is spelled out. Measured on a cold dev boot 2026-08-07, vite 8.1.2
-    // trips `removeServerWarmupRequest` AGAINST ITSELF: its own HTML middleware calls the deprecated
-    // `server.warmupRequest` (`preTransformRequest`, vite/dist/node/chunks/node.js:24698) rather than
-    // `environment.warmupRequest`. Nothing first-party is involved — we never call it (swept packages/,
-    // scripts/, tests/: zero hits), and it is NOT `orb:dev-csp-mirror`, which only uses `configureServer`
-    // + `server.middlewares`. Left on, it prints a warning with a stack on EVERY dev start that no one
-    // here can act on, and a channel that always cries wolf is a channel developers filter out — which
-    // would cost us the one warning that IS ours. So it is off, and every OTHER deprecation stays loud.
+    // exception is the whole reason it is spelled out. `vite@8.3.5` trips `removeServerWarmupRequest` AGAINST
+    // ITSELF: its own HTML dependency warmer calls the deprecated `server.warmupRequest`
+    // (`preTransformRequest`) rather than `environment.warmupRequest`. Nothing first-party is involved — we
+    // never call it (swept packages/, scripts/, tests/: zero hits), and it is NOT `orb:dev-csp-mirror`, which
+    // only uses `configureServer` + `server.middlewares`. Left on, it prints a warning with a stack on
+    // EVERY dev start that no one here can act on, and a channel that always cries wolf is a channel
+    // developers filter out — which would cost us the one warning that IS ours. So it is off, and every
+    // OTHER deprecation stays loud.
     //
     // RE-CHECK ON ANY VITE BUMP: if upstream migrates `preTransformRequest`, delete this object and go
     // back to the self-updating `future: "warn"` shorthand. Enumerating rots — vite's docs say the list

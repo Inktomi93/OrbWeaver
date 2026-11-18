@@ -46,7 +46,7 @@ const SIGNATURE_KEY = "signature";
 const REDACTED_DATA_KEY = "redactedData";
 const REASONING_DETAILS_KEY = "reasoning_details";
 /** The OpenRouter wire's own span keys under `providerMetadata.openrouter`, built from the response's
- *  `url_citation` annotation (`@openrouter/ai-sdk-provider@3.1.0` dist/index.js:4782-4798). The provider
+ *  `url_citation` annotation (`@openrouter/ai-sdk-provider@3.1.0`'s annotation builder). The provider
  *  substitutes `0` for a missing index and `""` for a missing title/content, so a zero-width span and an
  *  empty string both read as "the wire supplied none". */
 const START_INDEX_KEY = "startIndex";
@@ -117,7 +117,7 @@ function stringAt(bag: JSONObject | undefined, key: string): string | undefined 
 }
 
 /** A wire-supplied string where the EMPTY STRING means "not supplied" — OpenRouter's `?? ""` substitution for
- *  a missing title or passage (dist/index.js:4790,:4793). */
+ *  a missing `title` or `content` on a `url_citation` (`@openrouter/ai-sdk-provider@3.1.0`). */
 function suppliedAt(value: string | undefined): string | undefined {
   return value === undefined || value === "" ? undefined : value;
 }
@@ -230,7 +230,7 @@ function citedSource(args: {
 /** A text block's `text-end` citations → the same list. The SDK defines `LanguageModelV4Citation.startIndex`
  *  as an offset "in the containing generated text", so the block's arrival point shifts it into the reply
  *  frame; the installed `@ai-sdk/anthropic@4.0.85` states `citedText` and the source and no index at all
- *  (dist/index.js:68-96), which places the citation at the block it supports. A document-typed source drops
+ *  (its `mapAnthropicCitation`), which places the citation at the block it supports. A document-typed source drops
  *  here for the same reason it drops off a `source` part — see {@link applySourcePart}. */
 function applyTextCitations(acc: Accumulator, part: LanguageModelV4StreamPart, block: TextBlockAcc): void {
   if (part.type !== "text-end" || part.citations === undefined) {
@@ -259,10 +259,12 @@ function applyTextCitations(acc: Accumulator, part: LanguageModelV4StreamPart, b
  *
  *  TWO parts of this wire family are skipped, each for a measured reason:
  *   · an Anthropic URL citation can arrive TWICE — inside its block's `text-end.citations`
- *     (`@ai-sdk/anthropic@4.0.85` dist/index.js:4932-4940) and as a bare `source` part, either for a
- *     `search_result_location` (`:5057-5065`) or, when the response carried no server-side web-search
- *     results, from the web-citation fallback (`:5201-5204`) — and only the block-associated copy can be
- *     placed in the reply, so the bare copy is not a second fact.
+ *     (`@ai-sdk/anthropic@4.0.85`'s `content_block_stop` arm maps the block's collected citations through
+ *     `mapAnthropicCitation`) and as a bare `source` part, either from the `citations_delta` case's
+ *     `createCitationSource` for a `search_result_location`, or, when the response carried no server-side
+ *     web-search results, from the `!hasWebSearchResults` fallback loop over `fallbackWebCitations` in
+ *     `message_stop` — and only the block-associated copy can be placed in the reply, so the bare copy is
+ *     not a second fact.
  *   · a `document` source has NO producer in this graph (this app sends no document content block and the
  *     OpenRouter provider emits `url` sources only), so the refused member drops without faulting the turn.
  *
@@ -299,10 +301,11 @@ function recordToolInput(acc: Accumulator, part: LanguageModelV4StreamPart): voi
     return;
   }
   // The triple carries ARGUMENT BYTES only, and the terminal `tool-call` part is the contract's mandatory
-  // completion whatever the delta encoding (@ai-sdk/provider@4.0.31 dist index.d.ts:3370-3382: "The final
-  // tool-call input must still be JSON-encoded, regardless of the delta encoding"). The fold drops these parts
-  // and keeps the call — and the drain refuses a stream that leaves the call behind, because a deltas-only wire
-  // would otherwise commit ZERO tool calls as a successful prose turn.
+  // completion whatever the delta encoding (@ai-sdk/provider@4.0.31's `inputEncoding` doc on the
+  // `tool-input-start` part: "The final tool-call input must still be JSON-encoded, regardless of the delta
+  // encoding"). The fold drops these parts and keeps the call — and the drain refuses a stream that leaves
+  // the call behind, because a deltas-only wire would otherwise commit ZERO tool calls as a successful prose
+  // turn.
   acc.toolInputsStarted.set(part.id, part.type === "tool-input-start" ? part.toolName : acc.toolInputsStarted.get(part.id));
 }
 
@@ -412,14 +415,14 @@ function reasoningPartsOf(acc: Accumulator): readonly ReasoningContentPart[] {
  * `acc.finish === undefined` below is the honest truncation guard — and on the openai-compat wire it is
  * STRUCTURALLY UNREACHABLE, because both of that wire's providers manufacture a `finish` part on FLUSH
  * whether or not the upstream ever sent one:
- *   · `@ai-sdk/openai-compatible@3.0.75` — `dist/index.js:1073-1076` initialises
- *     `finishReason = { unified: "other", raw: undefined }` and `:1138-1148`'s `flush(controller)` enqueues
+ *   · `@ai-sdk/openai-compatible@3.0.75` — its `doStream` initialises
+ *     `finishReason = { unified: "other", raw: undefined }` and its transform's `flush(controller)` enqueues
  *     it unconditionally with `convertOpenAICompatibleCompletionUsage(usage)` while `usage` is still `void 0`
  *     (an all-`undefined` usage).
- *   · `@openrouter/ai-sdk-provider@3.1.0` — the same initialiser at `dist/index.js:4583` / `:5386`, emitted
- *     from its own flush at `:5036` / `:5485`.
- * (The direct `@ai-sdk/anthropic@4.0.85` wire does NOT do this: `dist/index.js:5206` enqueues `finish` only
- * inside the `message_stop` case, so a truncated Anthropic stream genuinely has no finish part and the
+ *   · `@openrouter/ai-sdk-provider@3.1.0` — the same `createFinishReason("other")` initialiser in both stream
+ *     paths, emitted from each one's own flush.
+ * (The direct `@ai-sdk/anthropic@4.0.85` wire does NOT do this: its `message_stop` arm is the only place that
+ * enqueues a `finish` part, so a truncated Anthropic stream genuinely has no finish part and the
  * `undefined` guard fires. That asymmetry is exactly what makes the synthesized case easy to miss — one wire
  * failed closed and looked like proof the class was handled.)
  *

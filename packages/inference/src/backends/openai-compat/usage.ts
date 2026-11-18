@@ -1,13 +1,13 @@
 // THE VENDOR USAGE → V4 USAGE MAPPING, on the SDK's own conversion path (`convertUsage`, passed by
 // `model.ts` to both `createOpenAICompatible` factories).
 //
-// `convertUsage` REPLACES the whole default mapping — the hook is used when present and the default
-// otherwise (`@ai-sdk/openai-compatible` dist `index.js:372-373`), so this file emits everything the
-// default emitted (`inputTokens`/`outputTokens`/`raw`, dist `index.js:40-60`). What it adds is the
+// `convertUsage` REPLACES the whole default mapping — the hook is used when present and
+// `convertOpenAICompatibleChatUsage` otherwise (`@ai-sdk/openai-compatible@3.0.75`'s `convertUsage`), so this
+// file emits everything the default emitted (`inputTokens`/`outputTokens`/`raw`). What it adds is the
 // reading the default does not do:
 //
 // - `cache_write_tokens` is read (`prompt_tokens_details.cache_write_tokens`), which the default never
-//   looks at (its `cacheWrite` is `void 0`, dist:51). Any endpoint that reports the axis now reports it;
+//   looks at (its `cacheWrite` is `void 0`). Any endpoint that reports the axis now reports it;
 //   the bytes and the meaning are the same on every row.
 // - Absent axes STAY absent: the default coerces with `prompt_tokens ?? 0` / `reasoning_tokens ?? 0`,
 //   fabricating a reported zero for a frame that said nothing. Here `undefined` leaves the fold's own
@@ -27,10 +27,10 @@ import { z } from "zod";
 /** A vendor-reported count: a non-negative integer, or no fact at all. Junk reads as no fact, never as a number. */
 const reportedCount = z.number().int().nonnegative().nullish().catch(null);
 
-/** The vendor's own usage vocabulary, read through validation: the SDK's chunk schema is loose
- *  (`index.js:754-764`), which is why keys it never names — `cache_write_tokens` among them — survive to
- *  this function at all; nothing here trusts a cast. The vendor spellings are computed keys because the
- *  house naming-convention check reads a literal as a member name. */
+/** The vendor's own usage vocabulary, read through validation: the SDK's chunk schema is a `z.looseObject`
+ *  (`@ai-sdk/openai-compatible@3.0.75`'s `openaiCompatibleTokenUsageSchema`), which is why keys it never
+ *  names — `cache_write_tokens` among them — survive to this function at all; nothing here trusts a cast.
+ *  The vendor spellings are computed keys because the house naming-convention check reads a literal as a member name. */
 const usageFrameSchema = z
   .object({
     ["prompt_tokens"]: reportedCount,
@@ -48,7 +48,7 @@ const usageFrameSchema = z
   })
   .strip();
 
-/** `createNullLanguageModelUsage()`'s shape (provider-utils dist:418-433): every axis unknown, which the
+/** `createNullLanguageModelUsage()`'s shape (`@ai-sdk/provider-utils@5.0.65`): every axis unknown, which the
  *  fold turns into `null` totals and the no-cache zero. */
 const NULL_USAGE: LanguageModelV4Usage = {
   inputTokens: { total: undefined, noCache: undefined, cacheRead: undefined, cacheWrite: undefined },
@@ -61,8 +61,8 @@ function reported(count: number | null): number | undefined {
   return count ?? undefined;
 }
 
-/** The default mapper's own derivation (`dist:40-60`): what the total does not account for. No total,
- *  no derivation. */
+/** The default mapper's own derivation (`convertOpenAICompatibleChatUsage`): what the total does not account
+ *  for. No total, no derivation. */
 function derived(total: number | null, part: number | null): number | undefined {
   return total === null ? undefined : total - (part ?? 0);
 }
