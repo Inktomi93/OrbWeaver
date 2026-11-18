@@ -467,6 +467,12 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/domain/plugin/substrate/surface-state.ts": "PLUGIN_SURFACE_STATE_MAX_KEYS: the key cap a refusal case must fill",
   "packages/server/src/domain/chat/substrate/reaction-note.ts":
     "reactionNote: the attribution note a reaction writes, which a frame override must collide with",
+  "packages/server/src/domain/chat/contract/results.ts":
+    "TurnRequest, TurnEconomics and TurnStreamChunk: the turn shapes the bridge suite builds a request from and asserts the final chunk of, which the chat door does not forward",
+  "packages/server/src/domain/chat/engine/pipeline.ts":
+    "aggregateEconomics: the per-leg economics fold its unit suite drives directly, which the chat door does not forward",
+  "packages/server/src/domain/chat/persistence/canon-write.ts":
+    "appendVariantStatements: the canon writer's variant statements its persistence suite commits against the real sidecar column",
   "packages/server/src/domain/discovery/substrate/hub-math.ts":
     "computeGroupHubs and HUB_YIELD_WORK_BUDGET: the hub math whose yield budget and cancellation the suite holds it to",
   "packages/server/src/domain/discovery/themes/name-prompt.ts": "THEME_NAME_KEYWORDS_LEAD: the lead the scripted provider recognises a naming request by",
@@ -527,6 +533,8 @@ const TEST_CONSTANT_HOMES = {
     "thinkTagMiddleware: the middleware gate its stream-split unit suite drives over a synthetic part stream, which no inference door forwards",
   "packages/inference/src/backends/v4/stream.ts":
     "drainStream: the V4 fold its unit suite drives over a synthetic part stream, which no inference door forwards",
+  "packages/inference/src/backends/v4/result.ts":
+    "toChatResult: the drained-stream → ChatResult fold its unit suite asserts the absent-key rule through, which no inference door forwards",
   "packages/ui/src/content/immersive-card/control-labels.ts": "IMMERSIVE_CARD_LABELS: the card header's control names",
   "packages/ui/src/lib/reduced-motion-now.ts":
     "resolveReducedMotion and APP_REDUCED_MOTION_ATTRIBUTE: the JS rule the CSS reduced-motion floor must agree with",

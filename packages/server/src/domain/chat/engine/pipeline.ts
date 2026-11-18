@@ -27,6 +27,7 @@ import type {
   ChatDeltaEvent,
   ChatInjection,
   ChatReasoningPart,
+  ChatSource,
   ContentSignatures,
   MessageView,
   ToolCallRecord,
@@ -1609,6 +1610,21 @@ function carriedReasoning(economics: TurnEconomics | null, carry: CarryReasoning
   return carry === "off" ? [] : (economics?.reasoningParts ?? []);
 }
 
+/** The earlier leg's citations shifted into the concatenated reply's frame: every span is an offset into the leg
+ *  that produced it, and the stored reply is the two legs joined, so the prose now in front of them is the shift.
+ *  The later leg needs none — it IS the tail. */
+function shiftedSources(acc: TurnEconomics, next: TurnEconomics): readonly ChatSource[] {
+  const shift = acc.content.length;
+  return [
+    ...(acc.sources ?? []).map((source) => ({
+      ...source,
+      atChars: source.atChars + shift,
+      ...(source.endChars === undefined ? {} : { endChars: source.endChars + shift }),
+    })),
+    ...(next.sources ?? []),
+  ];
+}
+
 /** Folds one depth's economics into the turn aggregate: counts/costs sum (absent stays absent), ttftMs is
  *  the first depth's, terminal reasons/model/window are the last depth's. The per-provider sidecar rides the
  *  `...next` spread with that last group ON PURPOSE: it is one call's RECEIPT (a session id, a warm-spare
@@ -1635,6 +1651,10 @@ export function aggregateEconomics(acc: TurnEconomics | null, next: TurnEconomic
     modelCalls,
     content: acc.content + next.content,
     textSignatures: [...(acc.textSignatures ?? []), ...(next.textSignatures ?? [])],
+    // The spans are offsets into the reply each leg produced, and the stored reply is the concatenation of
+    // those legs: the earlier leg's citations shift by exactly the prose now in front of them, or the stored
+    // spans point into the wrong part of the turn's own text.
+    ...(acc.sources === undefined && next.sources === undefined ? {} : { sources: shiftedSources(acc, next) }),
     reasoning: [acc.reasoning ?? "", next.reasoning ?? ""].join("") || null,
     ttftMs: acc.ttftMs ?? next.ttftMs ?? null,
   };

@@ -279,6 +279,47 @@ export type VariantProviderMetadata = z.infer<typeof variantProviderMetadataSche
 /** Host-only replay provenance, matched against the selected variant's exact canonical content. */
 const textSignatureSchema = z.object({ text: z.string(), thoughtSignature: z.string() }).strip();
 export type TextSignature = z.infer<typeof textSignatureSchema>;
+
+// Strip mode: also reads stored rows.
+/** ONE source a turn cited, with its span in the reply — the ONE spelling the fold emits
+ *  (`ChatResult.sources`), the engine stores (`message_variants.metadata.sources`) and
+ *  {@link parseVariantMetadata} returns. An entry never carries a wire's own `startIndex`/`endIndex`:
+ *  the two wires that report citations measure from different origins, so the arrival points are
+ *  normalized at the fold and every consumer reads one frame.
+ *
+ *  NO DOCUMENT MEMBER, on purpose: a `sourceType: "document"` arm is refused rather than widened,
+ *  because no producer in this graph builds one — the OpenRouter provider emits `url` sources only and
+ *  Anthropic's document citations need a document content block this app never sends. A member no
+ *  producer builds is a member to delete. */
+export interface ChatSource {
+  readonly url: string;
+  /** Absent when the wire named none. OpenRouter substitutes `""` for a missing title; the fold maps that
+   *  to absent. */
+  readonly title?: string | undefined;
+  /** Where the cited span starts, as an offset into the turn's reply text. */
+  readonly atChars: number;
+  /** Where it ends, where the wire supplied a span; the end is exclusive, matching every offset in this file. */
+  readonly endChars?: number | undefined;
+  /** The supporting passage, where the wire supplied one. */
+  readonly citedText?: string | undefined;
+}
+
+const chatSourceSchema = z
+  .object({
+    url: z.url(),
+    title: z.string().optional(),
+    atChars: z.number().int().nonnegative(),
+    endChars: z.number().int().nonnegative().optional(),
+    citedText: z.string().optional(),
+  })
+  .strip() satisfies z.ZodType<ChatSource>;
+
+/** THE READ SEAM for a stored source list: one malformed ENTRY drops and its neighbours survive, so a row
+ *  whose citation blob went bad still lists its other citations instead of degrading the whole sidecar to
+ *  `{}` (the `versioned-config` rule: heal element-wise, never whole-array). */
+export const chatSourcesSchema = z
+  .array(chatSourceSchema.nullable().catch(null))
+  .transform((entries): readonly ChatSource[] => entries.filter((entry): entry is ChatSource => entry !== null));
 // Strip mode: also reads stored rows.
 /** The handle a provider gives one tool call, kept verbatim to join the call to its result and for signed replay.
  *  @remarks Provider-local and reusable across exchanges; the host names an occurrence by turn and ordinal. */
@@ -313,8 +354,9 @@ const contentSignaturesSchema = contentSignatureSnapshotSchema.extend({ previous
 export type ContentSignatures = z.infer<typeof contentSignaturesSchema>;
 
 // Strip mode: also reads stored rows.
-// `message_variants.metadata` PARSED (never cast) at the read seam: the measured reasoning window under
-//  {@link VARIANT_METADATA_REASONING_MS_KEY}, the provider sidecar, and the ST import's foreign residue.
+//  `message_variants.metadata` PARSED (never cast) at the read seam: the measured reasoning window under
+//  {@link VARIANT_METADATA_REASONING_MS_KEY}, the provider sidecar, the turn's cited sources, and the ST
+//  import's foreign residue.
 //
 //  §5.3c CLASS 3 — a parsed JSON sidecar with a zod schema at the read seam and a producer-side parse on
 //  write, never `Record<string, unknown>` past the seam. The column's `$type` is this shape
@@ -349,6 +391,12 @@ const variantMetadataSchema = z
       )
       .optional(),
     importResidue: jsonValueSchema.optional(),
+    /** Every source the turn CITED, in arrival order and never deduplicated — one URL cited for two spans is
+     *  two facts, and a consumer that wants a distinct URL set collapses it itself. Spans are offsets into the
+     *  variant's own reply text (`content`, before any host post-transform rewrites it), so a reader never has
+     *  to know which wire produced an entry. Absent on a turn that cited nothing: an unreported fact stays
+     *  absent, never an empty array. */
+    sources: chatSourcesSchema.optional(),
   })
   .strip();
 /** The parsed `message_variants.metadata` sidecar — the type the column's `$type` carries and every reader

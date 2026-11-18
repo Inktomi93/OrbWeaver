@@ -208,6 +208,12 @@ async function readCommittedView(ctx: EngineContext, messageId: MessageId): Prom
  * literal and a bare string member would be no discriminant at all (`contracts/src/chat/messages.ts`). A turn
  * whose wire reported none writes no key.
  *
+ * THE FOURTH KEY is the sources the turn CITED (`TurnEconomics.sources`). Citations have no reader and no
+ * query today, so the sidecar is their home — the same home the ST import's parsed provenance blob uses —
+ * and a key added here needs no DDL because the column's shape is the closed union both sides import. Spans
+ * are offsets into THIS reply's text, so a continuation's sidecar REPLACES its parent's rather than merging
+ * spans measured against a shorter reply; merging the two would need an offset shift this write does not do.
+ *
  * Null (not `{}`) when the turn recorded NONE of them: an empty blob would make the column's "has a sidecar"
  * question a lie and costs a row of JSON for nothing. Takes the whole pipeline result rather than its parts
  * because the variant row and the live stats-mirror row MUST persist the IDENTICAL blob — they are
@@ -219,12 +225,14 @@ function liveVariantMetadata(result: Awaited<ReturnType<typeof runTurnPipeline>>
   const text = [...(result.economics?.textSignatures ?? [])];
   const images = [...(result.imageSignatures ?? [])];
   const tools = result.toolSignatures;
+  const sources = result.economics?.sources;
   const sidecar: VariantMetadata = {
     ...(result.reasoningMs === null ? {} : { [VARIANT_METADATA_REASONING_MS_KEY]: result.reasoningMs }),
     ...(systemFingerprint === null ? {} : { [VARIANT_METADATA_SYSTEM_FINGERPRINT_KEY]: systemFingerprint }),
     ...(result.systemTokens === null ? {} : { systemTokens: result.systemTokens }),
     ...(text.length === 0 && images.length === 0 && tools.length === 0 ? {} : { contentSignatures: { content: result.content, text, images, tools } }),
     ...(providerMetadata === null || providerMetadata === undefined ? {} : { providerMetadata }),
+    ...(sources === undefined ? {} : { sources }),
     ...(result.economics?.usageLegs === undefined ? {} : { usageLegs: [...result.economics.usageLegs] }),
   };
   return Object.keys(sidecar).length === 0 ? null : sidecar;

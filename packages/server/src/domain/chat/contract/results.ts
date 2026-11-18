@@ -6,6 +6,7 @@ import type {
   ChatContentPart,
   ChatRegexNotAppliedOverflowWarning,
   ChatRegexNotAppliedWarning,
+  ChatSource,
   CueRole,
   GroupConfig,
   ParticipantData,
@@ -325,6 +326,10 @@ export interface TurnEconomics {
    *  moment an `asset:` id exists to spell into the body. Absent on every text-only turn. */
   readonly replyImages?: readonly GeneratedImage[] | undefined;
   readonly textSignatures?: readonly TextSignature[] | undefined;
+  /** The web sources the turn cited (`ChatResult.sources`), spans measured in THIS turn's reply text, in
+   *  arrival order and never deduplicated — persisted as `message_variants.metadata.sources`. Absent on a turn
+   *  that cited nothing. */
+  readonly sources?: readonly ChatSource[] | undefined;
 }
 
 /** §6.7 — the emitted twin of a `TurnEconomics.replyImages` entry: one picture the engine has already

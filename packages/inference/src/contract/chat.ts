@@ -2,7 +2,7 @@
 // the runtime handed it and calls the executor; it never sees sessions, seed frames, child env or transport
 // spelling. Discriminated on `api` (the protocol axis) — never on a wire or a provider id.
 
-import type { ChatContentPart, ChatDeltaEvent, TextSignature, VariantProviderMetadata } from "@orb/contracts/chat";
+import type { ChatContentPart, ChatDeltaEvent, ChatSource, TextSignature, VariantProviderMetadata } from "@orb/contracts/chat";
 import type { AttachmentQuality, ChatApi, ChatUsage, NormalizedFinishReason, ProviderGenerationId, ResolvedWarning } from "@orb/contracts/inference";
 import { WARNING_CODE } from "@orb/contracts/inference";
 import type { EffortLevel, ReasoningTagPair, ResponseCacheControl, UserIntent } from "@orb/contracts/preset";
@@ -335,6 +335,14 @@ export interface ContextUsage {
 export interface ChatResult {
   readonly reply: string;
   readonly textSignatures?: readonly TextSignature[] | undefined;
+  /** The web sources the model cited this turn, in arrival order and WITHOUT deduplication — one URL cited for
+   *  two spans is two facts, and a consumer that wants a distinct URL set collapses it itself.
+   *
+   *  ONE OFFSET FRAME, TWO ARRIVAL FORMS: a source part (OpenRouter's `url_citation` annotations) and a text
+   *  block's `citations` (Anthropic's `text-end`) both land here, and every entry's `atChars`/`endChars` are
+   *  offsets into {@link reply} — the fold adds the block's own arrival point, so a reader never has to know
+   *  which wire produced an entry. Absent when the turn cited nothing. */
+  readonly sources?: readonly ChatSource[] | undefined;
   readonly toolCalls?: readonly ToolCallInput[] | undefined;
   readonly reasoning: string;
   /** The model's thinking as REPLAYABLE parts, in stream order, each carrying the wire's own opaque

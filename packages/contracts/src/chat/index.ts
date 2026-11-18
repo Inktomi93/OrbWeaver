@@ -215,6 +215,7 @@ export { historyPageSchema, messageWindowSchema } from "./message-pages.ts";
 // from `@orb/kit/macro`; contracts owns only the persisted/wire ARRAY (`MacroFreezeRecord`) + its parse seam.
 export type {
   ChatReasoningPart,
+  ChatSource,
   ConnectionAttributionProvenance,
   ContentSignatures,
   CueRole,

@@ -124,11 +124,11 @@ Judgments: **necessary** (the SDK cannot), **stricter** (the SDK can, loses a wr
   would land in `providerMetadata` (`GoogleProviderMetadata` carries `groundingMetadata`/`safetyRatings`).
 - **Anthropic `safeguards`** (dist js:3839, beta header js:3932) and `iterations[]` per-model billing rows
   (js:1914-1934) which our cost fold ignores. `anthropicBeta` has no modeled path for an unmodeled beta.
-- **V4 stream parts we drop**: 8 of 21 (`packages/inference/src/backends/v4/stream.ts` handles 13). Tool-input delta triples are safe by
-  contract (the terminal `tool-call` is mandatory, provider dist:3370-3382) but the code does not say so, and a
-  deltas-only wire would yield zero tool calls silently — one comment plus one guard owed. `source` parts
-  (web-search citations; OR emits them, anthropic 7 sites) are the only USER-visible loss: citations are
-  stripped and `ChatResult` has no field for them. That is a missing feature, not a bug.
+- **V4 stream parts this graph does not model**: `packages/inference/src/backends/v4/stream.ts` folds the content
+  and control parts every turn runs on. Tool-input delta triples are safe by contract (the terminal `tool-call`
+  is mandatory, provider dist:3370-3382) but the code does not say so, and a deltas-only wire would yield zero
+  tool calls silently — one comment plus one guard owed. `source` parts (web-search citations; OR emits them,
+  anthropic 7 sites) ride into `ChatResult.sources`; the fold keeps them (ruling 2 below).
 - Model families we simply do not run (realtime, speech, transcription, video, files, batch, interactions)
   account for most of the 481 unimported core names and the google 41.
 
@@ -170,7 +170,7 @@ Judgments: **necessary** (the SDK cannot), **stricter** (the SDK can, loses a wr
 1. `/responses` prompt-cache axis: **adopted** — `promptCacheKey`/`promptCacheOptions`/`promptCacheRetention`
    are passed to the openai `/responses` route under the same capability gates the chat route uses.
 2. Web-search `source` parts: the app runs no web-search feature, but the parts are **stored, not dropped** —
-   `ChatResult` gains the field and the fold keeps them; no UI is promised. (Boarded item.)
+   `ChatResult` carries the field and the fold keeps them; no UI is promised.
 3. Google `continuationToken`: the domain path wins — a truncated reply continues through the EXISTING
    `continue` turn intent (`autoContinue` / `runAutoContinue`, already gated on `finishReason === "length"`),
    not a new backend leg loop. The owner ruled the leg loop over-engineered: its resume fidelity and
