@@ -18,10 +18,10 @@ import { providerIdSchema } from "#inference";
 
 // Dispatch axis: every member needs a resolver arm + an infra/providers runner (tsc's assertNever
 // red-flags a gap). `@orb/contracts/connection` re-exports this verbatim (under its own name).
-/** WHAT KIND of secret a row seals, spelled from the provider row's `auth` (inference program §8.4-1): the
- *  metadata union is keyed on it. An `endpoint` row's transforms (headers / includeBody / excludeBody /
- *  responseMap) are NOT here any more — they are the CONNECTION's `transport` column (§5.3); a credential row
- *  is a sealed secret with a label, and connections give it meaning. `.nullable()`: most rows carry none. */
+/** WHAT KIND of secret a row seals, spelled from the provider row's `auth`: the metadata union is keyed on it.
+ *  An `endpoint` row's transforms (headers / includeBody / excludeBody / responseMap) are NOT here — they are
+ *  the CONNECTION's `transport` column; a credential row is a sealed secret with a label, and connections give
+ *  it meaning. `.nullable()`: most rows carry none. */
 export const providerMetadataSchema = z
   .discriminatedUnion("auth", [
     z.object({ auth: z.literal("apiKey") }).catchall(jsonMemberSchema),
@@ -41,10 +41,9 @@ export function parseProviderMetadata(raw: unknown): ProviderMetadata {
  *
  *  `ok` is an EARNED green — it means a probe went out and the credential was accepted, nothing else.
  *  `unchecked` is the honest answer when no such probe happened or its answer did not classify: a provider
- *  with no probe arm (SID-01 — the verb used to report a bare `ok` for those, so "Test" was green for a
- *  credential nobody had ever dialled), a row with no usable endpoint metadata, or a reachable endpoint
- *  answering a non-auth non-2xx. `unchecked` carries NO revocation/strike side-effect — it is not a
- *  failure, it is the absence of a verdict, and it must never be rendered as a pass. */
+ *  with no probe arm, a row with no usable endpoint metadata, or a reachable endpoint answering a non-auth
+ *  non-2xx. `unchecked` carries NO revocation/strike side-effect — it is not a failure, it is the absence of
+ *  a verdict, and it must never be rendered as a pass. */
 export type CredentialHealth =
   | { status: "ok"; checkedAt: number }
   | { status: "revoked"; checkedAt: number; reason: string }
