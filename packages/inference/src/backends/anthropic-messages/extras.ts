@@ -42,8 +42,8 @@ import type { UserId } from "@orb/kit/ids";
 import { z } from "zod";
 import type { Resolved } from "#contract";
 
-/** The keys a connection's `extras` may carry on this wire, each validated against the 4.0.85 dist's own
- *  `anthropicLanguageModelOptions` shape (`index.d.ts:586-700`). Open enums stay `z.string()` where the dist
+/** The keys a connection's `extras` may carry on this wire, each validated against the
+ *  `anthropicLanguageModelOptions` shape (`@ai-sdk/anthropic@4.0.85`). Open enums stay `z.string()` where the dist
  *  models an open one and are pinned where it models a closed one. */
 const ANTHROPIC_EXTRAS_SCHEMAS = {
   /** `fast | standard` — the latency/price tier. */

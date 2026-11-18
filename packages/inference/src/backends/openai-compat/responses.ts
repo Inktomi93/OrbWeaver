@@ -95,8 +95,8 @@ function responsesOptions(
       ...(strict !== undefined ? { strictJsonSchema: strict } : {}),
       ...(knobs.verbosity !== undefined ? { textVerbosity: knobs.verbosity } : {}),
       // The prompt-cache controls, on the same gates the chat body applies (`implicitPromptCacheFields`): the
-      // SDK spells these three as `prompt_cache_key`/`prompt_cache_options`/`prompt_cache_retention`
-      // (`@ai-sdk/openai` dist `index.js:6425-6427`; the option schemas at :4361/:4368/:4383).
+      // SDK spells these three as `prompt_cache_key`/`prompt_cache_options`/`prompt_cache_retention`, written
+      // from `promptCacheKey`/`promptCacheOptions`/`promptCacheRetention` (`@ai-sdk/openai@4.0.99`).
       ...(promptCache.key === null ? {} : { promptCacheKey: promptCache.key }),
       ...(promptCache.breakpoint === null ? {} : { promptCacheOptions: promptCache.breakpoint }),
       ...(promptCache.retention === null ? {} : { promptCacheRetention: promptCache.retention }),

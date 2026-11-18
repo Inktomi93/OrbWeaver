@@ -27,8 +27,9 @@
 //      shape or a fully deferred emit), and reachable only from a `doStream` call site, while this tap is
 //      the literal wire, at one site, for every surface (chat, embed, image, diagnostics) on both hosted
 //      wires. It rests on exactly the argument control 4 already makes for the request side.
-//      Verified 2026-11-17 at the installed `@openrouter/ai-sdk-provider@3.1.0`: `dist/index.js:4618-4620`
-//      and the second stream path at `:5413-5415`; `dist/index.d.ts:180-185`.
+//      Verified at the installed `@openrouter/ai-sdk-provider@3.1.0`: both stream paths re-emit the parsed
+//      chunk as a `raw` part under `includeRawChunks`, and `debug.echo_upstream_body` is a REQUEST option
+//      whose payload returns as the stream's first chunk.
 //   • `transport.responseMap` + `features.reasoningKeys`: each SSE chunk / the JSON body is reshaped through
 //     the user's dot paths BEFORE the SDK parses it, so a non-OpenAI reply still lands on the SDK's chunk
 //     schema. Only when a map or key list is set — the untouched stream passes through by reference otherwise.

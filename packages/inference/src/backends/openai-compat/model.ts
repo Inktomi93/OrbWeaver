@@ -7,12 +7,12 @@
 // chat calls (`ollama-native.ts`).
 //
 // FORBIDDEN: a factory `name` other than the connection's exact registry id. It is not a label — the SDK
-// derives `provider` as `${name}.${modelType}` and `providerOptionsName` from `provider.split(".")[0].trim()`
-// (`@ai-sdk/openai-compatible` dist `index.js:1476` and `:364`), and files `providerMetadata` under whichever
-// key that resolves to. A shared literal or a pretty name silently orphans the bag our result mapper reads
-// (`drain.providerMetadata?.[ctx.providerMetadataKey]`, `v4/result.ts`, whose key each runner derives from
-// `providerOptionsKey`), and the same footgun exists on the anthropic wire (`getProviderOptionsName`,
-// `@ai-sdk/anthropic` dist `index.js:3539-3542`).
+// derives `provider` as `${name}.${modelType}` (`getCommonModelConfig`) and reads `providerOptionsName` off
+// `provider.split(".")[0].trim()` (`@ai-sdk/openai-compatible@3.0.75`), and files `providerMetadata` under
+// whichever key that resolves to. A shared literal or a pretty name silently orphans the bag our result
+// mapper reads (`drain.providerMetadata?.[ctx.providerMetadataKey]`, `v4/result.ts`, whose key each runner
+// derives from `providerOptionsKey`), and the same footgun exists on the anthropic wire (`getProviderOptionsName`,
+// `@ai-sdk/anthropic@4.0.85`).
 
 import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
@@ -89,8 +89,8 @@ function fetchArgs(call: ModelCall, shapeBody: WrapFetchArgs["shapeBody"]): Wrap
 
 /** The `providerOptions` key the openai-compatible SDK reads for a provider named `name`. The SDK
  *  accepts BOTH the raw name and its camel form, but pushes a `deprecated` warning on EVERY call when the
- *  raw form differs and is the one present (`warnIfDeprecatedProviderOptionsKey`, dist
- *  `index.js:21-28`) — and our provider ids are hyphenated (`custom-openai`, `lm-studio`). The camel form is
+ *  raw form differs and is the one present (`warnIfDeprecatedProviderOptionsKey`,
+ *  `@ai-sdk/openai-compatible@3.0.75`) — and our provider ids are hyphenated (`custom-openai`, `lm-studio`). The camel form is
  *  the non-deprecated spelling, so it is the only one we write. */
 export function providerOptionsKey(providerId: string): string {
   return providerId.replace(/[_-]([a-z])/gu, (_match, letter: string) => letter.toUpperCase());
@@ -140,9 +140,10 @@ function openAiCompatibleProvider(call: ModelCall): ReturnType<typeof createOpen
     convertUsage: openAiCompatConvertUsage,
     // The structured plan decides whether a response format rides; the SDK must never downgrade one itself.
     supportsStructuredOutputs: true,
-    // Structured tool results ride as parts instead of being JSON-stringified into `content` (dist
-    // `index.js:228`; default `false` at :146). Inert for our history today — `v4/prompt.ts:189` emits
-    // only `text`/`error-text` tool outputs, so the `content` arm this gates is unreachable — and correct
+    // Structured tool results ride as parts instead of being JSON-stringified into `content` (the
+    // `supportsMultiPartToolContent` flag of `convertToOpenAICompatibleChatMessages`, default `false`,
+    // `@ai-sdk/openai-compatible@3.0.75`). Inert for our history today — `v4/prompt.ts`'s tool-result arm
+    // emits only `text`/`error-text` tool outputs, so the `content` arm this gates is unreachable — and correct
     // the moment a `content` output exists, since a stringified array is not what a multi-part-tolerant
     // endpoint should receive.
     supportsMultiPartToolContent: true,

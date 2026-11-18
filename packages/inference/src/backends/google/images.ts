@@ -17,8 +17,8 @@ import { googleServedModelOf, googleTokenDetailsOf, googleTokenUsageOf } from ".
 function imageUsageOf(result: LanguageModelV4GenerateResult): GenerationUsage {
   const measured = measuredCostOf(result.providerMetadata, result.usage.raw);
   // The served model version is not on the result's `response.modelId` (the SDK fills it off the parsed
-  // response and falls back to "", `@ai-sdk/google` dist `index.js:3239`); the raw body's own `modelVersion`
-  // carries it.
+  // response and falls back to "", `@ai-sdk/google@4.0.102`'s image `doGenerate`); the raw body's own
+  // `modelVersion` carries it.
   const servedModel = googleServedModelOf(result.response?.body);
   return {
     ...generationUsageOf(result.usage, servedModel ?? undefined, measured),

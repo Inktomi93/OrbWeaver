@@ -2,9 +2,10 @@
 //
 // WHY THE HOOK AND NOT A BODY READ: the SDK parses the response through its own schema, which strips every field
 // the schema does not model, so `system_fingerprint` never reaches the fold any other way. The hook receives the
-// RAW parsed body — `extractMetadata({ parsedBody })` (dist `index.js:498`) and `processChunk(chunk.rawValue)`
-// for a stream (:618) — and NO headers and NO key: the SDK spreads the returned bag at the TOP LEVEL of
-// `providerMetadata` (:496-499, :735-738) beside its own nested writes, so the key is OURS to spell.
+// RAW parsed body — `extractMetadata({ parsedBody })` on the `doGenerate` path and `processChunk(chunk.rawValue)`
+// on the stream path (`@ai-sdk/openai-compatible@3.0.75`) — and NO headers and NO key: the SDK spreads the
+// returned bag at the TOP LEVEL of `providerMetadata`, beside its own nested writes under `[metadataKey]` and
+// `[providerOptionsName]`, so the key is OURS to spell.
 //
 // THE KEY IS THE PROVIDEROPTIONS KEY (`providerOptionsKey`): the SDK files its own nested writes under the name it
 // resolved for the caller's providerOptions bag, and the caller always writes the camel form. The fold reads this

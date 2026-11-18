@@ -3,11 +3,12 @@
 // FORBIDDEN: `name:` on `createGoogle` (no call site sets it — ruled in `ai-sdk-surface.md`). The SDK picks
 // the options/metadata keys from the factory name:
 // `providerOptionsNames = config.provider.includes("vertex") ? ["googleVertex", "vertex"] : ["google"]`
-// (`@ai-sdk/google` 4.0.102 `dist/index.js:1509,:3957`; the default `"google.generative-ai"` at :8191), and
-// the response parts emit `providerMetadata` ONLY under those names (`wrapProviderMetadata`, :1687,:1893).
+// (`@ai-sdk/google@4.0.102`, whose default name is `"google.generative-ai"`), and
+// the response parts emit `providerMetadata` ONLY under those names (`wrapProviderMetadata`, which builds its
+// keys from that same list).
 // A name containing "vertex" therefore re-keys the bag off `google` and silently zeroes its readers — the
-// thought-signature replay keys `providerMetadata.google` in
-// `packages/inference/src/backends/v4/stream.ts:112,:154`.
+// thought-signature replay reads `providerMetadata.google` in `applyReasoningMeta`, `applyTextSignature` and
+// `applyContentPart` in `packages/inference/src/backends/v4/stream.ts`.
 
 import type { GoogleProvider } from "@ai-sdk/google";
 import { createGoogle } from "@ai-sdk/google";
