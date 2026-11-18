@@ -28,7 +28,7 @@ import { observeChatResult } from "../http/generation-observation.ts";
 import { turnAbortSignal } from "../http/idle-timeout.ts";
 import { providerLogger } from "../http/provider-log.ts";
 import { rateLimitCanaryEvent, rateLimitFromHeaders } from "../http/rate-limit-headers.ts";
-import { cachePolicyContextOf, effectiveDialectOf, responseCacheOf } from "../http/response-cache.ts";
+import { cachePolicyContextOf, effectiveDialectOf, implicitPromptCacheFields, responseCacheOf } from "../http/response-cache.ts";
 import { runWithPreCommitRetry } from "../http/retry.ts";
 import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "../http/sanitize.ts";
 import { emitTurnSpanEvents } from "../http/turn-span.ts";
@@ -561,16 +561,17 @@ function prefixOptions(
   anthropicRoute: boolean,
   chatId: OpenAiCompatChatRequest["chatId"],
 ): { readonly splitSystem: boolean; readonly body: Record<string, unknown> } {
+  const implicit = implicitPromptCacheFields(policy, generation, chatId);
   const common = {
-    ...(policy.implicit.retention === null ? {} : { prompt_cache_retention: policy.implicit.retention }),
-    ...(generation.turns?.promptCacheKey === true && chatId !== undefined ? { prompt_cache_key: chatId } : {}),
+    ...(implicit.retention === null ? {} : { prompt_cache_retention: implicit.retention }),
+    ...(implicit.key === null ? {} : { prompt_cache_key: implicit.key }),
   };
-  if (generation.turns?.promptCacheFormat !== "openai-breakpoint") {
+  if (implicit.breakpoint === null) {
     return { splitSystem: anthropicRoute, body: common };
   }
   return {
     splitSystem: policy.prefix.action === "markers",
-    body: { ...common, prompt_cache_options: { mode: policy.implicit.disableApplied ? "explicit" : "implicit", ttl: "30m" } },
+    body: { ...common, prompt_cache_options: implicit.breakpoint },
   };
 }
 

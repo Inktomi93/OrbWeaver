@@ -1,9 +1,10 @@
 // Request controls override configured cache headers without changing unrelated headers.
 
-import type { CachePolicy, CachePolicyContext, Dialect, ResponseCache, Task } from "@orb/contracts/inference";
+import type { CachePolicy, CachePolicyContext, Dialect, GenerationCapability, ResponseCache, Task } from "@orb/contracts/inference";
 import { PROMPT_CACHE_RETENTIONS, responseCacheSchema } from "@orb/contracts/inference";
 import type { ResponseCacheControl } from "@orb/contracts/preset";
 import { RESPONSE_CACHE_TTL_BOUNDS } from "@orb/contracts/preset";
+import type { ChatId } from "@orb/kit/ids";
 import type { ProviderScrubSet, Resolved } from "#contract";
 import { redactSecretsFromText } from "../wire/openai-body.ts";
 
@@ -103,6 +104,29 @@ export function responseCacheHeaders(args: {
     headers.delete(CACHE_REFRESH_HEADER);
   }
   return Object.fromEntries(headers);
+}
+
+/** The implicit prompt-cache controls a turn sends, decided ONCE per turn so the chat body and the
+ *  `/responses` provider options cannot gate the same question two ways. `retention` is the resolved policy's
+ *  (already narrowed to what the route documents), `key` needs both the capability's `promptCacheKey` fact and
+ *  a chat id to name, and `breakpoint` is only spelled on a row whose format IS the OpenAI breakpoint. */
+export interface ImplicitPromptCacheFields {
+  readonly retention: CachePolicy["implicit"]["retention"];
+  readonly key: ChatId | null;
+  readonly breakpoint: { readonly mode: "implicit" | "explicit"; readonly ttl: "30m" } | null;
+}
+
+export function implicitPromptCacheFields(
+  policy: CachePolicy,
+  generation: GenerationCapability | undefined,
+  chatId: ChatId | undefined,
+): ImplicitPromptCacheFields {
+  return {
+    retention: policy.implicit.retention,
+    key: generation?.turns?.promptCacheKey === true && chatId !== undefined ? chatId : null,
+    breakpoint:
+      generation?.turns?.promptCacheFormat === "openai-breakpoint" ? { mode: policy.implicit.disableApplied ? "explicit" : "implicit", ttl: "30m" } : null,
+  };
 }
 
 function reportedSeconds(value: string | null): number | null {
