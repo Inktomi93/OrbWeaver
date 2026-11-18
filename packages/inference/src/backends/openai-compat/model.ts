@@ -5,6 +5,13 @@
 // cache. The dialect `Record` is the exhaustive map (a third transport package is a compile error here). A row
 // whose folded `features.nativeChat` names a server's own chat route keeps the transport and translates its
 // chat calls (`ollama-native.ts`).
+//
+// FORBIDDEN: a factory `name` other than the connection's exact registry id. It is not a label — the SDK
+// derives `provider` as `${name}.${modelType}` and `providerOptionsName` from `provider.split(".")[0].trim()`
+// (`@ai-sdk/openai-compatible` dist `index.js:1476` and `:364`), and files `providerMetadata` under whichever
+// key that resolves to. A shared literal or a pretty name silently orphans the bag our result mapper reads
+// under the id (`drain.providerMetadata?.[ctx.providerId]`, `v4/result.ts`), and the same footgun exists on
+// the anthropic wire (`getProviderOptionsName`, `@ai-sdk/anthropic` dist `index.js:3539-3542`).
 
 import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
