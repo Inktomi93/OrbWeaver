@@ -2,9 +2,8 @@
 // output cap, moderation, the reasoning object (R0 — its `supportedEfforts` allowlist supersedes any family
 // effort list) and WHICH sampling knobs exist (`supported_parameters` gives NAMES, not ranges — the ranges are
 // the constants below, §8.7). Turn cells are NOT advertised: they come from the curated rows. NEITHER is
-// `verbosity` (inference audit H1, measured 2026-09-20): OR lists it on every Claude id, where Anthropic has no
-// such knob, and NOT on `openai/gpt-5.4`, where OR forwards `text.verbosity` upstream
-// (`gen-1789884254-ZJVqE4m5N0aChJ7FY0x7`) — an inverted list is not evidence, so the knob is a curated/measured
+// `verbosity`: OR lists it on every Claude id, where Anthropic has no such knob, and NOT on `openai/gpt-5.4`,
+// where OR forwards `text.verbosity` upstream — an inverted list is not evidence, so the knob is a curated/measured
 // statement only. The sampling NAMES are advertised-tier evidence, never the last word: a dated measured row
 // outranks them where OR strips upstream what it lists (opus-5 / opus-4.8, `../measured/openrouter.ts`).
 

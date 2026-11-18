@@ -3,9 +3,8 @@
 // provider / wire / api — because two live cells are functions of (id × wire-shape), not of id alone. Rows are
 // parsed at load through the SAME zod a plugin/admin row goes through (a malformed row is a boot failure, never
 // a runtime one) and matched in FILE ORDER (a later row refines an earlier one). This file is the only place a
-// row's `match.model` regex is compiled (the other regex home is `../families.ts`); the measured tier used to
-// have NO matcher at all — `resolve-task.ts` applied the whole anthropic list to every anthropic-family id, so a
-// per-model measurement was structurally impossible (inference audit B3/H3, 2026-09-20).
+// row's `match.model` regex is compiled (the other regex home is `../families.ts`); both tiers match per model,
+// never per family, or a per-model measurement is unrepresentable.
 
 import type { CapabilityOverride } from "@orb/contracts/inference";
 import { capabilityOverrideSchema } from "@orb/contracts/inference";

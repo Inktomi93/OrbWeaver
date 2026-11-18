@@ -387,13 +387,13 @@ export const openaiRows = [
     generation: {
       // The reasoning models take temperature at its default only (`unsupported_value: 'temperature' does not
       // support 0.7 with this model. Only the default (1) value is supported`, measured 2026-09-20 on gpt-5-mini) —
-      // the stated set is empty. On the direct `openai` row this was ALREADY the floor (an apiKey row advertises no
+      // the stated set is empty. On the direct `openai` row this is ALREADY the floor (an apiKey row advertises no
       // sampling); via OpenRouter the advertised set replaces it (the fold's REPLACE rule), and OR's own list
-      // omits temperature for gpt-5.4 (consistent with the upstream strip measured in H3). Stated and cited so
-      // nobody re-derives the fail-closed floor as an accident.
+      // omits temperature for gpt-5.4 (consistent with the upstream strip measured through OpenRouter). Stated and
+      // cited so nobody re-derives the fail-closed floor as an accident.
       sampling: {},
       // The REASONING ids only: via OpenRouter these route to the Responses API with
-      // `include: ["reasoning.encrypted_content"]` (measured, H3), which is the same signed-replay contract.
+      // `include: ["reasoning.encrypted_content"]` (measured), which is the same signed-replay contract.
       // The broader non-reasoning GPT row below deliberately does NOT carry it — there is nothing to replay.
       reasoning: {
         replay: "signed",
