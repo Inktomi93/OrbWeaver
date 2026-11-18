@@ -37,6 +37,23 @@ test("an OpenRouter side-generation on an adaptive model sends the chosen effort
   expect(recorded[0]?.body["reasoning"]).toEqual({ effort: "high" });
 });
 
+test("an OpenRouter adaptive row's max effort reaches the wire although the provider's own types forbid it", async () => {
+  const recorded: RecordedRequest[] = [];
+  using server = openAiServer(recorded, () => ({}));
+  await using root = await createRuntimeRoot({ providerFetch: server.execute });
+  const capability = generationCapability({ reasoning: { mode: "adaptive", enabled: true, effortLevels: ["high", "max"] } });
+  await root.app.runtime.executor.summarize({
+    signal: new AbortController().signal,
+    connection: await wireConnection(root, { task: "summarize", providerId: "openrouter", model: "anthropic/claude-sonnet-5", capability }),
+    inputs: [ITEM],
+    effort: "max",
+    maxTokens: 128,
+  });
+  // `max` has no member in the installed provider's typed effort union; it survives because the block is spread
+  // into the body verbatim. If this ever reads `xhigh`, the provider started validating — see reasoning.ts.
+  expect(recorded[0]?.body["reasoning"]).toEqual({ effort: "max" });
+});
+
 // §8.8's `carryReasoning: "conversation"` replay. The OR provider re-validates the `reasoning_details` list it
 // emitted and DROPS an entry whose signature is missing, so the round-trip is the contract: the exact bytes a
 // prior turn recorded under `meta.openrouter.reasoningDetails` must reach the next request body. Asserted at
