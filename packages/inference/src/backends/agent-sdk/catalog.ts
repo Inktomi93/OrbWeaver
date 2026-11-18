@@ -83,7 +83,6 @@ export async function fetchAgentSdkModels(connection: SpawnIdentity, deps: Agent
     // Billing cleanup for a turn that never started — best-effort AND BOUNDED; logged, never thrown.
     try {
       await withTimeout(stream.interrupt(), deps, INTERRUPT_TIMEOUT_MS, "discovery turn teardown");
-      // the catch logs a structured warning with the scrubbed teardown error (`log.warn` at catalog.ts:83); the discovery result or primary failure stays authoritative. Ends if that warning is removed.
     } catch (err) {
       log.warn({ err: new Error(lease.safeErrorMessage(err)) }, "agent-sdk model discovery: turn teardown did not complete — the spawn may already be gone");
     }

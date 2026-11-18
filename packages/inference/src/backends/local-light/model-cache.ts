@@ -63,7 +63,7 @@ const CPU_DEVICE: DeviceType = "cpu";
 /** How a reranker whose capability names no `onnx` serving runs: the transformers.js export convention at fp32,
  *  exactly as every reranker ran before servings existed (an offline box may hold only `onnx/model.onnx`). */
 const DEFAULT_RERANK_ONNX: RerankOnnx = { head: "sequence-classification", dtype: "fp32" };
-/** The encoder's own dtype axis (#2417): the ENCODER is quantized (fp32 is 3.455 GB; q8 874 MB). */
+/** The encoder's own dtype axis: the ENCODER is quantized (fp32 is 3.455 GB; q8 874 MB). */
 const DEFAULT_EMBED_DTYPE: DataType = "q8";
 const DEVICE_TYPES: readonly DeviceType[] = ["auto", "gpu", "cpu", "wasm", "webgpu", "cuda", "dml", "webnn", "webnn-npu", "webnn-gpu", "webnn-cpu"];
 const DATA_TYPES: readonly DataType[] = ["auto", "fp32", "fp16", "q8", "int8", "uint8", "q4", "bnb4", "q4f16"];
@@ -151,8 +151,8 @@ function requireTensor(out: Record<string, unknown>, key: string, modelId: Model
 }
 
 /** Token cells (pairs × padded length) one rerank forward pass may hold. Activation memory grows with the batch
- *  and faster than linearly with length, so one padded batch of long pairs can take gigabytes; the probe in
- *  scripts/probes/reranker-swap measured a 2048-token pair at about 0.7 GB over the loaded model. */
+ *  and faster than linearly with length, so one padded batch of long pairs can take gigabytes: a measured
+ *  2048-token pair costs about 0.7 GB over the loaded model. */
 const RERANK_BATCH_TOKENS = 2048;
 
 // Document indexes grouped into forward passes under {@link RERANK_BATCH_TOKENS}, shortest first so a batch
@@ -291,8 +291,7 @@ function createMemo<T>(
     const entry: MemoEntry<T> = { promise: created, refs: 0, evictionPending: false, disposed: false };
     entries.set(id, entry);
     // The memo caches the RESOLVED model, never a rejection: a rejected entry evicts itself once settled, so the
-    // next call retries the load.
-    // every caller receives the original rejection through `entry.promise` (model-cache.ts:329); the rejection arm only records the failed id and evicts the entry. Ends if either behavior changes.
+    // next call retries the load, and every caller still receives the original rejection through `entry.promise`.
     void created.then(
       () => {
         failedIds.delete(id);
@@ -342,14 +341,11 @@ function createMemo<T>(
 }
 
 /**
- * THE RESOLVED PATH GOES TO THE LOG, NEVER INTO THE MESSAGE (2026-09-20).
+ * THE RESOLVED PATH GOES TO THE LOG, NEVER INTO THE MESSAGE.
  *
- * This message used to interpolate `dir` — the RESOLVED absolute host path — plus node's mkdir errno,
- * which repeats that path a second time. A `ProviderError.message` reaches the tRPC wire (it is the
- * message the transport classifier may carry, and before that classifier existed it rode every unmapped
- * 500 verbatim), and an absolute host path is the same information-disclosure class as the absolute stack
- * frames the 2026-08-09 incident put in front of anonymous callers — it discloses the deployment layout
- * and, under `/home/<user>/…`, the OS account.
+ * A `ProviderError.message` reaches the tRPC wire (it is the message the transport classifier may carry), and an
+ * absolute host path is an information-disclosure class: it discloses the deployment layout and, under
+ * `/home/<user>/…`, the OS account.
  *
  * The caller keeps the ACTIONABLE half: which env var to set, and to what. The operator keeps the
  * DIAGNOSTIC half on the log line {@link ensureCacheDir} writes beside the throw, and `cause` stays

@@ -1,11 +1,10 @@
-// THE CREDENTIAL FIREWALL — the per-turn subprocess-env builder for the `agent-sdk` wire (§8.4). ONE arm
-// (2026-09-19, F17/F18 settled): the user's PASTED `claude setup-token` rides `CLAUDE_CODE_OAUTH_TOKEN`, the
-// runtime's writable state lives in the user's OWN runtime dir (`CLAUDE_CONFIG_DIR`, `<USER_RUNTIME_DIR>/<owner>/
-// claude`, never a process-wide dir and never `~/.claude`), and every other auth/identity knob is pinned
-// `undefined` so no host login, profile or OAuth resolution can fire. The host-file arm, the OpenRouter skin
-// (mode-2) and the first-party-key arm (mode-4) are DELETED with the fleet code — the subprocess is for the
-// subscription only. Ordering is the security: host baseline → runtime knobs → escape hatch (ALLOWLISTED to
-// the Claude runtime knob namespace, then RESERVED filtered) → the auth pins LAST so nothing above can override.
+// THE CREDENTIAL FIREWALL — the per-turn subprocess-env builder for the `agent-sdk` wire (§8.4). The user's
+// PASTED `claude setup-token` rides `CLAUDE_CODE_OAUTH_TOKEN`, the runtime's writable state lives in the user's
+// OWN runtime dir (`CLAUDE_CONFIG_DIR`, `<USER_RUNTIME_DIR>/<owner>/claude`, never a process-wide dir and never
+// `~/.claude`), and every other auth/identity knob is pinned `undefined` so no host login, profile or OAuth
+// resolution can fire. The subprocess is for the subscription only. Ordering is the security: host baseline →
+// runtime knobs → escape hatch (ALLOWLISTED to the Claude runtime knob namespace, then RESERVED filtered) → the
+// auth pins LAST so nothing above can override.
 
 import process from "node:process";
 import type { ClaudeIsolationPinKey } from "@orb/contracts/preset";
@@ -86,7 +85,7 @@ function hostEnvForClaudeChild(source: Readonly<Record<string, string>>): Record
 }
 
 // Deploy-only isolation pins, read by the BUNDLED runtime binary — keyed by the contracts tuple so a pin here
-// and a preset-unsettable name there cannot drift (#1536).
+// and a preset-unsettable name there cannot drift.
 const ISOLATION_PINS: Readonly<Record<ClaudeIsolationPinKey, string>> = {
   CLAUDE_CODE_DISABLE_1M_CONTEXT: "1",
   CLAUDE_CODE_DISABLE_AUTO_MEMORY: "1",
@@ -108,7 +107,7 @@ const ISOLATION_PINS: Readonly<Record<ClaudeIsolationPinKey, string>> = {
 const RESERVED_KEYS: readonly string[] = RESERVED_CLAUDE_ENV_KEYS;
 
 const DISABLE_CLAUDE_MDS = "true";
-/** The two runtime knobs whose COMBINATION the bundled runtime refuses (#1541). */
+/** The two runtime knobs whose COMBINATION the bundled runtime refuses. */
 const ENV_DISABLE_AUTO_COMPACT = "DISABLE_AUTO_COMPACT";
 const ENV_MAX_CONTEXT_TOKENS = "CLAUDE_CODE_MAX_CONTEXT_TOKENS";
 
@@ -149,7 +148,7 @@ function claudeUserEnv(userOverrides: Record<string, string | null> | undefined)
 }
 
 /** The runtime-knob layer — the ONE place both the host's knobs and the hatch are visible, so the refused
- *  COMBINATION (a context cap with auto-compaction off) is judged on the merged VALUES (#1541). */
+ *  COMBINATION (a context cap with auto-compaction off) is judged on the merged VALUES. */
 function claudeRuntimeLayer(overrides: ClaudeRuntimeOverrides): Record<string, string | undefined> {
   const merged = { ...claudeRuntimeEnv(overrides), ...claudeUserEnv(overrides.userEnv) };
   if (merged[ENV_DISABLE_AUTO_COMPACT] !== undefined && merged[ENV_MAX_CONTEXT_TOKENS] !== undefined) {

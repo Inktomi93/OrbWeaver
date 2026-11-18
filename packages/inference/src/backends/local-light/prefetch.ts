@@ -2,7 +2,7 @@
 // GPU-less box this tier exists for that makes the FIRST search stall for minutes. The prefetch moves the
 // download to just after the listener binds — but fires ONLY for the slots a task has ACTUALLY resolved to
 // (§8.3: embed/imageEmbed → the encoder; rerank → the bound reranker).
-// It keeps no readable state and has NO tRPC route (owner ruling 2026-09-20, §8.3): the prefetch is a latency
+// It keeps no readable state and has NO tRPC route (owner ruling, §8.3): the prefetch is a latency
 // optimisation whose failure path is automatic, so there is no user-actionable state to render.
 // ONE attempt per slot per boot; a failure is a WARN, never a crash — the lazy path is untouched.
 import type { LocalLightPrefetchDeps, LocalLightPrefetchHandle, LocalLightPrefetchTarget } from "#src/contract/local-light.ts";
@@ -14,7 +14,6 @@ export function createLocalLightPrefetch(deps: LocalLightPrefetchDeps): LocalLig
     try {
       await deps.cache().preload(slot, modelId, onnx);
     } catch (err) {
-      // the warn below owns the failure; first use keeps the lazy load path. Ends if prefetch becomes required.
       const message = err instanceof Error ? err.message : String(err);
       deps.log.warn({ slot, modelId, err: message }, "local-light: model prefetch failed — the weights will download lazily on first use instead");
     }

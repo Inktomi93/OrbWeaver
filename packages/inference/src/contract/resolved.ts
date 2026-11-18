@@ -18,10 +18,10 @@ import type { ModelId, UserId } from "@orb/kit/ids";
 import type { JsonObject } from "@orb/kit/json";
 import { ProviderError } from "./errors.ts";
 
-/** A custom endpoint's REQUEST/RESPONSE transforms (today's `custom_openai` metadata, re-homed on the
- *  connection): headers on the request, a strip/keep list applied AFTER `extras` as the endpoint's final
- *  word, a dot-path map that reshapes a non-OpenAI reply into one the shared stream reducer can read. Shown
- *  only on `auth: endpoint` rows. */
+/** A custom endpoint's REQUEST/RESPONSE transforms (the `custom_openai` metadata, carried on the connection):
+ *  headers on the request, a strip/keep list applied AFTER `extras` as the endpoint's final word, a dot-path map
+ *  that reshapes a non-OpenAI reply into one the shared stream reducer can read. Shown only on `auth: endpoint`
+ *  rows. */
 export type ConnectionTransport = {
   readonly [K in keyof ConnectionTransportDoc]: Readonly<ConnectionTransportDoc[K]>;
 };
@@ -32,7 +32,6 @@ export type ResponseMap = Readonly<NonNullable<ConnectionTransportDoc["responseM
 
 export interface Resolved<T extends Task = Task> extends ResolvedConnectionView {
   readonly task: T;
-  /** The connection's owner — the FUNDER; the agent-sdk wire keys its per-user runtime dir on it (§8.4-2). */
   /** The CONNECTION ROW's owner — the funding user (§8.4-3), never the box owner (no such principal exists in
    *  this package). It keys the per-user runtime dir and the credential AAD; the resolver refuses a row whose
    *  owner is not the funding principal. */

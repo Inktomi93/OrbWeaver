@@ -123,8 +123,6 @@ export interface DisciplineOptions {
 }
 
 /** Deps the agent-sdk family closes over (`createAgentSdkBackend`); injected for hermetic tests. */
-/** What a spawn needs from the connection: WHOSE runtime dir and WHICH token — the catalog warm runs before a
- *  full `Resolved` exists, so this is the narrow shape both it and a turn hand in. */
 export interface AgentSdkDeps {
   readonly now: Clock;
   readonly log: InferenceLog;

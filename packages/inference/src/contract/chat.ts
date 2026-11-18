@@ -43,7 +43,7 @@ export interface WireTool {
   readonly name: string;
   readonly description: string;
   readonly parameters: Record<string, unknown>;
-  /** STRICT tool-input mode (audit C1): the provider constrains generation so the input ALWAYS validates,
+  /** STRICT tool-input mode: the provider constrains generation so the input ALWAYS validates,
    *  at the cost of a narrower supported schema subset. CALLER-SET, and only ever an override — what the
    *  ENDPOINT can do is `features.strictJson` (`default-on` ⇒ strict unless this says otherwise ·
    *  `declared-only` ⇒ strict only where this says so · `never` ⇒ the row has no strict mode and the ask
@@ -106,7 +106,7 @@ export interface ChatTurnTools {
 }
 
 /** The content a seed frame may carry — DERIVED from `ChatContentPart`, never re-spelled. Media is excluded
- *  (the agent-sdk seed has no image channel); the tool-exchange parts ride as STRUCTURE (#1605). */
+ *  (the agent-sdk seed has no image channel); the tool-exchange parts ride as STRUCTURE. */
 export type AgentSeedBlock = Extract<ChatContentPart, { type: "text" | "tool-call" | "tool-result" }>;
 
 /** The model's own thinking as a content part — DERIVED from `ChatContentPart`, never re-spelled. The turn
@@ -124,7 +124,7 @@ export const AGENT_PROMPT_TAIL_JOINER = "\n\n";
 
 /** THE CONTINUATION STUB — the one `prompt` an agent-sdk turn sends when the transcript has no trailing USER
  *  row. Host-authored, session-only, never persisted; it carries NO role label so content cannot imitate a
- *  turn boundary (#1593/#1607). */
+ *  turn boundary. */
 export const AGENT_CONTINUATION_PROMPT_STUB = "*The scene continues.*";
 
 /** The resolved attribution of one completed call, without credential or transport secrets. */
@@ -374,7 +374,7 @@ export interface ChatResult {
    *  column's CHECK): `"none"` when the transport spelled thinking OFF, the wire word when it spelled a level,
    *  `null` when it spelled no effort field at all (a row with `features.effort: "none"`, a budget-mode turn, an
    *  SDK vocabulary drop, a mandatory-reasoning replay) — the model then reasoned at ITS default, which we do not
-   *  know. The REQUESTED intent stays in `params`; this field is what the record stores (inference audit B1).
+   *  know. The REQUESTED intent stays in `params`; this field is what the record stores.
    *  Read back from the options the transport built, never recomputed from the knobs. */
   readonly appliedEffort: EffortLevel | null;
   readonly usage: ChatUsage;
@@ -386,7 +386,7 @@ export interface ChatResult {
    *  by the vendor's own name, and only the BACKEND knows which keys that vendor spells. Typing this field
    *  as the bag would push per-provider shape knowledge up into the server's compose seam — the exact
    *  inversion `Tier-3b-Providers` forbids in the other direction — and would leave an open bag crossing a
-   *  package boundary with a closed union sitting one hop away (the #164 defect this record exists to end).
+   *  package boundary with a closed union sitting one hop away.
    *  So the untyped bag never leaves `backends/**`: `backends/wire/provider-metadata.ts` is its ONE reader,
    *  and what crosses this contract is a value a reader narrows by `provider` or does not compile. */
   readonly providerMetadata?: VariantProviderMetadata | undefined;

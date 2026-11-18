@@ -6,7 +6,7 @@
 //   • D143(c) as amended by D292: PERMISSIVE modalities for an endpoint row that nobody described. A row whose
 //     `declared` block or whose server (the advertised tier) states an input list is taken at its word; a row
 //     that states none gets image + video with `modalitiesEstimated`, never a bare text-only floor (the engine
-//     refuses a part it cannot take; hiding the knob was #317).
+//     refuses a part it cannot take; a hidden knob refuses one it could).
 //   • A hosted route keeps the fail-closed text-only floor for a model nothing describes, marked
 //     `modalitiesEstimated`, so the editor and the add step can tell it from a model stated as text only.
 //   • `turnsEstimated` survives only on an endpoint row: every hosted route keeps the fail-closed turns floor.

@@ -80,7 +80,7 @@ export const anthropicRows = [
         // direct wire round-trips a `thinking` block with its opaque `signature`, and OpenRouter carries the
         // same material as `reasoning_details` with `format: "anthropic-claude-v1"` (it strips unsigned
         // entries). Without this cell the fail-closed `REASONING_REPLAY_FLOOR` applies and a tool loop
-        // drops the model's verified reasoning on every hop (audit A1, §8.8).
+        // drops the model's verified reasoning on every hop (§8.8).
         replay: "signed",
       },
       turns: {
@@ -133,7 +133,7 @@ export const anthropicRows = [
       },
       // The SDK's own capability table is the direct wire's truth (it strips before sending): Opus 5 REJECTS
       // sampling parameters, so the stated set is empty — a preset knob drops with `sampling_knob_dropped`
-      // instead of the record claiming it applied (inference audit B3/H3). `rejectsThinkingDisabledAboveHighEffort`
+      // instead of the record claiming it applied. `rejectsThinkingDisabledAboveHighEffort`
       // needs no `mandatory`: our wire sends `effort` only when reasoning is ENABLED (chat.ts), so the
       // disabled+xhigh combination the SDK lowers is unreachable. This regex ALSO matches `opus-5-5`: Opus 5.5
       // shares every fact stated here, and the row below states what differs (it would 400 on this row alone).
@@ -423,9 +423,9 @@ export const anthropicRows = [
         mode: "adaptive",
         enabled: true,
         effortLevels: ["low", "medium", "high", "xhigh", "max"],
-        // Thinking CANNOT be disabled on Fable (inference audit A8, measured on both routes): the funnel clamps an
+        // Thinking CANNOT be disabled on Fable (measured on both routes): the funnel clamps an
         // effort `none`/absent intent UP to the lowest level with `reasoning_mandatory_clamp` instead of the
-        // direct wire 400-ing (the OpenRouter replay belt caught it there; the direct wire had no belt).
+        // direct wire 400-ing (the OpenRouter replay belt catches it there; the direct wire has no belt).
         mandatory: true,
       },
       // Rejects sampling parameters (the SDK table) — the stated set is empty on every wire.

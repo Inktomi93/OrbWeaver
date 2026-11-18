@@ -1,7 +1,7 @@
 // DATED PROBE RECEIPTS measured THROUGH OpenRouter (`match.provider: "openrouter"`, any model family). WHY a tier
-// above the advertisement exists at all (inference audit B3/H3): OpenRouter's `GET /models` `supported_parameters`
+// above the advertisement exists at all: OpenRouter's `GET /models` `supported_parameters`
 // is per-model but its upstream normalisation is per-provider, and the two disagree — the list ADVERTISES
-// `temperature` for `anthropic/claude-opus-5` and `claude-opus-4.8` (2026-09-20 catalog read) while the body OR
+// `temperature` for `anthropic/claude-opus-5` and `claude-opus-4.8` while the body OR
 // builds upstream carries no `temperature`/`top_p` and nothing warns. A measured `sampling: {}` is the stated set
 // (the fold REPLACES `sampling`, `capability/synthesize.ts`), so the knobs stop rendering and the funnel drops a
 // preset value with `sampling_knob_dropped` instead of the record claiming it applied. The other SDK-table ids

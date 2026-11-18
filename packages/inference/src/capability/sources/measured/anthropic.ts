@@ -1,14 +1,13 @@
 // DATED PROBE RECEIPTS ONLY — script name + date + value — for the DIRECT anthropic-messages wire. EMPTY still,
 // deliberately: today's anthropic turn cells are id-regex derivations (D69), i.e. CURATED (`../curated/anthropic.ts`),
 // and `historySystemRows` carries measured per-model values on the curated cell (200 for a tail and legal
-// mid-array row on opus-5/opus-5-5/fable-5/fable-5-1/sonnet-5/opus-4-8; 400 on haiku-4-5, req_011CfKhZ8ALv97q91yH4eqep)
-// rather than a row here. The first entry here is what a history-system-rows probe against a real key may
-// write (§8.0: only a dated measurement may relax
-// `historySystemRows: false` / `roleHandlingFloor: "strict"`; D68 keeps the direct wire's sampling ranges
-// fail-closed until a probe validates each model's honoured set). The 2026-09-20 direct-wire probes landed on
-// the CURATED cells (the SDK's own capability table is the wire's truth — `@ai-sdk/anthropic` strips before
-// sending — and A8's mandatory-thinking 400 is cited there); a measured row here is for a fact the curated
-// cell cannot state. Same authoring form as every row module: `as const satisfies`, zod-parsed at load.
+// mid-array row on opus-5/opus-5-5/fable-5/fable-5-1/sonnet-5/opus-4-8; 400 on haiku-4-5) rather than a row
+// here. The first entry here is what a history-system-rows probe against a real key may write (§8.0: only a
+// dated measurement may relax `historySystemRows: false` / `roleHandlingFloor: "strict"`; D68 keeps the direct
+// wire's sampling ranges fail-closed until a probe validates each model's honoured set). Direct-wire probes land
+// on the CURATED cells — the SDK's own capability table is the wire's truth (`@ai-sdk/anthropic` strips before
+// sending) and its mandatory-thinking 400 is cited there — so a measured row here exists only for a fact the
+// curated cell cannot state. Same authoring form as every row module: `as const satisfies`, zod-parsed at load.
 
 import type { CapabilityOverrideInput } from "@orb/contracts/inference";
 

@@ -1,12 +1,12 @@
 // The Agent SDK's projection of a backend-neutral chat turn (`ChatTurnInput`) onto its own request arm. The
 // stateful backend wants a session SEED (the transcript before this turn) plus a PROMPT (the trailing user
 // rows); with both it resumes its cached session and reseeds on divergence, so history rides the session
-// instead of being re-sent flattened every turn. Tool and system rows ride the seed as their own frames
-// (#1593), a history with NO trailing user row seeds everything and asks the host-authored continuation stub
-// (#1607), and a paired tool exchange rides as real `tool_use`/`tool_result` blocks (#1605). The caller's tools
-// mount as an in-process MCP server whose handlers run the caller's `execute` — the SDK owns the loop, the
-// caller keeps every decision about the call. These are this backend's representation rules; the caller hands
-// over one neutral shape and never learns them (D177).
+// instead of being re-sent flattened every turn. Tool and system rows ride the seed as their own frames, a
+// history with NO trailing user row seeds everything and asks the host-authored continuation stub, and a paired
+// tool exchange rides as real `tool_use`/`tool_result` blocks. The caller's tools mount as an in-process MCP
+// server whose handlers run the caller's `execute` — the SDK owns the loop, the caller keeps every decision
+// about the call. These are this backend's representation rules; the caller hands over one neutral shape and
+// never learns them (D177).
 
 import { mintToolCallId } from "@orb/contracts/chat";
 import { parseJsonText } from "@orb/kit/json";
@@ -24,13 +24,13 @@ type HistoryPart = ChatHistoryMessage["content"][number];
 
 /**
  * What a NON-TEXT content part leaves behind in a seed frame's text — TOTAL over the part union, because the
- * honest answer is per-KIND (#1606). It used to be one literal `[Image]` for every part, so a real `tool` row —
- * which carries a `tool-result` part and no text (the caller's tool loop materializes it) — announced itself to
- * the model as `Tool result: [Image]`: a false statement about the transcript, and one that hides the drop (the
- * model cannot tell that bytes it was told about are missing).
+ * honest answer is per-KIND. One marker for every part makes a real `tool` row — which carries a `tool-result`
+ * part and no text (the caller's tool loop materializes it) — announce itself to the model as
+ * `Tool result: [Image]`: a false statement about the transcript, and one that hides the drop (the model cannot
+ * tell that bytes it was told about are missing).
  *
  * NAMES THE KIND, NEVER THE PAYLOAD. Emitting a tool result's bytes here would widen what the request carries —
- * the separate structural arm (#1605), not a rendering decision. The wording follows the house drop vocabulary
+ * the separate structural arm, not a rendering decision. The wording follows the house drop vocabulary
  * (`[<kind> omitted]`).
  *
  * A MAPPED RECORD, not a switch (§5.5 admits both, and only one of them lints): a `switch` over a value typed
@@ -55,7 +55,7 @@ const DROPPED_PART_TEXT: Record<Exclude<HistoryPart, { type: "text" }>["type"], 
  * `name` label is stamped into the text (seed frames carry no `name` field).
  *
  * `parts` defaults to the whole row and is narrowed by the seed builder, which lifts the parts that ride as
- * REAL SDK blocks (#1605) out first and renders only what is left. An EMPTY render takes no name stamp: an
+ * REAL SDK blocks out first and renders only what is left. An EMPTY render takes no name stamp: an
  * empty row is not a turn, and `Alice: ` is not a truer statement of that than an empty string is.
  */
 function agentRowText(m: ChatHistoryMessage, parts: readonly HistoryPart[] = m.content): string {
@@ -73,7 +73,7 @@ function agentRowText(m: ChatHistoryMessage, parts: readonly HistoryPart[] = m.c
 // volatile injection never enters the recorded transcript, so the session↔seed comparator still matches next
 // turn (resume, not reseed).
 //
-// NOT strictly tail-FINAL (F3 fix): the engine appends the group/CONTINUATION nudge as a trailing USER row AFTER
+// NOT strictly tail-FINAL: the engine appends the group/CONTINUATION nudge as a trailing USER row AFTER
 // the depth-0 system row, so the real shape is `[…canon…, system, user-nudge]` — a system row with a nudge tail
 // AFTER it, not a tail-final run. A pure trailing-run scan misses it and leaves the reminder to fall bare into the
 // prompt tail (unframed system-authority text reaching the model as user content + entering the transcript →
@@ -82,7 +82,7 @@ function agentRowText(m: ChatHistoryMessage, parts: readonly HistoryPart[] = m.c
 // the hook). A system run inside canon is NOT reachable here — the engine only ever emits depth-0 system
 // at/after the last canon assistant, so the run found is always the injection band.
 //
-// THAT LAST CLAIM IS CAPABILITY-CONDITIONAL, and the condition holds on this wire (#201). The engine can also
+// THAT LAST CLAIM IS CAPABILITY-CONDITIONAL, and the condition holds on this wire. The engine can also
 // emit a MID-ARRAY system row — a depth \> 0 system injection — gated on `turns.historySystemRows`, which no
 // agent-sdk capability cell declares (only a live probe may flip one). This walk-back would lift a mid-array run
 // out of position if one ever reached it, so a future cell declaring `historySystemRows` on this wire MUST come
@@ -117,16 +117,15 @@ function extractTrailingSystemRows(history: readonly ChatHistoryMessage[]): {
 
 /**
  * The turn label a history row announces itself with. TOTAL over `HistoryRole`, and that is the security
- * property, not a tidiness one (#1457): it used to be a `Partial<Record<…>>` with a `?? "User"` default, so every
- * tool RESULT rendered as `User: <tool output>` — promoting attacker-influenced bytes (a fetched page, a databank
- * row, a search hit) from DATA the model may reason about to an INSTRUCTION apparently authored by the human,
- * which is the confusion role separation exists to prevent. TOTAL, not defaulted, so the recurrence is a COMPILE
+ * property, not a tidiness one: a partial record with a `?? "User"` default renders every tool RESULT as
+ * `User: <tool output>` — promoting attacker-influenced bytes (a fetched page, a databank row, a search hit)
+ * from DATA the model may reason about to an INSTRUCTION apparently authored by the human, which is the
+ * confusion role separation exists to prevent. TOTAL, not defaulted, so the recurrence is a COMPILE
  * error: a new `HISTORY_ROLES` member with no label here fails `tsc` instead of silently inheriting the user's
  * voice (the §5.5 mapped-Record dispatch shape).
  *
- * The labels announce a SEED FRAME rather than a line in a flattened blob (#1607 deleted the blob), so a label is
- * no longer a boundary anything could forge — but it is still the only thing that says whose voice a
- * `user`-framed row speaks in, which is the whole of #1457.
+ * The labels announce a SEED FRAME rather than a line in a flattened blob, so a label is no longer a boundary
+ * anything could forge — but it is still the only thing that says whose voice a `user`-framed row speaks in.
  */
 const AGENT_ROW_LABELS: Record<ChatHistoryMessage["role"], string> = { user: "User", assistant: "Assistant", system: "System", tool: "Tool result" };
 
@@ -134,11 +133,11 @@ const AGENT_ROW_LABELS: Record<ChatHistoryMessage["role"], string> = { user: "Us
  * How each history role rides the SESSION SEED. TOTAL, and both facts are load-bearing: `frame` is the SDK frame
  * role (the seed vocabulary has exactly two — {@link AgentSeedTurn}), and `announce` says whether the frame's text
  * must carry its own label. A role with no native frame (`tool`, `system`) can only ride as a `user` frame, so it
- * MUST announce itself or it wears the human's voice — #1457's confusion, relocated. A new `HISTORY_ROLES` member
- * fails `tsc` here instead of silently inheriting `user`.
+ * MUST announce itself or it wears the human's voice — the role-confusion the label map above exists to stop. A
+ * new `HISTORY_ROLES` member fails `tsc` here instead of silently inheriting `user`.
  *
  * `announce` governs the TEXT half only. A tool exchange that rides as real `tool_use`/`tool_result` blocks
- * (#1605) needs no label at all — the wire carries the role — and {@link seedBlocksFor} stamps one only on what is
+ * needs no label at all — the wire carries the role — and {@link seedBlocksFor} stamps one only on what is
  * left as prose. The `tool` row's `user` frame is therefore the CARRIER of the blocks, not a claim about who
  * spoke.
  */
@@ -150,9 +149,9 @@ const AGENT_SEED_FRAMES: Record<ChatHistoryMessage["role"], { readonly frame: Ag
 };
 
 // Split the history into the session seed + the prompt this turn queries with. TOTAL — every history reaches the
-// SDK as frames plus one prompt, and there is no other agent-sdk turn shape (#1607).
+// SDK as frames plus one prompt, and there is no other agent-sdk turn shape.
 //
-// THIS IS THE STRUCTURAL ARM (#1593, completed by #1607). The seed is not a nicety —
+// THIS IS THE STRUCTURAL ARM. The seed is not a nicety —
 // `session/frames.ts::buildSeedFrames` emits ONE `SessionStoreEntry` per seed turn, so a turn boundary here is a
 // JSON frame and content inside a frame cannot create another frame. A `tool` row therefore never forces a flat
 // string: it rides as an ANNOUNCED `user` frame instead.
@@ -160,14 +159,13 @@ const AGENT_SEED_FRAMES: Record<ChatHistoryMessage["role"], { readonly frame: Ag
 // THE TAIL IS THE TRAILING RUN OF `user` ROWS, never "everything after the last assistant". The two rules agree on
 // every tool-free history (system rows near the tail are lifted by {@link extractTrailingSystemRows} first), and
 // they differ exactly where it matters: a `tool` row after the last assistant would otherwise become the QUERY
-// PROMPT — tool output handed to the model as the human's own message, #1457 arriving by the other door. The tail
-// carries NO host labels, so there is nothing in it for content to imitate.
+// PROMPT — tool output handed to the model as the human's own message, the role confusion arriving by the other
+// door. The tail carries NO host labels, so there is nothing in it for content to imitate.
 //
 // NO TAIL ⇒ THE HOST-AUTHORED {@link AGENT_CONTINUATION_PROMPT_STUB}, and the WHOLE history seeds. That case is
 // live, not theoretical: a tool exchange leaves `[…, assistant, tool]` on a recursion's next request, and a turn
-// whose verb appends no user row ends on an assistant. It used to flatten the entire transcript into one prompt
-// string with a text turn boundary; the stub deletes that string, so the paragraph-collapse fence #1593 had to
-// install is gone too (rows keep their bytes — they are separate frames).
+// whose verb appends no user row ends on an assistant. Rows keep their bytes here — they are separate frames, so
+// no paragraph can collapse into another.
 //
 // AN EMPTY-TEXT ROW IS NOT A TURN and never becomes a frame: `message.content: [{type:"text", text:""}]` is a
 // body the Anthropic wire rejects, which would fail every later turn on that lineage rather than this one.
@@ -196,8 +194,8 @@ function splitAgentHistory(history: readonly ChatHistoryMessage[]): { readonly s
  * by a `tool_result` in the very next message and refuses an orphan in either direction, so a seed that emits
  * half a pair is not a degraded turn — it is a 400 on EVERY later turn of that lineage. A history can arrive
  * half-paired for ordinary reasons (a context-window slide cuts between the call and its result, an assembly
- * materializes a recorded-but-unexecuted call), so the unpaired half degrades to the announced text it rode as
- * before #1605 and the turn still runs.
+ * materializes a recorded-but-unexecuted call), so the unpaired half degrades to announced text and the turn
+ * still runs.
  *
  * PARSEABILITY IS PART OF THE SAME QUESTION. The wire's `tool_use.input` is an OBJECT and `arguments` is the RAW
  * model-emitted string, so a blob that is not a JSON object cannot become a valid `tool_use` — and the decision
@@ -257,7 +255,7 @@ function ridesAsBlock(part: HistoryPart, paired: ReadonlySet<string>): part is E
  * A STRUCTURAL BLOCK TAKES NO LABEL, and that is the point of the arm: `Tool result:` is a host claim the model
  * has to believe, where a `tool_result` block is a role the wire itself carries. The label survives for
  * everything that still rides as text — a degraded pair, a system row — so nothing ever wears the human's voice
- * by default (#1457).
+ * by default.
  */
 function seedBlocksFor(m: ChatHistoryMessage, paired: ReadonlySet<string>): AgentSeedBlock[] {
   const structural: AgentSeedBlock[] = [];

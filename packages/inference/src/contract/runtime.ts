@@ -46,6 +46,8 @@ export type AnthImageBlock =
 
 export type ProviderOrigin = { readonly plugin: PluginId; readonly pluginName: string } | { readonly admin: UserId };
 
+/** What a spawn needs from the connection: WHOSE runtime dir and WHICH token — the catalog warm runs before a
+ *  full `Resolved` exists, so this is the narrow shape both it and a turn hand in. */
 export type SpawnIdentity = Pick<Resolved, "ownerId" | "credential">;
 
 export const LOCAL_LIGHT_MODEL_SLOTS = ["rerank", "embed"] as const;

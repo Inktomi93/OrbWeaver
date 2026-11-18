@@ -14,8 +14,7 @@ interface FamilyFloor {
 }
 
 /** Keyed by `ModelFamily` so a new family is a `tsc` error here. Only anthropic carries a floor: every
- *  curated Claude row declares all three (the derivation `CLAUDE_CAPABILITY_FLOOR` used to make), and
- *  capability does not regress across Claude versions. */
+ *  curated Claude row declares all three, and capability does not regress across Claude versions. */
 const FAMILY_FLOORS: Record<ModelFamily, FamilyFloor | null> = {
   anthropic: { parallelTools: true, structured: true, imageInput: true },
   openai: null,
