@@ -3,9 +3,8 @@
 // card distillation. Each is a substitution-free `systemPrompt:` argument — the caller's grounding data all
 // rides the USER prompt — so all three are clean `text` slots with no template machinery.
 //
-// These were the last model-facing prose in the tree with NO catalog entry at all (the inline-template scout,
-// 08-02): `analyze.ts` / `distill.ts` carried them as file-local template literals and never imported the
-// resolver. Homing them here is what makes the registry's completeness arm true.
+// Homing them here is what makes the registry's completeness arm true: every model-facing prompt in the tree
+// has a catalog entry, and the side generations import the resolver rather than carrying a file-local literal.
 //
 // HOME = per-USER, resolved against the CALLER — the card owner whose library is being analyzed (the
 // `resolveUtilityPresetParams` / imagery `resolvePromptTemplate` precedent, NOT the room-host rule: a distill
