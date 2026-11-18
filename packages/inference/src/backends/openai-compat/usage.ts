@@ -1,26 +1,25 @@
 // THE VENDOR USAGE → V4 USAGE MAPPING, on the SDK's own conversion path (`convertUsage`, passed by
 // `model.ts` to both `createOpenAICompatible` factories). Adopted from the SDK-surface ledger's "Adopt"
-// list (`docs/law/ai-sdk-surface.md` #1).
+// list (`docs/law/ai-sdk-surface.md`).
 //
 // `convertUsage` REPLACES the whole default mapping — the hook is used when present and the default
 // otherwise (`@ai-sdk/openai-compatible` dist `index.js:372-373`), so this file emits everything the
 // default emitted (`inputTokens`/`outputTokens`/`raw`, dist `index.js:40-60`). What it adds is the
-// reading the default does not do, and the reading the retired `chat.ts` `nativeOpenAiUsageOverlay` did
-// but only for `providerId === "openai"` rows spelling `openai-breakpoint`:
+// reading the default does not do:
 //
 // - `cache_write_tokens` is read (`prompt_tokens_details.cache_write_tokens`), which the default never
 //   looks at (its `cacheWrite` is `void 0`, dist:51). Any endpoint that reports the axis now reports it;
-//   the overlay's provider-id gate is gone because the bytes and the meaning are the same on every row.
+//   the bytes and the meaning are the same on every row.
 // - Absent axes STAY absent: the default coerces with `prompt_tokens ?? 0` / `reasoning_tokens ?? 0`,
 //   fabricating a reported zero for a frame that said nothing. Here `undefined` leaves the fold's own
 //   rules to answer — `null` for the totals and reasoning (`contracts/inference/usage.ts`
 //   foldTokenUsage), `0` for the cache axes, whose documented rule is that a wire reporting no cache
-//   has no cache. That is the overlay's null-vs-zero discipline, now applied everywhere.
+//   has no cache. That is the null-vs-zero discipline, applied everywhere.
 // - `noCache`/`text` keep the default's arithmetic over the facts that ARE reported (total minus read,
 //   total minus reasoning), and are `undefined` when the total itself is not, because a derivation with
 //   no total underneath it would be a fabricated number.
 // - `raw` is the frame as it arrived (JSON-validated, never cast), so `measuredCostOf`'s raw-usage
-//   reader on OpenRouter-shaped accounting rows keeps the source the overlay read.
+//   reader on OpenRouter-shaped accounting rows keeps the vendor's own frame as the source.
 
 import type { LanguageModelV4Usage } from "@ai-sdk/provider";
 import { jsonObjectSchema } from "@orb/kit/json";

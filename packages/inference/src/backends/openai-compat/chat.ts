@@ -242,7 +242,7 @@ function parallelToolCallsBody(turn: TurnKnobs): Record<string, unknown> {
   return turn.parallelOff ? { parallel_tool_calls: false } : {};
 }
 
-/** THE OPENROUTER PLUGIN UNION (audit C3), validated against the 3.0.0 dist's own shape
+/** THE OPENROUTER PLUGIN UNION (audit C3), validated against the 3.1.0 dist's own shape
  *  (`OpenRouterChatSettings.plugins`, `index.d.ts:98-131`) — five ids, each with its own fields. Spelled here
  *  because this file is the ONE reader of `extras` on this transport; a malformed entry drops loudly and is
  *  never sent. `response-healing` is the reason this door is worth opening: it is OpenRouter's server-side

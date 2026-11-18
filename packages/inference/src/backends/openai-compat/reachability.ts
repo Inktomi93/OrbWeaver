@@ -134,7 +134,6 @@ function joinWake(flight: WakeFlight, signal: AbortSignal): Promise<boolean> {
     if (signal.aborted) {
       onAbort();
     }
-    // the rejection arm below rejects this task's own promise, which its caller awaits; it ends if the handler stops rejecting with the error.
     flight.run.then(
       (woke) => {
         leave();

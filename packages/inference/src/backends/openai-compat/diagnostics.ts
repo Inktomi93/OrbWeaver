@@ -127,7 +127,6 @@ export async function probeOpenAiCompat(req: DiagnosticRequestCommon, deps: Diag
   try {
     await authenticatedRead(deps, { connection, path, label: "credential probe", signal: req.signal });
     return { status: "ok", checkedAt };
-    // the probe returns the failure as `revoked`, `unchecked` or `unreachable` health with a sanitized reason at diagnostics.ts:117 and :123. Ends if the returned health stops carrying that disposition.
   } catch (err) {
     const reason = sanitizeApiError(redactSecretsFromText(errorMessage(err), resolvedScrubSet(connection)));
     const httpStatus = err instanceof ProviderError ? err.apiErrorStatus : undefined;
@@ -189,7 +188,6 @@ export async function listOpenAiCompatModels(req: ListModelsRequest, deps: Diagn
             })
           ).map((row) => bareCatalogEntry(row));
     return listingOf(models);
-    // the failure becomes `{ listed: false, reason }` through failedListing at diagnostics.ts:171, which the model pane reads; generation stays usable with an explicit model. Ends if callers require a successful catalog.
   } catch (err) {
     return failedListing(err, secrets, connection.provider.features?.forbiddenIsNotCredentialVerdict === true);
   }
