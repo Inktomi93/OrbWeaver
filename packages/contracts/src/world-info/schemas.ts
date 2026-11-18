@@ -45,12 +45,11 @@ export const updateBookSchema = z.strictObject({
 });
 export type UpdateBookInput = z.infer<typeof updateBookSchema>;
 
-// Machine-writer provenance an automated upserter (the D46 automation writer today; the purged chat/rpg
-//  agents keepers were the other two intended consumers — the rebuild wires them onto the same shape if either
-//  domain returns) stamps onto an entry it owns. `contentHash` is the sha256-hex of the content AS THE WRITER
-//  LEFT IT — the hand-edit-safe belt: a `upsertEntries` re-run that finds the CURRENT content no longer
-//  hashing to this value knows a human curated the entry and SKIPS it (the host's hand always wins). Generic on purpose — the
-//  shared `upsertEntries` mint owns this shape so every machine consumer inherits the same guarantee.
+// Machine-writer provenance an automated upserter (the D46 automation writer) stamps onto an entry it owns.
+//  `contentHash` is the sha256-hex of the content AS THE WRITER LEFT IT — the hand-edit-safe belt: a
+//  `upsertEntries` re-run that finds the CURRENT content no longer hashing to this value knows a human
+//  curated the entry and SKIPS it (the host's hand always wins). Generic on purpose — the shared
+//  `upsertEntries` mint owns this shape so every machine consumer inherits the same guarantee.
 const loreEntryProvenanceSchema = z
   .object({
     contentHash: z.string(),
@@ -60,14 +59,6 @@ export type LoreEntryProvenance = z.infer<typeof loreEntryProvenanceSchema>;
 
 // Loose: unknown keys (e.g. preserved ST entry fields) ride through untouched; the load-bearing fields are
 // typed. `provenance` is the machine-writer provenance (above) — present only on entries an upserter owns.
-// (Renamed from `crew` by the vocab kill; pre-launch NO-LEGACY, so a pre-rename row's `crew` key
-// rides through as an inert unknown key and the writer re-stamps `provenance`. Note for the record only —
-// no such row exists pre-launch, so this is comment-accuracy, not a live gap: on a hypothetical pre-rename
-// row the hand-edit belt would be DISARMED, not merely inert — `upsertEntries` reads
-// `metadata.provenance?.contentHash` (`upsert-entries.ts`) to detect a human hand-edit, and that reads
-// `undefined` on a `crew`-only row, which the belt treats as "never machine-owned" and overwrites
-// unconditionally; the stale `crew` key would also persist beside the new `provenance`, since the
-// upsert spreads `prior.metadata` forward rather than stripping retired keys.)
 //
 // The `world_entries.metadata` column takes only {@link narrowEntryMetadata}'s output, so a writer cannot store an
 // object it never narrowed.
@@ -295,9 +286,8 @@ export type BulkImportLorebookResult = BulkImportLorebookResultBase &
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // upsertEntries — the SHARED machine-writer bulk op (D58 satellite). The ONE
-// home for hand-edit-safe lore upkeep: the D46 automation writer injects it today (the chat agents keeper and
-// rpg lorebook upkeep were the other two intended consumers before the purge — the rebuild wires
-// them here too, never a fork of the fence-strip/compare copy). The op upserts by (bookId,
+// home for hand-edit-safe lore upkeep: the D46 automation writer injects it. Another machine consumer is wired
+// onto this same op, never a fork of the fence-strip/compare copy. The op upserts by (bookId,
 // title) — a re-run REPLACES its own prior entry for the same title — and NEVER overwrites a human-curated
 // entry (the stored `metadata.provenance.contentHash` vs the current content is the guard). Caller policy (caps,
 // merge-mode, span-stamped names, mark advance) stays with the caller; the SKIP semantics live here so every
@@ -305,7 +295,7 @@ export type BulkImportLorebookResult = BulkImportLorebookResultBase &
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 /** One entry a machine writer upserts. `title` is the upsert key within the book; `keys` drive the keyword
- *  match (a keeper entry is keyed, not constant). */
+ *  match (a lore entry is keyed, not constant). */
 export interface UpsertLoreEntryInput {
   readonly title: string;
   readonly keys: readonly string[];
