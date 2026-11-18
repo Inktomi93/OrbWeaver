@@ -8,11 +8,12 @@
 // `aborted` vs retryable-`server` by matching /timeout|connection|network|overload/ over an error's
 // name+message — so a domain abort whose reason merely CONTAINS one of those words ("timeout waiting for the
 // user", "connection closed by the host") classifies a DELIBERATE CANCELLATION as a transient fault. A
-// retryable verdict is then honoured by our own pre-commit retry loop (`./retry.ts`), and — measured on
-// `@openrouter/sdk@1.1.8` — by the SDK's OWN default `retryConfig` (`retryConnectionErrors: true`, backoff
-// with `maxElapsedTime: 3600000`), whose `isTimeoutError` heuristic fires on any reason named `TimeoutError`
-// (which is precisely what `AbortSignal.any([external, AbortSignal.timeout(n)])` propagates). The cancelled
-// call is RE-RUN — the exact opposite of cancelling, and it bills.
+// retryable verdict is then honoured by our own pre-commit retry loop (`./retry.ts`), which re-runs the
+// cancelled call and bills for it again. (An earlier draft of this header also credited the
+// `@openrouter/sdk@1.1.8` client's default `retryConfig` for the same re-run. That package is NOT a
+// dependency of this tree — `@openrouter/ai-sdk-provider@3.1.0` is, and its dist carries no retry loop — so
+// the claim is withdrawn: it described another client's trap, not evidence for this fix. The law below rests
+// on our own loop alone.)
 //
 // THE FIX SHAPE: never compose with `.any`. Re-abort OUR OWN controller with NO argument, so every cause
 // flattens to a plain `AbortError` and the provider taxonomy stays independent of any caller's abort

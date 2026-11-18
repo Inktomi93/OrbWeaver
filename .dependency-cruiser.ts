@@ -523,6 +523,10 @@ const TEST_CONSTANT_HOMES = {
   "packages/inference/src/backends/wire/cache-control.ts":
     "ANTHROPIC_PROVIDER_NAME: the provider name an OpenRouter Claude request is pinned to, which no inference door forwards",
   "packages/inference/src/backends/http/provider-log.ts": "EMBED_CLAMPED_EVENT: the log event both embed backends emit when they shorten an input",
+  "packages/inference/src/backends/openai-compat/think-tags.ts":
+    "thinkTagMiddleware: the middleware gate its stream-split unit suite drives over a synthetic part stream, which no inference door forwards",
+  "packages/inference/src/backends/v4/stream.ts":
+    "drainStream: the V4 fold its unit suite drives over a synthetic part stream, which no inference door forwards",
   "packages/ui/src/content/immersive-card/control-labels.ts": "IMMERSIVE_CARD_LABELS: the card header's control names",
   "packages/ui/src/lib/reduced-motion-now.ts":
     "resolveReducedMotion and APP_REDUCED_MOTION_ATTRIBUTE: the JS rule the CSS reduced-motion floor must agree with",

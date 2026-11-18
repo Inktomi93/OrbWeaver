@@ -6,6 +6,8 @@
 // A stream that ends without a `finish` part — or with one the PROVIDER SYNTHESIZED on flush rather than read
 // off the wire (`isSynthesizedFinish`, whose comment carries the measurement) — is a TRUNCATED turn and fails
 // closed (#1400's class), never an empty success. An `error` part is re-thrown for the caller's classifier.
+// A tool-input triple is dropped by contract (the terminal `tool-call` part is mandatory), and a stream that
+// opens one and never sends that call fails closed by the same rule.
 
 import type {
   JSONObject,
@@ -63,6 +65,11 @@ interface Accumulator {
   readonly textParts: Map<string, { text: string; thoughtSignature: string | undefined }>;
   readonly toolCalls: ToolCallInput[];
   readonly toolMetadata: Map<number, SharedV4ProviderMetadata>;
+  /** Tool-call ids the stream opened (id → tool name); a delta for an id the stream never opened records
+   *  `undefined`, because a delta is itself a promise of a call. Keyed by ID, never by name: two calls to one
+   *  tool are two ids, and a name-keyed check would excuse a truncated second call. The drain refuses any entry
+   *  with no terminal `tool-call` — see the contract note at the `tool-input-*` arm. */
+  readonly toolInputsStarted: Map<string, string | undefined>;
   readonly images: GeneratedImage[];
   readonly warnings: SharedV4Warning[];
   finish: LanguageModelV4FinishReason | undefined;
@@ -151,6 +158,21 @@ function applyTextSignature(acc: Accumulator, part: LanguageModelV4StreamPart): 
 function openRouterToolMeta(metadata: SharedV4ProviderMetadata | undefined): Pick<ToolCallInput, "openrouter"> {
   const reasoningDetails = jsonArrayAt(metadata?.[OPENROUTER_KEY], REASONING_DETAILS_KEY);
   return reasoningDetails === undefined || reasoningDetails.length === 0 ? {} : { openrouter: { reasoningDetails } };
+}
+
+/** Records a tool-input triple's opening id in `acc.toolInputsStarted`; the call itself is the terminal
+ *  `tool-call` part, and the drain refuses a triple that never reaches it. Every part is offered here and
+ *  every other type is ignored, so the content cascade carries no extra arm. */
+function recordToolInput(acc: Accumulator, part: LanguageModelV4StreamPart): void {
+  if (part.type !== "tool-input-start" && part.type !== "tool-input-delta") {
+    return;
+  }
+  // The triple carries ARGUMENT BYTES only, and the terminal `tool-call` part is the contract's mandatory
+  // completion whatever the delta encoding (@ai-sdk/provider@4.0.31 dist index.d.ts:3370-3382: "The final
+  // tool-call input must still be JSON-encoded, regardless of the delta encoding"). The fold drops these parts
+  // and keeps the call — and the drain refuses a stream that leaves the call behind, because a deltas-only wire
+  // would otherwise commit ZERO tool calls as a successful prose turn.
+  acc.toolInputsStarted.set(part.id, part.type === "tool-input-start" ? part.toolName : acc.toolInputsStarted.get(part.id));
 }
 
 function applyContentPart(acc: Accumulator, part: LanguageModelV4StreamPart, callbacks: DrainCallbacks): void {
@@ -258,12 +280,13 @@ function reasoningPartsOf(acc: Accumulator): readonly ReasoningContentPart[] {
  * `acc.finish === undefined` below is the honest truncation guard — and on the openai-compat wire it is
  * STRUCTURALLY UNREACHABLE, because both of that wire's providers manufacture a `finish` part on FLUSH
  * whether or not the upstream ever sent one:
- *   · `@ai-sdk/openai-compatible@3.0.62` — `dist/index.js:1065` initialises
- *     `finishReason = { unified: "other", raw: undefined }` and `:1130-1140`'s `flush(controller)` enqueues
- *     it unconditionally with `convertOpenAICompatibleCompletionUsage(undefined)` (an all-`undefined` usage).
+ *   · `@ai-sdk/openai-compatible@3.0.75` — `dist/index.js:1073-1076` initialises
+ *     `finishReason = { unified: "other", raw: undefined }` and `:1138-1148`'s `flush(controller)` enqueues
+ *     it unconditionally with `convertOpenAICompatibleCompletionUsage(usage)` while `usage` is still `void 0`
+ *     (an all-`undefined` usage).
  *   · `@openrouter/ai-sdk-provider@3.1.0` — the same initialiser at `dist/index.js:4583` / `:5386`, emitted
  *     from its own flush at `:5036` / `:5485`.
- * (The direct `@ai-sdk/anthropic@4.0.71` wire does NOT do this: `dist/index.js:5092` enqueues `finish` only
+ * (The direct `@ai-sdk/anthropic@4.0.85` wire does NOT do this: `dist/index.js:5206` enqueues `finish` only
  * inside the `message_stop` case, so a truncated Anthropic stream genuinely has no finish part and the
  * `undefined` guard fires. That asymmetry is exactly what made this invisible — one wire failed closed and
  * looked like proof the class was handled.)
@@ -296,6 +319,7 @@ export async function drainStream(stream: ReadableStream<LanguageModelV4StreamPa
     textParts: new Map(),
     toolCalls: [],
     toolMetadata: new Map(),
+    toolInputsStarted: new Map(),
     images: [],
     warnings: [],
     finish: undefined,
@@ -316,6 +340,7 @@ export async function drainStream(stream: ReadableStream<LanguageModelV4StreamPa
         callbacks.onRaw?.(value.rawValue);
       }
       applyContentPart(acc, value, callbacks);
+      recordToolInput(acc, value);
       applyControlPart(acc, value, callbacks);
     }
   } finally {
@@ -323,6 +348,19 @@ export async function drainStream(stream: ReadableStream<LanguageModelV4StreamPa
   }
   if (acc.finish === undefined || isSynthesizedFinish(acc.finish, acc.usage)) {
     throw new ProviderError({ kind: "server", retryable: true, message: `${callbacks.label}: the stream ended without a finish part (truncated turn)` });
+  }
+  // A tool-input triple that never reached its mandatory terminal `tool-call` part (see the arm in
+  // `applyContentPart`) would leave the turn with the prose around a call that does not exist. The `tool-call`
+  // part carries the triple's id as `toolCallId`, so that is the key both sides share.
+  const [unfinished] = [...acc.toolInputsStarted.entries()].filter(([id]) => !acc.toolCalls.some((call) => call.toolCallId === id));
+  if (unfinished !== undefined) {
+    const [id, name] = unfinished;
+    const which = name === undefined ? `tool-call id "${id}"` : `"${name}" (tool-call id "${id}")`;
+    throw new ProviderError({
+      kind: "server",
+      retryable: true,
+      message: `${callbacks.label}: the stream sent tool-input deltas for ${which} but no terminal tool-call part (provider contract violation)`,
+    });
   }
   return {
     reply: acc.reply,
