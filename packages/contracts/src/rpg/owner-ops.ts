@@ -71,7 +71,7 @@ export interface RpgPortableGame {
 }
 
 /** Read the whole campaign anchored to one chat, or null when the chat has no game (the common case — a
- *  gameless chat's bundle is byte-identical to one written before this plane existed). */
+ *  gameless chat's bundle is byte-identical either way). */
 export type ExportRpgGame = (args: { readonly chatId: ChatId }) => Promise<RpgPortableGame | null>;
 
 /** What {@link ImportRpgGame} did: wrote the carried campaign, kept the game the chat already has, or wrote

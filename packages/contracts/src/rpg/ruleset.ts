@@ -1,13 +1,13 @@
-// @orb/contracts/rpg/ruleset — THE RULESET axis (owner ruling): one game mode, and the
+// @orb/contracts/rpg/ruleset — THE RULESET axis: one game mode, and the
 // ruleset is a SETTING, not a start-time profile PICK: a `freeform | d20` pick would be a
 // setting wearing a door's clothes. A game is started directly (born `freeform`) and the host retunes
 // the ruleset on the Game tab whenever they like.
 //
 // ONE HOME, THREE CONSUMERS: the config field (`RpgGameConfig.ruleset`), the write door's additive apply
 // (`updateConfig`), and the client's dice-ask row (`RPG_RULESET_DICE` — a ruleset with no dice publishes NO
-// chips, which is what makes the setting visible; a profile-blind chip row was the dead-toggle finding).
+// chips, which is what makes the setting visible).
 //
-// THE SWITCH IS ADDITIVE (OWNER RULING): applying a ruleset ADDS its vocabulary — attributes,
+// THE SWITCH IS ADDITIVE: applying a ruleset ADDS its vocabulary — attributes,
 // skill map, seeded trackers — BESIDE what the game already carries. It never removes, never renames, never
 // asks for a confirmation, and switching back hides nothing (`freeform` adds nothing, so the d20 vocabulary
 // a host picked up stays). That is why the apply is a pure MERGE over contract data and lives here rather
@@ -22,14 +22,14 @@ import type { RpgStatProfile } from "./profile.ts";
 import { RPG_PROFILE_D20, RPG_PROFILE_FREEFORM, rpgSeedTrackers } from "./profile.ts";
 import type { RpgTrackerDef } from "./tracker.ts";
 
-/** The ruleset axis — the ONE tuple (§5.5); the config field, the wire input and the segmented control all
+/** The ruleset axis — the ONE tuple; the config field, the wire input and the segmented control all
  *  derive from it, so a third ruleset is one row here plus the `tsc`-forced records below. */
 export const RPG_RULESETS = ["freeform", "d20"] as const;
 export type RpgRuleset = (typeof RPG_RULESETS)[number];
 export const rpgRulesetSchema = z.enum(RPG_RULESETS) satisfies z.ZodType<RpgRuleset>;
 
-/** The default a game is BORN with — prose-steered play, no mechanical vocabulary at all (the retired
- *  "Freeform story" door's arm, now the birth default because starting is one action). */
+/** The default a game is BORN with — prose-steered play, no mechanical vocabulary at all (the birth default
+ *  because starting is one action). */
 export const RPG_RULESET_DEFAULT: RpgRuleset = "freeform";
 
 /** What a game is born with when a chat starts as one: its ruleset (omit ⇒ {@link RPG_RULESET_DEFAULT}).

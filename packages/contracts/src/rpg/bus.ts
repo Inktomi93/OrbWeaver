@@ -25,7 +25,7 @@ export type RpgBusEvent =
    *  never a boolean where one completion can hide another live round. */
   | { type: "stateRoundStarted"; chatId: ChatId; turnId: ChatTurnId }
   | { type: "stateRoundSettled"; chatId: ChatId; turnId: ChatTurnId }
-  /** A folded turn's tool-call RECORD landed (TOOLCALLS-INVISIBLE, arm A) — the per-row "what this turn did"
+  /** A folded turn's tool-call RECORD landed — the per-row "what this turn did"
    *  disclosure refetches.
    *
    *  ITS OWN MEMBER RATHER THAN RIDING `snapshotPatched`, and the reason is the whole point of the feature: a

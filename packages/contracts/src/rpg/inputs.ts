@@ -5,7 +5,7 @@
 // boundary trust-boundary shapes, so they home HERE (not the domain-internal `contract/params.ts`, which
 // carries `Principal` and is server-only) — the `chatInjectionInputSchema` precedent `chat.ts` extends.
 //
-// DERIVE, NEVER RE-SPELL (§5.5): every union/owned shape a sibling module already owns is REUSED —
+// DERIVE, NEVER RE-SPELL: every union/owned shape a sibling module already owns is REUSED —
 // `rpgActorRefSchema` (the discriminated actor union), `rpgTrackerDefSchema` (the whole tracker set write),
 // `rpgStatProfileSchema`, and the enum schemas. Only the plain payload envelopes (chatId + scalar fields the
 // contract has no schema for, e.g. a checkpoint `label`, a dice `notation`) are spelled here. TypeIDs use
@@ -37,11 +37,8 @@ import { RPG_HINT_MAX, rpgTrackerDefSchema } from "./tracker.ts";
 const chatIdField = typeIdSchema(ID_PREFIX.chat);
 
 /** `createGame` — host-gated birth. `mode` rides the mode enum (`"full"` is wire-valid; the verb throws the
- *  typed PHASE refusal). `ruleset` is the game's born vocabulary (omit ⇒ `freeform`, the birth default).
- *
- *  THE `profile` ARM IS GONE (owner ruling): a start-time statProfile pick was the door
- *  half of a choice that is now a SETTING — one start action, and the host retunes `ruleset` on the Game tab
- *  (additively). Pre-launch NO-LEGACY: replaced, not deprecated. */
+ *  typed PHASE refusal). `ruleset` is the game's born vocabulary (omit ⇒ `freeform`, the birth default); the
+ *  host retunes it later through `updateConfig`. */
 export const rpgCreateGameInputSchema = z.strictObject({
   chatId: chatIdField,
   mode: rpgGameModeSchema,
@@ -57,17 +54,17 @@ export const rpgUpdateConfigInputSchema = z.strictObject({
     .strictObject({
       statProfile: rpgStatProfileSchema.optional(),
       // THE RULESET SETTING — omit keeps. A CHANGED value applies that ruleset's vocabulary
-      // ADDITIVELY (owner ruling: adds attributes/skills/seeded trackers beside what exists, removes
+      // ADDITIVELY (adds attributes/skills/seeded trackers beside what exists, removes
       // nothing, needs no confirmation); re-sending the CURRENT value is a no-op, so a host who deleted a
       // packaged attribute never has it resurrected by an unrelated write.
       ruleset: rpgRulesetSchema.optional(),
       steeringNote: z.string().max(RPG_STEERING_NOTE_MAX).optional(),
-      // THE TRACKERS (the tracked-field unification) — the host's whole tracker set for this game, in ONE
+      // THE TRACKERS — the host's whole tracker set for this game, in ONE
       // write. Omit keeps the current list; a passed array REPLACES it (whole-list edit — the unified editor
-      // owns the set authoritatively, exactly as the retired `castFields`/`pinnedOrbs` writes did). Every axis
+      // owns the set authoritatively). Every axis
       // (subject/shape/write/appliesTo/max/hint/color/icon/sort/pinned/locked) rides the DERIVED def schema.
       trackers: z.array(rpgTrackerDefSchema).optional(),
-      // The per-custom-kind relationship hints + the R4c custom-journal-type hints. Omit keeps; a passed
+      // The per-custom-kind relationship hints + the custom-journal-type hints. Omit keeps; a passed
       // record REPLACES it.
       relationshipHints: z.record(z.string(), z.string().max(RPG_HINT_MAX)).optional(),
       journalTypeHints: z.record(z.string(), z.string().max(RPG_HINT_MAX)).optional(),
@@ -82,7 +79,7 @@ export const rpgUpdateConfigInputSchema = z.strictObject({
       immersiveHtml: z.boolean().optional(),
       immersiveHtmlInteractive: z.boolean().optional(),
       cardKeepLastX: z.int().min(0).optional(),
-      // The P5 play-style knobs (§5.4/§6.4) — CYOA standing mode + the choice-click behavior + the wand
+      // The play-style knobs — CYOA standing mode + the choice-click behavior + the wand
       // Plot submenu gate. Omit keeps; a passed value replaces.
       cyoa: z.boolean().optional(),
       cyoaChoiceBehavior: rpgCyoaChoiceBehaviorSchema.optional(),
@@ -92,7 +89,7 @@ export const rpgUpdateConfigInputSchema = z.strictObject({
       engaged: z.boolean().optional(),
       // The ambient-date mode — `narrated` (freeform date string, no day counter) | `structured`.
       dateMode: z.enum(RPG_DATE_MODES).optional(),
-      // The §1.3 extraction-depth knobs — how much story the state round reads (`beat`/`window`/`full`), the
+      // The extraction-depth knobs — how much story the state round reads (`beat`/`window`/`full`), the
       // `window` arm's token budget, and the reconcile cadence. Bounds mirror the config schema. Omit keeps.
       extractionContext: z.enum(RPG_EXTRACTION_CONTEXTS).optional(),
       // The state round's vehicle (`auto` | `tools` | `structured`). Omit keeps.
@@ -103,8 +100,8 @@ export const rpgUpdateConfigInputSchema = z.strictObject({
       // (whole-list replace, the `trackers` semantics). Omit keeps the current set. The turn registers these
       // BESIDE the preset's, the game winning a name clash (`shadowPresetUserMacros`).
       userMacros: z.array(userMacroSchema).max(MAX_USER_MACROS).optional(),
-      // NO `prose` ARM (owner ruling): the reminder teach/heading overrides are written through the
-      // PRESET editor (`promptConfig.prose`), never this door — one home for authorable prompt text.
+      // Reminder teach/heading overrides are written through the PRESET editor (`promptConfig.prose`), never
+      // this door — one home for authorable prompt text.
     })
     .optional(),
   gmPresetId: typeIdSchema(ID_PREFIX.preset).nullable().optional(),
@@ -119,21 +116,20 @@ export const rpgPatchSheetInputSchema = z.strictObject({
   actorRef: rpgActorRefSchema,
   patch: z.strictObject({
     className: z.string().optional(),
-    // RPG-STAT-CLOBBER — the attributes record is itself a [merge-clear] PATCH (D108's grammar), not an image:
+    // The attributes record is itself a [merge-clear] PATCH (D108's grammar), not an image:
     // a named key is written, an OMITTED key is kept, and an explicit `null` CLEARS that key. The panel writes
-    // ONE key per blurred cell, so whole-record replace semantics here silently erased every other attribute
-    // on the sheet — the owner's "type 20 into strength, click out, it reverts to 1" (an absent key renders the
-    // profile's range floor). The `null` arm is not decoration: `updateConfig` refuses to REMOVE an attribute
-    // any sheet still references, so without an explicit clear a filled-in key would pin its attribute into the
-    // profile forever.
+    // ONE key per blurred cell, so whole-record replace semantics here would silently erase every other
+    // attribute on the sheet (an absent key renders the profile's range floor). The `null` arm is not
+    // decoration: `updateConfig` refuses to REMOVE an attribute any sheet still references, so without an
+    // explicit clear a filled-in key would pin its attribute into the profile forever.
     attributes: z.record(z.string(), z.int().nullable()).optional(),
-    // The per-actor TRACKER EXCEPTIONS (the unification's applicability model): tracker KEYS this actor is
+    // The per-actor TRACKER EXCEPTIONS (the applicability model): tracker KEYS this actor is
     // granted beyond its carrier class, and keys revoked from it. Omit keeps; a passed array REPLACES it.
     // Tracker DEFS are not here — they home once in `config.trackers` (`updateConfig` is their door).
     trackerGrants: z.array(z.string().min(1)).optional(),
     trackerRevokes: z.array(z.string().min(1)).optional(),
     flavor: z.string().optional(),
-    // `level` (§2.6) — hand-only; a member/host patch sets it (nullable: explicit null clears). No TURN can
+    // `level` — hand-only; a member/host patch sets it (nullable: explicit null clears). No TURN can
     // write it (absent from the extraction schema + tool args); the only other door is the host born-state
     // round (`populateFromCharacter`), which fills it once, from the card, while it is still null.
     level: z.int().min(0).nullable().optional(),
@@ -149,14 +145,14 @@ export const rpgPopulateFromCharacterInputSchema = z.strictObject({
   actorRef: rpgActorRefSchema,
 });
 
-/** `editSnapshot` — the hand-edit door for the IMAGE-honest planes (host). `actorState` is NO LONGER one of
- *  them (R1): the per-actor volatile plane is op-shaped through `rpg.patchActor`/`rpg.dismissActor`, and a
+/** `editSnapshot` — the hand-edit door for the IMAGE-honest planes (host). `actorState` is NOT one of
+ *  them: the per-actor volatile plane is op-shaped through `rpg.patchActor`/`rpg.dismissActor`, and a
  *  patch naming it comes back as a refusal that says so (`RPG_OP_SHAPED_PLANES`). What stays here is what a
  *  client can honestly author whole: the ambient leaves, the `trackerValues` record, `plot`, `recentEvents`,
  *  `presentCharacters`, `quests`. `patch` is a partial snapshot-state overlay under the [merge-clear]
  *  contract — an OPAQUE object the domain validates/locks (the
  *  `editSnapshot` verb owns the per-path legality; a bad path is errors-as-data, never a wire reject).
- *  `releaseLocks` (§12.3 lock-release) are dotted lock paths to CLEAR from `fieldLocks` — the host's Release
+ *  `releaseLocks` are dotted lock paths to CLEAR from `fieldLocks` — the host's Release
  *  affordance ("let the model write this again"). Clearing rides the SAME verb (not a null on the lock path):
  *  a lock is snapshot-metadata, not a state leaf, so it clears via the `applyHandEdit` lock-DELTA, not a
  *  [merge-clear] null. Omit/`[]` = no release. A release may accompany an empty `patch` (release-only).
@@ -169,11 +165,11 @@ export const rpgEditSnapshotInputSchema = z.strictObject({
   lockPaths: z.array(z.string().min(1)).optional(),
 });
 
-/** `patchActor` — THE op-shaped hand door for one actor's volatile plane (R1; host any actor, the
+/** `patchActor` — THE op-shaped hand door for one actor's volatile plane (host any actor, the
  *  member-own-volatile arm deferred at the verb). `ops` are applied IN ORDER against the TRUE resolved head,
  *  server-side (read-modify-write) — there is no client-authored image to go stale, so a model flush landing
  *  between the panel's read and this call survives every field the ops do not name. Each op stamps its own
- *  FINE lock path (`actorState.<ref>.<field>…`, the per-field pin) — the client no longer names lock paths at all.
+ *  FINE lock path (`actorState.<ref>.<field>…`, the per-field pin) — the client never names lock paths at all.
  *  `autoLock:false` is the ONE honest opt-out: a write to a field the MODEL CANNOT REACH (an item's host-picked
  *  `icon`) has nothing to pin, and stamping a lock there would only hand the host a pin to release. Refusals
  *  (an op naming an item/condition that isn't there, a merged state the write boundary rejects) are DATA. */
@@ -184,25 +180,25 @@ export const rpgPatchActorInputSchema = z.strictObject({
   autoLock: z.boolean().optional(),
 });
 
-/** `dismissActor` — THE removal gesture for the actor plane (R1; host). Drops the actor's `actorState` row AND
+/** `dismissActor` — THE removal gesture for the actor plane (host). Drops the actor's `actorState` row AND
  *  its scene-presence row and RELEASES every lock at/below its path (the `deleteQuest` symmetric-lock
- *  precedent). Until this verb existed nothing could remove an actor at all: the plane is ADDITIVE by policy
- *  (an unnamed row is ignorance, not intent), so a hallucinated NPC stayed reachable, targetRef-enumerated and
- *  clone-forwarded forever. This is the "real gesture" that policy always named and never had. */
+ *  precedent). The plane is ADDITIVE by policy (an unnamed row is ignorance, not intent), so only an explicit
+ *  gesture can retract a hallucinated NPC that would otherwise stay reachable, targetRef-enumerated and
+ *  clone-forwarded forever. */
 export const rpgDismissActorInputSchema = z.strictObject({
   chatId: chatIdField,
   targetRef: rpgActorRefSchema,
 });
 
-/** `promoteActor` — THE promotion doorway (R4; host): a scene NPC the story kept coming back to EARNS a
+/** `promoteActor` — THE promotion doorway (host): a scene NPC the story kept coming back to EARNS a
  *  character card. It is `dismissActor`'s opposite — dismissal forgets the person, promotion keeps her forever — and the
  *  only rpg verb whose write reaches outside the game (it mints a durable character card + a chat participant seat
  *  through ONE injected op, then re-keys the actor row `npc:<slug>` → `character:<id>` on the snapshot plane).
  *
  *  The payload is the TARGET AND NOTHING ELSE. The card's name and handle are the SERVER's derivation off the
- *  actor's own identity row (`rpgPromotedCardDescription` + `rpgNpcSlug`), never client-authored: this door
- *  inherits R1's lesson that a client which can only see the plane in projections must not author what lands in
- *  it. `targetRef` rides {@link rpgNpcRefSchema}, not the whole actor union — promoting a `character`/`user`
+ *  actor's own identity row (`rpgPromotedCardDescription` + `rpgNpcSlug`), never client-authored: a client that
+ *  can only see the plane in projections must not author what lands in it. `targetRef` rides
+ *  {@link rpgNpcRefSchema}, not the whole actor union — promoting a `character`/`user`
  *  actor is not a refusal, it is meaningless, so the wire cannot express it.
  *
  *  Refusals are DATA (`HandDoorResult`): an untracked target, an actor with no identity row, and — the ruled
@@ -257,7 +253,7 @@ export const rpgDeleteQuestInputSchema = z.strictObject({
 export const rpgAddJournalEntryInputSchema = z.strictObject({
   chatId: chatIdField,
   type: rpgJournalTypeSchema,
-  // R4c — the free gloss carried when `type === "custom"` (the relationship-kind shape). Omit ⇒ "".
+  // The free gloss carried when `type === "custom"` (the relationship-kind shape). Omit ⇒ "".
   label: z.string().optional(),
   title: z.string().min(1),
   content: z.string(),
@@ -324,13 +320,12 @@ export const rpgListJournalInputSchema = z.strictObject({
   offset: z.int().min(0).optional(),
 });
 
-/** `rpg.listTurnToolCalls` — the recorded-turn window (TOOLCALLS-INVISIBLE, arm A). No `offset`: the client
+/** `rpg.listTurnToolCalls` — the recorded-turn window. No `offset`: the client
  *  indexes the whole window by `variantId` to render per-row disclosures, so paging backward would only ever
  *  half-populate that index (see `ListTurnToolCallsParams`).
  *
- *  `turnLimit`, not `limit` — the field was RENAMED with its unit when the window stopped
- *  counting rows and started counting turns; a silently re-denominated `limit` would have left every caller
- *  asking for something other than what it says. */
+ *  `turnLimit`, not `limit`: the unit is TURNS, not rows — one slot serves every record of its windowed
+ *  variants — so the name states the unit and a caller cannot ask for something other than what it says. */
 export const rpgListTurnToolCallsInputSchema = z.strictObject({
   chatId: chatIdField,
   turnLimit: z.int().min(1).max(RPG_TURN_TOOL_CALLS_LIST_MAX_LIMIT).optional(),

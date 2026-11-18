@@ -7,20 +7,19 @@
 // vehicle, scrubs it for the endpoint and hands back a reply already normalized (a null the reshape introduced is
 // dropped; this contract has no nullable field, so every null the parse sees is a model error).
 //
-// THE SHARED-PLANE PROOF (the 7 plane shapes authored ONCE, exposed two ways): this schema
-// is DERIVED from the SAME per-tool arg schemas the cheap-mode D48 tools use (`./tools`) — it does NOT re-spell
+// THE SHARED-PLANE PROOF (every plane shape authored ONCE, exposed two ways): this schema
+// is DERIVED from the SAME per-tool arg schemas the cheap-mode tools use (`./tools`) — it does NOT re-spell
 // the plane shapes. Each field is an ARRAY of the corresponding tool's args (a structured extraction emits many
-// actor/quest/journal writes in one object where cheap-mode fires one tool call each). It is therefore
-// exactly "a batch of the tool calls the model would otherwise have made", and the W1c-b `runExtraction` impl
+// actor/quest/journal writes in one object where cheap-mode fires one tool call each), so it is
+// exactly "a batch of the tool calls the model would otherwise have made", and the fold
 // converts a parsed `RpgExtraction` into the `RpgStateDelta` (statePatch + journal) the accumulator flushes —
 // the SAME two planes cheap-mode tools stage during the turn. `roll_dice` is absent: it is zero-state (the
 // ToolCallRecord is the canon stamp), so it has no delta to extract.
 //
 // PROJECTION-CLEAN (inherited from `./tools`): every arg schema is a top-level `z.object` carrying no
-// `.transform()` — the precise toxin ([tool-schema-no-branded-transform]): `z.toJSONSchema` THROWS on a
-// transform, and this repo's ids are transform-based (`typeIdSchema`). (zod `.brand()` no longer throws on
-// 4.4.3 and is unused here anyway — see the mechanism note in `./tools`.) So this composed object projects to
-// a structured-output JSON Schema without throwing (tests/contracts/rpg/extraction-constrain.contract.test.ts projects it).
+// `.transform()` (`z.toJSONSchema` THROWS on a transform, and this repo's ids are transform-based). (zod
+// `.brand()` no longer throws on 4.4.3 and is unused here anyway — see the mechanism note in `./tools`.) So
+// this composed object projects to a structured-output JSON Schema without throwing.
 // Strip mode: these schemas also read model output, which can carry keys this release does not declare.
 import { parseJsonText } from "@orb/kit/json";
 import { z } from "zod";
@@ -37,17 +36,17 @@ import {
 import type { RpgTrackerDef, RpgTrackerWriteGroup } from "./tracker.ts";
 import { actorTrackerWriteKeys } from "./tracker.ts";
 
-/** The extraction delta the model emits in ONE structured-output object (§4.6). Every field is
+/** The extraction delta the model emits in ONE structured-output object. Every field is
  *  OPTIONAL and defaults empty — a "nothing changed this turn" extraction is the empty object, which the
- *  W1c-b impl maps to an empty `RpgStateDelta` (no snapshot write — the byte-identical non-writing turn,
+ *  fold maps to an empty `RpgStateDelta` (no snapshot write — the byte-identical non-writing turn,
  *  `chat-ops/flush.ts`). Each field derives from the matching cheap-mode tool's args (the shared-plane proof):
  *    • `party`      ⟵ `update_party`      (per-actor tracker/condition/hp/status writes)
  *    • `inventory`  ⟵ `update_inventory`  (per-actor item add/remove + wallet deltas)
  *    • `scene`      ⟵ `update_scene`      (ambient + present-cast patch + a recent beat) — a SINGLE object,
  *                                          not an array (one scene per turn; the tool is a per-call patch too)
- *    • `trackers`   ⟵ `set_tracker`       (GAME-subject tracker writes — the retired widget plane)
+ *    • `trackers`   ⟵ `set_tracker`       (GAME-subject tracker writes)
  *    • `quests`     ⟵ `upsert_quest`      (create/update/complete/fail)
- *    • `journal`    ⟵ `add_journal_entry` (STAGED → flushed stamped with the committed variant, §2.5) */
+ *    • `journal`    ⟵ `add_journal_entry` (STAGED → flushed stamped with the committed variant) */
 export const rpgExtractionSchema = z
   .object({
     party: z.array(updatePartyArgsSchema).default([]),
@@ -67,52 +66,50 @@ export type RpgExtraction = z.infer<typeof rpgExtractionSchema> & {
 };
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// The MIS-TARGET fix (R1) — per-call REF CONSTRAINT injected into the PROJECTED schema.
+// The MIS-TARGET guard — per-call REF CONSTRAINT injected into the PROJECTED schema.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // The extraction fields reference actors by NAME (`targetRef`) and trackers by KEY. A model producing
 // SCHEMA-VALID but WRONG refs (targeting "player" when the participant actor is "You", or shoving a location into
 // a nonexistent tracker) yields a silent empty panel — the phantom mint never renders. Constraining those
 // string fields to an `enum` of the ACTUAL per-call refs makes an invalid ref UNREPRESENTABLE at the token
-// level under a schema-enforcing backend (LIVE-VERIFIED: vLLM xgrammar forced a "player" ask onto
-// a valid participant ref; OpenRouter strict json_schema binds the same enum; agent-sdk at least sharpens the
-// post-parse belt). PORTABLE by construction — it returns plain JSON Schema, so each backend's existing
-// response_format mapping enforces it with ZERO provider-specific code. The extraction PROMPT still
+// level under a schema-enforcing backend (xgrammar forces the ask onto a valid participant ref; a hosted
+// `strict` json_schema binds the same enum; a non-enforcing wire at least sharpens the post-parse belt).
+// PORTABLE by construction — it returns plain JSON Schema, so each backend's existing response_format
+// mapping enforces it with ZERO provider-specific code. The extraction PROMPT still
 // enumerates the valid refs as the fallback arm for a non-enforcing model.
 //
-// COMPILE-COST NOTE (from the vLLM v0.22.1 source + a live probe): xgrammar caches compiled grammars by
-// schema, so a fresh per-call enum set is a cache MISS that recompiles (~0.7s measured on the gen engine for
-// the full extraction schema — acceptable for a post-turn extraction, and the schema stays minimal). The
-// enum lists are kept SMALL (only the live participants + widget refs), so the grammar stays cheap to compile.
+// COMPILE COST: xgrammar caches compiled grammars by schema, so a fresh per-call enum set is a cache MISS that
+// recompiles the full extraction grammar. The enum lists are kept SMALL (only the live participants +
+// tracker refs), so the grammar stays cheap to compile.
 
 /** The per-call refs the constraint binds: the participant actor names (party/inventory/scene targets) + the
- *  per-actor TRACKER write surface (R6). Empty arrays leave their field unconstrained (a fresh game doesn't
+ *  per-actor TRACKER write surface. Empty arrays leave their field unconstrained (a fresh game doesn't
  *  force an impossible empty enum). */
 export interface ExtractionRefs {
   /** Participant actor names the model may target (`targetRef` on party/inventory; `presentRemove` on scene). */
   readonly actorRefs: readonly string[];
-  /** R6 — the per-actor WRITE SURFACE, grouped by identical writable-tracker set. Each group binds its
+  /** The per-actor WRITE SURFACE, grouped by identical writable-tracker set. Each group binds its
    *  actors' `party[].trackerDeltas[].key` / `trackerSets[].key` enums, so the schema NEVER offers a tracker
    *  on an actor that doesn't carry it and a `locked` tracker is unrepresentable rather than stripped at
    *  apply. One group ⇒ a flat schema (the common case, byte-cheap); several ⇒ a `oneOf` branch each, keyed
    *  on `targetRef`. Empty ⇒ no tracker arms at all (the game tracks nothing per-actor). */
   readonly trackerWriteGroups: readonly RpgTrackerWriteGroup[];
-  /** R6 — the GAME-subject write surface (the `trackers` plane / `set_tracker`): the unlocked game trackers'
+  /** The GAME-subject write surface (the `trackers` plane / `set_tracker`): the unlocked game trackers'
    *  keys split by write axis. Both empty ⇒ the whole plane is REMOVED from the schema (a disabled feature's
    *  tool omitted entirely, never an empty-enum husk). */
   readonly gameTrackerKeys: { readonly deltaKeys: readonly string[]; readonly setKeys: readonly string[] };
-  /** The CURRENTLY-ACTIVE condition names across the tracked actors — constrains `party[].removeCondition`
-   *  (R5a). A retirement can only name a condition that is actually on someone, which makes the measured 8B
-   *  failure (`removeCondition: "Bleeding, Poisoned, Exhausted, Lamed"` — a comma-joined LIST shoved into the
-   *  `{type:"string"}` scalar, semantically right and structurally invalid) UNREPRESENTABLE under xgrammar, and
-   *  is free defence on a hosted `strict` schema. Empty (nobody carries a condition) leaves the field
-   *  unconstrained — never an impossible empty enum. */
+  /** The CURRENTLY-ACTIVE condition names across the tracked actors — constrains `party[].removeCondition`.
+   *  A retirement can only name a condition that is actually on someone, which makes a comma-joined LIST
+   *  shoved into the `{type:"string"}` scalar (semantically right, structurally invalid) UNREPRESENTABLE
+   *  under xgrammar, and is free defence on a hosted `strict` schema. Empty (nobody carries a condition)
+   *  leaves the field unconstrained — never an impossible empty enum. */
   readonly conditionNames: readonly string[];
   /** ESTABLISH-WHEN-UNSET: force scene fields REQUIRED (in the enforced grammar) ONLY while the current scene
    *  hasn't set them yet. Derived per-call from the base snapshot: a FRESH game is forced to establish the
    *  scene from the first beat, but once a field is set it returns to the optional omit=keep patch — no
-   *  re-emit churn/drift on ongoing turns. This is what makes a weak 8B populate the scene (live-proven on
-   *  Qwen3-VL-8B: an all-optional scene is skipped; the forced one fills location/time/weather + a present-cast
-   *  entry with mood/thoughts/relationship). `location`/`timeOfDay` ⟵ `location === ""` / `clock === null`;
+   *  re-emit churn/drift on ongoing turns. This is what makes a weak model populate the scene (an all-optional
+   *  scene is skipped; the forced one fills location/time/weather + a present-cast entry with
+   *  mood/thoughts/relationship). `location`/`timeOfDay` ⟵ `location === ""` / `clock === null`;
    *  `presentCast` (forces `presentUpsert` non-empty) ⟵ `presentCharacters.length === 0`. */
   readonly establishScene: { readonly location: boolean; readonly timeOfDay: boolean; readonly presentCast: boolean };
 }
@@ -155,7 +152,7 @@ function constrainInventoryTargetRef(root: JsonSchemaNode, values: readonly stri
   constrainStringProperty(refNode, values);
 }
 
-// Delete an object schema node's property AND its `required` entry (the pruning half of R6's prevent-at-schema:
+// Delete an object schema node's property AND its `required` entry (the pruning half of prevent-at-schema:
 // an arm no live def needs is REMOVED, never left as an empty-enum husk the model burns attention on).
 function removeField(node: unknown, field: string): void {
   const props = propsOf(node);
@@ -175,7 +172,7 @@ function cloneNode(node: JsonSchemaNode): JsonSchemaNode {
 }
 
 /**
- * R6 — constrain ONE `party[]` item schema to a write-surface group IN PLACE: the group's target names, the
+ * constrain ONE `party[]` item schema to a write-surface group IN PLACE: the group's target names, the
  * tracker keys each write arm may name, and the arm pruning. An arm whose key list is empty is REMOVED (an
  * actor carrying no `delta` tracker is never offered `trackerDeltas`), so what the model is handed is exactly
  * what it may legally write on that target.
@@ -186,8 +183,8 @@ function constrainPartyItem(item: JsonSchemaNode, group: RpgTrackerWriteGroup, c
     return;
   }
   constrainStringProperty(props["targetRef"], group.targetRefs);
-  // R5a — a retirement names ONE currently-active condition (the comma-joined list the 8B emitted into the
-  // `{type:"string"}` scalar is then untypeable under an enforcing grammar).
+  // A retirement names ONE currently-active condition (a comma-joined list becomes untypeable under an
+  // enforcing grammar).
   constrainStringProperty(props["removeCondition"], conditionNames);
   for (const [arm, keys] of [
     ["trackerDeltas", group.deltaKeys],
@@ -203,7 +200,7 @@ function constrainPartyItem(item: JsonSchemaNode, group: RpgTrackerWriteGroup, c
 }
 
 /**
- * R6 — bind the whole `party` plane to the per-actor write surface. ONE group (or none) keeps the schema FLAT
+ * bind the whole `party` plane to the per-actor write surface. ONE group (or none) keeps the schema FLAT
  * (the overwhelmingly common shape: a game whose trackers all apply to everyone projects exactly the schema it
  * would have without this machinery). SEVERAL groups emit a `oneOf` branch per group, each pinned to its own
  * target names — the grammar only pays for divergence that actually exists, never for headcount.
@@ -233,7 +230,7 @@ function constrainPartyPlane(clone: JsonSchemaNode, refs: ExtractionRefs): void 
 }
 
 /**
- * R6 — bind the GAME-subject `trackers` plane (`set_tracker`). Constrains `key` to the unlocked game trackers,
+ * bind the GAME-subject `trackers` plane (`set_tracker`). Constrains `key` to the unlocked game trackers,
  * prunes the write arm no live game tracker needs, and REMOVES the whole plane when the game defines none (a
  * disabled feature's tool is omitted entirely, per the read-vs-write-surface principle).
  */
@@ -274,16 +271,16 @@ function requireField(node: unknown, field: string): void {
 }
 
 /**
- * Constrain the projected extraction schema's REF fields to the actual per-call refs (R1). Returns a fresh
+ * Constrain the projected extraction schema's REF fields to the actual per-call refs. Returns a fresh
  * schema (never mutates the cached `projectJsonSchema` output — the same object also feeds other wires).
  * Portable: plain JSON Schema out, enforced by each backend's own `response_format` mapping. A ref list left
  * empty leaves its field unconstrained (a fresh game targets no phantom, and an empty enum is never emitted).
  *
- *   • `party[]`                   ⟵ trackerWriteGroups (R6 — per-actor tracker keys, `targetRef`-pinned)
- *   • `party[].removeCondition`   ⟵ conditionNames (R5a — one ACTIVE condition, never a comma-joined list)
+ *   • `party[]`                   ⟵ trackerWriteGroups (per-actor tracker keys, `targetRef`-pinned)
+ *   • `party[].removeCondition`   ⟵ conditionNames (one ACTIVE condition, never a comma-joined list)
  *   • `inventory[].targetRef`     ⟵ actorRefs   (whose items/wallet move)
  *   • `scene.presentRemove[]`     ⟵ actorRefs   (removing a present actor — must name a real one)
- *   • `trackers[]`                ⟵ gameTrackerKeys (R6 — the game-subject write surface, pruned when empty)
+ *   • `trackers[]`                ⟵ gameTrackerKeys (the game-subject write surface, pruned when empty)
  */
 export function constrainExtractionSchema<S extends Record<string, unknown>>(schema: S, refs: ExtractionRefs): S {
   const clone = cloneNode(schema);
@@ -293,14 +290,14 @@ export function constrainExtractionSchema<S extends Record<string, unknown>>(sch
   // scene.presentRemove is an ARRAY of ref strings (not an object array): constrain the array's item enum.
   const sceneProps = propsOf(propsOf(clone)?.["scene"]);
   constrainStringProperty(sceneProps?.["presentRemove"] !== undefined ? itemsOf(sceneProps["presentRemove"]) : undefined, refs.actorRefs);
-  // ESTABLISH-WHEN-UNSET (the sad-path fix): the projected schema leaves `scene` OPTIONAL with
-  // every inner field optional, so under xgrammar/`strict` a weak 8B legally OMITS the scene — and it did, so a
-  // fresh game never established its location/time and the panel stayed empty (`rpg.extraction.empty`). Force
-  // the ambient anchor REQUIRED, but ONLY while the current scene hasn't set it (`establishAmbient`, derived
+  // ESTABLISH-WHEN-UNSET: the projected schema leaves `scene` OPTIONAL with
+  // every inner field optional, so under xgrammar/`strict` a weak model legally OMITS the scene — leaving a
+  // fresh game with no location/time and an empty panel (`rpg.extraction.empty`). Force
+  // the ambient anchor REQUIRED, but ONLY while the current scene hasn't set it (`establishScene`, derived
   // from the base snapshot): a fresh game is guaranteed to establish location/time from the first beat, while
   // ongoing turns keep the optional omit=keep patch — no re-emit churn or drift on a standing scene. Same
   // per-call, state-dependent shaping as the ref enums above (the zod stays the loose superset; the grammar
-  // tightens per call). [[plan-for-small-hardware]] — the enforced schema, not the prompt, is the xgrammar lever.
+  // tightens per call) — the enforced schema, not the prompt, is the xgrammar lever.
   const sceneNode = propsOf(clone)?.["scene"];
   if (refs.establishScene.location) {
     requireField(clone, "scene");
@@ -311,8 +308,8 @@ export function constrainExtractionSchema<S extends Record<string, unknown>>(sch
     requireField(sceneNode, "timeOfDay");
   }
   if (refs.establishScene.presentCast) {
-    // Force a NON-EMPTY present-character set on a fresh scene: an optional presentUpsert is skipped by a weak 8B (the
-    // "No one on stage" gap), so require the array AND minItems:1 (xgrammar enforces both — live-proven). The
+    // Force a NON-EMPTY present-character set on a fresh scene: an optional presentUpsert is skipped by a weak model (the
+    // "No one on stage" gap), so require the array AND minItems:1 (xgrammar enforces both). The
     // model then lists each present character with mood/thoughts/relationship. Once the cast is set, unforced.
     requireField(clone, "scene");
     requireField(sceneNode, "presentUpsert");
@@ -321,12 +318,12 @@ export function constrainExtractionSchema<S extends Record<string, unknown>>(sch
       (presentUpsert as JsonSchemaNode)["minItems"] = 1;
     }
   }
-  // EXT-4b — PREVENTION WHERE ENFORCEMENT WORKS. `journal[].type` is `.optional()` in the zod (the heal arm,
+  // PREVENTION WHERE ENFORCEMENT WORKS. `journal[].type` is `.optional()` in the zod (the heal arm,
   // for the backends that ignore `required` on nested array items), which would otherwise ALSO tell a strict
   // backend the field is skippable. Re-marking it required in the projected grammar keeps the strong arm
   // strong: an enforcing wire (OR `strict`) must emit the kind, a non-enforcing one omits it and the applier
   // heals to `note` + logs. `title` is deliberately NOT re-required — its absence is fully recoverable from the
-  // content head, so forcing it would spend tokens on a field we derive for free (owner ruling).
+  // content head, so forcing it would spend tokens on a field we derive for free.
   requireField(itemsOf(propsOf(clone)?.["journal"]), "type");
   // Brand-transparent: the clone of a projected schema is still projected (enums/required/pruning never
   // re-open an object node), so echo the caller's own type — a `WireReady` in stays `WireReady` out, without
@@ -335,22 +332,22 @@ export function constrainExtractionSchema<S extends Record<string, unknown>>(sch
 }
 
 /**
- * F4 — the CACHE-STABLE projection of a per-call ref bundle: the same bundle with every field that derives from
+ * The CACHE-STABLE projection of a per-call ref bundle: the same bundle with every field that derives from
  * LIVE SCENE STATE neutralized, so two calls one turn apart produce a BYTE-IDENTICAL tool payload.
  *
- * WHY (measured, the OpenRouter probe F4): the OpenAI-compat `tools` field sits UPSTREAM of the
- * Anthropic cached prefix — changing 360 bytes of one tool dropped `cached_tokens` 2841 → 0 and re-billed the
- * WHOLE prefix at the 1.25× write rate (~10× that turn on a 10k prefix). The FOLDED turn (D112 R1) mounts these
+ * WHY: the OpenAI-compat `tools` field sits UPSTREAM of the provider's cached prompt prefix — a few hundred
+ * bytes of change in one tool drops `cached_tokens` to zero and re-bills the WHOLE prefix at the write rate.
+ * The FOLDED turn (D112) mounts these
  * tools on the CHARACTER turn, whose prefix is otherwise stable (the rpg state block rides an `in_chat` depth-0
- * injection, BELOW the rolling breakpoint), so a new NPC or a gained/retired condition was re-billing the whole
- * story every few beats.
+ * injection, BELOW the rolling breakpoint), so a new NPC or a gained/retired condition would otherwise re-bill
+ * the whole story every few beats.
  *
  * WHAT SURVIVES (enforcement is not traded away):
  *   • `gameTrackerKeys` + the actor tracker KEY enums (config-derived) — "never invent a key" and the LOCKED-
  *     tracker prevention both hold, from the game's own defs instead of the live carrier split.
  *   • `establishScene` — state-dependent but not per-turn churn (a fresh game establishes once; a reconcile beat
  *     forces deliberately), and it is the lever that makes the scene populate at all.
- * WHAT IS DROPPED, and its backstop: the `actorRefs` enums (`targetRef`/`presentRemove`) — the R5 GHOST GUARD
+ * WHAT IS DROPPED, and its backstop: the `actorRefs` enums (`targetRef`/`presentRemove`) — the ghost guard
  * drops a write naming nobody reachable, and the state block already enumerates the cast by name; the per-actor
  * `oneOf` split — a key on an actor who doesn't carry it lands as inert data the panel never projects; the
  * `conditionNames` enum — a `removeCondition` naming nothing active is a filter no-op. NOTE the swap is honest
@@ -370,13 +367,13 @@ export function cacheStableExtractionRefs(refs: ExtractionRefs, defs: readonly R
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// The CHEAP-mode TOOL ROUND — the parallel-tool-call vehicle (owner ruling).
+// The CHEAP-mode TOOL ROUND — the parallel-tool-call vehicle.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// Cheap mode is a DEDICATED, state-only request (NOT tools mounted on the character turn — that fight is
-// retired). The model gets the six state-writing tools + a `no_changes` escape, `tool_choice:"required"`, and
-// a state-focused prompt; it emits PARALLEL tool calls in ONE request (LIVE-VERIFIED: vLLM
-// hermes/Qwen3 + OpenRouter both emit 2-3 parallel calls on a change beat and a single `no_changes` on a
-// quiet one under `required`). The parsed calls fold to an `RpgExtraction` — the shared-plane proof made
+// Cheap mode is a DEDICATED, state-only request. The model gets the six state-writing tools + a `no_changes`
+// escape, `tool_choice:"required"`, and
+// a state-focused prompt; it emits PARALLEL tool calls in ONE request (a change beat gets several calls, a
+// quiet one a single `no_changes` under `required`). The parsed calls fold to an `RpgExtraction` — the
+// shared-plane proof made
 // literal: a tool round IS "the batch of tool calls the model would otherwise have made", so it reuses the
 // SAME `extractionToStateDelta` fold the structured arm uses. Symmetric with it (tools vs schema; same
 // delta). `roll_dice` is EXCLUDED (zero-state — the ToolCallRecord is the canon stamp, never a snapshot).
@@ -431,11 +428,11 @@ interface SalvagedArgs<T> {
 }
 
 /**
- * EXT-4a's drop-as-little-as-possible, applied to invalid VALUES (it previously covered only undeclared
- * KEYS, via zod's strip mode). A whole-call drop for one bad optional field is the failure this closes:
+ * Drop as little as possible, applied to invalid VALUES (strip mode covers undeclared KEYS only). A whole-call
+ * drop for one bad optional field is the failure this closes:
  * `update_scene` carries `location`, `timeOfDay`, `weather`, the present-cast patch, `plot` AND
- * `recentEvent`, so a `weather.type` the closed enum cannot express used to discard the scene, the cast and
- * the recent beat together — measured 12/12 on a live game, whose scene plane never established at all.
+ * `recentEvent`, so a `weather.type` the closed enum cannot express would otherwise discard the scene, the cast
+ * and the recent beat together — leaving a game whose scene plane never establishes at all.
  *
  * Retry once with the offending TOP-LEVEL fields removed. Coarse on purpose: a nested issue
  * (`presentUpsert.0.mood`) drops the whole `presentUpsert` array rather than surgically repairing an
@@ -559,14 +556,14 @@ export function toolCallsToExtraction(calls: readonly RpgToolCall[]): RpgExtract
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// EQUAL DROP SEMANTICS (EXT-4a) — the STRUCTURED arm salvages PER PLANE / PER ENTRY, like the tool arms.
+// EQUAL DROP SEMANTICS — the STRUCTURED arm salvages PER PLANE / PER ENTRY, like the tool arms.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// The defect this kills: the structured arm used to validate the WHOLE extraction object with one `safeParse`,
-// so ONE malformed nested field (the measured case: a journal entry missing `type`, in the nested-array required
-// blind spot) discarded ALL SIX planes for the turn — while cheap/folded, validating per CALL, lost only the
-// bad call. It was the most fragile of the three vehicles. The invariant now: **an equivalent payload
+// The invariant: **an equivalent payload
 // delivered on any of the three vehicles leaves IDENTICAL surviving state** — a bad journal entry drops that
-// entry, never the party/inventory/scene/tracker/quest writes beside it.
+// entry, never the party/inventory/scene/tracker/quest writes beside it. One `safeParse` over the WHOLE
+// extraction object would let a single malformed nested field (a journal entry missing `type`, in the
+// nested-array required blind spot) discard ALL SIX planes while cheap/folded, validating per CALL, lost only
+// the bad call.
 //
 // Errors-as-data, D112 (3): the drop list comes OUT of the same function that builds the extraction (one home,
 // stronger than the `malformedToolCalls` mirror — a log here cannot disagree with what applied by construction).
@@ -641,7 +638,7 @@ function salvageArrayPlane(args: {
 }
 
 /**
- * Parse a RELIABLE-mode extraction payload PER PLANE / PER ENTRY (EXT-4a). Never throws, never all-or-nothing:
+ * Parse a RELIABLE-mode extraction payload PER PLANE / PER ENTRY. Never throws, never all-or-nothing:
  * each array plane's entries are validated one at a time (a bad entry is dropped, its siblings survive), the
  * single `scene` object stands or falls alone, an absent plane is simply empty, and a payload that isn't an
  * object at all yields the empty extraction with ONE `root` drop. The result feeds the SAME
@@ -681,14 +678,14 @@ export function salvageExtraction(value: unknown): RpgExtractionSalvage {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// POPULATE-FROM-CHARACTER (owner ruling) — the BORN-STATE schema, the ONE hand-only doorway.
+// POPULATE-FROM-CHARACTER — the BORN-STATE schema, the ONE hand-only doorway.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // A host-invoked, per-character, ONE-SHOT round over the character CARD + the room's OPENING message. It is a
 // DIFFERENT schema from `rpgExtractionSchema`, deliberately, and the difference cuts BOTH ways:
 //   • it ADDS the identity `sheet` plane (`title`/`level`) — the hand-only fields `patchSheet` otherwise owns
 //     alone (`./sheet`: "ABSENT from the extraction schema + every tool arg"). That law stands for PLAY: no
 //     turn vehicle (folded/cheap) can reach these, because they are in neither the extraction schema nor any
-//     tool arg, and this schema rides NO turn. The owner sanctioned exactly one doorway, and this is it — a
+//     tool arg, and this schema rides NO turn. ONE doorway exists, and this is it — a
 //     host clicking a button on one character, once, before the numbers mean anything.
 //   • it REMOVES every LIVE-PLAY plane (`scene`/`party`/`trackers`/`journal`): a card read is not a beat, so
 //     mood/ambient/hp/beat-log are not its business. The removal is STRUCTURAL, not prompt-side — the planes
@@ -699,8 +696,8 @@ export function salvageExtraction(value: unknown): RpgExtractionSalvage {
 // tail (no bespoke write path).
 
 // The identity-sheet half of a populate round — the hand-only fields a card implies but no beat ever writes.
-//  `title` is the model-facing name for `RpgSheet.className` (what the takeover renders beside the name — the
-//  client has called it "title" since the tracked-field unification; the storage name is not the wire's).
+//  `title` is the model-facing name for `RpgSheet.className` (what the takeover renders beside the name); the
+//  storage name is not the wire's.
 //  Both are OPTIONAL in the zod (a card that implies neither must still PARSE) and both are re-marked REQUIRED
 //  in the projected grammar ({@link constrainPopulateSchema}) — the LOOSE-ZOD + STRICT-PROJECTION pattern
 //  D112 (3) documents: an enforcing wire must answer, a non-enforcing one degrades to "the card said nothing".
@@ -726,7 +723,7 @@ export const rpgPopulateSchema = z
 
 /** What a salvaging populate parse yields: the sheet half (`null` = the model wrote none), the state half as
  *  an `RpgExtraction` whose LIVE-PLAY planes are empty BY CONSTRUCTION (so the one `extractionToStateDelta`
- *  fold applies it unchanged), and the itemized losses (EXT-4a equal-drop semantics). */
+ *  fold applies it unchanged), and the itemized losses (equal-drop semantics). */
 export interface RpgPopulateSalvage {
   readonly sheet: RpgPopulateSheet | null;
   readonly extraction: RpgExtraction;
@@ -738,7 +735,7 @@ export interface RpgPopulateSalvage {
 const POPULATE_DROP_PLANES: ReadonlySet<RpgExtractionDropPlane> = new Set<RpgExtractionDropPlane>(["inventory", "quests", "root"]);
 
 /**
- * Parse a populate payload PER PLANE / PER ENTRY (the EXT-4a contract, reused whole): the two state planes ride
+ * Parse a populate payload PER PLANE / PER ENTRY (the equal-drop contract, reused whole): the two state planes ride
  * {@link salvageExtraction} — the SAME per-entry validation the three turn vehicles use, so a bad item costs
  * that item and never the quests beside it — and the sheet stands or falls alone. The result's `extraction`
  * carries ONLY `inventory`/`quests`: the live-play planes are rebuilt EMPTY here rather than filtered at the
@@ -768,7 +765,7 @@ export function salvagePopulate(value: unknown): RpgPopulateSalvage {
  * plane + both its fields are re-marked REQUIRED.
  *
  * The REQUIRED marking is the xgrammar lever, not decoration: a small local model SKIPS optional fields
- * outright (measured — the establish-when-unset scene fix exists for the same reason), and a populate round
+ * outright (the establish-when-unset scene fix exists for the same reason), and a populate round
  * whose entire point is "fill the born fields nobody else can write" has nothing to fall back on if it skips
  * them. Returns a fresh schema (never mutates the cached projection).
  */
@@ -784,7 +781,7 @@ export function constrainPopulateSchema<S extends Record<string, unknown>>(schem
 }
 
 /**
- * The HEAL predicate (EXT-4b), read off a folded extraction so ALL THREE vehicles report it identically: the
+ * The HEAL predicate, read off a folded extraction so ALL THREE vehicles report it identically: the
  * `journal` indexes whose `type` the model omitted and `journalTypeFor` therefore healed to `note`. One
  * home with nothing to drift from — the applier heals exactly the entries this names.
  */
@@ -805,8 +802,8 @@ export function healedJournalTypes(extraction: RpgExtraction): readonly number[]
  * applied. An UNKNOWN tool name (incl. the `no_changes` escape) is NOT malformed — it is a legitimate no-op and
  * is excluded here; a caller that wants "the model called nothing applicable" reads the empty extraction.
  *
- * D109-7 (observability is TOTAL): a state write may fail only VISIBLY. The structured arm already logs its
- * `unparseable` class off the zod issues; this is the tool-vehicle's equivalent, and it is what lets the R1
+ * Observability is TOTAL: a state write may fail only VISIBLY. The structured arm already logs its
+ * `unparseable` class off the zod issues; this is the tool-vehicle's equivalent, and it is what lets the
  * folded turn tell a MALFORMED beat apart from a legitimately QUIET one.
  */
 export function malformedToolCalls(calls: readonly RpgToolCall[]): readonly string[] {
@@ -833,8 +830,8 @@ const MALFORMED_VALUE_MAX = 80;
 const SENT_VALUE_MARKER = " — sent ";
 
 /**
- * Re-render ONE issue line's model-sent value through `project`, keeping the `<path>: <message>` half intact
- *. `project` returns the replacement rendering, or `null` to DROP the value half entirely — the
+ * Re-render ONE issue line's model-sent value through `project`, keeping the `<path>: <message>` half intact.
+ * `project` returns the replacement rendering, or `null` to DROP the value half entirely — the
  * fail-closed arm for a value that cannot be safely re-rendered (a truncated JSON literal, a non-JSON
  * `(absent)` marker). A line with no sent value is returned unchanged.
  *
@@ -937,21 +934,21 @@ export function salvagedToolCallFields(calls: readonly RpgToolCall[]): readonly 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // THREE consumers read this and they may never disagree: the compose WARN (`logToolCallLosses`), the rpg
 // flight-recorder RING (`/api/_debug/rpg/traces`), and the DURABLE per-variant row the user-facing
-// disclosure reads (`rpg_turn_tool_calls`). Each previously would have had to re-derive the verdict from the
+// disclosure reads (`rpg_turn_tool_calls`). Each would otherwise re-derive the verdict from the
 // two loss lenses below, and three re-derivations of one rule is three chances for the surface to say
 // "applied" about a call the fold dropped. So the rule lives HERE, once, beside the lenses it composes.
 //
-// TOOLCALLS-INVISIBLE / D112: the folded turn's tool traffic is server-internal by design — chat never
+// The folded turn's tool traffic is server-internal by design — chat never
 // resolves, executes or persists it — so a RECORD made by the CONTRIBUTOR is the only honest way the user
 // ever sees what a turn did. That is what this shape is for.
 
-// What the fold DID with one call. Declared ONCE as a tuple and DERIVED (§5.5) — a new loss class fails
+// What the fold DID with one call. Declared ONCE as a tuple and DERIVED — a new loss class fails
 //  `tsc` at every reader instead of silently rendering as its neighbour.
 //
 //  THE FOURTH MEMBER IS A DIFFERENT LAYER OF LOSS. `salvaged`/`dropped` are SCHEMA verdicts: the vocabulary
 //  could not hold what the model sent. `overridden` is a MERGE verdict: the call was well-formed and applied,
 //  and then a hand LOCK dropped part of the write it produced (`domain/rpg/substrate/merge.ts` — manual-edit-
-//  wins). Both are real losses the reader is owed, and the record used to report the second one as `applied`.
+//  wins). Both are real losses the reader is owed, and neither may report as `applied`.
 //  Precedence when a call earns more than one, worst first: `dropped`, then `salvaged`, then `overridden`,
 //  then `applied` — the badge names the loss the reader must act on first, and `issues` carries EVERY reason
 //  regardless of which verdict won.
@@ -961,8 +958,7 @@ export type RpgToolCallVerdict = (typeof RPG_TOOL_CALL_VERDICTS)[number];
 /** ONE model-emitted tool call as the record keeps it: the name, the args VERBATIM, and the fold's verdict.
  *
  *  `args` is the RAW JSON string the model sent, deliberately unparsed — the calls most worth showing are
- *  exactly the ones that did not parse, so a parsed-only capture erases its own reason for existing
- *  (`TOOLDROP-BLIND` is that failure, already paid for once). */
+ *  exactly the ones that did not parse, so a parsed-only capture erases its own reason for existing. */
 export const rpgRecordedToolCallSchema = z.strictObject({
   name: z.string(),
   args: z.string(),
@@ -976,13 +972,11 @@ export type RpgRecordedToolCall = Readonly<z.infer<typeof rpgRecordedToolCallSch
 /** Project a turn's tool calls onto their per-call verdicts, by composing the two loss lenses above — so the
  *  record, the warn and the ring are the same derivation rather than three agreeing ones.
  *
- *  THE JOIN IS THE CALL, NOT THE NAME. This used to fold the lenses' whole-turn output into a
- *  name-keyed `Map` and look each call up by `call.name` — but a turn may hold SEVERAL calls to one tool, and
- *  a `Map` built from duplicate keys keeps only the last. One malformed `update_party` therefore marked EVERY
- *  `update_party` in the turn `dropped`, with the malformed call's issues attached to the valid one, and that
- *  verdict is written to `rpg_turn_tool_calls` — the row the user-facing disclosure reads. The fold itself was
- *  right (the valid call's changes applied), so the turn permanently CLAIMED a loss that never happened, in
- *  the direction that sends a reader hunting for a change that is already in their state.
+ *  THE JOIN IS THE CALL, NOT THE NAME. A turn may hold SEVERAL calls to one tool, and
+ *  a name-keyed `Map` keeps only the last: one malformed `update_party` would mark EVERY
+ *  `update_party` in the turn `dropped`, with the malformed call's issues attached to the valid one — and that
+ *  verdict is written to `rpg_turn_tool_calls`, the row the user-facing disclosure reads, permanently CLAIMING
+ *  a loss that never happened in the direction that sends a reader hunting for a change already in their state.
  *
  *  Running each lens over a ONE-CALL slice is what makes the occurrence the key while keeping the single-home
  *  rule this section exists for: the verdicts still come from those two functions, never from a third copy of
@@ -1114,15 +1108,15 @@ export function markLockSuppressions(calls: readonly RpgRecordedToolCall[], supp
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // STRIP OBSERVABILITY — the SILENT-write hole at the arg boundary, closed (D112 (3))
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// THE DEFECT: every arg schema is a plain `z.object`, and zod v4 `z.object` is STRIP mode — a key the schema
+// THE HOLE: every arg schema is a plain `z.object`, and zod v4 `z.object` is STRIP mode — a key the schema
 // does not declare is silently REMOVED and the parse SUCCEEDS. So a model emitting `{"targetRef":"Kael",
-// "mana":-3}` instead of a `trackerDeltas` entry produced a SUCCESSFUL ToolCallRecord whose write simply never
-// existed: invisible to `malformedToolCalls` (the call parsed), invisible to `salvageExtraction`'s drops (the
+// "mana":-3}` instead of a `trackerDeltas` entry produces a SUCCESSFUL ToolCallRecord whose write simply never
+// exists: invisible to `malformedToolCalls` (the call parsed), invisible to `salvageExtraction`'s drops (the
 // entry conformed), invisible to `rpg.extraction.empty` (the other five planes wrote fine). A delivery fork
 // that resolves silently is exactly what D112 (3) bans.
 //
 // WHY NOT `z.strictObject`: strictness FAILS the whole call/entry over one junk key, discarding the writes
-// beside it — the precise opposite of EXT-4a's equal-drop philosophy (drop as little as possible), and it
+// beside it — the precise opposite of the equal-drop philosophy (drop as little as possible), and it
 // would also make an enforcing-wire model's over-eager key cost a real beat. The D79 projection pin
 // (`additionalProperties:false` on every object node) stays the PREVENTION arm where the wire enforces it;
 // this is the DETECTION arm for the wires that don't (the folded D112 wire sends tools without `strict`).

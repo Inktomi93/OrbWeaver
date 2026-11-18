@@ -3,18 +3,15 @@
 // alias-resolves, top-level `z.object` always, and customFields ride an ARRAY-of-pairs shape (the D79
 // `additionalProperties:false` regime — a bare record projects an open `additionalProperties`).
 //
-// THE PROJECTION TOXIN IS `.transform()`, precisely ([tool-schema-no-branded-transform], mechanism verified
+// THE PROJECTION TOXIN IS `.transform()`, precisely (mechanism verified
 // against installed zod 4.4.3): `z.toJSONSchema(z.string().transform(…))` THROWS ("Transforms
 // cannot be represented in JSON Schema") — and this repo's id schemas are transform-based (`typeIdSchema`,
-// kit/ids), so an id here would kill the projection. `z.string().brand<"X">()` does NOT throw any more (brand
-// is type-level-only on 4.4.3, probed) — but zod `.brand()` is unused repo-wide regardless (ids carry the
-// house phantom `Branded<B>`), so the LAW is unchanged in effect: keep transform-bearing schemas off this
-// surface. Only the stated MECHANISM was stale.
+// kit/ids), so an id here would kill the projection. `z.string().brand<"X">()` does NOT throw (brand
+// is type-level-only on 4.4.3) — but zod `.brand()` is unused repo-wide regardless (ids carry the
+// house phantom `Branded<B>`), so the LAW is: keep transform-bearing schemas off this surface.
 //
-// The core names (`update_party`/`update_inventory`/`update_scene`/`roll_dice`) are D86/CP vocabulary the
-// owner ratified; `upsert_quest`/`add_journal_entry` complete the lite set. `set_widget_value` became
-// `set_tracker` with the tracked-field unification — the widget CONCEPT is gone, so keeping its name would
-// have been the only re-spell in the set.
+// The core names (`update_party`/`update_inventory`/`update_scene`/`roll_dice`) are D86 vocabulary;
+// `upsert_quest`/`add_journal_entry` complete the lite set, and `set_tracker` names the tracker plane.
 
 import { PROTO_KEY } from "@orb/kit/objects";
 import { z } from "zod";
@@ -35,7 +32,7 @@ export const RPG_LITE_TOOL_NAMES = [
 ] as const;
 export type RpgToolName = (typeof RPG_LITE_TOOL_NAMES)[number];
 
-/** The `roll_dice` wire tool name — the ONE spelling B8's in-thread `tool-renderers` contribution claims
+/** The `roll_dice` wire tool name — the ONE spelling the in-thread `tool-renderers` contribution claims
  *  (`match: "name"`). Named + `satisfies`-pinned to the validated tuple so the client renderer's claim can
  *  never drift from a typo (the plugin plane's `PLUGIN_TOOL_NAME_PREFIX` precedent for a claimed wire name). */
 export const ROLL_DICE_TOOL_NAME = "roll_dice" satisfies RpgToolName;
@@ -45,15 +42,13 @@ export const ROLL_DICE_TOOL_NAME = "roll_dice" satisfies RpgToolName;
 // a branded id — projection-clean). The wallet/inventory-on-every-actor ruling means this reaches cast too.
 const targetRefField = z.string().min(1);
 
-// THE TRACKER WRITE ARMS (the tracked-field unification §5.3). Two arms, split by the def's `write` axis —
+// THE TRACKER WRITE ARMS. Two arms, split by the def's `write` axis —
 // this is the axis being LOUD in the wire, exactly as designed: a `delta` tracker is a resource the beat
 // spends/restores, a `set` tracker is a state the beat observes. The `key` of both is ENUM-CONSTRAINED at
-// projection to the trackers the TARGET ACTOR actually carries and that are not locked (R6 prevent-at-schema,
+// projection to the trackers the TARGET ACTOR actually carries and that are not locked (prevent-at-schema,
 // `constrainExtractionSchema`), so a model can never be handed Mana on an actor with no Mana.
 //
-// These replace `update_party.poolDeltas` (name-addressed, meters only), `presentUpsert[].customFields`
-// (an opaque STRING record on the npc row) and `set_widget_value` (label-addressed, game-scoped) — three
-// wire vocabularies for one concept, gone.
+// One concept, one wire vocabulary: the actor's own tracker plane.
 
 // A tracker key the MODEL wrote. The parse accepts any string a non-enforcing backend sends, so it refuses the
 // one key a tracker record cannot store, so the turn records the loss instead of `applied` with nothing written.
@@ -81,8 +76,8 @@ const trackerSetSchema = z
 
 // Strip mode: also reads model output.
 // A present-cast RELATIONSHIP write — `kind` rides the closed vocab (ENUM-constrained at the
-// token level, §2.3); `label` is meaningful only for `kind:"custom"`. Authored strict-style within the object
-// (kind required); `label` optional-omit keeps the derive-server-side arm (§10.1 — omission is plausible for a
+// token level); `label` is meaningful only for `kind:"custom"`. Authored strict-style within the object
+// (kind required); `label` optional-omit keeps the derive-server-side arm (omission is plausible for a
 // non-custom kind). The whole `relationship` field is optional on the patch (MA-4: omit = keep the current stance).
 const relationshipUpsertSchema = z
   .object({
@@ -92,9 +87,9 @@ const relationshipUpsertSchema = z
   .strip();
 
 // Strip mode: also reads model output.
-// The AMBIENT WEATHER write (§2.7) — the SAME closed-enum + free-label shape as `relationship` above. `type`
+// The AMBIENT WEATHER write — the SAME closed-enum + free-label shape as `relationship` above. `type`
 // is one of the eight states the panel's Waystone paints (an enum the token-level grammar binds under an
-// enforcing backend, §2.3), so the model can no longer emit "a light drizzle turning to sleet" and have it
+// enforcing backend), so the model cannot emit "a light drizzle turning to sleet" and have it
 // degrade silently at the render; `label` carries exactly that phrasing as the DISPLAYED text. Authored
 // strict-style within the object (type required, D109-6); `label` optional-omit — omission is plausible when
 // the type already says it ("clear" needs no gloss). The whole `weather` field is optional on the patch
@@ -109,10 +104,10 @@ const weatherUpsertSchema = z
 // Strip mode: also reads model output.
 /** `update_party` — tracker writes, conditions, status on any party-side actor OR npc key.
  *
- *  `hpDelta` IS GONE (R3): health is an ordinary `meter` tracker now, so damage/healing rides `trackerDeltas`
- *  with `key:"hp"` under the SAME per-actor key enum every other tracker uses. That is a STRONGER gate than the
- *  arm it replaced — an actor who does not carry hp is now UNTYPEABLE rather than refused after the fact — and
- *  the projected grammar shrinks by one property on every call. */
+ *  Health is an ordinary `meter` tracker, so damage/healing rides `trackerDeltas` with `key:"hp"` under the
+ *  SAME per-actor key enum every other tracker uses. That is a STRONGER gate than a dedicated property would
+ *  be — an actor who does not carry hp is UNTYPEABLE rather than refused after the fact — and the projected
+ *  grammar stays one property smaller. */
 export const updatePartyArgsSchema = z
   .object({
     targetRef: targetRefField,
@@ -129,7 +124,7 @@ export const updatePartyArgsSchema = z
 export type UpdatePartyArgs = z.infer<typeof updatePartyArgsSchema>;
 
 // Strip mode: also reads model output.
-/** `update_inventory` — add/update/remove items + `walletDeltas` (the STORED named-amount wallet, §2.6).
+/** `update_inventory` — add/update/remove items + `walletDeltas` (the STORED named-amount wallet).
  *  `update` addresses an existing item by its model-visible name and patches only the fields the beat moved.
  *  Without this arm a story could put a carried key on a necklace while the tracker was structurally unable
  *  to record anything except deleting and re-minting it. */
@@ -167,7 +162,7 @@ export const updateInventoryArgsSchema = z
 export type UpdateInventoryArgs = z.infer<typeof updateInventoryArgsSchema>;
 
 // Strip mode: also reads model output.
-// The P5 PLOT patch (parity-plus — the snapshot-resident plot plane's model-facing write). Deliberately
+// The PLOT patch (the snapshot-resident plot plane's model-facing write). Deliberately
 // FLAT (the small-model-robust arm): the model declares the CURRENT act number and/or the
 // current act's title/summary + the story title; the APPLIER maintains the `acts` array (padding untitled
 // acts up to `act`) so the model never manages a nested list. Omit = keep (MA-4).
@@ -181,7 +176,7 @@ const plotPatchSchema = z
   .strip();
 
 // Strip mode: also reads model output.
-/** `update_scene` — ambient fields (§2.7) + a present-cast PATCH (MA-4: omit = keep, null = clear). */
+/** `update_scene` — ambient fields + a present-cast PATCH (MA-4: omit = keep, null = clear). */
 export const updateSceneArgsSchema = z
   .object({
     location: z.string().optional(),
@@ -206,15 +201,15 @@ export const updateSceneArgsSchema = z
       .optional(),
     presentRemove: z.array(z.string().min(1)).optional(),
     recentEvent: z.string().optional(),
-    // P5 — the plot-plane patch (advance the act / retitle the story or current act). Omit = keep.
+    // The plot-plane patch (advance the act / retitle the story or current act). Omit = keep.
     plot: plotPatchSchema.optional(),
   })
   .strip();
 export type UpdateSceneArgs = z.infer<typeof updateSceneArgsSchema>;
 
 // Strip mode: also reads model output.
-/** `set_tracker` — write a GAME-subject tracker (the retired `set_widget_value`, un-widgeted). Addressed by
- *  tracker `key` (never a label — a rename used to orphan every stored widget value); the `delta` arm serves a
+/** `set_tracker` — write a GAME-subject tracker. Addressed by
+ *  tracker `key` (never a label — a rename would orphan every stored value); the `delta` arm serves a
  *  `write:"delta"` game tracker, `value`/`items` the `write:"set"` ones. The projection constrains `key` to
  *  the game's UNLOCKED game-subject trackers and prunes the arms no live tracker needs, so a game with no
  *  game-subject trackers never sees the tool at all. */
@@ -228,7 +223,7 @@ export const setTrackerArgsSchema = z
   .strip();
 export type SetTrackerArgs = z.infer<typeof setTrackerArgsSchema>;
 
-// `upsert_quest` — staged-volatile (post-ratification: quests live IN the snapshot, §2.5). Create /
+// `upsert_quest` — staged-volatile: quests live IN the snapshot. Create /
 //  update / complete / fail all ride the one staged-state overlay; abort discards, commit clone-forwards.
 const RPG_QUEST_ACTIONS = ["create", "update", "complete", "fail"] as const;
 // Strip mode: also reads model output.
@@ -254,16 +249,15 @@ export const upsertQuestArgsSchema = z
 export type UpsertQuestArgs = z.infer<typeof upsertQuestArgsSchema>;
 
 // Strip mode: also reads model output.
-/** `add_journal_entry` — STAGED → flushed at commit stamped `{variantId, sourceMessageId}` (§2.5).
+/** `add_journal_entry` — STAGED → flushed at commit stamped `{variantId, sourceMessageId}`.
  *
  *  `title` is OPTIONAL + DERIVED-when-absent (the small-model-robust arm — graceful-degrade). WHY:
  *  the projected json_schema DOES mark `title` required, but xgrammar/some backends do NOT enforce `required`
- *  on NESTED ARRAY ITEMS (only at the top level) — LIVE-MEASURED: an 8B dropped `journal[].title`
- *  in 5/8 structured extractions, failing the whole `safeParse` (`path:["journal",0,"title"]`) and silently
- *  dropping the ENTIRE turn's state. Making `title` optional means a title-less entry PARSES; `journalTitleFor`
- *  derives a title from the content head when the model omitted it.
+ *  on NESTED ARRAY ITEMS (only at the top level), so an omitted `journal[].title` fails the whole `safeParse`
+ *  and silently drops the ENTIRE turn's state. Making `title` optional means a title-less entry PARSES;
+ *  `journalTitleFor` derives a title from the content head when the model omitted it.
  *
- *  `type` gets the SAME treatment (EXT-4b — it sits in the identical nested-array blind spot): OPTIONAL here +
+ *  `type` gets the SAME treatment (it sits in the identical nested-array blind spot): OPTIONAL here +
  *  HEALED to `note` (`journalTypeFor`), because a beat whose only defect is a missing KIND is fully salvageable
  *  — `note` is the neutral built-in the panel already renders. Prevention still runs where it works: the
  *  PROJECTION re-marks `type` required (`constrainExtractionSchema`), so a backend that does enforce nested
@@ -271,14 +265,14 @@ export type UpsertQuestArgs = z.infer<typeof upsertQuestArgsSchema>;
  *  `rpg.extraction.healed` — so a silently-healing model is visible, never invisible).
  *
  *  `content` stays REQUIRED, deliberately: a content-less entry has nothing to log (the title derives FROM the
- *  content), so the honest degrade is to drop that one entry as malformed — which every delivery path now does
- *  per-ENTRY (EXT-4a), so the drop costs the entry and never the turn's other five planes. */
+ *  content), so the honest degrade is to drop that one entry as malformed — which every delivery path does
+ *  per-ENTRY, so the drop costs the entry and never the turn's other five planes. */
 export const addJournalEntryArgsSchema = z
   .object({
     type: rpgJournalTypeSchema.optional(),
-    // R4c — the free gloss for `type:"custom"`, the exact `relationship.label` shape: the enum keeps a model
+    // The free gloss for `type:"custom"`, the exact `relationship.label` shape: the enum keeps a model
     // from inventing an off-vocab token under an enforcing grammar, and `custom` + `label` reaches every beat
-    // kind the closed seven miss (the plane fires on 79% of turns, in genres that aren't combat). Meaningless
+    // kind the closed set misses. Meaningless
     // on a non-custom type (the applier clears it there — the relationship precedent).
     label: z.string().optional(),
     title: z.string().min(1).optional(),
@@ -287,7 +281,7 @@ export const addJournalEntryArgsSchema = z
   .strip();
 export type AddJournalEntryArgs = z.infer<typeof addJournalEntryArgsSchema>;
 
-/** The type a type-less journal entry HEALS to (EXT-4b) — the neutral built-in kind, so a beat whose only
+/** The type a type-less journal entry HEALS to — the neutral built-in kind, so a beat whose only
  *  defect is a missing `type` still lands and still renders. One home: the applier heals through
  *  {@link journalTypeFor}, the observability counts the same absence, and neither can drift from the other. */
 const RPG_JOURNAL_TYPE_FALLBACK: RpgJournalType = "note";
@@ -328,8 +322,8 @@ export const rollDiceArgsSchema = z
 
 // Strip mode: also reads stored rows.
 /** `roll_dice`'s persisted TOOL RESULT (the JSON `ToolCallRecord.result` the model round's dice call writes —
- *  `domain/rpg/tools/index.ts` handler value). B8's in-thread `tool-renderers` contribution parses
- *  `record.result` through THIS rather than re-spelling the shape inline (§7.4; same home as
+ *  `domain/rpg/tools/index.ts` handler value). The in-thread `tool-renderers` contribution parses
+ *  `record.result` through THIS rather than re-spelling the shape inline (same home as
  *  `rollDiceArgsSchema`). `faces` are the per-die rolls, `total` the summed value the server baked; `reason`
  *  echoes the model's optional `reason` arg. A malformed/absent blob is the renderer's own fall-back-to-generic
  *  decision (a tool call is CANON — the record is never dropped), never a parse throw here. */
