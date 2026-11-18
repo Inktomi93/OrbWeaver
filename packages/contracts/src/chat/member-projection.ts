@@ -1,4 +1,4 @@
-// @orb/contracts/chat/member-projection — the pure §3.6 member projection of one `MessageView`: hidden-class
+// @orb/contracts/chat/member-projection — the pure member projection of one `MessageView`: hidden-class
 // spans stripped from the body and from each tool call's name, arguments and result, tool positions rebased onto the
 // body, and the reasoning channel withheld on a deception-active game. The server applies it where the payload
 // is produced (`substrate/member-visibility.ts`), and a non-host fork copies tool calls through `memberToolCalls`
@@ -46,14 +46,14 @@ export function memberToolCalls(records: readonly ToolCallRecord[], content: str
 //  (identity when it is already null — the common non-reasoning row allocates nothing). The BODY is left to
 //  {@link stripHiddenForMember}; a caller applies BOTH when the game is deception-active.
 //
-//  THE §8.8 REPLAY PARTS NEED NO ARM HERE, and that is by construction rather than by omission: they are
+//  THE REPLAY PARTS NEED NO ARM HERE, and that is by construction rather than by omission: they are
 //  deliberately absent from `MessageView` (see `messages.ts`), read host-side through the engine's own
 //  `loadReasoningParts` op, and therefore never reach a member's wire at all.
 function stripReasoningFromView(view: MessageView): MessageView {
   return view.reasoning === null ? view : { ...view, reasoning: null };
 }
 
-/** The FULL member projection of one view (§3.6): the unconditional hidden-span BODY strip, plus — when the
+/** The FULL member projection of one view: the unconditional hidden-span BODY strip, plus — when the
  *  game is DECEPTION-ACTIVE — the whole reasoning channel withheld. `reasoningHostOnly` is the per-chat verdict
  *  the caller resolved once (`resolveReasoningHostOnly && viewer !== host`); `false` keeps reasoning visible
  *  for a non-deception game. The ONE composed member-view projection every commit / list / replay / bus

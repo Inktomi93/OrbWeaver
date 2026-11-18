@@ -73,8 +73,8 @@ export interface BulkImportVariantInput {
   readonly ttftMs: number | null;
   readonly genStartedAt: number | null;
   readonly genFinishedAt: number | null;
-  /** The variant's sidecar as the bundle carries it — the same closed `VariantMetadata` the column stores
-   *  (§5.3c class 3), so an import round-trip cannot widen it back into a bag. */
+  /** The variant's sidecar as the bundle carries it — the same closed `VariantMetadata` the column stores,
+   *  so an import round-trip cannot widen it back into a bag. */
   readonly metadata: VariantMetadata | null;
   /** The variant's INPUT token count. An orb-native bundle carries the recorded usage figure. The ST jsonl
    *  arm supplies it for a `user`/`system` slot: ST has ONE `extra.token_count` — the count of the row's own
@@ -82,7 +82,7 @@ export interface BulkImportVariantInput {
    *  {@link tokensOut}. ("ST carries no inbound count" is a claim about ST's FIELD NAMES, not about what
    *  the value means.) */
   readonly tokensIn?: number | null;
-  /** R6 (orb-native only) — the swipe's runtime-variable ops (`message_variants.variable_delta`). Carrying
+  /** The swipe's runtime-variable ops (`message_variants.variable_delta`), orb-native only. Carrying
    *  the DELTAS is what lets a restore re-derive `chats.runtimeVariables`, which is a cache and therefore
    *  does not travel. Absent ⇒ null (the ST arm's shape). */
   readonly variableDelta?: readonly VarOp[] | null;
@@ -188,8 +188,8 @@ export interface BulkImportChatInput {
    *  op runs it through the column's OWN `parseChatMetadata` read seam, so there is exactly one validation home
    *  and a corrupt sub-blob heals to its default instead of landing a shape every reader must then guard. */
   readonly metadata?: ChatMetadata | Record<string, unknown>;
-  // ── R6, the orb-native fidelity arm. Every field below is ABSENT on the ST jsonl path, and absent means
-  // "exactly what an ST import writes today" — so declaring them changed no byte of the interchange arm.
+  // ── The orb-native fidelity arm. Every field below is ABSENT on the ST jsonl path, and absent means
+  // "exactly what an ST import writes today".
   /** `chats.starred`. Absent ⇒ false (the column default). */
   readonly starred?: boolean;
   /** `chats.archived`. Absent ⇒ false (the column default). */
@@ -212,7 +212,7 @@ export interface BulkImportChatInput {
   readonly injections?: readonly BulkImportInjectionInput[];
 }
 
-/** R6 — the ids ONE imported chat was written under, index-aligned to the input that produced them. The
+/** The ids ONE imported chat was written under, index-aligned to the input that produced them. The
  *  orb-native bundle's cross-plane references are POSITIONAL (`messages[i].variants[j]`) precisely BECAUSE
  *  ids are not preserved across a box; this is the remap that turns those positions back into ids, so the
  *  caller can re-link the chat-anchored planes it owns (the rpg campaign) without the chat write op ever
@@ -238,7 +238,7 @@ export interface BulkImportRefusedRow {
   readonly chars: number;
 }
 
-/** R6 — one input's re-link remap, the {@link ImportedChatIdentity} alignment over the room as it stands now.
+/** One input's re-link remap, the {@link ImportedChatIdentity} alignment over the room as it stands now.
  *  `aligned` pairs `messages[i]` with the slot the import wrote for it, and is `null` where that slot or variant
  *  was since deleted. `unproven-origin` is the refusal: the room's surviving slots no longer prove the seq its
  *  import numbered from, so no position can be paired with a row and the caller re-links nothing anchored. */

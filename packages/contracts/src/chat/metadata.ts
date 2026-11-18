@@ -300,7 +300,7 @@ export interface ChatMetadata {
    *  verb; READ by `databank/persistence/scope.ts` (the union filter). Schema is databank's (documentId vocab)
    *  — the databankVisibility precedent. */
   databankVisibility?: ChatDocumentVisibility;
-  /** BG-C — the host-set per-chat carried BACKGROUND source. Absent ⇒ no chat background (the card-carried
+  /** The host-set per-chat carried BACKGROUND source. Absent ⇒ no chat background (the card-carried
    *  twin, then the viewer's own appearance, wins). Written ONLY by the host-gated `chat.setChatBackground`
    *  verb; READ client-side (getChat carries it), applied at the app-root background layer in a TRUE-SOLO room.
    *  Schema is theme's (`ThemeBackground`) — the databankVisibility precedent. */
@@ -311,7 +311,7 @@ export interface ChatMetadata {
    *  heals to absent at the parser (`.catch(undefined)`). Schema is rpg's (`ChatRpgPointer`) — the
    *  databankVisibility/background foreign-schema precedent. */
   rpg?: ChatRpgPointer;
-  /** Whether the room shares its host's display scripts with members (owner ruling: on by default). Absent or
+  /** Whether the room shares its host's display scripts with members. Absent or
    *  `true` ⇒ shared: the room's display tiers, resolved under the host, render for every member, and each
    *  viewer's own scripts still apply on top, so a viewer can always counter-style. A member then also receives
    *  those scripts, patterns and replacement text included, and sees them in the room's roster. `false` ⇒ the
@@ -374,7 +374,7 @@ export interface ChatMetadata {
 
 /** THE PRECEDENCE, one home: **the room's explicit choice wins; an absent room value inherits the host's
  *  per-user default** (`UserSettings.chat.offerChoices`, itself defaulting to off). Two callers by design —
- *  the SERVER resolves it per turn into the S2 teaching knobs, and the CLIENT resolves it to seat the host's
+ *  the SERVER resolves it per turn into the turn's teaching knobs, and the CLIENT resolves it to seat the host's
  *  toggle — so the rule lives here in `contracts` rather than being spelled `?? default` on both sides of the
  *  wire, where the two spellings could drift into a toggle that lies about what the model is being told. */
 export function resolveOfferChoices(roomValue: boolean | undefined, userDefault: boolean): boolean {
@@ -391,7 +391,7 @@ export function resolveHostDisplayScripts(roomValue: boolean | undefined): boole
 /** The "characters can react" precedence — the {@link resolveOfferChoices} rule for its knob: the
  *  room's explicit choice wins, absent inherits the host's per-user default (itself defaulting OFF —
  *  the react tool is opt-in at both tiers). Same two callers by design: the server resolves it into the
- *  S2 teaching knobs, the client resolves it to seat the host's toggle. */
+ *  turn's teaching knobs, the client resolves it to seat the host's toggle. */
 export function resolveCharactersCanReact(roomValue: boolean | undefined, userDefault: boolean): boolean {
   return roomValue ?? userDefault;
 }

@@ -28,11 +28,6 @@ import type { RoomOverrides } from "./metadata.ts";
 import type { MessageKind, SpeakerRef } from "./participants.ts";
 import { messageKindSchema, messageRoleSchema } from "./participants.ts";
 
-// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// THE ASSEMBLE FAMILY — slim assembly projections, NOT re-exports of the full card/persona/entry shapes.
-// Types only — the producing engine (`assemblePrompt`/`buildAssembleContext`) is `domain/chat`.
-// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-
 // The card's Character's-Note-\@-Depth projected onto the assemble characters — spliced into history at a
 //  fixed `depth`/`role`. Re-homed slim HERE (not imported from `contracts/character`) so `chat` avoids a
 //  `chat → character` DAG edge. An empty `prompt` is "no note" at assemble time.
@@ -131,13 +126,13 @@ export interface ChatInjection {
 }
 
 // The injection PRODUCER axis (see {@link ChatInjection.origin}) — declared ONCE as a tuple and DERIVED
-//  (§5.5, no inline union re-spell). Not a wire-input axis: `chatInjectionInputSchema` deliberately omits it
+//  (no inline union re-spell). Not a wire-input axis: `chatInjectionInputSchema` deliberately omits it
 //  (a client never authors provenance — the `user` origin is stamped server-side when the row is mapped).
 const CHAT_INJECTION_ORIGINS = ["user", "world-info", "persona", "authors-note", "guided", "game-state", "new-chat-marker"] as const;
 export type ChatInjectionOrigin = (typeof CHAT_INJECTION_ORIGINS)[number];
 
 /** The four injection positions as a tuple — the ONE runtime home for the `ChatInjection["position"]`
- *  axis (`satisfies` binds it to the interface, so a widened union fails `tsc` here; §5.5 no inline
+ *  axis (`satisfies` binds it to the interface, so a widened union fails `tsc` here; no inline
  *  re-spell). The db carries its OWN tuple checked against the same wire type (schema/chat.ts). */
 export const CHAT_INJECTION_POSITIONS = ["before_prompt", "in_static", "in_prompt", "in_chat"] as const satisfies readonly ChatInjection["position"][];
 
@@ -171,7 +166,7 @@ export const saveCorrectionInputSchema = z.strictObject({
 export type SaveCorrectionInput = z.infer<typeof saveCorrectionInputSchema>;
 
 // WHY one pooled memory block did (or did not) reach this turn's `{{memory}}` — the verdict axis of
-//  {@link MemoryRecallCandidate}. Declared ONCE as a tuple and DERIVED (§5.5, no inline union re-spell).
+//  {@link MemoryRecallCandidate}. Declared ONCE as a tuple and DERIVED (no inline union re-spell).
 //  The arms follow the recall pipeline's own order of elimination (`domain/chat/memory/recall/recall.ts`):
 //   • `struck`         — the host struck this item from the room's memory; first, so a strike outranks every stage;
 //   • `covers-struck`  — a consolidation over a struck item, left out because it retells the struck scene;
@@ -310,7 +305,7 @@ export interface AssembleTrace {
   /** Which user macros this turn had and which lost a name (see {@link MacroSlice}). Absent when no home offered
    *  a user macro, which is the overwhelming case. */
   macros?: MacroSlice;
-  /** Whether the `{{databank}}` slot actually delivered retrieved document text this turn (DB6). Distinct from
+  /** Whether the `{{databank}}` slot actually delivered retrieved document text this turn. Distinct from
    *  "documents are attached": a chat with a full bank still reads false when the active preset places no
    *  databank section, which is exactly the invisible failure this refuses. */
   databankIncluded: boolean;
@@ -338,7 +333,7 @@ export interface AssembleTrace {
 }
 
 /** The context-BUDGET source axis — the six buckets every byte of a next-turn context lands in (the Preview
- *  tab's per-source accounting). Declared ONCE as a tuple and DERIVED (§5.5); the order IS prompt order, which
+ *  tab's per-source accounting). Declared ONCE as a tuple and DERIVED; the order IS prompt order, which
  *  is also the stacked bar's segment order and the client's colour-ramp keying. `history` is the shaped wire
  *  history (SHAPE + FIT), every other member is a BUILD-walk contribution. */
 // Which limit bounds the context: the connected model's `window`, or the preset's own `cap`
@@ -436,18 +431,18 @@ export interface AssemblyBudgetPreview {
   sources: readonly AssemblyBudgetSlice[];
   /** The SAME bytes, partitioned by PROMPT SECTION instead of by source (D121-G): the preset editor's bound
    *  Prompt readout prices its rack rows off this, while the chat Preview tab reads `sources`. One read, two
-   *  projections (§7.1) — rack order, sections that rendered nothing omitted. */
+   *  projections — rack order, sections that rendered nothing omitted. */
   sections: readonly AssemblySectionCost[];
 }
 
-/** Why SHAPE did/didn't place the §8 cache breakpoint — the abort taxonomy, content-free. Declared ONCE as
- *  a tuple and DERIVED (no inline-union re-spell; §5.5). The server builder (`chat/assembly/trace.ts`) labels
+/** Why SHAPE did/didn't place the cache breakpoint — the abort taxonomy, content-free. Declared ONCE as
+ *  a tuple and DERIVED (no inline-union re-spell). The server builder (`chat/assembly/trace.ts`) labels
  *  the outcome; the host inspector renders it. */
 const SHAPE_BREAKPOINT_DECISIONS = ["placed", "no-stable-prefix", "in-prefix-injection-or-squash"] as const;
 export type ShapeBreakpointDecision = (typeof SHAPE_BREAKPOINT_DECISIONS)[number];
 
 // WHERE one delivered wire row's bytes came from — the provenance axis of {@link ShapeTraceRow}. Declared
-//  ONCE as a tuple and DERIVED (§5.5). Resolved from the SHAPE-internal `messageId` discriminator (a canon row
+//  ONCE as a tuple and DERIVED. Resolved from the SHAPE-internal `messageId` discriminator (a canon row
 //  carries the id of the message it was loaded from; a spliced injection and a synthetic nudge are id-less by
 //  construction — the same distinction `resolveFullCards` reads):
 //   • `canon`     — every contributing row is a stored message;
@@ -583,7 +578,7 @@ export interface AssembledPrompt {
  * It is also the READ-SEAM PARSER for that column: `promptSnapshot` is untyped JSON at rest (`$type<>` is a
  * compile-time claim, not a runtime one), so the wire read `safeParse`s through this instead of casting. A
  * blob that fails degrades to `null` — an honest "nothing captured", never a throw or a half-typed object.
- * The `position`/`role` axes DERIVE their canonical tuples (§5.5, no inline re-spell).
+ * The `position`/`role` axes DERIVE their canonical tuples (no inline re-spell).
  */
 export const sentPromptSchema = z
   .object({
@@ -611,7 +606,7 @@ type SentPrompt = z.infer<typeof sentPromptSchema>;
  *
  * HOST-ONLY MATERIAL — the payload is deliberately DISJOINT from the member-visible `MessageView` (no
  * content/model/tokens/toolCalls re-served here; a member already has those). Every field below is
- * host-plane by §3.6:
+ * host-plane:
  *  • `prompt` is the assembled prompt, and the wire projection rides hidden spans VERBATIM (the model always
  *    reads them, `domain/chat/substrate/member-visibility` "WHO SEES WHAT"), plus every roster card at FULL
  *    fidelity (bypassing the D22 `memberCardVisibility` clamp), plus the whole assembled history — including
@@ -621,7 +616,7 @@ type SentPrompt = z.infer<typeof sentPromptSchema>;
  *  • `rawContent`/`macroFreezes` are the D129-F freeze provenance — the pre-transform authored text and the
  *    volatile occurrences the commit baked. HOST-PLANE, and THIS view is the only surface that serves them
  *    (never `MessageView`): the receive transforms exist partly to STRIP content, so pre-strip bytes reaching
- *    a member would re-open the D110 §3.6 class. `rawContent: null` means NO DISTINCT pre-transform text is
+ *    a member would re-open the D110 hidden-content class. `rawContent: null` means NO DISTINCT pre-transform text is
  *    served here — nothing transformed the body, a later content write invalidated the provenance, or the
  *    fork strip removed it — never "the authored text was identical" (the writer's rule, canon-write.ts).
  *
@@ -642,7 +637,7 @@ export interface VariantWireView {
 }
 
 /** The immutable per-turn context (RESOLVE + GATHER produce it; BUILD + SHAPE take it + a speaker). Most
- *  fields are optional so hand-built / preview / solo contexts degrade to byte-identical output (the §10.4
+ *  fields are optional so hand-built / preview / solo contexts degrade to byte-identical output (the
  *  degenerate-case doctrine: solo is the trivial roster, never an `if(isGroup)` branch). */
 // How a turn's global plane stands. `staged`: no other human ever held a seat in the room, so the host's plane reads
 // and the turn's writes commit with its reply. `held`: room text has no reliable author, so reads give "" and writes
@@ -662,7 +657,7 @@ export interface AssembleContext {
   /** The active/primary character for this turn. */
   character: AssembleCharacter;
   /** The resolved generation config the BUILD walk renders against (the reorderable section model). The
-   *  `chat → preset` edge (DAG §1): assembly always builds against a `PromptConfig`. */
+   *  `chat → preset` edge: assembly always builds against a `PromptConfig`. */
   promptConfig: PromptConfig;
   /** All character members (primary first). A roster-of-one solo chat is exactly `[character]`. */
   characters?: AssembleCharacter[];
@@ -771,7 +766,7 @@ export interface AssembleContext {
    *  onto {@link AssembleTrace.macros} by the BUILD walk. Absent ⇒ no home offered a user macro. */
   macroTrace?: MacroSlice | undefined;
   /** Retrieved databank document context (the `{{databank}}` marker), pre-formatted + budget-fitted by the
-   *  databank GATHER op (DB6). ABSENT (never `""`) ⇒ the slot resolves empty, byte-identical to a
+   *  databank GATHER op. ABSENT (never `""`) ⇒ the slot resolves empty, byte-identical to a
    *  non-databank turn. */
   databank?: string | null;
   /** Per-chat ChoiceBlock variable values (the `getvar` map) — threaded BY REFERENCE so a within-turn
@@ -786,7 +781,7 @@ export interface AssembleContext {
   /** One-turn ephemeral guidance for the `{{guided_instruction}}` marker. NEVER persisted; ALWAYS dynamic. */
   guidedInstruction?: string | null;
   /** Set true when a `system`-placement guided steer FELL BACK to a depth-0 injection because the active
-   *  preset lacks/disables the `{{guided_instruction}}` marker (§10 addendum / F8). The steer still lands
+   *  preset lacks/disables the `{{guided_instruction}}` marker. The steer still lands
    *  (via the injection list), but the engine reads this to emit a LOUD `guided_placed_as_injection`
    *  warning (D41). Absent/false ⇒ the steer landed via its intended placement. */
   guidedPlacedAsInjection?: boolean;

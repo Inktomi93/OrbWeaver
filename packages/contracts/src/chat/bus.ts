@@ -5,7 +5,7 @@
 // LAWS honored here:
 //   • Turn identity (D19): no bus event carries a caller id — turn attribution rides the turn path
 //     (`triggeredBy`/`runAsUserId`), never the public bus.
-//   • Bus-payload allowlist (Part III inv §11): every `ChatBusEvent` member is a closed object literal of
+//   • Bus-payload allowlist: every `ChatBusEvent` member is a closed object literal of
 //     branded ids, enum literals, plain scalars, and `MessageView` — credentials/secrets/baseUrls are
 //     TYPE-LEVEL UNREPRESENTABLE (no member declares a field to carry one).
 
@@ -96,7 +96,7 @@ const PLAIN_CHAT_WARNING_CODES = [
   // Tools were attached but `capability.tools` is absent → dropped; the turn proceeds tool-less
   // (D48; the domain-side gate per D51's rule — the emit site is the engine's attach gate).
   "tools_unsupported",
-  // The post-turn memory build (§3a fire-and-forget) threw — group/scoped digests did NOT build this turn
+  // The post-turn memory build (fire-and-forget) threw — group/scoped digests did NOT build this turn
   // (a summarizer outage, a store failure, a mint failure). Emitted from the engine's memory-trigger catch so
   // the silent-failure black hole is observable; the turn's reply is unaffected.
   "memory_build_failed",
@@ -120,7 +120,7 @@ const PLAIN_CHAT_WARNING_CODES = [
   // Emitted from the registry's apply pass so a host sees a misbehaving rule/plugin without losing the reply.
   "prompt_transform_skipped",
   // An image generation dropped its edit/avatar-reference input because the resolved image model lacks
-  // `input.imageEdit` (the domain B3 gate drops-with-warning, or the runner belt strips
+  // `input.imageEdit` (the domain gate drops-with-warning, or the runner belt strips
   // a stale-capability edit). Emitted from `chat.generateImage`, mapping `GeneratedPicture.warnings` onto the
   // one chat `warning` surface so the user sees "generated without the avatar reference (model can't edit)".
   "image_edit_dropped",
@@ -150,11 +150,11 @@ const PLAIN_CHAT_WARNING_CODES = [
   // reranker sibling of `smart_arbitration_degraded`: the fix is a Reranker binding, not a Utility model.
   "speaker_rerank_unavailable",
   // A BACKGROUND task (summaries, captions, digests) could not run for this turn's funder — no binding, or the
-  // bound row has `allowBackground` off (inference program §5.3a: the background tasks share ONE degrade
+  // bound row has `allowBackground` off (the background tasks share ONE degrade
   // notice so "nothing ran" is never the whole signal). The turn itself is unaffected.
   "background_task_degraded",
   // A `system`-placement guided steer FELL BACK to a depth-0 injection because the active preset's template
-  // lacks (or disabled) the `{{guided_instruction}}` marker (§10 addendum / F8). The steer still lands — via
+  // lacks (or disabled) the `{{guided_instruction}}` marker. The steer still lands — via
   // the ChatInjection channel — instead of vanishing behind the config-editor's marker chip. Degraded-and-loud
   // (D41): emitted from the engine's capability-drop pass off the assembled `guidedPlacedAsInjection` flag.
   "guided_placed_as_injection",
@@ -173,7 +173,7 @@ const PLAIN_CHAT_WARNING_CODES = [
   // bus-payload allowlist + the `index.test-d.ts` anchor pins). That detail stays where it already lives —
   // the infra `refusal` ChatEvent and the wire-outcome ring — and this is the user's half.
   "provider_refused",
-  // §6.7 — the model DID emit a picture inside its reply and we could not keep it: the provider's payload
+  // The model DID emit a picture inside its reply and we could not keep it: the provider's payload
   // carried neither bytes nor a URL, the URL was refused by the SSRF-safe egress belt, the bytes were not a
   // real image, or they blew the per-image cap. The PROSE still committed (the reply is the product), and no
   // `asset:` span was written, so canon never names a blob that does not exist. Degraded-and-loud (D41):
@@ -391,7 +391,7 @@ export const CHAT_NOT_HOST_OP_CODE = "not_host" as const;
 // TURN-PATH STATE, never a bus-event field: the D19/D50 allowlist forbids attribution on the public bus, so
 // this rides the committed reply SLOT (`messages.initiator`/`.automationDepth`) and is read back by the ONE
 // narrow `getTurnOrigin` op — the automation cascade guard's depth source. Human turns are born
-// `"human"`/depth 0 (the column defaults); a NON-HUMAN `requestTurn` (AC-B) stamps its initiator + the parent
+// `"human"`/depth 0 (the column defaults); a NON-HUMAN `requestTurn` stamps its initiator + the parent
 // depth + 1. `"automation"` = an automation rule's `trigger_turn` arm; `"plugin"` = a Tier-2 plugin membrane
 // host-fn's turn.trigger (both funded by + consent-gated on the responsible human, depth-capped). `"import"` =
 // a slot the bulk-import seam wrote (a user's imported history, the seeded example rooms): nobody typed it in
@@ -412,7 +412,7 @@ export const AUTOMATION_DEPTH_HARD_CAP = 3;
  *  + the initiator). Read back through `getTurnOrigin`; stamped on the reply slot at commit. */
 export interface TurnOrigin {
   readonly initiator: TurnInitiator;
-  /** 0 for a human turn; parentDepth + 1 for an automation-triggered turn (hard cap 3 — 03 §4). */
+  /** 0 for a human turn; parentDepth + 1 for an automation-triggered turn (hard cap 3). */
   readonly automationDepth: number;
 }
 
@@ -495,8 +495,7 @@ export interface PromptTransform<Signal> {
  *  reach table's `regex` resolver serves the OTHER half (a library row's `enabled`/name changing under every
  *  room that attaches it), which is the same staleness one plane up.
  *
- *  `databank` is a member (owner ruling "im not locked in on three" — the wave's owner-named
- *  three was never a ceiling, and bridge design §8 / fork F-E is CLOSED). It takes BOTH `regex` shapes,
+ *  `databank` is a member: a chat rack has both inputs, so it takes BOTH `regex` shapes,
  *  because the per-chat document rack has both inputs: the ROOM's own junction moved (`attachToChat` /
  *  `detachFromChat` — the verb already holds the `chatId`), or a LIBRARY row / a non-chat D85 scope junction
  *  moved under every room that credits it (`rename`, the character- and global-scope attach/detach, and a
@@ -509,7 +508,7 @@ export type RoomEntityKind = (typeof ROOM_ENTITY_KINDS)[number];
 /** The chat bus union — the room-public event stream (the `chat` ROOM fans these out; the durable log
  *  replays them). It EMBEDS `WiBusEvent` (`#world-info`) so the WI domain emits without importing chat.
  *
- *  BUS-PAYLOAD ALLOWLIST (Part III inv §11): every member is a closed object literal of branded ids, enum
+ *  BUS-PAYLOAD ALLOWLIST: every member is a closed object literal of branded ids, enum
  *  literals, plain scalars, and `MessageView` — there is NO `unknown`/`Record`/index field. Credentials /
  *  secrets / baseUrls are therefore TYPE-LEVEL UNREPRESENTABLE: a producer cannot place an `apiKey` into a
  *  bus event because no member declares a field to carry it. (The `.contract.test` pins this.) No member
@@ -527,7 +526,7 @@ export type ChatBusEvent =
   // allocated tail seq (`maxSeq + 1`) for a new slot. NEVER client-supplied, never defaulted; on the
   // new-slot seq-race retry the real row lands at a HIGHER seq than announced, which errs toward
   // withholding, never toward leaking.
-  // `memberText` = the §3.6 MEMBER PROJECTION of this tick's `text` bytes, STAMPED AT THE PRODUCER
+  // `memberText` = the MEMBER PROJECTION of this tick's `text` bytes, STAMPED AT THE PRODUCER
   // (`domain/chat/bus::createChatBus`, via `substrate/member-visibility::createMemberDeltaStamper`).
   // WHY IT LIVES ON THE EVENT: the hidden-span scrub is STATEFUL across a slot's whole delta stream (a
   // `<lie …/>` opener is withheld until its `/>` arrives) and VIEWER-INDEPENDENT (every non-host member is
@@ -563,10 +562,10 @@ export type ChatBusEvent =
   // so the client can open its turn slot (→ render Stop) during a hung smart arbitration, which runs BEFORE
   // `turnStarted` and used to leave the user with no Stop affordance at all. Carries no speaker: the group
   // arbitration that picks the speaker has not run yet, so `speakerCharacterId` is null on accept and the
-  // later `turnStarted` re-opens the slot with the resolved speaker. The AUXILIARY turns (swipe / continue /
-  // generate) accept for the same reason at a different wall: their `turnStarted` lands only after the
-  // room/connection resolve, the context assembly and MEMORY RECALL (measured 151 ms - 1.9 s, unbounded), and
-  // until it did, the reader saw the OLD variant with no feedback. `targetMessageId` is the ghost-slot a
+  // later `turnStarted` re-opens the slot with the resolved speaker. An auxiliary turn (swipe / continue /
+  // generate) accepts for the same reason at a different wall: its `turnStarted` lands only after the
+  // room/connection resolve, the context assembly and MEMORY RECALL (unbounded), and until it did, the reader
+  // saw the OLD variant with no feedback. `targetMessageId` is the ghost-slot a
   // swipe/continue rerolls/extends (null for a fresh reply) — the client renders its ghost over that message.
   //
   // Every acceptance is TOTAL-RESOLVED — a `turnAccepted` slot never strands open. The arbitration path emits
@@ -597,7 +596,7 @@ export type ChatBusEvent =
       turnId: ChatTurnId;
       intent: TurnIntent;
       api: ChatApi | null;
-      /** The provider REGISTRY id the turn resolved to (inference program §5.3c) — the source axis is retired. */
+      /** The provider REGISTRY id the turn resolved to — the source axis is retired. */
       provider: ProviderId;
       model: string;
       /** The roster character speaking this turn (group "whose turn is it" automation; ST GROUP_MEMBER_DRAFTED).
@@ -619,7 +618,7 @@ export type ChatBusEvent =
   // recall starts for a turn (memory on), `phase:"recalled"` with the surfaced `count` once it closes. Stamped
   // at the SINGLE recall convergence (`domain/chat/memory/recall/recall.ts::finish` + its start), so both the
   // round-level and the per-speaker witnessed recall feed it with no second emit site. Memory OFF emits
-  // NEITHER — an absent event is the idle icon, never a lying "recalled 0". Allowlist-clean (Part III inv §11):
+  // NEITHER — an absent event is the idle icon, never a lying "recalled 0". Allowlist-clean:
   // a branded id, an enum phase, and a plain-scalar count — it carries NO digest content or scores (that detail
   // is host-only and stays off the room-public bus; the header popover reads it from the host-gated assembly
   // preview). LIVE-ONLY (see LIVE_ONLY_CHAT_EVENT_TYPES): the phase is EPHEMERAL per-turn state — replaying a
@@ -673,27 +672,21 @@ export type ChatBusEvent =
   //    DEPTH, not attribution — no caller id, no secret (the allowlist bans those, not a counter).
   | { type: "worldInfoActivated"; chatId: ChatId; entryIds: WorldEntryId[]; automationDepth: number }
   | { type: "personaSwitched"; chatId: ChatId; from: PersonaId | null; to: PersonaId | null }
-  // ── A message reaction was added or removed (B6/MR0). CANON, not per-viewer: every member of the room sees
-  //    the same reaction set, so a toggle by one member must reach every other member's open transcript —
-  //    which is the whole reason this member exists rather than the writing tab reconciling alone (MA-2 §5).
+  // ── A message reaction was added or removed. CANON, not per-viewer: every member of the room sees the same
+  //    reaction set, so a toggle by one member must reach every other member's open transcript — which is the
+  //    whole reason this member exists rather than the writing tab reconciling alone.
   //    DURABLE (absent from `LIVE_ONLY_CHAT_EVENT_TYPES`): the reaction it announces is canon that survives
   //    the fan, so a device dark through the toggle must learn about it on replay like any other canon
   //    mutation — the `roomEntityChanged` live-only ECONOMY argument does not apply, because there is no
-  //    attach synthesis that re-reads reactions.
-  //    Emitted AFTER the durable write commits (durable-first, the `createChatBus` discipline).
+  //    attach synthesis that re-reads reactions. Emitted AFTER the durable write commits.
   //    NO VIEW CARRIER, deliberately: the pill row is a SEPARATE bounded room-scoped read the client indexes
   //    by `variantId` (`chat.listReactions`), not a field of `MessageView` — folding reactions into the view
   //    would put a join on every canon read and every bus carrier for an ornament most rows never carry.
-  //    `emoji` + `added` ride the event so an automation predicate can say WHAT happened without a re-read
-  //    (the `reactionsChanged` trigger's fact projects exactly these). `emoji` is the CLOSED `ReactionEmoji`
-  //    union, not a raw `string`, and that is load-bearing rather than cosmetic: `index.test-d.ts` pins that
-  //    the ONLY raw-string keys on this bus are `turnStarted.model` and the seq-anchored `delta.memberText`
-  //    ("adding a THIRD raw-string key must clear the same bar: name the anchor, or don't ship it"). A
-  //    string-literal union does not satisfy `string extends T`, so this member stays outside that pin BY
-  //    CONSTRUCTION — the `roomEntityChanged.entity` / `memoryRecall.phase` precedent — allowlist-clean
-  //    (Part III inv §11): branded ids, a plain string, a boolean, and no caller id (D19 — the REACTOR is a
-  //    participant SEAT, which is room-public roster data, not a caller identity; it is deliberately absent
-  //    here anyway, because the grouped re-read is what tells a client who reacted).
+  //    `emoji` + `added` ride the event so an automation predicate can say WHAT happened without a re-read.
+  //    `emoji` is the CLOSED `ReactionEmoji` union, not a raw `string`: `index.test-d.ts` pins the only
+  //    raw-string keys on this bus, and a string-literal union does not satisfy `string extends T`, so this
+  //    member stays outside that pin BY CONSTRUCTION. No caller id (D19) — the REACTOR is a participant SEAT,
+  //    which is room-public roster data, and the grouped re-read is what tells a client who reacted.
   | { type: "reactionsChanged"; chatId: ChatId; messageId: MessageId; variantId: MessageVariantId; emoji: ReactionEmoji; added: boolean }
   // ── World-info attachment changes (chat-surface only; embedded from #world-info) ──
   | WiBusEvent
@@ -702,10 +695,9 @@ export type ChatBusEvent =
   //    lane is not an optimisation but the only correct shape: `chat_events.chat_id` FKs to `chats` with
   //    ON DELETE CASCADE, so a durable `chatDeleted` row either FK-fails (appended after the delete) or is
   //    cascaded away by the very delete it announces — no `chatDeleted` was EVER replayable. Being
-  //    append-free is what lets both delete paths run the DELETE FIRST and fan only on `RETURNING` rows,
-  //    which CLOSES the R1-4a false-emit (a raced reap used to announce the death of a room that survived)
-  //    rather than narrowing it. Owner fork F-A: the pump delivers this one GATE-FREE to every attached
-  //    subscriber, because after the row is gone the member probe can only answer "not a member".
+  //    append-free is what lets both delete paths run the DELETE FIRST and fan only on `RETURNING` rows, so a
+  //    raced reap cannot announce the death of a room that survived. The pump delivers this one GATE-FREE to
+  //    every attached subscriber, because after the row is gone the member probe can only answer "not a member".
   | { type: "chatDeleted"; chatId: ChatId }
   // ── Chat session open (subscription-synthesized at participant stream-attach, like `historyTruncated`;
   //    per-viewer, NOT a canon mutation, never logged — the ST CHAT_CHANGED automation trigger: "on chat
@@ -717,7 +709,7 @@ export type ChatBusEvent =
   | { type: "historyTruncated"; chatId: ChatId }
   // ── Catch-all for low-payload chat-row changes (starred/archive/title/variables/injections/compact) ──
   | { type: "chatUpdated"; chatId: ChatId }
-  // ── The entity→room member-freshness bridge (design §3.3). An OWNER-PLANE entity edit (a card, a persona,
+  // ── The entity→room member-freshness bridge. An OWNER-PLANE entity edit (a card, a persona,
   //    a lorebook) moved something this room's MEMBER-VISIBLE projections read, so every member re-READS
   //    through the already-clamped verbs. LIVE-ONLY (see LIVE_ONLY_CHAT_EVENT_TYPES): never appended to
   //    `chat_events`, so it is never replayed — the heal for a device that was dark is the attach synthesis
@@ -780,7 +772,7 @@ export const CHAT_BUS_EVENT_TYPES = {
   roomEntityChanged: true,
 } satisfies Record<ChatBusEvent["type"], true>;
 
-/** THE LIVE-ONLY LANE (design §3.4). These members are fanned on the room's live channel WITHOUT a
+/** THE LIVE-ONLY LANE. These members are fanned on the room's live channel WITHOUT a
  *  `chat_events` append — they carry no canon and have nothing to replay, so paying a durable row per fan
  *  would pollute the log and cost an INSERT per seated room per edit.
  *
@@ -797,7 +789,7 @@ export const CHAT_BUS_EVENT_TYPES = {
  *  guessed: `roomEntityChanged` is live-only as an ECONOMY (a durable row per seated room per card edit buys
  *  nothing — the heal is the attach synthesis, and it is DERIVED over `ROOM_ENTITY_KINDS` so it cannot fall
  *  behind the kinds this economy applies to); `chatDeleted` is live-only by PHYSICS (its log row cascades
- *  away with the very chat it announces, so it was never replayable at all — design §4 / R1-4a), and being
+ *  away with the very chat it announces, so it was never replayable at all), and being
  *  append-free is precisely what lets its two producers DELETE FIRST and fan only what `RETURNING` proves
  *  gone; `memoryRecall` is live-only by SEMANTICS — it is an EPHEMERAL per-turn phase feeding the
  *  header brain-icon, so replaying a stale "recalling" from a prior subscription would be a lie, and there is

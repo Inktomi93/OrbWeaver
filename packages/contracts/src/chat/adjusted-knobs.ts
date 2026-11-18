@@ -15,7 +15,7 @@ export const ADJUSTED_KNOBS = [
   "thinkingBudgetTokens",
   // The reply-pictures ask (`text+image`), dropped on a model whose capability produces text only.
   "replyMedia",
-  // The reasoning-CARRY rung (§8.8), dropped when the model accepts no replayed thinking back
+  // The reasoning-CARRY rung, dropped when the model accepts no replayed thinking back
   // (`capability.reasoning.replay: "none"`) or when reasoning is OFF for this turn — a carry knob on a
   // non-reasoning turn has nothing to carry.
   "carryReasoning",

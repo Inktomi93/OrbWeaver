@@ -16,7 +16,6 @@ import type { HistoryFloorSeq, SeatRenderPolicy } from "./roster.ts";
 import type { TurnOutcome } from "./views.ts";
 
 /** Does the invite's minter still hold the authority to mint a signup invite: enabled, and a global admin? */
-
 export type SignupMinterCheckOp = (minterUserId: UserId) => Promise<boolean>;
 
 // The per-seat card-derived decoration a roster projection needs, resolved from ONE character read (the
@@ -28,7 +27,7 @@ interface SeatDeco extends SeatRenderPolicy {
   /** The raw, unmerged per-character theme override; null for a card-less seat. Chat never reads the themes
    *  table — the override/global/default cascade is a client concern. */
   readonly themeOverride: ThemeOverride | null;
-  /** BG-C — the raw, unmerged per-character carried BACKGROUND source (the `themeOverride` twin); null for a
+  /** The raw, unmerged per-character carried BACKGROUND source (the `themeOverride` twin); null for a
    *  card-less seat. The true-solo takeover + cascade are a client concern (the app-shell resolver). */
   readonly backgroundOverride: ThemeBackground | null;
   /** The card's display name + avatar; null for a human/agent seat, no host, or a gone card. */
@@ -65,7 +64,7 @@ export interface ViewerVisibility {
   readonly chatId: ChatId;
   readonly role: ParticipantRoleState;
   readonly historyFloorSeq: HistoryFloorSeq;
-  /** The parity-plus §3.6 / D106 hidden-content verdict for THIS viewer: `true` ⇒ they read hidden-class spans
+  /** The D106 hidden-content verdict for THIS viewer: `true` ⇒ they read hidden-class spans
    *  (`<lie>`/`<ofilter>`) verbatim — the host reveal plane; `false` ⇒ a member, whose canon must be
    *  hidden-stripped before any cross-domain consumer serves the body. DERIVED here from `role` via chat's ONE
    *  `viewerReadsHidden` home so a cross-domain consumer (the plugin realm) never re-derives `role === "host"`. */
@@ -110,7 +109,7 @@ export type ResolveSeatDecosOp = (params: {
  * `trigger_turn` arm and the Tier-2 plugin membrane's `turn.trigger` host-fn. The verb resolves the funding
  * host from the room itself (never a caller-supplied id), gates the initiator's membership, threads the origin
  * onto the reply slot, and runs the turn through the SAME engine path a human send clears — the per-chat turn
- * lock and the cascade-depth cap included. (Automation's own §3 rate gate is the spend wall, and
+ * lock and the cascade-depth cap included. (Automation's own rate gate is the spend wall, and
  * it sits in the arm above this op.)
  */
 export interface RequestTurnParams {
