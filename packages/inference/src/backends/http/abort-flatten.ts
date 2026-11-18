@@ -1,7 +1,7 @@
 // packages/inference/src/backends/http/abort-flatten.ts — the ONE home for "fold a CALLER's AbortSignal into a
 // signal WE own", and therefore the one home of the reason-flattening law every provider call obeys.
 //
-// THE BUG CLASS THIS EXISTS TO KILL (STRUCTURED-ABORT-REASON-LEAK): `AbortSignal.any([external, mine])`
+// THE BUG CLASS THIS EXISTS TO KILL: `AbortSignal.any([external, mine])`
 // PROPAGATES the source signal's `reason`, and a signal handed to `fetch` makes that reason the value the
 // fetch promise REJECTS with (per spec — undici does exactly this). So a caller's abort reason becomes the
 // error text our transport classifier reads. `classifyTransportName` (`./error-classify.ts`) decides
@@ -9,11 +9,9 @@
 // name+message — so a domain abort whose reason merely CONTAINS one of those words ("timeout waiting for the
 // user", "connection closed by the host") classifies a DELIBERATE CANCELLATION as a transient fault. A
 // retryable verdict is then honoured by our own pre-commit retry loop (`./retry.ts`), which re-runs the
-// cancelled call and bills for it again. (An earlier draft of this header also credited the
-// `@openrouter/sdk@1.1.8` client's default `retryConfig` for the same re-run. That package is NOT a
-// dependency of this tree — `@openrouter/ai-sdk-provider@3.1.0` is, and its dist carries no retry loop — so
-// the claim is withdrawn: it described another client's trap, not evidence for this fix. The law below rests
-// on our own loop alone.)
+// cancelled call and bills for it again. The `@openrouter/sdk@1.1.8` client's default `retryConfig` is NOT
+// evidence here: that package is not a dependency of this tree — a probe instrument only — and the installed
+// `@openrouter/ai-sdk-provider@3.1.0` dist carries no retry loop. The law below rests on our own loop alone.
 //
 // THE FIX SHAPE: never compose with `.any`. Re-abort OUR OWN controller with NO argument, so every cause
 // flattens to a plain `AbortError` and the provider taxonomy stays independent of any caller's abort

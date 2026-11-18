@@ -5,8 +5,8 @@
 //     a `302 → https://attacker/…` would exfil the key past the egress firewall, which blocks PRIVATE targets
 //     and does not strip credential headers on a cross-origin hop. Applied to EVERY endpoint row (vLLM
 //     included).
-//   • The error body is read capped at 64 KiB with `reader.cancel()` past the limit, then classified through
-//     the shared HTTP table with the caller's secret scrub set (REQUIRED, never defaulted).
+//   • The error body is read capped at `ERROR_BODY_LIMIT` with `reader.cancel()` past the limit, then
+//     classified through the shared HTTP table with the caller's secret scrub set (REQUIRED, never defaulted).
 //
 // It is an upstream-prose path, so it composes its hygiene exactly like the other one (`providerErrorFromHttp`
 // in `error-classify.ts`): two prose paths where one is sanitized and one is not is the inconsistency that

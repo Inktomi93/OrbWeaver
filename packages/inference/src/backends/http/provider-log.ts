@@ -11,7 +11,7 @@ export const EMBED_CLAMPED_EVENT = "provider.embed-clamped";
 /** The turn's two receipt events — the one spelling the emitters below and the suites that pin the receipts use. */
 export const PROVIDER_SAMPLING_EVENT = "provider.sampling";
 export const PROVIDER_CAPABILITY_EVENT = "provider.capability";
-/** The explicit-cache placement line; the D4 trace surface shares this name deliberately (`turn-span.ts`). */
+/** The explicit-cache placement line; the turn span's event shares this name deliberately (`turn-span.ts`). */
 export const PROVIDER_CACHE_EVENT = "provider.cache";
 
 /** Bind the sink to one wire/provider pair — every line the backend emits carries both. */

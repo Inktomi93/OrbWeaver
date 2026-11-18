@@ -9,7 +9,7 @@
 // ORDER LAW — SCRUB BEFORE YOU MANGLE (the sibling half of `redactSecretsFromText`'s spellings rule).
 // `sanitizeApiError` MUTATES its input: it replaces every `<…>` span with a space, drops C0
 // controls, collapses whitespace and hard-caps at {@link DEFAULT_SANITIZE_MAX_LEN}. Each of those edits can
-// bite a KNOWN credential literal in half — `k<x>ey` becomes `k ey`, a key straddling char 500 loses its
+// bite a KNOWN credential literal in half — `k<x>ey` becomes `k ey`, a key straddling the cap loses its
 // tail — and once the literal is fragmented NEITHER its raw nor its JSON-escaped spelling matches, so the
 // by-value belt (`redactSecretsFromText`) never reaches the remainder and the fragment rides
 // `ProviderError.message` into the `securityEvent` + the credential audit row. So every caller spells
@@ -27,8 +27,8 @@
 //
 // THE `includeBody` ARM — which user-authored BODY values count as credential material. A BYO
 // endpoint may authenticate by a BODY FIELD rather than a header (`includeBody: {"api_key": "…"}`), and
-// that literal reaches the same sinks the apiKey does: `providerErrorFromHttp`'s message (durable since
-// #1373 — a `securityEvent` plus the credential audit row), the runner's captured wire body, and the
+// that literal reaches the same sinks the apiKey does: `providerErrorFromHttp`'s message (a `securityEvent`
+// plus the credential audit row), the runner's captured wire body, and the
 // "Test endpoint" inspector's displayed request + echoed response. The chosen rule is a NAMED ALLOWLIST of
 // credential KEY NAMES ({@link SECRET_BODY_KEYS}), matched on the normalized key at any depth, collecting
 // STRING leaves only. The three arms this beat, and why:
