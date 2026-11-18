@@ -1,11 +1,20 @@
 ---
 kind: plan
-status: active
+status: parked
+blocked: owner
 updated: 2026-11-18
 rank: 19
 ---
 
 # A Google reply that hits the output cap continues in the same turn, and the record says so
+
+**Parked by owner ruling.** A truncated Google reply continues through the EXISTING domain
+`continue` intent (`autoContinue` / `runAutoContinue` at
+`packages/server/src/domain/chat/verbs/turn.ts:1703-1704`), not through this backend leg loop: the loop's
+resume fidelity and invisibility do not pay for a capability cell, a funnel policy and a ledger row, and its
+billing is a wash against the continue's canon re-send. The record half below (the `outputCapReached`
+predicate collapse) and a proof that `continueTurn` continues a Google truncation on the native route are
+3575's remaining scope. This design stands for the day resume quality is demonstrably a problem.
 
 Board item: [3575](../../work/3575-google-continuationtoken-fully-wire-the-round-trip.md). Ruling it
 implements: [`ai-sdk-surface.md`](../../law/ai-sdk-surface.md), "Rulings on the open questions" item 3.

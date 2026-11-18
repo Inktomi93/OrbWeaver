@@ -171,8 +171,13 @@ Judgments: **necessary** (the SDK cannot), **stricter** (the SDK can, loses a wr
    are passed to the openai `/responses` route under the same capability gates the chat route uses.
 2. Web-search `source` parts: the app runs no web-search feature, but the parts are **stored, not dropped** —
    `ChatResult` gains the field and the fold keeps them; no UI is promised. (Boarded item.)
-3. Google `continuationToken`: **to be fully wired** — a truncated Google reply should continue rather than
-   terminate, reconciled with the output-cap law by its lane. (Boarded item.)
+3. Google `continuationToken`: the domain path wins — a truncated reply continues through the EXISTING
+   `continue` turn intent (`autoContinue` / `runAutoContinue`, already gated on `finishReason === "length"`),
+   not a new backend leg loop. The owner ruled the leg loop over-engineered: its resume fidelity and
+   invisibility do not pay for a capability cell, a funnel policy and a ledger row, and its billing is a wash
+   against the continue's canon re-send. The leg-loop design stays parked at `docs/plans/` for the day resume
+   quality is demonstrably a problem. 3575's remaining scope is the record half and a proof that
+   `continueTurn` continues a Google truncation correctly on the native route.
 4. Google server-side retrieval tools: **not supported** by owner decision; nothing in the architecture needs
    re-reading because nothing reaches the rule.
 5. Anthropic safeguards: **declined** — the owner's users are roleplaying catgirls, not paying for a compliance
@@ -182,7 +187,7 @@ Judgments: **necessary** (the SDK cannot), **stricter** (the SDK can, loses a wr
    attribution lane is the condition for re-listing. (Boarded item.)
 7. `metadataExtractor`: **adopted** on the openai-compatible chat model for `system_fingerprint` only. The
    compatible SDK's response schema strips the field before our drain sees it, and no hook on
-   `@ai-sdk/openai` or `@openrouter/ai-sdk-provider` models it at all (measured 2026-11-17). The extractor's
+   `@ai-sdk/openai` or `@openrouter/ai-sdk-provider` models it at all (measured against the installed pins). The extractor's
    bag key and the fold read share `providerOptionsKey`, which is also the 3577 fix.
 
 ## Method note
