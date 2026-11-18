@@ -7,11 +7,11 @@
 //      OVER-reads by `secretScrubOverhang` and scrubs before it slices (#1820) — see `scrubToLimit`.
 //   4. Wire-capture bodies are SECRET-SCRUBBED BY VALUE before the ring (`transport.includeBody` can carry
 //      key-in-body auth), and the entry is emitted AFTER the attempt so the RESPONSE HEADERS ride with it
-//      (§D1: Anthropic's `request-id` + rate-limit budget, OpenRouter's `x-openrouter-*` routing trail).
+//      (Anthropic's `request-id` + rate-limit budget, OpenRouter's `x-openrouter-*` routing trail).
 //      Here rather than at the `doStream` result because the bytes this file holds are the FINAL ones —
 //      after `transformRequestBody` AND after our own `shapeBody` — while the SDK result's `request.body`
 //      is an earlier copy that predates the shaping.
-//   4b. THE REPLY TAP (§D2/§D3), opt-in (`capture.reply`): the response body is TEE'd, our branch drained to
+//   4b. THE REPLY TAP, opt-in (`capture.reply`): the response body is TEE'd, our branch drained to
 //      the SAME 64 KiB cap with the SAME `reader.cancel()` discipline as control 3 (one number, one reason),
 //      and the entry emitted when that drain ends — so the request body, the response headers AND the literal
 //      reply text ride ONE ring row. A HEAD cap is the right end to keep: OpenRouter puts its
@@ -339,7 +339,7 @@ function capturedHeaders(headers: Headers, secrets: ProviderScrubSet): Record<st
 }
 
 /** Record ONE send. Emitted AFTER the attempt rather than before it, so the request and what came back ride
- *  the same ring entry (§D1) — a request row whose response is a separate row cannot be correlated, and the
+ *  the same ring entry — a request row whose response is a separate row cannot be correlated, and the
  *  bytes here are the FINAL ones (post-`transformRequestBody`, post-`shapeBody`), which is strictly more
  *  faithful than the SDK result's own `request.body`. A failed attempt still records, with no headers. */
 function emitCapture(args: WrapFetchArgs, body: Record<string, unknown> | null, headers: Headers | undefined, reply: string | undefined): void {

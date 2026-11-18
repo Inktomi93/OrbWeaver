@@ -155,11 +155,11 @@ Judgments: **necessary** (the SDK cannot), **stricter** (the SDK can, loses a wr
   embedding and image models never call it.
 - `openai-compatible`'s `languageModel(id, config)` accepts a per-model `config` that the implementation IGNORES
   (dist js:1485) despite the types. Build nothing on it.
-- Header citations that drifted: `packages/inference/src/backends/v4/fetch.ts:22` says "measured against the installed provider dist 3.0.0"
-  (installed 3.1.0 — true as provenance, stale as a claim); `packages/inference/src/backends/http/abort-flatten.ts:12` cites
-  `@openrouter/sdk@1.1.8`, a package not in this repo's graph at all (a probe instrument, not a dependency —
-  say so in the comment); `provider-metadata.ts:13` and `packages/inference/src/backends/v4/stream.ts:261,:266` cite OR dist lines that moved
-  between provider versions. Re-measure before renumbering.
+- Header citation drift, resolved as of the source-parts landing: `provider-metadata.ts`'s OR dist cites re-verified
+  exact at 3.1.0 (`index.d.ts:686-692`, `:572`); `http/abort-flatten.ts` states its `@openrouter/sdk@1.1.8` cite is
+  a probe instrument, not a dependency; `v4/stream.ts`'s OR dist cites were re-measured at that landing. Still open:
+  `packages/inference/src/backends/v4/fetch.ts` says "measured against the installed provider dist 3.0.0"
+  (installed 3.1.0 — true as provenance, stale as a claim). Re-measure before renumbering.
 - `openrouter-reasoning-wire.int.test.ts` asserts the request side (`reasoning.effort`) but never the
   `reasoning_details` replay its name promises.
 - The OR typed `reasoning.effort` set lacks `"max"`; our `reasoning.ts:35` works only because we write the raw

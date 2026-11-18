@@ -55,7 +55,7 @@ export interface WrapFetchArgs {
         readonly wire: Wire;
         readonly providerId: ProviderId;
         readonly model: ModelId;
-        /** Tap the RESPONSE BODY too (§D2/§D3). Off by default and independently gated: the request capture
+        /** Tap the RESPONSE BODY too. Off by default and independently gated: the request capture
          *  is the operator's prompt, while the reply is the model's prose, which the recorder's outcome arm
          *  deliberately never keeps. A caller that does not ask gets the request-and-headers entry only. */
         readonly reply: boolean;
