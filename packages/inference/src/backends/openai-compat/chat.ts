@@ -20,7 +20,7 @@ import { resolveCachePolicy, resolveChat, templateThinkingFor } from "#funnel";
 import type { ProviderLogger } from "#src/contract/http.ts";
 import type { ModelCall, OpenAiCompatChatDeps } from "#src/contract/openai-backend.ts";
 import type { PlannedTool, StructuredPlan } from "#src/contract/structured.ts";
-import type { ResultContext, StreamDrain, WirePlan } from "#src/contract/v4.ts";
+import type { StreamDrain, WirePlan } from "#src/contract/v4.ts";
 import type { ExplicitCachePlan, OpenRouterRouting } from "#src/contract/wire.ts";
 import { requireStructuredPlan, structuredChatResult } from "#structured";
 import { extractHttpErrorDiagnostic, forbiddenAsRefusal, providerErrorFromHttp, refusalWords, withSchemaRejection } from "../http/error-classify.ts";
@@ -64,34 +64,6 @@ const OLLAMA_THINK_KEY = "think";
 const SESSION_ID_HEADER = "x-session-id";
 const SESSION_ID_MAX_LENGTH = 256;
 const openRouterSessionSchema = z.string().max(SESSION_ID_MAX_LENGTH);
-
-const reportedCount = z.number().int().nonnegative().nullish().catch(null);
-const nativeOpenAiUsageSchema = z
-  .object({
-    prompt_tokens: reportedCount,
-    completion_tokens: reportedCount,
-    prompt_tokens_details: z.object({ cached_tokens: reportedCount, cache_write_tokens: reportedCount }).strip().nullish().catch(null),
-    completion_tokens_details: z.object({ reasoning_tokens: reportedCount }).strip().nullish().catch(null),
-  })
-  .strip();
-
-function nativeOpenAiUsageOverlay(drain: StreamDrain, generation: GenerationCapability, providerId: string): Pick<ResultContext, "tokenUsage"> {
-  if (providerId !== "openai" || generation.turns?.promptCacheFormat !== "openai-breakpoint") {
-    return {};
-  }
-  // The compatible SDK drops cache_write_tokens and defaults absent axes to zero; only raw reports establish these facts.
-  const parsed = nativeOpenAiUsageSchema.safeParse(drain.usage?.raw);
-  const raw = parsed.success ? parsed.data : null;
-  return {
-    tokenUsage: {
-      tokensIn: raw?.prompt_tokens ?? null,
-      tokensOut: raw?.completion_tokens ?? null,
-      cacheReadTokens: raw?.prompt_tokens_details?.cached_tokens ?? null,
-      cacheWriteTokens: raw?.prompt_tokens_details?.cache_write_tokens ?? null,
-      reasoningTokens: raw?.completion_tokens_details?.reasoning_tokens ?? null,
-    },
-  };
-}
 
 /** The openrouter routing-prefs shape a connection's `extras.provider` may carry (snake_case, OR's own
  *  vocabulary — validated here, the ONE reader). A malformed block is dropped loudly, never sent. */
@@ -800,7 +772,6 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
     now: finishedAt,
     measuredCost: measuredCostOf(drain.providerMetadata, drain.usage?.raw),
     responseCache: attempt.responseCache,
-    ...nativeOpenAiUsageOverlay(drain, generation, connection.providerId),
     pricing: connection.features.pricing,
     // The provider's response id (B7): OpenRouter's `gen-…` (the cost-settlement key) or an endpoint's own
     // `chatcmpl-…` — both opaque provenance on the row.

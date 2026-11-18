@@ -26,6 +26,7 @@ import { fromOllamaChat, ollamaNativeFetch, toOllamaChat } from "./ollama-native
 import { responsesReasoningTextStream } from "./responses-dialect.ts";
 import { samplerBodyKeys } from "./sampling.ts";
 import { thinkTagMiddleware } from "./think-tags.ts";
+import { openAiCompatConvertUsage } from "./usage.ts";
 
 const OR_REFERER_HEADER = "HTTP-Referer";
 const OR_TITLE_HEADER = "X-OpenRouter-Title";
@@ -125,6 +126,9 @@ function openAiCompatibleProvider(call: ModelCall): ReturnType<typeof createOpen
     headers: authHeaders(connection.credential.secret, connection.transport?.headers),
     fetch: wrapFetch(fetchArgs(call, undefined)),
     includeUsage: true,
+    // The vendor's raw frame → our usage axes (the SDK drops `cache_write_tokens` and zero-coerces
+    // absent axes; `usage.ts` states the reading and the null-vs-zero discipline).
+    convertUsage: openAiCompatConvertUsage,
     // The structured plan decides whether a response format rides; the SDK must never downgrade one itself.
     supportsStructuredOutputs: true,
     transformRequestBody: withExtra,
@@ -182,6 +186,9 @@ function ollamaNativeProvider(call: ModelCall): ReturnType<typeof createOpenAICo
       translateResponse: (res) => fromOllamaChat(res, call.label),
     }),
     includeUsage: true,
+    // The same usage reading as the chat factory: `fromOllamaChat` re-spells the native frame into the
+    // OpenAI shape this hook reads, so both rows answer the same axes.
+    convertUsage: openAiCompatConvertUsage,
     // The structured plan decides whether a response format rides; the SDK must never downgrade one itself.
     supportsStructuredOutputs: true,
     transformRequestBody: withExtra,

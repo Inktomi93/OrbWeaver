@@ -25,10 +25,17 @@ export interface OpenAiReply {
   readonly error?: string;
   readonly content?: string;
   readonly finish?: string;
-  readonly usage?: { readonly prompt: number; readonly completion: number };
+  /** The terminal usage frame; the detail axes ride only when scripted, so a fixture cannot invent one. */
+  readonly usage?: {
+    readonly prompt: number;
+    readonly completion: number;
+    readonly cached?: number;
+    readonly cacheWrite?: number;
+    readonly reasoning?: number;
+  };
 }
 
-const DEFAULT_USAGE = { prompt: 10, completion: 5 } as const;
+const DEFAULT_USAGE: NonNullable<OpenAiReply["usage"]> = { prompt: 10, completion: 5 };
 
 /** The vLLM wake probe path; the server answers it awake without spending a scripted reply. */
 export const SLEEP_PROBE_SUFFIX = "/is_sleeping";
@@ -40,6 +47,24 @@ function chunk(choice: Record<string, unknown>, usage?: Record<string, unknown>)
 
 export interface OpenAiServer extends Disposable {
   readonly execute: typeof fetch;
+}
+
+/** A scripted usage as the vendor frame. An axis the script does not name stays out of the bytes entirely,
+ *  so a test can prove what the reader does with a frame that really is absent (`?? 0` coercions included). */
+function usageFrame(tokens: NonNullable<OpenAiReply["usage"]>): Record<string, unknown> {
+  return {
+    ["prompt_tokens"]: tokens.prompt,
+    ["completion_tokens"]: tokens.completion,
+    ...(tokens.cached === undefined && tokens.cacheWrite === undefined
+      ? {}
+      : {
+          ["prompt_tokens_details"]: {
+            ...(tokens.cached === undefined ? {} : { ["cached_tokens"]: tokens.cached }),
+            ...(tokens.cacheWrite === undefined ? {} : { ["cache_write_tokens"]: tokens.cacheWrite }),
+          },
+        }),
+    ...(tokens.reasoning === undefined ? {} : { ["completion_tokens_details"]: { ["reasoning_tokens"]: tokens.reasoning } }),
+  };
 }
 
 /** Answer exactly `requests` chat calls from `reply`, streaming or not as the request asks; a further call throws and a call never made fails disposal. */
@@ -67,8 +92,7 @@ export function openAiServer(recorded: RecordedRequest[], reply: (body: Record<s
     const content = answer.content ?? "ok";
     const finish = answer.finish ?? "stop";
     const tokens = answer.usage ?? DEFAULT_USAGE;
-    const usage = { ["prompt_tokens"]: tokens.prompt, ["completion_tokens"]: tokens.completion };
-    const total = { ...usage, ["total_tokens"]: usage.prompt_tokens + usage.completion_tokens };
+    const total = { ...usageFrame(tokens), ["total_tokens"]: tokens.prompt + tokens.completion };
     if (body["stream"] === true) {
       const text =
         chunk({ index: 0, delta: { role: "assistant", content }, ["finish_reason"]: null }) + chunk({ index: 0, delta: {}, ["finish_reason"]: finish }, total);
