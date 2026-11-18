@@ -1,6 +1,6 @@
 // The ALLOWLISTED Anthropic `providerOptions.anthropic` extras (audit C2) — the direct wire's twin of the
 // openrouter transport's `provider`/`models` readers. A hosted row has no body hook, so before this file
-// every `extras` key on an `anthropic` connection was dropped wholesale; six of them are real, modelled
+// every `extras` key on an `anthropic` connection was dropped wholesale; some of them are real, modelled
 // options the SDK already spells, and dropping them left the user's own connection unable to say things the
 // API accepts.
 //
@@ -25,9 +25,14 @@
 // All three are agent-shaped: they make the PROVIDER act, which is the one thing `anthropic-messages` is not
 // for (§8.5 — the subscription wire is the agent path, and an API-key row has none).
 //
-// `contextManagement` IS exposed and never defaulted ON (C6's owner default: expose, off). We run our own
-// compaction (`chat/verbs/compaction.ts`), so a server-side edit policy is a user's deliberate override of a
-// house mechanism, not a default anybody should get by upgrading.
+// `fallbacks` and `contextManagement` are refused from the allowlist (ruling 6 of `ai-sdk-surface.md`) even
+// though the SDK models both and the schemas below parse them: when a server-side fallback or a context edit
+// fires, the API bills PER ITERATION (`usage.iterations[]` rows on the response) and the cost fold in
+// `backends/v4/result.ts` ignores those rows, so the extras surface would silently underbill the turn. They
+// drop through the loud path below with `custom_parameters_ignored`, like any other refused key. Re-listing
+// either one is conditioned on docs/work/3576-anthropic-per-iteration-cost-attribution-condition-for-re.md:
+// the iterations rows folded into the usage contract with a test. Our own compaction
+// (`chat/verbs/compaction.ts`) stays the only context-edit mechanism the wire runs.
 
 import { createHash } from "node:crypto";
 import type { JSONObject } from "@ai-sdk/provider";
@@ -46,24 +51,6 @@ const ANTHROPIC_EXTRAS_SCHEMAS = {
   inferenceGeo: z.enum(["us", "global"]),
   /** A token budget for a whole agentic TASK, which the API decrements across calls. */
   taskBudget: z.object({ type: z.literal("tokens"), total: z.number().int().positive(), remaining: z.number().int().nonnegative().optional() }).strip(),
-  /** Server-side model fallbacks: `"default"`, or an ordered list the API tries when the primary is busy. */
-  fallbacks: z.union([
-    z.literal("default"),
-    z.array(
-      z
-        .object({
-          model: z.string().min(1),
-          max_tokens: z.number().int().positive().optional(),
-          speed: z.enum(["fast", "standard"]).optional(),
-        })
-        .strip(),
-    ),
-  ]),
-  /** Server-side context edits (`clear_tool_uses` / `clear_thinking` / `compact`). EXPOSED, NEVER DEFAULTED. */
-  // LOOSE on the edit bodies deliberately: the `type` discriminator is Anthropic's dated beta id
-  // (`clear_tool_uses_20250919`, `compact_20260112`, …) and a new one ships without us. Pinning each body's
-  // fields would refuse a valid edit the day the API adds one, for a block this layer only forwards.
-  contextManagement: z.object({ edits: z.array(z.looseObject({ type: z.string().min(1) })).min(1) }).strip(),
 } as const;
 
 type AnthropicExtrasKey = keyof typeof ANTHROPIC_EXTRAS_SCHEMAS;
