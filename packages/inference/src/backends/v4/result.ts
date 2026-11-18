@@ -342,6 +342,9 @@ export function toChatResult(drain: StreamDrain, ctx: ResultContext): ChatResult
   return {
     reply: drain.reply,
     ...(drain.textSignatures.length === 0 ? {} : { textSignatures: drain.textSignatures }),
+    // The cited sources, absent when the turn cited none — the `textSignatures`/`reasoningParts` discipline:
+    // an unreported fact stays absent, never an empty array.
+    ...(drain.sources.length === 0 ? {} : { sources: drain.sources }),
     ...(toolCalls !== undefined ? { toolCalls } : {}),
     reasoning: drain.reasoning,
     ...(drain.reasoningParts.length > 0 ? { reasoningParts: drain.reasoningParts } : {}),

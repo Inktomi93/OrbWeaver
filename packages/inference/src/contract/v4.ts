@@ -6,7 +6,7 @@ import type {
   SharedV4ProviderOptions,
   SharedV4Warning,
 } from "@ai-sdk/provider";
-import type { TextSignature } from "@orb/contracts/chat";
+import type { ChatSource, TextSignature } from "@orb/contracts/chat";
 import type {
   CostDetails,
   EndpointFeatures,
@@ -137,6 +137,10 @@ export interface ResultContext {
 export interface StreamDrain {
   readonly reply: string;
   readonly textSignatures: readonly TextSignature[];
+  /** Every source the wire cited, in arrival order, one entry per citation statement and never deduplicated.
+   *  ALWAYS present, like {@link textSignatures}: an empty list is "this wire cited nothing", which is a fact
+   *  the fold holds and no reader has to distinguish from an absent field. */
+  readonly sources: readonly ChatSource[];
   readonly reasoning: string;
   /** One entry per reasoning BLOCK the provider opened, in stream order, carrying that block's text and the
    *  wire-opaque provenance the next leg must replay (§A1). Empty when the wire surfaced no reasoning. */

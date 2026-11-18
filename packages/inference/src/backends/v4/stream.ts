@@ -1,8 +1,9 @@
 // The V4 STREAM REDUCER — the ONE fold from `LanguageModelV4StreamPart` into what a turn needs: the reply,
-// the reasoning, the assembled tool calls, any generated images (§6.7), the raw + unified finish reason, the
-// nested usage and the provider metadata off the `finish` part. Shared by the openai-compat and
-// anthropic-messages backends (both drive a V4 `doStream`). `onText`/`onReasoning` fire per delta —
-// the caller marks the retry COMMITTED on the first one; `onPart` fires on every part (the idle-timer reset).
+// the reasoning, the assembled tool calls, any generated images (§6.7), the sources the model cited, the raw +
+// unified finish reason, the nested usage and the provider metadata off the `finish` part. Shared by the
+// openai-compat and anthropic-messages backends (both drive a V4 `doStream`). `onText`/`onReasoning` fire per
+// delta — the caller marks the retry COMMITTED on the first one; `onPart` fires on every part (the idle-timer
+// reset).
 // A stream that ends without a `finish` part — or with one the PROVIDER SYNTHESIZED on flush rather than read
 // off the wire (`isSynthesizedFinish`, whose comment carries the measurement) — is a TRUNCATED turn and fails
 // closed (#1400's class), never an empty success. An `error` part is re-thrown for the caller's classifier.
@@ -18,6 +19,7 @@ import type {
   SharedV4ProviderMetadata,
   SharedV4Warning,
 } from "@ai-sdk/provider";
+import type { ChatSource } from "@orb/contracts/chat";
 import { toolCallIdSchema } from "@orb/contracts/chat";
 import type { ProviderGenerationId } from "@orb/contracts/inference";
 import { providerGenerationIdSchema } from "@orb/contracts/inference";
@@ -43,6 +45,13 @@ const OPENROUTER_KEY = "openrouter";
 const SIGNATURE_KEY = "signature";
 const REDACTED_DATA_KEY = "redactedData";
 const REASONING_DETAILS_KEY = "reasoning_details";
+/** The OpenRouter wire's own span keys under `providerMetadata.openrouter`, built from the response's
+ *  `url_citation` annotation (`@openrouter/ai-sdk-provider@3.1.0` dist/index.js:4782-4798). The provider
+ *  substitutes `0` for a missing index and `""` for a missing title/content, so a zero-width span and an
+ *  empty string both read as "the wire supplied none". */
+const START_INDEX_KEY = "startIndex";
+const END_INDEX_KEY = "endIndex";
+const SOURCE_CONTENT_KEY = "content";
 
 /** One reasoning block under construction: its text so far and whichever wire provenance has arrived. The
  *  provenance and the text arrive on DIFFERENT parts and in wire-specific order — Anthropic puts the
@@ -57,12 +66,21 @@ interface ReasoningAcc {
   reasoningDetails: readonly JsonValue[] | undefined;
 }
 
+/** One text block under construction: its text so far, its thought signature, and where it OPENED in
+ *  `acc.reply`. The arrival point is the origin a block-relative citation index is measured from, and it is
+ *  only knowable here — nothing later sees text blocks and citations interleaved in stream order. */
+interface TextBlockAcc {
+  text: string;
+  thoughtSignature: string | undefined;
+  atChars: number;
+}
+
 interface Accumulator {
   nextPartOrdinal: number;
   reply: string;
   reasoning: string;
   readonly reasoningParts: Map<string, ReasoningAcc>;
-  readonly textParts: Map<string, { text: string; thoughtSignature: string | undefined }>;
+  readonly textParts: Map<string, TextBlockAcc>;
   readonly toolCalls: ToolCallInput[];
   readonly toolMetadata: Map<number, SharedV4ProviderMetadata>;
   /** Tool-call ids the stream opened (id → tool name); a delta for an id the stream never opened records
@@ -71,6 +89,8 @@ interface Accumulator {
    *  with no terminal `tool-call` — see the contract note at the `tool-input-*` arm. */
   readonly toolInputsStarted: Map<string, string | undefined>;
   readonly images: GeneratedImage[];
+  /** Every source the wire cited, in arrival order and never deduplicated (see {@link citedSource}). */
+  readonly sources: ChatSource[];
   readonly warnings: SharedV4Warning[];
   finish: LanguageModelV4FinishReason | undefined;
   usage: LanguageModelV4Usage | undefined;
@@ -94,6 +114,17 @@ export function generatedImageOf(file: Pick<LanguageModelV4File, "mediaType" | "
 function stringAt(bag: JSONObject | undefined, key: string): string | undefined {
   const value = bag?.[key];
   return typeof value === "string" ? value : undefined;
+}
+
+/** A wire-supplied string where the EMPTY STRING means "not supplied" — OpenRouter's `?? ""` substitution for
+ *  a missing title or passage (dist/index.js:4790,:4793). */
+function suppliedAt(value: string | undefined): string | undefined {
+  return value === undefined || value === "" ? undefined : value;
+}
+
+function numberAt(bag: JSONObject | undefined, key: string): number | undefined {
+  const value = bag?.[key];
+  return typeof value === "number" ? value : undefined;
 }
 
 /** The provider's own JSON list, kept VERBATIM. PARSED across the seam rather than cast: the SDK's
@@ -147,12 +178,112 @@ function applyReasoningPart(acc: Accumulator, part: LanguageModelV4StreamPart, c
 
 function applyTextSignature(acc: Accumulator, part: LanguageModelV4StreamPart): void {
   if (part.type === "text-start" || part.type === "text-delta" || part.type === "text-end") {
-    const block = acc.textParts.getOrInsertComputed(part.id, () => ({ text: "", thoughtSignature: undefined }));
+    // The block's arrival point joins its text and signature: a citation measured from this block needs the
+    // reply offset the block OPENED at, and `acc.reply` already holds the prose in front of it.
+    const block = acc.textParts.getOrInsertComputed(part.id, () => ({ text: "", thoughtSignature: undefined, atChars: acc.reply.length }));
     if (part.type === "text-delta") {
       block.text += part.delta;
     }
     block.thoughtSignature = stringAt(part.providerMetadata?.[GOOGLE_KEY], THOUGHT_SIGNATURE_KEY) ?? block.thoughtSignature;
+    applyTextCitations(acc, part, block);
   }
+}
+
+/** Where the text block the wire is currently writing opened, in `acc.reply` offsets. A `source` part carries
+ *  no block id (the SDK's part has none) and the wire that emits one writes a single text block per message,
+ *  so the last block the fold opened is the block the part belongs to. `0` before any text arrives, which is
+ *  also where a citation of the message's own text starts. */
+function textBlockStart(acc: Accumulator): number {
+  let at = 0;
+  for (const block of acc.textParts.values()) {
+    at = block.atChars;
+  }
+  return at;
+}
+
+/** ONE cited source on the reply's own offset frame. A wire-supplied span is measured from the text block the
+ *  citation belongs to (`origin`); a wire that supplies none is placed where the fold learned of it
+ *  (`arrival`), the only offset such a wire states. The empty-string substitutions read as absent, and a
+ *  zero-width span counts as no span — an `end > start` test is what tells the provider's `0`-for-missing
+ *  default from a real span. */
+function citedSource(args: {
+  readonly url: string;
+  readonly title: string | undefined;
+  readonly citedText: string | undefined;
+  readonly origin: number;
+  readonly arrival: number;
+  readonly start: number | undefined;
+  readonly end: number | undefined;
+}): ChatSource {
+  const placed = args.start !== undefined && args.end !== undefined && args.end > args.start;
+  const title = suppliedAt(args.title);
+  const citedText = suppliedAt(args.citedText);
+  return {
+    url: args.url,
+    ...(title === undefined ? {} : { title }),
+    atChars: placed ? args.origin + args.start : args.arrival,
+    ...(placed ? { endChars: args.origin + args.end } : {}),
+    ...(citedText === undefined ? {} : { citedText }),
+  };
+}
+
+/** A text block's `text-end` citations → the same list. The SDK defines `LanguageModelV4Citation.startIndex`
+ *  as an offset "in the containing generated text", so the block's arrival point shifts it into the reply
+ *  frame; the installed `@ai-sdk/anthropic@4.0.85` states `citedText` and the source and no index at all
+ *  (dist/index.js:68-96), which places the citation at the block it supports. A document-typed source drops
+ *  here for the same reason it drops off a `source` part — see {@link applySourcePart}. */
+function applyTextCitations(acc: Accumulator, part: LanguageModelV4StreamPart, block: TextBlockAcc): void {
+  if (part.type !== "text-end" || part.citations === undefined) {
+    return;
+  }
+  for (const citation of part.citations) {
+    if (citation.source.sourceType !== "url") {
+      continue;
+    }
+    acc.sources.push(
+      citedSource({
+        url: citation.source.url,
+        title: citation.source.title,
+        citedText: citation.citedText,
+        origin: block.atChars,
+        arrival: block.atChars,
+        start: citation.startIndex,
+        end: citation.endIndex,
+      }),
+    );
+  }
+}
+
+/** A `source` part → one entry. The OpenRouter wire states its span in `providerMetadata.openrouter` and
+ *  stamps the same URL once per `url_citation` annotation, so the part IS the citation arrival.
+ *
+ *  TWO parts of this wire family are skipped, each for a measured reason:
+ *   · an Anthropic URL citation can arrive TWICE — inside its block's `text-end.citations`
+ *     (`@ai-sdk/anthropic@4.0.85` dist/index.js:4932-4940) and as a bare `source` part, either for a
+ *     `search_result_location` (`:5057-5065`) or, when the response carried no server-side web-search
+ *     results, from the web-citation fallback (`:5201-5204`) — and only the block-associated copy can be
+ *     placed in the reply, so the bare copy is not a second fact.
+ *   · a `document` source has NO producer in this graph (this app sends no document content block and the
+ *     OpenRouter provider emits `url` sources only), so the refused member drops without faulting the turn.
+ *
+ *  Offered EVERY part, like `applyTextSignature` above it: every other type returns at the first test, so the
+ *  content cascade carries no branch of its own for a citation. */
+function applySourcePart(acc: Accumulator, part: LanguageModelV4StreamPart): void {
+  if (part.type !== "source" || part.sourceType !== "url" || part.providerMetadata?.[ANTHROPIC_KEY] !== undefined) {
+    return;
+  }
+  const bag = part.providerMetadata?.[OPENROUTER_KEY];
+  acc.sources.push(
+    citedSource({
+      url: part.url,
+      title: part.title,
+      citedText: stringAt(bag, SOURCE_CONTENT_KEY),
+      origin: textBlockStart(acc),
+      arrival: acc.reply.length,
+      start: numberAt(bag, START_INDEX_KEY),
+      end: numberAt(bag, END_INDEX_KEY),
+    }),
+  );
 }
 
 function openRouterToolMeta(metadata: SharedV4ProviderMetadata | undefined): Pick<ToolCallInput, "openrouter"> {
@@ -177,6 +308,7 @@ function recordToolInput(acc: Accumulator, part: LanguageModelV4StreamPart): voi
 
 function applyContentPart(acc: Accumulator, part: LanguageModelV4StreamPart, callbacks: DrainCallbacks): void {
   applyTextSignature(acc, part);
+  applySourcePart(acc, part);
   if (part.type === "text-delta") {
     acc.reply += part.delta;
     callbacks.onText?.(part.delta);
@@ -321,6 +453,7 @@ export async function drainStream(stream: ReadableStream<LanguageModelV4StreamPa
     toolMetadata: new Map(),
     toolInputsStarted: new Map(),
     images: [],
+    sources: [],
     warnings: [],
     finish: undefined,
     usage: undefined,
@@ -367,6 +500,7 @@ export async function drainStream(stream: ReadableStream<LanguageModelV4StreamPa
     textSignatures: [...acc.textParts.values()].flatMap((part) =>
       part.thoughtSignature === undefined ? [] : [{ text: part.text, thoughtSignature: part.thoughtSignature }],
     ),
+    sources: acc.sources,
     reasoning: acc.reasoning,
     reasoningParts: reasoningPartsOf(acc),
     toolCalls: acc.toolCalls.map((call, index) => ({ ...call, ...openRouterToolMeta(acc.toolMetadata.get(index)) })),

@@ -111,6 +111,9 @@ function forkVariantMetadata(metadata: VariantMetadata | null, stripHostPlane: b
     systemTokens: parsed.systemTokens,
     providerMetadata: parsed.providerMetadata,
     usageLegs: parsed.usageLegs,
+    // A citation list describes the copied reply's own text and holds no host material, like the usage legs
+    // and provider bag beside it.
+    sources: parsed.sources,
     contentSignatures: undefined,
     continuationTools:
       snapshot === undefined
