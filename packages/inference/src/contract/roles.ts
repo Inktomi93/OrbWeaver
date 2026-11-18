@@ -85,7 +85,7 @@ export interface SummarizeRequestItem {
 export type TaskSampling = Readonly<Omit<RolePresetParams, "maxOutputTokens">> & { readonly maxTokens?: number | undefined };
 
 /** SUMMARIZE IS SUMMARIZATION — a prose task. Schema-constrained generation is the DISTINCT `structured`
- *  task (owner ruling 2026-07-27); this request carries NO `responseFormat`, by type. */
+ *  task (owner ruling); this request carries NO `responseFormat`, by type. */
 export interface SummarizeRequest extends TaskRequestCommon<"summarize">, TaskSampling {
   readonly inputs: readonly SummarizeRequestItem[];
   readonly onObservedResult?: GenerationObservationCallback | undefined;

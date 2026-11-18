@@ -94,8 +94,6 @@ export interface ProviderLogger {
   readonly summarizeItem: (entry: ProviderSummarizeItemLog) => void;
 }
 
-// RNG midpoint (random() in [0,1) → jitter in [0.8, 1.2))
-
 /** Tuning + injected seams for the retry policy. */
 export interface RetryOptions {
   readonly scheduleTimeout: ScheduleOp;
@@ -153,8 +151,8 @@ export interface ProviderSamplingLog {
   readonly dropped: readonly ProviderSamplingDrop[];
 }
 
-/** The per-ITEM batch turn for the `summarize` + `structured` tasks, TAGGED BY task (owner ruling
- *  2026-07-27) so a diagnosis of an rpg extraction never greps "summarize". Metadata only. */
+/** The per-ITEM batch turn for the `summarize` + `structured` tasks, TAGGED BY task (owner ruling) so a
+ *  diagnosis of an rpg extraction never greps "summarize". Metadata only. */
 export interface ProviderSummarizeItemLog {
   readonly task: "summarize" | "structured";
   readonly model: string;

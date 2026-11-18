@@ -57,7 +57,7 @@ export interface WrapFetchArgs {
         readonly model: ModelId;
         /** Tap the RESPONSE BODY too (§D2/§D3). Off by default and independently gated: the request capture
          *  is the operator's prompt, while the reply is the model's prose, which the recorder's outcome arm
-         *  deliberately never keeps. A caller that does not ask gets today's request-and-headers entry. */
+         *  deliberately never keeps. A caller that does not ask gets the request-and-headers entry only. */
         readonly reply: boolean;
       }
     | undefined;
@@ -111,7 +111,7 @@ export interface ResultContext {
   readonly providerId: ProviderId;
   /** The `providerMetadata` key THIS wire's SDK files vendor bags under. A compatible SDK resolves it from the
    *  caller's `providerOptions` key, never from the registry id, so reading it back under the id misses every
-   *  hyphenated row (3577). Each runner passes the same derivation it wrote `providerOptions` with. */
+   *  hyphenated row. Each runner passes the same derivation it wrote `providerOptions` with. */
   readonly providerMetadataKey: string;
   readonly generation: GenerationCapability;
   readonly maxOutputTokens: number | undefined;

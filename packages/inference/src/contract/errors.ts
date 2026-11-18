@@ -14,10 +14,10 @@ declare const providerScrubSet: unique symbol;
 
 /** The by-value scrub set an HTTP boundary hands the error classifier: a `readonly string[]` with a phantom
  *  brand, so it flows INTO every plain-array consumer while nothing flows into it. The brand makes "no
- *  scrub" UNWRITABLE BY ACCIDENT (#1599): `providerErrorFromHttp`'s message reaches a DURABLE sink (the
- *  #1373 revoke trail), and a runner that forgets the scrub set would otherwise ship an unscrubbed upstream
- *  message there with no compile-time tell. Producers: `resolvedScrubSet` and
- *  `NO_PROVIDER_SECRETS` in `backends/http/sanitize.ts`. */
+ *  scrub" UNWRITABLE BY ACCIDENT: `providerErrorFromHttp`'s message reaches a DURABLE sink (the revoke trail),
+ *  and a runner that forgets the scrub set would otherwise ship an unscrubbed upstream message there with no
+ *  compile-time tell. Producers: `resolvedScrubSet` and `NO_PROVIDER_SECRETS` in
+ *  `backends/http/sanitize.ts`. */
 export type ProviderScrubSet = readonly string[] & { readonly [providerScrubSet]: true };
 
 /** The normalized failure kinds. A new kind is a member here + the consumers that branch on it. */
