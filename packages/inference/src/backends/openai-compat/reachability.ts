@@ -1,4 +1,4 @@
-// The endpoint REACHABILITY probe + the wake slice (§8.1, §4). Every `auth: endpoint` row alike: a cached
+// The endpoint REACHABILITY probe + the wake slice. Every `auth: endpoint` row alike: a cached
 // `GET <baseUrl>/v1/models` says `up | down`; when the row's folded `features.sleep` names the pair, an
 // `isSleepingPath` read that answers truthy says `asleep`, and one that does not answer says nothing. Before each
 // task the backend asks `asleep` afresh and, when it is, `wake` POSTs `wakePath` once per server and polls until it answers awake — nothing here knows the word vLLM. The `up | down` cache is per

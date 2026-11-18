@@ -1,4 +1,4 @@
-// The `generateImage` task on the openai-compat wire — ONE task, the wire ARM chosen from the row (§6.7):
+// The `generateImage` task on the openai-compat wire — ONE task, the wire ARM chosen from the row:
 //   • `images-api` — the SDK's `ImageModelV4.doGenerate` (OpenAI `/v1/images/generations` + `/edits`,
 //     OpenRouter `/images`), base64 bytes back;
 //   • `chat-modalities` — a chat `doGenerate` with `modalities: ["text","image"]`, the pictures on the reply's

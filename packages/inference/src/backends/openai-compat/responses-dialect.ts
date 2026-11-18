@@ -2,8 +2,8 @@
 // `response.reasoning_text.delta/done` frames (`content_index`-addressed), a spelling `@ai-sdk/openai`'s
 // chunk union never modeled: the SDK's catch-all arm silently converts every unknown frame to an
 // `unknown_chunk` it ignores, so on this route the reasoning text would vanish — no error, no deltas,
-// just silence (MEASURED 2026-11-17: deepseek-v4-pro streams `reasoning_text.delta/done` and never a
-// `reasoning_summary_*` event; the SDK through 4.0.118 knows only the summary spelling).
+// just silence (deepseek-v4-pro streams `reasoning_text.delta/done` and never a `reasoning_summary_*`
+// event; the SDK models only the summary spelling).
 //
 // The fix rewrites the frames onto the summary spelling the SDK DOES fold, at the fetch seam — the same
 // door `ollama-native.ts` translates Ollama's native route through — so the SDK never sees a dialect it

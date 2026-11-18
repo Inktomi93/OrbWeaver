@@ -1,6 +1,6 @@
 // The `openai-compat` wire's sealed backend: ONE backend, TWO transports (`openai-compatible` +
 // `openrouter`) and two chat protocols (`/chat/completions` in `chat.ts`, `/responses` in `responses.ts`),
-// everything else data (§8.1). Serves chat / summarize / structured / embed / imageEmbed /
+// everything else data. Serves chat / summarize / structured / embed / imageEmbed /
 // rerank / generateImage + the six diagnostics. Nothing here knows a provider id — the row's `features`,
 // `extras` and `transport` are the whole configuration.
 

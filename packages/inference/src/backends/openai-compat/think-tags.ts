@@ -1,4 +1,4 @@
-// THE INLINE-`<think>` SPLIT, moved to STREAM TIME (audit F-table "Adopt"). A server that emits its
+// THE INLINE-`<think>` SPLIT, moved to STREAM TIME. A server that emits its
 // reasoning inline in the reply text — no `reasoning` / `reasoning_content` delta field, just prose with a
 // `<think>…</think>` block in it — was handled by a POST-HOC split after the turn finished
 // (`chat/engine/pipeline.ts applyReceiveTransforms`, gated on `reasoningParse.autoParse` + an empty native
@@ -8,8 +8,9 @@
 //
 // `ai`'s `extractReasoningMiddleware` splits AT STREAM TIME into real `reasoning-start`/`reasoning-delta`
 // parts, and it solves the chunk-boundary problem ours never did (a tag arriving split across two SSE
-// chunks). It is a pure `LanguageModelMiddleware` applied through `wrapLanguageModel` — both are named
-// PERMITTED in §8.0, and neither pulls in `streamText`, the agent loop, the UI stream or the tool executor
+// chunks). It is a pure `LanguageModelMiddleware` applied through `wrapLanguageModel` — both are pure
+// middleware over the V4 parts, and neither pulls in `streamText`, the agent loop, the UI stream or the tool
+// executor
 // (verified against the installed dist: `index.d.ts:9695` for the middleware, `:9767` for the wrapper, and
 // the implementation at `index.js:15791` is a `TransformStream` over the V4 parts and nothing else).
 //

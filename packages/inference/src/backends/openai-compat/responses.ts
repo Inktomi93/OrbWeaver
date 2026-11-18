@@ -2,13 +2,13 @@
 // `apis.ts` records the revival ruling). The transport is `@ai-sdk/openai`'s `.responses()` model — the
 // SDK folds the Responses SSE events into the SAME V4 stream parts every other wire emits, so the shared
 // prompt builder, drain, and result mapper ride here unchanged. What differs is spelled here: stateless
-// sends (`store: false` — replay works without item ids, MEASURED 2026-11-16: reasoning items replay
+// sends (`store: false` — replay works without item ids: reasoning items replay
 // with id, without id, and omitted alike), effort as `reasoning.effort`, and the structured plan's strict
 // flag made explicit (`strictJsonSchema` defaults TRUE SDK-side, and strict grammar rejects optional
-// properties — MEASURED — so a plan that did not ask for strict must not get it).
+// properties, so a plan that did not ask for strict must not get it).
 //
 // Deliberately absent vs `chat.ts`: the openrouter transports (no OR row serves `/responses` today), the
-// explicit cache-marker placement and beta route (implicit prompt caching needs no markers — MEASURED,
+// explicit cache-marker placement and beta route (implicit prompt caching needs no markers —
 // `cached_tokens` rides the terminal usage), assistant prefill and the template kwargs (no local server
 // serves this route), and the unmodelled sampler knobs — the Responses body models no `top_k`/`min_p`/
 // `logit_bias` arm, so each rides a loud `sampling_knob_dropped`.
@@ -77,7 +77,7 @@ function responsesOptions(
   for (const knob of Object.keys(budget)) {
     warnings.push({ code: "sampling_knob_dropped", message: `${knob} ignored: the /responses route has no field for it` });
   }
-  // The Responses body the SDK builds carries exactly two samplers (MEASURED in `@ai-sdk/openai` 4.0.99's
+  // The Responses body the SDK builds carries exactly two samplers (in `@ai-sdk/openai` 4.0.99's
   // responses `prepareRequest`: `temperature`, `top_p`, plus `max_output_tokens`); `stopSequences`,
   // `seed`, `topK` and the penalties ride the V4 options and the SDK itself warns each off the body, which
   // lands on the sampling receipt through `sdkWarnings`. So only the chat wire's extra body spellings

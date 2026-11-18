@@ -1,15 +1,15 @@
 // The OUTBOUND-BODY shaper — the one place the converted wire object is edited after every SDK write and
-// before serialisation (§8.1). Applied through `transformRequestBody` on the `openai-compatible` transport
+// before serialisation. Applied through `transformRequestBody` on the `openai-compatible` transport
 // and inside `wrapFetch` on the `openrouter` transport (the OR provider exposes no post-convert hook, so its
 // body is parsed once there); the RULES are identical, only the hook differs:
 //   1. `extras` merge, USER WINS: every key merges over the SDK's body, a modelled param or a preset knob
 //      included, except a belt-owned key (`BELT_OWNED_BODY_KEYS`), which is DROPPED with
 //      `custom_parameters_ignored{key}`; the openrouter transport reads only its modelled keys off extras
 //      and drops the rest loudly.
-//   2. `transport.includeBody` / `excludeBody` — the endpoint's final word, applied AFTER extras (§8.1).
+//   2. `transport.includeBody` / `excludeBody` — the endpoint's final word, applied AFTER extras.
 //   2b. a sampler the row spells several ways (`features.samplerAliases`): where the user's body set or excluded one
 //      spelling, ours on the others are removed, since the server keeps the largest and would outvote theirs.
-//   3. the assistant-image re-attachment (§8.0, verify4 H1): both converters drop an assistant `file` part.
+//   3. the assistant-image re-attachment: both converters drop an assistant `file` part.
 //   4. the per-participant `name` (neither converter forwards it).
 //   5. the prefill pair (`continue_final_message` + `add_generation_prompt: false`) when the row's folded
 //      `features.prefill` is `continue-final-message`, the capability says `assistantPrefill`, and the array
@@ -22,10 +22,9 @@
 //      names the kwarg, merged into whatever kwargs extras or `includeBody` set.
 //   5c. `chat_template_kwargs.preserve_reasoning: false` on such a row when the turn's reasoning carry is off.
 //   5d. the row's `reasoningBudgetField` at 0 on a turn the template must not think on, where the row names a switch.
-//   6. `modalities: ["text","image"]` when the funnel resolved `replyImages` (§6.7).
+//   6. `modalities: ["text","image"]` when the funnel resolved `replyImages`.
 //   7. the output-cap spelling: `features.outputCapField: "max_completion_tokens"` renames the SDK's `max_tokens`
-//      (OpenAI's reasoning models 400 on the old word — inference audit H2, measured 2026-09-20). Never on the
-//      openrouter dialect, which speaks OR's own body.
+//      (OpenAI's reasoning models 400 on the old word). Never on the openrouter dialect, which speaks OR's own body.
 //   8. the cache-marker spelling (openrouter only): a message-level `cache_control` moves onto the row's last
 //      text part. OpenRouter forwards a marker to Anthropic only from a content part and drops a message-level
 //      one (measured: gen-1790134941-TdEvy3D9exFNfO6cf830 read only the system block; the content-part A/B,
@@ -76,9 +75,8 @@ const MESSAGES_KEY = "messages";
  *  `mergePlugins`, `webSearchOptions`, `debugOptions`), which is why none of them is merged from here: the
  *  raw user value would overwrite the validated copy the chat surface already put on the body. The list's
  *  only job is deciding whether a key gets the "ignored" WARNING — and a key this transport DOES send must
- *  not claim it was dropped. `plugins`/`web_search_options` were missing when their doors landed (audit C3),
- *  so a user who declared either got a `settings_adjusted` notice about a field that rode the wire
- *  perfectly; `debug` (D3) would have inherited it. A new extras door adds its key HERE in the same commit. */
+ *  not claim it was dropped, or the user gets a `settings_adjusted` notice about a field that rode the wire
+ *  perfectly. A new extras door adds its key HERE in the same commit. */
 const OPENROUTER_EXTRAS_KEYS = ["provider", "models", "plugins", "web_search_options", "debug", "session_id", "prompt_cache_key"] as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -169,7 +167,7 @@ function reattachRows(body: Record<string, unknown>, plan: WirePlan, warnings: R
   return { ...body, messages: messages.map((message: unknown, index: number) => patchRow(message, plan.names.get(index), plan.assistantMedia.get(index))) };
 }
 
-/** Rule 5: the prefill pair, and the measured vLLM interlock (`prefillSuppressesThinking`, §8.1). A key the
+/** Rule 5: the prefill pair, and the measured vLLM interlock (`prefillSuppressesThinking`). A key the
  *  user's own body set stays theirs, the interlock's thinking switch included. A `messages` array the user set
  *  replaced the plan this rule reads, and a prefill key the user set or excluded is their prefill decision, so
  *  in either case neither the pair nor the interlock runs. */
@@ -204,7 +202,7 @@ function applyPrefill(body: Record<string, unknown>, args: ShapeArgs, owned: Rea
 }
 
 /** Rule 5a: the `prefix-flag` spelling of the same decision — DeepSeek's beta-route continue stamps the converted
- *  trailing-assistant message with `prefix: true` instead of a body-level pair (measured 2026-11-16: the flag
+ *  trailing-assistant message with `prefix: true` instead of a body-level pair (the flag
  *  continues mid-word, and the seeded `reasoning_content` of that row rides as the model's own chain). A
  *  `messages` array the user set is theirs, and the same capability and array gates as rule 5 decide the turn;
  *  a converter that reshaped the tail into a non-assistant row gets nothing stamped. The turn's authored chain

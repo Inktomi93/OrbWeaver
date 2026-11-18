@@ -1,5 +1,5 @@
 // The MODEL FACTORY — one `LanguageModelV4` / `EmbeddingModelV4` / `ImageModelV4` per CALL, built from the
-// resolved connection through the transport package its provider row names (`dialect`, §8.1). Per call, not
+// resolved connection through the transport package its provider row names (`dialect`). Per call, not
 // per connection: the `transformRequestBody` / `wrapFetch` hooks close over THIS call's plan, warnings sink,
 // chat id and capture context, and an SDK provider object is a handful of closures — there is nothing to
 // cache. The dialect `Record` is the exhaustive map (a third transport package is a compile error here). A row
@@ -87,7 +87,7 @@ function fetchArgs(call: ModelCall, shapeBody: WrapFetchArgs["shapeBody"]): Wrap
   };
 }
 
-/** The `providerOptions` key the openai-compatible SDK reads for a provider named `name` (§E2). The SDK
+/** The `providerOptions` key the openai-compatible SDK reads for a provider named `name`. The SDK
  *  accepts BOTH the raw name and its camel form, but pushes a `deprecated` warning on EVERY call when the
  *  raw form differs and is the one present (`warnIfDeprecatedProviderOptionsKey`, dist
  *  `index.js:21-28`) — and our provider ids are hyphenated (`custom-openai`, `lm-studio`). The camel form is
@@ -247,7 +247,7 @@ function openRouterProvider(call: ModelCall, responseReplaySupported: boolean): 
 
 /** The `/responses` protocol on this wire (`apis.ts` revival ruling, `responses.ts` runner): the SAME
  *  URL convention as the chat transports (`openAiPath`, so the SDK POSTs `<base>/v1/responses` — the
- *  path DeepSeek serves, MEASURED) and the SAME wrapped fetch (capture, scrub, response-map). The SDK's
+ *  path DeepSeek serves) and the SAME wrapped fetch (capture, scrub, response-map). The SDK's
  *  own auth line is built from `apiKey`; an endpoint row has no secret, so the caller's own headers win
  *  the `Authorization` key (the SDK spreads `options.headers` last) and `apiKey: ""` only keeps the
  *  factory off the server process's `OPENAI_API_KEY` fallback. Per-call like every other factory here.
@@ -255,7 +255,7 @@ function openRouterProvider(call: ModelCall, responseReplaySupported: boolean): 
  *  `reasoningEffort` closes one SDK gap at the body seam: the responses converter gates its whole
  *  `reasoning` arm on its OWN catalog (`getOpenAILanguageModelCapabilities` — o-series/gpt-5 regexes),
  *  so for every off-catalog id on this wire an options-level `reasoning` is silently DROPPED from the
- *  body (MEASURED in 4.0.99's dist, `isReasoningModel &&` before the arm). The shapeBody hook rides the
+ *  body (in 4.0.99's dist, `isReasoningModel &&` gates the arm). The shapeBody hook rides the
  *  field the SDK should have written — only when the SDK's own body carries no `reasoning` arm, so a
  *  catalog model that spelled its own is never touched, and the capture sees the final bytes. */
 export function responsesModelFor(call: ModelCall, reasoningEffort: EffortLevel | undefined): LanguageModelV4 {
@@ -307,8 +307,8 @@ export function languageModelFor(call: ModelCall): LanguageModelV4 {
     call.connection.features.nativeChat === "ollama"
       ? ollamaNativeProvider(call).chatModel(call.connection.model)
       : TRANSPORTS[effectiveDialectOf(call.connection)].language(call);
-  // The F-table "Adopt" row: a server with NO native reasoning field and an XML-shaped preset tag pair gets
-  // the SDK's stream-time splitter. Empty list ⇒ the bare model, so every other row is byte-identical and
+  // A server with NO native reasoning field and an XML-shaped preset tag pair gets the SDK's stream-time
+  // splitter. Empty list ⇒ the bare model, so every other row is byte-identical and
   // pays no wrapper (`wrapLanguageModel` with no middleware would still be a layer on every turn).
   const middleware = thinkTagMiddleware({ reasoningKeys: call.connection.features.reasoningKeys, tags: call.reasoningTags });
   return middleware.length === 0 ? model : wrapLanguageModel({ model, middleware });

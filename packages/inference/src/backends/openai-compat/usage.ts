@@ -1,6 +1,5 @@
 // THE VENDOR USAGE → V4 USAGE MAPPING, on the SDK's own conversion path (`convertUsage`, passed by
-// `model.ts` to both `createOpenAICompatible` factories). Adopted from the SDK-surface ledger's "Adopt"
-// list (`docs/law/ai-sdk-surface.md`).
+// `model.ts` to both `createOpenAICompatible` factories).
 //
 // `convertUsage` REPLACES the whole default mapping — the hook is used when present and the default
 // otherwise (`@ai-sdk/openai-compatible` dist `index.js:372-373`), so this file emits everything the

@@ -1,4 +1,4 @@
-// ONE chat turn on the openai-compat wire over a V4 `doStream` (§8.1). The turn: the funnel resolves the
+// ONE chat turn on the openai-compat wire over a V4 `doStream`. The turn: the funnel resolves the
 // knobs ONCE (`resolveChat`), the shared prompt builder lays out the wire plan, the placer decides the cache
 // breakpoints (openrouter on an Anthropic route), the dialect's option builder spells what the SDK models
 // natively, the transport's hooks shape the rest of the body, the shared reducer drains the stream, and the
@@ -242,7 +242,7 @@ function parallelToolCallsBody(turn: TurnKnobs): Record<string, unknown> {
   return turn.parallelOff ? { parallel_tool_calls: false } : {};
 }
 
-/** THE OPENROUTER PLUGIN UNION (audit C3), validated against the 3.1.0 dist's own shape
+/** THE OPENROUTER PLUGIN UNION, validated against the 3.1.0 dist's own shape
  *  (`OpenRouterChatSettings.plugins`, `index.d.ts:98-131`) — five ids, each with its own fields. Spelled here
  *  because this file is the ONE reader of `extras` on this transport; a malformed entry drops loudly and is
  *  never sent. `response-healing` is the reason this door is worth opening: it is OpenRouter's server-side
@@ -263,7 +263,7 @@ const openRouterPluginSchema = z.discriminatedUnion("id", [
   z.object({ id: z.literal("auto-router"), allowed_models: z.array(z.string()).optional() }).strip(),
 ]);
 
-/** OR's request DEBUG block (`debug`, `index.d.ts:174-185`) — the audit's D3 door. `echo_upstream_body`
+/** OR's request DEBUG block (`debug`, `index.d.ts:174-185`) — the `debug` extras door. `echo_upstream_body`
  *  makes OpenRouter return, as the FIRST SSE frame, the body it actually sent upstream after routing and
  *  caching: the only way to see what a routed provider received rather than what we asked OR for. It is a
  *  REQUEST BODY field and its payload rides the ordinary stream, so the wire capture's own reply tap
@@ -283,7 +283,7 @@ const openRouterWebSearchSchema = z
   })
   .strip();
 
-/** THE PLUGIN MERGE (audit C3): the turn-owned context-compression entry FIRST, then the user's declared
+/** THE PLUGIN MERGE: the turn-owned context-compression entry FIRST, then the user's declared
  *  plugins. Order is the precedence, and compression leads on purpose — it is the one plugin whose value
  *  this layer decides (off `params.providerContextCompression`), so a user entry re-declaring
  *  `context-compression` must not silently take the turn's decision away. Such an entry is dropped with the
@@ -332,7 +332,7 @@ function webSearchOptions(extras: Resolved["extras"], warnings: ResolvedWarning[
   return parsed.data;
 }
 
-/** `debug` off `extras`, validated; a malformed block drops loudly and is never sent (D3). */
+/** `debug` off `extras`, validated; a malformed block drops loudly and is never sent. */
 function debugOptions(extras: Resolved["extras"], warnings: ResolvedWarning[]): JSONObject | undefined {
   const declared = extras?.["debug"];
   if (declared === undefined) {
@@ -400,10 +400,10 @@ function openRouterSession(req: OpenAiCompatChatRequest): Record<string, unknown
 
 /** The openrouter transport: reasoning nested under `providerOptions.openrouter`, routing + the fallback
  *  chain off `extras`, the managed context-compression plugin, `parallel_tool_calls` beside a tools request,
- *  the hosted-common schema subset, `strict` caller-set only (STRICTFMT).
+ *  the hosted-common schema subset, `strict` caller-set only.
  *
- *  VERBOSITY RIDES `extraBody` (§H1(b)). The OR provider models no verbosity option, but OR FORWARDS an
- *  unmodelled body field to the upstream — MEASURED 2026-09-19 via `debug.echo_upstream_body`:
+ *  VERBOSITY RIDES `extraBody`. The OR provider models no verbosity option, but OR FORWARDS an
+ *  unmodelled body field to the upstream — verified via `debug.echo_upstream_body`:
  *  `openai/gpt-5.4` with `extraBody: { verbosity: "low" }` produced an upstream Responses body carrying
  *  `text: { verbosity: "low" }`. The funnel has already gated it (`knobs.verbosity` is present only when the
  *  resolved capability advertises the level), so the old unconditional `verbosity_dropped` was a lie on
@@ -437,7 +437,7 @@ function openRouterShape(req: OpenAiCompatChatRequest, turn: TurnKnobs, warnings
       ...(turn.automaticCache === null ? {} : { cache_control: { ...turn.automaticCache.directive } }),
       ...(knobs.verbosity !== undefined ? { verbosity: knobs.verbosity } : {}),
       ...(routing !== undefined ? { provider: routing } : {}),
-      // C3: the turn-owned compression entry MERGED with the user's declared plugins (validated against the
+      // The turn-owned compression entry MERGED with the user's declared plugins (validated against the
       // provider dist's own five-id union); `web_search_options` is the sibling knob for a model whose
       // search is native. Both ride `extraBody` beside `provider` because that is where this transport
       // already puts every OR body field the SDK models at the MODEL level — one home, one merge order.
@@ -456,7 +456,7 @@ function isJsonObject(value: unknown): value is JSONObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** B1: the effort the LAST attempt's options carried, read off the shape (never recomputed from the knobs):
+/** The effort the LAST attempt's options carried, read off the shape (never recomputed from the knobs):
  *  openrouter — `providerOptions.openrouter.reasoning.effort` (`"none"` when off; a budget or the mandatory
  *  replay carries no effort word ⇒ `null`); openai-compatible — the V4 `reasoning` word when the row spells
  *  `reasoning_effort`, `none` where the template kwarg alone spelled thinking off, else nothing was sent ⇒ `null`. A
@@ -488,7 +488,7 @@ interface StreamOnceArgs {
   readonly now: Clock;
   readonly markCommitted: () => void;
   readonly onFirstDelta: (at: number) => void;
-  /** The response headers the V4 stream result exposes (B6) — before the first part, once per attempt. */
+  /** The response headers the V4 stream result exposes — before the first part, once per attempt. */
   readonly onResponse: (headers: SharedV4Headers | undefined) => void;
 }
 
@@ -752,18 +752,17 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
 
   // THE TYPED-FAILURE BOUNDARY. `runWithPreCommitRetry` re-throws the ORIGINAL error on purpose (its JSDoc
   // states it: the classification is only the retry policy's input, and the openai-compat replay below peels
-  // `responseBody`/`cause` off that raw object, which `providerErrorFromHttp` would have scrubbed away). That
-  // ruling stands — but it left every streaming-chat failure escaping the package RAW, breaking the one thing
-  // `contract/errors.ts` promises: "ONE error class across every task so a consumer catches a single type
-  // regardless of which backend threw". Measured 2026-09-20 by the cross-backend conformance suite: a
-  // cancelled turn surfaced a bare `DOMException: AbortError` here while the agent-sdk and local-light wires
-  // surfaced `ProviderError{kind:"aborted"}`, and `entry/compose/chat.ts` hands the rejection straight on
-  // without normalising. So the classify happens HERE, outside everything that needs the raw error and
-  // inside nothing that does. `classify` returns an existing `ProviderError` untouched.
+  // `responseBody`/`cause` off that raw object, which `providerErrorFromHttp` would have scrubbed away). But
+  // every streaming-chat failure then escapes the package RAW, breaking the one thing `contract/errors.ts`
+  // promises: "ONE error class across every task so a consumer catches a single type regardless of which
+  // backend threw". A cancelled turn surfaces a bare `DOMException: AbortError` here while the agent-sdk and
+  // local-light wires surface `ProviderError{kind:"aborted"}`, and `entry/compose/chat.ts` hands the rejection
+  // straight on without normalising. So the classify happens HERE, outside everything that needs the raw
+  // error and inside nothing that does. `classify` returns an existing `ProviderError` untouched.
   const drain = await drainWithReplay(run, dialect === "openrouter" && knobs.reasoning.offChosen === true, warnings).catch((err: unknown): never => {
     throw classify(err);
   });
-  // The SDK's OWN drops (§A3), folded into the same array as the funnel's before the result is built.
+  // The SDK's OWN drops, folded into the same array as the funnel's before the result is built.
   warnings.push(...sdkWarnings(drain.warnings));
   const finishedAt = deps.now();
   const folded = toChatResult(drain, {
@@ -778,7 +777,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
     measuredCost: measuredCostOf(drain.providerMetadata, drain.usage?.raw),
     responseCache: attempt.responseCache,
     pricing: connection.features.pricing,
-    // The provider's response id (B7): OpenRouter's `gen-…` (the cost-settlement key) or an endpoint's own
+    // The provider's response id: OpenRouter's `gen-…` (the cost-settlement key) or an endpoint's own
     // `chatcmpl-…` — both opaque provenance on the row.
     generationId: drain.responseId ?? null,
     appliedEffort: appliedEffortOf(attempt.shape, dialect, attempt.nativeBody),
@@ -816,7 +815,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
       : {}),
     ...(knobs.verbosity !== undefined ? { sentVerbosity: knobs.verbosity } : {}),
   });
-  // D4: the turn's timeline, same three events as the direct wire (the trace must read the same on both).
+  // The turn's timeline, same three events as the direct wire (the trace must read the same on both).
   emitTurnSpanEvents({
     addSpanEvent: deps.addSpanEvent,
     turnId: knobs.turnId,
