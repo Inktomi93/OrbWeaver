@@ -1,8 +1,7 @@
-// @orb/contracts/events — the in-process domain-event bus payload union. The event-bus SHAPE is decided
-// (DECISIONS-LEDGER §"deferred" → in-process typed bus; the payload shapes live HERE; the bus instance +
-// subscriptions are wired at `entry/compose/event-bus.ts` when the first subscriber lands). The embeddings
-// `indexer/` is the subscriber; `character`/`import` emit `character.updated`, `assets` emits
-// `asset.created`. Kit-only (zod + `@orb/kit/ids` brands; no domain, no `@orb/db`, no sibling contracts).
+// @orb/contracts/events — the in-process domain-event bus payload union. The payload shapes live HERE; the bus
+// instance + subscriptions are wired at `entry/compose/event-bus.ts`. The embeddings `indexer/` is the
+// subscriber; `character`/`import` emit `character.updated`, `assets` emits `asset.created`. Kit-only (zod +
+// `@orb/kit/ids` brands; no domain, no `@orb/db`, no sibling contracts).
 //
 // The injection model (domain-no-cross-feature): an emitting domain NEVER reaches the bus directly — it
 // receives the injected `EmitDomainEvent` op (wired at the composition root) and the indexer's handlers are
@@ -11,12 +10,7 @@
 import type { AssetId, CharacterId, PersonaId, WorldBookId } from "@orb/kit/ids";
 import type { PubSub } from "@orb/kit/pubsub";
 
-// The discriminant axis (§7.5 one-union; a new event = a member here + a handler, nowhere else). The
-// agents/rpg domain-event mirrors (curated, id-only subsets
-// of those domains' own bus events so D46 Tier-1 automation could trigger on their activity) were purged
-// with the rollback — no `crew.*`/`rpg.*` members exist today. The rebuild grafts them back onto
-// this union (+ the matching `DOMAIN_TRIGGER_TYPES` reservation in `@orb/contracts/automation`) if either
-// domain returns.
+// The discriminant axis (one-union; a new event = a member here + a handler, nowhere else).
 // Native type assertions verify tuple totality; subscribers exhaust the union with assertNever.
 // HAS four: `persona.updated` + `world-info.updated` are the entity→room member-freshness
 // bridge's inputs. They have NO indexer consumer

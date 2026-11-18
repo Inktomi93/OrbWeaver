@@ -6,7 +6,7 @@
 //
 // `scope: "owner"` marks the vector-space tasks: an owner has ONE embedding space, so the actor fold
 // ignores a rule's or a plugin's ref for them. `spend: "background"` marks the tasks that run unattended,
-// which a connection funds only when its `allowBackground` flag is on (F5).
+// which a connection funds only when its `allowBackground` flag is on.
 
 import { z } from "zod";
 import type { ModelKind } from "./kinds.ts";
@@ -74,7 +74,7 @@ const taskDefinitions = {
   chat: { kind: "generation", requires: TEXT_OUT, scope: "actor", spend: "foreground", routable: true },
   summarize: { kind: "generation", requires: TEXT_OUT, scope: "actor", spend: "background", routable: true },
   // The one-shot schema-constrained primitive (owner ruling) — its OWN task on the wire, riding
-  // the summarize binding in the pane (F4: one Utility slot, three requirement badges).
+  // the summarize binding in the pane (one Utility slot, three requirement badges).
   structured: {
     kind: "generation",
     requires: { ...TEXT_OUT, structured: true },

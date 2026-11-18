@@ -1,14 +1,14 @@
 // `@orb/contracts/settings/appearance` — the `UserSettings.appearance` section: its bounds, its vocabularies
-// and its schema. The section's OWNER is still `settings` (the barrel re-exports every name here verbatim, so
-// `@orb/contracts/settings` importers are untouched); this is a FILE split, never an ownership move.
+// and its schema. The section's OWNER is `settings` (the barrel re-exports every name here verbatim, so
+// `@orb/contracts/settings` importers keep their import path).
 //
 // WHY IT IS ITS OWN FILE AND ITS OWN EXPORTS-MAP DOOR. The client's pre-paint boot hint
 // (`state/appearance-boot-hint.ts`) re-validates its persisted blob through THIS schema rather than
-// through a second copy of the bounds — that is the e94c50a718 ruling and it stands. But `settings/index.ts`
+// through a second copy of the bounds. But `settings/index.ts`
 // composes the whole `UserSettings` tree, which reaches `#prose`, `#preset`, `#rpg`, `#refinery` and their
 // prose tables; zod construction is not statically pure, so `sideEffects: false` cannot shake those
-// siblings out once the module is reached. Importing the section barrel for ONE schema therefore cost the
-// boot chunk the entire prose corpus (~215 kB rendered). The schema lives here, `@orb/contracts` names
+// siblings out once the module is reached. Importing the section barrel for ONE schema would therefore pull
+// the boot chunk's entire prose corpus (~215 kB rendered). The schema lives here, `@orb/contracts` names
 // `"./settings/appearance"` as an EXACT exports entry, and the boot hint reaches the contract's own schema
 // object through a door whose graph is `#theme` + `@orb/kit/ids` + `#versioned-config` + zod. (That last
 // one is the boot-critical leaf primitive itself — `@orb/kit/guards` + zod, no prose, no siblings; it is
@@ -26,8 +26,8 @@ import { FONT_SCALE } from "@orb/kit/font-scale";
 import type { Branded } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
-// BG-C: the background source-kind vocabulary (`BACKGROUND_IMAGE_KINDS`) is homed in `#theme` (shared with
-// the carried `ThemeBackground` twin); consumers import it from `@orb/contracts/theme`.
+// The background source-kind vocabulary (`BACKGROUND_IMAGE_KINDS`) is homed in `#theme` (shared with
+// `ThemeBackground`); consumers import it from `@orb/contracts/theme`.
 import { BACKGROUND_IMAGE_KINDS, storedBackgroundProvenanceSchema, THEME_CHAT_STYLES, THEME_DENSITIES } from "#theme";
 import { tolerantArray } from "#versioned-config";
 
@@ -36,18 +36,16 @@ const CHAT_WIDTH_PCT_MAX = 100;
 const CHAT_WIDTH_PCT_DEFAULT = 60;
 const FONT_SCALE_DEFAULT = 1;
 // THE WALLPAPER SCRIM HAS A FLOOR, AND THE FLOOR IS DERIVED. `theme-background-layer.tsx` calls the
-// scrim "mandatory … non-negotiable for text legibility"; a MIN of 0 made that sentence false — a legal
-// setting rendered the guard at `opacity: 0` and handed the transcript's reading contrast to the user's
-// picture (measured live pre-fix on the `misty-highlands` landscape plate: its worst backdrop over the
-// bright band read Y 0.0874 at dim 0 vs Y 0.0476 at 0.45). That plate was one of the four placeholder
-// landscapes deleted with the `kind:"seeded"` retirement — the MEASUREMENT stands as the
-// evidence for the floor; the file it was taken on no longer ships.
+// scrim "mandatory … non-negotiable for text legibility"; a MIN of 0 would make that sentence false — a legal
+// setting would render the guard at `opacity: 0` and hand the transcript's reading contrast to the user's
+// picture (measured on a bright landscape plate: its worst backdrop over the bright band read Y 0.0874 at
+// dim 0 vs Y 0.0476 at 0.45 — the measurement is the evidence for the floor).
 //
 // WHY A DIM FLOOR AND NOT A HEAVIER PLATE. D144(d) and its rider rule the other arm OUT: "Inks are
 // guaranteed vs their BASE, not worst-case art pixels — closing that would move the sacred dark rooms
 // (owner-adjacent, refused)", and the dark plate's alpha is pinned at 0.65 because closing the same hole
-// there needs 0.86. That ruling SURVIVES — its INPUT changed. `readingPlateAlpha` solves the plate against
-// the worst LEGAL art, and until now raw art was legal; with a scrim floor the worst legal art is
+// there needs 0.86. That ruling holds here: `readingPlateAlpha` solves the plate against
+// the worst LEGAL art, and with a scrim floor the worst legal art is
 // scrimmed art, so the guarantee lands without a pixel of the plate moving.
 //
 // THE NUMBER. Composite (worst legal art → `--color-backdrop` at `0.6 × dim` → `--color-reading-plate` at
@@ -81,8 +79,8 @@ const DEFAULT_BLUR_SURFACES: readonly BlurSurface[] = ["panels", "composer", "mo
 // pinned here by `backgroundAssetId` (GC-rooted via the settings live-source scan) + `backgroundAssetHash`
 // (the immutable content hash the SYNC `resolveBackgroundUrl` builds `blobUrl(hash)` from — id↔hash is
 // fixed for a content-addressed asset, so storing both is denormalized-but-never-stale). The source-kind
-// vocabulary (`BACKGROUND_IMAGE_KINDS`) is homed in `#theme` (shared with the carried `ThemeBackground`
-// twin — BG-C); consumers import it from `@orb/contracts/theme` directly.
+// vocabulary (`BACKGROUND_IMAGE_KINDS`) is homed in `#theme` (shared with
+// `ThemeBackground`); consumers import it from `@orb/contracts/theme` directly.
 
 const SURFACE_TEXTURES = ["none", "grain"] as const;
 
@@ -112,23 +110,23 @@ export const mintBackgroundEntryId = (uuid: string): BackgroundEntryId => backgr
 /** The one mint of a {@link BackgroundEntryId}, injected wherever a library row is created. */
 export type NewBackgroundEntryId = () => BackgroundEntryId;
 
-// A saved background-library entry (BG-D) — the per-user list of uploaded backgrounds the picker chooses
+// A saved background-library entry — the per-user list of uploaded backgrounds the picker chooses
 // from. Lives in settings (the backgrounds concept's ONE home, D63), NOT a relational table: a flat
 // per-user list of dozens with names and zero relational joins. Every entry's `assetId` is GC-rooted by
 // the settings live-source scan (`domain/assets/persistence/asset-refs.ts`) so an unpicked upload is never
-// reaped. `mime` lets a picked VIDEO entry select the `<video>` background layer (BG-V) over the image one;
+// reaped. `mime` lets a picked VIDEO entry select the `<video>` background layer over the image one;
 // `assetHash` builds `blobUrl(hash)` for the grid thumbnail without an async id→hash round-trip.
 export const backgroundLibraryEntrySchema = z
   .object({
-    // Stable per-ROW id, the key/select/delete/rename target (F-P2): a content-addressed `assetId` is SHARED by
-    // byte-identical uploads, so keying rows on it collided (dup React keys + deleting one wiped both). `assetId`
+    // Stable per-ROW id, the key/select/delete/rename target: a content-addressed `assetId` is SHARED by
+    // byte-identical uploads, so keying rows on it collides (dup React keys + deleting one wipes both). `assetId`
     // stays the content pointer; `entryId` identifies the row.
     entryId: backgroundEntryIdSchema,
     assetId: typeIdSchema(ID_PREFIX.asset),
     assetHash: z.string(),
     mime: z.string(),
     name: z.string(),
-    // Provenance for a materialized external-URL background (BG-C invariant): the original URL the
+    // Provenance for a materialized external-URL background: the original URL the
     // asset was fetched-and-stored from. Optional (own-uploads have none); metadata only, never re-fetched.
     provenanceUrl: z.url().optional(),
   })
@@ -186,8 +184,8 @@ export const appearanceSettingsSchema = z
     showInChatAvatars: z.boolean().catch(true).default(true),
     messageActions: z.enum(["expanded", "hover"]).catch("hover").default("hover"),
     autoFixMarkdown: z.boolean().catch(false).default(false),
-    // ST parity: imported cards carry their structure in quoted speech, which ST colors — default ON is
-    // the ST-expat expectation. Paints the theme's `dialogueColor` (per-character themeOverride wins).
+    // Imported cards carry their structure in quoted speech; default ON colors it (what a reader arriving
+    // from a card import expects). Paints the theme's `dialogueColor` (per-character themeOverride wins).
     colorQuotedSpeech: z.boolean().catch(true).default(true),
     // KEEPS its whole-collection self-heal, deliberately, against the collection sweep: an EMPTY set is itself a
     // meaningful stored value here ("blur nothing" — the opt-out documented at DEFAULT_BLUR_SURFACES), so
@@ -203,15 +201,15 @@ export const appearanceSettingsSchema = z
     reducedTransparency: osPreference().default(OS_PREFERENCE_DEFAULT),
     increasedContrast: osPreference().default(OS_PREFERENCE_DEFAULT),
     backgroundImageKind: z.enum(BACKGROUND_IMAGE_KINDS).catch("none").default("none"),
-    // NOTE: no flat `backgroundSeededId` (the `kind:"seeded"` catalog slug) — RETIRED
-    // with the kind itself; the WHY is on `BACKGROUND_IMAGE_KINDS` in `#theme`. A stored blob's leftover
+    // NOTE: no flat `backgroundSeededId` — the `kind:"seeded"` catalog slug is retired; the WHY is on
+    // `BACKGROUND_IMAGE_KINDS` in `#theme`. A stored blob's leftover
     // `backgroundSeededId` is stripped by zod (unknown key), and the kind heals to `none` — the per-user
     // background seeder's migration pass rewrites the pick to the plate's now-owned asset before that
     // heal is ever reached on a box that carried one.
     // NOTE: there is no flat `backgroundExternalUrl` — an external URL can never paint (CSP `img-src`
     // self/data/blob only, by design), so the global appearance surface materializes a pasted URL server-side
     // (`settings.addExternalBackground`) into a `backgroundLibrary` ASSET entry rather than persisting a
-    // paintable external field (the BG-C invariant). The kind enum keeps `external` only as a
+    // paintable external field. The kind enum keeps `external` only as a
     // transient INPUT mode (the picker's URL-entry branch), never a persisted paintable state.
     // The empty string is the no-pick sentinel; a stale id degrades where the consumer resolves owned assets.
     backgroundAssetId: z
@@ -221,16 +219,16 @@ export const appearanceSettingsSchema = z
     // The immutable content hash for the `asset` kind — the SYNC `resolveBackgroundUrl` builds
     // `blobUrl(hash)` from it (no async id→hash round-trip). A blank/garbage value degrades to a 404 blob.
     backgroundAssetHash: z.string().catch("").default(""),
-    // BG-V: the mime of the picked `asset` background. App-shell branches the `<video>` background layer
+    // The mime of the picked `asset` background. App-shell branches the `<video>` background layer
     // over the image layer when this is `video/*`; blank (image assets / non-asset kinds) → the image layer.
     backgroundAssetMime: z.string().catch("").default(""),
-    // BG-D: the saved background library the picker chooses from. Additive + prefaulted (an old blob reads
+    // The saved background library the picker chooses from. Additive + prefaulted (an old blob reads
     // `[]` with no version bump — the persona/appearance precedent). Every entry's asset is GC-rooted.
-    // ELEMENT-WISE (was a whole-array `.catch([])`): one malformed row dropped the ENTIRE library,
-    // and because the catch made the parse succeed, `parseOutcome` said `intact: true`, so the intact write
-    // guard could not see it and the next unrelated settings save persisted the erasure. One bad row now
-    // costs one row. (RECOVERY of a library already emptied by the old behaviour is NOT attempted here —
-    // the bytes are gone from the blob; the assets themselves survive in the CAS and can be re-added.)
+    // ELEMENT-WISE, never a whole-array `.catch([])`: one malformed row would otherwise drop the ENTIRE
+    // library, and because a `.catch` makes the parse succeed, `parseOutcome` reports `intact: true` and the
+    // intact write guard cannot see it — the next unrelated settings save would persist the erasure. One bad
+    // row costs one row. (Recovery of an already-emptied library is NOT attempted here — the bytes are gone
+    // from the blob; the assets themselves survive in the CAS and can be re-added.)
     backgroundLibrary: tolerantArray(storedBackgroundLibraryEntrySchema, []).default([]),
     backgroundFit: z.enum(APPEARANCE_BACKGROUND_FITS).catch("cover").default("cover"),
     backgroundDim: z.number().min(BACKGROUND_DIM_MIN).max(BACKGROUND_DIM_MAX).catch(BACKGROUND_DIM_DEFAULT).default(BACKGROUND_DIM_DEFAULT),

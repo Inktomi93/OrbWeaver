@@ -4,8 +4,8 @@
 // The schemas live in `contracts` (not `domain/workloads/contract/`) because a workload's params are a
 // domain↔domain wire shape: the OWNING domain authors the schema and hands it to the engine on its
 // `WorkloadContribution`; the workloads domain never spells another domain's vocabulary. Kinds whose owner
-// has its own contracts module are promoted there stage by stage (the `IngestRunResult` precedent) — this
-// module carries the ones still awaiting their owner + assembles the exhaustive map.
+// has its own contracts module are promoted there (the `IngestRunResult` precedent) — this
+// module carries the rest and assembles the exhaustive map.
 //
 // Tunables are optional (no Zod `.default()`) — precedence (param → user setting → the owner's floor)
 // resolves inside the contribution's run body. A kind with no tunables keeps an explicit `z.object({})` so
@@ -50,8 +50,8 @@ const stagedHandleSchema = z
   .refine((s) => !s.includes(".."), "must not contain a `..` traversal segment");
 
 /** The sha256 the upload route recorded for a staged upload: of its manifest for a tree, of the file for a zip. Only
- *  an upload route writes it, and a run reads only bytes that hash to it. Optional here because a row queued before
- *  digests existed must still parse and reach the run's refusal, which asks for a new upload; the kind's `admit`
+ *  an upload route writes it, and a run reads only bytes that hash to it. Optional here because a stored row can
+ *  carry none and must still parse and reach the run's refusal, which asks for a new upload; the kind's `admit`
  *  refuses a new row without one. */
 const stagedDigestSchema = z.string().refine(isAssetHash, "must be a sha-256 hex digest");
 
@@ -155,7 +155,7 @@ export interface WorkloadParamsByKind {
 
 /**
  * The enqueue wire shape — a kind correlated with ITS params. Derived mechanically from
- * {@link WorkloadParamsByKind} (there is no hand-written 18-arm union to drift): the per-kind VALIDATOR is
+ * {@link WorkloadParamsByKind} (there is no hand-written arm-per-kind union to drift): the per-kind VALIDATOR is
  * the owning domain's `WorkloadContribution.params`, re-parsed at the `start` door.
  */
 export type StartWorkloadInput = { [K in WorkloadKind]: { readonly kind: K; readonly params: WorkloadParamsByKind[K] } }[WorkloadKind];
@@ -165,7 +165,7 @@ export type StartWorkloadInput = { [K in WorkloadKind]: { readonly kind: K; read
  * that door with params it minted, so this form names every kind. The wire uses {@link wireStartWorkloadEnvelope}.
  *
  * It deliberately does NOT enforce the kind's own params shape — the per-kind schemas live with their
- * owners now (there is no central schema map left to build a discriminated union from), so the
+ * owners (there is no central schema map to build a discriminated union from), so the
  * AUTHORITATIVE validator is `contributions[kind].params.parse(...)` at the `start` door, which maps a parse
  * failure to a BAD_REQUEST domain error. A malformed blob is still rejected — one layer later, never
  * accepted.

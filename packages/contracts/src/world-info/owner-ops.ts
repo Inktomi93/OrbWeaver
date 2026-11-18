@@ -68,8 +68,8 @@ export type LinkCarriedBooks = (args: {
 }) => Promise<LinkCarriedBooksResult>;
 
 /** Attach the owner's books to a character by name, the SillyTavern name-link: a card's `extensions.world`
- *  names its primary lorebook and `world_info.charLore[].extraBooks` name auxiliaries. A name the same import's
- *  worlds wave landed binds that row through `landed`. Any other name resolves by exact owned name,
+ *  names its primary lorebook and `world_info.charLore[].extraBooks` name auxiliaries. A name this same import
+ *  landed binds that row through `landed`. Any other name resolves by exact owned name,
  *  newest-wins, never fuzzy; a dangling name is returned in `missing`. `role` is the desired role; a `primary`
  *  request demotes to auxiliary when the character already holds a primary. */
 export type AttachOwnedBooksByName = (args: {
@@ -77,7 +77,7 @@ export type AttachOwnedBooksByName = (args: {
   readonly characterId: CharacterId;
   readonly names: readonly string[];
   readonly role: WorldBookRole;
-  /** The books this import's worlds wave landed, keyed by the name the profile calls each one. */
+  /** The books this import landed, keyed by the name the profile calls each one. */
   readonly landed: ReadonlyMap<string, WorldBookId>;
 }) => Promise<{ readonly linked: number; readonly missing: readonly string[] }>;
 

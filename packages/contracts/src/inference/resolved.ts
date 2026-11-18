@@ -48,15 +48,15 @@ export const resolvedConnectionViewSchema = z.strictObject({
 
 // Why a task cannot be served deterministically right now — the composer's pre-send verdict, the
 //  picker's row state. `no-connection` = no binding in the fold or the bound row was deleted/unset;
-//  `endpoint-unreachable` = reachability says down or a wake timed out (renamed from `engine-down`);
+//  `endpoint-unreachable` = reachability says down or a wake timed out;
 //  `runtime-missing` = the wire's runtime is absent on this box (the bundled `claude` executable does not
-//  resolve; renamed from `host-claude`); `background-refused` = a background task on a row whose
+//  resolve); `background-refused` = a background task on a row whose
 //  `allowBackground` is off (`canFund`); `requirement-unmet` = the row's model cannot do the task;
 //  `unavailable` = the wire's backend is not wired (an operator error); `model-load-failed` = the in-process
 //  model's latest load failed (the next call retries it). A revoked key on the bound row reads by why it was revoked,
 //  one cause per `CredRevokedReason` (`REVOKED_KEY_CAUSES` in packages/contracts/src/credentials/index.ts):
 //  `key-rejected` = the provider rejected it, `key-revoked-unreachable` = its endpoint stopped responding,
-//  `key-revoked-by-user` = the owner revoked it. `engine-off` is RETIRED: no row is `no-connection` like every other
+//  `key-revoked-by-user` = the owner revoked it. A row with no binding is `no-connection` like every other
 //  absence.
 const UNAVAILABLE_CAUSES = [
   "no-connection",

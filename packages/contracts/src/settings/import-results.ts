@@ -2,7 +2,7 @@ import type { z } from "zod";
 import type { PortableImportOutcome, themeImportLandingSchema } from "../portability/index.ts";
 import type { BackgroundLibraryEntry } from "./appearance.ts";
 
-/** The `appearance` half of a foreign-profile import (today: the SillyTavern profile importer). Two planes in
+/** The `appearance` half of a foreign-profile import (the SillyTavern profile importer). Two planes in
  *  ONE write because both land in the same JSON namespace and the array plane needs a read-modify-write that
  *  must not race a sibling patch — the settings owner serializes the combined write.
  *  `patch` is an opaque partial `appearance` blob (the `updateUserSettingsSection` contract: the caller maps,

@@ -3,19 +3,13 @@
 // provider row lists a subset. Every dispatch switch over `api` uses `assertNever`; a member added here
 // fails `tsc` at each one.
 //
-// THE HOME MOVED HERE from `@orb/contracts/connection` (which re-exports it verbatim until that file is
-// deleted with the source axis). `anthropic-messages` RETURNS as a member (F6, owner word): the
-// first-party Anthropic key path is a wire of its own, served by the `anthropic` provider row.
-//
-// `responses` was RETIRED as a member (owner ruling) when the OpenRouter GA runner
-// (`backends/openrouter/runners/chat/responses.ts`, 523 lines over `@openrouter/sdk`) was demolished as
-// collateral in the `@orb/inference` cut-over (§8.2 F9): listing a member whose only possible outcome was
-// a typed refusal at send made the picker a trap. The ruling's revival path — `@ai-sdk/openai`'s
-// `.responses()` transport, NOT the deleted runner — is now executed: the member returns with a real
-// runner (`backends/openai-compat/responses.ts`), first served by the DeepSeek row. Which MODELS serve
-// the route is capability data (the api-scoped cells), not a provider branch — and the vendor answers
-// `/v1/responses` for every direct id, so the row's `apis` is the picker's ceiling and the cells are
-// the truth.
+// `anthropic-messages` is the first-party Anthropic key path — a wire of its own, served by the
+// `anthropic` provider row. `responses` rides `@ai-sdk/openai`'s `.responses()` transport in
+// `backends/openai-compat/responses.ts`, first served by the DeepSeek row: a member ships with a real
+// runner, because listing one whose only possible outcome was a typed refusal at send makes the picker a
+// trap. Which MODELS serve the route is capability data (the api-scoped cells), not a provider branch — and
+// the vendor answers `/v1/responses` for every direct id, so the row's `apis` is the picker's ceiling and
+// the cells are the truth.
 
 import { z } from "zod";
 

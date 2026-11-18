@@ -5,7 +5,7 @@
 //
 // The id is HALF OF THE CREDENTIAL AAD (`${userId}|${provider}`), which is why built-ins are bare and
 // runtime rows are namespaced (`plugin:<name>/<id>`): a plugin row can never shadow a built-in id and
-// inherit its sealed rows (F8/F9, §5.9-1). A rename orphans the credentials sealed under the old id by
+// inherit its sealed rows (§5.9). A rename orphans the credentials sealed under the old id by
 // construction; the pane says so.
 
 import type { LookupText } from "@orb/kit/ids";
@@ -20,7 +20,7 @@ import type { Task } from "./tasks.ts";
 import { WIRE_DEFS } from "./wires.ts";
 
 // A built-in row's id is bare — a plugin row's is namespaced. The parse refuses the other spelling in each
-//  place so the two populations can never cross (§5.9-1 (a)/(b)).
+//  place so the two populations can never cross (§5.9).
 const builtinProviderDefSchema = providerDefSchema.refine((row) => !isPluginProviderId(row.id), {
   message: "a built-in provider id is bare, never plugin:-namespaced",
   path: ["id"],
@@ -55,7 +55,7 @@ export function coherentApis(provider: ProviderDef): readonly ChatApi[] {
   return provider.apis;
 }
 
-/** Provider-level: what the PICKER may offer — the wire's ceiling ∩ the row's narrowing (F5). */
+/** Provider-level: what the PICKER may offer — the wire's ceiling ∩ the row's narrowing. */
 export function providerTasks(provider: ProviderDef): readonly Task[] {
   const wire: readonly Task[] = WIRE_DEFS[provider.wire].serves;
   return provider.serves === undefined ? wire : wire.filter((task) => provider.serves?.includes(task) === true);

@@ -5,14 +5,14 @@
 import { estimateTokens } from "@orb/kit/tokens";
 import { z } from "zod";
 
-/** The extension's 1-10 rubric floor ("Rate this character card on a scale of 1-10"; the soul check is
+/** The 1-10 rubric floor ("Rate this character card on a scale of 1-10"; the soul check is
  *  the same scale). Non-int: the overall score is a weighted average. */
 export const SCORE_MIN = 1;
 /** The rubric ceiling — see {@link SCORE_MIN}. */
 export const SCORE_MAX = 10;
 
-/** The analyze verdict — carried VERBATIM from the source extension (its prompt corpus teaches these
- *  exact uppercase spellings, and REGRESSION is the iterate loop's stop condition). */
+/** The analyze verdict — the prompt corpus teaches these exact uppercase spellings, and REGRESSION is
+ *  the iterate loop's stop condition. */
 export const REFINERY_VERDICTS = ["ACCEPT", "NEEDS_REFINEMENT", "REGRESSION"] as const;
 export type RefineryVerdict = (typeof REFINERY_VERDICTS)[number];
 export const refineryVerdictSchema = z.enum(REFINERY_VERDICTS) satisfies z.ZodType<RefineryVerdict>;
@@ -21,7 +21,7 @@ export const refineryVerdictSchema = z.enum(REFINERY_VERDICTS) satisfies z.ZodTy
 // A character card is UNTRUSTED text; a prompt-injected card can steer the model that AUTHORS these
 // payloads. The analyze payload is stamped into CANON (`characters.refinery.analysis`), rides every card
 // detail read AND every `character_snapshots` blob; the score/rewrite payloads land in append-only run
-// rows. Unbounded strings/arrays therefore were a store-and-serve amplification path with no belt at all
+// rows. Unbounded strings/arrays would therefore be a store-and-serve amplification path with no belt at all
 // (measured: a 2 MB `summary` and a 5 000-entry array parsed clean). Every bound below is a NATIVE zod
 // keyword — so it survives `projectJsonSchema` as `maxLength`/`maxItems` and is GRAMMAR-ENFORCED on the
 // guided-decoding wire, while the hosted wires strip the KEYWORD, relay the bound to the model in that
@@ -30,9 +30,8 @@ export const refineryVerdictSchema = z.enum(REFINERY_VERDICTS) satisfies z.ZodTy
 // sanctioned refinement (the token cap — see the header).
 
 /** The product cap for one free-prose critique string (`summary`, `soulAssessment`, a per-field critique),
- *  in TOKENS. OWNER RULING — the cap is not 4 000 CHARS (the `PROSE_MAX_CHARS` twin) and that was
- *  the wrong UNIT for model-authored prose: "we are thinking in chars but it needs to be tokens ... 1000
- *  tokens is piddly, I have cards that are like 4k". Measured by `@orb/kit/tokens`, the ONE production
+ *  in TOKENS. OWNER RULING — chars are the wrong UNIT for model-authored prose: `PROSE_MAX_CHARS`' 4 000
+ *  chars is piddly next to a 4k-token card. Measured by `@orb/kit/tokens`, the ONE production
  *  estimator (never a re-implementation) — which makes this cap the same currency as every prompt budget
  *  in the tree. */
 const CRITIQUE_TOKEN_MAX = 4000;
@@ -82,7 +81,7 @@ export const LIST_MAX = 50;
  *  snapshot), never rewrite-vs-previous-rewrite. The soul check is the 1-10 "does it still feel like
  *  the same character" rubric.
  *
- *  THE ONE PAYLOAD THAT REACHES CANON: R1 stamps it into `characters.refinery.analysis` (F6), so these
+ *  THE ONE PAYLOAD THAT REACHES CANON: it is stamped into `characters.refinery.analysis`, so these
  *  bytes ride every card detail read AND every `character_snapshots` blob taken afterwards. Its ceilings
  *  are the tightest in this file for that reason. */
 export const refineryAnalyzePayloadSchema = z

@@ -43,7 +43,6 @@ import { rulePresetIdSchema, rulePresetKnobOutputValuesSchema } from "./presets.
  *  The tail after `chatCreated` is reserved (criterion: first real rule request). */
 
 export const CHAT_TRIGGER_TYPES = [
-  // v1 (wired)
   "chatOpened",
   "messageCommitted",
   "messageEdited",
@@ -54,9 +53,8 @@ export const CHAT_TRIGGER_TYPES = [
   "worldInfoActivated",
   "personaSwitched",
   "chatCreated",
-  // S7 (wired with B6) — a member reacted to a reply. The one trigger whose fact is a HUMAN's in-room signal
-  // rather than a turn or a config edit, which is what the graveyard's reaction-heat shapes were waiting on;
-  // its fact carries the emoji and the add/remove direction, so a predicate can select on both.
+  // A member reacted to a reply. The one trigger whose fact is a HUMAN's in-room signal rather than a turn or a
+  // config edit; its fact carries the emoji and the add/remove direction, so a predicate can select on both.
   "reactionsChanged",
   "messageHidden",
   "messagesDeleted",
@@ -69,19 +67,14 @@ export type ChatTriggerType = (typeof CHAT_TRIGGER_TYPES)[number];
 /** `DomainEvent` types automation may trigger on. The agents/rpg members are reserved — they enter
  *  service when their domains land their domain-event mirrors.
  *
- *  IT CARRIES ALL FOUR LIVE DOMAIN EVENTS (S7, landed with C5). It carried two until then, while the source
- *  bus had four — `persona.updated` and `world-info.updated` grew it for the entity→room
- *  freshness bridge and the trigger tuple never caught up, so the vocabulary was two members BEHIND its own
- *  source union. The catch-up is BATCHED into the owner-global lane's merge window rather than landed alone,
- *  because every member of this tuple is paired with the `automation_rules` bus↔type CHECK, which is
- *  tuple-DERIVED DDL — so any widening here is a generated-baseline edit (`db/schema/automation.ts`). An
- *  event that exists on no bus is NOT vocabulary: the `crew.*`/`rpg.*` mirrors stay documented in
- *  `@orb/contracts/events`'s own header, never tupled here. */
+ *  IT CARRIES ALL FOUR LIVE DOMAIN EVENTS. An event that exists on no bus is NOT vocabulary: the
+ *  `crew.*`/`rpg.*` mirrors stay documented in `@orb/contracts/events`'s own header, never tupled here.
+ *  Every member of this tuple is paired with the `automation_rules` bus↔type CHECK, which is
+ *  tuple-DERIVED DDL — so any widening here is a generated-baseline edit (`db/schema/automation.ts`). */
 export const DOMAIN_TRIGGER_TYPES = [
-  // v1 (wired)
   "character.updated",
   "asset.created",
-  // S7 (wired with C5) — the entity→room freshness bridge's two events, now trigger vocabulary.
+  // The entity→room freshness bridge's two events, also trigger vocabulary.
   "persona.updated",
   "world-info.updated",
 ] as const satisfies readonly DomainEventType[];
@@ -103,12 +96,12 @@ const DOMAIN_TRIGGER_SET: ReadonlySet<string> = new Set(DOMAIN_TRIGGER_TYPES);
 /** WHICH BUS an event type is trigger vocabulary on — `null` when it is on NEITHER tuple (a bus member
  *  automation does not trigger on: a `delta`/`warning` chat beat, a `crew.*`/`rpg.*` domain mirror).
  *
- *  IT IS TUPLE MEMBERSHIP, NEVER PUNCTUATION. Both this and the watcher front door previously
- *  classified by "does the type contain a dot", which is a property of today's NAMES rather than of the
- *  taxonomy: nothing makes every `DomainEventType` dot-namespaced or forbids a `ChatBusEvent` from carrying a
- *  dot, so a future member of either union would silently route through the WRONG pre-check and rule loader
- *  while sitting correctly in the trigger map. The tuples above are the authority the db's bus↔type CHECK is
- *  generated from; reading them is the only classification that cannot drift from what a rule can store.
+ *  IT IS TUPLE MEMBERSHIP, NEVER PUNCTUATION. Classifying by "does the type contain a dot" reads a property
+ *  of today's NAMES rather than of the taxonomy: nothing makes every `DomainEventType` dot-namespaced or
+ *  forbids a `ChatBusEvent` from carrying a dot, so a future member of either union would silently route
+ *  through the WRONG pre-check and rule loader while sitting correctly in the trigger map. The tuples above
+ *  are the authority the db's bus↔type CHECK is generated from; reading them is the only classification that
+ *  cannot drift from what a rule can store.
  *
  *  The two tuples are DISJOINT, because
  *  membership order would otherwise decide a shared member's bus silently. */
@@ -121,7 +114,7 @@ export function triggerBusOf(type: string): AutomationTriggerBus | null {
 
 /** The `AutomationTrigger` for one trigger TYPE — the bus DERIVED from which tuple the member belongs to.
  *
- *  ONE HOME FOR THE PAIRING (C5). The db binds `trigger_bus` to `trigger_type` with a CHECK generated from
+ *  ONE HOME FOR THE PAIRING. The db binds `trigger_bus` to `trigger_type` with a CHECK generated from
  *  these same two tuples, so any producer that spells the pair by hand can spell it wrong and only discover
  *  it at the insert. Preset defs name a TYPE and let this answer for the bus, which makes a cross-bus pair
  *  unrepresentable rather than merely refused.
@@ -201,20 +194,19 @@ export interface GlobalVariableView {
 
 // ── the per-chat rate cap (loop safety) ──────────────────────────────────────────────────────────
 // The per-chat FIRE-RATE ceiling — the loop-safety belt that bounds a runaway automation (a rule that keeps
-// re-firing) from hammering a paid API. It is a FIXED ceiling with no stored override (owner ruling: the
-// host-editable per-chat plane had no route and no client, so no user could reach it). The
-// dispatch rate gate and the atomic fire reservation both import THIS const. (The per-day $/spend-action
-// ceilings were stripped — enterprise spend enforcement; cost visibility + rate caps stay.)
+// re-firing) from hammering a paid API. It is a FIXED ceiling with no stored override (owner ruling): the
+// dispatch rate gate and the atomic fire reservation both import THIS const. It is a rate cap, never a spend
+// ceiling — cost visibility stays, enterprise spend enforcement does not.
 
 /** The per-chat fire-rate ceiling: every chat's rules together admit at most this many fires per hour. */
 export const AUTOMATION_CHAT_MAX_FIRES_PER_HOUR = 120;
 
 /** The CEILING on the per-owner rate-cap belt.
  *
- *  A BELT NEEDS A TOP OR IT IS NOT A BELT. The per-RULE cap is 0..240 (`persistence/validate.ts`), and the
- *  budget plane had no upper bound at all: the wire took `int().min(0)` and the verb took whatever arrived,
- *  so an owner could set a nine-digit ceiling and the loop-safety belt would bound nothing while still reading
- *  as configured. 3600 = one fire per second, the rate past which "cap" stops describing anything a runaway
+ *  A BELT NEEDS A TOP OR IT IS NOT A BELT. The per-RULE cap is 0..240 (`persistence/validate.ts`), and
+ *  without an upper bound here the wire's `int().min(0)` and the verb's "take whatever arrived" let an owner
+ *  set a nine-digit ceiling, so the loop-safety belt bounds nothing while still reading as configured.
+ *  3600 = one fire per second, the rate past which "cap" stops describing anything a runaway
  *  rule could be held to — well above the 120 default and above any plausible sum of per-rule caps.
  *
  *  ONE HOME, TWO ENFORCERS (the `AUTOMATION_VARIABLE_VALUE_MAX` posture): the domain verb
@@ -223,7 +215,7 @@ export const AUTOMATION_CHAT_MAX_FIRES_PER_HOUR = 120;
  *  boundary rather than a domain throw. */
 export const AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR = 3600;
 
-// ── C5: the per-OWNER rate-cap plane (the owner-global lane's loop-safety belt) ────────────────────
+// ── the per-OWNER rate-cap plane (the owner-global lane's loop-safety belt) ────────────────────
 // The per-chat belt above counts a chat's fires, so it cannot bound a global (chat-less) rule. A global rule
 // therefore counts against an owner-keyed table (`automation_owner_budgets`), and the dispatch reads
 // whichever belt matches the rule's own scope.
@@ -231,8 +223,7 @@ export const AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR = 3600;
 // WHY A GLOBAL RULE NEEDS ITS OWN BELT AT ALL: the per-rule/hour cap still applies to it, but the SECOND
 // belt — the one that bounds a whole scope rather than one rule — has no chat to key on. Without this
 // table a runaway global rule multiplies by the owner's entire library instead of by one room, which is
-// exactly the hammering the belt exists to bound. It is a runaway-loop belt and NOT a spend ceiling: the
-// per-day $ ceilings were stripped and nothing here re-introduces them.
+// exactly the hammering the belt exists to bound. It is a runaway-loop belt and NOT a spend ceiling.
 
 /** The per-OWNER fire-rate ceiling default — the value the write path stamps on a fresh
  *  `automation_owner_budgets` row (mirrored by that table's DDL column default: ONE app-side home, the DDL
@@ -271,7 +262,7 @@ export const LIVE_TRIGGERS = {
   worldInfoActivated: true,
   personaSwitched: true,
   chatCreated: true,
-  // chat bus — S7 (wired with B6): the reaction plane emits it and the fact resolver projects it, so it is
+  // chat bus — the reaction plane emits it and the fact resolver projects it, so it is
   // LIVE, not reserved.
   reactionsChanged: true,
   // chat bus — reserved (typed, not wired v1)
@@ -283,16 +274,16 @@ export const LIVE_TRIGGERS = {
   // domain bus — v1 wired
   "character.updated": true,
   "asset.created": true,
-  // domain bus — S7 (wired with C5): both are LIVE on the domain bus and both resolve a fact
+  // domain bus — both are LIVE and both resolve a fact
   // (`substrate/fact-resolver.ts`), so neither is reserved.
   "persona.updated": true,
   "world-info.updated": true,
 } as const satisfies Record<ChatTriggerType | DomainTriggerType, boolean>;
 
 // ── the action union ─────────────────────────────────────────────────────────────────────────────
-// Every arm: a snake_case `type` discriminator, an inline arg schema, capped rendered outputs. Additional
-// arms for purged domains (agents/rpg/force-activate) are not typed here today — the rebuild mints them onto
-// `AUTOMATION_ACTION_TYPES` if those domains return. The `generate_image` arm does NOT own its shape — it
+// Every arm: a snake_case `type` discriminator, an inline arg schema, capped rendered outputs. The
+// agents/rpg/force-activate domains have no arm typed here — a rebuild mints theirs onto
+// `AUTOMATION_ACTION_TYPES`. The `generate_image` arm does NOT own its shape — it
 // EXTENDS `@orb/contracts/imagery`'s `generateImageActionArgsSchema` (one home per shape —
 // Spine-TypeScript-and-Patterns §7.5).
 
@@ -304,7 +295,7 @@ export const LIVE_TRIGGERS = {
  *  `tsc`-forced like every other member; the open-world contributor name rides INSIDE its payload
  *  (`run_tool.name`). Adding an open arm — a `type: string` escape, a `plugin_*` wildcard member — is the
  *  banned move: it defeats every exhaustive dispatch downstream (Spine-TypeScript-and-Patterns.md "String-union dispatch discipline"). */
-// C5 — the SCOPE an arm needs from the rule that carries it. A rule is `chatId: ChatId | null` and NULL
+// The SCOPE an arm needs from the rule that carries it. A rule is `chatId: ChatId | null` and NULL
 //  means owner-global (`db/schema/automation.ts`), so half the arm surface has no room to act in.
 const AUTOMATION_ARM_SCOPES = ["chat-required", "chat-independent"] as const;
 export type AutomationArmScope = (typeof AUTOMATION_ARM_SCOPES)[number];
@@ -316,8 +307,7 @@ export type AutomationArmScope = (typeof AUTOMATION_ARM_SCOPES)[number];
  *  separately is the point rather than an accident: one answers "which KV store does this write land in", the
  *  other "which lane does this rule live on". They are equal today by coincidence — a third variable plane
  *  would grow this tuple and must NOT grow that one — so deriving either from the other would couple two
- *  unrelated vocabularies through their current spelling. (Homed at C5 because the collision only became
- *  visible once the preset-scope tuple existed to collide with.) */
+ *  unrelated vocabularies through their current spelling. */
 export const AUTOMATION_VARIABLE_SCOPES = ["chat", "global"] as const;
 export type AutomationVariableScope = (typeof AUTOMATION_VARIABLE_SCOPES)[number];
 
@@ -330,7 +320,7 @@ export const AUTOMATION_ACTION_TYPES = [
   "trigger_turn",
   "generate_image",
   "set_chat_background",
-  // S5 — the quiet-analysis arm (C1). Placed BEFORE `run_tool` deliberately: it is a first-party model-lane
+  // The quiet-analysis arm. Placed BEFORE `run_tool` deliberately: it is a first-party model-lane
   // arm and `run_tool` stays the tuple's closing closed/open BOUNDARY member (the D146-a comment below).
   // The tuple position is also the arm-vocabulary display order (`rule-copy.ts::ARM_LABELS` derives it).
   "run_analysis",
@@ -338,7 +328,7 @@ export const AUTOMATION_ACTION_TYPES = [
 ] as const;
 export type AutomationActionType = (typeof AUTOMATION_ACTION_TYPES)[number];
 
-/** C5 — WHICH ARMS NEED A ROOM. The exhaustive `Record<AutomationActionType, AutomationArmScope>` the scope
+/** WHICH ARMS NEED A ROOM. The exhaustive `Record<AutomationActionType, AutomationArmScope>` the scope
  *  axis is decided by: a new arm fails `tsc` here until it declares, so "can this act happen with no chat?"
  *  can never be answered by omission. The domain's mint validation reads THIS and nothing else for the
  *  per-TYPE half of the question (`domain/automation/persistence/validate.ts`).
@@ -347,20 +337,18 @@ export type AutomationActionType = (typeof AUTOMATION_ACTION_TYPES)[number];
  *  `undefined` without a chat:
  *   • `surface_quick_reply` — the chips ride the per-CHAT automation bus (`quickReplySurfaced.chatId`).
  *   • `trigger_turn` — a turn happens IN a room (`AutomationTurnRequest.chatId`).
- *   • `set_chat_background` — the written background is the CHAT's carried one (BG-C/BG-F).
+ *   • `set_chat_background` — the written background is the CHAT's carried one.
  *   • `transform_draft` — it rewrites a turn's draft, and a turn is a room's.
  *   • `post_notification` — the `automation-notice` wire member's `chatId` is REQUIRED
  *     (`@orb/contracts/notifications`) AND its recipients are resolved over the chat's present members.
  *   • `run_analysis` — every read window it thinks over is a chat-scoped canon read.
- *  The last two are NOT in the interaction-direction spec §3-S3's enumerated list; that list is a subset of
- *  what the built code requires, and this Record is the corrected home (both rows carry their receipt above).
+ *  This Record is the corrected home of that list.
  *
- *  `generate_image` IS `chat-independent`, and that is C5's own flip rather than an as-built reading: the
- *  request's `chatId` widened to nullable with this landing so the owner-global lane's living-library preset
- *  is admissible at all. It is admissible NARROWLY — a global `generate_image` must be `quiet` (a non-quiet
- *  generation POSTS into a chat) and must ride a caption mode (the text-EXTRACTION modes read a chat's recent
- *  canon through the quiet shaper). Both refinements are the domain's, beside the two per-arm PLANE
- *  refinements this per-TYPE Record structurally cannot express: `set_variable.scope` and
+ *  `generate_image` IS `chat-independent`: the request's `chatId` is nullable so the owner-global lane's
+ *  living-library preset is admissible at all. It is admissible NARROWLY — a global `generate_image` must be
+ *  `quiet` (a non-quiet generation POSTS into a chat) and must ride a caption mode (the text-EXTRACTION modes
+ *  read a chat's recent canon through the quiet shaper). Both refinements are the domain's, beside the two
+ *  per-arm PLANE refinements this per-TYPE Record structurally cannot express: `set_variable.scope` and
  *  `run_tool.resultScope` may name the `chat` plane, which is a room's variable fold.
  *
  *  THE KEYS ARE BRACKETED (`["set_variable"]:`) for the reason `IMAGERY_CAPTION_SLOT_IDS` is
@@ -439,35 +427,35 @@ export const AUTOMATION_ACTION_ARMS_MAX = 8;
 /** Consecutive predicate, action or authority errors after which the dispatch turns a rule off. */
 export const AUTOMATION_CONSECUTIVE_ERROR_CEILING = 20;
 
-/** S5 — the `run_analysis` arm's stored-GUIDANCE cap, in characters. ONE home, TWO enforcers (the
+/** The `run_analysis` arm's stored-GUIDANCE cap, in characters. ONE home, TWO enforcers (the
  *  `GLOBAL_VARIABLE_*` pattern above): the analysis applier SLICES the model's guidance to this bound at the
  *  write boundary, and the `automation_rule_state.guidance` DDL CHECK mirrors the same value — so the app
  *  bound and the SQL bound can never drift. Sized to the steer-line class (a guidance line is ONE concrete
- *  narrator instruction — the legacy director's contract — not a document). */
+ *  narrator instruction, not a document). */
 export const ANALYSIS_GUIDANCE_MAX = 600;
 /** The `run_analysis` arm's authored TASK BRIEF cap — a paragraph-class instruction (the `LORE_NOTE` class),
  *  not the 8 KiB template ceiling: the brief rides every pass's prompt, so its bound is a prompt budget. */
 const ANALYSIS_BRIEF_MAX = 2000;
 /** The host's standing STEER knob cap — one steer-line-class sentence rides every pass. */
 const ANALYSIS_STEER_MAX = 600;
-/** S5 — a route's APPLY posture: `direct` executes at fire time; `confirm` raises an S4 card and executes
+/** A route's APPLY posture: `direct` executes at fire time; `confirm` raises a confirm card and executes
  *  only on the host's yes. Declared ONCE as a tuple and derived (§5.5 — no inline union re-spell). */
 export const ANALYSIS_APPLY_MODES = ["direct", "confirm"] as const;
-/** S5 — the `setVariable` route's NUMERIC-SCORE value contract: the ONLY shape an analysis pass may publish
- *  into the member-visible chat-vars plane (the needle — F6's single ruled exception). The
+/** The `setVariable` route's NUMERIC-SCORE value contract: the ONLY shape an analysis pass may publish
+ *  into the member-visible chat-vars plane (the needle — the single ruled exception). The
  *  applier writes `String(clamp(int(score), 0..ANALYSIS_SCORE_MAX))` and NOTHING ELSE — arcs, twists and
  *  guidance are disjoint payload fields no code path hands to the vars writer. */
 export const ANALYSIS_SCORE_MAX = 10;
-/** S5/C3 — the prose-audit route's REWRITE body cap, in characters. It bounds three things at once and they
+/** The prose-audit route's REWRITE body cap, in characters. It bounds three things at once and they
  *  must agree: the model's emitted `rewrite.text`, the before/after strings the host-only card event carries
  *  for its diff, and the content the confirmed apply writes into a message variant. Sized to a long RP reply
  *  (the class `WI_CONTENT_MAX` is sized for) rather than a document — a rewrite that would not fit was never a
  *  conservative repair of one reply. */
 export const ANALYSIS_REWRITE_MAX = 8000;
-/** S5/C3 — the one-phrase FLAW the audit names on the card ("contradicts the locked door", "speaks for Mira").
+/** The one-phrase FLAW the audit names on the card ("contradicts the locked door", "speaks for Mira").
  *  Summary-class: it rides `AUTOMATION_SUGGESTION_SUMMARY_MAX` after the question wrapper. */
 export const ANALYSIS_REWRITE_ISSUE_MAX = 120;
-/** §4 #16 (the needle) — the ONE chat variable the tension score publishes into, shared by the preset that
+/** The needle — the ONE chat variable the tension score publishes into, shared by the preset that
  *  authors the `vars` route and the client meter that renders it.
  *
  *  IT LIVES IN `contracts` FOR THE SAME REASON EVERY WIRE SHAPE DOES: two packages must agree on it and
@@ -479,14 +467,14 @@ export const ANALYSIS_REWRITE_ISSUE_MAX = 120;
  *  value the meter would have no way to learn. */
 export const NEEDLE_TENSION_VAR_KEY = "tension";
 
-/** §4 #7 (the clock, `clockFires`) — the pair of chat variables B9's `SegmentedClock` flank widget renders:
+/** The clock pair (`clockFires`) — the two chat variables the `SegmentedClock` flank widget renders:
  *  the current FILL and the threshold it fills TO. Both live in `contracts` for the `NEEDLE_TENSION_VAR_KEY`
- *  reason: the clock preset AUTHORS them into the member-visible `vars` plane (R1 increments the fill and
+ *  reason: the clock preset AUTHORS them into the member-visible `vars` plane (one rule increments the fill and
  *  publishes the max, both free `set_variable` arms) and the client meter READS them back through
  *  `chat.getRuntimeVariables`, so the two packages must agree on one spelling.
  *
  *  WHY THE MAX IS A PUBLISHED VARIABLE and not read from the rule: the threshold is a mint-time knob that
- *  lands as a LITERAL inside R2's CEL predicate (`int(vars.clock) >= N`), which no member-visible read exposes
+ *  lands as a LITERAL inside the rule's CEL predicate (`int(vars.clock) >= N`), which no member-visible read exposes
  *  and which the client may not re-derive (a predicate is server logic — `contract/presets.ts`). Publishing N
  *  as a sibling variable is the correct home: the data the widget needs comes from the plane it already
  *  reads, member-gated exactly like the fill. Both are CONSTANTS, never knobs, for the CEL-identifier reason
@@ -494,22 +482,20 @@ export const NEEDLE_TENSION_VAR_KEY = "tension";
 export const CLOCK_VAR_KEY = "clock";
 export const CLOCK_MAX_VAR_KEY = "clockMax";
 
-/** How a surfaced chip's text is CONSUMED when the member clicks it (S1, the in-chat control seam):
+/** How a surfaced chip's text is CONSUMED when the member clicks it (the in-chat control seam):
  *  `send` fires it as that member's next turn immediately; `compose` seeds their composer draft so they
  *  own and edit it before sending. The pair is the wire half of the client's control-mode axis (the
  *  client's `CHAT_CONTROL_MODES` derives from this tuple and adds `execute`, which no chip can carry — an
  *  arm-surfaced control never runs a verb). WHY the field exists: the authoring law "chip text is diegetic
- *  or compose-mode, never member-attributed director voice" has no lever without it; before it, send-vs-
- *  compose was a per-chat GAME knob (`cyoaChoiceBehavior`) that the `:::choices` fence renderer reads and
- *  a rule-surfaced chip has no access to. */
+ *  or compose-mode, never member-attributed director voice" has no lever without it — a per-chat GAME knob
+ *  (`cyoaChoiceBehavior`) is readable by the `:::choices` fence renderer but not by a rule-surfaced chip. */
 export const QUICK_REPLY_MODES = ["send", "compose"] as const;
 export type QuickReplyMode = (typeof QUICK_REPLY_MODES)[number];
 
-/** S4 — the arms that COST something to run: a model call the rule author funds. The machine-readable spend
- *  set the fire-rate REFUSAL path reads (RULED F4: a `budget_refused` on a
- *  rule carrying one of these raises the "rate-capped — run it now?" invitation, ON by default). Until now the
- *  class existed only as the words "SPEND-classed" in two arm comments. The tuple is exact-as-built, never
- *  forward-declared: `run_tool` joined at C4 and `run_analysis` at C1, each riding its own landing.
+/** The arms that COST something to run: a model call the rule author funds. The machine-readable spend
+ *  set the fire-rate REFUSAL path reads: a `budget_refused` on a
+ *  rule carrying one of these raises the "rate-capped — run it now?" invitation, ON by default.
+ *  The tuple is exact-as-built, never forward-declared: an arm joins only on its own landing.
  *
  *  NOT the same axis as the CONFIRM-FIRST (suggestible) set below: SPEND is about who pays and therefore what
  *  a rate refusal may offer to re-run; suggestible is about CONSENT — which arms a host may be asked to
@@ -518,20 +504,20 @@ export type QuickReplyMode = (typeof QUICK_REPLY_MODES)[number];
  *
  *  `run_tool` is spend-classed CONSERVATIVELY and that is the honest reading, not a guess: the arm hands control
  *  to a contributor's own code, and the capabilities a plugin can hold include `llm.quiet` (a model call on the
- *  installer's connection), `net.fetch`, and image generation. The host therefore gets F4's "rate-capped — run
+ *  installer's connection), `net.fetch`, and image generation. The host therefore gets the "rate-capped — run
  *  it now?" invitation when a run_tool rule is turned away by the fire-rate cap, which is the correct offer:
  *  the money at stake is the author's own. */
 export const SPEND_ARM_TYPES = ["trigger_turn", "generate_image", "run_analysis", "run_tool"] as const satisfies readonly AutomationActionType[];
 
-/** S4 — the CONFIRM-FIRST flag, carried by the four SUGGESTIBLE arms and by nothing else (the shape IS the
+/** The CONFIRM-FIRST flag, carried by the SUGGESTIBLE arms and by nothing else (the shape IS the
  *  vocabulary: `SuggestibleArmType` below is derived from which arms carry it, so the two can never drift).
  *  `true` ⇒ at fire time the arm STASHES a pending suggestion instead of acting, and a HOST confirm executes
  *  the stored arm.
  *
  *  WHY IT LIVES ON THE ARM AND NOT ON THE RULE: the stored record's executable half is ONE arm
  *  (`resolvedArm`), so the arm is the unit whose posture this describes; and `automation_rules` carries no
- *  `confirm_first` column — RULED F1 puts the pending ask in RAM, and adding a rule COLUMN for the authoring
- *  half would be a schema change this row does not own. A preset's own `confirmFirst` substitutes onto its
+ *  `confirm_first` column — the pending ask lives in RAM, and a rule COLUMN for the authoring
+ *  half would be a schema change this shape does not own. A preset's own `confirmFirst` substitutes onto its
  *  arms at mint. `.default(false)` keeps every stored rule byte-identical in behavior. */
 const confirmFirstSchema = z.boolean().default(false);
 
@@ -548,9 +534,9 @@ export const automationActionSchema = z.discriminatedUnion("type", [
     .strip(),
   // 1.2 run a macro template over the draft (the D50 PromptTransform seam).
   // `.min(1)` like the `run_analysis.brief` / `run_tool.name` arms: an arm with NO BODY is not a
-  // configuration, it is an unfinished one, and this arm's blank was DESTRUCTIVE rather than inert — a blank
-  // template rendered to "" and REPLACED the user's draft with nothing. The runtime half of that is
-  // fixed at the seam (an empty render is a skip, not a rewrite); this half stops the rule being authorable.
+  // configuration, it is an unfinished one, and this arm's blank would be DESTRUCTIVE rather than inert — a blank
+  // template renders to "" and REPLACES the user's draft with nothing. The runtime half is
+  // held at the seam (an empty render is a skip, not a rewrite); this half stops the rule being authorable.
   z
     .object({
       type: z.literal("transform_draft"),
@@ -617,8 +603,8 @@ export const automationActionSchema = z.discriminatedUnion("type", [
     generateImageActionArgsSchema.options[0].extend({ type: z.literal("generate_image"), confirmFirst: confirmFirstSchema }),
     generateImageActionArgsSchema.options[1].extend({ type: z.literal("generate_image"), confirmFirst: confirmFirstSchema }),
   ]),
-  // 1.8 auto-background (BG-F — ST `/autobg`): an LLM QUIET-pick over the author's owned background library,
-  // writing the CHAT background (host-scoped; scope-safe precisely because BG-C's composition rule makes a
+  // 1.8 auto-background: an LLM QUIET-pick over the author's owned background library,
+  // writing the CHAT background (host-scoped; scope-safe precisely because the composition rule makes a
   // chat background INERT for every viewer outside a true-solo room). `instruction` optionally biases the
   // pick (macro-rendered). No arg selects a background directly — the pick is the model's, over real names.
   z
@@ -628,17 +614,17 @@ export const automationActionSchema = z.discriminatedUnion("type", [
       confirmFirst: confirmFirstSchema,
     })
     .strip(),
-  // 1.8b run_analysis (S5, SPEND-classed) — the QUIET schema-constrained analysis pass, the honest carrier of
-  // the purged crew director's think-first loop. A fire runs ONE structured model call over {the read window,
+  // 1.8b run_analysis (SPEND-classed) — the QUIET schema-constrained analysis pass: the think-first loop
+  // expressed as ONE structured call. A fire runs ONE structured model call over {the read window,
   // the rule's stored state, the host's steer} and routes each OUTPUT CLASS through the domain's closed union
   // (setState · steer · upsertLoreEntry · suggest · setVariable — `domain/automation/contract/analysis.ts`).
   //
   // `routes` IS the consent-and-capability surface, and ABSENCE is the off switch: a route the author did not
   // spell is not merely skipped — it is REMOVED from the model's enforced response schema (the xgrammar lever),
   // so the pass cannot even emit that output class. The `vars` route is the needle's publication gate
-  // (RULED: OFF by default): no default, no preset in C1 authors it — a host opts a room in by
+  // (OFF by default): no default, and no shipped preset authors it — a host opts a room in by
   // spelling it, and the ONLY value that can cross into member-visible chat vars is the clamped NUMERIC score
-  // ({@link ANALYSIS_SCORE_MAX}); arcs/twists/guidance NEVER cross (F6's wall, held by disjoint payload fields).
+  // ({@link ANALYSIS_SCORE_MAX}); arcs/twists/guidance NEVER cross (the wall, held by disjoint payload fields).
   //
   // NOT suggestible (no `confirmFirst`): consent is PER-ROUTE (`apply: "confirm"`), because one pass can mix
   // postures — a direct steer beside a confirm-first lore write. `brief`/`steer` are HOST-authored and render
@@ -652,26 +638,26 @@ export const automationActionSchema = z.discriminatedUnion("type", [
       steer: z.string().max(ANALYSIS_STEER_MAX).optional(),
       routes: z
         .object({
-          /** The guidance slot: ONE narrator-facing instruction, stored verbatim, delivered by the S2 teaching
-           *  contribution. RULED F7: the pacing preset applies it DIRECT. */
+          /** The guidance slot: ONE narrator-facing instruction, stored verbatim, delivered by the teaching
+           *  contribution. The pacing preset applies it DIRECT. */
           steer: z
             .object({ apply: z.enum(ANALYSIS_APPLY_MODES).default("direct") })
             .strip()
             .optional(),
-          /** Durable lore distillation into an attached book (the C2 route; settled-span windowed, watermarked,
+          /** Durable lore distillation into an attached book (settled-span windowed, watermarked,
            *  `neutralizeMacros`-belted). Defaults CONFIRM — a durable canon write earns a card. */
           lore: z
             .object({ apply: z.enum(ANALYSIS_APPLY_MODES).default("confirm"), bookId: typeIdSchema(ID_PREFIX.worldBook) })
             .strip()
             .optional(),
-          /** Model-suggested guided-turn asks as S4 cards. Confirm-class BY NATURE (a suggestion IS an ask), so
+          /** Model-suggested guided-turn asks as confirm cards. Confirm-class BY NATURE (a suggestion IS an ask), so
            *  it carries no apply knob — an empty object is the enable switch. */
           suggest: z.object({}).strip().optional(),
-          /** C3's PROSE AUDIT: the pass reads the newest reply and offers a conservative rewrite on a card that
+          /** THE PROSE AUDIT: the pass reads the newest reply and offers a conservative rewrite on a card that
            *  PINS the audited variant + a hash of its bytes. Confirm-class BY NATURE — a rewrite of settled canon
            *  is never a direct write, so like `suggest` it carries no apply knob and an empty object is the enable
            *  switch. The pinning is what makes the confirm safe across time: a swipe or an edit between the ask and
-           *  the yes REFUSES typed, touching nothing (§3-S4's stale-accept guard). */
+           *  the yes REFUSES typed, touching nothing (the stale-accept guard). */
           rewrite: z.object({}).strip().optional(),
           /** The needle's score publication (host-OPT-IN — see the header). `key` is the ONE chat var the clamped
            *  score lands in; fixed at authoring, never model-chosen. Direct BY NATURE (a cadence meter). */
@@ -728,16 +714,14 @@ export type AutomationAction = z.infer<typeof automationActionSchema>;
  *  `createRule` caller, a test fixture) hands over what a human wrote and the verb NORMALIZES it —
  *  `validateRuleInput` parses, and `createRule` persists the PARSED result, never its own params. Typing
  *  those surfaces as the output type instead is what makes every added default a repo-wide churn wave: it
- *  demands `confirmFirst: false` on literals whose author never heard of confirm-first. (Measured, not
- *  argued: `mode`'s own default shipped with a red on `contract/presets.ts`'s chip builder for exactly this
- *  reason, and adding `confirmFirst` reproduced it 33× before the split.) Everything DOWNSTREAM of the
- *  parse — the dispatcher, the arm executors, the stored row — keeps the output type, so a defaulted field
- *  is never `undefined` where it is read. */
+ *  demands `confirmFirst: false` on literals whose author never heard of confirm-first. Everything DOWNSTREAM
+ *  of the parse — the dispatcher, the arm executors, the stored row — keeps the output type, so a defaulted
+ *  field is never `undefined` where it is read. */
 export type AutomationActionInput = z.input<typeof automationActionSchema>;
 
-/** S4 — the SUGGESTIBLE arms, DERIVED from the shape (which arms carry `confirmFirst`) rather than listed:
+/** The SUGGESTIBLE arms, DERIVED from the shape (which arms carry `confirmFirst`) rather than listed:
  *  the tuple-and-union pair cannot drift because there is no second list. The domain holds the exhaustive
- *  `Record<SuggestibleArmType, summary>` the spec names as the enforcer — an arm that GAINS the field
+ *  `Record<SuggestibleArmType, summary>` that is the enforcer — an arm that GAINS the field
  *  without a summary line fails `tsc` there.
  *
  *  Consent, not cost: this is "which arms may be held for a host's yes", a DIFFERENT axis from
@@ -794,7 +778,7 @@ const triggerFactPayloadSchema = z.strictObject({
     .strictObject({
       intent: z.string(),
       api: z.string(),
-      // The provider REGISTRY id the turn ran on (inference program §5.3b — was the retired `source` word).
+      // The provider REGISTRY id the turn ran on.
       provider: z.string(),
       model: z.string(),
       speakerCharacterId: sandboxWireIdSchema<CharacterId>().nullable(),
@@ -804,7 +788,7 @@ const triggerFactPayloadSchema = z.strictObject({
     .optional(),
   // worldInfoActivated
   worldInfo: z.strictObject({ entryIds: z.array(sandboxWireIdSchema<WorldEntryId>()).readonly() }).optional(),
-  /** reactionsChanged (B6/MR0). NESTED because it carries four fields (the `message`/`turn` reason).
+  /** reactionsChanged. NESTED because it carries four fields (the `message`/`turn` reason).
    *
    *  `added` is the DIRECTION — a removal fires the same trigger as an addition, and a rule that means
    *  "somebody laughed at this" must be able to say `event.reaction.added`, or every un-react re-fires it.
@@ -828,17 +812,17 @@ const triggerFactPayloadSchema = z.strictObject({
    *  `worldInfo` nest and `assetId` does not.
    *
    *  `contentChanged` is the source event's own discriminator (`@orb/contracts/events`'s
-   *  `CharacterUpdatedEvent`) and the resolver used to DROP it, which made the domain-bus character trigger
-   *  fire identically on a real card edit and on a star/archive toggle. A rule that reacts to library
-   *  content — the living-library preset is the catalogue's own case — then degenerated into an edit-burst
+   *  `CharacterUpdatedEvent`). Without it the domain-bus character trigger fires
+   *  identically on a real card edit and on a star/archive toggle, so a rule that reacts to library
+   *  content — the living-library preset is the catalogue's own case — degenerates into an edit-burst
    *  chore, firing on flags nobody thinks of as an edit. Carrying it is what lets a predicate say
    *  `event.character.contentChanged` and mean it. The field is REQUIRED inside the object (the source
    *  event always carries it), so a predicate needs only the `has(event.character)` guard law 1 already
    *  demands. */
   character: z.strictObject({ id: sandboxWireIdSchema<CharacterId>(), contentChanged: z.boolean() }).optional(),
   assetId: sandboxWireIdSchema<AssetId>().optional(), // asset.created
-  personaId: sandboxWireIdSchema<PersonaId>().optional(), // persona.updated (S7) — the persona whose CONTENT changed
-  worldBookId: sandboxWireIdSchema<WorldBookId>().optional(), // world-info.updated (S7) — the OWNING book of the changed row
+  personaId: sandboxWireIdSchema<PersonaId>().optional(), // persona.updated — the persona whose CONTENT changed
+  worldBookId: sandboxWireIdSchema<WorldBookId>().optional(), // world-info.updated — the OWNING book of the changed row
 });
 export const triggerFactSchema = z.discriminatedUnion("bus", [
   triggerFactPayloadSchema.extend({ bus: z.literal("chat"), type: z.enum(CHAT_TRIGGER_TYPES) }),
@@ -882,7 +866,7 @@ export function automationRuleClockZone<Zone extends string = IanaTimeZone>(time
   return timeZone ?? UTC_TIME_ZONE;
 }
 
-// ── S4: the suggest/confirm vocabulary ────────────────────────────────────────────────────────────
+// ── the suggest/confirm vocabulary ────────────────────────────────────────────────────────────
 // The three-posture law over rules AND plugins: standing authority ⇒ act; no standing authority ⇒ ASK
 // the host. A PLUGIN joins the same law and the same inbox — a plugin whose installer is not host of the
 // invocation chat raises an ask instead of taking a flat refusal (`domain/plugin`; the act vocabulary is
@@ -907,8 +891,8 @@ export const AUTOMATION_SUGGESTION_SUMMARY_MAX = 200;
 //  terminal, or one of the two NON-FIRE terminals below.
 //
 //  Neither `suggested` nor `paused` is a member of {@link AUTOMATION_FIRE_OUTCOMES}, and the distinction is the
-//  fire log's honesty (§3-S4 + §6 R5): NO row is written for either, because neither is a fire. Adding a
-//  terminal to the outcome TUPLE is a CHECK edit on a generated baseline and is recorded-unbuilt as R5, so this
+//  fire log's honesty: NO row is written for either, because neither is a fire. Adding a
+//  terminal to the outcome TUPLE is a CHECK edit on a generated baseline, so this
 //  union is the house home for "a terminal a verb must be able to report and the log must not claim". It exists
 //  so a verb can ANSWER "what happened?" without either lying (`fired`) or going silent.
 //
@@ -941,15 +925,15 @@ export interface AutomationOrigin {
 export type AutomationEmitSource = { kind: "rule"; ruleId: AutomationRuleId } | { kind: "plugin"; pluginId: PluginId };
 
 /** The automation's OWN per-chat SSE feedback bus (its own bus, NOT the frozen chat bus; the
- *  purged rpg/agents designs set this precedent). `quickReplySurfaced` is the one MEMBER-visible event (rendered display strings, not
+ *  the chat bus). `quickReplySurfaced` is the one MEMBER-visible event (rendered display strings, not
  *  ids — the chips are transient, there is no row to re-read); everything else is host-only + id-only. The
  *  chips can be surfaced by a rule OR a plugin, so `quickReplySurfaced` carries the `AutomationEmitSource`
  *  union (the rest are rule-lifecycle events — rule-only by construction).
  *
- *  `suggestionRaised` (S4) is HOST-ONLY like the rest, and needed NO transport edit to be so: the room
+ *  `suggestionRaised` is HOST-ONLY like the rest, and needed NO transport edit to be so: the room
  *  source's member filter is DEFAULT-DENY — it forwards exactly `quickReplySurfaced` to a member-tier
  *  subscriber and drops everything else (`transport/trpc/stream/sources/automation.ts`). It carries display
- *  strings for the same reason the chips do: the pending record is in RAM (RULED F1), so there is nothing to
+ *  strings for the same reason the chips do: the pending record is in RAM, so there is nothing to
  *  re-read. */
 // The optional STRUCTURED half of a raised ask — what a card needs to show that one line of summary prose
 //  cannot. Each arm exists because the host must see exactly what they approve before they say yes:
@@ -959,7 +943,7 @@ export type AutomationEmitSource = { kind: "rule"; ruleId: AutomationRuleId } | 
 //    the host pays for the turn the full steer drives. Capped at the chat steer cap at the bridge.
 //
 //  IT RIDES THE EVENT rather than a query for the same reason `summary` does: the pending record is in RAM
-//  (RULED F1), so there is no row to re-read. And it is safe to ride a host-only event: `suggestionRaised` is
+//  in RAM, so there is no row to re-read. And it is safe to ride a host-only event: `suggestionRaised` is
 //  never forwarded to a member subscriber (the room source's member filter is default-deny), so the text
 //  crosses only to the host being asked.
 export type SuggestionCardDetail =
@@ -994,19 +978,17 @@ export type AutomationBusEvent =
        *  so an attribution inside it could be imitated by that text. */
       installerHandle?: string;
       /** OPTIONAL structured body ({@link SuggestionCardDetail}) — present only for the ask classes whose card
-       *  shows more than a question (C3's rewrite diff, a plugin turn's steer). Absent ⇒ the card is title +
+       *  shows more than a question (a rewrite diff, a plugin turn's steer). Absent ⇒ the card is title +
        *  actions. */
       detail?: SuggestionCardDetail;
     }
-  /** S4 RETIREMENT (host-only, id-only) — the twin of `suggestionRaised`: a pending ask was ANSWERED
+  /** The RETIREMENT twin (host-only, id-only) — the twin of `suggestionRaised`: a pending ask was ANSWERED
    *  (confirmed or dismissed) and deleted from the in-RAM store, so every attached HOST tab drops its card.
    *  Emitted the moment the ask leaves the store — at the take-once CLAIM (confirm, before any re-check, so a
    *  refused confirm retires the card too) and the DROP (dismiss). Id-only: there is no row to re-read
-   *  (RULED F1); the client fold filters the matching `asks` entry out. The acting tab also retires
+   *  (the pending record is in RAM); the client fold filters the matching `asks` entry out. The acting tab also retires
    *  optimistically (the mount's per-call `onSuccess`), but the host's OTHER tabs/devices have no query and no
-   *  replay behind this live-only room, so without this member their card sat dead until TTL (30 min). §3-S4
-   *  originally ruled ONE new host-only member (`suggestionRaised`); this retirement twin is the one-line spec
-   *  delta recorded. */
+   *  replay behind this live-only room, so without this member their card would sit dead until TTL. */
   | { type: "suggestionResolved"; chatId: ChatId; suggestionId: AutomationSuggestionId }
   | { type: "ruleFired"; chatId: ChatId; ruleId: AutomationRuleId }
   | { type: "ruleErrored"; chatId: ChatId; ruleId: AutomationRuleId }
@@ -1015,7 +997,7 @@ export type AutomationBusEvent =
 
 export type { AnalysisState } from "./analysis-state.ts";
 export { analysisStateSchema } from "./analysis-state.ts";
-// S3 — the rule-PRESET wire slice: the committed id tuple + the picker's read model (knob descriptors).
+// The rule-PRESET wire slice: the committed id tuple + the picker's read model (knob descriptors).
 // A preset is data OVER this action vocabulary — it mints ordinary rules, it adds no arm. The CEL sources
 // and the mint handlers stay domain-side (`domain/automation/contract/presets.ts`).
 export type {
@@ -1047,7 +1029,7 @@ export {
   rulePresetKnobValuesSchema,
   rulePresetViewSchema,
 } from "./presets.ts";
-// The PROSE-1 slot table (census row 91) — the `set_chat_background` quiet pick's two authored clauses.
+// The prose slot table — the `set_chat_background` quiet pick's two authored clauses.
 // `#prose` imports this to compose `PROSE_SLOTS`; it lives beside the action vocabulary it teaches.
 export { AUTOMATION_PROSE_SLOTS } from "./prose.ts";
 
@@ -1257,14 +1239,14 @@ export interface RuleView {
   /** The dispatch turned this rule off after `AUTOMATION_CONSECUTIVE_ERROR_CEILING` errors in a row, and
    *  nobody has switched it back on. Derived from the row: re-enabling resets the count, so it clears itself. */
   readonly autoDisabled: boolean;
-  /** Mint provenance (§3-S3 flip shape): the rule preset this rule was minted from, or NULL for a
+  /** Mint provenance: the rule preset this rule was minted from, or NULL for a
    *  hand-authored/hand-EDITED rule (`updateRule` clears the pair). Both-or-neither with
-   *  {@link RuleView.rulePresetKnobs} (db CHECK). The saved-cast capture + B2's knob editor read these. */
+   *  {@link RuleView.rulePresetKnobs} (db CHECK). The saved-cast capture and the knob editor read these. */
   readonly rulePresetId: RulePresetId | null;
   /** The COMPLETE resolved knob bag the mint ran with. */
   readonly rulePresetKnobs: RulePresetKnobValues | null;
   readonly matchAutomationEvents: boolean;
-  /** RULED F4's per-rule opt-out (spec row B4): whether a RATE REFUSAL of this rule still offers the host
+  /** The per-rule opt-out on a RATE REFUSAL of this rule still offers the host
    *  the "run it now?" invitation. Defaults TRUE (the ruling's own default); the host turns it off per
    *  rule via `setRuleSuggestOnRefusal`. Only observable on a rule carrying a SPEND arm — the arm shape
    *  still decides whether a refusal could earn an ask at all. */
@@ -1350,7 +1332,7 @@ export interface TestRunResult {
   readonly arms: readonly ArmPreview[];
 }
 
-/** R7 — what a host's "run it now" produced. `outcome` is the SAME fire terminal the bus-driven dispatch
+/** What a host's "run it now" produced. `outcome` is the SAME fire terminal the bus-driven dispatch
  *  records, so the answer to "I pressed Run now, what happened?" is one word in the same vocabulary the fire
  *  log speaks (a `predicate_false` is the common honest answer — the rule's own condition no longer holds). */
 export interface RunRuleNowResult {

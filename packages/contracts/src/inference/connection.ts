@@ -46,8 +46,8 @@ export const connectionTransportSchema = z
   .strip();
 export type ConnectionTransportDoc = z.infer<typeof connectionTransportSchema>;
 
-/** `extras` — the connection's extra BODY fields (today's preset `customParameters`, re-homed where the
- *  quirk lives, §8.1c). Open by definition; its ratchet is the belt denylist applied on write AND read. */
+/** `extras` — the connection's extra BODY fields (the preset's `customParameters`, living where the quirk
+ *  does, §8.1). Open by definition; its ratchet is the belt denylist applied on write AND read. */
 export const connectionExtrasSchema = jsonObjectSchema;
 export type ConnectionExtrasDoc = z.infer<typeof connectionExtrasSchema>;
 
@@ -86,14 +86,14 @@ export const userConnectionSchema = z
     credentialId: typeIdSchema(ID_PREFIX.userCredential).nullable(),
     /** For `auth: endpoint` providers; `null` when the provider row fixes it. */
     baseUrl: z.url().nullable(),
-    /** The picked model id — NEVER defaulted (F16); the picker is the only way it gets set. */
+    /** The picked model id — NEVER defaulted; the picker is the only way it gets set. */
     model: modelIdSchema,
     api: connectionApiSchema,
     declared: declaredCapabilitySchema.nullable(),
     extras: connectionExtrasSchema.nullable(),
     transport: connectionTransportSchema.nullable(),
     modelCheck: modelCheckSchema,
-    /** May a `spend: "background"` task (summaries, captions, digests) run on this row unattended? (F5) */
+    /** May a `spend: "background"` task (summaries, captions, digests) run on this row unattended? */
     allowBackground: z.boolean(),
     /** The prompt-cache settings (`prompt-cache.ts`); `null` ⇒ the shipped behavior (`SHIPPED_PROMPT_CACHE`). */
     promptCache: promptCacheSettingsSchema.nullable(),
@@ -146,7 +146,7 @@ export const CONNECTION_OP_CODES = {
   baseUrlShape: "connection_base_url_shape",
   /** The `baseUrl` did not parse as an http(s) URL. */
   baseUrlInvalid: "connection_base_url_invalid",
-  /** The `baseUrl` resolves to a private/loopback host the deployment allowlist does not admit (F12). */
+  /** The `baseUrl` resolves to a private/loopback host the deployment allowlist does not admit. */
   baseUrlRefused: "connection_base_url_refused",
   /** A `builtin` catalog is the closed set the in-process runtime can load; the model id is not in it. */
   modelNotInCatalog: "connection_model_not_in_catalog",
@@ -154,7 +154,7 @@ export const CONNECTION_OP_CODES = {
   modelIdShape: "connection_model_id_shape",
   /** The named credential is not the caller's (or does not exist — collapsed, no existence oracle). */
   credentialForeign: "connection_credential_foreign",
-  /** The task's `spend` is `background` and the row's `allowBackground` is off (`canFund`, F5). */
+  /** The task's `spend` is `background` and the row's `allowBackground` is off (`canFund`). */
   backgroundRefused: "connection_background_refused",
   /** The binding's actor (a rule, a plugin) is not the caller's. */
   actorForeign: "connection_actor_foreign",

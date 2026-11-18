@@ -1,6 +1,7 @@
-// @orb/contracts/persona — the persona wire schemas (create/update/metadata). Persona no longer
-// imports `@orb/contracts/world-info`: the `{depth, role}` inject shape comes from `@orb/kit/injection`
-// (the shared neutral primitive every injector uses), never a world-info-local re-spell.
+// @orb/contracts/persona — the persona wire schemas (create/update/metadata). Persona takes the
+// `{depth, role}` inject shape from `@orb/kit/injection`
+// (the shared neutral primitive every injector uses), never from `@orb/contracts/world-info` or a
+// world-info-local re-spell.
 
 // `title` is NOT a face field (persona-only, D137(E)) — its limit stays persona-local.
 
@@ -30,10 +31,10 @@ export const personaMetadataSchema = z
     sourceCharacterId: typeIdSchema(ID_PREFIX.character).exactOptional(),
     swapMacros: z.boolean().exactOptional(),
     /** PROVENANCE: this row is the default-persona seeder's own artifact (`entry/boot/seed-default-persona`).
-     *  It is the seeder's SECOND idempotency layer — the persona analogue of the character seeder's
-     *  per-card handle-conflict tolerance, which is what kept the card pack single when the persisted
-     *  `onboarding.defaultPersonaSeeded` latch was lost mid-life and the persona seeder minted a duplicate
-     *. Personas carry no unique key by design (same-named personas are supported), so the
+     *  It is the seeder's SECOND idempotency layer, the persona analogue of the character seeder's
+     *  per-card handle-conflict tolerance: the persisted `onboarding.defaultPersonaSeeded` latch alone can be
+     *  lost mid-life, and without this marker the seeder would mint a duplicate. Personas carry no unique key
+     *  by design (same-named personas are supported), so the
      *  seeder marks what it made instead of guessing from name/title copy. Users never write it; the seeder
      *  is the only producer, and nothing downstream branches on it except the seeder's own skip. */
     seededDefault: z.boolean().exactOptional(),

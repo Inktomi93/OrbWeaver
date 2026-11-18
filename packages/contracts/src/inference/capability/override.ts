@@ -7,7 +7,7 @@
 // `anthropicPrefill` is false on the CLI transport, `midConversationSystem` true ONLY there — so a model row
 // may repeat per (wire, api) arm. A connection's `declared` block carries NO `match` (it is that row's).
 // `match.model` is a regex SOURCE string; the package's shared row compiler (`capability/sources/rows.ts`, serving
-// the curated AND measured tiers) is the ONLY place it is compiled, beside `families.ts` — a prose fence today (no
+// the curated AND measured tiers) is the ONLY place it is compiled, beside `families.ts` — a prose fence only (no
 // gate on the tree spells it).
 
 // Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).

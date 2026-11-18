@@ -3,7 +3,7 @@
 // that already governs `workloads.kind`). `@orb/db` deps are `@orb/kit` + `@orb/contracts` + drizzle
 // only, so a db enum column must reach its axis here, not in `domain/databank/contract/`.
 //
-// DB1 adds the wire surface with no db-column consumer: the chunk-param twin (pinned to `@orb/kit/chunk`'s
+// The wire surface: the chunk-param twin (pinned to `@orb/kit/chunk`'s
 // ChunkParams by `satisfies` — drift fails tsc HERE, not at a call site), the retrieval/settings blobs, and
 // the client-facing DocumentView. `extractedText` is deliberately NOT on DocumentView (list payloads would
 // haul megabytes — a dedicated `get` with `includeText` returns it).
@@ -57,17 +57,15 @@ export const DATABANK_LIST_DEFAULT_LIMIT = 100;
 // `embedding` = chunks exist that are not all embedded · `ready` = every chunk embedded · `stalled` = an
 // in-flight phase whose `updatedAt` stopped moving ({@link STALE_INGEST_MS}).
 //
-// THE VOCABULARY LIVES HERE, not in the client, because the phase became a LIST LENS the SERVER resolves
+// THE VOCABULARY LIVES HERE, not in the client, because the phase is a LIST LENS the SERVER resolves
 // (owner ruling, `paged-list-lenses-go-server-side`): `databank.list` takes it as an input and
-// narrows the whole bank by it, so it is cross-boundary shape. It previously homed in the client's
-// `databank-filter-store`, whose header reasoned "ingest phase is a CLIENT DERIVATION over counts the list
-// already returns … No server read changes" — true of a client-side scope over a loaded window, and exactly
-// what the ruling retired. The client still derives the phase it RENDERS per row; both tiers now speak this
+// narrows the whole bank by it, so it is cross-boundary shape. The client still derives the phase it
+// RENDERS per row; both tiers speak this
 // one tuple and measure the stall against this one threshold.
 export const INGEST_PHASES = ["empty", "indexing", "embedding", "ready", "stalled"] as const;
 
 /** Derived from the TUPLE, not `z.infer` of the schema below (the `CharacterListSort` spelling): the
- *  vocabulary's type face lives at the tuple, its one home. Both give tsc the same type, but Biome 2.5.1 still
+ *  vocabulary's type face lives at the tuple, its one home. Both give tsc the same type, but Biome 2.5.1
  *  reports every `case` of an exhaustive switch over the `z.infer` alias as
  *  `noUnnecessaryConditions` (off in `tooling/src/biome-config/policy.config.ts`) "unreachable", while the tuple-derived alias lints clean (probe
  *  from untracked files under `packages/contracts/src/` and `packages/server/src/`, never /tmp where zod does
@@ -85,9 +83,9 @@ const ingestPhaseSchema = z.enum(INGEST_PHASES) satisfies z.ZodType<IngestPhase>
  *  the same row. */
 export const STALE_INGEST_MS = 300_000;
 
-/** The bank's ingest health, COUNTED (the home tile's D-7 line + its attention chips). Every number is a
- *  census over the caller's whole bank, which is what makes the chips honest: they used to be derived from
- *  the tile's ONE loaded page, so "12 stalled" meant "12 stalled among your newest 100 documents" — the same
+/** The bank's ingest health, COUNTED (the home tile's health line + its attention chips). Every number is a
+ *  census over the caller's whole bank, which is what makes the chips honest: derived from
+ *  the tile's ONE loaded page, "12 stalled" would mean "12 stalled among your newest 100 documents" — the same
  *  blind-lens class as a client-side list filter, wearing a tile (owner ruling).
  *
  *  It is a SEPARATE read from `databank.list`, deliberately: resolving it costs a bank-wide chunk read, and
@@ -123,8 +121,8 @@ const documentListCursorSchema = z.strictObject({
 
 export type DocumentListCursor = z.infer<typeof documentListCursorSchema>;
 
-// Chunk/retrieval bounds — named (contracts enforce no-magic-numbers). ST-derived defaults:
-// 2500-char chunks, 0% overlap, ≤5 KB whole-file, k=5, minScore 0.25.
+// Chunk/retrieval bounds — named (contracts enforce no-magic-numbers). Defaults follow the
+// SillyTavern-compatible chunk settings: 2500-char chunks, 0% overlap, ≤5 KB whole-file, k=5, minScore 0.25.
 const CHUNK_SIZE_MIN = 200;
 const CHUNK_SIZE_MAX = 20_000;
 const CHUNK_SIZE_DEFAULT = 2500;
@@ -138,9 +136,9 @@ const MIN_SCORE_DEFAULT = 0.25;
 // ── chunk params (the wire twin of @orb/kit/chunk's ChunkParams; pinned by ChunkParamsPin below) ─────────
 export const chunkParamsSchema = z
   .object({
-    chunkSize: z.int().min(CHUNK_SIZE_MIN).max(CHUNK_SIZE_MAX).default(CHUNK_SIZE_DEFAULT), // chars — ST chunk_size_db
-    overlapPercent: z.int().min(0).max(OVERLAP_PERCENT_MAX).default(0), // ST overlap_percent_db
-    wholeFileThreshold: z.int().min(0).max(WHOLE_FILE_THRESHOLD_MAX).default(WHOLE_FILE_THRESHOLD_DEFAULT), // chars — ST size_threshold_db (5 KB)
+    chunkSize: z.int().min(CHUNK_SIZE_MIN).max(CHUNK_SIZE_MAX).default(CHUNK_SIZE_DEFAULT), // chars — SillyTavern chunk_size_db
+    overlapPercent: z.int().min(0).max(OVERLAP_PERCENT_MAX).default(0), // SillyTavern overlap_percent_db
+    wholeFileThreshold: z.int().min(0).max(WHOLE_FILE_THRESHOLD_MAX).default(WHOLE_FILE_THRESHOLD_DEFAULT), // chars — SillyTavern size_threshold_db (5 KB)
   })
   .strip();
 
@@ -157,9 +155,9 @@ const [_chunkParamsHolds]: [ChunkParamsPin] = [true];
 // ── retrieval settings (the user-setting blob) ────────────────────────────────────────────────────────────
 export const databankRetrievalSettingsSchema = z
   .object({
-    k: z.int().min(1).max(RETRIEVAL_K_MAX).default(RETRIEVAL_K_DEFAULT), // ST chunk_count_db
-    minScore: z.number().min(0).max(1).default(MIN_SCORE_DEFAULT), // ST score_threshold
-    rerank: z.boolean().default(false), // LEAN default off
+    k: z.int().min(1).max(RETRIEVAL_K_MAX).default(RETRIEVAL_K_DEFAULT), // SillyTavern chunk_count_db
+    minScore: z.number().min(0).max(1).default(MIN_SCORE_DEFAULT), // SillyTavern score_threshold
+    rerank: z.boolean().default(false), // off by default
   })
   .strip();
 export type DatabankRetrievalSettings = z.infer<typeof databankRetrievalSettingsSchema>;
@@ -218,8 +216,8 @@ export function ingestPhase(doc: Pick<DocumentView, "charCount" | "chunkCount" |
 }
 
 // ── host per-document visibility override (D85 — the membership-widened chat scope's governance knob) ─────
-// The chat-scope retrieval union widened from host-only to every present member's ATTACHED documents (D85).
-// Widening is default-ON; the HOST retains an optional per-DOCUMENT override to
+// The chat-scope retrieval union spans every present member's ATTACHED documents (D85).
+// Widening is default-ON, and the HOST retains an optional per-DOCUMENT override to
 // EXCLUDE a specific document (a member's, or the room's) from the shared retrieval set — governable, not
 // all-or-nothing. Home: a fault-isolated `chats.metadata` sub-blob (the `roomOverrides` precedent), WRITTEN
 // by the host-gated `chat.setChatDocumentVisibility` verb and READ by `databank/persistence/scope.ts`. The
@@ -236,10 +234,9 @@ export type ChatDocumentVisibility = z.infer<typeof chatDocumentVisibilitySchema
 
 // ── WHY a document is active in a chat ──────────────────────────────────
 // The D85 union is THREE junction reads (`databank/persistence/scope.ts`): every present human member's
-// GLOBAL documents ∪ the chat's directly-attached documents ∪ the present roster characters' documents. The
-// resolver ran all three separately and then threw the provenance away, so the panel could say a document
-// was active but never WHY — which is what made legacy render a read-only Switch as an information display
-// (the affordance lie §2.2 files). This is that provenance, promoted to the wire as ONE tuple (§5.5).
+// GLOBAL documents ∪ the chat's directly-attached documents ∪ the present roster characters' documents. This
+// tuple is that provenance on the wire (§5.5): without it the panel can say a document is active but never
+// WHY — which renders a read-only Switch as an information display (the affordance lie §2.2).
 //
 // It is a LIST per document, not a single value: a member's global document can ALSO be chat-attached and
 // ALSO ride a roster character. It is also the DETACHABILITY datum — only the `chat` junction belongs to
@@ -332,9 +329,8 @@ export interface DocumentCharacterRef {
  * Reverse of the scope junctions: where a document is attached (the CONTEXT panel's "Active in" roster +
  * detach UX). `global` is a boolean (single-owned personal bank).
  *
- * NAMES, NOT IDS. This used to hand back `chatIds`/`characterIds`, which is why the pane
- * above it could only render two integers and why its no-selection copy had to downgrade its promise. The
- * two scopes resolve differently and the difference is the whole design:
+ * NAMES, NOT IDS: two integer lists are not a roster, and the two scopes
+ * resolve differently — the difference is the whole design:
  *   • CHARACTERS are a cheap owner-scoped join — the caller owns both sides of that junction.
  *   • CHATS are membership-scoped (D18 — chats carry no `ownerId`) and `attachToChat` is HOST authority, so
  *     a `chat_documents` row OUTLIVES its attacher's seat. Naming those ids straight off the junction would
@@ -356,7 +352,7 @@ export interface DocumentAttachmentsView {
  *  never learns a host-hidden document's name (`hidden` is always `false` in a member's payload). */
 export interface ActiveChatDocumentView extends DocumentView {
   readonly hidden: boolean;
-  /** WHY this document is active (D-2): the scope junction(s) crediting it — `global` (a present member's
+  /** WHY this document is active: the scope junction(s) crediting it — `global` (a present member's
    *  global attachment) · `chat` (attached to THIS chat) · `character` (on a present roster character). A
    *  document can be credited by several at once. Never empty: a row exists only because a junction put it
    *  there. It is also the DETACHABILITY datum — only `chat` is a junction this room's host owns, so a row
@@ -382,8 +378,8 @@ export interface ListDocumentsResult {
   readonly items: readonly DocumentView[];
   readonly nextCursor: DocumentListCursor | null;
   /** How many documents match the SAME lens this page is a window into — a real `COUNT`, never `items.length`.
-   *  It is what retired the surfaces' `100+` reading: the band header and the home tile used to print a full
-   *  first PAGE as the bank's size-floor because a page was the only number they had. A census is a different question from "how many rows this page happened to carry", and both
+   *  It is what makes the band header's and the home tile's count honest: a full first PAGE is not the
+   *  bank's size-floor. A census is a different question from "how many rows this page happened to carry", and both
    *  surfaces print the census. */
   readonly totalCount: number;
 }
@@ -461,7 +457,7 @@ export interface CreateFromTextParams {
   readonly principal: Principal;
   readonly destination?: DocumentDestination | undefined;
   readonly name: string;
-  /** origin 'text' (ST Notepad) — no bytes, no extraction; `extractedText` IS the canon. */
+  /** origin 'text' (SillyTavern's Notepad) — no bytes, no extraction; `extractedText` IS the canon. */
   readonly text: string;
 }
 /** `Signal` is the caller's cancel: the write reads the owner's live embed space, whose resolve can wake their encoder. */

@@ -157,10 +157,9 @@ const CAS_HASH_HEX_LENGTH = 64;
 
 /** Parses {@link StoredAsset} — the client `uploadAsset` helper's response-boundary validator.
  *
- *  The floor matches what the producer can actually emit: `infra/storage/cas.ts` always returns a 64-char
- *  sha-256 hex, so an empty hash was a state no live path could reach and the schema accepted anyway. This
- *  is a RESPONSE validator over our own server's reply, not an input boundary — the tightening buys a louder
- *  failure if the reply ever stops being what the CAS promises, nothing more, and it is free. */
+ *  The width matches what the producer emits: `infra/storage/cas.ts` always returns a 64-char sha-256 hex.
+ *  This is a RESPONSE validator over our own server's reply, not an input boundary — the width buys a louder
+ *  failure if the reply ever stops being what the CAS promises, nothing more. */
 export const storedAssetSchema = z.strictObject({
   assetId: assetIdSchema,
   hash: z.string().length(CAS_HASH_HEX_LENGTH),
@@ -295,8 +294,8 @@ export const resolveBlobRefsParamsSchema = z.strictObject({
  *  here because only THIS projection needs them (the grid sizes its own tiles). */
 export type AssetBlobRef = Pick<AssetListItem, "assetId" | "hash" | "mime"> & {
   /** Header-parsed intrinsic size, stored at upload — the render side reserves the true box with
-   *  it BEFORE the bytes arrive. `null` when the asset is not an image or its header was unparseable
-   *  (and on every row written before the dimension columns existed): the renderer falls back to its placeholder aspect. */
+   *  it BEFORE the bytes arrive. `null` when the asset is not an image, its header was unparseable, or its
+   *  row predates the dimension columns: the renderer falls back to its placeholder aspect. */
   readonly width: number | null;
   readonly height: number | null;
 };
@@ -314,8 +313,7 @@ export const resolveChatBlobRefsParamsSchema = z.strictObject({
   assetIds: z.array(assetIdSchema).max(ASSET_LIST_LIMIT_MAX),
 });
 
-// ── The `assets-fsck` workload's terminal result (the workloads junk-drawer exit: a workload's result
-//    shape is authored by the OWNING domain). ──
+// ── The `assets-fsck` workload's terminal result: a workload's result shape is authored by the OWNING domain. ──
 
 /** The read-only integrity walk's three fault counts — the REPORT is the product of the run. */
 export interface FsckReport {
@@ -338,13 +336,13 @@ export const fsckReportSchema = z.strictObject({ danglingRows: z.number(), corru
  *  re-own cheap and idempotent — the same bytes under an owner who already has them resolve to their existing
  *  row rather than a second copy. Injected (assets owns the table); wired at the entry composition root.
  *
- *  TWO CARRIED PICTURES, ONE PORT. The avatar was always re-owned here; the card's carried BACKGROUND
- *  (`background_override` `kind:"asset"`) is the same fact wearing a different column and was being copied by
- *  id, which is the exact pointer-into-a-foreign-library this port exists to prevent — and the UPDATE path
- *  already refuses it (`ensureBackgroundOverrideOwned`, the BG-C belt), so a handoff copy was the one write
- *  that could land a card the owner's own edit verb would reject. `kind` is the ASSET KIND the re-owned row
- *  is stored under, because the two are genuinely different kinds in the CAS index (a background is not an
- *  avatar to the gallery or to any per-kind read), never a caller-chosen label. */
+ *  TWO CARRIED PICTURES, ONE PORT. The avatar and the card's carried BACKGROUND (`background_override`
+ *  `kind:"asset"`) are the same fact on two columns, so both re-own here: copying either by id would land the
+ *  exact pointer-into-a-foreign-library this port exists to prevent, and the UPDATE path already refuses it
+ *  (`ensureBackgroundOverrideOwned`), so a handoff copy is not the one write that lands a card the owner's own
+ *  edit verb would reject. `kind` is the ASSET KIND the re-owned row is stored under, because the two are
+ *  genuinely different kinds in the CAS index (a background is not an avatar to the gallery or to any per-kind
+ *  read), never a caller-chosen label. */
 export type CopyAssetToOwner = (args: {
   readonly fromOwnerId: UserId;
   readonly toOwnerId: UserId;
@@ -370,7 +368,7 @@ export interface AssetEmbeddingReads {
   readonly loadAssetBytes: LoadAssetBytes;
 }
 
-/** The owner-gated byte read's answer (EC-B) — the CAS bytes + the stored mime of the caller's OWN asset.
+/** The owner-gated byte read's answer — the CAS bytes + the stored mime of the caller's OWN asset.
  *  Distinct from `loadAssetBytes`' bare `Uint8Array | null` (the un-principal indexer read, D20). */
 export interface OwnedAssetBytes {
   readonly bytes: Uint8Array;

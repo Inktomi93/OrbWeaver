@@ -71,9 +71,9 @@ export const EMBED_SPACE_FIELDS = ["providerId", "baseUrl", "model", "api", "dec
  *  minted from. It lives here, in contracts, because BOTH sides must spell it identically or the box breaks
  *  silently: the backend stamps the tag on its `EmbedResult.model` (the provider's
  *  own report is the truth of what geometry a vector is in), while the read side derives it from the owner's
- *  resolved connection. Two private copies of `${model}@${dtype}` is exactly the shape that shipped a corpus
- *  written as `jina-clip-v2@q8` and read back on `jina-clip-v2`: search answered empty forever and the
- *  old-space purge reclaimed the live rows, with no error on any path.
+ *  resolved connection. Two private copies of `${model}@${dtype}` drift silently: the write stamps one tag and
+ *  the read derives another, so search answers empty forever and an old-space purge reclaims the live rows,
+ *  with no error on any path.
  *
  *  The dtype rides INSIDE the tag rather than in a column because a re-quantised encoder produces different
  *  vectors — it is a different space, and a flip must re-index through the model-change machinery (§10-2). `@` cannot occur in a HuggingFace repo id, so the tag never collides with a real model id.

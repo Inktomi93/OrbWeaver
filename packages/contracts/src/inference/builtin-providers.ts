@@ -1,5 +1,5 @@
 // The SHIPPED provider rows — DATA in the one schema (`providerDefSchema`), checked at `tsc` through
-// `satisfies` and parsed once at module load through the same zod a plugin/admin row goes through (§5.9-1).
+// `satisfies` and parsed once at module load through the same zod a plugin/admin row goes through (§5.9).
 // Most rows are `wire: openai-compat` + a `features` block and need ZERO code; adding a provider is a row
 // here + the table test, never a `Record` entry.
 
@@ -330,8 +330,6 @@ export const BUILTIN_PROVIDER_ROWS = [
   },
 ] as const satisfies readonly ProviderDefInput[];
 
-// A typical Server URL per built-in endpoint row, shown as the field placeholder. Static pane metadata kept out of
-// the persisted provider row, so plugin and admin rows carry none.
 /**
  * The base URL a built-in row's image generation answers on, where its service puts images on another host than chat.
  *
@@ -342,6 +340,8 @@ export const BUILTIN_IMAGE_BASE_URLS: Readonly<Partial<Record<(typeof BUILTIN_PR
   literouter: "https://image.literouter.com/v1",
 };
 
+/** A typical Server URL per built-in endpoint row, shown as the field placeholder. Static pane metadata kept out of
+ *  the persisted provider row, so plugin and admin rows carry none. */
 export const BUILTIN_EXAMPLE_BASE_URLS: Readonly<Record<string, string>> = {
   vllm: "http://localhost:8000",
   "lm-studio": "http://localhost:1234",

@@ -1,5 +1,5 @@
 // The WIRE axis — how bytes are spelled and parsed. The ONLY inference axis that is CODE: one backend per
-// member in `@orb/inference`, and a plugin can never add one (F8 — providers are data, wires are not).
+// member in `@orb/inference`, and a plugin can never add one — providers are data, wires are not.
 // `serves` is the policy CEILING for every provider on the wire (a provider row may narrow it, never
 // widen it); `deltas` is what a backend on the wire may emit.
 
@@ -43,7 +43,7 @@ export const WIRE_DEFS: Record<Wire, WireDef> = {
     serves: ["chat", "summarize", "structured"],
     deltas: ["text", "reasoning", "tool-call", "citation", "usage"],
   },
-  // The subscription's wire and nothing else's (F18).
+  // The subscription's wire and nothing else's.
   "agent-sdk": {
     apis: ["agent-sdk"],
     serves: ["chat", "summarize", "structured"],

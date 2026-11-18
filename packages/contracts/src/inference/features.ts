@@ -207,13 +207,13 @@ export const endpointFeaturesSchema = z
     /** The sleep/wake pair a server exposes (vLLM `/is_sleeping` + `/wake_up`), at the server root. Set ⇒ a sleeping
      *  server reads AVAILABLE and is woken before the request; unset ⇒ sleeping IS down. */
     sleep: z.object({ isSleepingPath: declaredPathSchema, wakePath: declaredPathSchema }).strip().optional(),
-    /** The measured vLLM interlock (§8.1, verify6 M2): a CONTENT prefill with thinking on ⇒ an empty reply, so
+    /** The measured vLLM interlock (§8.1): a CONTENT prefill with thinking on ⇒ an empty reply, so
      *  the transport strips the thinking toggle on a prefill turn with `reasoning_dropped_for_prefill`. A row
      *  that leaves it unset gets the raw behaviour — the honest default for an unmeasured server. */
     prefillSuppressesThinking: z.boolean().optional(),
     /** The stream-delta field(s) the server puts reasoning in, read IN ORDER. vLLM ships
-     *  `["reasoning", "reasoning_content"]` (0.26 renamed it; a `reasoning_content`-only read silently dropped
-     *  every reasoning token, live-verified). Applied by the transport's chunk reshaper. */
+     *  `["reasoning", "reasoning_content"]`: a `reasoning_content`-only read silently drops every reasoning
+     *  token, so both names are read. Applied by the transport's chunk reshaper. */
     reasoningKeys: z.array(z.string().min(1)).optional(),
     /** A generic effort level rides this server's effort field verbatim, including our `max`: the wire's own
      *  vocabulary spells that word (`reasoning_effort: "max"`, measured on DeepSeek 2026-11-16 — its `/models`
@@ -270,7 +270,7 @@ export const endpointFeaturesSchema = z
   .strip();
 export type EndpointFeatures = z.infer<typeof endpointFeaturesSchema>;
 
-/** The wire's own defaults — what a row that says nothing gets. Today's `vllm/index.ts:52-53` fan-out. */
+/** The wire's own defaults — what a row that says nothing gets. */
 export const WIRE_DEFAULT_FEATURES: EndpointFeatures = {
   concurrency: { embed: 4, imageEmbed: 4, summarize: 8 },
 };
@@ -297,8 +297,8 @@ export function foldFeatures(...layers: readonly (EndpointFeatures | undefined)[
 }
 
 // The request-body keys the wire OWNS on every endpoint we build the body for — a key here in a
-//  connection's `extras` is DROPPED with `custom_parameters_ignored{key}`, never merged (D311,
-//  unchanged — F21). EIGHT keys, each with its failure written down:
+//  connection's `extras` is DROPPED with `custom_parameters_ignored{key}`, never merged (D311). EIGHT keys,
+//  each with its failure written down:
 //    `truncate_prompt_tokens` / `truncation_side` — the engine-side truncation measured as an
 //      unbounded hang; the belt clamps client-side instead.
 //    `stream` / `stream_options` — the stream reducer's contract with the wire.
@@ -306,7 +306,6 @@ export function foldFeatures(...layers: readonly (EndpointFeatures | undefined)[
 //    `messages` — the assembled canon.
 //    `continue_final_message` / `add_generation_prompt` — the prefill pair: a stray value folds the next turn
 //      into the previous message or 400s outright; under `features.prefill` they are infra-owned.
-//  Moved here from `contracts/preset::VLLM_BELT_OWNED_PARAMETER_KEYS` with `extras` (§8.1c).
 const BELT_OWNED_BODY_KEYS = [
   "truncate_prompt_tokens",
   "truncation_side",

@@ -3,8 +3,8 @@
 //
 // The dedup `relation` is shared with database persistence. The duplicate-pair rollup (the `find-duplicates`
 // workload) labels each near-identical CHAT pair as a genuine accidental look-alike (`duplicate`) vs a
-// known fork-lineage family (`forked` — chats sharing a `chats.parentChatId` fork root, D27). Promoted
-// here (it was a local tuple in `@orb/db/schema/discovery`) so the `duplicate_chat_pairs.relation` column
+// known fork-lineage family (`forked` — chats sharing a `chats.parentChatId` fork root, D27). The
+// `duplicate_chat_pairs.relation` column
 // DERIVES it + CHECK-enforces it + a `.int` test-mirror pins the two — the D34 one-home rule, mirroring
 // `IMAGE_LENSES` in `@orb/contracts/embeddings`. Characters have NO fork lineage (D28 snapshots), so only
 // `duplicate_chat_pairs` carries the column; `duplicate_character_pairs` has none.
@@ -40,16 +40,13 @@ export const DISCOVERY_LIST_MAX_LIMIT = 500;
 export const DISCOVERY_GRAPH_MAX_NODES = 500;
 
 // ── The distilled-catalog BROWSE page (the corpus LIST pane's rest state) ────────────────────────────
-// KEYSET-PAGED, and that is A8's fix. The read used to answer ONE
-// truncating array capped at 200: the pane's header printed `CORPUS 313` off `catalog.totalDistilled` while
-// the list below it ended at "Imai" with no load-more, so 113 of the owner's characters were unreachable and
-// nothing on the surface said so. Serving all 313 instead would have fixed today's library and re-broken at
-// the next one — the whole point of the `character.list` keyset is that the payload stops being a function
-// of how much the user owns. So: a page + a cursor + the server's own census, the SAME three fields the
-// character library's collection surface already consumes.
+// KEYSET-PAGED: a page + a cursor + the server's own census, the SAME three fields the character
+// library's collection surface consumes. A single truncating array would make the payload a function of
+// how much the user owns — the pane's header would print the true corpus size beside a list that
+// silently stopped short, with nothing on the surface saying so.
 
 // `recent` = collected-date descending; `name` = card name ascending. Discovery browse is content-only.
-//  Homed HERE rather than in the domain (it moved with the cursor): the cursor schema below is a
+//  Homed HERE rather than in the domain: the cursor schema below is a
 //  WIRE shape discriminated on this axis, and re-spelling the two members beside it is exactly the doubling
 //  §5.5 forbids. The domain re-exports the type.
 const BROWSE_SORTS = ["recent", "name"] as const;
@@ -134,7 +131,7 @@ export interface AnalyticsResult {
 
 export type { Archetype, ArchetypeMember, ModelRoutingRow, ThemeRow, VisualArchetype } from "./artifacts.ts";
 export { archetypeMemberSchema, archetypeSchema, mintPassId, modelRoutingRowSchema, visualArchetypeSchema } from "./artifacts.ts";
-// The PROSE-1 discovery slot table (the three whole side-generation system prompts) — `#prose` imports it
+// The discovery slot table (the three whole side-generation system prompts) — `#prose` imports it
 // to compose `PROSE_SLOTS`.
 export { DISCOVERY_PROSE_SLOTS } from "./prose.ts";
 export type { ThemeLevel } from "./vocabulary.ts";
@@ -189,11 +186,11 @@ export interface BrowseCharacter {
 
 /**
  * ONE PAGE of the distilled catalog + the boundary to ask for the next one + the server's own census of the
- * whole filtered scope (A8).
+ * whole filtered scope.
  *
  * `totalCount` is a SEPARATE count over the same predicate, never `items.length`: the pane prints "how many
  * there are" beside a list that holds "how many are loaded", and deriving one from the other is exactly the
- * lie that let a 200-row array sit under a header reading 313. `nextCursor` is `null` at the tail — a page
+ * lie that lets a truncated array sit under a header reading the full count. `nextCursor` is `null` at the tail — a page
  * shorter than the ask cannot have a next one.
  */
 export interface BrowseCharactersPage {
@@ -274,10 +271,10 @@ export interface CatalogStats {
   readonly totalDistilled: number;
   /** THE BASE `totalDistilled` IS OUT OF (the one-pass denominator rule). Every corpus surface
    *  that prints the distilled count reads THIS payload — the LIST band, the CONTEXT band, the browse
-   *  view — and each printed a bare `313` beside an overview whose h1 said `320 characters`. Two true
-   *  numbers of two different things, neither naming the other, in one frame. The catalog is the read all
-   *  four share, so the denominator travels WITH the numerator rather than being joined per surface off a
-   *  heavier overview read (`discovery.home`) that a LIST band has no other reason to hold. */
+   *  view — so a bare distilled count can never appear beside a different whole. Two true numbers of two
+   *  different things, neither naming the other, in one frame, is the failure this prevents. The catalog is
+   *  the read all of them share, so the denominator travels WITH the numerator rather than being joined per
+   *  surface off a heavier overview read (`discovery.home`) that a LIST band has no other reason to hold. */
   readonly totalCharacters: number;
 }
 
@@ -396,15 +393,14 @@ interface CorpusCoverage {
 /**
  * The corpus home view — index coverage + the scene/arc theme clusters + near-duplicate counts.
  *
- * THE THEME LISTS ARE COMPLETE, not a top-N: they were `topSceneThemes`/`topArcThemes`, sliced
- * to 8, beside a non-interactive bar chart that drew ALL of them. The chart is gone (it duplicated the rows
- * and could not be clicked), so the rows are now the ONE place a theme is met and a truncated list would
- * have deleted half of them from the surface. The list is bounded by the k-means k, not by the library.
+ * THE THEME LISTS ARE COMPLETE, not a top-N: a truncated list would delete half the clusters from the ONE
+ * place a theme is met (a bar chart beside it duplicated the rows and could not be clicked). The list is
+ * bounded by the k-means k, not by the library.
  *
  * `duplicateCounts.identicalCharacterPairs` is the near-dup pass's BLIND SPOT, counted at read time: the
- * pass scans content-hash-collapsed representatives, so byte-identical cards can never form a pair and two
- * cosine-1.00 same-name pairs sat one tab away from a rail reading "1 found". The collapse is correct for
- * the clustering passes it was written for; the READOUT is what was wrong, so the count is derived here
+ * pass scans content-hash-collapsed representatives, so byte-identical cards can never form a pair, and a
+ * rail reading "1 found" would sit beside them. The collapse is correct for
+ * the clustering passes it was written for; the READOUT is the thing to fix, so the count is derived here
  * rather than by changing what the pass writes.
  */
 export interface HomeView {
@@ -424,9 +420,8 @@ export interface ThemeMember {
 /** One neighbour in a `characterDossier` — a discovery-local projection of search's `similarCharacters`
  *  (injected cross-domain at the root). Deliberately NOT search's `CharacterCardHit` — the search shape stays
  *  out of the discovery contract; discovery owns this narrowed neighbour view. `score` is search's CSLS unit
- *  (a clamped DISTANCE, for ranking only); `relevance` is the cosine similarity the dossier RENDERS — five of
- *  the eight neighbours on the live library read `0.00` under the old readout precisely because they were the
- *  closest matches in the library (corpus forensics §3). */
+ *  (a clamped DISTANCE, for ranking only); `relevance` is the cosine similarity the dossier RENDERS — the
+ *  closest matches in the library would otherwise read `0.00` under the ranking scale (corpus forensics §3). */
 export interface DossierNeighbor {
   readonly characterId: CharacterId;
   readonly name: string;
@@ -499,9 +494,9 @@ export interface PortraitAlignmentReport {
 export interface ImageFacets {
   /** Avatars carrying an actual breakdown — the denominator every distribution below is over. */
   readonly total: number;
-  /** Avatars carrying a caption, analysed or not. `captioned > total` is the honest "captioned before the
-   *  breakdown pass existed" coverage state; conflating the two is how a
-   *  confident "79 images" printed above fourteen empty bar-lists. */
+  /** Avatars carrying a caption, analysed or not. `captioned > total` is the honest coverage state for art
+   *  captioned before the breakdown pass reached it; conflating the two prints a confident total above empty
+   *  bar-lists. */
   readonly captioned: number;
   readonly artStyles: FacetCount[];
   readonly palettes: FacetCount[];

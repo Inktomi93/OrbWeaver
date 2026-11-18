@@ -1,7 +1,6 @@
 // The capability READ helpers — the ONE spelling of every question a consumer asks a descriptor. A
-// `capability.<axis>?.` re-spelled outside this file is a second home:
-// the 13 direct re-spellings the M4 census found (`pipeline.ts:608,616,634,635`, `read.ts:1093-1101`, …)
-// migrate here so the SHAPE splice, the rpg fold-mount gate and the imagery edit belt read IDENTICAL facts.
+// `capability.<axis>?.` re-spelled outside this file is a second home: every such copy migrates here so the
+// SHAPE splice, the rpg fold-mount gate and the imagery edit belt read IDENTICAL facts.
 
 import { z } from "zod";
 import type { Modality } from "../modalities.ts";
@@ -20,7 +19,6 @@ import {
 } from "./generation.ts";
 import type { RerankCapability } from "./rerank.ts";
 
-/** Does this generation model accept/produce a modality on the named side? */
 /** The GENERATION half of a kind-discriminated `Capability`, or a throw: a chat-shaped read (the preset panel,
  *  the rpg lite gate) over a row that resolved an embedding/rerank model is a program error, not a user one. */
 export function requireGenerationCapability(capability: Capability): GenerationCapability {

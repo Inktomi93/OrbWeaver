@@ -41,8 +41,8 @@ const isRenderableDeterministicColor = (raw: string): boolean => isDeterministic
 
 // Lenient per-field: a failed parse yields `undefined` (field drops), never a thrown blob.
 // RENDERABLE, not merely injection-safe: `isSafeColor`'s letters-only NAMED arm admits any bare
-// word, so `notacolorxx` used to pass this refine, persist verbatim, and then paint nothing at all — no
-// error, no fallback message, no visible change. The wire clamp now asks the second question too, so a
+// word, so `notacolorxx` would pass this refine, persist verbatim, and then paint nothing at all — no
+// error, no fallback message, no visible change. The wire clamp asks the second question too, so a
 // value that survives to storage is one the renderer can resolve. The user-facing REFUSAL lives at the
 // save boundary the user types into (`@orb/ui` `ColorField`); this is the boundary backstop.
 const colorToken = z.string().refine(isRenderableColor, { error: "must be a renderable color" }).optional().catch(undefined);
@@ -57,7 +57,7 @@ const bubble = z.object({ bg: deterministicColorToken, fg: colorToken }).strip()
 
 /** The curated token-override subset. Every field optional; per-field failures degrade to undefined.
  *  `background` is the base surface color the neutral ramp derives from — the only background field
- *  here (the decorative photo trio moved to the `appearance` namespace). */
+ *  here (the decorative photo trio is an `appearance` namespace field). */
 export const themeOverrideSchema = z
   .object({
     // Derived fills must denote one authored pixel before the UI computes a foreground/ramp/contrast.
@@ -82,7 +82,7 @@ export const themeOverrideSchema = z
   .strip();
 export type ThemeOverride = z.infer<typeof themeOverrideSchema>;
 
-// ── The CARD-EMBEDDABLE partition (TD §3) ────────────────────────────────────────────────────────────
+// ── The CARD-EMBEDDABLE partition (a card's look, never the viewer's ergonomics — D294) ──────────────
 // A card may carry IDENTITY & ATMOSPHERE — what the character looks like (colours, type family, corner
 // language). The VIEWER owns ERGONOMICS, ACCESSIBILITY, COST and TREATMENT — how big, how dense, how dim,
 // how expensive. Tie-break for any future key: would card-forcing it change how comfortably or expensively

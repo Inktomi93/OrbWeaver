@@ -9,8 +9,8 @@
 // import it DOWN. Call-argument shapes (`RerankQuery`/`ImageEmbedInput`/`SummarizeInput`) live here rather
 // than `contracts/providers` because that node holds only result shapes; the infra request shapes stay
 // infra-internal.
-// FLAG: only the four DERIVE roles below are buildable — chat/generateImage join when their
-// result contracts land (confirm with lead before wiring a chat member here).
+// The derive roles below are the whole bundle — chat/generateImage reach the executor through their own doors,
+// not here.
 
 import type { ModelId, UserId } from "@orb/kit/ids";
 import type { WireReady } from "@orb/kit/json-schema";
@@ -95,12 +95,12 @@ export interface StructuredOptions<Signal> extends RolePresetParams {
 }
 
 /** The tasks a `RoleClients` bundle serves — the derive roles; chat/generateImage reach the executor
- *  through their own doors. `structured` RIDES the `summarize` binding (F4 — one Model-roles slot). */
+ *  through their own doors. `structured` RIDES the `summarize` binding (one Model-roles slot). */
 export const ROLE_CLIENT_TASKS = ["embed", "rerank", "imageEmbed", "summarize", "structured"] as const;
 export type RoleClientTask = (typeof ROLE_CLIENT_TASKS)[number];
 
-/** What a task resolves to RIGHT NOW for the bundle's funder — model, capability and connection id in ONE
- *  object (inference program §7.5-1b: replaces the six per-role getters). The credential never rides. */
+/** What a task resolves to RIGHT NOW for the bundle's funder — model and capability in ONE
+ *  object. The credential never rides. */
 export interface ResolvedTaskView {
   readonly model: ModelId;
   readonly capability: Capability;

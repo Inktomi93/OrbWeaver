@@ -1,10 +1,7 @@
 // The GENERATION capability — what a chat/summarize/structured/generateImage model honours, keyed by
 // (model × wire-shape), produced once by the package's synthesis and read by the funnel, the assembly and
-// the client's capability panel. The modality booleans of the old `ModelCapability` (`input.{vision, video,
-// audio, file}`, `outputModalities: string[]`) are `Modality[]` here; every knob a model does not list is
-// simply ABSENT (no silent no-ops); the reasoning/sampling/verbosity/output/context/turns axes are kept
-// verbatim from the shape they replace. The axis tuples below are THE HOME — `@orb/contracts/connection`
-// re-exports them until it is deleted with the source axis.
+// the client's capability panel. Modalities are `Modality[]`; every knob a model does not list is simply
+// ABSENT (no silent no-ops). The axis tuples below are THE HOME for every consumer.
 
 // Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import { z } from "zod";
@@ -50,7 +47,7 @@ const reasoningReplayModeSchema = z.enum(REASONING_REPLAY_MODES) satisfies z.Zod
 const REASONING_OFF_MODES = ["disabled", "between-tools"] as const;
 export type ReasoningOffMode = (typeof REASONING_OFF_MODES)[number];
 const reasoningOffModeSchema = z.enum(REASONING_OFF_MODES) satisfies z.ZodType<ReasoningOffMode>;
-/** The off spelling of a model that states none: every model took `disabled` before one refused it. */
+/** The off spelling of a model that states none: `disabled`, which every model takes unless its row says otherwise. */
 export const REASONING_OFF_DEFAULT = "disabled" as const satisfies ReasoningOffMode;
 
 // The Anthropic-only reasoning-display knob.
@@ -346,8 +343,8 @@ export const generationCapabilitySchema = z
      *  function — Anthropic's `any` / `tool`) does not reach the model as forced: Anthropic answers both with a
      *  400, llama.cpp runs a named choice as `auto`, Ollama and KoboldCpp take neither. A wire downgrades that
      *  form to `auto` loudly, and the structured vehicle avoids the named tool. Absent ⇒ ACCEPTED, deliberately not
-     *  fail-closed: `required` is live-verified and load-bearing on the vLLM and OpenRouter routes (the rpg state
-     *  round). Read through `acceptsRequiredToolChoice` / `acceptsNamedToolChoice`.
+     *  fail-closed: `required` is measured and load-bearing on the vLLM and OpenRouter routes. Read through
+     *  `acceptsRequiredToolChoice` / `acceptsNamedToolChoice`.
      *
      *  `noneChoice: false` = a `none` choice does not reach the model either (Ollama, and KoboldCpp, whose chat route
      *  reads it as no constraint), so a turn that asks for none offers no tools there. `parallelControl: false` = a
@@ -441,7 +438,7 @@ export const REASONING_REPLAY_FLOOR: ReasoningReplayMode = "none";
 export const CACHE_MIN_FLOOR = 4096;
 
 /** The generation KIND floor — text in, text out, no reasoning, no sampling ranges (the funnel drops every
- *  knob with a warning), a guessed window. NO default model rides here (F16). */
+ *  knob with a warning), a guessed window. NO default model rides here. */
 export const GENERATION_FLOOR: GenerationCapability = {
   reasoning: { mode: "none", enabled: false },
   sampling: {},

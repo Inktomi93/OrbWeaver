@@ -38,7 +38,7 @@ export const PORTABLE_KINDS = [
   // are NOT carried by this bundle — a restored script lands in the library, un-attached, except for the
   // GLOBAL scope (which is a property of the script itself and rides in the file).
   "regex",
-  // The databank DOCUMENT library (F1). `extractedText` IS the canon, so one file per document; the derived
+  // The databank DOCUMENT library. `extractedText` IS the canon, so one file per document; the derived
   // vector layer never travels (it is re-runnable — import re-enqueues the ingest). `global` + the character
   // attachments ride (the latter by handle); the chat attachment does not (chat ids are not preserved).
   "databank",
@@ -162,12 +162,11 @@ export type ThemeLeftover = z.infer<typeof themeLeftoverSchema>;
  *  file). They describe the file, so a reused theme states the same keys. */
 export const themeImportLandingSchema = importLandingSchema.extend({ unmapped: z.array(themeLeftoverSchema).readonly() });
 
-// ── the uniform file envelope (spec R7/R8) ───────────────────────────────────────────────────────────
-// Every orb-NATIVE portable file carries this header. It has consumers (an unconsumed
-// envelope dies because each serde re-spells it structurally — the
-// drift that let world-info spell the version key `version` and persona ship no envelope at all): the ONE
+// ── the uniform file envelope ────────────────────────────────────────────────────────────────────────
+// Every orb-NATIVE portable file carries this header. An envelope with no consumer is dead weight, because
+// each serde re-spells it structurally and the spellings drift: the ONE
 // consumer is `@orb/server/primitives/serde/lib`, the spine every orb-native JSON serde is defined through, so a
-// family can no longer re-spell it. Foreign wire formats (ST cards, ST chat jsonl) carry no envelope by
+// family cannot re-spell it. Foreign wire formats (ST cards, ST chat jsonl) carry no envelope by
 // design and are not defined through the spine.
 
 /** The uniform header on every orb-native portable file. `schemaKind` fences a file from every other
@@ -179,13 +178,13 @@ export interface PortableEnvelope {
 }
 
 // Why a portable file did not parse. One axis for every orb-native family, so the per-file import outcome
-//  can say "written by a newer orbweaver" instead of the old uniform "not a valid X file".
+//  can say "written by a newer orbweaver" rather than a single uniform "not a valid X file".
 //
 //  `invalid-encoding` is DISTINCT from `not-json`: the shared decode boundary
-//  (`@orb/server/primitives/serde/lib`'s `decodeObject`) used a non-fatal `TextDecoder`, so malformed UTF-8 bytes
-//  silently became U+FFFD and the corrupted string still passed `JSON.parse` — a corrupted artifact "imported
-//  successfully" with altered text. Byte fidelity is checked BEFORE `JSON.parse` even runs, so a file that
-//  fails it never reaches the JSON-syntax check at all; the two reasons are never both true of one file.
+//  (`@orb/server/primitives/serde/lib`'s `decodeObject`) would let a non-fatal `TextDecoder` turn malformed
+//  UTF-8 bytes into U+FFFD, and the corrupted string still passes `JSON.parse` — a corrupted artifact
+//  "imports successfully" with altered text. Byte fidelity is checked BEFORE `JSON.parse` even runs, so a
+//  file that fails it never reaches the JSON-syntax check at all; the two reasons are never both true of one file.
 const PORTABLE_PARSE_FAILURES = ["not-json", "invalid-encoding", "foreign-kind", "newer-version", "malformed"] as const;
 
 export type PortableParseFailure = (typeof PORTABLE_PARSE_FAILURES)[number];

@@ -1,11 +1,10 @@
 // @orb/contracts/theme — the D294, UI-Theming-and-Content §12.5 contracts home for theming: the `ThemeOverride` wire clamp
-// (override.ts — the ONE wire copy of the §12.1 token subset) + the `Theme` entity shapes
-// (the single-owned user theme library; the SERVER slice — table, verbs,
-// seeding — is the unbuilt themes wave; these shapes land born-compliant so the D294 per-character
-// theme column and the client `<ThemeScope>` consumers build against one home). A theme entity is
-// its own module (not `/settings`): `ThemeOverride` has three unrelated consumers (the settings-
-// homed entity, the character-row theme column, `<ThemeScope>`) — first-consumer misfiling is the
-// `schema/search.ts` naming lie.
+// (override.ts — the ONE wire copy of the §12.1 token subset) + the `Theme` entity shapes of the single-owned
+// user theme library. The server slice (table, verbs under `domain/settings`, seeding) writes through these;
+// the D294 per-character theme column and the client `<ThemeScope>` consumers read them, so both build against
+// one home. A theme entity is its own module (not `/settings`): `ThemeOverride` has three unrelated consumers
+// (the settings-homed entity, the character-row theme column, `<ThemeScope>`), and a shape with three unrelated
+// consumers does not belong in the first one's folder.
 
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";

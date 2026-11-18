@@ -1,8 +1,7 @@
 // @orb/contracts/uploads — the ONE home for the deployment byte-cap catalog. Every upload boundary (the
 // HTTP asset/import/databank routes, the profile-dir + bundle import runners) and every client pre-check
-// derives its ceiling from HERE, so the server truth and the client hint can never drift into the invented
-// per-widget numbers this module was minted to kill (composer 20 MB, avatar 20 MB, background 30 MB, and a
-// hand-kept 256 MiB mirror — all replaced by a derive from the served catalog below).
+// derives its ceiling from HERE, so the server truth and the client hint cannot drift into invented
+// per-widget numbers.
 //
 // Two shapes ship from here:
 //   • the raw byte constants (server routes + import runners import them directly);
@@ -36,7 +35,7 @@ const IMPORT_TREE_FILE_MIB = 64;
  *  of the two wins); non-image kinds keep this route cap. */
 export const ASSET_UPLOAD_MAX_BYTES = ASSET_UPLOAD_MIB * BYTES_PER_MIB;
 
-/** A single databank source document (txt/md/pdf/html). The LEAN 20 MB upload cap;
+/** A single databank source document (txt/md/pdf/html). The 20 MB upload cap;
  *  also the store's `maxBytes` belt on the CAS write. */
 export const DATABANK_UPLOAD_MAX_BYTES = DATABANK_UPLOAD_MIB * BYTES_PER_MIB;
 
@@ -69,7 +68,7 @@ export const IMPORT_MAX_DECOMPRESSED_BYTES = IMPORT_DECOMPRESSED_MIB * BYTES_PER
  *  happens to be an archive (epub is a zip of XHTML; the loader unzips it). The route caps the COMPRESSED
  *  body at {@link DATABANK_UPLOAD_MAX_BYTES}, and zip amplification means a fully compliant 20 MiB upload
  *  can still expand without bound — the loader's per-ENTRY cap refuses one bomb but sums nothing, so N legal
- *  entries walked straight past it.
+ *  entries sum straight past it.
  *
  *  10× the upload cap, and deliberately far tighter than the import family's aggregate ({@link
  *  IMPORT_MAX_DECOMPRESSED_BYTES}, 10 GiB): that belt guards a DISK-STAGED backup, while an

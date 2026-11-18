@@ -1,43 +1,41 @@
-// @orb/contracts/user-bus — the per-USER "an entity you own changed" live stream (PD user-bus lane). The
-// QueryClient runs `staleTime: Infinity` — "the bus drives freshness" — but the only pre-existing bus is the
-// per-CHAT stream (`ChatBusEvent`), which reaches only subscribers of the OPEN chat. Every non-chat domain
-// read (characters, personas, presets, world-info, user settings, themes, tags, credentials, the chat LIST)
-// had NO freshness driver: device B's edit never reached device A. This union is that driver — one COARSE
-// member per domain-noun, carrying an optional entity id (a targeting hint; the client map may path-invalidate
-// the whole domain regardless). It is LIVE-ONLY (no durable table, no replay) — a subscriber attaches and goes
-// live, and the client gap-heals on every (re)connect with a blanket invalidate.
+// @orb/contracts/user-bus — the per-USER "an entity you own changed" live stream. The QueryClient runs
+// `staleTime: Infinity` — "the bus drives freshness" — but the per-CHAT stream (`ChatBusEvent`) reaches only
+// subscribers of the OPEN chat. Every non-chat domain read (characters, personas, presets, world-info, user
+// settings, themes, tags, credentials, the chat LIST) needs its own freshness driver, or device B's edit never
+// reaches device A. This union is that driver — one COARSE member per domain-noun, carrying an optional entity
+// id (a targeting hint; the client map may path-invalidate the whole domain regardless). It is LIVE-ONLY (no
+// durable table, no replay) — a subscriber attaches and goes live, and the client gap-heals on every
+// (re)connect with a blanket invalidate.
 //
-// MEMBERSHIP is derived from an AUDIT of the user-level mutating verbs that exist TODAY. A
-// declared-never-emitted member is dead wire, so every member below
-// has a real server emit site.
+// MEMBERSHIP is derived from an AUDIT of the user-level mutating verbs that exist. A declared-never-emitted
+// member is dead wire, so every member below has a real server emit site.
 //   • `connection` emits from every per-user connection CRUD verb and every binding change
-//     (domain/connection/verbs/connections.ts, bindings.ts), AFTER the write commits (docs/work/0121).
+//     (domain/connection/verbs/connections.ts, bindings.ts), AFTER the write commits.
 //   • `themes` ride their own member though they live inside the `settings` domain (a distinct client read
 //     surface — the theme list — with its own emit sites in `settings/verbs/*-theme.ts`).
 //   • `settings` / `connection` carry NO id: a user has ONE settings blob, and the client path-invalidates
 //     the whole connection domain regardless of which row or binding changed.
-//   • `refinery` is the member the coverage survey's H1 forced:
-//     refinery shipped 15 mutating verbs with ZERO emits on any plane, so at `staleTime: Infinity`
-//     a second tab/device sat on the pre-write roster forever. Sessions and schemas are single-owned
-//     per-user rows — the exact "an entity you own changed" posture — so they ride HERE rather than paying
-//     the 5-site cost of a feature bus for scoping refinery does not have.
-//   • `databank` is the survey's H3 (§2.4/§3.4-3): 10+ mutating verbs, no member, the no-bus posture CITED at
-//     birth rather than argued. The bank is per-user owned rows exactly like refinery's, so it rides here.
-//     The per-chat RACK's freshness is a different question and stays where it was — that surface is
-//     member-visible and rides `chatUpdated` on the chat bus (`membership-fan-guard`: member-visible state
-//     fans to the roster, never to one user), so this member covers the OWNER's library, not the room's view.
-//   • `identityChanged` is the staleness design's D5 gap:
-//     the viewer's OWN identity — `sessions.me`'s userId/handle/globalRole plus the two
-//     reads a composed viewer read derives it from (`settings.getUserSettings` + `persona.list`) — was in ZERO invalidation rows, so an `admin.setRole` grant (or an SSO
-//     login-time handle rename / role re-derive on another device) reached a live client only on a full page
-//     reload. It is the one member whose subject is the SUBSCRIBER rather than a thing they own, which is why
-//     it carries NO id: the channel key IS the affected user, so a `userId` hint would restate the address.
-//     Emitted by the identity-mutating verbs with the AFFECTED user's id, never the acting admin's.
-//   • `corpusRecomputed` is the ONE member for every background library-semantics pass (§2.5/F6 — themes,
-//     distillation, co-occurrence, near-duplicates, hub scores, the embeddings index sweep). It is the only
+//   • `refinery` covers the refinery workspace's mutating verbs: at `staleTime: Infinity` a second tab/device
+//     would sit on the pre-write roster forever. Sessions and schemas are single-owned per-user rows — the
+//     exact "an entity you own changed" posture — so they ride HERE rather than paying the 5-site cost of a
+//     feature bus for scoping refinery does not have.
+//   • `databank` covers the bank's mutating verbs under the same no-bus posture. The bank is per-user owned
+//     rows exactly like refinery's, so it rides here. The per-chat RACK's freshness is a different question
+//     and stays where it was — that surface is member-visible and rides `chatUpdated` on the chat bus
+//     (`membership-fan-guard`: member-visible state fans to the roster, never to one user), so this member
+//     covers the OWNER's library, not the room's view.
+//   • `identityChanged` is the viewer's OWN identity: `sessions.me`'s userId/handle/globalRole plus the two
+//     reads a composed viewer read derives it from (`settings.getUserSettings` + `persona.list`) — it has no
+//     other invalidation row, so an `admin.setRole` grant (or an SSO login-time handle rename / role
+//     re-derive on another device) reaches a live client only on a full page reload. It is the one member
+//     whose subject is the SUBSCRIBER rather than a thing they own, which is why it carries NO id: the
+//     channel key IS the affected user, so a `userId` hint would restate the address. Emitted by the
+//     identity-mutating verbs with the AFFECTED user's id, never the acting admin's.
+//   • `corpusRecomputed` is the ONE member for every background library-semantics pass — themes,
+//     distillation, co-occurrence, near-duplicates, hub scores, the embeddings index sweep. It is the only
 //     member NOT named after a noun the user edits: nothing here has a user-facing WRITE at all, the writer
 //     is a workload, and so no mutation exists anywhere for a client to hang an `invalidates` on. One coarse
-//     member rather than one per pass (F6): every discovery read maps to the domain root regardless.
+//     member rather than one per pass: every discovery read maps to the domain root regardless.
 //
 // LAWS honored (mirrors the `ChatBusEvent` allowlist): every member is a closed object literal of a branded id
 // (optional) — no `unknown`/`Record`/index field a secret could ride in; no caller id (a subscriber only ever
@@ -74,7 +72,7 @@ export type UserBusEvent =
   | { type: "settingsChanged" }
   | { type: "credentialsChanged"; credentialId?: UserCredentialId }
   | { type: "chatsChanged"; chatId?: ChatId }
-  // The saved-party library (D61 B6 — roster presets): single-owned per-user rows in the exact "an entity
+  // The saved-party library (D61 — roster presets): single-owned per-user rows in the exact "an entity
   // you own changed" posture (the refinery/databank reasoning verbatim). Every roster-preset CRUD verb
   // emits it; `applyToChat` does NOT (an apply mutates the CHAT's roster, which fans `chatUpdated` on the
   // chat bus through the injected chat verbs — the library rows are untouched).
@@ -89,11 +87,11 @@ export type UserBusEvent =
   // per-document writes (rename/remove/attach/detach/ingest) and omitted by the owner-wide reindex sweep,
   // which touched too many to name one.
   | { type: "databankChanged"; documentId?: DocumentId }
-  // The background library-semantics passes (survey §2.5/F6). NO id: the grain is "your corpus analytics were
+  // The background library-semantics passes. NO id: the grain is "your corpus analytics were
   // recomputed", the client maps it to the discovery root + `search.similarArt`, and a per-pass or per-card
   // hint would be a targeting promise none of these passes can keep (they rewrite whole derived tables).
   | { type: "corpusRecomputed" }
-  // The VIEWER'S OWN identity changed (staleness design W7b): a role grant/revoke, an enable/disable, or an
+  // The VIEWER'S OWN identity changed: a role grant/revoke, an enable/disable, or an
   // SSO login that renamed the handle / re-derived the role. NO id — the channel key IS the affected user
   // (see the MEMBERSHIP note), so there is no sub-entity to hint at and nothing for a hint to target.
   | { type: "identityChanged" }
@@ -101,12 +99,12 @@ export type UserBusEvent =
   // in-memory state plane and fires this so the installer's own client refetches `plugin.getSurfaceState`. The
   // per-person bus is exactly right: a v1 surface renders ONLY for its installer, so the state's one viewer IS
   // this channel's user. COARSE with a `pluginId` hint, following every member here: the client path-invalidates
-  // the surface-state read regardless, so a finer `surfaceId`/`chatId` (the design doc's shape) would buy the
+  // the surface-state read regardless, so a finer `surfaceId`/`chatId` would buy the
   // coarse map nothing AND a raw plugin-local `surfaceId` string is not a branded id — the shape law this file
   // opens with. The blast radius is a handful of the installer's own surfaces.
   | { type: "pluginSurfaceStateChanged"; pluginId?: PluginId }
-  // The per-user connection store: `user_connections` CRUD and `connection_bindings` changes
-  // (docs/work/0121). NO id (see the MEMBERSHIP note) — the client path-invalidates the whole connection
+  // The per-user connection store: `user_connections` CRUD and `connection_bindings` changes. NO id (see the
+  // MEMBERSHIP note) — the client path-invalidates the whole connection
   // domain regardless of which row or binding moved.
   | { type: "connectionsChanged" }
   // A job you own was queued by the SYSTEM (an embed re-point's rebuild, a seed's sweep) rather than by a request
@@ -139,7 +137,7 @@ export const USER_BUS_EVENT_TYPES = {
 
 /**
  * The COARSE (hint-less) form of every member — what a bulk run's TERMINAL fan publishes when the per-item
- * emits have been coalesced (`withQuietBulkFanout`, W8/F5). A bulk gesture touched too many entities for any
+ * emits have been coalesced (`withQuietBulkFanout`). A bulk gesture touched too many entities for any
  * one id to be an honest hint, which is the same reasoning the owner-wide `databank` reindex sweep already
  * follows by omitting `documentId`; the client map path-invalidates the domain root regardless.
  *
