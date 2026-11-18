@@ -38,17 +38,7 @@ function canReplace(store: SessionStore): store is ReplaceableSessionStore {
 }
 
 /**
- * The D8 write-path injection seam: `session_entries` persistence (`packages/db/src/schema/sdk-session.ts`)
- * as two ops, kept SDK-free/db-free here (the sealed-executor invariant — infra never imports `@orb/db`
- * directly; the compose root builds these over `db.insert`/`db.update` and injects them). `insert` covers a
- * BRAND NEW sdk-session lineage entry (dispositions `seeded`/`forked` — a new `sdkSessionId` was minted);
- * `update` covers a switch back onto an EXISTING entry (`reseeded`, `rewound`, `readopted` — the SAME
- * `sdkSessionId`). Both name the lineage the connection now runs on, and the writer moves that
- * `(chat, connection)`'s primary seat to it; `resumed` writes nothing because the seat is already there.
- * Absent ⇒ no persistence (the in-memory cache alone still works — a
- * durable row is an optimization per Tier-3b-Providers.md Esoteric §3, not a correctness need).
- */
-/** Best-effort INSERT: a `session_entries` write failure never takes down a chat turn (the in-memory
+ * Best-effort INSERT: a `session_entries` write failure never takes down a chat turn (the in-memory
  *  cache is the correctness path; the row is an observability/reap-substrate optimization). */
 async function persistInsert(writer: SessionEntryWriter | undefined, log: InferenceLog, entry: Parameters<SessionEntryWriter["insert"]>[0]): Promise<void> {
   if (writer === undefined) {
