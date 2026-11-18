@@ -1,6 +1,5 @@
-// The catalog ENTRY shapes — what a provider's model list hands the picker and the synthesis. Moved here
-// from `@orb/contracts/connection` (which re-exports them until it is deleted). `ModelCatalogEntry` is the
-// OpenRouter-shaped row (the only catalog that carries modalities/pricing/reasoning); an OpenAI-compatible
+// The catalog ENTRY shapes — what a provider's model list hands the picker and the synthesis.
+// `ModelCatalogEntry` is the OpenRouter-shaped row (the only catalog that carries modalities/pricing/reasoning); an OpenAI-compatible
 // `/v1/models` yields ids (+ a window when the server reports one) into the same shape with the rest null;
 // `AgentSdkModel` is the daemon's `supportedModels()` row, a SEPARATE snapshot never co-mingled.
 
@@ -92,8 +91,8 @@ export type AgentSdkModel = z.infer<typeof agentSdkModelSchema>;
 
 /** The `refresh-model-catalog` workload's COUNTS-ONLY result: no provider entry shape leaks into the queue's
  *  wire. `null` = that lane failed (distinct from 0 = a real empty catalog). The agent-sdk lane is `null` BY
- *  DESIGN since the cut-over (inference program §4): the daemon catalog is warmed on demand under a USER's
- *  own token — there is no host credential for a scheduled workload to spawn the runtime with. */
+ *  DESIGN: the daemon catalog is warmed on demand under a USER's own token — there is no host credential for
+ *  a scheduled workload to spawn the runtime with. */
 export interface CatalogRefreshResult {
   readonly models: number | null;
   readonly agentSdkModels: number | null;

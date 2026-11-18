@@ -3,8 +3,7 @@
 // `connectionTasks`; whether a task may spend a row unattended is `canFund`; whether the row's model can do
 // the job is `requirementMet` (capability/reads). A hand row like `generateImage: ["openrouter"]` is
 // reproduced by DATA: openrouter's `serves` is the whole wire set, openai's names `generateImage`, no other
-// built-in hosted row does — and the derivation is no wider than the belt it
-// replaced.
+// built-in hosted row does — so the derivation and the data cannot disagree.
 
 import type { ConnectionApi } from "./connection.ts";
 import type { ModelKind } from "./kinds.ts";
@@ -19,7 +18,7 @@ export function connectionTasks(provider: ProviderDef, kind: ModelKind): readonl
   return providerTasks(provider).filter((task) => ofKind.includes(task));
 }
 
-/** A foreground task spends any row; a background task spends a row only when its owner said so (F5).
+/** A foreground task spends any row; a background task spends a row only when its owner said so.
  *  Checked at BOTH sites: the binding slot refuses inline at bind time, and resolve re-checks because the
  *  flag can flip after the binding is written. */
 export function canFund(connection: { readonly allowBackground: boolean }, task: Task): boolean {

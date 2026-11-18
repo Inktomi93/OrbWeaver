@@ -1,6 +1,6 @@
 // The connection's prompt-cache settings: a user preference, so its own column (`user_connections.prompt_cache`),
 // never a `declared.features` line (a statement about the server). NULL on the row is `SHIPPED_PROMPT_CACHE`,
-// which is byte-identical to the wire before the settings existed.
+// which sends exactly the body a connection with no settings sends.
 
 // Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import { z } from "zod";
@@ -50,7 +50,7 @@ export const promptCacheSettingsSchema = z
   .strip();
 export type PromptCacheSettings = z.infer<typeof promptCacheSettingsSchema>;
 
-/** What a row with no settings (`prompt_cache` NULL) gets: the wire exactly as it shipped before the settings. */
+/** What a row with no settings (`prompt_cache` NULL) gets: the wire's body when no settings are stored. */
 export const SHIPPED_PROMPT_CACHE: PromptCacheSettings = { enabled: true, cacheSystem: true, historyDepth: null, ttl: "1h" };
 
 /** The settings a turn runs on: the row's own, or the shipped behavior when it stored none. */
