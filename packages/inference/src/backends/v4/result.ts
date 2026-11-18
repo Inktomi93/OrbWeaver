@@ -14,7 +14,7 @@ import type { ChatEvent, ChatResult, ResolvedChatKnobs, ResolvedSampling } from 
 import { normalizeFinishReason } from "#contract";
 import type { ProviderLogger } from "#src/contract/http.ts";
 import type { MeasuredCost, ResultContext, StreamDrain } from "#src/contract/v4.ts";
-import { variantProviderMetadataOf } from "../wire/provider-metadata.ts";
+import { systemFingerprintOf, variantProviderMetadataOf } from "../wire/provider-metadata.ts";
 
 const TOKENS_PER_MTOK = 1_000_000;
 const OPENROUTER_KEY = "openrouter";
@@ -331,11 +331,14 @@ export function toChatResult(drain: StreamDrain, ctx: ResultContext): ChatResult
   };
   const raw = drain.finish.raw ?? drain.finish.unified;
   const toolCalls = drain.toolCalls.length > 0 ? drain.toolCalls : undefined;
-  // The vendor's bag under OUR registry id, narrowed to the closed sidecar arm (`backends/wire/provider-metadata`).
-  // Keyed on `ctx.providerId` ALONE — the old `?? providerMetadata["openrouter"]` fallback filed OpenRouter's bag
-  // under whatever id the connection actually carried, which is the one thing a per-provider record may not do.
-  // `measuredCostOf` keeps its own unconditional read of that key: a COST is the same number whoever routed it.
-  const providerMetadata = variantProviderMetadataOf(ctx.providerId, drain.providerMetadata?.[ctx.providerId]);
+  // The vendor's bag under the key THIS wire's SDK writes it to (`ctx.providerMetadataKey`, the same derivation
+  // the runner wrote `providerOptions` with). The old read used `ctx.providerId`, which a compatible SDK never
+  // files under for a hyphenated id, so the bag landed unread (3577). Keyed on `ctx.providerId` ALONE for the
+  // UNION — the old `?? providerMetadata["openrouter"]` fallback filed OpenRouter's bag under whatever id the
+  // connection actually carried, which is the one thing a per-provider record may not do. `measuredCostOf` keeps
+  // its own unconditional read of that key: a COST is the same number whoever routed it.
+  const vendorBag = drain.providerMetadata?.[ctx.providerMetadataKey];
+  const providerMetadata = variantProviderMetadataOf(ctx.providerId, vendorBag);
   return {
     reply: drain.reply,
     ...(drain.textSignatures.length === 0 ? {} : { textSignatures: drain.textSignatures }),
@@ -358,6 +361,7 @@ export function toChatResult(drain: StreamDrain, ctx: ResultContext): ChatResult
     appliedEffort: ctx.appliedEffort,
     usage: { ...core, ...costOf(core, ctx), ...(ctx.responseCache === undefined ? {} : { responseCache: ctx.responseCache }) },
     ...(providerMetadata !== undefined ? { providerMetadata } : {}),
+    systemFingerprint: systemFingerprintOf(vendorBag),
     ...(drain.images.length > 0 ? { images: drain.images } : {}),
     events: warningEvents(ctx.warnings, ctx.now),
     rateLimit: ctx.rateLimit,

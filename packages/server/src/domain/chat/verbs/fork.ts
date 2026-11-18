@@ -29,6 +29,7 @@ import {
   NO_HISTORY_FLOOR,
   parseVariantMetadata,
   VARIANT_METADATA_REASONING_MS_KEY,
+  VARIANT_METADATA_SYSTEM_FINGERPRINT_KEY,
   VARIANT_METADATA_TOKEN_COUNT_KEY,
   variableDeltaSchema,
 } from "@orb/contracts/chat";
@@ -106,6 +107,7 @@ function forkVariantMetadata(metadata: VariantMetadata | null, stripHostPlane: b
   const visible = {
     [VARIANT_METADATA_REASONING_MS_KEY]: parsed[VARIANT_METADATA_REASONING_MS_KEY],
     [VARIANT_METADATA_TOKEN_COUNT_KEY]: parsed[VARIANT_METADATA_TOKEN_COUNT_KEY],
+    [VARIANT_METADATA_SYSTEM_FINGERPRINT_KEY]: parsed[VARIANT_METADATA_SYSTEM_FINGERPRINT_KEY],
     systemTokens: parsed.systemTokens,
     providerMetadata: parsed.providerMetadata,
     usageLegs: parsed.usageLegs,

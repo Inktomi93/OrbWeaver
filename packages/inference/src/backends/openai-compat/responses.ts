@@ -43,6 +43,10 @@ import { compatibleReasoning } from "./reasoning.ts";
 import { wireSampling } from "./sampling.ts";
 import { resolveWordBias } from "./tokens.ts";
 
+/** The SDK names this provider `openai` with no overridable `name` (`openai.responses`), so both the
+ *  `providerOptions` bag and the vendor metadata it returns are filed under this key. */
+const OPENAI_KEY = "openai";
+
 /** What the Responses option builder reads: the resolved knobs, their wire spelling, the structured plan,
  *  and rule 5b's template-thinking state (a folded turn's mount is off on a row whose switch IS the effort
  *  word — a model that thinks answers the mount call-only and the beat loses its prose). */
@@ -85,7 +89,7 @@ function responsesOptions(
   }
   const strict = structured.responseFormat?.vehicle === "response-format" ? structured.responseFormat.strict : undefined;
   const providerOptions: SharedV4ProviderOptions = {
-    openai: {
+    [OPENAI_KEY]: {
       systemMessageMode: "system",
       store: false,
       ...(strict !== undefined ? { strictJsonSchema: strict } : {}),
@@ -240,6 +244,7 @@ export async function runOpenAiCompatResponsesTurn(req: ResponsesChatRequest, de
   const folded = toChatResult(drain, {
     model: connection.model,
     providerId: connection.providerId,
+    providerMetadataKey: OPENAI_KEY,
     generation,
     maxOutputTokens: knobs.maxOutputTokens,
     startedAt,

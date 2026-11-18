@@ -10,8 +10,9 @@
 // derives `provider` as `${name}.${modelType}` and `providerOptionsName` from `provider.split(".")[0].trim()`
 // (`@ai-sdk/openai-compatible` dist `index.js:1476` and `:364`), and files `providerMetadata` under whichever
 // key that resolves to. A shared literal or a pretty name silently orphans the bag our result mapper reads
-// under the id (`drain.providerMetadata?.[ctx.providerId]`, `v4/result.ts`), and the same footgun exists on
-// the anthropic wire (`getProviderOptionsName`, `@ai-sdk/anthropic` dist `index.js:3539-3542`).
+// (`drain.providerMetadata?.[ctx.providerMetadataKey]`, `v4/result.ts`, whose key each runner derives from
+// `providerOptionsKey`), and the same footgun exists on the anthropic wire (`getProviderOptionsName`,
+// `@ai-sdk/anthropic` dist `index.js:3539-3542`).
 
 import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
@@ -32,6 +33,7 @@ import { applyRowExtras, shapeOutboundBody, userOwnedKeys } from "./body.ts";
 import { fromOllamaChat, ollamaNativeFetch, toOllamaChat } from "./ollama-native.ts";
 import { responsesReasoningTextStream } from "./responses-dialect.ts";
 import { samplerBodyKeys } from "./sampling.ts";
+import { systemFingerprintExtractor } from "./system-fingerprint.ts";
 import { thinkTagMiddleware } from "./think-tags.ts";
 import { openAiCompatConvertUsage } from "./usage.ts";
 
@@ -145,6 +147,9 @@ function openAiCompatibleProvider(call: ModelCall): ReturnType<typeof createOpen
     // endpoint should receive.
     supportsMultiPartToolContent: true,
     transformRequestBody: withExtra,
+    // The response schema strips `system_fingerprint` before the drain can see it, so it rides the SDK's own
+    // extractor hook, filed under the key the fold reads back (`system-fingerprint.ts`, `providerOptionsKey`).
+    metadataExtractor: systemFingerprintExtractor(providerOptionsKey(connection.providerId)),
   });
 }
 

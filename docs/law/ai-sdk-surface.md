@@ -108,7 +108,10 @@ Judgments: **necessary** (the SDK cannot), **stricter** (the SDK can, loses a wr
    `@ai-sdk/openai` (dist js:4361-4383 → 6425-6427) while `responses.ts` passes none. Needs a ruling first
    (below).
 4. Smaller, each with a ruling: `supportsMultiPartToolContent` (off ⇒ structured tool results arrive
-   JSON-stringified, dist:228), `metadataExtractor` (typed home for vendor metadata), per-part `imageDetail`
+   JSON-stringified, dist:228), `metadataExtractor` (**LANDED** —
+   `packages/inference/src/backends/openai-compat/system-fingerprint.ts`
+   reads the raw body's `system_fingerprint`; its readers are the `provider.finish` span attribute
+   `systemFingerprint` and the persisted `message_variants.metadata.system_fingerprint`), per-part `imageDetail`
    on `createOpenAI().chat()` (dist js:571).
 
 ## Unused capability worth a look (not defects)
@@ -136,6 +139,20 @@ Judgments: **necessary** (the SDK cannot), **stricter** (the SDK can, loses a wr
   providerMetadata. Setting `name:` on any factory would silently empty our `providerMetadata.anthropic`
   readers — the thinking-drop alarm and the refusal taxonomy. No call site sets it; treat as forbidden, and
   headers on the model.ts factories should say so.
+- **`providerMetadata` is filed under the PROVIDEROPTIONS key, not the registry id.** The compatible SDK
+  resolves `metadataKey = resolveProviderOptionsKey(providerOptionsName, providerOptions)` (dist
+  `index.js:13-17`) and files its own nested writes at `providerMetadata[metadataKey]` (:419) — the CAMEL form
+  of the provider name, because we always write `providerOptions[providerOptionsKey(id)]`
+  (`packages/inference/src/backends/openai-compat/chat.ts`). A fold reading the raw row id found nothing for
+  every hyphenated id. Write side, extractor bag key and fold read now share `providerOptionsKey`
+  (`packages/inference/src/backends/openai-compat/model.ts`) through
+  `ResultContext.providerMetadataKey` (board item 3577, resolved).
+- **`metadataExtractor`'s bag is spread at the TOP LEVEL of `providerMetadata`, not nested under the
+  provider's key.** `extractMetadata({ parsedBody })` (d.ts:36-47, call site dist `index.js:498`) and the
+  stream extractor's `processChunk`/`buildMetadata` (:618) receive NO headers and NO key, and the returned bag
+  is spread beside the SDK's own writes (:496-499, :735-738). The extractor therefore chooses its own key; ours
+  is the same `providerOptionsKey` derivation the fold reads. It is passed to the chat model only (:1493) —
+  embedding and image models never call it.
 - `openai-compatible`'s `languageModel(id, config)` accepts a per-model `config` that the implementation IGNORES
   (dist js:1485) despite the types. Build nothing on it.
 - Header citations that drifted: `packages/inference/src/backends/v4/fetch.ts:22` says "measured against the installed provider dist 3.0.0"
@@ -163,6 +180,10 @@ Judgments: **necessary** (the SDK cannot), **stricter** (the SDK can, loses a wr
 6. Anthropic `fallbacks`/`contextManagement`: **banned from the extras allowlist** until per-iteration cost
    attribution exists — the allowlist may not carry a key whose effect the cost fold miscounts. The
    attribution lane is the condition for re-listing. (Boarded item.)
+7. `metadataExtractor`: **adopted** on the openai-compatible chat model for `system_fingerprint` only. The
+   compatible SDK's response schema strips the field before our drain sees it, and no hook on
+   `@ai-sdk/openai` or `@openrouter/ai-sdk-provider` models it at all (measured 2026-11-17). The extractor's
+   bag key and the fold read share `providerOptionsKey`, which is also the 3577 fix.
 
 ## Method note
 

@@ -682,6 +682,9 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   };
 
   const reasoningEffort = knobs.reasoning.enabled ? knobs.reasoning.effort : undefined;
+  // The one key derivation this wire writes `providerOptions` under and the compatible SDK files vendor metadata
+  // under. The fold reads the same value back, so the bag cannot land under a spelling the reader never asks for.
+  const providerMetadataKey = providerOptionsKey(connection.providerId);
   const onNativeBody = (body: Readonly<Record<string, unknown>>): void => {
     attempt.nativeBody = body;
   };
@@ -691,7 +694,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
         const shape =
           dialect === "openrouter"
             ? openRouterShape(req, turnKnobs, warnings, includeReasoning)
-            : openAiCompatibleShape(req, turnKnobs, warnings, providerOptionsKey(connection.providerId));
+            : openAiCompatibleShape(req, turnKnobs, warnings, providerMetadataKey);
         attempt.shape = shape;
         // The beta-route decision; the route is the stamping gate's superset, so a turn that routes to `/beta`
         // without stamping is harmless and a stamp never rides prod where the vendor 400s it.
@@ -766,6 +769,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   const folded = toChatResult(drain, {
     model: connection.model,
     providerId: connection.providerId,
+    providerMetadataKey,
     generation,
     maxOutputTokens: knobs.maxOutputTokens,
     startedAt,
