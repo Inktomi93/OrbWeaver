@@ -53,7 +53,7 @@ export interface PluginMessageView {
   readonly content: string;
 }
 
-/** A REDUCED roster projection (`chat.listCharacters` — the ST `context.characters` parity arm). The read
+/** A REDUCED roster projection (`chat.listCharacters`). The read
  *  floor is what EVERY member already sees in the transcript: a character seat's id, its resolved display name,
  *  and its avatar asset id. Deliberately NOT the full card — a member plugin reading another participant's
  *  description/personality/scenario would be a leak of a co-participant's private character definition; the roster
@@ -174,7 +174,7 @@ export interface PluginQuietSchema {
   readonly schema: Record<string, unknown>;
 }
 
-/** The optional second argument of `llm.quiet` — the U6 widening, both arms optional and independent (a
+/** The optional second argument of `llm.quiet` — both arms optional and independent (a
  *  captioning call passes images and no schema; a structured call the reverse; both together is legal). */
 export interface PluginQuietOptions {
   /** Present ⇒ a schema-CONSTRAINED generation on the `structured` role; the result is the model's JSON text. */
@@ -220,7 +220,7 @@ export interface PluginHostV1 {
     error: (msg: string) => void;
   };
 
-  /** Token-count ESTIMATION over the guest's OWN text (the ST `getTokenCountAsync` parity arm). A FREE
+  /** Token-count ESTIMATION over the guest's OWN text. A FREE
    *  namespace — capability: none (always granted) — and that is the correct classification, not a shortcut: it is
    *  the kit `estimateTokens` engine (`@orb/kit/tokens`, the SAME estimator `clampToTokenBudget`/`splitToTokenBudget`
    *  build on), a PURE deterministic function of the input string with ZERO reach — no tenant data, no DB, no I/O,
@@ -242,8 +242,8 @@ export interface PluginHostV1 {
     listMessages: (chat: ChatHandle, opts?: { limit?: number /* ≤ 50, default 20 */ }) => Promise<readonly PluginMessageView[]>;
     /** The runtime variable fold cache (read) — capability: chat.read */
     getVariables: (chat: ChatHandle) => Promise<Record<string, string>>;
-    /** The invocation chat's present CHARACTER roster, reduced to {@link PluginCharacterView} (id/name/avatar —
-     *  the ST `context.characters` parity arm). SCOPED TO THIS ROOM: the characters seated in the chat
+    /** The invocation chat's present CHARACTER roster, reduced to {@link PluginCharacterView} (id/name/avatar).
+     *  SCOPED TO THIS ROOM: the characters seated in the chat
      *  this invocation was admitted to, never a global "all your characters" list and never a character from a
      *  chat the caller isn't in — a non-member resolves to `[]` (the `listMessages` viewer choke, member-gated).
      *  capability: chat.read */
@@ -378,8 +378,8 @@ export interface PluginHostV1 {
      *  The FUNDER is the installer and is closed over host-side; a guest cannot name a different one, exactly
      *  as with `chat.requestTurn`. No chat scope is required (the call carries no room context at all).
      *
-     *  THE U6 WIDENING IS TWO OPTIONAL INPUTS ON THIS ONE OP, never a second
-     *  quiet path — the interaction spec's §3-S5.1 law: `summarizeQuiet` was already declared the generic
+     *  THE WIDENING IS TWO OPTIONAL INPUTS ON THIS ONE OP, never a second
+     *  quiet path: `summarizeQuiet` is the generic
      *  quiet-LLM op, so the structured variant and the vision variant are pass-through fields on the lane that
      *  exists. `opts.schema` routes the call to the `structured` role (D109-4 — its firewall row excludes the
      *  metered sub, so hosted-cred laundering stays structurally closed) and the answer is the model's JSON as
@@ -391,8 +391,7 @@ export interface PluginHostV1 {
   };
 
   readonly databank: {
-    /** Ingest a text document into the INSTALLING PRINCIPAL's OWN databank (seam 15 —
-     *  the Data Bank scraper parity arm). A CANON WRITE into the installer's own library: the document lands
+    /** Ingest a text document into the INSTALLING PRINCIPAL's OWN databank — a CANON WRITE into the installer's own library: the document lands
      *  owner-scoped and the derived indexer auto-runs (the write enqueues the ingest workload). capability:
      *  databank.ingest.
      *
@@ -409,8 +408,7 @@ export interface PluginHostV1 {
 
   readonly character: {
     /** Ingest a V2/V3 character CARD (a plain JSON object) into the INSTALLING PRINCIPAL's OWN character
-     *  library (sibling / seam 17 — the hub-import scraper arm; the `ui.page`
-     *  hub-browser showcase's import verb). A CANON WRITE riding the import domain's ContentChanged-emitting
+     *  library (the `ui.page` hub-browser showcase's import verb). A CANON WRITE riding the import domain's ContentChanged-emitting
      *  path (the same `importCharacter` funnel a file upload takes — byte-identical dedup, book/regex relink),
      *  so the indexer auto-runs. capability: character.ingest.
      *
@@ -443,8 +441,8 @@ export interface PluginHostV1 {
       characterId: SandboxWireId<CharacterId>;
       created: boolean;
     }>;
-    /** Store this plugin's OWN per-card state on one of the INSTALLER's OWN characters (D148 — the ST
-     *  `writeExtensionField` parity arm). capability: `character.card_state`.
+    /** Store this plugin's OWN per-card state on one of the INSTALLER's OWN characters (D148).
+     *  capability: `character.card_state`.
      *
      *  IT WRITES EXACTLY ONE RESERVED KEY, `data.extensions.plugin_<slug>`, and that is the whole security story.
      *  The `<slug>` is STAMPED HOST-SIDE from the re-validated manifest (never guest input — the `pubsub.emit`
@@ -491,7 +489,7 @@ export interface PluginHostV1 {
 
   /** THE PRIVATE PLUGIN-EVENT PLANE — a namespaced installer-scoped pub-sub for
    *  multi-plugin composition. It is a DELIBERATELY SEPARATE plane from `events` above, and the separation IS the
-   *  forgery wall (§5.24 — "a plugin-emitted DOMAIN event is a forged fact"):
+   *  forgery wall ("a plugin-emitted DOMAIN event is a forged fact"):
    *   - it NEVER enters a domain/chat bus (the emit reaches only the installer's own resident plugin-event bus);
    *   - the delivered payload is a plain `{ name, data }`, NEVER a `TriggerFact` — so it cannot be laundered into
    *     automation (automation reach is a FUTURE explicit `pluginEvent` trigger member, not this plane);
@@ -546,8 +544,8 @@ export interface PluginHostV1 {
         };
       }) => Promise<PromptTransformOutcome>;
     }) => void;
-    /** Register a DISPLAY transform (seam 14) — the ST message-formatting-hook
-     *  parity arm. capability: chat.transform.
+    /** Register a DISPLAY transform — the message-formatting-hook
+     *  arm. capability: chat.transform.
      *
      *  IT IS A DIFFERENT SEAM FROM `register` ABOVE, and the difference is the whole safety story. A D50 prompt
      *  transform rewrites the text going TO THE MODEL; this rewrites only what the INSTALLER'S OWN SCREEN shows,
@@ -585,13 +583,13 @@ export interface PluginHostV1 {
      *
      *  A VALUE MACRO, therefore: it declares no arguments, because arguments would require the engine to call
      *  back into the guest at substitution time, which is the async call the engine cannot make. That is the
-     *  bound, stated; it is also ST's own `registerMacro(key, value)` shape.
+     *  bound, stated.
      *
      *  `name` is guest-local and host-namespaced to `plugin_<slug'>_<name>` (the `tools.register` rule), so a
      *  plugin can never shadow a builtin macro or another plugin's. A throw or an overrun resolves the macro
      *  to "" for that turn (the degrade-never-throw law the whole macro plane obeys) — a broken plugin macro
      *  renders empty, it does not eat the turn. The returned text is `neutralizeMacros`'d before it is
-     *  registered: plugin-authored text entering a macro-EXECUTION plane obeys interaction-spec §2 law 7. */
+     *  registered: plugin-authored text entering a macro-EXECUTION plane obeys the macro-neutralization law. */
     register: (def: {
       name: string; // /^[a-z][a-z0-9_]{0,40}$/; host prefixes to "plugin_<slug'>_<name>"
       description: string;
@@ -607,7 +605,7 @@ export interface PluginHostV1 {
     /** capability: net.fetch_asset — download a REMOTE IMAGE into the INSTALLER's OWN CAS and get back an
      *  assetId. The guest supplies ONLY the url string and receives ONLY an assetId;
      *  the BYTES never enter the guest realm and NO URL is ever spellable inside a rendered node — the
-     *  `image`/`hero` DSL nodes stay assetId-only, so the seam-11 anti-exfil-pixel wall is unchanged.
+     *  `image`/`hero` DSL nodes stay assetId-only, so the anti-exfil-pixel wall is unchanged.
      *
      *  THE HOST performs everything: it claims its OWN hourly belt (`PluginBridge.admitAssetEgress` —
      *  split from `net.fetch`'s so an art grid's honest cover spend can never starve text egress; the REACH
@@ -627,11 +625,11 @@ export interface PluginHostV1 {
     }>;
   };
 
-  /** The DECLARATIVE UI plane (the U0 vocabulary). A plugin registers surfaces built from the
+  /** The DECLARATIVE UI plane. A plugin registers surfaces built from the
    *  closed `@orb/contracts/plugin/ui` node vocabulary (`ui.ts`) — first-party code renders them at the existing
    *  contribution anchors inside a plugin-labeled shell; plugin code never touches the real DOM and the
-   *  vocabulary cannot express host chrome, a modal, or a write channel (§4.3/§4.8). This namespace is the
-   *  guest-facing membrane surface; the resident registration + state store + event round-trip land with U1.
+   *  vocabulary cannot express host chrome, a modal, or a write channel. This namespace is the
+   *  guest-facing membrane surface.
    *  Guests feature-detect via `grants` (does it hold `ui.surface`?) — the same posture every capability uses. */
   readonly ui: {
     /** Register a surface at activation (resident state, like `tools.register`/`transforms.register` — rebuilt
@@ -641,7 +639,7 @@ export interface PluginHostV1 {
       id: string; // /^[a-z][a-z0-9_]{0,40}$/, unique per plugin
       anchor: PluginSurfaceAnchor;
       title: string; // the shell label line (≤ 80 chars)
-      tier: PluginSurfaceTier; // scripted requires the bundle's ui.js (U4)
+      tier: PluginSurfaceTier; // scripted requires the bundle's ui.js
       toolName?: string; // required for, and only for, the tool-card anchor (ui.ts registration schema)
       spec?: PluginSurfaceSpec; // REQUIRED for the static tier; zod-validated host-side (ui.ts)
       onAction?: (a: { actionId: string; values: Record<string, string>; chat: ChatHandle | null }) => void | Promise<void>;
@@ -650,7 +648,7 @@ export interface PluginHostV1 {
      *  the whole state; emits the per-user freshness poke. capability: ui.surface
      *
      *  `chat` is the OPTIONAL ROOM DIMENSION. Omitted, the state row is
-     *  keyed `(pluginId, surfaceId)` and every room shows the same publication — the U1 shape, and still the
+     *  keyed `(pluginId, surfaceId)` and every room shows the same publication — still the
      *  right one for a settings panel or a cross-room roll-up. Supplied, the row is keyed
      *  `(pluginId, surfaceId, chatId)` and a room-anchored surface reads only ITS room's row, which is what
      *  makes a per-room widget say something true about the room you are looking at.
@@ -661,7 +659,7 @@ export interface PluginHostV1 {
      *  membrane. A guest that wants the current room writes `host.ui.setState(id, state, host.chat.current())`. */
     setState: (surfaceId: string, state: Record<string, unknown>, chat?: ChatHandle) => Promise<void>;
     /** Register a COMMAND at activation (the `register` mirror — resident, rebuilt on re-activation, dropped on
-     *  disable). U5, §4.5. The host routes `/plugin <slug> <name> <rest>` and a first-party command palette
+     *  disable). The host routes `/plugin <slug> <name> <rest>` and a first-party command palette
      *  row to `onRun`, which receives ONE `{ args, chat }` object (`args` = the raw remainder after the name, so
      *  a command owns its own argument grammar). A plugin never reaches a top-level slash token: the dispatcher
      *  and the palette are ONE first-party contribution each, fanning per-plugin off the caller's own installs.
@@ -673,8 +671,7 @@ export interface PluginHostV1 {
      *  in through the args bag would be a second spelling of the same token. Run outside a room (the palette or top bar
      *  on a non-chat screen), `chat.current()` throws — the honest answer, not a synthesized room.
      *
-     *  THE TYPED-ARG GRAMMAR: a command MAY declare `args` (the ST `SlashCommandArgument` core —
-     *  named/typed/enum/required). When it does, the platform COLLECTS + TYPES + VALIDATES + AUTOCOMPLETES them at
+     *  THE TYPED-ARG GRAMMAR: a command MAY declare `args` (named/typed/enum/required). When it does, the platform COLLECTS + TYPES + VALIDATES + AUTOCOMPLETES them at
      *  both surfaces (the palette's typed input strip, the composer's `name=value` completion) before `onRun`
      *  runs, and hands the guest the typed `values` bag ALONGSIDE the raw `args` remainder (unchanged — a command
      *  with no declared args keeps its own opaque argument grammar, and `values` is then `{}`). The values are
@@ -700,7 +697,7 @@ export interface PluginHostV1 {
      *  durable channel stays `notifications.post`. capability: ui.surface */
     toast: (level: PluginToastLevel, message: string) => Promise<void>;
     /** Ask the host to open one of THIS plugin's registered `dialog` surfaces — the house modal shell with a
-     *  plugin-attributed title (§4.5a). It resolves when the ask is RECORDED, not when a modal appears: the open
+     *  plugin-attributed title. It resolves when the ask is RECORDED, not when a modal appears: the open
      *  travels on the outcome of a client-initiated round-trip, so a spontaneous open is unspellable rather than
      *  refused, and an id naming no registered dialog is dropped. capability: ui.surface */
     openDialog: (surfaceId: string) => Promise<void>;
@@ -719,12 +716,12 @@ export interface PluginHostV1 {
      *  fetch/XHR/WebSocket/EventSource/sendBeacon are all refused — and it can touch neither the session, nor
      *  storage, nor the app DOM, nor a sibling frame. It has NO network of its own: every host call rides the
      *  postMessage bridge to the SAME re-gated relay the scripted tier uses. What it CAN do, and what its consent
-     *  line says out loud, is beacon over WebRTC/STUN — residual R1 in `@orb/kit/card-frame`, measured, and not
+     *  line says out loud, is beacon over WebRTC/STUN — a residual in `@orb/kit/card-frame`, not
      *  closeable by any directive Chromium recognizes.
      *
      *  `anchor` is bounded by {@link PluginSurfaceAnchor} ∩ the `frame` column of `PLUGIN_ANCHOR_TIERS` —
      *  `message-footer` is refused PERMANENTLY (one document per transcript row). An invalid def is a REGISTRATION
-     *  refusal (logged, surface absent), never activation-fatal — the `ui.register` posture (§4.9). */
+     *  refusal (logged, surface absent), never activation-fatal — the `ui.register` posture. */
     registerFrame: (def: {
       id: string; // /^[a-z][a-z0-9_]{0,40}$/, unique per plugin (shares the surface-id namespace)
       anchor: PluginSurfaceAnchor;
@@ -737,7 +734,7 @@ export interface PluginHostV1 {
 
 // ── The capability → host-function completeness pin (the enforcement table, coded) ──────────────────────────
 /** Namespaces reachable with NO capability: the determinism/id floor + the version/feature-detect surface.
- *  The ONE tuple (derive, never re-spell — §7.5); a `satisfies` pins every member to a real `PluginHostV1` key,
+ *  The ONE tuple (derive, never re-spell); a `satisfies` pins every member to a real `PluginHostV1` key,
  *  so a renamed/removed free namespace fails `tsc` here. */
 const PLUGIN_FREE_NAMESPACES = ["version", "grants", "clock", "random", "ids", "log", "tokens"] as const satisfies readonly (keyof PluginHostV1)[];
 type FreeNamespace = (typeof PLUGIN_FREE_NAMESPACES)[number];
@@ -794,7 +791,7 @@ export const HOST_FUNCTION_CAPABILITY = {
   "notifications.post": "notify",
   "imagery.generatePicture": "imagery.generate",
   "llm.quiet": "llm.quiet",
-  // U8 seams 15/17 — each is its OWN consent line (a canon write into the installer's own library is a distinct
+  // Each is its OWN consent line (a canon write into the installer's own library is a distinct
   // reach), keyed 1:1 to its capability. Owner-scoped writes, not room writes: the domain closes the installer
   // over each op, so there is no `canWrite` gate here — the grant is the whole membrane-tier wall.
   "databank.ingest": "databank.ingest",
@@ -804,7 +801,7 @@ export const HOST_FUNCTION_CAPABILITY = {
   // PNG asset the installer owns vs. a JSON card), so it is not a distinct consent line (the `card_state`
   // read/write pair riding ONE grant is the precedent).
   "character.ingestAsset": "character.ingest",
-  // U8 D148 — the per-card plugin-state write + read, BOTH keyed to the ONE `character.card_state` grant (a
+  // D148 — the per-card plugin-state write + read, BOTH keyed to the ONE `character.card_state` grant (a
   // symmetric consent line: "store its own data on your characters" covers reading back what it stored). Owner-
   // scoped metadata writes to the installer's OWN characters, not room writes: no `canWrite` gate, the grant is
   // the whole membrane-tier wall (the `storage.kv` posture, one plane over onto the card's residual extensions).
@@ -813,14 +810,14 @@ export const HOST_FUNCTION_CAPABILITY = {
   // The same consent line: it reads back only what `getCardData` can read, across the installer's own characters.
   "character.findCardData": "character.card_state",
   "events.on": "events.subscribe",
-  // U8 §5a — both the private-event emit and subscribe ride the ONE `plugin_events` grant (a single consent line
+  // Both the private-event emit and subscribe ride the ONE `plugin_events` grant (a single consent line
   // covers "send and receive private events among your own plugins"). A plugin that may emit may subscribe and
   // vice versa — the plane is symmetric and installer-private.
   "pubsub.emit": "plugin_events",
   "pubsub.on": "plugin_events",
   "tools.register": "tools.register",
   "transforms.register": "chat.transform",
-  // U6 — both ride `chat.transform`: a DISPLAY transform is strictly narrower than the prompt transform that
+  // Both ride `chat.transform`: a DISPLAY transform is strictly narrower than the prompt transform that
   // capability already buys (installer's own screen, no canon, no other viewer), and a macro substitutes into
   // the assembled prompt, which is that capability's own reach. Neither is a new consent line.
   "transforms.registerDisplay": "chat.transform",
@@ -833,7 +830,7 @@ export const HOST_FUNCTION_CAPABILITY = {
   "net.fetchAsset": "net.fetch_asset",
   "ui.register": "ui.surface",
   "ui.setState": "ui.surface",
-  // U5's three host-mediated affordances ride the SAME `ui.surface` grant, and that is a decision, not an
+  // The three host-mediated affordances ride the SAME `ui.surface` grant, and that is a decision, not an
   // oversight: the consent line a person read ("Show its own panels and controls — drawn by the app, always
   // labeled with the plugin's name") already describes a command in the app's own menu, a toast in the app's own
   // toast slot, and a dialog in the app's own modal shell. A fourth capability per chrome affordance would grow
@@ -841,10 +838,10 @@ export const HOST_FUNCTION_CAPABILITY = {
   "ui.registerCommand": "ui.surface",
   "ui.toast": "ui.surface",
   "ui.openDialog": "ui.surface",
-  // U7 — the ONE function claiming `ui.frame`, and the reason the hatch is a separate door at all: a capability
+  // The ONE function claiming `ui.frame`, and the reason the hatch is a separate door at all: a capability
   // is enforced per FUNCTION, so the tier that needs a louder consent line gets its own function. Moving this
   // value to `ui.surface` would silently fold the hatch's consent into the panel row's — which is exactly why
-  // U5's affordances ride `ui.surface` (same "draw in the app's chrome" reach) and this one does NOT (it runs
+  // the chrome affordances ride `ui.surface` (same "draw in the app's chrome" reach) and this one does NOT (it runs
   // the plugin's own code in an isolated frame that can beacon out).
   "ui.registerFrame": "ui.frame",
 } as const satisfies Record<HostFunctionRef, PluginCapability>;
@@ -862,14 +859,13 @@ export const HOST_FUNCTION_CAPABILITY = {
  *  every one is reachable through the `PluginBridge` the domain already holds, so proxying them adds a CALLER
  *  and not one line of new authority.
  *
- *  WHAT IS OUT, stated as PRICED WIDENINGS rather than a silent omission (the §5a enablement-sheet idiom) —
+ *  WHAT IS OUT, stated as PRICED WIDENINGS rather than a silent omission (the enablement-sheet idiom) —
  *  each names what it would cost to admit, so the absence is a decision surface a reviewer can audit:
  *   - `tools.register` / `transforms.register` / `events.on` / `ui.register` / `ui.setState` — RESIDENT
  *     REGISTRATIONS. These mint process-lifetime state owned by the SERVER guest (a registry row, a transform
  *     band slot, a subscriber, a surface record). A client guest is per-mount and terminable; letting it
  *     register would create residency with no activation to rebuild it from and no deactivate to reap it.
- *     Not purchasable in this shape at any price — the server half is where residency belongs (§4.6 names the
- *     first three explicitly).
+ *     Not purchasable in this shape at any price — the server half is where residency belongs.
  *   - `chat.current` — nothing to resolve: it returns the ADMITTED INVOCATION's chat token, and a proxied call
  *     has no invocation. The client names its room as `chatId` on the proc instead, and the server verifies
  *     MEMBERSHIP rather than trusting the claim.
@@ -877,7 +873,7 @@ export const HOST_FUNCTION_CAPABILITY = {
  *     per-(plugin, chat) notify floor, the domain-side recipient resolve, the 200-char cap); what it needs
  *     is a membership-verified room for a CLIENT-claimed `chatId`. The room dimension's
  *     `resolveChatAuthority` gate is exactly that, so the sanctioned shape is: admit the claimed chat, then
- *     call the bridge op under the existing floor. Priced, not built — it is an EFFECT, and this lane's
+ *     call the bridge op under the existing floor. Priced, not built — it is an EFFECT, and the
  *     tuple is deliberately reads + KV + belted egress.
  *   - `net.fetch` — OUT ON A STRUCTURAL RECEIPT, not a judgment call, and the receipt is worth stating because
  *     the natural reading of "already-safe effect fns" includes it. THE FETCH IS NOT ON THE BRIDGE: `safeFetch`
@@ -885,65 +881,65 @@ export const HOST_FUNCTION_CAPABILITY = {
  *     PERFORMS every plugin fetch and the bridge carries only the hourly admission (`PluginBridge.admitEgress`,
  *     whose own header states exactly this division). A proxied `net.fetch` would therefore need a NEW injected
  *     egress op wired at compose — i.e. a SECOND egress path beside the membrane's, with its own copy of the
- *     manifest-allowlist plumbing. That is a new trust boundary, and this lane refuses to improvise one. Its
+ *     manifest-allowlist plumbing. That is a new trust boundary, and improvising one is refused. Its
  *     sanctioned shape, if it is ever wanted, is to widen `PluginBridge` so infra's ONE guarded fetch is
  *     reachable by both callers — never a parallel path.
  *   - `chat.applyVariableOps` / `chat.surfaceQuickReply` / `chat.requestTurn` / `worldInfo.upsertEntry` /
  *     `imagery.generatePicture` / `llm.quiet` — THE AUTHORITY-WRITE CLASS. Each is gated on
  *     `InvocationChat.canWrite` (the installer must HOST the room), and the membrane's answer when they hold
- *     the grant but not the authority is NOT a refusal — it is the S4 propose/confirm inbox
+ *     the grant but not the authority is NOT a refusal — it is the propose/confirm inbox
  *     (`bridge.suggest`). So their sanctioned route from a client guest is that SAME posture: raise an ask a
  *     host confirms, never a direct proxy that would have to re-derive host authority in a second place. A
  *     direct proxy is the arm this design refuses; the suggest-shaped arm is the one that is priced.
- *   - `databank.ingest` / `character.ingest` (U8) — THE CANON-WRITE class, OUT. They are not room-authority
+ *   - `databank.ingest` / `character.ingest` — THE CANON-WRITE class, OUT. They are not room-authority
  *     writes (no `canWrite` gate — a library write is the installer's own), but they are still WRITES that
  *     mint durable rows + kick derived-index compute, and the Tier-C tuple is deliberately reads + the two KV
- *     planes: §4.6 bought LATENCY for local-immediate interaction (filtering, hovering, form state), which
+ *     planes: Tier C buys LATENCY for local-immediate interaction (filtering, hovering, form state), which
  *     needs reads, not a canon-write relay. Nothing is lost — the plugin's SERVER guest ingests under the same
  *     grant; a scripted surface that wants to trigger an ingest fires an `actionId` round-trip whose server
  *     handler holds the grant, exactly as it would for any other write. Admitting them to the proxy tuple is a
- *     §5a-shaped decision (a new proxyable member is a reviewable act), never a free entry.
- *   - `character.setCardData` / `character.getCardData` (U8 D148) — BOTH OUT, for two DIFFERENT reasons worth
- *     stating separately. `setCardData` is a WRITE (the U8 canon-write reasoning above — mints/mutates a durable
+ *     deliberate decision (a new proxyable member is a reviewable act), never a free entry.
+ *   - `character.setCardData` / `character.getCardData` (D148) — BOTH OUT, for two DIFFERENT reasons worth
+ *     stating separately. `setCardData` is a WRITE (the canon-write reasoning above — mints/mutates a durable
  *     row, and the Tier-C tuple is deliberately reads + KV). `getCardData` is the more interesting exclusion: it
  *     IS a read, and a scripted surface reading its OWN per-card state to render a widget is a plausible LATENCY
- *     want — the class §4.6 bought. It is OUT anyway because its owner-scope is per-CHARACTER, and a proxied call
+ *     want — the class Tier C buys. It is OUT anyway because its owner-scope is per-CHARACTER, and a proxied call
  *     has no invocation character the way it has no invocation chat (`chat.current`'s exclusion): the client would
  *     name a `characterId`, and the server would then owe a membership/ownership check on that CLAIM before the
- *     read — exactly the `notifications.post`/row-777 `resolveChatAuthority` shape, one plane over onto character
+ *     read — exactly the `notifications.post` `resolveChatAuthority` shape, one plane over onto character
  *     ownership. That gate does not exist yet, so this is a PRICED widening (build the owned-character admission,
  *     then proxy the read under it), never a free entry — and until then a scripted surface reads its own card
  *     state through the server guest's own `getCardData` on an `actionId` round-trip, losing latency, nothing else.
- *   - `pubsub.on` / `pubsub.emit` (U8 §5a) — OUT. `pubsub.on` is a RESIDENT REGISTRATION (a subscriber handle
+ *   - `pubsub.on` / `pubsub.emit` — OUT. `pubsub.on` is a RESIDENT REGISTRATION (a subscriber handle
  *     owned by the SERVER guest, the `events.on` class), and `pubsub.emit` is an EFFECT that fans out to resident
  *     SERVER guests — neither is server-owned DATA a client guest lacks. A client UI guest holds `orb.ui(1)`, not
  *     `orb.host(1)`, and the private-event plane is a SERVER-guest composition primitive; relaying it would put a
- *     client guest into the installer's resident event graph, which is not what §4.6's read-latency purchase was.
+ *     client guest into the installer's resident event graph, which is not the read-latency purchase Tier C makes.
  *   - `chat.listCharacters` — OUT, but the STRONGEST future proxy candidate: it is the same class as the
  *     proxyable `chat.listMessages`/`getVariables` (a chat-scoped canon read a surface renders from, self-gating
  *     membership → `[]` for a non-member), and a scripted sprite/expression surface swapping art per speaker is
- *     exactly the local-immediate latency want §4.6 bought. It is OUT of THIS lane only because the tuple is an
+ *     exactly the local-immediate latency want Tier C buys. It is OUT only because the tuple is an
  *     ORDERED, reviewable pin ("reads + the two KV planes, and nothing else") and adding a member is a deliberate
- *     act, not a lane's side effect — a PRICED widening (add it to the tuple + its pin, no new gate needed), never
+ *     act, not a side effect — a PRICED widening (add it to the tuple + its pin, no new gate needed), never
  *     a silent entry. Until then a scripted surface reads the roster through its server guest on an `actionId`
  *     round-trip, losing latency, nothing else.
  *   - `worldInfo.listBooks` / `worldInfo.listEntries` — OUT. Chat-scoped reads that self-gate
  *     (attachment + membership), so like `listCharacters` they COULD be proxied under the same membership-on-claimed-
  *     `chatId` shape `listMessages` already uses — but the lore-read consumer is the server-side indexing class,
- *     not a per-frame surface render, so the latency want is weak; a PRICED widening, not this lane's tuple edit.
+ *     not a per-frame surface render, so the latency want is weak; a PRICED widening, not a tuple edit.
  *   - `assets.read` — OUT, the `character.getCardData` shape one plane over: it IS a read, but its
  *     owner-scope is per-ASSET and a proxied call names an `assetId` the server would owe an ownership check on
- *     before reading (the `chat.current`/row-777 `resolveChatAuthority` posture onto asset ownership). The bridge
+ *     before reading (the `chat.current` `resolveChatAuthority` posture onto asset ownership). The bridge
  *     read already owner-gates, so the widening is small, but it is a widening — priced, never a free entry.
  *   - `search.documents` — OUT. It IS an owner-scoped read (the bridge closes the installer's ownerId
  *     over the scope, so a proxied call would need no new ownership gate), but every call runs a QUERY EMBEDDING
  *     (which may call a hosted provider), and a client guest firing it at animation rate would hammer the embedder — the
- *     compute-cost class the read tuple deliberately does not admit (§4.6 bought LATENCY for local-immediate
+ *     compute-cost class the read tuple deliberately does not admit (Tier C buys LATENCY for local-immediate
  *     interaction over CHEAP reads, not for per-keystroke retrieval). A scripted surface that wants search fires
  *     an `actionId` round-trip whose server guest runs it under the same grant. Priced, not a free entry.
  *
  *  Nothing here loses ABILITY: the plugin's SERVER guest reaches every excluded function under the same grant.
- *  What Tier C gives up is the LATENCY of those calls, which is not what §4.6 bought — it bought
+ *  What Tier C gives up is the LATENCY of those calls, which is the whole point of the tier — it buys
  *  local-immediate INTERACTION (filtering, hovering, form state), and that needs reads, not writes. */
 export const UI_PROXYABLE_HOST_FUNCTIONS = [
   "chat.listMessages",

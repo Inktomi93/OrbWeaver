@@ -85,8 +85,8 @@ export interface PluginBridge {
      *  attached to this room — even one the installer owns in another chat — resolves to `[]`, leak-free. */
     readonly listEntries: (chatId: ChatId, bookId: SandboxWireId<WorldBookId>, liveness?: PluginInvocationLiveness) => Promise<readonly PluginWorldEntryView[]>;
     /** Upsert one ATTACHED-book entry (`worldInfo.upsertEntry`). The entry carries its own guest-supplied
-     *  `bookId`, so the ADMITTED `chatId` rides along as the domain's consent anchor: 02 §2 specifies this
-     *  capability as "grant + host + book-attached-to-chat + the 64-entry cap", and only the domain can answer
+     *  `bookId`, so the ADMITTED `chatId` rides along as the domain's consent anchor: the
+     *  capability is "grant + host + book-attached-to-chat + the 64-entry cap", and only the domain can answer
      *  the last two. Without the chatId the bridge could not express the attachment gate at all — a plugin
      *  invoked in chat X could write into any book its installer owns, including books attached only to chat Y.
      *  The domain builder also resolves the installer's Principal (so a cross-owner book write is refused by
@@ -181,7 +181,7 @@ export interface PluginBridge {
    *  so a check that awaited before recording would let a burst straight through the gap). Returns raw text;
    *  the guest never sees cost (cost VISIBILITY rides the stats domain off the generation itself). */
   readonly llm: {
-    /** `opts` is the U6 widening travelling as inert JSON-safe data: a RAW
+    /** `opts` is the structured-output widening travelling as inert JSON-safe data: a RAW
      *  structured-output schema the DOMAIN lifts + projects (a guest can never hand a wire an unprojected
      *  schema — D79) and asset ids the DOMAIN resolves to bytes under the INSTALLER's own ownership gate.
      *  Infra performs neither resolution: it holds no principal and no CAS, which is exactly why both arms
@@ -189,7 +189,7 @@ export interface PluginBridge {
     readonly quiet: (prompt: string, opts: PluginQuietOptions | undefined, liveness: PluginInvocationLiveness) => Promise<{ readonly text: string }>;
   };
   /** POSTURE 2 — stash `act` as a SUGGESTION for the ADMITTED chat's host to confirm, instead of performing
-   *  it. Called by the membrane on exactly the arm that used to be a flat refusal: the installer holds the
+   *  it. Called by the membrane on the arm with no standing authority: the installer holds the
    *  grant but not host authority on this chat (`InvocationChat.canWrite === false`).
    *
    *  THE MEMBRANE STAYS AUTHORITY-BLIND. It decides "no standing authority" from the `canWrite` the DOMAIN
@@ -212,7 +212,7 @@ export interface PluginBridge {
    *  by construction). So the domain hands the admission down as a closure, exactly as it hands `netHosts`
    *  down as data, and infra calls it without knowing whose budget it just spent.
    *
-   *  WHAT IT CLOSES (the D46 review's tracked finding): `safeFetch`
+   *  WHAT IT CLOSES: `safeFetch`
    *  bounds each REQUEST — deadline, byte cap, redirect budget — and the manifest bounds the target SET, but
    *  nothing bounded the RATE. A plugin subscribing to `messageCommitted` egresses once per committed message,
    *  forever; the ≤32-in-flight cap is a concurrency bound and says nothing about how many calls per hour.
@@ -227,8 +227,8 @@ export interface PluginBridge {
    *  installer's OWN CAS — its honest cost is an art GRID's (a fresh browse page is ~30 covers), which a
    *  belt priced for text egress starved. Same closure mechanics as `admitEgress`; THROWS over ceiling. */
   readonly admitAssetEgress: () => void;
-  /** CHECK that the installer still stands: REJECTS when the installer's account is disabled (owner-ruled to stand
-   *  as a departed member). The app-side dispatch awaits it before every host call that reaches the installer's
+  /** CHECK that the installer still stands: REJECTS when the installer's account is disabled (a departed member
+   *  stands as one). The app-side dispatch awaits it before every host call that reaches the installer's
    *  rooms, data, connections, credentials or egress, so a guest that was already running when its installer was
    *  disabled spends nothing on that account. Same closure mechanics as `admitEgress`: infra calls it without
    *  knowing whose standing it checked. */
@@ -243,10 +243,10 @@ export interface PluginBridge {
     choices: readonly { readonly label: string; readonly sendText: string }[],
     liveness?: PluginInvocationLiveness,
   ) => Promise<void>;
-  /** Publish a UI surface's STATE (`host.ui.setState`, capability ui.surface U1). The
+  /** Publish a UI surface's STATE (`host.ui.setState`, capability ui.surface). The
    *  membrane passes the guest-named `surfaceId` + the whole replacement state as JSON-safe data; the domain
    *  builder closes over the `pluginId` + installer, writes the per-`(pluginId, surfaceId)` in-memory state row
-   *  (the S4-suggestion-store precedent — respawn wipes; durable state is the plugin's own `storage.kv` job) and
+   *  (the suggestion-store precedent — respawn wipes; durable state is the plugin's own `storage.kv` job) and
    *  emits the per-user freshness poke (`pluginSurfaceStateChanged`) so the installer's own client refetches.
    *
    *  `chatId` is the ROOM DIMENSION: `null` ⇒ the plugin-wide row every room shares; a chat id ⇒ the
@@ -256,20 +256,20 @@ export interface PluginBridge {
    *  to. Authority-agnostic like every bridge op — infra holds no pluginId or Principal. */
   readonly ui: {
     readonly setState: (surfaceId: string, state: Record<string, unknown>, chatId: ChatId | null, liveness?: PluginInvocationLiveness) => Promise<void>;
-    /** Stash a host-mediated TOAST for this plugin (`host.ui.toast`, U5 §4.5a). The domain builder closes over
+    /** Stash a host-mediated TOAST for this plugin (`host.ui.toast`). The domain builder closes over
      *  the `pluginId` + the plugin's DISPLAY NAME (the attribution prefix — a guest can no more name whose toast
      *  this is than it can name a funder) and applies the per-plugin rate floor + the length cap before the item
      *  reaches the bounded outbox. THROWS when the floor refuses, so a flooding guest is told rather than
      *  silently swallowed. Infra stays authority-blind: it holds no pluginId, no name, and no outbox. */
     readonly toast: (level: PluginToastLevel, message: string, liveness?: PluginInvocationLiveness) => Promise<void>;
-    /** Stash an OPEN-DIALOG ask for one of this plugin's own registered `dialog` surfaces (`host.ui.openDialog`,
-     *  U5 §4.5a). Resolves when the ask is recorded; the DOMAIN resolves the id against the resident instance
+    /** Stash an OPEN-DIALOG ask for one of this plugin's own registered `dialog` surfaces (`host.ui.openDialog`).
+     *  Resolves when the ask is recorded; the DOMAIN resolves the id against the resident instance
      *  when the outbox drains onto a client round-trip, so an id naming no registered dialog costs nothing and a
      *  cross-plugin open is not expressible (the outbox is keyed by the plugin the guest is). */
     readonly openDialog: (surfaceId: string, liveness?: PluginInvocationLiveness) => Promise<void>;
   };
   /** Ingest a text document into the installer's OWN databank (`host.databank.ingest`, capability
-   *  `databank.ingest` U8 seam 15). The domain builder closes the INSTALLER over the op
+   *  `databank.ingest`). The domain builder closes the INSTALLER over the op
    *  (owner-scoped by construction — a guest names only the document), writes canon through databank's
    *  `createFromText` and returns the new document id. NO chat scope + NO host authority, the `storage`/`llm`
    *  posture: a library write is the installer's own reach, not room state. Authority-agnostic like every bridge
@@ -283,7 +283,7 @@ export interface PluginBridge {
     }>;
   };
   /** Ingest a V2/V3 character card object into the installer's OWN library (`host.character.ingest`, capability
-   *  `character.ingest` U8 seam 17). The domain builder closes the installer over the op,
+   *  `character.ingest`). The domain builder closes the installer over the op,
    *  serializes the guest card to JSON bytes and runs the SAME `importCharacter` funnel a file upload takes (the
    *  ContentChanged-emitting path — the indexer auto-runs), returning the new character id + whether it was
    *  freshly created (a byte-identical re-ingest deduplicates). Same owner-scoped, no-chat, no-host posture as

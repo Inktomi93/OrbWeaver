@@ -4,11 +4,11 @@
 // — and neither may import the other (the cake). The shape is JSON-safe and inert: it names an act, it does
 // not carry a closure, a principal, or anything that could execute by itself.
 //
-// THE THREE-POSTURE LAW IT IMPLEMENTS (interaction spec §3-S4, the law over rules, plugins joining):
+// THE THREE-POSTURE LAW IT IMPLEMENTS (the law over rules, plugins joining):
 // standing authority ⇒ act directly; NO standing authority ⇒ a SUGGESTION the host confirms; the fourth
-// posture — direct execution without standing authority — never exists. Before this, a plugin whose installer
-// was not host of the invocation chat got a flat refusal from the membrane, which is posture 3 wearing
-// posture 2's clothes: safe, but it made "ask" unexpressible and pushed authors toward installing under a
+// posture — direct execution without standing authority — never exists. A flat refusal for a plugin whose
+// installer is not host of the invocation chat is posture 3 wearing
+// posture 2's clothes: safe, but it makes "ask" unexpressible and pushes authors toward installing under a
 // host account.
 //
 // WHY ONLY THREE ACTS, when FIVE membrane ops sit behind the same `canWrite` gate. The other two are
@@ -16,7 +16,7 @@
 //   • `chat.applyVariableOps` (`set_variable`) — a variable delta is not a human-weighable act. The card
 //     would read "set tension to 5?", which a host cannot evaluate without knowing what the plugin means by
 //     tension; and it is the HIGHEST-FREQUENCY write in the set (a plugin tracking state writes on every
-//     event), so posture 2 there converts a clean refusal into an attention flood against §3-S4's
+//     event), so posture 2 there converts a clean refusal into an attention flood against the
 //     one-visible-card budget. It is also the only one of the five whose automation twin is NOT already a
 //     `confirmFirst` arm — making it suggestible would widen `SuggestibleArmType` and its coupled sites to
 //     ship a card nobody can answer well.
@@ -35,7 +35,7 @@ import type { PluginWorldEntryUpsert } from "./host-v1.ts";
 
 // The closed act axis, in the order a summary table must cover. A new member widens
 //  {@link PluginSuggestedAct} and fails `tsc` at the summary Record until it is given a question a human can
-//  answer (§5.5 string-union dispatch — one importable union, one mapped-type Record).
+//  answer (string-union dispatch — one importable union, one mapped-type Record).
 const PLUGIN_SUGGESTED_ACT_KINDS = ["requestTurn", "worldInfoUpsert", "generatePicture"] as const;
 export type PluginSuggestedActKind = (typeof PLUGIN_SUGGESTED_ACT_KINDS)[number];
 
@@ -57,8 +57,8 @@ export type PluginSuggestedAct =
   | { readonly kind: "generatePicture"; readonly args: GenerateImageActionArgs };
 
 /** The host-facing QUESTION for one act — a mapped-type Record over the kind union, so an act with no
- *  question fails `tsc` here (the `summarizeSuggestibleArm` precedent, in the shape that file could not use:
- *  these kinds are camelCase, so a Record trips no naming-convention suppression).
+ *  question fails `tsc` here (the `summarizeSuggestibleArm` precedent: these kinds are camelCase, so a
+ *  Record trips no naming-convention suppression).
  *
  *  Each reads as a question about a CONCRETE act, never a capability label, and it NAMES THE PLUGIN — a host
  *  answering "should this happen" is entitled to know who is asking. The member who installed it is NOT named

@@ -21,7 +21,7 @@ export interface PluginChatReads {
    *  short-circuits a non-member to `[]` before it.
    *
    *  The read returns only `messages.seq >= visibility.historyFloorSeq`, and strips hidden `<lie>`/`<ofilter>`
-   *  spans unless `visibility.readsHidden` (parity-plus §3.6 / D106: the host reveal plane). The plugin realm is
+   *  spans unless `visibility.readsHidden` (D106: the host reveal plane). The plugin realm is
    *  a member-reachable surface, so an unstripped body would launder a GM-plane secret to a non-host member's
    *  snippet. */
   readonly listMessages: (chatId: ChatId, opts: { readonly limit?: number; readonly visibility: ViewerVisibility }) => Promise<readonly PluginMessageView[]>;

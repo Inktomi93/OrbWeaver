@@ -50,17 +50,17 @@ export const PLUGIN_CAPABILITIES = [
   "search.query",
   "notify",
   "ui.surface", // draw its own house-rendered panels/controls (NOT spend, NOT admin-gated — renders only for the installer)
-  // The U7 ESCAPE HATCH, and the one UI capability that is RISK class: a `frame` surface runs the plugin's OWN
+  // The ESCAPE HATCH, and the one UI capability that is RISK class: a `frame` surface runs the plugin's OWN
   // interface code inside an isolated (opaque-origin, `default-src 'none'`, no `connect-src`) document. It reaches
   // no session, no storage, no app DOM and no sibling frame — but it CAN beacon out over WebRTC/STUN, which no CSP
-  // directive Chromium recognizes can close (the measured residual R1 in `@orb/kit/card-frame`). Its consent line
+  // directive Chromium recognizes can close. Its consent line
   // says exactly that. It sits ADJACENT to `ui.surface` rather than in the reach band beside `net.fetch` because it
   // is the escalation OF that row — a reader deciding "what may this plugin draw" must weigh both in one place.
   "ui.frame",
   "turn.trigger", // SPEND
   "imagery.generate", // SPEND
   "llm.quiet", // SPEND — a non-canon generation on the installer's own summarize-role connection; writes NOTHING
-  // The two CANON-WRITE-INTO-YOUR-OWN-LIBRARY capabilities (U8, seams 15/17). A scraper
+  // The two CANON-WRITE-INTO-YOUR-OWN-LIBRARY capabilities. A scraper
   // plugin ingests into the INSTALLER's own databank / character library — owner-scoped by construction (the
   // bridge closes the installer over the write op; a guest can name no other owner), so past the grant the risk
   // is the installing user's own, exactly like `storage.kv`. They are NOT `net.fetch`/`llm.quiet`-class SPEND:
@@ -70,7 +70,7 @@ export const PLUGIN_CAPABILITIES = [
   // line: a canon write is a distinct reach a person weighs separately from "show its own panels".
   "databank.ingest", // ingest a text document into the installer's OWN databank (a Data Bank scraper)
   "character.ingest", // ingest a V2/V3 card into the installer's OWN character library (a hub-import scraper)
-  // U8 seam — PER-CARD PLUGIN STATE (D148, the ST `writeExtensionField`/V2-card-`extensions`-object parity arm).
+  // PER-CARD PLUGIN STATE (D148, the V2-card-`extensions`-object parity arm).
   // A plugin stores + reads its OWN blob under the RESERVED `data.extensions.plugin_<slug>` key on one of the
   // installer's OWN characters (`host.character.setCardData`/`getCardData`). Its OWN consent line ("store its own
   // data on your characters"): the reach is a distinct one a person weighs apart from "ingest a card" — this
@@ -83,7 +83,7 @@ export const PLUGIN_CAPABILITIES = [
   // together.
   "character.card_state",
   "events.subscribe",
-  // U8 §5a — the PRIVATE plugin-event plane: emit + subscribe to `plugin:<slug>:<name>` events among the SAME
+  // The PRIVATE plugin-event plane: emit + subscribe to `plugin:<slug>:<name>` events among the SAME
   // installer's plugins. BENIGN band (neither spend nor risk): it is installer-scoped, never touches a domain/
   // chat bus, never becomes a TriggerFact, and never crosses to another user (the forgery wall). It sits beside
   // `events.subscribe` because both are event reach — one over the closed domain taxonomy, one over the plugin's
@@ -125,15 +125,12 @@ const EGRESS_CAPABILITIES = ["net.fetch", "net.fetch_asset"] as const satisfies 
 //  cannot import server (the cake), so the 64 here must match that regex,
 //  never a second guess at the number.
 //
-//  BEFORE THIS BUDGET EXISTED a plugin whose slug+name flattened past 64 bytes registered nothing useful:
-//  the mint ran unconditionally, activation proceeded, and only `registerPluginTool`'s downstream
-//  `TOOL_NAME_RE.test` refused the result — AFTER the guest handler was already collected, with a
-//  `ToolNameCollisionError` whose text never mentioned length. Bounding `slug` HERE (the manifest parse,
+//  THE TWO BOUNDARIES ARE PROVABLY SUFFICIENT. Bounding `slug` HERE (the manifest parse,
 //  this file) and the guest-local tool `name` at the membrane's `tools.register` trust boundary
 //  (`infra/plugin-host/membrane.ts`) moves the refusal to the SAME call the author made, and the two
 //  boundaries are provably sufficient: a slug ≤ {@link PLUGIN_SLUG_MAX} and a name ≤
 //  {@link PLUGIN_TOOL_NAME_LOCAL_MAX} can NEVER mint past 64 bytes (the arithmetic below is the proof),
-//  so `registerPluginTool`'s regex test is a pure backstop from here on — unreachable by construction for
+//  so `registerPluginTool`'s regex test is a pure backstop — unreachable by construction for
 //  a plugin-sourced name, kept loud in case a future caller bypasses either boundary.
 const PLUGIN_TOOL_WIRE_NAME_MAX = 64;
 /** `PLUGIN_TOOL_NAME_PREFIX.length` (`registrations.ts`, the literal `"plugin_"`) restated as a number so
@@ -142,9 +139,9 @@ const PLUGIN_TOOL_WIRE_NAME_MAX = 64;
  *  consumer — so the tie is a literal rather than a second
  *  import edge. Keep it equal to that prefix length. */
 const PLUGIN_TOOL_WIRE_NAME_PREFIX_LEN = 7;
-// The install slug's hard cap. Every showcase plugin's slug is ≤ 17 bytes
-//  (`research-familiar`, `packages/showcase-plugins/bundles/research-familiar/manifest.json`); 20 clears
-//  every real slug with margin. It is the DOMINANT term in the budget below because the mint doubles
+// The install slug's hard cap: 20 bytes. The longest shipped slug (`research-familiar`,
+//  `packages/showcase-plugins/bundles/research-familiar/manifest.json`) is 17, so this clears real slugs with
+//  margin. It is the DOMINANT term in the budget below because the mint doubles
 //  every hyphen — one byte of slug can cost two bytes of wire name.
 const PLUGIN_SLUG_MAX = 20;
 /** The guest-local tool name's hard cap — DERIVED, not independently chosen. The mint is
@@ -153,7 +150,7 @@ const PLUGIN_SLUG_MAX = 20;
  *  maximum `SLUG_RE` admits) is `2 * PLUGIN_SLUG_MAX - 1` bytes, not `2 * PLUGIN_SLUG_MAX` — the `-1`
  *  that separator's own `+1` immediately cancels, which is why the formula below has no `-1`/`+1` of its
  *  own. Raising `PLUGIN_SLUG_MAX` automatically SHRINKS this instead of silently reopening the overrun
- *  this budget closes. Every showcase tool name (`advance_clock`, 13 bytes,
+ *  this budget closes. A real tool name (`advance_clock`, 13 bytes,
  *  `packages/showcase-plugins/bundles/story-clocks/main.ts`) clears it with margin. Consumed by
  *  `PLUGIN_TOOL_NAME_RE` (`ui.ts`) — the SAME grammar the membrane's `tools.register` trust boundary and
  *  the `tool-card` surface's `toolName` linkage both enforce (one grammar, both boundaries). */
@@ -171,13 +168,12 @@ export const pluginSlugSchema = z.string().regex(SLUG_RE).pipe(brandedId("Plugin
 /** An exact hostname `net.fetch` may reach (the SSRF posture; the per-request enforcer is `validateUrl`
  *  in the egress module, see below).
  *
- *  `z.hostname()` (a real RFC hostname grammar) replaced the charset regex `/^[a-z0-9.-]+$/`.
- *  The regex was a CHARSET test, not a grammar, and that was a live hole: `hostAllowed` in
+ *  A CHARSET REGEX IS NOT A GRAMMAR, AND USING ONE HERE IS A HOLE. `hostAllowed` in
  *  `server/src/infra/network/egress.ts` treats a LEADING-DOT entry as a SUFFIX WILDCARD
- *  (`if (e.startsWith(".")) host.endsWith(e)`), and the charset regex happily accepted `.com` — so a manifest
- *  could declare one entry and reach EVERY `.com` host, in direct contradiction of this field's "exact
- *  hostname" contract. It also accepted `-.-`, `...`, `example..com`, `-example.com`, and 64+ char labels.
- *  `z.hostname()` rejects all of them (probe corpus, receipts in the lane report).
+ *  (`if (e.startsWith(".")) host.endsWith(e)`), and a charset test like `/^[a-z0-9.-]+$/` happily accepts
+ *  `.com` — so a manifest could declare one entry and reach EVERY `.com` host, in direct contradiction of this
+ *  field's "exact hostname" contract. It also accepts `-.-`, `...`, `example..com`, `-example.com`, and 64+ char
+ *  labels. `z.hostname()` (a real RFC hostname grammar) rejects all of them.
  *
  *  ONE acceptance WIDENING, and it is deliberate: `z.hostname()` is case-insensitive, so `API.Example.com`
  *  now installs. That reaches no new host — the SAME `hostAllowed` lowercases every entry (`entry.toLowerCase()`)
@@ -193,7 +189,7 @@ export const pluginSlugSchema = z.string().regex(SLUG_RE).pipe(brandedId("Plugin
  *  this is a usability wart, not a hole; if it ever needs fixing, fix it in `hostAllowed` (strip both sides),
  *  never by loosening the match.
  *
- *  IP LITERALS are NOT refused here and never were (the charset regex accepted `169.254.169.254` too) — the
+ *  IP LITERALS are NOT refused here — the
  *  real enforcer is `validateUrl` in that same egress module, which blocks every IP-literal host on the
  *  non-owner-configured path (`blockEgress("ip-literal", …)`), which is the path plugin `net.fetch` takes.
  *
@@ -210,8 +206,8 @@ const AUTHOR_MAX = 120;
  *  acknowledgement echo (`plugin.setGrant`) bounds its array by it, since an echo can never legitimately
  *  name more hosts than a manifest may declare.
  *
- *  16, raised from 8 (hub v1.2, owner-directed multi-hub roster): a LEGITIMATE aggregator plugin honestly
- *  needs ~2 hosts per integrated service (API + art CDN — netHosts matching is exact, so a CDN is its own
+ *  16 is a LEGITIMATE aggregator plugin's honest need: ~2 hosts per integrated service (API + art CDN —
+ *  netHosts matching is exact, so a CDN is its own
  *  consent line), and the six-hub card-atlas already spends 10. The ceiling stays a consent-screen bound
  *  (a list a person can actually read), never a security wall — every host is still individually consented
  *  and individually SSRF-pinned. */
@@ -219,8 +215,7 @@ export const NET_HOSTS_MAX = 16;
 const ENGINE_VERSION_MAX = 40;
 const ENGINE_COMMIT_MAX = 64;
 
-/** Build provenance — the engine the bundle was built/tested against (the Marinara `builtAgainst` shape,
- *  owner-ruled). Persisted on the plugins row + surfaced in the read/list views so a mismatch
+/** Build provenance — the engine the bundle was built/tested against. Persisted on the plugins row + surfaced in the read/list views so a mismatch
  *  against the RUNNING engine is VISIBLE (display/warn only in v1 — never a hard install gate). OPTIONAL
  *  block: a hand-authored bundle (esbuild + a text manifest) can't always produce provenance; when present,
  *  `engineVersion` is required (declared, trivially producible by any author) and `engineCommit` is
@@ -238,7 +233,7 @@ export type PluginBuiltAgainst = z.infer<typeof pluginBuiltAgainstSchema>;
 export const PLUGIN_MANIFEST_ENTRY = "manifest.json";
 /** The zip's SERVER-guest entry (`manifest.entry`) — one pre-bundled ES script, no module loader. */
 export const PLUGIN_MAIN_ENTRY = "main.js";
-/** The zip's optional CLIENT-guest entry (`manifest.uiEntry` U4, §4.6) — the Tier-C
+/** The zip's optional CLIENT-guest entry (`manifest.uiEntry`) — the Tier-C
  *  `ui.js` that runs in the browser QuickJS worker. THREE names is the whole bundle vocabulary, and the three
  *  constants are exported so the zip allow-list, the packer and the schema all derive from ONE home rather than
  *  three "ui.js" literals that can drift apart (the allow-list IS the path-traversal wall: only exact names are
@@ -260,9 +255,9 @@ export const PLUGIN_SCRIPT_ENTRY_MAX_BYTES = 1_048_576;
 /** The decompressed ceiling for `manifest.json`. */
 export const PLUGIN_MANIFEST_ENTRY_MAX_BYTES = 65_536;
 
-/** The zip's optional BUNDLE-ASSET directory (seam 11) — the ONE prefix under which a bundle may ship
+/** The zip's optional BUNDLE-ASSET directory — the ONE prefix under which a bundle may ship
  *  static IMAGE bytes (a sprite pack, decorative art) that `install`/`upgrade` extract into the INSTALLER's own
- *  CAS. It is the FOURTH admitted entry class and the only one that is a PREFIX rather than an exact name, so
+ *  CAS. It is the one admitted entry class that is a PREFIX rather than an exact name, so
  *  it is also the only place a path could ever be attacker-shaped — {@link PLUGIN_UI_ASSET_ENTRY_RE} is what
  *  keeps that from being true (see its own note). */
 export const PLUGIN_UI_ASSETS_DIR = "ui/assets/";
@@ -275,8 +270,8 @@ export const PLUGIN_UI_ASSETS_DIR = "ui/assets/";
  *  fails the anchored `ui/assets/` prefix, and a NUL/newline/space/unicode-lookalike is simply not in the
  *  class. There is nothing to normalize, because nothing that would need normalizing is admitted. */
 export const PLUGIN_UI_ASSET_ENTRY_RE = /^ui\/assets\/[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
-/** How many `ui/assets/` entries ONE bundle may ship. A sprite pack is the shape this exists for (ST's
- *  expression sets top out around 28 emotions), so 64 is generous; the cap is here because an entry COUNT is a
+/** How many `ui/assets/` entries ONE bundle may ship. A sprite pack is the shape this exists for,
+ *  so 64 is generous; the cap is here because an entry COUNT is a
  *  bomb dimension the per-entry caps do not bound — 10 000 one-byte entries cost 10 000 CAS writes and 10 000
  *  junction rows at install time. */
 export const PLUGIN_UI_ASSETS_MAX_COUNT = 64;
@@ -370,7 +365,7 @@ export const pluginManifestSchema = z
     entry: z.literal(PLUGIN_MAIN_ENTRY), // ONE fixed entry file in the bundle (the guest has no module loader)
     /** The OPTIONAL Tier-C client entry. Present ⇒ the bundle carries a third
      *  zip entry, `ui.js`, which runs in the BROWSER's QuickJS worker for the plugin's `tier:"scripted"`
-     *  surfaces. Additive-optional by the 01 §3 host-evolution law: an existing two-entry bundle installs
+     *  surfaces. Additive-optional by the host-evolution law: an existing two-entry bundle installs
      *  unchanged, and a guest feature-detects the plane through `grants`, never through this field.
      *  A fixed LITERAL, not a free path, for the same reason `entry` is: the zip allow-list admits exactly the
      *  names it knows, so path traversal is not expressible rather than merely filtered. */
