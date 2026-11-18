@@ -8,13 +8,14 @@
 // the bag: an arm carries ONLY what the normalized core cannot. Cache read/write totals, the `gen-…` handle
 // and the turn cost are `message_variants` COLUMNS — putting them here too would be two homes for one number.
 //
-// WHAT EACH VENDOR SPELLS (source-pinned against the installed SDKs, 2026-09-20):
+// WHAT EACH VENDOR SPELLS (source-pinned against the installed SDKs, 2026-11-17):
 //   • openrouter → `providerMetadata.openrouter = { provider, reasoning_details?, usage: OpenRouterUsageAccounting }`
-//     (`@openrouter/ai-sdk-provider/dist/index.d.ts:457,575`). Its `provider` is the UPSTREAM vendor name, which
-//     collides by spelling with our discriminator — hence the explicit field-by-field build below, never a spread.
+//     (`@openrouter/ai-sdk-provider@3.1.0` dist `index.d.ts:686-692`, the usage type at `:572`). Its `provider` is
+//     the UPSTREAM vendor name, which collides by spelling with our discriminator — hence the explicit
+//     field-by-field build below, never a spread.
 //   • anthropic  → `providerMetadata.anthropic = { usage: <RAW snake_cased usage>, stopSequence, … }`
-//     (`@ai-sdk/anthropic/dist/index.d.ts:46`, built at `index.js:5857`). `usage` is a LOOSE object, so the
-//     ephemeral TTL split rides through untyped and is read here by its wire spelling.
+//     (`@ai-sdk/anthropic@4.0.85` dist `index.d.ts:391-393`, built at `index.js:5182-5199`). `usage` is a LOOSE
+//     object, so the ephemeral TTL split rides through untyped and is read here by its wire spelling.
 //   • claude-sub → no SDK bag at all: the agent-sdk runner accumulates typed frames, so that arm is built from
 //     a typed input and needs no parse (`agentSdkVariantMetadata`).
 //   • a PLUGIN provider → an unenumerable id and an unknown payload, so its arm is PARSED through the

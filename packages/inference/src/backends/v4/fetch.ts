@@ -19,12 +19,13 @@
 //
 //      REJECTED ALTERNATIVE, recorded so nobody re-derives it from the audit: the SDK's `includeRawChunks` +
 //      the V4 `raw` stream part (the audit's own D2/D3 fix text, "the reducer forwards `raw` parts to the
-//      capture sink"). MEASURED against the installed provider dist 3.0.0: `includeRawChunks` only decides
-//      whether the OR provider re-emits each ALREADY-PARSED chunk as a `{type:"raw", rawValue}` part
-//      (`dist/index.js:3941-3942`); it changes neither the request nor the SSE bytes. And
-//      `debug.echo_upstream_body` is a REQUEST BODY field whose payload "will be returned as the first chunk
-//      in the stream" (`dist/index.d.ts:174-185`) — i.e. it rides the ordinary SSE. So `includeRawChunks` is
-//      what the SDK needs to SURFACE the echo as a part, NOT what our capture needs to SEE it: D2 and D3 are
+//      capture sink"). MEASURED at the installed `@openrouter/ai-sdk-provider@3.1.0`: `includeRawChunks` only
+//      decides whether the OR provider re-emits each ALREADY-PARSED chunk as a `{type:"raw", rawValue}` part
+//      (`dist/index.js:4618-4620`, the second stream path at `:5413-5415`); it changes neither the request nor
+//      the SSE bytes. And `debug.echo_upstream_body` is a REQUEST BODY field whose payload "will be returned as
+//      the first chunk in the stream" (`dist/index.d.ts:180-185`) — i.e. it rides the ordinary SSE. So
+//      `includeRawChunks` is what the SDK needs to SURFACE the echo as a part, NOT what our capture needs to
+//      SEE it: D2 and D3 are
 //      one toggle at the SDK part layer only, and this transport sits underneath it. The raw part is also
 //      strictly weaker evidence — post-parse JSON, one payload per chunk (so either a second entry shape or a
 //      fully deferred emit), and reachable only from a `doStream` call site, while this tap is the literal
