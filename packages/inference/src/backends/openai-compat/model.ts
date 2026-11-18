@@ -131,6 +131,12 @@ function openAiCompatibleProvider(call: ModelCall): ReturnType<typeof createOpen
     convertUsage: openAiCompatConvertUsage,
     // The structured plan decides whether a response format rides; the SDK must never downgrade one itself.
     supportsStructuredOutputs: true,
+    // Structured tool results ride as parts instead of being JSON-stringified into `content` (dist
+    // `index.js:228`; default `false` at :146). Inert for our history today — `v4/prompt.ts:189` emits
+    // only `text`/`error-text` tool outputs, so the `content` arm this gates is unreachable — and correct
+    // the moment a `content` output exists, since a stringified array is not what a multi-part-tolerant
+    // endpoint should receive.
+    supportsMultiPartToolContent: true,
     transformRequestBody: withExtra,
   });
 }
