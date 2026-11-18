@@ -61,7 +61,7 @@ const statsDeltaSchema = z.strictObject({
   cacheWriteTokens: z.number().optional(),
   // per-OWNER chat count (chat created / forked). The per-CHARACTER half is `characterChats` below.
   chats: z.number().optional(),
-  // The per-CHARACTER room census: +1 for each SEAT this write creates. Split off `chats`/
+  // The per-CHARACTER room census: +1 for each SEAT this write creates. A separate column from `chats`/
   // `forkedChats` because those two feed `owner_stats` AND `character_stats` from one field, so a
   // multi-seat room could not credit its second seat without double-counting the owner's library. The
   // rebuild defines this column as `COUNT(DISTINCT cp.chat_id)` per character seat
@@ -152,7 +152,7 @@ export type SpendDelta = Pick<StatsDelta, "ownerId" | "bucketStart" | "model" | 
 /** One image generation's spend: `count` pictures from one priced provider call, on one model bucket. The call
  *  is one timed sample, however many pictures it returned.
  *  @param costUsd - the call's reported cost; null when the provider reports none (generations still count).
- *  @param genTimeMs - the call's measured wall time; null on a row recorded before the time was kept. */
+ *  @param genTimeMs - the call's measured wall time; null when the record carries none. */
 export function imageGenerationSpendDelta(args: {
   readonly ownerId: UserId;
   readonly model: ModelId;
@@ -201,8 +201,8 @@ export interface RetiredSpend {
   readonly now: number;
 }
 
-/** The spend ledger as one owner's portable file: every entry, without its box-local id or owner. A file written before
- *  retired canon existed carries no model, provider or notional flag, which read as none. */
+/** The spend ledger as one owner's portable file: every entry, without its box-local id or owner. An entry without
+ *  a model, provider or notional flag reads as none. */
 export const portableSpendLedgerSchema = z.strictObject({
   entries: z.array(
     z.strictObject({
@@ -487,9 +487,9 @@ export interface CharacterEconomics {
   readonly characterId: CharacterId;
   /** Output tokens summed over the selected variants — `null` when NOT ONE of them recorded a count.
    *  ABSENT ACCOUNTING IS NOT ZERO: an imported library carries thousands of
-   *  real assistant turns whose `tokens_out` was never written, and coalescing that to 0 made the corpus
-   *  surface print "0 tokens returned" beside "1,187 exchanges" — a contradiction the reader can only
-   *  resolve as a bug. A genuine 0 (the provider reported it) still sums to 0 and stays distinguishable. */
+   *  real assistant turns whose `tokens_out` was never written, and coalescing that to 0 makes the corpus
+   *  surface print "0 tokens returned" beside a four-digit exchange count — a contradiction the reader can
+   *  only resolve as a bug. A genuine 0 (the provider reported it) still sums to 0 and stays distinguishable. */
   readonly tokensOut: number | null;
   readonly tokensOutProvenance: TokenProvenance;
   readonly costUsd: number | null;
@@ -509,8 +509,8 @@ export interface CharacterModelEconomics {
   readonly costUsd: number | null;
 }
 
-// ── The `reconcile-stats` workload's terminal result (the workloads junk-drawer exit: authored by the
-//    OWNING domain). The same rebuild also runs awaited, in-request, off the import post-settle. ──
+// ── The `reconcile-stats` workload's terminal result: authored by the OWNING domain. The same rebuild also
+//    runs awaited, in-request, off the import post-settle. ──
 
 /** What a full `reconcileStats` rebuild touched: owners swept, character rollups rewritten. */
 export interface ReconcileStatsResult {
