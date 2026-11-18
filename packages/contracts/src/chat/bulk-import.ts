@@ -90,10 +90,10 @@ export interface BulkImportVariantInput {
   readonly usage?: GenerationUsage;
 }
 
-/** One `chat_injections` row carried by an importing chat. The per-chat prose plane: since the room-override
- *  author's-note twin was retired (owner ruling) this LIST is the ONE prose door, for BOTH arms —
- *  an orb-native bundle carries the whole list verbatim, and the ST arm converts its single `note_prompt`
- *  (plus the `note_depth`/`note_position`/`note_role` knobs ST records beside it) into exactly one row. */
+/** One `chat_injections` row carried by an importing chat. The per-chat prose plane, and this LIST is its ONE
+ *  door for BOTH arms — an orb-native bundle carries the whole list verbatim, and the ST arm converts its single
+ *  `note_prompt` (plus the `note_depth`/`note_position`/`note_role` knobs ST records beside it) into exactly one
+ *  row. A bare string cannot be the door: with ST's placement honored it could not say where the note goes. */
 export interface BulkImportInjectionInput {
   readonly position: (typeof CHAT_INJECTION_POSITIONS)[number];
   readonly depth: number;
@@ -206,9 +206,8 @@ export interface BulkImportChatInput {
   readonly userMacroValues?: UserMacroValues | null;
   /** The chat's whole prose plane, verbatim — the ONE per-chat prose door. An orb-native bundle supplies its
    *  whole `chat_injections` list; the ST arm supplies the single row it converted `note_prompt` + ST's
-   *  recorded placement knobs into. Absent/empty ⇒ none. (This REPLACED a sibling `authorsNote: string|null`
-   *  field, which could carry only the text: with ST's placement honored, a bare string could no longer say
-   *  where the note goes, and two spellings of one plane is exactly what the owner ruling unwound.) */
+   *  recorded placement knobs into. Absent/empty ⇒ none. One list, never a text field beside it: with ST's
+   *  placement honored a bare string cannot say where the note goes. */
   readonly injections?: readonly BulkImportInjectionInput[];
 }
 

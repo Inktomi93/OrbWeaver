@@ -108,9 +108,8 @@ const PLAIN_CHAT_WARNING_CODES = [
   // their embedding index is mid-move (`search_space_reindexing`) or no embed connection is bound
   // (`search_no_space`). The turn is UNAFFECTED apart from the missing slot.
   // WHY IT EXISTS: that refusal is correct for a SEARCH surface — a half-migrated geometry ranks
-  // dimensionally-valid nonsense — but it used to travel out of the in-turn GATHER and kill the whole turn
-  // with a 400, which is the opposite trade: a turn's retrieval is an ENHANCEMENT to the turn. The compose
-  // bindings now degrade those two codes to "nothing retrieved" and raise this instead. Degraded-and-loud
+  // dimensionally-valid nonsense — but a turn's retrieval is an ENHANCEMENT to the turn, so the compose
+  // bindings degrade those two codes to "nothing retrieved" and raise this instead. Degraded-and-loud
   // (D41); every OTHER search failure still propagates and still faults the turn.
   // ONE PER TURN, never one per slot or per speaker: the shared `TurnRetrievalWarningEpisode` collapses the
   // round-level recall, every per-speaker recall, and the databank gather into a single notice.
@@ -195,12 +194,11 @@ export type PlainChatWarningCode = (typeof PLAIN_CHAT_WARNING_CODES)[number];
  *  derived from this tuple (no inline re-spell), and the tuple COMPOSES the plain codes above with the one
  *  detail-bearing carrier so neither list can drift from the other.
  *
- *  THE PROVIDER-ADJUSTMENT CARRIER (owner ruling). Ten resolve/wire degradation classes
- *  used to map to `null` at the domain boundary (`engine.ts` `toChatWarning`) and were filtered out, so a
- *  user believed a requested knob/budget/tool result applied when the provider had ignored or clamped it.
- *  They surface as ONE code carrying STRUCTURED detail rather than ten members, because the ten share a
- *  single user sentence — "the provider did not do what you asked, here is what it did instead" — and the
- *  thing that differs is DATA (which knob, which value), not copy structure. The detail rides
+ *  THE PROVIDER-ADJUSTMENT CARRIER (owner ruling). Ten resolve/wire degradation classes share a single
+ *  user sentence — "the provider did not do what you asked, here is what it did instead" — so they surface
+ *  as ONE code carrying STRUCTURED detail rather than ten members: the thing that differs is DATA (which
+ *  knob, which value), not copy structure. Filtering them instead would let a user believe a requested
+ *  knob/budget/tool result applied when the provider had ignored or clamped it. The detail rides
  *  `adjustment` (+ `knob`/`appliedBudget`/`appliedEffort`); the client renders one notice per class. */
 export const SETTINGS_ADJUSTED_CODE = "settings_adjusted";
 
@@ -560,12 +558,12 @@ export type ChatBusEvent =
   // ── Turn lifecycle (the extensibility seam) ─────────────────────────────────
   // Emitted the instant a turn is ACCEPTED — before arbitration, before the engine's `turnStarted`. It exists
   // so the client can open its turn slot (→ render Stop) during a hung smart arbitration, which runs BEFORE
-  // `turnStarted` and used to leave the user with no Stop affordance at all. Carries no speaker: the group
+  // `turnStarted` and would otherwise leave the user with no Stop affordance at all. Carries no speaker: the group
   // arbitration that picks the speaker has not run yet, so `speakerCharacterId` is null on accept and the
   // later `turnStarted` re-opens the slot with the resolved speaker. An auxiliary turn (swipe / continue /
   // generate) accepts for the same reason at a different wall: its `turnStarted` lands only after the
-  // room/connection resolve, the context assembly and MEMORY RECALL (unbounded), and until it did, the reader
-  // saw the OLD variant with no feedback. `targetMessageId` is the ghost-slot a
+  // room/connection resolve, the context assembly and MEMORY RECALL (unbounded), and without it the reader
+  // sees the OLD variant with no feedback. `targetMessageId` is the ghost-slot a
   // swipe/continue rerolls/extends (null for a fresh reply) — the client renders its ghost over that message.
   //
   // Every acceptance is TOTAL-RESOLVED — a `turnAccepted` slot never strands open. The arbitration path emits

@@ -136,7 +136,7 @@ export const CHAT_PROSE_SLOTS = {
     home: "preset",
     version: 2,
     // The heading over every roster member's card beside the primary, on both roster layouts: a narrator round
-    // and a per-speaker merged turn. The merged turn's `[Also present — X]` frame is retired: its system block
+    // and a per-speaker merged turn. No `[Also present — X]` frame is needed: its system block
     // is the same roster for every speaker, so no card is framed as a bystander and the round cue names who
     // speaks.
     //
@@ -289,8 +289,8 @@ export const CHAT_PROSE_SLOTS = {
     version: 1,
     // The ONE ask of the recovery pass (owner ruling — RECOVER, do not discard). A reasoning turn on a
     // tool-attached game can conclude that its tool calls discharged the beat and emit ZERO prose; the state
-    // writes are good, the reply is missing, and the turn used to be thrown away whole. The recovery pass
-    // re-runs the SAME turn with the tools removed and this line as the trailing user row.
+    // writes are good and the reply is missing. The recovery pass re-runs the SAME turn with the tools
+    // removed and this line as the trailing user row.
     //
     // Two things it must say and one it must not. It must name that the state is ALREADY RECORDED (or the
     // model narrates the bookkeeping it just did — "I updated your HP" — which is the exact prose this feature

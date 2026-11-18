@@ -38,7 +38,7 @@ interface RpgTurnFacts {
 }
 
 // Nominal by a private member, so no literal, spread or `satisfies` produces one; `orb/room-token-mint` confines
-// the mints and refuses a cast (D166).
+// the mints and refuses a cast.
 declare class RoomAdmissionMint {
   private roomAdmission(): void;
 }

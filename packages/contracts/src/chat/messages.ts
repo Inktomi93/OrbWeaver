@@ -142,10 +142,8 @@ export const chatReasoningPartSchema = z
 
 /** THE ONE SPELLING of the `message_variants.metadata` key carrying a generation's REASONING TIME in ms.
  *
- *  The column was an OPEN blob (`Record<string, unknown>`) before it was closed onto
- *  {@link variantMetadataSchema}, so nothing bound its writers to its readers — the exact shape that let this
- *  key be READ by three sites while only the ST import ever WROTE it. The type is now the binding and this
- *  constant is the key's one spelling: the live turn's writer
+ *  The column is closed onto {@link variantMetadataSchema}, so the type binds its writers to its readers and
+ *  this constant is the key's one spelling: the live turn's writer
  *  (`domain/chat/engine/engine.ts`) and the live stats mirror (`domain/chat/substrate/stats-delta.ts`) both
  *  spell it from here. DECLARED LIMIT: the two SQL readers in `domain/stats/persistence/rebuild-from-canon.ts`
  *  address it as a JSON PATH inside a `sql` template, where an interpolated value would bind as a
@@ -176,12 +174,9 @@ export const VARIANT_METADATA_SYSTEM_FINGERPRINT_KEY = "system_fingerprint";
  *  WHAT MAY LIVE IN AN ARM — the admission rule, because a sidecar with no rule becomes the open bag again
  *  wearing types: ONLY a fact the NORMALIZED core cannot carry. A field whose value
  *  the same `message_variants` row already stores in a COLUMN is not provenance, it is a second home for one
- *  number, and the two drift. That rule retired three fields when the producing fold landed
- *  (`backends/wire/provider-metadata.ts`): OpenRouter's `cache` receipt (every V4 wire folds
- *  `prompt_tokens_details.cached_tokens` into `usage.inputTokens.cacheRead` → `cache_read_tokens`), its
- *  `upstreamGeneration` (that is `generation_id`, its own column), and the anthropic arm's
- *  `cacheReadTokens`/`cacheWriteTokens` (`cache_read_tokens`/`cache_write_tokens`). Anthropic's REAL
- *  unnormalizable fact is the ephemeral cache-creation TTL split, which is why its arm now carries the same
+ *  number, and the two drift: OpenRouter's `cache` receipt is `cache_read_tokens`, its
+ *  `upstreamGeneration` is `generation_id`, and a cache read/write count has its own column. Anthropic's REAL
+ *  unnormalizable fact is the ephemeral cache-creation TTL split, which is why its arm carries the same
  *  two fields the subscription arm does — one vocabulary for one concept.
  *
  *  Every arm below has a live producer; an arm nobody writes is the "contract landed, wiring didn't" shape

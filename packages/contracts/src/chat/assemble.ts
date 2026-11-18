@@ -516,8 +516,8 @@ export interface ShapeTrace {
    *  omits it). */
   cacheBreakpointFromEnd?: number;
   breakpointDecision: ShapeBreakpointDecision;
-  /** The DELIVERED wire history in order (post-nudge, pre-fit), one entry per row. The block-order/role datum
-   *  a host previously reconstructed by hand from wire captures. Empty ⇒ the turn delivers no history rows. */
+  /** The DELIVERED wire history in order (post-nudge, pre-fit), one entry per row — the block-order/role datum
+   *  the shape trace exists to expose. Empty ⇒ the turn delivers no history rows. */
   rows: readonly ShapeTraceRow[];
 }
 
