@@ -1,12 +1,12 @@
 // The V4 STREAM REDUCER — the ONE fold from `LanguageModelV4StreamPart` into what a turn needs: the reply,
-// the reasoning, the assembled tool calls, any generated images (§6.7), the sources the model cited, the raw +
+// the reasoning, the assembled tool calls, any generated images, the sources the model cited, the raw +
 // unified finish reason, the nested usage and the provider metadata off the `finish` part. Shared by the
 // openai-compat and anthropic-messages backends (both drive a V4 `doStream`). `onText`/`onReasoning` fire per
 // delta — the caller marks the retry COMMITTED on the first one; `onPart` fires on every part (the idle-timer
 // reset).
 // A stream that ends without a `finish` part — or with one the PROVIDER SYNTHESIZED on flush rather than read
 // off the wire (`isSynthesizedFinish`, whose comment carries the measurement) — is a TRUNCATED turn and fails
-// closed (#1400's class), never an empty success. An `error` part is re-thrown for the caller's classifier.
+// closed, never an empty success. An `error` part is re-thrown for the caller's classifier.
 // A tool-input triple is dropped by contract (the terminal `tool-call` part is mandatory), and a stream that
 // opens one and never sends that call fails closed by the same rule.
 
@@ -333,7 +333,7 @@ function applyContentPart(acc: Accumulator, part: LanguageModelV4StreamPart, cal
   } else if (part.type === "file") {
     const image = generatedImageOf(part);
     if (image !== null) {
-      // STAMP THE ARRIVAL POINT (§6.7): the reply text accumulated SO FAR is where this picture sat in the
+      // STAMP THE ARRIVAL POINT: the reply text accumulated SO FAR is where this picture sat in the
       // model's own output, and it is the only moment that offset is knowable — the drain is the one place
       // text and file parts are still interleaved in stream order. The chat reducer splices the span there
       // and mints the alt from the prose in front of it.
@@ -407,7 +407,7 @@ function reasoningPartsOf(acc: Accumulator): readonly ReasoningContentPart[] {
 }
 
 /**
- * THE SYNTHESIZED FINISH (the #1400 class, re-found by the cross-backend conformance suite 2026-09-20).
+ * THE SYNTHESIZED FINISH.
  *
  * `acc.finish === undefined` below is the honest truncation guard — and on the openai-compat wire it is
  * STRUCTURALLY UNREACHABLE, because both of that wire's providers manufacture a `finish` part on FLUSH
@@ -420,13 +420,13 @@ function reasoningPartsOf(acc: Accumulator): readonly ReasoningContentPart[] {
  *     from its own flush at `:5036` / `:5485`.
  * (The direct `@ai-sdk/anthropic@4.0.85` wire does NOT do this: `dist/index.js:5206` enqueues `finish` only
  * inside the `message_stop` case, so a truncated Anthropic stream genuinely has no finish part and the
- * `undefined` guard fires. That asymmetry is exactly what made this invisible — one wire failed closed and
- * looked like proof the class was handled.)
+ * `undefined` guard fires. That asymmetry is exactly what makes the synthesized case easy to miss — one wire
+ * failed closed and looked like proof the class was handled.)
  *
- * The measured consequence on a truncated openai-compat stream: `drainStream` returned normally and the turn
- * RESOLVED with `reply: ""`, `finishReason: "other"`, `stopReason: "other"` and null tokens — an empty reply
- * committed to canon as a successful turn. A partial stream committed the partial text the same way. A
- * byte-equality wire pin cannot see this: the REQUEST is unchanged.
+ * Absent this guard, a truncated openai-compat stream RESOLVES: `drainStream` returns normally with
+ * `reply: ""`, `finishReason: "other"`, `stopReason: "other"` and null tokens — an empty reply committed to
+ * canon as a successful turn, and a partial stream commits the partial text the same way. A byte-equality
+ * wire pin cannot see this: the REQUEST is unchanged.
  *
  * THE TELL, and why it cannot swallow a legitimate termination: a real `other` finish always carries at
  * least ONE of the two things the synthesized default lacks — the provider's own raw stop word, or a token
