@@ -6,11 +6,9 @@
 // roster homes, and client display labels. They take no principal and no resource and decide nothing: whether a caller
 // may act is the kernel's decision alone, and a client display read is never an authorization.
 //
-// VOCABULARY (vocabulary-map row 45): `ChatResource.membership` is not `ChatResource.roster`.
-// The TYPE half of row 45 (`ChatRoster` → `ChatMembership`) once left
-// the FIELD spelling the old word, so every `can()` call site read `{ kind: "chat", roster: {…} }` for a
-// single-`{role}` value that is not a list at all. `roster` remains RESERVED for the saved TEMPLATE
-// concept (`rosterPreset`, "Rosters" — row 48) and never names this one.
+// VOCABULARY: `ChatResource.membership` is not `ChatResource.roster` — the field holds one `{role}` value,
+// not a list, and `roster` reads as one. `roster` is RESERVED for the saved TEMPLATE concept
+// (`rosterPreset`, "Rosters") and never names this one.
 
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
@@ -27,9 +25,9 @@ export const USER_ROLES = ["owner", "admin", "user"] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 export const userRoleSchema = z.enum(USER_ROLES) satisfies z.ZodType<UserRole>;
 
-// Principal-KIND axis — currently `human` only (post-rollback: the agent-principal seat wave was
-// purged). A tuple, never an `isAgent` boolean, so it can grow a third flavor without `if`-branching —
-// the rebuild grafts an `agent` member here if the agent-principal design set returns (docs/work/0048).
+// Principal-KIND axis. A tuple, never an `isAgent` boolean, so another flavor is a member here rather
+// than an `if`-branch at every reader; the agent-principal design set (docs/work/0048) is where such a
+// member would come from.
 export const USER_KINDS = ["human"] as const;
 export type UserKind = (typeof USER_KINDS)[number];
 const userKindSchema = z.enum(USER_KINDS) satisfies z.ZodType<UserKind>;
