@@ -778,7 +778,7 @@ const triggerFactPayloadSchema = z.strictObject({
     .strictObject({
       intent: z.string(),
       api: z.string(),
-      // The provider REGISTRY id the turn ran on (inference program §5.3b — was the retired `source` word).
+      // The provider REGISTRY id the turn ran on.
       provider: z.string(),
       model: z.string(),
       speakerCharacterId: sandboxWireIdSchema<CharacterId>().nullable(),

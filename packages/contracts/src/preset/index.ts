@@ -326,13 +326,13 @@ export type ThinkingDisplay = (typeof THINKING_DISPLAYS)[number];
 export const COMPACTION_MODES = ["auto", "managed"] as const;
 export type CompactionMode = (typeof COMPACTION_MODES)[number];
 
-// What a reply may CARRY (inference program §6.7): `text+image` asks a model whose capability says
+// What a reply may CARRY: `text+image` asks a model whose capability says
 // `output.modalities ∋ image` to answer with interleaved pictures (the funnel emits `modalities` on the wire
 // only then; on a text-only model the knob drops with `sampling_knob_dropped`). GLOBAL like every gen
 // setting (D154) — the per-room desire is a recorded fork (F23), not a knob.
 const REPLY_MEDIA = ["text", "text+image"] as const;
 
-// REASONING CARRY (inference program §8.8) — how much of the model's OWN prior thinking rides back into the
+// REASONING CARRY — how much of the model's OWN prior thinking rides back into the
 // next request. ORDERED, and the order is the point: `capability.reasoning.replay` gates the rungs from the
 // top, so a wire that accepts nothing drops the knob to `off` while a wire that accepts prose still honours
 // both rungs (in prose form). Replay scope and display are INDEPENDENT axes: conflating them is the defect
@@ -901,9 +901,9 @@ export const GREETING_TRANSFORMS = everyRow<GreetingTransform, "id">()([
 // `superRefine` here rejects `constructor`/`prototype` (which Zod does NOT strip) at every nested level.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 
-// `customParameters` LEFT THE PRESET (inference program §8.1c): extra body fields are the CONNECTION's `extras`
-// column (where the quirk lives), and the belt-owned keys are `BELT_OWNED_BODY_KEYS` in
-// `@orb/contracts/inference/features.ts` beside the endpoint feature schema. The preset keeps sampling only.
+// Extra body fields are the CONNECTION's `extras` column (where the quirk lives), not the preset's; the
+// belt-owned keys are `BELT_OWNED_BODY_KEYS` in `@orb/contracts/inference/features.ts` beside the endpoint
+// feature schema. The preset keeps sampling only.
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // PromptConfig — the `presets.config` blob: an ordered (= array index) list of sections + generation

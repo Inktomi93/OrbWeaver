@@ -450,9 +450,10 @@ const memorySchema = z
 // The per-user databank tuning — the chunk params ingest uses (chunkText) + the
 // retrieval params gather passes to search.documents (k/minScore/rerank) + the `{{databank}}` slot token
 // budget. `chunk`/`retrieval` REUSE the `#databank` shapes (derive, never re-spell — a drift fails tsc here);
-// `slotTokenBudget` was the chat-side DATABANK_SLOT_TOKEN_BUDGET=4096 constant, absorbed so an admin/user can
-// retune the slot's share of the turn. Every nested block `.prefault({})` so an old blob with no databank
-// section reads the grounded defaults byte-identically (the memory/appearance additive-section precedent).
+// `slotTokenBudget` is the owner-tunable form of the fixed chat-side 4096-token budget it replaced, so an
+// admin/user can retune the slot's share of the turn. Every nested block `.prefault({})` so an old blob with no
+// databank section reads the grounded defaults byte-identically (the memory/appearance additive-section
+// precedent).
 const DATABANK_SLOT_TOKEN_BUDGET_MIN = 0;
 const DATABANK_SLOT_TOKEN_BUDGET_MAX = 65_536;
 const DATABANK_SLOT_TOKEN_BUDGET_DEFAULT = 4096;
