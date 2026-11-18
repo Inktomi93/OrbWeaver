@@ -1,7 +1,7 @@
-// The ONE rate-limit header parser for the hosted wires (inference audit B6): the V4 `doStream` result exposes
+// The ONE rate-limit header parser for the hosted wires: the V4 `doStream` result exposes
 // `response.headers`, and the snapshot it yields is the same `RateLimitSnapshot` the agent-sdk wire fills from
 // its `rate_limit_event` frame, so a caller reads one shape whatever the wire. Two header FAMILIES, both
-// MEASURED 2026-09-20 (scratch `rec-probe.mjs`):
+// MEASURED 2026-09-20:
 //   • Anthropic — `anthropic-ratelimit-<axis>-{limit,remaining,reset}` for `requests`, `tokens`, `input-tokens`,
 //     `output-tokens`; `reset` is an RFC 3339 instant (`req_011CfEBkpjRWAjtLDifB2qpW`).
 //   • OpenAI-style — `x-ratelimit-{limit,remaining,reset}-<axis>` for `requests`, `tokens`; `reset` is a Go

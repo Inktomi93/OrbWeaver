@@ -1,5 +1,5 @@
 // The `anthropic-messages` model factory — one `LanguageModelV4` per CALL over `@ai-sdk/anthropic`
-// (`createAnthropic({ apiKey, baseURL, fetch })`, §8.5). Per call so the wrapped fetch closes over this
+// (`createAnthropic({ apiKey, baseURL, fetch })`). Per call so the wrapped fetch closes over this
 // call's capture context. The row's `baseUrl` is the API ORIGIN; the SDK wants the `/v1` prefix.
 //
 // FORBIDDEN: `name:` on `createAnthropic` (neither factory in this package takes it, and no call site sets

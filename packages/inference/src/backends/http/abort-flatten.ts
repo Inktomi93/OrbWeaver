@@ -1,5 +1,5 @@
-// infra/providers/backends/http/abort-flatten — the ONE home for "fold a CALLER's AbortSignal into a signal
-// WE own", and therefore the one home of the reason-flattening law every provider call obeys.
+// packages/inference/src/backends/http/abort-flatten.ts — the ONE home for "fold a CALLER's AbortSignal into a
+// signal WE own", and therefore the one home of the reason-flattening law every provider call obeys.
 //
 // THE BUG CLASS THIS EXISTS TO KILL (STRUCTURED-ABORT-REASON-LEAK): `AbortSignal.any([external, mine])`
 // PROPAGATES the source signal's `reason`, and a signal handed to `fetch` makes that reason the value the
@@ -20,10 +20,10 @@
 // vocabulary. The cancellation still propagates (same instant, same semantics) — only the REASON is dropped,
 // and the reason was never ours to interpret.
 //
-// USERS: `./idle-timeout.ts` (the streaming chat runners' rolling stall guard) and `roles/dispatch.ts`
-// (`runRole` — the ONE seam every role dispatch crosses, so every role gets it and a future role cannot
-// forget). `domain/rpg/flush-barrier.ts` folds the same way for the same reason and cannot import this
-// (providers is sealed to domain); its header cites this law.
+// USERS: `./idle-timeout.ts` (the streaming chat runners' rolling stall guard) and `registry/dispatch.ts`
+// (`runTask` — the ONE seam every task crosses, so every task gets it and a future task cannot forget), plus
+// the deadline readers in `catalog/` and `openai-compat/`. `domain/rpg/flush-barrier.ts` folds the same way
+// for the same reason and cannot import this (providers is sealed to domain); its header cites this law.
 
 import type { ScheduleOp } from "@orb/kit/time";
 import type { FlattenedAbort } from "#src/contract/http.ts";
