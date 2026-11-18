@@ -1,12 +1,11 @@
-// infra/providers/backends/http/error-classify — the HTTP-status → typed `ProviderErrorKind` table, plus
-// the transport-name fallback and the one-line `ProviderError` builder every HTTP-based runner classifies
-// through. ONE home for "an HTTP failure → our cross-provider error vocab" so adding a status is a
+// packages/inference/src/backends/http/error-classify.ts — the HTTP-status → typed `ProviderErrorKind` table,
+// plus the transport-name fallback and the one-line `ProviderError` builder every HTTP-based runner
+// classifies through. ONE home for "an HTTP failure → our cross-provider error vocab" so adding a status is a
 // one-file edit, not a hunt across runners.
 //
-// SCOPE (orbweaver vs neo): neo's error-classify also held the Agent-SDK assistant/result-subtype
-// classifiers (which import `@anthropic-ai/claude-agent-sdk`). The SDK is the agent-sdk backend's PRIVATE
-// dep (D8 — the core stays SDK-free) and kit sits BELOW the backends, so those classifiers do NOT live
-// here — they belong to `backends/agent-sdk`. This module is the HTTP path only.
+// SCOPE: this module is the HTTP path only. The agent-sdk assistant/result-subtype classifiers import
+// `@anthropic-ai/claude-agent-sdk`, which is the agent-sdk backend's PRIVATE dep (D8 — the core stays
+// SDK-free) and sits below the backends, so those classifiers live in `backends/agent-sdk`.
 
 import type { WireSchemaMode, WireSchemaViolation } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
@@ -258,10 +257,10 @@ function classifyHttpError(error: unknown): ErrorClassification & { status: numb
  * parse failure that wrapped it). Defensive throughout (unknown-narrowing only) so it works for any
  * HTTP-based error; both fields are sanitized before they land on a log record.
  *
- * `secrets` is REQUIRED and branded for the same reason {@link providerErrorFromHttp}'s is (#1599) — the
- * peeled `body` is the reflected upstream body, the single most secret-prone string on this boundary.
+ * `secrets` is REQUIRED and branded for the same reason {@link providerErrorFromHttp}'s is — the peeled
+ * `body` is the reflected upstream body, the single most secret-prone string on this boundary.
  *
- * ORDER (#1809): DECODE, SCRUB, then sanitize — never the reverse. See {@link sanitizeApiError}'s file header.
+ * ORDER: DECODE, SCRUB, then sanitize — never the reverse. See {@link sanitizeApiError}'s file header.
  */
 export function extractHttpErrorDiagnostic(error: unknown, secrets: ProviderScrubSet): HttpErrorDiagnostic {
   if (!isRecord(error)) {
@@ -363,15 +362,15 @@ export function withSchemaRejection(failure: ProviderError, error: unknown, ctx:
  * cause. The message is sanitized BEFORE concatenation so an HTML error page or control-char-laced body
  * can't poison logs/UI.
  *
- * SECURITY (#1599): `secrets` is REQUIRED and is a branded {@link ProviderScrubSet} — it used to default to
- * `[]`, which made the by-value scrub pure call-site discipline on a message that reaches a DURABLE sink
- * (the #1373 strike-out logs it as `securityEvent("credential_revoked", { reason })`). A credential-bearing
- * runner now cannot omit it, and cannot fake it with a bare `[]`: the only two admissible values are
- * `resolvedScrubSet(connection)` and the loudly-named `NO_PROVIDER_SECRETS`.
+ * SECURITY: `secrets` is REQUIRED and is a branded {@link ProviderScrubSet} — a default of `[]` would make
+ * the by-value scrub pure call-site discipline on a message that reaches a DURABLE sink (the strike-out logs
+ * it as `securityEvent("credential_revoked", { reason })`). A credential-bearing runner cannot omit it, and
+ * cannot fake it with a bare `[]`: the only two admissible values are `resolvedScrubSet(connection)` and the
+ * loudly-named `NO_PROVIDER_SECRETS`.
  *
- * ORDER (#1809): the by-value scrub runs FIRST, on intact text, and `sanitizeApiError` mangles what is
- * left — a message reaching that durable sink cannot carry a credential fragment the 500-char cap or the
- * `<…>` strip created. See {@link sanitizeApiError}'s file header.
+ * ORDER: the by-value scrub runs FIRST, on intact text, and `sanitizeApiError` mangles what is left — a
+ * message reaching that durable sink cannot carry a credential fragment the 500-char cap or the `<…>` strip
+ * created. See {@link sanitizeApiError}'s file header.
  */
 export function providerErrorFromHttp(error: unknown, prefix: string, secrets: ProviderScrubSet, now?: Clock): ProviderError {
   const { kind, retryable, status } = classifyHttpError(error);

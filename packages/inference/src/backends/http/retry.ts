@@ -1,10 +1,10 @@
-// infra/providers/backends/http/retry — PRE-COMMIT-safe retry for streaming HTTP runners. Retries
+// packages/inference/src/backends/http/retry.ts — PRE-COMMIT-safe retry for streaming HTTP runners. Retries
 // 429/5xx with jittered exponential backoff while it is STILL SAFE — i.e. before any token has streamed to
 // the caller. Once `onDelta` has fired once the stream has committed; retrying would replay tokens to the
 // UI, so the error is surfaced instead. (The agent-sdk runner has the SDK's own internal retry; the
 // stateless HTTP runners did not — this is theirs.)
 //
-// DETERMINISM (spine/testing §3): the jitter RNG and the `resetsAt`-proximity clock are INJECTED via
+// DETERMINISM (`Spine-Testing.md` §3): the jitter RNG and the `resetsAt`-proximity clock are INJECTED via
 // `RetryOptions` (no ambient `Math.random` / `Date.now` on the production path — the same seam tests use).
 // `random` and `scheduleTimeout` are required; `now` is optional — omit it and the `resetsAt` shortcut is simply
 // skipped (pure exponential backoff), so no raw clock read ever happens here.
@@ -28,7 +28,7 @@ const DEFAULT_MAX_ATTEMPTS = 3; // total tries including the first
 const DEFAULT_BASE_MS = 500; // first sleep
 const DEFAULT_MAX_MS = 8000; // cap on any single sleep
 const RESETS_AT_NEAR_MS = 30_000; // honor a rate-limit `resetsAt` only when it's this near
-const BACKOFF_FACTOR = 2; // exponential base
+const BACKOFF_FACTOR = 2;
 const JITTER_SPREAD = 0.4; // ±20% jitter band
 const JITTER_CENTER = 0.5; // RNG midpoint (random() in [0,1) → jitter in [0.8, 1.2))
 
@@ -111,7 +111,6 @@ export async function runWithPreCommitRetry<T>(
       lastError = raw;
       const mapped = classify(raw);
       const exhausted = attempt >= maxAttempts;
-      // Can't retry once a delta streamed (replay duplicates tokens); non-retryable kinds also bail.
       if (stream.committed || !mapped.retryable || exhausted) {
         // WHY the loop stopped is not recoverable from the thrown error: "a delta already streamed" and
         // "three attempts burned" surface as the same provider failure at the caller. The span carries it.

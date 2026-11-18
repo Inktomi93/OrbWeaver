@@ -1,9 +1,5 @@
-// THE TURN'S SPAN EVENTS (audit D4). Before this module `addSpanEvent` fired for retries and the catalog
-// cache and for NOTHING on the turn path, so a trace of a chat turn was one long undifferentiated span: the
-// question "did this turn spend its time waiting for the first token or generating the rest" had no answer
-// on the timeline, and neither did "why did it stop" or "did the prompt cache actually hit".
-//
-// THREE EVENTS, chosen because each answers a question the SPAN'S OWN DURATION cannot:
+// THE TURN'S SPAN EVENTS — three events, chosen because each answers a question the SPAN'S OWN DURATION
+// cannot:
 //   • `provider.first_delta` — the TTFT boundary. Everything before it is queue + prefill + network;
 //     everything after is generation. One timestamp splits a slow turn into the two very different causes.
 //   • `provider.finish` — the normalized stop reason + the raw upstream word beside it. A `length` finish
@@ -42,7 +38,7 @@ export function emitTurnSpanEvents(args: {
     turnId: args.turnId,
     model: args.model,
     // The NORMALIZED member is what anything may branch on; the raw word rides beside it as opaque
-    // provenance (§5.3c class 4) so an `other` can be debugged without a second read.
+    // provenance so an `other` can be debugged without a second read.
     finishReason: turn.finishReason ?? "unknown",
     stopReason: turn.stopReason ?? "",
     toolCalls: turn.toolCalls?.length ?? 0,
