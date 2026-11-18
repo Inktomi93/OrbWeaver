@@ -1,11 +1,10 @@
-// @orb/contracts/automation — the RULE-PRESET wire slice (S3). A preset is the user-facing vocabulary of the
+// @orb/contracts/automation — the RULE-PRESET wire slice. A preset is the user-facing vocabulary of the
 // automation platform: a named, knob-parameterized recipe that MINTS an ordered set of ordinary
 // `automation_rules` rows through the existing `createRule` validation. Nothing here is a second rule model —
 // after a mint the rows are BEHAVIORALLY indistinguishable from hand-authored ones, but they carry
-// PROVENANCE (`rule_preset_id` + `rule_preset_knobs` on `automation_rules` — the §3-S3 flip shape, landed
-// with B10's rules rider): stamped at mint, CLEARED by `updateRule` (a hand-edited rule is no longer the
-// preset's mint — v1's knob-EDIT path stays re-mint), and projected on `RuleView` so a room's enabled
-// rule-preset accrual is readable (the saved-cast capture; B2's future in-place knob editor).
+// PROVENANCE (`rule_preset_id` + `rule_preset_knobs` on `automation_rules`): stamped at mint, CLEARED by
+// `updateRule` (a hand-edited rule is no longer the preset's mint — editing knobs re-mints), and projected
+// on `RuleView` so a room's enabled rule-preset accrual is readable (the saved-cast capture).
 //
 // WHAT LIVES HERE vs the domain: the ID TUPLE + the client-visible PROJECTION (id/title/summary/knob
 // descriptors) — the picker's whole read model. The CEL predicate sources, the arm templates and the mint
@@ -27,75 +26,75 @@ import type { WorldBookId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
-/** The committed preset catalogue's ids — the A3-riding v1 rows of the §4 catalogue. The domain holds an
+/** The committed preset catalogue's ids. The domain holds an
  *  exhaustive `Record<RulePresetId, …>` over this tuple, so a new id without a definition fails `tsc`.
  *  Ids are camelCase (they are Record PROPERTY keys, not data literals — `useNamingConvention`). */
 export const RULE_PRESET_IDS = [
-  /** §4 #1 — the welcome-back recap: a confirm-first CARD after an idle gap (two rules). */
+  /** The welcome-back recap: a confirm-first CARD after an idle gap (two rules). */
   "welcomeBackRecap",
-  /** §4 #3 — auto-add lore entries, confirm-first by default. */
+  /** Auto-add lore entries, confirm-first by default. */
   "autoAddLore",
-  /** §4 #4 — a guided pacing turn every N beats. */
+  /** A guided pacing turn every N beats. */
   "pacingNudge",
-  /** §4 #5 — a scene illustration on a cadence. */
+  /** A scene illustration on a cadence. */
   "illustrateScenes",
-  /** §4 #6 — diegetic dice chips after a beat. */
+  /** Diegetic dice chips after a beat. */
   "diceChips",
-  /** §4 #7 — the two-rule clock: a counter that fills, then fires and resets. */
+  /** The two-rule clock: a counter that fills, then fires and resets. */
   "clockFires",
-  /** §4 #8 — the opener deck: compose-mode staples the member owns and edits. */
+  /** The opener deck: compose-mode staples the member owns and edits. */
   "openerChips",
-  /** §4 #9 — a diegetic veil word redirects the scene. */
+  /** A diegetic veil word redirects the scene. */
   "sceneVeil",
-  /** §4 #10 — call a vote: send-mode chips, raised on demand (R7), never on its own. */
+  /** Call a vote: send-mode chips, raised on demand, never on its own. */
   "callAVote",
-  /** §4 #12 — the two-rule callback: an unresolved promise resurfaces D beats later. */
+  /** The two-rule callback: an unresolved promise resurfaces D beats later. */
   "callback",
-  /** §4 #13 — a short cutaway every N beats. */
+  /** A short cutaway every N beats. */
   "cutaways",
-  /** §4 #15 — the C1 story-pacing analysis: a quiet think-first pass steering the narrator (RULED F7,
-   *  direct steer). Mint refuses on an active-game chat (the game owns its own steering, D109). */
+  /** The story-pacing analysis: a quiet think-first pass steering the narrator (direct steer). Mint
+   *  refuses on an active-game chat (the game owns its own steering, D109). */
   "storyPacing",
-  /** §4 #11 — C2's distill-lore: a confirm-first `run_analysis` → `upsertLoreEntry` pass that distills durable
+  /** The distill-lore pass: a confirm-first `run_analysis` → `upsertLoreEntry` pass that distills durable
    *  keyed lore from the settled span (watermarked, span-stamped, idempotent on re-run) onto a confirm card. */
   "distillLore",
-  /** §4 #11's sibling — the rumour mill: the SAME confirm-first lore route, distilling the consequences and
-   *  hearsay the settled events would stir up rather than the durable facts. */
+  /** The distill-lore sibling — the rumour mill: the SAME confirm-first lore route, distilling the consequences
+   *  and hearsay the settled events would stir up rather than the durable facts. */
   "rumorMill",
-  /** §4 #16 — the needle: C1's analysis pass scoring narrative tension 0-10 into the ONE member-visible chat
+  /** The needle: an analysis pass scoring narrative tension 0-10 into the ONE member-visible chat
    *  variable (`NEEDLE_TENSION_VAR_KEY`, this package's index) plus a sibling rule that redresses the room's backdrop past a
-   *  threshold. RULED: it SHIPS, OFF BY DEFAULT — F6's single exception (a published SCORE may
+   *  threshold. It SHIPS, OFF BY DEFAULT — the single exception (a published SCORE may
    *  cross into the member-visible vars plane; arcs, twists and guidance never do). */
   "theNeedle",
-  /** §4 #15 — C3's prose audit: a confirm-first `run_analysis` → `suggestRewrite` pass that audits the newest
+  /** The prose audit: a confirm-first `run_analysis` → `suggestRewrite` pass that audits the newest
    *  reply and offers a conservative rewrite on a variant-pinned, content-hashed card. The confirmed rewrite
    *  lands as a NEW VARIANT of the audited slot (the original stays selectable — that is the revert). */
   "proseAudit",
-  /** §4 #2 — the async table nudge: when a post lands after a lull, ping the members who are WAITING (the
+  /** The async table nudge: when a post lands after a lull, ping the members who are WAITING (the
    *  actor is excluded — `all_members_except_actor`), outside quiet hours. */
   "asyncTableNudge",
-  /** §4 #14 — spotlight balance: a C1 analysis pass that steers the narrator toward whoever the scene has
+  /** Spotlight balance: an analysis pass that steers the narrator toward whoever the scene has
    *  been leaving out. Direct steer, like `storyPacing`; it never addresses or puppets a member. */
   "spotlightBalance",
-  /** §4 #20 — the living library (C5): the catalogue's ONE owner-GLOBAL row and the showcase of the
+  /** The living library: the catalogue's ONE owner-GLOBAL row and the showcase of the
    *  owner-global lane. A single global rule watches the domain bus for a character whose CONTENT changed
    *  and quietly generates a fresh portrait of them — so an import lands with art and no room ever has to
    *  be open. It is the only preset whose mint takes no chat. */
   "livingLibrary",
-  /** §4 #17 — illustrate on lore reveal (OPTIONAL, owner ruling "everything optional gets included"):
-   *  when a lore reveal surfaces on `worldInfoActivated`, illustrate the current scene. Rides A3. */
+  /** Illustrate on lore reveal (owner ruling "everything optional gets included"):
+   *  when a lore reveal surfaces on `worldInfoActivated`, illustrate the current scene. */
   "illustrateOnLoreReveal",
-  /** §4 #18 — react to lore activation (OPTIONAL): a `worldInfoActivated` reveal steers a guided narrator
-   *  turn. Rides A3. */
+  /** React to lore activation: a `worldInfoActivated` reveal steers a guided narrator
+   *  turn. */
   "reactToLoreActivation",
-  /** §4 #19 — auto-set scene background (OPTIONAL): as the scene moves, quietly re-dress the room's
-   *  backdrop over the author's own library (the `set_chat_background` autobg pick). Rides A3. */
+  /** Auto-set scene background: as the scene moves, quietly re-dress the room's
+   *  backdrop over the author's own library (the `set_chat_background` autobg pick). */
   "autoSetSceneBackground",
 ] as const;
 export type RulePresetId = (typeof RULE_PRESET_IDS)[number];
 export const rulePresetIdSchema = z.enum(RULE_PRESET_IDS) satisfies z.ZodType<RulePresetId>;
 
-// C5 — WHERE a preset's rules live: inside one room, or on the author's owner-GLOBAL lane
+// WHERE a preset's rules live: inside one room, or on the author's owner-GLOBAL lane
 //  (`automation_rules.chat_id IS NULL`). It is the preset's own declaration, not a caller's choice: a
 //  preset's rules are written against a scope (a global rule's arms may not touch a room), so the mint
 //  DERIVES the chat from this rather than trusting a caller to pair them correctly.
@@ -198,7 +197,7 @@ export interface RulePresetChoiceKnobDescriptor<TOption extends string = string>
  *
  *  IT CARRIES NO `default`, and that absence is load-bearing rather than an omission: no entity is "the"
  *  entity, and `resolveKnob` returns a descriptor default UNVALIDATED (an absent override never reaches a
- *  bounds check — A3-verify). A `default: ""` would therefore ride straight through resolution into a mint
+ *  bounds check). A `default: ""` would therefore ride straight through resolution into a mint
  *  and only die deep inside the arm's own schema. With no default there is nothing to bypass: an absent
  *  entityRef override is a typed refusal at the knob, in the host's own vocabulary.
  *
@@ -301,7 +300,7 @@ export type RulePresetKnobView = RulePresetKnobDescriptor & { readonly key: stri
  *  predicates are server logic; the client picks an id + knob values and the mint verb does the rest. */
 export interface RulePresetView {
   readonly id: RulePresetId;
-  /** C5 — the preset's own scope ({@link RulePresetScope}); the picker's partition between the in-room
+  /** The preset's own scope ({@link RulePresetScope}); the picker's partition between the in-room
    *  Rules section and the owner-global Automation pane. */
   readonly scope: RulePresetScope;
   readonly title: string;
@@ -309,16 +308,14 @@ export interface RulePresetView {
   readonly summary: string;
   /** How many rules the mint creates (titled `<title> (i/n)` when it mints more than one). */
   readonly ruleCount: number;
-  /** S4: the preset's fires SUGGEST rather than act. Carried here at A3 (the def declares it and the view
-   *  projects it); the suggestion machinery itself is A4's. */
+  /** The preset's fires SUGGEST rather than act — the def declares it and the view projects it, so a
+   *  picker can warn before the first fire. */
   readonly confirmFirst: boolean;
   /** Whether this preset MINTS A RECURRING CHARGE at its default knobs — its rules carry an arm in
    *  `SPEND_ARM_TYPES` (a model call the host funds), so enabling it bills them on a cadence, forever.
    *
-   *  IT EXISTS BECAUSE THE PICKER HAD NO SPEND SIGNAL AT ALL. Seven of the eleven committed presets
-   *  spend — "Periodic pacing nudge" fires a `trigger_turn` every 8 beats — and the only place the word
-   *  appeared was a row's overflow menu, two clicks deep, AFTER the rule was already minted. The house bar
-   *  is that a spend is visible at the DECISION point.
+   *  A spend is visible at the DECISION point, not in a minted row's overflow menu two clicks deep:
+   *  most committed presets spend — "Periodic pacing nudge" fires a `trigger_turn` every 8 beats.
    *
    *  DEFAULT-KNOB SEMANTICS, stated because one preset's answer moves with a knob: `clockFires` emits a
    *  `trigger_turn` under `firedArm: "narrate"` and a free `post_notification` under `"notify"`. The

@@ -1,20 +1,18 @@
-// @orb/contracts/automation — the automation prose slot table (D132, census row 91 + the S5
-// analysis clauses, C1). Two slot families:
-//   • `automation.autobg.*` — the `set_chat_background` (BG-F) quiet pick: a SYSTEM contract + a lead
+// @orb/contracts/automation — the automation prose slot table (D132). Two slot families:
+//   • `automation.autobg.*` — the `set_chat_background` quiet pick: a SYSTEM contract + a lead
 //     INSTRUCTION + a trailing REPLY CONTRACT around three interpolated blocks (the capped scene, the
 //     candidate names, the rendered guidance). The interpolations are the prompt's grammar + data — the
 //     authored clauses are its voice, each a first-class `text` slot with no template machinery.
-//   • `automation.analysis.*` — the `run_analysis` (S5) system contract, ONE CLAUSE PER OUTPUT ROUTE:
+//   • `automation.analysis.*` — the `run_analysis` system contract, ONE CLAUSE PER OUTPUT ROUTE:
 //     the executor composes exactly the clauses whose routes the arm authored (the enforced response
 //     schema omits the other fields, and these slots omit the other asks — schema and prompt move
-//     together). The defaults are authored FRESH from the legacy crew director's proven semantics
-//     (narrator-not-players · optional-scaffolding/soft-tensions · retire-on-payoff ·
-//     empty-is-the-common-case · when-in-doubt-do-less), never string-ported. `requiredTokens` name the
-//     WIRE FIELDS a clause teaches (`guidance`, `arcStatus`, `score`) — an override that drops one stops
-//     matching the enforced schema the model must fill, so the editor warns.
+//     together). The defaults hold the analysis posture (narrator-not-players · optional-scaffolding/
+//     soft-tensions · retire-on-payoff · empty-is-the-common-case · when-in-doubt-do-less).
+//     `requiredTokens` name the WIRE FIELDS a clause teaches (`guidance`, `arcStatus`, `score`) — an
+//     override that drops one stops matching the enforced schema the model must fill, so the editor warns.
 //
-// HOME = per-USER, resolved against the ROOM HOST (owner ruling on PROSE-1 owner-decision 8, option (a)) —
-// both arms fire on a room's turn, so they read the same host prose the room's other side generations do.
+// HOME = per-USER, resolved against the ROOM HOST (owner ruling) — both arms fire on a room's turn, so
+// they read the same host prose the room's other side generations do.
 // The one exception is `automation.guidance.frame`: it wraps the guidance on the chat turn itself, where the
 // turn preset's prose is in scope, so it is per-PRESET like the other turn-wire frames.
 // MACRO MODE = "none": both run over transcript excerpts, not a character context.
@@ -124,9 +122,9 @@ export const AUTOMATION_PROSE_SLOTS = {
   "automation.analysis.rewrite": {
     home: "user",
     version: 1,
-    // The legacy prose-audit's proven posture, authored fresh: CLEAN is the common verdict, the rewrite is
-    // CONSERVATIVE (fix the flaw, keep the voice and every story fact), and "when in doubt, clean" — a pass
-    // that invents a complaint costs the host a card and teaches them to stop reading the cards.
+    // The prose-audit posture: CLEAN is the common verdict, the rewrite is CONSERVATIVE (fix the flaw, keep
+    // the voice and every story fact), and "when in doubt, clean" — a pass that invents a complaint costs
+    // the host a card and teaches them to stop reading the cards.
     text:
       "Audit the AUDITED REPLY below for prose flaws only — contradictions with what the transcript established, " +
       "speaking or acting for a human's character, broken point-of-view or tense, or a line that repeats itself. " +
