@@ -1,5 +1,5 @@
 // The regex SCRIPT LIBRARY wire shapes (D121-E — the library is a first-class owner-stamped store with
-// per-type FK junctions; the three embed-by-value carriers are GONE). Three shapes, ONE behavior body:
+// per-type FK junctions; scripts are not embedded by value in three carriers). Three shapes, ONE behavior body:
 //
 //   • `regexScriptBehaviorSchema` — what a script DOES. Stored as the `regex_scripts.behavior` typed JSON column
 //     (the world_entries "behavior in JSON, not columns" precedent); `name`/`enabled` are promoted to real columns
@@ -25,9 +25,8 @@
 // Put coherence checks at the write-producing verb, not the reader's schema." So the read schema
 // (`regexScriptBehaviorSchema`, the shape the stored-row seam parses) carries no cross-field check, and the
 // pairing rules (`behaviorCoheres`) ride the write schemas: create, the update verb's re-parse of the merged body,
-// and the card wire every import parses. Stored rows hold only the two-axis shape: the numbered migration rewrote
-// every row, and the old placement-set shape is lifted only at the file boundaries, where an export from before
-// the change still arrives.
+// and the card wire every import parses. Stored rows hold only the two-axis shape; the old placement-set shape is
+// lifted at the file boundaries, where an older export still arrives.
 
 import type { CharacterId, ChatId, PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -110,7 +109,7 @@ const regexScriptBehaviorFields = z
 
     // How macros run on the FIND pattern before it is compiled (kit `SubstituteFindRegex`: none/raw/escaped).
     // Multi-value `z.literal([...])` (zod 4.x) — one node, one `invalid_value` issue naming all three options,
-    // where the old three-arm `z.union` emitted a nested `invalid_union`. Same accepted set.
+    // where a three-arm `z.union` emits a nested `invalid_union`. Same accepted set.
     substituteRegex: z.literal([SubstituteFindRegex.none, SubstituteFindRegex.raw, SubstituteFindRegex.escaped]).default(SubstituteFindRegex.none),
 
     depth: regexDepthSchema.optional(),
@@ -157,9 +156,9 @@ export type RegexScriptBehavior = z.infer<typeof regexScriptBehaviorSchema>;
 
 /** The flat library-row wire view — a `regex_scripts` row projected for every reader.
  *
- *  `updatedAt` is the EDITED stamp the library list renders (X-16: `Add script` mints every row named
- *  "New script", so without a per-row discriminator a library of them is unreadable — the preset list has
- *  carried this since its own F5 finding). It rides on the ROW rather than on a separate list-summary shape
+ *  `updatedAt` is the EDITED stamp the library list renders (`Add script` mints every row named
+ *  "New script", so without a per-row discriminator a library of them is unreadable — the preset list
+ *  carries the same stamp). It rides on the ROW rather than on a separate list-summary shape
  *  because the library has no separate summary: `regex.listScripts` returns exactly this. */
 export const regexScriptSchema = regexScriptBehaviorSchema.extend({
   id: typeIdSchema(ID_PREFIX.regexScript),
@@ -180,12 +179,12 @@ export const regexScriptViewSchema = regexScriptSchema.strict().safeExtend({
  *  it and the carried-refs key re-links a same-install re-import, so this id is provenance, never a library
  *  identity.
  *
- *  THE ENABLED/DISABLED POLARITY IS THE ST WIRE'S, NOT OURS. ST has no `enabled` field at all: its editor
+ *  THE ENABLED/DISABLED POLARITY IS SILLYTAVERN'S, NOT OURS. That wire has no `enabled` field at all: its editor
  *  writes `disabled` (`input[name="disabled"]`) and its executor skips on `!!regexScript.disabled`. Reading
- *  only `enabled` therefore made an ST card's switched-OFF script arrive switched ON — a find/replace the
+ *  only `enabled` would therefore make a card's switched-OFF script arrive switched ON — a find/replace the
  *  card's author had deliberately parked, silently rewriting canon on the first turn after import. Both
  *  keys are accepted, SillyTavern's winning in its dialect (`liftStScriptWire`), and `toRegexScriptCardWire`
- *  writes both back out so a foreign ST reading our card honours the state too. */
+ *  writes both back out so a foreign SillyTavern reading our card honours the state too. */
 const regexScriptCardFieldsSchema = regexScriptBehaviorFields.extend({
   id: z.string().min(MIN_CARD_ID_LENGTH).max(MAX_CARD_ID_LENGTH),
   name: z.string().max(REGEX_SCRIPT_NAME_MAX),
@@ -257,7 +256,7 @@ export function stScriptPatternCompiles(candidate: unknown): boolean {
   return findPatternCompiles({ findRegex, substituteRegex: isSubstituteMode(mode) ? mode : undefined });
 }
 
-/** ST's older BOOLEAN spelling of `substituteRegex`: `true` substituted macros into the pattern raw, `false`
+/** SillyTavern's older BOOLEAN spelling of `substituteRegex`: `true` substituted macros into the pattern raw, `false`
  *  did not. Any other value is the current enum form and passes through to the schema. */
 function stSubstituteRegex(value: unknown): unknown {
   if (typeof value !== "boolean") {
@@ -321,11 +320,11 @@ function isStDialect(obj: Record<string, unknown>): obj is Record<string, unknow
 }
 
 // ── THE PLACEMENT-SET SHAPE, lifted at the file boundaries ─────────────────────────────────────────────────────
-// Before the two axes, a script held one `placement` set in which `DISPLAY` and `PROMPT_HISTORY` stood beside the
+// The older shape: a script held one `placement` set in which `DISPLAY` and `PROMPT_HISTORY` stood beside the
 // save-time members, with `markdownOnly`, `promptOnly` and `historyDepth` beside it. A file exported then still
 // imports, and the numbered migration rewrites stored rows by this same mapping
 // (`tests/contracts/regex/legacy-behavior-lift.contract.test.ts` pins each shape). Two readings, in order:
-//   • A `DISPLAY` or `PROMPT_HISTORY` member means the editor here wrote the row, since the old lift never did.
+//   • A `DISPLAY` or `PROMPT_HISTORY` member means the editor here wrote the row, since the legacy lift never did.
 //     With a save member (`USER_INPUT`, `AI_OUTPUT`, `REASONING`) the save reading wins: the save pass on those
 //     members alone, its other members dropped, since a script is saved or ephemeral and the save pass is the one
 //     that has been changing stored text. With none, `DISPLAY` is the display pass and `PROMPT_HISTORY` or
@@ -333,7 +332,7 @@ function isStDialect(obj: Record<string, unknown>): obj is Record<string, unknow
 //     never widens a script's reach; `PROMPT_HISTORY` brings its depth.
 //   • Otherwise the flags are read at their word, with SillyTavern's meaning: `markdownOnly` is display,
 //     `promptOnly` is prompt, both is both, neither is save. An editor-written save-time script also carries
-//     `promptOnly: true` (the old derive set it whenever `DISPLAY` was absent), so it reads as prompt-only: owner
+//     `promptOnly: true` (the legacy derive set it whenever `DISPLAY` was absent), so it reads as prompt-only: owner
 //     ruling, accepted because only the owner has installed the app.
 const LEGACY_DISPLAY = "DISPLAY";
 const LEGACY_PROMPT_HISTORY = "PROMPT_HISTORY";
@@ -356,8 +355,8 @@ function legacyDepth(historyDepth: unknown): RegexDepth | undefined {
   return floor === REGEX_DEPTH_FLOOR && ceiling === null ? undefined : { min: floor, max: ceiling };
 }
 
-/** An editor-written row (the section header). The old history pass read user and AI rows, the old display pass
- *  every row's text including reasoning, and world info was read only as the prompt was built. */
+/** An editor-written row (the section header). The legacy history pass read user and AI rows, the legacy display
+ *  pass every row's text including reasoning, and world info was read only as the prompt was built. */
 function legacyNativeAxes(members: readonly string[], historyDepth: unknown): { targets: RegexTarget[]; passes: RegexPass[]; depth?: RegexDepth } {
   const save = LEGACY_SAVE_TARGETS.filter((target) => members.includes(target));
   if (save.length > 0) {
@@ -461,7 +460,7 @@ export function regexScriptLimitBreak(candidate: unknown): RegexScriptLimitBreak
 
 /** What one card hands the regex lift. `carried` are the orbweaver-namespaced references (the attached-book twin) - each is
  *  attached DIRECTLY when it names a row this owner already has, and ignored otherwise. `scripts` is the
- *  ST by-value payload, lifted for everything `carried` did not cover. */
+ *  SillyTavern by-value payload, lifted for everything `carried` did not cover. */
 export interface ImportCardScriptsArgs {
   readonly ownerId: UserId;
   readonly characterId: CharacterId;
@@ -469,7 +468,7 @@ export interface ImportCardScriptsArgs {
   readonly carried: readonly RegexScriptId[];
 }
 
-/** The preset lift's input: ST's preset-scoped scripts. The ST preset wire has no carried-reference channel, so the
+/** The preset lift's input: SillyTavern's preset-scoped scripts. The SillyTavern preset wire has no carried-reference channel, so the
  *  by-value payload always content-dedups. */
 export interface ImportPresetScriptsArgs {
   readonly ownerId: UserId;
@@ -477,7 +476,7 @@ export interface ImportPresetScriptsArgs {
   readonly scripts: readonly RegexScriptCard[];
 }
 
-/** The global lift's input: ST's `extension_settings.regex` array onto the owner's library. */
+/** The global lift's input: SillyTavern's `extension_settings.regex` array onto the owner's library. */
 export interface ImportGlobalScriptsArgs {
   readonly ownerId: UserId;
   readonly scripts: readonly RegexScriptCard[];
@@ -501,7 +500,7 @@ export interface ImportCardScriptsResult {
   readonly refused: readonly RegexScriptRefusal[];
 }
 
-/** The card RE-EMBED: the character's attached library rows projected back onto the ST card-wire shape, in junction
+/** The card RE-EMBED: the character's attached library rows projected back onto the SillyTavern card-wire shape, in junction
  *  `position` order, plus the reference list the same-install re-import re-links by. */
 export interface ExportedCardScripts {
   readonly scripts: readonly RegexScriptCard[];
@@ -595,7 +594,7 @@ export type UpdateRegexScriptInput = z.infer<typeof updateRegexScriptSchema>;
 
 // Strip mode: also reads imported files.
 // twin: a portable/exported CARD carries orbweaver-namespaced REFERENCES to the library scripts it is
-// attached to, alongside the by-value `regex_scripts` ST payload. On a same-install re-import the references
+// attached to, alongside the by-value `regex_scripts` SillyTavern payload. On a same-install re-import the references
 // re-link to the existing rows (zero duplicate rows); on a foreign install they resolve to nothing and the
 // by-value payload lifts instead. Library scripts are never cloned through the reference channel.
 export const attachedRegexScriptRefSchema = z
@@ -605,13 +604,13 @@ export const attachedRegexScriptRefSchema = z
   .strip();
 export type AttachedRegexScriptRef = z.infer<typeof attachedRegexScriptRefSchema>;
 
-/** The V3-wire key the references ride under (orbweaver-namespaced so it never collides with an ST `data.*`
+/** The V3-wire key the references ride under (orbweaver-namespaced so it never collides with a SillyTavern `data.*`
  *  field). The ONE literal home — the serde OUT-emitter + the import extractor read it from here. */
 export const ATTACHED_REGEX_SCRIPTS_WIRE_KEY = "orbweaver_attached_regex_scripts";
 
 // ── WHICH scope an attachment addresses (the ONE spelling, three consumers) ────────────────────────────
 // The tRPC router validates against this, the domain's `ApplyScopeOrderParams` types against it, and the
-// client picker binds it. Before it lived here the shape was re-spelled in all three — a discriminated
+// client picker binds it. The shape is spelled once here: a discriminated
 // union written out three times is three chances to add a scope in two of them.
 //
 // GLOBAL is deliberately ABSENT from the picker-facing arms but present here: the global attachment is a
@@ -621,8 +620,8 @@ export const ATTACHED_REGEX_SCRIPTS_WIRE_KEY = "orbweaver_attached_regex_scripts
 // The TS union is DECLARED, not `z.infer`red, and the schema is pinned to it by `satisfies` below. The
 // reason is measured, not stylistic: the arms carry `typeIdSchema`, which is a transform-backed `ZodType`
 // rather than a `ZodObject` — `tsc` reads the discriminant correctly through it, but biome's type service
-// does not, and flagged every `case` of a switch over the inferred type as unreachable. Re-measured on Biome
-// 2.5.1: still every `case`, `noUnnecessaryConditions` (off in `tooling/src/biome-config/policy.config.ts`), single-file and
+// does not, and flagged every `case` of a switch over the inferred type as unreachable. Measured on Biome
+// 2.5.1: every `case` trips `noUnnecessaryConditions` (off in `tooling/src/biome-config/policy.config.ts`), single-file and
 // cross-module, from untracked files under `packages/contracts/src/` and `packages/server/src/` (never /tmp,
 // where zod does not resolve).
 // ONE declared union keeps BOTH tools seeing the same four arms. The `satisfies` below is a ONE-WAY
@@ -671,8 +670,7 @@ export interface RegexAttachmentRef<TId extends PresetId | CharacterId | ChatId>
 // character HAVE a name — one authored string the server can hand over finished. A chat does not: its title
 // is a fallback CHAIN the client owns, and WHICH rooms may even be named is chat's membership question
 // (D18). Both halves are `#chat`'s `VisibleRoomRef`, shared with every other library that keeps a chat-scope
-// attachment junction; regex re-derives from it rather than re-spelling it (promoted because
-// databank + preset are the second and third consumers).
+// attachment junction; regex reads it rather than re-spelling it (its consumers are databank, preset and regex).
 
 /** Where one script already runs, read from the SCRIPT's side — the three roster scopes.
  *  GLOBAL is absent on purpose: it is a property of the script itself (`global_regex_scripts` PKs on the
@@ -720,7 +718,7 @@ export interface ReorderResult {
   readonly reordered: number;
 }
 
-/** Every BULK verb's answer (REGX2): how many of the requested scripts the operation actually changed.
+/** Every BULK verb's answer: how many of the requested scripts the operation actually changed.
  *  It is NOT the requested count — a foreign id, an id another device already deleted, and an id that was
  *  already in the requested state all fall out, and the caller's toast should say what happened rather than
  *  what was asked. */
