@@ -26,11 +26,10 @@ export type TagSource = z.infer<typeof tagSourceSchema>;
 /** ST's tags-as-folders state. `NONE` = plain tag · `OPEN` = folder, members stay in the main list ·
  *  `CLOSED` = folder, members hidden until entered. */
 export const TAG_FOLDER_TYPES = ["NONE", "OPEN", "CLOSED"] as const;
-// DECLARED off the tuple to keep the vocabulary's type face at its one home. Biome 2.5.1 still reports every
-// `case` of an exhaustive switch over the `z.infer` alias as `noUnnecessaryConditions` (off in `tooling/src/biome-config/policy.config.ts`)
-// "unreachable" (`character-list-view.ts`'s `groupStartsOpen` is the live dispatch); the probe that called
-// this fixed ran under /tmp, where zod does not resolve, against `lint/correctness/noUnreachable`. Reproduce
-// from an untracked file under `packages/contracts/src/`. `satisfies` is only a one-way
+// DECLARED off the tuple to keep the vocabulary's type face at its one home. Biome 2.5.1 reports every
+// `case` of an exhaustive switch over the `z.infer` alias as `noUnnecessaryConditions` /
+// "unreachable" (`character-list-view.ts`'s `groupStartsOpen` is the live dispatch), which
+// `tooling/src/biome-config/policy.config.ts` turns off. `satisfies` is only a one-way
 // assignability check; parity is exact because both derive from `TAG_FOLDER_TYPES`.
 export type TagFolderType = (typeof TAG_FOLDER_TYPES)[number];
 export const tagFolderTypeSchema = z.enum(TAG_FOLDER_TYPES) satisfies z.ZodType<TagFolderType>;

@@ -47,7 +47,7 @@ export interface MemoryQueryOptions {
   /** First-class chat-scope — the scan is restricted to this one chat. */
   scope: { chat: ChatId };
   /** The chat HOST — the owner of the digest space this scan reads (vector tasks are owner-scoped: the
-   *  entity owner's `embed`/`rerank` bindings define the space and fund the query, inference program §7.5). */
+   *  entity owner's `embed`/`rerank` bindings define the space and fund the query). */
   ownerId: UserId;
   /** The recent-window retrieval query text: `memory` assembles the egocentric (name-prefixed) query
    *  pre-call; `search` embeds + scans it (mixB/mixC). Absent for the non-embedding modes. */
@@ -91,8 +91,8 @@ export interface DigestSearchHit extends ScoredBlock {
 
 /**
  * A digest hit plus WHERE IT CAME FROM — the shape a hit takes when it is going to be READ rather than
- * assembled into a prompt (the unified `digests` branch; corpus forensics §2.4/R1a, whose row rendered
- * `Chat 2y1mf5` because the wire carried nothing else nameable).
+ * assembled into a prompt (the unified `digests` branch). A row without it rendered as a bare `Chat 2y1mf5`
+ * id slice because the wire carried nothing else nameable.
  *
  * It is a separate shape on purpose: `recall` calls the `digests` verb dozens of times a turn and renders
  * nothing, so paying two display joins there would buy a prompt assembler two strings it throws away.
