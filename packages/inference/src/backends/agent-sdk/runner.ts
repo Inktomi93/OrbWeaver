@@ -119,7 +119,7 @@ function chatToolOptions(req: AgentSdkChatRequest, turnId: string, log: AgentSdk
 type MountedOptions = Pick<Options, "mcpServers" | "hooks" | "allowedTools">;
 
 /** UNION the channel fragments instead of spreading them (a spread lets the later fragment DELETE the earlier
- *  one's whole map). The per-key merge stays a SPREAD, never `Object.assign` (#1612 — `__proto__` as an own key). */
+ *  one's whole map). The per-key merge stays a SPREAD, never `Object.assign` — `__proto__` would land as an own key. */
 function mergeMountedOptions(...fragments: readonly Partial<MountedOptions>[]): MountedOptions {
   const merged: MountedOptions = {};
   for (const { hooks, mcpServers, allowedTools } of fragments) {
@@ -449,11 +449,10 @@ async function probeContextUsage(query: Query, deps: Pick<AgentSdkDeps, "schedul
 }
 
 /** Reduce an SDK message stream into a `ChatResult`; throws `ProviderError` on any failure result. A stream
- *  that ends without a `result` frame is a TRUNCATED turn and a retryable provider fault (#1400). */
+ *  that ends without a `result` frame is a TRUNCATED turn and a retryable provider fault. */
 async function consumeTurnStream(stream: AsyncIterable<SDKMessage>, ctx: TurnStreamContext, log: AgentSdkLog): Promise<ChatResult> {
   const acc = new TurnAccumulator(ctx, log);
   let streamFailure: unknown;
-  // the stream failure is held in `streamFailure` and returned through finishTurnWithError at runner.ts:474 (typed Promise<never>) once the observed result is captured. Ends if capture stops preceding that refusal.
   try {
     for await (const message of stream) {
       assertSdkMessageRead(message);

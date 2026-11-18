@@ -170,12 +170,12 @@ export function buildSeedFrames(canon: readonly SeedTurn[], sessionId: AgentSdkS
  * The comparison projection for ONE stored block. Text projects to its bytes; a tool block projects to a
  * NUL-prefixed identity marker naming the exchange it belongs to.
  *
- * WHY A MARKER AND NOT A FILTER (#1605): the comparators below decide resume-vs-reseed by comparing projected
- * text, and this projection used to keep `type === "text"` only. A `tool_result` block would then project to
- * nothing — so a seeded tool exchange and a session that never held one would compare EQUAL, and the frames we
- * wrote would fail to match themselves the moment a run held only tool blocks. The marker restores identity
- * without needing the payload: a tool id is minted once per call and recorded with it, so the id IS the
- * exchange's identity, and a NUL cannot occur in transcript text, so no content can forge a marker.
+ * WHY A MARKER AND NOT A FILTER: the comparators below decide resume-vs-reseed by comparing projected text. A
+ * `tool_result` that projected to nothing would make a seeded tool exchange and a session that never held one
+ * compare EQUAL, so the frames we wrote would fail to match themselves the moment a run held only tool blocks.
+ * The marker restores identity without needing the payload: a tool id is minted once per call and recorded with
+ * it, so the id IS the exchange's identity, and a NUL cannot occur in transcript text, so no content can forge a
+ * marker.
  *
  * Thinking blocks stay excluded on purpose (they are not transcript identity).
  */

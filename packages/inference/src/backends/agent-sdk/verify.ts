@@ -1,4 +1,4 @@
-// infra/providers/backends/agent-sdk/verify — the init-frame SHAPE GUARD + the SDK error classifiers.
+// The init-frame SHAPE GUARD + the SDK error classifiers.
 // All three speak the SDK's PRIVATE vocab (SDKAssistantMessageError codes, SDKResultError subtypes, the
 // init frame), so they live in THIS backend (D8 — the SDK is the agent-sdk backend's private dep), NOT
 // in the shared `backends/http` and `backends/wire` (SDK-free OpenAI-wire helpers). They map onto the SDK-free
@@ -84,8 +84,8 @@ export function classifyResultSubtype(subtype: SDKResultError["subtype"]): Error
 }
 
 /**
- * Classify an SDK loop-level `TerminalReason` → the normalized vocab. Exhaustive over the 19-member union
- * (SDK 0.3.206) so a new member is a `tsc` error, never a silent collapse to a generic subtype. Unlike
+ * Classify an SDK loop-level `TerminalReason` → the normalized vocab. Exhaustive over the `TerminalReason`
+ * union (SDK 0.3.206) so a new member is a `tsc` error, never a silent collapse to a generic subtype. Unlike
  * `classifyResultSubtype` (4 coarse subtypes), the terminal reason distinguishes the ban-risk +
  * context-overflow + input-error causes an error RESULT otherwise flattens — `buildResultError` prefers
  * it. Ban-risk vs transient: `blocking_limit` is a HARD block (fail-fast, non-retryable — retrying courts

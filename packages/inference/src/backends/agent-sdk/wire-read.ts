@@ -180,13 +180,13 @@ function readStreamEvent(message: unknown): void {
   }
 }
 
-/** Validate only the SDK message fields the application's stream consumers actually read. */
 /** True when a native Query rejected because it was aborted. The SDK rejects with its exported class, whose `name` is
  *  the plain `Error`, so the class is the test; a platform abort is matched by its `AbortError` name. */
 export function isQueryAbort(error: unknown): boolean {
   return error instanceof AbortError || (error instanceof Error && error.name === "AbortError");
 }
 
+/** Validate only the SDK message fields the application's stream consumers actually read. */
 export function assertSdkMessageRead(message: unknown): void {
   try {
     const header = headerSchema.parse(message);
