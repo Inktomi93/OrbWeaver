@@ -25,6 +25,7 @@ This is the work order: plans are worked in rank order, active before parked, an
 | 12 | [Snap never writes a secret to disk, argv or a trace](snap-secret-hygiene/design.md) | active |
 | 15 | [Stats and spend stay true after a delete, a regenerate, an import and a rebuild](stats-and-spend/design.md) | active |
 | 17 | [Imported presets and HTML in chat draw as their authors meant, safely](chat-html-and-presets/design.md) | active |
+| 18 | [A reply that cited the web keeps its citations](source-parts-storage/design.md) | active |
 | 13 | [Inference flow: owners, ports and callers](inference-flow/design.md) | parked |
 | 14 | [Restoration register](restoration-register/design.md) | parked |
 | 16 | [Ideas the owner has not yet chosen](ideas/design.md) | parked |
