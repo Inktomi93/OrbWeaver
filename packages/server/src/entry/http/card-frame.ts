@@ -28,6 +28,10 @@
 //     `script-src 'unsafe-inline'` and the card's own scripts execute inside the opaque-origin sandbox.
 //     What that does and does NOT reach — including residual R1, an unclosable WebRTC beacon — is measured
 //     and recorded in `@orb/kit/card-frame`.
+//   • a FORMING mint (`forming: true`, a panel of a reply still streaming) is capped after the selector resolves: the
+//     static posture and no external media, whatever the selector grants, because the room has not kept those bytes and
+//     a save-pass script, a stop string or an abort can still remove them. `data:` images keep the step's answer: they
+//     fetch nothing. The cap is the grant the handle stores, so every serve keeps it (a serve only narrows).
 //
 // ACCEPTED RESIDUAL, stated because it cannot be checked from here: a caller may name a TRUSTED (or an
 // INTERACTIVE) sibling character for a card actually authored by a lesser one in the SAME
@@ -186,6 +190,11 @@ async function resolvePolicy(
   };
 }
 
+// A streaming panel's cap: no script and no request off the box, whatever the selector resolved.
+function capForming(policy: ResolvedFramePolicy): ResolvedFramePolicy {
+  return { media: { allowExternalMedia: false, allowInlineData: policy.media.allowInlineData }, posture: "static" };
+}
+
 /** Register `POST /api/card-frame` (mint) + `GET /api/card-frame/:id` (serve) on `app`. */
 export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps): void {
   const store = createFrameHandleStore(deps.now, CARD_FRAME_CEILINGS);
@@ -240,7 +249,8 @@ export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps):
       return c.json({ error: "invalid card-frame mint" }, BAD_REQUEST);
     }
     const body = parsed.data;
-    const policy = await resolvePolicy(deps, principal, { chatId: body.chatId, characterId: body.characterId });
+    const resolved = await resolvePolicy(deps, principal, { chatId: body.chatId, characterId: body.characterId });
+    const policy = body.forming === true ? capForming(resolved) : resolved;
     // The clamps inside `buildCardFrameDocument` run on OUR side of the boundary — the client's own clamp
     // is defense in depth for the srcdoc floor, never the reason these values are safe here.
     const doc = buildCardFrameDocument({
