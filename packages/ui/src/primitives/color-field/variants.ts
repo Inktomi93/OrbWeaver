@@ -3,7 +3,9 @@ import {
   COLOR_MOTION,
   CONTROL_BLOCK,
   CONTROL_INLINE,
-  DISABLED_STATE,
+  DISABLED_DIM_WITHIN,
+  DISABLED_FIELD,
+  DISABLED_GROUP,
   FIELD_STACK,
   FOCUS_RING,
   FOCUS_RING_ON_POPOVER,
@@ -20,8 +22,10 @@ export const colorFieldVariants = tv({
     root: INLINE_FIELD_ROW,
     // `data-unset` is the display swatch's NO-COLOUR state: outlined and unfilled, so it never reads as a
     // picked colour (the input fill could pass for a dark grey).
-    swatch:
+    swatch: [
       "shrink-0 rounded-control border border-input-border bg-field-fill data-unset:border-dashed data-unset:border-muted-foreground data-unset:bg-transparent",
+      DISABLED_DIM_WITHIN,
+    ],
     hexText: CAPTION,
     // THE CONTROL EDGES WEAR THE D159 TOKEN, BOTH OF THEM: the trigger and the native swatch inside the popup
     // are identified by their border and nothing else, so it holds WCAG 1.4.11's 3:1 (`--color-input-border`,
@@ -31,7 +35,8 @@ export const colorFieldVariants = tv({
       COLOR_MOTION,
       "outline-none",
       FOCUS_RING,
-      `cursor-pointer ${DISABLED_STATE}`,
+      // A form control drawn by its edge: it never dims, so the edge keeps its 3:1. The chip inside recedes over the muted fill.
+      `cursor-pointer ${DISABLED_FIELD} ${DISABLED_GROUP}`,
       // The 8-state contract's loading/success arms (ui-package-design §5) — disabled/error/hover/
       // focus-visible/active ride pseudo-classes or Base UI's own data-invalid elsewhere; these two
       // need explicit skin since nothing native drives them.

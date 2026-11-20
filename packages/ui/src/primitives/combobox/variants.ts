@@ -3,6 +3,7 @@ import {
   COLOR_MOTION,
   CONTROL_MIN_BLOCK,
   DISABLED_DIM,
+  DISABLED_FIELD_INK_NATIVE,
   DISABLED_FIELD_WITHIN,
   DISABLED_STATE_NATIVE,
   FIELD_STACK,
@@ -51,7 +52,11 @@ export const comboboxVariants = tv({
     ],
     // `self-stretch` fills the line the wrapped box stretches to, so the draft input's hit area is the field's own
     // height rather than its text-height box.
-    input: [`flex-1 self-stretch bg-transparent px-field text-field leading-field outline-none ${TITLE_FLOOR}`, "placeholder:text-muted-foreground"],
+    input: [
+      `flex-1 self-stretch bg-transparent px-field text-field leading-field outline-none ${TITLE_FLOOR}`,
+      "placeholder:text-muted-foreground",
+      DISABLED_FIELD_INK_NATIVE,
+    ],
     positioner: "z-(--z-popover) outline-none",
     popup: [POPUP_SURFACE, "inline-(--anchor-width)", OVERLAY_MOTION.anchoredPopup],
     arrow: OVERLAY_ARROW,

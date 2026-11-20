@@ -1,4 +1,4 @@
-import { CAP, COLOR_MOTION, DISABLED_STATE, FOCUS_RING, FOCUS_RING_INSET, GROUND, GROW, SCROLLER_Y, tv } from "#lib";
+import { CAP, COLOR_MOTION, DISABLED_ACTIVE, DISABLED_STATE, FOCUS_RING, FOCUS_RING_INSET, GROUND, GROW, SCROLLER_Y, tv } from "#lib";
 import type { Tone } from "#tokens";
 
 // The tabs skin (D62 UIP-307) — an UNDERLINE strip, not a segmented pill: the list is a plain row
@@ -30,6 +30,7 @@ export const tabsVariants = tv({
       "outline-none",
       "data-active:text-foreground",
       DISABLED_STATE,
+      DISABLED_ACTIVE,
       "data-[orientation=vertical]:justify-start",
     ],
     // The sliding underline — a 2px `--primary` bar pinned to the list's bottom edge, positioned from

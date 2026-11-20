@@ -8,8 +8,10 @@ import {
   CONTROL_MIN_BLOCK,
   CONTROL_SIZE,
   CONTROL_WRAP,
+  DISABLED_SOLID,
   DISABLED_STATE,
   DISABLED_STATE_NATIVE,
+  DISABLED_UNDIMMED,
   FLOOR,
   FOCUS_RING,
   FOCUS_RING_INSET,
@@ -65,14 +67,7 @@ export const buttonVariants = tv({
     variant: {
       // A disabled solid drops its fill for the neutral muted pair at full opacity (a half-opacity fill read as nearly enabled, and the pair dimmed again fell under the legibility floor).
       // A busy (`loading`) button is disabled too but is working, so it keeps its fill; `primitives.css` quiets its ring to match.
-      solid: [
-        "bg-tone-solid text-tone-foreground hover:bg-tone-solid-hover active:bg-tone-solid-active",
-        "disabled:not-aria-busy:bg-muted disabled:not-aria-busy:text-muted-foreground disabled:not-aria-busy:opacity-100 disabled:not-aria-busy:shadow-none",
-        `
-          data-disabled:not-aria-busy:bg-muted data-disabled:not-aria-busy:text-muted-foreground data-disabled:not-aria-busy:opacity-100
-          data-disabled:not-aria-busy:shadow-none
-        `,
-      ],
+      solid: ["bg-tone-solid text-tone-foreground hover:bg-tone-solid-hover active:bg-tone-solid-active", DISABLED_SOLID],
       // The resting hairline: a secondary action, or a filter chip in a wrapping rail, where the drawn edge is what
       // makes the pill radius read at all.
       outline: `${TONE_OUTLINE} ${TONE_TINT_HOVER} ${TONE_TINT_PRESS}`,
@@ -178,7 +173,7 @@ export const buttonVariants = tv({
     // The accent ring for the moment a change this control made has landed (a portrait just replaced).
     confirming: { true: "ring-(length:--border-width-rule) ring-accent", false: "" },
     // A disabled control that teaches by its label stays at full strength; its state reads from the copy beside it.
-    quietDisabled: { true: "disabled:opacity-100 data-disabled:opacity-100", false: "" },
+    quietDisabled: { true: DISABLED_UNDIMMED, false: "" },
     // Scrollport-bound controls keep the ring inside their box instead of clipping an outer moat.
     focusRing: { surface: "", sidebar: FOCUS_RING_ON_SIDEBAR, inset: [FOCUS_RING_NONE, FOCUS_RING_INSET] },
   },

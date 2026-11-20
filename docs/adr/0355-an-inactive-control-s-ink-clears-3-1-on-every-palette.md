@@ -18,16 +18,16 @@ Two shapes were open for the floor: derive the disabled ink so it always clears 
 
 Every palette derives the opacity a fill-less inactive control dims to, and every control kind carries a second disabled signal besides opacity. The active inks never move.
 
-- **The second signal, one home per kind.** `packages/ui/src/lib/disabled-state.ts` holds each kind's state, and each primitive's variants compose it:
-  - A fill-less control (a ghost, outline or link Button, a toggle, a tab, a row, an item) dims by the derived step and drops to the muted ink (`DISABLED_STATE`, `DISABLED_DIM`).
-  - A form control drawn by its D159 edge (a text field, a number field, a select trigger, a combobox or autocomplete group) never dims. It swaps to the muted pair, `bg-muted` under `text-muted-foreground`, at full opacity (`DISABLED_FIELD`).
-  - A selection control (a checkbox, a radio, a switch) never dims. Its box or track swaps to the muted pair at every state, so a checked one drops its accent or quiet fill, and its check, dot or thumb takes the muted ink (`DISABLED_SELECTION`). A slider's rail takes the muted fill and its range and knob the muted ink.
-  - A solid Button drops its fill for the muted pair at full opacity.
+- **The second signal, one home.** `packages/ui/src/lib/disabled-state.ts` spells every opacity, fill and ink a disabled control paints, and each primitive's variants compose its constants. `better-tailwindcss/no-restricted-classes` refuses the spelling in any other `@orb/ui` or client file (`tests/tooling/eslint-ui-law.test.ts`):
+  - A fill-less control (a ghost, outline or link Button, a toggle, a tab, a row, an item) dims by the derived step and drops to the muted ink (`DISABLED_STATE`, `DISABLED_DIM`). An active tab's own ink yields to it.
+  - A form control drawn by its D159 edge (a text field, a number field, a select trigger, a color field's trigger, a combobox or autocomplete group) never dims its box. The box swaps to the muted fill at full opacity, and its content (the value, the placeholder, a chevron, a stepper glyph) paints the muted ink at the derived step as a colour alpha (`DISABLED_FIELD`). On a dark palette the muted fill sits within a few percent of the field fill, so the dimmed content carries the signal there.
+  - A selection control (a checkbox, a radio, a switch) never dims its box. A checkbox or radio swaps to the muted pair at every state, so a checked one drops its accent or quiet fill, and its check or dot takes the muted ink (`DISABLED_SELECTION`). A switch keeps a polarity inside the pair: on paints the muted ink as its track under a muted knob, and off keeps the muted track under a knob dimmed by the derived step, so it is never louder than an enabled off switch (`DISABLED_SWITCH`). A slider's rail takes the muted fill and its range and knob the muted ink.
+  - A solid fill (a solid Button, a selected chip, a pressed toggle) drops for the muted pair at full opacity (`DISABLED_SOLID`, `DISABLED_PRESSED`).
   - A part paints the state once. A group whose parts carry the state paints none of its own.
 
 - **The floor.** Every ink an inactive control paints clears `AA_NON_TEXT_RATIO`, 3:1, on its host, with the control's own fill dimmed with it. A pair is judged on the float colour and on the 8-bit pixel.
 
-- **The pairs.** `inactiveInkPairs` in `@orb/kit/theme-derivation` lists them from the D336 recipes: each role floor of every tone, each page ink on a tint under it, and each host's page ink and muted ink. A pair over a solid fill or a field fill is left out, because a control that paints one swaps to the muted pair instead of dimming.
+- **The pairs.** `inactiveInkPairs` in `@orb/kit/theme-derivation` lists them from the D336 recipes: each role floor of every tone, each page ink on a tint under it, and each host's page ink and muted ink, and the muted ink over the muted fill, which a field's content and an off switch's knob paint at the derived step. A pair over a solid fill or a field fill is left out, because a control that paints one swaps to the muted pair instead of dimming.
 
 - **The step.** `inactiveOpacityPercent` returns the least whole percent, at or above the resting step, at which every pair clears. The resting step is the `opacity.disabled` token. Every pair clears its active floor of at least 4.5:1 at full opacity, so a step always exists, and a miss at full opacity throws.
 

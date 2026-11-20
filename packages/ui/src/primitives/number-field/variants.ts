@@ -1,5 +1,17 @@
 import type { ControlSize } from "#lib";
-import { COLOR_MOTION, CONTROL_BLOCK, CONTROL_INLINE, CONTROL_SIZES, DISABLED_FIELD, FIELD_STACK, FOCUS_RING_INSET, TOUCH_TARGET_PSEUDO, tv } from "#lib";
+import {
+  COLOR_MOTION,
+  CONTROL_BLOCK,
+  CONTROL_INLINE,
+  CONTROL_SIZES,
+  DISABLED_FIELD,
+  DISABLED_FIELD_INK,
+  DISABLED_POINTER,
+  FIELD_STACK,
+  FOCUS_RING_INSET,
+  TOUCH_TARGET_PSEUDO,
+  tv,
+} from "#lib";
 
 // The group is the field's box at the step's height; the steppers are the step's width and fill its height, and rings go
 // inset because a stepper sits flush against the group's edge. Inside the group's 1px edge a child is 2px short of the
@@ -26,7 +38,7 @@ const STACKED_INCREMENT_REACH = "@max-cq-12:before:inset-s-0 @max-cq-12:before:i
 
 export const numberFieldVariants = tv({
   slots: {
-    root: `${FIELD_STACK} data-disabled:pointer-events-none`,
+    root: `${FIELD_STACK} ${DISABLED_POINTER}`,
     scrubArea: "flex cursor-ew-resize items-center gap-row text-label leading-label font-medium text-muted-foreground select-none inline-fit",
     scrubCursor: "flex text-foreground",
     // The parts take the group's ink, so a disabled field swaps every part to the muted ink from the one box that swaps its fill.
@@ -54,6 +66,7 @@ export const numberFieldVariants = tv({
       "placeholder:text-muted-foreground",
       `outline-none ${FOCUS_RING_INSET}`,
       "data-invalid:text-destructive",
+      DISABLED_FIELD_INK,
     ],
     increment: [
       `

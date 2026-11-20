@@ -1,4 +1,15 @@
-import { CAPTION, DISABLED_DIM, FIELD_LABEL, FIELD_STACK, FOCUS_RING_HAS, TOUCH_TARGET_PSEUDO, tv } from "#lib";
+import {
+  CAPTION,
+  DISABLED_DIM,
+  DISABLED_MARK,
+  DISABLED_POINTER,
+  DISABLED_SELECTION,
+  FIELD_LABEL,
+  FIELD_STACK,
+  FOCUS_RING_HAS,
+  TOUCH_TARGET_PSEUDO,
+  tv,
+} from "#lib";
 import type { Tone } from "#tokens";
 
 // The slider skin. The control row is h-(--size-control-sm) so the drag surface meets the ≥44px touch
@@ -7,7 +18,7 @@ import type { Tone } from "#tokens";
 // the track (it is the fill, and wants the rail's clip); the thumbs are the track's SIBLINGS.
 export const sliderVariants = tv({
   slots: {
-    root: `${FIELD_STACK} inline-full data-disabled:pointer-events-none`,
+    root: `${FIELD_STACK} inline-full ${DISABLED_POINTER}`,
     header: "flex items-baseline justify-between gap-row inline-full",
     label: `${FIELD_LABEL} ${DISABLED_DIM}`,
     value: `${CAPTION} tabular-nums`,
@@ -27,7 +38,7 @@ export const sliderVariants = tv({
     // Base UI sets data-invalid on Track (and Control/Thumb) when wrapped in an invalid <Field>
     // (FieldRootState) — the track fill is the visible surface, so it carries the destructive skin.
     // A disabled slider never dims: its rail takes the muted fill, and the `tone` arms move the range and the knob to the muted ink.
-    track: "relative grow overflow-hidden rounded-full bg-input block-field inline-full data-disabled:bg-muted data-invalid:bg-tone-tint-active",
+    track: ["relative grow overflow-hidden rounded-full bg-input block-field inline-full data-invalid:bg-tone-tint-active", DISABLED_SELECTION],
     indicator: "rounded-full data-invalid:bg-destructive",
     thumb: [
       // Base UI's Thumb is a decorative div wrapping the real (visually-clipped) native range input and
@@ -96,7 +107,7 @@ export const sliderVariants = tv({
   //    is promoted from inherited to explicit.
   variants: {
     tone: {
-      default: { indicator: "bg-primary data-disabled:bg-muted-foreground", thumb: "bg-foreground data-disabled:bg-muted-foreground" },
+      default: { indicator: ["bg-primary", DISABLED_MARK], thumb: ["bg-foreground", DISABLED_MARK] },
       ghost: { indicator: "bg-transparent", thumb: "border-rule border-muted-foreground bg-transparent" },
     },
   },

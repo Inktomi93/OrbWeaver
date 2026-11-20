@@ -1,4 +1,18 @@
-import { CAPTION, DISABLED_STATE, FOCUS_RING_INSET, HOVER_SWAP, OPEN_TURN, PUSH, RECEDED, SELECTION_RAIL, TITLE_FLOOR, TITLE_STEP, tv } from "#lib";
+import {
+  CAPTION,
+  DISABLED_GROUP,
+  DISABLED_INK_WITHIN,
+  DISABLED_STATE,
+  FOCUS_RING_INSET,
+  HOVER_SWAP,
+  OPEN_TURN,
+  PUSH,
+  RECEDED,
+  SELECTION_RAIL,
+  TITLE_FLOOR,
+  TITLE_STEP,
+  tv,
+} from "#lib";
 
 // `body` is the ONE clickable/selected/disabled surface (a `group` parent so title/subtitle can flip
 // color off `data-selected`); `actions` is a plain sibling slot that never inherits those states.
@@ -48,7 +62,7 @@ export const listRowVariants = tv({
     // (#1823). Three hand-copies of a ratified pair is how a ratified pair drifts.
     body: [
       "group group/body flex flex-auto items-center gap-row rounded-control px-row py-field outline-none min-block-(--size-control-md) min-inline-0",
-      `${SELECTION_RAIL} ${DISABLED_STATE}`,
+      `${SELECTION_RAIL} ${DISABLED_STATE} ${DISABLED_GROUP}`,
       // A disclosure header that is open holds the tint-active fill under its on-tint ink (`aria-expanded`, D336).
       "aria-expanded:bg-tone-tint-active aria-expanded:text-tone-text-on-tint",
     ],
@@ -63,12 +77,14 @@ export const listRowVariants = tv({
     // `flex-1` is the BLOCK-subtitle arm's growth (the title owns the whole line); the INLINE arm below
     // replaces it with a min-width floor, because a `flex-1 min-w-0` title beside a `shrink-0` sibling
     // collapses to ZERO width — the P0 that hid three Actions row names outright (side-eye F-01).
-    title: `
-      block flex-1 truncate text-start text-body leading-body font-medium text-foreground
-      group-aria-expanded/body:text-tone-text-on-tint
-      group-data-disabled/body:text-muted-foreground
-      group-data-selected:text-tone-text-on-tint
-    `,
+    title: [
+      `
+        block flex-1 truncate text-start text-body leading-body font-medium text-foreground
+        group-aria-expanded/body:text-tone-text-on-tint
+        group-data-selected:text-tone-text-on-tint
+      `,
+      DISABLED_INK_WITHIN,
+    ],
     // THE TITLE'S DISAMBIGUATOR (`titleQualifier`) — rendered right after the name, in the quiet mono datum
     // treatment the same handle already wears in the row's hover reveal. `shrink-0`: the qualifier is the
     // half that TELLS TWO ROWS APART, so a squeeze must eat the name (which is identical across them

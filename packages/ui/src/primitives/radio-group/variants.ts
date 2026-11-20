@@ -1,4 +1,4 @@
-import { SELECTION_CONTROL, tv, WIDTH } from "#lib";
+import { DISABLED_GROUP, DISABLED_MARK_WITHIN, SELECTION_CONTROL, tv, WIDTH } from "#lib";
 
 // Each item is a circle: bg-input/border-input-border at rest, primary fill + a light dot when selected.
 // SELECTION_CONTROL supplies the shared frame + state machine + the ::before touch-target hit area;
@@ -15,14 +15,9 @@ export const radioGroupVariants = tv({
       pointer-coarse:min-block-(--size-touch-target)
     `,
     item: [SELECTION_CONTROL, "rounded-full", "data-checked:border-primary data-checked:bg-primary"],
-    indicator: "group flex items-center justify-center",
+    indicator: ["group flex items-center justify-center", DISABLED_GROUP],
     // A disabled item paints the muted pair (`DISABLED_SELECTION`), so its dot takes the pair's ink.
-    dot: `
-      hidden rounded-full bg-primary-foreground block-field inline-field
-      group-data-checked:block
-      group-data-disabled:bg-muted-foreground
-      group-data-readonly:hidden
-    `,
+    dot: ["hidden rounded-full bg-primary-foreground block-field inline-field group-data-checked:block group-data-readonly:hidden", DISABLED_MARK_WITHIN],
     readOnlyIcon: "hidden text-primary-foreground group-data-readonly:block",
   },
 });

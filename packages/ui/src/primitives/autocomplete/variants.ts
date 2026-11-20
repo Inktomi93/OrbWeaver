@@ -3,6 +3,7 @@ import {
   COLOR_MOTION,
   CONTROL_BLOCK,
   CONTROL_INLINE,
+  DISABLED_FIELD_INK_NATIVE,
   DISABLED_FIELD_WITHIN,
   FIELD_STACK,
   FOCUS_RING_BARE,
@@ -32,6 +33,7 @@ export const autocompleteVariants = tv({
       "-my-(--border-width-control) flex-1 bg-transparent px-block text-field leading-field inline-full min-inline-0",
       "placeholder:text-muted-foreground",
       "outline-none",
+      DISABLED_FIELD_INK_NATIVE,
     ],
     clear: [
       "me-field flex shrink-0 items-center justify-center self-center rounded-control text-muted-foreground outline-none",

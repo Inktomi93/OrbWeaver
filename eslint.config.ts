@@ -128,8 +128,9 @@ const RESTRICTED_CLASSES = [
   },
   {
     // A neutral colour mixes alpha by hand the same way: the page inks and grounds, borders and fills. A step is named
-    // once instead: an opaque role, a colour token, or an element opacity step (`opacity-receded`).
-    pattern: String.raw`^(?:[^\s]*:)?!?[a-z-]+-(?:current|${colorRef(`(?:${NEUTRAL_COLORS.join("|")})`)})\/[^\s]+$`,
+    // once instead: an opaque role, a colour token, or an element opacity step (`opacity-receded`). The one step a colour
+    // may carry is the derived disabled step, whose composite D355's solve judges; only the disabled home may spell it.
+    pattern: String.raw`^(?:[^\s]*:)?!?[a-z-]+-(?:current|${colorRef(`(?:${NEUTRAL_COLORS.join("|")})`)})\/(?!\(--opacity-disabled\)$)[^\s]+$`,
     message:
       "An opacity modifier on a neutral colour; paint an opaque role or colour token, or an element opacity step such as opacity-receded (opacity-<step> in tokens.json).",
   },
@@ -235,6 +236,14 @@ const PAINT_CLASSES = {
   pattern: String.raw`^(?:[^\s]*:)?!?-?(?:rounded-(?:[xytrbsel]{1,2}-)?(?:none|xs|sm|md|lg|xl|2xl|3xl)|shadow-(?:xs|sm|md|lg|xl|2xl|inner|none)|border-(?:[xytrbse]-)?\d+|border-[xytrbse]|(?:ring|outline)-\d+|opacity-\d+|z-(?:\d+|auto)|(?:translate-[xyz]|rotate|scale(?:-[xy])?|skew-[xy])-(?:\d+(?:\/\d+)?|px|full)|clip-[^\s]+|bg-(?:gradient|linear|radial|conic)-[^\s]+)$`,
   message:
     "A raw radius, shadow, border, opacity, z-index, gradient, transform or clip class in the client; take it from a primitive prop or variant, or add the variant in @orb/ui.",
+};
+
+/** The disabled look's one home (D355): every other file composes its constants. */
+const DISABLED_STATE_HOME = "packages/ui/src/lib/disabled-state.ts";
+/** The disabled step as a utility or a colour alpha, or an opacity, fill, ink, edge or shadow behind any disabled variant. Pointer and cursor stay legal. */
+const DISABLED_LOOK_CLASSES = {
+  pattern: String.raw`^(?:[^\s]*:)?!?opacity-disabled!?$|^[^\s]*\/\(--opacity-disabled\)$|^(?:[^\s:]*:)*[^\s:]*disabled[^\s:]*:(?:[^\s:]*:)*!?-?(?:opacity|bg|text|border|fill|stroke|shadow|ring|outline)-[^\s]+$`,
+  message: `A hand-spelled disabled look; compose the control kind's constant from ${DISABLED_STATE_HOME} (D355).`,
 };
 
 const REACT_SOURCE = ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}"];
@@ -1248,23 +1257,34 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
       {
         name: "ui",
         files: ["packages/ui/src/**/*.{ts,tsx}"],
-        ignores: ["packages/ui/src/layout/**", "packages/ui/src/markdown/**"],
-        restrict: [VIEWPORT_CLASSES, WIDTH_CLASSES],
+        ignores: ["packages/ui/src/layout/**", "packages/ui/src/markdown/**", DISABLED_STATE_HOME],
+        restrict: [VIEWPORT_CLASSES, WIDTH_CLASSES, DISABLED_LOOK_CLASSES],
       },
-      { name: "ui", files: ["packages/ui/src/layout/**/*.{ts,tsx}", "packages/ui/src/markdown/**/*.{ts,tsx}"], ignores: [], restrict: [VIEWPORT_CLASSES] },
+      { name: "ui", files: [DISABLED_STATE_HOME], ignores: [], restrict: [VIEWPORT_CLASSES, WIDTH_CLASSES] },
+      {
+        name: "ui",
+        files: ["packages/ui/src/layout/**/*.{ts,tsx}", "packages/ui/src/markdown/**/*.{ts,tsx}"],
+        ignores: [],
+        restrict: [VIEWPORT_CLASSES, DISABLED_LOOK_CLASSES],
+      },
       // The app shell is the one home of viewport and pointer variants.
-      { name: "client", files: ["packages/client/src/features/app-shell/**/*.{ts,tsx}"], ignores: [], restrict: [WIDTH_CLASSES, PAINT_CLASSES] },
+      {
+        name: "client",
+        files: ["packages/client/src/features/app-shell/**/*.{ts,tsx}"],
+        ignores: [],
+        restrict: [WIDTH_CLASSES, PAINT_CLASSES, DISABLED_LOOK_CLASSES],
+      },
       {
         name: "client",
         files: ["packages/client/src/features/**/*.{ts,tsx}"],
         ignores: ["packages/client/src/features/app-shell/**"],
-        restrict: [VIEWPORT_CLASSES, POINTER_CLASSES, WIDTH_CLASSES, PAINT_CLASSES],
+        restrict: [VIEWPORT_CLASSES, POINTER_CLASSES, WIDTH_CLASSES, PAINT_CLASSES, DISABLED_LOOK_CLASSES],
       },
       {
         name: "client",
         files: ["packages/client/src/**/*.{ts,tsx}"],
         ignores: ["packages/client/src/features/**"],
-        restrict: [VIEWPORT_CLASSES, WIDTH_CLASSES, PAINT_CLASSES],
+        restrict: [VIEWPORT_CLASSES, WIDTH_CLASSES, PAINT_CLASSES, DISABLED_LOOK_CLASSES],
       },
     ] as const
   ).map(({ name, files, ignores, restrict }): FlatConfig.Config => {
