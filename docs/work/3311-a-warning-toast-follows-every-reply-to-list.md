@@ -19,7 +19,7 @@ A warning on every reply is noise that trains people to ignore warnings, and her
 
 ## Done when
 
-The dropped-settings notice is keyed by the preset and connection pair, carries a Params door to the knob it names, and states the reasoning clamp in correct words; a repeat with an unchanged drop set stays quiet as it does now.
+On a touch phone the turn notice no longer covers the room header, character bar or the first message's row, with a platform CT at phone width; the preset and connection key, the Params door to the Params view and the corrected clamp wording already exist (a dropped knob has no row to land on under D68).
 
 ## Evidence
 
