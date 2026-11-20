@@ -10,7 +10,7 @@ area: client
 
 ## What
 
-The background asset kind admits video (packages/contracts/src/assets/index.ts, the background media list holds image and video), and the theme surface plays a video background muted and looping, but the only upload door, packages/client/src/features/app-shell/components/background-upload-field.tsx, takes `accept="image/*"` and labels its field as an uploaded image. A user has no way to add the video background the app can play.
+The background asset kind admits video (packages/contracts/src/assets/index.ts, the background media list holds image and video), and the app shell plays a video background muted and looping, but neither door into the background library takes one: packages/client/src/features/app-shell/components/background-upload-field.tsx sets `accept="image/*"` and labels its field as an uploaded image, and packages/client/src/features/app-shell/components/external-background-field.tsx fetches the address and refuses anything that is not an image. A video dropped into a chat is chat media and never reaches the background picker.
 
 ## Why
 
@@ -18,7 +18,7 @@ A shipped capability with no way in reads as a missing feature, and the wiki now
 
 ## Done when
 
-The background upload accepts the video types the background kind admits, its label covers both, a case uploads a video background through the real field and sees it play, and the Themes wiki page gains the how-to.
+The background upload and the address field both accept the video types the background kind admits, their labels and refusal copy cover both, a case adds a video background through each real door and sees it play, and the Themes wiki page gains the how-to.
 
 ## Evidence
 
