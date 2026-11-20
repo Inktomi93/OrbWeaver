@@ -10,7 +10,7 @@
 
 // Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import type { ChunkParams } from "@orb/kit/chunk";
-import type { CharacterId, ChatId, DocumentId, WorkloadId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, DocumentId, UserId, WorkloadId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import type { Principal } from "#identity";
@@ -498,3 +498,26 @@ export type {
   ImportDocument,
   ListOwnedDocumentIds,
 } from "./owner-ops.ts";
+
+/** Where an imported document is active: everywhere, with these characters, in these rooms. Empty is the library alone. */
+export interface ImportedDocumentScopes {
+  readonly global: boolean;
+  readonly characterIds: readonly CharacterId[];
+  readonly chatIds: readonly ChatId[];
+}
+
+/** The databank's write for one document a profile import carries: the upload's `(ownerId, importHash)` dedup, then
+ *  each scope attached, all idempotent. `created` is false when the owner already held the bytes. `Signal` is the
+ *  caller's cancel, as for {@link CreateDocumentFromText}. */
+export type ImportAttachedDocument<Signal> = (args: {
+  readonly principal: Principal;
+  readonly bytes: Uint8Array;
+  readonly mime: string;
+  readonly name: string;
+  readonly scopes: ImportedDocumentScopes;
+  readonly signal: Signal;
+}) => Promise<{ readonly created: boolean }>;
+
+/** Which of these import hashes the owner's databank already holds: the key {@link ImportAttachedDocument} dedups by. A
+ *  read: it writes nothing. */
+export type HeldDocumentHashes = (args: { readonly ownerId: UserId; readonly hashes: readonly string[] }) => Promise<ReadonlySet<string>>;

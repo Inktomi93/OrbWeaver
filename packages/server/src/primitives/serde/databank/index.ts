@@ -21,6 +21,10 @@
 //
 // Round-trip drift guard: buildDocumentFile(parseDocumentFile(buildDocumentFile(d))) deep-equals
 // buildDocumentFile(d).
+//
+// It also reads SillyTavern's Data Bank attachment entries (`{ url, name, size, created }`), which name a file by its
+// `/user/files/<file>` URL. The settings and the chat serde both read them here, so a profile import pairs files by
+// one rule.
 
 import type { DocOrigin } from "@orb/contracts/databank";
 import { docOriginSchema } from "@orb/contracts/databank";
@@ -124,4 +128,45 @@ export function buildDocumentFile(doc: CanonicalDocument): Uint8Array {
 /** Parse untrusted databank-document bytes, or the typed reason they were refused. */
 export function parseDocumentFile(bytes: Uint8Array): PortableParse<CanonicalDocument> {
   return documentSerde.parse(bytes);
+}
+
+/** One SillyTavern Data Bank attachment: the file it names inside `user/files/`, and the name SillyTavern shows. */
+export interface StAttachment {
+  readonly file: string;
+  readonly name: string;
+}
+
+// SillyTavern writes an attachment URL relative to the user's data root, with a leading slash.
+const ST_ATTACHMENT_URL_PREFIX = "user/files/";
+const URL_SEPARATORS = /[\\/]/u;
+
+/** The `user/files/` file one SillyTavern attachment URL names, or null when it names no single file there. The
+ *  switched-off list (`extension_settings.disabled_attachments`) holds bare URLs, so it reads them through this too. */
+export function stAttachmentFile(url: unknown): string | null {
+  if (typeof url !== "string") {
+    return null;
+  }
+  const relative = url.startsWith("/") ? url.slice(1) : url;
+  const file = relative.startsWith(ST_ATTACHMENT_URL_PREFIX) ? relative.slice(ST_ATTACHMENT_URL_PREFIX.length) : "";
+  // A name with a separator is no single file of the plane, so it can never select one.
+  return file.length === 0 || URL_SEPARATORS.test(file) ? null : file;
+}
+
+function stAttachment(raw: unknown): StAttachment | null {
+  if (typeof raw !== "object" || raw === null) {
+    return null;
+  }
+  const { url, name } = raw as { readonly url?: unknown; readonly name?: unknown };
+  const file = stAttachmentFile(url);
+  if (file === null) {
+    return null;
+  }
+  const shown = typeof name === "string" ? name.trim() : "";
+  return { file, name: shown.length > 0 ? shown : file };
+}
+
+/** The entries of one SillyTavern attachment list that name a single `user/files/` file. Anything else is no
+ *  attachment, so a list that is not an array reads as empty. */
+export function readStAttachments(raw: unknown): StAttachment[] {
+  return Array.isArray(raw) ? raw.flatMap((entry) => stAttachment(entry) ?? []) : [];
 }

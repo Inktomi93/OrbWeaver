@@ -33,6 +33,8 @@ import { z } from "zod";
 import type { SliceBudget } from "#primitives/abort";
 import { sliceMeter } from "#primitives/abort";
 import { sha256HexOfParts } from "#primitives/content-hash";
+import type { StAttachment } from "#primitives/serde/databank";
+import { readStAttachments } from "#primitives/serde/databank";
 
 // ── the canonical shape (NAME-level; the serde owns its wire shape, server/primitives type-home-exempt) ──────────
 
@@ -188,6 +190,8 @@ export interface ParsedChat {
    *  null, so the mapper concatenates it after the note without a second absent spelling.
    */
   readonly scriptInjects: readonly ParsedScriptInject[];
+  /** ST chat_metadata.attachments: the Data Bank files attached to this chat. Absence is an empty list. */
+  readonly attachments: readonly StAttachment[];
   readonly bucket: ChatBucket;
   readonly messages: readonly ParsedChatMessage[];
 }
@@ -860,6 +864,7 @@ export async function parseChatJsonl(text: string, opts: { readonly fileName: st
     notePlacement: parseNotePlacement(meta),
     variables: parseChatVariables(meta),
     scriptInjects: parseScriptInjects(meta),
+    attachments: readStAttachments(meta?.["attachments"]),
     pinnedPersonaName: nullIfEmpty(str(meta?.[ST_PINNED_PERSONA_KEY])),
     bucket: classifyChat(messages),
     messages,

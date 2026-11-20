@@ -1,4 +1,5 @@
 import type { BulkImportChatsOp } from "@orb/contracts/chat";
+import type { ImportAttachedDocument } from "@orb/contracts/databank";
 import type { BulkImportPersonas } from "@orb/contracts/persona";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type {
@@ -17,7 +18,7 @@ import type { IdSource, PersonaId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { AssetsAssemblyContext, AssetsService } from "#domain/assets";
-import { createAdmitsAvatar, createBackgroundStore } from "#domain/assets";
+import { createAdmitsAvatar, createBackgroundStore, createHeldGalleryHashes, createImportGalleryImage } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import {
   createCompareAndSetImportedTokenUsage,
@@ -26,6 +27,7 @@ import {
   createListImportedTokenUsageCandidates,
 } from "#domain/chat";
 import type { DatabankPortabilityAssemblyContext } from "#domain/databank";
+import { createHeldDocumentHashes } from "#domain/databank";
 import type { ExportService } from "#domain/export";
 import type { ImageryPortabilityService } from "#domain/imagery";
 import type { ExportCurrentCard, ExportCurrentChats, ImportDriverDeps, ImportWorkloadDeps, OwnedChatTitle, SettleImportMemory } from "#domain/import";
@@ -81,6 +83,8 @@ export interface PortabilityRunnerComposeDeps {
   readonly spendLedgerPortability: SpendLedgerPortabilityService;
   /** The databank portability bundle (db + clock + id minter + the ingest enqueue a restore re-runs). */
   readonly databankCtx: DatabankPortabilityAssemblyContext;
+  /** The databank's write for a Data Bank file a SillyTavern profile carries. */
+  readonly importAttachedDocument: ImportAttachedDocument<AbortSignal>;
   readonly persona: PersonaService;
   readonly exportService: ExportService;
   /** The import lookup's last step for a card or room the app wrote (D290). */
@@ -207,7 +211,11 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
             backgroundHashes: createOwnedBackgroundHashes(deps.settingsCtx),
             findChatHashes: createFindImportedChatHashes({ db }),
             admitsAvatar: createAdmitsAvatar(),
+            documentHashes: createHeldDocumentHashes(deps.databankCtx),
+            galleryHashes: createHeldGalleryHashes(deps.galleryCtx),
           },
+          importDocument: deps.importAttachedDocument,
+          importGalleryImage: createImportGalleryImage({ ...deps.galleryCtx, store: deps.assets.store }),
           importPresetScripts: deps.importPresetScripts,
           planPresetScripts: deps.planPresetScripts,
           importGlobalScripts: deps.importGlobalScripts,

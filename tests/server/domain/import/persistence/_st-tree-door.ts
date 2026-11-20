@@ -85,8 +85,14 @@ export async function importThroughDialog(root: ServerTestHarness, filename: str
   return result;
 }
 
-export function settings(personas: Readonly<Record<string, string>>): string {
-  return JSON.stringify({ ["power_user"]: { personas } });
+/** A settings file naming these personas, with an `extension_settings` section when one is given. */
+export function settings(personas: Readonly<Record<string, string>>, extensionSettings?: Readonly<Record<string, unknown>>): string {
+  return JSON.stringify({ ["power_user"]: { personas }, ...(extensionSettings === undefined ? {} : { ["extension_settings"]: extensionSettings }) });
+}
+
+/** One SillyTavern attachment entry for a `user/files/` file, as the Data Bank writes it. */
+export function attachmentOf(file: string, name: string): Readonly<Record<string, unknown>> {
+  return { url: `/user/files/${file}`, name, size: name.length, created: 0 };
 }
 
 export function chatOf(text: string): string {
@@ -217,12 +223,28 @@ export type KindNames = Readonly<Record<ImportPreviewKind, readonly string[]>>;
  *  imported `held` owns every item of it and none of `fresh`. */
 function kindFolder(root: ServerTestHarness, which: "held" | "fresh"): { readonly files: Files; readonly names: KindNames } {
   const held = which === "held";
-  const [card, persona, personaFile, book, preset, theme, surface, group, groupLeaf, orphan, backdrop, text] = held
-    ? ["Aria", "Bob", "bob.png", "Eldoria", "Held", "Dusk", "rgba(23, 23, 40, 1)", "Held Group", "held-room", "Wanderer", "Dawn", "held"]
-    : ["Bram", "Cat", "cat.png", "Mirefen", "Fresh", "Ember", "rgba(60, 20, 20, 1)", "Fresh Group", "fresh-room", "Drifter", "Dusk", "fresh"];
+  const [card, persona, personaFile, book, preset, theme, surface, group, groupLeaf, orphan, backdrop, text, document, picture] = held
+    ? ["Aria", "Bob", "bob.png", "Eldoria", "Held", "Dusk", "rgba(23, 23, 40, 1)", "Held Group", "held-room", "Wanderer", "Dawn", "held", "Held notes", "Glade"]
+    : [
+        "Bram",
+        "Cat",
+        "cat.png",
+        "Mirefen",
+        "Fresh",
+        "Ember",
+        "rgba(60, 20, 20, 1)",
+        "Fresh Group",
+        "fresh-room",
+        "Drifter",
+        "Dusk",
+        "fresh",
+        "Fresh notes",
+        "Marsh",
+      ];
   const cardFile = `${card}.png`;
+  const documentFile = `${text}-notes.txt`;
   const files: Files = {
-    [ST_SETTINGS_FILE]: settings({ [personaFile]: persona }),
+    [ST_SETTINGS_FILE]: settings({ [personaFile]: persona }, { attachments: [attachmentOf(documentFile, document)] }),
     [`characters/${cardFile}`]: cardPng(root, card),
     [`chats/${card}/solo.jsonl`]: chatOf(`${text} solo`),
     [`worlds/${book}.json`]: JSON.stringify({ entries: { "0": { uid: 0, key: [book.toLowerCase()], comment: book, content: `${text} lore.`, order: 100 } } }),
@@ -232,6 +254,9 @@ function kindFolder(root: ServerTestHarness, which: "held" | "fresh"): { readonl
     [`groups/${text}.json`]: KIND_GROUP(group, cardFile, groupLeaf),
     [`group chats/${groupLeaf}.jsonl`]: chatOf(`${text} room`),
     [`chats/${orphan}/orphan.jsonl`]: chatOf(`${text} orphan`),
+    [`user/files/${documentFile}`]: `${text} notes for every chat.`,
+    // SillyTavern keeps a character's gallery in a folder named for the card.
+    [`user/images/${card}/${picture}.png`]: new Uint8Array(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))),
   };
   return {
     files,
@@ -245,6 +270,8 @@ function kindFolder(root: ServerTestHarness, which: "held" | "fresh"): { readonl
       backgrounds: [backdrop],
       groups: [group],
       orphans: [orphan],
+      documents: [document],
+      gallery: [`${card}: ${picture}`],
     },
   };
 }
@@ -261,7 +288,14 @@ export function bothKindFolders(root: ServerTestHarness): {
   return {
     held: held.files,
     fresh: fresh.files,
-    both: { ...held.files, ...fresh.files, [ST_SETTINGS_FILE]: settings({ ["bob.png"]: "Bob", ["cat.png"]: "Cat" }) },
+    both: {
+      ...held.files,
+      ...fresh.files,
+      [ST_SETTINGS_FILE]: settings(
+        { ["bob.png"]: "Bob", ["cat.png"]: "Cat" },
+        { attachments: [attachmentOf("held-notes.txt", "Held notes"), attachmentOf("fresh-notes.txt", "Fresh notes")] },
+      ),
+    },
     names: { held: held.names, fresh: fresh.names },
   };
 }

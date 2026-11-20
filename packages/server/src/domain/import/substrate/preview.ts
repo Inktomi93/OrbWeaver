@@ -103,10 +103,6 @@ export function refusedGroups(collected: ProfileCollected): ReturnType<typeof pa
 function profileSkips(profile: LabeledProfile, refused: ReadonlyMap<CollectedGroup, GroupRefusal>): ImportPreviewSkip[] {
   const { result } = profile;
   const at = (path: string, reason: string): ImportPreviewSkip => skip(profile, path, reason);
-  const planeFiles = [
-    { count: result.databankFileCount, plane: "user/files/", one: "Data Bank file", many: "Data Bank files" },
-    { count: result.galleryImageCount, plane: "user/images/", one: "gallery image", many: "gallery images" },
-  ];
   return [
     ...result.unreadableCards.map((file) => at(file, "not a readable character card")),
     ...result.invalidCards.map(({ file, reason }) => at(file, reason)),
@@ -124,9 +120,8 @@ function profileSkips(profile: LabeledProfile, refused: ReadonlyMap<CollectedGro
     ...result.truncatedDirs.map(({ dir, kept, total }) =>
       at(dir.split(/[\\/]/u).at(-1) ?? dir, `only the first ${String(kept)} of ${String(total)} entries are read`),
     ),
-    ...planeFiles
-      .filter(({ count }) => count > 0)
-      .map(({ count, plane, one, many }) => at(plane, `${String(count)} ${count === 1 ? one : many} not imported yet`)),
+    ...result.skippedDocuments.map(({ file, reason }) => at(file, reason)),
+    ...result.skippedGalleryImages.map(({ file, reason }) => at(file, reason)),
     ...[...new Set(result.unhandled)].map((entry) => at(entry, "SillyTavern data that does not import")),
     ...[...new Set(result.unhandledSettings)].map((entry) => at(entry, "a SillyTavern setting that does not import")),
   ];
@@ -214,6 +209,8 @@ function profileKindItems(
     backgrounds: result.backgrounds.map((background) => listed(background, owned.backgrounds, item(profile, background.filename, background.name))),
     groups: groups.map((group) => listed(group, owned.groups, item(profile, group.sourceFile, group.parsed.name))),
     orphans: result.orphanBundles.map((orphan) => listed(orphan, owned.orphans, item(profile, orphan.dirName, orphan.dirName))),
+    documents: result.documents.map((document) => listed(document, owned.documents, item(profile, document.sourceFile, document.name))),
+    gallery: result.galleryImages.map((image) => listed(image, owned.gallery, item(profile, image.sourceFile, `${image.cards[0].cardName}: ${image.name}`))),
   };
 }
 
@@ -233,6 +230,8 @@ function kindItems(collected: ProfileCollected, owned: ImportOwnership): Readonl
     backgrounds: gather("backgrounds"),
     groups: gather("groups"),
     orphans: gather("orphans"),
+    documents: gather("documents"),
+    gallery: gather("gallery"),
   };
 }
 
@@ -247,6 +246,8 @@ const NOTHING_OWNED: ImportOwnership = {
   backgrounds: new Map(),
   groups: new Map(),
   orphans: new Map(),
+  documents: new Map(),
+  gallery: new Map(),
   personasWithoutArt: new Set(),
 };
 
@@ -263,6 +264,8 @@ export function countImportKinds(collected: ProfileCollected): ImportKindCounts 
     backgrounds: items.backgrounds.length,
     groups: items.groups.length,
     orphans: items.orphans.length,
+    documents: items.documents.length,
+    gallery: items.gallery.length,
   };
 }
 
@@ -282,6 +285,8 @@ export function buildImportPreview(collected: ProfileCollected, owned: ImportOwn
       backgrounds: importPreviewListOf(items.backgrounds),
       groups: importPreviewListOf(items.groups),
       orphans: importPreviewListOf(items.orphans),
+      documents: importPreviewListOf(items.documents),
+      gallery: importPreviewListOf(items.gallery),
     },
     skipped: { total: skipped.length, items: skipped.slice(0, IMPORT_PREVIEW_LIST_MAX) },
   };

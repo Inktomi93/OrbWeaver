@@ -2,7 +2,7 @@
 // already holds them or because an earlier item of the same upload lands them, and the content keys each item is
 // compared by. Books, presets, themes and personas are judged by the owning domain's own batch write in dry-run mode.
 // Characters are judged by the write's own reuse rule (`reusedCardRow`) over a record of the rows the upload's earlier
-// cards would land; chats, orphans and backgrounds by the write's equality rule over the items before them in the
+// cards would land; chats, orphans, backgrounds, Data Bank files and gallery images by the write's equality rule over the items before them in the
 // run's order. So a preview and a real run agree on what "already yours" means. Nothing here writes. A verdict belongs to the
 // collected entry itself, never to its source string, because two profiles of one folder can share a path. A key
 // is the owner's own key for the item (a card's import hash, a transcript's hash under the row it lands under), so
@@ -15,7 +15,7 @@ import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import type { CharacterId } from "@orb/kit/ids";
 import { mapYielding } from "#primitives/abort";
 import { sha256Hex } from "#primitives/content-hash";
-import type { CollectedCard, CollectedChat, CollectedPersona, CollectedPreset } from "../contract/collection.ts";
+import type { CollectedCard, CollectedChat, CollectedGalleryImage, CollectedPersona, CollectedPreset } from "../contract/collection.ts";
 import type { CurrentCardIdentity } from "../contract/identity.ts";
 import type { ImportOwnership, ProfileCollected, ProfileDirImportDeps } from "../contract/profile-directory.ts";
 import { currentCardIdentity, importFileHash, reusedCardRow } from "../substrate/card.ts";
@@ -360,6 +360,67 @@ async function passLibrary(
   };
 }
 
+/** A Data Bank file is held when the owner's databank holds its bytes, the key the upload dedups by, or when an earlier
+ *  file of the upload carries the same bytes. */
+async function passDocuments(deps: ProfileDirImportDeps, collected: ProfileCollected): Promise<ImportOwnership["documents"]> {
+  const hashes = collected.documents.map((document) => document.importHash);
+  const held = hashes.length === 0 ? new Set<string>() : await deps.ownership.documentHashes({ ownerId: deps.principal.userId, hashes });
+  // call-local: the bytes the earlier files of the upload land. Ends if it outlives the pass.
+  const landed = new Set<string>();
+  return answersOf(
+    collected.documents,
+    collected.documents.map(({ importHash }): ImportAnswer => {
+      const keys = [importHash];
+      if (held.has(importHash)) {
+        return { reuse: "library", keys };
+      }
+      if (landed.has(importHash)) {
+        return { reuse: "upload", keys };
+      }
+      landed.add(importHash);
+      return { reuse: null, keys };
+    }),
+  );
+}
+
+// Whether every row already holds the image in its gallery. A row the upload creates holds nothing.
+async function galleryHeldByEvery(deps: ProfileDirImportDeps, cards: CardPass, rows: readonly RowKey[], hash: string): Promise<boolean> {
+  for (const row of rows) {
+    const characterId = cards.ownedByRow.get(row);
+    if (characterId === undefined || !(await deps.ownership.galleryHashes({ ownerId: deps.principal.userId, characterId, hashes: [hash] })).has(hash)) {
+      return false;
+    }
+  }
+  return rows.length > 0;
+}
+
+/** A gallery image is held when every character it lands with already holds its bytes in their gallery, the
+ *  `(asset, character)` key the gallery write dedups by, or when earlier images of the upload claimed every such pair.
+ *  A character the upload creates holds nothing yet. */
+async function passGallery(deps: ProfileDirImportDeps, collected: ProfileCollected, cards: CardPass): Promise<ImportOwnership["gallery"]> {
+  const gallery = new Map<CollectedGalleryImage, ImportAnswer>();
+  // call-local: the (row, hash) pairs the earlier images of the upload claim. Ends if it outlives the pass.
+  const claimed = new Set<string>();
+  for (const image of collected.galleryImages) {
+    if (deps.signal.aborted) {
+      break;
+    }
+    const hash = sha256Hex(image.bytes);
+    const rows = image.cards.flatMap((card) => cards.rowByCard.get(card) ?? []);
+    const keys = rows.map((row) => JSON.stringify([row, hash]));
+    if (await galleryHeldByEvery(deps, cards, rows, hash)) {
+      gallery.set(image, { reuse: "library", keys });
+    } else {
+      gallery.set(image, { reuse: keys.length > 0 && keys.every((key) => claimed.has(key)) ? "upload" : null, keys });
+    }
+    for (const key of keys) {
+      claimed.add(key);
+    }
+    await yieldToEventLoop();
+  }
+  return gallery;
+}
+
 export async function findOwnership(deps: ProfileDirImportDeps, collected: ProfileCollected): Promise<ImportOwnership> {
   // The run lands every card with its chats, then the orphan directories, then the groups; the chat claims follow that order.
   const chats: ChatJudge = { answers: new Map(), claims: new Map() };
@@ -374,6 +435,8 @@ export async function findOwnership(deps: ProfileDirImportDeps, collected: Profi
     ...(await passLibrary(deps, collected)),
     groups,
     orphans,
+    documents: await passDocuments(deps, collected),
+    gallery: await passGallery(deps, collected, cards),
     personasWithoutArt: artless,
   };
 }

@@ -22,7 +22,7 @@
 import type { BulkImportChatInput, ChatMetadata } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, narratorPolicyOf } from "@orb/contracts/chat";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import type { CollectedGroup } from "../contract/collection.ts";
+import type { CollectedChat, CollectedGroup } from "../contract/collection.ts";
 import type { ImportGroupsInput, ImportProfileGroups } from "../contract/params.ts";
 import type {
   GroupSeats,
@@ -144,6 +144,8 @@ function refusalFor(group: CollectedGroup, seatCount: number): string | null {
 /** ONE group's room(s), or the contained refusal. PER-GROUP ISOLATION lives here rather than in the wave loop:
  *  a refused seat or one malformed transcript is one skipped room, never an aborted wave. */
 interface GroupWrite {
+  /** The room each of the group's transcripts landed on or was held under. */
+  readonly rooms: readonly (readonly [CollectedChat, ChatId])[];
   readonly chatsImported: number;
   readonly chatsReused: number;
   readonly memoryChatIds: readonly ChatId[];
@@ -159,7 +161,7 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
     // Proven non-empty by `refusalFor` before this runs; the fallback keeps the read total.
     const primary = seated[0];
     if (primary === undefined) {
-      return { chatsImported: 0, chatsReused: 0, memoryChatIds: [], chatsPersonaHealed: 0, skippedChatRows: [] };
+      return { rooms: [], chatsImported: 0, chatsReused: 0, memoryChatIds: [], chatsPersonaHealed: 0, skippedChatRows: [] };
     }
     const characterIds = seated.slice(1).map((s) => s.characterId);
     const metadata = metadataFor(group);
@@ -187,6 +189,11 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
     const chats = disambiguateChatTitles(built);
     const counts = await profile.bulkImportChats({ ownerId: ctx.ownerId, characterId: primary.characterId, chats });
     return {
+      // The write answers its remaps in input order, one per transcript.
+      rooms: group.chats.flatMap((chat, i) => {
+        const remap = counts.remaps[i];
+        return remap === undefined ? [] : [[chat, remap.chatId] as const];
+      }),
       chatsImported: counts.chatsImported,
       chatsReused: counts.chatsSkipped,
       memoryChatIds: counts.realConversationsWritten,
@@ -229,6 +236,7 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
     const ambiguousSpeakerNames: ImportAmbiguousSpeakerName[] = [];
     const seatedDisabledMembers: ImportSeatedDisabledMember[] = [];
     const skippedChatRows: ImportSkippedCard[] = [];
+    const chatIdByChat = new Map<CollectedChat, ChatId>();
 
     const seatings = input.profiles.flatMap((scope) => scope.groups.map((entry) => ({ group: entry, cards: scope })));
     for (const { group, cards } of seatings) {
@@ -254,6 +262,9 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
       memoryChatIds.push(...outcome.memoryChatIds);
       chatsPersonaHealed += outcome.chatsPersonaHealed;
       skippedChatRows.push(...outcome.skippedChatRows);
+      for (const [chat, chatId] of outcome.rooms) {
+        chatIdByChat.set(chat, chatId);
+      }
     }
 
     return {
@@ -269,6 +280,7 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
       ambiguousSpeakerNames,
       seatedDisabledMembers,
       skippedChatRows,
+      chatIdByChat,
     };
   }
   return { importGroupChats };

@@ -216,7 +216,7 @@ function profileEntries(directory: ZipDirectory): ProfileEntry[] {
 function profileContent(entries: readonly ProfileEntry[], stagePrefix: string): ProfileEntry[] {
   return entries.filter((entry) => {
     const [, top, ...rest] = (stagePrefix + entry.relPath).split("/");
-    return top !== undefined && stProfileEntryDisposition(top, rest.length > 0).handled;
+    return top !== undefined && stProfileEntryDisposition(top, rest.length > 0, rest[0]).handled;
   });
 }
 

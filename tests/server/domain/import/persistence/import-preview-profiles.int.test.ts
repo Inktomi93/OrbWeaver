@@ -16,7 +16,7 @@ import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { makeAssetBytes } from "@orb/testkit/node/composed";
 import { eq, sql } from "drizzle-orm";
 import type { Files } from "./_st-tree-door.ts";
-import { admit, cardPng, chatOf, dryRun, finish, finishRun, harness, inProfile, presetOf, settings, themeOf } from "./_st-tree-door.ts";
+import { admit, attachmentOf, cardPng, chatOf, dryRun, finish, finishRun, harness, inProfile, presetOf, settings, themeOf } from "./_st-tree-door.ts";
 
 const ALICE = "alice";
 const BOB = "bob";
@@ -30,16 +30,25 @@ const ORPHAN_SOURCE = `chats/${ORPHAN_DIR}`;
 interface Art {
   readonly card: Uint8Array;
   readonly background: Uint8Array;
+  readonly picture: Uint8Array;
 }
 
 function artFor(root: ServerTestHarness, who: string): Art {
-  return { card: cardPng(root, `${who} card`), background: new Uint8Array(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))) };
+  return {
+    card: cardPng(root, `${who} card`),
+    background: new Uint8Array(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))),
+    picture: new Uint8Array(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))),
+  };
 }
 
 /** One profile's files. Every profile lays the same relative path for every kind, with content of its own. */
 function profileFiles(root: ServerTestHarness, who: string, withOrphan: boolean, art: Art = artFor(root, who)): Files {
   return {
-    [ST_SETTINGS_FILE]: settings({ "me.png": `${who} persona` }),
+    // The gallery folder override gives every profile's card one folder name.
+    [ST_SETTINGS_FILE]: settings(
+      { "me.png": `${who} persona` },
+      { attachments: [attachmentOf("notes.txt", "Notes")], gallery: { folders: { "Card.png": "Card" } } },
+    ),
     "characters/Card.png": art.card,
     "chats/Card/solo.jsonl": chatOf(`${who} solo`),
     "worlds/Atlas.json": JSON.stringify({ entries: { "0": { uid: 0, key: [who], comment: who, content: `${who} lore.`, order: 100 } } }),
@@ -48,6 +57,8 @@ function profileFiles(root: ServerTestHarness, who: string, withOrphan: boolean,
     "backgrounds/Plain.png": art.background,
     "groups/crew.json": JSON.stringify({ name: `${who} crew`, members: ["Card.png"], chats: [GROUP_LEAF] }),
     [`group chats/${GROUP_LEAF}.jsonl`]: chatOf(`${who} room`),
+    "user/files/notes.txt": `${who} notes.`,
+    "user/images/Card/Plain.png": art.picture,
     ...(withOrphan ? { [`chats/${ORPHAN_DIR}/orphan.jsonl`]: chatOf(`${who} orphan`) } : {}),
   };
 }
@@ -93,6 +104,8 @@ const WRITTEN: Readonly<Record<ImportPreviewKind, (root: ServerTestHarness) => P
   themes: async (root) => await rowCount(root, "themes"),
   backgrounds: async (root) =>
     (await root.services.settings.getUserSettings({ principal: await root.principalFor(root.ownerId) })).config.appearance.backgroundLibrary.length,
+  documents: async (root) => await rowCount(root, "documents"),
+  gallery: async (root) => await rowCount(root, "gallery_items"),
 };
 
 forEachNonEmpty(IMPORT_PREVIEW_KINDS, "preview kinds", (kind) => {

@@ -8,7 +8,7 @@ export type { DatabankAssemblyContext, DatabankIngest, DatabankService, Databank
 
 export { createDatabankIngest } from "./ingest/index.ts";
 export { createDetachHandoffDocuments } from "./persistence/handoff-detach.ts";
-export { createExportDocument, createImportDocument, createListOwnedDocumentIds } from "./persistence/portability-write.ts";
+export { createExportDocument, createHeldDocumentHashes, createImportDocument, createListOwnedDocumentIds } from "./persistence/portability-write.ts";
 export { createDatabankRoomReach } from "./persistence/room-reach.ts";
 export { resolveActiveDocumentIds, resolveActiveDocumentScope } from "./persistence/scope.ts";
 export { createDatabankService } from "./service.ts";

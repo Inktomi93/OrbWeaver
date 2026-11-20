@@ -1,5 +1,6 @@
-import type { AdmitsAvatar, StoreAvatarAsset, StoredAsset, StoreParams } from "@orb/contracts/assets";
+import type { AdmitsAvatar, HeldGalleryHashes, ImportGalleryImage, StoreAvatarAsset, StoredAsset, StoreParams } from "@orb/contracts/assets";
 import type { BulkImportChatsOp, FindImportedChatHashes } from "@orb/contracts/chat";
+import type { HeldDocumentHashes, ImportAttachedDocument } from "@orb/contracts/databank";
 import type { Principal } from "@orb/contracts/identity";
 import type { ImportAnswer, ImportFsPort, PersonaCollisionChoices } from "@orb/contracts/import";
 import type { BulkImportPersonas } from "@orb/contracts/persona";
@@ -15,6 +16,8 @@ import type {
   CollectedBackground,
   CollectedCard,
   CollectedChat,
+  CollectedDocument,
+  CollectedGalleryImage,
   CollectedGroup,
   CollectedPersona,
   CollectedPreset,
@@ -42,6 +45,8 @@ export interface ProfileOwnership {
   readonly findChatHashes: FindImportedChatHashes;
   /** Whether the avatar store keeps a persona's art, so the dry run compares and flags a persona as the run lands it. */
   readonly admitsAvatar: AdmitsAvatar;
+  readonly documentHashes: HeldDocumentHashes;
+  readonly galleryHashes: HeldGalleryHashes;
 }
 
 /** The collected entries of one kind, each with the answer the dry run reached: the content keys it is compared by
@@ -62,6 +67,8 @@ export interface ImportOwnership {
   readonly backgrounds: Judged<CollectedBackground>;
   readonly groups: Judged<CollectedGroup>;
   readonly orphans: Judged<CollectResult["orphanBundles"][number]>;
+  readonly documents: Judged<CollectedDocument>;
+  readonly gallery: Judged<CollectedGalleryImage>;
   /** The personas the run lands without art: their avatar file is missing, or the avatar store refuses it. */
   readonly personasWithoutArt: ReadonlySet<CollectedPersona>;
 }
@@ -109,6 +116,10 @@ export interface ProfileDirImportDeps {
   readonly applyImportedAppearance?: ApplyImportedAppearance;
   /** Mints a `BackgroundLibraryEntry`'s stable per-row id (crypto uuid in prod; deterministic in tests). */
   readonly newBackgroundEntryId?: NewBackgroundEntryId;
+  /** The databank's write for a Data Bank file, after every wave whose rows its scopes name. */
+  readonly importDocument: ImportAttachedDocument<AbortSignal>;
+  /** The assets write for a gallery image, after the character wave. */
+  readonly importGalleryImage: ImportGalleryImage;
   /** The reads a dry run asks for the kinds whose write has no dry-run mode. */
   readonly ownership: ProfileOwnership;
   readonly bulkImportChats: BulkImportChatsOp;
@@ -134,6 +145,9 @@ export interface ProfileCollectRecords
     | "unreadablePresets"
     | "refusedThemes"
     | "skippedBackgrounds"
+    | "skippedDocuments"
+    | "documentNotes"
+    | "skippedGalleryImages"
     | "unreadableGroups"
     | "missingPersonaAvatars"
     | "skippedChats"
@@ -169,8 +183,8 @@ export interface ProfileCollected
       | "orphanBundles"
       | "globalRegexScripts"
       | "globalRegexScriptNotes"
-      | "databankFileCount"
-      | "galleryImageCount"
+      | "documents"
+      | "galleryImages"
     > {
   readonly skipped: number;
   readonly profiles: readonly CollectedProfile[];
@@ -191,6 +205,11 @@ export type ProfileWaveOutcomes = Pick<
   | "worldNotes"
   | "backgroundsImported"
   | "skippedBackgrounds"
+  | "documentsImported"
+  | "skippedDocuments"
+  | "documentNotes"
+  | "galleryImagesImported"
+  | "skippedGalleryImages"
   | "skippedPersonaAvatars"
   | "skippedCardTags"
   | "cardNotes"

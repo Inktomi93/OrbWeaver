@@ -268,6 +268,8 @@ export const KIND_NOUNS: Readonly<Record<ImportPreviewKind, readonly [one: strin
   backgrounds: ["background", "backgrounds"],
   groups: ["group", "groups"],
   orphans: ["character made from chats with no card", "characters made from chats with no card"],
+  documents: ["Data Bank file", "Data Bank files"],
+  gallery: ["gallery image", "gallery images"],
 };
 
 export function counted(count: number, [one, many]: readonly [string, string]): string {

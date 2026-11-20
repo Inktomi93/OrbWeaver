@@ -22,6 +22,7 @@ import type {
   DocumentAttachmentsView,
   DocumentDetailView,
   DocumentView,
+  ImportAttachedDocument,
   IngestRunResult,
   ReindexMode,
   ReindexResult,
@@ -217,6 +218,8 @@ export interface DatabankService {
   /** The sync canon write: CAS store → extract → documents row → enqueue the ingest workload. A failed
    *  extraction fails the upload atomically (nothing persisted — `extractedText` is NOT NULL canon). */
   readonly upload: (params: UploadDocumentParams) => Promise<UploadResult>;
+  /** A profile import's document: the upload, then every scope it carried attached. */
+  readonly importAttached: ImportAttachedDocument<AbortSignal>;
   /** origin 'text' — no bytes, no extraction; straight to canon + enqueue ingest. */
   readonly createFromText: CreateDocumentFromText<AbortSignal>;
   /** origin 'web' (DB7): fetch the page over the ANY_HOST safeFetch guard → html extraction → the §2 canon

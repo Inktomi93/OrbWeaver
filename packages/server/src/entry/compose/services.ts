@@ -1374,6 +1374,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       bumpStatsCanonVersion,
     }),
     databankCtx: databankPortability,
+    importAttachedDocument: databank.importAttached,
     persona,
     exportService,
     exportCurrentCard,

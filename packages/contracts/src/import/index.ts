@@ -74,6 +74,20 @@ const ST_PROFILE_HANDLED_ENTRIES = [
 
 export type StProfileHandledEntry = (typeof ST_PROFILE_HANDLED_ENTRIES)[number];
 
+/** The ST profile directory of per-user uploads. Only the planes in {@link StUserPlane} import from it. */
+export const ST_USER_DIR = "user";
+
+// The `user/` planes the importer reads: the Data Bank's text files and the per-character gallery folders.
+const ST_USER_PLANES = ["files", "images"] as const;
+
+export type StUserPlane = (typeof ST_USER_PLANES)[number];
+
+/** The `user/` plane holding the Data Bank's files, each already converted to text by SillyTavern. */
+export const ST_DATABANK_PLANE = "files" satisfies StUserPlane;
+
+/** The `user/` plane holding one gallery folder per character. */
+export const ST_GALLERY_PLANE = "images" satisfies StUserPlane;
+
 const TEXT_COMPLETION_TEMPLATES = "text-completion templates, which Orbweaver does not use";
 const TEXT_COMPLETION_PRESETS = "text-completion presets, which Orbweaver does not use";
 const TEXT_COMPLETION_LIVE = "the live text-completion preset, which Orbweaver does not use";
@@ -96,7 +110,7 @@ export const ST_PROFILE_UNHANDLED_REASONS: ReadonlyMap<string, string> = new Map
   ["backups/", "SillyTavern's chat backups; your live chats import"],
   ["thumbnails/", "cached avatar thumbnails, which Orbweaver makes itself"],
   ["_cache/", "SillyTavern's internal cache"],
-  ["user/", "SillyTavern's image-generation workflows"],
+  ["user/workflows/", "ComfyUI image-generation workflows, which Orbweaver does not use"],
   [ST_SECRETS_FILE, "your API keys, which never leave this browser; add them again in Orbweaver"],
   ["stats.json", "usage statistics, which Orbweaver counts itself"],
   ["content.log", "SillyTavern's log file"],
@@ -115,7 +129,7 @@ export const ST_SETTINGS_UNHANDLED_REASONS: ReadonlyMap<string, string> = new Ma
   ["horde_settings", "Horde backend config — no import canon"],
   [
     "extension_settings",
-    "extension state — READ for regex (global scripts import; see the regex section; regex_presets/character_allowed_regex have no orb counterpart) and INVENTORIED for the Data Bank index (attachments/character_attachments); the rest is out of scope",
+    "extension state — READ for regex (global scripts import; see the regex section; regex_presets/character_allowed_regex have no orb counterpart) and READ for the Data Bank index (attachments, character_attachments, disabled_attachments) and the gallery folder overrides (gallery.folders), whose files import; the rest is out of scope",
   ],
   ["background", "which background was SELECTED — selection state; the background IMAGES themselves import"],
   ["proxies", "connection proxy config — no import canon"],
@@ -134,13 +148,20 @@ export const ST_SETTINGS_UNHANDLED_REASONS: ReadonlyMap<string, string> = new Ma
 ]);
 
 /** The reason a top-level profile entry is not imported, or null when the importer reads it. `name` is the
- *  bare entry name; `isDirectory` selects the `name/` spelling the reason map uses. */
+ *  bare entry name; `isDirectory` selects the `name/` spelling the reason map uses. `child` is the entry's next path
+ *  segment: `user/` imports only its {@link StUserPlane} planes, so each other child is judged on its own. */
 export function stProfileEntryDisposition(
   name: string,
   isDirectory: boolean,
+  child?: string,
 ): { readonly handled: true } | { readonly handled: false; readonly reason: string | null } {
   if ((ST_PROFILE_HANDLED_ENTRIES as readonly string[]).includes(name)) {
     return { handled: true };
+  }
+  if (name === ST_USER_DIR && isDirectory && child !== undefined) {
+    return (ST_USER_PLANES as readonly string[]).includes(child)
+      ? { handled: true }
+      : { handled: false, reason: ST_PROFILE_UNHANDLED_REASONS.get(`${ST_USER_DIR}/${child}/`) ?? null };
   }
   return { handled: false, reason: ST_PROFILE_UNHANDLED_REASONS.get(isDirectory ? `${name}/` : name) ?? null };
 }

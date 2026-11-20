@@ -128,6 +128,36 @@ export interface CollectedBackground {
   readonly bytes: Uint8Array;
 }
 
+/** One ST Data Bank file a profile's attachment index names, with every scope SillyTavern attached it under. ST keeps
+ *  each file already converted to text. `importHash` is the databank's own dedup key over the bytes. */
+export interface CollectedDocument {
+  /** The file's path in the profile (`user/files/<file>`). */
+  readonly sourceFile: string;
+  readonly name: string;
+  readonly bytes: Uint8Array;
+  readonly importHash: string;
+  /** Listed in `extension_settings.attachments`: active in every chat. */
+  readonly global: boolean;
+  /** The cards `extension_settings.character_attachments` attaches it to, resolved by card filename. */
+  readonly cards: readonly CollectedCard[];
+  /** The transcripts whose `chat_metadata.attachments` name it. */
+  readonly chats: readonly CollectedChat[];
+  /** Switched off in SillyTavern (`extension_settings.disabled_attachments`). Orbweaver has no switched-off scope, so
+   *  the document lands in the library with no scope. */
+  readonly disabled: boolean;
+}
+
+/** One image of a character's ST gallery folder (`user/images/<folder>/`), with every card that folder belongs to. */
+export interface CollectedGalleryImage {
+  /** The image's path in the profile. */
+  readonly sourceFile: string;
+  readonly name: string;
+  readonly mime: string;
+  readonly bytes: Uint8Array;
+  /** Never empty: a folder no card names is a recorded skip, because a gallery row with no character is never shown. */
+  readonly cards: readonly [CollectedCard, ...CollectedCard[]];
+}
+
 /** One ST group definition + the transcripts its own `chats[]` list claimed, already parsed. Members are
  *  UNRESOLVED here (card filenames) — the driver resolves them to characterIds after the character wave, which
  *  is the only point at which the mapping exists. */
@@ -175,12 +205,16 @@ export interface CollectResult {
   /** ST's per-character EXTRA lorebook bindings (`world_info_settings.world_info.charLore`): card filename
    *  STEM → book NAMES. The driver attaches them role `auxiliary` after the standalone-world wave. */
   readonly extraBooksByCardStem: ReadonlyMap<string, readonly string[]>;
-  /** Files under `user/files/` — ST's Data Bank plane (orb counterpart: `domain/databank`). COUNTED so the
-   *  report names the plane; the write wave is a named follow-up (the plane is empty on the real corpus). */
-  readonly databankFileCount: number;
-  /** Files under `user/images/` (incl. per-character gallery subdirs — orb counterpart: the assets gallery
-   *  verbs). COUNTED for the report; same follow-up posture as `databankFileCount`. */
-  readonly galleryImageCount: number;
+  /** ST Data Bank files from `user/files/` that the attachment index names (the rest are in `skippedDocuments`). */
+  readonly documents: readonly CollectedDocument[];
+  /** ST gallery images from `user/images/<folder>/` whose folder belongs to a card of the profile. */
+  readonly galleryImages: readonly CollectedGalleryImage[];
+  /** A Data Bank file or index entry that does not import, with why (recorded, never silent). */
+  readonly skippedDocuments: { readonly file: string; readonly reason: string }[];
+  /** A Data Bank file that imports without a scope SillyTavern gave it, with why. */
+  readonly documentNotes: { readonly file: string; readonly reason: string }[];
+  /** A gallery file or folder that does not import, with why (recorded, never silent). */
+  readonly skippedGalleryImages: { readonly file: string; readonly reason: string }[];
   readonly orphanChatDirs: string[];
   /** The orphan dirs' TRANSCRIPTS, with their evidence (the original dir name + the parsed headers) — the
    *  mint-a-placeholder wave's input. Without it the chats would be counted, named, and thrown away. */

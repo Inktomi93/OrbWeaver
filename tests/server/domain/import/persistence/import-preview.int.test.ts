@@ -202,12 +202,13 @@ test("two group files that share a name stay two when a split folder's previews 
 test("one source skipped two ways keeps both rows across a split folder, and a repeat of the same skip stays one", async () => {
   await using root = await harness();
   const shared = { [ST_SETTINGS_FILE]: settings({}), "movingUI/layout.json": "{}" };
-  const first = await dryRun(root, { ...shared, "user/files/a.txt": "a" });
-  const second = await dryRun(root, { ...shared, "user/files/b.txt": "b", "user/files/c.txt": "c" });
+  // A gallery folder no card owns is one skip whose reason counts its files, so the two uploads skip it two ways.
+  const first = await dryRun(root, { ...shared, "user/images/Nobody/a.png": "a" });
+  const second = await dryRun(root, { ...shared, "user/images/Nobody/b.png": "b", "user/images/Nobody/c.png": "c" });
 
   const merged = mergeImportPreviews([first, second]);
 
-  expect(merged.skipped.items.filter((item) => item.source.path === "user/files/")).toHaveLength(2);
+  expect(merged.skipped.items.filter((item) => item.source.path === "user/images/Nobody/")).toHaveLength(2);
   expect(merged.skipped.items.filter((item) => item.source.path === "movingUI/")).toHaveLength(1);
 });
 
@@ -226,7 +227,7 @@ test("a skip's reason is one short line per kind of skip, carrying no field name
   const reasonOf = (source: string): string => present(preview.skipped.items.find((item) => item.source.path === source)).reason;
   expect(reasonOf("themes/one.json")).toBe(reasonOf("themes/two.json"));
   expect(reasonOf("world_info_settings")).toBe(reasonOf("extension_settings"));
-  expect(reasonOf("user/")).toBe(reasonOf("reasoning/"));
+  expect(reasonOf("user/workflows/")).toBe(reasonOf("reasoning/"));
   const reasons = nonEmpty(preview.skipped.items.map((item) => item.reason));
   expect(reasons.filter((reason) => reason.includes("`") || /[a-z]_[a-z]/u.test(reason))).toEqual([]);
   expect(Math.max(...reasons.map((reason) => reason.length))).toBeLessThan(IMPORT_PREVIEW_TEXT_MAX);
