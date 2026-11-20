@@ -377,6 +377,7 @@ export {
   useRegexBulkActive,
   useRegexBulkSelectedIds,
 } from "./regex-bulk-store.ts";
+export { clearRegexRowRequest, requestRegexRow, useRequestedRegexRow } from "./regex-row-request-store.ts";
 export { applyRpgRoundEvent, clearRpgRounds, useRpgRoundPending } from "./rpg-round-store.ts";
 export { clearRpgStatusSheetRequest, requestRpgStatusSheet, useRequestedRpgStatusSheet } from "./rpg-status-sheet-request-store.ts";
 export type { RuleCreation } from "./rule-creation-store.ts";

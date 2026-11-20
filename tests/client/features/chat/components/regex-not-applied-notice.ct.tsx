@@ -28,7 +28,12 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import { CHAT_CONTEXT_TAB_LABELS } from "#client/features/chat/lib/chat-context-tab-labels.ts";
-import { REGEX_NOT_APPLIED_MARK, regexNotAppliedReason } from "#client/features/chat/lib/regex-stop-copy.ts";
+import {
+  REGEX_NOT_APPLIED_MARK,
+  REGEX_STOP_OPEN_ROOM_NAME,
+  REGEX_STOP_OPEN_SCRIPT_NAME,
+  regexNotAppliedReason,
+} from "#client/features/chat/lib/regex-stop-copy.ts";
 import { regexNotAppliedNotice, warningNotice } from "#client/features/chat/lib/warning-notice.ts";
 import { ALERTS_REGION_NAME, TOAST_CLOSE_NAME } from "#ui/primitives/toast/toast-names.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
@@ -209,4 +214,48 @@ test("scripts past a turn's naming cap join the notice as a count that a replay 
   // The positive control: a higher count raises the notice once, showing that turn's count and not a running sum.
   await expect(noticeToast(page, regexNotAppliedNotice([{ name: SLOW.name, ...HISTORY }], OVERFLOW + 2))).toBeVisible();
   await expect(toasts).toHaveCount(1);
+});
+
+test("the notice's action lands on the stopped script's row and leaves the roster uncovered", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness();
+  const host = await root.internalCallerFor(root.ownerId);
+  const chatId = await findHostedRoom(host);
+  const slow = await host.regex.createScript({ input: { ...SLOW, targets: ["AI_OUTPUT"], passes: ["display", "prompt"] } });
+  await host.regex.attachGlobal({ scriptId: slow.id });
+  await serveHostedRoom(page, { root, corpus, host, chatId });
+  const socket = await routeOrbSocket(page, { awaitRooms: [{ channel: "chat", chatId }], frames: [warning(chatId, slow.id, HISTORY, FIRST_SEQ)] });
+  await mount<typeof ChatRoomShellStory>(STORY, { chatId, socket: true });
+  await socket.served();
+
+  const notice = noticeToast(page, regexNotAppliedNotice([{ name: SLOW.name, ...HISTORY }]));
+  await expect(notice).toBeVisible();
+  // The context panel is shut and its Regex section is closed, so the row is nowhere on screen until the action runs.
+  await expect(rosterRow(page, SLOW.name)).toHaveCount(0);
+  await notice.getByRole("button", { name: REGEX_STOP_OPEN_SCRIPT_NAME, exact: true }).click();
+
+  // The notice has gone, so it covers nothing; the row is on screen, in view, and holds focus.
+  await expect(page.locator('[data-slot="toast-root"]')).toHaveCount(0);
+  const row = rosterRow(page, SLOW.name);
+  await expect(row).toBeVisible();
+  await expect(row).toBeInViewport();
+  const item = page
+    .locator('[data-slot="regex-on-screen"] [role="listitem"]')
+    .filter({ has: page.locator('[data-slot="list-row-title"]').getByText(SLOW.name, { exact: true }) });
+  await expect(item).toBeFocused();
+});
+
+test("a notice that names no script in the library offers the tab, not a row", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness();
+  const host = await root.internalCallerFor(root.ownerId);
+  const chatId = await findHostedRoom(host);
+  const unknownId = root.idSource.typeId(ID_PREFIX.regexScript);
+  await serveHostedRoom(page, { root, corpus, host, chatId });
+  const socket = await routeOrbSocket(page, { awaitRooms: [{ channel: "chat", chatId }], frames: [warning(chatId, unknownId, UNKNOWN, FIRST_SEQ)] });
+  await mount<typeof ChatRoomShellStory>(STORY, { chatId, socket: true });
+  await socket.served();
+
+  const notice = noticeToast(page, regexNotAppliedNotice([{ name: null, ...UNKNOWN }]));
+  await expect(notice).toBeVisible();
+  await expect(notice.getByRole("button", { name: REGEX_STOP_OPEN_ROOM_NAME, exact: true })).toBeVisible();
+  await expect(notice.getByRole("button", { name: REGEX_STOP_OPEN_SCRIPT_NAME, exact: true })).toHaveCount(0);
 });

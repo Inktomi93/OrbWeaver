@@ -1,7 +1,16 @@
 // @subject packages/contracts/src/inference/capability/reads.ts
 // Where a token limit comes from, and what that means for a request: a guess holds nothing, a stated or declared limit
 // does, and a preset's own Max context tokens outranks a guessed window.
-import { contextLimitSource, GENERATION_FLOOR, maxOutputCoversThinking, outputCeilingOf, outputLimitSource, windowForPreset } from "@orb/contracts/inference";
+import {
+  contextLimitSource,
+  GENERATION_FLOOR,
+  maxOutputCoversThinking,
+  outputCeilingOf,
+  outputLimitSource,
+  SETTABLE_WINDOW_FLOOR,
+  windowFloorRaises,
+  windowForPreset,
+} from "@orb/contracts/inference";
 import { makeGenerationCapability } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 
@@ -63,6 +72,19 @@ test("a settable window still runs the preset's number within the trained maximu
   const settable = makeGenerationCapability({ context: { window: 4096, settable: { max: TRAINED_MAX } } });
   expect(windowForPreset(settable, PRESET_WINDOW).context.window).toBe(PRESET_WINDOW);
   expect(windowForPreset(settable, TRAINED_MAX * 2).context.window).toBe(TRAINED_MAX);
+});
+
+test("the floor raises the window only on a route that sends one, and only below the floor", () => {
+  const settable = makeGenerationCapability({ context: { window: TRAINED_MAX, settable: { max: TRAINED_MAX } } });
+  expect(windowFloorRaises(settable, SETTABLE_WINDOW_FLOOR - 1)).toBe(true);
+  expect(windowFloorRaises(settable, SETTABLE_WINDOW_FLOOR)).toBe(false);
+  expect(windowFloorRaises(settable, undefined)).toBe(false);
+  // No trained maximum stated: the guessed window yields to the preset's number, which the native send then floors.
+  const sendsOnly = makeGenerationCapability({ context: { ...guessed.context, sendsWindow: true } });
+  expect(windowFloorRaises(sendsOnly, SETTABLE_WINDOW_FLOOR - 1)).toBe(true);
+  expect(windowFloorRaises(sendsOnly, SETTABLE_WINDOW_FLOOR)).toBe(false);
+  // A route that sends no window never runs the floor, whatever the preset asks.
+  expect(windowFloorRaises(guessed, SETTABLE_WINDOW_FLOOR - 1)).toBe(false);
 });
 
 test("max output covers the thinking on a model that thinks, except a budget-mode model on a wire whose SDK adds the budget", () => {

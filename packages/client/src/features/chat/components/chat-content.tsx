@@ -9,19 +9,32 @@
 
 import type { TurnAbortReason } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
-import type { RegexScriptId } from "@orb/kit/ids";
+import type { ChatId, PresetId, RegexScriptId } from "@orb/kit/ids";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { ChatBusDeps } from "#data";
-import { useChatBusDeps, useTRPC } from "#data";
+import { peekQueryData, roomRosterOptions, seedPresetId, useChatBusDeps, useTRPC } from "#data";
 import type { ChatContextTabId, ChatSurfaceContribution, ContributorRegistry, NotifyAction, NotifyNotice, ToolRenderer } from "#lib";
 import { MODEL_ROLES_PATH, notify, RERANK_ROLE_DOOR, rethrowUnlessTrpcFailure, turnAbortNotice, UTILITY_ROLE_DOOR } from "#lib";
-import { isLanding, openConfigTo, openNewChatPicker, revealContextPanel, useActiveChatHandle } from "#state";
+import {
+  isLanding,
+  openConfigTo,
+  openNewChatPicker,
+  requestRegexRow,
+  revealContextPanel,
+  selectPreset,
+  setActiveSection,
+  setChatContextSectionOpen,
+  setPresetEditorView,
+  useActiveChatHandle,
+} from "#state";
+import { CHAT_CONTEXT_SECTION_IDS } from "../lib/chat-context-section-ids.ts";
 import { leaveGoneRoom } from "../lib/gone-room-draft.ts";
-import { REGEX_STOP_OPEN_ROOM_NAME } from "../lib/regex-stop-copy.ts";
+import { REGEX_STOP_OPEN_ROOM_NAME, REGEX_STOP_OPEN_SCRIPT_NAME } from "../lib/regex-stop-copy.ts";
 import { OPEN_CONNECTIONS_NAME } from "../lib/send-failure-copy.ts";
 import { createWarningSurface } from "../lib/turn-warning-surface.ts";
+import { OPEN_PARAMS_NAME } from "../lib/warning-notice.ts";
 import { ChatLandingSurface } from "../surfaces/chat-landing-surface.tsx";
 import { ChatRoomSurface } from "../surfaces/chat-room-surface.tsx";
 
@@ -66,7 +79,8 @@ const OPEN_RERANK_MODEL: NotifyAction = {
   },
 };
 
-// A skipped regex script is listed with its reason in the room's This chat tab, under Regex.
+// A skipped regex script is listed with its reason in the room's This chat tab, under Regex. A notice that names one
+// script opens that section and lands on the script's row; a count alone opens the tab.
 const SETTINGS_TAB: ChatContextTabId = "settings";
 const OPEN_THIS_CHAT: NotifyAction = {
   label: REGEX_STOP_OPEN_ROOM_NAME,
@@ -74,6 +88,30 @@ const OPEN_THIS_CHAT: NotifyAction = {
     revealContextPanel(SETTINGS_TAB);
   },
 };
+function openScriptRow(scriptId: RegexScriptId): NotifyAction {
+  return {
+    label: REGEX_STOP_OPEN_SCRIPT_NAME,
+    onClick: (): void => {
+      revealContextPanel(SETTINGS_TAB);
+      setChatContextSectionOpen(CHAT_CONTEXT_SECTION_IDS.regex, true);
+      requestRegexRow(scriptId);
+    },
+  };
+}
+
+// A setting the model dropped is the preset's: the door opens that preset on its Params view, where the Capability card
+// says what the connected model honors. The Params view is named by its id in the preset editor's view tuple.
+const PARAMS_VIEW = "params";
+function openParams(presetId: PresetId): NotifyAction {
+  return {
+    label: OPEN_PARAMS_NAME,
+    onClick: (): void => {
+      selectPreset(presetId);
+      setPresetEditorView(PARAMS_VIEW);
+      setActiveSection("presets");
+    },
+  };
+}
 
 // The honest-degrade seam: a domain `warning` bus event surfaces through the injected callbacks — `data/` may
 // not import `features/`, so the cadence and the code→copy mapper are wired HERE, in the feature. It's a WARN
@@ -97,6 +135,13 @@ export function ChatContent({ surfaceContributors, toolRenderers }: ChatContentP
         return null;
       },
     );
+  // The preset the host's turns run is the host's own default; only the host's client can read it, so a member's room has none.
+  const presetOf = (chatId: ChatId): PresetId | null => {
+    if (peekQueryData(queryClient, roomRosterOptions(trpc, { chatId }).queryKey)?.viewerIsHost !== true) {
+      return null;
+    }
+    return seedPresetId(peekQueryData(queryClient, trpc.settings.getUserSettings.queryOptions().queryKey)?.config.seeds.defaultPresetId);
+  };
   // One cadence per mounted Chats body: it remembers the last turn's drops per connection across room switches.
   const [warningSurface] = useState(() =>
     createWarningSurface({
@@ -105,6 +150,9 @@ export function ChatContent({ surfaceContributors, toolRenderers }: ChatContentP
       openUtilityModel: OPEN_UTILITY_MODEL,
       openRerankModel: OPEN_RERANK_MODEL,
       openThisChat: OPEN_THIS_CHAT,
+      openScriptRow,
+      presetOf,
+      openParams,
       scriptOf,
     }),
   );

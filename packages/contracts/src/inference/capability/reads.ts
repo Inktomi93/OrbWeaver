@@ -115,6 +115,19 @@ export function windowForPreset(capability: GenerationCapability, maxContextToke
   return guessed === true ? { ...capability, context: { ...context, window: maxContextTokens } } : capability;
 }
 
+/** Does the floor raise the window a route sends above what the turn asked for? Only a route that sends the window can:
+ *  with a trained maximum stated, the preset's Max context tokens (or the window when it is blank) is raised to
+ *  {@link SETTABLE_WINDOW_FLOOR}; with none stated, the window the turn budgets is. The Ollama native send floors
+ *  `num_ctx` the same way (`nativeWindow`). */
+export function windowFloorRaises(capability: GenerationCapability, maxContextTokens: number | undefined): boolean {
+  const { settable, sendsWindow, window } = capability.context;
+  if (settable === undefined && sendsWindow !== true) {
+    return false;
+  }
+  const asked = settable === undefined ? windowForPreset(capability, maxContextTokens).context.window : (maxContextTokens ?? window);
+  return asked < SETTABLE_WINDOW_FLOOR;
+}
+
 export function acceptsImageInput(capability: GenerationCapability): boolean {
   return accepts(capability, "image");
 }

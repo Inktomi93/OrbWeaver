@@ -42,14 +42,18 @@ export function clampToServedWindow(capability: Capability, served: ServedWindow
  *  the trained maximum; `windowForPreset` applies it per turn. With no trained maximum stated the route is not marked
  *  settable, so `windowForPreset` treats its window like any other row's: a guessed window takes the preset's number as
  *  given for budgeting and a stated or declared one stands. The native row sends the window that results as `num_ctx`,
- *  held to the settable floor either way (`nativeWindow`). The mark is the route's alone: a stated one elsewhere is dropped. */
+ *  held to the settable floor either way (`nativeWindow`). `sendsWindow` marks the route whatever the server states, so the preset
+ *  editor can say when the floor raises the window; `settable` marks the trained maximum. Both are the route's alone: a stated one elsewhere is dropped. */
 export function markSettableWindow(capability: Capability, sendsWindow: boolean, trained: number | undefined): Capability {
-  const settable = sendsWindow && trained !== undefined ? { settable: { max: trained } } : {};
-  if (capability.kind !== "generation" || (!("settable" in settable) && capability.generation.context.settable === undefined)) {
+  if (capability.kind !== "generation") {
     return capability;
   }
-  const { settable: _replaced, ...context } = capability.generation.context;
-  return { kind: "generation", generation: { ...capability.generation, context: { ...context, ...settable } } };
+  const { settable: held, sendsWindow: marked, ...context } = capability.generation.context;
+  if (!sendsWindow && held === undefined && marked === undefined) {
+    return capability;
+  }
+  const marks = sendsWindow ? { sendsWindow: true, ...(trained === undefined ? {} : { settable: { max: trained } }) } : {};
+  return { kind: "generation", generation: { ...capability.generation, context: { ...context, ...marks } } };
 }
 
 /** A server's own tool-choice support, from the catalog entry its reader filled, laid onto whatever tools block

@@ -2,4 +2,5 @@
 export const CHAT_CONTEXT_SECTION_IDS = {
   hostControls: "host-controls",
   groupBehavior: "group-behavior",
+  regex: "regex",
 } as const;

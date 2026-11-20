@@ -386,6 +386,14 @@ export function presetBlankContextNote(window: string, source: LimitSource, sent
     : `Blank: history is trimmed to this model's window of ${window} tokens.`;
 }
 
+/** A Max context below the least window a route that sends one runs: the value stays saved and the floor goes out. A blank
+ *  row names the floor too, when the window the turn would send is under it. */
+export function presetWindowFloorNote(stored: string | undefined, floor: string): string {
+  return stored === undefined
+    ? `Blank: this window is under the ${floor}-token least this route sends, so ${floor} tokens go out.`
+    : `Saved as ${stored}, but this route sends at least ${floor} tokens, so ${floor} go out.`;
+}
+
 /** The delete confirm's list of the scripts only this preset uses. */
 export const PRESET_DELETE_SCRIPTS_REGION_NAME = "Scripts only this preset uses";
 

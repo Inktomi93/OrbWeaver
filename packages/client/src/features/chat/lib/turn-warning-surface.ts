@@ -6,11 +6,16 @@
 // the library no longer holds is named as such and marks nothing. A turn's scripts past the server's naming cap arrive
 // as one count with no id, so a later turn reports the same count again under a new seq: the notice shows the latest
 // turn's count, never a sum, and a count raises it again only when it is above the last one shown.
+//
+// A turn's drops are said once per PRESET AND CONNECTION PAIR (`turn-warning-cadence.ts`). The turn runs the host's
+// default preset, which only the host's client can read, so a member's pair carries no preset and a member's notice has
+// no Params door. The room bus names the turn's provider and model and no connection row, so two rows on one provider
+// and model are one connection here.
 
-import type { ChatRegexNotAppliedWarning, ChatWarning } from "@orb/contracts/chat";
-import { REGEX_NOT_APPLIED_OVERFLOW_CODE, REGEX_SCRIPT_NOT_APPLIED_CODE } from "@orb/contracts/chat";
+import type { ChatRegexNotAppliedWarning, ChatSettingsAdjustedWarning, ChatWarning } from "@orb/contracts/chat";
+import { REGEX_NOT_APPLIED_OVERFLOW_CODE, REGEX_SCRIPT_NOT_APPLIED_CODE, SETTINGS_ADJUSTED_CODE } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
-import type { RegexScriptId } from "@orb/kit/ids";
+import type { ChatId, PresetId, RegexScriptId } from "@orb/kit/ids";
 import type { ChatBusDeps } from "#data";
 import type { NotifyAction, NotifyNotice } from "#lib";
 import { noteServerStoppedScript } from "#lib";
@@ -26,9 +31,19 @@ export interface WarningSurfaceDeps {
   readonly openRerankModel: NotifyAction;
   /** Opens the room's This chat tab, whose Regex section lists a skipped script with its reason. */
   readonly openThisChat: NotifyAction;
+  /** Lands on one script's row in that Regex section. */
+  readonly openScriptRow: (scriptId: RegexScriptId) => NotifyAction;
+  /** The preset the host's turns run (their default), or `null` for the built-in default or a viewer who is not the host. The
+   *  bus carries neither the preset nor a connection row, and a member cannot read the host's preset. */
+  readonly presetOf: (chatId: ChatId) => PresetId | null;
+  /** Opens a preset's editor on its Params view. */
+  readonly openParams: (presetId: PresetId) => NotifyAction;
   /** The host's own script with this id, or `null` when the library does not hold it or cannot be read. */
   readonly scriptOf: (scriptId: RegexScriptId) => Promise<Pick<RegexScriptRow, "id" | "name" | "findRegex"> | null>;
 }
+
+// Joins the preset and connection into the cadence's pair key; no id, provider or model holds a NUL.
+const PAIR_SEPARATOR = "\u0000";
 
 type WarningCallbacks = Required<Pick<ChatBusDeps, "onWarning" | "onTurnStarted" | "onTurnSettled">>;
 
@@ -39,8 +54,13 @@ export function createWarningSurface(deps: WarningSurfaceDeps): WarningCallbacks
     ["smart_arbitration_degraded", deps.openUtilityModel],
     ["speaker_rerank_unavailable", deps.openRerankModel],
   ]);
-  const raise = (notice: NotifyNotice, warnings: readonly ChatWarning[]): void => {
-    const action = warnings.map((warning) => actionFor.get(warning.code)).find((found) => found !== undefined);
+  // A dropped setting is the preset's: its notice offers the preset's Params, for the host who owns that preset.
+  const paramsDoor = (warnings: readonly ChatWarning[], chatId: ChatId): NotifyAction | undefined => {
+    const presetId = deps.presetOf(chatId);
+    return presetId !== null && warnings.some(namesParamsSetting) ? deps.openParams(presetId) : undefined;
+  };
+  const raise = (notice: NotifyNotice, warnings: readonly ChatWarning[], chatId: ChatId): void => {
+    const action = warnings.map((warning) => actionFor.get(warning.code)).find((found) => found !== undefined) ?? paramsDoor(warnings, chatId);
     deps.warn(action === undefined ? notice : { ...notice, action });
   };
   // Each skipped script's latest report this session, by id, in the order first reported.
@@ -50,7 +70,11 @@ export function createWarningSurface(deps: WarningSurfaceDeps): WarningCallbacks
   let shownMore = 0;
   const raiseRegexNotice = (): void => {
     shownMore = more;
-    deps.warn({ ...regexNotAppliedNotice([...skipped.values()], more), action: deps.openThisChat });
+    // The notice names the newest script, so its action lands on that script's row; a script the library no longer
+    // holds has no row, and a count alone names none.
+    const [newest] = [...skipped].reverse();
+    const action = newest === undefined || newest[1].name === null ? deps.openThisChat : deps.openScriptRow(newest[0]);
+    deps.warn({ ...regexNotAppliedNotice([...skipped.values()], more), action });
   };
   const raiseSkipped = async (warning: ChatRegexNotAppliedWarning): Promise<void> => {
     const script = await deps.scriptOf(warning.scriptId);
@@ -61,7 +85,7 @@ export function createWarningSurface(deps: WarningSurfaceDeps): WarningCallbacks
     raiseRegexNotice();
   };
   return {
-    onTurnStarted: (chatId, turn): void => cadence.turnStarted(chatId, `${turn.provider}\u0000${turn.model}`),
+    onTurnStarted: (chatId, turn): void => cadence.turnStarted(chatId, [deps.presetOf(chatId) ?? "", turn.provider, turn.model].join(PAIR_SEPARATOR)),
     onWarning: (warning, chatId): void => {
       const now = cadence.warning(chatId, warning);
       if (now === null) {
@@ -79,13 +103,50 @@ export function createWarningSurface(deps: WarningSurfaceDeps): WarningCallbacks
         raiseSkipped(now).catch(globalThis.reportError);
         return;
       }
-      raise(warningNotice(now), [now]);
+      raise(warningNotice(now), [now], chatId);
     },
     onTurnSettled: (chatId): void => {
       const drops = cadence.turnSettled(chatId);
       if (drops !== null) {
-        raise(turnDropsNotice(drops), drops);
+        raise(turnDropsNotice(drops), drops, chatId);
       }
     },
   };
+}
+
+/** Does this warning name a setting the preset's Params holds? */
+function namesParamsSetting(warning: ChatWarning): boolean {
+  return warning.code === SETTINGS_ADJUSTED_CODE && adjustmentNamesParamsSetting(warning.adjustment);
+}
+
+/** Total over the adjustment classes, so a new class fails `tsc` until it says whether Params can fix it: the rest are
+ *  tool, cache and prompt-shape facts of the connection or the turn. */
+function adjustmentNamesParamsSetting(adjustment: ChatSettingsAdjustedWarning["adjustment"]): boolean {
+  switch (adjustment) {
+    case "sampling_knob_dropped":
+    case "sampling_knob_conflict":
+    case "effort_dropped":
+    case "adaptive_budget_dropped":
+    case "display_dropped":
+    case "verbosity_dropped":
+    case "reasoning_mandatory_clamp":
+    case "reasoning_budget_clamped":
+    case "carry_reasoning_downgraded":
+    case "provider_compatibility_mode":
+      return true;
+    case "dynamic_context_demoted":
+    case "tool_result_error_dropped":
+    case "reasoning_dropped_for_prefill":
+    case "prefill_reasoning_dropped":
+    case "prefill_suppressed_by_tools":
+    case "tool_choice_downgraded":
+    case "cache_control_adjusted":
+      return false;
+    default:
+      return assertNeverAdjustment(adjustment);
+  }
+}
+
+function assertNeverAdjustment(adjustment: never): never {
+  throw new Error(`namesParamsSetting: unhandled adjustment ${JSON.stringify(adjustment)}`);
 }

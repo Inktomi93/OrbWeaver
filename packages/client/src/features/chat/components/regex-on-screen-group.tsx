@@ -33,12 +33,13 @@ import { ListRow } from "@orb/ui/list-row";
 import { MenuItem } from "@orb/ui/menu";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
+import { useEffect, useRef } from "react";
 import { MutedLine, RegexAxesGlyphs, RowActionsMenu } from "#components";
 import { roomRosterOptions, useDisplayEntries, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { StoppedDisplayScript } from "#lib";
 import { ROW_MORE_LEAD, regexScriptTitle, rowActionSubject, rowQualifiers, timeLib } from "#lib";
-import { openConfigTo, selectCollectionMember } from "#state";
+import { clearRegexRowRequest, openConfigTo, selectCollectionMember, useRequestedRegexRow } from "#state";
 import { useSetRegexScriptEnabled } from "../hooks/use-chat-regex-mutations.ts";
 import { useDisplayScriptStop } from "../hooks/use-display-text.ts";
 import type { RegexRosterOff, RegexRosterOffEntry } from "../lib/regex-section-model.ts";
@@ -76,9 +77,17 @@ export function RegexOnScreenGroup({ chatId, isHost, labels, switchedOff }: Rege
   const { data: owned } = useSuspenseQuery(trpc.regex.listScripts.queryOptions());
   const { data: chat } = useSuspenseQuery(roomRosterOptions(trpc, { chatId }));
   const stopOf = useDisplayScriptStop();
+  const requestedRow = useRequestedRegexRow();
   const ownedIds = new Set(owned.map((script) => script.id));
   const rows: readonly (RegexDisplayEntry & { readonly off?: RegexRosterOff })[] = [...entries, ...switchedOff];
   const names = withSeatNames(labels, rows, chat.participants);
+  const listsRequestedRow = requestedRow !== null && rows.some((row) => row.script.id === requestedRow);
+  // The roster's read has settled by the time it renders, so a request for a script it does not list never will match.
+  useEffect(() => {
+    if (requestedRow !== null && !listsRequestedRow) {
+      clearRegexRowRequest();
+    }
+  }, [requestedRow, listsRequestedRow]);
   // Two scripts can share a title, and a row's switch and menu then announce one name for two rows: the qualifier is resolved with the whole roster in hand.
   const qualifiers = rowQualifiers(
     rows.map((row) => ({ name: regexScriptTitle(row.script), at: row.script.updatedAt })),
@@ -93,7 +102,7 @@ export function RegexOnScreenGroup({ chatId, isHost, labels, switchedOff }: Rege
       ) : (
         <Stack gap="tight" role="list">
           {rows.map((row, index) => (
-            <Stack key={row.script.id} role="listitem">
+            <RosterItem key={row.script.id} requested={row.script.id === requestedRow}>
               <DisplayScriptRow
                 isYours={ownedIds.has(row.script.id)}
                 offReason={row.off === undefined || row.from === REGEX_VIEWER_SOURCE ? null : regexRosterOffReason(row.off, regexTierLever(row.from, names))}
@@ -102,12 +111,31 @@ export function RegexOnScreenGroup({ chatId, isHost, labels, switchedOff }: Rege
                 source={sourceWords(row.from, isHost, names)}
                 stop={stopOf(row.script)}
               />
-            </Stack>
+            </RosterItem>
           ))}
         </Stack>
       )}
       {isHost ? <HostDisplayScriptsControl chatId={chatId} /> : null}
     </Section>
+  );
+}
+
+/** One roster row's list item. A request for this script's row (the stopped-script notice's action) lands here: the row
+ *  scrolls to the middle of the pane and takes focus, so the reader is on the row the notice named, not above or below it. */
+function RosterItem({ requested, children }: { readonly requested: boolean; readonly children: ReactNode }): ReactElement {
+  const node = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!requested) {
+      return;
+    }
+    node.current?.scrollIntoView({ block: "center" });
+    node.current?.focus({ preventScroll: true });
+    clearRegexRowRequest();
+  }, [requested]);
+  return (
+    <Stack focusTarget={true} ref={node} role="listitem" tabIndex={-1}>
+      {children}
+    </Stack>
   );
 }
 
