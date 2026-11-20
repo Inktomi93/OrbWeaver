@@ -1,7 +1,7 @@
 // The plain-content notice's control lands in the production shell on the very control it names, at desktop and phone
 // widths: the character's Trust tab selected with her HTML rendering control showing, or the install's "Default for
 // characters" select showing Plain text. The shell, the transcript and every read are the real ones over a corpus root.
-// @subject packages/client/src/features/chat/components/plain-content-notice.tsx
+// @subject packages/client/src/components/plain-content-notice.tsx
 
 import { DEFAULT_HTML_STEP_SETTING_LABEL, HTML_TRUST_STEP_LABELS } from "@orb/client/lib";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
