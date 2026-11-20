@@ -197,7 +197,7 @@ type Journey = SurfaceWalk & {
   readonly presetMenus: { readonly id: string; readonly family: string; readonly leaves: readonly string[] }[];
 };
 
-async function enter(journey: Journey, section: OwnedSection): Promise<void> {
+async function enter(journey: Journey, section: OwnedSection, { composition = true }: { readonly composition?: boolean } = {}): Promise<void> {
   await journey.page.goto("/");
   await waitForAppReady(journey.page);
   await journey.action(`rail/${section}`, {
@@ -211,6 +211,9 @@ async function enter(journey: Journey, section: OwnedSection): Promise<void> {
   });
   await journey.requestPanes();
   observe(journey, `rail/${section}`, "visited", "Native Primary/You navigation completed with requested pane intent applied before surface capture");
+  if (!composition) {
+    return;
+  }
   const requested = (await content(journey).isVisible()) ? content(journey) : pane(journey, "list");
   await checkpoint(journey, `${section}/requested-pane-composition`, requested);
 }
@@ -918,6 +921,7 @@ async function homeSavedRosters(journey: Journey, trigger: Locator, id: string):
 }
 
 type CorpusTarget = (typeof CORPUS_SEARCH_TARGETS)[number];
+type CorpusMode = (typeof CORPUS_MODES)[number];
 
 async function corpusSemanticQuery(journey: Journey, target: Extract<CorpusTarget, { kind: "unified" }>): Promise<void> {
   const id = `corpus/explore/target/${target.id}/query`;
@@ -1041,7 +1045,7 @@ async function corpusTarget(journey: Journey, target: CorpusTarget): Promise<voi
   });
 }
 
-async function corpusMember(journey: Journey, mode: (typeof CORPUS_MODES)[number]): Promise<void> {
+async function corpusMember(journey: Journey, mode: CorpusMode): Promise<void> {
   if (mode === "explore") {
     for (const target of CORPUS_SEARCH_TARGETS) {
       expectSubject(journey, `corpus/explore/target/${target.id}`, "search-target");
@@ -1139,38 +1143,35 @@ async function corpusMember(journey: Journey, mode: (typeof CORPUS_MODES)[number
   );
 }
 
-async function corpus(journey: Journey): Promise<void> {
-  await enter(journey, "corpus");
-  for (const mode of CORPUS_MODES) {
-    expectSubject(journey, `corpus/mode/${mode}`, "mode");
-  }
+// One case per production mode keeps each inside the case budget; the first mode's case owns the rail's composition checkpoint.
+async function corpus(journey: Journey, mode: CorpusMode): Promise<void> {
+  await enter(journey, "corpus", { composition: mode === CORPUS_MODES[0] });
+  expectSubject(journey, `corpus/mode/${mode}`, "mode");
   await reveal(journey, "list");
-  for (const mode of CORPUS_MODES) {
-    const radio = journey.page
-      .getByRole("radiogroup", { name: CORPUS_MODE_NAME, exact: true })
-      .getByRole("radio", { name: CORPUS_MODE_LABELS[mode], exact: true });
-    await journey.action(`corpus/mode/${mode}`, {
-      action: async () => {
-        await radio.click();
-      },
-      ready: async () => {
-        await expect(radio).toHaveAttribute("aria-checked", "true");
-        await ready(pane(journey, "list"));
-      },
-    });
-    observe(journey, `corpus/mode/${mode}`, "visited", "Native production mode switch selected and its finder rendered");
-    if (mode === "explore") {
-      await loadCorpusCatalog(journey);
-    }
-    // The phone shell lands Insights on its dashboard (D271), so its finder sits behind the topbar list door.
-    await reveal(journey, "list");
-    await walkScope(journey, pane(journey, "list"), `corpus/${mode}/finder`);
-    await context(journey, `corpus/${mode}/whole`);
-    await corpusMember(journey, mode);
-    await context(journey, `corpus/${mode}/selected`);
-    await journey.requestPanes();
-    await reveal(journey, "list");
+  const radio = journey.page
+    .getByRole("radiogroup", { name: CORPUS_MODE_NAME, exact: true })
+    .getByRole("radio", { name: CORPUS_MODE_LABELS[mode], exact: true });
+  await journey.action(`corpus/mode/${mode}`, {
+    action: async () => {
+      await radio.click();
+    },
+    ready: async () => {
+      await expect(radio).toHaveAttribute("aria-checked", "true");
+      await ready(pane(journey, "list"));
+    },
+  });
+  observe(journey, `corpus/mode/${mode}`, "visited", "Native production mode switch selected and its finder rendered");
+  if (mode === "explore") {
+    await loadCorpusCatalog(journey);
   }
+  // The phone shell lands Insights on its dashboard (D271), so its finder sits behind the topbar list door.
+  await reveal(journey, "list");
+  await walkScope(journey, pane(journey, "list"), `corpus/${mode}/finder`);
+  await context(journey, `corpus/${mode}/whole`);
+  await corpusMember(journey, mode);
+  await context(journey, `corpus/${mode}/selected`);
+  await journey.requestPanes();
+  await reveal(journey, "list");
   observe(
     journey,
     "corpus/mutations",
@@ -2654,7 +2655,7 @@ async function extensions(journey: Journey): Promise<void> {
   await journey.requestPanes();
 }
 
-const JOURNEYS = { home, corpus, extensions, databank, presets, refinery } satisfies Record<OwnedSection, (journey: Journey) => Promise<void>>;
+const JOURNEYS = { home, extensions, databank, presets, refinery } satisfies Record<Exclude<OwnedSection, "corpus">, (journey: Journey) => Promise<void>>;
 
 async function platformGestures(journey: Journey): Promise<void> {
   const active = journey.page
@@ -2706,11 +2707,21 @@ function sectionJourney(flow: SurfaceFlow, section: OwnedSection): Journey {
   return journey;
 }
 
-/** One native case owns one real rail so a failed surface cannot hide unrelated journeys. */
-export async function walkSection(flow: SurfaceFlow, section: (typeof SURFACE_SECTION_IDS)[number]): Promise<void> {
+/** One native rail case. Corpus runs one case per production mode, which keeps each case inside its budget. */
+export type SurfaceRailCase =
+  | { readonly name: string; readonly section: Exclude<OwnedSection, "corpus"> }
+  | { readonly name: string; readonly section: "corpus"; readonly mode: CorpusMode };
+
+export const SURFACE_RAIL_CASES: readonly SurfaceRailCase[] = SURFACE_SECTION_IDS.flatMap((section): SurfaceRailCase[] =>
+  section === "corpus" ? CORPUS_MODES.map((mode) => ({ name: `${section} ${mode}`, section, mode })) : [{ name: section, section }],
+);
+
+/** One native case owns one real rail, or one mode of it, so a failed surface cannot hide unrelated journeys. */
+export async function walkSection(flow: SurfaceFlow, railCase: SurfaceRailCase): Promise<void> {
+  const { section } = railCase;
   const journey = sectionJourney(flow, section);
   try {
-    await JOURNEYS[section](journey);
+    await (railCase.section === "corpus" ? corpus(journey, railCase.mode) : JOURNEYS[railCase.section](journey));
     observe(journey, section, "visited", "Independent native rail itinerary completed; nested omissions retain their own explicit dispositions");
     skip(
       journey,
