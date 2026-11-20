@@ -30,10 +30,11 @@ export function createUpload(ctx: DatabankContext): DatabankService["upload"] {
       return { document: toDocumentView(existing, counts.get(existing.id) ?? 0), outcome: "duplicate", ingest: "skipped" };
     }
 
-    // The CAS write (content-addressed; `enforceMagic` verifies the byte signature) — kept as provenance so
+    // The CAS write (content-addressed; `enforceMagic` verifies the byte signature; `maxBytes` is the one place every
+    // Data Bank write, the route's and a profile import's, meets the admin's cap) — kept as provenance so
     // extraction can be re-run on an extractor upgrade. Extraction is synchronous — its failure must abort the
     // upload (propagates: Unsupported/ExtractionFailed) before any documents row exists.
-    const stored = await ctx.assetsStore({ principal, bytes, kind: "document", mime, enforceMagic: true });
+    const stored = await ctx.assetsStore({ principal, bytes, kind: "document", mime, enforceMagic: true, maxBytes: ctx.maxUploadBytes() });
     const extracted = await ctx.extractText(bytes, mime);
     const at = ctx.now();
     const id = ctx.newDocumentId();

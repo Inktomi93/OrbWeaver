@@ -213,7 +213,8 @@ export const DEFAULT_MAX_IMAGE_BYTES = 5_000_000;
 // 20 MiB). An admin override may only ever TIGHTEN below this — the schema max IS the belt so an over-belt
 // value drops at parse (fail-safe: a widen attempt never loosens the route/store cap). Floor 100 KB keeps a
 // fat-fingered near-zero cap from bricking every document upload.
-const MAX_DATABANK_BYTES_FLOOR = 100_000;
+/** The lowest Data Bank document cap an admin may set. */
+export const MAX_DATABANK_BYTES_FLOOR = 100_000;
 const MAX_DATABANK_BYTES_CEIL = DATABANK_UPLOAD_MAX_BYTES;
 
 // ── Prompt-cache depth floor (findings §5) ───────────────────────────────────────────────────────────────

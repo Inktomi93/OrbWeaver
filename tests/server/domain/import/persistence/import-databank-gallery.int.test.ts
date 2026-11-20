@@ -11,6 +11,7 @@
 
 import { readFile } from "node:fs/promises";
 import { ST_SETTINGS_FILE } from "@orb/contracts/import";
+import { MAX_DATABANK_BYTES_FLOOR } from "@orb/contracts/settings";
 import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { present } from "@orb/testkit/iso";
@@ -194,4 +195,22 @@ test("a second run of the same profile writes no Data Bank file and no gallery r
   expect(await documentsByName(root)).toEqual(documents);
   expect(await galleryAdded(root, before)).toEqual(gallery);
   expect(gallery).toEqual([await characterId(root, "Aria")]);
+});
+
+test("a profile's Data Bank file over the admin's Data Bank limit is named and stores nothing, and one under it lands", async () => {
+  await using root = await harness();
+  const principal = await root.principalFor(root.ownerId);
+  await root.services.settings.updateAppSettings({ principal, partial: { maxDatabankBytes: MAX_DATABANK_BYTES_FLOOR } });
+  const over = "x".repeat(MAX_DATABANK_BYTES_FLOOR + 1);
+  const files: Files = {
+    [ST_SETTINGS_FILE]: settings({}, { attachments: [attachmentOf("big.txt", "Big notes"), attachmentOf(NOTES, "Field notes")] }),
+    "user/files/big.txt": over,
+    [NOTES_PATH]: "The ford floods at dusk.",
+  };
+
+  const result = await finishRun(root, await admit(root, files));
+
+  expect([...(await documentsByName(root)).keys()]).toEqual(["Field notes"]);
+  const report = await readFile(present(result.reportPath), "utf8");
+  expect(report).toContain("big.txt");
 });

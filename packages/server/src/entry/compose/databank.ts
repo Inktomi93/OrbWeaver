@@ -45,6 +45,7 @@ export interface DatabankComposeDeps {
   readonly now: Clock;
   readonly audit: AuditWiring["log"];
   readonly assetsStore: DatabankAssemblyContext["assetsStore"];
+  readonly maxUploadBytes: DatabankAssemblyContext["maxUploadBytes"];
   readonly loadAssetBytes: DatabankAssemblyContext["loadAssetBytes"];
   readonly embeddings: Pick<EmbeddingsService, "store" | "pruneDocumentChunks" | "countDocumentChunks" | "countDocumentChunksByOwner">;
   readonly extractText: DatabankAssemblyContext["extractText"];
@@ -97,6 +98,7 @@ export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult 
     fanDatabankRoomsForMember: createFanDatabankMemberRooms(db, deps.emitChatEventLive, deps.logger),
     captureRoomReachForDelete: createDeleteReachCapture(db, deps.emitChatEventLive, deps.logger).databank,
     assetsStore: deps.assetsStore,
+    maxUploadBytes: deps.maxUploadBytes,
     loadAssetBytes: deps.loadAssetBytes,
     embeddingsStore: embeddings.store,
     pruneDocumentChunks: embeddings.pruneDocumentChunks,
